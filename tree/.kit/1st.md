@@ -75,8 +75,7 @@ carries the machinery, reached through the `kit` command on `PATH`. A release mi
 repository root, and `targets/<name>/` for each target taken; a `.json` destination is merged by key, everything
 else is copied as it is.
 
-- `kit issue`, `kit tidy`, and `kit status`, the loop's commands. A root justfile that wants `just issue 42` adds
-  a veneer recipe over `kit issue`.
+- `kit issue`, `kit tidy`, and `kit status`, the loop's commands, spelled that way and no other.
 - Two hooks. `pre-rebase` refuses a rebase of the default branch. `pre-commit` lints the staged paths. `kit install`
   points a clone's `core.hooksPath` at them, and every other clone runs `kit setup` once.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets

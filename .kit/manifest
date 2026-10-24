@@ -9,7 +9,7 @@ targets claude
 03c1e6962c59627d3de12b57f7c6d682c5aea58fb9336613bb66ef6fd5145985  .claude/rules/kit-yaml.md
 617c2e4ca3a72ae59ee898db2120519624a1ad58df5136d0d6f88df96ffdc13a  .claude/settings.json
 b9a38f19b571c70bb4ef7d3f25fd2b56ac0f6fc076cbcc8e318d22ad3ffe594f  .github/workflows/kit-ci.yml
-c65a92daf5acfe3ed1bd93e263594f6932321d2c4d8cec71521046a8dd137aa6  .kit/1st.md
+1ff42ec67c8ccbb02fcca51db20d0d6661205701689252d33909fcffa1597562  .kit/1st.md
 04543fa071df19f28e15f62b678881660391b1c620b001af7932822c7183f774  .kit/rules/bash.md
 0eedef778e1cdae63c731eec7a08055820726192006fba2148be7421535a22d5  .kit/rules/gitignore.md
 1e45ffbcca4dbcbd295e992bfa5874ffa9537b6f89911bf22608aa5785c54346  .kit/rules/json.md

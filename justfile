@@ -1,8 +1,8 @@
 #!/usr/bin/env just --justfile
 # justfile - see: https://just.systems/man/en/
 # ----------------------------------------------------------------------------------------------------------------------
-# The root justfile: the loop's three commands as veneers over bin/kit, the way a consumer adds them over the kit
-# on its PATH, the gate, and the refresh of this repository's own installed copy.
+# The root justfile: the gate, and the refresh of this repository's own installed copy. The loop's commands are
+# bin/kit issue, tidy, and status, spelled that way and no other.
 
 set dotenv-load := true
 set positional-arguments := true
@@ -19,33 +19,6 @@ _: help
   just --justfile "${root_justfile}" --list
 
 set export := true
-
-# The loop's three commands, each a veneer over bin/kit. A consumer that wants the same spelling writes the same
-# three recipes over the `kit` on its PATH.
-#
-#   just issue 42        # start #42
-#   just issue 42 43     # start #42, and close #43 with it
-[doc("🌿 Start or resume an issue: linked branch, worktree, start commit, draft pull request")]
-issue *numbers:
-  #!/usr/bin/env bash
-  set -o errexit -o nounset -o pipefail
-  bin/kit issue "$@"
-
-#   just tidy            # sweep
-#   just tidy --dry-run  # say what a sweep would do
-[doc("🧹 Remove merged worktrees and gone branches")]
-tidy *flags:
-  #!/usr/bin/env bash
-  set -o errexit -o nounset -o pipefail
-  bin/kit tidy "$@"
-
-#   just status            # fetch --prune, then render
-#   just status --no-fetch # render from the current remote-tracking refs
-[doc("📊 Show every worktree with its branch, pull request, and state")]
-status *flags:
-  #!/usr/bin/env bash
-  set -o errexit -o nounset -o pipefail
-  bin/kit status "$@"
 
 # The gate a pull request passes: shellcheck over every bash file, actionlint over every workflow, the bats
 # suite over bin/kit, and bin/kit check over this repository's installed copy of its own kit. Every tool comes

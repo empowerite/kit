@@ -30,7 +30,6 @@ change the set later, and `kit target list` prints it. Commit what it wrote. The
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
-- For `just issue 42`, add a veneer recipe over `kit issue` to the root justfile; `kit issue 42` works as it is.
 - In every other clone, run `kit setup` once to wire the hooks.
 
 The machinery, the `kit` command, the bash behind `kit issue`, `kit tidy`, and `kit status`, and the hooks, stays
@@ -66,13 +65,13 @@ This repository carries the installed copy of its own kit, and `just ci` checks 
 Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 - An issue exists. A change without an issue has not started.
-- `just issue <N>`, a veneer over `kit issue`, makes `worktrees/<N>-<slug>`, links the branch to the issue under
+- `kit issue <N>`, here `bin/kit issue <N>`, makes `worktrees/<N>-<slug>`, links the branch to the issue under
   Development, and opens a draft pull request. It never switches the checkout it runs from.
 - Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`.
 - `just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
   `bin/kit check`.
 - `gh pr ready` says the work is done, and the pull request body is the report.
-- A human merges. `just tidy` then removes the worktree and its branch.
+- A human merges. `kit tidy` then removes the worktree and its branch.
 
 ## Maintaining
 
