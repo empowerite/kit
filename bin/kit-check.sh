@@ -19,9 +19,9 @@ release:require-manifest
 read -r -a targets <<<"$(release:manifest-targets)"
 version=$(release:manifest-version)
 findings=0
-if [[ "${version}" != "$(cat "${kit_root}/version")" ]]
+if [[ "${version}" != "$(release:version)" ]]
 then
-  error ".kit/manifest records kit ${version}, and the pinned release is $(cat "${kit_root}/version"); run: kit update"
+  error ".kit/manifest records kit ${version}, and the pinned release is $(release:version); run: kit update"
   findings=$(( findings + 1 ))
 fi
 while IFS= read -r path

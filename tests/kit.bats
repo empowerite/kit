@@ -38,7 +38,7 @@ later-release() {
   grep --quiet '"\*\*/\*\.sh"' .claude/rules/kit-bash.md
   [ -f .github/workflows/kit-ci.yml ]
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
-  grep --quiet '^version 0.1.0$' .kit/manifest
+  grep --quiet '^version unreleased$' .kit/manifest
   grep --quiet '^targets claude$' .kit/manifest
 }
 
@@ -176,7 +176,7 @@ later-release() {
   mkdir shims && printf '#!/usr/bin/env bash\nexit 1\n' > shims/mise && chmod +x shims/mise
   run env PATH="${PWD}/shims:${PATH}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
-  [[ "$output" == *"base release 0.1.0 is not installed"* ]]
+  [[ "$output" == *"base release unreleased is not installed"* ]]
   rm -rf "${repo}.later"
 }
 

@@ -11,6 +11,12 @@
 #
 # Every function reads the release from kit_root, exported by bin/kit.
 
+# release:version prints this release's version: the file the release workflow stamps from the tag, and
+# "unreleased" in a checkout, which is what this repository's own installed copy records.
+release:version() {
+  cat "${kit_root}/version" 2>/dev/null || printf 'unreleased\n'
+}
+
 # release:layers <root> <target>… prints the directories mirrored at the repository root, tree first.
 release:layers() {
   local root=$1 t
@@ -131,7 +137,7 @@ release:write-manifest() {
   local path
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
-    printf 'version %s\n' "$(cat "${kit_root}/version")"
+    printf 'version %s\n' "$(release:version)"
     printf 'targets%s\n' "${*:+ $*}"
     while IFS= read -r path
     do
@@ -154,7 +160,7 @@ release:require-manifest() {
 
 # release:finish <target>… reports a completed install or update.
 release:finish() {
-  ok "kit $(cat "${kit_root}/version") is installed, targets: ${*:-none}; .kit/manifest is written."
+  ok "kit $(release:version) is installed, targets: ${*:-none}; .kit/manifest is written."
   step "Commit the delivered files. The loop is in .kit/1st.md."
 }
 

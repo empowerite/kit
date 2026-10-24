@@ -23,14 +23,14 @@ guard:require tool:jq tool:git
 release:require-manifest
 read -r -a targets <<<"$(release:manifest-targets)"
 previous=$(release:manifest-version)
-current=$(cat "${kit_root}/version")
+current=$(release:version)
 section "kit update ${previous} → ${current}${targets[*]:+, targets: ${targets[*]}}"
 
 base_root=""
 if [[ -n "${KIT_BASE:-}" ]]
 then
   base_root=${KIT_BASE}
-elif [[ "${previous}" != "${current}" ]] && command -v mise >/dev/null 2>&1
+elif [[ "${previous}" != "${current}" && "${previous}" != unreleased ]] && command -v mise >/dev/null 2>&1
 then
   base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
   if [[ -z "${base_root}" ]] && mise install --quiet "github:empowerite/kit@${previous}" 2>/dev/null

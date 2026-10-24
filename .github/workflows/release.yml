@@ -1,11 +1,12 @@
 # release.yml - a tag v<version> on main becomes a GitHub release carrying the kit as one tarball
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, and version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A release, v<major>.<minor>.<patch>,
+# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, and a stamped version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A release, v<major>.<minor>.<patch>,
 # is tagged on main (any commit on main, not only its head). A pre-release, the same with a -<suffix>, is tagged on
-# a commit that is not on main, and is published as a GitHub pre-release. Either way the file version at the tagged
-# commit is the version without the suffix, the one under development, and the packed kit carries the tag's full
-# version so a consumer pinning a pre-release sees it in kit version and .kit/manifest.
+# a commit that is not on main, and is published as a GitHub pre-release. The tag is the version: the repository
+# carries no version file, and the one in the packed kit is stamped here from the tag, so a consumer sees it in
+# kit version and .kit/manifest and kit update can name the previous release to mise. A release, once published,
+# is immutable, so a tag is never reused.
 #
 # see: .kit/1st.md
 
@@ -56,19 +57,6 @@ jobs:
           fi
           echo "✅ ${GITHUB_REF_NAME} is on the right side of ${default_branch} (on it: ${on_main})."
 
-      - name: tag-matches-version
-        run: |
-          set -o errexit -o nounset -o pipefail
-          tag_version=${GITHUB_REF_NAME#v}
-          base_version=${tag_version%%-*}
-          file_version=$(cat version)
-          if [[ "${base_version}" != "${file_version}" ]]
-          then
-            echo "::error::the tag says ${base_version} and version says ${file_version}; set version at the tagged commit first"
-            exit 1
-          fi
-          echo "✅ version is ${file_version}."
-
       - name: pack-and-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -77,8 +65,8 @@ jobs:
           version=${GITHUB_REF_NAME#v}
           staging=$(mktemp --directory)
           mkdir "${staging}/kit-${version}"
-          cp --recursive --no-dereference bin tree targets version "${staging}/kit-${version}/"
-          # the packed kit carries the tag's full version, suffix included; the repository file carries the base
+          cp --recursive --no-dereference bin tree targets "${staging}/kit-${version}/"
+          # the packed kit's version is the tag's, suffix included
           printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
           tar --create --gzip --file "kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
           sha256sum "kit-${version}.tar.gz" > "kit-${version}.tar.gz.sha256"

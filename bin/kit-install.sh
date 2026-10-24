@@ -22,7 +22,7 @@ then
   error "run: kit update (this repository already carries kit $(release:manifest-version))"
   exit 1
 fi
-section "kit install $(cat "${kit_root}/version")${*:+, targets: $*}"
+section "kit install $(release:version)${*:+, targets: $*}"
 while IFS= read -r path
 do
   step "${path}"

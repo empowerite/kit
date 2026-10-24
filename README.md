@@ -86,7 +86,7 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
 every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
-the same way; `bin/` and `version` are the machinery: `bin/kit` dispatches to one executable `bin/kit-<verb>.sh`
+the same way; `bin/` is the machinery: `bin/kit` dispatches to one executable `bin/kit-<verb>.sh`
 per verb, and the verbs source the modules beside them, `1st.sh`, `gh.sh`, `git.sh`, and `release.sh`. A symlink
 under `targets/` is delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
 
@@ -98,7 +98,7 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.github/workflows/kit-ci.yml` | `tree/.github/workflows/kit-ci.yml` |
 | `.claude/rules/kit-<kind>.md` | `targets/claude/.claude/rules/`, links into `tree/.kit/rules/` |
 | `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here only the kit's entries |
-| `.kit/manifest` | the release version, the targets taken, and a digest per delivered path |
+| `.kit/manifest` | the release version (`unreleased` here), the targets taken, and a digest per delivered path |
 
 After changing a file under `tree/` or `targets/`, run `just refresh`, which reinstalls the kit into this
 repository, and commit the result with the change. `bin/kit check`, which `just ci` runs, names any installed copy
@@ -107,11 +107,11 @@ that no longer matches its source. Each delivered text file says in its header t
 
 ## Release
 
-`version` carries the version under development, without a suffix. A release is the tag `v<version>` on a
-commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`, say `v0.1.0-rc.1`, on a commit that is
-not on `main`, and it is published as a GitHub pre-release. In both cases the workflow packs the release into
-`kit-<version>.tar.gz` with the tag's full version stamped into the packed `version`, and publishes the release.
-It refuses a tag that is not a version, a release tag off `main`, a pre-release tag on `main`, and a tag whose base
-version is not `version`.
+A release is the tag `v<version>` on a commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`,
+say `v0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a GitHub pre-release. The tag is the
+version: the repository carries no version file, the workflow stamps the tag's version into the packed kit, and a
+published release is immutable, so a tag is never reused. The workflow packs `bin/`, `tree/`, and `targets/` into
+`kit-<version>.tar.gz` and publishes the release; it refuses a tag that is not a version, a release tag off
+`main`, and a pre-release tag on `main`.
 
 Repository policy is managed by Terraform; see: empowerite/infrastructure/terraform/projects/kit/main.tf

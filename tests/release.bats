@@ -13,9 +13,11 @@ teardown() {
 }
 
 @test "the tarball holds one directory with the release's layout, and installs a fresh repository" {
-  version=$(cat "${kit_checkout}/version")
+  # packed the way the workflow packs it, with the tag's version stamped in
+  version=9.9.9
   mkdir "kit-${version}"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/version" "kit-${version}/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "kit-${version}/"
+  printf '%s\n' "${version}" > "kit-${version}/version"
   tar --create --gzip --file "kit-${version}.tar.gz" "kit-${version}"
   rm -rf "kit-${version}"
   mkdir unpacked && tar --extract --gzip --file "kit-${version}.tar.gz" --directory unpacked

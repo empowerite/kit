@@ -1,5 +1,5 @@
 # .kit/manifest - written by kit, not by hand
-version 0.1.0
+version unreleased
 targets claude
 389d14279648d69dbb1bf5454d22467f0f2d3aeec6b1844b01b2f2aeeaaeb9f5  .claude/rules/kit-bash.md
 0eedef778e1cdae63c731eec7a08055820726192006fba2148be7421535a22d5  .claude/rules/kit-gitignore.md
