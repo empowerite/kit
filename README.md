@@ -38,13 +38,13 @@ With Homebrew, from the empowerite tap:
 brew install empowerite/tap/kit
 ```
 
-Or by hand, with the version in `version`: unpack the release and put its `bin/` on `PATH`:
+Or by hand, with `gh`, which the kit needs anyway. Without a tag this takes the latest release, never a
+pre-release; `gh release download "v${version}" ...` takes a particular one. Unpack it and put its `bin/` on `PATH`:
 
 ```sh
-curl --location --output "kit-${version}.tar.gz" \
-  "https://github.com/empowerite/kit/releases/download/v${version}/kit-${version}.tar.gz"
-tar --extract --gzip --file "kit-${version}.tar.gz"
-export PATH="${PWD}/kit-${version}/bin:${PATH}"
+gh release download --repo empowerite/kit --pattern 'kit-*.tar.gz'
+tar --extract --gzip --file kit-*.tar.gz
+export PATH="${PWD}/$(ls -d kit-*/ | head -n 1)bin:${PATH}"
 ```
 
 The kit needs bash 4.4 or later, git, `gh`, and `jq`. macOS ships bash 3.2, and `brew install bash` gives a
