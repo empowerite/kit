@@ -25,5 +25,3 @@ Applies to `*.json` and `*.jsonc`.
 
 1. A comment states what the entry does and the non-obvious why. It carries no history.
 2. A pointer is `// see: <ref>`.
-
-<!-- refresh-proof -->
