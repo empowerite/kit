@@ -61,8 +61,11 @@ request body is the report. A human merges.
 
 ## Release
 
-A release is two steps on `main`: a pull request that sets `.kit/version`, then the tag `v<version>` on its merge
-commit. The release workflow packs `bin/` and `.kit/` into `kit-<version>.tar.gz` and publishes the GitHub
-release. It refuses a tag that is not on `main` or whose version differs from the file.
+`.kit/version` carries the version under development, without a suffix. A release is the tag `v<version>` on a
+commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`, say `v0.1.0-rc.1`, on a commit that is
+not on `main`, and it is published as a GitHub pre-release. In both cases the workflow packs `bin/` and `.kit/` into
+`kit-<version>.tar.gz` with the tag's full version stamped into the packed `.kit/version`, and publishes the release.
+It refuses a tag that is not a version, a release tag off `main`, a pre-release tag on `main`, and a tag whose base
+version is not `.kit/version`.
 
 Repository policy is managed by Terraform; see: empowerite/infrastructure/terraform/projects/kit/main.tf
