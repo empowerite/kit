@@ -41,26 +41,32 @@ The kit needs bash 4 or later, git, `gh`, and `jq`. macOS ships bash 3.2; `brew 
 
 ## Setup
 
-Every commit is signed, and the branch ruleset refuses one that is not. Once per clone:
+Every commit is signed, and the branch ruleset refuses one that is not. If you have no signing key GitHub
+verifies, make one and register it, following [generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
+and [adding a GPG key to your GitHub account](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account).
+Then, once per clone, with the key's id in `signing_key`:
 
 ```sh
 git config gpg.format openpgp
-git config user.signingkey <a key GitHub verifies for you>
+git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
+mise install
 ```
 
-Then `mise install` for the pinned tools. `bin/kit install claude` is already done: this repository carries the
-installed copy of its own kit, which `just ci` checks.
+This repository carries the installed copy of its own kit, and `just ci` checks it.
 
 ## Getting started
 
-Work here moves by the loop in [.kit/1st.md](.kit/1st.md). An issue exists. `just kit issue <N>` makes
-`worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a draft pull request. Commits
-are signed, and their subject is `#<N> <area>: <subject>`. `gh pr ready` says the work is done, and the pull
-request body is the report. A human merges.
+Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
-`just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
-`bin/kit check`.
+- An issue exists. A change without an issue has not started.
+- `just kit issue <N>` makes `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a
+  draft pull request. It never switches the checkout it runs from.
+- Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`.
+- `just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
+  `bin/kit check`.
+- `gh pr ready` says the work is done, and the pull request body is the report.
+- A human merges. `just kit tidy` then removes the worktree and its branch.
 
 ## Release
 
