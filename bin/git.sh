@@ -74,68 +74,111 @@ git:clean() {
   [[ -z "$(git -C "$1" status --porcelain 2>/dev/null)" ]]
 }
 
-# git:open-prs prints one line per open pull request: "<branch>\t<number>\t<Draft|Ready>\t<age in days>\t<checks>\t<title>",
-# where <checks> is "✅ n/n", "❌ k/n", "⏳ n", or "·" for none. One request, for the whole picture.
+# git:open-prs prints one record per open pull request, fields separated by tabs: branch, number, Draft or
+# Ready, age in days, checks, title, and the issues it closes as "number:title" joined by unit separators.
 git:open-prs() {
+  local repo query filter
+  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || return 0
+  # shellcheck disable=SC2016  # GraphQL variables, and a jq filter with jq variables
+  query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      pullRequests(states: OPEN, first: 50, orderBy: {field: CREATED_AT, direction: ASC}) {
+        nodes {
+          number title isDraft headRefName createdAt
+          closingIssuesReferences(first: 10) { nodes { number title } }
+          commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
+            ... on CheckRun { conclusion status }
+            ... on StatusContext { state }
+          } } } } } }
+        }
+      }
+    }
+  }'
   # shellcheck disable=SC2016  # a jq filter, with jq variables
-  gh pr list --state open --limit 100 --json number,title,isDraft,headRefName,createdAt,statusCheckRollup --jq '
-    .[] | [
+  filter='
+    .data.repository.pullRequests.nodes[] | [
       .headRefName,
       (.number | tostring),
       (if .isDraft then "Draft" else "Ready" end),
       (((now - (.createdAt | fromdateiso8601)) / 86400 | floor | tostring) + "d"),
-      ((.statusCheckRollup // []) as $c
+      ((.commits.nodes[0].commit.statusCheckRollup.contexts.nodes // []) as $c
         | ($c | length) as $n
-        | ([$c[] | select(.conclusion == "SUCCESS")] | length) as $ok
-        | ([$c[] | select(.conclusion != null and .conclusion != "SUCCESS" and .conclusion != "SKIPPED" and .conclusion != "NEUTRAL")] | length) as $bad
+        | ([$c[] | select(.conclusion == "SUCCESS" or .state == "SUCCESS")] | length) as $ok
+        | ([$c[] | select((.conclusion // .state // "") as $r | $r == "FAILURE" or $r == "ERROR" or $r == "TIMED_OUT" or $r == "CANCELLED" or $r == "ACTION_REQUIRED" or $r == "STARTUP_FAILURE")] | length) as $bad
         | if $n == 0 then "·"
-          elif $bad > 0 then "❌ \($bad)/\($n)"
-          elif $ok == $n then "✅ \($n)/\($n)"
-          else "⏳ \($n - $ok)/\($n)" end),
-      .title
-    ] | @tsv' 2>/dev/null || true
+          elif $bad > 0 then "❌ \($n - $bad) / \($n)"
+          elif $ok == $n then "✅ \($n) / \($n)"
+          else "⏳ \($ok) / \($n)" end),
+      .title,
+      ([.closingIssuesReferences.nodes[] | "\(.number):\(.title)"] | join("\u001f"))
+    ] | @tsv'
+  gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" --jq "${filter}" \
+    2>/dev/null || true
 }
 
-# git:short <text> [<width>] prints <text> cut to <width> columns, 16 by default, with an ellipsis when cut.
-git:short() {
-  local text=$1 width=${2:-16}
-  if (( ${#text} > width ))
-  then
-    printf '%s…\n' "${text:0:width-1}"
-  else
-    printf '%s\n' "${text}"
-  fi
+# git:pad <text> <width> prints <text> padded with spaces to <width> characters, counted as characters.
+git:pad() {
+  local text=$1 width=$2
+  printf '%s' "${text}"
+  (( ${#text} < width )) && printf '%*s' $(( width - ${#text} )) ''
+  return 0
 }
 
-# git:worktree-line <path> <branch> <main-root> <default-branch> prints the 🌿 line: the worktree's path, how far
-# its branch is ahead of and behind the default branch, and the size of its diff.
-git:worktree-line() {
-  local path=$1 branch=$2 main_root=$3 default_branch=$4 counts="0\t0" stat added=0 removed=0 dirty=""
-  if [[ -n "${branch}" ]]
-  then
-    counts=$(git rev-list --left-right --count "${branch}...origin/${default_branch}" 2>/dev/null || printf '0\t0')
-    stat=$(git diff --shortstat "origin/${default_branch}...${branch}" 2>/dev/null || true)
-    [[ "${stat}" =~ ([0-9]+)\ insertion ]] && added=${BASH_REMATCH[1]}
-    [[ "${stat}" =~ ([0-9]+)\ deletion ]] && removed=${BASH_REMATCH[1]}
-  fi
-  git:clean "${path}" || dirty=" · $(git -C "${path}" status --porcelain | grep --count .) uncommitted"
-  printf '   🌿 %s   ↑%s ↓%s · +%s -%s%s\n' "$(git:short "${path#"${main_root}"/}" 40)" "${counts%%$'\t'*}" "${counts##*$'\t'}" "${added}" "${removed}" "${dirty}" >&2
+# git:dim, git:red, git:green wrap a text in a color when stderr is a terminal.
+git:dim()   { printf '%s%s%s' "$(out:sgr 90)" "$*" "$(out:sgr 0)"; }
+git:red()   { printf '%s%s%s' "$(out:sgr 31)" "$*" "$(out:sgr 0)"; }
+git:green() { printf '%s%s%s' "$(out:sgr 32)" "$*" "$(out:sgr 0)"; }
+
+# git:divergence <branch> <default-branch> prints "↑a ↓b · +ins -del", colored, for the branch against origin.
+git:divergence() {
+  local branch=$1 default_branch=$2 counts stat added=0 removed=0
+  counts=$(git rev-list --left-right --count "${branch}...origin/${default_branch}" 2>/dev/null || printf '0\t0')
+  stat=$(git diff --shortstat "origin/${default_branch}...${branch}" 2>/dev/null || true)
+  [[ "${stat}" =~ ([0-9]+)\ insertion ]] && added=${BASH_REMATCH[1]}
+  [[ "${stat}" =~ ([0-9]+)\ deletion ]] && removed=${BASH_REMATCH[1]}
+  printf '%s %s · %s %s' "$(git:green "↑${counts%%$'\t'*}")" "$(git:red "↓${counts##*$'\t'}")" \
+    "$(git:green "+${added}")" "$(git:red "-${removed}")"
 }
 
-# git:pr-block <pr-line> <path> <main-root> <default-branch> prints one pull request: its line, the commits it
-# carries over the default branch, up to ten, and its worktree's line.
+# git:pr-block <record> <path> <main-root> <default-branch> <width> prints one pull request: its line, the issues
+# it closes, up to ten of the commits it carries over the default branch, and its worktree's line.
 git:pr-block() {
-  local branch number state age checks title path=$2 main_root=$3 default_branch=$4 shown=0 total line
-  IFS=$'\t' read -r branch number state age checks title <<<"$1"
-  printf '🔀 #%s %-17s %-6s %4s   %s\n' "${number}" "$(git:short "${title}")" "${state}" "${age}" "${checks}" >&2
+  local branch number state age checks title issues path=$2 main_root=$3 default_branch=$4 width=$5
+  local total shown=0 line issue colored
+  IFS=$'\t' read -r branch number state age checks title issues <<<"$1"
+  if [[ "${state}" == Draft ]]
+  then
+    colored=$(git:dim "draft")
+  else
+    colored=$(git:green "ready")
+  fi
+  printf '🔀 %s   %s   %4s   %s\n' "$(git:pad "#${number} ${title}" "${width}")" "${colored}" "${age}" "${checks}" >&2
+  if [[ -n "${issues}" ]]
+  then
+    while IFS= read -r issue
+    do
+      printf '   %s\n' "$(git:dim "#${issue%%:*} ${issue#*:}")" >&2
+    done < <(tr '\037' '\n' <<<"${issues}")
+  fi
   total=$(git rev-list --count "origin/${default_branch}..${branch}" 2>/dev/null || printf 0)
   while IFS= read -r line
   do
-    printf '   %s\n' "${line}" >&2
+    printf '   %s %s\n' "$(git:dim "${line%% *}")" "${line#* }" >&2
     (( ++shown ))
   done < <(git log --format='%h %s' --max-count 10 "origin/${default_branch}..${branch}" 2>/dev/null)
-  (( total > shown )) && printf '   … and %s more\n' "$(( total - shown ))" >&2
-  git:worktree-line "${path}" "${branch}" "${main_root}" "${default_branch}"
+  (( total > shown )) && printf '   %s\n' "$(git:dim "… and $(( total - shown )) more")" >&2
+  if [[ -n "${path}" ]]
+  then
+    printf '   🌿 %s   %s%s\n' "$(git:dim "${path#"${main_root}"/}")" "$(git:divergence "${branch}" "${default_branch}")" "$(git:uncommitted "${path}")" >&2
+  else
+    printf '   %s\n' "$(git:dim "no worktree here")" >&2
+  fi
+}
+
+# git:uncommitted <path> prints " · n uncommitted" for a dirty checkout, nothing for a clean one.
+git:uncommitted() {
+  git:clean "$1" && return 0
+  printf ' · %s' "$(git:red "$(git -C "$1" status --porcelain | grep --count .) uncommitted")"
 }
 
 # git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides one worktree and
@@ -190,7 +233,7 @@ git:tidy-worktree() {
 }
 
 git:status() {
-  local no_fetch=false arg main_root default_branch prs path branch detached pr_line counts gone
+  local no_fetch=false arg main_root default_branch prs path branch detached record width=40 text drafts total gone
   local -A worktree_of=()
   for arg in "$@"
   do
@@ -210,58 +253,52 @@ git:status() {
   main_root=$(git:main-root)
   default_branch=$(git:default-branch)
   prs=$(git:open-prs)
-
-  counts=$(git -C "${main_root}" rev-list --left-right --count "HEAD...origin/${default_branch}" 2>/dev/null || printf '0\t0')
-  printf '📋 %s open pull request(s) · %s %s%s, ↑%s ↓%s vs origin/%s\n' \
-    "$(grep --count . <<<"${prs}" || true)" "${main_root##*/}" \
-    "$(git -C "${main_root}" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '?')" \
-    "$(git:clean "${main_root}" || printf ' (dirty)')" "${counts%%$'\t'*}" "${counts##*$'\t'}" "${default_branch}" >&2
-
   while IFS=$'\t' read -r path branch detached
   do
     [[ -n "${branch}" ]] && worktree_of[${branch}]=${path}
   done < <(git:worktrees)
 
-  section "pull requests"
-  if [[ -n "${prs}" ]]
-  then
-    while IFS= read -r pr_line
-    do
-      branch=${pr_line%%$'\t'*}
-      if [[ -n "${worktree_of[${branch}]+x}" ]]
-      then
-        git:pr-block "${pr_line}" "${worktree_of[${branch}]}" "${main_root}" "${default_branch}"
-        unset 'worktree_of[${branch}]'
-      else
-        git:pr-block "${pr_line}" "" "${main_root}" "${default_branch}" 2>&1 | sed '$d' >&2
-        printf '   (no worktree here)\n' >&2
-      fi
-    done <<<"${prs}"
-  else
-    ok "none"
-  fi
+  # The name column is as wide as the widest name, within what the terminal allows beside the other columns.
+  while IFS=$'\t' read -r branch text _
+  do
+    [[ -n "${branch}" ]] || continue
+    text="#${text}"
+    (( ${#text} > width )) && width=${#text}
+  done < <(awk -F '\t' '{ print $1 "\t" $2 " " $6 }' <<<"${prs}")
+  for branch in "${!worktree_of[@]}"
+  do
+    text=${worktree_of[${branch}]#"${main_root}"/}
+    (( ${#text} > width )) && width=${#text}
+  done
+  (( width > $(tput cols 2>/dev/null || echo 160) - 40 )) && width=$(( $(tput cols 2>/dev/null || echo 160) - 40 ))
 
-  section "worktrees with no open pull request"
-  if (( ${#worktree_of[@]} > 0 ))
-  then
-    for branch in "${!worktree_of[@]}"
-    do
-      git:worktree-line "${worktree_of[${branch}]}" "${branch}" "${main_root}" "${default_branch}"
-    done
-  else
-    ok "none"
-  fi
+  drafts=$(awk -F '\t' '$3 == "Draft"' <<<"${prs}" | grep --count . || true)
+  total=$(grep --count . <<<"${prs}" || true)
+  printf '📋 %s open pull request(s) · %s draft · %s ready\n' "${total}" "${drafts}" "$(( total - drafts ))" >&2
+  section "worktrees"
+  while IFS= read -r record
+  do
+    [[ -n "${record}" ]] || continue
+    branch=${record%%$'\t'*}
+    git:pr-block "${record}" "${worktree_of[${branch}]:-}" "${main_root}" "${default_branch}" "${width}"
+    unset 'worktree_of[${branch}]'
+  done <<<"${prs}"
+  for branch in $(printf '%s\n' "${!worktree_of[@]}" | sort)
+  do
+    path=${worktree_of[${branch}]}
+    printf '🌿 %s   %s   %s%s\n' "$(git:pad "${path#"${main_root}"/}" "${width}")" "$(git:dim 'no open pull request')" \
+      "$(git:divergence "${branch}" "${default_branch}")" "$(git:uncommitted "${path}")" >&2
+  done
+  [[ -n "${prs}" || ${#worktree_of[@]} -gt 0 ]] || ok "none"
 
-  section "branches whose upstream is gone (tidy removes these)"
   gone=$(git:gone-branches)
   if [[ -n "${gone}" ]]
   then
+    section "branches whose upstream is gone (tidy removes these)"
     while IFS= read -r branch
     do
       info "${branch}"
     done <<<"${gone}"
-  else
-    ok "none"
   fi
 }
 
