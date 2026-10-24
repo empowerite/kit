@@ -20,17 +20,16 @@ _: help
 
 set export := true
 
-# The gate a pull request passes: shellcheck over every bash file, actionlint over every workflow, the bats
-# suite over bin/kit, and bin/kit check over this repository's installed copy of its own kit. Every tool comes
-# from mise.toml.
+# The gate a pull request passes: the linters lefthook.yml declares, over every path, so a runner and a desk's
+# pre-commit hook agree; the bats suite; and bin/kit check over this repository's installed copy of its own kit.
+# Every tool comes from mise.toml.
 #
 #   just ci
-[doc("🚦 Run the gate: shellcheck, actionlint, bats, kit check")]
+[doc("🚦 Run the gate: the linters over every path, bats, kit check")]
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  mise exec -- shellcheck --shell=bash --external-sources bin/kit bin/kit-*.bash bash/*.sh
-  mise exec -- actionlint
+  mise exec -- lefthook run pre-commit --all-files
   mise exec -- bats --print-output-on-failure tests/
   bin/kit check
   echo "✅ ci passed"

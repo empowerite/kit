@@ -1,8 +1,8 @@
 # mise.toml - the pinned toolchain a desk and a runner share; see: https://mise.jdx.dev/configuration.html
 #
 # Every tool both a desk and a CI runner run, at one version, installed the same way by `mise install` and by
-# `jdx/mise-action`. A tool only a desk runs is pinned in mise.desk.toml, which mise reads when MISE_ENV=desk, and
-# a desk sets that in its shell profile; a runner leaves it unset. `lockfile = true` records each pin's exact
+# `jdx/mise-action`. A tool only a desk runs would go in mise.desk.toml, which mise reads when MISE_ENV=desk; a desk
+# sets that in its shell profile and a runner leaves it unset. Nothing is desk-only today. `lockfile = true` records each pin's exact
 # resolution in mise.lock. git and bash come from the machine.
 
 [settings]
@@ -19,5 +19,6 @@ actionlint = "1.7"
 gh = "2.103"
 jq = "1.8"
 just = "1.59"
+lefthook = "2.2"
 shellcheck = "0.11"
 bats = "1.13"

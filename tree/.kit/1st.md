@@ -89,13 +89,14 @@ repository root, and `targets/<name>/` for each target taken; a `.json` destinat
 else is copied as it is.
 
 - `kit issue`, `kit tidy`, and `kit status`, the loop's commands, spelled that way and no other.
-- `kit lint`, the body of a pre-commit hook: shellcheck, actionlint, and markdownlint-cli2 when the repository
-  configures it, over the staged paths, with a missing linter reported as a skip. `.kit/lefthook.yml` runs it;
-  a repository's `lefthook.yml` takes that with `extends` and adds hooks of its own.
+- `.kit/lefthook.yml`, which linter runs over which paths before a commit. A repository's `lefthook.yml` takes it
+  with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand, over the staged paths
+  or every path.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
   it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
-  `.claude/rules/kit-<kind>.md`, copies of the rules, and merges six deny rules into `.claude/settings.json`. The kit owns only the
-  entries it writes; the repository may add its own. `kit target remove` takes a target back out.
+  `.claude/rules/kit-<kind>.md`, copies of the rules, and merges seven deny rules into `.claude/settings.json`.
+  The kit owns only the entries it writes; the repository may add its own. `kit target remove` takes a target
+  back out.
 - `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
   runs `kit check`, and refuses a pull request not linked to an open issue.
 

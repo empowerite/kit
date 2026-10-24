@@ -1,8 +1,14 @@
 # lefthook.yml - this repository's git hooks; see: https://lefthook.dev
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The kit's own hooks come from its installed fragment, the way a consumer takes them. Once per clone:
-# lefthook install
+# The kit's own linters come from its installed fragment, the way a consumer takes them, and the dispatcher, which
+# carries no extension, is added here. Once per clone: lefthook install
 
 extends:
   - .kit/lefthook.yml
+
+pre-commit:
+  commands:
+    shellcheck-dispatcher:
+      glob: "bin/kit"
+      run: shellcheck --shell=bash --external-sources {staged_files}

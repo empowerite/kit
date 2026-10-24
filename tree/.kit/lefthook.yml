@@ -1,11 +1,17 @@
 # Delivered by kit, not edited by hand. A change is a new release, then kit update.
 #
-# The repository's lefthook.yml takes this with `extends: [.kit/lefthook.yml]` and adds hooks and commands of its
-# own; Lefthook merges them under the same hook names. Once per clone: lefthook install
+# Which linter runs over which paths. The repository's lefthook.yml takes this with `extends: [.kit/lefthook.yml]`
+# and adds commands of its own under the same hook, or any other; Lefthook merges them by name, so a command named
+# here is overridden by one of the same name there. `kit lint` runs this hook by hand, over the staged paths or,
+# with --all-files, over every path. Once per clone: lefthook install
 #
 # see: https://lefthook.dev
 
 pre-commit:
   commands:
-    kit-lint:
-      run: kit lint {staged_files}
+    shellcheck:
+      glob: "*.{sh,bash}"
+      run: shellcheck --shell=bash --external-sources {staged_files}
+    actionlint:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: actionlint {staged_files}

@@ -30,10 +30,10 @@ through the rules table in `.kit/1st.md`. `kit target add` and `kit target remov
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
-- Pin `lefthook` in `mise.desk.toml`, the file mise reads when `MISE_ENV=desk`, put
-  `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install` once per clone. That runs
-  `kit lint` over the staged paths before each commit, beside any hooks of your own. A repository on another hook
-  manager runs `kit lint` from it instead.
+- Pin `lefthook` in `mise.toml`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install`
+  once per clone. The fragment says which linter runs over which paths before a commit, and your `lefthook.yml`
+  adds commands of its own. `kit lint` runs the same hook by hand, and `kit lint --all-files` is the gate's
+  spelling of it.
 
 The machinery, the `kit` command and the bash behind its verbs, stays in the release where mise installed it; the
 repository carries the text an agent reads and the record of what it took. The kit needs bash 4.4 or later, git,
@@ -57,13 +57,12 @@ Then, once per clone, with the key's id in `signing_key`:
 git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
-export MISE_ENV=desk
 mise install
 lefthook install
 ```
 
-`MISE_ENV=desk` belongs in your shell profile: it makes mise read `mise.desk.toml`, the tools only a desk runs,
-on top of `mise.toml`, the tools a desk and a CI runner share. A runner leaves it unset.
+A tool only a desk runs, should one arrive, is pinned in `mise.desk.toml`, which mise reads on top of `mise.toml`
+when `MISE_ENV=desk` is set; a desk exports that in its shell profile, and a runner leaves it unset.
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
 

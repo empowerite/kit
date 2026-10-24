@@ -33,7 +33,7 @@ usage: kit <verb> [<argument>…]
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the default branch
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
   status [--no-fetch]   show every worktree with its branch, pull request, and state
-  lint [<path>…]        lint the staged paths, or the paths given; a missing linter is a reported skip
+  lint [--all-files]    run the pre-commit hook's linters by hand, over the staged paths or every path
   version               print this release's version
 
 Each verb answers --help.
