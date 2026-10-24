@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# pre-rebase - refuse a rebase of the default branch (executed git hook, fails open)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# git runs this before every rebase, however it was spelled: git rebase, git pull --rebase, an editor's button.
+# It refuses one thing, a rebase whose branch is the default branch, because that branch is the human's desk and
+# a rebase rewrites it. A rebase in worktrees/<N>-<slug> is on an issue branch and passes.
+#
+# It fails open: a rung that cannot tell whether the branch is the default branch exits 0, since refusing every
+# worktree rebase in a clone that cannot answer would be worse than the gap. The one exception is below.
+#
+# git passes <upstream> as $1, and <branch> as $2 only for `git rebase <upstream> <branch>`; an empty $2 means
+# the branch checked out here.
+
+set -o nounset -o pipefail
+
+upstream=${1:-}
+branch=${2:-}
+[[ -n "${branch}" ]] || branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+[[ -n "${branch}" ]] || exit 0
+
+default_branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+[[ -n "${default_branch}" ]] || default_branch=main
+[[ "${branch}" == "${default_branch}" ]] || exit 0
+
+# A branch with no commit of its own has nothing a rebase would replay: it is a fast-forward, and passes. Once
+# the branch is known to be the default branch, an <upstream> that cannot be resolved is refused, not passed:
+# this is the one rung where "cannot tell" means no.
+if [[ -n "${upstream}" ]]
+then
+  unique=$(git rev-list --count "${upstream}..${branch}" 2>/dev/null) && (( unique == 0 )) && exit 0
+fi
+
+# The branch name goes through printf, never into the heredoc, since a ref may carry a backtick or a dollar.
+printf '\xe2\x9d\x8c refusing to rebase %s: it is the default branch, and the default branch is never rebased.\n' \
+  "'${branch}'" >&2
+cat >&2 <<'MESSAGE'
+
+   The default branch is the human's desk. It advances by fast-forward: git pull --ff-only
+   A worktree's branch is rebased in that worktree: git -C worktrees/<N>-<slug> rebase main
+
+   If you mean it, the escape hatch is git's own, on the rebase itself: git rebase --no-verify <upstream>
+MESSAGE
+exit 1
+
+# ----------------------------------------------------------------------------------------------------------------------

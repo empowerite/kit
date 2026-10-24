@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# pre-commit - lint the staged paths and refuse the commit on a finding (executed git hook, fails open)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Each linter runs over the staged paths of its own kind, when the linter is on PATH: shellcheck over bash,
+# actionlint over workflows, and markdownlint-cli2 over markdown when the repository carries a config for it.
+# A linter that is not on PATH is a reported skip, never a silent pass and never a refusal: lint is not the
+# enforcement of record, and a GUI client with a short PATH must still be able to commit.
+#
+# The working tree's copy of each path is linted, not the staged blob, so a partial add can be told about a line
+# the commit does not carry. The escape hatch is git's own: git commit --no-verify
+
+set -o nounset -o pipefail
+
+staged=()
+while IFS= read -r -d '' path
+do
+  [[ -f "${path}" ]] && staged+=("${path}")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z 2>/dev/null)
+(( ${#staged[@]} )) || exit 0
+
+bash_paths=()
+workflow_paths=()
+markdown_paths=()
+for path in "${staged[@]}"
+do
+  case "${path}" in
+    (*.sh | *.bash | .kit/hooks/*)
+      bash_paths+=("${path}")
+      ;;
+    (.github/workflows/*.yml | .github/workflows/*.yaml)
+      workflow_paths+=("${path}")
+      ;;
+    (*.md)
+      markdown_paths+=("${path}")
+  esac
+done
+
+findings=0
+skip() {
+  printf '\xe2\x9a\xa0\xef\xb8\x8f  %s is not on PATH, so the staged %s were NOT linted.\n' "$1" "$2" >&2
+}
+
+if (( ${#bash_paths[@]} ))
+then
+  if command -v shellcheck >/dev/null 2>&1
+  then
+    shellcheck --shell=bash --external-sources "${bash_paths[@]}" || findings=1
+  else
+    skip shellcheck "bash files"
+  fi
+fi
+
+if (( ${#workflow_paths[@]} ))
+then
+  if command -v actionlint >/dev/null 2>&1
+  then
+    actionlint "${workflow_paths[@]}" || findings=1
+  else
+    skip actionlint workflows
+  fi
+fi
+
+if (( ${#markdown_paths[@]} )) && compgen -G ".markdownlint-cli2.*" >/dev/null
+then
+  if command -v markdownlint-cli2 >/dev/null 2>&1
+  then
+    markdownlint-cli2 "${markdown_paths[@]}" || findings=1
+  else
+    skip markdownlint-cli2 "markdown files"
+  fi
+fi
+
+if (( findings ))
+then
+  cat >&2 <<'MESSAGE'
+
+❌ refusing the commit: a linter found something in the staged paths. Each finding above names the file and line.
+   Fix it and commit again. If you mean it anyway, the escape hatch is git's own: git commit --no-verify
+MESSAGE
+  exit 1
+fi
+exit 0
+
+# ----------------------------------------------------------------------------------------------------------------------
