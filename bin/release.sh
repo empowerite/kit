@@ -87,7 +87,14 @@ release:merged() { [[ "$1" == *.json ]]; }
 # mise install if mise is here, then the GitHub release itself, unpacked into the cache. Nothing here assumes how
 # this release was installed.
 release:fetch() {
-  local version=$1 root cache
+  local version=$1 root cache fresh
+  # The version comes from a manifest, which is repository content, so it is held to a version's shape before it
+  # becomes part of a path; the unpack goes into a directory made here and is moved into place only when whole.
+  if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+  then
+    error "'${version}' is not a kit version"
+    return 1
+  fi
   cache="${XDG_CACHE_HOME:-${HOME}/.cache}/kit/kit-${version}"
   if [[ -x "${cache}/bin/kit" ]]
   then
@@ -104,14 +111,16 @@ release:fetch() {
     fi
   fi
   step "Fetching kit ${version} from its GitHub release"
-  mkdir -p "${cache}"
+  fresh=$(mktemp -d)
   if ! gh release download "v${version}" --repo empowerite/kit --pattern "kit-${version}.tar.gz" --output - 2>/dev/null \
-    | tar --extract --gzip --directory "${cache}" --strip-components 1
+    | tar --extract --gzip --directory "${fresh}" --strip-components 1
   then
-    rm -rf "${cache}"
+    rm -rf "${fresh}"
     error "kit ${version} could not be fetched (run: gh auth status, or set KIT_BASE to a copy of it)"
     return 1
   fi
+  mkdir -p "$(dirname "${cache}")"
+  mv "${fresh}" "${cache}"
   printf '%s\n' "${cache}"
 }
 
