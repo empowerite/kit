@@ -42,9 +42,9 @@ Or by hand, with `gh`, which the kit needs anyway. Without a tag this takes the 
 pre-release; `gh release download "v${version}" ...` takes a particular one. Unpack it and put its `bin/` on `PATH`:
 
 ```sh
-gh release download --repo empowerite/kit --pattern 'kit-*.tar.gz'
-tar --extract --gzip --file kit-*.tar.gz
-export PATH="${PWD}/$(ls -d kit-*/ | head -n 1)bin:${PATH}"
+gh release download --repo empowerite/kit --pattern 'kit-*.tar.gz' --output kit.tar.gz
+mkdir kit && tar --extract --gzip --file kit.tar.gz --directory kit --strip-components 1
+export PATH="${PWD}/kit/bin:${PATH}"
 ```
 
 The kit needs bash 4.4 or later, git, `gh`, and `jq`. macOS ships bash 3.2, and `brew install bash` gives a
