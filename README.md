@@ -3,8 +3,38 @@
 kit is the agentic guardrails a repository takes as a versioned mixin: the policy text an agent reads first, the
 rules that bind each kind of file, the guard that keeps `main` as the human's desk, and the one command no harness
 provides, the issue-to-worktree on-ramp. A tag on `main` publishes a release. A consumer pins it in `mise.toml`,
-installs it with `kit install`, and keeps rules of its own beside it. What the first release delivers, and what the
-kit is not, is [#1](https://github.com/empowerite/kit/issues/1).
+installs it with `kit install`, and keeps rules of its own beside it. The design is
+[#1](https://github.com/empowerite/kit/issues/1), and the entry file every agent reads is [.kit/1st.md](.kit/1st.md).
+
+## Take the kit
+
+Pin a release in the repository's `mise.toml`, then install it:
+
+```toml
+[tools]
+"github:empowerite/kit" = "0.1.0"
+```
+
+```sh
+mise install
+kit install
+```
+
+`kit install` copies `.kit/` into the repository, places `.claude/rules/kit-*.md` and
+`.github/workflows/kit-ci.yml`, merges its deny rules into `.claude/settings.json`, ignores `worktrees/`, points
+`core.hooksPath` at `.kit/hooks`, and writes `.kit/manifest`. Commit what it wrote. Then:
+
+- Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
+- Add `mod kit ".kit/kit.just"` to the root justfile for `just kit issue`, `just kit tidy`, and `just kit status`.
+- Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
+  request not linked to an open issue.
+
+To move to a new release, bump the pin, run `mise install`, then `kit update`: a delivered file you left alone is
+replaced, one you edited is three-way merged with the previous release as the base, and your own deny entries
+and settings keys stay. `kit check` fails, locally and in `CI`, when a delivered file differs from the pinned
+release.
+
+The kit needs bash 4 or later, git, `gh`, and `jq`. macOS ships bash 3.2; `brew install bash` gives a current one.
 
 ## Setup
 
@@ -16,19 +46,23 @@ git config user.signingkey <a key GitHub verifies for you>
 git config commit.gpgsign true
 ```
 
+Then `mise install` for the pinned tools, and `bin/kit install` is already done: this repository carries the
+installed copy of its own kit, which `just ci` checks.
+
 ## Getting started
 
-Work here moves by the loop the kit itself delivers. An issue exists. A branch is checked out in a worktree under
-`worktrees/`, linked to the issue under Development, with a draft pull request. Commits are signed, and their
-subject is `#<N> <area>: <subject>`. `gh pr ready` says the work is done, and the pull request body is the report.
-A human merges. Nothing reaches `main` any other way.
+Work here moves by the loop in [.kit/1st.md](.kit/1st.md). An issue exists. `just kit issue <N>` makes
+`worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a draft pull request. Commits
+are signed, and their subject is `#<N> <area>: <subject>`. `gh pr ready` says the work is done, and the pull
+request body is the report. A human merges.
 
-Until the kit can run itself, those steps are taken by hand. The first thing #1 delivers is the command that takes
-them.
+`just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
+`bin/kit check`.
 
-## Status
+## Release
 
-Pre-alpha. There is no code yet, so nothing here builds, tests, or runs. The repository will use its own kit as soon
-as the kit exists.
+A release is two steps on `main`: a pull request that sets `.kit/version`, then the tag `v<version>` on its merge
+commit. The release workflow packs `bin/` and `.kit/` into `kit-<version>.tar.gz` and publishes the GitHub
+release. It refuses a tag that is not on `main` or whose version differs from the file.
 
 Repository policy is managed by Terraform; see: empowerite/infrastructure/terraform/projects/kit/main.tf
