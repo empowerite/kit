@@ -6,7 +6,8 @@
 # a commit that is not on main, and is published as a GitHub pre-release. The tag is the version: the repository
 # carries no version file, and the one in the packed kit is stamped here from the tag, so a consumer sees it in
 # kit version and .kit/manifest and kit update can name the previous release to mise. A release, once published,
-# is immutable, so a tag is never reused.
+# is immutable, so a tag is never reused. A release retires its pre-releases: every v<version>-<suffix> goes, tag
+# and all, since the release is what they led to; a consumer still pinned to one re-pins to the release.
 #
 # see: .kit/1st.md
 
@@ -76,5 +77,23 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" "kit-${version}.tar.gz" "kit-${version}.tar.gz.sha256" \
             --title "kit ${version}" --notes "${notes}" "${flags[@]}"
           echo "✅ Released kit ${version}."
+
+      - name: retire-pre-releases
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o errexit -o nounset -o pipefail
+          version=${GITHUB_REF_NAME#v}
+          retired=0
+          while IFS= read -r tag
+          do
+            [[ -n "${tag}" ]] || continue
+            gh release delete "${tag}" --cleanup-tag --yes
+            echo "retired ${tag}"
+            retired=$(( retired + 1 ))
+          done < <(gh release list --json tagName,isPrerelease \
+            --jq ".[] | select(.isPrerelease and (.tagName | startswith(\"v${version}-\"))) | .tagName")
+          echo "✅ Retired ${retired} pre-release(s) of ${version}."
 
 # ----------------------------------------------------------------------------------------------------------------------

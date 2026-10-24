@@ -112,6 +112,6 @@ say `v0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a G
 version: the repository carries no version file, the workflow stamps the tag's version into the packed kit, and a
 published release is immutable, so a tag is never reused. The workflow packs `bin/`, `tree/`, and `targets/` into
 `kit-<version>.tar.gz` and publishes the release; it refuses a tag that is not a version, a release tag off
-`main`, and a pre-release tag on `main`.
+`main`, and a pre-release tag on `main`. A release retires its pre-releases, `v<version>-*`, tags and all.
 
 Repository policy is managed by Terraform; see: empowerite/infrastructure/terraform/projects/kit/main.tf
