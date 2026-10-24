@@ -53,13 +53,13 @@ teardown() {
 @test "pre-commit reports a skip when the linter is not on PATH" {
   printf '#!/usr/bin/env bash\necho $x\n' > bad.sh
   git add bad.sh
-  # a PATH without any directory that carries a shellcheck
-  without=""
-  while IFS= read -r dir
+  # a PATH of one directory, carrying only what the hook itself runs, and no shellcheck
+  mkdir only
+  for tool in bash git env cat
   do
-    [[ -n "${dir}" && ! -x "${dir}/shellcheck" ]] && without="${without:+${without}:}${dir}"
-  done < <(printf '%s' "${PATH}" | tr ':' '\n')
-  run env PATH="${without}" git commit --quiet --message bad
+    ln -s "$(command -v "${tool}")" "only/${tool}"
+  done
+  run env PATH="${PWD}/only" git commit --quiet --message bad
   [ "$status" -eq 0 ]
   [[ "$output" == *"NOT linted"* ]]
 }
