@@ -2,12 +2,12 @@
 # kit-status - show every worktree with its branch, pull request, and state (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# see: bin/git.sh
+# see: bin/status.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
-use git
+use status
 
 if [[ "${1:-}" == --help ]]
 then
@@ -15,6 +15,6 @@ then
   exit 0
 fi
 
-git:status "$@"
+status:render "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------
