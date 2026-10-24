@@ -1,4 +1,6 @@
 ---
+# Placed by kit install from the release's rules/json.md, and held to it by kit check. A delivered file is
+# changed by pinning a new release and running kit update, never in place.
 paths:
   - "**/*.json"
   - "**/*.jsonc"

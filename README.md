@@ -74,6 +74,24 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 - `gh pr ready` says the work is done, and the pull request body is the report.
 - A human merges. `just tidy` then removes the worktree and its branch.
 
+## Maintaining
+
+This repository is both the source of the kit and a consumer of it, so some committed files are written by
+`bin/kit install` from others and are not edited by hand:
+
+| Installed copy | Written from |
+| --- | --- |
+| `.claude/rules/kit-<kind>.md` | `.kit/rules/<kind>.md`, with the `paths:` header the `claude` target adds |
+| `.claude/settings.json` | `.kit/settings.json`, merged by key; here it carries only the kit's entries |
+| `.github/workflows/kit-ci.yml` | `.kit/ci.yml` |
+| `.kit/manifest` | the release version, the targets taken, and a digest per delivered path |
+
+Everything else is source, all of `.kit/` included: `1st.md`, `rules/`, `bash/`, `hooks/`, `ci.yml`,
+`settings.json`, and `version`, together with `bin/kit`, the two workflows, and `tests/`. After changing a source
+file under `.kit/`, run `just refresh`, which reinstalls the kit into this repository, and commit the result with
+the change. `bin/kit check`, which `just ci` runs, names any installed copy that no longer matches its source. The
+copies that can carry a comment say they are placed; `settings.json` cannot, so this table is its notice.
+
 ## Release
 
 `.kit/version` carries the version under development, without a suffix. A release is the tag `v<version>` on a

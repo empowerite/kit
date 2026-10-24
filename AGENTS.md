@@ -10,6 +10,6 @@ Read .kit/1st.md first. It is the kit's entry file, and this repository uses its
   `main`. A pre-release is `v<version>-<suffix>` on a commit that is not on `main`. The release workflow refuses any
   other pairing, and a tag whose base version differs from the file.
 - `.claude/rules/kit-*.md`, `.github/workflows/kit-ci.yml`, `.claude/settings.json`, and `.kit/manifest` are
-  this repository's installed copies of its own kit. Change a delivered file at its source under `.kit/`, then
-  run `just refresh` to rewrite the copies, and commit both.
+  this repository's installed copies of its own kit, written by `just refresh` from the source under `.kit/`; see
+  [README.md](README.md) § Maintaining. Edit the source, run `just refresh`, and commit both.
 - `just ci` is the gate: shellcheck, actionlint, the bats suite, and `bin/kit check`.

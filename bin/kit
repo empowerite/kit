@@ -138,7 +138,10 @@ expected() {
     (.claude/rules/kit-*.md)
       kind=${path#.claude/rules/kit-}
       kind=${kind%.md}
-      printf -- '---\npaths:\n'
+      printf -- '---\n'
+      printf '# Placed by kit install from the release'"'"'s rules/%s.md, and held to it by kit check. A delivered file is\n' "${kind}"
+      printf '# changed by pinning a new release and running kit update, never in place.\n'
+      printf 'paths:\n'
       while IFS= read -r glob
       do
         printf '  - "%s"\n' "${glob}"
@@ -197,6 +200,7 @@ ensure-ignored() {
 write-manifest() {
   local path
   {
+    printf '# .kit/manifest - written by kit install, update, and target; never edited by hand\n'
     printf 'version %s\n' "$(cat "${payload}/version")"
     printf 'targets%s\n' "${*:+ $*}"
     while IFS= read -r path
