@@ -1,6 +1,0 @@
-# mise.ci.toml - the tools only a runner runs, read when MISE_ENV=ci; see: mise.toml
-#
-# actionlint checks the workflows, which only the runner executes; a desk runs it with MISE_ENV=ci when it wants to.
-
-[tools]
-actionlint = "1.7"

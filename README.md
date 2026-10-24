@@ -64,7 +64,7 @@ lefthook install
 
 `MISE_ENV=desk` belongs in your shell profile. mise reads `mise.toml` always, `mise.desk.toml` on top of it when
 `MISE_ENV=desk`, and `mise.ci.toml` when `MISE_ENV=ci`, which the CI workflow sets: a tool goes in the file of
-whoever runs it. Lefthook is a desk's; actionlint is the runner's.
+whoever runs it. Lefthook is a desk's; nothing here is the runner's alone.
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
 

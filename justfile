@@ -20,13 +20,12 @@ _: help
 
 set export := true
 
-# The runner's gate, run with MISE_ENV=ci so mise.ci.toml's tools are on hand: shellcheck over every bash file,
-# actionlint over every workflow, the bats suite, and bin/kit check over this repository's installed copy of its
-# own kit. A desk runs it the same way: MISE_ENV=ci just ci. The pre-commit hook on a desk is the narrower,
-# faster check lefthook.yml declares.
+# The gate: shellcheck over every bash file, actionlint over every workflow, the bats suite, and bin/kit check over
+# this repository's installed copy of its own kit. The runner runs it on every pull request, and a desk runs it the
+# same way; the pre-commit hook is the narrower, faster check over the staged paths.
 #
-#   MISE_ENV=ci just ci
-[doc("🚦 The runner's gate: shellcheck, actionlint, bats, kit check (MISE_ENV=ci)")]
+#   just ci
+[doc("🚦 The gate: shellcheck, actionlint, bats, kit check")]
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail

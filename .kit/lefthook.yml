@@ -12,3 +12,6 @@ pre-commit:
     shellcheck:
       glob: "*.{sh,bash}"
       run: shellcheck --shell=bash --external-sources {staged_files}
+    actionlint:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: actionlint {staged_files}
