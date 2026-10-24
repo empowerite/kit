@@ -83,6 +83,38 @@ release:require-targets() {
 
 release:merged() { [[ "$1" == *.json ]]; }
 
+# release:fetch <version> prints the root of that release, fetching it if need be: the kit's cache first, then a
+# mise install if mise is here, then the GitHub release itself, unpacked into the cache. Nothing here assumes how
+# this release was installed.
+release:fetch() {
+  local version=$1 root cache
+  cache="${XDG_CACHE_HOME:-${HOME}/.cache}/kit/kit-${version}"
+  if [[ -x "${cache}/bin/kit" ]]
+  then
+    printf '%s\n' "${cache}"
+    return 0
+  fi
+  if command -v mise >/dev/null 2>&1
+  then
+    root=$(mise where "github:empowerite/kit@${version}" 2>/dev/null || true)
+    if [[ -x "${root}/bin/kit" ]]
+    then
+      printf '%s\n' "${root}"
+      return 0
+    fi
+  fi
+  step "Fetching kit ${version} from its GitHub release"
+  mkdir -p "${cache}"
+  if ! gh release download "v${version}" --repo empowerite/kit --pattern "kit-${version}.tar.gz" --output - 2>/dev/null \
+    | tar --extract --gzip --directory "${cache}" --strip-components 1
+  then
+    rm -rf "${cache}"
+    error "kit ${version} could not be fetched (run: gh auth status, or set KIT_BASE to a copy of it)"
+    return 1
+  fi
+  printf '%s\n' "${cache}"
+}
+
 # release:among <name> <name>… is true when the first name is among the rest.
 release:among() {
   local needle=$1 item

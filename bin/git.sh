@@ -2,9 +2,10 @@
 # git.sh - the default branch, the worktrees, the sweep, and the rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# git:status [--no-fetch] renders the main checkout on one line and one block per worktree under worktrees/, with
-# its branch, pull request, and dirty or clean state, then the local branches whose upstream is gone. It changes
-# nothing.
+# git:status [--no-fetch] draws the picture of the work in flight: the open pull requests, and under each its
+# state, age, checks, the commits it carries, and the worktree it is written in, with how far that is ahead of and
+# behind the default branch and the size of its diff; then the worktrees with no pull request; then the local
+# branches whose upstream is gone. It changes nothing, and asks GitHub once.
 #
 # git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, or that is
 # detached, clean, and at a commit the default branch already has; prunes the worktree bookkeeping; and deletes
@@ -73,31 +74,68 @@ git:clean() {
   [[ -z "$(git -C "$1" status --porcelain 2>/dev/null)" ]]
 }
 
-# git:status-block <path> <branch> <main-root> <default-branch> renders one worktree.
-git:status-block() {
-  local path=$1 branch=$2 main_root=$3 default_branch=$4 pr ahead_behind
-  step "${path#"${main_root}"/}"
-  info "  branch  ${branch:-(detached)}"
+# git:open-prs prints one line per open pull request: "<branch>\t<number>\t<Draft|Ready>\t<age in days>\t<checks>\t<title>",
+# where <checks> is "✅ n/n", "❌ k/n", "⏳ n", or "·" for none. One request, for the whole picture.
+git:open-prs() {
+  # shellcheck disable=SC2016  # a jq filter, with jq variables
+  gh pr list --state open --limit 100 --json number,title,isDraft,headRefName,createdAt,statusCheckRollup --jq '
+    .[] | [
+      .headRefName,
+      (.number | tostring),
+      (if .isDraft then "Draft" else "Ready" end),
+      (((now - (.createdAt | fromdateiso8601)) / 86400 | floor | tostring) + "d"),
+      ((.statusCheckRollup // []) as $c
+        | ($c | length) as $n
+        | ([$c[] | select(.conclusion == "SUCCESS")] | length) as $ok
+        | ([$c[] | select(.conclusion != null and .conclusion != "SUCCESS" and .conclusion != "SKIPPED" and .conclusion != "NEUTRAL")] | length) as $bad
+        | if $n == 0 then "·"
+          elif $bad > 0 then "❌ \($bad)/\($n)"
+          elif $ok == $n then "✅ \($n)/\($n)"
+          else "⏳ \($n - $ok)/\($n)" end),
+      .title
+    ] | @tsv' 2>/dev/null || true
+}
+
+# git:short <text> [<width>] prints <text> cut to <width> columns, 16 by default, with an ellipsis when cut.
+git:short() {
+  local text=$1 width=${2:-16}
+  if (( ${#text} > width ))
+  then
+    printf '%s…\n' "${text:0:width-1}"
+  else
+    printf '%s\n' "${text}"
+  fi
+}
+
+# git:worktree-line <path> <branch> <main-root> <default-branch> prints the 🌿 line: the worktree's path, how far
+# its branch is ahead of and behind the default branch, and the size of its diff.
+git:worktree-line() {
+  local path=$1 branch=$2 main_root=$3 default_branch=$4 counts="0\t0" stat added=0 removed=0 dirty=""
   if [[ -n "${branch}" ]]
   then
-    pr=$(git:pr-summary "${branch}")
-    ahead_behind=$(git rev-list --left-right --count "${branch}...${default_branch}" 2>/dev/null || printf '0\t0')
-    if [[ -n "${pr}" ]]
-    then
-      pr="#${pr%%$'\t'*} ${pr##*$'\t'}"
-    else
-      pr="(none open)"
-    fi
-    info "  pr      ${pr} · ↑${ahead_behind%%$'\t'*} ↓${ahead_behind##*$'\t'} vs ${default_branch}"
-  else
-    info "  pr      (no branch)"
+    counts=$(git rev-list --left-right --count "${branch}...origin/${default_branch}" 2>/dev/null || printf '0\t0')
+    stat=$(git diff --shortstat "origin/${default_branch}...${branch}" 2>/dev/null || true)
+    [[ "${stat}" =~ ([0-9]+)\ insertion ]] && added=${BASH_REMATCH[1]}
+    [[ "${stat}" =~ ([0-9]+)\ deletion ]] && removed=${BASH_REMATCH[1]}
   fi
-  if git:clean "${path}"
-  then
-    info "  status  clean"
-  else
-    info "  status  $(git -C "${path}" status --porcelain | grep --count .) file(s) modified"
-  fi
+  git:clean "${path}" || dirty=" · $(git -C "${path}" status --porcelain | grep --count .) uncommitted"
+  printf '   🌿 %s   ↑%s ↓%s · +%s -%s%s\n' "$(git:short "${path#"${main_root}"/}" 40)" "${counts%%$'\t'*}" "${counts##*$'\t'}" "${added}" "${removed}" "${dirty}" >&2
+}
+
+# git:pr-block <pr-line> <path> <main-root> <default-branch> prints one pull request: its line, the commits it
+# carries over the default branch, up to ten, and its worktree's line.
+git:pr-block() {
+  local branch number state age checks title path=$2 main_root=$3 default_branch=$4 shown=0 total line
+  IFS=$'\t' read -r branch number state age checks title <<<"$1"
+  printf '🔀 #%s %-17s %-6s %4s   %s\n' "${number}" "$(git:short "${title}")" "${state}" "${age}" "${checks}" >&2
+  total=$(git rev-list --count "origin/${default_branch}..${branch}" 2>/dev/null || printf 0)
+  while IFS= read -r line
+  do
+    printf '   %s\n' "${line}" >&2
+    (( ++shown ))
+  done < <(git log --format='%h %s' --max-count 10 "origin/${default_branch}..${branch}" 2>/dev/null)
+  (( total > shown )) && printf '   … and %s more\n' "$(( total - shown ))" >&2
+  git:worktree-line "${path}" "${branch}" "${main_root}" "${default_branch}"
 }
 
 # git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides one worktree and
@@ -152,7 +190,8 @@ git:tidy-worktree() {
 }
 
 git:status() {
-  local no_fetch=false arg main_root default_branch main_branch main_dirty counts found=false path branch detached gone
+  local no_fetch=false arg main_root default_branch prs path branch detached pr_line counts gone
+  local -A worktree_of=()
   for arg in "$@"
   do
     case "${arg}" in
@@ -168,22 +207,50 @@ git:status() {
   then
     git fetch --quiet --prune origin || warn "git fetch --prune failed; ahead and behind counts may be stale"
   fi
-
   main_root=$(git:main-root)
   default_branch=$(git:default-branch)
-  main_branch=$(git -C "${main_root}" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '?')
-  main_dirty=dirty
-  git:clean "${main_root}" && main_dirty=clean
-  counts=$(git -C "${main_root}" rev-list --left-right --count "HEAD...origin/${default_branch}" 2>/dev/null || printf '0\t0')
-  section "${main_root##*/}  (${main_branch}, ${main_dirty}, ↑${counts%%$'\t'*} ↓${counts##*$'\t'} vs origin/${default_branch})"
+  prs=$(git:open-prs)
 
-  section "worktrees/"
+  counts=$(git -C "${main_root}" rev-list --left-right --count "HEAD...origin/${default_branch}" 2>/dev/null || printf '0\t0')
+  printf '📋 %s open pull request(s) · %s %s%s, ↑%s ↓%s vs origin/%s\n' \
+    "$(grep --count . <<<"${prs}" || true)" "${main_root##*/}" \
+    "$(git -C "${main_root}" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '?')" \
+    "$(git:clean "${main_root}" || printf ' (dirty)')" "${counts%%$'\t'*}" "${counts##*$'\t'}" "${default_branch}" >&2
+
   while IFS=$'\t' read -r path branch detached
   do
-    found=true
-    git:status-block "${path}" "${branch}" "${main_root}" "${default_branch}"
+    [[ -n "${branch}" ]] && worktree_of[${branch}]=${path}
   done < <(git:worktrees)
-  [[ "${found}" == true ]] || ok "none"
+
+  section "pull requests"
+  if [[ -n "${prs}" ]]
+  then
+    while IFS= read -r pr_line
+    do
+      branch=${pr_line%%$'\t'*}
+      if [[ -n "${worktree_of[${branch}]+x}" ]]
+      then
+        git:pr-block "${pr_line}" "${worktree_of[${branch}]}" "${main_root}" "${default_branch}"
+        unset 'worktree_of[${branch}]'
+      else
+        git:pr-block "${pr_line}" "" "${main_root}" "${default_branch}" 2>&1 | sed '$d' >&2
+        printf '   (no worktree here)\n' >&2
+      fi
+    done <<<"${prs}"
+  else
+    ok "none"
+  fi
+
+  section "worktrees with no open pull request"
+  if (( ${#worktree_of[@]} > 0 ))
+  then
+    for branch in "${!worktree_of[@]}"
+    do
+      git:worktree-line "${worktree_of[${branch}]}" "${branch}" "${main_root}" "${default_branch}"
+    done
+  else
+    ok "none"
+  fi
 
   section "branches whose upstream is gone (tidy removes these)"
   gone=$(git:gone-branches)

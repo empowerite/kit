@@ -3,8 +3,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A file whose digest still matches the manifest, which records the previous release's own content, is replaced.
-# An edited one is three-way merged with the previous release as the base. A path the previous release did not
-# deliver is written only where the repository has nothing, or the same thing, there.
+# An edited one is three-way merged with the previous release as the base, which release:fetch finds or fetches.
+# A path the previous release did not deliver is written only where the repository has nothing, or the same
+# thing, there.
 #
 # see: bin/release.sh
 
@@ -26,20 +27,16 @@ previous=$(release:manifest-version)
 current=$(release:version)
 section "kit update ${previous} → ${current}${targets[*]:+, targets: ${targets[*]}}"
 
-# The previous release is the base of every merge, and a merge is needed only when the release changed. KIT_BASE
-# names the base's root; otherwise mise knows where it installed it.
+# The previous release is the base of every merge, needed only when the release changed. KIT_BASE names its
+# root; otherwise release:fetch finds or fetches it.
 base_root=""
 # shellcheck disable=SC2154  # release_unreleased is declared by bin/release.sh, which use loaded above
 if [[ -n "${KIT_BASE:-}" ]]
 then
   base_root=${KIT_BASE}
-elif [[ "${previous}" != "${current}" && "${previous}" != "${release_unreleased}" ]] && command -v mise >/dev/null 2>&1
+elif [[ "${previous}" != "${current}" && "${previous}" != "${release_unreleased}" ]]
 then
-  base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
-  if [[ -z "${base_root}" ]] && mise install --quiet "github:empowerite/kit@${previous}" 2>/dev/null
-  then
-    base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
-  fi
+  base_root=$(release:fetch "${previous}" || true)
 fi
 needs_base=false
 [[ "${previous}" != "${current}" ]] && needs_base=true
@@ -69,7 +66,7 @@ do
   if [[ "${needs_base}" == true && -z "${base}" ]]
   then
     # Without the base, neither a merge nor the removal of the previous release's entries is possible.
-    error "${path} cannot be updated without the base release ${previous}; run: mise install github:empowerite/kit@${previous}"
+    error "${path} cannot be updated without the base release ${previous}; set KIT_BASE to a copy of it"
     conflicts=$(( conflicts + 1 ))
     continue
   fi

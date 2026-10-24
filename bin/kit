@@ -2,8 +2,9 @@
 # kit - the kit's command: each verb is the executable bin/kit-<verb>.sh beside it (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The release is the directory above bin/. This file resolves it, exports it as kit_root, and hands the verb its
-# arguments. Everything else, the usage text included, lives with the verb.
+# The release is the directory above bin/, found through any symlink this file is reached by, as when Homebrew
+# links it into its own bin. This file resolves it, exports it as kit_root, and hands the verb its arguments.
+# Everything else, the usage text included, lives with the verb.
 #
 # see: .kit/1st.md
 
@@ -15,7 +16,7 @@ then
   exit 1
 fi
 
-kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+kit_root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
 export kit_root
 
 verb=${1:-help}
