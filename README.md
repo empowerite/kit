@@ -8,7 +8,7 @@ installs it with `kit install`, and keeps rules of its own beside it. The design
 
 ## Take the kit
 
-Pin a release in the repository's `mise.toml`, then install it, naming the harnesses the team uses:
+Pin a release in `mise.toml`, install it, and point `AGENTS.md` at it:
 
 ```toml
 [tools]
@@ -20,35 +20,30 @@ mise install
 kit install claude
 ```
 
-An exact pin installs the minute a release exists. If you pin a range instead, add
-`minimum_release_age_excludes = ["github:empowerite/kit"]` under `[settings]`, or `mise outdated` and
-`mise upgrade` offer a new kit only a day after it ships.
+```markdown
+@.kit/1st.md
 
-`kit install` copies `.kit/1st.md`, `.kit/rules/`, and `.kit/lefthook.yml` into the repository, places
-`.github/workflows/kit-ci.yml`, and writes `.kit/manifest`. Each target named adds what that harness insists on
-having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and merges the kit's deny rules into
-`.claude/settings.json`. A repository with no target installed still binds every agent that reads `AGENTS.md`,
-through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove` change the set later, and
-`kit target list` prints it. Commit what it wrote. Then:
+Read .kit/1st.md first.
+```
 
-- Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
-- Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
-  request not linked to an open issue.
-- Pin `lefthook` in `mise.desk.toml`, which mise reads when `MISE_ENV=desk`, put `extends: [.kit/lefthook.yml]`
-  in `lefthook.yml`, and run `lefthook install` once per clone. The fragment says which linter runs over which
-  paths before a commit, and your `lefthook.yml` adds commands of its own. `kit lint` runs the same hook by hand.
-  The delivered `CI` job sets `MISE_ENV=ci`, so a tool only the runner needs is pinned in `mise.ci.toml`.
+The rest of `AGENTS.md` is yours. `install` writes `.kit/`, the CI workflow, and the files of each target named;
+`claude` is the one target this release knows, and a repository with no target still binds every agent that
+reads `AGENTS.md`. Commit what it wrote, keep a `ci` recipe in the root justfile for the delivered `CI` job to
+run, and take the pre-commit linters by pinning `lefthook` in `mise.desk.toml`, putting
+`extends: [.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit target
+add`, `kit target remove`, and `kit target list` change and show the targets later.
 
-The machinery, the `kit` command and the bash behind its verbs, stays in the release where mise installed it; the
-repository carries the text an agent reads and the record of what it took. The kit needs bash 4.4 or later, git,
-`gh`, and `jq`.
+An exact pin installs the minute a release exists. A range pin sees a new kit a day after it ships unless
+`[settings]` carries `minimum_release_age_excludes = ["github:empowerite/kit"]`.
 
 To move to a new release, bump the pin, run `mise install`, then `kit update`: a delivered file you left alone is
 replaced, one you edited is three-way merged with the previous release as the base, and your own deny entries
 and settings keys stay. `kit check` fails, locally and in `CI`, when a delivered file differs from the pinned
 release.
 
-macOS ships bash 3.2; `brew install bash` gives a current one.
+The kit needs bash 4.4 or later, git, `gh`, and `jq`; macOS ships bash 3.2, and `brew install bash` gives a
+current one. The `kit` command and the bash behind its verbs stay in the release where mise installed it; the
+repository carries the text an agent reads and the record of what it took.
 
 ## Setup
 
@@ -66,11 +61,8 @@ mise install
 lefthook install
 ```
 
-`MISE_ENV=desk` belongs in your shell profile. mise reads `mise.toml` always, `mise.desk.toml` on top of it when
-`MISE_ENV=desk`, and `mise.ci.toml` when `MISE_ENV=ci`, which the CI workflow sets: a tool goes in the file of
-whoever runs it. Lefthook is a desk's; nothing here is the runner's alone.
-
-This repository carries the installed copy of its own kit, and `just ci` checks it.
+`MISE_ENV=desk` belongs in your shell profile: it makes mise read `mise.desk.toml`, the tools only a desk runs,
+on top of `mise.toml`; the delivered `CI` job sets `MISE_ENV=ci` the same way for `mise.ci.toml`.
 
 ## Getting started
 
@@ -81,8 +73,7 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
   draft pull request. It never switches the checkout it runs from.
 - Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`. `kit rebase`
   brings the branch up to date with `main` and pushes it.
-- `just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
-  `bin/kit check`.
+- `just ci` is the gate; the justfile says what it runs.
 - `gh pr ready` says the work is done, and the pull request body is the report.
 - A human merges. `kit tidy` then removes the worktree and its branch.
 
@@ -90,9 +81,9 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
 every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
-the same way; `bin/` is the machinery: `bin/kit` dispatches to one executable `bin/kit-<verb>.sh`
-per verb, and the verbs source the modules beside them, `1st.sh`, `gh.sh`, `git.sh`, and `release.sh`. A symlink
-under `targets/` is delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
+the same way; and `bin/` is the machinery, `bin/kit` dispatching to one executable `bin/kit-<verb>.sh` per verb,
+each sourcing the modules beside it. A symlink under `targets/` is delivered as the file it points at, so a rule
+lives once, in `tree/.kit/rules/`.
 
 The installed copies are written by `bin/kit install` and not edited by hand:
 
@@ -105,10 +96,10 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.kit/manifest` | the release version (`unreleased` here), the targets taken, and a digest per delivered path |
 
 A commit that changes a file under `tree/` or `targets/` rewrites the installed copies in the same commit: the
-pre-commit hook runs `just refresh` and stages what it rewrote. On a desk without the hook, run `just refresh`
-by hand and commit the result with the change. `bin/kit check`, which `just ci` runs, names any installed copy
-that no longer matches its source. Each delivered text file says in its header that it is delivered by kit;
-`settings.json` cannot, so this table is its notice.
+pre-commit hook runs `just refresh`, which regenerates them from the index and stages the result. On a desk
+without the hook, stage the change, run `just refresh`, and commit. `bin/kit check`, which `just ci` runs, names
+any installed copy that no longer matches its source. Each delivered text file says in its header that it is
+delivered by kit; `settings.json` cannot, so this table is its notice.
 
 ## Release
 
