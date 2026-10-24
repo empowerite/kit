@@ -1,0 +1,18 @@
+# dependabot.yml - keeps the SHA-pinned actions in the workflows current
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Every `uses:` in .github/workflows/ is pinned to a full commit SHA with the version as a trailing comment, and a
+# SHA never advances on its own. Dependabot's github-actions ecosystem opens a pull request that moves the SHA and
+# the comment together, weekly. The tools come from mise.toml, which Dependabot does not read; `mise outdated`
+# answers for those.
+#
+# see: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+# ----------------------------------------------------------------------------------------------------------------------

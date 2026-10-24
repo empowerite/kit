@@ -1,0 +1,23 @@
+// .markdownlint.jsonc - markdownlint rule configuration: which built-in rules this repository turns off or tightens
+//
+// Scope lives in .markdownlint-cli2.jsonc; this file carries only rule state. A rule is off because it collides
+// with a convention the markdown rule states its own way, so every entry names the rule and the convention; a
+// rule is tightened where the default is looser than the convention.
+//
+// see: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+// see: tree/.kit/rules/markdown.md
+{
+  // MD003 heading-style, tightened: the markdown rule says ATX, and "consistent" would accept a setext file.
+  "MD003": { "style": "atx" },
+
+  // MD013 line-length: the 120-column ceiling the markdown rule sets; fenced code and tables do not wrap.
+  "MD013": { "line_length": 120, "code_blocks": false, "tables": false },
+
+  // MD041 first-line-heading: AGENTS.md opens with the `@.kit/1st.md` import, and a delivered file opens with its
+  // notice; the title follows.
+  "MD041": false,
+
+  // MD060 table-column-style: the markdown rule asks for ` | ` around each pipe and nothing about column widths,
+  // which this rule's aligned default would fight column by column.
+  "MD060": false
+}
