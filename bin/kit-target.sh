@@ -2,12 +2,12 @@
 # kit-target - list, take, or drop the targets this repository takes (kit verb, run through bin/kit)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# see: bash/kit.sh
+# see: bin/release.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=bash/1st.sh
-source "${kit_root:?run through bin/kit}/bash/1st.sh"
-use kit
+# shellcheck source=bin/1st.sh
+source "${kit_root:?run through bin/kit}/bin/1st.sh"
+use release
 
 usage() { echo "usage: kit target list | kit target add <target>… | kit target remove <target>…" >&2; }
 
@@ -18,8 +18,8 @@ case "${verb}" in
   (list | add | remove) ;;
   (*) usage; exit 2
 esac
-kit:require-manifest
-read -r -a targets <<<"$(kit:manifest-targets)"
+release:require-manifest
+read -r -a targets <<<"$(release:manifest-targets)"
 
 case "${verb}" in
   (list)
@@ -28,7 +28,7 @@ case "${verb}" in
   (add)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq tool:git
-    kit:require-targets "$@"
+    release:require-targets "$@"
     for t in "$@"
     do
       if [[ " ${targets[*]} " == *" ${t} "* ]]
@@ -40,17 +40,17 @@ case "${verb}" in
       while IFS= read -r path
       do
         step "${path}"
-        kit:place "${kit_root}/targets/${t}/${path}" "${path}"
-      done < <(kit:target-only "${t}")
+        release:place "${kit_root}/targets/${t}/${path}" "${path}"
+      done < <(release:target-only "${t}")
       targets+=("${t}")
     done
-    kit:write-manifest "${targets[@]}"
+    release:write-manifest "${targets[@]}"
     ok "targets: ${targets[*]}"
     ;;
   (remove)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq tool:git
-    kit:require-targets "$@"
+    release:require-targets "$@"
     for t in "$@"
     do
       if [[ " ${targets[*]} " != *" ${t} "* ]]
@@ -62,17 +62,17 @@ case "${verb}" in
       while IFS= read -r path
       do
         src="${kit_root}/targets/${t}/${path}"
-        if kit:merged "${path}"
+        if release:merged "${path}"
         then
           [[ -f "${path}" ]] || continue
           step "${path}: the kit's entries taken out"
           # shellcheck disable=SC2016  # a jq filter, with jq variables
-          kit:json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
+          release:json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
         else
           step "removing ${path}"
           rm -f "${path}"
         fi
-      done < <(kit:target-only "${t}")
+      done < <(release:target-only "${t}")
       kept=()
       for path in "${targets[@]}"
       do
@@ -80,7 +80,7 @@ case "${verb}" in
       done
       targets=("${kept[@]}")
     done
-    kit:write-manifest "${targets[@]}"
+    release:write-manifest "${targets[@]}"
     ok "targets: ${targets[*]:-none}"
 esac
 

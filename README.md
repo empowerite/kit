@@ -84,8 +84,8 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
 every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
-the same way; `bin/`, `bash/`, and `version` are the machinery: `bin/kit` dispatches to one `bin/kit-<verb>.bash`
-per verb, and `bash/` holds the modules they source. A symlink under `targets/` is
+the same way; `bin/` and `version` are the machinery: `bin/kit` dispatches to one executable `bin/kit-<verb>.sh`
+per verb, and the verbs source the modules beside them, `1st.sh`, `gh.sh`, `git.sh`, and `release.sh`. A symlink under `targets/` is
 delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
 
 The installed copies are written by `bin/kit install` and not edited by hand:

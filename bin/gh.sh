@@ -21,6 +21,7 @@
 # lost.
 
 gh:issue() {
+  use git
   if (( $# == 0 ))
   then
     if [[ ! -t 0 ]]

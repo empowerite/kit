@@ -6,8 +6,8 @@
 # paths, or over every path with --all-files. The arguments are Lefthook's.
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=bash/1st.sh
-source "${kit_root:?run through bin/kit}/bash/1st.sh"
+# shellcheck source=bin/1st.sh
+source "${kit_root:?run through bin/kit}/bin/1st.sh"
 
 if [[ "${1:-}" == --help ]]
 then

@@ -15,13 +15,13 @@ teardown() {
 @test "the tarball holds one directory with the release's layout, and installs a fresh repository" {
   version=$(cat "${kit_checkout}/version")
   mkdir "kit-${version}"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "${kit_checkout}/version" "kit-${version}/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/version" "kit-${version}/"
   tar --create --gzip --file "kit-${version}.tar.gz" "kit-${version}"
   rm -rf "kit-${version}"
   mkdir unpacked && tar --extract --gzip --file "kit-${version}.tar.gz" --directory unpacked
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
-  [ -x "unpacked/kit-${version}/bin/kit-install.bash" ]
+  [ -x "unpacked/kit-${version}/bin/kit-install.sh" ]
   [ -L "unpacked/kit-${version}/targets/claude/.claude/rules/kit-bash.md" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh

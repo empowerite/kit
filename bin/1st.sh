@@ -2,30 +2,31 @@
 # 1st.sh - the kit's bash loader: output verbs, guards, and lazy module loading (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Sourced by every verb, bin/kit-<verb>.bash, which bin/kit dispatches to with kit_root exported. It defines functions only and sets no shell option, so the caller's options stand. A module under
-# bash/ is loaded with `use <module>`, once, by the verb that needs it; there is no other way in.
+# Sourced by every verb, bin/kit-<verb>.sh, which bin/kit dispatches to with kit_root exported. It defines functions only and sets no shell option, so the caller's options stand. A module is a
+# sourced <module>.sh beside this file, loaded with `use <module>`, once, by the verb or module that needs it; there
+# is no other way in. A verb is an executable kit-<verb>.sh beside it.
 #
 # Every message goes to stderr, so stdout stays clean for data. Color is off when stderr is not a terminal or
 # NO_COLOR is set. Under GitHub Actions, warn and error also emit the matching workflow command.
 
-kit_bash_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-declare -gr kit_bash_dir
+kit_bin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+declare -gr kit_bin_dir
 declare -Ag kit_modules=([1st]=1)
 
-# use <module>… loads bash/<module>.sh once. An unknown module is a bug in the caller, so it is fatal.
+# use <module>… loads bin/<module>.sh once. An unknown module is a bug in the caller, so it is fatal.
 use() {
   local module
   for module in "$@"
   do
     [[ ${kit_modules[${module}]+x} ]] && continue
-    if [[ ! -f "${kit_bash_dir}/${module}.sh" ]]
+    if [[ ! -f "${kit_bin_dir}/${module}.sh" ]]
     then
-      error "no such kit bash module: ${module} (looked in ${kit_bash_dir})"
+      error "no such kit bash module: ${module} (looked in ${kit_bin_dir})"
       return 2
     fi
     kit_modules[${module}]=1
     # shellcheck disable=SC1090  # the path is computed from the module name
-    source "${kit_bash_dir}/${module}.sh"
+    source "${kit_bin_dir}/${module}.sh"
   done
 }
 
@@ -104,20 +105,6 @@ guard:require() {
         return 1
     esac
   done
-}
-
-# git:default-branch prints the default branch: origin/HEAD, with main as the fallback.
-git:default-branch() {
-  local branch
-  branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
-  [[ -n "${branch}" ]] || branch=main
-  printf '%s\n' "${branch}"
-}
-
-# git:main-root prints the root of the main checkout, the first entry of the worktree list. worktrees/ lives
-# under it whether the caller stands in the main checkout or in a linked worktree.
-git:main-root() {
-  git worktree list --porcelain | sed -n 's@^worktree @@p' | head -n 1
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

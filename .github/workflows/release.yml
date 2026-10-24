@@ -1,8 +1,7 @@
 # release.yml - a tag v<version> on main becomes a GitHub release carrying the kit as one tarball
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, bash/, and
-# version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A release, v<major>.<minor>.<patch>,
+# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, and version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A release, v<major>.<minor>.<patch>,
 # is tagged on main (any commit on main, not only its head). A pre-release, the same with a -<suffix>, is tagged on
 # a commit that is not on main, and is published as a GitHub pre-release. Either way the file version at the tagged
 # commit is the version without the suffix, the one under development, and the packed kit carries the tag's full
@@ -78,7 +77,7 @@ jobs:
           version=${GITHUB_REF_NAME#v}
           staging=$(mktemp --directory)
           mkdir "${staging}/kit-${version}"
-          cp --recursive --no-dereference bin tree targets bash version "${staging}/kit-${version}/"
+          cp --recursive --no-dereference bin tree targets version "${staging}/kit-${version}/"
           # the packed kit carries the tag's full version, suffix included; the repository file carries the base
           printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
           tar --create --gzip --file "kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit - the kit's command: each verb is the executable bin/kit-<verb>.bash beside it (executed entrypoint)
+# kit - the kit's command: each verb is the executable bin/kit-<verb>.sh beside it (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The release is the directory above bin/. This file resolves it, exports it as kit_root, and hands the verb its
@@ -40,13 +40,13 @@ Each verb answers --help.
 USAGE
     ;;
   (*)
-    if [[ ! -x "${kit_root}/bin/kit-${verb}.bash" ]]
+    if [[ ! -x "${kit_root}/bin/kit-${verb}.sh" ]]
     then
       echo "kit: unknown verb '${verb}'; run: kit help" >&2
       exit 2
     fi
     shift
-    exec "${kit_root}/bin/kit-${verb}.bash" "$@"
+    exec "${kit_root}/bin/kit-${verb}.sh" "$@"
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

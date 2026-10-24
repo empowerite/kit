@@ -19,7 +19,7 @@ teardown() {
 # later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
 later-release() {
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "$1/"
   printf '9.9.9\n' > "$1/version"
   printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/tree/.kit/rules/json.md"
 }

@@ -4,7 +4,7 @@ Read .kit/1st.md first. It is the kit's entry file, and this repository uses its
 
 ## This repository's own rules
 
-- The release is `bin/`, `tree/`, `targets/`, `bash/`, and `version`. Everything in it is written for a
+- The release is `bin/`, `tree/`, `targets/`, and `version`. Everything in it is written for a
   consumer: no file names a consumer, a person, or another repository as the source of a rule.
 - `version` is the version under development, with no suffix. A release is the tag `v<version>` on a commit on
   `main`. A pre-release is `v<version>-<suffix>` on a commit that is not on `main`. The release workflow refuses any

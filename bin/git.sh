@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# git.sh - the picture of the worktrees, and the sweep that returns a checkout to pristine (sourced module)
+# git.sh - the default branch and the main root, the picture of the worktrees, the sweep, and the rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # git:status [--no-fetch] renders the main checkout on one line and one block per worktree under worktrees/
@@ -10,6 +10,24 @@
 # the worktree bookkeeping, and deletes every local branch whose upstream is gone. It never touches the default
 # branch, a branch checked out in a live worktree, a dirty worktree, or the worktree it runs in. --dry-run
 # prints what a sweep would do and changes nothing.
+#
+# git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto
+# origin/<default> and pushes it with --force-with-lease. It refuses the default branch, the human's desk; on a
+# conflict it aborts and leaves the worktree as it was.
+
+# git:default-branch prints the default branch: origin/HEAD, with main as the fallback.
+git:default-branch() {
+  local branch
+  branch=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+  [[ -n "${branch}" ]] || branch=main
+  printf '%s\n' "${branch}"
+}
+
+# git:main-root prints the root of the main checkout, the first entry of the worktree list. worktrees/ lives
+# under it whether the caller stands in the main checkout or in a linked worktree.
+git:main-root() {
+  git worktree list --porcelain | sed -n 's@^worktree @@p' | head -n 1
+}
 
 # git:pr-summary <branch> prints "<number>\t<Draft|Ready>" for the open pull request on <branch>, or nothing.
 git:pr-summary() {
@@ -257,6 +275,33 @@ git:tidy() {
   else
     ok "Tidied ${repo}: removed ${removed_worktrees} worktree(s) and ${removed_branches} branch(es)."
   fi
+}
+
+git:rebase() {
+  local worktree=${1:-.} branch default_branch
+  branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  if [[ -z "${branch}" ]]
+  then
+    error "${worktree} has no branch checked out, so there is nothing to rebase"
+    return 1
+  fi
+  default_branch=$(git -C "${worktree}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+  [[ -n "${default_branch}" ]] || default_branch=main
+  if [[ "${branch}" == "${default_branch}" ]]
+  then
+    error "refusing to rebase ${branch}: it is the default branch, the human's desk. It advances by fast-forward: git pull --ff-only"
+    return 1
+  fi
+  section "kit rebase ${branch} onto origin/${default_branch}"
+  git -C "${worktree}" fetch --quiet --prune origin
+  if ! git -C "${worktree}" rebase --quiet "origin/${default_branch}"
+  then
+    git -C "${worktree}" rebase --abort
+    error "${branch} conflicts with origin/${default_branch}; the rebase was aborted and the worktree is as it was. Resolve by hand."
+    return 1
+  fi
+  git -C "${worktree}" push --quiet --force-with-lease
+  ok "${branch} is rebased onto origin/${default_branch} and pushed."
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

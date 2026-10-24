@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bin/kit
-# kit.sh - the release's layout, the one merge rule, and the manifest (sourced module)
+# release.sh - the release's layout, the one merge rule, and the manifest (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A release mirrors its tree/ at the repository root, and targets/<name>/ for each target taken; a symlink in
@@ -11,8 +11,8 @@
 #
 # Every function reads the release from kit_root, exported by bin/kit.
 
-# kit:layers <root> <target>… prints the directories mirrored at the repository root, tree first.
-kit:layers() {
+# release:layers <root> <target>… prints the directories mirrored at the repository root, tree first.
+release:layers() {
   local root=$1 t
   shift
   printf '%s\n' "${root}/tree"
@@ -22,54 +22,54 @@ kit:layers() {
   done
 }
 
-# kit:delivered <root> <target>… prints every repository path the release at <root> delivers for those targets.
-kit:delivered() {
+# release:delivered <root> <target>… prints every repository path the release at <root> delivers for those targets.
+release:delivered() {
   local layer
   while IFS= read -r layer
   do
     (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@')
-  done < <(kit:layers "$@") | sort --unique
+  done < <(release:layers "$@") | sort --unique
 }
 
-# kit:source-of <root> <path> <target>… prints the release file behind a repository path, the last layer winning.
-kit:source-of() {
+# release:source-of <root> <path> <target>… prints the release file behind a repository path, the last layer winning.
+release:source-of() {
   local root=$1 path=$2 layer found=""
   shift 2
   while IFS= read -r layer
   do
     [[ -e "${layer}/${path}" ]] && found="${layer}/${path}"
-  done < <(kit:layers "${root}" "$@")
+  done < <(release:layers "${root}" "$@")
   [[ -n "${found}" ]] && printf '%s\n' "${found}"
 }
 
-# kit:target-only <target> prints the paths the target delivers that tree/ does not.
-kit:target-only() {
-  comm -13 <(kit:delivered "${kit_root}") <(kit:delivered "${kit_root}" "$1")
+# release:target-only <target> prints the paths the target delivers that tree/ does not.
+release:target-only() {
+  comm -13 <(release:delivered "${kit_root}") <(release:delivered "${kit_root}" "$1")
 }
 
-# kit:known-targets prints the targets this release carries.
-kit:known-targets() {
+# release:known-targets prints the targets this release carries.
+release:known-targets() {
   (cd "${kit_root}/targets" && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@' | sort)
 }
 
-# kit:require-targets <name>… refuses a target this release does not carry, naming the ones it does.
-kit:require-targets() {
+# release:require-targets <name>… refuses a target this release does not carry, naming the ones it does.
+release:require-targets() {
   local t
   for t in "$@"
   do
     if [[ ! -d "${kit_root}/targets/${t}" ]]
     then
-      error "'${t}' is not a target this release knows; the targets are: $(kit:known-targets | paste -s -d ' ' -)"
+      error "'${t}' is not a target this release knows; the targets are: $(release:known-targets | paste -s -d ' ' -)"
       return 2
     fi
   done
 }
 
-kit:merged() { [[ "$1" == *.json ]]; }
+release:merged() { [[ "$1" == *.json ]]; }
 
 # The parameters are values ($), not filters: a filter parameter is re-read against the input at each use, which
 # inside the recursion is the wrong level of the object.
-kit_jq='
+release_jq='
   def merge($cur; $base; $new):
     if ($new | type) == "object" then
       reduce ($new | keys[]) as $k ($cur // {}; .[$k] = merge(($cur // {})[$k]; ($base // {})[$k]; $new[$k]))
@@ -88,23 +88,23 @@ kit_jq='
     else $cur == $new end;
 '
 
-# kit:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if missing.
-kit:json-write() {
+# release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if missing.
+release:json-write() {
   local path=$1 filter=$2
   shift 2
   mkdir -p "$(dirname "${path}")"
   [[ -f "${path}" ]] || printf '{}\n' > "${path}"
-  jq --indent 2 "${kit_jq} ${filter}" "$@" "${path}" > "${path}.kit-new"
+  jq --indent 2 "${release_jq} ${filter}" "$@" "${path}" > "${path}.kit-new"
   mv "${path}.kit-new" "${path}"
 }
 
-# kit:json-holds <path> <source> is true when the JSON at <path> carries every entry the release's <source> writes.
-kit:json-holds() {
-  jq --exit-status "${kit_jq} holds(.; \$new[0])" --slurpfile new "$2" "$1" >/dev/null
+# release:json-holds <path> <source> is true when the JSON at <path> carries every entry the release's <source> writes.
+release:json-holds() {
+  jq --exit-status "${release_jq} holds(.; \$new[0])" --slurpfile new "$2" "$1" >/dev/null
 }
 
-# kit:digest prints the sha256 of stdin, by whichever tool the machine carries.
-kit:digest() {
+# release:digest prints the sha256 of stdin, by whichever tool the machine carries.
+release:digest() {
   if command -v sha256sum >/dev/null 2>&1
   then
     sha256sum | cut -d ' ' -f 1
@@ -113,12 +113,12 @@ kit:digest() {
   fi
 }
 
-# kit:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, a copy otherwise.
-kit:place() {
+# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, a copy otherwise.
+release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
-  if kit:merged "${path}"
+  if release:merged "${path}"
   then
-    kit:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
+    release:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
   else
     mkdir -p "$(dirname "${path}")"
     cat "${src}" > "${path}.kit-new"
@@ -126,8 +126,8 @@ kit:place() {
   fi
 }
 
-# kit:write-manifest <target>… records the version, the targets, and the release's digest for every delivered path.
-kit:write-manifest() {
+# release:write-manifest <target>… records the version, the targets, and the release's digest for every delivered path.
+release:write-manifest() {
   local path
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
@@ -135,16 +135,16 @@ kit:write-manifest() {
     printf 'targets%s\n' "${*:+ $*}"
     while IFS= read -r path
     do
-      printf '%s  %s\n' "$(kit:digest < "$(kit:source-of "${kit_root}" "${path}" "$@")")" "${path}"
-    done < <(kit:delivered "${kit_root}" "$@")
+      printf '%s  %s\n' "$(release:digest < "$(release:source-of "${kit_root}" "${path}" "$@")")" "${path}"
+    done < <(release:delivered "${kit_root}" "$@")
   } > .kit/manifest
 }
 
-kit:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
-kit:manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
+release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
+release:manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
 
-# kit:require-manifest refuses to go on in a repository that never took the kit.
-kit:require-manifest() {
+# release:require-manifest refuses to go on in a repository that never took the kit.
+release:require-manifest() {
   if [[ ! -f .kit/manifest ]]
   then
     error "run: kit install (this repository carries no .kit/manifest)"
@@ -152,8 +152,8 @@ kit:require-manifest() {
   fi
 }
 
-# kit:finish <target>… reports a completed install or update.
-kit:finish() {
+# release:finish <target>… reports a completed install or update.
+release:finish() {
   ok "kit $(cat "${kit_root}/version") is installed, targets: ${*:-none}; .kit/manifest is written."
   step "Commit the delivered files. The loop is in .kit/1st.md."
 }
