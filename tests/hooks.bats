@@ -8,7 +8,7 @@ setup() {
   cd "${repo}"
   git init --quiet --initial-branch=main
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
-  git config core.hooksPath "${kit_checkout}/.kit/hooks"
+  git config core.hooksPath "${kit_checkout}/hooks"
   printf 'one\n' > a && git add a && git commit --quiet --message one
 }
 

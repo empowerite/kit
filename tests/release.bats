@@ -12,26 +12,26 @@ teardown() {
   rm -rf "${work}"
 }
 
-@test "the tarball holds one directory with bin/ and .kit/, no manifest, and installs a fresh repository" {
-  version=$(cat "${kit_checkout}/.kit/version")
+@test "the tarball holds one directory with the release's layout, and installs a fresh repository" {
+  version=$(cat "${kit_checkout}/version")
   mkdir "kit-${version}"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/.kit" "kit-${version}/"
-  rm -f "kit-${version}/.kit/manifest"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "${kit_checkout}/hooks" "${kit_checkout}/version" "kit-${version}/"
   tar --create --gzip --file "kit-${version}.tar.gz" "kit-${version}"
   rm -rf "kit-${version}"
   mkdir unpacked && tar --extract --gzip --file "kit-${version}.tar.gz" --directory unpacked
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
-  [ ! -e "unpacked/kit-${version}/.kit/manifest" ]
+  [ -L "unpacked/kit-${version}/targets/claude/.claude/rules/kit-bash.md" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh
-  run "${work}/unpacked/kit-${version}/bin/kit" install
+  run "${work}/unpacked/kit-${version}/bin/kit" install claude
   [ "$status" -eq 0 ]
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]
-  [ "$(git config core.hooksPath)" = "${work}/unpacked/kit-${version}/.kit/hooks" ]
-  [ ! -e .kit/bash ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
+  [ "$(git config core.hooksPath)" = "${work}/unpacked/kit-${version}/hooks" ]
+  [ ! -L .claude/rules/kit-bash.md ]
+  [ ! -e .kit/bash ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

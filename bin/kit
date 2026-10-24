@@ -1,49 +1,145 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # kit - install, update, and check the kit in a repository (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-#   kit install [<target>…]     copy this release's text into the repository, place the files each named target
-#                               needs, wire this clone's hooks, and write .kit/manifest
-#   kit update                  after the pin is bumped: replace unchanged files, three-way merge changed ones
-#   kit check                   fail when a delivered file differs from this release
-#   kit setup                   wire this clone: core.hooksPath to this release's hooks
-#   kit target list             print the targets this repository takes
-#   kit target add <target>…    take a target: place its files and record it
-#   kit target remove <target>… drop a target: remove its files and the kit's entries from its settings
-#   kit issue [<number>…]       start or resume an issue: linked branch, worktree, start commit, draft pull request
-#   kit tidy [--dry-run]        remove worktrees whose pull request is merged or closed, and gone branches
-#   kit status [--no-fetch]     show every worktree with its branch, pull request, and state
-#   kit version                 print this release's version
+# The release is the directory above bin/. Its tree/ is mirrored at the repository root, verbatim, and so is
+# targets/<name>/ for each target the repository takes; a symlink in either is copied as the file it points at.
+# bash/, hooks/, and version are the machinery and stay in the release. The one exception to a verbatim copy is a
+# destination ending in .json, which is merged by key: the kit's keys are set, the kit's array entries are added,
+# and on update or removal only the entries the previous release wrote are taken out, so the rest of the file is
+# the repository's.
 #
-# The repository carries the text an agent reads, .kit/1st.md and .kit/rules/, the CI workflow .kit/ci.yml placed
-# as .github/workflows/kit-ci.yml, the placed files of each target taken, and .kit/manifest, which records the
-# release version, the targets, and a digest per delivered path. The machinery stays in the release where mise
-# installed it: this command, the bash behind issue, tidy, and status, and the hooks, which a clone reaches through
-# core.hooksPath.
-#
-# A target is a harness that insists on files placed outside .kit/. The one this release knows is claude:
-# .claude/rules/kit-<kind>.md, a copy of each rule file, whose own paths: header the harness loads it by, and the deny entries
-# merged into .claude/settings.json. A repository takes only the targets it names. A shared settings file is
-# merged by key: the kit owns only the entries it writes.
-#
-# KIT_BASE=<dir> names the previous release's root for `kit update` on a machine without mise.
+# .kit/manifest records the release version, the targets taken, and the release's digest for every delivered
+# path. An update tells an untouched file from an edited one by that digest, and merges the edited one with the
+# previous release as the base. KIT_BASE=<dir> names that release's root on a machine without mise.
 #
 # see: .kit/1st.md
 
 set -o errexit -o nounset -o pipefail
 
-kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-payload="${kit_root}/.kit"
-# shellcheck source=.kit/bash/1st.sh
-source "${payload}/bash/1st.sh"
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) ))
+then
+  echo "kit needs bash 4.4 or later; this is ${BASH_VERSION}" >&2
+  exit 1
+fi
 
-known_targets=(claude)
+kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=bash/1st.sh
+source "${kit_root}/bash/1st.sh"
 
 usage() {
-  sed -n '5,16p' "${BASH_SOURCE[0]}" | sed 's/^#//; s/^ //' >&2
+  cat >&2 <<'USAGE'
+usage: kit <command>
+
+  install [<target>…]     mirror tree/ and each named target into the repository, wire this clone's hooks,
+                          and write .kit/manifest
+  update                  after the pin is bumped: replace unchanged files, three-way merge changed ones
+  check                   fail when a delivered file differs from this release
+  setup                   wire this clone: core.hooksPath to this release's hooks
+  target list             print the targets this repository takes
+  target add <target>…    take a target: mirror its directory and record it
+  target remove <target>… drop a target: remove its files and the kit's entries from its settings
+  issue [<number>…]       start or resume an issue: linked branch, worktree, start commit, draft pull request
+  tidy [--dry-run]        remove worktrees whose pull request is merged or closed, and gone branches
+  status [--no-fetch]     show every worktree with its branch, pull request, and state
+  version                 print this release's version
+USAGE
 }
 
-# digest prints the sha256 of stdin, by whichever tool the machine carries.
+# ── the release's layout ───────────────────────────────────────────────────────────────────────────────────────────────
+
+# layers <root> <target>… prints the directories mirrored at the repository root, tree first.
+layers() {
+  local root=$1 t
+  shift
+  printf '%s\n' "${root}/tree"
+  for t in "$@"
+  do
+    printf '%s\n' "${root}/targets/${t}"
+  done
+}
+
+# delivered <root> <target>… prints every repository path the release at <root> delivers for those targets.
+delivered() {
+  local layer
+  while IFS= read -r layer
+  do
+    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@')
+  done < <(layers "$@") | sort --unique
+}
+
+# source-of <root> <path> <target>… prints the release file behind a repository path, the last layer winning.
+source-of() {
+  local root=$1 path=$2 layer found=""
+  shift 2
+  while IFS= read -r layer
+  do
+    [[ -e "${layer}/${path}" ]] && found="${layer}/${path}"
+  done < <(layers "${root}" "$@")
+  [[ -n "${found}" ]] && printf '%s\n' "${found}"
+}
+
+# known-targets prints the targets this release carries.
+known-targets() {
+  (cd "${kit_root}/targets" && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@' | sort)
+}
+
+# require-targets <name>… refuses a target this release does not carry, naming the ones it does.
+require-targets() {
+  local t
+  for t in "$@"
+  do
+    if [[ ! -d "${kit_root}/targets/${t}" ]]
+    then
+      error "'${t}' is not a target this release knows; the targets are: $(known-targets | paste -s -d ' ' -)"
+      return 2
+    fi
+  done
+}
+
+# target-only <target> prints the paths the target delivers that tree/ does not.
+target-only() {
+  comm -13 <(delivered "${kit_root}") <(delivered "${kit_root}" "$1")
+}
+
+merged() { [[ "$1" == *.json ]]; }
+
+# ── the one merge rule, for a .json destination ─────────────────────────────────────────────────────────────────────────
+
+# The parameters are values ($), not filters: a filter parameter is re-read against the input at each use, which
+# inside the recursion is the wrong level of the object.
+jq_lib='
+  def merge($cur; $base; $new):
+    if ($new | type) == "object" then
+      reduce ($new | keys[]) as $k ($cur // {}; .[$k] = merge(($cur // {})[$k]; ($base // {})[$k]; $new[$k]))
+    elif ($new | type) == "array" then
+      ((($cur // []) - ($base // [])) as $kept | $kept + ($new - $kept))
+    else $new end;
+  def unmerge($cur; $base):
+    if ($base | type) == "object" then
+      reduce ($base | keys[]) as $k ($cur; if has($k) then .[$k] = unmerge($cur[$k]; $base[$k]) else . end)
+    elif ($base | type) == "array" then ($cur // []) - $base
+    else $cur end;
+  def holds($cur; $new):
+    if ($new | type) == "object" then
+      all($new | keys[]; . as $k | ($cur | type) == "object" and ($cur | has($k)) and holds($cur[$k]; $new[$k]))
+    elif ($new | type) == "array" then all($new[]; . as $e | any(($cur // [])[]; . == $e))
+    else $cur == $new end;
+'
+
+# json-write <path> <filter> rewrites the JSON at <path> through <filter>, making the file if it is missing.
+json-write() {
+  local path=$1 filter=$2
+  shift 2
+  mkdir -p "$(dirname "${path}")"
+  [[ -f "${path}" ]] || printf '{}\n' > "${path}"
+  jq --indent 2 "${jq_lib} ${filter}" "$@" "${path}" > "${path}.kit-new"
+  mv "${path}.kit-new" "${path}"
+}
+
+# ── placing, recording, wiring ──────────────────────────────────────────────────────────────────────────────────────────
+
 digest() {
   if command -v sha256sum >/dev/null 2>&1
   then
@@ -53,175 +149,55 @@ digest() {
   fi
 }
 
-# known-target <name> is true when this release knows the target.
-known-target() {
-  local t
-  for t in "${known_targets[@]}"
-  do
-    [[ "$1" == "${t}" ]] && return 0
-  done
-  return 1
-}
-
-# require-targets <name>… refuses an unknown target, naming the known ones.
-require-targets() {
-  local t
-  for t in "$@"
-  do
-    if ! known-target "${t}"
-    then
-      error "'${t}' is not a target this release knows; the targets are: ${known_targets[*]}"
-      return 2
-    fi
-  done
-}
-
-# manifest-version and manifest-targets read .kit/manifest.
-manifest-version() { sed -n 's/^version //p' .kit/manifest; }
-manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
-
-# target-paths <payload> <target> prints the repository paths a target places.
-target-paths() {
-  local root=$1 file
-  case "$2" in
-    (claude)
-      for file in "${root}"/rules/*.md
-      do
-        printf '.claude/rules/kit-%s\n' "$(basename "${file}")"
-      done
-  esac
-}
-
-# target-settings <target> prints the settings file a target shares with the repository, or nothing.
-target-settings() {
-  case "$1" in
-    (claude) printf '.claude/settings.json\n'
-  esac
-}
-
-# delivered-paths <payload> [<target>…] prints every repository path the release delivers for those targets.
-delivered-paths() {
-  local root=$1 file t
-  shift
-  printf '.kit/1st.md\n'
-  for file in "${root}"/rules/*.md
-  do
-    printf '.kit/rules/%s\n' "$(basename "${file}")"
-  done
-  printf '.github/workflows/kit-ci.yml\n'
-  for t in "$@"
-  do
-    target-paths "${root}" "${t}"
-  done
-}
-
-# expected <payload> <path> prints the content the release at <payload> delivers at repository <path>.
-expected() {
-  local root=$1 path=$2 kind
-  case "${path}" in
-    (.kit/*)
-      cat "${root}/${path#.kit/}"
-      ;;
-    (.claude/rules/kit-*.md)
-      # The rule file as it is, its paths: header included, with a one-line notice inside the header.
-      kind=${path#.claude/rules/kit-}
-      kind=${kind%.md}
-      printf -- '---\n# Placed by kit install from .kit/rules/%s.md, not edited by hand.\n' "${kind}"
-      tail -n +2 "${root}/rules/${kind}.md"
-      ;;
-    (.github/workflows/kit-ci.yml)
-      cat "${root}/ci.yml"
-      ;;
-    (*)
-      error "kit: '${path}' is not a delivered path"
-      return 2
-  esac
-}
-
-# write-expected <payload> <path> writes the delivered content at <path>, making its directory.
-write-expected() {
-  mkdir -p "$(dirname "$2")"
-  expected "$1" "$2" > "$2.kit-new"
-  mv "$2.kit-new" "$2"
-}
-
-# merge-settings <target> <new-payload> [<base-payload>] merges the kit's deny entries into the target's settings
-# file: the base release's entries go, the new release's come, and everything else in the file stays. An empty
-# <new-payload> takes the kit's entries out and adds none.
-merge-settings() {
-  local file new_deny='[]' base_deny='[]'
-  file=$(target-settings "$1")
-  [[ -n "${file}" ]] || return 0
-  [[ -n "$2" && -f "$2/settings.json" ]] && new_deny=$(jq '.permissions.deny // []' "$2/settings.json")
-  [[ -n "${3:-}" && -f "$3/settings.json" ]] && base_deny=$(jq '.permissions.deny // []' "$3/settings.json")
-  mkdir -p "$(dirname "${file}")"
-  [[ -f "${file}" ]] || printf '{}\n' > "${file}"
-  jq --indent 2 --argjson base "${base_deny}" --argjson new "${new_deny}" \
-    '.permissions.deny = (((.permissions.deny // []) - $base) as $kept | $kept + ($new - $kept))' \
-    "${file}" > "${file}.kit-new"
-  mv "${file}.kit-new" "${file}"
-}
-
-# ensure-ignored makes sure worktrees/ is ignored at the root, the way the loop needs.
-ensure-ignored() {
-  local separator=""
-  if [[ -f .gitignore ]] && grep --quiet --line-regexp --extended-regexp '/?worktrees/' .gitignore
+# place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, a copy otherwise.
+place() {
+  local src=$1 path=$2 base=${3:-/dev/null}
+  if merged "${path}"
   then
-    return 0
+    json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
+  else
+    mkdir -p "$(dirname "${path}")"
+    cat "${src}" > "${path}.kit-new"
+    mv "${path}.kit-new" "${path}"
   fi
-  [[ -f .gitignore && -s .gitignore ]] && separator=$'\n'
-  printf '%s# the per-issue worktrees of the loop; see: .kit/1st.md\n/worktrees/\n' "${separator}" >> .gitignore
 }
 
-# write-manifest [<target>…] records the release version, the targets taken, and, per delivered path, the
-# digest of the release's own content for it, never of the file as written: a later update tells an untouched
-# file from an edited one by comparing the file to this, so a merge that kept a repository's edit is not mistaken
-# for the release's text.
+# write-manifest <target>… records the version, the targets, and the release's digest for every delivered path.
 write-manifest() {
   local path
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
-    printf 'version %s\n' "$(cat "${payload}/version")"
+    printf 'version %s\n' "$(cat "${kit_root}/version")"
     printf 'targets%s\n' "${*:+ $*}"
     while IFS= read -r path
     do
-      printf '%s  %s\n' "$(expected "${payload}" "${path}" | digest)" "${path}"
-    done < <(delivered-paths "${payload}" "$@")
+      printf '%s  %s\n' "$(digest < "$(source-of "${kit_root}" "${path}" "$@")")" "${path}"
+    done < <(delivered "${kit_root}" "$@")
   } > .kit/manifest
 }
 
-# wire-hooks points this clone's core.hooksPath at the release's hooks.
-wire-hooks() {
-  git config core.hooksPath "${payload}/hooks"
-}
+manifest-version() { sed -n 's/^version //p' .kit/manifest; }
+manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
 
-# finish wires the clone and reports.
-finish() {
-  wire-hooks
-  ok "kit $(cat "${payload}/version") is installed, targets: ${*:-none}. core.hooksPath is ${payload}/hooks, and .kit/manifest is written."
-  step "Commit the delivered files. The loop is in .kit/1st.md."
-}
-
-cmd-setup() {
-  guard:require tool:git
-  wire-hooks
-  ok "core.hooksPath is ${payload}/hooks"
-  if [[ -z "$(git config user.signingkey 2>/dev/null)" ]]
+require-manifest() {
+  if [[ ! -f .kit/manifest ]]
   then
-    warn "no signing key is configured in this clone, and the ruleset refuses an unsigned commit; see README.md § Setup"
+    error "run: kit install (this repository carries no .kit/manifest)"
+    return 1
   fi
 }
 
-# cmd-loop <verb> <args>… runs one of the loop's commands from the release's bash.
-cmd-loop() {
-  local verb=$1
-  shift
-  case "${verb}" in
-    (issue)  gh:issue "$@" ;;
-    (tidy)   git:tidy "$@" ;;
-    (status) git:status "$@" ;;
-  esac
+wire-hooks() {
+  git config core.hooksPath "${kit_root}/hooks"
 }
+
+finish() {
+  wire-hooks
+  ok "kit $(cat "${kit_root}/version") is installed, targets: ${*:-none}. core.hooksPath is ${kit_root}/hooks, and .kit/manifest is written."
+  step "Commit the delivered files. The loop is in .kit/1st.md."
+}
+
+# ── commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 cmd-install() {
   guard:require tool:jq tool:git
@@ -231,38 +207,28 @@ cmd-install() {
     error "run: kit update (this repository already carries kit $(manifest-version))"
     return 1
   fi
-  section "kit install $(cat "${payload}/version")${*:+, targets: $*}"
-  local path t
+  section "kit install $(cat "${kit_root}/version")${*:+, targets: $*}"
+  local path
   while IFS= read -r path
   do
     step "${path}"
-    write-expected "${payload}" "${path}"
-  done < <(delivered-paths "${payload}" "$@")
-  for t in "$@"
-  do
-    merge-settings "${t}" "${payload}"
-  done
-  ensure-ignored
+    place "$(source-of "${kit_root}" "${path}" "$@")" "${path}"
+  done < <(delivered "${kit_root}" "$@")
   write-manifest "$@"
   finish "$@"
 }
 
 cmd-update() {
   guard:require tool:jq tool:git
-  if [[ ! -f .kit/manifest ]]
-  then
-    error "run: kit install (this repository carries no .kit/manifest)"
-    return 1
-  fi
-  local previous current base_root="" path recorded actual conflicts=0 t
+  require-manifest
+  local previous current base_root="" path src base recorded conflicts=0
   local -a targets
   read -r -a targets <<<"$(manifest-targets)"
   previous=$(manifest-version)
-  current=$(cat "${payload}/version")
+  current=$(cat "${kit_root}/version")
   section "kit update ${previous} → ${current}${targets[*]:+, targets: ${targets[*]}}"
 
-  # The previous release is the base of every three-way merge. KIT_BASE names its root directly; otherwise
-  # mise keeps it where it installed it.
+  # The previous release is the base of every merge. KIT_BASE names its root; otherwise mise knows where it is.
   if [[ -n "${KIT_BASE:-}" ]]
   then
     base_root=${KIT_BASE}
@@ -274,46 +240,45 @@ cmd-update() {
       base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
     fi
   fi
-  [[ -n "${base_root}" ]] && base_root="${base_root}/.kit"
 
   while IFS= read -r path
   do
+    src=$(source-of "${kit_root}" "${path}" "${targets[@]}")
+    base=""
+    [[ -n "${base_root}" ]] && base=$(source-of "${base_root}" "${path}" "${targets[@]}" || true)
+    if merged "${path}"
+    then
+      step "${path}: merged by key"
+      place "${src}" "${path}" "${base}"
+      continue
+    fi
     if [[ ! -f "${path}" ]]
     then
       step "${path}: missing, written"
-      write-expected "${payload}" "${path}"
+      place "${src}" "${path}"
       continue
     fi
     recorded=$(awk -v p="${path}" '$2==p{print $1}' .kit/manifest)
-    actual=$(digest < "${path}")
-    if [[ -z "${recorded}" || "${recorded}" == "${actual}" ]]
+    if [[ -z "${recorded}" || "${recorded}" == "$(digest < "${path}")" ]]
     then
       step "${path}: unchanged since ${previous}, replaced"
-      write-expected "${payload}" "${path}"
+      place "${src}" "${path}"
       continue
     fi
-    if [[ -z "${base_root}" || ! -d "${base_root}" ]]
+    if [[ -z "${base}" ]]
     then
       error "${path} was edited and the base release ${previous} is not installed; run: mise install github:empowerite/kit@${previous}"
       conflicts=$(( conflicts + 1 ))
       continue
     fi
     step "${path}: edited since ${previous}, three-way merged"
-    expected "${base_root}" "${path}" > "${path}.kit-base"
-    expected "${payload}" "${path}" > "${path}.kit-new"
-    if ! git merge-file --marker-size 7 "${path}" "${path}.kit-base" "${path}.kit-new"
+    if ! git merge-file --marker-size 7 "${path}" "${base}" "${src}"
     then
       warn "${path}: conflict markers are left in the file; resolve them, then run: kit check"
       conflicts=$(( conflicts + 1 ))
     fi
-    rm -f "${path}.kit-base" "${path}.kit-new"
-  done < <(delivered-paths "${payload}" "${targets[@]}")
+  done < <(delivered "${kit_root}" "${targets[@]}")
 
-  for t in "${targets[@]}"
-  do
-    merge-settings "${t}" "${payload}" "${base_root}"
-  done
-  ensure-ignored
   write-manifest "${targets[@]}"
   if (( conflicts > 0 ))
   then
@@ -324,51 +289,40 @@ cmd-update() {
 }
 
 cmd-check() {
-  local path findings=0 version t file
+  require-manifest
+  local path src findings=0 version
   local -a targets
-  if [[ ! -f .kit/manifest ]]
-  then
-    error "run: kit install (this repository carries no .kit/manifest)"
-    return 1
-  fi
   read -r -a targets <<<"$(manifest-targets)"
   version=$(manifest-version)
-  if [[ "${version}" != "$(cat "${payload}/version")" ]]
+  if [[ "${version}" != "$(cat "${kit_root}/version")" ]]
   then
-    error ".kit/manifest records kit ${version}, and the pinned release is $(cat "${payload}/version"); run: kit update"
+    error ".kit/manifest records kit ${version}, and the pinned release is $(cat "${kit_root}/version"); run: kit update"
     findings=$(( findings + 1 ))
   fi
   while IFS= read -r path
   do
+    src=$(source-of "${kit_root}" "${path}" "${targets[@]}")
     if [[ ! -f "${path}" ]]
     then
       error "${path} is missing"
       findings=$(( findings + 1 ))
-    elif ! expected "${payload}" "${path}" | cmp --silent - "${path}"
+    elif merged "${path}"
+    then
+      if ! command -v jq >/dev/null 2>&1
+      then
+        error "run: mise install (jq is not on PATH, so ${path} could not be read)"
+        findings=$(( findings + 1 ))
+      elif ! jq --exit-status "${jq_lib} holds(.; \$new[0])" --slurpfile new "${src}" "${path}" >/dev/null
+      then
+        error "${path} is missing an entry the kit writes; run: kit update"
+        findings=$(( findings + 1 ))
+      fi
+    elif ! cmp --silent "${src}" "${path}"
     then
       error "${path} differs from the pinned release"
       findings=$(( findings + 1 ))
     fi
-  done < <(delivered-paths "${payload}" "${targets[@]}")
-  for t in "${targets[@]}"
-  do
-    file=$(target-settings "${t}")
-    [[ -n "${file}" ]] || continue
-    if [[ ! -f "${file}" ]]
-    then
-      error "${file} is missing; run: kit update"
-      findings=$(( findings + 1 ))
-    elif ! command -v jq >/dev/null 2>&1
-    then
-      error "run: mise install (jq is not on PATH, so ${file} could not be read)"
-      findings=$(( findings + 1 ))
-    elif (( $(jq --argjson new "$(jq '.permissions.deny // []' "${payload}/settings.json")" \
-        '($new - (.permissions.deny // [])) | length' "${file}") > 0 ))
-    then
-      error "${file} is missing a deny entry the kit writes; run: kit update"
-      findings=$(( findings + 1 ))
-    fi
-  done
+  done < <(delivered "${kit_root}" "${targets[@]}")
   if (( findings > 0 ))
   then
     error "${findings} finding(s). A delivered file is changed by pinning a new release and running kit update, not in place."
@@ -377,15 +331,21 @@ cmd-check() {
   ok "kit ${version}, targets ${targets[*]:-none}: every delivered file matches the pinned release."
 }
 
+cmd-setup() {
+  guard:require tool:git
+  wire-hooks
+  ok "core.hooksPath is ${kit_root}/hooks"
+  if [[ -z "$(git config user.signingkey 2>/dev/null)" ]]
+  then
+    warn "no signing key is configured in this clone, and the ruleset refuses an unsigned commit; see README.md § Setup"
+  fi
+}
+
 cmd-target() {
-  local verb=${1:-list} t path
+  local verb=${1:-list} t path src
   local -a targets kept
   shift || true
-  if [[ ! -f .kit/manifest ]]
-  then
-    error "run: kit install (this repository carries no .kit/manifest)"
-    return 1
-  fi
+  require-manifest
   read -r -a targets <<<"$(manifest-targets)"
   case "${verb}" in
     (list)
@@ -406,9 +366,8 @@ cmd-target() {
         while IFS= read -r path
         do
           step "${path}"
-          write-expected "${payload}" "${path}"
-        done < <(target-paths "${payload}" "${t}")
-        merge-settings "${t}" "${payload}"
+          place "${kit_root}/targets/${t}/${path}" "${path}"
+        done < <(target-only "${t}")
         targets+=("${t}")
       done
       write-manifest "${targets[@]}"
@@ -428,23 +387,40 @@ cmd-target() {
         section "kit target remove ${t}"
         while IFS= read -r path
         do
-          step "removing ${path}"
-          rm -f "${path}"
-        done < <(target-paths "${payload}" "${t}")
-        [[ -f "$(target-settings "${t}")" ]] && merge-settings "${t}" "" "${payload}"
+          src="${kit_root}/targets/${t}/${path}"
+          if merged "${path}"
+          then
+            [[ -f "${path}" ]] || continue
+            step "${path}: the kit's entries taken out"
+            json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
+          else
+            step "removing ${path}"
+            rm -f "${path}"
+          fi
+        done < <(target-only "${t}")
         kept=()
         for path in "${targets[@]}"
         do
           [[ "${path}" == "${t}" ]] || kept+=("${path}")
         done
-        targets=("${kept[@]+"${kept[@]}"}")
+        targets=("${kept[@]}")
       done
-      write-manifest "${targets[@]+"${targets[@]}"}"
+      write-manifest "${targets[@]}"
       ok "targets: ${targets[*]:-none}"
       ;;
     (*)
       error "kit target: unknown verb '${verb}' (list, add, remove)"
       return 2
+  esac
+}
+
+cmd-loop() {
+  local verb=$1
+  shift
+  case "${verb}" in
+    (issue)  gh:issue "$@" ;;
+    (tidy)   git:tidy "$@" ;;
+    (status) git:status "$@" ;;
   esac
 }
 
@@ -455,7 +431,7 @@ case "${1:-}" in
   (setup)   cmd-setup ;;
   (target)  shift; cmd-target "$@" ;;
   (issue | tidy | status) cmd-loop "$@" ;;
-  (version) cat "${payload}/version" ;;
+  (version) cat "${kit_root}/version" ;;
   (-h | --help | help | "") usage; [[ -n "${1:-}" ]] ;;
   (*)
     error "kit: unknown command '$1'"

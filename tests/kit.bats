@@ -16,13 +16,12 @@ teardown() {
   rm -rf "${repo}"
 }
 
-# later-release <dir> copies this checkout's kit to <dir> as version 9.9.9 with one changed rule line.
+# later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
 later-release() {
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/.kit" "$1/"
-  rm -f "$1/.kit/manifest"
-  printf '9.9.9\n' > "$1/.kit/version"
-  printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/.kit/rules/json.md"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "${kit_checkout}/hooks" "$1/"
+  printf '9.9.9\n' > "$1/version"
+  printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/tree/.kit/rules/json.md"
 }
 
 @test "install with the claude target writes the tree, the mirrors, the workflow, the settings, and the manifest" {
@@ -32,22 +31,22 @@ later-release() {
   [ -f .kit/rules/bash.md ]
   [ ! -e .kit/bash ]
   [ ! -e .kit/hooks ]
-  [ ! -e .kit/ci.yml ]
   [ -f .claude/rules/kit-markdown.md ]
+  [ ! -L .claude/rules/kit-markdown.md ]
+  cmp --silent .claude/rules/kit-markdown.md .kit/rules/markdown.md
   head -n 1 .claude/rules/kit-bash.md | grep --quiet --line-regexp -- '---'
   grep --quiet '"\*\*/\*\.sh"' .claude/rules/kit-bash.md
   [ -f .github/workflows/kit-ci.yml ]
   jq --exit-status '.permissions.deny | index("Bash(git push --force *)")' .claude/settings.json >/dev/null
-  grep --quiet --line-regexp '/worktrees/' .gitignore
   grep --quiet '^version 0.1.0$' .kit/manifest
   grep --quiet '^targets claude$' .kit/manifest
-  [ "$(git config core.hooksPath)" = "${kit_checkout}/.kit/hooks" ]
+  [ "$(git config core.hooksPath)" = "${kit_checkout}/hooks" ]
 }
 
 @test "setup wires a clone's hooks to the release, and issue without a terminal prints usage" {
   run "${kit_checkout}/bin/kit" setup
   [ "$status" -eq 0 ]
-  [ "$(git config core.hooksPath)" = "${kit_checkout}/.kit/hooks" ]
+  [ "$(git config core.hooksPath)" = "${kit_checkout}/hooks" ]
   run "${kit_checkout}/bin/kit" issue
   [ "$status" -eq 2 ]
   [[ "$output" == *"usage: kit issue"* ]]
@@ -125,7 +124,7 @@ later-release() {
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/rules/yaml.md differs"* ]]
   [[ "$output" == *".claude/rules/kit-json.md is missing"* ]]
-  [[ "$output" == *"missing a deny entry"* ]]
+  [[ "$output" == *"missing an entry the kit writes"* ]]
   [[ "$output" == *"3 finding(s)"* ]]
 }
 
@@ -139,7 +138,7 @@ later-release() {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
   # a consumer edit to a file the later release also changes, on a different line
-  sed -i.bak '1s/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
+  sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   grep --quiet '^version 9.9.9$' .kit/manifest
@@ -147,7 +146,7 @@ later-release() {
   grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
   grep --quiet '^## Added in 9.9.9$' .claude/rules/kit-json.md
   # the manifest carries the release's digest, so the edit still reads as an edit
-  release_digest=$(shasum -a 256 "${repo}.later/.kit/rules/json.md" | cut -d ' ' -f 1)
+  release_digest=$(shasum -a 256 "${repo}.later/tree/.kit/rules/json.md" | cut -d ' ' -f 1)
   grep --quiet "^${release_digest}  .kit/rules/json.md$" .kit/manifest
   # and check names the one file that still differs from the release
   run "${repo}.later/bin/kit" check
@@ -170,9 +169,8 @@ later-release() {
 @test "update leaves conflict markers and fails when the same lines changed" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
-  printf '9.9.9\n' > "${repo}.later/.kit/version"
-  sed -i.bak '1s/^# JSON$/# JSON (theirs)/' "${repo}.later/.kit/rules/json.md" && rm "${repo}.later/.kit/rules/json.md.bak"
-  sed -i.bak '1s/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
+  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${repo}.later/tree/.kit/rules/json.md" && rm "${repo}.later/tree/.kit/rules/json.md.bak"
+  sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
   grep --quiet '^<<<<<<<' .kit/rules/json.md

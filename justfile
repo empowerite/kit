@@ -56,19 +56,19 @@ status *flags:
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  mise exec -- shellcheck --shell=bash --external-sources bin/kit .kit/bash/*.sh .kit/hooks/*
+  mise exec -- shellcheck --shell=bash --external-sources bin/kit bash/*.sh hooks/*
   mise exec -- actionlint
   mise exec -- bats --print-output-on-failure tests/
   bin/kit check
   echo "✅ ci passed"
 
-# Reinstall this repository's own kit from its source. Here the source under .kit/ is the payload, so an edit to
-# a delivered file is an edit to the release, not a consumer's drift: the installed copies, .claude/settings.json
+# Reinstall this repository's own kit from its source. Here the checkout is the release, so an edit to a file under
+# tree/ or targets/ is an edit to the release, not a consumer's drift: the installed copies, .claude/settings.json
 # (which carries only the kit's entries here), and .kit/manifest are rewritten from it. Run after changing any
 # delivered file, and commit the result with the change.
 #
 #   just refresh
-[doc("🔁 Reinstall this repository's own kit from .kit/ and bin/kit")]
+[doc("🔁 Reinstall this repository's own kit from tree/, targets/, and bin/kit")]
 refresh:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail

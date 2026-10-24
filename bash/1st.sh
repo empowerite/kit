@@ -2,9 +2,8 @@
 # 1st.sh - the kit's bash loader: output verbs, guards, and lazy module loading (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Sourced by bin/kit, whose issue, tidy, and status run the bash under .kit/bash/, and by the hooks that need a
-# verb. It defines functions only and sets no shell option, so the caller's options stand. A module under
-# .kit/bash/ is loaded on first use with `use <module>`, and each exported function has a stub here so a
+# Sourced by bin/kit, whose issue, tidy, and status run the bash under bash/, and by the hooks that need a verb. It defines functions only and sets no shell option, so the caller's options stand. A module under
+# bash/ is loaded on first use with `use <module>`, and each exported function has a stub here so a
 # caller never has to load it by hand.
 #
 # Every message goes to stderr, so stdout stays clean for data. Color is off when stderr is not a terminal or
@@ -14,7 +13,7 @@ kit_bash_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 declare -gr kit_bash_dir
 declare -Ag kit_modules=([1st]=1)
 
-# use <module>… loads .kit/bash/<module>.sh once. An unknown module is a bug in the caller, so it is fatal.
+# use <module>… loads bash/<module>.sh once. An unknown module is a bug in the caller, so it is fatal.
 use() {
   local module
   for module in "$@"

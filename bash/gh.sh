@@ -161,6 +161,10 @@ gh:issue() {
   then
     warn "run: kit setup (core.hooksPath does not name this release's hooks, so the desk guard is off in this clone)"
   fi
+  if ! git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null
+  then
+    warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a status or a commit"
+  fi
 
   # GitHub cannot open a pull request on a branch with nothing to compare, so the first commit is an empty one.
   if [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]]

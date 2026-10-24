@@ -1,3 +1,4 @@
+<!-- Delivered by kit, not edited by hand. A change is a new release, then kit update. -->
 # Read this first
 
 This file is the kit's entry. It binds every agent and every session in a repository that carries `.kit/`, and
@@ -60,7 +61,7 @@ that kind.
 | Kind | Paths | Rule |
 | --- | --- | --- |
 | Markdown | `*.md` | [rules/markdown.md](rules/markdown.md) |
-| Bash | `*.sh`, `*.bash`, `.kit/hooks/*` | [rules/bash.md](rules/bash.md) |
+| Bash | `*.sh`, `*.bash`, `hooks/*` | [rules/bash.md](rules/bash.md) |
 | Just | `justfile`, `*.just` | [rules/just.md](rules/just.md) |
 | YAML | `*.yml`, `*.yaml` | [rules/yaml.md](rules/yaml.md) |
 | JSON | `*.json`, `*.jsonc` | [rules/json.md](rules/json.md) |
@@ -70,7 +71,9 @@ that kind.
 
 The repository carries the text: this file, the rules under `.kit/rules/`, and `.kit/manifest`, which records the
 release version, the targets taken, and a checksum per delivered file. The release, where mise installed it,
-carries the machinery, reached through the `kit` command on `PATH`:
+carries the machinery, reached through the `kit` command on `PATH`. A release mirrors its `tree/` at the
+repository root, and `targets/<name>/` for each target taken; a `.json` destination is merged by key, everything
+else is copied as it is.
 
 - `kit issue`, `kit tidy`, and `kit status`, the loop's commands. A root justfile that wants `just issue 42` adds
   a veneer recipe over `kit issue`.
@@ -78,9 +81,9 @@ carries the machinery, reached through the `kit` command on `PATH`:
   points a clone's `core.hooksPath` at them, and every other clone runs `kit setup` once.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
   it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
-  `.claude/rules/kit-<kind>.md` and merges six deny rules into `.claude/settings.json`. The kit owns only the
+  `.claude/rules/kit-<kind>.md`, copies of the rules, and merges six deny rules into `.claude/settings.json`. The kit owns only the
   entries it writes; the repository may add its own. `kit target remove` takes a target back out.
-- `.kit/ci.yml`, placed as `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
+- `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
   runs `kit check`, and refuses a pull request not linked to an open issue.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a

@@ -1,13 +1,13 @@
 ---
-# Placed by kit install from .kit/rules/bash.md, not edited by hand.
+# Delivered by kit, not edited by hand. A change is a new release, then kit update.
 paths:
   - "**/*.sh"
   - "**/*.bash"
-  - ".kit/hooks/*"
+  - "**/hooks/*"
 ---
 # Bash
 
-Applies to `*.sh`, `*.bash`, `.kit/hooks/*`, recipe bodies under `#!/usr/bin/env bash`, and `run:` blocks in
+Applies to `*.sh`, `*.bash`, `hooks/*`, recipe bodies under `#!/usr/bin/env bash`, and `run:` blocks in
 workflows.
 
 ## Shape
