@@ -37,25 +37,30 @@ ci:
   bin/kit check
   echo "✅ ci passed"
 
-# Reinstall this repository's own kit from its source and stage the result. Here the checkout is the release, so an
-# edit under tree/ or targets/ is an edit to the release, not a consumer's drift: the targets the manifest names
-# are dropped and taken again, so the installed copies and .kit/manifest are rewritten from the source, and every
-# path the old or the new manifest names is staged. The pre-commit hook runs this on a commit that touches the
-# source; by hand it is for a desk without the hook.
+# Reinstall this repository's own kit from the index and stage the result. Here the checkout is the release, so an
+# edit under tree/ or targets/ is an edit to the release, not a consumer's drift. The copies are made from the
+# index, what the commit will carry, never from the working tree, so a half-staged edit cannot put a copy into a
+# commit that lacks its source. Every path the old manifest lists is removed first and written again from the
+# new release: a source that was deleted leaves no copy behind, and an entry that was retired does not survive
+# in a merged .json. This repository keeps nothing of its own in a delivered path, which is what makes that
+# removal safe here. The pre-commit hook runs this on a commit that touches the source; by hand it is for a desk
+# without the hook.
 #
 #   just refresh
-[doc("🔁 Reinstall this repository's own kit from tree/ and targets/, and stage the result")]
+[doc("🔁 Reinstall this repository's own kit from the index, and stage the result")]
 refresh:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  # a delivered path's line is a 64-hex digest, two spaces, the path; the version and targets lines are not
-  readarray -t before < <(awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest)
+  paths() { awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest; }
+  readarray -t before < <(paths)
   read -r -a targets <<<"$(sed -n 's/^targets *//p' .kit/manifest)"
-  (( ${#targets[@]} == 0 )) || bin/kit target remove "${targets[@]}" >/dev/null
-  rm -f .kit/manifest
-  bin/kit install "${targets[@]}" >/dev/null
-  readarray -t after < <(awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest)
+  index=$(mktemp -d)
+  trap 'rm -rf "${index}"' EXIT
+  git checkout-index --all --prefix="${index}/"
+  rm -f "${before[@]}" .kit/manifest
+  "${index}/bin/kit" install "${targets[@]}" >/dev/null
+  readarray -t after < <(paths)
   git add --all -- "${before[@]}" "${after[@]}" .kit/manifest
-  echo "✅ refreshed and staged: ${#after[@]} delivered paths, targets ${targets[*]:-none}"
+  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, targets ${targets[*]:-none}"
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -16,9 +16,9 @@ pre-commit:
     markdownlint:
       glob: "*.md"
       run: markdownlint-cli2 {staged_files}
-    # A commit that changes the source of a delivered file rewrites the installed copies in the same commit, so
-    # nobody remembers just refresh. The recipe stages what it rewrote; stage_fixed would re-stage only the
-    # source paths it was handed.
+    # A commit that changes the source of a delivered file rewrites the installed copies in the same commit, from
+    # the index, so nobody remembers just refresh. The recipe stages what it rewrote; stage_fixed would re-stage
+    # only the source paths it was handed.
     refresh:
       glob: "{tree,targets}/**"
       run: just refresh
