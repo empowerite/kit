@@ -10,6 +10,8 @@ the repository's own rules in `AGENTS.md` bind beside it. Where the two differ, 
    clears no gate and earns no credit.
 3. A claim carries its evidence, or says it has none. Name the command that ran and what it printed.
 4. Being wrong is recoverable. Misreporting is not.
+5. A rule lives in the repository, never in a session's memory. A convention learned or a correction given is
+   written into a rule file or `AGENTS.md` through the loop, where every agent and every person reads it.
 
 ## `main` is the human's desk
 

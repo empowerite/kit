@@ -1,6 +1,6 @@
 version 0.1.0
 targets claude
-f2c1c377f15a35b03ffcbffc4122b36bf11409f83805087a06e3f06646d51f26  .kit/1st.md
+9f794eb95cdbcaf5a938a1444b705a44d539bf998535396c1798d028afb77435  .kit/1st.md
 a36a18081eb7515871bc01b7b22372c1545d99d8b393fb386c78128f73c8dbb5  .kit/bash/1st.sh
 6944cdb161e68bf5d2355c6ee48fe7bfd25d8ffa1e6edef218af123e5edf5f7c  .kit/bash/gh.sh
 051cab217451a69c6f73545fe3e68fb2316e0be57004030159fe299d7f510436  .kit/bash/git.sh
@@ -12,7 +12,7 @@ cb95242d5caeee5651433a7ed8fad571bbca45f2f07a07cf4feb1f7371867402  .kit/rules/bas
 5c3667b1282bf6afe6cebc401e99faa2ba52e4a4873bbec9a6368a4623277f2d  .kit/rules/gitignore.md
 6ddb651356399b10dc33858cdf38fe111aa8803cde1d499135faa0e196f74f97  .kit/rules/json.md
 26e6ddb46be1adeda8ea76d77112096771147821594a89cc14ff8dbf7148d939  .kit/rules/just.md
-b65054b62fc294525a5448bca8ac6bfe8be2d1aab0a74495c16b0f229104c2e7  .kit/rules/markdown.md
+5e4ee708d4be30009de264ddf5a18df1d1257faee8ba18ca8fd703c1eb6e8a85  .kit/rules/markdown.md
 52c854d31381d85c01ffd5cdb10ba1dfd8081ad80ff1a8108cf42b5e77d42bc8  .kit/rules/yaml.md
 617c2e4ca3a72ae59ee898db2120519624a1ad58df5136d0d6f88df96ffdc13a  .kit/settings.json
 e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67  .kit/version
@@ -21,5 +21,5 @@ e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67  .kit/version
 4c856c8a5e76aa7fe464f3ec3444a9607f653454ce1c1fc75d6e85ca3e67b35f  .claude/rules/kit-gitignore.md
 1c3d02d2f022abecd49c6b4a38294e37e0df8cc97dbac0558a4f25595fb139d5  .claude/rules/kit-json.md
 96d16e8c1d3889909bbc13d6690b07a6d7c47aa2e7d62ff87f4cbc0068f385c7  .claude/rules/kit-just.md
-b10e9ddcd41ca3fea52b0233f94e26437bd6977b4c64b8461e63599d9bd7faaf  .claude/rules/kit-markdown.md
+a495ae7a54188bb82b73d50925012f9611af58396fa82c72c71d8a337c1bccf6  .claude/rules/kit-markdown.md
 4f2d5c15ec02e7549df338ff3ed51d5ebaf702b749dc078ae34392b04fb21c47  .claude/rules/kit-yaml.md

@@ -6,7 +6,8 @@ Applies to `*.md`.
 
 1. Write plain declarative sentences with the thing under discussion as the subject.
 2. Describe the current state. Leave the history to git: no "previously", "used to", "replaced", or "ported from".
-3. Use a list where the content is a list. Use a table where the content has columns.
+3. Use a list where the content is a list, and for a procedure or a loop, so it scans. Use a table where the
+   content has columns.
 4. Do not bold words for emphasis. Do not open a list item with a bolded term and a colon.
 5. Do not close a paragraph on a slogan, and do not restate what the code or config already says.
 6. Use the serial comma in every list of three or more.
@@ -42,4 +43,6 @@ Applies to `*.md`.
 
 1. Name an index file `1st.md`. It lists its siblings and says what each is for.
 2. A file says what its subject is in its first paragraph, before how to use it.
-3. No file names another repository as the source of a rule.
+3. A README has no Status section and no paragraph on what the repository will do or does not yet do. It says
+   what the repository is.
+4. No file names another repository as the source of a rule.
