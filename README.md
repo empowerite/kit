@@ -81,7 +81,7 @@ This repository is both the source of the kit and a consumer of it, so some comm
 
 | Installed copy | Written from |
 | --- | --- |
-| `.claude/rules/kit-<kind>.md` | `.kit/rules/<kind>.md`, with the `paths:` header the `claude` target adds |
+| `.claude/rules/kit-<kind>.md` | `.kit/rules/<kind>.md`, header and all, with a one-line notice |
 | `.claude/settings.json` | `.kit/settings.json`, merged by key; here it carries only the kit's entries |
 | `.github/workflows/kit-ci.yml` | `.kit/ci.yml` |
 | `.kit/manifest` | the release version, the targets taken, and a digest per delivered path |

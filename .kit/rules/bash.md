@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.sh"
+  - "**/*.bash"
+  - ".kit/hooks/*"
+---
 # Bash
 
 Applies to `*.sh`, `*.bash`, `.kit/hooks/*`, recipe bodies under `#!/usr/bin/env bash`, and `run:` blocks in

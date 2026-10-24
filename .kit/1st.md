@@ -52,9 +52,10 @@ A worker is whoever implements one issue in the worktree that issue names.
 
 ## Rules by file type
 
-Each file kind has a rule file under `.kit/rules/`. A harness that loads rules by path finds the same text
-under its own rules directory when the repository takes that target, `.claude/rules/kit-<kind>.md` for Claude
-Code. Read the rule for a kind before writing a file of that kind.
+Each file kind has a rule file under `.kit/rules/`, and each rule file names the paths it binds in its `paths:`
+header. A harness that loads rules by path finds a copy under its own rules directory when the repository takes
+that target, `.claude/rules/kit-<kind>.md` for Claude Code. Read the rule for a kind before writing a file of
+that kind.
 
 | Kind | Paths | Rule |
 | --- | --- | --- |

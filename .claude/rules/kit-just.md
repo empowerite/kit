@@ -1,6 +1,5 @@
 ---
-# Placed by kit install from the release's rules/just.md, and held to it by kit check. A delivered file is
-# changed by pinning a new release and running kit update, never in place.
+# Placed by kit install from .kit/rules/just.md, not edited by hand.
 paths:
   - "justfile"
   - "**/justfile"

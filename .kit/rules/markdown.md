@@ -1,3 +1,7 @@
+---
+paths:
+  - "**/*.md"
+---
 # Markdown
 
 Applies to `*.md`.

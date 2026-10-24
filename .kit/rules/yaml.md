@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.yml"
+  - "**/*.yaml"
+---
 # YAML
 
 Applies to `*.yml` and `*.yaml`, which here means GitHub Actions workflows.

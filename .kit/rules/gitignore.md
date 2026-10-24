@@ -1,3 +1,8 @@
+---
+paths:
+  - ".gitignore"
+  - "**/.gitignore"
+---
 # Ignore lists
 
 Applies to `.gitignore` at any depth.

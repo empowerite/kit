@@ -1,3 +1,9 @@
+---
+paths:
+  - "justfile"
+  - "**/justfile"
+  - "**/*.just"
+---
 # Just
 
 Applies to `justfile` and `*.just`. A recipe body under `#!/usr/bin/env bash` is bash, and the bash rule

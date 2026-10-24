@@ -22,7 +22,7 @@
 # core.hooksPath.
 #
 # A target is a harness that insists on files placed outside .kit/. The one this release knows is claude:
-# .claude/rules/kit-<kind>.md, each the rule file of that kind with a paths: header, and the kit's deny entries
+# .claude/rules/kit-<kind>.md, a copy of each rule file, whose own paths: header the harness loads it by, and the deny entries
 # merged into .claude/settings.json. A repository takes only the targets it names. A shared settings file is
 # merged by key: the kit owns only the entries it writes.
 #
@@ -80,19 +80,6 @@ require-targets() {
 manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
 
-# rule-paths <kind> prints the paths: globs a harness loads the rule of <kind> for, one per line.
-rule-paths() {
-  case "$1" in
-    (markdown)  printf '%s\n' '**/*.md' ;;
-    (bash)      printf '%s\n' '**/*.sh' '**/*.bash' '.kit/hooks/*' ;;
-    (just)      printf '%s\n' 'justfile' '**/justfile' '**/*.just' ;;
-    (yaml)      printf '%s\n' '**/*.yml' '**/*.yaml' ;;
-    (json)      printf '%s\n' '**/*.json' '**/*.jsonc' ;;
-    (gitignore) printf '%s\n' '.gitignore' '**/.gitignore' ;;
-    (*)         printf '%s\n' "**/*.$1"
-  esac
-}
-
 # target-paths <payload> <target> prints the repository paths a target places.
 target-paths() {
   local root=$1 file
@@ -130,24 +117,17 @@ delivered-paths() {
 
 # expected <payload> <path> prints the content the release at <payload> delivers at repository <path>.
 expected() {
-  local root=$1 path=$2 kind glob
+  local root=$1 path=$2 kind
   case "${path}" in
     (.kit/*)
       cat "${root}/${path#.kit/}"
       ;;
     (.claude/rules/kit-*.md)
+      # The rule file as it is, its paths: header included, with a one-line notice inside the header.
       kind=${path#.claude/rules/kit-}
       kind=${kind%.md}
-      printf -- '---\n'
-      printf '# Placed by kit install from the release'"'"'s rules/%s.md, and held to it by kit check. A delivered file is\n' "${kind}"
-      printf '# changed by pinning a new release and running kit update, never in place.\n'
-      printf 'paths:\n'
-      while IFS= read -r glob
-      do
-        printf '  - "%s"\n' "${glob}"
-      done < <(rule-paths "${kind}")
-      printf -- '---\n'
-      cat "${root}/rules/${kind}.md"
+      printf -- '---\n# Placed by kit install from .kit/rules/%s.md, not edited by hand.\n' "${kind}"
+      tail -n +2 "${root}/rules/${kind}.md"
       ;;
     (.github/workflows/kit-ci.yml)
       cat "${root}/ci.yml"
@@ -200,7 +180,7 @@ ensure-ignored() {
 write-manifest() {
   local path
   {
-    printf '# .kit/manifest - written by kit install, update, and target; never edited by hand\n'
+    printf '# .kit/manifest - written by kit, not by hand\n'
     printf 'version %s\n' "$(cat "${payload}/version")"
     printf 'targets%s\n' "${*:+ $*}"
     while IFS= read -r path

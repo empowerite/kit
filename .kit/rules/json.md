@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.json"
+  - "**/*.jsonc"
+---
 # JSON
 
 Applies to `*.json` and `*.jsonc`.
