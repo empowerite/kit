@@ -47,13 +47,13 @@ in_status() {
   [[ "${lines[10]}" == *" c1" ]]
 }
 
-@test "a worktree with no pull request says so, with its distance from main and the size of its diff" {
+@test "a worktree with no pull request shows its distance from main and the size of its diff" {
   git worktree add --quiet -b topic worktrees/topic main
   printf 'two\nthree\n' > worktrees/topic/b && git -C worktrees/topic add b && git -C worktrees/topic commit --quiet --message two
   printf 'four\n' > c && git add c && git commit --quiet --message four && git push --quiet origin main
   run in_status status:worktree-alone "${PWD}/worktrees/topic" topic 20 "${PWD}" main
   [ "$status" -eq 0 ]
-  [ "$output" = "🌿 worktrees/topic        no open pull request   ↑1 ↓1 · +2 -0" ]
+  [ "$output" = "🌿 worktrees/topic        ↑1 ↓1 · +2 -0" ]
 }
 
 @test "a detached worktree is marked, and a dirty one counts its uncommitted paths" {

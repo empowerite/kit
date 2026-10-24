@@ -8,17 +8,17 @@
 #
 # The picture is a headline counting the pull requests by state, then three sections, each omitted when empty:
 #
-#   worktrees      — every pull request written in a worktree under worktrees/, then the worktrees with no pull
-#                    request. A pull request's block is its row, the issues it closes, up to ten of the commits it
-#                    carries past its fork from the default branch, and its worktree with how far that has moved
-#                    from the fork and the size of its diff.
-#   pull requests  — every open pull request with no worktree here, the same block without the worktree.
+#   pull requests  — every open pull request: its row, the issues it closes, and, when a worktree under worktrees/
+#                    holds its branch, up to ten of the commits it carries past its fork from the default branch
+#                    and the worktree with how far that has moved from the fork and the size of its diff.
+#   worktrees      — every worktree under worktrees/ with no open pull request, with the same measures.
 #   gone branches  — every local branch whose upstream is gone, which kit tidy removes.
 #
-# A row is the title, the state with its glyph, the age, and the checks. Every state has its own glyph, so a row is
-# recognizable without reading the token. Color is by family, never by state: green when nothing is left to decide,
-# yellow when a human owes a decision, blue when the next move is a machine's or a reviewer's, dim when someone
-# already owns the work. The state is the first of these that holds:
+# A row is the title, the state with its glyph, the age, the checks, and, when there are any, the unresolved review
+# threads. Every state has its own glyph, so a row is recognizable without reading the token. Color is by family,
+# never by state: green when nothing is left to decide, yellow when a human owes a decision, blue when the next move
+# is a machine's or a reviewer's, dim when someone already owns the work, and every timing is dim. The state is the
+# first of these that holds:
 #
 #   draft              🔨  dim     unfinished work that belongs to someone
 #   queued             🚦  blue    a check is still running
@@ -95,8 +95,9 @@ status:state-emoji() {
 }
 
 # status:collect prints one record per open pull request, oldest first, with the fields separated by the unit
-# separator: number, branch, title, state, age, check glyph, check text, and the issues it closes as "#n title"
-# separated by the record separator. The one request to GitHub.
+# separator: number, branch, title, state, age, check glyph, check text, how long the checks took, the count of
+# unresolved review threads, and the issues it closes as "#n title" separated by the record separator. The one
+# request to GitHub.
 status:collect() {
   local repo query filter
   repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || return 0
@@ -155,7 +156,7 @@ status:collect() {
        else "ready" end) as $state
     | [ (.number | tostring), .headRefName, .title, $state,
         (($now - (.createdAt | fromdateiso8601)) | age),
-        $cell[0], ($cell[1] + (if $took == "" or $cell[1] == "" then "" else " · \($took)" end)),
+        $cell[0], $cell[1], (if $cell[1] == "" then "" else $took end), ($unresolved | tostring),
         ([.closingIssuesReferences.nodes[] | "#\(.number) \(.title)"] | join("\u001e")) ]
     | join("\u001f")'
   gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" --jq "${filter}" \
@@ -222,23 +223,29 @@ status:commits() {
   done
 }
 
-# status:pr-block <record> <title-width> <state-width> <age-width> <path> <main-root> <default-branch> prints one
-# pull request: its row, the issues it closes, and, when <path> names its worktree, the commits it carries past its
-# fork and the worktree's line.
+# status:pr-block <record> <title-width> <state-width> <age-width> <check-width> <path> <main-root> <default-branch>
+# prints one pull request: its row, the issues it closes, and, when <path> names its worktree, the commits it
+# carries past its fork and the worktree's line.
 status:pr-block() {
-  local title_w=$2 state_w=$3 age_w=$4 path=$5 main_root=$6 default_branch=$7
-  local number branch title state age glyph check issues issue row fork counts
-  IFS=$'\x1f' read -r number branch title state age glyph check issues <<<"$1"
+  local title_w=$2 state_w=$3 age_w=$4 check_w=$5 path=$6 main_root=$7 default_branch=$8
+  local number branch title state age glyph check took unresolved issues issue row fork counts
+  IFS=$'\x1f' read -r number branch title state age glyph check took unresolved issues <<<"$1"
   row="🔀 $(status:cell "#${number} ${title}" "${title_w}")"
   row+="   $(status:state-emoji "${state}") $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
   row+="   $(status:paint 90 "$(status:cell "${age}" "${age_w}")")"
-  [[ -n "${glyph}" ]] && row+="   ${glyph} ${check}"
+  if (( unresolved > 0 ))
+  then
+    row+="   $(status:check-cell "${glyph}" "${check}" "${took}" "${check_w}")   $(status:paint 33 "💬 ${unresolved} unresolved")"
+  elif [[ -n "${glyph}" ]]
+  then
+    row+="   $(status:check-cell "${glyph}" "${check}" "${took}" 0)"
+  fi
   printf '%s\n' "${row}" >&2
   if [[ -n "${issues}" ]]
   then
     while IFS= read -r issue
     do
-      printf '   %s\n' "$(status:paint 90 "${issue}")" >&2
+      printf '   %s\n' "$(status:paint 90 "closes ${issue}")" >&2
     done < <(tr '\036' '\n' <<<"${issues}")
   fi
   [[ -n "${path}" ]] || return 0
@@ -250,20 +257,32 @@ status:pr-block() {
     "$(status:uncommitted "${path}")" >&2
 }
 
+# status:check-cell <glyph> <text> <took> <width> prints the checks as "<glyph> <text> · <took>", the duration dim,
+# padded to <width> characters when something follows it; nothing when no check has reported.
+status:check-cell() {
+  local glyph=$1 text=$2 took=$3 width=$4 plain=''
+  if [[ -n "${glyph}" ]]
+  then
+    plain="${glyph} ${text}${took:+ · ${took}}"
+    printf '%s %s%s' "${glyph}" "${text}" "${took:+ · $(status:paint 90 "${took}")}"
+  fi
+  (( ${#plain} < width )) && printf '%*s' $(( width - ${#plain} )) ''
+  return 0
+}
+
 # status:worktree-alone <path> <branch> <title-width> <main-root> <default-branch> prints a worktree with no open
-# pull request as a row: its path, why it stands alone, and its divergence.
+# pull request as a row: its path, a mark when it is detached, and its divergence.
 status:worktree-alone() {
-  local path=$1 branch=$2 title_w=$3 main_root=$4 default_branch=$5 mark fork='' counts
+  local path=$1 branch=$2 title_w=$3 main_root=$4 default_branch=$5 mark='' fork='' counts
   if [[ -n "${branch}" ]]
   then
-    mark=$(status:paint 90 'no open pull request')
     fork=$(status:fork "${branch}" "${default_branch}")
   else
-    mark=$(status:paint 33 '❗ detached HEAD')
+    mark="$(status:paint 33 '❗ detached HEAD')   "
   fi
   counts=$(status:divergence "${path}" "${branch}" "${fork}" "${default_branch}")
   # shellcheck disable=SC2086  # the four counts are tab-separated words
-  printf '🌿 %s   %s   %s%s\n' "$(status:cell "${path#"${main_root}"/}" "${title_w}")" "${mark}" \
+  printf '🌿 %s   %s%s%s\n' "$(status:cell "${path#"${main_root}"/}" "${title_w}")" "${mark}" \
     "$(status:paint-counts ${counts})" "$(status:uncommitted "${path}")" >&2
 }
 
@@ -344,17 +363,18 @@ status:render() {
   # The rows, and the width of each column across them.
   local -a rows=() states=()
   local -A pr_on=()
-  local number title state age glyph check issues count=0 state_w=0 age_w=0 check_w=0 title_w=0 issue
+  local number title state age glyph check took unresolved issues count=0 state_w=0 age_w=0 check_w=0 title_w=0 issue
   while IFS= read -r record
   do
     [[ -n "${record}" ]] || continue
-    IFS=$'\x1f' read -r number branch title state age glyph check issues <<<"${record}"
+    IFS=$'\x1f' read -r number branch title state age glyph check took unresolved issues <<<"${record}"
     rows+=("${record}")
     states+=("${state}")
     pr_on[${branch}]=1
     (( ${#state} > state_w )) && state_w=${#state}
     (( ${#age} > age_w )) && age_w=${#age}
-    [[ -n "${glyph}" ]] && (( ${#check} + 3 > check_w )) && check_w=$(( ${#check} + 3 ))
+    check="${glyph:+${glyph} ${check}${took:+ · ${took}}}"
+    (( ${#check} + 1 > check_w )) && check_w=$(( ${#check} + 1 ))
     title="#${number} ${title}"
     (( ${#title} > title_w )) && title_w=${#title}
     while IFS= read -r issue
@@ -369,7 +389,7 @@ status:render() {
     (( ${#path} > title_w )) && title_w=${#path}
   done
   local avail
-  avail=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - check_w ))
+  avail=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - check_w - 3 - 16 ))
   (( avail < 20 )) && avail=20
   (( title_w > avail )) && title_w=${avail}
 
@@ -380,24 +400,27 @@ status:render() {
     out:emit '📋' '1' "${count} open pull request$( (( count == 1 )) || printf s) · $(status:badges "${states[@]}")"
   fi
 
-  # Worktrees: the pull requests written in one, then the worktrees without one, by issue number.
-  local -A drawn=()
+  # Every pull request, with its worktree when one here holds its branch.
+  if (( count > 0 ))
+  then
+    section "pull requests"
+    for record in "${rows[@]}"
+    do
+      IFS=$'\x1f' read -r _ branch _ <<<"${record}"
+      status:pr-block "${record}" "${title_w}" "${state_w}" "${age_w}" "${check_w}" "${worktree_of[${branch}]:-}" \
+        "${main_root}" "${default_branch}"
+    done
+  fi
+
+  # The worktrees with no pull request, by issue number, then the detached ones.
   local -a lone=()
   for branch in "${!worktree_of[@]}"
   do
     [[ -n "${pr_on[${branch}]:-}" ]] || lone+=("${branch}")
   done
-  if (( ${#worktree_of[@]} + ${#detached_paths[@]} > 0 ))
+  if (( ${#lone[@]} + ${#detached_paths[@]} > 0 ))
   then
-    section "worktrees"
-    for record in "${rows[@]}"
-    do
-      IFS=$'\x1f' read -r number branch _ <<<"${record}"
-      [[ -n "${worktree_of[${branch}]:-}" ]] || continue
-      drawn[${number}]=1
-      status:pr-block "${record}" "${title_w}" "${state_w}" "${age_w}" "${worktree_of[${branch}]}" "${main_root}" \
-        "${default_branch}"
-    done
+    section "worktrees with no open pull request"
     while IFS=$'\t' read -r _ branch
     do
       [[ -n "${branch}" ]] || continue
@@ -406,18 +429,6 @@ status:render() {
     for path in "${detached_paths[@]}"
     do
       status:worktree-alone "${path}" '' "${title_w}" "${main_root}" "${default_branch}"
-    done
-  fi
-
-  # Pull requests with no worktree here.
-  if (( count > ${#drawn[@]} ))
-  then
-    section "pull requests"
-    for record in "${rows[@]}"
-    do
-      number=${record%%$'\x1f'*}
-      [[ -n "${drawn[${number}]:-}" ]] && continue
-      status:pr-block "${record}" "${title_w}" "${state_w}" "${age_w}" '' "${main_root}" "${default_branch}"
     done
   fi
 
