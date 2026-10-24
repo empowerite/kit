@@ -1,0 +1,302 @@
+#!/usr/bin/env bash
+# kit - install, update, and check the kit in a repository (executed entrypoint)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+#   kit install    copy this release into the repository and write .kit/manifest
+#   kit update     after the pin is bumped: replace unchanged files, three-way merge changed ones
+#   kit check      fail when a delivered file differs from this release
+#   kit version    print this release's version
+#
+# KIT_BASE=<dir> names the previous release's root for \`kit update\` on a machine without mise.
+#
+# The release this command belongs to is the directory above bin/: its .kit/ is the payload. The repository is
+# the git checkout the command runs in. A delivered file is one of: every file under .kit/, except manifest;
+# .claude/rules/kit-<kind>.md, each the rule file of that kind with a paths: header so a harness loads it by
+# path; and .github/workflows/kit-ci.yml, which is .kit/ci.yml placed where GitHub reads it. .claude/settings.json
+# is shared with the repository, so it is merged by key: the kit owns only the deny entries it writes.
+#
+# see: .kit/1st.md
+
+set -o errexit -o nounset -o pipefail
+
+kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+payload="${kit_root}/.kit"
+# shellcheck source=.kit/bash/1st.sh
+source "${payload}/bash/1st.sh"
+
+usage() {
+  sed -n '5,8p' "${BASH_SOURCE[0]}" | sed 's/^# *//' >&2
+}
+
+# digest prints the sha256 of stdin, by whichever tool the machine carries.
+digest() {
+  if command -v sha256sum >/dev/null 2>&1
+  then
+    sha256sum | cut -d ' ' -f 1
+  else
+    shasum -a 256 | cut -d ' ' -f 1
+  fi
+}
+
+# rule-paths <kind> prints the paths: globs a harness loads the rule of <kind> for, one per line.
+rule-paths() {
+  case "$1" in
+    (markdown)  printf '%s\n' '**/*.md' ;;
+    (bash)      printf '%s\n' '**/*.sh' '**/*.bash' '.kit/hooks/*' ;;
+    (just)      printf '%s\n' 'justfile' '**/justfile' '**/*.just' ;;
+    (yaml)      printf '%s\n' '**/*.yml' '**/*.yaml' ;;
+    (json)      printf '%s\n' '**/*.json' '**/*.jsonc' ;;
+    (gitignore) printf '%s\n' '.gitignore' '**/.gitignore' ;;
+    (*)         printf '%s\n' "**/*.$1"
+  esac
+}
+
+# delivered-paths <payload> prints every repository path the release at <payload> delivers.
+delivered-paths() {
+  local root=$1 file
+  while IFS= read -r file
+  do
+    [[ "${file}" == manifest ]] && continue
+    printf '.kit/%s\n' "${file}"
+  done < <(cd "${root}" && find . -type f | sed 's@^\./@@' | sort)
+  for file in "${root}"/rules/*.md
+  do
+    printf '.claude/rules/kit-%s\n' "$(basename "${file}")"
+  done
+  printf '.github/workflows/kit-ci.yml\n'
+}
+
+# expected <payload> <path> prints the content the release at <payload> delivers at repository <path>.
+expected() {
+  local root=$1 path=$2 kind glob
+  case "${path}" in
+    (.kit/*)
+      cat "${root}/${path#.kit/}"
+      ;;
+    (.claude/rules/kit-*.md)
+      kind=${path#.claude/rules/kit-}
+      kind=${kind%.md}
+      printf -- '---\npaths:\n'
+      while IFS= read -r glob
+      do
+        printf '  - "%s"\n' "${glob}"
+      done < <(rule-paths "${kind}")
+      printf -- '---\n'
+      cat "${root}/rules/${kind}.md"
+      ;;
+    (.github/workflows/kit-ci.yml)
+      cat "${root}/ci.yml"
+      ;;
+    (*)
+      error "kit: '${path}' is not a delivered path"
+      return 2
+  esac
+}
+
+# write-expected <payload> <path> writes the delivered content at <path>, making its directory.
+write-expected() {
+  mkdir -p "$(dirname "$2")"
+  expected "$1" "$2" > "$2.kit-new"
+  mv "$2.kit-new" "$2"
+  [[ "$2" == .kit/hooks/* ]] && chmod +x "$2"
+  return 0
+}
+
+# merge-settings <new-payload> [<base-payload>] merges the deny entries into .claude/settings.json: the base
+# release's entries go, the new release's come, and everything else in the file stays as it was.
+merge-settings() {
+  local new_root=$1 base_root=${2:-} base_deny='[]'
+  [[ -n "${base_root}" && -f "${base_root}/settings.json" ]] && base_deny=$(jq '.permissions.deny // []' "${base_root}/settings.json")
+  mkdir -p .claude
+  [[ -f .claude/settings.json ]] || printf '{}\n' > .claude/settings.json
+  jq --indent 2 \
+    --argjson base "${base_deny}" \
+    --argjson new "$(jq '.permissions.deny // []' "${new_root}/settings.json")" \
+    '.permissions.deny = (((.permissions.deny // []) - $base) as $kept | $kept + ($new - $kept))' \
+    .claude/settings.json > .claude/settings.json.kit-new
+  mv .claude/settings.json.kit-new .claude/settings.json
+}
+
+# ensure-ignored makes sure worktrees/ is ignored at the root, the way the loop needs.
+ensure-ignored() {
+  local separator=""
+  if [[ -f .gitignore ]] && grep --quiet --line-regexp --extended-regexp '/?worktrees/' .gitignore
+  then
+    return 0
+  fi
+  [[ -f .gitignore && -s .gitignore ]] && separator=$'\n'
+  printf '%s# the per-issue worktrees of the loop; see: .kit/1st.md\n/worktrees/\n' "${separator}" >> .gitignore
+}
+
+# write-manifest records the release version and, per delivered path, the digest of the release's own content
+# for it, never of the file as written: a later update tells an untouched file from an edited one by comparing
+# the file to this, so a merge that kept a repository's edit is not mistaken for the release's text.
+write-manifest() {
+  local path
+  {
+    printf 'version %s\n' "$(cat "${payload}/version")"
+    while IFS= read -r path
+    do
+      printf '%s  %s\n' "$(expected "${payload}" "${path}" | digest)" "${path}"
+    done < <(delivered-paths "${payload}")
+  } > .kit/manifest
+}
+
+# finish sets the clone's hooks path and reports.
+finish() {
+  git config core.hooksPath .kit/hooks
+  ok "kit $(cat "${payload}/version") is installed: core.hooksPath is .kit/hooks, and .kit/manifest is written."
+  step "Commit the delivered files. The loop is in .kit/1st.md."
+}
+
+cmd-install() {
+  guard:require tool:jq tool:git
+  if [[ -f .kit/manifest ]]
+  then
+    error "run: kit update (this repository already carries kit $(sed -n 's/^version //p' .kit/manifest))"
+    return 1
+  fi
+  section "kit install $(cat "${payload}/version")"
+  local path
+  while IFS= read -r path
+  do
+    step "${path}"
+    write-expected "${payload}" "${path}"
+  done < <(delivered-paths "${payload}")
+  merge-settings "${payload}"
+  ensure-ignored
+  write-manifest
+  finish
+}
+
+cmd-update() {
+  guard:require tool:jq tool:git
+  if [[ ! -f .kit/manifest ]]
+  then
+    error "run: kit install (this repository carries no .kit/manifest)"
+    return 1
+  fi
+  local previous current base_root="" path recorded actual conflicts=0
+  previous=$(sed -n 's/^version //p' .kit/manifest)
+  current=$(cat "${payload}/version")
+  section "kit update ${previous} → ${current}"
+
+  # The previous release is the base of every three-way merge. KIT_BASE names its root directly; otherwise
+  # mise keeps it where it installed it.
+  if [[ -n "${KIT_BASE:-}" ]]
+  then
+    base_root=${KIT_BASE}
+  elif [[ "${previous}" != "${current}" ]] && command -v mise >/dev/null 2>&1
+  then
+    base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
+    if [[ -z "${base_root}" ]] && mise install --quiet "github:empowerite/kit@${previous}" 2>/dev/null
+    then
+      base_root=$(mise where "github:empowerite/kit@${previous}" 2>/dev/null || true)
+    fi
+  fi
+  [[ -n "${base_root}" ]] && base_root="${base_root}/.kit"
+
+  while IFS= read -r path
+  do
+    if [[ ! -f "${path}" ]]
+    then
+      step "${path}: missing, written"
+      write-expected "${payload}" "${path}"
+      continue
+    fi
+    recorded=$(awk -v p="${path}" '$2==p{print $1}' .kit/manifest)
+    actual=$(digest < "${path}")
+    if [[ -z "${recorded}" || "${recorded}" == "${actual}" ]]
+    then
+      step "${path}: unchanged since ${previous}, replaced"
+      write-expected "${payload}" "${path}"
+      continue
+    fi
+    if [[ -z "${base_root}" || ! -d "${base_root}" ]]
+    then
+      error "${path} was edited and the base release ${previous} is not installed; run: mise install github:empowerite/kit@${previous}"
+      conflicts=$(( conflicts + 1 ))
+      continue
+    fi
+    step "${path}: edited since ${previous}, three-way merged"
+    expected "${base_root}" "${path}" > "${path}.kit-base"
+    expected "${payload}" "${path}" > "${path}.kit-new"
+    if ! git merge-file --marker-size 7 "${path}" "${path}.kit-base" "${path}.kit-new"
+    then
+      warn "${path}: conflict markers are left in the file; resolve them, then run: kit check"
+      conflicts=$(( conflicts + 1 ))
+    fi
+    rm -f "${path}.kit-base" "${path}.kit-new"
+  done < <(delivered-paths "${payload}")
+
+  merge-settings "${payload}" "${base_root}"
+  ensure-ignored
+  write-manifest
+  if (( conflicts > 0 ))
+  then
+    error "${conflicts} file(s) need a hand; see above."
+    return 1
+  fi
+  finish
+}
+
+cmd-check() {
+  local path findings=0 version
+  if [[ ! -f .kit/manifest ]]
+  then
+    error "run: kit install (this repository carries no .kit/manifest)"
+    return 1
+  fi
+  version=$(sed -n 's/^version //p' .kit/manifest)
+  if [[ "${version}" != "$(cat "${payload}/version")" ]]
+  then
+    error ".kit/manifest records kit ${version}, and the pinned release is $(cat "${payload}/version"); run: kit update"
+    findings=$(( findings + 1 ))
+  fi
+  while IFS= read -r path
+  do
+    if [[ ! -f "${path}" ]]
+    then
+      error "${path} is missing"
+      findings=$(( findings + 1 ))
+    elif ! expected "${payload}" "${path}" | cmp --silent - "${path}"
+    then
+      error "${path} differs from the pinned release"
+      findings=$(( findings + 1 ))
+    fi
+  done < <(delivered-paths "${payload}")
+  if [[ ! -f .claude/settings.json ]]
+  then
+    error ".claude/settings.json is missing; run: kit update"
+    findings=$(( findings + 1 ))
+  elif ! command -v jq >/dev/null 2>&1
+  then
+    error "run: mise install (jq is not on PATH, so .claude/settings.json could not be read)"
+    findings=$(( findings + 1 ))
+  elif (( $(jq --argjson new "$(jq '.permissions.deny // []' "${payload}/settings.json")" \
+      '($new - (.permissions.deny // [])) | length' .claude/settings.json) > 0 ))
+  then
+    error ".claude/settings.json is missing a deny entry the kit writes; run: kit update"
+    findings=$(( findings + 1 ))
+  fi
+  if (( findings > 0 ))
+  then
+    error "${findings} finding(s). A delivered file is changed by pinning a new release and running kit update, not in place."
+    return 1
+  fi
+  ok "kit ${version}: every delivered file matches the pinned release."
+}
+
+case "${1:-}" in
+  (install) cmd-install ;;
+  (update)  cmd-update ;;
+  (check)   cmd-check ;;
+  (version) cat "${payload}/version" ;;
+  (-h | --help | help | "") usage; [[ -n "${1:-}" ]] ;;
+  (*)
+    error "kit: unknown command '$1'"
+    usage
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------
