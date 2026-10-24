@@ -14,11 +14,12 @@ the repository's own rules in `AGENTS.md` bind beside it. Where the two differ, 
 5. A rule lives in the repository, never in a session's memory. A convention learned or a correction given is
    written into a rule file or `AGENTS.md` through the loop, where every agent and every person reads it.
 
-## `main` is the human's desk
+## The root checkout is the human's desk
 
-The checkout at the repository root stays on the default branch. It is where the human types, reviews, and
-leaves work in progress. Never check out, reset, rebase, or otherwise change it in place. Work happens in a
-worktree under `worktrees/`, one per issue, and reaches `main` only through a merged pull request.
+The checkout at the repository root is the human's. It is where they type, review, and leave work in progress.
+It usually has `main` checked out, and may have any branch no worktree holds. An agent never checks out, resets,
+rebases, or otherwise changes it in place. Work happens in a worktree under `worktrees/`, one per issue, and
+reaches `main` only through a merged pull request.
 
 ## The loop
 
@@ -37,12 +38,12 @@ worktree under `worktrees/`, one per issue, and reaches `main` only through a me
 Where the kit adds a rule to a git verb, the kit's spelling is the only one an agent uses. The rule runs inside
 it, and a harness that can refuse the raw spelling does.
 
-- `kit rebase`, never `git rebase`. It refuses the default branch and otherwise rebases the worktree's branch onto
-  `origin/main` and pushes it.
+- `kit rebase`, never `git rebase`. It refuses the root checkout and the default branch, and otherwise rebases the
+  worktree's branch onto `origin/main` and pushes it.
 - `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
 
-The human at the desk is not bound by this; `main` is theirs to rebase.
+The human at the desk is not bound by this; the root checkout is theirs.
 
 ## Plans are prose
 

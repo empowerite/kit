@@ -5,10 +5,14 @@ shortcut anyone ever took: the "done" that was not, the test that was skipped an
 that quietly rewrote a colleague's branch. An agent is a tireless new colleague who has read everything and holds
 none of your house rules, unless you put them where it looks.
 
-kit is the house rules, put where agents look, as a versioned release any repository can take and keep taking.
-It is small on purpose: the text an agent reads first, a rule file per kind of file, a guard that keeps `main` as
-the human's desk, and the one command no harness provides, which turns an issue into a worktree with a draft pull
-request. A tag on `main` publishes a release. A repository pins it, installs it, and keeps rules of its own
+kit is the house rules, put where agents look, and the checks that hold agents to them, as a versioned release any
+repository can take and keep taking. The rules are the smaller part. The point is verification that does not depend on
+anyone's word: a delivered CI job that refuses a pull request without a linked open issue, `kit check` holding every
+delivered file to its release, a pre-commit hook that runs the linters over what is staged, a deny list that refuses
+the spellings the rules forbid, and `kit status` showing what every pull request's checks said. The text is what those
+checks hold the work against: the entry file an agent reads first, a rule file per kind of file, the root checkout
+kept as the human's desk, and the one command no harness provides, which turns an issue into a worktree with a draft
+pull request. A tag on `main` publishes a release. A repository pins it, installs it, and keeps rules of its own
 beside it. The design is [#1](https://github.com/empowerite/kit/issues/1), and the entry file every agent reads is
 [.kit/1st.md](.kit/1st.md).
 

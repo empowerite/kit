@@ -9,9 +9,10 @@
 # under the main checkout, and an existing branch, worktree, or pull request is reused, so a re-run reconciles.
 #
 # With no argument and a terminal on stdin it asks for a title and creates the issue; without a terminal the
-# usage error stands, so an agent never hangs on a prompt. Uncommitted work on the default branch is swept into
-# the new worktree, uncommitted, and the desk is left clean and fast-forwarded; inside any other checkout, dirty
-# files are that issue's own and stay. A sweep that cannot apply leaves the stash in place and stops.
+# usage error stands, so an agent never hangs on a prompt. Uncommitted work in the root checkout, the human's
+# desk, is swept into the new worktree, uncommitted, and the desk is left clean, and fast-forwarded when it is on
+# the default branch; inside any other checkout, dirty files are that issue's own and stay. A sweep that cannot
+# apply leaves the stash in place and stops.
 #
 # Each step below prints its one result on stdout and talks on stderr, so gh:issue reads them in order.
 
@@ -134,7 +135,8 @@ gh:sweep-push() {
 }
 
 # gh:sweep-apply <root> <worktree> <stash> <default-branch> lands the stash in the worktree, uncommitted, drops it,
-# and fast-forwards the now-clean desk. On a conflict the stash is kept and the caller stops.
+# and fast-forwards the now-clean desk when it is on the default branch. On a conflict the stash is kept and the
+# caller stops.
 gh:sweep-apply() {
   local root=$1 wt=$2 stash=$3 default_branch=$4 slot
   if ! git -C "${wt}" stash apply "${stash}" >/dev/null 2>&1
@@ -145,6 +147,7 @@ gh:sweep-apply() {
   slot=$(git -C "${root}" stash list --format='%gd %H' | awk -v h="${stash}" '$2 == h { print $1; exit }')
   [[ -n "${slot}" ]] && git -C "${root}" stash drop "${slot}" >/dev/null
   ok "Swept the work into ${wt}, uncommitted; commit it there with a real message."
+  [[ "$(git -C "${root}" rev-parse --abbrev-ref HEAD)" == "${default_branch}" ]] || return 0
   git -C "${root}" merge --ff-only "origin/${default_branch}" >/dev/null 2>&1 \
     || warn "${default_branch} could not fast-forward to origin; it is left as it was."
 }
@@ -221,9 +224,9 @@ gh:issue() {
   section "Starting #${primary}: ${title}"
 
   branch=$(gh:issue-branch "${primary}" "${default_branch}") || return
-  if [[ "${desk_branch}" == "${default_branch}" ]] && ! git:clean "${desk}"
+  if [[ "${desk}" == "${main_root}" ]] && ! git:clean "${desk}"
   then
-    step "Sweeping the uncommitted work on ${default_branch} into the worktree"
+    step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
     stash=$(gh:sweep-push "${desk}" "kit issue #${primary} → ${branch}") || return
   fi
   wt=$(gh:worktree "${main_root}" "${branch}") || return
@@ -240,7 +243,7 @@ gh:issue() {
 
   ok "Draft pull request #${pr} on ${branch}, primary #${primary}${2:+, secondaries: ${*:2}}"
   ok "Worktree ready: ${wt}"
-  step "cd '${wt}'    # do all work there; this checkout stays on ${default_branch}"
+  step "cd '${wt}'    # do all work there; this checkout stays on ${desk_branch}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

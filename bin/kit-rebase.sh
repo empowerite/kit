@@ -2,7 +2,7 @@
 # kit-rebase - rebase a worktree's branch onto the default branch and push it (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Never the default branch itself.
+# Never the root checkout, the human's desk, and never the default branch.
 #
 # see: bin/git.sh
 

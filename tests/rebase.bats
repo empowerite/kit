@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# rebase.bats - kit rebase refuses the default branch and brings a worktree's branch up to date
+# rebase.bats - kit rebase refuses the desk and the default branch, and brings a worktree's branch up to date
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
@@ -33,10 +33,22 @@ commit-in() {
   git -C "$1" commit --quiet --message "$2"
 }
 
-@test "rebase refuses the default branch" {
+@test "rebase refuses the root checkout, whatever branch it has" {
   run "${kit_checkout}/bin/kit" rebase
   [ "$status" -eq 1 ]
-  [[ "$output" == *"refusing to rebase main"* ]]
+  [[ "$output" == *"refusing to rebase main: it is checked out at the root"* ]]
+  git switch --quiet --create desk-topic
+  run "${kit_checkout}/bin/kit" rebase
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to rebase desk-topic: it is checked out at the root"* ]]
+}
+
+@test "rebase refuses the default branch in a worktree" {
+  git switch --quiet --create desk-topic
+  git worktree add --quiet ../wt main
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to rebase main: it is the default branch"* ]]
 }
 
 @test "rebase moves a worktree's branch onto origin/main and pushes it" {

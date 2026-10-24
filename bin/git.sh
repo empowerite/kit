@@ -9,8 +9,8 @@
 # runs in. --dry-run says what a sweep would do and changes nothing.
 #
 # git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto
-# origin/<default> and pushes it with --force-with-lease. It refuses the default branch, the human's desk, and
-# on a conflict aborts and leaves the worktree as it was.
+# origin/<default> and pushes it with --force-with-lease. It refuses the root checkout, the human's desk, whatever
+# branch it has, and the default branch anywhere. On a conflict it aborts and leaves the worktree as it was.
 
 # git:default-branch [<path>] prints the default branch of the repository at <path>: origin/HEAD, else main.
 git:default-branch() {
@@ -218,10 +218,15 @@ git:rebase() {
     error "${worktree} has no branch checked out, so there is nothing to rebase"
     return 1
   fi
+  if [[ "$(git -C "${worktree}" rev-parse --show-toplevel)" == "$(git:main-root "${worktree}")" ]]
+  then
+    error "refusing to rebase ${branch}: it is checked out at the root, the human's desk; work is rebased in its worktree"
+    return 1
+  fi
   default_branch=$(git:default-branch "${worktree}")
   if [[ "${branch}" == "${default_branch}" ]]
   then
-    error "refusing to rebase ${branch}: it is the default branch, the human's desk; it advances by: git pull --ff-only"
+    error "refusing to rebase ${branch}: it is the default branch; it advances by: git pull --ff-only"
     return 1
   fi
   section "kit rebase ${branch} onto origin/${default_branch}"
