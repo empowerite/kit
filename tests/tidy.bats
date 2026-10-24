@@ -21,14 +21,9 @@ teardown() {
   rm -rf "${work}"
 }
 
-# decide <path> runs tidy's per-worktree decision on <path>, a detached checkout, with tidy's globals in place.
+# decide <path> runs tidy's decision on <path>, a detached checkout, with main as the default branch and no dry run.
 decide() {
-  bash -c '
-    source "${kit_root}/bin/1st.sh" && use git
-    found=false; dry_run=false; removed_worktrees=0; declare -A freed=()
-    self_root=$(git rev-parse --show-toplevel); default_branch=main
-    git:tidy-worktree "$1" "" true
-  ' _ "$1"
+  bash -c 'source "${kit_root}/bin/1st.sh" && use git && git:tidy-worktree "$1" "" true main "$(git rev-parse --show-toplevel)" false' _ "$1"
 }
 
 @test "a clean detached worktree at a commit on main is removed" {
@@ -43,7 +38,7 @@ decide() {
   git worktree add --quiet --detach worktrees/only HEAD
   printf 'two\n' > worktrees/only/b && git -C worktrees/only add b && git -C worktrees/only commit --quiet --message two
   run decide "${PWD}/worktrees/only"
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"keeping"* ]]
   [ -e worktrees/only ]
 }
