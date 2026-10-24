@@ -2,8 +2,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/ and .kit/, the layout
-# a consumer's mise unpacks and puts on PATH. Two refusals: a tag whose commit is not on main, and a tag whose
-# version is not the one .kit/version records, so the release's version and the kit's own agree.
+# a consumer's mise unpacks and puts on PATH. Only a version tag starts a run, and the run refuses a tag whose
+# commit is not on main (any commit on main, not only its head), a tag that is not v<major>.<minor>.<patch> with an
+# optional pre-release suffix, and a tag whose version is not the one .kit/version records at that commit.
 #
 # see: .kit/1st.md
 
@@ -11,7 +12,7 @@ name: release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['v[0-9]*']
 
 permissions:
   contents: write
@@ -39,6 +40,11 @@ jobs:
         run: |
           set -o errexit -o nounset -o pipefail
           tag_version=${GITHUB_REF_NAME#v}
+          if [[ ! "${tag_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+          then
+            echo "::error::${GITHUB_REF_NAME} is not a version tag; a release tag is v<major>.<minor>.<patch>, with an optional -<pre-release>"
+            exit 1
+          fi
           file_version=$(cat .kit/version)
           if [[ "${tag_version}" != "${file_version}" ]]
           then
