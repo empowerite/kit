@@ -30,9 +30,10 @@ through the rules table in `.kit/1st.md`. `kit target add` and `kit target remov
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
-- Pin `lefthook` in `mise.toml`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install`
-  once per clone. That runs `kit lint` over the staged paths before each commit, beside any hooks of your own. A
-  repository on another hook manager runs `kit lint` from it instead.
+- Pin `lefthook` in `mise.desk.toml`, the file mise reads when `MISE_ENV=desk`, put
+  `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install` once per clone. That runs
+  `kit lint` over the staged paths before each commit, beside any hooks of your own. A repository on another hook
+  manager runs `kit lint` from it instead.
 
 The machinery, the `kit` command and the bash behind its verbs, stays in the release where mise installed it; the
 repository carries the text an agent reads and the record of what it took. The kit needs bash 4.4 or later, git,
@@ -56,9 +57,13 @@ Then, once per clone, with the key's id in `signing_key`:
 git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
+export MISE_ENV=desk
 mise install
 lefthook install
 ```
+
+`MISE_ENV=desk` belongs in your shell profile: it makes mise read `mise.desk.toml`, the tools only a desk runs,
+on top of `mise.toml`, the tools a desk and a CI runner share. A runner leaves it unset.
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
 
@@ -91,7 +96,7 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.kit/1st.md`, `.kit/rules/`, `.kit/lefthook.yml` | `tree/.kit/` |
 | `.github/workflows/kit-ci.yml` | `tree/.github/workflows/kit-ci.yml` |
 | `.claude/rules/kit-<kind>.md` | `targets/claude/.claude/rules/`, links into `tree/.kit/rules/` |
-| `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here it carries only the kit's entries |
+| `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version, the targets taken, and a digest per delivered path |
 
 After changing a file under `tree/` or `targets/`, run `just refresh`, which reinstalls the kit into this

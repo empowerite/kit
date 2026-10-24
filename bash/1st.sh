@@ -3,8 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Sourced by every verb, bin/kit-<verb>.bash, which bin/kit dispatches to with kit_root exported. It defines functions only and sets no shell option, so the caller's options stand. A module under
-# bash/ is loaded on first use with `use <module>`, and each exported function has a stub here so a
-# caller never has to load it by hand.
+# bash/ is loaded with `use <module>`, once, by the verb that needs it; there is no other way in.
 #
 # Every message goes to stderr, so stdout stays clean for data. Color is off when stderr is not a terminal or
 # NO_COLOR is set. Under GitHub Actions, warn and error also emit the matching workflow command.
@@ -120,9 +119,5 @@ git:default-branch() {
 git:main-root() {
   git worktree list --porcelain | sed -n 's@^worktree @@p' | head -n 1
 }
-
-gh:issue()  { use gh && gh:issue "$@"; }
-git:tidy()  { use git && git:tidy "$@"; }
-git:status() { use git && git:status "$@"; }
 
 # ----------------------------------------------------------------------------------------------------------------------
