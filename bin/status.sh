@@ -6,7 +6,9 @@
 # GitHub once, for every open pull request with the issues it closes, its review threads, and the checks on its
 # head; everything else is a local git read.
 #
-# The picture is a headline counting the pull requests by state, then three sections, each omitted when empty:
+# The picture is a headline counting the pull requests by state; the desk, the root checkout, with its branch, how
+# far it has moved from where that branch left origin's default branch, the size of that diff, and its uncommitted
+# paths; then three sections, each omitted when empty:
 #
 #   pull requests  — every open pull request: its row, the issues it closes, and, when a worktree under worktrees/
 #                    holds its branch, up to ten of the commits it carries past its fork from the default branch
@@ -270,10 +272,11 @@ status:check-cell() {
   return 0
 }
 
-# status:worktree-alone <path> <branch> <title-width> <main-root> <default-branch> prints a worktree with no open
-# pull request as a row: its path, a mark when it is detached, and its divergence.
-status:worktree-alone() {
-  local path=$1 branch=$2 title_w=$3 main_root=$4 default_branch=$5 mark='' fork='' counts
+# status:checkout-row <glyph> <label> <path> <branch> <title-width> <default-branch> prints a checkout with no pull
+# request row of its own as one row: the glyph, the label in the title column, a mark when it is detached, its
+# divergence, and its uncommitted paths. The desk is drawn with 🏠 and its branch; a worktree with 🌿 and its path.
+status:checkout-row() {
+  local glyph=$1 label=$2 path=$3 branch=$4 title_w=$5 default_branch=$6 mark='' fork='' counts
   if [[ -n "${branch}" ]]
   then
     fork=$(status:fork "${branch}" "${default_branch}")
@@ -282,7 +285,7 @@ status:worktree-alone() {
   fi
   counts=$(status:divergence "${path}" "${branch}" "${fork}" "${default_branch}")
   # shellcheck disable=SC2086  # the four counts are tab-separated words
-  printf '🌿 %s   %s%s%s\n' "$(status:cell "${path#"${main_root}"/}" "${title_w}")" "${mark}" \
+  printf '%s %s   %s%s%s\n' "${glyph}" "$(status:cell "${label}" "${title_w}")" "${mark}" \
     "$(status:paint-counts ${counts})" "$(status:uncommitted "${path}")" >&2
 }
 
@@ -345,6 +348,8 @@ status:render() {
   main_root=$(git:main-root)
   default_branch=$(git:default-branch)
   records=$(status:collect)
+  local desk_branch
+  desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
 
   # The linked worktrees: by branch, and the detached ones.
   local -A worktree_of=()
@@ -388,6 +393,7 @@ status:render() {
     path=${path#"${main_root}"/}
     (( ${#path} > title_w )) && title_w=${#path}
   done
+  (( ${#desk_branch} > title_w )) && title_w=${#desk_branch}
   local avail
   avail=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - check_w - 3 - 16 ))
   (( avail < 20 )) && avail=20
@@ -399,6 +405,7 @@ status:render() {
   else
     out:emit '📋' '1' "${count} open pull request$( (( count == 1 )) || printf s) · $(status:badges "${states[@]}")"
   fi
+  status:checkout-row '🏠' "${desk_branch:-HEAD}" "${main_root}" "${desk_branch}" "${title_w}" "${default_branch}"
 
   # Every pull request, with its worktree when one here holds its branch.
   if (( count > 0 ))
@@ -424,11 +431,12 @@ status:render() {
     while IFS=$'\t' read -r _ branch
     do
       [[ -n "${branch}" ]] || continue
-      status:worktree-alone "${worktree_of[${branch}]}" "${branch}" "${title_w}" "${main_root}" "${default_branch}"
+      path=${worktree_of[${branch}]}
+      status:checkout-row '🌿' "${path#"${main_root}"/}" "${path}" "${branch}" "${title_w}" "${default_branch}"
     done < <(status:by-number "${lone[@]}")
     for path in "${detached_paths[@]}"
     do
-      status:worktree-alone "${path}" '' "${title_w}" "${main_root}" "${default_branch}"
+      status:checkout-row '🌿' "${path#"${main_root}"/}" "${path}" '' "${title_w}" "${default_branch}"
     done
   fi
 

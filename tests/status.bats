@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# status.bats - the parts of the picture that need no GitHub: a cell, the commit list, and a worktree's row
+# status.bats - the parts of the picture that need no GitHub: a cell, the commit list, and a checkout's row
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
@@ -51,7 +51,7 @@ in_status() {
   git worktree add --quiet -b topic worktrees/topic main
   printf 'two\nthree\n' > worktrees/topic/b && git -C worktrees/topic add b && git -C worktrees/topic commit --quiet --message two
   printf 'four\n' > c && git add c && git commit --quiet --message four && git push --quiet origin main
-  run in_status status:worktree-alone "${PWD}/worktrees/topic" topic 20 "${PWD}" main
+  run in_status status:checkout-row 🌿 worktrees/topic "${PWD}/worktrees/topic" topic 20 main
   [ "$status" -eq 0 ]
   [ "$output" = "🌿 worktrees/topic        ↑1 ↓1 · +2 -0" ]
 }
@@ -59,7 +59,15 @@ in_status() {
 @test "a detached worktree is marked, and a dirty one counts its uncommitted paths" {
   git worktree add --quiet --detach worktrees/loose main
   printf 'x\n' > worktrees/loose/x
-  run in_status status:worktree-alone "${PWD}/worktrees/loose" '' 16 "${PWD}" main
+  run in_status status:checkout-row 🌿 worktrees/loose "${PWD}/worktrees/loose" '' 16 main
   [ "$status" -eq 0 ]
   [ "$output" = "🌿 worktrees/loose    ❗ detached HEAD   ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
+}
+
+@test "the desk row shows its branch, its unpushed commits, and its uncommitted paths" {
+  printf 'two\n' > b && git add b && git commit --quiet --message two
+  printf 'x\n' > c
+  run in_status status:checkout-row 🏠 main "${PWD}" main 4 main
+  [ "$status" -eq 0 ]
+  [ "$output" = "🏠 main   ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
 }
