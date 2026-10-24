@@ -37,7 +37,17 @@ jobs:
       - name: gate
         run: |
           set -o errexit -o nounset -o pipefail
-          if [[ ! -f justfile ]] || ! just --show ci >/dev/null 2>&1
+          # A missing recipe is a skip; a justfile that cannot be read is a failure, never a silent skip.
+          if [[ ! -f justfile ]]
+          then
+            echo "::warning::there is no root justfile, so the gate was skipped"
+            printf '⚠️ The gate was skipped: there is no root justfile.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
+          elif ! recipes=$(just --summary 2>&1)
+          then
+            echo "::error::the root justfile could not be read: ${recipes}"
+            printf '### ❌ The root justfile could not be read\n\n%s\n' "${recipes}" | tee --append "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          elif ! tr ' ' '\n' <<< "${recipes}" | grep --quiet --line-regexp ci
           then
             echo "::warning::the root justfile has no ci recipe, so the gate was skipped"
             printf '⚠️ The gate was skipped: the root justfile has no ci recipe.\n' | tee --append "${GITHUB_STEP_SUMMARY}"

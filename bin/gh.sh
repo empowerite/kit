@@ -163,10 +163,11 @@ gh:issue() {
   fi
 
   # GitHub cannot open a pull request on a branch with nothing to compare, so the first commit is an empty one.
+  # --only keeps it empty: work already staged in a reused worktree stays in the index, not in this commit.
   if [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]]
   then
     step "Adding the start commit"
-    git -C "${wt}" commit --quiet --allow-empty --message "start: #${primary} ${title}"
+    git -C "${wt}" commit --quiet --allow-empty --only --message "start: #${primary} ${title}"
   fi
   git -C "${wt}" push --quiet --set-upstream origin "${branch}"
 

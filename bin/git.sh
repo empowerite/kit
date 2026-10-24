@@ -6,9 +6,10 @@
 # with its branch, pull request, and dirty or clean state, then the local branches whose upstream is gone. It
 # changes nothing.
 #
-# git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, prunes
-# the worktree bookkeeping, and deletes every local branch whose upstream is gone. It never touches the default
-# branch, a branch checked out in a live worktree, a dirty worktree, or the worktree it runs in. --dry-run
+# git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, or that is
+# detached, clean, and at a commit the default branch already has; prunes the worktree bookkeeping; and deletes
+# every local branch whose upstream is gone. It never touches the default branch, a branch checked out in a live
+# worktree, a dirty worktree, a detached worktree whose commit nothing else reaches, or the worktree it runs in. --dry-run
 # prints what a sweep would do and changes nothing.
 #
 # git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto
@@ -120,7 +121,15 @@ git:tidy-worktree() {
     fi
   elif [[ "${detached}" == true && -z "$(git -C "${path}" status --porcelain 2>/dev/null)" ]]
   then
-    state=DETACHED
+    # A clean detached checkout is residue only when its commit is already on the default branch; otherwise its
+    # HEAD may be the only thing that reaches that commit, and removing the worktree would lose it.
+    if git -C "${path}" merge-base --is-ancestor HEAD "origin/${default_branch}" 2>/dev/null
+    then
+      state=DETACHED
+    else
+      step "keeping ${path} (detached at a commit origin/${default_branch} does not reach)"
+      return 0
+    fi
   fi
   case "${state}" in
     (MERGED | CLOSED | DETACHED)
