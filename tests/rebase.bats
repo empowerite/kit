@@ -6,7 +6,7 @@ setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   work=$(mktemp -d)
   cd "${work}"
-  git init --quiet --bare origin.git
+  git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
