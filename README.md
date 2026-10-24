@@ -1,4 +1,4 @@
-# kit
+# empowerite/kit: **k**eep **i**t **t**rustworthy
 
 kit is the agentic guardrails a repository takes as a versioned mixin: the policy text an agent reads first, the
 rules that bind each kind of file, the guard that keeps `main` as the human's desk, and the one command no harness
