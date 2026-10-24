@@ -2,9 +2,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # One job, CI, which is the check name a ruleset requires. Three steps: the repository's `just ci` when its
-# root justfile has one, `kit check` against the release mise pins, and a refusal of a pull request that is
-# not linked to an open issue of this repository under Development. The last two run even when an earlier step
-# refused, so one run reports every finding.
+# root justfile has one, `kit check` with the kit mise pins, and a refusal of a pull request not linked to an
+# open issue of this repository under Development. The last two run even when an earlier step refused, so one
+# run reports every finding.
 #
 # Delivered by kit, not edited by hand. A change is a new release, then kit update.
 #
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      # Every tool below comes from mise.toml, the kit included.
+      # Every tool below comes from mise.toml, the kit included; this repository's mise.toml puts bin/ on PATH.
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
 
       - name: gate
@@ -60,18 +60,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           set -o errexit -o nounset -o pipefail
-          if command -v kit >/dev/null 2>&1
+          if ! command -v kit >/dev/null 2>&1
           then
-            kit check
-          elif [[ -x bin/kit ]]
-          then
-            bin/kit check
-          else
             echo '::error::kit is not on PATH; pin "github:empowerite/kit" in mise.toml'
             printf '### ❌ kit is not on PATH\n\nPin the release in mise.toml under [tools]: "github:empowerite/kit" = "<version>".\n' \
               | tee --append "${GITHUB_STEP_SUMMARY}"
             exit 1
           fi
+          kit check
           printf '✅ Every delivered file matches the pinned kit release.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
 
       - name: linked-open-issue

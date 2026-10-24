@@ -37,17 +37,25 @@ ci:
   bin/kit check
   echo "✅ ci passed"
 
-# Reinstall this repository's own kit from its source. Here the checkout is the release, so an edit to a file under
-# tree/ or targets/ is an edit to the release, not a consumer's drift: the installed copies, .claude/settings.json
-# (which carries only the kit's entries here), and .kit/manifest are rewritten from it. Run after changing any
-# delivered file, and commit the result with the change.
+# Reinstall this repository's own kit from its source and stage the result. Here the checkout is the release, so an
+# edit under tree/ or targets/ is an edit to the release, not a consumer's drift: the targets the manifest names
+# are dropped and taken again, so the installed copies and .kit/manifest are rewritten from the source, and every
+# path the old or the new manifest names is staged. The pre-commit hook runs this on a commit that touches the
+# source; by hand it is for a desk without the hook.
 #
 #   just refresh
-[doc("🔁 Reinstall this repository's own kit from tree/, targets/, and bin/kit")]
+[doc("🔁 Reinstall this repository's own kit from tree/ and targets/, and stage the result")]
 refresh:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  rm -f .kit/manifest .claude/settings.json
-  bin/kit install claude
+  # a delivered path's line is a 64-hex digest, two spaces, the path; the version and targets lines are not
+  readarray -t before < <(awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest)
+  read -r -a targets <<<"$(sed -n 's/^targets *//p' .kit/manifest)"
+  (( ${#targets[@]} == 0 )) || bin/kit target remove "${targets[@]}" >/dev/null
+  rm -f .kit/manifest
+  bin/kit install "${targets[@]}" >/dev/null
+  readarray -t after < <(awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest)
+  git add --all -- "${before[@]}" "${after[@]}" .kit/manifest
+  echo "✅ refreshed and staged: ${#after[@]} delivered paths, targets ${targets[*]:-none}"
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -71,14 +71,14 @@ header. A harness that loads rules by path finds a copy under its own rules dire
 that target, `.claude/rules/kit-<kind>.md` for Claude Code. Read the rule for a kind before writing a file of
 that kind.
 
-| Kind | Paths | Rule |
-| --- | --- | --- |
-| Markdown | `*.md` | [rules/markdown.md](rules/markdown.md) |
-| Bash | `*.sh`, `*.bash` | [rules/bash.md](rules/bash.md) |
-| Just | `justfile`, `*.just` | [rules/just.md](rules/just.md) |
-| YAML | `*.yml`, `*.yaml` | [rules/yaml.md](rules/yaml.md) |
-| JSON | `*.json`, `*.jsonc` | [rules/json.md](rules/json.md) |
-| Ignore lists | `.gitignore` | [rules/gitignore.md](rules/gitignore.md) |
+| Kind | Rule |
+| --- | --- |
+| Markdown | [rules/markdown.md](rules/markdown.md) |
+| Bash | [rules/bash.md](rules/bash.md) |
+| Just | [rules/just.md](rules/just.md) |
+| YAML | [rules/yaml.md](rules/yaml.md) |
+| JSON | [rules/json.md](rules/json.md) |
+| Ignore lists | [rules/gitignore.md](rules/gitignore.md) |
 
 ## What the kit carries
 

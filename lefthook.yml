@@ -17,8 +17,8 @@ pre-commit:
       glob: "*.md"
       run: markdownlint-cli2 {staged_files}
     # A commit that changes the source of a delivered file rewrites the installed copies in the same commit, so
-    # nobody remembers just refresh. The command stages what it rewrote itself: stage_fixed would re-stage only
-    # the source paths it was handed, and the copies live elsewhere.
+    # nobody remembers just refresh. The recipe stages what it rewrote; stage_fixed would re-stage only the
+    # source paths it was handed.
     refresh:
       glob: "{tree,targets}/**"
-      run: just refresh && git add .kit .claude .github/workflows/kit-ci.yml
+      run: just refresh
