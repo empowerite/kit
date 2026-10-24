@@ -14,8 +14,8 @@ pre-commit:
       glob: "bin/kit"
       run: shellcheck --shell=bash --external-sources {staged_files}
     # A commit that changes the source of a delivered file rewrites the installed copies in the same commit, so
-    # nobody remembers just refresh. stage_fixed adds what the refresh rewrote to the commit.
+    # nobody remembers just refresh. The command stages what it rewrote itself: stage_fixed would re-stage only
+    # the source paths it was handed, and the copies live elsewhere.
     refresh:
       glob: "{tree,targets}/**"
-      run: just refresh
-      stage_fixed: true
+      run: just refresh && git add .kit .claude .github/workflows/kit-ci.yml
