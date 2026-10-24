@@ -15,13 +15,16 @@ set positional-arguments := true
 
 export BASH_ENV := source_directory() / "bash/1st.sh"
 
+# This file's own path, assigned at parse time so the body below needs no interpolation.
+export kit_justfile := source_file()
+
 # Default recipe: list this justfile's recipes.
 _: help
 
 # List recipes in this justfile.
 [no-exit-message]
 @help *options:
-  just --justfile "{{source_file()}}" --list
+  just --justfile "${kit_justfile}" --list
 
 set export := true
 

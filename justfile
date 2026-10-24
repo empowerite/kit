@@ -6,13 +6,16 @@
 set dotenv-load := true
 set positional-arguments := true
 
+# This file's own path, assigned at parse time so the body below needs no interpolation.
+export root_justfile := source_file()
+
 # Default recipe: list this justfile's recipes.
 _: help
 
 # List recipes in this justfile.
 [no-exit-message]
 @help *options:
-  just --justfile "{{source_file()}}" --list
+  just --justfile "${root_justfile}" --list
 
 set export := true
 
