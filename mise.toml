@@ -1,0 +1,16 @@
+# mise.toml - the pinned toolchain; see: https://mise.jdx.dev/configuration.html
+#
+# Every tool this repository runs, at one version, installed the same way on a desk (`mise install`) and on a
+# runner (`jdx/mise-action`). `lockfile = true` records each pin's exact resolution in mise.lock. git and bash
+# come from the machine.
+
+[settings]
+lockfile = true
+
+[tools]
+actionlint = "1.7"
+gh = "2.103"
+jq = "1.8"
+just = "1.59"
+shellcheck = "0.11"
+"npm:bats" = "1.13"
