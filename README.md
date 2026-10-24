@@ -100,8 +100,9 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version (`unreleased` here), the targets taken, and a digest per delivered path |
 
-After changing a file under `tree/` or `targets/`, run `just refresh`, which reinstalls the kit into this
-repository, and commit the result with the change. `bin/kit check`, which `just ci` runs, names any installed copy
+A commit that changes a file under `tree/` or `targets/` rewrites the installed copies in the same commit: the
+pre-commit hook runs `just refresh` and stages what it rewrote. On a desk without the hook, run `just refresh`
+by hand and commit the result with the change. `bin/kit check`, which `just ci` runs, names any installed copy
 that no longer matches its source. Each delivered text file says in its header that it is delivered by kit;
 `settings.json` cannot, so this table is its notice.
 
