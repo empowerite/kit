@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-version - print this release's version (kit verb, run through bin/kit)
+# kit-version - print this release's version (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 
 set -o errexit -o nounset -o pipefail

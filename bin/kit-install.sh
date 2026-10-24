@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# kit-install - mirror the release into the repository, take the named targets, and write .kit/manifest (kit verb, run through bin/kit)
+# kit-install - mirror the release into the repository (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
+#
+# Takes the named targets and writes .kit/manifest.
 #
 # see: bin/release.sh
 
@@ -15,7 +17,7 @@ then
   exit 0
 fi
 
-guard:require tool:jq tool:git
+guard:require tool:jq
 release:require-targets "$@"
 if [[ -f .kit/manifest ]]
 then

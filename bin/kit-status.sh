@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-status - show every worktree with its branch, pull request, and state (kit verb, run through bin/kit)
+# kit-status - show every worktree with its branch, pull request, and state (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # see: bin/git.sh

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-target - list, take, or drop the targets this repository takes (kit verb, run through bin/kit)
+# kit-target - list, take, or drop the targets this repository takes (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # see: bin/release.sh
@@ -27,7 +27,7 @@ case "${verb}" in
     ;;
   (add)
     (( $# > 0 )) || { usage; exit 2; }
-    guard:require tool:jq tool:git
+    guard:require tool:jq
     release:require-targets "$@"
     for t in "$@"
     do
@@ -49,7 +49,7 @@ case "${verb}" in
     ;;
   (remove)
     (( $# > 0 )) || { usage; exit 2; }
-    guard:require tool:jq tool:git
+    guard:require tool:jq
     release:require-targets "$@"
     for t in "$@"
     do

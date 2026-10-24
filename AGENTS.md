@@ -14,4 +14,4 @@ Read .kit/1st.md first. It is the kit's entry file, and this repository uses its
   this repository's installed copies of its own kit, written by `just refresh` from `tree/` and `targets/`; see
   [README.md](README.md) § Maintaining. Edit the source; the pre-commit hook refreshes the copies into the same
   commit, and a desk without the hook runs `just refresh` and commits both.
-- `just ci` is the gate: shellcheck, actionlint, the bats suite, and `bin/kit check`.
+- `just ci` is the gate; the justfile says what it runs.

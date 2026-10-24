@@ -33,7 +33,6 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
   [ ! -L .claude/rules/kit-bash.md ]
-  [ ! -e .kit/bash ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

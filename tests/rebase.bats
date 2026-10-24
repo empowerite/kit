@@ -18,9 +18,19 @@ teardown() {
   rm -rf "${work}"
 }
 
-worktree() {  # a worktree on branch 1-x, configured to commit
+# worktree makes a worktree on branch 1-x beside the desk, configured to commit.
+worktree() {
   git worktree add --quiet ../wt -b 1-x
-  git -C ../wt config user.name t && git -C ../wt config user.email t@example.com && git -C ../wt config commit.gpgsign false
+  git -C ../wt config user.name t
+  git -C ../wt config user.email t@example.com
+  git -C ../wt config commit.gpgsign false
+}
+
+# commit-in <checkout> <file> <content> writes the file and commits it there.
+commit-in() {
+  printf '%s\n' "$3" > "$1/$2"
+  git -C "$1" add "$2"
+  git -C "$1" commit --quiet --message "$2"
 }
 
 @test "rebase refuses the default branch" {
@@ -31,8 +41,8 @@ worktree() {  # a worktree on branch 1-x, configured to commit
 
 @test "rebase moves a worktree's branch onto origin/main and pushes it" {
   worktree
-  printf 'two\n' > ../wt/b && git -C ../wt add b && git -C ../wt commit --quiet --message two && git -C ../wt push --quiet --set-upstream origin 1-x
-  printf 'three\n' > c && git add c && git commit --quiet --message three && git push --quiet origin main
+  commit-in ../wt b two && git -C ../wt push --quiet --set-upstream origin 1-x
+  commit-in . c three && git push --quiet origin main
   run "${kit_checkout}/bin/kit" rebase ../wt
   [ "$status" -eq 0 ]
   [ "$(git -C ../wt rev-parse HEAD~1)" = "$(git rev-parse origin/main)" ]
@@ -41,8 +51,8 @@ worktree() {  # a worktree on branch 1-x, configured to commit
 
 @test "rebase aborts on a conflict and leaves the worktree as it was" {
   worktree
-  printf 'theirs\n' > ../wt/a && git -C ../wt commit --quiet --all --message theirs && git -C ../wt push --quiet --set-upstream origin 1-x
-  printf 'ours\n' > a && git commit --quiet --all --message ours && git push --quiet origin main
+  commit-in ../wt a theirs && git -C ../wt push --quiet --set-upstream origin 1-x
+  commit-in . a ours && git push --quiet origin main
   before=$(git -C ../wt rev-parse HEAD)
   run "${kit_checkout}/bin/kit" rebase ../wt
   [ "$status" -eq 1 ]

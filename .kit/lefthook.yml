@@ -1,9 +1,9 @@
 # Delivered by kit, not edited by hand. A change is a new release, then kit update.
 #
-# Which linter runs over which paths. The repository's lefthook.yml takes this with `extends: [.kit/lefthook.yml]`
-# and adds commands of its own under the same hook, or any other; Lefthook merges them by name, so a command named
-# here is overridden by one of the same name there. `kit lint` runs this hook by hand, over the staged paths or,
-# with --all-files, over every path. Once per clone: lefthook install
+# Which linter runs over which paths before a commit. The repository's lefthook.yml takes this with
+# `extends: [.kit/lefthook.yml]` and adds commands of its own; Lefthook merges by name, so a command of the same
+# name there overrides one here. `kit lint` runs this hook by hand, over the staged paths or, with --all-files,
+# over every tracked path. Once per clone: lefthook install
 #
 # see: https://lefthook.dev
 

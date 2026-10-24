@@ -29,7 +29,7 @@ teardown() {
 }
 
 @test "lint --all-files reads every tracked path, where lint alone reads only the staged ones" {
-  git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false add bad.sh
+  git add bad.sh
   git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit --quiet --no-verify --message bad
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 0 ]

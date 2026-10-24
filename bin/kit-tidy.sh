@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-tidy - remove worktrees whose pull request is merged or closed, and gone branches (kit verb, run through bin/kit)
+# kit-tidy - remove merged worktrees and gone branches (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # see: bin/git.sh

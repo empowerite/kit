@@ -1,10 +1,9 @@
 # mise.toml - the pinned tools a desk and a runner share; see: https://mise.jdx.dev/configuration/environments.html
 #
-# One mechanism: mise reads this file always, mise.desk.toml on top of it when MISE_ENV=desk, which a desk exports
-# in its shell profile, and mise.ci.toml when MISE_ENV=ci, which the CI workflow sets. A tool goes in the file of
-# whoever runs it; today only Lefthook is a desk's alone, and nothing is the runner's alone. `lockfile = true` records each pin's exact resolution in a lock beside its file,
-# and lockfile_platforms makes a lock written on a desk carry the runner's platform. git and bash come from the
-# machine.
+# mise reads this file always, mise.desk.toml on top of it when MISE_ENV=desk, which a desk exports in its shell
+# profile, and mise.ci.toml when MISE_ENV=ci, which the CI workflow sets. A tool goes in the file of whoever runs
+# it; today Lefthook is a desk's alone, and nothing is the runner's alone. `lockfile = true` records each pin's
+# exact resolution in a lock beside its file. git and bash come from the machine.
 
 [settings]
 lockfile = true
@@ -16,10 +15,10 @@ lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64"]
 _.path = ["bin"]
 
 [tools]
-gh = "2.103"
-jq = "1.8"
-"npm:markdownlint-cli2" = "0.24"
-just = "1.59"
-shellcheck = "0.11"
 actionlint = "1.7"
 bats = "1.14"
+gh = "2.103"
+jq = "1.8"
+just = "1.59"
+"npm:markdownlint-cli2" = "0.24"
+shellcheck = "0.11"

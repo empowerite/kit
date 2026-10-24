@@ -1,13 +1,14 @@
 # release.yml - a tag v<version> on main becomes a GitHub release carrying the kit as one tarball
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, and a stamped version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A release, v<major>.<minor>.<patch>,
-# is tagged on main (any commit on main, not only its head). A pre-release, the same with a -<suffix>, is tagged on
-# a commit that is not on main, and is published as a GitHub pre-release. The tag is the version: the repository
-# carries no version file, and the one in the packed kit is stamped here from the tag, so a consumer sees it in
-# kit version and .kit/manifest and kit update can name the previous release to mise. A release, once published,
-# is immutable, so a tag is never reused. A pre-release lives as long as the branch it was tagged on; see:
-# .github/workflows/retire-pre-releases.yml
+# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, tree/, targets/, and a
+# stamped version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A
+# release, v<major>.<minor>.<patch>, is tagged on main, any commit on main and not only its head. A pre-release,
+# the same with a -<suffix>, is tagged on a commit that is not on main and is published as a GitHub pre-release.
+# The tag is the version: the repository carries no version file, and the one in the packed kit is stamped here
+# from the tag, so a consumer sees it in kit version and .kit/manifest, and kit update can name the previous
+# release to mise. A published release is immutable, so a tag is never reused. A pre-release lives as long as
+# the branch it was tagged on; see: .github/workflows/retire-pre-releases.yml
 #
 # see: .kit/1st.md
 

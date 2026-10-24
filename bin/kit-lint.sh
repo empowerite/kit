@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-lint - run the pre-commit hook by hand: the linters .kit/lefthook.yml and lefthook.yml declare (kit verb)
+# kit-lint - run the pre-commit hook's linters by hand (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # An alias for `lefthook run pre-commit`, so the linters a commit meets are the ones this runs, over the staged

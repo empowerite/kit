@@ -20,10 +20,10 @@ _: help
 
 set export := true
 
-# The gate: shellcheck over every bash file, actionlint over every workflow, markdownlint over every markdown file,
-# the bats suite, and bin/kit check over
-# this repository's installed copy of its own kit. The runner runs it on every pull request, and a desk runs it the
-# same way; the pre-commit hook is the narrower, faster check over the staged paths.
+# The gate: shellcheck over every bash file, actionlint over every workflow, markdownlint over every markdown
+# file, the bats suite, and bin/kit check over this repository's installed copy of its own kit. The runner runs
+# it on every pull request, and a desk runs it the same way; the pre-commit hook is the narrower, faster check
+# over the staged paths.
 #
 #   just ci
 [doc("🚦 The gate: shellcheck, actionlint, markdownlint, bats, kit check")]

@@ -66,10 +66,10 @@ A worker is whoever implements one issue in the worktree that issue names.
 
 ## Rules by file type
 
-Each file kind has a rule file under `.kit/rules/`, and each rule file names the paths it binds in its `paths:`
-header. A harness that loads rules by path finds a copy under its own rules directory when the repository takes
-that target, `.claude/rules/kit-<kind>.md` for Claude Code. Read the rule for a kind before writing a file of
-that kind.
+Each file kind has a rule file under `.kit/rules/`, and each rule file's `paths:` header names the paths it
+binds. A harness that loads rules by path gets a copy in its own rules directory when the repository takes that
+target: `.claude/rules/kit-<kind>.md` for Claude Code. Read the rule for a kind before writing a file of that
+kind.
 
 | Kind | Rule |
 | --- | --- |
@@ -85,10 +85,11 @@ that kind.
 The repository carries the text: this file, the rules under `.kit/rules/`, and `.kit/manifest`, which records the
 release version, the targets taken, and a checksum per delivered file. The release, where mise installed it,
 carries the machinery, reached through the `kit` command on `PATH`. A release mirrors its `tree/` at the
-repository root, and `targets/<name>/` for each target taken; a `.json` destination is merged by key, everything
+repository root, and `targets/<name>/` for each target taken. A `.json` destination is merged by key; everything
 else is copied as it is.
 
-- `kit issue`, `kit tidy`, and `kit status`, the loop's commands, spelled that way and no other.
+- The loop's commands, `kit issue`, `kit rebase`, `kit tidy`, `kit status`, and `kit lint`, spelled that way and
+  no other.
 - `.kit/lefthook.yml`, which linter runs over which paths before a commit on a desk. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
@@ -96,8 +97,8 @@ else is copied as it is.
   `.claude/rules/kit-<kind>.md`, copies of the rules, and merges seven deny rules into `.claude/settings.json`.
   The kit owns only the entries it writes; the repository may add its own. `kit target remove` takes a target
   back out.
-- `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
-  runs `kit check`, and refuses a pull request not linked to an open issue.
+- `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`, runs `kit check`, and refuses
+  a pull request not linked to an open issue.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.

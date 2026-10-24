@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# kit-issue - start or resume an issue: linked branch, worktree, start commit, draft pull request (kit verb, run through bin/kit)
+# kit-issue - start or resume an issue (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
+#
+# A linked branch, a worktree, a start commit, and a draft pull request.
 #
 # see: bin/gh.sh
 

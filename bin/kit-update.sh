@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-update - after the pin is bumped: replace unchanged files, three-way merge changed ones (kit verb, run through bin/kit)
+# kit-update - move the repository to the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A file whose digest still matches the manifest, which records the previous release's own content, is replaced.
@@ -19,7 +19,7 @@ then
   exit 0
 fi
 
-guard:require tool:jq tool:git
+guard:require tool:jq
 release:require-manifest
 read -r -a targets <<<"$(release:manifest-targets)"
 previous=$(release:manifest-version)

@@ -150,7 +150,7 @@ release:digest() {
   fi
 }
 
-# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, a copy otherwise.
+# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, else a copy.
 release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
   if release:merged "${path}"

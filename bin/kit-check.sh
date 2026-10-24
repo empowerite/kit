@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-check - fail when a delivered file differs from the pinned release (kit verb, run through bin/kit)
+# kit-check - fail when a delivered file differs from the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # see: bin/release.sh
