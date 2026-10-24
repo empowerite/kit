@@ -30,10 +30,10 @@ through the rules table in `.kit/1st.md`. `kit target add` and `kit target remov
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
-- Pin `lefthook` in `mise.toml`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install`
-  once per clone. The fragment says which linter runs over which paths before a commit, and your `lefthook.yml`
-  adds commands of its own. `kit lint` runs the same hook by hand, and `kit lint --all-files` is the gate's
-  spelling of it.
+- Pin `lefthook` in `mise.desk.toml`, which mise reads when `MISE_ENV=desk`, put `extends: [.kit/lefthook.yml]`
+  in `lefthook.yml`, and run `lefthook install` once per clone. The fragment says which linter runs over which
+  paths before a commit, and your `lefthook.yml` adds commands of its own. `kit lint` runs the same hook by hand.
+  The delivered `CI` job sets `MISE_ENV=ci`, so a tool only the runner needs is pinned in `mise.ci.toml`.
 
 The machinery, the `kit` command and the bash behind its verbs, stays in the release where mise installed it; the
 repository carries the text an agent reads and the record of what it took. The kit needs bash 4.4 or later, git,
@@ -57,12 +57,14 @@ Then, once per clone, with the key's id in `signing_key`:
 git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
+export MISE_ENV=desk
 mise install
 lefthook install
 ```
 
-A tool only a desk runs, should one arrive, is pinned in `mise.desk.toml`, which mise reads on top of `mise.toml`
-when `MISE_ENV=desk` is set; a desk exports that in its shell profile, and a runner leaves it unset.
+`MISE_ENV=desk` belongs in your shell profile. mise reads `mise.toml` always, `mise.desk.toml` on top of it when
+`MISE_ENV=desk`, and `mise.ci.toml` when `MISE_ENV=ci`, which the CI workflow sets: a tool goes in the file of
+whoever runs it. Lefthook is a desk's; actionlint is the runner's.
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
 
@@ -85,8 +87,8 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
 every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
 the same way; `bin/` and `version` are the machinery: `bin/kit` dispatches to one executable `bin/kit-<verb>.sh`
-per verb, and the verbs source the modules beside them, `1st.sh`, `gh.sh`, `git.sh`, and `release.sh`. A symlink under `targets/` is
-delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
+per verb, and the verbs source the modules beside them, `1st.sh`, `gh.sh`, `git.sh`, and `release.sh`. A symlink
+under `targets/` is delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
 
 The installed copies are written by `bin/kit install` and not edited by hand:
 

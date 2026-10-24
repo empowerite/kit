@@ -3,6 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
+  lefthook version >/dev/null 2>&1 || skip "lefthook is a desk tool (mise.desk.toml, MISE_ENV=desk)"
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   repo=$(mktemp -d)
   cd "${repo}"

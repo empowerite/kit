@@ -89,9 +89,8 @@ repository root, and `targets/<name>/` for each target taken; a `.json` destinat
 else is copied as it is.
 
 - `kit issue`, `kit tidy`, and `kit status`, the loop's commands, spelled that way and no other.
-- `.kit/lefthook.yml`, which linter runs over which paths before a commit. A repository's `lefthook.yml` takes it
-  with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand, over the staged paths
-  or every path.
+- `.kit/lefthook.yml`, which linter runs over which paths before a commit on a desk. A repository's
+  `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
   it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
   `.claude/rules/kit-<kind>.md`, copies of the rules, and merges seven deny rules into `.claude/settings.json`.
