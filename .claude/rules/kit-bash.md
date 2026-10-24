@@ -11,24 +11,25 @@ workflows.
 
 ## Shape
 
-1. An executed script opens with `#!/usr/bin/env bash`, a `# <file> - <purpose>` banner, a rule of dashes to
-   column 120, and a blank line, then `set -o errexit -o nounset -o pipefail`.
+1. An executed script opens with `#!/usr/bin/env bash`, a `# <file> - <purpose>` banner under 120 columns, a
+   rule of dashes to column 120, and a blank line, then `set -o errexit -o nounset -o pipefail`.
 2. A sourced module opens with `# shellcheck shell=bash` and the same banner, and sets no shell options: they
    would change the caller's.
-3. A git hook that must fail open sets `-o nounset -o pipefail` and no `errexit`, and says so in its banner.
-4. The file closes with the same rule of dashes.
+3. The file closes with the same rule of dashes.
 
 ## Style
 
 1. `then`, `do`, and `else` go on their own line, never after a semicolon.
 2. Spell `set` options out: `set -o errexit`, never `set -e`.
-3. Spell command options out: `--raw-output`, `--field`, `--delimiter`, never a one-letter flag in a script.
-   Where BSD and GNU differ, use the form both accept: `sed -n`, `head -n 1`, `mkdir -p`.
+3. Spell a tool's options out where every platform accepts the long form: `--raw-output`, `--field`,
+   `--quiet`. Where BSD and GNU differ, use the form both accept, which is the short one: `sed -n`, `head -n 1`,
+   `mkdir -p`, `rm -f`, `cut -d`, `cp -R`, `find -type`, `read -r`, and `git -C`.
 4. Arithmetic uses `(( ))`. String and file tests use `[[ ]]`.
 5. Brace every variable longer than one character: `${name}`. `$1`, `$@`, `$?`, and `$#` stay bare.
 6. A `case` label carries both parentheses: `(vanilla)`. The last group has no `;;`.
 7. Quote every expansion outside `[[ ]]` and `(( ))`.
-8. A function in a sourced module is named `<module>:<kebab-name>`, the module being the file's basename.
+8. A function in a sourced module is named `<module>:<kebab-name>`, the module being the file's basename. The
+   loader's own verbs are the exception and stay bare: `use`, `info`, `step`, `ok`, `section`, `warn`, `error`.
 9. A function private to one executed script is bare kebab-case.
 
 ## Behavior

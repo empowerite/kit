@@ -4,9 +4,8 @@
 # A pre-release is tagged on a commit that is not on main, and main takes a branch by squash, so once the branch is
 # deleted its commits are reachable from nothing but the pre-release's own tag. This runs on every branch deletion
 # and retires, tag and all, each pre-release whose commit no remaining branch reaches. A release is never touched:
-# it is on main, which is never deleted. A deleted tag is a delete event too, and that one is ignored here.
-#
-# Checked by hand: an immutable pre-release deletes with its tag, and the tag name can never be reused.
+# it is on main, which is never deleted. A deleted tag is a delete event too, and that one is ignored here. An
+# immutable release deletes with its tag, and its tag name can never be reused.
 #
 # see: .github/workflows/release.yml
 

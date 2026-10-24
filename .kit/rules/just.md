@@ -12,10 +12,12 @@ applies to it as well.
 
 ## Shape
 
-1. A module file opens with `# <file> - see: https://just.systems/man/en/`, a rule of dashes to column 120, and
-   a description of what the file is and who imports it.
+1. Every justfile opens with `# <file> - see: https://just.systems/man/en/`, a rule of dashes to column 120,
+   and a description of what the file is and who imports it. The root carries the `#!/usr/bin/env just
+   --justfile` shebang above that; a module does not.
 2. The settings block follows: `set dotenv-load := true`, `set fallback := true` in a module (never in the
-   root, which has no parent), `set positional-arguments := true`, and `set export := true`.
+   root, which has no parent), and `set positional-arguments := true`. `set export := true` comes after the
+   default-and-help pair, so that pair reads the same in every justfile.
 3. Every justfile carries the default-and-help pair, with the file's own path in an exported variable:
 
    ```just
@@ -38,8 +40,8 @@ applies to it as well.
 ## Recipes
 
 1. Every recipe carries `[doc("<emoji> <short, action-first description>")]`. Related recipes share an emoji.
-2. A comment block precedes every recipe: usage lines, then a paragraph of intent. It answers what the recipe
-   does, when to run it, and what it produces.
+2. A comment block precedes every recipe: a paragraph of intent, then the usage lines. It answers what the
+   recipe does, when to run it, and what it produces.
 3. A non-trivial body is `#!/usr/bin/env bash` with `set -o errexit -o nounset -o pipefail` as its first line.
 4. Non-trivial logic lives in a bash module the recipe loads, not in the body. The body stays a few lines.
 5. No `{{...}}` interpolation anywhere, in a body or a comment. A value just computes reaches a body as an exported
