@@ -23,10 +23,10 @@ then
   exit 1
 fi
 section "kit install $(release:version)${*:+, targets: $*}"
-while IFS= read -r path
+while IFS=$'\t' read -r path src
 do
   step "${path}"
-  release:place "$(release:source-of "${kit_root}" "${path}" "$@")" "${path}"
+  release:place "${src}" "${path}"
 done < <(release:delivered "${kit_root}" "$@")
 release:write-manifest "$@"
 release:finish "$@"

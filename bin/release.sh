@@ -11,10 +11,13 @@
 #
 # Every function reads the release from kit_root, exported by bin/kit.
 
-# release:version prints this release's version: the file the release workflow stamps from the tag, and
-# "unreleased" in a checkout, which is what this repository's own installed copy records.
+# A release carries a version file the release workflow stamps from the tag; a checkout carries none and is
+# "unreleased", the one version kit update never asks mise for.
+declare -gr release_unreleased=unreleased
+
+# release:version prints this release's version.
 release:version() {
-  cat "${kit_root}/version" 2>/dev/null || printf 'unreleased\n'
+  cat "${kit_root}/version" 2>/dev/null || printf '%s\n' "${release_unreleased}"
 }
 
 # release:layers <root> <target>… prints the directories mirrored at the repository root, tree first.
@@ -28,29 +31,36 @@ release:layers() {
   done
 }
 
-# release:delivered <root> <target>… prints every repository path the release at <root> delivers for those targets.
+# release:delivered <root> <target>… prints "<path>\t<source>" for every repository path the release at <root>
+# delivers for those targets, sorted by path, the last layer winning. A symlink is a source only when it points
+# at a file; a dangling one is refused here, where it is found.
 release:delivered() {
-  local layer
+  local layer path src
   while IFS= read -r layer
   do
-    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@')
-  done < <(release:layers "$@") | sort --unique
+    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }')
+  done < <(release:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' | sort \
+    | while IFS=$'\t' read -r path src
+  do
+    if [[ -L "${src}" && ! -e "${src}" ]]
+    then
+      error "${src} is a link to nothing; the release is broken"
+      return 1
+    fi
+    printf '%s\t%s\n' "${path}" "${src}"
+  done
 }
 
-# release:source-of <root> <path> <target>… prints the release file behind a repository path, the last layer winning.
+# release:source-of <root> <path> <target>… prints the release file behind one repository path, or nothing.
 release:source-of() {
-  local root=$1 path=$2 layer found=""
+  local root=$1 path=$2
   shift 2
-  while IFS= read -r layer
-  do
-    [[ -e "${layer}/${path}" ]] && found="${layer}/${path}"
-  done < <(release:layers "${root}" "$@")
-  [[ -n "${found}" ]] && printf '%s\n' "${found}"
+  release:delivered "${root}" "$@" | awk -F '\t' -v p="${path}" '$1 == p { print $2 }'
 }
 
 # release:target-only <target> prints the paths the target delivers that tree/ does not.
 release:target-only() {
-  comm -13 <(release:delivered "${kit_root}") <(release:delivered "${kit_root}" "$1")
+  comm -13 <(release:delivered "${kit_root}" | cut -f 1) <(release:delivered "${kit_root}" "$1" | cut -f 1)
 }
 
 # release:known-targets prints the targets this release carries.
@@ -134,14 +144,14 @@ release:place() {
 
 # release:write-manifest <target>… records the version, the targets, and the release's digest for every delivered path.
 release:write-manifest() {
-  local path
+  local path src
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
     printf 'version %s\n' "$(release:version)"
     printf 'targets%s\n' "${*:+ $*}"
-    while IFS= read -r path
+    while IFS=$'\t' read -r path src
     do
-      printf '%s  %s\n' "$(release:digest < "$(release:source-of "${kit_root}" "${path}" "$@")")" "${path}"
+      printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
     done < <(release:delivered "${kit_root}" "$@")
   } > .kit/manifest
 }

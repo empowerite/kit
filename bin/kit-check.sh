@@ -24,9 +24,8 @@ then
   error ".kit/manifest records kit ${version}, and the pinned release is $(release:version); run: kit update"
   findings=$(( findings + 1 ))
 fi
-while IFS= read -r path
+while IFS=$'\t' read -r path src
 do
-  src=$(release:source-of "${kit_root}" "${path}" "${targets[@]}")
   if [[ ! -f "${path}" ]]
   then
     error "${path} is missing"

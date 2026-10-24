@@ -146,6 +146,18 @@ later-release() {
   rm -rf "${repo}.later"
 }
 
+@test "update refuses a path new in the release where the repository already has a different file" {
+  "${kit_checkout}/bin/kit" install claude
+  later-release "${repo}.later"
+  printf 'new rule\n' > "${repo}.later/tree/.kit/rules/toml.md"
+  printf 'mine\n' > .kit/rules/toml.md
+  run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/rules/toml.md is new in 9.9.9"* ]]
+  [ "$(cat .kit/rules/toml.md)" = "mine" ]
+  rm -rf "${repo}.later"
+}
+
 @test "update of an untouched install leaves check green" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
@@ -176,7 +188,7 @@ later-release() {
   mkdir shims && printf '#!/usr/bin/env bash\nexit 1\n' > shims/mise && chmod +x shims/mise
   run env PATH="${PWD}/shims:${PATH}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
-  [[ "$output" == *"base release unreleased is not installed"* ]]
+  [[ "$output" == *"cannot be updated without the base release unreleased"* ]]
   rm -rf "${repo}.later"
 }
 
