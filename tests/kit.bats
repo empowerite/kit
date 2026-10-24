@@ -25,8 +25,8 @@ later-release() {
   printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/.kit/rules/json.md"
 }
 
-@test "install writes the delivered tree, the mirrors, the workflow, the settings, and the manifest" {
-  run "${kit_checkout}/bin/kit" install
+@test "install with the claude target writes the tree, the mirrors, the workflow, the settings, and the manifest" {
+  run "${kit_checkout}/bin/kit" install claude
   [ "$status" -eq 0 ]
   [ -f .kit/1st.md ]
   [ -x .kit/hooks/pre-commit ]
@@ -37,13 +37,59 @@ later-release() {
   jq --exit-status '.permissions.deny | index("Bash(git push --force *)")' .claude/settings.json >/dev/null
   grep --quiet --line-regexp '/worktrees/' .gitignore
   grep --quiet '^version 0.1.0$' .kit/manifest
+  grep --quiet '^targets claude$' .kit/manifest
   [ "$(git config core.hooksPath)" = ".kit/hooks" ]
+}
+
+@test "install with no target writes the neutral tree and nothing under .claude" {
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ -f .kit/1st.md ]
+  [ -f .github/workflows/kit-ci.yml ]
+  [ ! -e .claude ]
+  grep --quiet '^targets$' .kit/manifest
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  # a stray file under a target not taken is nobody's business
+  mkdir -p .claude/rules && printf 'theirs\n' > .claude/rules/kit-json.md
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+}
+
+@test "install refuses a target this release does not know and names the known ones" {
+  run "${kit_checkout}/bin/kit" install gemini
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"the targets are: claude"* ]]
+  [ ! -e .kit/manifest ]
+}
+
+@test "target add places a target's files, and target remove takes them and the kit's entries back out" {
+  mkdir .claude
+  printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
+  "${kit_checkout}/bin/kit" install
+  [ "$("${kit_checkout}/bin/kit" target list)" = "" ]
+  run "${kit_checkout}/bin/kit" target add claude
+  [ "$status" -eq 0 ]
+  [ "$("${kit_checkout}/bin/kit" target list)" = "claude" ]
+  [ -f .claude/rules/kit-bash.md ]
+  jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
+  grep --quiet '^targets claude$' .kit/manifest
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" target remove claude
+  [ "$status" -eq 0 ]
+  [ ! -e .claude/rules/kit-bash.md ]
+  [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
+  jq --exit-status '.permissions.deny == ["Bash(rm -rf /)"]' .claude/settings.json >/dev/null
+  grep --quiet '^targets$' .kit/manifest
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
 }
 
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny | index("Bash(rm -rf /)")' .claude/settings.json >/dev/null
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
@@ -57,7 +103,7 @@ later-release() {
 }
 
 @test "check passes after install and fails on a drifted, a missing, and a lost deny entry" {
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'edited\n' >> .kit/rules/yaml.md
@@ -78,7 +124,7 @@ later-release() {
 }
 
 @test "update replaces unchanged files, merges an edited one, and records the release's digests" {
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
   # a consumer edit to a file the later release also changes, on a different line
   sed -i.bak '1s/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
@@ -100,7 +146,7 @@ later-release() {
 }
 
 @test "update of an untouched install leaves check green" {
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
@@ -110,7 +156,7 @@ later-release() {
 }
 
 @test "update leaves conflict markers and fails when the same lines changed" {
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
   printf '9.9.9\n' > "${repo}.later/.kit/version"
   sed -i.bak '1s/^# JSON$/# JSON (theirs)/' "${repo}.later/.kit/rules/json.md" && rm "${repo}.later/.kit/rules/json.md.bak"
@@ -123,7 +169,7 @@ later-release() {
 }
 
 @test "update without the base release refuses an edited file and names the base" {
-  "${kit_checkout}/bin/kit" install
+  "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
   printf 'edited\n' >> .kit/rules/bash.md
   # a mise that answers nothing, ahead of the real one

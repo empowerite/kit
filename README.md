@@ -8,7 +8,7 @@ installs it with `kit install`, and keeps rules of its own beside it. The design
 
 ## Take the kit
 
-Pin a release in the repository's `mise.toml`, then install it:
+Pin a release in the repository's `mise.toml`, then install it, naming the harnesses the team uses:
 
 ```toml
 [tools]
@@ -17,12 +17,15 @@ Pin a release in the repository's `mise.toml`, then install it:
 
 ```sh
 mise install
-kit install
+kit install claude
 ```
 
-`kit install` copies `.kit/` into the repository, places `.claude/rules/kit-*.md` and
-`.github/workflows/kit-ci.yml`, merges its deny rules into `.claude/settings.json`, ignores `worktrees/`, points
-`core.hooksPath` at `.kit/hooks`, and writes `.kit/manifest`. Commit what it wrote. Then:
+`kit install` copies `.kit/` into the repository, places `.github/workflows/kit-ci.yml`, ignores `worktrees/`,
+points `core.hooksPath` at `.kit/hooks`, and writes `.kit/manifest`. Each target named adds what that harness
+insists on having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and merges the kit's deny rules into
+`.claude/settings.json`. A repository with no target installed still binds every agent that reads `AGENTS.md`,
+through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove` change the set later, and
+`kit target list` prints it. Commit what it wrote. Then:
 
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Add `mod kit ".kit/kit.just"` to the root justfile for `just kit issue`, `just kit tidy`, and `just kit status`.
@@ -46,7 +49,7 @@ git config user.signingkey <a key GitHub verifies for you>
 git config commit.gpgsign true
 ```
 
-Then `mise install` for the pinned tools, and `bin/kit install` is already done: this repository carries the
+Then `mise install` for the pinned tools. `bin/kit install claude` is already done: this repository carries the
 installed copy of its own kit, which `just ci` checks.
 
 ## Getting started

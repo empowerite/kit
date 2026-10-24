@@ -1,5 +1,6 @@
 version 0.1.0
-367c3c2d28f51dbe2549803e113ad45db507aa68afc1997f3d5b20f94796ec6f  .kit/1st.md
+targets claude
+f2c1c377f15a35b03ffcbffc4122b36bf11409f83805087a06e3f06646d51f26  .kit/1st.md
 a36a18081eb7515871bc01b7b22372c1545d99d8b393fb386c78128f73c8dbb5  .kit/bash/1st.sh
 6944cdb161e68bf5d2355c6ee48fe7bfd25d8ffa1e6edef218af123e5edf5f7c  .kit/bash/gh.sh
 051cab217451a69c6f73545fe3e68fb2316e0be57004030159fe299d7f510436  .kit/bash/git.sh
@@ -15,10 +16,10 @@ df7388a40e037d82f77d92f0dfe0deed55184c4a8bf869dbce86986673ebeab5  .kit/rules/mar
 52c854d31381d85c01ffd5cdb10ba1dfd8081ad80ff1a8108cf42b5e77d42bc8  .kit/rules/yaml.md
 617c2e4ca3a72ae59ee898db2120519624a1ad58df5136d0d6f88df96ffdc13a  .kit/settings.json
 e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67  .kit/version
+8f05739376491c844a1ee63303a421a0bb87169d0544462a9f9f3ab735d7f7ef  .github/workflows/kit-ci.yml
 1af539b255a7e6110a5a35d64f6c804441354ea444fecd13e5bbb3086ddeee87  .claude/rules/kit-bash.md
 4c856c8a5e76aa7fe464f3ec3444a9607f653454ce1c1fc75d6e85ca3e67b35f  .claude/rules/kit-gitignore.md
 1c3d02d2f022abecd49c6b4a38294e37e0df8cc97dbac0558a4f25595fb139d5  .claude/rules/kit-json.md
 96d16e8c1d3889909bbc13d6690b07a6d7c47aa2e7d62ff87f4cbc0068f385c7  .claude/rules/kit-just.md
 13fff95ff67775bebb820d10dbd73f4f5eb23571f0619462fa5abb1b8c6b42c6  .claude/rules/kit-markdown.md
 4f2d5c15ec02e7549df338ff3ed51d5ebaf702b749dc078ae34392b04fb21c47  .claude/rules/kit-yaml.md
-8f05739376491c844a1ee63303a421a0bb87169d0544462a9f9f3ab735d7f7ef  .github/workflows/kit-ci.yml

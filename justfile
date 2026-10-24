@@ -48,6 +48,6 @@ refresh:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
   rm -f .kit/manifest .claude/settings.json
-  bin/kit install
+  bin/kit install claude
 
 # ----------------------------------------------------------------------------------------------------------------------

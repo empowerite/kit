@@ -51,7 +51,8 @@ A worker is whoever implements one issue in the worktree that issue names.
 ## Rules by file type
 
 Each file kind has a rule file under `.kit/rules/`. A harness that loads rules by path finds the same text
-under `.claude/rules/kit-<kind>.md`. Read the rule for a kind before writing a file of that kind.
+under its own rules directory when the repository takes that target, `.claude/rules/kit-<kind>.md` for Claude
+Code. Read the rule for a kind before writing a file of that kind.
 
 | Kind | Paths | Rule |
 | --- | --- | --- |
@@ -68,11 +69,15 @@ under `.claude/rules/kit-<kind>.md`. Read the rule for a kind before writing a f
   which gives `just kit issue`, `just kit tidy`, and `just kit status`. The bash behind them is `.kit/bash/`.
 - `.kit/hooks/pre-rebase` refuses a rebase of the default branch. `.kit/hooks/pre-commit` lints the staged
   paths. `kit install` sets `core.hooksPath` to `.kit/hooks`.
-- `.kit/settings.json`, deny rules for Claude Code that `kit install` merges into `.claude/settings.json`.
-  The kit owns only the entries it writes; the consumer may add its own.
+- Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the
+  targets it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
+  `.claude/rules/kit-<kind>.md` and merges `.kit/settings.json`, six deny rules, into `.claude/settings.json`.
+  The kit owns only the entries it writes; the repository may add its own. `kit target remove` takes a target
+  back out.
 - `.kit/ci.yml`, placed as `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
   runs `kit check`, and refuses a pull request not linked to an open issue.
-- `.kit/manifest`, written by `kit install`: the release version and a checksum per delivered file.
+- `.kit/manifest`, written by `kit install`: the release version, the targets taken, and a checksum per
+  delivered file.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.
