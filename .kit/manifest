@@ -1,16 +1,17 @@
 # .kit/manifest - written by kit, not by hand
 version 0.1.0
 targets claude
-04543fa071df19f28e15f62b678881660391b1c620b001af7932822c7183f774  .claude/rules/kit-bash.md
+389d14279648d69dbb1bf5454d22467f0f2d3aeec6b1844b01b2f2aeeaaeb9f5  .claude/rules/kit-bash.md
 0eedef778e1cdae63c731eec7a08055820726192006fba2148be7421535a22d5  .claude/rules/kit-gitignore.md
 1e45ffbcca4dbcbd295e992bfa5874ffa9537b6f89911bf22608aa5785c54346  .claude/rules/kit-json.md
 98eb71bb5e6b885d5168ec1f47177c39d8bff3da720545c27e6995581e97ad12  .claude/rules/kit-just.md
 15e2bc949cf1c034140989fbf00ebc39dc6b719eb1f87f88ac4c77ff3d37b549  .claude/rules/kit-markdown.md
 03c1e6962c59627d3de12b57f7c6d682c5aea58fb9336613bb66ef6fd5145985  .claude/rules/kit-yaml.md
-617c2e4ca3a72ae59ee898db2120519624a1ad58df5136d0d6f88df96ffdc13a  .claude/settings.json
+100646bca2e00429393e788cf2b7f09121216feb551144ece67890dc40932e86  .claude/settings.json
 b9a38f19b571c70bb4ef7d3f25fd2b56ac0f6fc076cbcc8e318d22ad3ffe594f  .github/workflows/kit-ci.yml
-1ff42ec67c8ccbb02fcca51db20d0d6661205701689252d33909fcffa1597562  .kit/1st.md
-04543fa071df19f28e15f62b678881660391b1c620b001af7932822c7183f774  .kit/rules/bash.md
+a39770f43e77f4e8ab7e97b5f56c5993e84f3e6778cff1e1e52296ce72b978c3  .kit/1st.md
+e1282bfb261b23acad7d368ca8c2a3e47e728708eee16cb85e54a070f8b96381  .kit/lefthook.yml
+389d14279648d69dbb1bf5454d22467f0f2d3aeec6b1844b01b2f2aeeaaeb9f5  .kit/rules/bash.md
 0eedef778e1cdae63c731eec7a08055820726192006fba2148be7421535a22d5  .kit/rules/gitignore.md
 1e45ffbcca4dbcbd295e992bfa5874ffa9537b6f89911bf22608aa5785c54346  .kit/rules/json.md
 98eb71bb5e6b885d5168ec1f47177c39d8bff3da720545c27e6995581e97ad12  .kit/rules/just.md

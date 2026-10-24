@@ -19,7 +19,7 @@ teardown() {
 # later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
 later-release() {
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "${kit_checkout}/hooks" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "${kit_checkout}/bash" "$1/"
   printf '9.9.9\n' > "$1/version"
   printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/tree/.kit/rules/json.md"
 }
@@ -30,26 +30,16 @@ later-release() {
   [ -f .kit/1st.md ]
   [ -f .kit/rules/bash.md ]
   [ ! -e .kit/bash ]
-  [ ! -e .kit/hooks ]
+  [ -f .kit/lefthook.yml ]
   [ -f .claude/rules/kit-markdown.md ]
   [ ! -L .claude/rules/kit-markdown.md ]
   cmp --silent .claude/rules/kit-markdown.md .kit/rules/markdown.md
   head -n 1 .claude/rules/kit-bash.md | grep --quiet --line-regexp -- '---'
   grep --quiet '"\*\*/\*\.sh"' .claude/rules/kit-bash.md
   [ -f .github/workflows/kit-ci.yml ]
-  jq --exit-status '.permissions.deny | index("Bash(git push --force *)")' .claude/settings.json >/dev/null
+  jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   grep --quiet '^version 0.1.0$' .kit/manifest
   grep --quiet '^targets claude$' .kit/manifest
-  [ "$(git config core.hooksPath)" = "${kit_checkout}/hooks" ]
-}
-
-@test "setup wires a clone's hooks to the release, and issue without a terminal prints usage" {
-  run "${kit_checkout}/bin/kit" setup
-  [ "$status" -eq 0 ]
-  [ "$(git config core.hooksPath)" = "${kit_checkout}/hooks" ]
-  run "${kit_checkout}/bin/kit" issue
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"usage: kit issue"* ]]
 }
 
 @test "install with no target writes the neutral tree and nothing under .claude" {

@@ -3,11 +3,10 @@
 paths:
   - "**/*.sh"
   - "**/*.bash"
-  - "**/hooks/*"
 ---
 # Bash
 
-Applies to `*.sh`, `*.bash`, `hooks/*`, recipe bodies under `#!/usr/bin/env bash`, and `run:` blocks in
+Applies to `*.sh` and `*.bash`, recipe bodies under `#!/usr/bin/env bash`, and `run:` blocks in
 workflows.
 
 ## Shape

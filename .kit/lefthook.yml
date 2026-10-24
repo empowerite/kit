@@ -1,0 +1,11 @@
+# Delivered by kit, not edited by hand. A change is a new release, then kit update.
+#
+# The repository's lefthook.yml takes this with `extends: [.kit/lefthook.yml]` and adds hooks and commands of its
+# own; Lefthook merges them under the same hook names. Once per clone: lefthook install
+#
+# see: https://lefthook.dev
+
+pre-commit:
+  commands:
+    kit-lint:
+      run: kit lint {staged_files}

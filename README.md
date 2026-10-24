@@ -20,21 +20,23 @@ mise install
 kit install claude
 ```
 
-`kit install` copies `.kit/1st.md` and `.kit/rules/` into the repository, places `.github/workflows/kit-ci.yml`,
-ignores `worktrees/`, points this clone's `core.hooksPath` at the release's hooks, and writes `.kit/manifest`. Each
-target named adds what that harness insists on having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and
-merges the kit's deny rules into `.claude/settings.json`. A repository with no target installed still binds every
-agent that reads `AGENTS.md`, through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove`
-change the set later, and `kit target list` prints it. Commit what it wrote. Then:
+`kit install` copies `.kit/1st.md`, `.kit/rules/`, and `.kit/lefthook.yml` into the repository, places
+`.github/workflows/kit-ci.yml`, and writes `.kit/manifest`. Each target named adds what that harness insists on
+having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and merges the kit's deny rules into
+`.claude/settings.json`. A repository with no target installed still binds every agent that reads `AGENTS.md`,
+through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove` change the set later, and
+`kit target list` prints it. Commit what it wrote. Then:
 
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
-- In every other clone, run `kit setup` once to wire the hooks.
+- Pin `lefthook` in `mise.toml`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run `lefthook install`
+  once per clone. That runs `kit lint` over the staged paths before each commit, beside any hooks of your own. A
+  repository on another hook manager runs `kit lint` from it instead.
 
-The machinery, the `kit` command, the bash behind `kit issue`, `kit tidy`, and `kit status`, and the hooks, stays
-in the release where mise installed it; the repository carries the text an agent reads and the record of what it
-took. The kit needs bash 4.4 or later, git, `gh`, and `jq`.
+The machinery, the `kit` command and the bash behind its verbs, stays in the release where mise installed it; the
+repository carries the text an agent reads and the record of what it took. The kit needs bash 4.4 or later, git,
+`gh`, and `jq`.
 
 To move to a new release, bump the pin, run `mise install`, then `kit update`: a delivered file you left alone is
 replaced, one you edited is three-way merged with the previous release as the base, and your own deny entries
@@ -55,7 +57,7 @@ git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
 mise install
-bin/kit setup
+lefthook install
 ```
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
@@ -65,9 +67,10 @@ This repository carries the installed copy of its own kit, and `just ci` checks 
 Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 - An issue exists. A change without an issue has not started.
-- `kit issue <N>`, here `bin/kit issue <N>`, makes `worktrees/<N>-<slug>`, links the branch to the issue under
-  Development, and opens a draft pull request. It never switches the checkout it runs from.
-- Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`.
+- `kit issue <N>` makes `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a
+  draft pull request. It never switches the checkout it runs from.
+- Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`. `kit rebase`
+  brings the branch up to date with `main` and pushes it.
 - `just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
   `bin/kit check`.
 - `gh pr ready` says the work is done, and the pull request body is the report.
@@ -77,14 +80,15 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
 every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
-the same way; `bash/`, `hooks/`, and `version` are the machinery `bin/kit` runs. A symlink under `targets/` is
+the same way; `bin/`, `bash/`, and `version` are the machinery: `bin/kit` dispatches to one `bin/kit-<verb>.bash`
+per verb, and `bash/` holds the modules they source. A symlink under `targets/` is
 delivered as the file it points at, so a rule lives once, in `tree/.kit/rules/`.
 
 The installed copies are written by `bin/kit install` and not edited by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/` | `tree/.kit/` |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/lefthook.yml` | `tree/.kit/` |
 | `.github/workflows/kit-ci.yml` | `tree/.github/workflows/kit-ci.yml` |
 | `.claude/rules/kit-<kind>.md` | `targets/claude/.claude/rules/`, links into `tree/.kit/rules/` |
 | `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here it carries only the kit's entries |

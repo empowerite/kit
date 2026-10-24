@@ -7,10 +7,15 @@
 [settings]
 lockfile = true
 
+# bin/ on PATH, so `kit` is spelled here as a consumer spells it.
+[env]
+_.path = ["bin"]
+
 [tools]
 actionlint = "1.7"
 gh = "2.103"
 jq = "1.8"
 just = "1.59"
+lefthook = "2.2"
 shellcheck = "0.11"
 bats = "1.13"

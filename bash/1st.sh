@@ -2,7 +2,7 @@
 # 1st.sh - the kit's bash loader: output verbs, guards, and lazy module loading (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Sourced by bin/kit, whose issue, tidy, and status run the bash under bash/, and by the hooks that need a verb. It defines functions only and sets no shell option, so the caller's options stand. A module under
+# Sourced by every verb, bin/kit-<verb>.bash, which bin/kit dispatches to with kit_root exported. It defines functions only and sets no shell option, so the caller's options stand. A module under
 # bash/ is loaded on first use with `use <module>`, and each exported function has a stub here so a
 # caller never has to load it by hand.
 #

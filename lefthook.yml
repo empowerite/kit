@@ -1,0 +1,8 @@
+# lefthook.yml - this repository's git hooks; see: https://lefthook.dev
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# The kit's own hooks come from its installed fragment, the way a consumer takes them. Once per clone:
+# lefthook install
+
+extends:
+  - .kit/lefthook.yml

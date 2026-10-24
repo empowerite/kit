@@ -3,6 +3,7 @@
     "deny": [
       "Bash(git checkout main *)",
       "Bash(git switch main *)",
+      "Bash(git rebase *)",
       "Bash(git reset --hard *)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",

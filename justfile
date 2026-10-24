@@ -2,7 +2,7 @@
 # justfile - see: https://just.systems/man/en/
 # ----------------------------------------------------------------------------------------------------------------------
 # The root justfile: the gate, and the refresh of this repository's own installed copy. The loop's commands are
-# bin/kit issue, tidy, and status, spelled that way and no other.
+# kit issue, rebase, tidy, and status, spelled that way and no other; mise.toml puts bin/ on PATH.
 
 set dotenv-load := true
 set positional-arguments := true
@@ -29,7 +29,7 @@ set export := true
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  mise exec -- shellcheck --shell=bash --external-sources bin/kit bash/*.sh hooks/*
+  mise exec -- shellcheck --shell=bash --external-sources bin/kit bin/kit-*.bash bash/*.sh
   mise exec -- actionlint
   mise exec -- bats --print-output-on-failure tests/
   bin/kit check

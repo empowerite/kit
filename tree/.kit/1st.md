@@ -25,11 +25,24 @@ worktree under `worktrees/`, one per issue, and reaches `main` only through a me
 1. An issue exists. A change without an issue has not started.
 2. `kit issue <N>` makes `worktrees/<N>-<slug>`, a branch linked to the issue under Development, and a draft
    pull request. It never switches the checkout it is run from.
-3. Work happens in that worktree. Every commit is signed, and its subject is `#<N> <area>: <subject>`.
+3. Work happens in that worktree. Every commit is signed, and its subject is `#<N> <area>: <subject>`. `kit rebase`
+   brings the branch up to date with `main` and pushes it.
 4. `gh pr ready` says the work is done. The pull request body is the report: what changed, what was checked
    and how, and what was left out and why.
 5. A human merges. Nothing reaches `main` any other way, and nothing is called merged until the merge is
    observed.
+
+## Spellings an agent uses
+
+Where the kit adds a rule to a git verb, the kit's spelling is the only one an agent uses. The rule runs inside
+it, and a harness that can refuse the raw spelling does.
+
+- `kit rebase`, never `git rebase`. It refuses the default branch and otherwise rebases the worktree's branch onto
+  `origin/main` and pushes it.
+- `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
+- `kit tidy`, never `git worktree remove` or `git branch -D`.
+
+The human at the desk is not bound by this; `main` is theirs to rebase.
 
 ## Plans are prose
 
@@ -61,7 +74,7 @@ that kind.
 | Kind | Paths | Rule |
 | --- | --- | --- |
 | Markdown | `*.md` | [rules/markdown.md](rules/markdown.md) |
-| Bash | `*.sh`, `*.bash`, `hooks/*` | [rules/bash.md](rules/bash.md) |
+| Bash | `*.sh`, `*.bash` | [rules/bash.md](rules/bash.md) |
 | Just | `justfile`, `*.just` | [rules/just.md](rules/just.md) |
 | YAML | `*.yml`, `*.yaml` | [rules/yaml.md](rules/yaml.md) |
 | JSON | `*.json`, `*.jsonc` | [rules/json.md](rules/json.md) |
@@ -76,8 +89,9 @@ repository root, and `targets/<name>/` for each target taken; a `.json` destinat
 else is copied as it is.
 
 - `kit issue`, `kit tidy`, and `kit status`, the loop's commands, spelled that way and no other.
-- Two hooks. `pre-rebase` refuses a rebase of the default branch. `pre-commit` lints the staged paths. `kit install`
-  points a clone's `core.hooksPath` at them, and every other clone runs `kit setup` once.
+- `kit lint`, the body of a pre-commit hook: shellcheck, actionlint, and markdownlint-cli2 when the repository
+  configures it, over the staged paths, with a missing linter reported as a skip. `.kit/lefthook.yml` runs it;
+  a repository's `lefthook.yml` takes that with `extends` and adds hooks of its own.
 - Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
   it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
   `.claude/rules/kit-<kind>.md`, copies of the rules, and merges six deny rules into `.claude/settings.json`. The kit owns only the

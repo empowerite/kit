@@ -156,11 +156,6 @@ gh:issue() {
     fi
   fi
 
-  # shellcheck disable=SC2154  # kit_bash_dir is set by the loader, 1st.sh, which sources this file
-  if [[ "$(git config core.hooksPath 2>/dev/null)" != "$(cd "${kit_bash_dir}/.." && pwd)/hooks" ]]
-  then
-    warn "run: kit setup (core.hooksPath does not name this release's hooks, so the desk guard is off in this clone)"
-  fi
   if ! git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null
   then
     warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a status or a commit"
