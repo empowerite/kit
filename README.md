@@ -20,6 +20,10 @@ mise install
 kit install claude
 ```
 
+An exact pin installs the minute a release exists. If you pin a range instead, add
+`minimum_release_age_excludes = ["github:empowerite/kit"]` under `[settings]`, or `mise outdated` and
+`mise upgrade` offer a new kit only a day after it ships.
+
 `kit install` copies `.kit/1st.md`, `.kit/rules/`, and `.kit/lefthook.yml` into the repository, places
 `.github/workflows/kit-ci.yml`, and writes `.kit/manifest`. Each target named adds what that harness insists on
 having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and merges the kit's deny rules into
