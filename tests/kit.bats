@@ -29,7 +29,10 @@ later-release() {
   run "${kit_checkout}/bin/kit" install claude
   [ "$status" -eq 0 ]
   [ -f .kit/1st.md ]
-  [ -x .kit/hooks/pre-commit ]
+  [ -f .kit/rules/bash.md ]
+  [ ! -e .kit/bash ]
+  [ ! -e .kit/hooks ]
+  [ ! -e .kit/ci.yml ]
   [ -f .claude/rules/kit-markdown.md ]
   head -n 1 .claude/rules/kit-bash.md | grep --quiet --line-regexp -- '---'
   grep --quiet '"\*\*/\*\.sh"' .claude/rules/kit-bash.md
@@ -38,7 +41,16 @@ later-release() {
   grep --quiet --line-regexp '/worktrees/' .gitignore
   grep --quiet '^version 0.1.0$' .kit/manifest
   grep --quiet '^targets claude$' .kit/manifest
-  [ "$(git config core.hooksPath)" = ".kit/hooks" ]
+  [ "$(git config core.hooksPath)" = "${kit_checkout}/.kit/hooks" ]
+}
+
+@test "setup wires a clone's hooks to the release, and issue without a terminal prints usage" {
+  run "${kit_checkout}/bin/kit" setup
+  [ "$status" -eq 0 ]
+  [ "$(git config core.hooksPath)" = "${kit_checkout}/.kit/hooks" ]
+  run "${kit_checkout}/bin/kit" issue
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"usage: kit issue"* ]]
 }
 
 @test "install with no target writes the neutral tree and nothing under .claude" {

@@ -50,6 +50,6 @@ applies to it as well.
 
 ## Invocation
 
-1. The idiom is the space form, `just kit issue 42`, never `just kit/issue` and never `kit::issue` outside a
+1. The idiom is the space form, `just tools check`, never `just tools/check` and never `tools::check` outside a
    dependency list.
 2. A recipe that mutates a remote or a worktree names what it is about to do before doing it.

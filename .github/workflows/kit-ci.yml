@@ -80,7 +80,7 @@ jobs:
           2. pick one or more open issues
           3. [re-run this check](${run}): linking fires no event, so it does not re-run on its own
 
-          \`just kit issue <N>\` makes this link when it starts the work.
+          \`kit issue <N>\` makes this link when it starts the work.
           REMEDY
           )
 

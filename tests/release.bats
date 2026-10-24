@@ -29,6 +29,8 @@ teardown() {
   [ "$status" -eq 0 ]
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]
+  [ "$(git config core.hooksPath)" = "${work}/unpacked/kit-${version}/.kit/hooks" ]
+  [ ! -e .kit/bash ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
 }
 

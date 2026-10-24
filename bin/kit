@@ -2,26 +2,31 @@
 # kit - install, update, and check the kit in a repository (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-#   kit install [<target>…]     copy this release into the repository, place the files each named target needs,
-#                               and write .kit/manifest
+#   kit install [<target>…]     copy this release's text into the repository, place the files each named target
+#                               needs, wire this clone's hooks, and write .kit/manifest
 #   kit update                  after the pin is bumped: replace unchanged files, three-way merge changed ones
 #   kit check                   fail when a delivered file differs from this release
+#   kit setup                   wire this clone: core.hooksPath to this release's hooks
 #   kit target list             print the targets this repository takes
 #   kit target add <target>…    take a target: place its files and record it
 #   kit target remove <target>… drop a target: remove its files and the kit's entries from its settings
+#   kit issue [<number>…]       start or resume an issue: linked branch, worktree, start commit, draft pull request
+#   kit tidy [--dry-run]        remove worktrees whose pull request is merged or closed, and gone branches
+#   kit status [--no-fetch]     show every worktree with its branch, pull request, and state
 #   kit version                 print this release's version
+#
+# The repository carries the text an agent reads, .kit/1st.md and .kit/rules/, the CI workflow .kit/ci.yml placed
+# as .github/workflows/kit-ci.yml, the placed files of each target taken, and .kit/manifest, which records the
+# release version, the targets, and a digest per delivered path. The machinery stays in the release where mise
+# installed it: this command, the bash behind issue, tidy, and status, and the hooks, which a clone reaches through
+# core.hooksPath.
 #
 # A target is a harness that insists on files placed outside .kit/. The one this release knows is claude:
 # .claude/rules/kit-<kind>.md, each the rule file of that kind with a paths: header, and the kit's deny entries
-# merged into .claude/settings.json. A repository takes only the targets it names, and .kit/manifest records them
-# so update and check honor the same set.
+# merged into .claude/settings.json. A repository takes only the targets it names. A shared settings file is
+# merged by key: the kit owns only the entries it writes.
 #
 # KIT_BASE=<dir> names the previous release's root for `kit update` on a machine without mise.
-#
-# The release this command belongs to is the directory above bin/: its .kit/ is the payload. The repository is
-# the git checkout the command runs in. A delivered file is every file under .kit/ except manifest, the CI
-# workflow .kit/ci.yml placed as .github/workflows/kit-ci.yml, and the placed files of each target taken.
-# A shared settings file is merged by key: the kit owns only the entries it writes.
 #
 # see: .kit/1st.md
 
@@ -35,7 +40,7 @@ source "${payload}/bash/1st.sh"
 known_targets=(claude)
 
 usage() {
-  sed -n '5,12p' "${BASH_SOURCE[0]}" | sed 's/^#//; s/^ //' >&2
+  sed -n '5,16p' "${BASH_SOURCE[0]}" | sed 's/^#//; s/^ //' >&2
 }
 
 # digest prints the sha256 of stdin, by whichever tool the machine carries.
@@ -111,11 +116,11 @@ target-settings() {
 delivered-paths() {
   local root=$1 file t
   shift
-  while IFS= read -r file
+  printf '.kit/1st.md\n'
+  for file in "${root}"/rules/*.md
   do
-    [[ "${file}" == manifest ]] && continue
-    printf '.kit/%s\n' "${file}"
-  done < <(cd "${root}" && find . -type f | sed 's@^\./@@' | sort)
+    printf '.kit/rules/%s\n' "$(basename "${file}")"
+  done
   printf '.github/workflows/kit-ci.yml\n'
   for t in "$@"
   do
@@ -155,8 +160,6 @@ write-expected() {
   mkdir -p "$(dirname "$2")"
   expected "$1" "$2" > "$2.kit-new"
   mv "$2.kit-new" "$2"
-  [[ "$2" == .kit/hooks/* ]] && chmod +x "$2"
-  return 0
 }
 
 # merge-settings <target> <new-payload> [<base-payload>] merges the kit's deny entries into the target's settings
@@ -203,11 +206,37 @@ write-manifest() {
   } > .kit/manifest
 }
 
-# finish sets the clone's hooks path and reports.
+# wire-hooks points this clone's core.hooksPath at the release's hooks.
+wire-hooks() {
+  git config core.hooksPath "${payload}/hooks"
+}
+
+# finish wires the clone and reports.
 finish() {
-  git config core.hooksPath .kit/hooks
-  ok "kit $(cat "${payload}/version") is installed, targets: ${*:-none}. core.hooksPath is .kit/hooks, and .kit/manifest is written."
+  wire-hooks
+  ok "kit $(cat "${payload}/version") is installed, targets: ${*:-none}. core.hooksPath is ${payload}/hooks, and .kit/manifest is written."
   step "Commit the delivered files. The loop is in .kit/1st.md."
+}
+
+cmd-setup() {
+  guard:require tool:git
+  wire-hooks
+  ok "core.hooksPath is ${payload}/hooks"
+  if [[ -z "$(git config user.signingkey 2>/dev/null)" ]]
+  then
+    warn "no signing key is configured in this clone, and the ruleset refuses an unsigned commit; see README.md § Setup"
+  fi
+}
+
+# cmd-loop <verb> <args>… runs one of the loop's commands from the release's bash.
+cmd-loop() {
+  local verb=$1
+  shift
+  case "${verb}" in
+    (issue)  gh:issue "$@" ;;
+    (tidy)   git:tidy "$@" ;;
+    (status) git:status "$@" ;;
+  esac
 }
 
 cmd-install() {
@@ -439,7 +468,9 @@ case "${1:-}" in
   (install) shift; cmd-install "$@" ;;
   (update)  cmd-update ;;
   (check)   cmd-check ;;
+  (setup)   cmd-setup ;;
   (target)  shift; cmd-target "$@" ;;
+  (issue | tidy | status) cmd-loop "$@" ;;
   (version) cat "${payload}/version" ;;
   (-h | --help | help | "") usage; [[ -n "${1:-}" ]] ;;
   (*)

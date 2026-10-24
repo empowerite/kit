@@ -22,8 +22,8 @@ worktree under `worktrees/`, one per issue, and reaches `main` only through a me
 ## The loop
 
 1. An issue exists. A change without an issue has not started.
-2. `just kit issue <N>` makes `worktrees/<N>-<slug>`, a branch linked to the issue under Development, and a
-   draft pull request. It never switches the checkout it is run from.
+2. `kit issue <N>` makes `worktrees/<N>-<slug>`, a branch linked to the issue under Development, and a draft
+   pull request. It never switches the checkout it is run from.
 3. Work happens in that worktree. Every commit is signed, and its subject is `#<N> <area>: <subject>`.
 4. `gh pr ready` says the work is done. The pull request body is the report: what changed, what was checked
    and how, and what was left out and why.
@@ -41,7 +41,7 @@ A worker is whoever implements one issue in the worktree that issue names.
 
 1. `cd` into the worktree named in the task and confirm `git rev-parse --abbrev-ref HEAD` prints `<N>-`.
 2. Do every command from there. Never touch the repository root checkout.
-3. Never run `just kit issue`, make a branch, or make a worktree. Those were done before the handoff.
+3. Never run `kit issue`, make a branch, or make a worktree. Those were done before the handoff.
 4. Implement what the issue asks and nothing beside it.
 5. Push as you go.
 6. Run the repository's gate before calling anything done, and run it through the pinned toolchain.
@@ -67,19 +67,20 @@ Code. Read the rule for a kind before writing a file of that kind.
 
 ## What the kit carries
 
-- `.kit/kit.just`, a just module. The consumer's root justfile takes it with `mod kit ".kit/kit.just"`,
-  which gives `just kit issue`, `just kit tidy`, and `just kit status`. The bash behind them is `.kit/bash/`.
-- `.kit/hooks/pre-rebase` refuses a rebase of the default branch. `.kit/hooks/pre-commit` lints the staged
-  paths. `kit install` sets `core.hooksPath` to `.kit/hooks`.
-- Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the
-  targets it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
-  `.claude/rules/kit-<kind>.md` and merges `.kit/settings.json`, six deny rules, into `.claude/settings.json`.
-  The kit owns only the entries it writes; the repository may add its own. `kit target remove` takes a target
-  back out.
+The repository carries the text: this file, the rules under `.kit/rules/`, and `.kit/manifest`, which records the
+release version, the targets taken, and a checksum per delivered file. The release, where mise installed it,
+carries the machinery, reached through the `kit` command on `PATH`:
+
+- `kit issue`, `kit tidy`, and `kit status`, the loop's commands. A root justfile that wants `just issue 42` adds
+  a veneer recipe over `kit issue`.
+- Two hooks. `pre-rebase` refuses a rebase of the default branch. `pre-commit` lints the staged paths. `kit install`
+  points a clone's `core.hooksPath` at them, and every other clone runs `kit setup` once.
+- Targets. A harness that insists on files outside `.kit/` is a target, and a repository takes only the targets
+  it names: `kit install claude`, or `kit target add claude` later. The `claude` target places
+  `.claude/rules/kit-<kind>.md` and merges six deny rules into `.claude/settings.json`. The kit owns only the
+  entries it writes; the repository may add its own. `kit target remove` takes a target back out.
 - `.kit/ci.yml`, placed as `.github/workflows/kit-ci.yml`: one `CI` job that runs the consumer's `just ci`,
   runs `kit check`, and refuses a pull request not linked to an open issue.
-- `.kit/manifest`, written by `kit install`: the release version, the targets taken, and a checksum per
-  delivered file.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.

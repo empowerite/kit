@@ -25,7 +25,7 @@ gh:issue() {
   then
     if [[ ! -t 0 ]]
     then
-      error "usage: just kit issue <issue-number> [<issue-number>…]"
+      error "usage: kit issue <issue-number> [<issue-number>…]"
       return 2
     fi
     guard:require gh || return 1
@@ -143,7 +143,7 @@ gh:issue() {
     wt="${main_root}/worktrees/${branch}"
     if [[ -e "${wt}" ]]
     then
-      error "${wt} exists but is not a worktree of ${branch}; remove it (or run: just kit tidy) and re-run."
+      error "${wt} exists but is not a worktree of ${branch}; remove it (or run: kit tidy) and re-run."
       return 2
     fi
     step "Creating worktree ${wt}"
@@ -156,9 +156,10 @@ gh:issue() {
     fi
   fi
 
-  if [[ "$(git config core.hooksPath 2>/dev/null)" != .kit/hooks ]]
+  # shellcheck disable=SC2154  # kit_bash_dir is set by the loader, 1st.sh, which sources this file
+  if [[ "$(git config core.hooksPath 2>/dev/null)" != "$(cd "${kit_bash_dir}/.." && pwd)/hooks" ]]
   then
-    warn "run: kit install (core.hooksPath is not .kit/hooks, so the desk guard is off in this clone)"
+    warn "run: kit setup (core.hooksPath does not name this release's hooks, so the desk guard is off in this clone)"
   fi
 
   # GitHub cannot open a pull request on a branch with nothing to compare, so the first commit is an empty one.

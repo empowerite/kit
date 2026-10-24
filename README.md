@@ -20,17 +20,22 @@ mise install
 kit install claude
 ```
 
-`kit install` copies `.kit/` into the repository, places `.github/workflows/kit-ci.yml`, ignores `worktrees/`,
-points `core.hooksPath` at `.kit/hooks`, and writes `.kit/manifest`. Each target named adds what that harness
-insists on having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and merges the kit's deny rules into
-`.claude/settings.json`. A repository with no target installed still binds every agent that reads `AGENTS.md`,
-through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove` change the set later, and
-`kit target list` prints it. Commit what it wrote. Then:
+`kit install` copies `.kit/1st.md` and `.kit/rules/` into the repository, places `.github/workflows/kit-ci.yml`,
+ignores `worktrees/`, points this clone's `core.hooksPath` at the release's hooks, and writes `.kit/manifest`. Each
+target named adds what that harness insists on having outside `.kit/`; `claude` places `.claude/rules/kit-*.md` and
+merges the kit's deny rules into `.claude/settings.json`. A repository with no target installed still binds every
+agent that reads `AGENTS.md`, through the rules table in `.kit/1st.md`. `kit target add` and `kit target remove`
+change the set later, and `kit target list` prints it. Commit what it wrote. Then:
 
 - Open `AGENTS.md` with `@.kit/1st.md` and the sentence "Read .kit/1st.md first." The rest of the file is yours.
-- Add `mod kit ".kit/kit.just"` to the root justfile for `just kit issue`, `just kit tidy`, and `just kit status`.
 - Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it, then `kit check`, then refuses a pull
   request not linked to an open issue.
+- For `just issue 42`, add a veneer recipe over `kit issue` to the root justfile; `kit issue 42` works as it is.
+- In every other clone, run `kit setup` once to wire the hooks.
+
+The machinery, the `kit` command, the bash behind `kit issue`, `kit tidy`, and `kit status`, and the hooks, stays
+in the release where mise installed it; the repository carries the text an agent reads and the record of what it
+took.
 
 To move to a new release, bump the pin, run `mise install`, then `kit update`: a delivered file you left alone is
 replaced, one you edited is three-way merged with the previous release as the base, and your own deny entries
@@ -51,6 +56,7 @@ git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
 mise install
+bin/kit setup
 ```
 
 This repository carries the installed copy of its own kit, and `just ci` checks it.
@@ -60,13 +66,13 @@ This repository carries the installed copy of its own kit, and `just ci` checks 
 Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 - An issue exists. A change without an issue has not started.
-- `just kit issue <N>` makes `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a
-  draft pull request. It never switches the checkout it runs from.
+- `just issue <N>`, a veneer over `kit issue`, makes `worktrees/<N>-<slug>`, links the branch to the issue under
+  Development, and opens a draft pull request. It never switches the checkout it runs from.
 - Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`.
 - `just ci` is the gate: shellcheck over the bash, actionlint over the workflows, the bats suite in `tests/`, and
   `bin/kit check`.
 - `gh pr ready` says the work is done, and the pull request body is the report.
-- A human merges. `just kit tidy` then removes the worktree and its branch.
+- A human merges. `just tidy` then removes the worktree and its branch.
 
 ## Release
 
