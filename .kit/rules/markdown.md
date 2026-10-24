@@ -14,6 +14,12 @@ Applies to `*.md`.
 8. A pointer is `see: <ref>`, where `<ref>` is a URL, a repository-relative path, or `issue #N`. Put it inline
    when it keeps the sentence on one line, otherwise on its own line at the end of the paragraph.
 
+## Snippets
+
+1. A value the reader supplies is a shell variable the prose names, `"${signing_key}"`, never an angle-bracket
+   placeholder, so the block pastes after one export.
+2. Where a reader may lack a prerequisite, link the page that creates it beside the command that uses it.
+
 ## Layout
 
 1. Wrap prose at 118 columns, 120 being the ceiling. Inside a list item, pull the right margin in by 4 columns

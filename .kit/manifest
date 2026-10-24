@@ -12,7 +12,7 @@ cb95242d5caeee5651433a7ed8fad571bbca45f2f07a07cf4feb1f7371867402  .kit/rules/bas
 5c3667b1282bf6afe6cebc401e99faa2ba52e4a4873bbec9a6368a4623277f2d  .kit/rules/gitignore.md
 6ddb651356399b10dc33858cdf38fe111aa8803cde1d499135faa0e196f74f97  .kit/rules/json.md
 26e6ddb46be1adeda8ea76d77112096771147821594a89cc14ff8dbf7148d939  .kit/rules/just.md
-df7388a40e037d82f77d92f0dfe0deed55184c4a8bf869dbce86986673ebeab5  .kit/rules/markdown.md
+b65054b62fc294525a5448bca8ac6bfe8be2d1aab0a74495c16b0f229104c2e7  .kit/rules/markdown.md
 52c854d31381d85c01ffd5cdb10ba1dfd8081ad80ff1a8108cf42b5e77d42bc8  .kit/rules/yaml.md
 617c2e4ca3a72ae59ee898db2120519624a1ad58df5136d0d6f88df96ffdc13a  .kit/settings.json
 e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67  .kit/version
@@ -21,5 +21,5 @@ e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67  .kit/version
 4c856c8a5e76aa7fe464f3ec3444a9607f653454ce1c1fc75d6e85ca3e67b35f  .claude/rules/kit-gitignore.md
 1c3d02d2f022abecd49c6b4a38294e37e0df8cc97dbac0558a4f25595fb139d5  .claude/rules/kit-json.md
 96d16e8c1d3889909bbc13d6690b07a6d7c47aa2e7d62ff87f4cbc0068f385c7  .claude/rules/kit-just.md
-13fff95ff67775bebb820d10dbd73f4f5eb23571f0619462fa5abb1b8c6b42c6  .claude/rules/kit-markdown.md
+b10e9ddcd41ca3fea52b0233f94e26437bd6977b4c64b8461e63599d9bd7faaf  .claude/rules/kit-markdown.md
 4f2d5c15ec02e7549df338ff3ed51d5ebaf702b749dc078ae34392b04fb21c47  .claude/rules/kit-yaml.md
