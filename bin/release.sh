@@ -83,6 +83,27 @@ release:require-targets() {
 
 release:merged() { [[ "$1" == *.json ]]; }
 
+# release:among <name> <name>… is true when the first name is among the rest.
+release:among() {
+  local needle=$1 item
+  shift
+  for item in "$@"
+  do
+    [[ "${item}" == "${needle}" ]] && return 0
+  done
+  return 1
+}
+
+# release:without <name> <name>… prints the rest without the first name, one per line.
+release:without() {
+  local needle=$1 item
+  shift
+  for item in "$@"
+  do
+    [[ "${item}" == "${needle}" ]] || printf '%s\n' "${item}"
+  done
+}
+
 # The parameters are values ($), not filters: a filter parameter is re-read against the input at each use, which
 # inside the recursion is the wrong level of the object.
 release_jq='

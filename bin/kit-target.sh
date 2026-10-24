@@ -31,7 +31,7 @@ case "${verb}" in
     release:require-targets "$@"
     for t in "$@"
     do
-      if [[ " ${targets[*]} " == *" ${t} "* ]]
+      if release:among "${t}" "${targets[@]}"
       then
         step "${t}: already taken"
         continue
@@ -53,7 +53,7 @@ case "${verb}" in
     release:require-targets "$@"
     for t in "$@"
     do
-      if [[ " ${targets[*]} " != *" ${t} "* ]]
+      if ! release:among "${t}" "${targets[@]}"
       then
         step "${t}: not taken"
         continue
@@ -73,12 +73,7 @@ case "${verb}" in
           rm -f "${path}"
         fi
       done < <(release:target-only "${t}")
-      kept=()
-      for path in "${targets[@]}"
-      do
-        [[ "${path}" == "${t}" ]] || kept+=("${path}")
-      done
-      targets=("${kept[@]}")
+      read -r -a targets <<<"$(release:without "${t}" "${targets[@]}" | paste -s -d ' ' -)"
     done
     release:write-manifest "${targets[@]}"
     ok "targets: ${targets[*]:-none}"
