@@ -97,9 +97,9 @@ it writes; everything else is copied as it is.
   `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
 - `ci`: `.github/workflows/kit-ci.yml`, one `CI` job that runs the repository's `just ci`, runs `kit check`, and
   refuses a pull request not linked to an open issue.
-- `claude`: for Claude Code, which reads `CLAUDE.md` and not `AGENTS.md`: `.claude/CLAUDE.md` importing
-  `AGENTS.md`, seven deny rules merged into `.claude/settings.json`, and a hook that runs `kit context` before
-  every write so the rules are named to the agent without being asked for.
+- `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: `.claude/CLAUDE.md`
+  importing `AGENTS.md`, so it is read in every case; seven deny rules merged into `.claude/settings.json`; and a
+  hook that runs `kit context` before every write so the rules are named to the agent without being asked for.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.

@@ -69,13 +69,14 @@ repository trustworthy.
 ```
 
 The rest of `AGENTS.md` is yours. Everything the kit delivers is a module, and `install` activates the default ones,
-`kit`, `lefthook`, and `ci`, plus those named: `claude` is the adapter for Claude Code, which reads `CLAUDE.md` and
-not `AGENTS.md`, so the module places `.claude/CLAUDE.md` importing `AGENTS.md` and Claude reads what everyone else
-reads. A repository with no adapter still binds every agent that reads `AGENTS.md`. Commit what it wrote, keep a `ci`
-recipe in the root justfile for the delivered `CI` job to run, and take the pre-commit linters by pinning `lefthook`,
-putting `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit module
-list`, `kit module add`, and `kit module remove` show and change the set later, and [docs/modules.md](docs/modules.md)
-describes a module. An agent asks `kit context <path>` which rules govern a file before it creates or changes it;
+`kit`, `lefthook`, and `ci`, plus those named: `claude` is the adapter for Claude Code, which reads `AGENTS.md` only
+as a fallback, when no `CLAUDE.md` is present and its configuration allows, so the module places `.claude/CLAUDE.md`
+importing `AGENTS.md` and Claude reads what everyone else reads in every case. A repository with no adapter still
+binds every agent that reads `AGENTS.md`. Commit what it wrote, keep a `ci` recipe in the root justfile for the
+delivered `CI` job to run, and take the pre-commit linters by pinning `lefthook`, putting `extends:
+[.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit module list`, `kit module
+add`, and `kit module remove` show and change the set later, and [docs/modules.md](docs/modules.md) describes a
+module. An agent asks `kit context <path>` which rules govern a file before it creates or changes it;
 [docs/context.md](docs/context.md) describes the call and the Claude Code hook that makes it for the agent.
 
 To move to a new release, bump the pin or reinstall, then run `kit update`: a delivered file you left alone is
