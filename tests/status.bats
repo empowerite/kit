@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
-# status.bats - the parts of the picture that need no GitHub: a cell, the commit list, and a checkout's row
+# status.bats - the parts of the picture that need no GitHub: a cell, a checkout's measures and block, its label,
+# and its path from the current directory
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
@@ -25,6 +26,15 @@ in_status() {
   bash -c 'source "${kit_root}/bin/1st.sh" && use status && "$@"' _ "$@"
 }
 
+# commits-in <path> <n> makes <n> commits in the checkout at <path>.
+commits-in() {
+  local i
+  for (( i = 1; i <= $2; i++ ))
+  do
+    printf '%s\n' "${i}" > "$1/f${i}" && git -C "$1" add . && git -C "$1" commit --quiet --message "c${i}"
+  done
+}
+
 @test "a cell is padded to its width, or clipped with an ellipsis" {
   run in_status status:cell abc 5
   [ "$output" = "abc  " ]
@@ -32,42 +42,63 @@ in_status() {
   [ "$output" = "abcd…" ]
 }
 
-@test "the commit list shows the newest, says how many are hidden, and ends with the oldest" {
-  git worktree add --quiet -b topic worktrees/topic main
-  for i in $(seq 1 15)
-  do
-    printf '%s\n' "${i}" > "worktrees/topic/f${i}" && git -C worktrees/topic add . && git -C worktrees/topic commit --quiet --message "c${i}"
-  done
-  run in_status status:commits "${PWD}/worktrees/topic" main..topic
-  [ "$status" -eq 0 ]
-  [ "${#lines[@]}" -eq 11 ]
-  [[ "${lines[0]}" == *" c15" ]]
-  [[ "${lines[8]}" == *" c7" ]]
-  [[ "${lines[9]}" == *"… and 5 more" ]]
-  [[ "${lines[10]}" == *" c1" ]]
-}
-
-@test "a worktree with no pull request shows its distance from main and the size of its diff" {
+@test "a checkout is measured from where its branch left origin's default branch" {
   git worktree add --quiet -b topic worktrees/topic main
   printf 'two\nthree\n' > worktrees/topic/b && git -C worktrees/topic add b && git -C worktrees/topic commit --quiet --message two
   printf 'four\n' > c && git add c && git commit --quiet --message four && git push --quiet origin main
-  run in_status status:checkout-row 🌿 worktrees/topic "${PWD}/worktrees/topic" topic 20 main
+  printf 'x\n' > worktrees/topic/x
+  run in_status status:checkout "${PWD}/worktrees/topic" topic main
   [ "$status" -eq 0 ]
-  [ "$output" = "🌿 worktrees/topic        ↑1 ↓1 · +2 -0" ]
+  [ "$(jq -r '[.relative, .branch, .ahead, .behind, .added, .removed, .uncommitted, (.commits | length)] | @tsv' <<<"$output")" \
+    = "$(printf 'worktrees/topic\ttopic\t1\t1\t2\t0\t1\t1')" ]
 }
 
-@test "a detached worktree is marked, and a dirty one counts its uncommitted paths" {
-  git worktree add --quiet --detach worktrees/loose main
-  printf 'x\n' > worktrees/loose/x
-  run in_status status:checkout-row 🌿 worktrees/loose "${PWD}/worktrees/loose" '' 16 main
+@test "a block shows the newest commits, counts the hidden ones, and ends with the oldest" {
+  git worktree add --quiet -b topic worktrees/topic main
+  commits-in worktrees/topic 15
+  doc=$(in_status status:checkout "${PWD}/worktrees/topic" topic main)
+  run in_status status:checkout-block 🌿 "${doc}" 15
   [ "$status" -eq 0 ]
-  [ "$output" = "🌿 worktrees/loose    ❗ detached HEAD   ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
+  [ "${lines[0]}" = "🌿 worktrees/topic   ↑15 ↓0 · +15 -0" ]
+  [ "${#lines[@]}" -eq 12 ]
+  [[ "${lines[1]}" == *" c15" ]]
+  [[ "${lines[9]}" == *" c7" ]]
+  [[ "${lines[10]}" == *"… and 5 more" ]]
+  [[ "${lines[11]}" == *" c1" ]]
 }
 
-@test "the desk row shows its branch, its unpushed commits, and its uncommitted paths" {
+@test "the desk block is its branch, its unpushed commits, and its uncommitted paths" {
   printf 'two\n' > b && git add b && git commit --quiet --message two
   printf 'x\n' > c
-  run in_status status:checkout-row 🏠 main "${PWD}" main 4 main
+  doc=$(in_status status:checkout "${PWD}" main main)
+  run in_status status:checkout-block 🏠 "${doc}" 4
   [ "$status" -eq 0 ]
-  [ "$output" = "🏠 main   ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
+  [ "${lines[0]}" = "🏠 main   ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
+  [[ "${lines[1]}" == *" two" ]]
+}
+
+@test "a detached checkout is marked and lists no commits" {
+  git worktree add --quiet --detach worktrees/loose main
+  doc=$(in_status status:checkout "${PWD}/worktrees/loose" '' main)
+  run in_status status:checkout-block 🌿 "${doc}" 15
+  [ "$output" = "🌿 worktrees/loose   ❗ detached HEAD   ↑0 ↓0 · +0 -0" ]
+}
+
+@test "a label is the path when the branch ends it, the branch at the current directory, or branch on path" {
+  run in_status status:label worktrees/topic topic
+  [ "$output" = "$(printf 'worktrees/topic\t15')" ]
+  run in_status status:label . main
+  [ "$output" = "$(printf 'main\t4')" ]
+  run in_status status:label ../other topic
+  [ "$output" = "$(printf 'topic on ../other\t17')" ]
+}
+
+@test "a path is printed relative to the current directory" {
+  run in_status status:relative "${PWD}"
+  [ "$output" = "." ]
+  run in_status status:relative "${PWD}/worktrees/topic"
+  [ "$output" = "worktrees/topic" ]
+  cd worktrees
+  run in_status status:relative "${PWD%/worktrees}"
+  [ "$output" = ".." ]
 }
