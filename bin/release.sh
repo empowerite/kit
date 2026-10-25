@@ -1,15 +1,16 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bin/kit
-# release.sh - the release's layout, the one merge rule, and the manifest (sourced module)
+# release.sh - the release's modules, the one merge rule, the templates, and the manifest (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# A release mirrors its tree/ at the repository root, and targets/<name>/ for each target taken; a symlink in
-# either is delivered as the file it points at. A destination ending in .json is merged by key, with the kit's
-# keys set, the kit's array entries added, and on update or removal only the previous release's entries taken
-# out. .kit/manifest records the version, the targets, and the release's digest for every delivered path.
+# A release is bin/ and modules/. Each modules/<name>/ is a module: a `module` file of metadata, a tree/ mirrored
+# at the repository root, and templates/ with @key@ rendered from the repository's answers, then placed the same way. A
+# destination ending in .json is merged by key, with the kit's keys set, the kit's array entries added, and on
+# update or removal only the previous release's entries taken out. .kit/manifest records the version, the active
+# modules, and the release's digest for every delivered path. docs/modules.md is the format's description.
 #
-# Every function reads the release from kit_root, exported by bin/kit.
+# Every function reads a release from a root, kit_root by default, which bin/kit exports.
 
 # A release carries a version file the release workflow stamps from the tag; a checkout carries none and is
 # "unreleased", the one version kit update never asks mise for.
@@ -20,19 +21,162 @@ release:version() {
   cat "${kit_root}/version" 2>/dev/null || printf '%s\n' "${release_unreleased}"
 }
 
-# release:layers <root> <target>… prints the directories mirrored at the repository root, tree first.
-release:layers() {
-  local root=$1 t
-  shift
-  printf '%s\n' "${root}/tree"
-  for t in "$@"
+# release:modules [<root>] prints the modules the release carries.
+release:modules() {
+  (cd "${1:-${kit_root}}/modules" && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@' | sort)
+}
+
+# release:field <root> <module> <keyword> prints the value of every <keyword> line in the module's metadata.
+release:field() {
+  sed -n "s/^$3 //p; s/^$3\$//p" "$1/modules/$2/module" 2>/dev/null || true
+}
+
+# release:default-modules <root> prints the modules active unless removed.
+release:default-modules() {
+  local module
+  for module in $(release:modules "$1")
   do
-    printf '%s\n' "${root}/targets/${t}"
+    grep --quiet --line-regexp default "$1/modules/${module}/module" && printf '%s\n' "${module}"
+  done
+  return 0
+}
+
+# release:require-modules <root> <name>… refuses a module the release does not carry, naming the ones it does.
+release:require-modules() {
+  local root=$1 module
+  shift
+  for module in "$@"
+  do
+    if [[ ! -f "${root}/modules/${module}/module" ]]
+    then
+      error "'${module}' is not a module this release knows; the modules are: $(release:modules "${root}" | paste -s -d ' ' -)"
+      return 2
+    fi
   done
 }
 
-# release:delivered <root> <target>… prints "<path>\t<source>" for every repository path the release at <root>
-# delivers for those targets, sorted by path, the last layer winning. A symlink is a source only when it points
+# release:resolve <root> <name>… prints the named modules and everything they depend on, each once, a module
+# after the modules it depends on: the closure over depends, ordered by tsort over its edges.
+release:resolve() {
+  local root=$1 module dep
+  shift
+  local -A wanted=()
+  local -a queue=("$@")
+  while (( ${#queue[@]} > 0 ))
+  do
+    module=${queue[0]}
+    queue=("${queue[@]:1}")
+    [[ -n "${wanted[${module}]:-}" ]] && continue
+    wanted[${module}]=1
+    for dep in $(release:field "${root}" "${module}" depends)
+    do
+      queue+=("${dep}")
+    done
+  done
+  for module in "${!wanted[@]}"
+  do
+    printf '%s %s\n' "${module}" "${module}"
+    for dep in $(release:field "${root}" "${module}" depends)
+    do
+      printf '%s %s\n' "${dep}" "${module}"
+    done
+  done | sort | tsort
+}
+
+# release:dependents <root> <module> <active>… prints the active modules that depend on <module>.
+release:dependents() {
+  local root=$1 module=$2 other dep
+  shift 2
+  for other in "$@"
+  do
+    for dep in $(release:field "${root}" "${other}" depends)
+    do
+      [[ "${dep}" == "${module}" ]] && printf '%s\n' "${other}"
+    done
+  done
+}
+
+# release:answers <root> <module> prints "<key>\t<value>" for every answer the module's templates may use: the
+# module's defaults, each overridden by a "<key> <value>" line in the repository's .kit/answers.
+release:answers() {
+  {
+    release:field "$1" "$2" answer
+    [[ -f .kit/answers ]] && grep --invert-match '^#' .kit/answers
+    true
+  } | awk 'NF >= 2 { v = $0; sub(/^[^ ]+ +/, "", v); a[$1] = v } END { for (k in a) print k "\t" a[k] }'
+}
+
+# release:tmp prints a directory for this process's rendered templates, made once and removed at exit.
+release:tmp() {
+  if [[ -z "${release_tmp:-}" ]]
+  then
+    release_tmp=$(mktemp -d)
+    # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
+    trap "rm -rf '${release_tmp}'" EXIT
+  fi
+  printf '%s\n' "${release_tmp}"
+}
+
+# release:render <root> <module> renders the module's templates once per process and prints the directory holding
+# them, or prints nothing for a module with no templates. A key is written @key@, autoconf's form, which neither
+# bash's ${var} nor GitHub's ${{ }} can be mistaken for; one with no answer refuses, naming the key.
+release:render() {
+  local root=$1 module=$2 templates="$1/modules/$2/templates" out key value text file rel
+  local -A answer=()
+  [[ -d "${templates}" ]] || return 0
+  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/${module}"
+  if [[ ! -d "${out}" ]]
+  then
+    while IFS=$'\t' read -r key value
+    do
+      [[ -n "${key}" ]] && answer[${key}]=${value}
+    done < <(release:answers "${root}" "${module}")
+    while IFS= read -r file
+    do
+      rel=${file#"${templates}"/}
+      text=$(<"${file}")
+      for key in $(grep --only-matching '@[a-z_]*@' "${file}" | sort --unique | tr -d '@')
+      do
+        if [[ -z "${answer[${key}]+x}" ]]
+        then
+          error "${rel} needs an answer for '${key}'; add a line '${key} <value>' to .kit/answers (module ${module})"
+          return 1
+        fi
+        text=${text//"@${key}@"/"${answer[${key}]}"}
+      done
+      mkdir -p "${out}/$(dirname "${rel}")"
+      printf '%s\n' "${text}" > "${out}/${rel}"
+    done < <(find "${templates}" -type f)
+  fi
+  printf '%s\n' "${out}"
+}
+
+# release:render-all <root> <module>… renders every named module's templates, refusing on the first unanswered key.
+release:render-all() {
+  local root=$1 module
+  shift
+  for module in "$@"
+  do
+    release:render "${root}" "${module}" >/dev/null || return 1
+  done
+}
+
+# release:layers <root> <module>… prints the directories mirrored at the repository root, in module order: each
+# module's tree/, then its rendered templates.
+release:layers() {
+  local root=$1 module rendered
+  shift
+  for module in "$@"
+  do
+    [[ -d "${root}/modules/${module}/tree" ]] && printf '%s\n' "${root}/modules/${module}/tree"
+    rendered=$(release:render "${root}" "${module}")
+    [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
+  done
+  return 0
+}
+
+# release:delivered <root> <module>… prints "<path>\t<source>" for every repository path the release at <root>
+# delivers for those modules, sorted by path, the last layer winning. A symlink is a source only when it points
 # at a file; a dangling one is refused here, where it is found.
 release:delivered() {
   local layer path src
@@ -51,34 +195,21 @@ release:delivered() {
   done
 }
 
-# release:source-of <root> <path> <target>… prints the release file behind one repository path, or nothing.
+# release:source-of <root> <path> <module>… prints the release file behind one repository path, or nothing.
 release:source-of() {
   local root=$1 path=$2
   shift 2
   release:delivered "${root}" "$@" | awk -F '\t' -v p="${path}" '$1 == p { print $2 }'
 }
 
-# release:target-only <target> prints the paths the target delivers that tree/ does not.
-release:target-only() {
-  comm -13 <(release:delivered "${kit_root}" | cut -f 1) <(release:delivered "${kit_root}" "$1" | cut -f 1)
-}
-
-# release:known-targets prints the targets this release carries.
-release:known-targets() {
-  (cd "${kit_root}/targets" && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@' | sort)
-}
-
-# release:require-targets <name>… refuses a target this release does not carry, naming the ones it does.
-release:require-targets() {
-  local t
-  for t in "$@"
-  do
-    if [[ ! -d "${kit_root}/targets/${t}" ]]
-    then
-      error "'${t}' is not a target this release knows; the targets are: $(release:known-targets | paste -s -d ' ' -)"
-      return 2
-    fi
-  done
+# release:paths-beyond <root> <before> <after> prints the paths the module set <after> delivers that <before>
+# does not; each set is one space-separated word.
+release:paths-beyond() {
+  local root=$1
+  local -a before after
+  read -r -a before <<<"$2"
+  read -r -a after <<<"$3"
+  comm -13 <(release:delivered "${root}" "${before[@]}" | cut -f 1) <(release:delivered "${root}" "${after[@]}" | cut -f 1)
 }
 
 release:merged() { [[ "$1" == *.json ]]; }
@@ -204,13 +335,29 @@ release:place() {
   fi
 }
 
-# release:write-manifest <target>… records the version, the targets, and the release's digest for every delivered path.
+# release:unplace <source> <path> takes the release's content back out of <path>: the kit's entries for .json,
+# the file itself otherwise.
+release:unplace() {
+  local src=$1 path=$2
+  if release:merged "${path}"
+  then
+    [[ -f "${path}" ]] || return 0
+    step "${path}: the kit's entries taken out"
+    release:json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
+  else
+    step "removing ${path}"
+    rm -f "${path}"
+  fi
+}
+
+# release:write-manifest <module>… records the version, the active modules, and the release's digest for every
+# delivered path.
 release:write-manifest() {
   local path src
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
     printf 'version %s\n' "$(release:version)"
-    printf 'targets%s\n' "${*:+ $*}"
+    printf 'modules%s\n' "${*:+ $*}"
     while IFS=$'\t' read -r path src
     do
       printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
@@ -219,7 +366,7 @@ release:write-manifest() {
 }
 
 release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
-release:manifest-targets() { sed -n 's/^targets *//p' .kit/manifest; }
+release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest; }
 
 # release:require-manifest refuses to go on in a repository that never took the kit.
 release:require-manifest() {
@@ -230,9 +377,9 @@ release:require-manifest() {
   fi
 }
 
-# release:finish <target>… reports a completed install or update.
+# release:finish <module>… reports a completed install or update.
 release:finish() {
-  ok "kit $(release:version) is installed, targets: ${*:-none}; .kit/manifest is written."
+  ok "kit $(release:version) is installed, modules: ${*:-none}; .kit/manifest is written."
   step "Commit the delivered files. The loop is in .kit/1st.md."
 }
 

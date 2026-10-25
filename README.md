@@ -69,12 +69,14 @@ kit install claude
 Read .kit/1st.md first.
 ```
 
-The rest of `AGENTS.md` is yours. `install` writes `.kit/`, the CI workflow, and the files of each target named;
-`claude` is the one target this release knows, and a repository with no target still binds every agent that
-reads `AGENTS.md`. Commit what it wrote, keep a `ci` recipe in the root justfile for the delivered `CI` job to
-run, and take the pre-commit linters by pinning `lefthook`, putting `extends: [.kit/lefthook.yml]` in
-`lefthook.yml`, and running `lefthook install` once per clone. `kit target add`, `kit target remove`, and
-`kit target list` change and show the targets later.
+The rest of `AGENTS.md` is yours. Everything the kit delivers is a module, and `install` activates the default
+ones, `kit`, `lefthook`, and `ci`, plus those named: `claude` is the adapter for Claude Code, and a repository
+with no adapter still binds every agent that reads `AGENTS.md`. Commit what it wrote, keep a `ci` recipe in the
+root justfile for the delivered `CI` job to run, and take the pre-commit linters by pinning `lefthook`, putting
+`extends: [.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit module list`,
+`kit module add`, and `kit module remove` show and change the set later, and [docs/modules.md](docs/modules.md)
+describes a module. An agent asks `kit context <path>` which rules govern a file before it creates or changes
+it; [docs/context.md](docs/context.md) describes the call and the Claude Code hook that makes it for the agent.
 
 To move to a new release, bump the pin or reinstall, then run `kit update`: a delivered file you left alone is
 replaced, one you edited is three-way merged with the previous release as the base, which `update` fetches from
@@ -117,23 +119,23 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 ## Maintaining
 
-This repository is both the source of the kit and a consumer of it. The release is the checkout: `tree/` is what
-every consumer gets, mirrored at its root; `targets/<name>/` is what a consumer taking that target gets, mirrored
-the same way; and `bin/` is the machinery, `bin/kit` dispatching to one executable `bin/kit-<verb>.sh` per verb,
-each sourcing the modules beside it. A symlink under `targets/` is delivered as the file it points at, so a rule
-lives once, in `tree/.kit/rules/`.
+This repository is both the source of the kit and a consumer of it. The release is the checkout: `modules/<name>/`
+is what a consumer activating that module gets, its `tree/` mirrored at the consumer's root and its `templates/`
+rendered from the consumer's answers first; `bin/` is the machinery, `bin/kit` dispatching to one executable
+`bin/kit-<verb>.sh` per verb, each sourcing the bash modules beside it; and `docs/` with each module's `docs/` is
+the documentation. [docs/modules.md](docs/modules.md) is the module format.
 
 The installed copies are written by `bin/kit install` and not edited by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/lefthook.yml` | `tree/.kit/` |
-| `.github/workflows/kit-ci.yml` | `tree/.github/workflows/kit-ci.yml` |
-| `.claude/rules/kit-<kind>.md` | `targets/claude/.claude/rules/`, links into `tree/.kit/rules/` |
-| `.claude/settings.json` | `targets/claude/.claude/settings.json`, merged by key; here only the kit's entries |
-| `.kit/manifest` | the release version (`unreleased` here), the targets taken, and a digest per delivered path |
+| `.kit/1st.md`, `.kit/rules/` | `modules/kit/tree/.kit/` |
+| `.kit/lefthook.yml` | `modules/lefthook/tree/.kit/lefthook.yml` |
+| `.github/workflows/kit-ci.yml` | `modules/ci/templates/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
+| `.claude/settings.json` | `modules/claude/tree/.claude/settings.json`, merged by key; here only the kit's entries |
+| `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 
-A commit that changes a file under `tree/` or `targets/` rewrites the installed copies in the same commit: the
+A commit that changes a file under `modules/` rewrites the installed copies in the same commit: the
 pre-commit hook runs `just refresh`, which regenerates them from the index and stages the result. On a desk
 without the hook, stage the change, run `just refresh`, and commit. `bin/kit check`, which `just ci` runs, names
 any installed copy that no longer matches its source. Each delivered text file says in its header that it is

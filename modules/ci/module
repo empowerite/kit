@@ -1,0 +1,8 @@
+# modules/ci/module - the ci module: one CI job, the gate, kit check, and the linked-open-issue refusal
+# ----------------------------------------------------------------------------------------------------------------------
+# One keyword per line. docs/modules.md says what each keyword means.
+
+description One CI job: the repository's gate, kit check, and the refusal of a pull request without an open issue
+default
+depends kit
+answer ci_runner ubuntu-latest

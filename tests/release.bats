@@ -16,7 +16,7 @@ teardown() {
   # packed the way the workflow packs it, with the tag's version stamped in
   version=9.9.9
   mkdir "kit-${version}"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/tree" "${kit_checkout}/targets" "kit-${version}/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "kit-${version}/"
   printf '%s\n' "${version}" > "kit-${version}/version"
   tar --create --gzip --file "kit-${version}.tar.gz" "kit-${version}"
   rm -rf "kit-${version}"
@@ -24,7 +24,7 @@ teardown() {
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
   [ -x "unpacked/kit-${version}/bin/kit-install.sh" ]
-  [ -L "unpacked/kit-${version}/targets/claude/.claude/rules/kit-bash.md" ]
+  [ -f "unpacked/kit-${version}/modules/claude/module" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh
   run "${work}/unpacked/kit-${version}/bin/kit" install claude
@@ -32,7 +32,7 @@ teardown() {
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
-  [ ! -L .claude/rules/kit-bash.md ]
+  grep --quiet "^version ${version}$" .kit/manifest
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

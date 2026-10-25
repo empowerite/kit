@@ -38,7 +38,7 @@ ci:
   echo "✅ ci passed"
 
 # Reinstall this repository's own kit from the index and stage the result. Here the checkout is the release, so an
-# edit under tree/ or targets/ is an edit to the release, not a consumer's drift. The copies are made from the
+# edit under modules/ is an edit to the release, not a consumer's drift. The copies are made from the
 # index, what the commit will carry, never from the working tree, so a half-staged edit cannot put a copy into a
 # commit that lacks its source. Every path the old manifest lists is removed first and written again from the
 # new release: a source that was deleted leaves no copy behind, and an entry that was retired does not survive
@@ -53,14 +53,14 @@ refresh:
   set -o errexit -o nounset -o pipefail
   paths() { awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' .kit/manifest; }
   readarray -t before < <(paths)
-  read -r -a targets <<<"$(sed -n 's/^targets *//p' .kit/manifest)"
+  read -r -a modules <<<"$(sed -n 's/^modules *//p' .kit/manifest)"
   index=$(mktemp -d)
   trap 'rm -rf "${index}"' EXIT
   git checkout-index --all --prefix="${index}/"
   rm -f "${before[@]}" .kit/manifest
-  "${index}/bin/kit" install "${targets[@]}" >/dev/null
+  "${index}/bin/kit" install "${modules[@]}" >/dev/null
   readarray -t after < <(paths)
   git add --all -- "${before[@]}" "${after[@]}" .kit/manifest
-  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, targets ${targets[*]:-none}"
+  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, modules ${modules[*]:-none}"
 
 # ----------------------------------------------------------------------------------------------------------------------

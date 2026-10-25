@@ -5,7 +5,7 @@
 # A file whose digest still matches the manifest, which records the previous release's own content, is replaced.
 # An edited one is three-way merged with the previous release as the base, which release:fetch finds or fetches.
 # A path the previous release did not deliver is written only where the repository has nothing, or the same
-# thing, there.
+# thing, there. A template is rendered from the repository's answers in both releases before either is compared.
 #
 # see: bin/release.sh
 
@@ -22,10 +22,11 @@ fi
 
 guard:require tool:jq
 release:require-manifest
-read -r -a targets <<<"$(release:manifest-targets)"
+read -r -a modules <<<"$(release:manifest-modules)"
 previous=$(release:manifest-version)
 current=$(release:version)
-section "kit update ${previous} → ${current}${targets[*]:+, targets: ${targets[*]}}"
+release:render-all "${kit_root}" "${modules[@]}"
+section "kit update ${previous} → ${current}, modules: ${modules[*]}"
 
 # The previous release is the base of every merge, needed only when the release changed. KIT_BASE names its
 # root; otherwise release:fetch finds or fetches it.
@@ -38,6 +39,7 @@ elif [[ "${previous}" != "${current}" && "${previous}" != "${release_unreleased}
 then
   base_root=$(release:fetch "${previous}" || true)
 fi
+[[ -n "${base_root}" ]] && release:render-all "${base_root}" "${modules[@]}"
 needs_base=false
 [[ "${previous}" != "${current}" ]] && needs_base=true
 
@@ -62,7 +64,7 @@ do
     continue
   fi
   base=""
-  [[ -n "${base_root}" ]] && base=$(release:source-of "${base_root}" "${path}" "${targets[@]}")
+  [[ -n "${base_root}" ]] && base=$(release:source-of "${base_root}" "${path}" "${modules[@]}")
   if [[ "${needs_base}" == true && -z "${base}" ]]
   then
     # Without the base, neither a merge nor the removal of the previous release's entries is possible.
@@ -90,14 +92,14 @@ do
       conflicts=$(( conflicts + 1 ))
     fi
   fi
-done < <(release:delivered "${kit_root}" "${targets[@]}")
+done < <(release:delivered "${kit_root}" "${modules[@]}")
 
-release:write-manifest "${targets[@]}"
+release:write-manifest "${modules[@]}"
 if (( conflicts > 0 ))
 then
   error "${conflicts} file(s) need a hand; see above."
   exit 1
 fi
-release:finish "${targets[@]}"
+release:finish "${modules[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

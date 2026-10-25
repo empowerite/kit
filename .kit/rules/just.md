@@ -4,6 +4,8 @@ paths:
   - "justfile"
   - "**/justfile"
   - "**/*.just"
+content:
+  - "^#!.*/(env +)?just( |$)"
 ---
 # Just
 

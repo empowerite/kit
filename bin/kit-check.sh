@@ -16,8 +16,9 @@ then
 fi
 
 release:require-manifest
-read -r -a targets <<<"$(release:manifest-targets)"
+read -r -a modules <<<"$(release:manifest-modules)"
 version=$(release:manifest-version)
+release:render-all "${kit_root}" "${modules[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
@@ -46,12 +47,12 @@ do
     error "${path} differs from the pinned release"
     findings=$(( findings + 1 ))
   fi
-done < <(release:delivered "${kit_root}" "${targets[@]}")
+done < <(release:delivered "${kit_root}" "${modules[@]}")
 if (( findings > 0 ))
 then
   error "${findings} finding(s). A delivered file is changed by pinning a new release and running kit update, not in place."
   exit 1
 fi
-ok "kit ${version}, targets ${targets[*]:-none}: every delivered file matches the pinned release."
+ok "kit ${version}, modules ${modules[*]:-none}: every delivered file matches the pinned release."
 
 # ----------------------------------------------------------------------------------------------------------------------

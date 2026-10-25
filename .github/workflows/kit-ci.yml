@@ -6,7 +6,8 @@
 # open issue of this repository under Development. The last two run even when an earlier step refused, so one
 # run reports every finding.
 #
-# Delivered by kit, not edited by hand. A change is a new release, then kit update.
+# Delivered by kit, not edited by hand. A change is a new release, then kit update. Rendered from a template: the
+# job runs on the ci_runner answer, ubuntu-latest unless .kit/answers says otherwise.
 #
 # see: .kit/1st.md
 

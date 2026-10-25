@@ -1,0 +1,6 @@
+# modules/claude/module - the claude module: Claude Code's deny list and its hook into kit context
+# ----------------------------------------------------------------------------------------------------------------------
+# One keyword per line. docs/modules.md says what each keyword means.
+
+description Claude Code: the deny list for the spellings the rules forbid, and the hook that puts a file's rules before the agent
+depends kit

@@ -25,15 +25,17 @@ case "${verb}" in
     cat <<'USAGE'
 usage: kit <verb> [<argument>…]
 
-  install [<target>…]   mirror the release into the repository, take the named targets, write .kit/manifest
+  install [<module>…]   activate the default modules and the named ones, place their files, write .kit/manifest
   update                after the pin is bumped: replace unchanged files, three-way merge changed ones
   check                 fail when a delivered file differs from the pinned release
-  target <list|add|remove> [<target>…]
-                        the targets this repository takes
+  module <list|add|remove> [<module>…]
+                        the modules this repository takes
+  context <path>…       name the rules that govern a file, and record the ask
   issue [<number>…]     start or resume an issue: linked branch, worktree, start commit, draft pull request
-  rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the default branch
+  rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
-  status [--no-fetch]   show every worktree with its branch, pull request, and state
+  status [--no-fetch] [--json]
+                        the desk, the worktrees, and the open pull requests
   lint [--all-files]    run the pre-commit hook's linters by hand, over the staged paths or every path
   version               print this release's version
 

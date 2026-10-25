@@ -10,8 +10,8 @@ Read .kit/1st.md first. It is the kit's entry file, and this repository uses its
   not on `main`. The tag is the version: no file carries it, the workflow stamps it into the packed kit, and a
   published release is immutable, so a tag is never reused. A release is permanent; a pre-release is retired when
   the branch it was tagged on is deleted.
-- `.claude/rules/kit-*.md`, `.github/workflows/kit-ci.yml`, `.claude/settings.json`, and `.kit/manifest` are
-  this repository's installed copies of its own kit, written by `just refresh` from `tree/` and `targets/`; see
-  [README.md](README.md) § Maintaining. Edit the source; the pre-commit hook refreshes the copies into the same
-  commit, and a desk without the hook runs `just refresh` and commits both.
+- `.kit/`, `.github/workflows/kit-ci.yml`, and `.claude/settings.json` are this repository's installed copies of its
+  own kit, written by `just refresh` from `modules/`; see [README.md](README.md) § Maintaining. Edit the source; the
+  pre-commit hook refreshes the copies into the same commit, and a desk without the hook runs `just refresh` and
+  commits both.
 - `just ci` is the gate; the justfile says what it runs.

@@ -3,6 +3,8 @@
 paths:
   - "**/*.sh"
   - "**/*.bash"
+content:
+  - "^#!.*/(env +)?(ba)?sh( |$)"
 ---
 # Bash
 
