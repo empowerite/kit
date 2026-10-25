@@ -46,7 +46,7 @@ later-release() {
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install claude
   [ "$status" -eq 0 ]
-  grep --quiet '^modules kit claude ci lefthook$' .kit/manifest
+  grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   [ ! -e .claude/rules ]
@@ -69,7 +69,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" module add claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
-  grep --quiet '^modules kit claude ci lefthook$' .kit/manifest
+  grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" module remove claude

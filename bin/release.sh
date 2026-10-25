@@ -55,13 +55,14 @@ release:require-modules() {
   done
 }
 
-# release:resolve <root> <name>… prints the named modules and everything they depend on, each once, a module
-# after the modules it depends on: the closure over depends, ordered by tsort over its edges.
+# release:resolve <root> <name>… prints the named modules and everything they depend on, each once: a module
+# after the modules it depends on, and alphabetical where that leaves a choice, so the order is the same on
+# every machine. A cycle is refused.
 release:resolve() {
-  local root=$1 module dep
+  local root=$1 module dep ready placed_count=0
   shift
-  local -A wanted=()
-  local -a queue=("$@")
+  local -A wanted=() placed=()
+  local -a queue=("$@") names=()
   while (( ${#queue[@]} > 0 ))
   do
     module=${queue[0]}
@@ -73,14 +74,29 @@ release:resolve() {
       queue+=("${dep}")
     done
   done
-  for module in "${!wanted[@]}"
+  readarray -t names < <(printf '%s\n' "${!wanted[@]}" | sort)
+  while (( placed_count < ${#names[@]} ))
   do
-    printf '%s %s\n' "${module}" "${module}"
-    for dep in $(release:field "${root}" "${module}" depends)
+    ready=''
+    for module in "${names[@]}"
     do
-      printf '%s %s\n' "${dep}" "${module}"
+      [[ -n "${placed[${module}]:-}" ]] && continue
+      for dep in $(release:field "${root}" "${module}" depends)
+      do
+        [[ -n "${placed[${dep}]:-}" ]] || continue 2
+      done
+      ready=${module}
+      break
     done
-  done | sort | tsort
+    if [[ -z "${ready}" ]]
+    then
+      error "the modules' depends lines form a cycle among: ${names[*]}"
+      return 1
+    fi
+    placed[${ready}]=1
+    placed_count=$(( placed_count + 1 ))
+    printf '%s\n' "${ready}"
+  done
 }
 
 # release:dependents <root> <module> <active>… prints the active modules that depend on <module>.
