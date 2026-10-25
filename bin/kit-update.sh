@@ -5,8 +5,10 @@
 # A file whose digest still matches its manifest, which records the previous release's own content, is replaced.
 # An edited one is three-way merged with the previous release as the base, which release:fetch finds or fetches.
 # A path the previous release did not deliver is written only where there is nothing, or the same thing, there.
-# A template is rendered from the repository's answers in both releases before either is compared. The home base
-# is updated against ~/.kit/manifest the same way.
+# A path the previous release delivered and this one does not is retired: removed when it is still the previous
+# release's own content, its entries taken out of a merged .json when the base is at hand, and otherwise left
+# with a warning. A template is rendered from the repository's answers in both releases before either is
+# compared. The home base is updated against ~/.kit/manifest the same way.
 #
 # see: bin/release.sh
 
@@ -99,6 +101,33 @@ do
       fi
     fi
   done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+
+  # The paths this release no longer delivers under the base.
+  while IFS= read -r path
+  do
+    [[ -n "${path}" ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    [[ -e "${dest}" ]] || continue
+    if release:merged "${dest}"
+    then
+      previous_src=""
+      [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")
+      if [[ -n "${previous_src}" ]]
+      then
+        step "${dest}: retired in ${current}, the previous release's entries taken out"
+        # shellcheck disable=SC2016  # a jq filter, with jq variables
+        release:json-write "${dest}" 'unmerge(.; $base[0])' --slurpfile base "${previous_src}"
+      else
+        warn "${dest}: retired in ${current}, but without the base release its entries cannot be taken out; it is left as it was"
+      fi
+    elif [[ "$(release:recorded "${base}" "${path}")" == "$(release:digest < "${dest}")" ]]
+    then
+      step "${dest}: retired in ${current}, removed"
+      rm -f "${dest}"
+    else
+      warn "${dest}: retired in ${current}, but edited since ${previous}; it is left as it was"
+    fi
+  done < <(comm -23 <(release:manifest-paths "${base}" | sort) <(release:delivered "${kit_root}" "${base}" "${modules[@]}" | cut -f 1 | sort))
 done
 
 release:write-manifests "${modules[@]}"
