@@ -1,9 +1,9 @@
 # lefthook.yml - this repository's git hooks; see: https://lefthook.dev
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The kit's own linters come from its installed fragment, the way a consumer takes them; the dispatcher, which
-# carries no extension, and the refresh of the installed copies are this repository's own. Once per clone:
-# lefthook install
+# The kit's own linters come from its installed fragment, the way a consumer takes them. This repository adds
+# shellcheck over the dispatcher, which carries no extension, markdownlint, and the refresh of the installed
+# copies. Once per clone: lefthook install
 
 extends:
   - .kit/lefthook.yml
@@ -16,9 +16,8 @@ pre-commit:
     markdownlint:
       glob: "*.md"
       run: markdownlint-cli2 {staged_files}
-    # A commit that changes the source of a delivered file rewrites the installed copies in the same commit, from
-    # the index, so nobody remembers just refresh. The recipe stages what it rewrote; stage_fixed would re-stage
-    # only the source paths it was handed.
+    # A change to a delivered file's source rewrites the installed copies in the same commit; the recipe stages
+    # what it rewrote.
     refresh:
       glob: "modules/**"
       run: just refresh

@@ -20,13 +20,14 @@ context:log-path() {
   printf '%s/kit/context.log\n' "$(git rev-parse --path-format=absolute --git-common-dir)"
 }
 
-# context:relative <path> prints <path> relative to the repository root. A relative path is taken from the current
-# directory. The nearest directory of the path that exists is resolved physically, as git reports the root, so a
-# path through a symlinked directory, or to a file not yet created, still cuts at the root.
+# context:relative <path> prints <path> relative to the repository root. A relative path is taken from the
+# directory the command was typed in, which bin/kit exports as kit_invoked_in before it moves to the root. The
+# nearest directory of the path that exists is resolved physically, as git reports the root, so a path through a
+# symlinked directory, or to a file not yet created, still cuts at the root.
 context:relative() {
   local path=$1 root dir rest
   root=$(git rev-parse --show-toplevel)
-  [[ "${path}" == /* ]] || path="${PWD}/${path}"
+  [[ "${path}" == /* ]] || path="${kit_invoked_in:-$(pwd -P)}/${path}"
   dir=${path%/*}
   rest=${path##*/}
   while [[ -n "${dir}" && ! -d "${dir}" ]]
@@ -39,7 +40,9 @@ context:relative() {
   printf '%s\n' "${path#"${root}"/}"
 }
 
-# context:glob-matches <path> <glob> is true when the repository-relative path matches the glob; ** is any depth.
+# context:glob-matches <path> <glob> is true when the repository-relative path matches the glob. ** stands for any
+# depth, and a lone * also crosses directories, as bash's [[ == ]] has it: *.md governs every depth, while a glob
+# with no wildcard, such as justfile, names one path.
 context:glob-matches() {
   local path=$1 glob=$2
   glob=${glob//\*\*\//*(*\/)}

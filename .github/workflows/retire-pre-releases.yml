@@ -51,7 +51,8 @@ jobs:
             gh release delete "${tag}" --cleanup-tag --yes
             echo "retired ${tag}: no branch reaches ${commit:0:7} since ${deleted} was deleted"
             retired=$(( retired + 1 ))
-          done < <(gh release list --limit 1000 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease) | .tagName')
-          echo "✅ Retired ${retired} pre-release(s)."
+          done < <(gh release list --limit 1000 --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease) | .tagName')
+          printf '✅ Retired %s pre-release(s).\n' "${retired}" | tee --append "${GITHUB_STEP_SUMMARY}"
 
 # ----------------------------------------------------------------------------------------------------------------------

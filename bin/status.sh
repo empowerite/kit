@@ -6,37 +6,16 @@
 # GitHub once, for every open pull request with the issues it closes, its review threads, and the checks on its
 # head; everything else is a local git read.
 #
-# The picture is three groups of blocks, a blank line between blocks and no headings:
+# The picture: the desk, the root checkout, first; then each worktree under worktrees/; then each open pull request
+# with its state, age, checks, the issues it closes, and the worktree holding its branch; then the branches whose
+# upstream is gone. Color is by family, never by state: green when nothing is left to decide, yellow when a human
+# owes a decision, blue when the next move is a machine's or a reviewer's, dim for detail. The states, in the
+# order the first that holds wins:
 #
-#   🏠 the desk        the root checkout, the human's. Its branch, then how far it has moved from where that branch
-#                      left origin's default branch, the lines its working tree adds and removes against that point,
-#                      and its uncommitted paths; under it the commits it carries past that point, dim hash and
-#                      subject, up to ten with the rest counted.
-#   🌿 each worktree   under worktrees/, by issue number, drawn exactly as the desk is. The label is the path from
-#                      the current directory with the branch underlined when the path ends in it, or "branch on
-#                      path" when it does not.
-#   🔀 each pull request  its title, its state with the state's glyph, its age, its checks (how many passed and how
-#                      long they took, or which failed), and its unresolved review threads when there are any; under
-#                      it the issues it closes and the worktree that holds its branch, when one here does.
+#   draft 🔨, queued 🚦, conflicted 💥, failing:gate 🔥, no-check 📭, comments:open 💬, blocked:approval 👀,
+#   ready 🛬
 #
-# Then every local branch whose upstream is gone, which kit tidy removes, each on a 🔖 line.
-#
-# Color is by family, never by state: green when nothing is left to decide, yellow when a human owes a decision,
-# blue when the next move is a machine's or a reviewer's, dim when someone already owns the work. Everything that
-# is detail rather than signal is dim: hashes, ages, durations, zero counts, directory prefixes, and the lines under
-# a row. The state is the first of these that holds:
-#
-#   draft              🔨  dim     unfinished work that belongs to someone
-#   queued             🚦  blue    a check is still running
-#   conflicted         💥  yellow  the branch does not apply cleanly to the default branch
-#   failing:gate       🔥  yellow  a check failed; the row names which
-#   no-check           📭  blue    nothing has reported on its head
-#   comments:open      💬  yellow  unresolved review threads
-#   blocked:approval   👀  blue    a review is required or requested and has not arrived
-#   ready              🛬  green   green, thread-free, approved, and mergeable
-#
-# --json prints the same facts as one document instead: {desk, worktrees, pullRequests, goneBranches}, every
-# measure a number and every list complete, for a consumer that draws its own picture.
+# --json prints the same facts as one document: {desk, worktrees, pullRequests, goneBranches}.
 
 use git
 
@@ -119,10 +98,15 @@ status:age() {
 
 # status:collect prints one JSON object per open pull request, oldest first: number, branch, title, createdAt, age
 # in seconds, state, checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes
-# [{number, title}]. The one request to GitHub.
+# [{number, title}]. The one request to GitHub; a request that fails is said so, and prints nothing.
 status:collect() {
   local repo query filter
-  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || return 0
+  use gh
+  if ! repo=$(gh:repo)
+  then
+    warn "this checkout does not resolve to a GitHub repository, so no pull request is shown (run: gh repo view)"
+    return 0
+  fi
   # shellcheck disable=SC2016  # GraphQL variables
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -176,7 +160,7 @@ status:collect() {
         closes: [.closingIssuesReferences.nodes[] | { number, title }] }
     | tojson'
   gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" --jq "${filter}" \
-    2>/dev/null || true
+    2>/dev/null || warn "the pull requests could not be read from GitHub (run: gh auth status); none is shown"
 }
 
 # status:fork <branch> <default-branch> prints the commit where <branch> left the default branch, or nothing.
@@ -184,9 +168,19 @@ status:fork() {
   git merge-base "origin/$2" "$1" 2>/dev/null || git merge-base "$2" "$1" 2>/dev/null || true
 }
 
-# status:relative <path> prints <path> relative to the current directory: ".", a descent, or a climb.
+# status:relative <path> prints <path> relative to the directory the command was typed in: ".", a descent, or a
+# climb. Both sides are resolved physically, the target through its nearest directory that exists, so a symlinked
+# directory on either side still climbs correctly.
 status:relative() {
-  local target=$1 here=${PWD} up=''
+  local target=$1 here=${kit_invoked_in:-$(pwd -P)} up='' dir rest=''
+  dir=${target}
+  while [[ -n "${dir}" && ! -d "${dir}" ]]
+  do
+    rest="${dir##*/}${rest:+/${rest}}"
+    dir=${dir%/*}
+  done
+  dir=$(cd "${dir:-/}" && pwd -P)
+  target="${dir}${rest:+/${rest}}"
   if [[ "${target}" == "${here}" ]]
   then
     printf '.\n'
@@ -321,7 +315,8 @@ status:checkout-block() {
   done < <(jq --raw-output --argjson cap "${status_commit_cap}" '
     (.commits | length) as $n
     | (if $n > $cap + 1
-       then (.commits[:$cap - 1][] | [.sha, .subject]), ["…", "and \($n - $cap) more"], (.commits[-1] | [.sha, .subject])
+       then (.commits[:$cap - 1][] | [.sha, .subject]), ["…", "and \($n - $cap) more"],
+            (.commits[-1] | [.sha, .subject])
        else .commits[] | [.sha, .subject] end)
     | @tsv' <<<"${doc}")
 }
@@ -352,7 +347,8 @@ status:pr-block() {
   IFS=$'\t' read -r number title state age unresolved \
     < <(jq --raw-output '[.number, .title, .state, .age, .unresolved] | @tsv' <<<"${doc}")
   row="🔀 $(status:cell "#${number} ${title}" "${title_w}")"
-  row+="   $(status:state-emoji "${state}") $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
+  row+="   $(status:state-emoji "${state}")"
+  row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
   row+="   $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}")")"
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
   [[ -n "${checks}" ]] && row+="   ${checks}"
@@ -366,6 +362,8 @@ status:pr-block() {
   return 0
 }
 
+# status:render [--no-fetch] [--json] draws the picture the file header describes, or prints it as one JSON
+# document.
 status:render() {
   local no_fetch=false json=false arg main_root default_branch desk_branch path branch doc gone
   for arg in "$@"
@@ -391,7 +389,7 @@ status:render() {
   local desk prs
   local -a worktrees=()
   desk=$(status:checkout "${main_root}" "${desk_branch}" "${default_branch}")
-  while IFS=$'\t' read -r path branch _
+  while IFS=$'\t' read -r path _ branch
   do
     [[ -n "${path}" ]] || continue
     worktrees+=("$(status:checkout "${path}" "${branch}" "${default_branch}")")

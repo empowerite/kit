@@ -4,8 +4,8 @@
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home"
-  mkdir -p "${KIT_HOME}"
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
 }

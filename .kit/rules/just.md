@@ -41,11 +41,12 @@ applies to it as well.
 
 ## Recipes
 
-1. Every recipe carries `[doc("<emoji> <short, action-first description>")]`. Related recipes share an emoji.
+1. Every recipe but the default-and-help pair carries `[doc("<emoji> <short, action-first description>")]`.
+   Related recipes share an emoji.
 2. A comment block precedes every recipe: a paragraph of intent, then the usage lines. It answers what the
    recipe does, when to run it, and what it produces.
 3. A non-trivial body is `#!/usr/bin/env bash` with `set -o errexit -o nounset -o pipefail` as its first line.
-4. Non-trivial logic lives in a bash module the recipe loads, not in the body. The body stays a few lines.
+4. A body says what runs. Logic longer than a dozen lines lives in a bash script the body calls.
 5. No `{{...}}` interpolation anywhere, in a body or a comment. A value just computes reaches a body as an exported
    variable, `export <name> := <expression>`, and `set export := true` exports every parameter, so a body reads
    `${name}` and nothing else.

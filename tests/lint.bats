@@ -6,6 +6,8 @@ setup() {
   lefthook version >/dev/null 2>&1 || skip "lefthook is a desk tool (mise.desk.toml, MISE_ENV=desk)"
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   repo=$(mktemp -d)
+  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
+  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
   cd "${repo}"
   git init --quiet --initial-branch=main
   "${kit_checkout}/bin/kit" install >/dev/null
@@ -15,7 +17,7 @@ setup() {
 }
 
 teardown() {
-  rm -rf "${repo}"
+  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
 }
 
 @test "lint refuses a staged bash file shellcheck faults, and passes a clean one" {

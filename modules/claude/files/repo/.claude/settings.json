@@ -1,13 +1,17 @@
 {
   "permissions": {
     "deny": [
+      "Bash(git rebase *)",
+      "Bash(git worktree add *)",
+      "Bash(git checkout -b *)",
+      "Bash(git switch -c *)",
+      "Bash(git worktree remove *)",
+      "Bash(git branch -D *)",
       "Bash(git checkout main *)",
       "Bash(git switch main *)",
-      "Bash(git rebase *)",
       "Bash(git reset --hard *)",
       "Bash(git push --force *)",
-      "Bash(git push -f *)",
-      "Bash(git worktree remove --force *)"
+      "Bash(git push -f *)"
     ]
   },
   "hooks": {

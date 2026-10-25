@@ -33,10 +33,14 @@ jobs:
         run: |
           set -o errexit -o nounset -o pipefail
           tag_version=${GITHUB_REF_NAME#v}
+          refuse() {
+            echo "::error::$1"
+            printf '### ❌ %s\n' "$1" | tee --append "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          }
           if [[ ! "${tag_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
           then
-            echo "::error::${GITHUB_REF_NAME} is not a version tag; a release is v<major>.<minor>.<patch>, a pre-release the same with -<suffix>"
-            exit 1
+            refuse "${GITHUB_REF_NAME} is not a version tag: v<major>.<minor>.<patch>, -<suffix> for a pre-release"
           fi
           echo "✅ ${GITHUB_REF_NAME} is a version tag."
 
@@ -47,15 +51,18 @@ jobs:
           default_branch=$(jq --raw-output '.repository.default_branch' "${GITHUB_EVENT_PATH}")
           on_main=false
           git merge-base --is-ancestor "${GITHUB_SHA}" "origin/${default_branch}" && on_main=true
+          refuse() {
+            echo "::error::$1"
+            printf '### ❌ %s\n' "$1" | tee --append "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          }
           if [[ "${tag_version}" == *-* && "${on_main}" == true ]]
           then
-            echo "::error::${GITHUB_REF_NAME} is a pre-release tag on ${default_branch}; a pre-release is tagged on a branch commit, and a release on ${default_branch} carries no suffix"
-            exit 1
+            refuse "${GITHUB_REF_NAME} is a pre-release tag on ${default_branch}; tag a pre-release on a branch commit"
           fi
           if [[ "${tag_version}" != *-* && "${on_main}" == false ]]
           then
-            echo "::error::${GITHUB_REF_NAME} is not on ${default_branch}; a release is tagged on ${default_branch}, and a branch commit takes a pre-release tag with a -<suffix>"
-            exit 1
+            refuse "${GITHUB_REF_NAME} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
           fi
           echo "✅ ${GITHUB_REF_NAME} is on the right side of ${default_branch} (on it: ${on_main})."
 
@@ -72,11 +79,12 @@ jobs:
           printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
           tar --create --gzip --file "kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
           sha256sum "kit-${version}.tar.gz" > "kit-${version}.tar.gz.sha256"
-          notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    "github:empowerite/kit" = "%s"\n\nThen, in the repository: kit install\n' "${version}")
+          notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    "github:empowerite/kit" = "%s"\n\n' "${version}"
+            printf 'Then, in the repository: kit install\n')
           flags=()
           [[ "${version}" == *-* ]] && flags+=(--prerelease)
           gh release create "${GITHUB_REF_NAME}" "kit-${version}.tar.gz" "kit-${version}.tar.gz.sha256" \
             --title "kit ${version}" --notes "${notes}" "${flags[@]}"
-          echo "✅ Released kit ${version}."
+          printf '✅ Released kit %s.\n' "${version}" | tee --append "${GITHUB_STEP_SUMMARY}"
 
 # ----------------------------------------------------------------------------------------------------------------------

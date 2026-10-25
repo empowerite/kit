@@ -1,9 +1,11 @@
 #!/usr/bin/env bats
-# gate.bats - kit gate runs the root justfile's ci recipe, and reports a missing one as a skip and an unreadable one as a failure
+# gate.bats - kit gate runs the root justfile's ci recipe, and refuses a missing one and an unreadable one alike
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   repo=$(mktemp -d)
   cd "${repo}"
   export GITHUB_STEP_SUMMARY="${repo}/summary.md"
@@ -13,18 +15,18 @@ teardown() {
   rm -rf "${repo}"
 }
 
-@test "no justfile is a skip, said so, and not a pass" {
+@test "no justfile is refused, naming the remedy" {
   run "${kit_checkout}/bin/kit" gate
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"no root justfile, so the gate was skipped"* ]]
-  grep --quiet 'skipped' summary.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add a root justfile with a ci recipe"* ]]
+  grep --quiet 'cannot run' summary.md
 }
 
-@test "a justfile without a ci recipe is a skip" {
+@test "a justfile without a ci recipe is refused" {
   printf 'build:\n  echo built\n' > justfile
   run "${kit_checkout}/bin/kit" gate
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"no ci recipe, so the gate was skipped"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add a ci recipe to the root justfile"* ]]
 }
 
 @test "a justfile that cannot be read is a failure" {
@@ -44,12 +46,6 @@ teardown() {
   printf 'ci:\n  exit 3\n' > justfile
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -ne 0 ]
-}
-
-@test "linked names the pull request it needs when none can be found" {
-  run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" linked
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"kit linked <number>"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

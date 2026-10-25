@@ -4,8 +4,8 @@
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home"
-  mkdir -p "${KIT_HOME}"
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   repo=$(mktemp -d)
   git -C "${repo}" init --quiet --initial-branch=main
   cd "${repo}"
@@ -36,6 +36,13 @@ teardown() {
   [ "${#lines[@]}" -eq 2 ]
 }
 
+@test "a relative path is taken from the directory the command was typed in" {
+  mkdir docs && cd docs
+  run "${kit_checkout}/bin/kit" context x.md
+  [ "$output" = ".kit/rules/markdown.md" ]
+  [ "$(cut -f 2 ../.git/kit/context.log)" = "docs/x.md" ]
+}
+
 @test "the json answer is one object per path, and every ask is logged" {
   run "${kit_checkout}/bin/kit" context --json justfile README.md
   [ "$status" -eq 0 ]
@@ -45,13 +52,15 @@ teardown() {
 }
 
 @test "the claude hook names the rules of the file about to be written, and nothing for a file none governs" {
-  input='{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"'"${PWD}"'/lib/run.sh","content":""}}'
+  input=$(printf '{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"%s/lib/run.sh"}}' "${PWD}")
   run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
   [ "$status" -eq 0 ]
   [ "$(jq -r .hookSpecificOutput.hookEventName <<<"$output")" = "PreToolUse" ]
-  [ "$(jq -r .hookSpecificOutput.additionalContext <<<"$output")" = "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change." ]
+  [ "$(jq -r .hookSpecificOutput.additionalContext <<<"$output")" \
+    = "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change." ]
   [ "$(cut -f 2 .git/kit/context.log)" = "lib/run.sh" ]
-  run "${kit_checkout}/bin/kit" context --claude <<<'{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"x.bin"}}'
+  input='{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"x.bin"}}'
+  run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }

@@ -2,7 +2,7 @@
 
 The core, active in every repository that takes the kit. It places:
 
-- `.kit/1st.md`, the entry every agent reads, imported by the repository's `AGENTS.md`.
+- `.kit/1st.md`, the entry every agent reads, named by the repository's `AGENTS.md`.
 - `.kit/rules/<kind>.md`, one rule file per kind of file, each declaring in its frontmatter which paths and which
   first lines it governs.
 

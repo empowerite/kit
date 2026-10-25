@@ -6,7 +6,8 @@ paths:
 ---
 # YAML
 
-Applies to `*.yml` and `*.yaml`, which here means GitHub Actions workflows.
+Applies to `*.yml` and `*.yaml`. Shape and Steps apply to GitHub Actions workflows, under `.github/workflows/`;
+Comments apply to every YAML file.
 
 ## Shape
 
@@ -23,9 +24,9 @@ Applies to `*.yml` and `*.yaml`, which here means GitHub Actions workflows.
 1. Every `uses:` pins a full commit SHA with the version as a trailing comment: `@<sha>  # v1.2.3`.
 2. A step has a `name` that is the policy it enforces, in kebab-case.
 3. A `run:` block is bash and follows the bash rule: `set -o errexit -o nounset -o pipefail` first.
-4. A refusal prints `::error::<message>`, writes `### ❌ <Message>` and a remedy to `${GITHUB_STEP_SUMMARY}`,
-   and returns non-zero. The remedy is the action to take, with a link that is that action.
-5. A pass writes one `✅` line to the summary.
+4. A refusal prints `::error::<message>` naming the remedy, and returns non-zero. A refusal a reader will act on
+   also writes `### ❌ <Message>` and the remedy to `${GITHUB_STEP_SUMMARY}`.
+5. A step whose verdict a reader looks for writes one `✅` line to the summary.
 6. A later step that must run after an earlier refusal carries `if: ${{ !cancelled() }}`.
 7. A tool is on `PATH` because `mise.toml` pins it and `jdx/mise-action` installs it, never by `curl` in a step.
 

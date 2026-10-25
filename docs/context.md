@@ -4,12 +4,11 @@ A rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere. Before an
 it asks which rules govern that file:
 
 ```sh
-kit context <path>…
+kit context "${path}"
 ```
 
 The answer is the rule files to read, one per line. `--json` gives one object per path with its rules. Every ask
-is appended to `.git/kit/context.log` as `<epoch>\t<path>`, which is the evidence a check can read to ask whether
-every path a commit touched had its context asked for.
+is appended to `.git/kit/context.log`, one line of epoch and path per ask.
 
 ## How a rule declares what it governs
 
@@ -24,8 +23,9 @@ content:
 ---
 ```
 
-- `paths:` are globs matched against the repository-relative path. `**` stands for any depth, so `**/*.sh` is
-  every `.sh` file and `justfile` is the one at the root.
+- `paths:` are globs matched against the repository-relative path. `**` stands for any depth, and a lone `*`
+  crosses directories too, so `**/*.sh` and `*.sh` both name every `.sh` file; a glob with no wildcard, such as
+  `justfile`, names the one path.
 - `content:` are extended regular expressions matched against the first line of a file that already exists, so a
   bash script with no extension is bash by its shebang, and a file about to be created is governed by its path
   alone.
@@ -42,10 +42,15 @@ the agent remembering to ask. The `claude` module wires Claude Code's `PreToolUs
 kit context --claude
 ```
 
-It reads the hook's input on stdin, takes the file path from the tool's input, and answers in the hook's output
-with the rules' paths as additional context, the same answer the plain call prints. It names and never quotes, so
-reading the rule stays an act the agent takes, one a hook on `Read` can record and a check can compare against
-the context log. No state is kept between calls.
+It reads the hook's input on stdin, takes the file path from the tool's input, and answers in the hook's output,
+naming the rules and never quoting them, so reading a rule stays an act the agent takes:
+
+```json
+{"hookSpecificOutput": {"hookEventName": "PreToolUse",
+  "additionalContext": "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change."}}
+```
+
+No state is kept between calls.
 
 A harness with no hook, and a person, use the plain call. `.kit/1st.md` names it as the step before any file is
 created or changed.

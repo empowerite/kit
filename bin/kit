@@ -3,8 +3,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The release is the directory above bin/, found through any symlink this file is reached by, as when Homebrew
-# links it into its own bin. This file resolves it, exports it as kit_root, and hands the verb its arguments.
-# Everything else, the usage text included, lives with the verb.
+# links it into its own bin. This file resolves it, exports it as kit_root, moves to the repository root so every
+# verb reads and writes the same paths wherever it was typed, and hands the verb its arguments. The directory it
+# was typed in is exported as kit_invoked_in for the verbs that take relative paths. Everything else, the usage
+# text included, lives with the verb.
 #
 # see: .kit/1st.md
 
@@ -16,8 +18,15 @@ then
   exit 1
 fi
 
+# readlink -f needs macOS 12.3 or later, the first with a GNU-compatible readlink; older macOS lacks it.
 kit_root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
 export kit_root
+kit_invoked_in=$(pwd -P)
+export kit_invoked_in
+if repository=$(git rev-parse --show-toplevel 2>/dev/null)
+then
+  cd "${repository}"
+fi
 
 verb=${1:-help}
 case "${verb}" in
@@ -31,7 +40,7 @@ usage: kit <verb> [<argument>…]
   module <list|add|remove> [<module>…]
                         the modules this repository takes
   context <path>…       name the rules that govern a file, and record the ask
-  gate                  run the root justfile's ci recipe; a missing one is a skip, said so
+  gate                  run the root justfile's ci recipe, and refuse when there is none
   linked [<number>]     refuse a pull request not linked to an open issue of this repository
   issue [<number>…]     start or resume an issue: linked branch, worktree, start commit, draft pull request
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk

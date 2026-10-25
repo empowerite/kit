@@ -19,9 +19,8 @@ case "${verb}" in
   (*) usage; exit 2
 esac
 release:require-manifest
-read -r -a active <<<"$(release:manifest-modules)"
+readarray -t active < <(release:manifest-modules)
 
-# shellcheck disable=SC2154  # release_bases is declared by bin/release.sh, which use loaded above
 case "${verb}" in
   (list)
     for module in $(release:modules)
@@ -37,19 +36,24 @@ case "${verb}" in
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq
     release:require-modules "${kit_root}" "$@"
-    read -r -a wanted <<<"$(release:resolve "${kit_root}" "${active[@]}" "$@" | paste -s -d ' ' -)"
+    readarray -t wanted < <(release:resolve "${kit_root}" "${active[@]}" "$@")
     release:render-all "${kit_root}" "${wanted[@]}"
     section "kit module add $*"
-    for base in "${release_bases[@]}"
+    refused=0
+    for base in $(release:bases)
     do
       while IFS= read -r path
       do
         [[ -n "${path}" ]] || continue
-        dest=$(release:dest "${base}" "${path}")
-        step "${dest}"
-        release:place "$(release:source-of "${kit_root}" "${base}" "${path}" "${wanted[@]}")" "${dest}"
+        release:place-new "$(release:source-of "${kit_root}" "${base}" "${path}" "${wanted[@]}")" \
+          "$(release:dest "${base}" "${path}")" "placed" || refused=$(( refused + 1 ))
       done < <(release:paths-beyond "${kit_root}" "${base}" "${active[*]}" "${wanted[*]}")
     done
+    if (( refused > 0 ))
+    then
+      error "${refused} path(s) already hold a different file; move each aside, then run: kit module add $*"
+      exit 1
+    fi
     release:write-manifests "${wanted[@]}"
     ok "modules: ${wanted[*]}"
     ;;
@@ -60,27 +64,28 @@ case "${verb}" in
     remaining=("${active[@]}")
     for module in "$@"
     do
-      if ! release:among "${module}" "${remaining[@]}"
-      then
-        step "${module}: not active"
-        continue
-      fi
-      read -r -a dependents <<<"$(release:dependents "${kit_root}" "${module}" "${remaining[@]}" | paste -s -d ' ' -)"
+      release:among "${module}" "${active[@]}" || step "${module}: not active"
+      readarray -t remaining < <(release:without "${module}" "${remaining[@]}")
+    done
+    # Dependents are judged against what stays, so the order the modules are named in does not matter.
+    for module in "$@"
+    do
+      readarray -t dependents < <(release:dependents "${kit_root}" "${module}" "${remaining[@]}")
       if (( ${#dependents[@]} > 0 ))
       then
         error "${module} cannot be removed while ${dependents[*]} depend(s) on it"
         exit 1
       fi
-      read -r -a remaining <<<"$(release:without "${module}" "${remaining[@]}" | paste -s -d ' ' -)"
     done
     release:render-all "${kit_root}" "${active[@]}"
     section "kit module remove $*"
-    for base in "${release_bases[@]}"
+    for base in $(release:bases)
     do
       while IFS= read -r path
       do
         [[ -n "${path}" ]] || continue
-        release:unplace "$(release:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" "$(release:dest "${base}" "${path}")"
+        release:unplace "$(release:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" \
+          "$(release:dest "${base}" "${path}")"
       done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
     done
     release:write-manifests "${remaining[@]}"

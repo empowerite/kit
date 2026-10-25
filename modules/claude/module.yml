@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # docs/modules.md says what each key means.
 
-description: "Claude Code: the deny list for the spellings the rules forbid, and the hook that names a file's rules before a write"
+description: "Claude Code: the deny list of the spellings the rules forbid, and the hook that names a file's rules"
 depends:
   - kit

@@ -16,6 +16,11 @@
 #
 # Each step below prints its one result on stdout and talks on stderr, so gh:issue reads them in order.
 
+# gh:repo prints the repository this checkout resolves to, as owner/name, or fails.
+gh:repo() {
+  gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null
+}
+
 # gh:me prints the authenticated login. A revoked token passes `gh auth status`, so this is the real probe.
 gh:me() {
   local me
@@ -55,8 +60,10 @@ gh:assign() {
   do
     assignees=$(gh issue view "${n}" --json assignees --jq '[.assignees[].login] | join(" ")')
     [[ " ${assignees} " == *" ${me} "* ]] && continue
-    [[ -z "${assignees}" ]] || warn "#${n} is already assigned to ${assignees}; adding you as well. Coordinate before continuing."
-    gh issue edit "${n}" --add-assignee "${me}" >/dev/null 2>&1 || warn "#${n} could not be assigned to ${me}; assign it by hand."
+    [[ -z "${assignees}" ]] \
+      || warn "#${n} is already assigned to ${assignees}; adding you as well. Coordinate before continuing."
+    gh issue edit "${n}" --add-assignee "${me}" >/dev/null 2>&1 \
+      || warn "#${n} could not be assigned to ${me}; assign it by hand."
   done
 }
 
@@ -67,7 +74,8 @@ gh:issue-branch() {
   local number=$1 default_branch=$2 branch
   branch=$(gh pr list --state open --json headRefName \
     --jq "[.[] | select(.headRefName | test(\"^${number}-\"))] | .[0].headRefName // empty" 2>/dev/null || true)
-  [[ -n "${branch}" ]] || branch=$(git ls-remote --heads origin "${number}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
+  [[ -n "${branch}" ]] \
+    || branch=$(git ls-remote --heads origin "${number}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
   if [[ -z "${branch}" ]]
   then
     step "Linking a branch to #${number} (gh issue develop)"
@@ -112,18 +120,18 @@ gh:worktree() {
 
 # gh:start-commit <worktree> <default-branch> <number> <title> gives the branch its first commit when it has
 # none: GitHub cannot open a pull request with nothing to compare. --only keeps the commit empty, so work already
-# staged in a reused worktree stays in the index.
+# staged in a reused worktree stays in the index. The subject follows the loop's shape, #<N> <area>: <subject>.
 gh:start-commit() {
   local wt=$1 default_branch=$2 number=$3 title=$4
   if [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]]
   then
     step "Adding the start commit"
-    git -C "${wt}" commit --quiet --allow-empty --only --message "start: #${number} ${title}"
+    git -C "${wt}" commit --quiet --allow-empty --only --message "#${number} start: ${title}"
   fi
 }
 
-# gh:sweep-push <root> <message> stashes everything uncommitted at <root>, untracked files included, and prints the
-# stash's commit, which stays valid however the stash list shifts.
+# gh:sweep-push <root> <message> stashes everything uncommitted at <root>, untracked files included, and prints
+# the stash's commit, which stays valid however the stash list shifts.
 gh:sweep-push() {
   local root=$1 message=$2
   if ! git -C "${root}" stash push --include-untracked --message "${message}" >/dev/null
@@ -173,7 +181,8 @@ gh:link-secondaries() {
   body=$(gh pr view "${pr}" --json body --jq '.body // ""')
   for n in "$@"
   do
-    if ! grep --quiet --ignore-case --extended-regexp "(close[sd]?|fix(e[sd])?|resolve[sd]?):? #${n}([^0-9]|\$)" <<<"${body}"
+    if ! grep --quiet --ignore-case --extended-regexp \
+      "(close[sd]?|fix(e[sd])?|resolve[sd]?):? #${n}([^0-9]|\$)" <<<"${body}"
     then
       body="${body}"$'\n'"Closes #${n}"
       changed=true
@@ -191,8 +200,7 @@ gh:link-secondaries() {
 # count. On a runner the remedy also lands in the step summary.
 gh:linked-open-issue() {
   local number=$1 repo query refs n state issue_repo open=0 closes url remedy
-  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-  url=$(gh repo view --json url --jq .url)
+  IFS=$'\t' read -r repo url < <(gh repo view --json nameWithOwner,url --jq '[.nameWithOwner, .url] | @tsv')
   remedy=$(printf '%s\n' \
     "Link an open issue of this repository under **Development** in [the sidebar](${url}/pull/${number}):" "" \
     "1. click the gear (⚙) beside **Development**" \
@@ -209,7 +217,8 @@ gh:linked-open-issue() {
   }'
   refs=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --field number="${number}" \
     --raw-field query="${query}" \
-    --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.number) \(.state) \(.repository.nameWithOwner)"')
+    --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]
+          | "\(.number) \(.state) \(.repository.nameWithOwner)"')
   if [[ -z "${refs}" ]]
   then
     error "pull request #${number} is not linked to any issue"
@@ -239,10 +248,14 @@ gh:linked-open-issue() {
   summary "✅ Linked to ${closes}."
 }
 
+# gh:issue [<number>…] is the issue on-ramp the file header describes: assign, link a branch, make the worktree,
+# push a start commit, sweep the desk's uncommitted work into the worktree, and open a draft pull request. Every
+# commit the loop makes is signed, so a desk without a signing key is refused before anything is written.
 gh:issue() {
   use git
-  local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr
+  local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr created
   me=$(gh:me) || return 1
+  guard:require signing-key || return 1
   if (( $# == 0 ))
   then
     if [[ ! -t 0 ]]
@@ -250,7 +263,8 @@ gh:issue() {
       error "usage: kit issue <issue-number> [<issue-number>…]"
       return 2
     fi
-    set -- "$(gh:issue-create)" || return
+    created=$(gh:issue-create) || return
+    set -- "${created}"
   fi
   for n in "$@"
   do
@@ -284,7 +298,7 @@ gh:issue() {
   fi
   wt=$(gh:worktree "${main_root}" "${branch}") || return
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
-    || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a status or a commit"
+    || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a commit"
   gh:start-commit "${wt}" "${default_branch}" "${primary}" "${title}"
   git -C "${wt}" push --quiet --set-upstream origin "${branch}"
   if [[ -n "${stash}" ]]

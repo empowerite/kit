@@ -1,33 +1,24 @@
 # shellcheck shell=bash
 # git.sh - the default branch, the worktrees, the sweep, and the rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
-# git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, or that is
-# detached, clean, and at a commit the default branch already has; prunes the worktree bookkeeping; and deletes
-# every local branch whose upstream is gone. It never touches the default branch, a branch checked out in a
-# live worktree, a dirty worktree, a detached worktree whose commit nothing else reaches, or the worktree it
-# runs in. --dry-run says what a sweep would do and changes nothing.
-#
-# git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto
-# origin/<default> and pushes it with --force-with-lease. It refuses the root checkout, the human's desk, whatever
-# branch it has, and the default branch anywhere. On a conflict it aborts and leaves the worktree as it was.
 
 # git:default-branch [<path>] prints the default branch of the repository at <path>: origin/HEAD, else main.
 git:default-branch() {
   local branch
-  branch=$(git -C "${1:-.}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+  branch=$(git -C "${1:-.}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' \
+    || true)
   [[ -n "${branch}" ]] || branch=main
   printf '%s\n' "${branch}"
 }
 
-# git:main-root [<path>] prints the root of the main checkout, the first entry of the worktree list. worktrees/
-# lives under it whether the caller stands in the main checkout or in a linked worktree.
+# git:main-root [<path>] prints the root of the main checkout, under which worktrees/ lives, from the main
+# checkout or any linked worktree.
 git:main-root() {
-  git -C "${1:-.}" worktree list --porcelain | sed -n 's@^worktree @@p' | head -n 1
+  dirname "$(git -C "${1:-.}" rev-parse --path-format=absolute --git-common-dir)"
 }
 
-# git:worktrees prints "<path>\t<branch>\t<detached>" for every linked worktree under worktrees/; <branch> is
-# empty and <detached> is true for a detached checkout.
+# git:worktrees prints "<path>\t<detached>\t<branch>" for every linked worktree under worktrees/. <detached> is
+# true or false, and <branch> is empty for a detached checkout; the empty field is last so a tab read keeps it.
 git:worktrees() {
   local worktree_root path="" branch="" detached=false line
   worktree_root="$(git:main-root)/worktrees"
@@ -47,16 +38,10 @@ git:worktrees() {
         ;;
       ("")
         # git ends every record with a blank line; the printf below adds one so the last record ends too.
-        [[ "${path}" == "${worktree_root}"/* ]] && printf '%s\t%s\t%s\n' "${path}" "${branch}" "${detached}"
+        [[ "${path}" == "${worktree_root}"/* ]] && printf '%s\t%s\t%s\n' "${path}" "${detached}" "${branch}"
         path=""
     esac
   done < <(git worktree list --porcelain; printf '\n')
-}
-
-# git:pr-summary <branch> prints "<number>\t<Draft|Ready>" for the open pull request on <branch>, or nothing.
-git:pr-summary() {
-  gh pr list --head "$1" --state open --json number,isDraft \
-    --jq '.[0] | select(.number) | "\(.number)\t\(if .isDraft then "Draft" else "Ready" end)"' 2>/dev/null || true
 }
 
 # git:gone-branches prints every local branch whose upstream no longer exists.
@@ -120,6 +105,11 @@ git:tidy-worktree() {
   esac
 }
 
+# git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, or that is
+# detached, clean, and at a commit the default branch already has; prunes the worktree bookkeeping; and deletes
+# every local branch whose upstream is gone. It never touches the default branch, a branch checked out in a
+# live worktree, a dirty worktree, a detached worktree whose commit nothing else reaches, or the worktree it
+# runs in. --dry-run says what a sweep would do and changes nothing.
 git:tidy() {
   local dry_run=false flag repo default_branch self_root found=false path branch detached
   local removed_worktrees=0 removed_branches=0 checked_out
@@ -135,8 +125,9 @@ git:tidy() {
         return 2
     esac
   done
+  use gh
   guard:require gh || return 1
-  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)
+  repo=$(gh:repo || true)
   if [[ -z "${repo}" ]]
   then
     error "this checkout does not resolve to a GitHub repository (run: gh repo view), so nothing is swept."
@@ -160,7 +151,7 @@ git:tidy() {
   fi
 
   section "worktrees whose pull request is merged or closed"
-  while IFS=$'\t' read -r path branch detached
+  while IFS=$'\t' read -r path detached branch
   do
     found=true
     if git:tidy-worktree "${path}" "${branch}" "${detached}" "${default_branch}" "${self_root}" "${dry_run}"
@@ -210,6 +201,10 @@ git:tidy() {
   fi
 }
 
+# git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto the
+# default branch at origin and pushes it with --force-with-lease. It refuses the root checkout, the human's desk,
+# whatever branch it has; the default branch anywhere; and a dirty worktree. On a conflict it aborts and leaves
+# the worktree as it was.
 git:rebase() {
   local worktree=${1:-.} branch default_branch
   branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
@@ -220,7 +215,7 @@ git:rebase() {
   fi
   if [[ "$(git -C "${worktree}" rev-parse --show-toplevel)" == "$(git:main-root "${worktree}")" ]]
   then
-    error "refusing to rebase ${branch}: it is checked out at the root, the human's desk; work is rebased in its worktree"
+    error "refusing to rebase ${branch}: it is the root checkout, the human's desk; rebase in the branch's worktree"
     return 1
   fi
   default_branch=$(git:default-branch "${worktree}")
@@ -229,11 +224,16 @@ git:rebase() {
     error "refusing to rebase ${branch}: it is the default branch; it advances by: git pull --ff-only"
     return 1
   fi
+  if ! git:clean "${worktree}"
+  then
+    error "refusing to rebase ${branch}: the worktree has uncommitted changes; commit or stash them first"
+    return 1
+  fi
   section "kit rebase ${branch} onto origin/${default_branch}"
   git -C "${worktree}" fetch --quiet --prune origin
   if ! git -C "${worktree}" rebase --quiet "origin/${default_branch}"
   then
-    git -C "${worktree}" rebase --abort
+    git -C "${worktree}" rebase --abort 2>/dev/null || true
     error "${branch} conflicts with origin/${default_branch}; the rebase was aborted and the worktree is as it was"
     return 1
   fi

@@ -23,7 +23,7 @@ Applies to `.gitignore` at any depth.
 2. An entry lives in the deepest directory where it applies. The root carries only patterns that span the
    repository.
 3. A pattern that names a directory ends with `/`. A pattern anchored to the file's directory starts with `/`.
-4. `worktrees/` is ignored at the root: it is where the loop checks out a branch per issue.
+4. Ignore `/worktrees/` at the root: it is where the loop checks out a branch per issue.
 
 ## Adding one
 

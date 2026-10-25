@@ -3,7 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Activates the default modules and the named ones, with the modules they depend on, places what they deliver
-# under each base, and writes the manifests: .kit/manifest, and ~/.kit/manifest when a module delivers to home.
+# under each base, and writes the manifests. A different file already at a delivered path is refused, named, and
+# left alone, and no manifest is written until every path is clear.
 #
 # see: bin/release.sh
 
@@ -25,21 +26,20 @@ then
   error "run: kit update (this repository already carries kit $(release:manifest-version))"
   exit 1
 fi
-read -r -a defaults <<<"$(release:default-modules "${kit_root}" | paste -s -d ' ' -)"
-read -r -a modules <<<"$(release:resolve "${kit_root}" "${defaults[@]}" "$@" | paste -s -d ' ' -)"
+readarray -t defaults < <(release:default-modules "${kit_root}")
+readarray -t modules < <(release:resolve "${kit_root}" "${defaults[@]}" "$@")
 release:render-all "${kit_root}" "${modules[@]}"
 section "kit install $(release:version), modules: ${modules[*]}"
-# shellcheck disable=SC2154  # release_bases is declared by bin/release.sh, which use loaded above
-for base in "${release_bases[@]}"
+refused=0
+for base in $(release:bases)
 do
-  while IFS=$'\t' read -r path src
-  do
-    [[ -n "${path}" ]] || continue
-    dest=$(release:dest "${base}" "${path}")
-    step "${dest}"
-    release:place "${src}" "${dest}"
-  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+  release:place-all "${kit_root}" "${base}" "${modules[@]}" || refused=$(( refused + $? ))
 done
+if (( refused > 0 ))
+then
+  error "${refused} path(s) already hold a different file; move each aside, then run: kit install"
+  exit 1
+fi
 release:write-manifests "${modules[@]}"
 release:finish "${modules[@]}"
 

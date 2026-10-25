@@ -6,6 +6,8 @@
 setup() {
   export kit_root NO_COLOR=1
   kit_root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
@@ -21,9 +23,9 @@ teardown() {
   rm -rf "${work}"
 }
 
-# in_status <command>… runs a command with the status module loaded.
+# in_status <command>… runs a command with the status module loaded, from this directory, as a verb would.
 in_status() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use status && "$@"' _ "$@"
+  kit_invoked_in=$(pwd -P) bash -c 'source "${kit_root}/bin/1st.sh" && use status && "$@"' _ "$@"
 }
 
 # commits-in <path> <n> makes <n> commits in the checkout at <path>.
@@ -31,7 +33,8 @@ commits-in() {
   local i
   for (( i = 1; i <= $2; i++ ))
   do
-    printf '%s\n' "${i}" > "$1/f${i}" && git -C "$1" add . && git -C "$1" commit --quiet --message "c${i}"
+    printf '%s\n' "${i}" > "$1/f${i}"
+    git -C "$1" add . && git -C "$1" commit --quiet --message "c${i}"
   done
 }
 
@@ -44,13 +47,14 @@ commits-in() {
 
 @test "a checkout is measured from where its branch left origin's default branch" {
   git worktree add --quiet -b topic worktrees/topic main
-  printf 'two\nthree\n' > worktrees/topic/b && git -C worktrees/topic add b && git -C worktrees/topic commit --quiet --message two
+  printf 'two\nthree\n' > worktrees/topic/b
+  git -C worktrees/topic add b && git -C worktrees/topic commit --quiet --message two
   printf 'four\n' > c && git add c && git commit --quiet --message four && git push --quiet origin main
   printf 'x\n' > worktrees/topic/x
   run in_status status:checkout "${PWD}/worktrees/topic" topic main
   [ "$status" -eq 0 ]
-  [ "$(jq -r '[.relative, .branch, .ahead, .behind, .added, .removed, .uncommitted, (.commits | length)] | @tsv' <<<"$output")" \
-    = "$(printf 'worktrees/topic\ttopic\t1\t1\t2\t0\t1\t1')" ]
+  fields='[.relative, .branch, .ahead, .behind, .added, .removed, .uncommitted, (.commits | length)] | @tsv'
+  [ "$(jq -r "${fields}" <<<"$output")" = "$(printf 'worktrees/topic\ttopic\t1\t1\t2\t0\t1\t1')" ]
 }
 
 @test "a block shows the newest commits, counts the hidden ones, and ends with the oldest" {

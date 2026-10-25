@@ -1,14 +1,14 @@
 # kit-ci.yml - the check the kit delivers: the repository's gate, the kit's own check, and the issue link
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# One job, CI, which is the check name a ruleset requires. Each step is one kit command, so what the runner does
-# is what a desk can do: `kit gate` runs the root justfile's ci recipe and reports a missing one as a skip,
-# `kit check` holds every delivered file to the pinned release, and `kit linked` refuses a pull request not linked
-# to an open issue of this repository under Development. The last two run even when an earlier step refused, so
-# one run reports every finding.
+# One job, CI, which is the check name a ruleset requires, run for a pull request into the default branch. After
+# a step that confirms kit is on PATH, three checks, each one kit command, so what the runner does a desk can do:
+# `kit gate` runs the root justfile's ci recipe and refuses when there is none, `kit check` holds every delivered
+# file to the pinned release, and `kit linked` refuses a pull request not linked to an open issue of this
+# repository under Development. The last two run even when an earlier step refused, so one run reports every
+# finding.
 #
-# Delivered by kit, not edited by hand. A change is a new release, then kit update. Rendered from a template: the
-# job runs on the ci_runner answer, ubuntu-latest unless .kit/answers says otherwise.
+# Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner answer.
 #
 # see: .kit/1st.md
 
@@ -37,7 +37,9 @@ jobs:
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
 
       - name: kit-on-path
-        run: command -v kit >/dev/null || { echo '::error::kit is not on PATH; pin "github:empowerite/kit" in mise.toml'; exit 1; }
+        run: |
+          command -v kit >/dev/null && exit 0
+          echo '::error::pin "github:empowerite/kit" in mise.toml; kit is not on PATH' && exit 1
 
       - name: gate
         run: kit gate

@@ -33,7 +33,8 @@ Applies to `*.md`.
 2. Balance the wrap: no line, in particular the last, reads as a stub.
 3. Do not wrap fenced code, tables, HTML comments, or a line whose only content is a link.
 4. Keep a list tight or loose as it was written. Reflow never flips one to the other.
-5. Headings are ATX (`#`). One `#` heading per file, at the top.
+5. Headings are ATX (`#`). One `#` heading per file, at the top; `AGENTS.md` is the exception, opening with the
+   sentence a harness reads first.
 6. Fenced code blocks declare a language and have a blank line on each side.
 7. Table rows use ` | ` with spaces around each pipe, including the delimiter row.
 
@@ -42,7 +43,7 @@ Applies to `*.md`.
 1. Use inline links with descriptive text, never a bare URL in angle brackets.
 2. Use the same anchor text every time the same URL appears in a file.
 3. When a label and the link text would say the same thing, make the label the link.
-4. A relative link resolves from the file that carries it, and it resolves: a check reads them.
+4. A relative link resolves from the file that carries it, and it resolves.
 
 ## Files
 
@@ -50,4 +51,4 @@ Applies to `*.md`.
 2. A file says what its subject is in its first paragraph, before how to use it.
 3. A README has no Status section and no paragraph on what the repository will do or does not yet do. It says
    what the repository is.
-4. No file names another repository as the source of a rule.
+4. A delivered file names no repository as the source of a rule.

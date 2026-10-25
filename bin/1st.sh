@@ -4,8 +4,8 @@
 #
 # Sourced by every verb, bin/kit-<verb>.sh, which bin/kit dispatches to with kit_root exported. It defines
 # functions only and sets no shell option, so the caller's options stand. A module is a sourced <module>.sh
-# beside this file, loaded once with `use <module>` by the verb or module that needs it; there is no other way
-# in. A verb is an executable kit-<verb>.sh beside it.
+# beside this file, loaded once with `use <module>` by the verb or module that needs it. A verb is an executable
+# kit-<verb>.sh beside it.
 #
 # Every message goes to stderr, so stdout stays clean for data. Color is off when stderr is not a terminal or
 # NO_COLOR is set. Under GitHub Actions, warn and error also emit the matching workflow command.
@@ -41,6 +41,7 @@ else
   declare -gr out_color=0
 fi
 
+# out:sgr <code> prints the escape for one SGR code when color is on, and nothing otherwise.
 out:sgr() {
   (( out_color )) && printf '\x1b[%sm' "$1"
   return 0

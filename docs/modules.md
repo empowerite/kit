@@ -10,7 +10,7 @@ modules/<name>/
   module.yml          metadata
   files/<base>/       files mirrored at the base's root
   templates/<base>/   files rendered from the repository's answers, then mirrored the same way
-  docs/               the module's documentation, for a reader of this repository; not delivered
+  docs/               the module's documentation; packed with the release, placed in no repository
 ```
 
 A module may have any of `files/`, `templates/`, and `docs/`, and must have `module.yml`. A base names where a
@@ -32,7 +32,7 @@ bases listed. `KIT_HOME` stands in for the home directory, which is how the test
 A line starting with `#` is a comment.
 
 ```yaml
-description: One CI job: the repository's gate, kit check, and the linked-open-issue refusal
+description: "One CI job: the repository's gate, kit check, and the linked-open-issue refusal"
 default: true
 depends:
   - kit
@@ -63,11 +63,11 @@ A file under `templates/<base>/` is rendered first. Every `@key@` in it, autocon
 answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither
 bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may carry both untouched. The repository's
 answers live in `.kit/answers`, a file of `key value` lines the repository owns and the kit never writes; a key
-with no line there takes the module's `answer` default, and a key with neither refuses the install, naming the key
-and the module.
+with no line there takes the module's default under `answers`, and a key with neither refuses the install, naming
+the key and the module.
 
-The same file is also what a rule's frontmatter is written in, read by the same functions, so a rule's `paths:` and
-`content:` lists and a module's `depends:` list have one reader between them.
+The same YAML subset is what a rule's frontmatter is written in, read by `bin/yaml.sh` in both places, so a rule's
+`paths:` and `content:` lists and a module's `depends:` list have one reader between them.
 
 ## Activation
 
@@ -87,7 +87,4 @@ The same file is also what a rule's frontmatter is written in, read by the same 
 | `ci` | yes | `kit` | `.github/workflows/kit-ci.yml`, from a template; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 
-No module delivers to `home` yet. A module's `files/repo/` and `templates/repo/` carry the paths above; its
-`docs/README.md` says why.
-
-Each module's `docs/README.md` says what it places and why.
+No module in this release delivers to `home`. Each module's `docs/README.md` says what it places and why.

@@ -1,23 +1,32 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bin/kit
-# release.sh - the release's modules, the one merge rule, the templates, and the manifest (sourced module)
+# release.sh - the release's modules, the one merge rule, the templates, and the manifests (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
 # mirrored at the base's root; and templates/<base>/, with @key@ rendered from the repository's answers, then
 # mirrored the same way. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's
-# home directory, recorded in ~/.kit/manifest, which is the desk's record rather than the repository's. A
-# destination ending in .json is merged by key, with the kit's keys set, the kit's array entries added, and on
-# update or removal only the previous release's entries taken out. .kit/manifest records the version, the active
-# modules, and the release's digest for every delivered path. docs/modules.md is the format's description.
+# home directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending
+# in .json is merged by key, the kit owning only the entries it writes. docs/modules.md is the format's description.
 #
-# Every function reads a release from a root, kit_root by default, which bin/kit exports.
+# Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
+# the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and comm here
+# collates in the C locale, so an order written on one machine is the order read on another.
 
 use yaml
 
-# release_bases are the destinations a module may deliver to, as the subdirectories of files/ and templates/.
-declare -gra release_bases=(repo home)
+# release:unreleased prints the version of a checkout: the release workflow stamps a version file, a checkout
+# has none, and this is the one version kit update never fetches.
+release:unreleased() { printf 'unreleased\n'; }
+
+# release:version prints this release's version.
+release:version() {
+  cat "${kit_root}/version" 2>/dev/null || release:unreleased
+}
+
+# release:bases prints the destinations a module may deliver to, the subdirectories of files/ and templates/.
+release:bases() { printf 'repo\nhome\n'; }
 
 # release:base-root <base> prints the directory the base's files are mirrored at: the repository root, which the
 # verbs run from, or the home directory, KIT_HOME when set so a test can stand in for it.
@@ -26,7 +35,7 @@ release:base-root() {
     (repo) printf '.\n' ;;
     (home) printf '%s\n' "${KIT_HOME:-${HOME}}" ;;
     (*)
-      error "'$1' is not a base; the bases are: ${release_bases[*]}"
+      error "'$1' is not a base; the bases are: $(release:bases | paste -s -d ' ' -)"
       return 2
   esac
 }
@@ -42,18 +51,10 @@ release:dest() {
 # release:manifest <base> prints the base's manifest: .kit/manifest in the repository, ~/.kit/manifest for home.
 release:manifest() { release:dest "$1" .kit/manifest; }
 
-# A release carries a version file the release workflow stamps from the tag; a checkout carries none and is
-# "unreleased", the one version kit update never asks mise for.
-declare -gr release_unreleased=unreleased
-
-# release:version prints this release's version.
-release:version() {
-  cat "${kit_root}/version" 2>/dev/null || printf '%s\n' "${release_unreleased}"
-}
-
 # release:modules [<root>] prints the modules the release carries: every modules/<name>/ with a module.yml.
 release:modules() {
-  (cd "${1:-${kit_root}}/modules" && find . -mindepth 2 -maxdepth 2 -name module.yml | sed 's@^\./@@; s@/module.yml$@@' | sort)
+  (cd "${1:-${kit_root}}/modules" \
+    && find . -mindepth 2 -maxdepth 2 -name module.yml | sed 's@^\./@@; s@/module.yml$@@' | LC_ALL=C sort)
 }
 
 # release:meta <root> <module> prints the path of the module's metadata.
@@ -83,7 +84,8 @@ release:require-modules() {
   do
     if [[ ! -f "$(release:meta "${root}" "${module}")" ]]
     then
-      error "'${module}' is not a module this release knows; the modules are: $(release:modules "${root}" | paste -s -d ' ' -)"
+      error "'${module}' is not a module this release knows; the modules are:" \
+        "$(release:modules "${root}" | paste -s -d ' ' -)"
       return 2
     fi
   done
@@ -95,6 +97,7 @@ release:require-modules() {
 release:resolve() {
   local root=$1 module dep ready placed_count=0
   shift
+  (( $# > 0 )) || return 0
   local -A wanted=() placed=()
   local -a queue=("$@") names=()
   while (( ${#queue[@]} > 0 ))
@@ -108,7 +111,7 @@ release:resolve() {
       queue+=("${dep}")
     done
   done
-  readarray -t names < <(printf '%s\n' "${!wanted[@]}" | sort)
+  readarray -t names < <(printf '%s\n' "${!wanted[@]}" | LC_ALL=C sort)
   while (( placed_count < ${#names[@]} ))
   do
     ready=''
@@ -146,6 +149,42 @@ release:dependents() {
   done
 }
 
+# release:validate <root> <module> refuses metadata the schema would refuse, as far as bash can tell without a
+# validator: a key the kit does not know, a default that is not true or false, a dependency on a module the
+# release lacks. The gate validates against modules/module.schema.json in full.
+release:validate() {
+  local root=$1 module=$2 meta key value dep
+  meta=$(release:meta "${root}" "${module}")
+  for key in $(yaml:keys "${meta}")
+  do
+    case "${key}" in
+      (description | default | depends | answers) ;;
+      (*)
+        error "modules/${module}/module.yml has a key the kit does not know: ${key} (see modules/module.schema.json)"
+        return 1
+    esac
+  done
+  if [[ -z "$(yaml:value "${meta}" description)" ]]
+  then
+    error "modules/${module}/module.yml has no description"
+    return 1
+  fi
+  value=$(yaml:value "${meta}" default)
+  if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
+  then
+    error "modules/${module}/module.yml: default must be true or false, not '${value}'"
+    return 1
+  fi
+  for dep in $(release:depends "${root}" "${module}")
+  do
+    if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
+    then
+      error "modules/${module}/module.yml depends on '${dep}', which this release does not carry"
+      return 1
+    fi
+  done
+}
+
 # release:answers <root> <module> prints "<key>\t<value>" for every answer the module's templates may use: the
 # module's defaults under answers:, each overridden by a "<key> <value>" line in the repository's .kit/answers.
 release:answers() {
@@ -156,7 +195,8 @@ release:answers() {
   } | awk 'NF >= 2 { v = $0; sub(/^[^ ]+ +/, "", v); a[$1] = v } END { for (k in a) print k "\t" a[k] }'
 }
 
-# release:tmp prints a directory for this process's rendered templates, made once and removed at exit.
+# release:tmp prints a directory for this process's rendered templates, made once and removed at exit. The
+# rendering happens in release:render-all, which every verb runs before it reads a release.
 release:tmp() {
   if [[ -z "${release_tmp:-}" ]]
   then
@@ -185,7 +225,7 @@ release:render() {
     do
       rel=${file#"${templates}"/}
       text=$(<"${file}")
-      for key in $(grep --only-matching '@[a-z_]*@' "${file}" | sort --unique | tr -d '@')
+      for key in $(grep --only-matching '@[a-z_]*@' "${file}" | LC_ALL=C sort --unique | tr -d '@')
       do
         if [[ -z "${answer[${key}]+x}" ]]
         then
@@ -201,48 +241,13 @@ release:render() {
   printf '%s\n' "${out}"
 }
 
-# release:validate <root> <module> refuses metadata the schema would: a key the kit does not know, a default that
-# is not true or false, a dependency on a module the release lacks. The gate validates against
-# modules/module.schema.json with a real validator; this is the same contract where no validator is, at install.
-release:validate() {
-  local root=$1 module=$2 meta key value dep
-  meta=$(release:meta "${root}" "${module}")
-  for key in $(yaml:keys "${meta}")
-  do
-    case "${key}" in
-      (description | default | depends | answers) ;;
-      (*)
-        error "modules/${module}/module.yml has a key the kit does not know: ${key} (the schema is modules/module.schema.json)"
-        return 1
-    esac
-  done
-  if [[ -z "$(yaml:value "${meta}" description)" ]]
-  then
-    error "modules/${module}/module.yml has no description"
-    return 1
-  fi
-  value=$(yaml:value "${meta}" default)
-  if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
-  then
-    error "modules/${module}/module.yml: default must be true or false, not '${value}'"
-    return 1
-  fi
-  for dep in $(release:depends "${root}" "${module}")
-  do
-    if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
-    then
-      error "modules/${module}/module.yml depends on '${dep}', which this release does not carry"
-      return 1
-    fi
-  done
-}
-
-# release:render-all <root> <module>… validates the metadata of every module the release carries, active or not,
-# since a release with a broken module is a broken release; then renders the named modules' templates for every
-# base, refusing a base the kit does not know, or an unanswered key, naming it.
+# release:render-all <root> <module>… makes the release at <root> ready to read for the named modules: it refuses
+# a module the release lacks, validates every module the release carries, refuses a base the kit does not deliver
+# to, renders the named modules' templates, and refuses a link to nothing among the delivered files.
 release:render-all() {
   local root=$1 module kind base
   shift
+  release:require-modules "${root}" "$@" || return 2
   for module in $(release:modules "${root}")
   do
     release:validate "${root}" "${module}" || return 1
@@ -251,19 +256,26 @@ release:render-all() {
   do
     for kind in files templates
     do
-      for base in $(cd "${root}/modules/${module}/${kind}" 2>/dev/null && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@')
+      for base in $(cd "${root}/modules/${module}/${kind}" 2>/dev/null \
+        && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@')
       do
-        if ! release:among "${base}" "${release_bases[@]}"
+        # shellcheck disable=SC2046  # the bases are single words
+        if ! release:among "${base}" $(release:bases)
         then
-          error "modules/${module}/${kind}/${base} names a base the kit does not deliver to; the bases are: ${release_bases[*]}"
+          error "modules/${module}/${kind}/${base} names a base the kit does not deliver to; the bases are:" \
+            "$(release:bases | paste -s -d ' ' -)"
           return 1
         fi
       done
     done
-    for base in "${release_bases[@]}"
+    for base in $(release:bases)
     do
       release:render "${root}" "${module}" "${base}" >/dev/null || return 1
     done
+  done
+  for base in $(release:bases)
+  do
+    release:delivered "${root}" "${base}" "$@" >/dev/null || return 1
   done
 }
 
@@ -288,8 +300,9 @@ release:delivered() {
   local layer path src
   while IFS= read -r layer
   do
-    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }')
-  done < <(release:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' | sort \
+    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' \
+      | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }')
+  done < <(release:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' | LC_ALL=C sort \
     | while IFS=$'\t' read -r path src
   do
     if [[ -L "${src}" && ! -e "${src}" ]]
@@ -315,19 +328,18 @@ release:paths-beyond() {
   local -a before after
   read -r -a before <<<"$3"
   read -r -a after <<<"$4"
-  comm -13 <(release:delivered "${root}" "${base}" "${before[@]}" | cut -f 1) \
+  LC_ALL=C comm -13 <(release:delivered "${root}" "${base}" "${before[@]}" | cut -f 1) \
     <(release:delivered "${root}" "${base}" "${after[@]}" | cut -f 1)
 }
 
+# release:merged <path> is true for a destination that is merged by key rather than copied: a .json file.
 release:merged() { [[ "$1" == *.json ]]; }
 
 # release:fetch <version> prints the root of that release, fetching it if need be: the kit's cache first, then a
-# mise install if mise is here, then the GitHub release itself, unpacked into the cache. Nothing here assumes how
-# this release was installed.
+# mise install if mise is here, then the GitHub release itself, unpacked into the cache. The version comes from a
+# manifest, so it is held to a version's shape before it is used in a path.
 release:fetch() {
   local version=$1 root cache fresh
-  # The version comes from a manifest, which is repository content, so it is held to a version's shape before it
-  # becomes part of a path; the unpack goes into a directory made here and is moved into place only when whole.
   if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
   then
     error "'${version}' is not a kit version"
@@ -350,8 +362,8 @@ release:fetch() {
   fi
   step "Fetching kit ${version} from its GitHub release"
   fresh=$(mktemp -d)
-  if ! gh release download "v${version}" --repo empowerite/kit --pattern "kit-${version}.tar.gz" --output - 2>/dev/null \
-    | tar --extract --gzip --directory "${fresh}" --strip-components 1
+  if ! gh release download "v${version}" --repo empowerite/kit --pattern "kit-${version}.tar.gz" --output - \
+    2>/dev/null | tar --extract --gzip --directory "${fresh}" --strip-components 1
   then
     rm -rf "${fresh}"
     error "kit ${version} could not be fetched (run: gh auth status, or set KIT_BASE to a copy of it)"
@@ -383,8 +395,7 @@ release:without() {
   done
 }
 
-# The parameters are values ($), not filters: a filter parameter is re-read against the input at each use, which
-# inside the recursion is the wrong level of the object.
+# The merge, as jq. The parameters are values ($), not filters, so each is read once at the right level.
 release_jq='
   def merge($cur; $base; $new):
     if ($new | type) == "object" then
@@ -404,7 +415,8 @@ release_jq='
     else $cur == $new end;
 '
 
-# release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if missing.
+# release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if
+# missing.
 release:json-write() {
   local path=$1 filter=$2
   shift 2
@@ -414,7 +426,8 @@ release:json-write() {
   mv "${path}.kit-new" "${path}"
 }
 
-# release:json-holds <path> <source> is true when the JSON at <path> carries every entry the release's <source> writes.
+# release:json-holds <path> <source> is true when the JSON at <path> carries every entry the release's <source>
+# writes.
 release:json-holds() {
   jq --exit-status "${release_jq} holds(.; \$new[0])" --slurpfile new "$2" "$1" >/dev/null
 }
@@ -429,7 +442,8 @@ release:digest() {
   fi
 }
 
-# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, else a copy.
+# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, else a
+# copy that keeps the source's mode.
 release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
   if release:merged "${path}"
@@ -437,9 +451,39 @@ release:place() {
     release:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
   else
     mkdir -p "$(dirname "${path}")"
-    cat "${src}" > "${path}.kit-new"
+    cp "${src}" "${path}.kit-new"
     mv "${path}.kit-new" "${path}"
   fi
+}
+
+# release:place-new <source> <path> [<label>] places content the repository did not record: where there is
+# nothing, or the same thing, or a .json to merge into. A different file is refused, named, and left as it is.
+release:place-new() {
+  local src=$1 path=$2 label=${3:-}
+  if release:merged "${path}" || [[ ! -f "${path}" ]]
+  then
+    step "${path}${label:+: ${label}}"
+    release:place "${src}" "${path}"
+  elif cmp --silent "${src}" "${path}"
+  then
+    step "${path}${label:+: ${label}}, already as the release has it"
+  else
+    error "${path}: a different file is there already; move it aside, or remove it if it is not yours"
+    return 1
+  fi
+}
+
+# release:place-all <root> <base> <module>… places every path the modules deliver under the base, refusing where
+# a different file is. It returns the number of refusals.
+release:place-all() {
+  local root=$1 base=$2 path src refused=0
+  shift 2
+  while IFS=$'\t' read -r path src
+  do
+    [[ -n "${path}" ]] || continue
+    release:place-new "${src}" "$(release:dest "${base}" "${path}")" || refused=$(( refused + 1 ))
+  done < <(release:delivered "${root}" "${base}" "$@")
+  return "${refused}"
 }
 
 # release:unplace <source> <path> takes the release's content back out of <path>: the kit's entries for .json,
@@ -457,27 +501,88 @@ release:unplace() {
   fi
 }
 
+# release:retire <base-root> <base> <previous> <current> <module>… handles the paths the base's manifest records
+# that the current release no longer delivers: removed when still the previous release's own content, their
+# entries taken out of a merged .json when the base release is at hand, left with a warning otherwise. Under
+# home, whose manifest every repository shares, only paths the previous release delivered for these modules are
+# touched, and none without the base release.
+release:retire() {
+  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates
+  shift 4
+  candidates=$(LC_ALL=C comm -23 <(release:manifest-paths "${base}" | LC_ALL=C sort) \
+    <(release:delivered "${kit_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort))
+  if [[ "${base}" != repo ]]
+  then
+    [[ -n "${base_root}" ]] || return 0
+    candidates=$(LC_ALL=C comm -12 <(printf '%s\n' "${candidates}" | LC_ALL=C sort) \
+      <(release:delivered "${base_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort))
+  fi
+  while IFS= read -r path
+  do
+    [[ -n "${path}" ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    [[ -e "${dest}" ]] || continue
+    if release:merged "${dest}"
+    then
+      previous_src=""
+      [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "$@")
+      if [[ -n "${previous_src}" ]]
+      then
+        step "${dest}: retired in ${current}, the previous release's entries taken out"
+        release:json-write "${dest}" 'unmerge(.; $base[0])' --slurpfile base "${previous_src}"
+      else
+        warn "${dest}: retired in ${current}; without the base release its entries stay, and it is left as it was"
+      fi
+    elif [[ "$(release:recorded "${base}" "${path}")" == "$(release:digest < "${dest}")" ]]
+    then
+      step "${dest}: retired in ${current}, removed"
+      rm -f "${dest}"
+    else
+      warn "${dest}: retired in ${current}, but edited since ${previous}; it is left as it was"
+    fi
+  done <<<"${candidates}"
+}
+
 # release:write-manifest <base> <module>… records, in the base's manifest, the version, the active modules, and
-# the release's digest for every path delivered under the base. The repository's is always written; home's only
-# when something is delivered there, and it is removed when nothing is any more.
+# the release's digest of every path delivered under the base. The repository's manifest is always written.
+# Home's is shared by every repository on the desk: it is written when these modules deliver there, and when they
+# do not, the lines whose paths are gone are dropped and the file is removed once nothing is left.
 release:write-manifest() {
-  local base=$1 manifest path src delivered
+  local base=$1 manifest path src delivered kept
   shift
   manifest=$(release:manifest "${base}")
   delivered=$(release:delivered "${kit_root}" "${base}" "$@")
   if [[ "${base}" != repo && -z "${delivered}" ]]
   then
-    rm -f "${manifest}"
+    [[ -f "${manifest}" ]] || return 0
+    kept=$(while IFS= read -r path
+      do
+        [[ -n "${path}" && -e "$(release:dest "${base}" "${path}")" ]] && grep -F "  ${path}" "${manifest}"
+      done < <(release:manifest-paths "${base}"); true)
+    if [[ -z "${kept}" ]]
+    then
+      rm -f "${manifest}"
+    else
+      { sed -n '1,3p' "${manifest}"; printf '%s\n' "${kept}"; } > "${manifest}.kit-new"
+      mv "${manifest}.kit-new" "${manifest}"
+    fi
     return 0
   fi
   mkdir -p "$(dirname "${manifest}")"
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
     printf 'version %s\n' "$(release:version)"
-    printf 'modules%s\n' "${*:+ $*}"
+    if (( $# > 0 ))
+    then printf 'modules %s\n' "$*"
+    else printf 'modules\n'
+    fi
     while IFS=$'\t' read -r path src
     do
-      [[ -n "${path}" ]] && printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
+      # An if, not an && list: as the loop's last command, a false list would end the script under errexit.
+      if [[ -n "${path}" ]]
+      then
+        printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
+      fi
     done <<<"${delivered}"
   } > "${manifest}"
 }
@@ -485,22 +590,25 @@ release:write-manifest() {
 # release:write-manifests <module>… writes every base's manifest.
 release:write-manifests() {
   local base
-  for base in "${release_bases[@]}"
+  for base in $(release:bases)
   do
     release:write-manifest "${base}" "$@"
   done
 }
 
+# release:manifest-version prints the version the repository's manifest records.
 release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 
-release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest; }
+# release:manifest-modules prints the active modules the repository's manifest records, one per line.
+release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
 
-# release:manifest-paths <base> prints every path the base's manifest records.
+# release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-digit
+# digest, two spaces, and the path, which may itself hold spaces.
 release:manifest-paths() {
   local manifest
   manifest=$(release:manifest "$1")
   [[ -f "${manifest}" ]] || return 0
-  awk '$1 ~ /^[0-9a-f]{64}$/ { print $2 }' "${manifest}"
+  awk 'length($1) == 64 && $0 ~ /^[0-9a-f]+  / { print substr($0, 67) }' "${manifest}"
 }
 
 # release:recorded <base> <path> prints the digest the base's manifest records for <path>, or nothing.
@@ -508,7 +616,7 @@ release:recorded() {
   local manifest
   manifest=$(release:manifest "$1")
   [[ -f "${manifest}" ]] || return 0
-  awk -v p="$2" '$2 == p { print $1 }' "${manifest}"
+  awk -v p="$2" 'length($1) == 64 && substr($0, 67) == p { print $1 }' "${manifest}"
 }
 
 # release:require-manifest refuses to go on in a repository that never took the kit.

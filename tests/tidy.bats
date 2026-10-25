@@ -6,6 +6,8 @@
 setup() {
   export kit_root
   kit_root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
@@ -21,9 +23,29 @@ teardown() {
   rm -rf "${work}"
 }
 
-# decide <path> runs tidy's decision on <path>, a detached checkout, with main as the default branch and no dry run.
+# decide <path> runs tidy's decision on <path>, a detached checkout, with main as the default branch and no dry
+# run.
 decide() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use git && git:tidy-worktree "$1" "" true main "$(git rev-parse --show-toplevel)" false' _ "$1"
+  bash -c 'source "${kit_root}/bin/1st.sh" && use git \
+    && git:tidy-worktree "$1" "" true main "$(git rev-parse --show-toplevel)" false' _ "$1"
+}
+
+# fields prints every linked worktree as "<dir> <detached> [<branch>]", read the way the verbs read git:worktrees.
+fields() {
+  bash -c 'source "${kit_root}/bin/1st.sh" && use git && git:worktrees' \
+    | while IFS=$'\t' read -r path detached branch
+  do
+    printf '%s %s [%s]\n' "${path##*/}" "${detached}" "${branch}"
+  done
+}
+
+@test "the worktree list keeps a detached checkout's empty branch field where a tab read can keep it" {
+  git worktree add --quiet --detach worktrees/loose HEAD
+  git worktree add --quiet -b topic worktrees/topic HEAD
+  run fields
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"loose true []"* ]]
+  [[ "$output" == *"topic false [topic]"* ]]
 }
 
 @test "a clean detached worktree at a commit on main is removed" {

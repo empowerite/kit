@@ -18,8 +18,8 @@ Applies to `*.json` and `*.jsonc`.
 ## Settings
 
 1. A disabled linter rule carries a comment naming the rule and the convention it would fight.
-2. A tool's settings file that the kit writes into is merged by key. The kit owns only the keys and entries
-   it writes, and anything else in the file is the repository's.
+2. Do not edit an entry the kit wrote in a merged settings file; change it through a release and `kit update`.
+   Everything else in the file is the repository's to edit.
 
 ## Comments
 

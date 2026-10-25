@@ -27,7 +27,7 @@ reaches `main` only through a merged pull request.
 2. `kit issue <N>` makes `worktrees/<N>-<slug>`, a branch linked to the issue under Development, and a draft
    pull request. It never switches the checkout it is run from.
 3. Work happens in that worktree. Every commit is signed, and its subject is `#<N> <area>: <subject>`. `kit rebase`
-   brings the branch up to date with `main` and pushes it.
+   brings the branch up to date with the default branch and pushes it.
 4. `gh pr ready` says the work is done. The pull request body is the report: what changed, what was checked
    and how, and what was left out and why.
 5. A human merges. Nothing reaches `main` any other way, and nothing is called merged until the merge is
@@ -35,13 +35,15 @@ reaches `main` only through a merged pull request.
 
 ## Spellings an agent uses
 
-Where the kit adds a rule to a git verb, the kit's spelling is the only one an agent uses. The rule runs inside
-it, and a harness that can refuse the raw spelling does.
+Where the kit adds a rule to a git verb, the kit's spelling is the only one an agent uses. Each kit spelling
+carries the check its rule requires, and a harness with a deny list refuses the raw git spelling.
 
 - `kit rebase`, never `git rebase`. It refuses the root checkout and the default branch, and otherwise rebases the
-  worktree's branch onto `origin/main` and pushes it.
+  worktree's branch onto the default branch at origin and pushes it.
 - `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
+- The desk is never switched or reset by an agent: `git checkout main`, `git switch main`, `git reset --hard`,
+  and `git push --force` are refused as well.
 
 The human at the desk is not bound by this; the root checkout is theirs.
 
@@ -54,7 +56,8 @@ the design is written, the issue is the deliverable, and the loop above starts f
 
 A worker is whoever implements one issue in the worktree that issue names.
 
-1. `cd` into the worktree named in the task and confirm `git rev-parse --abbrev-ref HEAD` prints `<N>-`.
+1. `cd` into the worktree named in the task and confirm `git rev-parse --abbrev-ref HEAD` prints a branch name
+   beginning `<N>-`.
 2. Do every command from there. Never touch the repository root checkout.
 3. Never run `kit issue`, make a branch, or make a worktree. Those were done before the handoff.
 4. Implement what the issue asks and nothing beside it.
@@ -85,21 +88,20 @@ harness holds a copy of a rule; this call is how every harness, and every person
 
 The repository carries the text: this file, the rules under `.kit/rules/`, and `.kit/manifest`, which records the
 release version, the active modules, and a checksum per delivered file. The release, where it is installed,
-carries the machinery, reached through the `kit` command on `PATH`. Everything the release delivers is a module,
-and a repository activates the modules it takes: `kit install claude`, or `kit module add claude` later, and
-`kit module remove` to take one back out. A `.json` destination is merged by key, the kit owning only the entries
-it writes; everything else is copied as it is.
+carries the machinery, reached through the `kit` command on `PATH`: the loop's commands, `kit issue`, `kit rebase`,
+`kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled that way and no other. Everything the release
+delivers is a module, and a repository activates the modules it takes: `kit install claude`, or `kit module add
+claude` later, and `kit module remove` to take one back out. A `.json` destination is merged by key, the kit owning
+only the entries it writes; everything else is copied as it is.
 
-- The loop's commands, `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled
-  that way and no other.
 - `kit`: this file and the rules, discovered through `kit context`.
 - `lefthook`: `.kit/lefthook.yml`, which linter runs over which paths before a commit on a desk. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
 - `ci`: `.github/workflows/kit-ci.yml`, one `CI` job that runs the repository's `just ci`, runs `kit check`, and
   refuses a pull request not linked to an open issue.
 - `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: `.claude/CLAUDE.md`
-  importing `AGENTS.md`, so it is read in every case; seven deny rules merged into `.claude/settings.json`; and a
-  hook that runs `kit context` before every write so the rules are named to the agent without being asked for.
+  importing `AGENTS.md`, so it is read in every case; the deny list above merged into `.claude/settings.json`; and
+  a hook that runs `kit context` before every write so the rules are named to the agent without being asked for.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.

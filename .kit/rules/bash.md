@@ -14,7 +14,8 @@ workflows.
 ## Shape
 
 1. An executed script opens with `#!/usr/bin/env bash`, a `# <file> - <purpose>` banner under 120 columns, a
-   rule of dashes to column 120, and a blank line, then `set -o errexit -o nounset -o pipefail`.
+   rule of dashes to column 120, a blank line, and an optional comment paragraph, then
+   `set -o errexit -o nounset -o pipefail`.
 2. A sourced module opens with `# shellcheck shell=bash` and the same banner, and sets no shell options: they
    would change the caller's.
 3. The file closes with the same rule of dashes.
@@ -31,17 +32,19 @@ workflows.
 6. A `case` label carries both parentheses: `(vanilla)`. The last group has no `;;`.
 7. Quote every expansion outside `[[ ]]` and `(( ))`.
 8. A function in a sourced module is named `<module>:<kebab-name>`, the module being the file's basename. The
-   loader's own verbs are the exception and stay bare: `use`, `info`, `step`, `ok`, `section`, `warn`, `error`.
+   loader, `1st.sh`, is the exception: its verbs stay bare, `use`, `info`, `step`, `ok`, `section`, `warn`,
+   `error`, and `summary`, and its helpers are the `out:` and `guard:` families.
 9. A function private to one executed script is bare kebab-case.
 
 ## Behavior
 
-1. An error message is one line, names the remedy first, and is the same wherever the same condition arises.
+1. An error message is one line, names the remedy where there is one, and is the same wherever the same
+   condition arises.
 2. A helper that refuses returns non-zero and lets the caller end the script. It does not `exit` itself.
 3. A secret never appears in `argv`. Pipe it: `printf '%s' "${secret}" | gh secret set NAME`.
 4. Diagnostics go to stderr. Stdout carries data a caller can pipe.
 5. A command that mutates a remote, a branch, or a worktree is guarded by a check that names what it is about
-   to do, and a `--dry-run` where the mutation is a sweep.
+   to do, and a `--dry-run` where the mutation removes work, as a sweep of worktrees or branches does.
 6. The default branch is read from `origin/HEAD`, with `main` as the fallback, never hard-coded.
 7. shellcheck passes with no directive, or the directive carries the reason on the same line.
 

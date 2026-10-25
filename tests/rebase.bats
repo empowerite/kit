@@ -4,6 +4,8 @@
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
@@ -36,11 +38,11 @@ commit-in() {
 @test "rebase refuses the root checkout, whatever branch it has" {
   run "${kit_checkout}/bin/kit" rebase
   [ "$status" -eq 1 ]
-  [[ "$output" == *"refusing to rebase main: it is checked out at the root"* ]]
+  [[ "$output" == *"refusing to rebase main: it is the root checkout"* ]]
   git switch --quiet --create desk-topic
   run "${kit_checkout}/bin/kit" rebase
   [ "$status" -eq 1 ]
-  [[ "$output" == *"refusing to rebase desk-topic: it is checked out at the root"* ]]
+  [[ "$output" == *"refusing to rebase desk-topic: it is the root checkout"* ]]
 }
 
 @test "rebase refuses the default branch in a worktree" {

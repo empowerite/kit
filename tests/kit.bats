@@ -10,13 +10,24 @@ setup() {
   repo=$(mktemp -d)
   git -C "${repo}" init --quiet --initial-branch=main
   # a home directory of the test's own, so no test ever writes under the real one
-  export KIT_HOME="${repo}.home"
-  mkdir "${KIT_HOME}"
+  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
+  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
   cd "${repo}"
 }
 
 teardown() {
-  rm -rf "${repo}" "${repo}.later" "${repo}.home"
+  rm -rf "${repo}" "${repo}.later" "${repo}.home" "${repo}.cache" "${repo}.shims"
+}
+
+# shims <tool>… puts a failing stand-in for each tool first on PATH, so a test proves a path is not taken.
+shims() {
+  local tool
+  mkdir -p "${repo}.shims"
+  for tool in "$@"
+  do
+    printf '#!/usr/bin/env bash\nexit 1\n' > "${repo}.shims/${tool}" && chmod +x "${repo}.shims/${tool}"
+  done
+  printf '%s:%s\n' "${repo}.shims" "${PATH}"
 }
 
 # later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
@@ -139,7 +150,8 @@ later-release() {
 
 @test "a module delivering to home lands under it with a manifest of its own, and leaves with it" {
   later-release "${repo}.later"
-  mkdir -p "${repo}.later/modules/claude/files/home/.kit" && printf 'user level\n' > "${repo}.later/modules/claude/files/home/.kit/claude"
+  mkdir -p "${repo}.later/modules/claude/files/home/.kit"
+  printf 'user level\n' > "${repo}.later/modules/claude/files/home/.kit/claude"
   run "${repo}.later/bin/kit" install claude
   [ "$status" -eq 0 ]
   [ "$(cat "${KIT_HOME}/.kit/claude")" = "user level" ]
@@ -232,7 +244,7 @@ later-release() {
   printf 'mine\n' > .kit/rules/toml.md
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/rules/toml.md is new in 9.9.9"* ]]
+  [[ "$output" == *".kit/rules/toml.md: a different file is there already"* ]]
   [ "$(cat .kit/rules/toml.md)" = "mine" ]
 }
 
@@ -248,7 +260,8 @@ later-release() {
 @test "update leaves conflict markers and fails when the same lines changed" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
-  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${repo}.later/modules/kit/files/repo/.kit/rules/json.md" && rm "${repo}.later/modules/kit/files/repo/.kit/rules/json.md.bak"
+  theirs="${repo}.later/modules/kit/files/repo/.kit/rules/json.md"
+  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${theirs}" && rm "${theirs}.bak"
   sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
@@ -272,15 +285,79 @@ later-release() {
   [ "$status" -eq 0 ]
 }
 
-@test "update without the base release refuses an edited file and names the base" {
-  "${kit_checkout}/bin/kit" install claude
+@test "update without the base release refuses an edited file, names the base, and leaves the manifest's version" {
   later-release "${repo}.later"
+  "${repo}.later/bin/kit" install claude
+  grep --quiet '^version 9.9.9$' .kit/manifest
+  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
+  printf '9.9.10\n' > "${repo}.newer/version"
   printf 'edited\n' >> .kit/rules/bash.md
-  # a mise that answers nothing, ahead of the real one
-  mkdir shims && printf '#!/usr/bin/env bash\nexit 1\n' > shims/mise && chmod +x shims/mise
-  run env PATH="${PWD}/shims:${PATH}" "${repo}.later/bin/kit" update
+  # neither the cache, nor mise, nor gh can produce 9.9.9
+  run env PATH="$(shims mise gh)" "${repo}.newer/bin/kit" update
   [ "$status" -eq 1 ]
-  [[ "$output" == *"cannot be updated without the base release unreleased"* ]]
+  [[ "$output" == *"could not be fetched"* ]]
+  [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]
+  grep --quiet '^version 9.9.9$' .kit/manifest
+  rm -rf "${repo}.newer"
+}
+
+@test "update at the same version uses the release as its own base, and a second run changes nothing" {
+  "${kit_checkout}/bin/kit" install claude
+  printf 'edited\n' >> .kit/rules/bash.md
+  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  grep --quiet '^edited$' .kit/rules/bash.md
+  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"conflict"* ]]
+}
+
+@test "the verbs run from a subdirectory as from the root" {
+  "${kit_checkout}/bin/kit" install
+  mkdir -p docs/deep && cd docs/deep
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" module add claude
+  [ "$status" -eq 0 ]
+  [ -f "${repo}/.claude/settings.json" ]
+  [ ! -e .claude ]
+}
+
+@test "install and module add refuse a different file at a delivered path, and accept the same one" {
+  mkdir .kit && printf 'mine\n' > .kit/1st.md
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/1st.md: a different file is there already"* ]]
+  [ ! -e .kit/manifest ]
+  [ "$(cat .kit/1st.md)" = "mine" ]
+  rm .kit/1st.md
+  "${kit_checkout}/bin/kit" install
+  mkdir .claude && printf 'theirs\n' > .claude/CLAUDE.md
+  run "${kit_checkout}/bin/kit" module add claude
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".claude/CLAUDE.md: a different file is there already"* ]]
+  grep --quiet '^modules kit ci lefthook$' .kit/manifest
+  cp "${kit_checkout}/modules/claude/files/repo/.claude/CLAUDE.md" .claude/CLAUDE.md
+  run "${kit_checkout}/bin/kit" module add claude
+  [ "$status" -eq 0 ]
+}
+
+@test "module remove judges dependents against what stays, in any order" {
+  "${kit_checkout}/bin/kit" install claude
+  run "${kit_checkout}/bin/kit" module remove kit ci lefthook claude
+  [ "$status" -eq 0 ]
+  grep --quiet '^modules$' .kit/manifest
+  [ ! -e .kit/1st.md ]
+}
+
+@test "a home manifest another repository wrote is left alone, and its surviving lines are kept" {
+  mkdir -p "${KIT_HOME}/.kit" && printf 'theirs\n' > "${KIT_HOME}/.kit/theirs"
+  digest=$(shasum -a 256 "${KIT_HOME}/.kit/theirs" | cut -d ' ' -f 1)
+  printf '# manifest\nversion 0.0.1\nmodules other\n%s  .kit/theirs\n' "${digest}" > "${KIT_HOME}/.kit/manifest"
+  "${kit_checkout}/bin/kit" install
+  [ -f "${KIT_HOME}/.kit/theirs" ]
+  grep --quiet '  .kit/theirs$' "${KIT_HOME}/.kit/manifest"
+  grep --quiet '^version 0.0.1$' "${KIT_HOME}/.kit/manifest"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
