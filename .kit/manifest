@@ -1,6 +1,6 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-modules kit claude ci lefthook
+modules kit ci claude lefthook
 86563533cd11f87831320d57b24d68d83c8d3a47382b09afeb71f5ee46e93584  .claude/settings.json
 cd66dc3b7fe79643f0a706e0ea571962906ffd117743c68e23aadbab7c91e143  .github/workflows/kit-ci.yml
 f7db408e409f39c36c9906efbedfd800054a654b44615b021bd02fd93fa4d57e  .kit/1st.md
