@@ -47,6 +47,11 @@ answers:
 | `depends` | Modules activated with this one. `kit module remove` refuses a module another active module depends on. |
 | `answers` | The default value of each template key. A repository overrides one in `.kit/answers`. |
 
+[module.schema.json](../modules/module.schema.json) is the schema, JSON Schema 2020-12. The gate validates every
+`module.yml` against it with `ajv`, and `kit install` holds a module to the same contract where no validator is:
+a key it does not know, a `default` that is not `true` or `false`, or a dependency the release lacks is refused,
+naming it.
+
 ## Delivery
 
 A file under `files/<base>/` is placed at the same path under the base's root. A destination ending in `.json` is

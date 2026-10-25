@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/modules/module.schema.json",
+  "title": "module.yml",
+  "description": "The metadata of one kit module: modules/<name>/module.yml. docs/modules.md says what each key means. The gate validates every module.yml against this file, and kit install refuses a module whose keys it does not know.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "One line, shown by kit module list."
+    },
+    "default": {
+      "type": "boolean",
+      "description": "true for a module active unless removed; kit install with no names activates every default module."
+    },
+    "depends": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "description": "The name of another module in the release, activated with this one."
+      }
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "string",
+          "description": "The default value of a template key, written @key@ in the module's templates."
+        }
+      }
+    }
+  }
+}

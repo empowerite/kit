@@ -126,6 +126,8 @@ is what a consumer activating that module gets, its `files/repo/` mirrored at th
 `bin/kit-<verb>.sh` per verb, each sourcing the bash modules beside it; and `docs/` with each module's `docs/` is
 the documentation. [docs/modules.md](docs/modules.md) is the module format.
 
+[docs/architecture.md](docs/architecture.md) is the shape of the whole, with its figures.
+
 The installed copies are written by `bin/kit install` and not edited by hand:
 
 | Installed copy | Written from |

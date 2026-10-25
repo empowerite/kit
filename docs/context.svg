@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 440" width="1040" height="440" role="img"
+  aria-labelledby="title desc">
+  <title id="title">Context: how any agent, and Claude Code's hook, find the rules that govern a file</title>
+  <desc id="desc">An agent or a person runs kit context with a path. The kit matches the path and the file's first
+    line against each rule's frontmatter, names the governing rules, and appends the ask to the context log. Claude
+    Code's PreToolUse hook makes the same call before every write.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      text { font-family: Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 14px; fill: #0f172a; }
+      .h { font-size: 16px; font-weight: 600; }
+      .m { font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+      .d { fill: #475569; font-size: 12.5px; }
+      .box { stroke: #334155; stroke-width: 1.25; rx: 8; }
+      .edge { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .lbl { fill: #334155; font-size: 12px; }
+    </style>
+  </defs>
+
+  <!-- callers -->
+  <rect class="box" x="24" y="40" width="250" height="110" fill="#f1f5f9"/>
+  <text class="h" x="40" y="68">Any agent, any harness</text>
+  <text class="d" x="40" y="92">Before creating or changing a file,</text>
+  <text class="d" x="40" y="108">as .kit/1st.md says:</text>
+  <text class="m" x="40" y="134">kit context &lt;path&gt;…</text>
+
+  <rect class="box" x="24" y="176" width="250" height="110" fill="#f1f5f9"/>
+  <text class="h" x="40" y="204">A person</text>
+  <text class="d" x="40" y="228">The same call, by hand or in a</text>
+  <text class="d" x="40" y="244">script, or with --json for a tool.</text>
+  <text class="m" x="40" y="270">kit context --json &lt;path&gt;…</text>
+
+  <rect class="box" x="24" y="312" width="250" height="104" fill="#ede9fe"/>
+  <text class="h" x="40" y="340">Claude Code</text>
+  <text class="d" x="40" y="364">PreToolUse on Write, Edit, MultiEdit,</text>
+  <text class="d" x="40" y="380">wired by the claude module:</text>
+  <text class="m" x="40" y="404">kit context --claude</text>
+
+  <!-- the call -->
+  <rect class="box" x="340" y="120" width="300" height="200" fill="#dcfce7"/>
+  <text class="h" x="356" y="148">kit context</text>
+  <text class="d" x="356" y="172">For each path, every rule file whose</text>
+  <text class="d" x="356" y="188">frontmatter matches:</text>
+  <text class="m" x="372" y="214">paths:</text>
+  <text class="d" x="440" y="214">globs on the repository path</text>
+  <text class="m" x="372" y="236">content:</text>
+  <text class="d" x="440" y="236">patterns on the first line</text>
+  <text class="d" x="356" y="264">Then the ask is appended to the log.</text>
+  <text class="d" x="356" y="290">Nothing is copied; the rule is named,</text>
+  <text class="d" x="356" y="306">and reading it stays the caller's act.</text>
+
+  <!-- rules -->
+  <rect class="box" x="716" y="40" width="300" height="150" fill="#e0f2fe"/>
+  <text class="h" x="732" y="68">The rules, once</text>
+  <text class="m" x="732" y="94">.kit/rules/&lt;kind&gt;.md</text>
+  <text class="m" x="732" y="120">---</text>
+  <text class="m" x="732" y="138">paths: ["**/*.sh"]</text>
+  <text class="m" x="732" y="156">content: ["^#!.*/(env +)?(ba)?sh( |$)"]</text>
+  <text class="m" x="732" y="174">---</text>
+
+  <!-- log -->
+  <rect class="box" x="716" y="220" width="300" height="90" fill="#fef9c3"/>
+  <text class="h" x="732" y="248">The record</text>
+  <text class="m" x="732" y="272">.git/kit/context.log</text>
+  <text class="d" x="732" y="294">epoch and path per ask: the evidence a check reads</text>
+
+  <!-- answers -->
+  <rect class="box" x="716" y="340" width="300" height="76" fill="#ffffff"/>
+  <text class="h" x="732" y="368">The answer</text>
+  <text class="d" x="732" y="390">rule paths, one per line; as JSON; or as the</text>
+  <text class="d" x="732" y="406">hook's additionalContext naming them</text>
+
+  <!-- edges -->
+  <path class="edge" d="M 274 95 C 310 95, 310 200, 336 200"/>
+  <path class="edge" d="M 274 231 L 336 231"/>
+  <path class="edge" d="M 274 364 C 310 364, 310 262, 336 262"/>
+  <path class="edge" d="M 640 170 C 680 170, 680 115, 712 115"/>
+  <text class="lbl" x="652" y="134">reads</text>
+  <path class="edge" d="M 640 250 C 680 250, 680 265, 712 265"/>
+  <text class="lbl" x="652" y="247">appends</text>
+  <path class="edge" d="M 640 300 C 680 300, 680 378, 712 378"/>
+  <text class="lbl" x="652" y="350">prints</text>
+</svg>

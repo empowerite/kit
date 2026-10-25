@@ -70,6 +70,12 @@ error() {
   return 0
 }
 
+# summary <line>… appends lines to the runner's step summary, where there is one, and is silent elsewhere.
+summary() {
+  [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
+  printf '%s\n' "$@" >> "${GITHUB_STEP_SUMMARY}"
+}
+
 # guard:require <predicate>… returns non-zero on the first predicate that does not hold, with the remedy.
 #   gh           gh is usably authenticated (a real API call, since a revoked token still passes gh auth status)
 #   signing-key  git user.signingkey is set

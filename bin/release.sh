@@ -201,11 +201,52 @@ release:render() {
   printf '%s\n' "${out}"
 }
 
-# release:render-all <root> <module>… renders every named module's templates for every base, and refuses a base
-# the kit does not know, or an unanswered key, naming it.
+# release:validate <root> <module> refuses metadata the schema would: a key the kit does not know, a default that
+# is not true or false, a dependency on a module the release lacks. The gate validates against
+# modules/module.schema.json with a real validator; this is the same contract where no validator is, at install.
+release:validate() {
+  local root=$1 module=$2 meta key value dep
+  meta=$(release:meta "${root}" "${module}")
+  for key in $(yaml:keys "${meta}")
+  do
+    case "${key}" in
+      (description | default | depends | answers) ;;
+      (*)
+        error "modules/${module}/module.yml has a key the kit does not know: ${key} (the schema is modules/module.schema.json)"
+        return 1
+    esac
+  done
+  if [[ -z "$(yaml:value "${meta}" description)" ]]
+  then
+    error "modules/${module}/module.yml has no description"
+    return 1
+  fi
+  value=$(yaml:value "${meta}" default)
+  if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
+  then
+    error "modules/${module}/module.yml: default must be true or false, not '${value}'"
+    return 1
+  fi
+  for dep in $(release:depends "${root}" "${module}")
+  do
+    if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
+    then
+      error "modules/${module}/module.yml depends on '${dep}', which this release does not carry"
+      return 1
+    fi
+  done
+}
+
+# release:render-all <root> <module>… validates the metadata of every module the release carries, active or not,
+# since a release with a broken module is a broken release; then renders the named modules' templates for every
+# base, refusing a base the kit does not know, or an unanswered key, naming it.
 release:render-all() {
   local root=$1 module kind base
   shift
+  for module in $(release:modules "${root}")
+  do
+    release:validate "${root}" "${module}" || return 1
+  done
   for module in "$@"
   do
     for kind in files templates

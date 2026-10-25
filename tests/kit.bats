@@ -34,7 +34,7 @@ later-release() {
   [ -f .kit/rules/bash.md ]
   [ -f .kit/lefthook.yml ]
   [ -f .github/workflows/kit-ci.yml ]
-  grep --quiet '^    runs-on: ubuntu-latest$' .github/workflows/kit-ci.yml
+  grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
   [ ! -e .claude ]
   grep --quiet '^version unreleased$' .kit/manifest
   grep --quiet '^modules kit ci lefthook$' .kit/manifest
@@ -103,7 +103,7 @@ later-release() {
   mkdir .kit && printf 'ci_runner blacksmith-2vcpu\n' > .kit/answers
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
-  grep --quiet '^    runs-on: blacksmith-2vcpu$' .github/workflows/kit-ci.yml
+  grep --quiet '^    runs-on: "blacksmith-2vcpu"$' .github/workflows/kit-ci.yml
   grep --quiet 'uses: actions/checkout@' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
@@ -113,6 +113,19 @@ later-release() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"OWNER needs an answer for 'owner'"* ]]
   [ ! -e OWNER ]
+}
+
+@test "a module whose metadata has a key the schema does not know is refused, naming the key" {
+  later-release "${repo}.later"
+  printf 'description: "x"\ndependz:\n  - kit\n' > "${repo}.later/modules/lefthook/module.yml"
+  run "${repo}.later/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"modules/lefthook/module.yml has a key the kit does not know: dependz"* ]]
+  [ ! -e .kit/manifest ]
+  printf 'description: "x"\ndefault: yes\n' > "${repo}.later/modules/lefthook/module.yml"
+  run "${repo}.later/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"default must be true or false"* ]]
 }
 
 @test "a module delivering to a base the kit does not know is refused, naming the bases" {

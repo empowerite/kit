@@ -1,10 +1,11 @@
 # kit-ci.yml - the check the kit delivers: the repository's gate, the kit's own check, and the issue link
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# One job, CI, which is the check name a ruleset requires. Three steps: the repository's `just ci` when its
-# root justfile has one, `kit check` with the kit mise pins, and a refusal of a pull request not linked to an
-# open issue of this repository under Development. The last two run even when an earlier step refused, so one
-# run reports every finding.
+# One job, CI, which is the check name a ruleset requires. Each step is one kit command, so what the runner does
+# is what a desk can do: `kit gate` runs the root justfile's ci recipe and reports a missing one as a skip,
+# `kit check` holds every delivered file to the pinned release, and `kit linked` refuses a pull request not linked
+# to an open issue of this repository under Development. The last two run even when an earlier step refused, so
+# one run reports every finding.
 #
 # Delivered by kit, not edited by hand. A change is a new release, then kit update. Rendered from a template: the
 # job runs on the ci_runner answer, ubuntu-latest unless .kit/answers says otherwise.
@@ -25,7 +26,7 @@ permissions:
 jobs:
   CI:
     if: github.event.pull_request.base.ref == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     env:
       # mise reads mise.ci.toml on top of mise.toml: the tools only a runner runs.
       MISE_ENV: ci
@@ -35,117 +36,20 @@ jobs:
       # Every tool below comes from mise.toml, the kit included; this repository's mise.toml puts bin/ on PATH.
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
 
+      - name: kit-on-path
+        run: command -v kit >/dev/null || { echo '::error::kit is not on PATH; pin "github:empowerite/kit" in mise.toml'; exit 1; }
+
       - name: gate
-        run: |
-          set -o errexit -o nounset -o pipefail
-          # A missing recipe is a skip; a justfile that cannot be read is a failure, never a silent skip.
-          if [[ ! -f justfile ]]
-          then
-            echo "::warning::there is no root justfile, so the gate was skipped"
-            printf '⚠️ The gate was skipped: there is no root justfile.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
-          elif ! recipes=$(just --summary 2>&1)
-          then
-            echo "::error::the root justfile could not be read: ${recipes}"
-            printf '### ❌ The root justfile could not be read\n\n%s\n' "${recipes}" | tee --append "${GITHUB_STEP_SUMMARY}"
-            exit 1
-          elif ! tr ' ' '\n' <<< "${recipes}" | grep --quiet --line-regexp ci
-          then
-            echo "::warning::the root justfile has no ci recipe, so the gate was skipped"
-            printf '⚠️ The gate was skipped: the root justfile has no ci recipe.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
-          else
-            just ci
-            printf '✅ just ci passed.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
-          fi
+        run: kit gate
 
       - name: kit-check
         if: ${{ !cancelled() }}
-        run: |
-          set -o errexit -o nounset -o pipefail
-          if ! command -v kit >/dev/null 2>&1
-          then
-            echo '::error::kit is not on PATH; pin "github:empowerite/kit" in mise.toml'
-            printf '### ❌ kit is not on PATH\n\nPin the release in mise.toml under [tools]: "github:empowerite/kit" = "<version>".\n' \
-              | tee --append "${GITHUB_STEP_SUMMARY}"
-            exit 1
-          fi
-          kit check
-          printf '✅ Every delivered file matches the pinned kit release.\n' | tee --append "${GITHUB_STEP_SUMMARY}"
+        run: kit check
 
       - name: linked-open-issue
         if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -o errexit -o nounset -o pipefail
-
-          repo_slug="${GITHUB_REPOSITORY}"
-          pr=$(jq --raw-output '.pull_request.number' "${GITHUB_EVENT_PATH}")
-          pull="${GITHUB_SERVER_URL}/${repo_slug}/pull/${pr}"
-          run="${GITHUB_SERVER_URL}/${repo_slug}/actions/runs/${GITHUB_RUN_ID}"
-
-          remedy=$(cat <<REMEDY
-          Link an open issue of this repository under **Development** in [the sidebar](${pull}):
-
-          1. click the gear (⚙) beside **Development**
-          2. pick one or more open issues
-          3. [re-run this check](${run}): linking fires no event, so it does not re-run on its own
-
-          \`kit issue <N>\` makes this link when it starts the work.
-          REMEDY
-          )
-
-          refuse() {
-            echo "::error::$1"
-            printf '### ❌ %s\n\n%s\n' "${1^}" "${remedy}" | tee --append "${GITHUB_STEP_SUMMARY}"
-            return 1
-          }
-
-          query=$(cat <<'GRAPHQL'
-          query($owner: String!, $name: String!, $number: Int!) {
-            repository(owner: $owner, name: $name) {
-              pullRequest(number: $number) {
-                closingIssuesReferences(first: 100) {
-                  nodes { number state repository { nameWithOwner } }
-                }
-              }
-            }
-          }
-          GRAPHQL
-          )
-          refs=$(gh api graphql \
-            --field owner="${repo_slug%%/*}" \
-            --field name="${repo_slug#*/}" \
-            --field number="${pr}" \
-            --raw-field query="${query}" \
-            --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]
-                  | "\(.number) \(.state) \(.repository.nameWithOwner)"')
-
-          if [[ -z "${refs}" ]]
-          then
-            refuse 'this pull request is not linked to any issue'
-          else
-            open_local=0
-            while read -r n state repo
-            do
-              if [[ "${repo}" != "${repo_slug}" ]]
-              then
-                echo "::warning::skipping ${repo}#${n}: it belongs to another repository"
-                continue
-              fi
-              if [[ "${state}" != OPEN ]]
-              then
-                echo "::warning::${repo}#${n} is ${state}; merging will not change it"
-                continue
-              fi
-              open_local=$(( open_local + 1 ))
-            done <<< "${refs}"
-            if (( open_local == 0 ))
-            then
-              refuse 'every issue this pull request is linked to is closed or belongs to another repository'
-            else
-              closes=$(cut --delimiter=' ' --fields=1 <<< "${refs}" | sed 's/^/#/' | paste --serial --delimiters=' ')
-              printf '✅ Linked to %s.\n' "${closes}" | tee --append "${GITHUB_STEP_SUMMARY}"
-            fi
-          fi
+        run: kit linked
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -186,6 +186,59 @@ gh:link-secondaries() {
   fi
 }
 
+# gh:linked-open-issue <number> refuses pull request <number> unless it is linked, under Development, to an issue
+# of this repository that is open. A linked issue of another repository, or a closed one, is noted and does not
+# count. On a runner the remedy also lands in the step summary.
+gh:linked-open-issue() {
+  local number=$1 repo query refs n state issue_repo open=0 closes url remedy
+  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+  url=$(gh repo view --json url --jq .url)
+  remedy=$(printf '%s\n' \
+    "Link an open issue of this repository under **Development** in [the sidebar](${url}/pull/${number}):" "" \
+    "1. click the gear (⚙) beside **Development**" \
+    "2. pick one or more open issues" \
+    "3. re-run the check: linking fires no event, so it does not re-run on its own" "" \
+    "\`kit issue <N>\` makes this link when it starts the work.")
+  # shellcheck disable=SC2016  # GraphQL variables
+  query='query($owner: String!, $name: String!, $number: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $number) {
+        closingIssuesReferences(first: 100) { nodes { number state repository { nameWithOwner } } }
+      }
+    }
+  }'
+  refs=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --field number="${number}" \
+    --raw-field query="${query}" \
+    --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.number) \(.state) \(.repository.nameWithOwner)"')
+  if [[ -z "${refs}" ]]
+  then
+    error "pull request #${number} is not linked to any issue"
+    summary "### ❌ Pull request #${number} is not linked to any issue" "" "${remedy}"
+    return 1
+  fi
+  while read -r n state issue_repo
+  do
+    if [[ "${issue_repo}" != "${repo}" ]]
+    then
+      warn "skipping ${issue_repo}#${n}: it belongs to another repository"
+    elif [[ "${state}" != OPEN ]]
+    then
+      warn "#${n} is ${state}; merging will not change it"
+    else
+      open=$(( open + 1 ))
+    fi
+  done <<<"${refs}"
+  if (( open == 0 ))
+  then
+    error "every issue pull request #${number} is linked to is closed or belongs to another repository"
+    summary "### ❌ Every linked issue is closed or belongs to another repository" "" "${remedy}"
+    return 1
+  fi
+  closes=$(cut -d ' ' -f 1 <<<"${refs}" | sed 's/^/#/' | paste -s -d ' ' -)
+  ok "pull request #${number} is linked to ${closes}"
+  summary "✅ Linked to ${closes}."
+}
+
 gh:issue() {
   use git
   local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr

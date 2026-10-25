@@ -37,6 +37,11 @@ yaml:map() {
       gsub(/^"|"$/, "", v); print n "\t" v }'
 }
 
+# yaml:keys <file> prints the top-level keys, one per line.
+yaml:keys() {
+  yaml:read "$1" | awk '/^[A-Za-z_]+:/ { k = $0; sub(/:.*$/, "", k); print k }'
+}
+
 # yaml:read <file> prints the file's YAML: the frontmatter when the file opens with ---, the whole file otherwise.
 yaml:read() {
   [[ -f "$1" ]] || return 0
