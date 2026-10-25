@@ -57,11 +57,11 @@
   <rect class="box" x="736" y="40" width="280" height="250" fill="#ede9fe"/>
   <text class="h" x="752" y="68">The gate</text>
   <text class="d" x="752" y="92">The delivered CI job, on every pull request:</text>
-  <text class="m" x="752" y="118">just ci</text>
-  <text class="d" x="752" y="136">the repository's own gate</text>
+  <text class="m" x="752" y="118">kit gate</text>
+  <text class="d" x="752" y="136">the root justfile's ci recipe, or a skip said so</text>
   <text class="m" x="752" y="162">kit check</text>
   <text class="d" x="752" y="180">every delivered file matches the release</text>
-  <text class="m" x="752" y="206">linked-open-issue</text>
+  <text class="m" x="752" y="206">kit linked</text>
   <text class="d" x="752" y="224">refused without an open issue of this</text>
   <text class="d" x="752" y="240">repository under Development</text>
   <text class="d" x="752" y="268">On a desk, the pre-commit hook runs the</text>
