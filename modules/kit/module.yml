@@ -1,0 +1,6 @@
+# modules/kit/module.yml - the kit module: the entry every agent reads, the rules by file kind, and kit context
+# ----------------------------------------------------------------------------------------------------------------------
+# docs/modules.md says what each key means.
+
+description: "The entry every agent reads, the rules by file kind, and the context call that names them"
+default: true

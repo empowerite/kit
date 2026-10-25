@@ -1,6 +1,5 @@
-@.kit/1st.md
-
-Read .kit/1st.md first. It is the kit's entry file, and this repository uses its own kit.
+Read .kit/1st.md at the start of every session. It defines how any agent uses empowerite/kit to keep this
+repository trustworthy. This repository is the kit's own source, and uses it.
 
 ## This repository's own rules
 

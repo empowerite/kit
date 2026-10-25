@@ -21,6 +21,7 @@ esac
 release:require-manifest
 read -r -a active <<<"$(release:manifest-modules)"
 
+# shellcheck disable=SC2154  # release_bases is declared by bin/release.sh, which use loaded above
 case "${verb}" in
   (list)
     for module in $(release:modules)
@@ -29,7 +30,7 @@ case "${verb}" in
       then mark='✅'
       else mark='  '
       fi
-      printf '%s %-10s %s\n' "${mark}" "${module}" "$(release:field "${kit_root}" "${module}" description)"
+      printf '%s %-10s %s\n' "${mark}" "${module}" "$(release:description "${kit_root}" "${module}")"
     done
     ;;
   (add)
@@ -39,13 +40,17 @@ case "${verb}" in
     read -r -a wanted <<<"$(release:resolve "${kit_root}" "${active[@]}" "$@" | paste -s -d ' ' -)"
     release:render-all "${kit_root}" "${wanted[@]}"
     section "kit module add $*"
-    while IFS= read -r path
+    for base in "${release_bases[@]}"
     do
-      [[ -n "${path}" ]] || continue
-      step "${path}"
-      release:place "$(release:source-of "${kit_root}" "${path}" "${wanted[@]}")" "${path}"
-    done < <(release:paths-beyond "${kit_root}" "${active[*]}" "${wanted[*]}")
-    release:write-manifest "${wanted[@]}"
+      while IFS= read -r path
+      do
+        [[ -n "${path}" ]] || continue
+        dest=$(release:dest "${base}" "${path}")
+        step "${dest}"
+        release:place "$(release:source-of "${kit_root}" "${base}" "${path}" "${wanted[@]}")" "${dest}"
+      done < <(release:paths-beyond "${kit_root}" "${base}" "${active[*]}" "${wanted[*]}")
+    done
+    release:write-manifests "${wanted[@]}"
     ok "modules: ${wanted[*]}"
     ;;
   (remove)
@@ -70,12 +75,15 @@ case "${verb}" in
     done
     release:render-all "${kit_root}" "${active[@]}"
     section "kit module remove $*"
-    while IFS= read -r path
+    for base in "${release_bases[@]}"
     do
-      [[ -n "${path}" ]] || continue
-      release:unplace "$(release:source-of "${kit_root}" "${path}" "${active[@]}")" "${path}"
-    done < <(release:paths-beyond "${kit_root}" "${remaining[*]}" "${active[*]}")
-    release:write-manifest "${remaining[@]}"
+      while IFS= read -r path
+      do
+        [[ -n "${path}" ]] || continue
+        release:unplace "$(release:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" "$(release:dest "${base}" "${path}")"
+      done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
+    done
+    release:write-manifests "${remaining[@]}"
     ok "modules: ${remaining[*]:-none}"
 esac
 

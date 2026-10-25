@@ -12,22 +12,12 @@
 # additional context on stdout. It names, never quotes: reading the rule stays the agent's own act, one a hook on
 # Read can record. docs/context.md is the description.
 
+use yaml
 shopt -s extglob
 
-# context_log is where every ask is recorded, under the repository's git directory, shared by its worktrees.
+# context:log-path prints where every ask is recorded: under the repository's git directory, shared by its worktrees.
 context:log-path() {
   printf '%s/kit/context.log\n' "$(git rev-parse --path-format=absolute --git-common-dir)"
-}
-
-# context:frontmatter <file> <key> prints the items of the list under <key> in the file's frontmatter, unquoted.
-context:frontmatter() {
-  awk -v key="$2" '
-    NR == 1 && $0 != "---" { exit }
-    NR > 1 && $0 == "---" { exit }
-    $0 == key ":" { in_key = 1; next }
-    /^[a-z]+:/ { in_key = 0 }
-    in_key && /^  - / { item = $0; sub(/^  - /, "", item); gsub(/^"|"$/, "", item); print item }
-  ' "$1"
 }
 
 # context:relative <path> prints <path> relative to the repository root. A relative path is taken from the current
@@ -74,7 +64,7 @@ context:rules() {
         printf '%s\n' "${rule}"
         continue 2
       fi
-    done < <(context:frontmatter "${rule}" paths)
+    done < <(yaml:list "${rule}" paths)
     [[ -n "${first}" ]] || continue
     while IFS= read -r pattern
     do
@@ -84,7 +74,7 @@ context:rules() {
         printf '%s\n' "${rule}"
         continue 2
       fi
-    done < <(context:frontmatter "${rule}" content)
+    done < <(yaml:list "${rule}" content)
   done
 }
 

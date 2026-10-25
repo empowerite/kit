@@ -4,6 +4,8 @@
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home"
+  mkdir -p "${KIT_HOME}"
   work=$(mktemp -d)
   cd "${work}"
 }
@@ -24,7 +26,7 @@ teardown() {
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
   [ -x "unpacked/kit-${version}/bin/kit-install.sh" ]
-  [ -f "unpacked/kit-${version}/modules/claude/module" ]
+  [ -f "unpacked/kit-${version}/modules/claude/module.yml" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh
   run "${work}/unpacked/kit-${version}/bin/kit" install claude

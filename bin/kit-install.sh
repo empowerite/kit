@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# kit-install - mirror the release into the repository (kit verb)
+# kit-install - mirror the release into the repository, and into the home directory (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Activates the default modules and the named ones, with the modules they depend on, places what they deliver,
-# and writes .kit/manifest.
+# Activates the default modules and the named ones, with the modules they depend on, places what they deliver
+# under each base, and writes the manifests: .kit/manifest, and ~/.kit/manifest when a module delivers to home.
 #
 # see: bin/release.sh
 
@@ -29,12 +29,18 @@ read -r -a defaults <<<"$(release:default-modules "${kit_root}" | paste -s -d ' 
 read -r -a modules <<<"$(release:resolve "${kit_root}" "${defaults[@]}" "$@" | paste -s -d ' ' -)"
 release:render-all "${kit_root}" "${modules[@]}"
 section "kit install $(release:version), modules: ${modules[*]}"
-while IFS=$'\t' read -r path src
+# shellcheck disable=SC2154  # release_bases is declared by bin/release.sh, which use loaded above
+for base in "${release_bases[@]}"
 do
-  step "${path}"
-  release:place "${src}" "${path}"
-done < <(release:delivered "${kit_root}" "${modules[@]}")
-release:write-manifest "${modules[@]}"
+  while IFS=$'\t' read -r path src
+  do
+    [[ -n "${path}" ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    step "${dest}"
+    release:place "${src}" "${dest}"
+  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+done
+release:write-manifests "${modules[@]}"
 release:finish "${modules[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

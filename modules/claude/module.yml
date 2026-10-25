@@ -1,0 +1,7 @@
+# modules/claude/module.yml - the claude module: Claude Code's deny list and its hook into kit context
+# ----------------------------------------------------------------------------------------------------------------------
+# docs/modules.md says what each key means.
+
+description: "Claude Code: the deny list for the spellings the rules forbid, and the hook that names a file's rules before a write"
+depends:
+  - kit

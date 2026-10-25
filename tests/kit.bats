@@ -9,11 +9,14 @@ setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   repo=$(mktemp -d)
   git -C "${repo}" init --quiet --initial-branch=main
+  # a home directory of the test's own, so no test ever writes under the real one
+  export KIT_HOME="${repo}.home"
+  mkdir "${KIT_HOME}"
   cd "${repo}"
 }
 
 teardown() {
-  rm -rf "${repo}" "${repo}.later"
+  rm -rf "${repo}" "${repo}.later" "${repo}.home"
 }
 
 # later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
@@ -21,7 +24,7 @@ later-release() {
   mkdir -p "$1"
   cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "$1/"
   printf '9.9.9\n' > "$1/version"
-  printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/modules/kit/tree/.kit/rules/json.md"
+  printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/modules/kit/files/repo/.kit/rules/json.md"
 }
 
 @test "install with no module writes the default modules and nothing under .claude" {
@@ -49,6 +52,7 @@ later-release() {
   grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
+  [ "$(tail -n 1 .claude/CLAUDE.md)" = "@../AGENTS.md" ]
   [ ! -e .claude/rules ]
 }
 
@@ -74,6 +78,7 @@ later-release() {
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" module remove claude
   [ "$status" -eq 0 ]
+  [ ! -e .claude/CLAUDE.md ]
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny == ["Bash(rm -rf /)"]' .claude/settings.json >/dev/null
   jq --exit-status '.hooks == {"PreToolUse": []}' .claude/settings.json >/dev/null
@@ -103,11 +108,51 @@ later-release() {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   later-release "${repo}.later"
-  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/modules/ci/templates/OWNER"
+  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/modules/ci/templates/repo/OWNER"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"OWNER needs an answer for 'owner'"* ]]
   [ ! -e OWNER ]
+}
+
+@test "a module delivering to a base the kit does not know is refused, naming the bases" {
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/modules/kit/files/etc" && printf 'x\n' > "${repo}.later/modules/kit/files/etc/.x"
+  run "${repo}.later/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"modules/kit/files/etc names a base the kit does not deliver to; the bases are: repo home"* ]]
+  [ ! -e .kit/manifest ]
+}
+
+@test "a module delivering to home lands under it with a manifest of its own, and leaves with it" {
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/modules/claude/files/home/.kit" && printf 'user level\n' > "${repo}.later/modules/claude/files/home/.kit/claude"
+  run "${repo}.later/bin/kit" install claude
+  [ "$status" -eq 0 ]
+  [ "$(cat "${KIT_HOME}/.kit/claude")" = "user level" ]
+  grep --quiet '^version 9.9.9$' "${KIT_HOME}/.kit/manifest"
+  grep --quiet '  .kit/claude$' "${KIT_HOME}/.kit/manifest"
+  grep --quiet --invert-match 'claude$' .kit/manifest
+  run "${repo}.later/bin/kit" check
+  [ "$status" -eq 0 ]
+  printf 'edited\n' >> "${KIT_HOME}/.kit/claude"
+  run "${repo}.later/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"/.kit/claude differs"* ]]
+  run "${repo}.later/bin/kit" module remove claude
+  [ "$status" -eq 0 ]
+  [ ! -e "${KIT_HOME}/.kit/claude" ]
+  [ ! -e "${KIT_HOME}/.kit/manifest" ]
+}
+
+@test "check skips the home base where nothing was installed there, and says so" {
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/modules/kit/files/home/.kit" && printf 'x\n' > "${repo}.later/modules/kit/files/home/.kit/x"
+  "${repo}.later/bin/kit" install
+  rm -rf "${KIT_HOME}/.kit"
+  run "${repo}.later/bin/kit" check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"home: nothing is installed under ${KIT_HOME} on this machine"* ]]
 }
 
 @test "install keeps the repository's own settings keys and deny entries" {
@@ -158,7 +203,7 @@ later-release() {
   grep --quiet '^# JSON (ours)$' .kit/rules/json.md
   grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
   # the manifest carries the release's digest, so the edit still reads as an edit
-  release_digest=$(shasum -a 256 "${repo}.later/modules/kit/tree/.kit/rules/json.md" | cut -d ' ' -f 1)
+  release_digest=$(shasum -a 256 "${repo}.later/modules/kit/files/repo/.kit/rules/json.md" | cut -d ' ' -f 1)
   grep --quiet "^${release_digest}  .kit/rules/json.md$" .kit/manifest
   # and check names the one file that still differs from the release
   run "${repo}.later/bin/kit" check
@@ -170,7 +215,7 @@ later-release() {
 @test "update refuses a path new in the release where the repository already has a different file" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
-  printf 'new rule\n' > "${repo}.later/modules/kit/tree/.kit/rules/toml.md"
+  printf 'new rule\n' > "${repo}.later/modules/kit/files/repo/.kit/rules/toml.md"
   printf 'mine\n' > .kit/rules/toml.md
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
@@ -190,7 +235,7 @@ later-release() {
 @test "update leaves conflict markers and fails when the same lines changed" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
-  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${repo}.later/modules/kit/tree/.kit/rules/json.md" && rm "${repo}.later/modules/kit/tree/.kit/rules/json.md.bak"
+  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${repo}.later/modules/kit/files/repo/.kit/rules/json.md" && rm "${repo}.later/modules/kit/files/repo/.kit/rules/json.md.bak"
   sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]

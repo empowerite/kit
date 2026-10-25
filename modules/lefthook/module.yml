@@ -1,0 +1,8 @@
+# modules/lefthook/module.yml - the lefthook module: which linter runs over which paths before a commit
+# ----------------------------------------------------------------------------------------------------------------------
+# docs/modules.md says what each key means.
+
+description: "Which linter runs over which paths before a commit, for the repository's lefthook.yml to extend"
+default: true
+depends:
+  - kit

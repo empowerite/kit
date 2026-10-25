@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# kit-update - move the repository to the pinned release (kit verb)
+# kit-update - move the repository, and the home directory, to the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# A file whose digest still matches the manifest, which records the previous release's own content, is replaced.
+# A file whose digest still matches its manifest, which records the previous release's own content, is replaced.
 # An edited one is three-way merged with the previous release as the base, which release:fetch finds or fetches.
-# A path the previous release did not deliver is written only where the repository has nothing, or the same
-# thing, there. A template is rendered from the repository's answers in both releases before either is compared.
+# A path the previous release did not deliver is written only where there is nothing, or the same thing, there.
+# A template is rendered from the repository's answers in both releases before either is compared. The home base
+# is updated against ~/.kit/manifest the same way.
 #
 # see: bin/release.sh
 
@@ -44,57 +45,63 @@ needs_base=false
 [[ "${previous}" != "${current}" ]] && needs_base=true
 
 conflicts=0
-while IFS=$'\t' read -r path src
+# shellcheck disable=SC2154  # release_bases is declared by bin/release.sh, which use loaded above
+for base in "${release_bases[@]}"
 do
-  recorded=$(awk -v p="${path}" '$2 == p { print $1 }' .kit/manifest)
-  if [[ -z "${recorded}" ]]
-  then
-    # A path the previous release did not deliver: written where the repository has nothing, or the same thing.
-    if release:merged "${path}" || [[ ! -f "${path}" ]]
+  while IFS=$'\t' read -r path src
+  do
+    [[ -n "${path}" ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    recorded=$(release:recorded "${base}" "${path}")
+    if [[ -z "${recorded}" ]]
     then
-      step "${path}: new in ${current}, written"
-      release:place "${src}" "${path}"
-    elif cmp --silent "${src}" "${path}"
+      # A path the previous release did not deliver: written where there is nothing, or the same thing.
+      if release:merged "${dest}" || [[ ! -f "${dest}" ]]
+      then
+        step "${dest}: new in ${current}, written"
+        release:place "${src}" "${dest}"
+      elif cmp --silent "${src}" "${dest}"
+      then
+        step "${dest}: new in ${current}, and already as the release has it"
+      else
+        error "${dest} is new in ${current} and a file is there already; move yours aside, then run: kit update"
+        conflicts=$(( conflicts + 1 ))
+      fi
+      continue
+    fi
+    previous_src=""
+    [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")
+    if [[ "${needs_base}" == true && -z "${previous_src}" ]]
     then
-      step "${path}: new in ${current}, and already as the release has it"
+      # Without the base, neither a merge nor the removal of the previous release's entries is possible.
+      error "${dest} cannot be updated without the base release ${previous}; set KIT_BASE to a copy of it"
+      conflicts=$(( conflicts + 1 ))
+      continue
+    fi
+    if release:merged "${dest}"
+    then
+      step "${dest}: merged by key"
+      release:place "${src}" "${dest}" "${previous_src}"
+    elif [[ ! -f "${dest}" ]]
+    then
+      step "${dest}: missing, written"
+      release:place "${src}" "${dest}"
+    elif [[ "${recorded}" == "$(release:digest < "${dest}")" ]]
+    then
+      step "${dest}: unchanged since ${previous}, replaced"
+      release:place "${src}" "${dest}"
     else
-      error "${path} is new in ${current} and the repository has a file there; move yours aside, then run: kit update"
-      conflicts=$(( conflicts + 1 ))
+      step "${dest}: edited since ${previous}, three-way merged"
+      if ! git merge-file --marker-size 7 "${dest}" "${previous_src}" "${src}"
+      then
+        warn "${dest}: conflict markers are left in the file; resolve them, then run: kit check"
+        conflicts=$(( conflicts + 1 ))
+      fi
     fi
-    continue
-  fi
-  base=""
-  [[ -n "${base_root}" ]] && base=$(release:source-of "${base_root}" "${path}" "${modules[@]}")
-  if [[ "${needs_base}" == true && -z "${base}" ]]
-  then
-    # Without the base, neither a merge nor the removal of the previous release's entries is possible.
-    error "${path} cannot be updated without the base release ${previous}; set KIT_BASE to a copy of it"
-    conflicts=$(( conflicts + 1 ))
-    continue
-  fi
-  if release:merged "${path}"
-  then
-    step "${path}: merged by key"
-    release:place "${src}" "${path}" "${base}"
-  elif [[ ! -f "${path}" ]]
-  then
-    step "${path}: missing, written"
-    release:place "${src}" "${path}"
-  elif [[ "${recorded}" == "$(release:digest < "${path}")" ]]
-  then
-    step "${path}: unchanged since ${previous}, replaced"
-    release:place "${src}" "${path}"
-  else
-    step "${path}: edited since ${previous}, three-way merged"
-    if ! git merge-file --marker-size 7 "${path}" "${base}" "${src}"
-    then
-      warn "${path}: conflict markers are left in the file; resolve them, then run: kit check"
-      conflicts=$(( conflicts + 1 ))
-    fi
-  fi
-done < <(release:delivered "${kit_root}" "${modules[@]}")
+  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+done
 
-release:write-manifest "${modules[@]}"
+release:write-manifests "${modules[@]}"
 if (( conflicts > 0 ))
 then
   error "${conflicts} file(s) need a hand; see above."

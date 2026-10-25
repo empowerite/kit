@@ -4,6 +4,8 @@
 
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home"
+  mkdir -p "${KIT_HOME}"
   repo=$(mktemp -d)
   git -C "${repo}" init --quiet --initial-branch=main
   cd "${repo}"

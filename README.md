@@ -57,26 +57,26 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
 
 ## Take the kit
 
-In the repository, install it and point `AGENTS.md` at it:
+In the repository, install it and point `AGENTS.md` at it, in prose, the same sentence for every agent:
 
 ```sh
 kit install claude
 ```
 
 ```markdown
-@.kit/1st.md
-
-Read .kit/1st.md first.
+Read .kit/1st.md at the start of every session. It defines how any agent uses empowerite/kit to keep this
+repository trustworthy.
 ```
 
-The rest of `AGENTS.md` is yours. Everything the kit delivers is a module, and `install` activates the default
-ones, `kit`, `lefthook`, and `ci`, plus those named: `claude` is the adapter for Claude Code, and a repository
-with no adapter still binds every agent that reads `AGENTS.md`. Commit what it wrote, keep a `ci` recipe in the
-root justfile for the delivered `CI` job to run, and take the pre-commit linters by pinning `lefthook`, putting
-`extends: [.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit module list`,
-`kit module add`, and `kit module remove` show and change the set later, and [docs/modules.md](docs/modules.md)
-describes a module. An agent asks `kit context <path>` which rules govern a file before it creates or changes
-it; [docs/context.md](docs/context.md) describes the call and the Claude Code hook that makes it for the agent.
+The rest of `AGENTS.md` is yours. Everything the kit delivers is a module, and `install` activates the default ones,
+`kit`, `lefthook`, and `ci`, plus those named: `claude` is the adapter for Claude Code, which reads `CLAUDE.md` and
+not `AGENTS.md`, so the module places `.claude/CLAUDE.md` importing `AGENTS.md` and Claude reads what everyone else
+reads. A repository with no adapter still binds every agent that reads `AGENTS.md`. Commit what it wrote, keep a `ci`
+recipe in the root justfile for the delivered `CI` job to run, and take the pre-commit linters by pinning `lefthook`,
+putting `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and running `lefthook install` once per clone. `kit module
+list`, `kit module add`, and `kit module remove` show and change the set later, and [docs/modules.md](docs/modules.md)
+describes a module. An agent asks `kit context <path>` which rules govern a file before it creates or changes it;
+[docs/context.md](docs/context.md) describes the call and the Claude Code hook that makes it for the agent.
 
 To move to a new release, bump the pin or reinstall, then run `kit update`: a delivered file you left alone is
 replaced, one you edited is three-way merged with the previous release as the base, which `update` fetches from
@@ -120,8 +120,8 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 ## Maintaining
 
 This repository is both the source of the kit and a consumer of it. The release is the checkout: `modules/<name>/`
-is what a consumer activating that module gets, its `tree/` mirrored at the consumer's root and its `templates/`
-rendered from the consumer's answers first; `bin/` is the machinery, `bin/kit` dispatching to one executable
+is what a consumer activating that module gets, its `files/repo/` mirrored at the consumer's root and its
+`templates/repo/` rendered from the consumer's answers first; `bin/` is the machinery, `bin/kit` dispatching to one executable
 `bin/kit-<verb>.sh` per verb, each sourcing the bash modules beside it; and `docs/` with each module's `docs/` is
 the documentation. [docs/modules.md](docs/modules.md) is the module format.
 
@@ -129,10 +129,10 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/` | `modules/kit/tree/.kit/` |
-| `.kit/lefthook.yml` | `modules/lefthook/tree/.kit/lefthook.yml` |
-| `.github/workflows/kit-ci.yml` | `modules/ci/templates/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
-| `.claude/settings.json` | `modules/claude/tree/.claude/settings.json`, merged by key; here only the kit's entries |
+| `.kit/1st.md`, `.kit/rules/` | `modules/kit/files/repo/.kit/` |
+| `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
+| `.github/workflows/kit-ci.yml` | `modules/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
+| `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 
 A commit that changes a file under `modules/` rewrites the installed copies in the same commit: the

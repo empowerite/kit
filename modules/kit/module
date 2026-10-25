@@ -1,6 +1,0 @@
-# modules/kit/module - the kit module: the entry every agent reads, the rules by file kind, and kit context
-# ----------------------------------------------------------------------------------------------------------------------
-# One keyword per line. docs/modules.md says what each keyword means.
-
-description The entry every agent reads, the rules by file kind, and the context call that names them
-default
