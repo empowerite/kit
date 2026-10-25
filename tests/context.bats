@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# context.bats - kit context names a file's rules by path or by first line, logs the ask, and speaks Claude's hook
+# context.bats - kit context names a file's rules by path or by first line, logs the ask, and answers Claude's hook
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
@@ -8,8 +8,6 @@ setup() {
   git -C "${repo}" init --quiet --initial-branch=main
   cd "${repo}"
   "${kit_checkout}/bin/kit" install >/dev/null
-  export TMPDIR="${repo}/tmp"
-  mkdir "${TMPDIR}"
 }
 
 teardown() {
@@ -44,16 +42,13 @@ teardown() {
   [ "$(cut -f 2 .git/kit/context.log | paste -s -d ' ' -)" = "justfile README.md" ]
 }
 
-@test "the claude hook gives a rule's text once per session, then its path" {
+@test "the claude hook names the rules of the file about to be written, and nothing for a file none governs" {
   input='{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"'"${PWD}"'/lib/run.sh","content":""}}'
   run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
   [ "$status" -eq 0 ]
-  text=$(jq -r .hookSpecificOutput.additionalContext <<<"$output")
-  [[ "${text}" == "lib/run.sh is governed by .kit/rules/bash.md. Its text:"* ]]
-  [[ "${text}" == *"# Bash"* ]]
-  run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
-  text=$(jq -r .hookSpecificOutput.additionalContext <<<"$output")
-  [ "${text}" = "lib/run.sh is governed by .kit/rules/bash.md, which you have read this session." ]
+  [ "$(jq -r .hookSpecificOutput.hookEventName <<<"$output")" = "PreToolUse" ]
+  [ "$(jq -r .hookSpecificOutput.additionalContext <<<"$output")" = "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change." ]
+  [ "$(cut -f 2 .git/kit/context.log)" = "lib/run.sh" ]
   run "${kit_checkout}/bin/kit" context --claude <<<'{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"x.bin"}}'
   [ "$status" -eq 0 ]
   [ -z "$output" ]

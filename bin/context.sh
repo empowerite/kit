@@ -8,9 +8,9 @@
 # the first line of a file that exists, so a bash script with no extension is bash by its shebang. The rules are
 # discovered here and copied nowhere, which is what lets every harness, and every person, find them the same way.
 #
-# context:claude is the same answer in Claude Code's hook protocol: the hook input on stdin, the rules as
-# additional context on stdout. The first time a rule is named in a session its text is given; after that, its
-# path. docs/context.md is the description.
+# context:claude is the same answer in Claude Code's hook protocol: the hook input on stdin, the rules' paths as
+# additional context on stdout. It names, never quotes: reading the rule stays the agent's own act, one a hook on
+# Read can record. docs/context.md is the description.
 
 shopt -s extglob
 
@@ -139,30 +139,19 @@ context:render() {
 }
 
 # context:claude reads Claude Code's PreToolUse hook input on stdin and answers with the rules governing the file
-# the tool is about to write, as additional context: the rule's text the first time it is named in the session,
-# its path after that. A tool input with no file path, or a file no rule governs, gets no answer.
+# the tool is about to write, as additional context naming each rule's path. A tool input with no file path, or
+# a file no rule governs, gets no answer.
 context:claude() {
-  local input path session rule text='' given
+  local input path rules text=''
   input=$(cat)
   path=$(jq --raw-output '.tool_input.file_path // empty' <<<"${input}")
-  session=$(jq --raw-output '.session_id // "none"' <<<"${input}")
   [[ -n "${path}" ]] || return 0
   cd "$(git rev-parse --show-toplevel)" || return 0
   path=$(context:relative "${path}")
   context:log "${path}"
-  given="${TMPDIR:-/tmp}/kit-context-${session//[^A-Za-z0-9_-]/_}"
-  while IFS= read -r rule
-  do
-    [[ -n "${rule}" ]] || continue
-    if grep --quiet --line-regexp --fixed-strings "${rule}" "${given}" 2>/dev/null
-    then
-      text+="${path} is governed by ${rule}, which you have read this session."$'\n'
-    else
-      printf '%s\n' "${rule}" >> "${given}"
-      text+="${path} is governed by ${rule}. Its text:"$'\n\n'"$(cat "${rule}")"$'\n\n'
-    fi
-  done < <(context:rules "${path}")
-  [[ -n "${text}" ]] || return 0
+  rules=$(context:rules "${path}" | paste -s -d ' ' -)
+  [[ -n "${rules}" ]] || return 0
+  text="kit: ${path} is governed by ${rules}; read it before this change."
   jq --null-input --compact-output --arg text "${text}" \
     '{ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: $text } }'
 }

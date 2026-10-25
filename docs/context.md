@@ -43,8 +43,9 @@ kit context --claude
 ```
 
 It reads the hook's input on stdin, takes the file path from the tool's input, and answers in the hook's output
-with the rules as additional context: a rule's text the first time it is named in the session, its path after
-that. The session is told apart by the hook input's `session_id`, and what was given is kept under `TMPDIR`.
+with the rules' paths as additional context, the same answer the plain call prints. It names and never quotes, so
+reading the rule stays an act the agent takes, one a hook on `Read` can record and a check can compare against
+the context log. No state is kept between calls.
 
 A harness with no hook, and a person, use the plain call. `.kit/1st.md` names it as the step before any file is
 created or changed.
