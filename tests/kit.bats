@@ -272,19 +272,6 @@ later-release() {
   [ "$status" -eq 0 ]
 }
 
-@test "update reads a manifest written before modules existed as the default modules plus its targets" {
-  "${kit_checkout}/bin/kit" install claude
-  sed -i.bak 's/^modules .*$/targets claude/' .kit/manifest && rm .kit/manifest.bak
-  grep --quiet '^targets claude$' .kit/manifest
-  later-release "${repo}.later"
-  run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
-  [ "$status" -eq 0 ]
-  grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
-  jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
-  run "${repo}.later/bin/kit" check
-  [ "$status" -eq 0 ]
-}
-
 @test "update without the base release refuses an edited file and names the base" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"

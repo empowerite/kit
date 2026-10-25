@@ -493,19 +493,7 @@ release:write-manifests() {
 
 release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 
-# release:manifest-modules prints the active modules the repository's manifest records. A manifest written before
-# modules existed records targets instead, and reads as the default modules plus those targets, which is what that
-# release delivered.
-release:manifest-modules() {
-  if grep --quiet '^modules' .kit/manifest
-  then
-    sed -n 's/^modules *//p' .kit/manifest
-  else
-    # shellcheck disable=SC2046  # the names are meant to split
-    release:resolve "${kit_root}" $(release:default-modules "${kit_root}") $(sed -n 's/^targets *//p' .kit/manifest) \
-      | paste -s -d ' ' -
-  fi
-}
+release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest; }
 
 # release:manifest-paths <base> prints every path the base's manifest records.
 release:manifest-paths() {
