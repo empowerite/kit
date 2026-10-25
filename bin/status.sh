@@ -256,32 +256,59 @@ status:label() {
   fi
 }
 
-# status:paint-count <count> <sign> <sgr> prints <sign><count>, in <sgr> above zero and dim at zero.
+# status:paint-count <count> <sign> <sgr> <width> <side> prints <sign><count> padded to <width> characters on the
+# left or the right, in <sgr> above zero and dim at zero. The padding is by character, since the arrows are
+# multibyte and printf's field width counts bytes.
 status:paint-count() {
-  local count=$1 sign=$2 sgr=$3
+  local count=$1 sign=$2 sgr=$3 width=$4 side=$5 text pad=''
   (( count > 0 )) || sgr=90
-  status:paint "${sgr}" "${sign}${count}"
+  text="${sign}${count}"
+  (( ${#text} < width )) && printf -v pad '%*s' $(( width - ${#text} )) ''
+  if [[ "${side}" == right ]]
+  then
+    printf '%s%s' "${pad}" "$(status:paint "${sgr}" "${text}")"
+  else
+    printf '%s%s' "$(status:paint "${sgr}" "${text}")" "${pad}"
+  fi
 }
 
-# status:measures <checkout-json> prints "↑a ↓b · +x -y", and " · n uncommitted" in yellow when n is above zero.
+# status:measures <checkout-json> [<widths>] prints "↑a ↓b · +x -y", and " · n uncommitted" in yellow when n is
+# above zero. <widths> is status:count-widths' line; with it, ahead and added are right-aligned and behind and
+# removed left-aligned in columns of those widths, so the dots of every row fall under each other.
 status:measures() {
-  local ahead behind added removed uncommitted
+  local ahead behind added removed uncommitted ahead_w=0 behind_w=0 added_w=0 removed_w=0
   IFS=$'\t' read -r ahead behind added removed uncommitted \
     < <(jq --raw-output '[.ahead, .behind, .added, .removed, .uncommitted] | @tsv' <<<"$1")
-  printf '%s %s · %s %s' "$(status:paint-count "${ahead}" '↑' '1;32')" "$(status:paint-count "${behind}" '↓' '1;31')" \
-    "$(status:paint-count "${added}" '+' '1;32')" "$(status:paint-count "${removed}" '-' '1;31')"
+  [[ -n "${2:-}" ]] && IFS=' ' read -r ahead_w behind_w added_w removed_w <<<"$2"
+  # The last column is padded only when something follows it, so no row ends in blanks.
+  (( uncommitted > 0 )) || removed_w=0
+  printf '%s %s · %s %s' \
+    "$(status:paint-count "${ahead}" '↑' '1;32' "${ahead_w}" right)" \
+    "$(status:paint-count "${behind}" '↓' '1;31' "${behind_w}" left)" \
+    "$(status:paint-count "${added}" '+' '1;32' "${added_w}" right)" \
+    "$(status:paint-count "${removed}" '-' '1;31' "${removed_w}" left)"
   (( uncommitted > 0 )) && printf ' · %s' "$(status:paint 33 "${uncommitted} uncommitted")"
   return 0
 }
 
-# status:checkout-block <glyph> <checkout-json> <label-width> prints a checkout: its row, then its commits, dim
-# hash and subject. Past status_commit_cap it prints the newest, a dim count of the hidden, and the oldest.
+# status:count-widths <checkout-json>… prints the widest "↑a", "↓b", "+x", and "-y" across the checkouts, as four
+# numbers on one line.
+status:count-widths() {
+  printf '%s\n' "$@" | jq --raw-output --slurp '
+    [ (map(.ahead) | max), (map(.behind) | max), (map(.added) | max), (map(.removed) | max) ]
+    | map(tostring | length + 1) | join(" ")'
+}
+
+# status:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout: its row, with the
+# counts in status:count-widths' columns, then its commits, dim hash and subject. Past status_commit_cap it prints
+# the newest, a dim count of the hidden, and the oldest.
 status:checkout-block() {
-  local glyph=$1 doc=$2 label_w=$3 relative branch label width mark='' sha subject
+  local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
   IFS=$'\t' read -r label width < <(status:label "${relative}" "${branch}")
   [[ -n "${branch}" ]] || mark="   $(status:paint 33 '❗ detached HEAD')"
-  printf '%s %s%*s%s   %s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" "$(status:measures "${doc}")" >&2
+  printf '%s %s%*s%s   %s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" \
+    "$(status:measures "${doc}" "${widths}")" >&2
   while IFS=$'\t' read -r sha subject
   do
     [[ -n "${sha}" ]] || continue
@@ -403,11 +430,13 @@ status:render() {
   (( width < 20 )) && width=20
   (( title_w > width )) && title_w=${width}
 
-  status:checkout-block '🏠' "${desk}" "${label_w}"
+  local widths
+  widths=$(status:count-widths "${desk}" "${worktrees[@]}")
+  status:checkout-block '🏠' "${desk}" "${label_w}" "${widths}"
   for doc in "${worktrees[@]}"
   do
     printf '\n' >&2
-    status:checkout-block '🌿' "${doc}" "${label_w}"
+    status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
   done
   while IFS= read -r doc
   do

@@ -84,6 +84,17 @@ commits-in() {
   [ "$output" = "🌿 worktrees/loose   ❗ detached HEAD   ↑0 ↓0 · +0 -0" ]
 }
 
+@test "the counts of every checkout sit in columns, ahead and added right-aligned, behind and removed left-aligned" {
+  one=$(jq -nc '{ahead: 1, behind: 22, added: 3, removed: 4444, uncommitted: 0}')
+  two=$(jq -nc '{ahead: 100, behind: 2, added: 30000, removed: 4, uncommitted: 2}')
+  widths=$(in_status status:count-widths "${one}" "${two}")
+  [ "${widths}" = "4 3 6 5" ]
+  run in_status status:measures "${one}" "${widths}"
+  [ "$output" = "  ↑1 ↓22 ·     +3 -4444" ]
+  run in_status status:measures "${two}" "${widths}"
+  [ "$output" = "↑100 ↓2  · +30000 -4    · 2 uncommitted" ]
+}
+
 @test "a label is the path when the branch ends it, the branch at the current directory, or branch on path" {
   run in_status status:label worktrees/topic topic
   [ "$output" = "$(printf 'worktrees/topic\t15')" ]
