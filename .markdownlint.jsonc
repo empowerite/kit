@@ -5,7 +5,7 @@
 // rule is tightened where the default is looser than the convention.
 //
 // see: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
-// see: tree/.kit/rules/markdown.md
+// see: modules/kit/files/repo/.kit/rules/markdown.md
 {
   // MD003 heading-style, tightened: the markdown rule says ATX, and "consistent" would accept a setext file.
   "MD003": { "style": "atx" },

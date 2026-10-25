@@ -60,7 +60,7 @@ release's entries are taken out, so a repository's own keys and entries survive.
 Where two active modules deliver the same path, the later module in dependency order wins.
 
 A file under `templates/<base>/` is rendered first. Every `@key@` in it, autoconf's form, is replaced by the key's
-answer, then the result is placed, digested, and merged exactly as a `tree/` file is. The form is one neither
+answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither
 bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may carry both untouched. The repository's
 answers live in `.kit/answers`, a file of `key value` lines the repository owns and the kit never writes; a key
 with no line there takes the module's `answer` default, and a key with neither refuses the install, naming the key

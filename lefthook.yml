@@ -20,5 +20,5 @@ pre-commit:
     # the index, so nobody remembers just refresh. The recipe stages what it rewrote; stage_fixed would re-stage
     # only the source paths it was handed.
     refresh:
-      glob: "{tree,targets}/**"
+      glob: "modules/**"
       run: just refresh

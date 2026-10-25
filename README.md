@@ -26,7 +26,7 @@ ones, in its own files, and survive every update.
 
 ## Install
 
-The `kit` command is a release: a tarball holding `bin/`, `tree/`, and `targets/`. Take it whichever way the
+The `kit` command is a release: a tarball holding `bin/`, `modules/`, and a stamped `version`. Take it whichever way the
 repository takes its other tools.
 
 With mise, pin it in `mise.toml` and the version is part of the repository:
@@ -149,7 +149,7 @@ delivered by kit; `settings.json` cannot, so this table is its notice.
 A release is the tag `v<version>` on a commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`,
 say `v0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a GitHub pre-release. The tag is the
 version: the repository carries no version file, the workflow stamps the tag's version into the packed kit, and a
-published release is immutable, so a tag is never reused. The workflow packs `bin/`, `tree/`, and `targets/` into
+published release is immutable, so a tag is never reused. The workflow packs `bin/`, `modules/`, and `version` into
 `kit-<version>.tar.gz` and publishes the release; it refuses a tag that is not a version, a release tag off
 `main`, and a pre-release tag on `main`. A release is permanent. A pre-release is retired, tag and all, when the
 branch it was tagged on is deleted and no other branch reaches its commit.
