@@ -50,6 +50,8 @@ usage: kit <verb> [<argument>…]
                         the desk, the worktrees, and the open pull requests
   lint [--all-files] [<path>…]
                         run each rule's linter over the paths it governs: staged, named, or every tracked one
+  release <verify|pack|publish|retire> …
+                        the kit's own release: verify a tag, pack a checkout, publish it, retire pre-releases
   version               print this release's version
 
 Each verb answers --help.

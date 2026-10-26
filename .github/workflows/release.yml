@@ -1,16 +1,13 @@
 # release.yml - a tag v<version> on main becomes a GitHub release carrying the kit as one tarball
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The tarball is kit-<version>.tar.gz, holding one directory kit-<version>/ with bin/, modules/, and a stamped
-# version, the layout a consumer's mise unpacks and puts on PATH. Only a version tag starts a run. A
-# release, v<major>.<minor>.<patch>, is tagged on main, any commit on main and not only its head. A pre-release,
-# the same with a -<suffix>, is tagged on a commit that is not on main and is published as a GitHub pre-release.
-# The tag is the version: the repository carries no version file, and the one in the packed kit is stamped here
-# from the tag, so a consumer sees it in kit version and .kit/manifest, and kit update can name the previous
-# release to mise. A published release is immutable, so a tag is never reused. A pre-release lives as long as
-# the branch it was tagged on; see: .github/workflows/retire-pre-releases.yml
+# Two steps, each one kit command, so a desk can run the same: `kit release verify` holds the tag to its shape and
+# its side of main, and `kit release publish` packs this checkout as kit-<version>.tar.gz with the tag's version
+# stamped in and publishes it, as a pre-release where the version has a suffix. Only a version tag starts a run.
+# A published release is immutable, so a tag is never reused; a pre-release lives as long as the branch it was
+# tagged on. see: .github/workflows/retire-pre-releases.yml
 #
-# see: .kit/1st.md
+# see: bin/kit-release.sh
 
 name: release
 
@@ -29,62 +26,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: tag-is-a-version
-        run: |
-          set -o errexit -o nounset -o pipefail
-          tag_version=${GITHUB_REF_NAME#v}
-          refuse() {
-            echo "::error::$1"
-            printf '### ❌ %s\n' "$1" | tee --append "${GITHUB_STEP_SUMMARY}"
-            exit 1
-          }
-          if [[ ! "${tag_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
-          then
-            refuse "${GITHUB_REF_NAME} is not a version tag: v<major>.<minor>.<patch>, -<suffix> for a pre-release"
-          fi
-          echo "✅ ${GITHUB_REF_NAME} is a version tag."
+      - name: verify
+        run: bin/kit release verify "${GITHUB_REF_NAME}"
 
-      - name: tag-is-on-the-right-side-of-main
-        run: |
-          set -o errexit -o nounset -o pipefail
-          tag_version=${GITHUB_REF_NAME#v}
-          default_branch=$(jq --raw-output '.repository.default_branch' "${GITHUB_EVENT_PATH}")
-          on_main=false
-          git merge-base --is-ancestor "${GITHUB_SHA}" "origin/${default_branch}" && on_main=true
-          refuse() {
-            echo "::error::$1"
-            printf '### ❌ %s\n' "$1" | tee --append "${GITHUB_STEP_SUMMARY}"
-            exit 1
-          }
-          if [[ "${tag_version}" == *-* && "${on_main}" == true ]]
-          then
-            refuse "${GITHUB_REF_NAME} is a pre-release tag on ${default_branch}; tag a pre-release on a branch commit"
-          fi
-          if [[ "${tag_version}" != *-* && "${on_main}" == false ]]
-          then
-            refuse "${GITHUB_REF_NAME} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
-          fi
-          echo "✅ ${GITHUB_REF_NAME} is on the right side of ${default_branch} (on it: ${on_main})."
-
-      - name: pack-and-release
+      - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -o errexit -o nounset -o pipefail
-          version=${GITHUB_REF_NAME#v}
-          staging=$(mktemp --directory)
-          mkdir "${staging}/kit-${version}"
-          cp --recursive --no-dereference bin modules "${staging}/kit-${version}/"
-          # the packed kit's version is the tag's, suffix included
-          printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
-          tar --create --gzip --file "kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
-          sha256sum "kit-${version}.tar.gz" > "kit-${version}.tar.gz.sha256"
-          notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    "github:empowerite/kit" = "%s"\n\n' "${version}"
-            printf 'Then, in the repository: kit install\n')
-          flags=()
-          [[ "${version}" == *-* ]] && flags+=(--prerelease)
-          gh release create "${GITHUB_REF_NAME}" "kit-${version}.tar.gz" "kit-${version}.tar.gz.sha256" \
-            --title "kit ${version}" --notes "${notes}" "${flags[@]}"
-          printf '✅ Released kit %s.\n' "${version}" | tee --append "${GITHUB_STEP_SUMMARY}"
+        run: bin/kit release publish "${GITHUB_REF_NAME}"
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -161,10 +161,11 @@ copy that does not match its source. Each delivered text file says in its header
 A release is the tag `v<version>` on a commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`,
 say `v0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a GitHub pre-release. The tag is the
 version: the repository carries no version file, the workflow stamps the tag's version into the packed kit, and a
-published release is immutable, so a tag is never reused. The workflow packs `bin/`, `modules/`, and `version` into
-`kit-<version>.tar.gz` and publishes the release; it refuses a tag that is not a version, a release tag off
-`main`, and a pre-release tag on `main`. A release is permanent. A pre-release is retired, tag and all, when the
-branch it was tagged on is deleted and no other branch reaches its commit.
+published release is immutable, so a tag is never reused. The workflow is two kit commands: `kit release verify`,
+which refuses a tag that is not a version, a release tag off `main`, and a pre-release tag on `main`; and `kit release
+publish`, which packs `bin/`, `modules/`, and `version` into `kit-<version>.tar.gz` and publishes the release. `kit
+release pack` makes the same tarball on a desk. A release is permanent. A pre-release is retired, tag and all, when
+the branch it was tagged on is deleted and no other branch reaches its commit.
 
 The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure), under
 `terraform/projects/kit`.
