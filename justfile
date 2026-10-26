@@ -20,18 +20,18 @@ _: help
 
 set export := true
 
-# The gate: kit lint over every tracked path, each rule's own linter, every module.yml against
-# modules/module.schema.json, the bats suite, and bin/kit check over this repository's installed copy of its own
-# kit. The runner runs it on every pull request, and a desk runs it the
+# The gate: kit lint over every tracked path, each rule's own linter, every module.yml and .kit/settings.yml
+# against their schemas, the bats suite, and bin/kit check over this repository's installed copy of its own kit. The runner runs it on every pull request, and a desk runs it the
 # same way; the pre-commit hook is the narrower, faster check over the staged paths.
 #
 #   just ci
-[doc("🚦 The gate: kit lint, the module schema, bats, kit check")]
+[doc("🚦 The gate: kit lint, the schemas, bats, kit check")]
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
   mise exec -- bin/kit lint --all-files
   mise exec -- ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
+  mise exec -- ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
   mise exec -- bats --print-output-on-failure tests/
   bin/kit check
   echo "✅ ci passed"

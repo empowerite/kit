@@ -141,7 +141,7 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/` | `modules/kit/files/repo/.kit/` |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `modules/kit/files/repo/.kit/` |
 | `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
 | `.claude/CLAUDE.md` | `modules/claude/files/repo/.claude/CLAUDE.md` |

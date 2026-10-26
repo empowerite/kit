@@ -221,6 +221,37 @@ release:validate() {
   done
 }
 
+# release:validate-settings refuses a settings file the schema would refuse, as far as bash can tell: a key the
+# kit does not know, a require_signing that is not true or false, an answer key outside [a-z_]. The gate
+# validates this repository's against .kit/settings.schema.json in full; the schema is delivered so an editor
+# can do the same anywhere.
+release:validate-settings() {
+  local settings key value
+  settings=$(release:settings)
+  [[ -f "${settings}" ]] || return 0
+  for key in $(yaml:keys "${settings}")
+  do
+    case "${key}" in
+      (forge | gate | require_signing | answers) ;;
+      (*)
+        error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
+        return 1
+    esac
+  done
+  value=$(yaml:value "${settings}" require_signing)
+  if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
+  then
+    error "${settings}: require_signing must be true or false, not '${value}'"
+    return 1
+  fi
+  while IFS=$'\t' read -r key value
+  do
+    [[ -z "${key}" || "${key}" =~ ^[a-z_]+$ ]] && continue
+    error "${settings}: the answer key '${key}' is not letters and underscores, as a template's @key@ must be"
+    return 1
+  done < <(yaml:map "${settings}" answers)
+}
+
 # release:answers <root> <module> prints "<key>\t<value>" for every answer the module's templates may use: the
 # module's defaults under its answers:, each overridden by the repository's, under answers: in .kit/settings.yml.
 release:answers() {
@@ -283,6 +314,7 @@ release:render() {
 release:render-all() {
   local root=$1 module kind base
   shift
+  release:validate-settings || return 1
   release:require-modules "${root}" "$@" || return 2
   for module in $(release:modules "${root}")
   do

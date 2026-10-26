@@ -217,6 +217,21 @@ later-release() {
   [ -f .kit/modules/python/module.yml ]
 }
 
+@test "the settings file is held to its schema: an unknown key and a non-boolean require_signing are refused" {
+  mkdir .kit && printf 'forgery: github\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/settings.yml has a key the kit does not know: forgery (see .kit/settings.schema.json)"* ]]
+  printf 'require_signing: yes\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"require_signing must be true or false"* ]]
+  printf 'require_signing: false\nanswers:\n  ci_runner: x\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ -f .kit/settings.schema.json ]
+}
+
 @test "a module the repository defines is validated like a delivered one" {
   mkdir -p .kit/modules/odd && printf 'description: "x"\ndependz:\n  - kit\n' > .kit/modules/odd/module.yml
   run "${kit_checkout}/bin/kit" install

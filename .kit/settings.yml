@@ -1,1 +1,2 @@
+# yaml-language-server: $schema=settings.schema.json
 require_signing: true

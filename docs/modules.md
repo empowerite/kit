@@ -80,7 +80,11 @@ The same YAML subset is what a rule's frontmatter is written in, read by `bin/ya
 
 ## Settings
 
-`.kit/settings.yml` is the repository's, read by the kit and never written by it, in the same YAML subset:
+`.kit/settings.yml` is the repository's, read by the kit and never written by it, in the same YAML subset.
+[settings.schema.json](../modules/kit/files/repo/.kit/settings.schema.json) is its schema, delivered beside it as
+`.kit/settings.schema.json`, so an editor validates the file through the modeline
+`# yaml-language-server: $schema=settings.schema.json`; the kit holds the file to the schema's main points before
+every install, update, and check, naming an unknown key.
 
 ```yaml
 answers:
@@ -116,7 +120,7 @@ base. A rule file it places under `.kit/rules/` is found by `kit context` like a
 
 | Module | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`; regions in `AGENTS.md` and `.gitignore` |
+| `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
 | `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` |
 | `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |

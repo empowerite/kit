@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
+  "title": ".kit/settings.yml",
+  "description": "The repository's choices, read by the kit and never written by it. Delivered by kit, not edited by hand; docs/modules.md says what each key means. An editor validates the file against it through a modeline: # yaml-language-server: $schema=settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "forge": {
+      "type": "string",
+      "enum": ["github"],
+      "description": "The provider the loop's verbs use. Detected from origin's host when absent."
+    },
+    "gate": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What kit gate runs. A justfile ci recipe, a Makefile ci target, or a package.json ci script is detected when absent."
+    },
+    "require_signing": {
+      "type": "boolean",
+      "description": "true makes kit issue refuse a desk without a signing key."
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "string",
+          "description": "The value a module's template takes for this key, written @key@ in the template."
+        }
+      }
+    }
+  }
+}
