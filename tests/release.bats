@@ -15,7 +15,7 @@ teardown() {
 }
 
 @test "verify holds a tag to its shape and its side of the default branch" {
-  git init --quiet --bare origin.git && git clone --quiet origin.git desk 2>/dev/null && cd desk
+  git init --quiet --bare --initial-branch=main origin.git && git clone --quiet origin.git desk 2>/dev/null && cd desk
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
   git remote set-head origin main
