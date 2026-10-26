@@ -32,7 +32,7 @@ bases listed. `KIT_HOME` stands in for the home directory, which is how the test
 A line starting with `#` is a comment.
 
 ```yaml
-description: "One CI job: the repository's gate, kit check, and the linked-open-issue refusal"
+description: "One GitHub Actions job that runs kit ci"
 default: true
 depends:
   - kit
@@ -104,7 +104,7 @@ base. A rule file it places under `.kit/rules/` is found by `kit context` like a
 | --- | --- | --- | --- |
 | `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md` |
 | `lefthook` | no | `kit` | `.kit/lefthook.yml` |
-| `ci` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template; answer `ci_runner` |
+| `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 
 No module in this release delivers to `home`. Each module's `docs/README.md` says what it places and why.

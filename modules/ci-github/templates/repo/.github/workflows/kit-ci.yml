@@ -1,0 +1,59 @@
+# kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# One job, CI, which is the check name a ruleset requires, run for a pull request into the default branch. It
+# takes the kit release .kit/manifest names from its public URL, or this checkout's own bin/ where the manifest
+# says unreleased, and runs `kit ci`: the gate, `kit check`, and `kit linked`, every one reported. mise is used
+# only where the repository has a mise.toml, so the gate's own tools come from wherever the repository pins them.
+#
+# Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner
+# answer, from answers: in .kit/settings.yml.
+#
+# see: .kit/1st.md
+
+name: kit
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  CI:
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: "@ci_runner@"
+    env:
+      # mise reads mise.ci.toml on top of mise.toml: the tools only a runner runs.
+      MISE_ENV: ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+        if: ${{ hashFiles('mise.toml') != '' }}
+
+      - name: kit-on-path
+        run: |
+          set -o errexit -o nounset -o pipefail
+          version=$(sed -n 's/^version //p' .kit/manifest)
+          if [[ "${version}" == unreleased && -x bin/kit ]]
+          then
+            printf '%s/bin\n' "${PWD}" >> "${GITHUB_PATH}"
+          elif ! command -v kit >/dev/null
+          then
+            mkdir -p "${RUNNER_TEMP}/kit"
+            curl --fail --silent --location \
+              "https://github.com/empowerite/kit/releases/download/v${version}/kit-${version}.tar.gz" \
+              | tar --extract --gzip --directory "${RUNNER_TEMP}/kit" --strip-components 1
+            printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+          fi
+
+      - name: kit-ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: kit ci
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -8,8 +8,8 @@ the checks that hold agents to them, as a versioned release any repository can t
 
 The rules are the smaller part. The point is verification that does not depend on anyone's word:
 
-- a delivered CI job that refuses a pull request without a linked open issue, and refuses to pass a gate that did
-  not run;
+- `kit ci`, which refuses a pull request without a linked open issue and refuses to pass a gate that did not
+  run, from the delivered GitHub Actions job or from any pipeline;
 - `kit check`, which holds every delivered file to its release;
 - a pre-commit hook that runs the linters over what is staged;
 - a deny list that refuses the spellings the rules forbid;
@@ -63,8 +63,9 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
 ## Take the kit
 
 - In the repository, run `kit install` with the modules it should take. `kit`, the entry file and the rules, is
-  always in; `ci` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the Claude Code
-  adapter. `kit install ci lefthook claude` takes all three, and `kit module add` takes one later.
+  always in; `ci-github` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the
+  Claude Code adapter. `kit install ci-github lefthook claude` takes all three, and `kit module add` takes one
+  later.
 - Point `AGENTS.md` at the entry file, in prose, the same sentence for every agent:
 
   ```markdown
@@ -74,7 +75,9 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
 
   The rest of `AGENTS.md` is yours.
 - Commit what `install` wrote.
-- Keep a `ci` recipe in the root justfile. The delivered `CI` job runs it and refuses when there is none.
+- Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
+  or any command as `gate` in `.kit/settings.yml`. `kit ci` runs it, with `kit check` and `kit linked`, from the
+  delivered workflow or from any pipeline of your own, and refuses when there is none.
 - Take the pre-commit linters: pin `lefthook`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run
   `lefthook install` once per clone.
 
@@ -142,7 +145,7 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | --- | --- |
 | `.kit/1st.md`, `.kit/rules/` | `modules/kit/files/repo/.kit/` |
 | `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
-| `.github/workflows/kit-ci.yml` | `modules/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
+| `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
 | `.claude/CLAUDE.md` | `modules/claude/files/repo/.claude/CLAUDE.md` |
 | `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |

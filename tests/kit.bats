@@ -48,9 +48,9 @@ later-release() {
   [ ! -e .claude ]
   grep --quiet '^version unreleased$' .kit/manifest
   grep --quiet '^modules kit$' .kit/manifest
-  run "${kit_checkout}/bin/kit" install ci
+  run "${kit_checkout}/bin/kit" install ci-github
   [ "$status" -eq 1 ]
-  run "${kit_checkout}/bin/kit" module add ci
+  run "${kit_checkout}/bin/kit" module add ci-github
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
@@ -74,7 +74,7 @@ later-release() {
 @test "install refuses a module this release does not know and names the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"the modules are: ci claude kit lefthook"* ]]
+  [[ "$output" == *"the modules are: ci-github claude kit lefthook"* ]]
   [ ! -e .kit/manifest ]
 }
 
@@ -103,12 +103,12 @@ later-release() {
 }
 
 @test "module remove refuses a module another active module depends on, and removes a leaf" {
-  "${kit_checkout}/bin/kit" install claude ci
+  "${kit_checkout}/bin/kit" install claude ci-github
   run "${kit_checkout}/bin/kit" module remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]
   [ -f .kit/1st.md ]
-  run "${kit_checkout}/bin/kit" module remove ci
+  run "${kit_checkout}/bin/kit" module remove ci-github
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
   grep --quiet '^modules kit claude$' .kit/manifest
@@ -116,14 +116,14 @@ later-release() {
 
 @test "a template takes the repository's answer over the module's default, and refuses a key with neither" {
   mkdir .kit && printf 'answers:\n  ci_runner: blacksmith-2vcpu\n' > .kit/settings.yml
-  run "${kit_checkout}/bin/kit" install ci
+  run "${kit_checkout}/bin/kit" install ci-github
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "blacksmith-2vcpu"$' .github/workflows/kit-ci.yml
   grep --quiet 'uses: actions/checkout@' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   later-release "${repo}.later"
-  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/modules/ci/templates/repo/OWNER"
+  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/modules/ci-github/templates/repo/OWNER"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"OWNER needs an answer for 'owner'"* ]]
@@ -388,7 +388,7 @@ later-release() {
 
 @test "module remove judges dependents against what stays, in any order" {
   "${kit_checkout}/bin/kit" install claude
-  run "${kit_checkout}/bin/kit" module remove kit ci lefthook claude
+  run "${kit_checkout}/bin/kit" module remove kit lefthook claude
   [ "$status" -eq 0 ]
   grep --quiet '^modules$' .kit/manifest
   [ ! -e .kit/1st.md ]

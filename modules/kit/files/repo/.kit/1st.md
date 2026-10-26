@@ -90,7 +90,7 @@ The repository carries the text: this file, the rules under `.kit/rules/`, and `
 release version, the active modules, and a checksum per delivered file. The release, where it is installed,
 carries the machinery, reached through the `kit` command on `PATH`: the loop's commands, `kit issue`, `kit rebase`,
 `kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled that way and no other. Everything the release
-delivers is a module, and a repository activates the modules it takes: `kit install ci lefthook claude`, or
+delivers is a module, and a repository activates the modules it takes: `kit install ci-github lefthook claude`, or
 `kit module add claude` later, and `kit module remove` to take one back out; a module of the repository's own
 lives under `.kit/modules/` and is taken the same way. A `.json` destination is merged by key, the kit owning
 only the entries it writes; everything else is copied as it is.
@@ -98,8 +98,9 @@ only the entries it writes; everything else is copied as it is.
 - `kit`: this file and the rules, discovered through `kit context`.
 - `lefthook`: `.kit/lefthook.yml`, which linter runs over which paths before a commit on a desk. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
-- `ci`: `.github/workflows/kit-ci.yml`, one `CI` job that runs the repository's `just ci`, runs `kit check`, and
-  refuses a pull request not linked to an open issue.
+- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that runs `kit ci`: the repository's gate,
+  `kit check`, and the refusal of a pull request not linked to an open issue. `kit ci` runs the same three
+  anywhere.
 - `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: `.claude/CLAUDE.md`
   importing `AGENTS.md`, so it is read in every case; the deny list above merged into `.claude/settings.json`; and
   a hook that runs `kit context` before every write so the rules are named to the agent without being asked for.

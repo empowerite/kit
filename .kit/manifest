@@ -1,10 +1,10 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-modules kit ci claude lefthook
+modules kit ci-github claude lefthook
 930488befed8ab56355d33f55032b5e7bc6d57a1c0ee867b51d9495cdec9f3cd  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
-1514237751977c53841fa424cf75ffc5efa1bbc5f99d8af2fea13fa5009b169a  .github/workflows/kit-ci.yml
-c3d44271cc463c355fbb487a86531e45ad24b8284728800c7f54869868c18551  .kit/1st.md
+24b66b6015ccf244245373009b35fc9610c52dc16d88ab6c842f21d116c74f02  .github/workflows/kit-ci.yml
+93c975792f902ea5439c062543711681468538ce837d924e4c49e730d37e8382  .kit/1st.md
 953e2f7c9804ca39922ca1ccb3f9b136b0283d56a200dcebfbbce594e9102faa  .kit/lefthook.yml
 8c512e3f5951b5263c140500fb2494c45f92394b44ec643cc8d6475736f5ab11  .kit/rules/bash.md
 17890b40f40e1e4181ce8293d2c88fefc513cd5613a8a3b7e0766132571532c2  .kit/rules/gitignore.md

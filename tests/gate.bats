@@ -15,18 +15,36 @@ teardown() {
   rm -rf "${repo}"
 }
 
-@test "no justfile is refused, naming the remedy" {
+@test "no gate is refused, naming the remedy" {
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add a root justfile with a ci recipe"* ]]
+  [[ "$output" == *"set gate in .kit/settings.yml, or give the root justfile a ci recipe"* ]]
   grep --quiet 'cannot run' summary.md
 }
 
-@test "a justfile without a ci recipe is refused" {
+@test "a justfile without a ci recipe is no gate" {
   printf 'build:\n  echo built\n' > justfile
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add a ci recipe to the root justfile"* ]]
+  [[ "$output" == *"there is no gate to run"* ]]
+}
+
+@test "the gate setting wins, else a Makefile or a package.json is detected" {
+  mkdir .kit && printf 'gate: echo from the setting\n' > .kit/settings.yml
+  printf 'ci:\n  echo from just\n' > justfile
+  run "${kit_checkout}/bin/kit" gate
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"from the setting"* ]]
+  rm -r .kit justfile
+  printf 'ci:\n\t@echo from make\n' > Makefile
+  run "${kit_checkout}/bin/kit" gate
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"from make"* ]]
+  rm Makefile
+  printf '{"scripts": {"ci": "echo from npm"}}\n' > package.json
+  run "${kit_checkout}/bin/kit" gate
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the gate: npm run ci"* ]]
 }
 
 @test "a justfile that cannot be read is a failure" {
@@ -42,7 +60,7 @@ teardown() {
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 0 ]
   [[ "$output" == *"gate ran"* ]]
-  grep --quiet 'just ci passed' summary.md
+  grep --quiet 'gate passed' summary.md
   printf 'ci:\n  exit 3\n' > justfile
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -ne 0 ]

@@ -40,7 +40,8 @@ usage: kit <verb> [<argument>…]
   module <list|add|remove> [<module>…]
                         the modules this repository takes
   context <path>…       name the rules that govern a file, and record the ask
-  gate                  run the root justfile's ci recipe, and refuse when there is none
+  ci                    the delivered CI job's checks, anywhere: gate, check, and linked, every one reported
+  gate                  run the repository's gate, the gate setting or the detected one; refuse when there is none
   linked [<number>]     refuse a pull request not linked to an open issue of this repository
   issue [<number>…]     start or resume an issue: linked branch, worktree, start commit, draft pull request
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk

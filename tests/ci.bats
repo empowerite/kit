@@ -1,0 +1,36 @@
+#!/usr/bin/env bats
+# ci.bats - kit ci runs the gate, the kit's check, and the issue link, and reports every one
+# ----------------------------------------------------------------------------------------------------------------------
+
+setup() {
+  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${BATS_TEST_TMPDIR}/shims"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/shims/gh" && chmod +x "${BATS_TEST_TMPDIR}/shims/gh"
+  export PATH="${BATS_TEST_TMPDIR}/shims:${PATH}"
+  repo=$(mktemp -d)
+  cd "${repo}"
+  git init --quiet --initial-branch=main
+  "${kit_checkout}/bin/kit" install >/dev/null
+}
+
+teardown() {
+  rm -rf "${repo}"
+}
+
+@test "every check runs and the refusals are counted" {
+  printf 'ci:\n  echo gate ran\n' > justfile
+  run "${kit_checkout}/bin/kit" ci
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"gate ran"* ]]
+  [[ "$output" == *"every delivered file matches"* ]]
+  [[ "$output" == *"kit linked <number>"* ]]
+  [[ "$output" == *"1 of 3 checks refused"* ]]
+  printf 'edited\n' >> .kit/1st.md
+  rm justfile
+  run "${kit_checkout}/bin/kit" ci
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"3 of 3 checks refused"* ]]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------
