@@ -22,9 +22,10 @@ release and placed in no repository. Two bases exist: `repo`, the repository roo
 The verbs are the only way content moves. `kit install` resolves the active set, `kit` plus those named plus their
 dependencies, renders, places, and writes the manifests. `kit update` moves to a new pinned release:
 an untouched file is replaced, an edited one three-way merged with the previous release as the base. `kit check`
-fails when a delivered file differs from the release's. `kit module` changes the active set. Two rules govern
-placement: a `.json` destination is merged by key, the kit owning only the entries it writes; everything else is a
-copy.
+fails when a delivered file differs from the release's. `kit module` changes the active set. Three rules govern
+placement: a `.json` destination is merged by key, the kit owning only the entries it writes; a region is written
+between marker comments inside a file the repository owns, the kit holding only what is between them; everything
+else is a copy.
 
 Each base has a manifest: `.kit/manifest`, committed with the repository, and `~/.kit/manifest` on the desk when a
 module delivers there. A manifest records the version, the active modules, and the release's digest of every

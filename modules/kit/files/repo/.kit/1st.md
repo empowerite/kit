@@ -97,7 +97,8 @@ delivers is a module, and a repository activates the modules it takes: `kit inst
 lives under `.kit/modules/` and is taken the same way. A `.json` destination is merged by key, the kit owning
 only the entries it writes; everything else is copied as it is.
 
-- `kit`: this file and the rules, discovered through `kit context`.
+- `kit`: this file and the rules, discovered through `kit context`; the sentence in `AGENTS.md` that points here
+  and the `/worktrees/` entry in `.gitignore`, each a region the kit owns inside a file the repository owns.
 - `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
   it runs each rule's linter over the paths the rule governs.

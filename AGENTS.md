@@ -1,5 +1,9 @@
+<!-- kit:begin kit -->
 Read .kit/1st.md at the start of every session. It defines how any agent uses empowerite/kit to keep this
-repository trustworthy. This repository is the kit's own source, and uses it.
+repository trustworthy.
+<!-- kit:end kit -->
+
+This repository is the kit's own source, and uses it.
 
 ## This repository's own rules
 

@@ -10,11 +10,12 @@ modules/<name>/
   module.yml          metadata
   files/<base>/       files mirrored at the base's root
   templates/<base>/   files rendered from the repository's answers, then mirrored the same way
+  regions/<base>/     each file a region the kit owns inside a file the repository owns
   docs/               the module's documentation; packed with the release, placed in no repository
 ```
 
-A module may have any of `files/`, `templates/`, and `docs/`, and must have `module.yml`. A base names where a
-file lands:
+A module may have any of `files/`, `templates/`, `regions/`, and `docs/`; `module.yml` it must have. A base names
+where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
@@ -58,6 +59,15 @@ A file under `files/<base>/` is placed at the same path under the base's root. A
 merged by key: the kit's keys are set, its array entries added, and on update or removal only the previous
 release's entries are taken out, so a repository's own keys and entries survive. Every other destination is a copy.
 Where two active modules deliver the same path, the later module in dependency order wins.
+
+A file under `regions/<base>/` is placed as a region inside the file at the same path: its content between two
+marker comments naming the module, `<!-- kit:begin kit -->` and `<!-- kit:end kit -->` in markdown, `# kit:begin
+kit` and `# kit:end kit` elsewhere. Where the file has no region, one is appended after a blank line; where there
+is no file, it is made of the region alone. The repository may move the region anywhere in the file and write
+what it likes around it. `kit check` holds only the content between the markers to the release, `kit update`
+replaces or three-way merges only that, and removal takes the region out and leaves the rest, removing a file it
+leaves empty. The `kit` module places two: the sentence in `AGENTS.md` that sends every agent to `.kit/1st.md`,
+and the `/worktrees/` entry in `.gitignore`.
 
 A file under `templates/<base>/` is rendered first. Every `@key@` in it, autoconf's form, is replaced by the key's
 answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither
@@ -106,7 +116,7 @@ base. A rule file it places under `.kit/rules/` is found by `kit context` like a
 
 | Module | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md` |
+| `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`; regions in `AGENTS.md` and `.gitignore` |
 | `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` |
 | `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |

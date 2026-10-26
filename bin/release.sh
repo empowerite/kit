@@ -5,13 +5,15 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
-# mirrored at the base's root; and templates/<base>/, with @key@ rendered from the repository's answers, then
-# mirrored the same way. A repository defines modules of its own the same way under .kit/modules/<name>/, and
-# a name is looked up in the release first, then there. Two bases: repo, the repository root, recorded in
-# .kit/manifest; and home, the user's home directory, recorded in ~/.kit/manifest, which every repository on the
-# desk shares. A destination ending in .json is merged by key, the kit owning only the entries it writes. The
-# repository's choices live in .kit/settings.yml, which the kit reads and never writes. docs/modules.md is the
-# format's description.
+# mirrored at the base's root; templates/<base>/, with @key@ rendered from the repository's answers, then
+# mirrored the same way; and regions/<base>/, each file placed as a region the kit owns inside a file the
+# repository owns, between marker comments, so the rest of that file stays the repository's. A repository
+# defines modules of its own the same way under .kit/modules/<name>/, and a name is looked up in the release
+# first, then there. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's home
+# directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending in
+# .json is merged by key, the kit owning only the entries it writes, and a region is held to the release between
+# its markers and nowhere else. The repository's choices live in .kit/settings.yml, which the kit reads and never
+# writes. docs/modules.md is the format's description.
 #
 # Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
 # the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and comm here
@@ -288,7 +290,7 @@ release:render-all() {
   done
   for module in "$@"
   do
-    for kind in files templates
+    for kind in files templates regions
     do
       for base in $(cd "$(release:home "${root}" "${module}")/modules/${module}/${kind}" 2>/dev/null \
         && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@')
@@ -314,18 +316,102 @@ release:render-all() {
 }
 
 # release:layers <root> <base> <module>… prints the directories mirrored at the base's root, in module order: each
-# module's files/<base>, then its rendered templates/<base>.
+# module's files/<base>, its rendered templates/<base>, and its regions/<base>.
 release:layers() {
-  local root=$1 base=$2 module rendered
+  local root=$1 base=$2 module home rendered
   shift 2
   for module in "$@"
   do
-    [[ -d "$(release:home "${root}" "${module}")/modules/${module}/files/${base}" ]] \
-      && printf '%s\n' "$(release:home "${root}" "${module}")/modules/${module}/files/${base}"
+    home=$(release:home "${root}" "${module}")
+    [[ -d "${home}/modules/${module}/files/${base}" ]] && printf '%s\n' "${home}/modules/${module}/files/${base}"
     rendered=$(release:render "${root}" "${module}" "${base}")
     [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
+    [[ -d "${home}/modules/${module}/regions/${base}" ]] && printf '%s\n' "${home}/modules/${module}/regions/${base}"
   done
   return 0
+}
+
+# release:kind <source> <path> prints how the content is placed: merge for a .json destination, region for a
+# source under a module's regions/, copy otherwise.
+release:kind() {
+  if release:merged "$2"
+  then printf 'merge\n'
+  elif [[ "$1" == */modules/*/regions/* ]]
+  then printf 'region\n'
+  else printf 'copy\n'
+  fi
+}
+
+# release:region-module <source> prints the module a region source belongs to, which names its markers.
+release:region-module() {
+  local rest=${1#*/modules/}
+  printf '%s\n' "${rest%%/*}"
+}
+
+# release:region-markers <path> <module> prints the region's two marker lines, in the file's own comment
+# syntax: an HTML comment for markdown, a hash comment otherwise.
+release:region-markers() {
+  if [[ "$1" == *.md ]]
+  then printf '<!-- kit:begin %s -->\n<!-- kit:end %s -->\n' "$2" "$2"
+  else printf '# kit:begin %s\n# kit:end %s\n' "$2" "$2"
+  fi
+}
+
+# release:region-read <path> <module> prints the region's content, between its markers, and fails where the
+# file or the region is absent.
+release:region-read() {
+  local path=$1 begin end
+  [[ -f "${path}" ]] || return 1
+  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  grep --quiet --line-regexp --fixed-strings "${begin}" "${path}" || return 1
+  awk -v b="${begin}" -v e="${end}" '$0 == e { on = 0 } on { print } $0 == b { on = 1 }' "${path}"
+}
+
+# release:region-write <path> <module> <content-file> replaces the region's content, appending the region after a
+# blank line where the file has none, and making the file where there is none.
+release:region-write() {
+  local path=$1 module=$2 content=$3 begin end
+  { read -r begin; read -r end; } < <(release:region-markers "${path}" "${module}")
+  mkdir -p "$(dirname "${path}")"
+  if [[ -f "${path}" ]] && grep --quiet --line-regexp --fixed-strings "${begin}" "${path}"
+  then
+    awk -v b="${begin}" -v e="${end}" -v c="${content}" '
+      $0 == b { print; while ((getline line < c) > 0) print line; skip = 1; next }
+      $0 == e { skip = 0 }
+      !skip { print }' "${path}" > "${path}.kit-new"
+  else
+    {
+      if [[ -s "${path}" ]]
+      then
+        cat "${path}"
+        [[ "$(tail -c 1 "${path}")" == "" ]] || printf '\n'
+        printf '\n'
+      fi
+      printf '%s\n' "${begin}"
+      cat "${content}"
+      printf '%s\n' "${end}"
+    } > "${path}.kit-new"
+  fi
+  mv "${path}.kit-new" "${path}"
+}
+
+# release:region-remove <path> <module> takes the region and its markers out, and the blank line before it;
+# a file left empty is removed.
+release:region-remove() {
+  local path=$1 begin end
+  [[ -f "${path}" ]] || return 0
+  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  awk -v b="${begin}" -v e="${end}" '
+    $0 == b { skip = 1; held = 0; next }
+    $0 == e { skip = 0; next }
+    skip { next }
+    held { print ""; held = 0 }
+    $0 == "" { held = 1; next }
+    { print }' "${path}" > "${path}.kit-new"
+  if [[ -s "${path}.kit-new" ]]
+  then mv "${path}.kit-new" "${path}"
+  else rm -f "${path}.kit-new" "${path}"
+  fi
 }
 
 # release:delivered <root> <base> <module>… prints "<path>\t<source>" for every path under the base's root that
@@ -478,31 +564,62 @@ release:digest() {
   fi
 }
 
-# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, else a
-# copy that keeps the source's mode.
+# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, the
+# region for a region source, else a copy that keeps the source's mode.
 release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
-  if release:merged "${path}"
-  then
-    release:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
-  else
-    mkdir -p "$(dirname "${path}")"
-    cp "${src}" "${path}.kit-new"
-    mv "${path}.kit-new" "${path}"
-  fi
+  case "$(release:kind "${src}" "${path}")" in
+    (merge)
+      release:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
+      ;;
+    (region)
+      release:region-write "${path}" "$(release:region-module "${src}")" "${src}"
+      ;;
+    (*)
+      mkdir -p "$(dirname "${path}")"
+      cp "${src}" "${path}.kit-new"
+      mv "${path}.kit-new" "${path}"
+  esac
+}
+
+# release:installed <source> <path> prints what the repository holds of the release's content at <path>: the
+# file, or the region's content; nothing, failing, where there is none.
+release:installed() {
+  local src=$1 path=$2
+  case "$(release:kind "${src}" "${path}")" in
+    (region) release:region-read "${path}" "$(release:region-module "${src}")" ;;
+    (*) [[ -f "${path}" ]] && cat "${path}" ;;
+  esac
+}
+
+# release:holds <source> <path> is true when the repository holds the release's content at <path>: the same
+# file, every merged entry, or the same region.
+release:holds() {
+  local src=$1 path=$2
+  case "$(release:kind "${src}" "${path}")" in
+    (merge) [[ -f "${path}" ]] && release:json-holds "${path}" "${src}" ;;
+    (*) cmp --silent "${src}" <(release:installed "${src}" "${path}") ;;
+  esac
 }
 
 # release:place-new <source> <path> [<label>] places content the repository did not record: where there is
-# nothing, or the same thing, or a .json to merge into. A different file is refused, named, and left as it is.
+# nothing, or the same thing, a .json to merge into, or a file to carry a region. A different file, or a region
+# with different content, is refused, named, and left as it is.
 release:place-new() {
-  local src=$1 path=$2 label=${3:-}
-  if release:merged "${path}" || [[ ! -f "${path}" ]]
+  local src=$1 path=$2 label=${3:-} kind
+  kind=$(release:kind "${src}" "${path}")
+  if [[ "${kind}" == merge || ! -f "${path}" ]] \
+    || { [[ "${kind}" == region ]] && ! release:installed "${src}" "${path}" >/dev/null; }
   then
     step "${path}${label:+: ${label}}"
     release:place "${src}" "${path}"
-  elif cmp --silent "${src}" "${path}"
+  elif release:holds "${src}" "${path}"
   then
     step "${path}${label:+: ${label}}, already as the release has it"
+  elif [[ "${kind}" == region ]]
+  then
+    error "${path}: the kit's region is there with different content; make it the release's, or remove it"
+    return 1
   else
     error "${path}: a different file is there already; move it aside, or remove it if it is not yours"
     return 1
@@ -523,18 +640,23 @@ release:place-all() {
 }
 
 # release:unplace <source> <path> takes the release's content back out of <path>: the kit's entries for .json,
-# the file itself otherwise.
+# the kit's region for a region, the file itself otherwise.
 release:unplace() {
   local src=$1 path=$2
-  if release:merged "${path}"
-  then
-    [[ -f "${path}" ]] || return 0
-    step "${path}: the kit's entries taken out"
-    release:json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
-  else
-    step "removing ${path}"
-    rm -f "${path}"
-  fi
+  case "$(release:kind "${src}" "${path}")" in
+    (merge)
+      [[ -f "${path}" ]] || return 0
+      step "${path}: the kit's entries taken out"
+      release:json-write "${path}" 'unmerge(.; $base[0])' --slurpfile base "${src}"
+      ;;
+    (region)
+      step "${path}: the kit's region taken out"
+      release:region-remove "${path}" "$(release:region-module "${src}")"
+      ;;
+    (*)
+      step "removing ${path}"
+      rm -f "${path}"
+  esac
 }
 
 # release:retire <base-root> <base> <previous> <current> <module>… handles the paths the base's manifest records
@@ -558,10 +680,10 @@ release:retire() {
     [[ -n "${path}" ]] || continue
     dest=$(release:dest "${base}" "${path}")
     [[ -e "${dest}" ]] || continue
+    previous_src=""
+    [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "$@")
     if release:merged "${dest}"
     then
-      previous_src=""
-      [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "$@")
       if [[ -n "${previous_src}" ]]
       then
         step "${dest}: retired in ${current}, the previous release's entries taken out"
@@ -569,10 +691,11 @@ release:retire() {
       else
         warn "${dest}: retired in ${current}; without the base release its entries stay, and it is left as it was"
       fi
-    elif [[ "$(release:recorded "${base}" "${path}")" == "$(release:digest < "${dest}")" ]]
+    elif [[ "$(release:recorded "${base}" "${path}")" \
+      == "$(release:installed "${previous_src:-/dev/null}" "${dest}" | release:digest)" ]]
     then
       step "${dest}: retired in ${current}, removed"
-      rm -f "${dest}"
+      release:unplace "${previous_src:-/dev/null}" "${dest}"
     else
       warn "${dest}: retired in ${current}, but edited since ${previous}; it is left as it was"
     fi

@@ -67,18 +67,32 @@ do
       skipped=$(( skipped + 1 ))
       continue
     fi
-    if release:merged "${dest}"
+    kind=$(release:kind "${src}" "${dest}")
+    if [[ "${kind}" == merge ]]
     then
       step "${dest}: merged by key"
       release:place "${src}" "${dest}" "${previous_src}"
-    elif [[ ! -f "${dest}" ]]
+    elif ! release:installed "${src}" "${dest}" >/dev/null 2>&1
     then
       step "${dest}: missing, written"
       release:place "${src}" "${dest}"
-    elif [[ "${recorded}" == "$(release:digest < "${dest}")" ]]
+    elif [[ "${recorded}" == "$(release:installed "${src}" "${dest}" | release:digest)" ]]
     then
       step "${dest}: unchanged since ${previous}, replaced"
       release:place "${src}" "${dest}"
+    elif [[ "${kind}" == region ]]
+    then
+      # The region's content is merged on its own and written back between the markers.
+      step "${dest}: the kit's region edited since ${previous}, three-way merged"
+      ours=$(mktemp)
+      release:installed "${src}" "${dest}" > "${ours}"
+      if ! git merge-file --marker-size 7 "${ours}" "${previous_src}" "${src}"
+      then
+        warn "${dest}: conflict markers are left in the kit's region; resolve them, then run: kit check"
+        conflicts=$(( conflicts + 1 ))
+      fi
+      release:region-write "${dest}" "$(release:region-module "${src}")" "${ours}"
+      rm -f "${ours}"
     else
       step "${dest}: edited since ${previous}, three-way merged"
       if ! git merge-file --marker-size 7 "${dest}" "${previous_src}" "${src}"

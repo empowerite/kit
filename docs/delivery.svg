@@ -41,7 +41,7 @@
   <text class="m" x="68" y="346">files/home/</text>
   <text class="d" x="180" y="346">mirrored at ~</text>
   <text class="m" x="68" y="370">templates/&lt;base&gt;/</text>
-  <text class="d" x="180" y="386">@key@ rendered first</text>
+  <text class="d" x="180" y="386">@key@ rendered; regions/ into a file</text>
   <text class="m" x="68" y="412">docs/</text>
   <text class="d" x="180" y="412">not delivered</text>
   <text class="d" x="52" y="446">kit, lefthook, ci are default;</text>
@@ -60,7 +60,7 @@
   <line x1="396" y1="286" x2="644" y2="286" stroke="#a78bfa" stroke-width="1"/>
   <text class="d" x="396" y="308">resolve the active set and its depends</text>
   <text class="d" x="396" y="326">render @key@ from .kit/settings.yml</text>
-  <text class="d" x="396" y="344">merge a .json destination by key</text>
+  <text class="d" x="396" y="344">merge a .json destination by key; write a region</text>
   <text class="d" x="396" y="362">copy everything else</text>
   <text class="d" x="396" y="380">digest each path into the manifest</text>
   <text class="d" x="396" y="398">three-way merge an edited file on update</text>

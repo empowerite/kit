@@ -40,24 +40,26 @@ do
   while IFS=$'\t' read -r path src
   do
     dest=$(release:dest "${base}" "${path}")
+    kind=$(release:kind "${src}" "${dest}")
     if [[ ! -f "${dest}" ]]
     then
       error "${dest} is missing"
       findings=$(( findings + 1 ))
-    elif release:merged "${dest}"
+    elif [[ "${kind}" == merge ]] && ! command -v jq >/dev/null 2>&1
     then
-      if ! command -v jq >/dev/null 2>&1
-      then
-        error "run: mise install (jq is not on PATH, so ${dest} could not be read)"
-        findings=$(( findings + 1 ))
-      elif ! release:json-holds "${dest}" "${src}"
-      then
-        error "${dest} is missing an entry the kit writes; run: kit update"
-        findings=$(( findings + 1 ))
-      fi
-    elif ! cmp --silent "${src}" "${dest}"
+      error "run: mise install (jq is not on PATH, so ${dest} could not be read)"
+      findings=$(( findings + 1 ))
+    elif [[ "${kind}" == region ]] && ! release:installed "${src}" "${dest}" >/dev/null
     then
-      error "${dest} differs from the pinned release"
+      error "${dest} has no kit region; run: kit update"
+      findings=$(( findings + 1 ))
+    elif ! release:holds "${src}" "${dest}"
+    then
+      case "${kind}" in
+        (merge) error "${dest} is missing an entry the kit writes; run: kit update" ;;
+        (region) error "${dest}: the kit's region differs from the pinned release" ;;
+        (*) error "${dest} differs from the pinned release" ;;
+      esac
       findings=$(( findings + 1 ))
     fi
   done <<<"${delivered}"

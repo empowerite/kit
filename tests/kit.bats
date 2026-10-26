@@ -224,6 +224,50 @@ later-release() {
   [[ "$output" == *".kit/modules/odd/module.yml has a key the kit does not know: dependz"* ]]
 }
 
+@test "a region is placed inside the repository's own file, held to the release, and taken out whole" {
+  printf '# Ours\n\nOur own instructions.\n' > AGENTS.md
+  printf 'build/\n' > .gitignore
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions." ]
+  grep --quiet --line-regexp '<!-- kit:begin kit -->' AGENTS.md
+  grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
+  [ "$(sed -n '1p' .gitignore)" = "build/" ]
+  grep --quiet --line-regexp '/worktrees/' .gitignore
+  grep --quiet '  AGENTS.md$' .kit/manifest
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  printf '## More of ours\n' >> AGENTS.md
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  sed -i.bak 's/^Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"AGENTS.md: the kit's region differs from the pinned release"* ]]
+  # at the same version the release is its own base, so the edit inside the region is kept
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AGENTS.md: the kit's region edited"* ]]
+  grep --quiet 'Skip .kit/1st.md' AGENTS.md
+  run "${kit_checkout}/bin/kit" module remove kit
+  [ "$status" -eq 0 ]
+  [ "$(cat AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions.|## More of ours" ]
+  [ "$(cat .gitignore)" = "build/" ]
+}
+
+@test "a region makes the file where there is none, and refuses one holding a different region" {
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' AGENTS.md)" = "<!-- kit:begin kit -->" ]
+  run "${kit_checkout}/bin/kit" module remove kit
+  [ ! -e AGENTS.md ]
+  [ ! -e .gitignore ]
+  printf '<!-- kit:begin kit -->\nsomething else\n<!-- kit:end kit -->\n' > AGENTS.md
+  run "${kit_checkout}/bin/kit" module add kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"AGENTS.md: the kit's region is there with different content"* ]]
+}
+
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json

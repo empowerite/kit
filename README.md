@@ -67,14 +67,10 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
   always in; `ci-github` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the
   Claude Code adapter. `kit install ci-github lefthook claude` takes all three, and `kit module add` takes one
   later.
-- Point `AGENTS.md` at the entry file, in prose, the same sentence for every agent:
-
-  ```markdown
-  Read .kit/1st.md at the start of every session. It defines how any agent uses empowerite/kit to keep this
-  repository trustworthy.
-  ```
-
-  The rest of `AGENTS.md` is yours.
+- `install` writes the sentence every agent reads into a region of `AGENTS.md`, between `<!-- kit:begin kit -->`
+  and `<!-- kit:end kit -->`, making the file where there is none and leaving the rest of it yours, and the
+  `/worktrees/` entry into a region of `.gitignore` the same way. Move the region where you like; `kit check`
+  holds only what is between the markers.
 - Commit what `install` wrote.
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
   or any command as `gate` in `.kit/settings.yml`. `kit ci` runs it, with `kit check` and `kit linked`, from the
