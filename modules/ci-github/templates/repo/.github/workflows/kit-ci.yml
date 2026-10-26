@@ -38,6 +38,11 @@ jobs:
       - name: kit-on-path
         run: |
           set -o errexit -o nounset -o pipefail
+          if [[ ! -f .kit/manifest ]]
+          then
+            echo '::error::run kit install and commit what it writes; this repository has no .kit/manifest to name a release'
+            exit 1
+          fi
           version=$(sed -n 's/^version //p' .kit/manifest)
           if [[ "${version}" == unreleased && -x bin/kit ]]
           then
