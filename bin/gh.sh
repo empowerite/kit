@@ -200,7 +200,11 @@ gh:link-secondaries() {
 # count. On a runner the remedy also lands in the step summary.
 gh:linked-open-issue() {
   local number=$1 repo query refs n state issue_repo open=0 closes url remedy
-  IFS=$'\t' read -r repo url < <(gh repo view --json nameWithOwner,url --jq '[.nameWithOwner, .url] | @tsv')
+  if ! IFS=$'\t' read -r repo url < <(gh repo view --json nameWithOwner,url --jq '[.nameWithOwner, .url] | @tsv')
+  then
+    error "run: gh auth status (the repository could not be read, so pull request #${number} was not checked)"
+    return 1
+  fi
   remedy=$(printf '%s\n' \
     "Link an open issue of this repository under **Development** in [the sidebar](${url}/pull/${number}):" "" \
     "1. click the gear (⚙) beside **Development**" \
@@ -215,10 +219,14 @@ gh:linked-open-issue() {
       }
     }
   }'
-  refs=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --field number="${number}" \
+  if ! refs=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --field number="${number}" \
     --raw-field query="${query}" \
     --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]
           | "\(.number) \(.state) \(.repository.nameWithOwner)"')
+  then
+    error "run: gh auth status (pull request #${number} could not be read)"
+    return 1
+  fi
   if [[ -z "${refs}" ]]
   then
     error "pull request #${number} is not linked to any issue"

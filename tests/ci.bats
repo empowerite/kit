@@ -20,7 +20,7 @@ teardown() {
 
 @test "every check runs and the refusals are counted" {
   printf 'ci:\n  echo gate ran\n' > justfile
-  run "${kit_checkout}/bin/kit" ci
+  run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
   [ "$status" -eq 1 ]
   [[ "$output" == *"gate ran"* ]]
   [[ "$output" == *"every delivered file matches"* ]]
@@ -28,7 +28,7 @@ teardown() {
   [[ "$output" == *"1 of 3 checks refused"* ]]
   printf 'edited\n' >> .kit/1st.md
   rm justfile
-  run "${kit_checkout}/bin/kit" ci
+  run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
   [ "$status" -eq 3 ]
   [[ "$output" == *"3 of 3 checks refused"* ]]
 }
