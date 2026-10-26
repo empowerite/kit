@@ -1,6 +1,10 @@
 # shellcheck shell=bash
 # git.sh - the default branch, the worktrees, the sweep, and the rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+#
+# The sweep asks the forge, through bin/forge.sh, whether a worktree's pull request is merged or closed.
+
+use forge
 
 # git:default-branch [<path>] prints the default branch of the repository at <path>: origin/HEAD, else main.
 git:default-branch() {
@@ -70,11 +74,11 @@ git:tidy-worktree() {
   fi
   if [[ -n "${branch}" ]]
   then
-    state=$(gh pr list --head "${branch}" --state all --json state --jq '.[0].state // empty' 2>/dev/null || true)
+    state=$(forge:pr-state-for-branch "${branch}")
     if [[ -z "${state}" && "${branch}" =~ ^([0-9]+)- ]]
     then
       number=${BASH_REMATCH[1]}
-      [[ "$(gh issue view "${number}" --json state --jq .state 2>/dev/null)" == CLOSED ]] && state=CLOSED
+      [[ "$(forge:issue-state "${number}")" == CLOSED ]] && state=CLOSED
     fi
   elif [[ "${detached}" == true ]]
   then
@@ -125,14 +129,9 @@ git:tidy() {
         return 2
     esac
   done
-  use gh
-  guard:require gh || return 1
-  repo=$(gh:repo || true)
-  if [[ -z "${repo}" ]]
-  then
-    error "this checkout does not resolve to a GitHub repository (run: gh repo view), so nothing is swept."
-    return 1
-  fi
+  use forge
+  forge:require || return 1
+  repo=$(forge:repo) || return 1
   if [[ "${dry_run}" == true ]]
   then
     section "kit tidy, dry run: nothing is changed"

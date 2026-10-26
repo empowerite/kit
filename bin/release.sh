@@ -371,8 +371,8 @@ release:paths-beyond() {
 release:merged() { [[ "$1" == *.json ]]; }
 
 # release:fetch <version> prints the root of that release, fetching it if need be: the kit's cache first, then a
-# mise install if mise is here, then the GitHub release itself, unpacked into the cache. The version comes from a
-# manifest, so it is held to a version's shape before it is used in a path.
+# mise install if mise is here, then the release's public tarball with curl, unpacked into the cache. The version
+# comes from a manifest, so it is held to a version's shape before it is used in a path.
 release:fetch() {
   local version=$1 root cache fresh
   if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
@@ -395,13 +395,14 @@ release:fetch() {
       return 0
     fi
   fi
-  step "Fetching kit ${version} from its GitHub release"
+  step "Fetching kit ${version} from its release"
   fresh=$(mktemp -d)
-  if ! gh release download "v${version}" --repo empowerite/kit --pattern "kit-${version}.tar.gz" --output - \
-    2>/dev/null | tar --extract --gzip --directory "${fresh}" --strip-components 1
+  if ! curl --fail --silent --location \
+      "https://github.com/empowerite/kit/releases/download/v${version}/kit-${version}.tar.gz" 2>/dev/null \
+    | tar --extract --gzip --directory "${fresh}" --strip-components 1 2>/dev/null
   then
     rm -rf "${fresh}"
-    error "kit ${version} could not be fetched (run: gh auth status, or set KIT_BASE to a copy of it)"
+    error "kit ${version} could not be fetched from its release; set KIT_BASE to a copy of it"
     return 1
   fi
   mkdir -p "$(dirname "${cache}")"

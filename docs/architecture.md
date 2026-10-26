@@ -55,6 +55,12 @@ Everything after that happens in the worktree: `kit context` before a change, `k
 hand, `kit rebase` to bring the branch onto `origin/main` and push it, and `gh pr ready` when the pull request body is
 the report.
 
+Every call the loop makes to the forge, an issue's title, a branch linked to it, a pull request and its state,
+its checks and threads and linked issues, goes through one seam, `forge:` in `bin/forge.sh`, and a provider
+answers: `forge-github.sh` over `gh`, chosen by the `forge` setting or by origin's host. The core verbs never
+reach the seam, so a repository on no forge still installs, updates, checks, and runs `kit context`, and `gh` is
+the GitHub provider's requirement alone. A second forge is a second provider against the same names.
+
 The gate is `kit ci`, three checks that are each one kit command, run by the delivered GitHub Actions job for a
 pull request into the default branch, or by any pipeline. `kit gate` runs the repository's gate, the `gate`
 setting or the detected justfile recipe, Makefile target, or package.json script, and refuses when there is none,

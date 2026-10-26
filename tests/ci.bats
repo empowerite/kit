@@ -11,6 +11,7 @@ setup() {
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main
+  git remote add origin https://github.com/empowerite/example.git
   "${kit_checkout}/bin/kit" install >/dev/null
 }
 

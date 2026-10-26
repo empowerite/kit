@@ -96,71 +96,11 @@ status:age() {
   fi
 }
 
-# status:collect prints one JSON object per open pull request, oldest first: number, branch, title, createdAt, age
-# in seconds, state, checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes
-# [{number, title}]. The one request to GitHub; a request that fails is said so, and prints nothing.
+# status:collect prints one JSON object per open pull request, the documents the forge provider folds, or
+# nothing with a warning where the forge cannot be asked.
 status:collect() {
-  local repo query filter
-  use gh
-  if ! repo=$(gh:repo)
-  then
-    warn "this checkout does not resolve to a GitHub repository, so no pull request is shown (run: gh repo view)"
-    return 0
-  fi
-  # shellcheck disable=SC2016  # GraphQL variables
-  query='query($owner: String!, $name: String!) {
-    repository(owner: $owner, name: $name) {
-      pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
-        nodes {
-          number title isDraft headRefName createdAt mergeStateStatus reviewDecision
-          closingIssuesReferences(first: 10) { nodes { number title } }
-          reviewThreads(first: 100) { nodes { isResolved } }
-          commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
-            __typename
-            ... on CheckRun { name status conclusion startedAt completedAt }
-            ... on StatusContext { context state createdAt }
-          } } } } } }
-        }
-      }
-    }
-  }'
-  # shellcheck disable=SC2016  # a jq filter, with jq variables
-  filter='
-    def verdict: if .__typename == "CheckRun" then (if .status == "COMPLETED" then .conclusion else "PENDING" end)
-                 else .state end;
-    def pending: IN("PENDING", "EXPECTED");
-    def passed: IN("SUCCESS", "NEUTRAL", "SKIPPED");
-    (now | floor) as $now
-    | .data.repository.pullRequests.nodes[]
-    | [.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] as $checks
-    | ($checks | length) as $n
-    | ([$checks[] | verdict | select(pending)] | length) as $running
-    | ([$checks[] | verdict | select(passed)] | length) as $ok
-    | ([$checks[] | select((verdict | pending or passed) | not) | (.name // .context)] | first // "") as $failing
-    | (if $n == 0 then "NONE" elif $failing != "" then "FAILURE" elif $running > 0 then "PENDING" else "SUCCESS" end)
-      as $check
-    | ([$checks[] | .startedAt // .createdAt // empty | fromdateiso8601] | min) as $started
-    | ([$checks[] | .completedAt // empty | fromdateiso8601] | max) as $completed
-    | (if $started == null then null
-       elif $check == "PENDING" then $now - $started
-       elif $completed == null then null
-       else $completed - $started end) as $took
-    | ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length) as $unresolved
-    | (if .isDraft then "draft"
-       elif $check == "PENDING" then "queued"
-       elif .mergeStateStatus == "DIRTY" then "conflicted"
-       elif $check == "FAILURE" then "failing:gate"
-       elif $check == "NONE" then "no-check"
-       elif $unresolved > 0 then "comments:open"
-       elif (.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED") then "blocked:approval"
-       else "ready" end) as $state
-    | { number, branch: .headRefName, title, createdAt, age: ($now - (.createdAt | fromdateiso8601)), state: $state,
-        checks: { state: $check, passed: $ok, total: $n, failing: $failing, took: $took },
-        unresolved: $unresolved,
-        closes: [.closingIssuesReferences.nodes[] | { number, title }] }
-    | tojson'
-  gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" --jq "${filter}" \
-    2>/dev/null || warn "the pull requests could not be read from GitHub (run: gh auth status); none is shown"
+  use forge
+  forge:open-prs || warn "no pull request is shown; see above"
 }
 
 # status:fork <branch> <default-branch> prints the commit where <branch> left the default branch, or nothing.

@@ -336,8 +336,8 @@ later-release() {
   mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
   printf '9.9.10\n' > "${repo}.newer/version"
   printf 'edited\n' >> .kit/rules/bash.md
-  # neither the cache, nor mise, nor gh can produce 9.9.9
-  run env PATH="$(shims mise gh)" "${repo}.newer/bin/kit" update
+  # neither the cache, nor mise, nor the release can produce 9.9.9
+  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"could not be fetched"* ]]
   [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]

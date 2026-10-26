@@ -4,12 +4,12 @@
 #
 # A linked branch, a worktree, a start commit, and a draft pull request.
 #
-# see: bin/gh.sh
+# see: bin/issue.sh, bin/forge.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
-use gh
+use issue
 
 if [[ "${1:-}" == --help ]]
 then
@@ -17,6 +17,6 @@ then
   exit 0
 fi
 
-gh:issue "$@"
+issue:start "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

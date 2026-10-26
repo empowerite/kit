@@ -56,8 +56,9 @@ mkdir kit && tar --extract --gzip --file kit.tar.gz --directory kit --strip-comp
 export PATH="${PWD}/kit/bin:${PATH}"
 ```
 
-The kit needs bash 4.4 or later, git, `gh`, and `jq`. macOS ships bash 3.2, and `brew install bash` gives a
-current one. With mise, an exact pin installs the minute a release exists; a range pin sees a new kit a day after
+The kit needs bash 4.4 or later, git, and `jq`; the loop's verbs, `kit issue`, `kit status`, `kit tidy`, and
+`kit linked`, also need the forge's own tool, `gh` for GitHub. macOS ships bash 3.2, and `brew install bash` gives
+a current one. With mise, an exact pin installs the minute a release exists; a range pin sees a new kit a day after
 it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:empowerite/kit"]`.
 
 ## Take the kit
