@@ -62,9 +62,9 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
 
 ## Take the kit
 
-- In the repository, run `kit install`. It activates the default modules, `kit`, `lefthook`, and `ci`, and writes
-  their files and `.kit/manifest`. Add the Claude Code adapter with `kit install claude`, or later with
-  `kit module add claude`.
+- In the repository, run `kit install` with the modules it should take. `kit`, the entry file and the rules, is
+  always in; `ci` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the Claude Code
+  adapter. `kit install ci lefthook claude` takes all three, and `kit module add` takes one later.
 - Point `AGENTS.md` at the entry file, in prose, the same sentence for every agent:
 
   ```markdown
@@ -146,6 +146,8 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.claude/CLAUDE.md` | `modules/claude/files/repo/.claude/CLAUDE.md` |
 | `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
+
+`.kit/settings.yml` is this repository's own, and `.kit/modules/` would hold modules of its own; it has none.
 
 A commit that changes a file under `modules/` rewrites the installed copies in the same commit: the pre-commit
 hook runs `just refresh`, which regenerates them from the index and stages the result. On a desk without the

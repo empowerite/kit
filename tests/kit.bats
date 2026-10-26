@@ -38,17 +38,21 @@ later-release() {
   printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/modules/kit/files/repo/.kit/rules/json.md"
 }
 
-@test "install with no module writes the default modules and nothing under .claude" {
+@test "install with no module writes the kit module and nothing else" {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
   [ -f .kit/1st.md ]
   [ -f .kit/rules/bash.md ]
-  [ -f .kit/lefthook.yml ]
-  [ -f .github/workflows/kit-ci.yml ]
-  grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
+  [ ! -e .kit/lefthook.yml ]
+  [ ! -e .github ]
   [ ! -e .claude ]
   grep --quiet '^version unreleased$' .kit/manifest
-  grep --quiet '^modules kit ci lefthook$' .kit/manifest
+  grep --quiet '^modules kit$' .kit/manifest
+  run "${kit_checkout}/bin/kit" install ci
+  [ "$status" -eq 1 ]
+  run "${kit_checkout}/bin/kit" module add ci
+  [ "$status" -eq 0 ]
+  grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   # a stray file under a module not active is nobody's business
@@ -60,7 +64,7 @@ later-release() {
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install claude
   [ "$status" -eq 0 ]
-  grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
+  grep --quiet '^modules kit claude$' .kit/manifest
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   [ "$(tail -n 1 .claude/CLAUDE.md)" = "@../AGENTS.md" ]
@@ -84,7 +88,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" module add claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
-  grep --quiet '^modules kit ci claude lefthook$' .kit/manifest
+  grep --quiet '^modules kit claude$' .kit/manifest
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" module remove claude
@@ -93,13 +97,13 @@ later-release() {
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny == ["Bash(rm -rf /)"]' .claude/settings.json >/dev/null
   jq --exit-status '.hooks == {"PreToolUse": []}' .claude/settings.json >/dev/null
-  grep --quiet '^modules kit ci lefthook$' .kit/manifest
+  grep --quiet '^modules kit$' .kit/manifest
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
 }
 
 @test "module remove refuses a module another active module depends on, and removes a leaf" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install claude ci
   run "${kit_checkout}/bin/kit" module remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]
@@ -107,12 +111,12 @@ later-release() {
   run "${kit_checkout}/bin/kit" module remove ci
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
-  grep --quiet '^modules kit claude lefthook$' .kit/manifest
+  grep --quiet '^modules kit claude$' .kit/manifest
 }
 
 @test "a template takes the repository's answer over the module's default, and refuses a key with neither" {
-  mkdir .kit && printf 'ci_runner blacksmith-2vcpu\n' > .kit/answers
-  run "${kit_checkout}/bin/kit" install
+  mkdir .kit && printf 'answers:\n  ci_runner: blacksmith-2vcpu\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "blacksmith-2vcpu"$' .github/workflows/kit-ci.yml
   grep --quiet 'uses: actions/checkout@' .github/workflows/kit-ci.yml
@@ -180,6 +184,46 @@ later-release() {
   [[ "$output" == *"home: nothing is installed under ${KIT_HOME} on this machine"* ]]
 }
 
+@test "a module the repository defines under .kit/modules installs, checks, updates, and removes like a delivered one" {
+  mkdir -p .kit/modules/python/files/repo/.kit/rules .kit/modules/python/templates/repo
+  printf 'description: "The Python rule and the tool pins"\ndepends:\n  - kit\nanswers:\n  python: "3.13"\n' \
+    > .kit/modules/python/module.yml
+  printf -- '---\npaths:\n  - "**/*.py"\n---\n# Python\n\nType everything.\n' > .kit/modules/python/files/repo/.kit/rules/python.md
+  printf 'python @python@\n' > .kit/modules/python/templates/repo/.python-version
+  run "${kit_checkout}/bin/kit" install python
+  [ "$status" -eq 0 ]
+  grep --quiet '^modules kit python$' .kit/manifest
+  [ "$(cat .python-version)" = "python 3.13" ]
+  run "${kit_checkout}/bin/kit" module list
+  [[ "$output" == *"python     repository"* ]]
+  [[ "$output" == *"kit        release"* ]]
+  run "${kit_checkout}/bin/kit" context app.py
+  [ "$output" = ".kit/rules/python.md" ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  printf 'edited\n' >> .kit/rules/python.md
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/rules/python.md differs"* ]]
+  printf 'answers:\n  python: "3.14"\n' > .kit/settings.yml
+  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ "$(cat .python-version)" = "python 3.14" ]
+  grep --quiet '^edited$' .kit/rules/python.md
+  run "${kit_checkout}/bin/kit" module remove python
+  [ "$status" -eq 0 ]
+  [ ! -e .python-version ]
+  [ ! -e .kit/rules/python.md ]
+  [ -f .kit/modules/python/module.yml ]
+}
+
+@test "a module the repository defines is validated like a delivered one" {
+  mkdir -p .kit/modules/odd && printf 'description: "x"\ndependz:\n  - kit\n' > .kit/modules/odd/module.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/modules/odd/module.yml has a key the kit does not know: dependz"* ]]
+}
+
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
@@ -197,7 +241,7 @@ later-release() {
 }
 
 @test "check passes after install and fails on a drifted, a missing, and a lost deny entry" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install claude lefthook
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'edited\n' >> .kit/rules/yaml.md
@@ -336,7 +380,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" module add claude
   [ "$status" -eq 1 ]
   [[ "$output" == *".claude/CLAUDE.md: a different file is there already"* ]]
-  grep --quiet '^modules kit ci lefthook$' .kit/manifest
+  grep --quiet '^modules kit$' .kit/manifest
   cp "${kit_checkout}/modules/claude/files/repo/.claude/CLAUDE.md" .claude/CLAUDE.md
   run "${kit_checkout}/bin/kit" module add claude
   [ "$status" -eq 0 ]

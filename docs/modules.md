@@ -43,7 +43,7 @@ answers:
 | Key | Meaning |
 | --- | --- |
 | `description` | One line, shown by `kit module list`. |
-| `default` | `true` for a module active unless removed. `kit install` with no names activates every default module. |
+| `default` | `true` for a module active unless removed. In this release, `kit` alone. |
 | `depends` | Modules activated with this one. `kit module remove` refuses a module another active module depends on. |
 | `answers` | The default value of each template key. A repository overrides one in `.kit/answers`. |
 
@@ -62,17 +62,37 @@ Where two active modules deliver the same path, the later module in dependency o
 A file under `templates/<base>/` is rendered first. Every `@key@` in it, autoconf's form, is replaced by the key's
 answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither
 bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may carry both untouched. The repository's
-answers live in `.kit/answers`, a file of `key value` lines the repository owns and the kit never writes; a key
-with no line there takes the module's default under `answers`, and a key with neither refuses the install, naming
-the key and the module.
+answers live under `answers:` in `.kit/settings.yml`; a key with none there takes the module's default under its
+own `answers`, and a key with neither refuses the install, naming the key and the module.
 
 The same YAML subset is what a rule's frontmatter is written in, read by `bin/yaml.sh` in both places, so a rule's
 `paths:` and `content:` lists and a module's `depends:` list have one reader between them.
 
+## Settings
+
+`.kit/settings.yml` is the repository's, read by the kit and never written by it, in the same YAML subset:
+
+```yaml
+answers:
+  ci_runner: ubuntu-latest
+```
+
+`answers` holds the values a module's templates take, overriding the module's own defaults. The other keys are
+the loop's choices, each described where the verb that reads it is.
+
+## Modules a repository defines
+
+A directory `.kit/modules/<name>/` in the repository is a module in every respect: `module.yml`, `files/<base>/`,
+`templates/<base>/`, and `docs/`. A name is looked up in the release first, then there. It is validated like a
+delivered module, may depend on delivered ones, is activated with `kit install <name>` or `kit module add <name>`,
+and `kit module list` shows it with its origin. Its paths are recorded in the manifest with their digests, so
+`kit check` tells an edited installed copy from its source, and `kit update` treats the module itself as its own
+base. A rule file it places under `.kit/rules/` is found by `kit context` like any other.
+
 ## Activation
 
-- `kit install [<module>…]` activates the default modules and the named ones, with their dependencies, and records
-  the set on the `modules` line of `.kit/manifest`.
+- `kit install [<module>…]` activates `kit`, the one default module, and the named ones, with their dependencies,
+  and records the set on the `modules` line of `.kit/manifest`.
 - `kit module list` shows every module the release carries and which are active.
 - `kit module add <module>…` activates more, placing only the paths the new set delivers beyond the old.
 - `kit module remove <module>…` deactivates, removing the paths only the removed modules delivered and taking the
@@ -83,8 +103,8 @@ The same YAML subset is what a rule's frontmatter is written in, read by `bin/ya
 | Module | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
 | `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md` |
-| `lefthook` | yes | `kit` | `.kit/lefthook.yml` |
-| `ci` | yes | `kit` | `.github/workflows/kit-ci.yml`, from a template; answer `ci_runner` |
+| `lefthook` | no | `kit` | `.kit/lefthook.yml` |
+| `ci` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 
 No module in this release delivers to `home`. Each module's `docs/README.md` says what it places and why.

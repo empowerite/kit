@@ -7,4 +7,4 @@ pinned release, and `kit linked` refuses a pull request not linked to an open is
 verb a desk can run, so the runner does nothing a person cannot repeat.
 
 The workflow is a template with one key, `ci_runner`, the label the job runs on. Its default is `ubuntu-latest`;
-a repository with runners of its own puts `ci_runner <label>` in `.kit/answers`.
+a repository with runners of its own sets `ci_runner` under `answers:` in `.kit/settings.yml`.

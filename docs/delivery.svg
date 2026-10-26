@@ -59,7 +59,7 @@
   <text class="m" x="396" y="270">kit module list|add|remove</text>
   <line x1="396" y1="286" x2="644" y2="286" stroke="#a78bfa" stroke-width="1"/>
   <text class="d" x="396" y="308">resolve the active set and its depends</text>
-  <text class="d" x="396" y="326">render @key@ from .kit/answers</text>
+  <text class="d" x="396" y="326">render @key@ from .kit/settings.yml</text>
   <text class="d" x="396" y="344">merge a .json destination by key</text>
   <text class="d" x="396" y="362">copy everything else</text>
   <text class="d" x="396" y="380">digest each path into the manifest</text>
@@ -79,7 +79,7 @@
   <line x1="732" y1="244" x2="1000" y2="244" stroke="#4ade80" stroke-width="1"/>
   <text class="m" x="732" y="268">.kit/manifest</text>
   <text class="d" x="856" y="268">version, modules, digests</text>
-  <text class="m" x="732" y="290">.kit/answers</text>
+  <text class="m" x="732" y="290">.kit/settings.yml</text>
   <text class="d" x="856" y="290">yours, never written</text>
   <text class="m" x="732" y="312">AGENTS.md</text>
   <text class="d" x="856" y="312">yours; names .kit/1st.md</text>

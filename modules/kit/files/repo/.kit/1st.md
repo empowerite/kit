@@ -90,8 +90,9 @@ The repository carries the text: this file, the rules under `.kit/rules/`, and `
 release version, the active modules, and a checksum per delivered file. The release, where it is installed,
 carries the machinery, reached through the `kit` command on `PATH`: the loop's commands, `kit issue`, `kit rebase`,
 `kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled that way and no other. Everything the release
-delivers is a module, and a repository activates the modules it takes: `kit install claude`, or `kit module add
-claude` later, and `kit module remove` to take one back out. A `.json` destination is merged by key, the kit owning
+delivers is a module, and a repository activates the modules it takes: `kit install ci lefthook claude`, or
+`kit module add claude` later, and `kit module remove` to take one back out; a module of the repository's own
+lives under `.kit/modules/` and is taken the same way. A `.json` destination is merged by key, the kit owning
 only the entries it writes; everything else is copied as it is.
 
 - `kit`: this file and the rules, discovered through `kit context`.

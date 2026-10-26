@@ -19,8 +19,8 @@ by default, which modules it depends on, and the default answers for its templat
 base's root; `templates/<base>/` is rendered first, every `@key@` replaced by an answer; `docs/` is packed with the
 release and placed in no repository. Two bases exist: `repo`, the repository root, and `home`, the user's `~`.
 
-The verbs are the only way content moves. `kit install` resolves the active set, default modules plus those named
-plus their dependencies, renders, places, and writes the manifests. `kit update` moves to a new pinned release:
+The verbs are the only way content moves. `kit install` resolves the active set, `kit` plus those named plus their
+dependencies, renders, places, and writes the manifests. `kit update` moves to a new pinned release:
 an untouched file is replaced, an edited one three-way merged with the previous release as the base. `kit check`
 fails when a delivered file differs from the release's. `kit module` changes the active set. Two rules govern
 placement: a `.json` destination is merged by key, the kit owning only the entries it writes; everything else is a

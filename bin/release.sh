@@ -6,9 +6,12 @@
 #
 # A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
 # mirrored at the base's root; and templates/<base>/, with @key@ rendered from the repository's answers, then
-# mirrored the same way. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's
-# home directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending
-# in .json is merged by key, the kit owning only the entries it writes. docs/modules.md is the format's description.
+# mirrored the same way. A repository defines modules of its own the same way under .kit/modules/<name>/, and
+# a name is looked up in the release first, then there. Two bases: repo, the repository root, recorded in
+# .kit/manifest; and home, the user's home directory, recorded in ~/.kit/manifest, which every repository on the
+# desk shares. A destination ending in .json is merged by key, the kit owning only the entries it writes. The
+# repository's choices live in .kit/settings.yml, which the kit reads and never writes. docs/modules.md is the
+# format's description.
 #
 # Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
 # the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and comm here
@@ -51,14 +54,45 @@ release:dest() {
 # release:manifest <base> prints the base's manifest: .kit/manifest in the repository, ~/.kit/manifest for home.
 release:manifest() { release:dest "$1" .kit/manifest; }
 
-# release:modules [<root>] prints the modules the release carries: every modules/<name>/ with a module.yml.
+# release_local is where a repository keeps modules of its own: .kit/modules/<name>/, in the release's shape.
+declare -gr release_local=.kit
+
+# release:settings prints the repository's settings file, which the kit reads and never writes.
+release:settings() { printf '.kit/settings.yml\n'; }
+
+# release:setting <key> prints the value of one top-level setting, or nothing.
+release:setting() { yaml:value "$(release:settings)" "$1"; }
+
+# release:modules [<root>] prints the modules in reach: every modules/<name>/ with a module.yml under the release
+# at <root>, and under .kit/modules/ in the repository.
 release:modules() {
-  (cd "${1:-${kit_root}}/modules" \
-    && find . -mindepth 2 -maxdepth 2 -name module.yml | sed 's@^\./@@; s@/module.yml$@@' | LC_ALL=C sort)
+  local root=${1:-${kit_root}} dir
+  for dir in "${root}" "${release_local}"
+  do
+    [[ -d "${dir}/modules" ]] || continue
+    (cd "${dir}/modules" && find . -mindepth 2 -maxdepth 2 -name module.yml | sed 's@^\./@@; s@/module.yml$@@')
+  done | LC_ALL=C sort --unique
+}
+
+# release:home <root> <module> prints where the module lives: the release at <root> when it carries the module,
+# else the repository's own .kit, so a path under it is <home>/modules/<module>/.
+release:home() {
+  if [[ -f "$1/modules/$2/module.yml" || ! -f "${release_local}/modules/$2/module.yml" ]]
+  then printf '%s\n' "$1"
+  else printf '%s\n' "${release_local}"
+  fi
+}
+
+# release:origin <root> <module> prints "release" or "repository", where the module comes from.
+release:origin() {
+  if [[ "$(release:home "$1" "$2")" == "$1" ]]
+  then printf 'release\n'
+  else printf 'repository\n'
+  fi
 }
 
 # release:meta <root> <module> prints the path of the module's metadata.
-release:meta() { printf '%s/modules/%s/module.yml\n' "$1" "$2"; }
+release:meta() { printf '%s/modules/%s/module.yml\n' "$(release:home "$1" "$2")" "$2"; }
 
 # release:description <root> <module> prints the module's one-line description.
 release:description() { yaml:value "$(release:meta "$1" "$2")" description; }
@@ -84,7 +118,7 @@ release:require-modules() {
   do
     if [[ ! -f "$(release:meta "${root}" "${module}")" ]]
     then
-      error "'${module}' is not a module this release knows; the modules are:" \
+      error "'${module}' is not a module in reach; the modules are:" \
         "$(release:modules "${root}" | paste -s -d ' ' -)"
       return 2
     fi
@@ -160,39 +194,38 @@ release:validate() {
     case "${key}" in
       (description | default | depends | answers) ;;
       (*)
-        error "modules/${module}/module.yml has a key the kit does not know: ${key} (see modules/module.schema.json)"
+        error "$(release:meta "${root}" "${module}") has a key the kit does not know: ${key} (see modules/module.schema.json)"
         return 1
     esac
   done
   if [[ -z "$(yaml:value "${meta}" description)" ]]
   then
-    error "modules/${module}/module.yml has no description"
+    error "$(release:meta "${root}" "${module}") has no description"
     return 1
   fi
   value=$(yaml:value "${meta}" default)
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
   then
-    error "modules/${module}/module.yml: default must be true or false, not '${value}'"
+    error "$(release:meta "${root}" "${module}"): default must be true or false, not '${value}'"
     return 1
   fi
   for dep in $(release:depends "${root}" "${module}")
   do
     if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
     then
-      error "modules/${module}/module.yml depends on '${dep}', which this release does not carry"
+      error "$(release:meta "${root}" "${module}") depends on '${dep}', which is not in reach"
       return 1
     fi
   done
 }
 
 # release:answers <root> <module> prints "<key>\t<value>" for every answer the module's templates may use: the
-# module's defaults under answers:, each overridden by a "<key> <value>" line in the repository's .kit/answers.
+# module's defaults under its answers:, each overridden by the repository's, under answers: in .kit/settings.yml.
 release:answers() {
   {
-    yaml:map "$(release:meta "$1" "$2")" answers | tr '\t' ' '
-    [[ -f .kit/answers ]] && grep --invert-match '^#' .kit/answers
-    true
-  } | awk 'NF >= 2 { v = $0; sub(/^[^ ]+ +/, "", v); a[$1] = v } END { for (k in a) print k "\t" a[k] }'
+    yaml:map "$(release:meta "$1" "$2")" answers
+    yaml:map "$(release:settings)" answers
+  } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
 
 # release:tmp prints a directory for this process's rendered templates, made once and removed at exit. The
@@ -211,8 +244,9 @@ release:tmp() {
 # directory holding them, or prints nothing where the module has none. A key is written @key@, autoconf's form,
 # which neither bash's ${var} nor GitHub's ${{ }} can be mistaken for; one with no answer refuses, naming the key.
 release:render() {
-  local root=$1 module=$2 base=$3 templates="$1/modules/$2/templates/$3" out key value text file rel
+  local root=$1 module=$2 base=$3 templates out key value text file rel
   local -A answer=()
+  templates="$(release:home "${root}" "${module}")/modules/${module}/templates/${base}"
   [[ -d "${templates}" ]] || return 0
   out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/${module}/${base}"
   if [[ ! -d "${out}" ]]
@@ -229,7 +263,7 @@ release:render() {
       do
         if [[ -z "${answer[${key}]+x}" ]]
         then
-          error "${rel} needs an answer for '${key}'; add a line '${key} <value>' to .kit/answers (module ${module})"
+          error "${rel} needs an answer for '${key}'; add '${key}: <value>' under answers: in .kit/settings.yml (module ${module})"
           return 1
         fi
         text=${text//"@${key}@"/"${answer[${key}]}"}
@@ -256,7 +290,7 @@ release:render-all() {
   do
     for kind in files templates
     do
-      for base in $(cd "${root}/modules/${module}/${kind}" 2>/dev/null \
+      for base in $(cd "$(release:home "${root}" "${module}")/modules/${module}/${kind}" 2>/dev/null \
         && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@')
       do
         # shellcheck disable=SC2046  # the bases are single words
@@ -286,7 +320,8 @@ release:layers() {
   shift 2
   for module in "$@"
   do
-    [[ -d "${root}/modules/${module}/files/${base}" ]] && printf '%s\n' "${root}/modules/${module}/files/${base}"
+    [[ -d "$(release:home "${root}" "${module}")/modules/${module}/files/${base}" ]] \
+      && printf '%s\n' "$(release:home "${root}" "${module}")/modules/${module}/files/${base}"
     rendered=$(release:render "${root}" "${module}" "${base}")
     [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
   done

@@ -29,7 +29,8 @@ case "${verb}" in
       then mark='✅'
       else mark='  '
       fi
-      printf '%s %-10s %s\n' "${mark}" "${module}" "$(release:description "${kit_root}" "${module}")"
+      printf '%s %-10s %-10s %s\n' "${mark}" "${module}" "$(release:origin "${kit_root}" "${module}")" \
+        "$(release:description "${kit_root}" "${module}")"
     done
     ;;
   (add)
