@@ -11,7 +11,7 @@ The rules are the smaller part. The point is verification that does not depend o
 - `kit ci`, which refuses a pull request without a linked open issue and refuses to pass a gate that did not
   run, from the delivered GitHub Actions job or from any pipeline;
 - `kit check`, which holds every delivered file to its release;
-- a pre-commit hook that runs the linters over what is staged;
+- `kit lint`, each rule's own linter over the paths it governs, before a commit or anywhere;
 - a deny list that refuses the spellings the rules forbid;
 - `kit status`, which shows what every pull request's checks said.
 
@@ -79,8 +79,9 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
   or any command as `gate` in `.kit/settings.yml`. `kit ci` runs it, with `kit check` and `kit linked`, from the
   delivered workflow or from any pipeline of your own, and refuses when there is none.
-- Take the pre-commit linters: pin `lefthook`, put `extends: [.kit/lefthook.yml]` in `lefthook.yml`, and run
-  `lefthook install` once per clone.
+- Run the linters before a commit: `kit lint` runs each rule's own linter over the staged paths with no hook
+  manager at all, and the `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
+  in `lefthook.yml`, and run `lefthook install` once per clone.
 
 `claude` is the adapter for Claude Code, which reads `AGENTS.md` only as a fallback, when no `CLAUDE.md` is
 present. The module places `.claude/CLAUDE.md` importing `AGENTS.md`, so Claude reads what every agent reads in

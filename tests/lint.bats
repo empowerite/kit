@@ -1,23 +1,23 @@
 #!/usr/bin/env bats
-# lint.bats - kit lint runs the linters the delivered fragment declares, over the staged paths or every path
+# lint.bats - kit lint runs each rule's linter over the paths it governs, staged, named, or every tracked one
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
-  lefthook version >/dev/null 2>&1 || skip "lefthook is a desk tool (mise.desk.toml, MISE_ENV=desk)"
+  shellcheck --version >/dev/null 2>&1 || skip "shellcheck is the bash rule's linter, and it is not on PATH"
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   repo=$(mktemp -d)
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
   cd "${repo}"
   git init --quiet --initial-branch=main
   "${kit_checkout}/bin/kit" install >/dev/null
-  printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
   printf '#!/usr/bin/env bash\necho $x\n' > bad.sh
   printf '#!/usr/bin/env bash\necho "${x:-}"\n' > good.sh
+  printf '#!/usr/bin/env bash\necho $y\n' > tool
 }
 
 teardown() {
-  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
+  rm -rf "${repo}"
 }
 
 @test "lint refuses a staged bash file shellcheck faults, and passes a clean one" {
@@ -25,19 +25,39 @@ teardown() {
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 1 ]
   [[ "$output" == *"SC2086"* ]]
+  [[ "$output" == *".kit/rules/bash.md: shellcheck"* ]]
   git reset --quiet && git add good.sh
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 0 ]
+  [[ "$output" == *"every governed path passes"* ]]
 }
 
-@test "lint --all-files reads every tracked path, where lint alone reads only the staged ones" {
+@test "a named path is linted by the rule its first line names, and --all-files reads every tracked path" {
+  run "${kit_checkout}/bin/kit" lint tool
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"SC2086"* ]]
+  git add good.sh
+  git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit --quiet --no-verify --message good
   git add bad.sh
   git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit --quiet --no-verify --message bad
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to lint"* ]]
   run "${kit_checkout}/bin/kit" lint --all-files
   [ "$status" -eq 1 ]
   [[ "$output" == *"bad.sh"* ]]
+}
+
+@test "a linter a rule names that is not on PATH is a refusal, named" {
+  mkdir -p "${BATS_TEST_TMPDIR}/path" && ln -s "$(command -v git)" "${BATS_TEST_TMPDIR}/path/git"
+  for tool in bash jq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env uname readlink comm
+  do
+    p=$(command -v "${tool}") && ln -s "${p}" "${BATS_TEST_TMPDIR}/path/${tool}" || true
+  done
+  git add good.sh
+  run env PATH="${BATS_TEST_TMPDIR}/path" "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"shellcheck is not on PATH"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

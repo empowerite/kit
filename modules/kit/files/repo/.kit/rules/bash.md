@@ -5,6 +5,7 @@ paths:
   - "**/*.bash"
 content:
   - "^#!.*/(env +)?(ba)?sh( |$)"
+lint: shellcheck --shell=bash --external-sources
 ---
 # Bash
 

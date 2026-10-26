@@ -1,23 +1,19 @@
 # lefthook.yml - this repository's git hooks; see: https://lefthook.dev
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The kit's own linters come from its installed fragment, the way a consumer takes them. This repository adds
-# shellcheck over the dispatcher, which carries no extension, markdownlint, and the refresh of the installed
-# copies. Once per clone: lefthook install
+# The linters come from the kit's installed fragment, the way a consumer takes them: kit lint over the staged
+# paths, each rule's own linter. This repository adds the refresh of its installed copies. Once per clone:
+# lefthook install
 
 extends:
   - .kit/lefthook.yml
 
 pre-commit:
   commands:
-    shellcheck-dispatcher:
-      glob: "bin/kit"
-      run: shellcheck --shell=bash --external-sources {staged_files}
-    markdownlint:
-      glob: "*.md"
-      run: markdownlint-cli2 {staged_files}
     # A change to a delivered file's source rewrites the installed copies in the same commit; the recipe stages
     # what it rewrote.
     refresh:
       glob: "modules/**"
       run: just refresh
+
+# ----------------------------------------------------------------------------------------------------------------------

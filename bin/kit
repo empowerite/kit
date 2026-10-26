@@ -48,7 +48,8 @@ usage: kit <verb> [<argument>…]
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
   status [--no-fetch] [--json]
                         the desk, the worktrees, and the open pull requests
-  lint [--all-files]    run the pre-commit hook's linters by hand, over the staged paths or every path
+  lint [--all-files] [<path>…]
+                        run each rule's linter over the paths it governs: staged, named, or every tracked one
   version               print this release's version
 
 Each verb answers --help.

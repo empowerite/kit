@@ -41,7 +41,8 @@ file that exists. `kit context <path>` names the rules governing a path and appe
 `.kit/1st.md`, a person at the shell, a tool reading `--json`, and Claude Code's `PreToolUse` hook, which the
 `claude` module wires to `kit context --claude` so the rules are named before every write. The call names and
 never quotes: reading the rule stays an act the caller takes, and the log of asks is the record of what was
-named.
+named. A rule also names its linter, and `kit lint` runs each rule's linter over the paths the rule governs, so
+the hook manager a repository uses, if any, only has to call the verb.
 
 ## The loop and the gate
 
@@ -79,6 +80,7 @@ worktree with its commits past the fork, and every open pull request with its st
 | All three held, wherever CI runs | `kit ci`, the three checks as one verb, every one reported |
 | A file's rules were named to the agent | the Claude Code hook; `kit context` in every other harness |
 | A file's rules were asked for | `.git/kit/context.log`, one line per ask |
+| A file keeps its rule's mechanical part | `kit lint`, each rule's own linter over the paths it governs |
 | The forbidden spellings were not used | the harness's deny list, delivered by its adapter module |
 | The desk was not disturbed | `kit rebase` refusing the root checkout; `kit issue` never switching its branch |
 

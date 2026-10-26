@@ -2,6 +2,7 @@
 # Delivered by kit, not edited by hand. A change is a new release, then kit update.
 paths:
   - "**/*.md"
+lint: markdownlint-cli2
 ---
 # Markdown
 

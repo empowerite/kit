@@ -71,7 +71,8 @@ A worker is whoever implements one issue in the worktree that issue names.
 ## Rules by file type
 
 Each file kind has a rule file under `.kit/rules/`, and each rule file's header names what it governs: `paths:`,
-globs on the repository path, and `content:`, patterns on the first line. Before you create or change a file, run
+globs on the repository path, and `content:`, patterns on the first line; `lint:` names the linter `kit lint`
+runs over the paths it governs. Before you create or change a file, run
 `kit context <path>`. It names the rules that govern the file and records that you asked. Read what it names. No
 harness holds a copy of a rule; this call is how every harness, and every person, finds it.
 
@@ -81,6 +82,7 @@ harness holds a copy of a rule; this call is how every harness, and every person
 | Bash | [rules/bash.md](rules/bash.md) |
 | Just | [rules/just.md](rules/just.md) |
 | YAML | [rules/yaml.md](rules/yaml.md) |
+| Workflows | [rules/workflows.md](rules/workflows.md) |
 | JSON | [rules/json.md](rules/json.md) |
 | Ignore lists | [rules/gitignore.md](rules/gitignore.md) |
 
@@ -96,8 +98,9 @@ lives under `.kit/modules/` and is taken the same way. A `.json` destination is 
 only the entries it writes; everything else is copied as it is.
 
 - `kit`: this file and the rules, discovered through `kit context`.
-- `lefthook`: `.kit/lefthook.yml`, which linter runs over which paths before a commit on a desk. A repository's
-  `lefthook.yml` takes it with `extends` and adds commands of its own, and `kit lint` runs the same hook by hand.
+- `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
+  `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
+  it runs each rule's linter over the paths the rule governs.
 - `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that runs `kit ci`: the repository's gate,
   `kit check`, and the refusal of a pull request not linked to an open issue. `kit ci` runs the same three
   anywhere.

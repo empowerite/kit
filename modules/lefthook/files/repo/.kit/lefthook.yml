@@ -1,17 +1,13 @@
 # Delivered by kit, not edited by hand. A change is a new release, then kit update.
 #
-# Which linter runs over which paths before a commit. The repository's lefthook.yml takes this with
-# `extends: [.kit/lefthook.yml]` and adds commands of its own; Lefthook merges by name, so a command of the same
-# name there overrides one here. `kit lint` runs this hook by hand, over the staged paths or, with --all-files,
-# over every tracked path. Once per clone: lefthook install
+# The pre-commit hook runs kit lint over the staged paths: each rule's own linter, declared in the rule's
+# frontmatter, over the paths the rule governs. The repository's lefthook.yml takes this with
+# `extends: [.kit/lefthook.yml]` and adds commands of its own; Lefthook merges by name. Once per clone:
+# lefthook install
 #
 # see: https://lefthook.dev
 
 pre-commit:
   commands:
-    shellcheck:
-      glob: "*.{sh,bash}"
-      run: shellcheck --shell=bash --external-sources {staged_files}
-    actionlint:
-      glob: ".github/workflows/*.{yml,yaml}"
-      run: actionlint {staged_files}
+    kit-lint:
+      run: kit lint {staged_files}

@@ -20,6 +20,7 @@ paths:
   - "**/*.sh"
 content:
   - "^#!.*/(env +)?(ba)?sh( |$)"
+lint: shellcheck --shell=bash --external-sources
 ---
 ```
 
@@ -30,7 +31,10 @@ content:
   bash script with no extension is bash by its shebang, and a file about to be created is governed by its path
   alone.
 
-A rule governs a file when any glob or any pattern matches.
+A rule governs a file when any glob or any pattern matches. `lint:` names the linter for the paths the rule
+governs: `kit lint` runs it once over the staged paths, the named ones, or with `--all-files` every tracked one,
+and a linter not on `PATH` is a refusal, not a skip. No hook manager is assumed; the `lefthook` module wires its
+pre-commit hook to the verb.
 
 ## Harness adapters
 

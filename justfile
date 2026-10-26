@@ -20,19 +20,17 @@ _: help
 
 set export := true
 
-# The gate: shellcheck over every bash file, actionlint over every workflow, markdownlint over every markdown
-# file, every module.yml against modules/module.schema.json, the bats suite, and bin/kit check over this
-# repository's installed copy of its own kit. The runner runs it on every pull request, and a desk runs it the
+# The gate: kit lint over every tracked path, each rule's own linter, every module.yml against
+# modules/module.schema.json, the bats suite, and bin/kit check over this repository's installed copy of its own
+# kit. The runner runs it on every pull request, and a desk runs it the
 # same way; the pre-commit hook is the narrower, faster check over the staged paths.
 #
 #   just ci
-[doc("🚦 The gate: shellcheck, actionlint, markdownlint, the module schema, bats, kit check")]
+[doc("🚦 The gate: kit lint, the module schema, bats, kit check")]
 ci:
   #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  mise exec -- shellcheck --shell=bash --external-sources bin/kit bin/*.sh
-  mise exec -- actionlint
-  mise exec -- markdownlint-cli2 '**/*.md'
+  mise exec -- bin/kit lint --all-files
   mise exec -- ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
   mise exec -- bats --print-output-on-failure tests/
   bin/kit check

@@ -77,8 +77,12 @@ answers:
   ci_runner: ubuntu-latest
 ```
 
-`answers` holds the values a module's templates take, overriding the module's own defaults. The other keys are
-the loop's choices, each described where the verb that reads it is.
+| Key | Meaning |
+| --- | --- |
+| `forge` | The provider the loop's verbs use, `github` in this release; detected from origin's host when absent. |
+| `gate` | What `kit gate` runs; a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script is detected when absent. |
+| `require_signing` | `true` makes `kit issue` refuse a desk without a signing key. |
+| `answers` | The values a module's templates take, overriding the module's own defaults. |
 
 ## Modules a repository defines
 
@@ -103,7 +107,7 @@ base. A rule file it places under `.kit/rules/` is found by `kit context` like a
 | Module | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
 | `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md` |
-| `lefthook` | no | `kit` | `.kit/lefthook.yml` |
+| `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` |
 | `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 

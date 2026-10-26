@@ -32,8 +32,9 @@ teardown() {
   [ -z "$output" ]
   run "${kit_checkout}/bin/kit" context docs/a.md "${PWD}/.github/workflows/x.yml" lib/x.md
   [ "${lines[0]}" = ".kit/rules/markdown.md" ]
-  [ "${lines[1]}" = ".kit/rules/yaml.md" ]
-  [ "${#lines[@]}" -eq 2 ]
+  [ "${lines[1]}" = ".kit/rules/workflows.md" ]
+  [ "${lines[2]}" = ".kit/rules/yaml.md" ]
+  [ "${#lines[@]}" -eq 3 ]
 }
 
 @test "a relative path is taken from the directory the command was typed in" {
