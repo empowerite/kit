@@ -485,8 +485,9 @@ release:paths-beyond() {
     <(release:delivered "${root}" "${base}" "${after[@]}" | cut -f 1)
 }
 
-# release:merged <path> is true for a destination that is merged by key rather than copied: a .json file.
-release:merged() { [[ "$1" == *.json ]]; }
+# release:merged <path> is true for a destination that is merged by key rather than copied: a .json file that is
+# a settings file, which every .json is here except a schema, *.schema.json.
+release:merged() { [[ "$1" == *.json && "$1" != *.schema.json ]]; }
 
 # release:fetch <version> prints the root of that release, fetching it if need be: the kit's cache first, then a
 # mise install if mise is here, then the release's public tarball with curl, unpacked into the cache. The version

@@ -67,7 +67,8 @@ later-release() {
   grep --quiet '^modules kit claude$' .kit/manifest
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
-  [ "$(tail -n 1 .claude/CLAUDE.md)" = "@../AGENTS.md" ]
+  grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
+  grep --quiet --line-regexp '<!-- kit:begin claude -->' .claude/CLAUDE.md
   [ ! -e .claude/rules ]
 }
 
@@ -435,14 +436,17 @@ later-release() {
   [ "$(cat .kit/1st.md)" = "mine" ]
   rm .kit/1st.md
   "${kit_checkout}/bin/kit" install
-  mkdir .claude && printf 'theirs\n' > .claude/CLAUDE.md
-  run "${kit_checkout}/bin/kit" module add claude
+  printf 'theirs\n' > .kit/lefthook.yml
+  run "${kit_checkout}/bin/kit" module add lefthook
   [ "$status" -eq 1 ]
-  [[ "$output" == *".claude/CLAUDE.md: a different file is there already"* ]]
+  [[ "$output" == *".kit/lefthook.yml: a different file is there already"* ]]
   grep --quiet '^modules kit$' .kit/manifest
-  cp "${kit_checkout}/modules/claude/files/repo/.claude/CLAUDE.md" .claude/CLAUDE.md
-  run "${kit_checkout}/bin/kit" module add claude
+  rm .kit/lefthook.yml
+  mkdir .claude && printf '# Ours\n' > .claude/CLAUDE.md
+  run "${kit_checkout}/bin/kit" module add claude lefthook
   [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' .claude/CLAUDE.md)" = "# Ours" ]
+  grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
 }
 
 @test "module remove judges dependents against what stays, in any order" {

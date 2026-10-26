@@ -105,9 +105,10 @@ only the entries it writes; everything else is copied as it is.
 - `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that runs `kit ci`: the repository's gate,
   `kit check`, and the refusal of a pull request not linked to an open issue. `kit ci` runs the same three
   anywhere.
-- `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: `.claude/CLAUDE.md`
-  importing `AGENTS.md`, so it is read in every case; the deny list above merged into `.claude/settings.json`; and
-  a hook that runs `kit context` before every write so the rules are named to the agent without being asked for.
+- `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: a region in
+  `.claude/CLAUDE.md` importing `AGENTS.md`, so it is read in every case; the deny list above merged into
+  `.claude/settings.json`; and a hook that runs `kit context` before every write so the rules are named to the agent
+  without being asked for.
 
 `kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
 new release and running `kit update`, never by editing them in place.

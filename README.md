@@ -79,11 +79,11 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
   manager at all, and the `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
   in `lefthook.yml`, and run `lefthook install` once per clone.
 
-`claude` is the adapter for Claude Code, which reads `AGENTS.md` only as a fallback, when no `CLAUDE.md` is
-present. The module places `.claude/CLAUDE.md` importing `AGENTS.md`, so Claude reads what every agent reads in
-every case. A repository with no adapter still binds every agent that reads `AGENTS.md`. `kit module list`,
-`kit module add`, and `kit module remove` show and change the set, and [docs/modules.md](docs/modules.md)
-describes a module.
+`claude` is the adapter for Claude Code, which reads `AGENTS.md` only as a fallback, when no `CLAUDE.md` is present.
+The module places a region in `.claude/CLAUDE.md` importing `AGENTS.md`, so Claude reads what every agent reads in
+every case, and the rest of that file is yours. A repository with no adapter still binds every agent that reads
+`AGENTS.md`. `kit module list`, `kit module add`, and `kit module remove` show and change the set, and
+[docs/modules.md](docs/modules.md) describes a module.
 
 Before an agent creates or changes a file, it asks `kit context "${path}"` which rules govern it;
 [docs/context.md](docs/context.md) describes the call and the Claude Code hook that makes it for the agent.
@@ -144,7 +144,7 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `modules/kit/files/repo/.kit/` |
 | `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
-| `.claude/CLAUDE.md` | `modules/claude/files/repo/.claude/CLAUDE.md` |
+| `.claude/CLAUDE.md` | `modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file is the repository's |
 | `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 

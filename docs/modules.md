@@ -55,10 +55,10 @@ naming it.
 
 ## Delivery
 
-A file under `files/<base>/` is placed at the same path under the base's root. A destination ending in `.json` is
-merged by key: the kit's keys are set, its array entries added, and on update or removal only the previous
-release's entries are taken out, so a repository's own keys and entries survive. Every other destination is a copy.
-Where two active modules deliver the same path, the later module in dependency order wins.
+A file under `files/<base>/` is placed at the same path under the base's root. A destination ending in `.json`, other
+than a schema, `*.schema.json`, is merged by key: the kit's keys are set, its array entries added, and on update or
+removal only the previous release's entries are taken out, so a repository's own keys and entries survive. Every other
+destination is a copy. Where two active modules deliver the same path, the later module in dependency order wins.
 
 A file under `regions/<base>/` is placed as a region inside the file at the same path: its content between two
 marker comments naming the module, `<!-- kit:begin kit -->` and `<!-- kit:end kit -->` in markdown, `# kit:begin
@@ -123,6 +123,6 @@ base. A rule file it places under `.kit/rules/` is found by `kit context` like a
 | `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
 | `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` |
 | `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
-| `claude` | no | `kit` | `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
+| `claude` | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 
 No module in this release delivers to `home`. Each module's `docs/README.md` says what it places and why.

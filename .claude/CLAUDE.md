@@ -1,2 +1,3 @@
-<!-- Delivered by kit, not edited by hand. A change is a new release, then kit update. -->
+<!-- kit:begin claude -->
 @../AGENTS.md
+<!-- kit:end claude -->
