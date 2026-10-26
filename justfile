@@ -54,26 +54,34 @@ ci:
   echo "✅ ci passed"
 
 # Bring this repository's own installed copies up to the index and stage the result. Here the checkout is the
-# release, so an edit under modules/ is an edit to the release, not a consumer's drift. The copies are made from
-# the index, what the commit will carry, never from the working tree, so a half-staged edit cannot put a copy
-# into a commit that lacks its source. It is kit update at the same version: an untouched copy is replaced, a
-# retired one removed, a region rewritten between its markers with the rest of its file left alone. The
-# pre-commit hook runs this on a commit that touches the source; by hand it is for a desk without the hook.
+# release, so an edit under modules/ is an edit to the release, not a consumer's drift. Everything is done
+# against the index, what the commit will carry: the sources and the copies are exported from it, kit update
+# runs over the export with HEAD's release as the base of every merge, the release the copies were last made
+# from, and the export is staged back. A desk's unstaged text outside a region, or outside the kit's entries in
+# a merged JSON file, is not staged with it, and an entry the source dropped is retired, since the base still
+# carries it. The working tree then takes the same step, so a desk's copies agree with the index inside the
+# kit's parts. The pre-commit hook runs this on a commit that touches the source; by hand it is for a desk
+# without the hook.
 #
 #   just refresh
 [doc("🔁 Bring this repository's own installed copies up to the index, and stage the result")]
 [script]
 refresh:
   set -o errexit -o nounset -o pipefail
-  paths() { awk 'length($1) == 64 { print substr($0, 67) }' .kit/manifest; }
-  readarray -t before < <(paths)
-  index=$(mktemp -d)
-  trap 'rm -rf "${index}"' EXIT
-  git checkout-index --all --prefix="${index}/"
-  "${index}/bin/kit" update >/dev/null
-  readarray -t after < <(paths)
-  git add --all -- "${before[@]}" "${after[@]}" .kit/manifest
+  work=$(mktemp -d)
+  trap 'rm -rf "${work}"' EXIT
+  mkdir "${work}/index" "${work}/base"
+  git checkout-index --all --prefix="${work}/index/"
+  git archive HEAD bin modules | tar -x -C "${work}/base"
+  cp "$(git rev-parse --git-path index)" "${work}/index.file"
+  # The export is no repository of its own: the ceiling keeps git from finding this one above the temp directory.
+  (cd "${work}/index" && GIT_CEILING_DIRECTORIES="${work}" KIT_BASE="${work}/base" bin/kit update >/dev/null)
+  GIT_DIR=$(git rev-parse --absolute-git-dir) GIT_WORK_TREE="${work}/index" GIT_INDEX_FILE="${work}/index.file" \
+    git -C "${work}/index" add --all
+  git read-tree "$(GIT_INDEX_FILE="${work}/index.file" git write-tree)"
+  KIT_BASE="${work}/base" "${work}/index/bin/kit" update >/dev/null
   modules=$(sed -n 's/^modules *//p' .kit/manifest)
-  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, modules ${modules}"
+  count=$(awk 'length($1) == 64' .kit/manifest | wc -l | tr -d ' ')
+  echo "✅ refreshed from the index and staged: ${count} delivered paths, modules ${modules}"
 
 # ----------------------------------------------------------------------------------------------------------------------
