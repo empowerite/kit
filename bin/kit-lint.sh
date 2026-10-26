@@ -32,13 +32,19 @@ do
     (*) paths+=("${arg}")
   esac
 done
+# A named path is taken from the directory the command was typed in; git's lists are root-relative already,
+# read NUL-separated so a name with a space or a non-ASCII character survives.
+for i in "${!paths[@]}"
+do
+  paths[i]=$(context:relative "${paths[i]}")
+done
 if (( ${#paths[@]} == 0 ))
 then
   if [[ "${all}" == true ]]
   then
-    readarray -t paths < <(git ls-files)
+    readarray -d '' -t paths < <(git ls-files -z)
   else
-    readarray -t paths < <(git diff --cached --name-only --diff-filter=ACMR)
+    readarray -d '' -t paths < <(git diff --cached --name-only --diff-filter=ACMR -z)
   fi
 fi
 if (( ${#paths[@]} == 0 ))
@@ -51,7 +57,6 @@ fi
 declare -A governed=()
 for path in "${paths[@]}"
 do
-  path=$(context:relative "${path}")
   [[ -f "${path}" ]] || continue
   while IFS= read -r rule
   do

@@ -5,11 +5,14 @@
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
+  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${BATS_TEST_TMPDIR}/shims"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/shims/gh" && chmod +x "${BATS_TEST_TMPDIR}/shims/gh"
+  export PATH="${BATS_TEST_TMPDIR}/shims:${PATH}"
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main
   git remote add origin https://github.com/empowerite/example.git
+  export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
 }
 
 teardown() {

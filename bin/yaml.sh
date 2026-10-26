@@ -2,8 +2,9 @@
 # yaml.sh - the subset of YAML the kit's own files are written in (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Two kinds of file are read here: a module's module.yml, and the frontmatter between the opening and closing `---`
-# of a rule file. Both are written in the same small subset, and one reader serves both so they cannot drift:
+# Three kinds of file are read here: a module's module.yml, the repository's .kit/settings.yml, and the
+# frontmatter between the opening and closing `---` of a rule file. All are written in the same small subset,
+# and one reader serves them so they cannot drift:
 #
 #   key: value          a scalar, quoted or not
 #   key:                a list, one `  - item` per line
@@ -24,7 +25,7 @@ yaml:value() {
 yaml:list() {
   yaml:read "$1" | awk -v key="$2" '
     $0 == key ":" { on = 1; next }
-    /^[A-Za-z]/ { on = 0 }
+    /^[A-Za-z0-9_-]/ { on = 0 }
     on && /^  - / { v = $0; sub(/^  - /, "", v); gsub(/^"|"$/, "", v); print v }'
 }
 
@@ -32,14 +33,15 @@ yaml:list() {
 yaml:map() {
   yaml:read "$1" | awk -v key="$2" '
     $0 == key ":" { on = 1; next }
-    /^[A-Za-z]/ { on = 0 }
-    on && /^  [A-Za-z_]+: / { n = $0; sub(/^  /, "", n); sub(/: .*$/, "", n); v = $0; sub(/^  [A-Za-z_]+: */, "", v);
+    /^[A-Za-z0-9_-]/ { on = 0 }
+    on && /^  [A-Za-z0-9_-]+: / {
+      n = $0; sub(/^  /, "", n); sub(/: .*$/, "", n); v = $0; sub(/^  [A-Za-z0-9_-]+: */, "", v);
       gsub(/^"|"$/, "", v); print n "\t" v }'
 }
 
 # yaml:keys <file> prints the top-level keys, one per line.
 yaml:keys() {
-  yaml:read "$1" | awk '/^[A-Za-z_]+:/ { k = $0; sub(/:.*$/, "", k); print k }'
+  yaml:read "$1" | awk '/^[A-Za-z0-9_-]+:/ { k = $0; sub(/:.*$/, "", k); print k }'
 }
 
 # yaml:read <file> prints the file's YAML: the frontmatter when the file opens with ---, the whole file otherwise.

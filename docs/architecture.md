@@ -14,18 +14,19 @@ A release is one tarball, `kit-<version>.tar.gz`, and its layout is the checkout
 beside it, and the verbs share bash modules loaded with `use`. The release workflow stamps the tag's version into
 a `version` file; a checkout has none and is `unreleased`.
 
-A module is a directory under `modules/`, and the directory names it. `module.yml` describes it: whether it is active
-by default, which modules it depends on, and the default answers for its templates; `files/<base>/` is mirrored at the
-base's root; `templates/<base>/` is rendered first, every `@key@` replaced by an answer; `docs/` is packed with the
-release and placed in no repository. Two bases exist: `repo`, the repository root, and `home`, the user's `~`.
+A module is a directory under `modules/`, and the directory names it. `module.yml` describes it: whether it is active by
+default, which modules it depends on, and the default answers for its templates; `files/<base>/` is mirrored at the
+base's root; `templates/<base>/` is rendered first, every `@key@` replaced by an answer; `regions/<base>/` holds what
+the kit owns inside a file the repository owns; `docs/` is packed with the release and placed in no repository. Two
+bases exist: `repo`, the repository root, and `home`, the user's `~`.
 
 The verbs are the only way content moves. `kit install` resolves the active set, `kit` plus those named plus their
 dependencies, renders, places, and writes the manifests. `kit update` moves to a new pinned release:
 an untouched file is replaced, an edited one three-way merged with the previous release as the base. `kit check`
 fails when a delivered file differs from the release's. `kit module` changes the active set. Three rules govern
-placement: a `.json` destination is merged by key, the kit owning only the entries it writes; a region is written
-between marker comments inside a file the repository owns, the kit holding only what is between them; everything
-else is a copy.
+placement: a `.json` destination, other than a schema, is merged by key, the kit owning only the entries it writes; a
+region is written between marker comments inside a file the repository owns, the kit holding only what is
+between them; everything else is a copy.
 
 Each base has a manifest: `.kit/manifest`, committed with the repository, and `~/.kit/manifest` on the desk when a
 module delivers there. A manifest records the version, the active modules, and the release's digest of every
@@ -35,15 +36,14 @@ delivered path, which is how `kit update` tells an edited file from an untouched
 
 ![Context: how any agent, and Claude Code's hook, find the rules that govern a file](context.svg)
 
-A rule is written once, in `.kit/rules/<kind>.md`, and copied into no harness's directory. Its frontmatter says
-what it governs: `paths:`, globs on the repository-relative path, and `content:`, patterns on the first line of a
-file that exists. `kit context <path>` names the rules governing a path and appends the ask to
-`.git/kit/context.log`. Every caller gets the same answer: an agent of any harness following the sentence in
-`.kit/1st.md`, a person at the shell, a tool reading `--json`, and Claude Code's `PreToolUse` hook, which the
-`claude` module wires to `kit context --claude` so the rules are named before every write. The call names and
-never quotes: reading the rule stays an act the caller takes, and the log of asks is the record of what was
-named. A rule also names its linter, and `kit lint` runs each rule's linter over the paths the rule governs, so
-the hook manager a repository uses, if any, only has to call the verb.
+A rule is written once, in `.kit/rules/<kind>.md`, and copied into no harness's directory. Its frontmatter says what it
+governs: `paths:`, globs on the repository-relative path, and `content:`, patterns on the first line of a file that
+exists. `kit context <path>` names the rules governing a path and appends the ask to `.git/kit/context.log`. Every
+caller gets the same answer: an agent of any harness following the sentence in `.kit/1st.md`, a person at the shell, a
+tool reading `--json`, and Claude Code's `PreToolUse` hook, which the `claude` module wires to `kit context --claude` so
+the rules are named before every write. The log of asks is the record of what was named. A rule also names its linter,
+and `kit lint` runs each rule's linter over the paths the rule governs, so the hook manager a repository uses, if any,
+only has to call the verb.
 
 ## The loop and the gate
 
@@ -51,22 +51,20 @@ the hook manager a repository uses, if any, only has to call the verb.
 
 The desk is the root checkout and belongs to the human; it usually has `main` checked out and may have any branch no
 worktree holds, and no agent changes it in place. Work starts from an issue: `kit issue <N>` makes
-`worktrees/<N>-<slug>`, a branch linked to the issue under Development, a signed start commit, and a draft pull
-request, and sweeps uncommitted work off the desk into the worktree, the one change it makes there, announced.
-Everything after that happens in the worktree: `kit context` before a change, `kit lint` for the pre-commit linters by
-hand, `kit rebase` to bring the branch onto `origin/main` and push it, and `gh pr ready` when the pull request body is
-the report.
+`worktrees/<N>-<slug>`, a branch linked to the issue, a start commit, and a draft pull request. It sweeps uncommitted
+work off the desk into the worktree, the one change it makes to the desk, and says so. Everything after that happens in
+the worktree: `kit context` before a change, `kit lint` for the pre-commit linters by hand, `kit rebase` to bring the
+branch onto the default branch at origin and push it, and `gh pr ready` when the pull request body is the report.
 
 Every call the loop makes to the forge, an issue's title, a branch linked to it, a pull request and its state,
 its checks and threads and linked issues, goes through one seam, `forge:` in `bin/forge.sh`, and a provider
 answers: `forge-github.sh` over `gh`, chosen by the `forge` setting or by origin's host. The core verbs never
 reach the seam, so a repository on no forge still installs, updates, checks, and runs `kit context`, and `gh` is
-the GitHub provider's requirement alone. A second forge is a second provider against the same names.
-
-The gate is `kit ci`, three checks that are each one kit command, run by the delivered GitHub Actions job for a
-pull request into the default branch, or by any pipeline. `kit gate` runs the repository's gate, the `gate`
-setting or the detected justfile recipe, Makefile target, or package.json script, and refuses when there is none,
-since a gate that cannot run clears nothing. `kit check` holds the delivered files to
+the GitHub provider's requirement alone.
+The delivered check is `kit ci`, three checks that are each one kit command, run by the delivered GitHub Actions
+job for a pull request into the default branch, or by any pipeline. `kit gate` runs the repository's own gate,
+the `gate` setting or the detected justfile recipe, Makefile target, or `package.json` script, and refuses when
+there is none, since a gate that cannot run clears nothing. `kit check` holds the delivered files to
 the release. `kit linked` refuses a pull request not linked to an open issue of the repository. A human merges, and
 `kit tidy` removes the worktree and the branch afterwards. `kit status` draws the whole picture: the desk, every
 worktree with its commits past the fork, and every open pull request with its state, age, and checks.
@@ -78,7 +76,7 @@ worktree with its commits past the fork, and every open pull request with its st
 | A delivered file is the release's | `kit check`, in the gate and on a desk, against the release's files and the manifest's version |
 | A change has an issue | `kit linked` in the gate; `kit issue` makes the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which refuses when there is no gate to run |
-| All three held, wherever CI runs | `kit ci`, the three checks as one verb, every one reported |
+| All three held, wherever CI runs | `kit ci`, the delivered check, the three as one verb, every one reported |
 | A file's rules were named to the agent | the Claude Code hook; `kit context` in every other harness |
 | A file's rules were asked for | `.git/kit/context.log`, one line per ask |
 | A file keeps its rule's mechanical part | `kit lint`, each rule's own linter over the paths it governs |

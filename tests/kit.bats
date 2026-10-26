@@ -162,7 +162,7 @@ later-release() {
   [ "$(cat "${KIT_HOME}/.kit/claude")" = "user level" ]
   grep --quiet '^version 9.9.9$' "${KIT_HOME}/.kit/manifest"
   grep --quiet '  .kit/claude$' "${KIT_HOME}/.kit/manifest"
-  grep --quiet --invert-match 'claude$' .kit/manifest
+  ! grep --quiet 'claude$' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'edited\n' >> "${KIT_HOME}/.kit/claude"
@@ -189,7 +189,8 @@ later-release() {
   mkdir -p .kit/modules/python/files/repo/.kit/rules .kit/modules/python/templates/repo
   printf 'description: "The Python rule and the tool pins"\ndepends:\n  - kit\nanswers:\n  python: "3.13"\n' \
     > .kit/modules/python/module.yml
-  printf -- '---\npaths:\n  - "**/*.py"\n---\n# Python\n\nType everything.\n' > .kit/modules/python/files/repo/.kit/rules/python.md
+  printf -- '---\npaths:\n  - "**/*.py"\n---\n# Python\n\nType everything.\n' \
+    > .kit/modules/python/files/repo/.kit/rules/python.md
   printf 'python @python@\n' > .kit/modules/python/templates/repo/.python-version
   run "${kit_checkout}/bin/kit" install python
   [ "$status" -eq 0 ]
@@ -269,6 +270,45 @@ later-release() {
   [ "$status" -eq 0 ]
   [ "$(cat AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions.|## More of ours" ]
   [ "$(cat .gitignore)" = "build/" ]
+}
+
+@test "a symlinked destination keeps its link, and a directory at a destination is refused" {
+  mkdir docs && printf '# Ours\n' > docs/AGENTS.md && ln -s docs/AGENTS.md AGENTS.md
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ -L AGENTS.md ]
+  grep --quiet 'kit:begin kit' docs/AGENTS.md
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" module remove kit
+  [ "$status" -eq 0 ]
+  mkdir -p .kit/1st.md
+  run "${kit_checkout}/bin/kit" module add kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/1st.md: a directory, or something that is not a file, is there"* ]]
+}
+
+@test "a region that opens and never closes is refused by name, and two modules cannot share a region's file" {
+  printf '<!-- kit:begin kit -->\nhalf\n' > AGENTS.md
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"AGENTS.md: the kit's region opens with '<!-- kit:begin kit -->' and never closes"* ]]
+  rm AGENTS.md
+  mkdir -p .kit/modules/extra/regions/repo
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/modules/extra/module.yml
+  printf 'extra\n' > .kit/modules/extra/regions/repo/AGENTS.md
+  run "${kit_checkout}/bin/kit" install extra
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"modules kit and extra both deliver a region to AGENTS.md"* ]]
+  printf 'x = 1\n' > .kit/modules/extra/regions/repo/config.toml
+  rm .kit/modules/extra/regions/repo/AGENTS.md
+  run "${kit_checkout}/bin/kit" install extra
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' config.toml)" = "# kit:begin extra" ]
+  printf 'const x = 1;\n' > .kit/modules/extra/regions/repo/lib.js
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' lib.js)" = "// kit:begin extra" ]
 }
 
 @test "a region makes the file where there is none, and refuses one holding a different region" {
@@ -384,7 +424,7 @@ later-release() {
   [ -e .kit/rules/json.md ]
   [[ "$output" == *".kit/rules/yaml.md: retired in 9.9.9, removed"* ]]
   [[ "$output" == *".kit/rules/json.md: retired in 9.9.9, but edited"* ]]
-  grep --quiet --invert-match 'rules/yaml.md' .kit/manifest
+  ! grep --quiet 'rules/yaml.md' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
 }

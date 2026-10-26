@@ -28,7 +28,9 @@ forge-github:repo-url() {
 }
 
 forge-github:me() {
-  gh api user --jq '.login' 2>/dev/null || { error "run: gh auth login (the GitHub CLI is not authenticated)"; return 1; }
+  gh api user --jq '.login' 2>/dev/null && return 0
+  error "run: gh auth login (the GitHub CLI is not authenticated)"
+  return 1
 }
 
 forge-github:issue-create() {
@@ -75,8 +77,9 @@ forge-github:pr-for-branch() {
 }
 
 forge-github:pr-create() {
-  gh pr create --draft --base "$2" --head "$1" --title "$3" --body "" >/dev/null
-  gh pr list --head "$1" --state open --json number --jq '.[0].number'
+  local url
+  url=$(gh pr create --draft --base "$2" --head "$1" --title "$3" --body "") || return 1
+  printf '%s\n' "${url##*/}"
 }
 
 forge-github:pr-body() {
@@ -94,7 +97,10 @@ forge-github:pr-state-for-branch() {
 # On a runner the event names the pull request; on a desk the current branch does.
 forge-github:pr-here() {
   local number=''
-  [[ -n "${GITHUB_EVENT_PATH:-}" ]] && number=$(jq --raw-output '.pull_request.number // empty' "${GITHUB_EVENT_PATH}")
+  if [[ -n "${GITHUB_EVENT_PATH:-}" ]]
+  then
+    number=$(jq --raw-output '.pull_request.number // empty' "${GITHUB_EVENT_PATH}" 2>/dev/null || true)
+  fi
   [[ -n "${number}" ]] || number=$(gh pr view --json number --jq .number 2>/dev/null || true)
   printf '%s\n' "${number}"
 }

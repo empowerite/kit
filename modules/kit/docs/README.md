@@ -8,6 +8,6 @@ The core, active in every repository that takes the kit. It places:
 - A region in `AGENTS.md`, the sentence that sends every agent to `.kit/1st.md`, and a region in `.gitignore`,
   the `/worktrees/` entry the loop needs; the rest of each file is the repository's.
 
-The rules are discovered through `kit context <path>`, described in [docs/context.md](../../../docs/context.md),
-and copied into no harness's directory. Adding a kind is adding one rule file here and one row to the table in
-`1st.md`; every harness and every person finds it the same way.
+The rules are discovered through `kit context`, described in
+[docs/context.md](https://github.com/empowerite/kit/blob/main/docs/context.md). Adding a kind is adding one rule
+file here and one row to the table in `1st.md`.

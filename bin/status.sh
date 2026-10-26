@@ -12,7 +12,8 @@
 # owes a decision, blue when the next move is a machine's or a reviewer's, dim for detail. The states, in the
 # order the first that holds wins:
 #
-#   draft 🔨, queued 🚦, conflicted 💥, failing:gate 🔥, no-check 📭, comments:open 💬, blocked:approval 👀,
+#   draft 🔨, queued 🚦, conflicted 💥, failing:gate 🔥, no-check 📭, comments:open 💬,
+#   blocked:approval 👀,
 #   ready 🛬
 #
 # --json prints the same facts as one document: {desk, worktrees, pullRequests, goneBranches}.

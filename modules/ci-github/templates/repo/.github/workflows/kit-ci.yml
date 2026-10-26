@@ -1,4 +1,4 @@
-# kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request
+# kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request into the default branch
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # One job, CI, which is the check name a ruleset requires, run for a pull request into the default branch. It
@@ -30,9 +30,11 @@ jobs:
       # mise reads mise.ci.toml on top of mise.toml: the tools only a runner runs.
       MISE_ENV: ci
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+      - name: tools-from-mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
         if: ${{ hashFiles('mise.toml') != '' }}
 
       - name: kit-on-path
@@ -40,13 +42,17 @@ jobs:
           set -o errexit -o nounset -o pipefail
           if [[ ! -f .kit/manifest ]]
           then
-            echo '::error::run kit install and commit what it writes; this repository has no .kit/manifest to name a release'
+            echo '::error::run kit install and commit what it writes; this repository has no .kit/manifest'
             exit 1
           fi
           version=$(sed -n 's/^version //p' .kit/manifest)
           if [[ "${version}" == unreleased && -x bin/kit ]]
           then
             printf '%s/bin\n' "${PWD}" >> "${GITHUB_PATH}"
+          elif [[ "${version}" == unreleased ]]
+          then
+            echo '::error::.kit/manifest says unreleased and there is no bin/kit; pin a release and run kit update'
+            exit 1
           elif ! command -v kit >/dev/null
           then
             mkdir -p "${RUNNER_TEMP}/kit"

@@ -48,9 +48,28 @@ teardown() {
   [[ "$output" == *"bad.sh"* ]]
 }
 
+@test "a named path is taken from the directory the command was typed in, and the staged list from the root" {
+  mkdir sub && cp bad.sh sub/bad.sh && git add sub/bad.sh
+  cd sub
+  run "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"sub/bad.sh"* ]]
+  run "${kit_checkout}/bin/kit" lint bad.sh
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"SC2086"* ]]
+}
+
+@test "the delivered markdown passes the delivered markdown linter in a fresh repository" {
+  command -v markdownlint-cli2 >/dev/null || skip "markdownlint-cli2, the markdown rule's linter, is not on PATH"
+  run "${kit_checkout}/bin/kit" lint .kit/1st.md .kit/rules/bash.md AGENTS.md
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".kit/markdownlint.jsonc"* ]]
+}
+
 @test "a linter a rule names that is not on PATH is a refusal, named" {
   mkdir -p "${BATS_TEST_TMPDIR}/path" && ln -s "$(command -v git)" "${BATS_TEST_TMPDIR}/path/git"
-  for tool in bash jq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env uname readlink comm
+  for tool in bash jq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env uname \
+    readlink comm
   do
     p=$(command -v "${tool}") && ln -s "${p}" "${BATS_TEST_TMPDIR}/path/${tool}" || true
   done

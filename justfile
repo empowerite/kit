@@ -7,14 +7,14 @@
 set dotenv-load := true
 set positional-arguments := true
 
-# A bash recipe body is hosted by the interpreter named here and marked [script], not by a shebang: a shebang
-# recipe is exec'd from a temp executable and costs more per invocation than `bash <file>`. The interpreter is
-# named bare so it resolves through the PATH built below, and the pinned bash wins over the system's.
+# A bash recipe body is hosted by the interpreter named here and marked [script], as the just rule asks. The
+# interpreter is named bare so it resolves through the PATH built below; bash comes from the machine, 4.4 or
+# later, as the kit itself requires.
 set script-interpreter := ['bash']
 
 # The mise-pinned toolchain's bin directories go first on PATH once, at parse time, so every recipe calls its
-# tools bare and the pinned tool wins over any Homebrew or system copy: the same directories mise-action puts on
-# the runner's PATH, so a desk and the runner cannot disagree about which tool ran. Idempotent by inspecting
+# tools bare and the pinned tool wins over any other copy: the same directories mise-action puts on the
+# runner's PATH, so a desk and the runner cannot disagree about which tool ran. Idempotent by inspecting
 # PATH rather than a sentinel, so a nested just adds nothing.
 export PATH := ```
   mise bin-paths 2>/dev/null | while IFS= read -r d
@@ -73,6 +73,7 @@ refresh:
   "${index}/bin/kit" update >/dev/null
   readarray -t after < <(paths)
   git add --all -- "${before[@]}" "${after[@]}" .kit/manifest
-  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, modules $(sed -n 's/^modules *//p' .kit/manifest)"
+  modules=$(sed -n 's/^modules *//p' .kit/manifest)
+  echo "✅ refreshed from the index and staged: ${#after[@]} delivered paths, modules ${modules}"
 
 # ----------------------------------------------------------------------------------------------------------------------

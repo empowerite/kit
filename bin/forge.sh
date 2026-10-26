@@ -8,7 +8,8 @@
 # the one origin's host names. The core verbs never come here, so a repository on no forge still installs,
 # updates, checks, and runs kit context and kit lint.
 #
-# A provider answers these calls, each printing its result on stdout and failing with a remedy on stderr:
+# A provider answers these calls, each printing its result on stdout and failing with a remedy on stderr, or
+# printing nothing where the call says so:
 #
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
@@ -46,7 +47,8 @@ forge:provider() {
   fi
   if [[ -z "${provider}" ]]
   then
-    error "set forge in .kit/settings.yml; origin's host '${host:-none}' names no forge the kit knows ($(forge:providers))"
+    error "set forge in .kit/settings.yml; origin's host '${host:-none}' names no forge the kit knows" \
+      "($(forge:providers))"
     return 1
   fi
   # shellcheck disable=SC2154  # kit_bin_dir is declared by bin/1st.sh, which loaded this module

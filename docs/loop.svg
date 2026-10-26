@@ -48,15 +48,15 @@
   <text class="m" x="396" y="212">kit lint</text>
   <text class="d" x="560" y="212">the hook by hand</text>
   <text class="m" x="396" y="234">kit rebase</text>
-  <text class="d" x="560" y="234">onto origin/main, pushed</text>
+  <text class="d" x="560" y="234">onto the default branch, pushed</text>
   <text class="m" x="396" y="256">gh pr ready</text>
   <text class="d" x="560" y="256">the body is the report</text>
   <text class="d" x="396" y="280">Signed commits, subject #&lt;N&gt; &lt;area&gt;: &lt;subject&gt;.</text>
 
   <!-- gate -->
   <rect class="box" x="736" y="40" width="280" height="250" fill="#ede9fe"/>
-  <text class="h" x="752" y="68">The gate: kit ci</text>
-  <text class="d" x="752" y="92">The delivered CI job, on every pull request:</text>
+  <text class="h" x="752" y="68">The check: kit ci</text>
+  <text class="d" x="752" y="92">The delivered job, on a pull request into main:</text>
   <text class="m" x="752" y="118">kit gate</text>
   <text class="d" x="752" y="136">the gate setting, or the one detected</text>
   <text class="m" x="752" y="162">kit check</text>
@@ -78,8 +78,8 @@
   <!-- harness guards -->
   <rect class="box" x="736" y="340" width="280" height="120" fill="#e0f2fe"/>
   <text class="h" x="752" y="368">The harness adapter</text>
-  <text class="d" x="752" y="392">Deny list: git rebase, push --force, reset --hard,</text>
-  <text class="d" x="752" y="408">checkout main, worktree remove --force.</text>
+  <text class="d" x="752" y="392">Deny list: the raw git spellings .kit/1st.md</text>
+  <text class="d" x="752" y="408">forbids, rebase, push --force, and the rest.</text>
   <text class="d" x="752" y="432">Hook: kit context before every write.</text>
   <text class="d" x="752" y="448">Nothing copied from the rules.</text>
 

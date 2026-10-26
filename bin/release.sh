@@ -30,7 +30,8 @@ release:version() {
   cat "${kit_root}/version" 2>/dev/null || release:unreleased
 }
 
-# release:bases prints the destinations a module may deliver to, the subdirectories of files/ and templates/.
+# release:bases prints the destinations a module may deliver to: the subdirectories of files/, templates/, and
+# regions/.
 release:bases() { printf 'repo\nhome\n'; }
 
 # release:base-root <base> prints the directory the base's files are mirrored at: the repository root, which the
@@ -196,7 +197,8 @@ release:validate() {
     case "${key}" in
       (description | default | depends | answers) ;;
       (*)
-        error "$(release:meta "${root}" "${module}") has a key the kit does not know: ${key} (see modules/module.schema.json)"
+        error "$(release:meta "${root}" "${module}") has a key the kit does not know: ${key}" \
+          "(see modules/module.schema.json)"
         return 1
     esac
   done
@@ -296,7 +298,8 @@ release:render() {
       do
         if [[ -z "${answer[${key}]+x}" ]]
         then
-          error "${rel} needs an answer for '${key}'; add '${key}: <value>' under answers: in .kit/settings.yml (module ${module})"
+          error "${rel} needs an answer for '${key}'; add '${key}: <value>' under answers: in .kit/settings.yml" \
+            "(module ${module})"
           return 1
         fi
         text=${text//"@${key}@"/"${answer[${key}]}"}
@@ -344,6 +347,37 @@ release:render-all() {
   for base in $(release:bases)
   do
     release:delivered "${root}" "${base}" "$@" >/dev/null || return 1
+    release:regions-apart "${root}" "${base}" "$@" || return 1
+  done
+}
+
+# release:regions-apart <root> <base> <module>… refuses a region path two of the modules both deliver, since one
+# file holds one kit region, and a region in a file whose comment syntax the kit does not know.
+release:regions-apart() {
+  local root=$1 base=$2 module home file rel owner
+  shift 2
+  local -A owner_of=()
+  for module in "$@"
+  do
+    home=$(release:home "${root}" "${module}")
+    [[ -d "${home}/modules/${module}/regions/${base}" ]] || continue
+    while IFS= read -r file
+    do
+      rel=${file#"${home}/modules/${module}/regions/${base}/"}
+      if ! release:region-known "${rel}"
+      then
+        error "modules/${module}/regions/${base}/${rel}: the kit knows no comment syntax for that kind of file," \
+          "so it cannot mark a region there"
+        return 1
+      fi
+      owner=${owner_of[${rel}]:-}
+      if [[ -n "${owner}" ]]
+      then
+        error "modules ${owner} and ${module} both deliver a region to ${rel}; one file holds one kit region"
+        return 1
+      fi
+      owner_of[${rel}]=${module}
+    done < <(find "${home}/modules/${module}/regions/${base}" -type f)
   done
 }
 
@@ -363,29 +397,73 @@ release:layers() {
   return 0
 }
 
-# release:kind <source> <path> prints how the content is placed: merge for a .json destination, region for a
-# source under a module's regions/, copy otherwise.
+# release:kind <source> <path> prints how the content is placed: region for a source under a module's
+# regions/<base>/, merge for a .json destination, copy otherwise. A source is a region by its last modules/
+# segment, so a checkout under a directory named modules reads the same as one anywhere else.
 release:kind() {
-  if release:merged "$2"
-  then printf 'merge\n'
-  elif [[ "$1" == */modules/*/regions/* ]]
+  if [[ "${1##*/modules/}" =~ ^[^/]+/regions/(repo|home)/ ]]
   then printf 'region\n'
+  elif release:merged "$2"
+  then printf 'merge\n'
   else printf 'copy\n'
   fi
 }
 
 # release:region-module <source> prints the module a region source belongs to, which names its markers.
 release:region-module() {
-  local rest=${1#*/modules/}
+  local rest=${1##*/modules/}
   printf '%s\n' "${rest%%/*}"
 }
 
-# release:region-markers <path> <module> prints the region's two marker lines, in the file's own comment
-# syntax: an HTML comment for markdown, a hash comment otherwise.
+# release:region-markers <path> <module> prints the region's two marker lines in the file's own comment syntax,
+# by its extension: an HTML comment, a double slash, a double dash, or a hash. A kind of file with no comment
+# syntax the kit knows is refused where the module is read, in release:render-all.
 release:region-markers() {
-  if [[ "$1" == *.md ]]
-  then printf '<!-- kit:begin %s -->\n<!-- kit:end %s -->\n' "$2" "$2"
-  else printf '# kit:begin %s\n# kit:end %s\n' "$2" "$2"
+  local open close
+  case "${1##*.}" in
+    (md | markdown | html | htm | xml | svg) open='<!-- ' close=' -->' ;;
+    (js | mjs | cjs | ts | tsx | jsx | go | rs | c | h | cc | cpp | hpp | java | kt | swift | cs | scala)
+      open='// ' close='' ;;
+    (sql | lua | hs) open='-- ' close='' ;;
+    (*) open='# ' close='' ;;
+  esac
+  printf '%skit:begin %s%s\n%skit:end %s%s\n' "${open}" "$2" "${close}" "${open}" "$2" "${close}"
+}
+
+# release:region-known <path> is true where the kit knows the file's comment syntax, so a region can be marked.
+release:region-known() {
+  case "${1##*/}" in
+    (*.json | *.jsonc | *.json5) return 1 ;;
+    (*.*) case "${1##*.}" in
+      (md | markdown | html | htm | xml | svg | js | mjs | cjs | ts | tsx | jsx | go | rs | c | h | cc | cpp | hpp \
+        | java | kt | swift | cs | scala | sql | lua | hs | sh | bash | zsh | yml | yaml | toml | ini | cfg | conf \
+        | py | rb | pl | txt | gitignore | gitattributes | editorconfig | env | just | mk | Makefile) return 0 ;;
+      (*) return 1 ;;
+    esac ;;
+    (*) return 0 ;;
+  esac
+}
+
+# release:target <path> prints the file a write to <path> lands in: the path, or what a symlink there points at,
+# so a repository that keeps AGENTS.md or a settings file as a link into another directory keeps its link.
+release:target() {
+  if [[ -L "$1" ]]
+  then readlink -f "$1"
+  else printf '%s\n' "$1"
+  fi
+}
+
+# release:region-has <path> <module> is true when the file carries the region's begin marker; a begin marker
+# with no end marker is refused, naming the file, since a write would drop everything after it.
+release:region-has() {
+  local path=$1 begin end
+  [[ -f "${path}" ]] || return 1
+  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  grep --quiet --line-regexp --fixed-strings "${begin}" "${path}" || return 1
+  if ! grep --quiet --line-regexp --fixed-strings "${end}" "${path}"
+  then
+    error "${path}: the kit's region opens with '${begin}' and never closes; add '${end}' where it ends"
+    return 2
   fi
 }
 
@@ -393,19 +471,21 @@ release:region-markers() {
 # file or the region is absent.
 release:region-read() {
   local path=$1 begin end
-  [[ -f "${path}" ]] || return 1
+  release:region-has "$1" "$2" || return $?
   { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
-  grep --quiet --line-regexp --fixed-strings "${begin}" "${path}" || return 1
   awk -v b="${begin}" -v e="${end}" '$0 == e { on = 0 } on { print } $0 == b { on = 1 }' "${path}"
 }
 
 # release:region-write <path> <module> <content-file> replaces the region's content, appending the region after a
 # blank line where the file has none, and making the file where there is none.
 release:region-write() {
-  local path=$1 module=$2 content=$3 begin end
+  local path module=$2 content=$3 begin end status=0
+  path=$(release:target "$1")
   { read -r begin; read -r end; } < <(release:region-markers "${path}" "${module}")
   mkdir -p "$(dirname "${path}")"
-  if [[ -f "${path}" ]] && grep --quiet --line-regexp --fixed-strings "${begin}" "${path}"
+  release:region-has "${path}" "${module}" || status=$?
+  (( status == 2 )) && return 1
+  if (( status == 0 ))
   then
     awk -v b="${begin}" -v e="${end}" -v c="${content}" '
       $0 == b { print; while ((getline line < c) > 0) print line; skip = 1; next }
@@ -430,16 +510,17 @@ release:region-write() {
 # release:region-remove <path> <module> takes the region and its markers out, and the blank line before it;
 # a file left empty is removed.
 release:region-remove() {
-  local path=$1 begin end
+  local path begin end
+  path=$(release:target "$1")
   [[ -f "${path}" ]] || return 0
   { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
   awk -v b="${begin}" -v e="${end}" '
     $0 == b { skip = 1; held = 0; next }
     $0 == e { skip = 0; next }
     skip { next }
-    held { print ""; held = 0 }
+    held && printed { print ""; held = 0 }
     $0 == "" { held = 1; next }
-    { print }' "${path}" > "${path}.kit-new"
+    { print; printed = 1 }' "${path}" > "${path}.kit-new"
   if [[ -s "${path}.kit-new" ]]
   then mv "${path}.kit-new" "${path}"
   else rm -f "${path}.kit-new" "${path}"
@@ -455,7 +536,8 @@ release:delivered() {
   do
     (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' \
       | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }')
-  done < <(release:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' | LC_ALL=C sort \
+  done < <(release:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' \
+    | LC_ALL=C sort \
     | while IFS=$'\t' read -r path src
   do
     if [[ -L "${src}" && ! -e "${src}" ]]
@@ -573,7 +655,8 @@ release_jq='
 # release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if
 # missing.
 release:json-write() {
-  local path=$1 filter=$2
+  local path filter=$2
+  path=$(release:target "$1")
   shift 2
   mkdir -p "$(dirname "${path}")"
   [[ -f "${path}" ]] || printf '{}\n' > "${path}"
@@ -609,6 +692,7 @@ release:place() {
       release:region-write "${path}" "$(release:region-module "${src}")" "${src}"
       ;;
     (*)
+      path=$(release:target "${path}")
       mkdir -p "$(dirname "${path}")"
       cp "${src}" "${path}.kit-new"
       mv "${path}.kit-new" "${path}"
@@ -641,6 +725,11 @@ release:holds() {
 release:place-new() {
   local src=$1 path=$2 label=${3:-} kind
   kind=$(release:kind "${src}" "${path}")
+  if [[ -e "${path}" && ! -f "${path}" ]]
+  then
+    error "${path}: a directory, or something that is not a file, is there; move it aside"
+    return 1
+  fi
   if [[ "${kind}" == merge || ! -f "${path}" ]] \
     || { [[ "${kind}" == region ]] && ! release:installed "${src}" "${path}" >/dev/null; }
   then

@@ -21,9 +21,9 @@ then
 fi
 
 # gate:detect prints the command of the first gate found, or nothing.
-gate:detect() {
+detect-gate() {
   local recipes
-  if [[ -f justfile ]]
+  if [[ -f justfile || -f Justfile || -f .justfile ]]
   then
     if ! recipes=$(just --summary 2>&1)
     then
@@ -47,7 +47,7 @@ gate:detect() {
 }
 
 gate=$(release:setting gate)
-[[ -n "${gate}" ]] || gate=$(gate:detect) || exit 1
+[[ -n "${gate}" ]] || gate=$(detect-gate) || exit 1
 if [[ -z "${gate}" ]]
 then
   error "set gate in .kit/settings.yml, or give the root justfile a ci recipe; there is no gate to run"
@@ -57,7 +57,12 @@ then
   exit 1
 fi
 step "the gate: ${gate}"
-bash -c "${gate}"
+if ! bash -c "${gate}"
+then
+  error "the gate failed: ${gate}"
+  summary "### ❌ The gate failed: \`${gate}\`"
+  exit 1
+fi
 summary "✅ The gate passed: \`${gate}\`."
 
 # ----------------------------------------------------------------------------------------------------------------------

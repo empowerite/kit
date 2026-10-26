@@ -35,7 +35,8 @@ provider() {
   git remote add origin https://gitlab.com/empowerite/kit.git
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"set forge in .kit/settings.yml; origin's host 'gitlab.com' names no forge the kit knows (github)"* ]]
+  [[ "$output" == *"set forge in .kit/settings.yml; origin's host 'gitlab.com' names no forge the kit knows"* ]]
+  [[ "$output" == *"(github)"* ]]
   git remote remove origin
   run provider
   [ "$status" -eq 1 ]

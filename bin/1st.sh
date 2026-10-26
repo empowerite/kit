@@ -78,7 +78,6 @@ summary() {
 }
 
 # guard:require <predicate>… returns non-zero on the first predicate that does not hold, with the remedy.
-#   gh           gh is usably authenticated (a real API call, since a revoked token still passes gh auth status)
 #   signing-key  git user.signingkey is set
 #   tool:<name>  <name> is on PATH
 guard:require() {
@@ -86,13 +85,6 @@ guard:require() {
   for predicate in "$@"
   do
     case "${predicate}" in
-      (gh)
-        if ! gh api user --jq '.login' >/dev/null 2>&1
-        then
-          error "run: gh auth login (the GitHub CLI is not authenticated)"
-          return 1
-        fi
-        ;;
       (signing-key)
         if [[ -z "$(git config user.signingkey 2>/dev/null)" ]]
         then

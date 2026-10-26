@@ -1,10 +1,10 @@
 # empowerite/kit: **k**eep **i**t **t**rustworthy
 
-Do you trust your agents? They were trained on the whole of what people have written, and that includes every
-shortcut anyone ever took: the "done" that was not, the test that was skipped and reported as passing, the rebase
-that quietly rewrote a colleague's branch. An agent is a tireless new colleague who has read everything and holds
-none of your house rules, unless you put them where it looks. kit is the house rules, put where agents look, and
-the checks that hold agents to them, as a versioned release any repository can take and keep taking.
+kit is the house rules, put where agents look, and the checks that hold agents to them, as a versioned release
+any repository can take and keep taking. Do you trust your agents? They were trained on the whole of what people
+have written, and that includes every shortcut anyone ever took: the "done" that was not, the test that was
+skipped and reported as passing, the rebase that quietly rewrote a colleague's branch. An agent is a tireless
+new colleague who has read everything and holds none of your house rules, unless you put them where it looks.
 
 The rules are the smaller part. The point is verification that does not depend on anyone's word:
 
@@ -15,12 +15,12 @@ The rules are the smaller part. The point is verification that does not depend o
 - a deny list that refuses the spellings the rules forbid;
 - `kit status`, which shows what every pull request's checks said.
 
-The text those checks hold the work against is the entry file an agent reads first and a rule file per kind of
-file. With it come the root checkout kept as the human's desk, and `kit issue`, the one command no harness
-provides, which turns an issue into a worktree with a draft pull request. A tag on `main` publishes a release. A
-repository pins it, installs it, and keeps rules of its own beside it. The design is
-[#1](https://github.com/empowerite/kit/issues/1) and [#4](https://github.com/empowerite/kit/issues/4), and the
-entry file every agent reads is [.kit/1st.md](.kit/1st.md).
+The text those checks hold the work against is the entry file an agent reads first and a rule file per kind of file. Two
+more things come with it. The root checkout is kept as the human's desk. And `kit issue`, the one command no harness
+provides, turns an issue into a worktree with a draft pull request. A tag on `main` publishes a release. A repository
+pins it, installs it, and keeps rules of its own beside it. The design is
+[#1](https://github.com/empowerite/kit/issues/1) and [#4](https://github.com/empowerite/kit/issues/4), and the entry
+file every agent reads is [.kit/1st.md](.kit/1st.md).
 
 ## Why a release, and not a copy
 
@@ -56,10 +56,11 @@ mkdir kit && tar --extract --gzip --file kit.tar.gz --directory kit --strip-comp
 export PATH="${PWD}/kit/bin:${PATH}"
 ```
 
-The kit needs bash 4.4 or later, git, and `jq`; the loop's verbs, `kit issue`, `kit status`, `kit tidy`, and
-`kit linked`, also need the forge's own tool, `gh` for GitHub. macOS ships bash 3.2, and `brew install bash` gives
-a current one. With mise, an exact pin installs the minute a release exists; a range pin sees a new kit a day after
-it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:empowerite/kit"]`.
+The kit needs bash 4.4 or later, git, and `jq`. The loop's verbs, `kit issue`, `kit status`, `kit tidy`, and `kit
+linked`, also need the tool of the forge, the service that hosts the repository: `gh` for GitHub. macOS ships bash 3.2,
+and `brew install bash` gives a current one. With mise, an exact pin installs the minute a release exists; a range pin
+sees a new kit a day after it ships unless `[settings]` carries `minimum_release_age_excludes =
+["github:empowerite/kit"]`.
 
 ## Take the kit
 
@@ -73,10 +74,10 @@ it ships unless `[settings]` carries `minimum_release_age_excludes = ["github:em
   holds only what is between the markers.
 - Commit what `install` wrote.
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
-  or any command as `gate` in `.kit/settings.yml`. `kit ci` runs it, with `kit check` and `kit linked`, from the
-  delivered workflow or from any pipeline of your own, and refuses when there is none.
-- Run the linters before a commit: `kit lint` runs each rule's own linter over the staged paths with no hook
-  manager at all, and the `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
+  or any command as `gate` in `.kit/settings.yml`. The delivered check, `kit ci`, runs it with `kit check` and
+  `kit linked`, from the delivered workflow or from any pipeline of your own, and refuses when there is none.
+- Run the linters before a commit. `kit lint` runs each rule's own linter over the staged paths with no hook
+  manager at all. The `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
   in `lefthook.yml`, and run `lefthook install` once per clone.
 
 `claude` is the adapter for Claude Code, which reads `AGENTS.md` only as a fallback, when no `CLAUDE.md` is present.
@@ -91,7 +92,7 @@ Before an agent creates or changes a file, it asks `kit context "${path}"` which
 To move to a new release, bump the pin or reinstall, then run `kit update`. A delivered file you left alone is
 replaced. One you edited is three-way merged with the previous release as the base, which `update` fetches from
 GitHub when it is not on the machine; `KIT_BASE` names a copy of it where that fetch is not possible. Your own
-deny entries and settings keys stay. `kit check` fails, locally and in `CI`, when a delivered file differs from
+deny entries and settings keys stay. `kit check` fails, locally and in CI, when a delivered file differs from
 the pinned release.
 
 ## Setup
@@ -99,10 +100,11 @@ the pinned release.
 The sections from here on are about working on this repository, the kit's own source, which uses its own kit.
 
 Its tools come from mise. Every commit is signed, and the branch ruleset refuses one that is not. If you have no
-signing key GitHub verifies, make one and register it, following
-[generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
-and [adding a GPG key to your GitHub account](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account).
-Then, once per clone, with the key's id in `signing_key`:
+signing key GitHub verifies, make one and register it, following these two pages, then run the commands below
+once per clone, with the key's id in `signing_key`:
+
+- [generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
+- [adding a GPG key to your GitHub account](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account)
 
 ```sh
 git config gpg.format openpgp
@@ -146,15 +148,16 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
 | `.claude/CLAUDE.md` | `modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file is the repository's |
 | `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
+| `AGENTS.md`, `.gitignore` | `modules/kit/regions/repo/`, regions; the rest of each file is the repository's |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 
-`.kit/settings.yml` is this repository's own, and `.kit/modules/` would hold modules of its own; it has none.
+`.kit/settings.yml` is this repository's own.
 
 A commit that changes a file under `modules/` rewrites the installed copies in the same commit: the pre-commit
 hook runs `just refresh`, which regenerates them from the index and stages the result. On a desk without the
 hook, stage the change, run `just refresh`, and commit. `bin/kit check`, which `just ci` runs, names any installed
-copy that does not match its source. Each delivered text file says in its header that it is delivered by kit;
-`settings.json` cannot, so this table is its notice.
+copy that does not match its source. Each delivered whole file says in its header that it is delivered by kit; a
+region's markers are its notice, and this table is `settings.json`'s.
 
 ## Release
 
@@ -167,5 +170,4 @@ publish`, which packs `bin/`, `modules/`, and `version` into `kit-<version>.tar.
 release pack` makes the same tarball on a desk. A release is permanent. A pre-release is retired, tag and all, when
 the branch it was tagged on is deleted and no other branch reaches its commit.
 
-The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure), under
-`terraform/projects/kit`.
+The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure).

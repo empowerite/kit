@@ -12,7 +12,8 @@ the repository's own rules in `AGENTS.md` bind beside it. Where the two differ, 
 3. A claim carries its evidence, or says it has none. Name the command that ran and what it printed.
 4. Being wrong is recoverable. Misreporting is not.
 5. A rule lives in the repository, never in a session's memory. A convention learned or a correction given is
-   written into a rule file or `AGENTS.md` through the loop, where every agent and every person reads it.
+   written, through the loop, into `AGENTS.md`, a module of the repository's own under `.kit/modules/`, or a kit
+   release, where every agent and every person reads it.
 
 ## The root checkout is the human's desk
 
@@ -94,11 +95,12 @@ carries the machinery, reached through the `kit` command on `PATH`: the loop's c
 `kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled that way and no other. Everything the release
 delivers is a module, and a repository activates the modules it takes: `kit install ci-github lefthook claude`, or
 `kit module add claude` later, and `kit module remove` to take one back out; a module of the repository's own
-lives under `.kit/modules/` and is taken the same way. A `.json` destination is merged by key, the kit owning
-only the entries it writes; everything else is copied as it is.
+lives under `.kit/modules/` and is taken the same way. A `.json` destination, other than a schema, is merged by
+key, the kit owning only the entries it writes; a region is held between its markers inside a file the
+repository owns; everything else is copied as it is.
 
-- `kit`: this file and the rules, discovered through `kit context`; the sentence in `AGENTS.md` that points here
-  and the `/worktrees/` entry in `.gitignore`, each a region the kit owns inside a file the repository owns.
+- `kit`: this file and the rules; the sentence in `AGENTS.md` that points here and the `/worktrees/` entry in
+  `.gitignore`, each a region the kit owns inside a file the repository owns.
 - `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
   it runs each rule's linter over the paths the rule governs.

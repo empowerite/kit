@@ -27,4 +27,6 @@ Applies to GitHub Actions workflows, under `.github/workflows/`. The YAML rule a
    also writes `### ❌ <Message>` and the remedy to `${GITHUB_STEP_SUMMARY}`.
 5. A step whose verdict a reader looks for writes one `✅` line to the summary.
 6. A later step that must run after an earlier refusal carries `if: ${{ !cancelled() }}`.
-7. A tool is on `PATH` because the repository pins it and a step installs it, never by `curl` in a step.
+7. A tool is on `PATH` because the repository pins it and a step installs it, never by `curl` in a step. The one
+   exception is the kit itself, which the delivered job fetches from the release `.kit/manifest` names, since
+   nothing else can put it there first.

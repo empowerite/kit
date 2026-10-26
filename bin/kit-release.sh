@@ -10,7 +10,9 @@
 #                             one directory kit-<version>/ with bin/, modules/, and the version stamped in
 #   publish <tag>             pack, then a GitHub release carrying both files, marked pre-release for a suffix
 #   retire [<branch>]         delete every pre-release whose commit no remaining branch reaches, after <branch>
-#                             was deleted; the branch is the runner's delete event when none is given
+#                             was deleted; the branch is the runner's delete event when none is given. A
+#                             pre-release merged by a merge commit stays reachable from the default branch and
+#                             is kept; a squash merge frees it.
 #
 # A release is permanent and immutable; only a pre-release is ever retired.
 #
@@ -23,19 +25,19 @@ use git release
 
 usage() { echo "usage: kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
-# release-tag:refuse <message> is the one refusal: the message, the runner's error line, the summary, exit 1.
-release-tag:refuse() {
+# refuse-tag <message> is the one refusal: the message, the runner's error line, the summary, exit 1.
+refuse-tag() {
   error "$1"
   summary "### ❌ $1"
   exit 1
 }
 
-# release-tag:version <tag> prints the version a tag names, refusing a tag that is not a version.
-release-tag:version() {
+# tag-version <tag> prints the version a tag names, refusing a tag that is not a version.
+tag-version() {
   local version=${1#v}
   if [[ "$1" != v* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
   then
-    release-tag:refuse "$1 is not a version tag: v<major>.<minor>.<patch>, with -<suffix> for a pre-release"
+    refuse-tag "$1 is not a version tag: v<major>.<minor>.<patch>, with -<suffix> for a pre-release"
   fi
   printf '%s\n' "${version}"
 }
@@ -52,24 +54,24 @@ case "${verb}" in
   (verify)
     (( $# == 1 )) || { usage; exit 2; }
     tag=$1
-    version=$(release-tag:version "${tag}")
+    version=$(tag-version "${tag}")
     default_branch=$(git:default-branch)
     on_default=false
     git merge-base --is-ancestor "${tag}" "origin/${default_branch}" 2>/dev/null && on_default=true
     if [[ "${version}" == *-* && "${on_default}" == true ]]
     then
-      release-tag:refuse "${tag} is a pre-release tag on ${default_branch}; tag a pre-release on a commit off it"
+      refuse-tag "${tag} is a pre-release tag on ${default_branch}; tag a pre-release on a commit off it"
     fi
     if [[ "${version}" != *-* && "${on_default}" == false ]]
     then
-      release-tag:refuse "${tag} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
+      refuse-tag "${tag} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
     fi
     ok "${tag} is a version tag on the right side of ${default_branch} (on it: ${on_default})"
     summary "✅ ${tag} is a version tag on the right side of ${default_branch}."
     ;;
   (pack)
     (( $# >= 1 && $# <= 2 )) || { usage; exit 2; }
-    version=$(release-tag:version "$1")
+    version=$(tag-version "$1")
     into=${2:-.}
     staging=$(mktemp -d)
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
@@ -85,7 +87,7 @@ case "${verb}" in
   (publish)
     (( $# == 1 )) || { usage; exit 2; }
     tag=$1
-    version=$(release-tag:version "${tag}")
+    version=$(tag-version "${tag}")
     guard:require tool:gh
     into=$(mktemp -d)
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on

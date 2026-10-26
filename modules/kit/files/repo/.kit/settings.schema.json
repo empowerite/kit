@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
   "title": ".kit/settings.yml",
-  "description": "The repository's choices, read by the kit and never written by it. Delivered by kit, not edited by hand; docs/modules.md says what each key means. An editor validates the file against it through a modeline: # yaml-language-server: $schema=settings.schema.json",
+  "description": "The repository's choices, read by the kit and never written by it. Delivered by kit, not edited by hand; https://github.com/empowerite/kit/blob/main/docs/modules.md says what each key means. An editor validates the file against it through a modeline: # yaml-language-server: $schema=settings.schema.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {

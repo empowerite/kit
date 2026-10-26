@@ -10,8 +10,9 @@ Applies to `.gitignore` at any depth.
 
 ## Shape
 
-1. The file opens with `# .gitignore - untracked files and folders`, a rule of dashes to column 120, and a
-   blank line.
+1. A file the repository writes opens with `# .gitignore - untracked files and folders`, a rule of dashes to
+   column 120, and a blank line. One the kit made of its region alone is the kit's until the repository adds
+   to it.
 2. Entries are grouped. Each group opens with `# <what produces it>; see: <ref>` and is followed by a blank
    line.
 3. The file closes with a rule of dashes.

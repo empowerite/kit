@@ -12,7 +12,7 @@ is appended to `.git/kit/context.log`, one line of epoch and path per ask.
 
 ## How a rule declares what it governs
 
-A rule file opens with a frontmatter of two optional lists:
+A rule file opens with a frontmatter of two optional lists and one optional command:
 
 ```yaml
 ---
@@ -54,7 +54,7 @@ naming the rules and never quoting them, so reading a rule stays an act the agen
   "additionalContext": "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change."}}
 ```
 
-No state is kept between calls.
+Nothing is kept between calls but the log line.
 
 A harness with no hook, and a person, use the plain call. `.kit/1st.md` names it as the step before any file is
 created or changed.

@@ -41,11 +41,11 @@
   <text class="m" x="68" y="346">files/home/</text>
   <text class="d" x="180" y="346">mirrored at ~</text>
   <text class="m" x="68" y="370">templates/&lt;base&gt;/</text>
-  <text class="d" x="180" y="386">@key@ rendered; regions/ into a file</text>
+  <text class="d" x="180" y="386">@key@ rendered; regions/&lt;base&gt;/</text>
   <text class="m" x="68" y="412">docs/</text>
-  <text class="d" x="180" y="412">not delivered</text>
-  <text class="d" x="52" y="446">kit, lefthook, ci are default;</text>
-  <text class="d" x="52" y="462">claude is named; each may depend</text>
+  <text class="d" x="180" y="412">packed, placed nowhere</text>
+  <text class="d" x="52" y="446">kit is default; ci-github, lefthook,</text>
+  <text class="d" x="52" y="462">and claude are named; each may depend</text>
   <text class="d" x="52" y="478">on others, resolved at install.</text>
   <text class="m" x="52" y="500">version</text>
   <text class="d" x="140" y="500">stamped by the release workflow</text>
@@ -74,6 +74,7 @@
   <text class="m" x="732" y="160">.kit/lefthook.yml</text>
   <text class="m" x="732" y="182">.github/workflows/kit-ci.yml</text>
   <text class="m" x="732" y="204">.claude/CLAUDE.md</text>
+  <text class="d" x="912" y="204">region</text>
   <text class="m" x="732" y="226">.claude/settings.json</text>
   <text class="d" x="912" y="226">merged</text>
   <line x1="732" y1="244" x2="1000" y2="244" stroke="#4ade80" stroke-width="1"/>
@@ -81,8 +82,8 @@
   <text class="d" x="856" y="268">version, modules, digests</text>
   <text class="m" x="732" y="290">.kit/settings.yml</text>
   <text class="d" x="856" y="290">yours, never written</text>
-  <text class="m" x="732" y="312">AGENTS.md</text>
-  <text class="d" x="856" y="312">yours; names .kit/1st.md</text>
+  <text class="m" x="732" y="312">AGENTS.md .gitignore</text>
+  <text class="d" x="912" y="312">regions</text>
 
   <!-- home -->
   <rect class="box" x="716" y="380" width="300" height="140" fill="#fef9c3"/>
@@ -91,7 +92,7 @@
   <text class="m" x="732" y="436">~/.kit/manifest</text>
   <text class="d" x="732" y="456">the desk's record, not the repository's;</text>
   <text class="d" x="732" y="472">a runner has none, and kit check says so.</text>
-  <text class="d" x="732" y="500">No module delivers here yet.</text>
+  <text class="d" x="732" y="500">No module in this release delivers here.</text>
 
   <!-- edges -->
   <path class="edge" d="M 324 280 L 376 280"/>

@@ -2,7 +2,7 @@
 #
 # mise reads this file always, mise.desk.toml on top of it when MISE_ENV=desk, which a desk exports in its shell
 # profile, and mise.ci.toml when MISE_ENV=ci, which the CI workflow sets. A tool goes in the file of whoever runs
-# it; today Lefthook is a desk's alone, and nothing is the runner's alone. `lockfile = true` records each pin's
+# it; Lefthook is a desk's alone, and nothing is the runner's alone. `lockfile = true` records each pin's
 # exact resolution in a lock beside its file. git and bash come from the machine.
 
 [settings]

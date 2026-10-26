@@ -44,14 +44,14 @@ answers:
 | Key | Meaning |
 | --- | --- |
 | `description` | One line, shown by `kit module list`. |
-| `default` | `true` for a module active unless removed. In this release, `kit` alone. |
+| `default` | `true` for a module active unless removed: `kit`. |
 | `depends` | Modules activated with this one. `kit module remove` refuses a module another active module depends on. |
-| `answers` | The default value of each template key. A repository overrides one in `.kit/answers`. |
+| `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
 
-[module.schema.json](../modules/module.schema.json) is the schema, JSON Schema 2020-12. The gate validates every
-`module.yml` against it with `ajv`, and `kit install` holds a module to the same contract where no validator is:
-a key it does not know, a `default` that is not `true` or `false`, or a dependency the release lacks is refused,
-naming it.
+[module.schema.json](../modules/module.schema.json) is the schema, JSON Schema 2020-12. This repository's gate validates
+every `module.yml` against it with `ajv`, and `kit install` holds a module to the same contract where no validator is: a
+key it does not know, a `default` that is not `true` or `false`, or a dependency the release lacks is refused, naming
+it.
 
 ## Delivery
 
@@ -75,8 +75,8 @@ bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may car
 answers live under `answers:` in `.kit/settings.yml`; a key with none there takes the module's default under its
 own `answers`, and a key with neither refuses the install, naming the key and the module.
 
-The same YAML subset is what a rule's frontmatter is written in, read by `bin/yaml.sh` in both places, so a rule's
-`paths:` and `content:` lists and a module's `depends:` list have one reader between them.
+The same YAML subset is what a rule's frontmatter and `.kit/settings.yml` are written in, read by `bin/yaml.sh` in
+all three places, so a rule's lists, a module's `depends:`, and the settings have one reader among them.
 
 ## Settings
 
@@ -93,7 +93,7 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
-| `forge` | The provider the loop's verbs use, `github` in this release; detected from origin's host when absent. |
+| `forge` | The provider the loop's verbs use, `github`; detected from origin's host when absent. |
 | `gate` | What `kit gate` runs; a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script is detected when absent. |
 | `require_signing` | `true` makes `kit issue` refuse a desk without a signing key. |
 | `answers` | The values a module's templates take, overriding the module's own defaults. |
@@ -101,11 +101,12 @@ answers:
 ## Modules a repository defines
 
 A directory `.kit/modules/<name>/` in the repository is a module in every respect: `module.yml`, `files/<base>/`,
-`templates/<base>/`, and `docs/`. A name is looked up in the release first, then there. It is validated like a
-delivered module, may depend on delivered ones, is activated with `kit install <name>` or `kit module add <name>`,
-and `kit module list` shows it with its origin. Its paths are recorded in the manifest with their digests, so
-`kit check` tells an edited installed copy from its source, and `kit update` treats the module itself as its own
-base. A rule file it places under `.kit/rules/` is found by `kit context` like any other.
+`templates/<base>/`, `regions/<base>/`, and `docs/`. A name is looked up in the release first, then there. It is
+validated like a delivered module, may depend on delivered ones, is activated with `kit install <name>` or `kit module
+add <name>`, and `kit module list` shows it with its origin. Its paths are recorded in the manifest with their digests,
+so `kit check` tells an edited installed copy from its source, and on update its files are compared with its own current
+source, so an edit under `.kit/modules/` is never merged against a release. A rule file it places under `.kit/rules/` is
+found by `kit context` like any other.
 
 ## Activation
 

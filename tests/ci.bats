@@ -12,6 +12,7 @@ setup() {
   cd "${repo}"
   git init --quiet --initial-branch=main
   git remote add origin https://github.com/empowerite/example.git
+  export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
   "${kit_checkout}/bin/kit" install >/dev/null
 }
 

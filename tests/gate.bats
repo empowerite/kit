@@ -63,7 +63,9 @@ teardown() {
   grep --quiet 'gate passed' summary.md
   printf 'ci:\n  exit 3\n' > justfile
   run "${kit_checkout}/bin/kit" gate
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the gate failed: just ci"* ]]
+  grep --quiet 'gate failed' summary.md
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
