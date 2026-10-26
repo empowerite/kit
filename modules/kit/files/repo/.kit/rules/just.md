@@ -9,8 +9,7 @@ content:
 ---
 # Just
 
-Applies to `justfile` and `*.just`. A recipe body under `#!/usr/bin/env bash` is bash, and the bash rule
-applies to it as well.
+Applies to `justfile` and `*.just`. A `[script]` recipe body is bash, and the bash rule applies to it as well.
 
 ## Shape
 
@@ -18,9 +17,22 @@ applies to it as well.
    and a description of what the file is and who imports it. The root carries the `#!/usr/bin/env just
    --justfile` shebang above that; a module does not.
 2. The settings block follows: `set dotenv-load := true`, `set fallback := true` in a module (never in the
-   root, which has no parent), and `set positional-arguments := true`. `set export := true` comes after the
-   default-and-help pair, so that pair reads the same in every justfile.
-3. Every justfile carries the default-and-help pair, with the file's own path in an exported variable:
+   root, which has no parent), `set positional-arguments := true`, and `set script-interpreter := ['bash']`,
+   the interpreter named bare so the pinned bash wins. `set export := true` comes after the default-and-help
+   pair, so that pair reads the same in every justfile.
+3. The root puts the mise-pinned toolchain first on `PATH` once, at parse time, from `mise bin-paths`, so every
+   recipe calls its tools bare and the pinned tool wins over any other copy, on a desk and on a runner alike:
+
+   ````just
+   export PATH := ```
+     mise bin-paths 2>/dev/null | while IFS= read -r d
+     do
+       case ":${PATH}:" in (*":${d}:"*) ;; (*) printf '%s:' "${d}" ;; esac
+     done
+     ``` + env('PATH')
+   ````
+
+4. Every justfile carries the default-and-help pair, with the file's own path in an exported variable:
 
    ```just
    # This file's own path, assigned at parse time so the body below needs no interpolation.
@@ -35,9 +47,9 @@ applies to it as well.
      just --justfile "${<name>_justfile}" --list
    ```
 
-4. A module the root takes with `mod <name> "<path>"` carries `[no-cd]` on every recipe, so its body runs from
+5. A module the root takes with `mod <name> "<path>"` carries `[no-cd]` on every recipe, so its body runs from
    the invoking root rather than the module's directory.
-5. The file closes with a rule of dashes.
+6. The file closes with a rule of dashes.
 
 ## Recipes
 
@@ -45,7 +57,8 @@ applies to it as well.
    Related recipes share an emoji.
 2. A comment block precedes every recipe: a paragraph of intent, then the usage lines. It answers what the
    recipe does, when to run it, and what it produces.
-3. A non-trivial body is `#!/usr/bin/env bash` with `set -o errexit -o nounset -o pipefail` as its first line.
+3. A non-trivial body is a `[script]` recipe, never a shebang recipe, with `set -o errexit -o nounset -o pipefail`
+   as its first line. A tool in it is called bare, never through `mise exec`.
 4. A body says what runs. Logic longer than a dozen lines lives in a bash script the body calls.
 5. No `{{...}}` interpolation anywhere, in a body or a comment. A value just computes reaches a body as an exported
    variable, `export <name> := <expression>`, and `set export := true` exports every parameter, so a body reads

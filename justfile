@@ -7,6 +7,22 @@
 set dotenv-load := true
 set positional-arguments := true
 
+# A bash recipe body is hosted by the interpreter named here and marked [script], not by a shebang: a shebang
+# recipe is exec'd from a temp executable and costs more per invocation than `bash <file>`. The interpreter is
+# named bare so it resolves through the PATH built below, and the pinned bash wins over the system's.
+set script-interpreter := ['bash']
+
+# The mise-pinned toolchain's bin directories go first on PATH once, at parse time, so every recipe calls its
+# tools bare and the pinned tool wins over any Homebrew or system copy: the same directories mise-action puts on
+# the runner's PATH, so a desk and the runner cannot disagree about which tool ran. Idempotent by inspecting
+# PATH rather than a sentinel, so a nested just adds nothing.
+export PATH := ```
+  mise bin-paths 2>/dev/null | while IFS= read -r d
+  do
+    case ":${PATH}:" in (*":${d}:"*) ;; (*) printf '%s:' "${d}" ;; esac
+  done
+  ``` + env('PATH')
+
 # This file's own path, assigned at parse time so the body below needs no interpolation.
 export root_justfile := source_file()
 
@@ -21,18 +37,19 @@ _: help
 set export := true
 
 # The gate: kit lint over every tracked path, each rule's own linter, every module.yml and .kit/settings.yml
-# against their schemas, the bats suite, and bin/kit check over this repository's installed copy of its own kit. The runner runs it on every pull request, and a desk runs it the
-# same way; the pre-commit hook is the narrower, faster check over the staged paths.
+# against their schemas, the bats suite, and bin/kit check over this repository's installed copy of its own kit.
+# The runner runs it on every pull request, and a desk runs it the same way; the pre-commit hook is the narrower,
+# faster check over the staged paths.
 #
 #   just ci
 [doc("🚦 The gate: kit lint, the schemas, bats, kit check")]
+[script]
 ci:
-  #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
-  mise exec -- bin/kit lint --all-files
-  mise exec -- ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
-  mise exec -- ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
-  mise exec -- bats --print-output-on-failure tests/
+  bin/kit lint --all-files
+  ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
+  ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
+  bats --print-output-on-failure tests/
   bin/kit check
   echo "✅ ci passed"
 
@@ -45,8 +62,8 @@ ci:
 #
 #   just refresh
 [doc("🔁 Bring this repository's own installed copies up to the index, and stage the result")]
+[script]
 refresh:
-  #!/usr/bin/env bash
   set -o errexit -o nounset -o pipefail
   paths() { awk 'length($1) == 64 { print substr($0, 67) }' .kit/manifest; }
   readarray -t before < <(paths)
