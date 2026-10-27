@@ -8,7 +8,9 @@
 #                             a -<suffix>, a pre-release, on a commit off it; refused otherwise, naming why
 #   pack <tag> [<directory>]  kit-<version>.tar.gz and its .sha256 in <directory>, the current one by default:
 #                             one directory kit-<version>/ with bin/, modules/, and the version stamped in
-#   publish <tag>             pack, then a GitHub release carrying both files, marked pre-release for a suffix
+#   publish <tag>             pack, then a GitHub release carrying both files, marked pre-release for a suffix.
+#                             A release is published by the runner alone, from the release workflow a pushed
+#                             tag starts; a desk may publish a pre-release
 #   retire [<branch>]         delete every pre-release whose commit no remaining branch reaches, after <branch>
 #                             was deleted; the branch is the runner's delete event when none is given. A
 #                             pre-release merged by a merge commit stays reachable from the default branch and
@@ -88,6 +90,10 @@ case "${verb}" in
     (( $# == 1 )) || { usage; exit 2; }
     tag=$1
     version=$(tag-version "${tag}")
+    if [[ "${version}" != *-* && -z "${GITHUB_ACTIONS:-}" ]]
+    then
+      refuse-tag "a release is published by the release workflow, not from a desk; push the tag: git push origin ${tag}"
+    fi
     guard:require tool:gh
     into=$(mktemp -d)
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on

@@ -169,7 +169,8 @@ GitHub pre-release. The tag is the version: the repository carries no version fi
 reused. The workflow is two kit commands: `kit release verify`, which refuses a tag that is not `release/` and a
 version, a release tag off `main`, and a pre-release tag on `main`; and `kit release publish`, which packs `bin/`,
 `modules/`, and `version` into `kit-<version>.tar.gz` and publishes the release. `kit release pack` makes the same
-tarball on a desk. A release is permanent. A pre-release is retired, tag and all, when the branch it was tagged on is
-deleted and no other branch reaches its commit.
+tarball on a desk, and `kit release publish` refuses a release tag anywhere but on the runner, so a release is published
+by the workflow and nowhere else; a desk may publish a pre-release. A release is permanent. A pre-release is retired,
+tag and all, when the branch it was tagged on is deleted and no other branch reaches its commit.
 
 The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure).

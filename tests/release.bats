@@ -40,6 +40,13 @@ teardown() {
   [[ "$output" == *"is not a release tag"* ]]
 }
 
+@test "publish refuses a release from a desk, and names the push that has the runner publish it" {
+  run env -u GITHUB_ACTIONS "${kit_checkout}/bin/kit" release publish release/1.2.3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a release is published by the release workflow, not from a desk"* ]]
+  [[ "$output" == *"git push origin release/1.2.3"* ]]
+}
+
 @test "pack makes one directory with the release's layout and the version stamped in, which installs a repository" {
   version=9.9.9
   run "${kit_checkout}/bin/kit" release pack "release/${version}" "${work}"
