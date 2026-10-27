@@ -1,10 +1,10 @@
 # empowerite/kit: **k**eep **i**t **t**rustworthy
 
-kit is the house rules, put where agents look, and the checks that hold agents to them, as a versioned release
-any repository can take and keep taking. Do you trust your agents? They were trained on the whole of what people
-have written, and that includes every shortcut anyone ever took: the "done" that was not, the test that was
-skipped and reported as passing, the rebase that quietly rewrote a colleague's branch. An agent is a tireless
-new colleague who has read everything and holds none of your house rules, unless you put them where it looks.
+Do you trust your agents? They were trained on the whole of what people have written, and that includes every shortcut
+anyone ever took: the "done" that was not, the test that was skipped and reported as passing, the rebase that quietly
+rewrote a colleague's branch. An agent is a tireless new colleague who has read everything and holds none of your house
+rules, unless you put them where it looks. kit is the house rules, put where agents look, and the checks that hold
+agents to them, as a versioned release any repository can take and keep taking.
 
 The rules are the smaller part. The point is verification that does not depend on anyone's word:
 
