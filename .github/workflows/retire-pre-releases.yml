@@ -1,9 +1,9 @@
-# retire-pre-releases.yml - a pre-release lives as long as the branch it was tagged on
+# retire-pre-releases.yml - deleting a branch deletes the pre-releases that were made from it
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# One step, one kit command: on every branch deletion, `kit release retire` deletes, tag and all, each pre-release
-# whose commit no remaining branch reaches. A release is never touched: it is on main, which is never deleted. A
-# deleted tag is a delete event too, and that one is ignored here.
+# Deleting a branch on GitHub runs this workflow. Its one step is one kit command: kit release retire deletes
+# every pre-release, tag included, whose commit is no longer on any branch. A release is never deleted, because
+# it is on main and main is never deleted. Deleting a tag also sends a delete event, and that one is ignored.
 #
 # see: bin/kit-release.sh, .github/workflows/release.yml
 
