@@ -5,10 +5,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
-# mirrored at the base's root; templates/<base>/, with @key@ rendered from the repository's answers, then
-# mirrored the same way; and regions/<base>/, each file placed as a region the kit owns inside a file the
-# repository owns, opened by a :generate: directive naming kit region and closed by an end marker, so the rest
-# of that file stays the repository's and kit generate makes the region what the command makes it. A repository
+# mirrored at the base's root; templates/<base>/, with @key@ rendered from the repository's settings, then
+# mirrored the same way; and regions/<base>/, rendered the same way, each file placed as a region the kit owns
+# inside a file the repository owns, between a bare kit:generate line and a kit:end line that name the path,
+# so the rest of that file stays the repository's and kit generate makes the region what kit region prints. A
+# repository
 # defines modules of its own the same way under .kit/modules/<name>/, and a name is looked up in the release
 # first, then there. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's home
 # directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending in
@@ -254,12 +255,30 @@ release:validate-settings() {
   done < <(yaml:map "${settings}" answers)
 }
 
-# release:answers <root> <module> prints "<key>\t<value>" for every answer the module's templates may use: the
-# module's defaults under its answers:, each overridden by the repository's, under answers: in .kit/settings.yml.
-release:answers() {
+# release:context <root> <module> prints "<key>\t<value>" for every key a template or region of the module may
+# use: the module's defaults under its answers:, as <key> and answers.<key>; then the whole of .kit/settings.yml,
+# a top-level scalar as <key>, a map's entries as <map>.<name>, and the answers map's as <name> too. A later
+# line overrides an earlier one, so the repository's answer wins over the module's default.
+release:context() {
+  local settings key name value
+  settings=$(release:settings)
   {
-    yaml:map "$(release:meta "$1" "$2")" answers
-    yaml:map "$(release:settings)" answers
+    while IFS=$'\t' read -r name value
+    do
+      [[ -n "${name}" ]] || continue
+      printf '%s\t%s\n%s\t%s\n' "${name}" "${value}" "answers.${name}" "${value}"
+    done < <(yaml:map "$(release:meta "$1" "$2")" answers)
+    for key in $(yaml:keys "${settings}")
+    do
+      value=$(yaml:value "${settings}" "${key}")
+      [[ -n "${value}" ]] && printf '%s\t%s\n' "${key}" "${value}"
+      while IFS=$'\t' read -r name value
+      do
+        [[ -n "${name}" ]] || continue
+        printf '%s\t%s\n' "${key}.${name}" "${value}"
+        [[ "${key}" == answers ]] && printf '%s\t%s\n' "${name}" "${value}"
+      done < <(yaml:map "${settings}" "${key}")
+    done
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
 
@@ -275,30 +294,34 @@ release:tmp() {
   printf '%s\n' "${release_tmp}"
 }
 
-# release:render <root> <module> <base> renders the module's templates for <base> once per process and prints the
-# directory holding them, or prints nothing where the module has none. A key is written @key@, autoconf's form,
-# which neither bash's ${var} nor GitHub's ${{ }} can be mistaken for; one with no answer refuses, naming the key.
+# release:render <root> <module> <kind> <base> renders the module's templates or regions, the <kind>, for <base>
+# once per process and prints the directory holding them, or prints nothing where the module has none. The
+# directory keeps the modules/<module>/<kind>/<base> shape, so a rendered region still reads as one. A key is
+# written @key@, autoconf's form, which neither bash's ${var} nor GitHub's ${{ }} can be mistaken for, and may
+# be dotted, @answers.key@; one with no value refuses, naming the key.
 release:render() {
-  local root=$1 module=$2 base=$3 templates out key value text file rel
+  local root=$1 module=$2 kind=$3 base=$4 source out key value text file rel map
   local -A answer=()
-  templates="$(release:home "${root}" "${module}")/modules/${module}/templates/${base}"
-  [[ -d "${templates}" ]] || return 0
-  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/${module}/${base}"
+  source="$(release:home "${root}" "${module}")/modules/${module}/${kind}/${base}"
+  [[ -d "${source}" ]] || return 0
+  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/modules/${module}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
     while IFS=$'\t' read -r key value
     do
       [[ -n "${key}" ]] && answer[${key}]=${value}
-    done < <(release:answers "${root}" "${module}")
+    done < <(release:context "${root}" "${module}")
     while IFS= read -r file
     do
-      rel=${file#"${templates}"/}
+      rel=${file#"${source}"/}
       text=$(<"${file}")
-      for key in $(grep --only-matching '@[a-z_]*@' "${file}" | LC_ALL=C sort --unique | tr -d '@')
+      for key in $(grep --only-matching '@[a-z_][a-z_.]*@' "${file}" | LC_ALL=C sort --unique | tr -d '@')
       do
         if [[ -z "${answer[${key}]+x}" ]]
         then
-          error "${rel} needs an answer for '${key}'; add '${key}: <value>' under answers: in .kit/settings.yml" \
+          map=answers
+          [[ "${key}" == *.* ]] && map=${key%.*}
+          error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in .kit/settings.yml" \
             "(module ${module})"
           return 1
         fi
@@ -306,14 +329,14 @@ release:render() {
       done
       mkdir -p "${out}/$(dirname "${rel}")"
       printf '%s\n' "${text}" > "${out}/${rel}"
-    done < <(find "${templates}" -type f)
+    done < <(find "${source}" -type f)
   fi
   printf '%s\n' "${out}"
 }
 
 # release:render-all <root> <module>… makes the release at <root> ready to read for the named modules: it refuses
 # a module the release lacks, validates every module the release carries, refuses a base the kit does not deliver
-# to, renders the named modules' templates, and refuses a link to nothing among the delivered files.
+# to, renders the named modules' templates and regions, and refuses a link to nothing among the delivered files.
 release:render-all() {
   local root=$1 module kind base
   shift
@@ -339,9 +362,12 @@ release:render-all() {
         fi
       done
     done
-    for base in $(release:bases)
+    for kind in templates regions
     do
-      release:render "${root}" "${module}" "${base}" >/dev/null || return 1
+      for base in $(release:bases)
+      do
+        release:render "${root}" "${module}" "${kind}" "${base}" >/dev/null || return 1
+      done
     done
   done
   for base in $(release:bases)
@@ -382,17 +408,19 @@ release:regions-apart() {
 }
 
 # release:layers <root> <base> <module>… prints the directories mirrored at the base's root, in module order: each
-# module's files/<base>, its rendered templates/<base>, and its regions/<base>.
+# module's files/<base>, its rendered templates/<base>, and its rendered regions/<base>.
 release:layers() {
-  local root=$1 base=$2 module home rendered
+  local root=$1 base=$2 module home kind rendered
   shift 2
   for module in "$@"
   do
     home=$(release:home "${root}" "${module}")
     [[ -d "${home}/modules/${module}/files/${base}" ]] && printf '%s\n' "${home}/modules/${module}/files/${base}"
-    rendered=$(release:render "${root}" "${module}" "${base}")
-    [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
-    [[ -d "${home}/modules/${module}/regions/${base}" ]] && printf '%s\n' "${home}/modules/${module}/regions/${base}"
+    for kind in templates regions
+    do
+      rendered=$(release:render "${root}" "${module}" "${kind}" "${base}")
+      [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
+    done
   done
   return 0
 }

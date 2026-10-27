@@ -532,4 +532,29 @@ later-release() {
   grep --quiet '^version 0.0.1$' "${KIT_HOME}/.kit/manifest"
 }
 
+@test "a region is a template: @key@ takes the repository's answer, the module's default, or a settings key, and refuses a key with none" {
+  mkdir -p .kit/modules/extra/regions/repo
+  printf 'description: "x"\ndepends:\n  - kit\nanswers:\n  ci_runner: ours\n' > .kit/modules/extra/module.yml
+  printf 'runner = "@ci_runner@"\nsigning = @require_signing@\nagain = "@answers.ci_runner@"\n' > .kit/modules/extra/regions/repo/config.toml
+  printf 'require_signing: false\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install extra
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '2,4p' config.toml | paste -s -d '|' -)" = 'runner = "ours"|signing = false|again = "ours"' ]
+  [ "$("${kit_checkout}/bin/kit" region config.toml | paste -s -d '|' -)" = 'runner = "ours"|signing = false|again = "ours"' ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  printf 'require_signing: false\nanswers:\n  ci_runner: theirs\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"config.toml: stale"* ]]
+  run "${kit_checkout}/bin/kit" generate
+  [ "$status" -eq 0 ]
+  grep --quiet '^runner = "theirs"$' config.toml
+  grep --quiet '^again = "theirs"$' config.toml
+  printf 'x = @missing@\n' > .kit/modules/extra/regions/repo/other.toml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"other.toml needs an answer for 'missing'; add 'missing: <value>' under answers: in .kit/settings.yml (module extra)"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
