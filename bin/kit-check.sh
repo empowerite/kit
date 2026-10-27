@@ -10,7 +10,7 @@
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
-use release
+use release generate
 
 if [[ "${1:-}" == --help ]]
 then
@@ -49,24 +49,30 @@ do
     then
       error "run: mise install (jq is not on PATH, so ${dest} could not be read)"
       findings=$(( findings + 1 ))
-    elif [[ "${kind}" == region ]] && ! release:installed "${src}" "${dest}" >/dev/null
+    elif [[ "${kind}" == region ]]
     then
-      error "${dest} has no kit region; run: kit update"
-      findings=$(( findings + 1 ))
+      # The directive must be there; what it makes is held below, with every other generated region.
+      if ! release:installed "${src}" "${dest}" >/dev/null
+      then
+        error "${dest} has no kit region; run: kit update"
+        findings=$(( findings + 1 ))
+      fi
     elif ! release:holds "${src}" "${dest}"
     then
       case "${kind}" in
         (merge) error "${dest} is missing an entry the kit writes; run: kit update" ;;
-        (region) error "${dest}: the kit's region differs from the pinned release" ;;
         (*) error "${dest} differs from the pinned release" ;;
       esac
       findings=$(( findings + 1 ))
     fi
   done <<<"${delivered}"
 done
+# Every generated region, the kit's and the repository's own, is what its command makes it.
+generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
 then
-  error "${findings} finding(s). A delivered file changes by a new release and kit update, never in place."
+  error "${findings} finding(s). A delivered file changes by a new release and kit update, never in place;" \
+    "a generated region by kit generate."
   exit 1
 fi
 ok "kit ${version}, modules ${modules[*]:-none}: every delivered file matches the pinned release."

@@ -60,7 +60,7 @@
   <line x1="396" y1="286" x2="644" y2="286" stroke="#a78bfa" stroke-width="1"/>
   <text class="d" x="396" y="308">resolve the active set and its depends</text>
   <text class="d" x="396" y="326">render @key@ from .kit/settings.yml</text>
-  <text class="d" x="396" y="344">merge a .json destination by key; write a region</text>
+  <text class="d" x="396" y="344">merge a .json destination by key; generate a region</text>
   <text class="d" x="396" y="362">copy everything else</text>
   <text class="d" x="396" y="380">digest each path into the manifest</text>
   <text class="d" x="396" y="398">three-way merge an edited file on update</text>

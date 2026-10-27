@@ -60,14 +60,16 @@ than a schema, `*.schema.json`, is merged by key: the kit's keys are set, its ar
 removal only the previous release's entries are taken out, so a repository's own keys and entries survive. Every other
 destination is a copy. Where two active modules deliver the same path, the later module in dependency order wins.
 
-A file under `regions/<base>/` is placed as a region inside the file at the same path: its content between two
-marker comments naming the module, `<!-- kit:begin kit -->` and `<!-- kit:end kit -->` in markdown, `# kit:begin
-kit` and `# kit:end kit` elsewhere. Where the file has no region, one is appended after a blank line; where there
-is no file, it is made of the region alone. The repository may move the region anywhere in the file and write
-what it likes around it. `kit check` holds only the content between the markers to the release, `kit update`
-replaces or three-way merges only that, and removal takes the region out and leaves the rest, removing a file it
-leaves empty. The `kit` module places two: the sentence in `AGENTS.md` that sends every agent to `.kit/1st.md`,
-and the `/worktrees/` entry in `.gitignore`.
+A file under `regions/<base>/` is the content of a region inside the file at the same path. What is placed there is a
+`:generate:` directive naming `kit region <path>`, the content, and a `kit:end` marker, in the file's own comment
+syntax: `<!-- … -->` in markdown, `#` elsewhere, as [generate.md](generate.md) describes. Where the file carries the
+directive already, the content between it and the end marker is made what the command makes it; where it does not, the
+block is appended after a blank line; where there is no file, it is made of the block alone. The repository may move the
+block anywhere in the file and write what it likes around it. `kit check` holds the region to its command, `kit update`
+regenerates it, never merges it, and removal takes the block out and leaves the rest, removing a file it leaves empty.
+One file holds one kit region, and two modules delivering a region to the same path are refused by name. A kind of file
+the kit cannot mark is refused. The `kit` module places two: the sentence in `AGENTS.md` that sends every agent to
+`.kit/1st.md`, and the `/worktrees/` entry in `.gitignore`.
 
 A file under `templates/<base>/` is rendered first. Every `@key@` in it, autoconf's form, is replaced by the key's
 answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither

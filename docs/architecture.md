@@ -25,8 +25,9 @@ dependencies, renders, places, and writes the manifests. `kit update` moves to a
 an untouched file is replaced, an edited one three-way merged with the previous release as the base. `kit check`
 fails when a delivered file differs from the release's. `kit module` changes the active set. Three rules govern
 placement: a `.json` destination, other than a schema, is merged by key, the kit owning only the entries it writes; a
-region is written between marker comments inside a file the repository owns, the kit holding only what is
-between them; everything else is a copy.
+region is opened inside a file the repository owns by a `:generate:` directive naming `kit region`, and `kit
+generate` makes it what that command makes it, as it makes every region any file in the repository declares, see
+[generate.md](generate.md); everything else is a copy.
 
 Each base has a manifest: `.kit/manifest`, committed with the repository, and `~/.kit/manifest` on the desk when a
 module delivers there. A manifest records the version, the active modules, and the release's digest of every

@@ -7,12 +7,12 @@
 # A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
 # mirrored at the base's root; templates/<base>/, with @key@ rendered from the repository's answers, then
 # mirrored the same way; and regions/<base>/, each file placed as a region the kit owns inside a file the
-# repository owns, between marker comments, so the rest of that file stays the repository's. A repository
+# repository owns, opened by a :generate: directive naming kit region and closed by an end marker, so the rest
+# of that file stays the repository's and kit generate makes the region what the command makes it. A repository
 # defines modules of its own the same way under .kit/modules/<name>/, and a name is looked up in the release
 # first, then there. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's home
 # directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending in
-# .json is merged by key, the kit owning only the entries it writes, and a region is held to the release between
-# its markers and nowhere else. The repository's choices live in .kit/settings.yml, which the kit reads and never
+# .json is merged by key, the kit owning only the entries it writes, and a region is regenerated, never merged. The repository's choices live in .kit/settings.yml, which the kit reads and never
 # writes. docs/modules.md is the format's description.
 #
 # Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
@@ -409,15 +409,21 @@ release:kind() {
   fi
 }
 
-# release:region-module <source> prints the module a region source belongs to, which names its markers.
-release:region-module() {
-  local rest=${1##*/modules/}
-  printf '%s\n' "${rest%%/*}"
+# release:region-command <dest> prints the command that makes the region at a destination: kit region with the
+# path relative to the base's root, and --home under the home directory.
+release:region-command() {
+  local home
+  home=$(release:base-root home)
+  if [[ "$1" == "${home}"/* ]]
+  then printf 'kit region --home %s\n' "${1#"${home}"/}"
+  else printf 'kit region %s\n' "$1"
+  fi
 }
 
-# release:region-markers <path> <module> prints the region's two marker lines in the file's own comment syntax,
-# by its extension: an HTML comment, a double slash, a double dash, or a hash. A kind of file with no comment
-# syntax the kit knows is refused where the module is read, in release:render-all.
+# release:region-markers <dest> prints the region's two lines in the file's own comment syntax, by its extension,
+# an HTML comment, a double slash, a double dash, or a hash: the directive that opens it, naming the command and
+# the end marker, and the end marker. A kind of file with no comment syntax the kit knows is refused where the
+# module is read, in release:render-all.
 release:region-markers() {
   local open close
   case "${1##*.}" in
@@ -427,7 +433,8 @@ release:region-markers() {
     (sql | lua | hs) open='-- ' close='' ;;
     (*) open='# ' close='' ;;
   esac
-  printf '%skit:begin %s%s\n%skit:end %s%s\n' "${open}" "$2" "${close}" "${open}" "$2" "${close}"
+  printf '%s:generate:%s:until:"kit:end"%s\n%skit:end%s\n' "${open}" "$(release:region-command "$1")" "${close}" \
+    "${open}" "${close}"
 }
 
 # release:region-known <path> is true where the kit knows the file's comment syntax, so a region can be marked.
@@ -453,12 +460,12 @@ release:target() {
   fi
 }
 
-# release:region-has <path> <module> is true when the file carries the region's begin marker; a begin marker
-# with no end marker is refused, naming the file, since a write would drop everything after it.
+# release:region-has <dest> is true when the file carries the region's directive; a directive with no end
+# marker is refused, naming the file, since a write would drop everything after it.
 release:region-has() {
   local path=$1 begin end
   [[ -f "${path}" ]] || return 1
-  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  { read -r begin; read -r end; } < <(release:region-markers "$1")
   grep --quiet --line-regexp --fixed-strings "${begin}" "${path}" || return 1
   if ! grep --quiet --line-regexp --fixed-strings "${end}" "${path}"
   then
@@ -467,23 +474,24 @@ release:region-has() {
   fi
 }
 
-# release:region-read <path> <module> prints the region's content, between its markers, and fails where the
-# file or the region is absent.
+# release:region-read <dest> prints the region's content, between its directive and its end marker, and fails
+# where the file or the region is absent.
 release:region-read() {
   local path=$1 begin end
-  release:region-has "$1" "$2" || return $?
-  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  release:region-has "$1" || return $?
+  { read -r begin; read -r end; } < <(release:region-markers "$1")
   awk -v b="${begin}" -v e="${end}" '$0 == e { on = 0 } on { print } $0 == b { on = 1 }' "${path}"
 }
 
-# release:region-write <path> <module> <content-file> replaces the region's content, appending the region after a
-# blank line where the file has none, and making the file where there is none.
+# release:region-write <dest> <content-file> makes the region what its command makes it, which is the content:
+# between the directive and the end marker where the file carries them, appended after a blank line where it
+# does not, and as the whole file where there is none.
 release:region-write() {
-  local path module=$2 content=$3 begin end status=0
+  local path content=$2 begin end status=0
   path=$(release:target "$1")
-  { read -r begin; read -r end; } < <(release:region-markers "${path}" "${module}")
+  { read -r begin; read -r end; } < <(release:region-markers "$1")
   mkdir -p "$(dirname "${path}")"
-  release:region-has "${path}" "${module}" || status=$?
+  release:region-has "${path}" || status=$?
   (( status == 2 )) && return 1
   if (( status == 0 ))
   then
@@ -507,13 +515,13 @@ release:region-write() {
   mv "${path}.kit-new" "${path}"
 }
 
-# release:region-remove <path> <module> takes the region and its markers out, and the blank line before it;
-# a file left empty is removed.
+# release:region-remove <dest> takes the region, its directive, and its end marker out, and the blank line
+# before it; a file left empty is removed.
 release:region-remove() {
   local path begin end
   path=$(release:target "$1")
   [[ -f "${path}" ]] || return 0
-  { read -r begin; read -r end; } < <(release:region-markers "$1" "$2")
+  { read -r begin; read -r end; } < <(release:region-markers "$1")
   awk -v b="${begin}" -v e="${end}" '
     $0 == b { skip = 1; held = 0; next }
     $0 == e { skip = 0; next }
@@ -689,7 +697,7 @@ release:place() {
       release:json-write "${path}" 'merge(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
       ;;
     (region)
-      release:region-write "${path}" "$(release:region-module "${src}")" "${src}"
+      release:region-write "${path}" "${src}"
       ;;
     (*)
       path=$(release:target "${path}")
@@ -704,7 +712,7 @@ release:place() {
 release:installed() {
   local src=$1 path=$2
   case "$(release:kind "${src}" "${path}")" in
-    (region) release:region-read "${path}" "$(release:region-module "${src}")" ;;
+    (region) release:region-read "${path}" ;;
     (*) [[ -f "${path}" ]] && cat "${path}" ;;
   esac
 }
@@ -720,8 +728,8 @@ release:holds() {
 }
 
 # release:place-new <source> <path> [<label>] places content the repository did not record: where there is
-# nothing, or the same thing, a .json to merge into, or a file to carry a region. A different file, or a region
-# with different content, is refused, named, and left as it is.
+# nothing, or the same thing, a .json to merge into, or a file to carry a region. A region already there is made
+# what its command makes it. A different file is refused, named, and left as it is.
 release:place-new() {
   local src=$1 path=$2 label=${3:-} kind
   kind=$(release:kind "${src}" "${path}")
@@ -740,8 +748,8 @@ release:place-new() {
     step "${path}${label:+: ${label}}, already as the release has it"
   elif [[ "${kind}" == region ]]
   then
-    error "${path}: the kit's region is there with different content; make it the release's, or remove it"
-    return 1
+    step "${path}${label:+: ${label}}, the region regenerated"
+    release:place "${src}" "${path}"
   else
     error "${path}: a different file is there already; move it aside, or remove it if it is not yours"
     return 1
@@ -773,7 +781,7 @@ release:unplace() {
       ;;
     (region)
       step "${path}: the kit's region taken out"
-      release:region-remove "${path}" "$(release:region-module "${src}")"
+      release:region-remove "${path}"
       ;;
     (*)
       step "removing ${path}"

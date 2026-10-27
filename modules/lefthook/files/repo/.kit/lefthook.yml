@@ -11,3 +11,5 @@ pre-commit:
   commands:
     kit-lint:
       run: kit lint {staged_files}
+    kit-generate:
+      run: kit generate --check {staged_files}

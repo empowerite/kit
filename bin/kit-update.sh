@@ -72,6 +72,11 @@ do
     then
       step "${dest}: merged by key"
       release:place "${src}" "${dest}" "${previous_src}"
+    elif [[ "${kind}" == region ]]
+    then
+      # A region is what its command makes it, so it is regenerated, never merged.
+      step "${dest}: the region regenerated"
+      release:place "${src}" "${dest}"
     elif ! release:installed "${src}" "${dest}" >/dev/null 2>&1
     then
       step "${dest}: missing, written"
@@ -80,19 +85,6 @@ do
     then
       step "${dest}: unchanged since ${previous}, replaced"
       release:place "${src}" "${dest}"
-    elif [[ "${kind}" == region ]]
-    then
-      # The region's content is merged on its own and written back between the markers.
-      step "${dest}: the kit's region edited since ${previous}, three-way merged"
-      ours=$(mktemp)
-      release:installed "${src}" "${dest}" > "${ours}"
-      if ! git merge-file --marker-size 7 "${ours}" "${previous_src}" "${src}"
-      then
-        warn "${dest}: conflict markers are left in the kit's region; resolve them, then run: kit check"
-        conflicts=$(( conflicts + 1 ))
-      fi
-      release:region-write "${dest}" "$(release:region-module "${src}")" "${ours}"
-      rm -f "${ours}"
     else
       step "${dest}: edited since ${previous}, three-way merged"
       if ! git merge-file --marker-size 7 "${dest}" "${previous_src}" "${src}"

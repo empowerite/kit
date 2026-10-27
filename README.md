@@ -10,7 +10,7 @@ The rules are the smaller part. The point is verification that does not depend o
 
 - `kit ci`, which refuses a pull request without a linked open issue and refuses to pass a gate that did not
   run, from the delivered GitHub Actions job or from any pipeline;
-- `kit check`, which holds every delivered file to its release;
+- `kit check`, which holds every delivered file to its release and every generated region to its command;
 - `kit lint`, each rule's own linter over the paths it governs, before a commit or anywhere;
 - a deny list that refuses the spellings the rules forbid;
 - `kit status`, which shows what every pull request's checks said.
@@ -69,10 +69,12 @@ sees a new kit a day after it ships unless `[settings]` carries `minimum_release
   always in; `ci-github` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the
   Claude Code adapter. `kit install ci-github lefthook claude` takes all three, and `kit module add` takes one
   later.
-- `install` writes the sentence every agent reads into a region of `AGENTS.md`, between `<!-- kit:begin kit -->`
-  and `<!-- kit:end kit -->`, making the file where there is none and leaving the rest of it yours, and the
-  `/worktrees/` entry into a region of `.gitignore` the same way. Move the region where you like; `kit check`
-  holds only what is between the markers.
+- `install` writes the sentence every agent reads into a region of `AGENTS.md`, opened by a `:generate:`
+  directive naming `kit region AGENTS.md` and closed by `kit:end`, making the file where there is none and
+  leaving the rest of it yours, and the `/worktrees/` entry into a region of `.gitignore` the same way. Move the
+  region where you like and write what you like around it; `kit generate` makes the region what the command
+  makes it, and `kit check` holds it there. Any file of yours may carry a directive of its own;
+  [docs/generate.md](docs/generate.md) says how.
 - Commit what `install` wrote.
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
   or any command as `gate` in `.kit/settings.yml`. The delivered check, `kit ci`, runs it with `kit check` and
@@ -147,9 +149,9 @@ The installed copies are written by `bin/kit install` and not edited by hand:
 | `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `modules/kit/files/repo/.kit/` |
 | `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` answered |
-| `.claude/CLAUDE.md` | `modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file is the repository's |
+| `.claude/CLAUDE.md` | `modules/claude/regions/repo/.claude/CLAUDE.md`, a region `kit region` fills; the rest of the file is the repository's |
 | `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
-| `AGENTS.md`, `.gitignore` | `modules/kit/regions/repo/`, regions; the rest of each file is the repository's |
+| `AGENTS.md`, `.gitignore` | `modules/kit/regions/repo/`, regions `kit region` fills; the rest of each file is the repository's |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 
 `.kit/settings.yml` is this repository's own.
@@ -158,7 +160,7 @@ A commit that changes a file under `modules/` rewrites the installed copies in t
 hook runs `just refresh`, which regenerates them from the index and stages the result. On a desk without the
 hook, stage the change, run `just refresh`, and commit. `bin/kit check`, which `just ci` runs, names any installed
 copy that does not match its source. Each delivered whole file says in its header that it is delivered by kit; a
-region's markers are its notice, and this table is `settings.json`'s.
+region's directive is its notice, and this table is `settings.json`'s.
 
 ## Release
 
