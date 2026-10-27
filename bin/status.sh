@@ -282,7 +282,7 @@ status:check-cell() {
 }
 
 # status:pr-block <pr-json> <title-width> <state-width> <age-width> <worktree-relative> prints a pull request: its
-# row, the issues it closes, and the worktree here that holds its branch, when one does.
+# row, ending with the worktree here that holds its branch when one does, then the issues it closes.
 status:pr-block() {
   local doc=$1 title_w=$2 state_w=$3 age_w=$4 worktree=$5 number title state age unresolved row issue checks
   IFS=$'\t' read -r number title state age unresolved \
@@ -294,12 +294,12 @@ status:pr-block() {
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
   [[ -n "${checks}" ]] && row+="   ${checks}"
   (( unresolved > 0 )) && row+="   $(status:paint 33 "💬 ${unresolved} unresolved")"
+  [[ -n "${worktree}" ]] && row+="   $(status:paint 90 "🌿 ${worktree}")"
   printf '%s\n' "${row}" >&2
   while IFS= read -r issue
   do
     [[ -n "${issue}" ]] && printf '   %s\n' "$(status:paint 90 "closes ${issue}")" >&2
   done < <(jq --raw-output '.closes[] | "#\(.number) \(.title)"' <<<"${doc}")
-  [[ -n "${worktree}" ]] && printf '   %s\n' "$(status:paint 90 "🌿 ${worktree}")" >&2
   return 0
 }
 

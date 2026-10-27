@@ -108,6 +108,19 @@ commits-in() {
   [ "$output" = "$(printf 'topic on ../other\t17')" ]
 }
 
+@test "a pull request's row ends with its worktree, and the issues it closes follow" {
+  doc='{"number":2,"title":"The first","state":"queued","age":259200,"unresolved":0,'
+  doc+='"checks":{"state":"PENDING","passed":0,"total":1,"failing":0,"took":36},'
+  doc+='"closes":[{"number":1,"title":"One"},{"number":4,"title":"Four"}]}'
+  run in_status status:pr-block "${doc}" 12 6 2 worktrees/topic
+  [ "${lines[0]}" = "🔀 #2 The first   🚦 queued   3d   🏃 0 / 1 · 36s   🌿 worktrees/topic" ]
+  [ "${lines[1]}" = "   closes #1 One" ]
+  [ "${lines[2]}" = "   closes #4 Four" ]
+  [ "${#lines[@]}" -eq 3 ]
+  run in_status status:pr-block "${doc}" 12 6 2 ''
+  [ "${lines[0]}" = "🔀 #2 The first   🚦 queued   3d   🏃 0 / 1 · 36s" ]
+}
+
 @test "a path is printed relative to the current directory" {
   run in_status status:relative "${PWD}"
   [ "$output" = "." ]
