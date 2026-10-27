@@ -68,7 +68,7 @@ later-release() {
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
-  grep --quiet --line-regexp '<!-- :generate:kit region .claude/CLAUDE.md:until:"kit:end" -->' .claude/CLAUDE.md
+  grep --quiet --line-regexp '<!-- kit:generate .claude/CLAUDE.md -->' .claude/CLAUDE.md
   [ ! -e .claude/rules ]
 }
 
@@ -247,8 +247,8 @@ later-release() {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
   [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions." ]
-  grep --quiet --line-regexp '<!-- :generate:kit region AGENTS.md:until:"kit:end" -->' AGENTS.md
-  grep --quiet --line-regexp '<!-- kit:end -->' AGENTS.md
+  grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' AGENTS.md
+  grep --quiet --line-regexp '<!-- kit:end AGENTS.md -->' AGENTS.md
   grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
   [ "$(sed -n '1p' .gitignore)" = "build/" ]
   grep --quiet --line-regexp '/worktrees/' .gitignore
@@ -285,7 +285,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
   [ -L AGENTS.md ]
-  grep --quiet ':generate:kit region AGENTS.md' docs/AGENTS.md
+  grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' docs/AGENTS.md
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" module remove kit
@@ -297,10 +297,10 @@ later-release() {
 }
 
 @test "a region that opens and never closes is refused by name, and two modules cannot share a region's file" {
-  printf '<!-- :generate:kit region AGENTS.md:until:"kit:end" -->\nhalf\n' > AGENTS.md
+  printf '<!-- kit:generate AGENTS.md -->\nhalf\n' > AGENTS.md
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
-  [[ "$output" == *"AGENTS.md: the kit's region opens with '<!-- :generate:kit region AGENTS.md:until:\"kit:end\" -->' and never closes"* ]]
+  [[ "$output" == *"AGENTS.md: the kit's region opens with '<!-- kit:generate AGENTS.md -->' and never closes"* ]]
   rm AGENTS.md
   mkdir -p .kit/modules/extra/regions/repo
   printf 'description: "x"\ndepends:\n  - kit\n' > .kit/modules/extra/module.yml
@@ -312,15 +312,22 @@ later-release() {
   rm .kit/modules/extra/regions/repo/AGENTS.md
   run "${kit_checkout}/bin/kit" install extra
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' config.toml)" = '# :generate:kit region config.toml:until:"kit:end"' ]
+  [ "$(sed -n '1p' config.toml)" = '# kit:generate config.toml' ]
   [ "$("${kit_checkout}/bin/kit" region config.toml)" = "x = 1" ]
   printf 'const x = 1;\n' > .kit/modules/extra/regions/repo/lib.js
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' lib.js)" = '// :generate:kit region lib.js:until:"kit:end"' ]
+  [ "$(sed -n '1p' lib.js)" = '// kit:generate lib.js' ]
+  [ "$(sed -n '3p' lib.js)" = '// kit:end lib.js' ]
   run "${kit_checkout}/bin/kit" region AGENTS.md
   [ "$status" -eq 0 ]
   [[ "$output" == "Read .kit/1st.md"* ]]
+  run env KIT_GENERATE_REGION=AGENTS.md "${kit_checkout}/bin/kit" region
+  [ "$status" -eq 0 ]
+  [[ "$output" == "Read .kit/1st.md"* ]]
+  run "${kit_checkout}/bin/kit" region
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"usage: kit region"* ]]
   run "${kit_checkout}/bin/kit" region README.md
   [ "$status" -eq 1 ]
   [[ "$output" == *"no active module delivers a region at README.md"* ]]
@@ -329,11 +336,11 @@ later-release() {
 @test "a region makes the file where there is none, and one holding different content is regenerated" {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' AGENTS.md)" = '<!-- :generate:kit region AGENTS.md:until:"kit:end" -->' ]
+  [ "$(sed -n '1p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
   run "${kit_checkout}/bin/kit" module remove kit
   [ ! -e AGENTS.md ]
   [ ! -e .gitignore ]
-  printf '# Ours\n\n<!-- :generate:kit region AGENTS.md:until:"kit:end" -->\nsomething else\n<!-- kit:end -->\n' > AGENTS.md
+  printf '# Ours\n\n<!-- kit:generate AGENTS.md -->\nsomething else\n<!-- kit:end AGENTS.md -->\n' > AGENTS.md
   run "${kit_checkout}/bin/kit" module add kit
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: placed, the region regenerated"* ]]

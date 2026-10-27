@@ -409,23 +409,31 @@ release:kind() {
   fi
 }
 
-# release:region-command <dest> prints the command that makes the region at a destination: kit region with the
-# path relative to the base's root, and --home under the home directory.
+# release:region-name <dest> prints the region's name, which is the path relative to the base's root, and
+# release:region-command the command behind it: nothing under the repository, where the bare directive means
+# `kit region <name>`, and `kit region --home <name>` under the home directory, which the bare form cannot say.
+release:region-name() {
+  local home
+  home=$(release:base-root home)
+  if [[ "$1" == "${home}"/* ]]
+  then printf '%s\n' "${1#"${home}"/}"
+  else printf '%s\n' "$1"
+  fi
+}
 release:region-command() {
   local home
   home=$(release:base-root home)
   if [[ "$1" == "${home}"/* ]]
   then printf 'kit region --home %s\n' "${1#"${home}"/}"
-  else printf 'kit region %s\n' "$1"
   fi
 }
 
 # release:region-markers <dest> prints the region's two lines in the file's own comment syntax, by its extension,
-# an HTML comment, a double slash, a double dash, or a hash: the directive that opens it, naming the command and
-# the end marker, and the end marker. A kind of file with no comment syntax the kit knows is refused where the
-# module is read, in release:render-all.
+# an HTML comment, a double slash, a double dash, or a hash: the directive that opens it, `kit:generate <name>`
+# with the command in backticks where there is one, and the end marker, `kit:end <name>`. A kind of file with no
+# comment syntax the kit knows is refused where the module is read, in release:render-all.
 release:region-markers() {
-  local open close
+  local open close name command
   case "${1##*.}" in
     (md | markdown | html | htm | xml | svg) open='<!-- ' close=' -->' ;;
     (js | mjs | cjs | ts | tsx | jsx | go | rs | c | h | cc | cpp | hpp | java | kt | swift | cs | scala)
@@ -433,8 +441,10 @@ release:region-markers() {
     (sql | lua | hs) open='-- ' close='' ;;
     (*) open='# ' close='' ;;
   esac
-  printf '%s:generate:%s:until:"kit:end"%s\n%skit:end%s\n' "${open}" "$(release:region-command "$1")" "${close}" \
-    "${open}" "${close}"
+  name=$(release:region-name "$1")
+  command=$(release:region-command "$1")
+  printf '%skit:generate %s%s%s\n%skit:end %s%s\n' "${open}" "${name}" "${command:+ \`${command}\`}" "${close}" \
+    "${open}" "${name}" "${close}"
 }
 
 # release:region-known <path> is true where the kit knows the file's comment syntax, so a region can be marked.

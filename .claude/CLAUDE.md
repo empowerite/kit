@@ -1,5 +1,5 @@
 # CLAUDE.md
 
-<!-- :generate:kit region .claude/CLAUDE.md:until:"kit:end" -->
+<!-- kit:generate .claude/CLAUDE.md -->
 @../AGENTS.md
-<!-- kit:end -->
+<!-- kit:end .claude/CLAUDE.md -->

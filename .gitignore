@@ -1,9 +1,9 @@
 # .gitignore - untracked files and folders
 # ----------------------------------------------------------------------------------------------------------------------
 
-# :generate:kit region .gitignore:until:"kit:end"
+# kit:generate .gitignore
 # per-issue worktrees for agents; see: .kit/1st.md
 /worktrees/
-# kit:end
+# kit:end .gitignore
 
 # ----------------------------------------------------------------------------------------------------------------------

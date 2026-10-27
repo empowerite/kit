@@ -1,7 +1,7 @@
-<!-- :generate:kit region AGENTS.md:until:"kit:end" -->
+<!-- kit:generate AGENTS.md -->
 Read .kit/1st.md at the start of every session. It defines how any agent uses empowerite/kit to keep this
 repository trustworthy.
-<!-- kit:end -->
+<!-- kit:end AGENTS.md -->
 
 This repository is the kit's own source, and uses it.
 

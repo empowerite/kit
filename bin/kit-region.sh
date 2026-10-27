@@ -2,10 +2,11 @@
 # kit-region - print the content the active modules deliver as the region at a path (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The command behind every region the kit delivers: the directive install writes into AGENTS.md reads
-# `:generate:kit region AGENTS.md:until:"kit:end"`, and kit generate runs this to fill it. The path is relative
-# to the repository, or with --home to the home directory. One active module delivers a region at a path, so
-# the answer is that module's regions/<base>/<path>, and a path no active module delivers is refused.
+# The command behind every region the kit delivers. Install writes a bare directive, `kit:generate AGENTS.md`,
+# and kit generate fills it by running `kit region` with the region's name in KIT_GENERATE_REGION; the path is
+# that name, or the argument, relative to the repository, or with --home to the home directory. One active
+# module delivers a region at a path, so the answer is that module's regions/<base>/<path>, and a path no
+# active module delivers is refused.
 #
 # see: bin/generate.sh, bin/release.sh
 
@@ -20,20 +21,21 @@ for arg in "$@"
 do
   case "${arg}" in
     (--help)
-      echo "usage: kit region [--home] <path>" >&2
+      echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
       exit 0
       ;;
     (--home) base=home ;;
     (-*)
-      error "unknown flag '${arg}' (usage: kit region [--home] <path>)"
+      error "unknown flag '${arg}' (usage: kit region [--home] [<path>])"
       exit 2
       ;;
     (*) path=${arg}
   esac
 done
+path=${path:-${KIT_GENERATE_REGION:-}}
 if [[ -z "${path}" ]]
 then
-  echo "usage: kit region [--home] <path>" >&2
+  echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
   exit 2
 fi
 release:require-manifest

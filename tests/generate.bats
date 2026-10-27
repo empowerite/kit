@@ -158,4 +158,19 @@ joined() { paste -s -d '|' - < "$1"; }
   grep --quiet '^linked$' real/x.sh
 }
 
+@test "a bare directive means kit region, which reads the name, so the kit's regions carry no command and need only kit on PATH" {
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
+  printf '## Ours\n' >> AGENTS.md
+  run env PATH="$(dirname "$(command -v bash)"):/usr/bin:/bin" "${kit_checkout}/bin/kit" generate --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"every region as its command makes it"* ]]
+  printf '# kit:generate nothing\n# kit:end nothing\n' > bare.txt
+  run "${kit_checkout}/bin/kit" generate bare.txt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no active module delivers a region at nothing"* ]]
+  [[ "$output" == *"bare.txt:1: the command failed: kit region"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
