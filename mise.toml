@@ -20,6 +20,7 @@ _.path = ["bin"]
 #   gh                  the GitHub provider's tool: the loop's verbs, kit linked, and kit release publish and retire
 #   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit status
 #   just                runs the justfile: just ci, the gate, and just refresh, the installed copies
+#   lychee              checks every link in the markdown, offline, fragments included, in the gate
 #   ajv-cli             validates every module.yml and .kit/settings.yml against their schemas, in the gate
 #   markdownlint-cli2   the markdown rule's linter, over every .md file, in kit lint and the gate
 #   shellcheck          the bash rule's linter, over bin/ and tests/, in kit lint and the gate
@@ -29,6 +30,7 @@ bats = "1.14"
 gh = "2.103"
 jq = "1.8"
 just = "1.59"
+lychee = "0.24"
 "npm:ajv-cli" = "5"
 "npm:markdownlint-cli2" = "0.24"
 shellcheck = "0.11"
