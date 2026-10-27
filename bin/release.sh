@@ -599,7 +599,7 @@ release:fetch() {
   step "Fetching kit ${version} from its release"
   fresh=$(mktemp -d)
   if ! curl --fail --silent --location \
-      "https://github.com/empowerite/kit/releases/download/v${version}/kit-${version}.tar.gz" 2>/dev/null \
+      "https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz" 2>/dev/null \
     | tar --extract --gzip --directory "${fresh}" --strip-components 1 2>/dev/null
   then
     rm -rf "${fresh}"

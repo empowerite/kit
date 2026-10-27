@@ -4,8 +4,8 @@
 #
 # The kit releasing itself, as verbs a workflow step or a desk calls alike:
 #
-#   verify <tag>              the tag is v<major>.<minor>.<patch>, on the default branch, or the same with a
-#                             -<suffix>, a pre-release, on a commit off it; refused otherwise, naming why
+#   verify <tag>              the tag is release/<major>.<minor>.<patch>, on the default branch, or the same with
+#                             a -<suffix>, a pre-release, on a commit off it; refused otherwise, naming why
 #   pack <tag> [<directory>]  kit-<version>.tar.gz and its .sha256 in <directory>, the current one by default:
 #                             one directory kit-<version>/ with bin/, modules/, and the version stamped in
 #   publish <tag>             pack, then a GitHub release carrying both files, marked pre-release for a suffix
@@ -32,12 +32,12 @@ refuse-tag() {
   exit 1
 }
 
-# tag-version <tag> prints the version a tag names, refusing a tag that is not a version.
+# tag-version <tag> prints the version a tag names, the part after release/, refusing a tag that is not one.
 tag-version() {
-  local version=${1#v}
-  if [[ "$1" != v* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+  local version=${1#release/}
+  if [[ "$1" != release/* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
   then
-    refuse-tag "$1 is not a version tag: v<major>.<minor>.<patch>, with -<suffix> for a pre-release"
+    refuse-tag "$1 is not a release tag: release/<major>.<minor>.<patch>, with -<suffix> for a pre-release"
   fi
   printf '%s\n' "${version}"
 }
@@ -93,7 +93,8 @@ case "${verb}" in
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
     trap "rm -rf '${into}'" EXIT
     "${kit_root}/bin/kit" release pack "${tag}" "${into}"
-    notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    "github:empowerite/kit" = "%s"\n\n' "${version}"
+    pin=$(printf '"github:empowerite/kit" = { version = "%s", version_prefix = "release/" }' "${version}")
+    notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    %s\n\n' "${pin}"
       printf 'Then, in the repository: kit install\n')
     flags=()
     [[ "${version}" == *-* ]] && flags+=(--prerelease)

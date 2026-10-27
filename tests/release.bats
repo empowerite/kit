@@ -19,27 +19,30 @@ teardown() {
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
   git remote set-head origin main
-  git tag v1.2.3 && git tag v1.2.3-rc.1 && git tag vnope
+  git tag release/1.2.3 && git tag release/1.2.3-rc.1 && git tag release/nope && git tag v1.2.3
   git switch --quiet --create topic && printf 'two\n' > b && git add b && git commit --quiet --message two
-  git tag v1.2.4 && git tag v1.2.4-rc.1
-  run "${kit_checkout}/bin/kit" release verify v1.2.3
+  git tag release/1.2.4 && git tag release/1.2.4-rc.1
+  run "${kit_checkout}/bin/kit" release verify release/1.2.3
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" release verify v1.2.4-rc.1
+  run "${kit_checkout}/bin/kit" release verify release/1.2.4-rc.1
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" release verify v1.2.3-rc.1
+  run "${kit_checkout}/bin/kit" release verify release/1.2.3-rc.1
   [ "$status" -eq 1 ]
   [[ "$output" == *"is a pre-release tag on main"* ]]
-  run "${kit_checkout}/bin/kit" release verify v1.2.4
+  run "${kit_checkout}/bin/kit" release verify release/1.2.4
   [ "$status" -eq 1 ]
   [[ "$output" == *"is not on main"* ]]
-  run "${kit_checkout}/bin/kit" release verify vnope
+  run "${kit_checkout}/bin/kit" release verify release/nope
   [ "$status" -eq 1 ]
-  [[ "$output" == *"is not a version tag"* ]]
+  [[ "$output" == *"is not a release tag"* ]]
+  run "${kit_checkout}/bin/kit" release verify v1.2.3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not a release tag"* ]]
 }
 
 @test "pack makes one directory with the release's layout and the version stamped in, which installs a repository" {
   version=9.9.9
-  run "${kit_checkout}/bin/kit" release pack "v${version}" "${work}"
+  run "${kit_checkout}/bin/kit" release pack "release/${version}" "${work}"
   [ "$status" -eq 0 ]
   [ -f "kit-${version}.tar.gz.sha256" ]
   grep --quiet "  kit-${version}.tar.gz$" "kit-${version}.tar.gz.sha256"

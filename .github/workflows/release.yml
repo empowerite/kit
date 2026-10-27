@@ -1,13 +1,15 @@
-# release.yml - pushing a version tag publishes the kit as a GitHub release
+# release.yml - pushing a release tag publishes the kit as a GitHub release
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Pushing a tag such as v0.1.0 runs this workflow. It has two steps, and each step is one kit command, so the
-# same thing can be run on a laptop:
+# Pushing a tag such as release/0.1.0 runs this workflow. It has two steps, and each step is one kit command, so
+# the same thing can be run on a laptop:
 #
-#   kit release verify    checks the tag. A release tag, v0.1.0, must point at a commit on main. A pre-release
-#                         tag, v0.1.0-rc.1, must point at a commit that is not on main. Any other tag is refused.
-#   kit release publish   packs this checkout into kit-<version>.tar.gz, writes the tag's version into it, and
-#                         publishes it as a GitHub release. A tag with a suffix is published as a pre-release.
+#   kit release verify    checks the tag. A release tag, release/0.1.0, must point at a commit on main. A
+#                         pre-release tag, release/0.1.0-rc.1, must point at a commit that is not on main. Any
+#                         other tag is refused.
+#   kit release publish   packs this checkout into kit-<version>.tar.gz, writes the version after release/ into
+#                         it, and publishes it as a GitHub release named by that version. A version with a
+#                         suffix is published as a pre-release.
 #
 # GitHub does not let a published release change, so a version is tagged once and never again. A pre-release
 # is deleted when the branch it was tagged on is deleted; see retire-pre-releases.yml.
@@ -18,7 +20,7 @@ name: release
 
 on:
   push:
-    tags: ['v[0-9]*']
+    tags: ['release/*']
 
 permissions:
   contents: write

@@ -57,7 +57,7 @@ jobs:
           then
             mkdir -p "${RUNNER_TEMP}/kit"
             curl --fail --silent --location \
-              "https://github.com/empowerite/kit/releases/download/v${version}/kit-${version}.tar.gz" \
+              "https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz" \
               | tar --extract --gzip --directory "${RUNNER_TEMP}/kit" --strip-components 1
             printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
           fi

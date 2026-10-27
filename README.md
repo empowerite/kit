@@ -38,7 +38,7 @@ With mise, pin it in `mise.toml` and the version is part of the repository:
 
 ```toml
 [tools]
-"github:empowerite/kit" = "0.1.0"
+"github:empowerite/kit" = { version = "0.1.0", version_prefix = "release/" }
 ```
 
 With Homebrew, from the empowerite tap:
@@ -48,7 +48,8 @@ brew install empowerite/tap/kit
 ```
 
 Or by hand, with `gh`, which the kit needs anyway. Without a tag this takes the latest release, never a
-pre-release; `gh release download "v${version}" ...` takes a particular one. Unpack it and put its `bin/` on `PATH`:
+pre-release; `gh release download "release/${version}" ...` takes a particular one. Unpack it and put its `bin/` on
+`PATH`:
 
 ```sh
 gh release download --repo empowerite/kit --pattern 'kit-*.tar.gz' --output kit.tar.gz
@@ -161,13 +162,14 @@ region's markers are its notice, and this table is `settings.json`'s.
 
 ## Release
 
-A release is the tag `v<version>` on a commit on `main`, not only its head. A pre-release is `v<version>-<suffix>`,
-say `v0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a GitHub pre-release. The tag is the
-version: the repository carries no version file, the workflow stamps the tag's version into the packed kit, and a
-published release is immutable, so a tag is never reused. The workflow is two kit commands: `kit release verify`,
-which refuses a tag that is not a version, a release tag off `main`, and a pre-release tag on `main`; and `kit release
-publish`, which packs `bin/`, `modules/`, and `version` into `kit-<version>.tar.gz` and publishes the release. `kit
-release pack` makes the same tarball on a desk. A release is permanent. A pre-release is retired, tag and all, when
-the branch it was tagged on is deleted and no other branch reaches its commit.
+A release is the tag `release/<version>` on a commit on `main`, not only its head. A pre-release is
+`release/<version>-<suffix>`, say `release/0.1.0-rc.1`, on a commit that is not on `main`, and it is published as a
+GitHub pre-release. The tag is the version: the repository carries no version file, the workflow stamps the part after
+`release/` into the packed kit and names the release by it, and a published release is immutable, so a tag is never
+reused. The workflow is two kit commands: `kit release verify`, which refuses a tag that is not `release/` and a
+version, a release tag off `main`, and a pre-release tag on `main`; and `kit release publish`, which packs `bin/`,
+`modules/`, and `version` into `kit-<version>.tar.gz` and publishes the release. `kit release pack` makes the same
+tarball on a desk. A release is permanent. A pre-release is retired, tag and all, when the branch it was tagged on is
+deleted and no other branch reaches its commit.
 
 The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure).
