@@ -2,21 +2,24 @@
 # status.sh - the picture of the work in flight (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# status:render [--no-fetch] [--json] prints the checkouts and the open pull requests, and changes nothing. It asks
-# GitHub once, for every open pull request with the issues it closes, its review threads, and the checks on its
-# head; everything else is a local git read.
+# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the checkouts and the open pull
+# requests, and changes nothing. It asks the forge once, for every open pull request with the issues it closes,
+# its review threads, and the checks on its head; everything else is a local git read.
 #
-# The picture: the desk, the root checkout, first; then each worktree under worktrees/; then each open pull request
-# with its state, age, checks, the issues it closes, and the worktree holding its branch; then the branches whose
-# upstream is gone. Color is by family, never by state: green when nothing is left to decide, yellow when a human
-# owes a decision, blue when the next move is a machine's or a reviewer's, dim for detail. The states, in the
-# order the first that holds wins:
+# The picture: the desk, the root checkout, first; then each worktree under worktrees/; then each open pull request with
+# its author, state, age, checks, the worktree holding its branch, and the issues it closes; then the branches whose
+# upstream is gone. --mine shows the pull requests the caller opened and no author column; --all, the default, shows
+# every open one, and --owner=<login>, given once or more, those the named authors opened, each with the author before
+# the state. Color is by family, never by state: green when nothing is left to decide, yellow when a human owes a
+# decision, blue when the next move is a machine's or a reviewer's, dim for detail. The states, in the order the first
+# that holds wins:
 #
 #   draft 🔨, queued 🚦, conflicted 💥, failing:gate 🔥, no-check 📭, comments:open 💬,
 #   blocked:approval 👀,
 #   ready 🛬
 #
-# --json prints the same facts as one document: {desk, worktrees, pullRequests, goneBranches}.
+# --json prints the same facts as one document: {desk, worktrees, pullRequests, goneBranches}, the pull requests
+# chosen the same way.
 
 use git
 
@@ -102,6 +105,15 @@ status:age() {
 status:collect() {
   use forge
   forge:open-prs || warn "no pull request is shown; see above"
+}
+
+# status:select <login>… keeps, of the pull request documents on stdin, those an author named here opened; with
+# no login named, every one.
+status:select() {
+  if (( $# == 0 ))
+  then cat
+  else jq --compact-output --arg logins "$*" 'select(.author as $a | ($logins | split(" ")) | index($a))'
+  fi
 }
 
 # status:fork <branch> <default-branch> prints the commit where <branch> left the default branch, or nothing.
@@ -281,20 +293,24 @@ status:check-cell() {
   return 0
 }
 
-# status:pr-block <pr-json> <title-width> <state-width> <age-width> <worktree-relative> prints a pull request: its
-# row, ending with the worktree here that holds its branch when one does, then the issues it closes.
+# status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <worktree> prints a pull request:
+# its row, with the author before the state where the owner width is above zero and ending with its branch where
+# a worktree here holds it, then the issues it closes.
 status:pr-block() {
-  local doc=$1 title_w=$2 state_w=$3 age_w=$4 worktree=$5 number title state age unresolved row issue checks
-  IFS=$'\t' read -r number title state age unresolved \
-    < <(jq --raw-output '[.number, .title, .state, .age, .unresolved] | @tsv' <<<"${doc}")
+  local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6
+  local number title author branch state age unresolved row issue checks
+  IFS=$'\x1f' read -r number title author branch state age unresolved \
+    < <(jq --raw-output '[.number, .title, .author, .branch, .state, .age, .unresolved] | map(tostring)
+          | join("\u001f")' <<<"${doc}")
   row="🔀 $(status:cell "#${number} ${title}" "${title_w}")"
+  (( owner_w > 0 )) && row+="   👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
   row+="   $(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
   row+="   $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}")")"
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
   [[ -n "${checks}" ]] && row+="   ${checks}"
   (( unresolved > 0 )) && row+="   $(status:paint 33 "💬 ${unresolved} unresolved")"
-  [[ -n "${worktree}" ]] && row+="   $(status:paint 90 "🌿 ${worktree}")"
+  [[ -n "${worktree}" ]] && row+="   $(status:paint 90 "🌿 ${branch}")"
   printf '%s\n' "${row}" >&2
   while IFS= read -r issue
   do
@@ -303,20 +319,29 @@ status:pr-block() {
   return 0
 }
 
-# status:render [--no-fetch] [--json] draws the picture the file header describes, or prints it as one JSON
-# document.
+# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] draws the picture the file header
+# describes, or prints it as one JSON document.
 status:render() {
-  local no_fetch=false json=false arg main_root default_branch desk_branch path branch doc gone
+  local no_fetch=false json=false choice=all arg main_root default_branch desk_branch path branch doc gone
+  local -a owners=()
   for arg in "$@"
   do
     case "${arg}" in
       (--no-fetch) no_fetch=true ;;
       (--json) json=true ;;
+      (--mine) choice=mine ;;
+      (--all) choice=all ;;
+      (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
       (*)
-        error "unknown flag '${arg}' (usage: kit status [--no-fetch] [--json])"
+        error "unknown flag '${arg}' (usage: kit status [--no-fetch] [--json] [--mine | --all | --owner=<login>…])"
         return 2
     esac
   done
+  if [[ "${choice}" == mine ]]
+  then
+    use forge
+    owners=("$(forge:me)") || return 1
+  fi
   if [[ "${no_fetch}" != true ]]
   then
     git fetch --quiet --prune origin || warn "git fetch --prune failed; ahead and behind counts may be stale"
@@ -335,7 +360,7 @@ status:render() {
     [[ -n "${path}" ]] || continue
     worktrees+=("$(status:checkout "${path}" "${branch}" "${default_branch}")")
   done < <(git:worktrees | status:by-number)
-  prs=$(status:collect)
+  prs=$(status:collect | status:select "${owners[@]}")
 
   if [[ "${json}" == true ]]
   then
@@ -347,8 +372,8 @@ status:render() {
     return 0
   fi
 
-  # Column widths across the rows that share a column.
-  local label_w=0 width title_w=0 state_w=0 age_w=0 text state_text age_secs relative
+  # Column widths across the rows that share a column; the author column is there unless --mine chose the rows.
+  local label_w=0 width title_w=0 owner_w=0 state_w=0 age_w=0 text author state_text age_secs relative
   local -A worktree_on=()
   for doc in "${desk}" "${worktrees[@]}"
   do
@@ -357,15 +382,17 @@ status:render() {
     (( width > label_w )) && label_w=${width}
     [[ -n "${branch}" && "${doc}" != "${desk}" ]] && worktree_on[${branch}]=${relative}
   done
-  while IFS=$'\t' read -r text state_text age_secs
+  while IFS=$'\x1f' read -r text author state_text age_secs
   do
     [[ -n "${text}" ]] || continue
     (( ${#text} > title_w )) && title_w=${#text}
+    [[ "${choice}" != mine ]] && (( ${#author} > owner_w )) && owner_w=${#author}
     (( ${#state_text} > state_w )) && state_w=${#state_text}
     text=$(status:age "${age_secs}")
     (( ${#text} > age_w )) && age_w=${#text}
-  done < <(jq --raw-output '["#\(.number) \(.title)", .state, .age] | @tsv' <<<"${prs}")
-  width=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - 24 ))
+  done < <(jq --raw-output '["#\(.number) \(.title)", .author, .state, .age] | map(tostring) | join("\u001f")' \
+    <<<"${prs}")
+  width=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 6 : 0) ))
   (( width < 20 )) && width=20
   (( title_w > width )) && title_w=${width}
 
@@ -382,7 +409,7 @@ status:render() {
     [[ -n "${doc}" ]] || continue
     printf '\n' >&2
     branch=$(jq --raw-output .branch <<<"${doc}")
-    status:pr-block "${doc}" "${title_w}" "${state_w}" "${age_w}" "${worktree_on[${branch}]:-}"
+    status:pr-block "${doc}" "${title_w}" "${owner_w}" "${state_w}" "${age_w}" "${worktree_on[${branch}]:-}"
   done <<<"${prs}"
   if [[ -n "${gone}" ]]
   then

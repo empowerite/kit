@@ -11,7 +11,7 @@ use status
 
 if [[ "${1:-}" == --help ]]
 then
-  echo "usage: kit status [--no-fetch] [--json]" >&2
+  echo "usage: kit status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]" >&2
   exit 0
 fi
 

@@ -50,8 +50,9 @@ usage: kit <verb> [<argument>…]
   issue [<number>…]     start or resume an issue: linked branch, worktree, start commit, draft pull request
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
-  status [--no-fetch] [--json]
-                        the desk, the worktrees, and the open pull requests
+  status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]
+                        the desk, the worktrees, and the open pull requests: everyone's, yours, or the named
+                        authors'
   lint [--all-files] [<path>…]
                         run each rule's linter over the paths it governs: staged, named, or every tracked one
   release <verify|pack|publish|retire> …

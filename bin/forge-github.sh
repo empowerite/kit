@@ -123,8 +123,8 @@ forge-github:pr-closing-issues() {
 }
 
 # One request: every open pull request with the issues it closes, its review threads, and the checks on its
-# head, folded into the document kit status draws: number, branch, title, createdAt, age in seconds, state,
-# checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes [{number, title}].
+# head, folded into the document kit status draws: number, branch, title, author, createdAt, age in seconds,
+# state, checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes [{number, title}].
 forge-github:open-prs() {
   local repo query filter
   repo=$(forge-github:repo) || return 1
@@ -133,6 +133,7 @@ forge-github:open-prs() {
       pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
         nodes {
           number title isDraft headRefName createdAt mergeStateStatus reviewDecision
+          author { login }
           closingIssuesReferences(first: 10) { nodes { number title } }
           reviewThreads(first: 100) { nodes { isResolved } }
           commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
@@ -173,7 +174,8 @@ forge-github:open-prs() {
        elif $unresolved > 0 then "comments:open"
        elif (.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED") then "blocked:approval"
        else "ready" end) as $state
-    | { number, branch: .headRefName, title, createdAt, age: ($now - (.createdAt | fromdateiso8601)), state: $state,
+    | { number, branch: .headRefName, title, author: (.author.login // ""), createdAt,
+        age: ($now - (.createdAt | fromdateiso8601)), state: $state,
         checks: { state: $check, passed: $ok, total: $n, failing: $failing, took: $took },
         unresolved: $unresolved,
         closes: [.closingIssuesReferences.nodes[] | { number, title }] }

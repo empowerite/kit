@@ -49,7 +49,7 @@ ci:
   bin/kit lint --all-files
   ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
   ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
-  bats --print-output-on-failure tests/
+  bats --timing --print-output-on-failure tests/
   bin/kit check
   echo "✅ ci passed"
 
