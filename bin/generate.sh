@@ -21,7 +21,8 @@
 # one pass settles a file. An output that closes a region it did not open, or opens one it does not close, holds
 # the file. A line that opens with the marker and is not a directive holds the file too, so a misspelled one is
 # never silently skipped; a line of prose, with letters before the marker, is not read at all. In markdown, a
-# fenced code block is not live, so a page may show a directive whole.
+# fenced code block is not live, so a page may show a directive whole, and a fence that opens and never closes,
+# in the file or in an output, is refused, since the directives after it could not be read.
 #
 # A file is rewritten only on a clean expansion. A command that fails, an unbalanced unit, a malformed marker, a
 # name opened twice, or a conflict marker in the file leaves the file as it was and fails the run, naming the
@@ -80,14 +81,23 @@ generate:target() {
   fi
 }
 
-# generate:command <file> <line> <name> <command> <out> runs one region's command with its stdout in <out>.
+# generate:command <file> <where> <line> <name> <command> <out> runs one region's command with its stdout in
+# <out>; a failure is named by <where> and the line, the unit the directive is in.
 generate:command() {
-  local file=$1 number=$2 name=$3 command=$4 out=$5
+  local file=$1 where=$2 number=$3 name=$4 command=$5 out=$6
   if ! KIT_GENERATE_FILE="${file}" KIT_GENERATE_REGION="${name}" PATH="${kit_root}/bin:${PATH}" \
     bash -o errexit -o pipefail -c "${command}" </dev/null >"${out}"
   then
-    error "${file}:${number}: the command failed: ${command}"
+    error "${where}:${number}: the command failed: ${command}"
     return 2
+  fi
+}
+
+# generate:flip toggles the caller's fence state, its variable fence, at a fence line.
+generate:flip() {
+  if [[ "${fence}" == true ]]
+  then fence=false
+  else fence=true
   fi
 }
 
@@ -99,7 +109,7 @@ generate:command() {
 generate:unit() {
   local in=$1 out=$2 file=$3 where=$4 markdown=$5
   local -a lines stack opened
-  local n i j line fence=false depth name command body result
+  local n i j line fence=false fenced=0 depth name command body result
   mapfile -t lines < "${in}"
   n=${#lines[@]}
   stack=()
@@ -109,7 +119,8 @@ generate:unit() {
     line=${lines[i]}
     if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
     then
-      if [[ "${fence}" == true ]]; then fence=false; else fence=true; fi
+      generate:flip
+      [[ "${fence}" == true ]] && fenced=$(( i + 1 ))
       continue
     fi
     [[ "${fence}" == false && "${line}" =~ ${generate_marker_re} ]] || continue
@@ -141,6 +152,11 @@ generate:unit() {
     error "${where}:${opened[-1]}: the region '${stack[-1]}' never closes"
     return 2
   fi
+  if [[ "${fence}" == true ]]
+  then
+    error "${where}: a fenced code block opens at line ${fenced} and never closes"
+    return 2
+  fi
   : > "${out}"
   fence=false
   i=0
@@ -150,7 +166,7 @@ generate:unit() {
     printf '%s\n' "${line}" >> "${out}"
     if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
     then
-      if [[ "${fence}" == true ]]; then fence=false; else fence=true; fi
+      generate:flip
       i=$(( i + 1 ))
       continue
     fi
@@ -163,7 +179,7 @@ generate:unit() {
     command=${BASH_REMATCH[3]:-kit region}
     body=$(mktemp)
     result=$(mktemp)
-    if ! generate:command "${file}" "$(( i + 1 ))" "${name}" "${command}" "${body}" \
+    if ! generate:command "${file}" "${where}" "$(( i + 1 ))" "${name}" "${command}" "${body}" \
       || ! generate:unit "${body}" "${result}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" "${markdown}"
     then
       rm -f "${body}" "${result}"
@@ -178,7 +194,7 @@ generate:unit() {
       line=${lines[j]}
       if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
       then
-        if [[ "${fence}" == true ]]; then fence=false; else fence=true; fi
+        generate:flip
         continue
       fi
       [[ "${fence}" == false ]] || continue
@@ -193,34 +209,35 @@ generate:unit() {
   done
 }
 
-# generate:twice <file> prints the first region name the file opens twice, outside a markdown fence, or nothing.
+# generate:twice <expanded> <file> prints "<name>\t<line>" for the first region the expanded text opens twice,
+# outside a markdown fence when <file> is markdown, or nothing.
 generate:twice() {
-  local file=$1 line fence=false markdown
+  local expanded=$1 line fence=false markdown=false number=0
   local -A seen=()
-  markdown=false
   generate:markdown "$2" && markdown=true
   while IFS= read -r line || [[ -n "${line}" ]]
   do
+    number=$(( number + 1 ))
     if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
     then
-      if [[ "${fence}" == true ]]; then fence=false; else fence=true; fi
+      generate:flip
       continue
     fi
     [[ "${fence}" == false && "${line}" =~ ${generate_open_re} ]] || continue
     if [[ -n "${seen[${BASH_REMATCH[1]}]+x}" ]]
     then
-      printf '%s\n' "${BASH_REMATCH[1]}"
+      printf '%s\t%s\n' "${BASH_REMATCH[1]}" "${number}"
       return 0
     fi
     seen[${BASH_REMATCH[1]}]=1
-  done < "${file}"
+  done < "${expanded}"
 }
 
 # generate:expand <file> <mode> expands the file's regions into a sibling temp file and compares. It returns 0
 # when nothing changed, 1 when the file was rewritten (mode write) or is stale (mode check), and 2 when it could
 # not be cleanly expanded, in which case the file is left as it was. Only mode write ever writes.
 generate:expand() {
-  local file=$1 mode=${2:-write} target temp markdown=false twice
+  local file=$1 mode=${2:-write} target temp markdown=false twice number
   if [[ ! -f "${file}" ]]
   then
     error "generate: no such file: ${file}"
@@ -240,10 +257,10 @@ generate:expand() {
     rm -f "${temp}"
     return 2
   fi
-  twice=$(generate:twice "${temp}" "${file}")
+  IFS=$'\t' read -r twice number < <(generate:twice "${temp}" "${file}")
   if [[ -n "${twice}" ]]
   then
-    error "${file}: the region '${twice}' is opened twice"
+    error "${file}: the region '${twice}' is opened twice, the second time at line ${number} of the expanded file"
     rm -f "${temp}"
     return 2
   fi
@@ -310,9 +327,10 @@ generate:run() {
     ok "generate: ${#targets[@]} generated file(s), every region as its command makes it"
     return 0
   fi
-  if (( limit == 0 ))
-  then
-    if [[ "${explicit}" == true ]]; then limit=1; else limit=20; fi
+  if (( limit == 0 )) && [[ "${explicit}" == true ]]
+  then limit=1
+  elif (( limit == 0 ))
+  then limit=20
   fi
   while (( pass < limit ))
   do

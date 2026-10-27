@@ -100,7 +100,7 @@ joined() { paste -s -d '|' - < "$1"; }
   printf '# kit:generate a `./lines.sh x`\n# kit:end a\n# kit:generate a `./lines.sh y`\n# kit:end a\n' > twice.txt
   run "${kit_checkout}/bin/kit" generate twice.txt
   [ "$status" -eq 1 ]
-  [[ "$output" == *"twice.txt: the region 'a' is opened twice"* ]]
+  [[ "$output" == *"twice.txt: the region 'a' is opened twice, the second time at line 4 of the expanded file"* ]]
   printf '<<<<<<< ours\n# kit:generate a `./lines.sh x`\n# kit:end a\n>>>>>>> theirs\n' > conflict.txt
   run "${kit_checkout}/bin/kit" generate conflict.txt
   [ "$status" -eq 1 ]
@@ -171,6 +171,25 @@ joined() { paste -s -d '|' - < "$1"; }
   [ "$status" -eq 1 ]
   [[ "$output" == *"no active module delivers a region at nothing"* ]]
   [[ "$output" == *"bare.txt:1: the command failed: kit region"* ]]
+}
+
+@test "a nested command's failure names the output's line, and an output that leaves a markdown fence open is refused" {
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "head" "# kit:generate inner \\`false\\`" "# kit:end inner"\n' > nf.sh && chmod +x nf.sh
+  printf '# kit:generate outer `./nf.sh`\nheld\n# kit:end outer\n' > nf.txt
+  run "${kit_checkout}/bin/kit" generate nf.txt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nf.txt:1 (the output of ./nf.sh):2: the command failed: false"* ]]
+  grep --quiet '^held$' nf.txt
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" text %s more\n' "'\`\`\`'" > fence.sh && chmod +x fence.sh
+  printf '<!-- kit:generate odd `./fence.sh` -->\nheld\n<!-- kit:end odd -->\n' > odd.md
+  run "${kit_checkout}/bin/kit" generate odd.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"odd.md:1 (the output of ./fence.sh): a fenced code block opens at line 2 and never closes"* ]]
+  grep --quiet '^held$' odd.md
+  printf '# Title\n\n```\n<!-- kit:generate a `./lines.sh x` -->\n<!-- kit:end a -->\n' > open.md
+  run "${kit_checkout}/bin/kit" generate open.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"open.md: a fenced code block opens at line 3 and never closes"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

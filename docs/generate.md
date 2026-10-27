@@ -87,6 +87,8 @@ the file and the line:
 - an end marker with no open region, or naming a region other than the one open;
 - a directive whose region never closes, in the file or in a command's output;
 - a name opened twice in the expanded file;
+- a fenced code block in a markdown file, or in a command's output, that opens and never closes, since the
+  directives after it could not be read;
 - a conflict marker in the file, a line of seven `<` or `>`, since a conflicted file is not input a region
   expander can read.
 
