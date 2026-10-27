@@ -69,11 +69,11 @@ sees a new kit a day after it ships unless `[settings]` carries `minimum_release
   always in; `ci-github` is the GitHub Actions workflow, `lefthook` the pre-commit linters, and `claude` the
   Claude Code adapter. `kit install ci-github lefthook claude` takes all three, and `kit module add` takes one
   later.
-- `install` writes the sentence every agent reads into a region of `AGENTS.md`, opened by a `:generate:`
-  directive naming `kit region AGENTS.md` and closed by `kit:end`, making the file where there is none and
-  leaving the rest of it yours, and the `/worktrees/` entry into a region of `.gitignore` the same way. Move the
-  region where you like and write what you like around it; `kit generate` makes the region what the command
-  makes it, and `kit check` holds it there. Any file of yours may carry a directive of its own;
+- `install` writes the sentence every agent reads into a region of `AGENTS.md`, between a `kit:generate` line
+  and a `kit:end` line that both name the file, making the file where there is none and leaving the rest of it
+  yours, and the `/worktrees/` entry into a region of `.gitignore` the same way. Move the region where you like
+  and write what you like around it; `kit generate` makes the region what `kit region` prints, and `kit check`
+  holds it there. Any file of yours may carry a directive of its own, naming any command;
   [docs/generate.md](docs/generate.md) says how.
 - Commit what `install` wrote.
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,

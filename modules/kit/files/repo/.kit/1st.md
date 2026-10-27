@@ -97,12 +97,12 @@ delivers is a module, and a repository activates the modules it takes: `kit inst
 `kit module add claude` later, and `kit module remove` to take one back out; a module of the repository's own
 lives under `.kit/modules/` and is taken the same way. A `.json` destination, other than a schema, is merged by
 key, the kit owning only the entries it writes; a region inside a file the repository owns is opened by a
-`:generate:` directive and made by the command it names, through `kit generate`; everything else is copied as it
-is.
+directive, `kit:generate`, and made by the command it names, through `kit generate`; everything else is copied
+as it is.
 
 - `kit`: this file and the rules; the sentence in `AGENTS.md` that points here and the `/worktrees/` entry in
-  `.gitignore`, each a region `kit region` fills inside a file the repository owns. Any file may carry a
-  `:generate:` directive of the repository's own, and `kit check` holds every region to its command.
+  `.gitignore`, each a region `kit region` fills inside a file the repository owns. Any file may carry a directive
+  of the repository's own, `kit:generate` naming any command, and `kit check` holds every region to its command.
 - `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
   it runs each rule's linter over the paths the rule governs.

@@ -6,7 +6,7 @@ The core, active in every repository that takes the kit. It places:
 - `.kit/rules/<kind>.md`, one rule file per kind of file, each declaring in its frontmatter which paths and which
   first lines it governs, and the linter `kit lint` runs over them.
 - A region in `AGENTS.md`, the sentence that sends every agent to `.kit/1st.md`, and a region in `.gitignore`,
-  the `/worktrees/` entry the loop needs; each opened by a `:generate:` directive that `kit generate` fills
+  the `/worktrees/` entry the loop needs; each opened by a `kit:generate` directive that `kit generate` fills
   through `kit region`, and the rest of each file is the repository's.
 
 The rules are discovered through `kit context`, described in

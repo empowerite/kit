@@ -16,17 +16,17 @@ a `version` file; a checkout has none and is `unreleased`.
 
 A module is a directory under `modules/`, and the directory names it. `module.yml` describes it: whether it is active by
 default, which modules it depends on, and the default answers for its templates; `files/<base>/` is mirrored at the
-base's root; `templates/<base>/` is rendered first, every `@key@` replaced by an answer; `regions/<base>/` holds what
-the kit owns inside a file the repository owns; `docs/` is packed with the release and placed in no repository. Two
-bases exist: `repo`, the repository root, and `home`, the user's `~`.
+base's root; `templates/<base>/` is rendered first, every `@key@` replaced by a setting; `regions/<base>/`, rendered
+the same way, holds what the kit owns inside a file the repository owns; `docs/` is packed with the release and placed
+in no repository. Two bases exist: `repo`, the repository root, and `home`, the user's `~`.
 
 The verbs are the only way content moves. `kit install` resolves the active set, `kit` plus those named plus their
 dependencies, renders, places, and writes the manifests. `kit update` moves to a new pinned release:
 an untouched file is replaced, an edited one three-way merged with the previous release as the base. `kit check`
 fails when a delivered file differs from the release's. `kit module` changes the active set. Three rules govern
 placement: a `.json` destination, other than a schema, is merged by key, the kit owning only the entries it writes; a
-region is opened inside a file the repository owns by a `:generate:` directive naming `kit region`, and `kit
-generate` makes it what that command makes it, as it makes every region any file in the repository declares, see
+region is opened inside a file the repository owns by a bare `kit:generate` directive naming its path, and `kit
+generate` makes it what `kit region` prints, as it makes every region any file in the repository declares, see
 [generate.md](generate.md); everything else is a copy.
 
 Each base has a manifest: `.kit/manifest`, committed with the repository, and `~/.kit/manifest` on the desk when a

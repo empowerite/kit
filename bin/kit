@@ -41,8 +41,8 @@ usage: kit <verb> [<argument>…]
                         the modules this repository takes
   context <path>…       name the rules that govern a file, and record the ask
   generate [--check] [<path>…]
-                        expand every :generate: region to what its command makes, or check that it is
-  region [--home] <path>
+                        expand every kit:generate region to what its command makes, or check that it is
+  region [--home] [<path>]
                         print the content the active modules deliver as the region at a path
   ci                    the delivered CI job's checks, anywhere: gate, check, and linked, every one reported
   gate                  run the repository's gate, the gate setting or the detected one; refuse when there is none

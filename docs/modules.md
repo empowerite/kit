@@ -60,22 +60,23 @@ than a schema, `*.schema.json`, is merged by key: the kit's keys are set, its ar
 removal only the previous release's entries are taken out, so a repository's own keys and entries survive. Every other
 destination is a copy. Where two active modules deliver the same path, the later module in dependency order wins.
 
-A file under `regions/<base>/` is the content of a region inside the file at the same path. What is placed there is a
-`:generate:` directive naming `kit region <path>`, the content, and a `kit:end` marker, in the file's own comment
-syntax: `<!-- … -->` in markdown, `#` elsewhere, as [generate.md](generate.md) describes. Where the file carries the
-directive already, the content between it and the end marker is made what the command makes it; where it does not, the
-block is appended after a blank line; where there is no file, it is made of the block alone. The repository may move the
-block anywhere in the file and write what it likes around it. `kit check` holds the region to its command, `kit update`
-regenerates it, never merges it, and removal takes the block out and leaves the rest, removing a file it leaves empty.
-One file holds one kit region, and two modules delivering a region to the same path are refused by name. A kind of file
-the kit cannot mark is refused. The `kit` module places two: the sentence in `AGENTS.md` that sends every agent to
-`.kit/1st.md`, and the `/worktrees/` entry in `.gitignore`.
+A file under `regions/<base>/` is the content of a region inside the file at the same path, rendered as a template
+is. What is placed there is the bare directive `kit:generate <path>`, the content, and the marker `kit:end <path>`, in
+the file's own comment syntax: `<!-- … -->` in markdown, `#` elsewhere, as [generate.md](generate.md) describes. Where
+the file carries the directive already, the content between it and the end marker is made what `kit region` prints;
+where it does not, the block is appended after a blank line; where there is no file, it is made of the block alone. The
+repository may move the block anywhere in the file and write what it likes around it. `kit check` holds the region to
+its command, `kit update` regenerates it, never merges it, and removal takes the block out and leaves the rest, removing
+a file it leaves empty. One file holds one kit region, and two modules delivering a region to the same path are refused
+by name. A kind of file the kit cannot mark is refused. The `kit` module places two: the sentence in `AGENTS.md` that
+sends every agent to `.kit/1st.md`, and the `/worktrees/` entry in `.gitignore`.
 
-A file under `templates/<base>/` is rendered first. Every `@key@` in it, autoconf's form, is replaced by the key's
-answer, then the result is placed, digested, and merged exactly as a `files/` file is. The form is one neither
-bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may carry both untouched. The repository's
-answers live under `answers:` in `.kit/settings.yml`; a key with none there takes the module's default under its
-own `answers`, and a key with neither refuses the install, naming the key and the module.
+A file under `templates/<base>/`, and one under `regions/<base>/`, is rendered first. Every `@key@` in it, autoconf's
+form, is replaced by the key's value, then the result is placed, digested, and merged exactly as a `files/` file is.
+The form is one neither bash's `${var}` nor GitHub's `${{ }}` can be mistaken for, so a template may carry both
+untouched. The context is the whole of `.kit/settings.yml`: a top-level setting as `@require_signing@`, a map's entry
+as `@answers.ci_runner@`, and a bare `@ci_runner@` meaning the entry under `answers:`. A key with no value there takes
+the module's default under its own `answers`, and a key with neither refuses the install, naming the key and the module.
 
 The same YAML subset is what a rule's frontmatter and `.kit/settings.yml` are written in, read by `bin/yaml.sh` in
 all three places, so a rule's lists, a module's `depends:`, and the settings have one reader among them.
