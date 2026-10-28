@@ -1,15 +1,21 @@
 # Generate
 
-A region is a stretch of a file that a command makes and a person does not edit: a table drawn from the
-manifests, a list of verbs drawn from their help, the sentence the kit puts in `AGENTS.md`. The file itself says
-how each region is made, with a directive in its own comment syntax, and `kit generate` makes every region what
-its command makes it. A hand edit is then a stale region, and `kit check` fails on one wherever `kit ci` runs.
+A region is a part of a file that a command writes and a person does not edit. Mark a region with a directive in
+the file's own comment syntax, then run `kit generate` to replace the region's content with its command's output.
+
+Examples of regions:
+
+- a table built from the manifests
+- a list of commands built from their help text
+- the sentence the kit puts in `AGENTS.md`
+
+A hand edit makes a region stale. `kit check` fails on a stale region, so `kit ci` fails wherever it runs.
 
 ## The directive
 
-A region opens on a line that is the marker `kit:generate`, a name, and optionally a command in backticks, and
-closes on a line that is `kit:end` and the same name. Nothing but punctuation may surround either: the comment
-opener before, the comment closer after.
+A region opens on a line with the marker `kit:generate`, a name, and optionally a command in backticks. It closes on
+a line with `kit:end` and the same name. On either line, only punctuation may come before or after the marker: the
+comment opener before, and the comment closer after.
 
 ```text
 <!-- kit:generate <name> -->
@@ -18,7 +24,7 @@ opener before, the comment closer after.
 <!-- kit:end <name> -->
 ```
 
-Both lines stay. The command's standard output replaces the lines between them. So a markdown page carries:
+Both marker lines stay. The command's standard output replaces the lines between them. A markdown page contains:
 
 ```markdown
 <!-- kit:generate AGENTS.md -->
@@ -27,84 +33,130 @@ repository trustworthy.
 <!-- kit:end AGENTS.md -->
 ```
 
-and a shell script or a `.gitignore` carries the same with `#`, a JavaScript file with `//`, a SQL file with
-`--`, a Visual Basic file with `'`. The reader knows no list of comment syntaxes. It reads a line as a directive
-when only non-alphanumeric characters come before the marker and after the closing backtick, which every comment
-frame satisfies and no line of prose does, since prose has letters before the marker. A line that opens with
-the marker and is not a well-formed directive is an error, never a line silently skipped, so a misspelled
-directive is found rather than left stale. A page that wants to show the syntax puts it in a fenced code block,
-which is not live, or in prose, with a word before the marker.
+Other files use their own comment syntax:
 
-The **name** is any run of characters without whitespace or a backtick, set off by whitespace. It pairs the
-directive with its end marker, and it is unique in a file. A region the kit delivers is named by its path, so
-the name says what the region is.
+- `#` in a shell script or a `.gitignore`
+- `//` in a JavaScript file
+- `--` in a SQL file
+- `'` in a Visual Basic file
 
-The **command** is a bash command line: pipes, redirections, and `$()` are all its own. It runs from the
-repository root with the running kit's `bin/` first on `PATH`, standard input closed, `errexit` and `pipefail`
-set, and two variables in its environment: `KIT_GENERATE_FILE`, the file, and `KIT_GENERATE_REGION`, the name.
-The command is everything between the first backtick after the name and the last backtick before the closer, so
-the one thing it cannot carry is a literal backtick; `$()` says the same thing. A region whose command needs
-more than a line is a script in the tree, where it is read and tested.
+`kit generate` has no list of comment syntaxes. It reads a line as a directive when only non-alphanumeric
+characters come before the marker and after the closing backtick. Every comment syntax passes this test. A line of
+prose does not, because it has letters before the marker.
 
-With **no command**, the command is `kit region`, which reads the region's name from its environment as the path
-of a region an active module delivers. A name no module delivers fails, naming the directive's line, so a
-forgotten command is never a silent no-op. The directive may sit in any file; the name says only which region.
+A line that starts with the marker but is not a well-formed directive is an error. It is never skipped, so a
+misspelled directive is reported instead of left stale. To show the syntax on a markdown page, put it in a fenced
+code block, which `kit generate` does not read, or in prose with a word before the marker.
+
+### The name
+
+The name is any run of characters with no whitespace and no backtick, separated from the marker by
+whitespace. It pairs the directive with its end marker, and it must be unique in the file. A region the kit
+delivers is named by its path.
+
+### The command
+
+The command is a bash command line, so pipes, redirections, and `$()` all work. It runs:
+
+- from the repository root
+- with the running kit's `bin/` first on `PATH`
+- with standard input closed
+- with `errexit` and `pipefail` set
+- with `KIT_GENERATE_FILE` set to the file and `KIT_GENERATE_REGION` set to the region's name
+
+The command is everything between the first backtick after the name and the last backtick before the comment
+closer. It cannot contain a literal backtick; use `$()` instead. A command that needs more than one line belongs
+in a script in the tree, where it can be read and tested.
+
+### No command
+
+A directive with no command runs `kit region`. `kit region` reads the region's name from its environment and
+treats it as the path of a region an active module delivers. A name no module delivers fails, and the error names
+the directive's line, so a forgotten command never passes silently. The directive can be in any file; the name
+only selects the region.
 
 ## Nesting and balance
 
-Every unit is balanced on its own: the file as written, and each command's output. A directive opened in a unit
-closes in that unit; an end marker closes the region most recently opened there. A command's output may open
-regions of its own, each closed in that same output, and `kit generate` expands those in turn, depth first, so a
-region nests and one pass settles a file. An output that closes a region it did not open, or opens one it does
-not close, is refused, naming the file, the directive's line, and the command. A region that nests is therefore
-always one the enclosing command wrote; a hand-written directive inside a region is replaced with the rest of the
-region's content.
+Each unit must be balanced on its own. A unit is either the file as written or one command's output.
 
-## The verbs
+- A region opened in a unit must close in that unit.
+- An end marker closes the region most recently opened in that unit.
+- A command's output may open regions of its own, as long as it closes them in the same output. `kit generate`
+  expands those too, depth first, so regions can nest and one pass settles a file.
+- An output that closes a region it did not open, or opens one it does not close, is refused. The error names the
+  file, the directive's line, and the command.
 
-`kit generate [<path>…]` expands the named files, taken from the directory the command was typed in, or with
-none named every tracked file and every untracked one git does not ignore. Named files are expanded once, or
-`--iterations=<n>` times. The whole repository is expanded until a pass changes nothing, at most twenty passes or
-`--iterations=<n>`, since a command may read another file's region. A run that is still changing at the bound
-fails, naming the cause: a command whose output depends on its own output.
+So a nested region is always one the enclosing command wrote. A hand-written directive inside a region is
+replaced along with the rest of the region's content.
 
-`kit generate --check [<path>…]` runs one pass without writing and fails naming every stale file. `kit check`
-runs it over the whole repository, so the gate holds every generated region, the kit's and the repository's own,
-and the lefthook module's pre-commit hook runs it over the staged paths.
+## Commands
 
-`kit region [--home] [<path>]` prints the content the active modules deliver as the region at a path, rendered as
-a template is, the command behind every region the kit delivers. The path defaults to `KIT_GENERATE_REGION`, so
-a bare directive needs none. One active module delivers a region at a path, so the answer is that module's
-`regions/<base>/<path>`, and a path no active module delivers is refused.
+`kit generate [<path>…]` expands the regions in files.
+
+- Named paths are relative to the directory you typed the command in. Each named file gets one pass, or up to
+  `--iterations=<n>` passes.
+- With no paths, it expands every tracked file and every untracked file git does not ignore. It repeats passes
+  until a pass changes nothing, up to twenty passes or `--iterations=<n>`, because one command may read another
+  file's region.
+- A run over the whole repository that is still changing at the limit fails. The cause is a command whose output
+  depends on its own output.
+
+`kit generate --check [<path>…]` runs one pass, writes nothing, and fails naming every stale file. It runs
+in two places:
+
+- `kit check`, over the whole repository, so `kit ci` checks every generated region, the kit's and the
+  repository's own.
+- The `lefthook` module's pre-commit hook, over the staged paths.
+
+`kit region [--home] [<path>]` prints the content the active modules deliver as the region at a path, rendered
+the way a template is. It is the command behind every region the kit delivers.
+
+- The path defaults to `KIT_GENERATE_REGION`, so a bare directive needs no argument.
+- Only one active module can deliver a region at a given path. `kit region` prints that module's
+  `regions/<base>/<path>`.
+- A path no active module delivers is refused.
 
 ## What is refused
 
-A file is rewritten only on a clean expansion. Each of these leaves the file as it was and fails the run, naming
-the file and the line:
+`kit generate` rewrites a file only when the whole expansion succeeds. Each of these leaves the file unchanged and
+fails the run, naming the file and the line:
 
-- a command that fails;
-- a line that opens with the marker and is not a directive;
-- an end marker with no open region, or naming a region other than the one open;
-- a directive whose region never closes, in the file or in a command's output;
-- a name opened twice in the expanded file;
-- a fenced code block in a markdown file, or in a command's output, that opens and never closes, since the
-  directives after it could not be read;
-- a conflict marker in the file, a line of seven `<` or `>`, since a conflicted file is not input a region
-  expander can read.
+- a command that fails
+- a line that starts with the marker and is not a directive
+- an end marker with no open region, or one that names a region other than the open one
+- a directive whose region never closes, in the file or in a command's output
+- a name opened twice in the expanded file
+- in a markdown file or a command's output, a fenced code block that never closes, since the directives after it
+  could not be read
+- a conflict marker in the file (a line of seven `<` or `>`), since a conflicted file cannot be expanded
 
 ## The kit's regions
 
-A file under a module's `regions/<base>/<path>` is a template for the content of a region: every `@key@` in it
-is rendered from `.kit/settings.yml` and the module's defaults, as [modules.md](modules.md) describes. What
-`kit install` writes into the file at `<path>` is the bare directive naming the path, the rendered content, and
-the end marker, in the file's comment syntax: between the directive and the end marker where the file already
-carries them, appended after a blank line where it does not, and as the whole file where there is none. The
-repository moves the block where it likes and writes what it likes around it. `kit update` regenerates the
-region, and there is no three-way merge of one, since its content is never the repository's to edit;
-`kit module remove` takes the block out, and removes a file it leaves empty. A directive with no end marker is
-refused by name, and two modules delivering a region to one file are refused where the modules are read. A region
-under `home` spells its command, `kit region --home <path>`, since the bare form cannot.
+A file under a module's `regions/<base>/<path>` is a template for a region's content. Every `@key@` in it is
+rendered from `.kit/settings.yml` and the module's defaults, as [modules.md](modules.md) describes.
 
-The `kit` module places two: the sentence in `AGENTS.md` that sends every agent to `.kit/1st.md`, and the
-`/worktrees/` entry in `.gitignore`. The `claude` module places one in `.claude/CLAUDE.md`, importing
-`AGENTS.md`. [modules.md](modules.md) describes a module, and [architecture.md](architecture.md) the whole.
+`kit install` writes the region into the file at `<path>`: the bare directive naming the path, the rendered
+content, and the end marker, in the file's comment syntax. Where the block goes depends on the file:
+
+- The file has the directive and end marker: the content goes between them.
+- The file exists without them: the block is appended after a blank line.
+- The file does not exist: the block becomes the whole file.
+
+After that:
+
+- The repository can move the block anywhere in the file and write anything around it.
+- `kit update` regenerates the region. There is no three-way merge, because the region's content is never the
+  repository's to edit.
+- `kit module remove` takes the block out, and removes the file if that leaves it empty.
+- A directive with no end marker is refused, by name.
+- Two modules that deliver a region to the same file are refused when the kit reads the modules.
+- A region under `home` must spell out its command, `kit region --home <path>`, because the bare directive cannot
+  select the home directory.
+
+| Module | File | Region |
+| --- | --- | --- |
+| `kit` | `AGENTS.md` | the sentence that sends every agent to `.kit/1st.md` |
+| `kit` | `.gitignore` | the `/worktrees/` entry |
+| `claude` | `.claude/CLAUDE.md` | an import of `AGENTS.md` |
+
+[modules.md](modules.md) describes modules, and [architecture.md](architecture.md) describes the whole kit.

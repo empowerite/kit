@@ -1,9 +1,10 @@
 # shellcheck shell=bash
-# toolchain-mise.sh - mise as a toolchain: mise.toml pins the tools, mise.lock records them (sourced module)
+# toolchain-mise.sh - the mise toolchain provider: mise.toml pins the tools, mise.lock records them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The provider bin/toolchain.sh loads for `provider: mise`, or for a mise.toml or .mise.toml at the root. mise is
-# its requirement; MISE_ENV, where the caller sets it, layers mise.<env>.toml on top as mise does.
+# bin/toolchain.sh loads this provider for `provider: mise`, or when mise.toml or .mise.toml is at the repository
+# root. The provider needs mise. When the caller sets MISE_ENV, mise layers mise.<env>.toml on top, as it always
+# does.
 
 toolchain-mise:file() {
   if [[ -f .mise.toml && ! -f mise.toml ]]
@@ -24,7 +25,8 @@ toolchain-mise:install() {
   mise install --quiet
 }
 
-# mise outdated --json is an object keyed by tool, each with its current and latest version.
+# toolchain-mise:outdated reads mise outdated --json: an object keyed by tool name, with each tool's current and
+# latest version.
 toolchain-mise:outdated() {
   local doc
   toolchain-mise:require || return 1

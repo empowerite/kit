@@ -2,11 +2,19 @@
 # kit-region - print the content the active modules deliver as the region at a path (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The command behind every region the kit delivers. Install writes a bare directive, `kit:generate AGENTS.md`,
-# and kit generate fills it by running `kit region` with the region's name in KIT_GENERATE_REGION; the path is
-# that name, or the argument, relative to the repository, or with --home to the home directory. One active
-# module delivers a region at a path, so the answer is that module's regions/<base>/<path>, and a path no
-# active module delivers is refused.
+# kit region [--home] [<path>]
+#
+# Prints the content an active module delivers as the region at <path>. Every region the kit delivers is filled
+# this way: kit install writes a bare directive, such as `kit:generate AGENTS.md`, and kit generate fills it by
+# running `kit region` with the region's name in KIT_GENERATE_REGION.
+#
+#   <path>    the region's path, relative to the repository root. Default: KIT_GENERATE_REGION.
+#   --home    makes the path relative to the home directory instead.
+#
+# Only one active module delivers a region at a given path, so kit region prints that module's
+# regions/<base>/<path>.
+#
+# Exits 0 when it prints the region, 1 when no active module delivers a region at <path>, and 2 on a usage error.
 #
 # see: bin/generate.sh, bin/release.sh
 

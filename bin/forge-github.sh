@@ -1,13 +1,15 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2016  # jq filters and GraphQL queries name their variables with $, in single quotes on purpose
-# forge-github.sh - GitHub, through gh, as the forge the loop runs on (sourced module)
+# forge-github.sh - the GitHub forge provider, through the gh CLI (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2016  # jq filters and GraphQL queries name their variables with $, in single quotes on purpose
 #
-# The provider bin/forge.sh loads for a repository whose forge is github. Every call is one of the names the
-# seam's header lists; gh is this file's requirement and nobody else's.
+# bin/forge.sh loads this provider when the repository's forge is github. It implements the calls listed in the
+# header of bin/forge.sh. Only this file requires gh.
+#
+# see: bin/forge.sh
 
-# forge-github:require refuses where gh is absent or not authenticated. A revoked token passes `gh auth status`,
-# so the probe is a real call.
+# forge-github:require fails when gh is missing or not authenticated. It makes a real API call, because
+# `gh auth status` passes with a revoked token.
 forge-github:require() {
   guard:require tool:gh || return 1
   if ! gh api user --jq '.login' >/dev/null 2>&1
@@ -65,13 +67,14 @@ forge-github:issue-assign() {
   gh issue edit "$1" --add-assignee "$2" >/dev/null 2>&1
 }
 
-# The branch is found by an open pull request's head, so a second run never forks a <N>-<slug>-1 duplicate.
+# Find the branch through an open pull request's head branch, so a second run never creates a duplicate
+# <N>-<slug>-1 branch.
 forge-github:branch-for-issue() {
   gh pr list --state open --json headRefName \
     --jq "[.[] | select(.headRefName | test(\"^$1-\"))] | .[0].headRefName // empty" 2>/dev/null || true
 }
 
-# gh issue develop names the branch <N>-<slug> itself, links it under Development, and pushes it.
+# gh issue develop names the branch <N>-<slug>, links it to the issue under Development, and pushes it.
 forge-github:link-branch() {
   gh issue develop "$1" --base "$2" >/dev/null
 }
@@ -102,7 +105,8 @@ forge-github:pr-state-for-branch() {
   gh pr list --head "$1" --state all --json state --jq '.[0].state // empty' 2>/dev/null || true
 }
 
-# On a runner the event names the pull request; on a desk the current branch does.
+# On a GitHub Actions runner, the event payload gives the pull request. Otherwise gh finds the pull request for
+# the current branch.
 forge-github:pr-here() {
   local number=''
   if [[ -n "${GITHUB_EVENT_PATH:-}" ]]
@@ -130,9 +134,16 @@ forge-github:pr-closing-issues() {
     || { error "run: gh auth status (pull request #$1 could not be read)"; return 1; }
 }
 
-# One request: every open pull request with the issues it closes, its review threads, and the checks on its
-# head, folded into the document kit status draws: number, ref, branch, title, author, createdAt, age in seconds,
-# state, checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes [{number, title}].
+# forge-github:open-prs makes one GraphQL request for every open pull request, with the issues it closes, its
+# review threads, and the checks on its head commit. It prints one JSON object per pull request, the document
+# kit status renders. The fields:
+#
+#   number, ref, branch, title, author, createdAt
+#   age         seconds since the pull request was created
+#   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
+#   checks      {state, passed, total, failing, took}, where took is in seconds or null
+#   unresolved  the number of unresolved review threads
+#   closes      [{number, title}] of the issues it closes
 forge-github:open-prs() {
   local repo query filter
   repo=$(forge-github:repo) || return 1

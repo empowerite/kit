@@ -2,21 +2,25 @@
 # kit-release - verify a release tag, pack a checkout as a release, publish it, and retire pre-releases (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The kit releasing itself, as verbs a workflow step or a desk calls alike:
+# kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]
 #
-#   verify <tag>              the tag is release/<major>.<minor>.<patch>, on the default branch, or the same with
-#                             a -<suffix>, a pre-release, on a commit off it; refused otherwise, naming why
-#   pack <tag> [<directory>]  kit-<version>.tar.gz and its .sha256 in <directory>, the current one by default:
-#                             one directory kit-<version>/ with bin/, modules/, and the version stamped in
-#   publish <tag>             pack, then a GitHub release carrying both files, marked pre-release for a suffix.
-#                             A release is published by the runner alone, from the release workflow a pushed
-#                             tag starts; a desk may publish a pre-release
-#   retire [<branch>]         delete every pre-release whose commit no remaining branch reaches, after <branch>
-#                             was deleted; the branch is the runner's delete event when none is given. A
-#                             pre-release merged by a merge commit stays reachable from the default branch and
-#                             is kept; a squash merge frees it.
+# Releases the kit itself. The release workflows and the root checkout (the desk) run the same subcommands.
 #
-# A release is permanent and immutable; only a pre-release is ever retired.
+#   verify <tag>              checks the tag. A release tag is release/<major>.<minor>.<patch>, on the default
+#                             branch. A pre-release tag adds -<suffix>, and is on a commit off the default
+#                             branch. Any other tag is refused, with the reason.
+#   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
+#                             directory). The tarball holds one directory, kit-<version>/, with bin/, modules/,
+#                             and a version file.
+#   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
+#                             pre-release. Only a runner publishes a release, from the release workflow that a
+#                             pushed tag starts. A desk may publish a pre-release.
+#   retire [<branch>]         deletes every pre-release whose commit no remaining branch reaches. It runs after
+#                             <branch> is deleted. Default: the branch in the runner's delete event. A pre-release
+#                             merged by a merge commit stays reachable from the default branch, so it is kept. A
+#                             squash merge leaves it unreachable, so it is deleted.
+#
+# A release is permanent and never changes. Only a pre-release is ever retired.
 #
 # see: .github/workflows/release.yml, .github/workflows/retire-pre-releases.yml
 
@@ -27,14 +31,14 @@ use git release
 
 usage() { echo "usage: kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
-# refuse-tag <message> is the one refusal: the message, the runner's error line, the summary, exit 1.
+# refuse-tag <message> prints the message as an error and to the step summary, then exits 1.
 refuse-tag() {
   error "$1"
   summary "### ❌ $1"
   exit 1
 }
 
-# tag-version <tag> prints the version a tag names, the part after release/, refusing a tag that is not one.
+# tag-version <tag> prints the tag's version, the part after release/. It refuses a tag that is not a release tag.
 tag-version() {
   local version=${1#release/}
   if [[ "$1" != release/* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]

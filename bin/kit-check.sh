@@ -2,8 +2,20 @@
 # kit-check - fail when a delivered file differs from the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Every path under the repository is compared with the release's file. A path under home is compared where
-# ~/.kit/manifest exists, that is, on a desk that installed; a machine with none, such as a runner, is told so.
+# kit check takes no arguments. It compares the repository with the release pinned in .kit/manifest, and reports
+# a finding when:
+#
+#   - .kit/manifest records a kit version other than the pinned release
+#   - a delivered file is missing, or differs from the release's copy
+#   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
+#   - a file that should contain a kit region has none
+#   - a file the repository owns is missing a line a module expects in it
+#   - a generated region differs from what its command makes
+#
+# Files delivered to the home directory are checked only when ~/.kit/manifest exists, that is, on a machine where
+# kit install ran. On a machine without it, such as a CI runner, kit check prints a note and skips them.
+#
+# Exits 0 when there are no findings, and 1 otherwise.
 #
 # see: bin/release.sh
 
@@ -51,7 +63,7 @@ do
       findings=$(( findings + 1 ))
     elif [[ "${kind}" == region ]]
     then
-      # The directive must be there; what it makes is held below, with every other generated region.
+      # Only the directive is checked here. Its content is checked below, with every other generated region.
       if ! release:installed "${src}" "${dest}" >/dev/null
       then
         error "${dest} has no kit region; run: kit update"
@@ -67,14 +79,14 @@ do
     fi
   done <<<"${delivered}"
 done
-# Every line a module expects of a file the repository owns is there; the kit writes none of them.
+# Report each line a module expects in a file the repository owns that is missing. The kit never writes these lines.
 while IFS= read -r unmet
 do
   [[ -n "${unmet}" ]] || continue
   error "${unmet}"
   findings=$(( findings + 1 ))
 done < <(release:unmet "${kit_root}" "${modules[@]}")
-# Every generated region, the kit's and the repository's own, is what its command makes it.
+# Check that every generated region, the kit's and the repository's own, matches what its command makes.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
 then

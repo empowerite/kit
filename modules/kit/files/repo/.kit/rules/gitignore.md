@@ -3,6 +3,10 @@
 paths:
   - ".gitignore"
   - "**/.gitignore"
+templates:
+  - variant: file
+  - variant: region
+    path: .gitignore
 ---
 # Ignore lists
 
@@ -10,22 +14,21 @@ Applies to `.gitignore` at any depth.
 
 ## Shape
 
-1. A file the repository writes opens with `# .gitignore - untracked files and folders`, a rule of dashes to
-   column 120, and a blank line. One the kit made of its region alone is the kit's until the repository adds
-   to it.
-2. Entries are grouped. Each group opens with `# <what produces it>; see: <ref>` and is followed by a blank
-   line.
-3. The file closes with a rule of dashes.
+1. A file the repository writes opens with `# .gitignore - untracked files and folders`, a line of dashes to
+   column 120, and a blank line. A file the kit created that contains only the kit's region belongs to the kit
+   until the repository adds to it.
+2. Group the entries. Each group opens with `# <what produces it>; see: <ref>` and ends with a blank line.
+3. The file ends with a line of dashes.
 
 ## Entries
 
 1. Every entry names a file the repository itself produces. Editor and operating-system files belong in the
    user's global ignore list, not here.
-2. An entry lives in the deepest directory where it applies. The root carries only patterns that span the
-   repository.
+2. Put an entry in the deepest directory where it applies. The root `.gitignore` contains only patterns that apply
+   across the whole repository.
 3. A pattern that names a directory ends with `/`. A pattern anchored to the file's directory starts with `/`.
-4. Ignore `/worktrees/` at the root: it is where the loop checks out a branch per issue.
+4. Ignore `/worktrees/` at the root. The workflow checks out a branch for each issue there.
 
-## Adding one
+## Adding an entry
 
 Ask what produces the file. If nothing in the repository does, do not add it.

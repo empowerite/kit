@@ -1,28 +1,49 @@
 # shellcheck shell=bash
+# release.sh - reads a release's modules, renders templates and regions, merges JSON, writes manifests (sourced module)
+# ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bin/kit
-# release.sh - the release's modules, the one merge rule, the templates, and the manifests (sourced module)
-# ----------------------------------------------------------------------------------------------------------------------
 #
-# A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/, mirrored at
-# the base's root; templates/<base>/, with @key@ rendered from the repository's settings, then mirrored the same way;
-# and regions/<base>/, rendered the same way, each file placed as a region the kit owns inside a file the repository
-# owns, between a bare kit:generate line and a kit:end line that name the path, so the rest of that file stays the
-# repository's and kit generate makes the region what kit region prints. A repository defines modules of its own the
-# same way under .kit/modules/<name>/, and a name is looked up in the release first, then there. Two bases: repo, the
-# repository root, recorded in .kit/manifest; and home, the user's home directory, recorded in ~/.kit/manifest, which
-# every repository on the desk shares. A destination ending in .json is merged by key, the kit owning only the entries
-# it writes, and a region is regenerated, never merged. The repository's choices live in .kit/settings.yml, which the
-# kit reads and never writes. docs/modules.md is the format's description.
+# A release is bin/ and modules/. Each modules/<name>/ is a module, which contains:
 #
-# Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
-# the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and comm here
-# collates in the C locale, so an order written on one machine is the order read on another.
+#   module.yml          the module's metadata
+#   files/<base>/       files copied to the base's root, at the same paths
+#   templates/<base>/   files whose @key@ placeholders are filled from the repository's settings, then copied the
+#                       same way
+#   regions/<base>/     files rendered like templates, each placed as a region inside a file the repository owns
+#
+# A region is the part of a repository's file that the kit owns. It sits between a bare kit:generate line and an
+# end line, both naming the path. The rest of the file belongs to the repository. kit generate replaces the
+# region's content with what kit region prints.
+#
+# A repository can define its own modules the same way, under .kit/modules/<name>/. A module name is looked up in
+# the release first, then there.
+#
+# The bases a module delivers to:
+#
+#   repo    the repository root, recorded in .kit/manifest
+#   home    the user's home directory, recorded in ~/.kit/manifest, which every repository on the machine shares
+#
+# How a delivered file is placed:
+#
+#   - a destination ending in .json (except *.schema.json) is merged by key; the kit owns only the entries it
+#     writes
+#   - a region is regenerated, never merged
+#   - every other file is copied
+#
+# The repository's choices are in .kit/settings.yml. The kit reads that file and never writes it.
+#
+# Every function reads a release from a root directory: kit_root by default, which bin/kit exports. bin/kit also
+# changes to the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and
+# comm here uses the C locale, so an order written on one machine reads the same on another.
+#
+# see: docs/modules.md
 
 use yaml
 
-# release:unreleased prints the version of a checkout: the release workflow stamps a version file, a checkout
-# has none, and this is the one version kit update never fetches.
+# release:unreleased prints `unreleased`, the version of a kit checkout. The release workflow
+# (.github/workflows/release.yml) writes a version file into each release; a checkout has none. kit update never
+# fetches this version.
 release:unreleased() { printf 'unreleased\n'; }
 
 # release:version prints this release's version.
@@ -30,12 +51,13 @@ release:version() {
   cat "${kit_root}/version" 2>/dev/null || release:unreleased
 }
 
-# release:bases prints the destinations a module may deliver to: the subdirectories of files/, templates/, and
-# regions/.
+# release:bases prints the bases a module can deliver to. Each base is a subdirectory name under files/,
+# templates/, and regions/.
 release:bases() { printf 'repo\nhome\n'; }
 
-# release:base-root <base> prints the directory the base's files are mirrored at: the repository root, which the
-# verbs run from, or the home directory, KIT_HOME when set so a test can stand in for it.
+# release:base-root <base> prints the directory a base's files are copied to: `.` (the repository root, where the
+# verbs run) for repo, and the home directory for home. KIT_HOME, when set, replaces the home directory, so a test
+# can use a stand-in.
 release:base-root() {
   case "$1" in
     (repo) printf '.\n' ;;
@@ -46,7 +68,7 @@ release:base-root() {
   esac
 }
 
-# release:dest <base> <path> prints where a delivered path lands.
+# release:dest <base> <path> prints where a delivered path is written.
 release:dest() {
   if [[ "$1" == repo ]]
   then printf '%s\n' "$2"
@@ -57,17 +79,17 @@ release:dest() {
 # release:manifest <base> prints the base's manifest: .kit/manifest in the repository, ~/.kit/manifest for home.
 release:manifest() { release:dest "$1" .kit/manifest; }
 
-# release_local is where a repository keeps modules of its own: .kit/modules/<name>/, in the release's shape.
+# release_local is the root of the repository's own modules, .kit/modules/<name>/, laid out like the release's.
 declare -gr release_local=.kit
 
-# release:settings prints the repository's settings file, which the kit reads and never writes.
+# release:settings prints the path of the repository's settings file.
 release:settings() { printf '.kit/settings.yml\n'; }
 
 # release:setting <key> prints the value of one top-level setting, or nothing.
 release:setting() { yaml:value "$(release:settings)" "$1"; }
 
-# release:modules [<root>] prints the modules in reach: every modules/<name>/ with a module.yml under the release
-# at <root>, and under .kit/modules/ in the repository.
+# release:modules [<root>] prints the modules in reach: every modules/<name>/ that contains a module.yml, in the
+# release at <root> and in the repository's .kit/modules/.
 release:modules() {
   local root=${1:-${kit_root}} dir
   for dir in "${root}" "${release_local}"
@@ -77,8 +99,8 @@ release:modules() {
   done | LC_ALL=C sort --unique
 }
 
-# release:home <root> <module> prints where the module lives: the release at <root> when it carries the module,
-# else the repository's own .kit, so a path under it is <home>/modules/<module>/.
+# release:home <root> <module> prints the directory that contains the module: <root> when the release has the
+# module, otherwise the repository's .kit. The module's files are under <home>/modules/<module>/.
 release:home() {
   if [[ -f "$1/modules/$2/module.yml" || ! -f "${release_local}/modules/$2/module.yml" ]]
   then printf '%s\n' "$1"
@@ -86,7 +108,7 @@ release:home() {
   fi
 }
 
-# release:origin <root> <module> prints "release" or "repository", where the module comes from.
+# release:origin <root> <module> prints where the module comes from: "release" or "repository".
 release:origin() {
   if [[ "$(release:home "$1" "$2")" == "$1" ]]
   then printf 'release\n'
@@ -103,7 +125,7 @@ release:description() { yaml:value "$(release:meta "$1" "$2")" description; }
 # release:depends <root> <module> prints the modules this one depends on, one per line.
 release:depends() { yaml:list "$(release:meta "$1" "$2")" depends; }
 
-# release:default-modules <root> prints the modules active unless removed: those whose default is true.
+# release:default-modules <root> prints the modules whose default is true. They are active unless removed.
 release:default-modules() {
   local module
   for module in $(release:modules "$1")
@@ -113,7 +135,7 @@ release:default-modules() {
   return 0
 }
 
-# release:require-modules <root> <name>… refuses a module the release does not carry, naming the ones it does.
+# release:require-modules <root> <name>… fails on a module that is not in reach, and lists the modules that are.
 release:require-modules() {
   local root=$1 module
   shift
@@ -128,9 +150,9 @@ release:require-modules() {
   done
 }
 
-# release:resolve <root> <name>… prints the named modules and everything they depend on, each once: a module
-# after the modules it depends on, and alphabetical where that leaves a choice, so the order is the same on
-# every machine. A cycle is refused.
+# release:resolve <root> <name>… prints the named modules and all their dependencies, each once. Each module
+# comes after the modules it depends on. Ties are broken alphabetically, so the order is the same on every
+# machine. It fails on a dependency cycle.
 release:resolve() {
   local root=$1 module dep ready placed_count=0
   shift
@@ -186,9 +208,15 @@ release:dependents() {
   done
 }
 
-# release:validate <root> <module> refuses metadata the schema would refuse, as far as bash can tell without a
-# validator: a key the kit does not know, a default that is not true or false, a dependency on a module the
-# release lacks. The gate validates against modules/module.schema.json in full.
+# release:validate <root> <module> fails on metadata that the schema rejects, as far as bash can check without a
+# validator:
+#
+#   - a key the kit does not know
+#   - a missing description
+#   - a default that is not true or false
+#   - a dependency on a module that is not in reach
+#
+# The gate validates against modules/module.schema.json in full.
 release:validate() {
   local root=$1 module=$2 meta key value dep
   meta=$(release:meta "${root}" "${module}")
@@ -224,7 +252,8 @@ release:validate() {
 }
 
 # release:expectations <root> <module>… prints "<path>\x1f<pattern>\x1f<remedy>" for each line the modules expect
-# of a file the repository owns, the include a format composes by: lefthook's extends, just's import.
+# in a file the repository owns. Such a line is the include that pulls in the kit's file, such as lefthook's
+# extends or just's import.
 release:expectations() {
   local root=$1 module
   shift
@@ -234,9 +263,9 @@ release:expectations() {
   done
 }
 
-# release:unmet <root> <module>… prints the remedy of every expectation the repository does not meet, one per
-# line: its file is missing, or no line of it matches the pattern, an extended regular expression. The kit
-# writes nothing into such a file; it only says what is missing.
+# release:unmet <root> <module>… prints the remedy for each expectation the repository does not meet, one per
+# line. An expectation is unmet when its file is missing, or when no line in the file matches its pattern (an
+# extended regular expression). The kit never writes to such a file; it only reports what is missing.
 release:unmet() {
   local root=$1 path pattern remedy
   shift
@@ -251,10 +280,15 @@ release:unmet() {
   return 0
 }
 
-# release:validate-settings refuses a settings file the schema would refuse, as far as bash can tell: a key the
-# kit does not know, a require_signing that is not true or false, an answer key outside [a-z_]. The gate
-# validates this repository's against .kit/settings.schema.json in full; the schema is delivered so an editor
-# can do the same anywhere.
+# release:validate-settings fails on a settings file that the schema rejects, as far as bash can check:
+#
+#   - a key the kit does not know
+#   - a require_signing that is not true or false
+#   - an answer key with characters outside [a-z_]
+#   - a tracker without a prefix (letters and an optional #) or without a provider
+#
+# The gate validates this repository's settings against .kit/settings.schema.json in full. The kit delivers the
+# schema so an editor can validate against it anywhere.
 release:validate-settings() {
   local settings key value
   settings=$(release:settings)
@@ -291,10 +325,14 @@ release:validate-settings() {
   done < <(yaml:records "${settings}" trackers prefix provider)
 }
 
-# release:context <root> <module> prints "<key>\t<value>" for every key a template or region of the module may
-# use: the module's defaults under its answers:, as <key> and answers.<key>; then the whole of .kit/settings.yml,
-# a top-level scalar as <key>, a map's entries as <map>.<name>, and the answers map's as <name> too. A later
-# line overrides an earlier one, so the repository's answer wins over the module's default.
+# release:context <root> <module> prints "<key>\t<value>" for every key a template or region of the module can
+# use. The keys come from:
+#
+#   1. the module's defaults under answers: in module.yml, as <key> and as answers.<key>
+#   2. .kit/settings.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
+#      answers map also as <name>
+#
+# A later source overrides an earlier one, so the repository's answer wins over the module's default.
 release:context() {
   local settings key name value
   settings=$(release:settings)
@@ -318,8 +356,8 @@ release:context() {
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
 
-# release:tmp prints a directory for this process's rendered templates, made once and removed at exit. The
-# rendering happens in release:render-all, which every verb runs before it reads a release.
+# release:tmp prints a directory for this process's rendered templates. It is created on first use and removed
+# at exit. release:render-all does the rendering; every verb runs it before reading a release.
 release:tmp() {
   if [[ -z "${release_tmp:-}" ]]
   then
@@ -330,11 +368,12 @@ release:tmp() {
   printf '%s\n' "${release_tmp}"
 }
 
-# release:render <root> <module> <kind> <base> renders the module's templates or regions, the <kind>, for <base>
-# once per process and prints the directory holding them, or prints nothing where the module has none. The
-# directory keeps the modules/<module>/<kind>/<base> shape, so a rendered region still reads as one. A key is
-# written @key@, autoconf's form, which neither bash's ${var} nor GitHub's ${{ }} can be mistaken for, and may
-# be dotted, @answers.key@; one with no value refuses, naming the key.
+# release:render <root> <module> <kind> <base> renders the module's <kind> (templates or regions) for <base>, once
+# per process, and prints the directory that contains the result. It prints nothing when the module has none. The
+# directory keeps the modules/<module>/<kind>/<base> layout, so a rendered region is still recognized as a region.
+#
+# A placeholder is written @key@ (autoconf's form), which cannot be confused with bash's ${var} or GitHub's
+# ${{ }}. A key can be dotted: @answers.key@. A key with no value fails, and the error names the key.
 release:render() {
   local root=$1 module=$2 kind=$3 base=$4 source out key value text file rel map
   local -A answer=()
@@ -370,9 +409,14 @@ release:render() {
   printf '%s\n' "${out}"
 }
 
-# release:render-all <root> <module>… makes the release at <root> ready to read for the named modules: it refuses
-# a module the release lacks, validates every module the release carries, refuses a base the kit does not deliver
-# to, renders the named modules' templates and regions, and refuses a link to nothing among the delivered files.
+# release:render-all <root> <module>… prepares the release at <root> for the named modules. In order, it:
+#
+#   1. validates the settings
+#   2. fails on a named module that is not in reach
+#   3. validates every module in reach
+#   4. fails on a base the kit does not deliver to
+#   5. renders the named modules' templates and regions
+#   6. fails on a delivered file that is a link to nothing, and on regions that release:regions-apart rejects
 release:render-all() {
   local root=$1 module kind base
   shift
@@ -413,8 +457,9 @@ release:render-all() {
   done
 }
 
-# release:regions-apart <root> <base> <module>… refuses a region path two of the modules both deliver, since one
-# file holds one kit region, and a region in a file whose comment syntax the kit does not know.
+# release:regions-apart <root> <base> <module>… fails when two of the modules deliver a region to the same path (a
+# file can have only one kit region), or when a region is in a kind of file whose comment syntax the kit does not
+# know.
 release:regions-apart() {
   local root=$1 base=$2 module home file rel owner
   shift 2
@@ -443,7 +488,7 @@ release:regions-apart() {
   done
 }
 
-# release:layers <root> <base> <module>… prints the directories mirrored at the base's root, in module order: each
+# release:layers <root> <base> <module>… prints the directories copied to the base's root, in module order: each
 # module's files/<base>, its rendered templates/<base>, and its rendered regions/<base>.
 release:layers() {
   local root=$1 base=$2 module home kind rendered
@@ -461,9 +506,14 @@ release:layers() {
   return 0
 }
 
-# release:kind <source> <path> prints how the content is placed: region for a source under a module's
-# regions/<base>/, merge for a .json destination, copy otherwise. A source is a region by its last modules/
-# segment, so a checkout under a directory named modules reads the same as one anywhere else.
+# release:kind <source> <path> prints how the content is placed:
+#
+#   region   the source is under a module's regions/<base>/
+#   merge    the destination is a merged .json file (see release:merged)
+#   copy     anything else
+#
+# The region test looks only at the source's last modules/ segment, so a checkout under a directory named modules
+# works the same as one anywhere else.
 release:kind() {
   if [[ "${1##*/modules/}" =~ ^[^/]+/regions/(repo|home)/ ]]
   then printf 'region\n'
@@ -473,9 +523,7 @@ release:kind() {
   fi
 }
 
-# release:region-name <dest> prints the region's name, which is the path relative to the base's root, and
-# release:region-command the command behind it: nothing under the repository, where the bare directive means
-# `kit region <name>`, and `kit region --home <name>` under the home directory, which the bare form cannot say.
+# release:region-name <dest> prints the region's name: the path relative to the base's root.
 release:region-name() {
   local home
   home=$(release:base-root home)
@@ -484,6 +532,10 @@ release:region-name() {
   else printf '%s\n' "$1"
   fi
 }
+
+# release:region-command <dest> prints the command that generates the region. Under the repository it prints
+# nothing, because the bare directive means `kit region <name>`. Under the home directory it prints
+# `kit region --home <name>`, which the bare form cannot express.
 release:region-command() {
   local home
   home=$(release:base-root home)
@@ -492,10 +544,10 @@ release:region-command() {
   fi
 }
 
-# release:region-markers <dest> prints the region's two lines in the file's own comment syntax, by its extension,
-# an HTML comment, a double slash, a double dash, or a hash: the directive that opens it, `kit:generate <name>`
-# with the command in backticks where there is one, and the end marker, `kit:end <name>`. A kind of file with no
-# comment syntax the kit knows is refused where the module is read, in release:render-all.
+# release:region-markers <dest> prints the region's two marker lines in the file's comment syntax, chosen by
+# extension: an HTML comment, //, --, or #. The first line is the directive, `kit:generate <name>`, followed by
+# the command in backticks when there is one. The second is the end marker, `kit:end <name>`. A kind of file with
+# no comment syntax the kit knows is rejected earlier, by release:render-all, when it reads the module.
 release:region-markers() {
   local open close name command
   case "${1##*.}" in
@@ -511,7 +563,8 @@ release:region-markers() {
     "${open}" "${name}" "${close}"
 }
 
-# release:region-known <path> is true where the kit knows the file's comment syntax, so a region can be marked.
+# release:region-known <path> succeeds when the kit knows the file's comment syntax, so a region can be marked in
+# it.
 release:region-known() {
   case "${1##*/}" in
     (*.json | *.jsonc | *.json5) return 1 ;;
@@ -525,8 +578,9 @@ release:region-known() {
   esac
 }
 
-# release:target <path> prints the file a write to <path> lands in: the path, or what a symlink there points at,
-# so a repository that keeps AGENTS.md or a settings file as a link into another directory keeps its link.
+# release:target <path> prints the file that a write to <path> changes: the path itself, or the target of a
+# symlink there. A repository that keeps AGENTS.md or a settings file as a link into another directory keeps the
+# link.
 release:target() {
   if [[ -L "$1" ]]
   then readlink -f "$1"
@@ -534,8 +588,8 @@ release:target() {
   fi
 }
 
-# release:region-has <dest> is true when the file carries the region's directive; a directive with no end
-# marker is refused, naming the file, since a write would drop everything after it.
+# release:region-has <dest> succeeds when the file contains the region's directive. A directive with no end
+# marker fails (status 2) and names the file, because a write would drop everything after the directive.
 release:region-has() {
   local path=$1 begin end
   [[ -f "${path}" ]] || return 1
@@ -548,8 +602,8 @@ release:region-has() {
   fi
 }
 
-# release:region-read <dest> prints the region's content, between its directive and its end marker, and fails
-# where the file or the region is absent.
+# release:region-read <dest> prints the region's content, between its directive and its end marker. It fails
+# when the file or the region is missing.
 release:region-read() {
   local path=$1 begin end
   release:region-has "$1" || return $?
@@ -557,9 +611,12 @@ release:region-read() {
   awk -v b="${begin}" -v e="${end}" '$0 == e { on = 0 } on { print } $0 == b { on = 1 }' "${path}"
 }
 
-# release:region-write <dest> <content-file> makes the region what its command makes it, which is the content:
-# between the directive and the end marker where the file carries them, appended after a blank line where it
-# does not, and as the whole file where there is none.
+# release:region-write <dest> <content-file> sets the region's content to <content-file>, the output of the
+# region's command. It writes the content:
+#
+#   - between the directive and the end marker, when the file has them
+#   - after a blank line at the end of the file, when the file has no region
+#   - as the whole file, when there is no file
 release:region-write() {
   local path content=$2 begin end status=0
   path=$(release:target "$1")
@@ -589,8 +646,8 @@ release:region-write() {
   mv "${path}.kit-new" "${path}"
 }
 
-# release:region-remove <dest> takes the region, its directive, and its end marker out, and the blank line
-# before it; a file left empty is removed.
+# release:region-remove <dest> removes the region, its directive, its end marker, and the blank line before it.
+# A file left empty is deleted.
 release:region-remove() {
   local path begin end
   path=$(release:target "$1")
@@ -610,8 +667,9 @@ release:region-remove() {
 }
 
 # release:delivered <root> <base> <module>… prints "<path>\t<source>" for every path under the base's root that
-# the release at <root> delivers for those modules, sorted by path, the last layer winning. A symlink is a source
-# only when it points at a file; a dangling one is refused here, where it is found.
+# the release at <root> delivers for those modules, sorted by path. When layers deliver the same path, the last
+# layer wins. A symlink counts as a source only when it points at a file. A dangling symlink fails here, where it
+# is found.
 release:delivered() {
   local layer path src
   while IFS= read -r layer
@@ -638,8 +696,8 @@ release:source-of() {
   release:delivered "${root}" "${base}" "$@" | awk -F '\t' -v p="${path}" '$1 == p { print $2 }'
 }
 
-# release:paths-beyond <root> <base> <before> <after> prints the paths the module set <after> delivers under the
-# base that <before> does not; each set is one space-separated word.
+# release:paths-beyond <root> <base> <before> <after> prints the paths under the base that the module set <after>
+# delivers and <before> does not. Each set is passed as one space-separated word.
 release:paths-beyond() {
   local root=$1 base=$2
   local -a before after
@@ -649,13 +707,17 @@ release:paths-beyond() {
     <(release:delivered "${root}" "${base}" "${after[@]}" | cut -f 1)
 }
 
-# release:merged <path> is true for a destination that is merged by key rather than copied: a .json file that is
-# a settings file, which every .json is here except a schema, *.schema.json.
+# release:merged <path> succeeds for a destination that is merged by key instead of copied: a .json settings
+# file. Every .json file the kit delivers is a settings file, except a schema (*.schema.json).
 release:merged() { [[ "$1" == *.json && "$1" != *.schema.json ]]; }
 
-# release:fetch <version> prints the root of that release, fetching it if need be: the kit's cache first, then a
-# mise install if mise is here, then the release's public tarball with curl, unpacked into the cache. The version
-# comes from a manifest, so it is held to a version's shape before it is used in a path.
+# release:fetch <version> prints the root of that release, fetching it if needed. It tries, in order:
+#
+#   1. the kit's cache
+#   2. a copy installed by mise, when mise is present
+#   3. the release's public tarball, downloaded with curl and unpacked into the cache
+#
+# The version comes from a manifest, so it must have a version's shape before it is used in a path.
 release:fetch() {
   local version=$1 root cache fresh
   if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
@@ -693,7 +755,7 @@ release:fetch() {
   printf '%s\n' "${cache}"
 }
 
-# release:among <name> <name>… is true when the first name is among the rest.
+# release:among <name> <name>… succeeds when the first name is one of the rest.
 release:among() {
   local needle=$1 item
   shift
@@ -714,7 +776,14 @@ release:without() {
   done
 }
 
-# The merge, as jq. The parameters are values ($), not filters, so each is read once at the right level.
+# The JSON merge functions, in jq:
+#
+#   merge($cur; $base; $new)   applies the release's $new over the current $cur, key by key. For an array, it keeps
+#                              the current entries that were not in the previous release's $base, then adds $new's
+#   unmerge($cur; $base)       removes $base's array entries from $cur, key by key; scalar values stay
+#   holds($cur; $new)          true when $cur contains every key, array entry, and value in $new
+#
+# The parameters are values ($name), not filters, so each is evaluated once, at the right level.
 release_jq='
   def merge($cur; $base; $new):
     if ($new | type) == "object" then
@@ -734,8 +803,8 @@ release_jq='
     else $cur == $new end;
 '
 
-# release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, making it if
-# missing.
+# release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>. It creates the
+# file, as {}, when it is missing.
 release:json-write() {
   local path filter=$2
   path=$(release:target "$1")
@@ -746,13 +815,13 @@ release:json-write() {
   mv "${path}.kit-new" "${path}"
 }
 
-# release:json-holds <path> <source> is true when the JSON at <path> carries every entry the release's <source>
-# writes.
+# release:json-holds <path> <source> succeeds when the JSON at <path> contains every entry that the release's
+# <source> writes.
 release:json-holds() {
   jq --exit-status "${release_jq} holds(.; \$new[0])" --slurpfile new "$2" "$1" >/dev/null
 }
 
-# release:digest prints the sha256 of stdin, by whichever tool the machine carries.
+# release:digest prints the sha256 of stdin, using sha256sum or shasum, whichever the machine has.
 release:digest() {
   if command -v sha256sum >/dev/null 2>&1
   then
@@ -762,8 +831,8 @@ release:digest() {
   fi
 }
 
-# release:place <source> <path> [<base-source>] puts the release's content at <path>: a merge for .json, the
-# region for a region source, else a copy that keeps the source's mode.
+# release:place <source> <path> [<base-source>] writes the release's content to <path>. It merges a .json file,
+# writes the region for a region source, and otherwise copies the file, keeping the source's mode.
 release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
   case "$(release:kind "${src}" "${path}")" in
@@ -781,8 +850,8 @@ release:place() {
   esac
 }
 
-# release:installed <source> <path> prints what the repository holds of the release's content at <path>: the
-# file, or the region's content; nothing, failing, where there is none.
+# release:installed <source> <path> prints the repository's copy of the release's content at <path>: the file,
+# or the region's content. It prints nothing and fails when there is none.
 release:installed() {
   local src=$1 path=$2
   case "$(release:kind "${src}" "${path}")" in
@@ -791,8 +860,8 @@ release:installed() {
   esac
 }
 
-# release:holds <source> <path> is true when the repository holds the release's content at <path>: the same
-# file, every merged entry, or the same region.
+# release:holds <source> <path> succeeds when the repository has the release's content at <path>: the same file,
+# every merged entry, or the same region.
 release:holds() {
   local src=$1 path=$2
   case "$(release:kind "${src}" "${path}")" in
@@ -801,9 +870,15 @@ release:holds() {
   esac
 }
 
-# release:place-new <source> <path> [<label>] places content the repository did not record: where there is
-# nothing, or the same thing, a .json to merge into, or a file to carry a region. A region already there is made
-# what its command makes it. A different file is refused, named, and left as it is.
+# release:place-new <source> <path> [<label>] places content the repository has not recorded. It writes the
+# content when:
+#
+#   - nothing is at <path>
+#   - the destination is a .json file to merge into
+#   - the file exists but has no region yet, for a region source
+#
+# When the same content is already there, it reports that and writes nothing. A region already there is
+# regenerated. A different file fails, and is named and left as it is.
 release:place-new() {
   local src=$1 path=$2 label=${3:-} kind
   kind=$(release:kind "${src}" "${path}")
@@ -830,8 +905,8 @@ release:place-new() {
   fi
 }
 
-# release:place-all <root> <base> <module>… places every path the modules deliver under the base, refusing where
-# a different file is. It returns the number of refusals.
+# release:place-all <root> <base> <module>… places every path the modules deliver under the base. A path where a
+# different file exists fails. It returns the number of failures.
 release:place-all() {
   local root=$1 base=$2 path src refused=0
   shift 2
@@ -843,8 +918,8 @@ release:place-all() {
   return "${refused}"
 }
 
-# release:unplace <source> <path> takes the release's content back out of <path>: the kit's entries for .json,
-# the kit's region for a region, the file itself otherwise.
+# release:unplace <source> <path> removes the release's content from <path>: the kit's entries from a .json
+# file, the kit's region from a region file, and otherwise the file itself.
 release:unplace() {
   local src=$1 path=$2
   case "$(release:kind "${src}" "${path}")" in
@@ -863,11 +938,17 @@ release:unplace() {
   esac
 }
 
-# release:retire <base-root> <base> <previous> <current> <module>… handles the paths the base's manifest records
-# that the current release no longer delivers: removed when still the previous release's own content, their
-# entries taken out of a merged .json when the base release is at hand, left with a warning otherwise. Under
-# home, whose manifest every repository shares, only paths the previous release delivered for these modules are
-# touched, and none without the base release.
+# release:retire <base-root> <base> <previous> <current> <module>… handles the paths that the base's manifest
+# records and the current release no longer delivers. <base-root> is the base release (the previous version), or
+# empty when it is not available. For each such path that still exists:
+#
+#   - a merged .json file: the previous release's entries are removed when the base release is available;
+#     otherwise it warns and leaves the file as it is
+#   - any other file: it is removed when its content still matches the digest the manifest records; otherwise it
+#     warns that the file was edited and leaves it as it is
+#
+# Under home, whose manifest every repository shares, it touches only paths the previous release delivered for
+# these modules, and nothing at all without the base release.
 release:retire() {
   local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates
   shift 4
@@ -906,10 +987,11 @@ release:retire() {
   done <<<"${candidates}"
 }
 
-# release:write-manifest <base> <module>… records, in the base's manifest, the version, the active modules, and
-# the release's digest of every path delivered under the base. The repository's manifest is always written.
-# Home's is shared by every repository on the desk: it is written when these modules deliver there, and when they
-# do not, the lines whose paths are gone are dropped and the file is removed once nothing is left.
+# release:write-manifest <base> <module>… writes the base's manifest: the version, the active modules, and the
+# digest of the release's file for every path delivered under the base. The repository's manifest is always
+# written. Home's manifest is shared by every repository on the machine. It is written when these modules deliver
+# to home. When they do not, it drops the lines whose paths no longer exist, and removes the file once no line
+# is left.
 release:write-manifest() {
   local base=$1 manifest path src delivered kept
   shift
@@ -941,7 +1023,7 @@ release:write-manifest() {
     fi
     while IFS=$'\t' read -r path src
     do
-      # An if, not an && list: as the loop's last command, a false list would end the script under errexit.
+      # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
       if [[ -n "${path}" ]]
       then
         printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
@@ -965,8 +1047,8 @@ release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 # release:manifest-modules prints the active modules the repository's manifest records, one per line.
 release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
 
-# release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-digit
-# digest, two spaces, and the path, which may itself hold spaces.
+# release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-character
+# hex digest, two spaces, and the path, which can contain spaces.
 release:manifest-paths() {
   local manifest
   manifest=$(release:manifest "$1")
@@ -982,7 +1064,7 @@ release:recorded() {
   awk -v p="$2" 'length($1) == 64 && substr($0, 67) == p { print $1 }' "${manifest}"
 }
 
-# release:require-manifest refuses to go on in a repository that never took the kit.
+# release:require-manifest fails in a repository where the kit was never installed.
 release:require-manifest() {
   if [[ ! -f .kit/manifest ]]
   then
@@ -991,14 +1073,14 @@ release:require-manifest() {
   fi
 }
 
-# release:finish <module>… reports a completed install or update.
+# release:finish <module>… reports a finished install or update.
 release:finish() {
   ok "kit $(release:version) is installed, modules: ${*:-none}; .kit/manifest is written."
   release:say-unmet "$@"
-  step "Commit the delivered files. The loop is in .kit/1st.md."
+  step "Commit the delivered files. The workflow is in .kit/1st.md."
 }
 
-# release:say-unmet <module>… names, as a step left to do, every expectation of the modules not yet met.
+# release:say-unmet <module>… warns about each unmet expectation of the modules, as a step left to do.
 release:say-unmet() {
   local line
   while IFS= read -r line

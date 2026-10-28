@@ -1,7 +1,7 @@
-# kit.rego - the kit's naming policy in Rego: the patterns engine's rules, word for word
+# kit.rego - the kit's naming policy in Rego: the same rules as the patterns engine
 # ----------------------------------------------------------------------------------------------------------------------
-# Delivered by kit, not edited by hand. A change is a new release, then kit update. A repository's own rules go in
-# a file of its own beside this one, in the same package, adding to deny; `kit policy --input` prints the input.
+# Delivered by kit, not edited by hand. A change is a new release, then kit update. Put the repository's own rules
+# in a separate file beside this one, in the same package, adding to deny. `kit policy --input` prints the input.
 
 package kit.policy
 

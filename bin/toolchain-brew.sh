@@ -1,11 +1,15 @@
 # shellcheck shell=bash
-# toolchain-brew.sh - Homebrew as a toolchain: a Brewfile names the formulae and casks (sourced module)
+# toolchain-brew.sh - the Homebrew toolchain provider: a Brewfile lists the formulae and casks (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The provider bin/toolchain.sh loads for `provider: brew`, or for a Brewfile at the root; `file:` names another.
-# A Brewfile pins a formula by name, so a version floats with Homebrew unless the name carries it, node@22; what
-# the kit can do is say which are behind and move them. brew is the requirement, found on PATH or at Homebrew's
-# own prefixes, so a Linux runner whose brew is installed but not on PATH still has it.
+# bin/toolchain.sh loads this provider for `provider: brew`, or when a Brewfile is at the repository root. The
+# `file:` field names a different file.
+#
+# A Brewfile pins a formula by name only, so its version moves with Homebrew unless the name includes it
+# (node@22). The kit can only report which formulae are behind and upgrade them.
+#
+# The provider needs brew, on PATH or at one of Homebrew's own prefixes. That covers a Linux runner where brew is
+# installed but not on PATH.
 
 toolchain-brew:file() {
   local file
@@ -33,7 +37,7 @@ toolchain-brew:install() {
   "${brew}" bundle install --file "$(toolchain-brew:file)" --no-upgrade --quiet
 }
 
-# The Brewfile's formulae and casks, intersected with what brew says is behind.
+# toolchain-brew:outdated prints the Brewfile's formulae and casks that brew reports as outdated.
 toolchain-brew:outdated() {
   local brew names doc
   brew=$(toolchain-brew:brew) || return 1

@@ -1,18 +1,21 @@
 # Context
 
-A rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere. Before an agent creates or changes a file,
-it asks which rules govern that file:
+`kit context` prints the rule files that govern a path. Run it before you create or change a file, then
+read each rule it names.
 
 ```sh
 kit context "${path}"
 ```
 
-The answer is the rule files to read, one per line. `--json` gives one object per path with its rules. Every ask
-is appended to `.git/kit/context.log`, one line of epoch and path per ask.
+- The output is the rule files to read, one per line. Given several paths, it prints each rule once.
+- `--json` prints one object per path, with that path's rules.
+- Every call appends one line to `.git/kit/context.log`: the epoch time and the path.
 
-## How a rule declares what it governs
+Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else.
 
-A rule file opens with a frontmatter of two optional lists and one optional command:
+## How a rule declares the files it governs
+
+A rule file opens with a frontmatter block. Every key in it is optional:
 
 ```yaml
 ---
@@ -21,40 +24,58 @@ paths:
 content:
   - "^#!.*/(env +)?(ba)?sh( |$)"
 lint: shellcheck --shell=bash --external-sources
+templates:
+  - variant: script
+    executable: true
+  - variant: module
 ---
 ```
 
-- `paths:` are globs matched against the repository-relative path. `**` stands for any depth, and a lone `*`
-  crosses directories too, so `**/*.sh` and `*.sh` both name every `.sh` file; a glob with no wildcard, such as
-  `justfile`, names the one path.
-- `content:` are extended regular expressions matched against the first line of a file that already exists, so a
-  bash script with no extension is bash by its shebang, and a file about to be created is governed by its path
-  alone.
+| Key | Contents |
+| --- | --- |
+| `paths:` | Globs matched against the repository-relative path. |
+| `content:` | Extended regular expressions matched against the first line of a file that already exists. |
+| `lint:` | The linter command for the files the rule governs. |
+| `templates:` | The shapes a file of this kind takes; see [templates.md](templates.md). |
 
-A rule governs a file when any glob or any pattern matches. `lint:` names the linter for the paths the rule
-governs: `kit lint` runs it once over the staged paths, the named ones, or with `--all-files` every tracked one,
-and a linter not on `PATH` is a refusal, not a skip. No hook manager is assumed; the `lefthook` module wires its
-pre-commit hook to the verb.
+A rule governs a file when any of its globs or any of its patterns matches.
+
+- In a glob, `**` matches any depth, and a lone `*` also crosses directories. So `**/*.sh` and `*.sh` both match
+  every `.sh` file.
+- A glob with no wildcard, such as `justfile`, matches that one path.
+- A `content:` pattern lets a bash script with no extension match by its shebang.
+- A file that does not exist yet is matched by its path alone.
+
+`kit lint` runs each rule's `lint:` command once over the paths that rule governs. The paths are the staged paths,
+the paths you name, or every tracked path with `--all-files`. A linter that is not on `PATH` is a failure, not a
+skip. The kit assumes no hook manager; the `lefthook` module adds a pre-commit hook that runs `kit lint`.
+
+[templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
+`kit lint` runs against them.
 
 ## Harness adapters
 
-A harness that can run a command before a write runs `kit context` itself, so the rules reach the agent without
-the agent remembering to ask. The `claude` module wires Claude Code's `PreToolUse` hook on `Write`, `Edit`, and
-`MultiEdit` to:
+A harness that can run a command before a write can call `kit context` itself, so the agent gets the rules without
+having to remember to ask. The `claude` module adds a Claude Code `PreToolUse` hook on `Write`, `Edit`, and
+`MultiEdit` that runs:
 
 ```sh
 kit context --claude
 ```
 
-It reads the hook's input on stdin, takes the file path from the tool's input, and answers in the hook's output,
-naming the rules and never quoting them, so reading a rule stays an act the agent takes:
+This command:
+
+1. Reads the hook's input on stdin.
+2. Takes the file path from the tool's input.
+3. Prints the hook's output, naming the rules without quoting them, so the agent still reads each rule itself.
 
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse",
   "additionalContext": "kit: lib/run.sh is governed by .kit/rules/bash.md; read it before this change."}}
 ```
 
-Nothing is kept between calls but the log line.
+It prints nothing when the tool input has no file path or no rule governs the file. Nothing is kept
+between calls except the log line.
 
-A harness with no hook, and a person, use the plain call. `.kit/1st.md` names it as the step before any file is
-created or changed.
+A harness with no hook, and a person, run `kit context "${path}"` directly. `.kit/1st.md` lists it as the step
+before creating or changing any file.

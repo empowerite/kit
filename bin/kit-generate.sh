@@ -2,10 +2,18 @@
 # kit-generate - expand every kit:generate region to what its command makes, or check that it is (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The paths are the arguments, taken from the directory the command was typed in, else every tracked file and
-# every untracked one git does not ignore. Named files are expanded once, or --iterations=<n> times; the whole
-# repository is expanded until a pass changes nothing. --check writes nothing and fails naming every stale file;
-# kit check runs it, and the lefthook fragment runs it over the staged paths.
+# kit generate [--check] [--iterations=<n>] [<path>…]
+#
+# Paths are relative to the current directory. With no paths, kit generate expands every tracked file and every
+# untracked file git does not ignore.
+#
+#   - Named files are expanded once, or <n> times with --iterations=<n>.
+#   - With no paths, kit generate repeats until a pass changes nothing.
+#   - --check writes nothing, and fails naming every stale file.
+#
+# kit check runs kit generate --check, and the lefthook pre-commit hook runs it over the staged paths.
+#
+# Exits 0 on success, 2 on an unknown flag, and non-zero when a file is stale (with --check) or cannot be expanded.
 #
 # see: bin/generate.sh, docs/generate.md
 

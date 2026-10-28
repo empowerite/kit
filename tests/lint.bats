@@ -11,9 +11,18 @@ setup() {
   cd "${repo}"
   git init --quiet --initial-branch=main
   "${kit_checkout}/bin/kit" install >/dev/null
-  printf '#!/usr/bin/env bash\necho $x\n' > bad.sh
-  printf '#!/usr/bin/env bash\necho "${x:-}"\n' > good.sh
-  printf '#!/usr/bin/env bash\necho $y\n' > tool
+  script bad.sh 'echo $x'
+  script good.sh 'echo "${x:-}"'
+  script tool 'echo $y'
+}
+
+# script <path> <line> writes an executed bash script in the bash template's shape, its body the one line, so the
+# only thing a test's linter can refuse is that line.
+script() {
+  local rule
+  printf -v rule '# %s' "$(printf '%.0s-' $(seq 1 118))"
+  printf '#!/usr/bin/env bash\n# %s - a fixture\n%s\n\nset -o errexit -o nounset -o pipefail\n\n%s\n\n%s\n' \
+    "$1" "${rule}" "$2" "${rule}" > "$1"
 }
 
 teardown() {

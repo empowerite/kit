@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
-# kit-context - name the rules that govern a file, and record the ask (kit verb)
+# kit-context - print the rules that govern a file, and log the request (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
+#
+# kit context <path>… [--json]
+#
+# Prints the path of each rule that governs the given paths, once each. With --json, it prints one JSON object per
+# path with that path's rules. Each request is logged to kit/context.log in git's common directory.
+#
+# kit context --claude
+#
+# Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and returns the rules that govern the
+# file the tool is about to write, as additional context.
+#
+# Exits 2 on a usage error.
 #
 # see: bin/context.sh, docs/context.md
 

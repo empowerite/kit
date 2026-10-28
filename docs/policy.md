@@ -1,12 +1,21 @@
 # Policy
 
-What a branch, a commit subject, or a change's title may be is a policy, and a policy is checked, not described.
-`kit policy` gathers the facts once and an engine names every refusal; `kit ci` runs it beside the gate, so a name
-off the policy fails the delivered check like a failing test.
+A policy is the set of patterns that a branch name, a commit subject, and a change's title must match. A change is
+a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current branch; it prints each
+name that breaks the policy and fails.
+
+```sh
+kit policy
+```
+
+- `kit policy` gathers the facts once, then the policy engine reports every refusal.
+- `kit ci` runs it beside the gate (the repository's own CI command), so a name that breaks the policy fails the
+  delivered check like a failing test.
+- On a runner, the refusals also appear in the step summary.
 
 ## The facts
 
-`kit policy --input` prints the document every engine reads:
+`kit policy --input` prints the JSON document every engine reads:
 
 ```json
 {
@@ -18,21 +27,27 @@ off the policy fails the delivered check like a failing test.
 }
 ```
 
-The branch is the change's head on a runner and the current branch on a desk; on the default branch, or detached,
-nothing is under check. The commits are those past the fork from the default branch at origin, merges aside, which
-is why the delivered workflow fetches full history. The change is read through the forge, and is `null` where no
-forge or no change answers.
+| Field | Contents |
+| --- | --- |
+| `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
+| `default_branch` | The repository's default branch. |
+| `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
+| `change` | The change's number, title, and body, read through the forge (the service that hosts the repository). `null` when there is no forge or no change. |
+| `policy` | The patterns, with the kit's defaults filled in. |
 
 ## The rules
 
-`policy:` in `.kit/settings.yml` holds one extended regular expression per subject. A subject absent takes the
-kit's default, the loop's own names from `.kit/1st.md`; an empty pattern turns that rule off.
+`policy:` in `.kit/settings.yml` holds one extended regular expression per subject.
+
+- A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`.
+- An empty pattern turns that rule off.
+- A subject the kit does not know is refused.
 
 | Subject | Checks | Default |
 | --- | --- | --- |
-| `branch` | the branch's name | `^[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, as `kit issue` makes it |
-| `commit_subject` | every commit's subject past the fork | `^([A-Z]+)?#[0-9]+ [^ ]`, opening with its issue's reference |
-| `change_title` | the open change's title | `^[^[:cntrl:]]{1,120}$`, one line of at most 120 |
+| `branch` | the branch's name | `^[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, the form `kit issue` creates |
+| `commit_subject` | every commit's subject past the fork | `^([A-Z]+)?#[0-9]+ [^ ]`, starting with its issue's reference |
+| `change_title` | the open change's title | `^[^[:cntrl:]]{1,120}$`, one line of at most 120 characters |
 
 ```yaml
 policy:
@@ -40,17 +55,26 @@ policy:
   commit_subject: ''
 ```
 
-A single-quoted pattern is taken literally. Write in the subset bash's extended regular expressions and OPA's RE2
-share, character classes, anchors, alternation, and counted repetition, so either engine reads it the same way.
+A single-quoted pattern is taken literally. Write patterns in the subset that bash's extended regular expressions
+and OPA's RE2 share, so both engines read them the same way:
+
+- character classes
+- anchors
+- alternation
+- counted repetition
 
 ## The engines
 
-- `patterns`, the default, matches each rule in bash and needs no tool.
-- `opa`, Open Policy Agent, evaluates every `.rego` file under `.kit/policy/`, package `kit.policy`, the set
-  `deny` of strings being the refusals. It is chosen by `policy_engine: opa`, or by a `.rego` file being there. The
-  `policy-opa` module delivers `.kit/policy/kit.rego`, the patterns engine's rules in Rego, refusal for refusal, so
-  taking it changes nothing until the repository adds a rule a pattern cannot say in a file of its own beside it.
-  The repository pins `opa` in its toolchain.
+| Engine | How it checks | Chosen by |
+| --- | --- | --- |
+| `patterns` | Matches each rule in bash. Needs no other tool. | Default. |
+| `opa` | Open Policy Agent evaluates every `.rego` file under `.kit/policy/`, package `kit.policy`. The set `deny` of strings is the refusals. | `policy_engine: opa`, or any `.rego` file in `.kit/policy/`. |
+
+The `opa` engine needs `opa`. Pin it in the repository's toolchain.
+
+The `policy-opa` module delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
+refusals. Because it is a `.rego` file, adding the module selects the `opa` engine, and the results stay the same.
+Write a rule that a pattern cannot express in a separate `.rego` file beside it:
 
 ```rego
 package kit.policy
@@ -63,4 +87,4 @@ deny contains msg if {
 }
 ```
 
-`tests/policy.bats` holds the two engines to the same refusals on the same facts.
+`tests/policy.bats` checks that both engines give the same refusals for the same facts.

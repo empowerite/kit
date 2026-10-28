@@ -1,6 +1,6 @@
 # modules/policy-opa/module.yml - the policy-opa module: the kit's naming policy as Rego, for Open Policy Agent
 # ----------------------------------------------------------------------------------------------------------------------
-# docs/modules.md says what each key means.
+# see: docs/modules.md
 
 description: "The kit's naming policy as Rego, so kit policy runs on Open Policy Agent and rules can grow beyond patterns"
 depends:

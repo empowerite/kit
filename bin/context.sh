@@ -2,28 +2,34 @@
 # context.sh - which rules govern a file (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# context:render <path>… [--json] names the rule files under .kit/rules/ that govern each path, and records each
-# ask in the repository's context log. A rule's frontmatter declares what it governs: `paths:`, globs matched
-# against the repository-relative path, where ** stands for any depth; and `content:`, patterns matched against
-# the first line of a file that exists, so a bash script with no extension is bash by its shebang. The rules are
-# discovered here and copied nowhere, which is what lets every harness, and every person, find them the same way.
+# context:render <path>… [--json] prints the rule files under .kit/rules/ that govern each path. It also logs each
+# request in the repository's context log. A rule's frontmatter declares what it governs:
 #
-# context:claude is the same answer in Claude Code's hook protocol: the hook input on stdin, the rules' paths as
-# additional context on stdout. It names, never quotes: reading the rule stays the agent's own act, one a hook on
-# Read can record. docs/context.md is the description.
+#   - `paths:` globs matched against the repository-relative path, where ** matches any depth
+#   - `content:` patterns matched against the first line of a file that exists, so a bash script with no extension
+#     is matched by its shebang
+#
+# The rules are found where they are and copied nowhere, so every harness and every person finds them the same way.
+#
+# context:claude gives the same answer in Claude Code's hook protocol. It reads the hook input on stdin and prints
+# the rules' paths as additional context on stdout. It names the rules but does not quote them, so the agent still
+# reads each rule itself, and a hook on Read can record that.
+#
+# see: docs/context.md
 
 use yaml
 shopt -s extglob
 
-# context:log-path prints where every ask is recorded: under the repository's git directory, shared by its worktrees.
+# context:log-path prints the path of the context log. It is under the repository's common git directory, so every
+# worktree shares it.
 context:log-path() {
   printf '%s/kit/context.log\n' "$(git rev-parse --path-format=absolute --git-common-dir)"
 }
 
-# context:relative <path> prints <path> relative to the repository root. A relative path is taken from the
-# directory the command was typed in, which bin/kit exports as kit_invoked_in before it moves to the root. The
-# nearest directory of the path that exists is resolved physically, as git reports the root, so a path through a
-# symlinked directory, or to a file not yet created, still cuts at the root.
+# context:relative <path> prints <path> relative to the repository root. A relative <path> starts from the
+# directory the command was typed in, which bin/kit exports as kit_invoked_in before it changes to the root. The
+# nearest existing directory in the path is resolved physically (pwd -P), the way git reports the root. So a path
+# through a symlinked directory, or to a file not yet created, still comes out relative to the root.
 context:relative() {
   local path=$1 root dir rest
   root=$(git rev-parse --show-toplevel)
@@ -40,9 +46,9 @@ context:relative() {
   printf '%s\n' "${path#"${root}"/}"
 }
 
-# context:glob-matches <path> <glob> is true when the repository-relative path matches the glob. ** stands for any
-# depth, and a lone * also crosses directories, as bash's [[ == ]] has it: *.md governs every depth, while a glob
-# with no wildcard, such as justfile, names one path.
+# context:glob-matches <path> <glob> is true when the repository-relative path matches the glob. ** matches any
+# depth. A lone * also matches across directories, as in bash's [[ == ]], so *.md matches at every depth. A glob
+# with no wildcard, such as justfile, matches one path.
 context:glob-matches() {
   local path=$1 glob=$2
   glob=${glob//\*\*\//*(*\/)}
@@ -51,14 +57,14 @@ context:glob-matches() {
   [[ "${path}" == ${glob} ]]
 }
 
-# context:rules <path> prints the rule files governing <path>, by its path or by its first line.
+# context:rules <path> prints each rule file that governs <path>, by a `paths:` glob or a `content:` pattern.
 context:rules() {
   local path=$1 rule glob pattern first=''
   [[ -f "${path}" ]] && first=$(head -n 1 "${path}" 2>/dev/null || true)
   for rule in .kit/rules/*.md
   do
     [[ -f "${rule}" ]] || continue
-    # Read, never word-split: an unquoted glob would be expanded against the working tree before it is matched.
+    # Read each glob with read, not word splitting: an unquoted glob would expand against the working tree first.
     while IFS= read -r glob
     do
       [[ -n "${glob}" ]] || continue
@@ -81,7 +87,7 @@ context:rules() {
   done
 }
 
-# context:log <path> records that the context of <path> was asked for.
+# context:log <path> appends the time and <path> to the context log, recording that its rules were requested.
 context:log() {
   local log
   log=$(context:log-path)
@@ -89,8 +95,8 @@ context:log() {
   printf '%s\t%s\n' "$(date +%s)" "$1" >> "${log}"
 }
 
-# context:render <path>… [--json] prints the rules governing the paths: once each, as paths to read; with --json,
-# one object per path with its rules.
+# context:render <path>… [--json] logs each path and prints the rules that govern the paths. Without --json, it
+# prints each rule's path once. With --json, it prints one object per path with its rules.
 context:render() {
   local json=false arg path rule
   local -a paths=()
@@ -131,9 +137,9 @@ context:render() {
   done
 }
 
-# context:claude reads Claude Code's PreToolUse hook input on stdin and answers with the rules governing the file
-# the tool is about to write, as additional context naming each rule's path. A tool input with no file path, or
-# a file no rule governs, gets no answer.
+# context:claude reads Claude Code's PreToolUse hook input on stdin and logs the file the tool is about to write.
+# It prints, as additional context, the paths of the rules that govern that file. It prints nothing when the tool
+# input has no file path or no rule governs the file.
 context:claude() {
   local input path rules text=''
   input=$(cat)

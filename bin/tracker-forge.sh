@@ -1,9 +1,10 @@
 # shellcheck shell=bash
-# tracker-forge.sh - the forge's own issues, GitHub's or GitLab's, as a tracker (sourced module)
+# tracker-forge.sh - the tracker provider for the forge's own issues, on GitHub or GitLab (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The provider bin/tracker.sh loads for `#`, unless a declared tracker claims it: every call is the forge seam's
-# issue call of the same meaning, so the forge's provider answers and this file adds nothing of its own.
+# bin/tracker.sh loads this provider for the prefix `#`, unless a record in `trackers` declares `#`. Each call
+# except url passes straight to the matching issue call of the forge interface, bin/forge.sh, so the forge's
+# provider does the work. url builds the issue's address from the repository's URL.
 
 use forge
 

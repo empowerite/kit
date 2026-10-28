@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/modules/module.schema.json",
   "title": "module.yml",
-  "description": "The metadata of one kit module, modules/<name>/module.yml; docs/modules.md says what each key means.",
+  "description": "The metadata of one kit module, modules/<name>/module.yml. Each key is described in docs/modules.md.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
     },
     "default": {
       "type": "boolean",
-      "description": "true for a module active unless removed; kit install activates every default module."
+      "description": "When true, the module is active unless removed. kit install activates every default module."
     },
     "depends": {
       "type": "array",
@@ -40,7 +40,7 @@
     },
     "expects": {
       "type": "array",
-      "description": "Lines the module expects in files the repository owns, such as the include a format composes by; kit check reports one that is missing, with its remedy, and the kit writes none of them.",
+      "description": "Lines the module expects in files the repository owns, such as the line that includes a delivered file (extends: [.kit/lefthook.yml]). kit check reports each missing line with its remedy. The kit never writes these lines.",
       "items": {
         "type": "object",
         "additionalProperties": false,

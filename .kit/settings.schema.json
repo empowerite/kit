@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
   "title": ".kit/settings.yml",
-  "description": "The repository's choices, read by the kit and never written by it. Delivered by kit, not edited by hand; https://github.com/empowerite/kit/blob/main/docs/modules.md says what each key means. An editor validates the file against it through a modeline: # yaml-language-server: $schema=settings.schema.json",
+  "description": "The repository's settings. The kit reads this file and never writes it. This schema is delivered by kit, not edited by hand. Each key is described in https://github.com/empowerite/kit/blob/main/docs/modules.md. To have an editor validate the file against this schema, add the modeline: # yaml-language-server: $schema=settings.schema.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -12,16 +12,16 @@
         "github",
         "gitlab"
       ],
-      "description": "The provider the loop's verbs use: github or gitlab. Detected from origin's host, github.com or gitlab.com, when absent; a self-hosted forge is named here."
+      "description": "The forge (the service that hosts the repository) the workflow commands use: github or gitlab. When absent, it is detected from origin's host, github.com or gitlab.com. A self-hosted forge must be set here."
     },
     "gate": {
       "type": "string",
       "minLength": 1,
-      "description": "What kit gate runs. A justfile ci recipe, a Makefile ci target, or a package.json ci script is detected when absent."
+      "description": "The command kit gate runs. When absent, kit gate detects a root justfile ci recipe, a Makefile ci target, or a package.json ci script."
     },
     "require_signing": {
       "type": "boolean",
-      "description": "true makes kit issue refuse a desk without a signing key."
+      "description": "When true, kit issue fails before writing anything if git has no signing key configured."
     },
     "answers": {
       "type": "object",
@@ -29,13 +29,13 @@
       "patternProperties": {
         "^[a-z_]+$": {
           "type": "string",
-          "description": "The value a module's template takes for this key, written @key@ in the template."
+          "description": "The value a module's templates use for this key, written @key@ in a template."
         }
       }
     },
     "trackers": {
       "type": "array",
-      "description": "The trackers whose issues the loop takes besides the forge's own, which answers # unless a record claims it. A reference names its tracker by its prefix: #7, AB#4521.",
+      "description": "The issue trackers the workflow uses in addition to the forge's own issues. The forge's tracker handles the # prefix unless an entry here claims it. A reference names its tracker by its prefix: #7, AB#4521.",
       "items": {
         "type": "object",
         "required": [
@@ -47,7 +47,7 @@
           "prefix": {
             "type": "string",
             "pattern": "^[A-Za-z]*#?$",
-            "description": "What a reference to this tracker opens with, before the number: AB# for Azure DevOps work items."
+            "description": "The text a reference to this tracker starts with, before the number: AB# for Azure DevOps work items."
           },
           "provider": {
             "type": "string",
@@ -55,7 +55,7 @@
               "forge",
               "ado"
             ],
-            "description": "Which tracker answers: forge for the forge's own issues, ado for Azure DevOps work items."
+            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items."
           },
           "organization": {
             "type": "string",
@@ -67,14 +67,14 @@
           },
           "type": {
             "type": "string",
-            "description": "ado: the type of a new work item, Task when absent."
+            "description": "ado: the type of a new work item. Default: Task."
           }
         }
       }
     },
     "toolchains": {
       "type": "array",
-      "description": "The toolchains that put the gate's tools on PATH, in order. Detected from mise.toml, Brewfile, and toolchain.Dockerfile when absent.",
+      "description": "The toolchains that put the gate's tools on PATH, in order. When absent, they are detected from mise.toml, Brewfile, and toolchain.Dockerfile.",
       "items": {
         "type": "object",
         "required": [
@@ -89,15 +89,15 @@
               "brew",
               "docker"
             ],
-            "description": "Which tool manager answers."
+            "description": "The tool manager: mise, brew, or docker."
           },
           "file": {
             "type": "string",
-            "description": "brew and docker: the file it reads, Brewfile or toolchain.Dockerfile by default."
+            "description": "brew and docker: the file the tool manager reads. Default: Brewfile or toolchain.Dockerfile."
           },
           "image": {
             "type": "string",
-            "description": "docker: the built image's name, kit-toolchain by default."
+            "description": "docker: the name of the built image. Default: kit-toolchain."
           }
         }
       }
@@ -105,19 +105,19 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The patterns the loop's names must match, extended regular expressions in the subset RE2 shares. A subject absent takes the kit's default; an empty pattern turns that rule off.",
+      "description": "The patterns that the branch name, commit subjects, and pull request title must match. Each is an extended regular expression, limited to the subset RE2 also supports. An absent key uses the kit's default. An empty pattern turns that rule off.",
       "properties": {
         "branch": {
           "type": "string",
-          "description": "The branch's name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, as kit issue makes it."
+          "description": "The pattern for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit issue gives a branch."
         },
         "commit_subject": {
           "type": "string",
-          "description": "Every commit's subject past the fork. Default: ^([A-Z]+)?#[0-9]+ [^ ], opening with its issue's reference."
+          "description": "The pattern for the subject of every commit since the branch forked. Default: ^([A-Z]+)?#[0-9]+ [^ ], a subject that starts with its issue's reference."
         },
         "change_title": {
           "type": "string",
-          "description": "The open change's title. Default: ^[^[:cntrl:]]{1,120}$."
+          "description": "The pattern for the open pull request's title. Default: ^[^[:cntrl:]]{1,120}$."
         }
       }
     },
@@ -127,7 +127,7 @@
         "patterns",
         "opa"
       ],
-      "description": "Which engine decides: patterns, matched in bash, or opa, over the Rego under .kit/policy. opa is chosen when absent and a .rego file is there."
+      "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise."
     }
   }
 }

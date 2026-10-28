@@ -1,6 +1,6 @@
-# modules/lefthook/module.yml - the lefthook module: which linter runs over which paths before a commit
+# modules/lefthook/module.yml - the lefthook module: a pre-commit hook for kit lint and kit generate --check
 # ----------------------------------------------------------------------------------------------------------------------
-# docs/modules.md says what each key means.
+# see: docs/modules.md
 
 description: "A pre-commit hook that runs kit lint over the staged paths, for the repository's lefthook.yml to extend"
 depends:

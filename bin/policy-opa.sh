@@ -1,12 +1,16 @@
 # shellcheck shell=bash
-# policy-opa.sh - Open Policy Agent as the policy engine: the Rego under .kit/policy decides (sourced module)
+# policy-opa.sh - the policy provider that runs Open Policy Agent over the Rego in .kit/policy (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The engine bin/policy.sh uses for `policy_engine: opa`, or where .kit/policy holds a .rego file. Every .rego
-# file there is loaded, and the set `data.kit.policy.deny` is the refusals, each a string. The facts document is
-# the input, so a rule reads input.branch, input.commits, input.change, and input.policy, the patterns with the
-# kit's defaults filled in. opa is the requirement, pinned by the repository's toolchain like any tool its gate
-# runs. The policy-opa module delivers .kit/policy/kit.rego, the patterns engine's rules in Rego, to build on.
+# bin/policy.sh uses this provider when the policy_engine setting is opa, or when the setting is not set and
+# .kit/policy/ contains a .rego file.
+#
+# opa loads every .rego file in .kit/policy/. Each string in the set data.kit.policy.deny is a refusal. The input
+# is the facts document, so a rule reads input.branch, input.commits, input.change, and input.policy (the
+# patterns, with the kit's defaults filled in).
+#
+# The repository's toolchain must pin opa, like any tool its gate runs. The policy-opa module delivers
+# .kit/policy/kit.rego, the patterns provider's rules written in Rego, to build on.
 
 policy-opa:deny() {
   local input=$1 out

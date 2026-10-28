@@ -2,10 +2,16 @@
 # kit-linked - refuse a change not linked to an open issue of this repository (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The delivered CI job's last check, and a check a desk can run on any change: a pull request on GitHub, a merge
-# request on GitLab, named in the forge's own words. The change is the argument, else the one the forge says this
-# checkout is working on. A linked issue of another repository, or a
-# closed one, is noted and does not count. On a runner the remedy also lands in the step summary.
+# kit linked [<number>]
+#
+# Fails when a pull request is not linked to an open issue of this repository. kit ci runs it in the delivered CI
+# job, and anyone can run it on any pull request. On GitLab it checks a merge request, and its messages say so.
+#
+# The pull request is <number>, or else the one this checkout is working on. A linked issue counts when it is
+# open and belongs to this repository. A closed issue, or one in another repository, is reported and does not
+# count. On a CI runner, the remedy is also written to the step summary.
+#
+# Exits 0 when at least one linked issue counts, 1 when none does, and 2 when there is no pull request to check.
 #
 # see: bin/forge.sh
 
@@ -37,7 +43,8 @@ remedy=$(printf '%s\n' \
   "2. re-run the check: linking fires no event, so it does not re-run on its own" "" \
   "\`kit issue <N>\` makes this link when it starts the work.")
 refs=$(forge:pr-closing-issues "${number}") || exit 1
-# A tracker the forge does not link by itself is linked by a closing keyword in the change's body.
+# The forge does not link issues of other trackers, such as Azure DevOps. A closing keyword in the pull request's
+# body links them: `Closes AB#4521`.
 others=$(tracker:body-refs "$(forge:pr-body "${number}")")
 if [[ -z "${refs}${others}" ]]
 then

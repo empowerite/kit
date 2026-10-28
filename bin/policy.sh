@@ -1,34 +1,56 @@
 # shellcheck shell=bash
-# policy.sh - the seam over what the loop's names must be: the facts, the rules, and the engine (sourced module)
+# policy.sh - one interface to the engine that checks branch names, commit subjects, and change titles (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# What a branch, a commit subject, or a change's title may be is a policy, and a policy is checked, not described.
-# The seam has three parts:
+# A policy sets what a branch name, a commit subject, or a change title may be. kit policy enforces it: it gathers
+# the facts, reads the rules, and calls a provider (the policy engine) to list every refusal. A provider is
+# policy-<name>.sh in this directory, whose functions are named policy-<name>:<call>.
 #
-#   the facts     policy:input gathers one JSON document: the branch, the default branch, the commits past the
-#                 fork, the change on the branch with its title and body, and the policy settings with the kit's
-#                 defaults filled in. `kit policy --input` prints it, so a rule can be written against it.
-#   the rules     `policy:` in .kit/settings.yml, one extended regular expression per subject:
-#                   branch            the branch's name
-#                   commit_subject    every commit's subject past the fork, merges aside
-#                   change_title      the open change's title
-#                 A subject absent takes the kit's default below; an empty pattern turns that rule off.
-#   the engine    policy-<name>.sh beside this file answers `deny <input-file>`, one refusal per line:
-#                   patterns          the default: each pattern matched in bash, no tool needed
-#                   opa               Open Policy Agent over the Rego under .kit/policy/, package kit.policy, rule
-#                                     deny; chosen by `policy_engine: opa`, or by a .rego file there
-#                 Both read the same document, so a rule a pattern cannot say is written in Rego beside the
-#                 patterns, and the policy-opa module delivers the patterns themselves as Rego to start from.
+# The facts are one JSON document, built by policy:input. `kit policy --input` prints it, to write a rule against.
+# It contains:
 #
-# A pattern is matched as an extended regular expression by bash and as RE2 by OPA; the two agree on the common
-# subset, character classes, anchors, alternation, and counted repetition, which is the subset to write in.
+#   - the branch and the default branch
+#   - the commits past the fork from the default branch, merges excluded
+#   - the open change on the branch, with its title and body
+#   - the policy settings, with the kit's defaults filled in
+#
+# The rules are the `policy:` map in .kit/settings.yml, one extended regular expression per subject. A subject
+# that is not set uses the kit's default below. An empty pattern turns that rule off.
+#
+#   branch            the branch's name
+#   commit_subject    the subject of every commit past the fork, merges excluded
+#   change_title      the open change's title
+#
+# The provider is chosen by:
+#
+#   1. the `policy_engine` setting in .kit/settings.yml, if set
+#   2. otherwise opa, if .kit/policy/ contains a .rego file
+#   3. otherwise patterns
+#
+# The providers:
+#
+#   patterns          the default: matches each pattern in bash, with no tool needed
+#   opa               runs Open Policy Agent over the Rego in .kit/policy/ (package kit.policy, rule deny)
+#
+# Every provider implements one call:
+#
+#   deny <input-file>       one refusal per line for the facts document in <input-file>
+#
+# Both providers read the same facts document. A rule that a pattern cannot express can be written in Rego
+# alongside the patterns. The policy-opa module delivers the default patterns as Rego, to start from.
+#
+# Bash matches a pattern as an extended regular expression; OPA matches it as RE2. Write patterns in the subset
+# both support: character classes, anchors, alternation, and counted repetition.
 #
 # see: docs/policy.md
 
 use release yaml git
 
-# The kit's defaults, the loop's own names from .kit/1st.md: a branch is <key>-<slug>, as kit issue makes it; a
-# commit subject opens with its issue's reference, #7 or AB#4521; a change's title is a line of at most 120.
+# The kit's defaults follow the workflow in .kit/1st.md:
+#
+#   - a branch is <key>-<slug>, as kit issue makes it
+#   - a commit subject starts with its issue's reference, #7 or AB#4521
+#   - a change title is one line of at most 120 characters
 declare -gr policy_default_branch='^[a-z0-9]+-[a-z0-9][a-z0-9-]*$'
 declare -gr policy_default_commit_subject='^([A-Z]+)?#[0-9]+ [^ ]'
 declare -gr policy_default_change_title='^[^[:cntrl:]]{1,120}$'
@@ -58,17 +80,19 @@ policy:rules() {
     '{branch: $branch, commit_subject: $commit_subject, change_title: $change_title}'
 }
 
-# policy:branch prints the branch under check: the change's head on a runner, else the current branch, else
-# nothing for a detached checkout.
+# policy:branch prints the branch to check: the change's source branch on a CI runner, otherwise the current
+# branch, or nothing on a detached HEAD.
 policy:branch() {
   local branch=${GITHUB_HEAD_REF:-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}}
   [[ -n "${branch}" ]] || branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   printf '%s\n' "${branch}"
 }
 
-# policy:input prints the facts document the file header describes. The commits are those past the fork from the
-# default branch at origin; where the fork cannot be found, a shallow clone, they are omitted with a warning
-# rather than guessed. The change is read through the forge, and omitted where no forge or no change answers.
+# policy:input prints the facts document described in the file header. The commits are those past the fork from
+# origin's default branch. When the fork point is missing, as in a shallow clone, it warns and omits the commits
+# instead of guessing. The change is read from the forge (GitHub or GitLab). It is omitted when there is no forge
+# or no open change. On the default branch or a detached HEAD, the branch is null and there are no commits or
+# change.
 policy:input() {
   local default_branch branch commits='[]' change='null' rules number title body
   rules=$(policy:rules) || return 1
@@ -100,8 +124,8 @@ policy:input() {
       change: $change, policy: $policy}'
 }
 
-# policy:engine prints the engine: the policy_engine setting, else opa where .kit/policy holds a .rego file, else
-# patterns. An engine the kit does not carry is refused by name.
+# policy:engine prints the provider's name, chosen as the file header describes. It fails, naming the engine,
+# when the kit has no provider by that name.
 policy:engine() {
   local engine
   engine=$(release:setting policy_engine)
@@ -120,7 +144,8 @@ policy:engine() {
   printf '%s\n' "${engine}"
 }
 
-# policy:deny <input-file> prints every refusal the engine finds in the facts, one per line, sorted.
+# policy:deny <input-file> prints every refusal the provider finds in the facts, one per line, sorted and without
+# duplicates.
 policy:deny() {
   local engine
   engine=$(policy:engine) || return 1

@@ -1,6 +1,6 @@
-# modules/claude/module.yml - the claude module: Claude Code's deny list and its hook into kit context
+# modules/claude/module.yml - the claude module: Claude Code's deny list, and a hook that runs kit context
 # ----------------------------------------------------------------------------------------------------------------------
-# docs/modules.md says what each key means.
+# see: docs/modules.md
 
 description: "Claude Code: the deny list of the spellings the rules forbid, and the hook that names a file's rules"
 depends:

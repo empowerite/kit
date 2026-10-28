@@ -1,8 +1,8 @@
 # lefthook.yml - this repository's git hooks; see: https://lefthook.dev
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The linters come from the kit's installed fragment, the way a consumer takes them: kit lint over the staged
-# paths, each rule's own linter. This repository adds the refresh of its installed copies. Once per clone:
+# The linters come from the kit's installed .kit/lefthook.yml, as in any consumer repository: kit lint over the
+# staged paths. This repository adds a step that refreshes its installed copies. Once per clone, run:
 # lefthook install
 
 extends:
@@ -10,8 +10,8 @@ extends:
 
 pre-commit:
   commands:
-    # A change to a delivered file's source rewrites the installed copies in the same commit; the recipe stages
-    # what it rewrote.
+    # When a commit changes a delivered file's source, rebuild the installed copies in the same commit. The recipe
+    # stages what it rebuilt.
     refresh:
       glob: "modules/**"
       run: just refresh

@@ -2,19 +2,22 @@
 # 1st.sh - the kit's bash loader: output verbs, guards, and lazy module loading (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Sourced by every verb, bin/kit-<verb>.sh, which bin/kit dispatches to with kit_root exported. It defines
-# functions only and sets no shell option, so the caller's options stand. A module is a sourced <module>.sh
-# beside this file, loaded once with `use <module>` by the verb or module that needs it. A verb is an executable
-# kit-<verb>.sh beside it.
+# Every verb, bin/kit-<verb>.sh, sources this file. bin/kit runs the verb with kit_root exported. This file only
+# defines functions and sets no shell options, so the caller's options stay in effect.
 #
-# Every message goes to stderr, so stdout stays clean for data. Color is off when stderr is not a terminal or
-# NO_COLOR is set. Under GitHub Actions, warn and error also emit the matching workflow command.
+#   - A verb is an executable kit-<verb>.sh in this directory.
+#   - A module is a sourced <module>.sh in this directory. The verb or module that needs it loads it with
+#     `use <module>`, which sources it at most once.
+#
+# Every message goes to stderr, so stdout carries only data. Color is off when stderr is not a terminal or NO_COLOR
+# is set. Under GitHub Actions, warn and error also print the matching workflow command (::warning::, ::error::).
 
 kit_bin_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 declare -gr kit_bin_dir
 declare -Ag kit_modules=([1st]=1)
 
-# use <module>… loads bin/<module>.sh once. An unknown module is a bug in the caller, so it is fatal.
+# use <module>… sources bin/<module>.sh, once per module. An unknown module is a bug in the caller: use prints an
+# error and returns 2.
 use() {
   local module
   for module in "$@"
@@ -41,8 +44,8 @@ else
   declare -gr out_color=0
 fi
 
-# ere:quote <text> prints the text with every extended-regular-expression metacharacter escaped, so it stands for
-# itself in a pattern. Done in bash, so no sed dialect decides what a bracket expression means.
+# ere:quote <text> prints the text with every extended-regular-expression metacharacter escaped, so it matches
+# literally in a pattern. It is pure bash, so BSD and GNU sed differences in bracket expressions do not matter.
 ere:quote() {
   local text=$1 out='' c i
   for (( i = 0; i < ${#text}; i++ ))
@@ -56,7 +59,7 @@ ere:quote() {
   printf '%s\n' "${out}"
 }
 
-# out:sgr <code> prints the escape for one SGR code when color is on, and nothing otherwise.
+# out:sgr <code> prints the escape sequence for one SGR code when color is on, and nothing otherwise.
 out:sgr() {
   (( out_color )) && printf '\x1b[%sm' "$1"
   return 0
@@ -86,13 +89,15 @@ error() {
   return 0
 }
 
-# summary <line>… appends lines to the runner's step summary, where there is one, and is silent elsewhere.
+# summary <line>… appends lines to the GitHub Actions step summary when GITHUB_STEP_SUMMARY is set, and does
+# nothing otherwise.
 summary() {
   [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
   printf '%s\n' "$@" >> "${GITHUB_STEP_SUMMARY}"
 }
 
-# guard:require <predicate>… returns non-zero on the first predicate that does not hold, with the remedy.
+# guard:require <predicate>… checks each predicate in order. At the first one that fails, it prints the remedy and
+# returns non-zero. The predicates:
 #   signing-key  git user.signingkey is set
 #   tool:<name>  <name> is on PATH
 guard:require() {

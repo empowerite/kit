@@ -1,9 +1,10 @@
 # shellcheck shell=bash
-# tracker-ado.sh - Azure DevOps work items, through az boards, as a tracker (sourced module)
+# tracker-ado.sh - the Azure DevOps tracker provider: work items, through az boards (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The provider bin/tracker.sh loads for a prefix whose record names `provider: ado`. The record carries the
-# organization's URL and the project a new work item is created in, and optionally its type, Task by default:
+# bin/tracker.sh loads this provider for a prefix whose record sets `provider: ado`. The record gives the
+# organization's URL, the project that new work items are created in, and optionally the work item type (default:
+# Task):
 #
 #   trackers:
 #     - prefix: "AB#"
@@ -12,9 +13,11 @@
 #       project: Claims
 #       type: Task
 #
-# The az CLI with its azure-devops extension is this file's requirement and nobody else's. A work item is CLOSED
-# in the states Closed, Done, and Removed, the closing states of Azure DevOps' process templates, and OPEN in
-# every other; the caller is the identity az is signed in as, which need not be the forge's login.
+# The provider needs the az CLI with its azure-devops extension. No other part of the kit needs az.
+#
+# A work item is CLOSED in the states Closed, Done, and Removed (the closing states of Azure DevOps' process
+# templates) and OPEN in every other state. The caller (me) is the identity az is signed in as, which can differ
+# from the login on the forge (GitHub or GitLab).
 
 # shellcheck disable=SC2154  # TRACKER_PREFIX is set by tracker:of and tracker:at for the call
 tracker-ado:organization() {
@@ -37,7 +40,7 @@ tracker-ado:show() {
     || { error "run: az login (work item ${TRACKER_PREFIX}$1 could not be read from ${org})"; return 1; }
 }
 
-# tracker-ado:read <id> <filter> applies a jq filter to the work item, failing where az could not show it.
+# tracker-ado:read <id> <filter> applies a jq filter to the work item. It fails when az cannot show the item.
 tracker-ado:read() {
   local item
   item=$(tracker-ado:show "$1") || return 1

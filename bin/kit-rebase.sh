@@ -2,7 +2,16 @@
 # kit-rebase - rebase a worktree's branch onto the default branch and push it (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Never the root checkout, the human's desk, and never the default branch.
+# kit rebase [<path>]
+#
+# Rebases the branch checked out at <path> (default: the current checkout) onto the default branch at origin, and
+# pushes it with --force-with-lease. kit rebase refuses:
+#
+#   - the root checkout (the desk), which belongs to the human, whatever branch it has
+#   - the default branch, in any checkout
+#   - a worktree with uncommitted changes
+#
+# On a conflict, kit rebase aborts and leaves the worktree as it was.
 #
 # see: bin/git.sh
 

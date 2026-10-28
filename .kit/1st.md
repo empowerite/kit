@@ -1,81 +1,114 @@
 <!-- Delivered by kit, not edited by hand. A change is a new release, then kit update. -->
 # Read this first
 
-This file is the kit's entry. It binds every agent and every session in a repository that carries `.kit/`, and
-the repository's own rules in `AGENTS.md` bind beside it. Where the two differ, the repository's rule wins.
+This file is the kit's entry point. Every agent follows it in every session, in any repository that has a `.kit/`
+directory. The repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGENTS.md` wins.
 
 ## Integrity
 
-1. Report only what happened. Write "done", "passing", or "verified" only for what ran and held.
-2. A skip is a skip. A check not run, not implemented, or not implementable is reported as exactly that. It
-   clears no gate and earns no credit.
-3. A claim carries its evidence, or says it has none. Name the command that ran and what it printed.
+1. Report only what happened. Write "done", "passing", or "verified" only for something that ran and succeeded.
+2. Report a skip as a skip. A check that was not run, is not implemented, or cannot be implemented is reported as
+   exactly that. It passes no gate and earns no credit.
+3. Give the evidence for every claim, or say there is none. Name the command that ran and what it printed.
 4. Being wrong is recoverable. Misreporting is not.
-5. A rule lives in the repository, never in a session's memory. A convention learned or a correction given is
-   written, through the loop, into `AGENTS.md`, a module of the repository's own under `.kit/modules/`, or a kit
-   release, where every agent and every person reads it.
+5. Rules live in the repository, never in a session's memory. When you learn a convention or receive a correction,
+   write it down, through the workflow, in one of these places, where every agent and every person reads it:
+   - `AGENTS.md`
+   - a module of the repository's own under `.kit/modules/`
+   - a kit release
 
 ## The root checkout is the human's desk
 
-The checkout at the repository root is the human's. It is where they type, review, and leave work in progress.
-It usually has `main` checked out, and may have any branch no worktree holds. An agent never checks out, resets,
-rebases, or otherwise changes it in place. Work happens in a worktree under `worktrees/`, one per issue, and
-reaches `main` only through a merged pull request.
+The desk is the root checkout on the human's machine, on whatever branch it currently has. It belongs to the human.
+They type, review, and leave work in progress there. It usually has `main` checked out, and may have any branch that
+no worktree has checked out.
 
-## The loop
+An agent never checks out, resets, rebases, or otherwise changes the desk in place. An agent works in a worktree
+under `worktrees/`, one per issue. Work reaches `main` only through a merged pull request.
 
-1. An issue exists. A change without an issue has not started.
-2. `kit issue <N>` makes `worktrees/<N>-<slug>`, a branch linked to the issue under Development, and a draft
-   pull request. It never switches the checkout it is run from.
-3. Work happens in that worktree. Every commit is signed, and its subject is `#<N> <area>: <subject>`. `kit rebase`
-   brings the branch up to date with the default branch and pushes it.
-4. `gh pr ready` says the work is done. The pull request body is the report: what changed, what was checked
-   and how, and what was left out and why.
-5. A human merges. Nothing reaches `main` any other way, and nothing is called merged until the merge is
-   observed.
+## The workflow
 
-## Spellings an agent uses
+1. Start from an issue. A change without an issue has not started.
+2. `kit issue <N>` creates the following, and never switches the checkout you run it from:
+   - the worktree `worktrees/<N>-<slug>`
+   - a branch, linked to the issue under Development
+   - a draft pull request
+3. Work in that worktree. Sign every commit. Write each commit subject as `#<N> <area>: <subject>`. Run
+   `kit rebase` to bring the branch up to date with the default branch and push it.
+4. Run `gh pr ready` when the work is done. The pull request body is the report. It states:
+   - what changed
+   - what was checked, and how
+   - what was left out, and why
+5. A human merges. Nothing reaches `main` any other way. Do not call anything merged until you see the merge.
 
-Where the kit adds a rule to a git verb, the kit's spelling is the only one an agent uses. Each kit spelling
-carries the check its rule requires, and a harness with a deny list refuses the raw git spelling.
+## Kit commands instead of git commands
 
-- `kit rebase`, never `git rebase`. It refuses the root checkout and the default branch, and otherwise rebases the
-  worktree's branch onto the default branch at origin and pushes it.
+Some git commands have a kit replacement that adds the check its rule requires. An agent uses only the kit
+command. A harness with a deny list refuses the raw git command.
+
+- `kit rebase`, never `git rebase`. `kit rebase` refuses to run in the root checkout or on the default branch.
+  Otherwise it rebases the worktree's branch onto the default branch at origin and pushes it.
 - `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
-- The desk is never switched or reset by an agent: `git checkout main`, `git switch main`, `git reset --hard`,
-  and `git push --force` are refused as well.
+- An agent never switches or resets the desk. `git checkout main`, `git switch main`, `git reset --hard`, and
+  `git push --force` are refused as well.
 
-The human at the desk is not bound by this; the root checkout is theirs.
+These limits do not apply to the human at the desk.
 
 ## Plans are prose
 
-A design, a spec, or a plan is the body of an issue, written in prose. It is never a committed file. When
-the design is written, the issue is the deliverable, and the loop above starts from it.
+Write a design, a spec, or a plan as prose in the body of an issue. Never commit it as a file. When the design is
+written, the issue is the deliverable, and the workflow above starts from it.
 
 ## The worker contract
 
-A worker is whoever implements one issue in the worktree that issue names.
+A worker is whoever implements one issue, in the worktree named for that issue.
 
-1. `cd` into the worktree named in the task and confirm `git rev-parse --abbrev-ref HEAD` prints a branch name
-   beginning `<N>-`.
-2. Do every command from there. Never touch the repository root checkout.
-3. Never run `kit issue`, make a branch, or make a worktree. Those were done before the handoff.
-4. Implement what the issue asks and nothing beside it.
+1. `cd` into the worktree named in the task. Confirm that `git rev-parse --abbrev-ref HEAD` prints a branch name
+   that begins with `<N>-`.
+2. Run every command from there. Never touch the root checkout.
+3. Never run `kit issue`, create a branch, or create a worktree. These were done before the handoff.
+4. Implement what the issue asks and nothing else.
 5. Push as you go.
-6. Run the repository's gate before calling anything done, and run it through the pinned toolchain.
-7. End with `gh pr ready` and the report in the pull request body.
-8. If the gate fails or the work is partial, leave the pull request a draft and say why.
+6. Before you call anything done, run the repository's gate (its own CI command, such as `just ci`) through
+   the pinned toolchain.
+7. Finish with `gh pr ready`, with the report in the pull request body.
+8. If the gate fails or the work is partial, leave the pull request as a draft and say why.
 9. Never merge.
-10. Report what ran and what it printed, nothing more.
+10. Report what ran and what it printed. Nothing more.
 
 ## Rules by file type
 
-Each file kind has a rule file under `.kit/rules/`, and each rule file's header names what it governs: `paths:`,
-globs on the repository path, and `content:`, patterns on the first line; `lint:` names the linter `kit lint`
-runs over the paths it governs. Before you create or change a file, run
-`kit context <path>`. It names the rules that govern the file and records that you asked. Read what it names. No
-harness holds a copy of a rule; this call is how every harness, and every person, finds it.
+Each kind of file has a rule file under `.kit/rules/`. The frontmatter at the top of a rule file has these keys:
+
+| Key | Contains |
+| --- | --- |
+| `paths:` | Globs matched against a file's path from the repository root. The rule governs a file that matches. |
+| `content:` | Patterns matched against a file's first line. The rule governs a file that matches. |
+| `lint:` | The linter that `kit lint` runs over the files the rule governs. |
+| `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
+
+Before you change a file:
+
+1. Run `kit context <path>`. It prints the rules that govern the file, and records that you asked.
+2. Read every rule it prints.
+
+No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them.
+
+Create a new file with `kit new file <path>`, giving the path from the repository root. Never write a new file
+from nothing. `kit new file`:
+
+- writes the file from its rule's template
+- fills the template's holes that the path supplies
+- refuses a hole you left empty, and names the flag that fills it, such as `--purpose=<…>` or `--title=<…>`
+- prints the rules to read before you write the rest of the file
+
+Two flags choose the template:
+
+- `--variant=<…>` picks another of the rule's shapes, such as a sourced bash module.
+- `--rule=<…>` names the rule for a path with no extension.
+
+`kit lint` fails any file, including one written by hand, whose shape matches none of its rule's templates.
 
 | Kind | Rule |
 | --- | --- |
@@ -87,35 +120,56 @@ harness holds a copy of a rule; this call is how every harness, and every person
 | JSON | [rules/json.md](rules/json.md) |
 | Ignore lists | [rules/gitignore.md](rules/gitignore.md) |
 
-## What the kit carries
+## What the kit delivers
 
-The repository carries the text: this file, the rules under `.kit/rules/`, and `.kit/manifest`, which records the
-release version, the active modules, and a checksum per delivered file. The release, where it is installed,
-carries the machinery, reached through the `kit` command on `PATH`: the loop's commands, `kit issue`, `kit rebase`,
-`kit tidy`, `kit status`, `kit context`, and `kit lint`, spelled that way and no other. Everything the release
-delivers is a module, and a repository activates the modules it takes: `kit install ci-github lefthook claude`, or
-`kit module add claude` later, and `kit module remove` to take one back out; a module of the repository's own
-lives under `.kit/modules/` and is taken the same way. A `.json` destination, other than a schema, is merged by
-key, the kit owning only the entries it writes; a region inside a file the repository owns is opened by a
-directive, `kit:generate`, and made by the command it names, through `kit generate`; everything else is copied
-as it is.
+The repository contains the text:
 
-- `kit`: this file and the rules; the sentence in `AGENTS.md` that points here and the `/worktrees/` entry in
-  `.gitignore`, each a region `kit region` fills inside a file the repository owns. Any file may carry a directive
-  of the repository's own, `kit:generate` naming any command, and `kit check` holds every region to its command.
-- `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
-  `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
-  it runs each rule's linter over the paths the rule governs.
-- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that installs the gate's tools with
-  `kit toolchain install` and runs `kit ci`: the repository's gate, `kit check`, the refusal of a change not
-  linked to an open issue, and `kit policy`, the refusal of a branch, commit subject, or title off the
-  repository's policy. `kit ci` runs the same four anywhere.
-- `policy-opa`: `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent and a
-  rule can say what a pattern cannot.
-- `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: a region in
-  `.claude/CLAUDE.md` importing `AGENTS.md`, so it is read in every case; the deny list above merged into
-  `.claude/settings.json`; and a hook that runs `kit context` before every write so the rules are named to the agent
-  without being asked for.
+- this file
+- the rules under `.kit/rules/`
+- `.kit/manifest`, which records the release version, the active modules, and a checksum for each delivered file
 
-`kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a
-new release and running `kit update`, never by editing them in place.
+The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
+are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, and `kit lint`. Run them
+exactly as written here, and in no other way.
+
+Everything the release delivers belongs to a module. A repository activates the modules it wants:
+
+- `kit install ci-github lefthook claude` activates modules when the kit is installed.
+- `kit module add claude` activates a module later.
+- `kit module remove` deactivates a module.
+
+A module of the repository's own lives under `.kit/modules/` and is activated the same way.
+
+How a delivered file is placed depends on its destination:
+
+- A `.json` file, other than a schema, is merged by key. The kit owns only the entries it writes.
+- A region inside a file the repository owns starts at a `kit:generate` directive. `kit generate` fills the region
+  by running the command the directive names.
+- Every other file is copied as it is.
+
+The modules:
+
+- `kit`: this file, the rules, and their templates, and two regions that `kit region` fills:
+  - the sentence in the repository's `AGENTS.md` that points to this file
+  - the `/worktrees/` entry in the repository's `.gitignore`
+- `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
+  staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
+  does not need a hook manager: it runs each rule's linter over the paths the rule governs.
+- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
+  `kit toolchain install`, then runs `kit ci`. `kit ci` runs four checks, and runs the same four on any machine:
+  - the repository's gate
+  - `kit check`
+  - `kit linked`, which refuses a change that is not linked to an open issue
+  - `kit policy`, which refuses a branch name, commit subject, or title that breaks the repository's policy
+- `policy-opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
+  Agent, and a rule can express what a pattern cannot.
+- `claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
+  - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
+  - the deny list above, merged into `.claude/settings.json`
+  - a hook that runs `kit context` before every write, so the agent sees the rules without asking
+
+Any file may also contain a `kit:generate` directive of the repository's own, naming any command. `kit check` fails
+when any region differs from what its command produces.
+
+`kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a new
+release and running `kit update`, never by editing them in place.

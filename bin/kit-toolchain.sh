@@ -2,15 +2,22 @@
 # kit-toolchain - install, report, and update the tools the repository's gate runs, whatever manages them (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# One verb over every declared toolchain, mise, brew, or docker, so a desk, a runner, and the delivered CI job say
-# the same thing whichever manages the tools:
+# kit toolchain list | install | outdated [--check] | update | path | run <command>…
 #
-#   list                    each declared toolchain and the file it reads
-#   install                 every toolchain's pinned tools installed
-#   outdated [--check]      one line per tool behind its source; --check fails when there is one
-#   update                  every toolchain moved to its latest, its pins and lock rewritten
-#   path                    the directories that put the tools first on PATH, one per line, for a runner's PATH
-#   run <command>…          the command with the tools: inside the container for docker, else with the path first
+# Manages the tools the gate runs, through each declared toolchain: mise, brew, or docker. The same subcommands work
+# on a developer's machine and in the delivered CI job, whichever tool manager is in use. The toolchains are the
+# `toolchains` setting in .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or
+# toolchain.Dockerfile.
+#
+#   list                    prints each declared toolchain and the file it reads
+#   install                 installs every toolchain's pinned tools
+#   outdated [--check]      prints one line per tool behind its latest version. --check fails when any is behind.
+#   update                  updates every toolchain to its latest versions, and rewrites its pins and lock
+#   path                    prints the directories that put the tools first on PATH, one per line, for a runner
+#   run <command>…          runs the command with the tools: inside the container for docker, else with the
+#                           toolchains' directories first on PATH
+#
+# Exits 0 on success, 2 on a usage error, and 1 when a subcommand fails.
 #
 # see: bin/toolchain.sh, docs/toolchains.md
 
@@ -19,7 +26,7 @@ set -o errexit -o nounset -o pipefail
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
 use toolchain
 
-# Every subcommand reads the declared toolchains once, so a refused declaration stops it.
+# Every subcommand reads the declared toolchains once, here, so an invalid declaration stops every subcommand.
 providers=$(toolchain:declared) || exit 1
 
 usage() { echo "usage: kit toolchain list | install | outdated [--check] | update | path | run <command>…" >&2; }

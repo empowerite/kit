@@ -2,9 +2,20 @@
 # kit-policy - refuse a branch, a commit subject, or a change title the repository's policy does not allow (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The facts are gathered once, the branch, the commits past the fork, and the open change, and the policy engine,
-# patterns by default or Open Policy Agent, names every refusal. --input prints the facts instead, the document a
-# rule is written against. kit ci runs this beside the gate. On a runner the refusals land in the step summary.
+# kit policy [--input]
+#
+# Fails when a name breaks the repository's policy. kit policy collects these facts once:
+#
+#   - the branch name
+#   - the subject of each commit since the branch forked from the default branch
+#   - the open pull request's title
+#
+# The policy engine then reports every refusal. The engine is patterns (the default) or Open Policy Agent. With
+# --input, kit policy prints the facts as JSON instead: the document a rule is written against.
+#
+# kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
+#
+# Exits 0 when the policy allows every name, 1 on any refusal, and 2 on a usage error.
 #
 # see: bin/policy.sh, docs/policy.md
 

@@ -1,8 +1,13 @@
 # The lefthook module
 
-Places `.kit/lefthook.yml`, a pre-commit hook with two commands over the staged paths: `kit lint`, so each rule's own
-linter runs over the paths the rule governs before a commit, and `kit generate --check`, so a stale generated region is
-refused before it is committed. The repository's own `lefthook.yml` takes it with `extends: [.kit/lefthook.yml]` and
-adds commands of its own; Lefthook merges by name. The repository pins `lefthook` itself, since only a desk runs a hook,
-and `kit lint` and `kit generate` run the same way with no hook manager at all. The module expects that line, so `kit
-install` names it as left to do and `kit check` refuses until it is there; the kit writes nothing into `lefthook.yml`.
+Delivers `.kit/lefthook.yml`, a pre-commit hook with two commands over the staged paths:
+
+- `kit lint` runs each rule's own linter over the paths the rule governs, before the commit.
+- `kit generate --check` refuses a stale generated region before it is committed.
+
+The repository's own `lefthook.yml` includes the hook with `extends: [.kit/lefthook.yml]` and adds its own
+commands. Lefthook merges commands by name. The kit writes nothing into `lefthook.yml`. The module requires the
+`extends` line: `kit install` lists it as a step left to do, and `kit check` fails until it is there.
+
+The repository pins `lefthook` itself, because only a developer's machine runs a hook. `kit lint` and
+`kit generate` run the same way without any hook manager.

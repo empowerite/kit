@@ -1,15 +1,17 @@
 # shellcheck shell=bash
-# toolchain-docker.sh - a container image as a toolchain: a Dockerfile holds the tools (sourced module)
+# toolchain-docker.sh - the container image toolchain provider: a Dockerfile installs the tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The provider bin/toolchain.sh loads for `provider: docker`, or for a toolchain.Dockerfile at the root; `file:`
-# names another and `image:` the image's name, kit-toolchain by default. The image is built from the file and
-# tagged by the file's digest, so a change to the file is a new image and an unchanged one is never rebuilt. A
-# command runs in it with the checkout mounted at /work, as the caller's user, so what it writes is the caller's.
+# bin/toolchain.sh loads this provider for `provider: docker`, or when toolchain.Dockerfile is at the repository
+# root. The `file:` field names a different file. The `image:` field names the image (default: kit-toolchain).
 #
-# What the file pins is its base: `FROM name:tag@sha256:<digest>`. outdated asks the registry for the tag's
-# current digest and names every base whose pin is behind it, or that has no pin; update rewrites the pins. docker
-# with buildx is the requirement.
+# The image is built from the file and tagged with the file's digest. A changed file builds a new image; an
+# unchanged file is never rebuilt. A command runs in the container with the checkout mounted at /work, as the
+# caller's user, so the files it writes belong to the caller.
+#
+# The file pins its base images: `FROM name:tag@sha256:<digest>`. outdated asks the registry for each tag's
+# current digest and lists every base that has no pin or is pinned to an older digest. update rewrites the pins.
+# The provider needs docker with buildx.
 
 toolchain-docker:file() {
   local file
@@ -23,7 +25,8 @@ toolchain-docker:require() {
   return 1
 }
 
-# toolchain-docker:tag prints the image's tag: its name and the first twelve hex digits of the file's digest.
+# toolchain-docker:tag prints the image's tag: the image name, then the first twelve hex digits of the file's
+# digest.
 toolchain-docker:tag() {
   local file name
   file=$(toolchain-docker:file)
@@ -45,8 +48,8 @@ toolchain-docker:install() {
   docker build --quiet --file "${file}" --tag "${tag}" "$(dirname "${file}")" >/dev/null
 }
 
-# toolchain-docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line naming an image: not
-# scratch, and not an earlier stage of the same file named by `AS <stage>`.
+# toolchain-docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line that names an image.
+# It skips scratch and earlier stages of the same file (named by `AS <stage>`).
 toolchain-docker:bases() {
   awk '
     toupper($1) == "FROM" {
@@ -61,7 +64,7 @@ toolchain-docker:bases() {
     }' "$(toolchain-docker:file)"
 }
 
-# toolchain-docker:latest <name:tag> prints the digest the registry now gives the tag.
+# toolchain-docker:latest <name:tag> prints the tag's current digest in the registry.
 toolchain-docker:latest() {
   docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2>/dev/null | jq --raw-output '.digest'
 }
@@ -83,7 +86,7 @@ toolchain-docker:update() {
   while IFS=$'\t' read -r base pinned latest
   do
     [[ -n "${base}" ]] || continue
-    # An image reference never holds a comma, so a comma delimits each sed command.
+    # An image reference never contains a comma, so each sed command uses a comma as its delimiter.
     quoted=$(ere:quote "${base}")
     if [[ "${pinned}" == unpinned ]]
     then
@@ -97,7 +100,7 @@ toolchain-docker:update() {
   toolchain-docker:install
 }
 
-# The tools live in the image, so nothing is put on PATH here; a command reaches them through run.
+# The tools are in the image, so path prints nothing. A command reaches them through run.
 toolchain-docker:path() { return 0; }
 
 toolchain-docker:run() {

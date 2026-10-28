@@ -2,18 +2,33 @@
 # kit-lint - run each rule's linter over the paths it governs (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The paths are the arguments, else the staged ones, else with --all-files every tracked one. Each is matched to
-# the rules that govern it, as kit context matches, and every rule whose frontmatter carries a `lint:` command
-# runs it once over its paths. A linter the rule names that is not on PATH is a refusal, not a skip. The exit
-# status is the number of rules whose linter refused. No hook manager is assumed; the lefthook module wires its
-# pre-commit hook to this verb.
+# kit lint [--all-files] [<path>…]
 #
-# see: bin/context.sh, docs/context.md
+# Runs each rule's checks over the files the rule governs. The files are:
+#
+#   - the paths given, relative to the current directory
+#   - with no paths, the staged files
+#   - with no paths and --all-files, every tracked file
+#
+# Each file is matched to the rules that govern it, the same way kit context matches. Then, for each rule:
+#
+#   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
+#     that is not on PATH is a failure, not a skip.
+#   - When the rule has templates, each of its files must have the shape of one of them (see bin/template.sh).
+#
+# Files under .kit/templates/ are templates, not files of their kind, and are not linted.
+#
+# kit lint assumes no hook manager. The lefthook module runs it from a pre-commit hook.
+#
+# Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
+# failed.
+#
+# see: bin/context.sh, bin/template.sh, docs/context.md, docs/templates.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
-use context yaml
+use context template yaml
 
 all=false
 paths=()
@@ -32,8 +47,9 @@ do
     (*) paths+=("${arg}")
   esac
 done
-# A named path is taken from the directory the command was typed in; git's lists are root-relative already,
-# read NUL-separated so a name with a space or a non-ASCII character survives.
+# A named path is relative to the current directory, and is converted to a path from the repository root. git's
+# lists are already root-relative. They are read NUL-separated, so a name with a space or a non-ASCII character
+# survives.
 for i in "${!paths[@]}"
 do
   paths[i]=$(context:relative "${paths[i]}")
@@ -57,7 +73,7 @@ fi
 declare -A governed=()
 for path in "${paths[@]}"
 do
-  [[ -f "${path}" ]] || continue
+  [[ -f "${path}" && ! "${path}" =~ (^|/)\.kit/templates/ ]] || continue
   while IFS= read -r rule
   do
     [[ -n "${rule}" ]] || continue
@@ -68,6 +84,19 @@ done
 refused=0
 for rule in $(printf '%s\n' "${!governed[@]}" | LC_ALL=C sort)
 do
+  if [[ -n "$(template:variants "${rule}")" ]]
+  then
+    held=()
+    while IFS= read -r path
+    do
+      [[ -n "${path}" ]] && ! template:exempt "${path}" && held+=("${path}")
+    done < <(printf '%s' "${governed[${rule}]}")
+    step "${rule}: the shape of its templates over ${#held[@]} path(s)"
+    if (( ${#held[@]} > 0 )) && ! template:check "${rule}" "${held[@]}"
+    then
+      refused=$(( refused + 1 ))
+    fi
+  fi
   lint=$(yaml:value "${rule}" lint)
   [[ -n "${lint}" ]] || continue
   read -r -a command <<<"${lint}"

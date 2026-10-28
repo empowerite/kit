@@ -1,28 +1,41 @@
 # shellcheck shell=bash
-# issue.sh - the issue on-ramp: a linked branch, a worktree, a start commit, and a draft change (sourced module)
+# issue.sh - start an issue: a linked branch, a worktree, a start commit, and a draft pull request (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# issue:start [<reference>…] is the one command the loop needs and no vendor provides. A reference names its
-# tracker, as bin/tracker.sh describes: `7` or `#7` for the forge's own issues, `AB#4521` for a declared one. The
-# first is the primary issue. One of the forge's own is linked to the branch the forge makes, which closes it on
-# merge; any other, and every further reference, a secondary, is closed by a `Closes <reference>` line in the
-# change's body. Every listed issue is assigned to the caller, as each tracker knows the caller. It never switches
-# the checkout it runs from: the branch is checked out in worktrees/<key>-<slug> under the main checkout, the key
-# being the reference as a branch name opens with it, 7 or ab4521, and an existing branch, worktree, or change is
-# reused, so a re-run reconciles.
+# issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
+# bin/tracker.sh describes:
 #
-# With no argument and a terminal on stdin it asks for a title and creates the issue; without a terminal the
-# usage error stands, so an agent never hangs on a prompt. Uncommitted work in the root checkout, the human's
-# desk, is swept into the new worktree, uncommitted, and the desk is left clean, and fast-forwarded when it is on
-# the default branch; inside any other checkout, dirty files are that issue's own and stay. A sweep that cannot
-# apply leaves the stash in place and stops.
+#   - `7` or `#7`: an issue in the forge's own tracker (the forge is the service that hosts the repository, GitHub
+#     or GitLab)
+#   - `AB#4521`: a work item in a declared Azure DevOps tracker
 #
-# Every call to the forge goes through bin/forge.sh, and every call about an issue through bin/tracker.sh. Each
-# step below prints its one result on stdout and talks on stderr, so issue:start reads them in order.
+# The first reference is the primary issue. The others are secondary. Each issue is closed on merge by:
+#
+#   - a primary issue in the forge's tracker: the forge links it to the branch the forge creates
+#   - any other primary issue, and every secondary one: a `Closes <reference>` line in the pull request's body
+#
+# Every listed issue is assigned to the caller, as each tracker identifies the caller.
+#
+# issue:start never switches the checkout it runs from. It checks the branch out in worktrees/<key>-<slug> under
+# the main checkout. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch,
+# worktree, or pull request is reused, so running it again fills in whatever is missing.
+#
+# With no argument and a terminal on stdin, it asks for a title and creates the issue. Without a terminal it fails
+# with a usage error, so an agent never waits on a prompt.
+#
+# Uncommitted work is handled by where it is:
+#
+#   - in the root checkout (the desk, which belongs to the human): moved into the new worktree, still uncommitted.
+#     The desk is left clean, and is fast-forwarded when it is on the default branch. If the work cannot be
+#     applied in the worktree, it stays in the stash and the command stops.
+#   - in any other checkout: left in place, since it belongs to that checkout's issue
+#
+# Every forge call goes through bin/forge.sh, and every issue call through bin/tracker.sh. Each helper below
+# prints its one result on stdout and its messages on stderr, so issue:start can capture the results in order.
 
 use git forge tracker
 
-# issue:create asks for a title at the terminal and prints the reference of the issue the forge's tracker creates.
+# issue:create asks for a title at the terminal, creates the issue in the forge's tracker, and prints its reference.
 issue:create() {
   local title number
   read -r -p "Issue title: " title
@@ -36,8 +49,8 @@ issue:create() {
   printf '#%s\n' "${number}"
 }
 
-# issue:assign <reference>… adds the caller, as each issue's tracker knows the caller, to each issue's assignees,
-# warning where someone else is there already.
+# issue:assign <reference>… adds the caller (as each issue's tracker identifies the caller) to each issue's
+# assignees. It warns when someone else is already assigned, and when the assignment fails.
 issue:assign() {
   local ref prefix me assignees
   local -A me_in=()
@@ -54,10 +67,16 @@ issue:assign() {
   done
 }
 
-# issue:branch <reference> <default-branch> <title> prints the branch made for the issue, making one if none
-# exists: linked by the forge for one of its own issues, and named <key>-<slug of the title> from the default
-# branch for any other. An existing one is found by an open change's head, then by the remote ref, so a second run
-# never forks a duplicate.
+# issue:branch <reference> <default-branch> <title> prints the issue's branch. It reuses an existing branch, so a
+# second run never creates a duplicate. It looks, in order, for:
+#
+#   1. the branch of an open pull request for the issue
+#   2. a branch on origin named <key>-*
+#
+# When neither exists, it creates the branch:
+#
+#   - for an issue in the forge's tracker, the forge creates a branch linked to the issue
+#   - for any other issue, kit pushes <key>-<slug of the title> to origin from the default branch
 issue:branch() {
   local ref=$1 default_branch=$2 title=$3 key branch slug
   key=$(tracker:key "${ref}") || return 2
@@ -86,7 +105,8 @@ issue:branch() {
   printf '%s\n' "${branch}"
 }
 
-# issue:worktree <main-root> <branch> prints the worktree the branch is checked out in, making it if there is none.
+# issue:worktree <main-root> <branch> prints the worktree the branch is checked out in. If there is none, it
+# creates <main-root>/worktrees/<branch>.
 issue:worktree() {
   local main_root=$1 branch=$2 wt
   wt=$(git worktree list --porcelain 2>/dev/null \
@@ -113,9 +133,10 @@ issue:worktree() {
   printf '%s\n' "${wt}"
 }
 
-# issue:start-commit <worktree> <default-branch> <reference> <title> gives the branch its first commit when it has
-# none: a forge cannot open a change with nothing to compare. --only keeps the commit empty, so work already
-# staged in a reused worktree stays in the index. The subject follows the loop's shape, the reference first.
+# issue:start-commit <worktree> <default-branch> <reference> <title> adds an empty first commit when the branch has
+# no commits beyond the default branch, because a forge cannot open a pull request with nothing to compare. --only
+# keeps the commit empty, so work already staged in a reused worktree stays in the index. The subject starts with
+# the reference, as the workflow's commit subjects do: "<reference> start: <title>".
 issue:start-commit() {
   local wt=$1 default_branch=$2 ref=$3 title=$4
   if [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]]
@@ -125,8 +146,8 @@ issue:start-commit() {
   fi
 }
 
-# issue:sweep-push <root> <message> stashes everything uncommitted at <root>, untracked files included, and
-# prints the stash's commit, which stays valid however the stash list shifts.
+# issue:sweep-push <root> <message> stashes all uncommitted work at <root>, including untracked files, and prints
+# the stash's commit hash. The hash stays valid even when other entries are pushed onto or dropped from the stash.
 issue:sweep-push() {
   local root=$1 message=$2
   if ! git -C "${root}" stash push --include-untracked --message "${message}" >/dev/null
@@ -137,9 +158,9 @@ issue:sweep-push() {
   git -C "${root}" rev-parse 'stash@{0}'
 }
 
-# issue:sweep-apply <root> <worktree> <stash> <default-branch> lands the stash in the worktree, uncommitted,
-# drops it, and fast-forwards the now-clean desk when it is on the default branch. On a conflict the stash is
-# kept and the caller stops.
+# issue:sweep-apply <root> <worktree> <stash> <default-branch> applies the stash in the worktree, uncommitted, and
+# drops it. Then, if the desk is on the default branch, it fast-forwards the now-clean desk. On a conflict it keeps
+# the stash and returns non-zero, so the caller stops.
 issue:sweep-apply() {
   local root=$1 wt=$2 stash=$3 default_branch=$4 slot
   if ! git -C "${wt}" stash apply "${stash}" >/dev/null 2>&1
@@ -155,7 +176,7 @@ issue:sweep-apply() {
     || warn "${default_branch} could not fast-forward to origin; it is left as it was."
 }
 
-# issue:pull-request <branch> <default-branch> <title> prints the number of the open change for the branch,
+# issue:pull-request <branch> <default-branch> <title> prints the number of the branch's open pull request,
 # opening a draft if there is none.
 issue:pull-request() {
   local branch=$1 default_branch=$2 title=$3 pr
@@ -168,8 +189,9 @@ issue:pull-request() {
   printf '%s\n' "${pr}"
 }
 
-# issue:link-in-body <change> <reference>… adds a `Closes <reference>` line to the change's body for each reference
-# not there: a secondary issue, or a primary the forge cannot link by itself.
+# issue:link-in-body <change> <reference>… adds a `Closes <reference>` line to the pull request's body for each
+# reference the body does not already close, fix, or resolve. The references are the secondary issues, and a
+# primary issue the forge cannot link by itself.
 issue:link-in-body() {
   local pr=$1 ref escaped body changed=false
   shift
@@ -191,8 +213,8 @@ issue:link-in-body() {
   fi
 }
 
-# issue:start [<reference>…] is the on-ramp the file header describes. A desk without a signing key is refused
-# where the require_signing setting is true, before anything is written.
+# issue:start [<reference>…] does what the file header describes. When the require_signing setting is true, it
+# fails before writing anything if git has no signing key configured.
 issue:start() {
   local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
   local -a refs=() in_body=()

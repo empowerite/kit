@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
-# kit-ci - the delivered CI job's checks, run anywhere: the gate, the kit's own check, the issue link, and the policy
+# kit-ci - run the delivered CI job's four checks on any machine (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Every check runs even when an earlier one refused, so one run reports every finding. The exit status is the
-# number of checks that refused.
+# kit ci takes no arguments. It runs these checks in order:
+#
+#   1. kit gate: the repository's gate (its own CI command) passes
+#   2. kit check: every delivered file matches the pinned release
+#   3. kit linked: the pull request is linked to an open issue
+#   4. kit policy: the branch, commit subjects, and pull request title match the policy
+#
+# Every check runs even when an earlier one fails, so one run reports every finding.
+#
+# Exits 0 when all four pass. Otherwise the exit status is the number of checks that failed.
 #
 # see: bin/kit-gate.sh, bin/kit-check.sh, bin/kit-linked.sh, bin/kit-policy.sh
 

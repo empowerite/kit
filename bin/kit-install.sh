@@ -2,9 +2,18 @@
 # kit-install - mirror the release into the repository, and into the home directory (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Activates the default modules and the named ones, with the modules they depend on, places what they deliver
-# under each base, and writes the manifests. A different file already at a delivered path is refused, named, and
-# left alone, and no manifest is written until every path is clear.
+# kit install [<module>…]
+#
+# Sets up kit in a repository that does not have it yet:
+#
+#   1. Activates the default modules, the named modules, and the modules they depend on.
+#   2. Places the files those modules deliver, in the repository and in the home directory.
+#   3. Writes .kit/manifest, and ~/.kit/manifest when the modules deliver files to the home directory.
+#
+# When a different file is already at a delivered path, kit install names it and leaves it alone. It writes no
+# manifest until every path is clear. A repository that already has .kit/manifest is refused: run kit update.
+#
+# Exits 0 on success, 2 for a module the release does not have, and 1 for any other failure.
 #
 # see: bin/release.sh
 

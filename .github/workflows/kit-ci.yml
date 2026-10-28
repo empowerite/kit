@@ -1,15 +1,17 @@
 # kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request into the default branch
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# One job, CI, which is the check name a ruleset requires, run for a pull request into the default branch. It
-# takes the kit release .kit/manifest names from its public URL, or this checkout's own bin/ where the manifest
-# says unreleased, installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker
-# manages them, and runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, every one reported. The
-# one setup action puts the mise binary on the runner where the repository has a mise.toml; brew and docker are
-# on GitHub's runners already.
+# Runs one job, CI, on each pull request into the default branch. CI is the check name a ruleset requires. The job:
 #
-# Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner
-# answer, from answers: in .kit/settings.yml.
+#   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
+#      runners)
+#   2. puts kit on PATH: the release .kit/manifest records, downloaded from its public URL, or this checkout's own
+#      bin/ when the manifest records unreleased
+#   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
+#   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
+#
+# Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner value
+# under answers: in .kit/settings.yml.
 #
 # see: .kit/1st.md
 
@@ -29,13 +31,13 @@ jobs:
     if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: "ubuntu-latest"
     env:
-      # mise reads mise.ci.toml on top of mise.toml: the tools only a runner runs.
+      # mise also reads mise.ci.toml, on top of mise.toml, for the tools only a runner needs.
       MISE_ENV: ci
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # kit policy reads every commit past the fork from the default branch.
+          # kit policy reads every commit since the branch forked from the default branch.
           fetch-depth: 0
 
       - name: mise-on-path

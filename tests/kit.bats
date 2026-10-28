@@ -478,6 +478,7 @@ later-release() {
   grep --quiet '^version 9.9.9$' .kit/manifest
   mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
   printf '9.9.10\n' > "${repo}.newer/version"
+  printf 'Added in 9.9.10.\n' >> "${repo}.newer/modules/kit/files/repo/.kit/rules/json.md"
   printf 'edited\n' >> .kit/rules/bash.md
   # neither the cache, nor mise, nor the release can produce 9.9.9
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
@@ -485,6 +486,23 @@ later-release() {
   [[ "$output" == *"could not be fetched"* ]]
   [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]
   grep --quiet '^version 9.9.9$' .kit/manifest
+  # whole or not at all: the file that needed no base was not written either
+  ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
+  rm -rf "${repo}.newer"
+}
+
+@test "update without the base release replaces every file still as it was placed, where none is merged by key" {
+  later-release "${repo}.later"
+  "${repo}.later/bin/kit" install
+  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
+  printf '9.9.10\n' > "${repo}.newer/version"
+  printf 'Added in 9.9.10.\n' >> "${repo}.newer/modules/kit/files/repo/.kit/rules/json.md"
+  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
+  [ "$status" -eq 0 ]
+  grep --quiet 'Added in 9.9.10' .kit/rules/json.md
+  grep --quiet '^version 9.9.10$' .kit/manifest
+  run "${repo}.newer/bin/kit" check
+  [ "$status" -eq 0 ]
   rm -rf "${repo}.newer"
 }
 

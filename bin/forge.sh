@@ -1,15 +1,20 @@
 # shellcheck shell=bash
-# forge.sh - the loop's seam over the forge that hosts the repository (sourced module)
+# forge.sh - one interface to the forge (GitHub, GitLab) that hosts the repository (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The loop speaks of an issue, a branch linked to it, a pull request, its checks and review threads and linked
-# issues. Every verb that needs one asks here, by these names, and a provider answers: forge-<name>.sh beside this
-# file, its functions named forge-<name>:<call>. The provider is the `forge` setting in .kit/settings.yml, else
-# the one origin's host names. The core verbs never come here, so a repository on no forge still installs,
-# updates, checks, and runs kit context and kit lint.
+# Verbs that read or change issues, branches, and pull requests call forge:<call> here. Each call is passed to a
+# provider, forge-<name>.sh in this directory, whose functions are named forge-<name>:<call>.
 #
-# A provider answers these calls, each printing its result on stdout and failing with a remedy on stderr, or
-# printing nothing where the call says so:
+# The provider is chosen by:
+#
+#   1. the `forge` setting in .kit/settings.yml, if set
+#   2. otherwise origin's host: github.com is github, gitlab.com is gitlab
+#
+# kit install, update, check, context, and lint never call the forge, so they work in a repository that has no
+# forge.
+#
+# Every provider implements the calls below. Each prints its result on stdout. On failure it prints a remedy on
+# stderr. A call marked "or nothing" prints nothing when there is no match.
 #
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
@@ -33,13 +38,15 @@
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit status draws
+#
+# see: docs/architecture.md
 
 use release
 
 # forge:provider prints the provider's name: the forge setting, else github for an origin at github.com and
-# gitlab for one at gitlab.com. A self-hosted forge is named by the setting. It fails, naming the remedy, where
-# neither names a provider the kit carries. One origin is one forge: a repository on two is a mirror or a
-# migration, and the setting says which one the loop runs on.
+# gitlab for one at gitlab.com. A self-hosted forge needs the setting. It fails with a remedy when neither gives
+# a provider the kit has. A repository hosted on two forges (a mirror, or mid-migration) uses the setting to pick
+# one.
 forge:provider() {
   local provider host=''
   provider=$(release:setting forge)

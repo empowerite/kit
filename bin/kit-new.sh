@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# kit-new - make a new file from the template of the rule that governs it (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
+#
+# Makes a new file from a rule's template. Then it prints the rules to read before writing the rest of the file,
+# as kit context does.
+#
+#   <path>                the new file, relative to the repository root wherever the command runs. An absolute
+#                         path inside the repository is accepted. A path outside it is refused.
+#   --rule=<rule>         the rule whose template to use. Default: the most specific rule that governs the path
+#                         and has templates. A script with no extension needs this flag.
+#   --variant=<variant>   the template to use. Default: the first variant the rule lists that the path allows.
+#   --<hole>=<value>      the value of a hole («name») within a line of the template. The holes path, name, and
+#                         stem default to values taken from the path. Every other hole needs its flag.
+#
+# kit new never overwrites a file: an existing path is refused.
+#
+# Exits 0 when the file is made, 1 when the path exists or the template is missing, and 2 on a usage error.
+#
+# see: bin/template.sh, docs/templates.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=bin/1st.sh
+source "${kit_root:?run through bin/kit}/bin/1st.sh"
+use context template
+
+usage="usage: kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…"
+if [[ "${1:-}" == --help ]]
+then
+  echo "${usage}" >&2
+  exit 0
+fi
+if [[ "${1:-}" != file ]]
+then
+  error "kit new makes a file: ${usage}"
+  exit 2
+fi
+shift
+
+path='' rule_name='' variant=''
+declare -A values=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--rule=?*) rule_name=${arg#--rule=} ;;
+    (--variant=?*) variant=${arg#--variant=} ;;
+    (--[a-z_]*=*)
+      key=${arg%%=*}
+      key=${key#--}
+      values[${key}]=${arg#*=}
+      ;;
+    (-*)
+      error "unknown flag '${arg}' (${usage})"
+      exit 2
+      ;;
+    (*)
+      if [[ -n "${path}" ]]
+      then
+        error "one path at a time (${usage})"
+        exit 2
+      fi
+      path=${arg}
+  esac
+done
+if [[ -z "${path}" ]]
+then
+  error "${usage}"
+  exit 2
+fi
+
+# An absolute path inside the repository is made relative to the root. A path outside the repository is refused.
+root=$(pwd -P)
+if [[ "${path}" == /* ]]
+then
+  path=$(context:relative "${path}")
+  if [[ "${path}" == /* ]]
+  then
+    error "${path} is outside the repository at ${root}"
+    exit 2
+  fi
+fi
+path=${path#./}
+if [[ "${path}" == ../* || "${path}" == */../* ]]
+then
+  error "${path} climbs out of the repository; name it from the root"
+  exit 2
+fi
+if [[ -e "${path}" ]]
+then
+  error "${path} is there already; kit new makes a file, it never overwrites one"
+  exit 1
+fi
+
+if [[ -n "${rule_name}" ]]
+then
+  rule=".kit/rules/${rule_name}.md"
+  if [[ ! -f "${rule}" ]]
+  then
+    error "there is no rule ${rule_name}; the rules are: $(find .kit/rules -maxdepth 1 -name '*.md' \
+      | sed 's@^.*/@@; s/\.md$//' | LC_ALL=C sort | paste -s -d ' ' -)"
+    exit 2
+  fi
+else
+  rule=$(template:rules "${path}" | head -n 1)
+  if [[ -z "${rule}" ]]
+  then
+    error "no rule with a template governs ${path}; name one with --rule=<rule>, or write the file by hand"
+    exit 2
+  fi
+fi
+
+chosen='' executable=''
+while IFS=$'\x1f' read -r name _ exec_flag
+do
+  [[ -n "${name}" ]] || continue
+  if [[ -z "${variant}" || "${name}" == "${variant}" ]]
+  then
+    chosen=${name}
+    executable=${exec_flag}
+    break
+  fi
+done < <(if [[ -n "${variant}" ]]; then template:variants "${rule}"; else template:applies "${rule}" "${path}"; fi)
+if [[ -z "${chosen}" ]]
+then
+  error "the $(template:rule-name "${rule}") rule has no template ${variant:-for ${path}}; its templates are:" \
+    "$(template:variants "${rule}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)"
+  exit 2
+fi
+template=$(template:file "${rule}" "${chosen}")
+if [[ ! -f "${template}" ]]
+then
+  error "${rule} lists the template ${chosen}, and ${template} is not here; run: kit update"
+  exit 1
+fi
+
+name=${path##*/}
+values[path]=${values[path]:-${path}}
+values[name]=${values[name]:-${name}}
+values[stem]=${values[stem]:-${name%.*}}
+missing=()
+while IFS= read -r hole
+do
+  [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] && missing+=("--${hole}=<…>")
+done < <(template:holes "${template}")
+if (( ${#missing[@]} > 0 ))
+then
+  error "the ${chosen} template of the $(template:rule-name "${rule}") rule needs ${missing[*]}"
+  exit 2
+fi
+
+json='{}'
+for key in "${!values[@]}"
+do
+  json=$(jq --compact-output --arg k "${key}" --arg v "${values[${key}]}" '.[$k] = $v' <<<"${json}")
+done
+mkdir -p "$(dirname "${path}")"
+template:render "${template}" "${json}" > "${path}"
+[[ "${executable}" == true ]] && chmod +x "${path}"
+context:log "${path}"
+ok "made ${path} from ${template}; read the rules below before writing the rest"
+context:rules "${path}"
+
+# ----------------------------------------------------------------------------------------------------------------------

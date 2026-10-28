@@ -1,9 +1,15 @@
 # Trackers
 
-An issue lives in a tracker, and the tracker is not always the forge. GitHub issues and GitLab issues live in their
-forges; Azure DevOps work items do not, and a repository may use more than one tracker at once, as one that files bugs
-in GitHub issues and plans its work in Azure DevOps does. The loop's verbs ask about an issue through one seam,
-`tracker:` in `bin/tracker.sh`, and the reference says which tracker answers.
+A tracker is the system that holds a repository's issues. It can be the forge (the service that hosts
+the repository, GitHub or GitLab) or a separate system such as Azure DevOps. The syntax of an issue
+reference selects its tracker:
+
+```sh
+kit issue AB#4521
+```
+
+The workflow commands look up issues through one interface, `bin/tracker.sh`. A repository can use more than one
+tracker at once, for example GitHub issues for bugs and Azure DevOps for planned work.
 
 ## References
 
@@ -14,8 +20,11 @@ A reference names its tracker in its syntax, the way the trackers already write 
 | `7` or `#7` | the forge's own issues, GitHub's or GitLab's |
 | `AB#4521` | an Azure DevOps work item, under a prefix the repository declares |
 
-`.kit/settings.yml` declares every tracker but the forge's own, one record each: the prefix a reference opens with,
-the provider that answers it, and the provider's own fields.
+`.kit/settings.yml` declares every tracker except the forge's own. Each record has:
+
+- `prefix`, the text a reference starts with
+- `provider`, the provider that handles the reference
+- the provider's own fields
 
 ```yaml
 trackers:
@@ -26,28 +35,42 @@ trackers:
     type: Task
 ```
 
-`#` is the forge's own tracker unless a record claims it. A reference no declared tracker answers is refused, naming
-the prefixes there are.
+`#` is the forge's own tracker unless a record claims it. A reference that matches no declared tracker is refused,
+and the error lists the known prefixes.
 
-## The verbs
+## Commands
 
-- `kit issue 7`, `kit issue AB#4521`, or both, primary first. Each issue is assigned to the caller as its tracker
-  knows the caller, which for Azure DevOps is the identity `az` is signed in as. The branch opens with the
-  reference's key, `7-<slug>` or `ab4521-<slug>`. The forge links a branch to one of its own issues and closes it on
-  merge; for any other, and for every secondary, `kit issue` adds a `Closes <reference>` line to the change's body,
-  which is what GitHub's Azure Boards integration reads as a link.
-- `kit linked` accepts a change that the forge says closes an open issue of the repository, or whose body names an
-  open issue of a declared tracker with a closing keyword: `Closes AB#4521`, `Fixes AB#4521`, `Resolves AB#4521`.
-- `kit tidy` reads a worktree's issue back from its branch's key and removes the worktree when the issue is closed
-  and the change is gone.
+- `kit issue 7`, `kit issue AB#4521`, or both, primary first:
+  - Each issue is assigned to the caller as its tracker knows the caller. For Azure DevOps, that is the
+    identity `az` is signed in as.
+  - The branch name starts with the reference's key: `7-<slug>` or `ab4521-<slug>`.
+  - The forge links a branch to one of its own issues and closes the issue on merge. For any other issue, and
+    for every secondary issue, `kit issue` adds a `Closes <reference>` line to the body of the change (the
+    pull request or merge request). GitHub's Azure Boards integration reads that line as a link.
+- `kit linked` passes when the forge reports that the change closes an open issue of the repository. It also
+  passes when the change's body names an open issue of a declared tracker with a closing keyword:
+  `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`.
+- `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
+  the branch has no change.
 
 ## Providers
 
-| Provider | Tool | Fields | Closed in |
+| Provider | Tool | Fields | Closed when the state is |
 | --- | --- | --- | --- |
 | `forge` | the forge's own, through `bin/forge.sh` | none | the forge's closed state |
-| `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` | Closed, Done, Removed |
+| `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`) | Closed, Done, or Removed |
 
-A provider is `bin/tracker-<name>.sh`, answering `title`, `state`, `assignees`, `assign`, `me`, `create`, and `url`.
-`tests/tracker.bats` drives the Azure DevOps provider through a fake of `az`; what only a real organization can
-prove, that `az` answers as the fixtures do, is not proven there.
+A provider is `bin/tracker-<name>.sh`. It implements these calls:
+
+| Call | Prints |
+| --- | --- |
+| `title <id>` | the issue's title |
+| `state <id>` | `OPEN` or `CLOSED` |
+| `assignees <id>` | the assignees' logins, space-separated |
+| `assign <id> <login>` | nothing; adds the assignee |
+| `me` | the caller's login in this tracker, which can differ from the forge's |
+| `create <title>` | the number of the issue it creates |
+| `url <id>` | the issue's browser URL |
+
+`tests/tracker.bats` tests the Azure DevOps provider against a fake `az`. It cannot prove that a real organization's
+`az` responds the way the fixtures do.

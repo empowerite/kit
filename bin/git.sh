@@ -1,9 +1,13 @@
 # shellcheck shell=bash
-# git.sh - the default branch, the worktrees, the sweep, and the rebase (sourced module)
+# git.sh - git helpers: the default branch, worktrees, kit tidy, and kit rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The sweep asks the forge, through bin/forge.sh, whether a worktree's change is merged or closed, and the issue's
-# tracker, through bin/tracker.sh, whether its issue is.
+# kit tidy (git:tidy) decides whether a worktree's work is finished by asking:
+#
+#   - the forge, the service that hosts the repository (GitHub, GitLab), through bin/forge.sh: is the branch's pull
+#     request merged or closed?
+#   - when the branch has no pull request, the issue's tracker, through bin/tracker.sh: is the branch's issue
+#     closed?
 
 use forge
 
@@ -16,14 +20,15 @@ git:default-branch() {
   printf '%s\n' "${branch}"
 }
 
-# git:main-root [<path>] prints the root of the main checkout, under which worktrees/ lives, from the main
-# checkout or any linked worktree.
+# git:main-root [<path>] prints the root of the main checkout, which contains worktrees/. It works from the main
+# checkout or from any linked worktree.
 git:main-root() {
   dirname "$(git -C "${1:-.}" rev-parse --path-format=absolute --git-common-dir)"
 }
 
 # git:worktrees prints "<path>\t<detached>\t<branch>" for every linked worktree under worktrees/. <detached> is
-# true or false, and <branch> is empty for a detached checkout; the empty field is last so a tab read keeps it.
+# true or false. <branch> is empty for a detached checkout. The empty field comes last so a tab-separated read
+# keeps it.
 git:worktrees() {
   local worktree_root path="" branch="" detached=false line
   worktree_root="$(git:main-root)/worktrees"
@@ -42,7 +47,7 @@ git:worktrees() {
         detached=true
         ;;
       ("")
-        # git ends every record with a blank line; the printf below adds one so the last record ends too.
+        # git ends each record with a blank line. The printf below adds one more so the last record is printed too.
         [[ "${path}" == "${worktree_root}"/* ]] && printf '%s\t%s\t%s\n' "${path}" "${detached}" "${branch}"
         path=""
     esac
@@ -54,13 +59,14 @@ git:gone-branches() {
   git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads/ | awk '$2 == "[gone]" { print $1 }'
 }
 
-# git:clean <path> is true when the checkout at <path> has no uncommitted change.
+# git:clean <path> is true when the checkout at <path> has no uncommitted changes.
 git:clean() {
   [[ -z "$(git -C "$1" status --porcelain 2>/dev/null)" ]]
 }
 
-# git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides one worktree and
-# says why. It returns 0 when the worktree was removed, or would be under a dry run, and 1 when it is kept.
+# git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides whether to remove
+# one worktree and prints the reason. It returns 0 when the worktree was removed (or would be, under a dry run)
+# and 1 when it is kept.
 git:tidy-worktree() {
   local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref
   if [[ "${path}" == "${self_root}" ]]
@@ -84,8 +90,8 @@ git:tidy-worktree() {
     fi
   elif [[ "${detached}" == true ]]
   then
-    # A detached checkout is residue only when its commit is already on the default branch; otherwise its HEAD
-    # may be the only thing that reaches that commit.
+    # Remove a detached checkout only when its commit is already on the default branch. Otherwise its HEAD may be
+    # the only ref that reaches that commit.
     if git -C "${path}" merge-base --is-ancestor HEAD "origin/${default_branch}" 2>/dev/null
     then
       state=DETACHED
@@ -111,11 +117,23 @@ git:tidy-worktree() {
   esac
 }
 
-# git:tidy [--dry-run] removes every worktree under worktrees/ whose pull request is merged or closed, or that is
-# detached, clean, and at a commit the default branch already has; prunes the worktree bookkeeping; and deletes
-# every local branch whose upstream is gone. It never touches the default branch, a branch checked out in a
-# live worktree, a dirty worktree, a detached worktree whose commit nothing else reaches, or the worktree it
-# runs in. --dry-run says what a sweep would do and changes nothing.
+# git:tidy [--dry-run] cleans up finished work. It:
+#
+#   1. fetches origin with --prune
+#   2. removes every clean worktree under worktrees/ whose pull request is merged or closed (or, with no pull
+#      request, whose issue is closed), or that is detached at a commit the default branch already has
+#   3. prunes git's worktree bookkeeping
+#   4. deletes every local branch whose upstream is gone
+#
+# It never touches:
+#
+#   - the default branch
+#   - a branch checked out in a worktree it keeps
+#   - a worktree with uncommitted changes
+#   - a detached worktree whose commit nothing else reaches
+#   - the worktree it runs in
+#
+# --dry-run prints what it would do and changes nothing.
 git:tidy() {
   local dry_run=false flag repo default_branch self_root found=false path branch detached
   local removed_worktrees=0 removed_branches=0 checked_out
@@ -202,10 +220,15 @@ git:tidy() {
   fi
 }
 
-# git:rebase [<path>] rebases the branch checked out at <path>, the current checkout by default, onto the
-# default branch at origin and pushes it with --force-with-lease. It refuses the root checkout, the human's desk,
-# whatever branch it has; the default branch anywhere; and a dirty worktree. On a conflict it aborts and leaves
-# the worktree as it was.
+# git:rebase [<path>] rebases the branch checked out at <path> (default: the current checkout) onto the default
+# branch at origin, then pushes it with --force-with-lease. It refuses:
+#
+#   - a checkout with no branch checked out
+#   - the root checkout (the desk, which belongs to the human), whatever branch it has
+#   - the default branch, in any checkout
+#   - a worktree with uncommitted changes
+#
+# On a conflict it aborts the rebase and leaves the worktree as it was.
 git:rebase() {
   local worktree=${1:-.} branch default_branch
   branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)

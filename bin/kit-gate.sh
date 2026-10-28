@@ -2,13 +2,22 @@
 # kit-gate - run the repository's gate, and refuse when there is none (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The gate is the `gate` setting in .kit/settings.yml, else the first of: a root justfile with a ci recipe, a
-# Makefile with a ci target, a package.json with a ci script. A gate that cannot run clears nothing: a repository
-# with none, or one whose justfile cannot be read, is refused, naming the remedy. On a runner, each outcome also
-# lands in the step summary. The gate runs with the declared toolchains' tools, inside the container where the
-# toolchain is docker; see bin/toolchain.sh.
+# kit gate takes no arguments. It runs the repository's gate, the repository's own CI command. The gate is the
+# first of:
 #
-# see: modules/ci-github/templates/repo/.github/workflows/kit-ci.yml
+#   1. the `gate` setting in .kit/settings.yml
+#   2. `just ci`, when the root justfile has a ci recipe
+#   3. `make ci`, when the Makefile has a ci target
+#   4. `npm run ci`, when package.json has a ci script
+#
+# The gate runs with the declared toolchains' tools, inside the container when the toolchain is docker.
+#
+# kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A
+# gate that cannot run never counts as a pass. On a CI runner, each outcome is also written to the step summary.
+#
+# Exits 0 when the gate passes, and 1 otherwise.
+#
+# see: bin/toolchain.sh, modules/ci-github/templates/repo/.github/workflows/kit-ci.yml
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
@@ -21,7 +30,7 @@ then
   exit 0
 fi
 
-# gate:detect prints the command of the first gate found, or nothing.
+# detect-gate prints the command of the first gate found, or nothing. It fails when the root justfile cannot be read.
 detect-gate() {
   local recipes
   if [[ -f justfile || -f Justfile || -f .justfile ]]

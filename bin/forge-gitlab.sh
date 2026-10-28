@@ -1,24 +1,35 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2016  # jq filters name their variables with $, in single quotes on purpose
-# forge-gitlab.sh - GitLab, through glab, as the forge the loop runs on (sourced module)
+# forge-gitlab.sh - the GitLab forge provider, through the glab CLI (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2016  # jq filters name their variables with $, in single quotes on purpose
 #
-# The provider bin/forge.sh loads for a repository whose forge is gitlab: gitlab.com by origin's host, or any
-# self-hosted GitLab by `forge: gitlab` in .kit/settings.yml, glab finding the host from origin as it does. Every
-# call is one of the names the seam's header lists, and answers in the same shape the GitHub provider does: a
-# merge request is the change, its iid the number, its pipeline's jobs the checks, its resolvable discussions the
-# review threads. glab is this file's requirement and nobody else's; the REST API is read through `glab api`, and
-# every document is folded here with jq, so the provider's logic is this file's and a test can drive it.
+# bin/forge.sh loads this provider when the repository's forge is gitlab:
+#
+#   - gitlab.com, detected from origin's host
+#   - a self-hosted GitLab, set with `forge: gitlab` in .kit/settings.yml; glab finds the host from origin
+#
+# It implements the calls listed in the header of bin/forge.sh, with the same output as the GitHub provider. The
+# GitLab equivalents:
+#
+#   pull request    a merge request
+#   number          the merge request's iid
+#   checks          the jobs of its pipeline
+#   review threads  its resolvable discussions
+#
+# Only this file requires glab. It reads the REST API through `glab api` and builds every result here with jq, so
+# all of the provider's logic is in this file and a test can drive it.
+#
+# see: bin/forge.sh
 
-# forge-gitlab:project prints the project's path with namespace, from origin: group/subgroup/name.
+# forge-gitlab:project prints the project's full path, read from origin: group/subgroup/name.
 forge-gitlab:project() {
   local url
   url=$(git remote get-url origin 2>/dev/null) || { error "this checkout has no origin; add one"; return 1; }
   sed -E 's#^[a-z]+://[^/]+/##; s#^[^@/]+@[^:]+:##; s#\.git$##' <<<"${url}"
 }
 
-# forge-gitlab:api <path-under-the-project> [<glab api option>…] calls the REST API under the project, its path
-# encoded the way GitLab takes it in a URL.
+# forge-gitlab:api <path-under-the-project> [<glab api option>…] calls the REST API under the project, with the
+# project's path URL-encoded as GitLab expects.
 forge-gitlab:api() {
   local path=$1 project
   shift
@@ -89,8 +100,8 @@ forge-gitlab:branch-for-issue() {
     || true
 }
 
-# GitLab has no command that makes a branch for an issue, so the branch is made the way its issue page would make
-# it, <iid>-<slug of the title>, from the default branch; GitLab links a branch named so to the issue.
+# GitLab has no command that creates a branch for an issue. This creates the branch the issue page would:
+# <iid>-<slug of the title>, from the default branch. GitLab links a branch with that name to the issue.
 forge-gitlab:link-branch() {
   local title slug
   title=$(forge-gitlab:issue-title "$1") || return 1
@@ -130,7 +141,8 @@ forge-gitlab:pr-state-for-branch() {
     || true
 }
 
-# On a runner the pipeline names the merge request; on a desk the current branch does.
+# On a GitLab CI runner, CI_MERGE_REQUEST_IID gives the merge request. Otherwise it is the open merge request for
+# the current branch.
 forge-gitlab:pr-here() {
   local number=${CI_MERGE_REQUEST_IID:-} branch
   if [[ -z "${number}" ]]
@@ -148,10 +160,14 @@ forge-gitlab:pr-closing-issues() {
     || { error "run: glab auth status (merge request !$1 could not be read)"; return 1; }
 }
 
-# Every open merge request folded into the document kit status draws, the GitHub provider's shape: number, ref,
-# branch, title, author, createdAt, age, state, checks {state, passed, total, failing, took}, unresolved, closes.
-# GitLab's REST API spreads these over four reads per merge request: the request, its pipeline's jobs, its
-# discussions, and the issues it closes.
+# forge-gitlab:open-prs prints one JSON object per open merge request, the document kit status renders. The fields
+# match forge-github:open-prs: number, ref, branch, title, author, createdAt, age, state, checks {state, passed,
+# total, failing, took}, unresolved, and closes. GitLab's REST API needs four reads per merge request:
+#
+#   - the merge request
+#   - its pipeline's jobs
+#   - its discussions
+#   - the issues it closes
 forge-gitlab:open-prs() {
   local list iid mr jobs discussions closes pipeline
   list=$(forge-gitlab:api "merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \

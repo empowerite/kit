@@ -1,14 +1,17 @@
 # The kit module
 
-The core, active in every repository that takes the kit. It places:
+The core module. It is active in every repository that uses the kit. It delivers:
 
-- `.kit/1st.md`, the entry every agent reads, named by the repository's `AGENTS.md`.
-- `.kit/rules/<kind>.md`, one rule file per kind of file, each declaring in its frontmatter which paths and which
+- `.kit/1st.md`, the entry file every agent reads. The repository's `AGENTS.md` points to it.
+- `.kit/rules/<kind>.md`, one rule file per kind of file. Each rule file's frontmatter declares the paths and
   first lines it governs, and the linter `kit lint` runs over them.
-- A region in `AGENTS.md`, the sentence that sends every agent to `.kit/1st.md`, and a region in `.gitignore`,
-  the `/worktrees/` entry the loop needs; each opened by a `kit:generate` directive that `kit generate` fills
-  through `kit region`, and the rest of each file is the repository's.
+- A region in `AGENTS.md`: the sentence that sends every agent to `.kit/1st.md`.
+- A region in `.gitignore`: the `/worktrees/` entry the workflow needs.
 
-The rules are discovered through `kit context`, described in
-[docs/context.md](https://github.com/empowerite/kit/blob/main/docs/context.md). Adding a kind is adding one rule
-file here and one row to the table in `1st.md`.
+Each region starts at a `kit:generate` directive, and `kit generate` fills it through `kit region`. The rest of
+`AGENTS.md` and `.gitignore` belongs to the repository.
+
+Agents and people find the rules through `kit context`, described in
+[docs/context.md](https://github.com/empowerite/kit/blob/main/docs/context.md).
+
+To add a kind of file, add one rule file here and one row to the table in `1st.md`.

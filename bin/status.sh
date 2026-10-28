@@ -1,34 +1,55 @@
 # shellcheck shell=bash
-# status.sh - the picture of the work in flight (sourced module)
+# status.sh - shows the checkouts and the open pull requests in progress (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the checkouts and the open pull
-# requests, and changes nothing. It asks the forge once, for every open pull request with the issues it closes,
-# its review threads, and the checks on its head; everything else is a local git read. The forge is asked first,
-# in the background, so its answer arrives while the fetch and the checkouts are drawn.
+# requests. It changes nothing.
 #
-# The picture: what the fetch brought, unless --no-fetch; the desk, the root checkout; then each worktree under
-# worktrees/, each with its uncommitted paths before its commits; then each open pull request with
-# its author, state, age, checks, the worktree holding its branch, and the issues it closes; then the branches whose
-# upstream is gone. --mine shows the pull requests the caller opened and no author column; --all, the default, shows
-# every open one, and --owner=<login>, given once or more, those the named authors opened, each with the author before
-# the state. Color is by family, never by state: green when nothing is left to decide, yellow when a human owes a
-# decision, blue when the next move is a machine's or a reviewer's, dim for detail. The states, in the order the first
-# that holds wins:
+# It calls the forge (GitHub or GitLab) once, for every open pull request with the issues it closes, its review
+# threads, and the checks on its head commit. Everything else is read from local git. The forge call starts
+# first, in the background, so it runs while the fetch runs and the checkouts are drawn.
 #
-#   draft 🔨, queued 🚦, conflicted 💥, failing:gate 🔥, no-check 📭, comments:open 💬,
-#   blocked:approval 👀,
-#   ready 🛬
+# The output, in order:
 #
-# --json prints the same facts as one document: {desk, worktrees, pullRequests, goneBranches}, the pull requests
-# chosen the same way.
+#   1. what the fetch brought in, unless --no-fetch
+#   2. the root checkout (the desk)
+#   3. each worktree under worktrees/, with its uncommitted paths and then its commits
+#   4. each open pull request, with its author, state, age, checks, the worktree that has its branch checked out,
+#      and the issues it closes
+#   5. the branches whose upstream is gone
+#
+# Which pull requests are shown:
+#
+#   --all              every open pull request (the default)
+#   --mine             the pull requests the caller opened, without the author column
+#   --owner=<login>    the pull requests the named author opened; repeat the flag for more authors
+#
+# Every choice except --mine shows the author before the state.
+#
+# A pull request's state is the first of these that applies. Its color shows the state's family, never the
+# single state: green when nothing is left to decide, yellow when a human owes a decision, and blue when the next
+# move is a machine's or a reviewer's. Detail is dim.
+#
+#   state              glyph   color
+#   draft              🔨      dim
+#   queued             🚦      blue
+#   conflicted         💥      yellow
+#   failing:gate       🔥      yellow
+#   no-check           📭      blue
+#   comments:open      💬      yellow
+#   blocked:approval   👀      blue
+#   ready              🛬      green
+#
+# --json prints the same data as one JSON document, {desk, worktrees, pullRequests, goneBranches}, with the pull
+# requests chosen the same way.
 
 use git
 
-# status_commit_cap is how many commits a block lists before counting the rest.
+# status_commit_cap is how many uncommitted paths or commits a checkout block lists before it counts the rest.
 status_commit_cap=10
 
-# status:width prints the terminal's width in columns: COLUMNS, else the terminal on stderr, else 100.
+# status:width prints the terminal's width in columns: COLUMNS, else the width of the terminal on stderr, else
+# 100. A width under 60 also gives 100.
 status:width() {
   local cols=''
   if [[ "${COLUMNS:-}" =~ ^[0-9]+$ ]]
@@ -62,7 +83,7 @@ status:paint() {
   printf '%s%s%s' "$(out:sgr "$1")" "$2" "$(out:sgr 0)"
 }
 
-# status:state-sgr <state> prints the family color of a state.
+# status:state-sgr <state> prints the color code of a state's family.
 status:state-sgr() {
   case "$1" in
     (ready)                                     printf '32' ;;
@@ -72,8 +93,8 @@ status:state-sgr() {
   esac
 }
 
-# status:state-emoji <state> prints the glyph of a state. Every glyph is one code point drawn two columns wide, so
-# the column after it stays aligned.
+# status:state-emoji <state> prints a state's glyph. Each glyph is one code point drawn two columns wide, so the
+# next column stays aligned.
 status:state-emoji() {
   case "$1" in
     (draft)            printf '🔨' ;;
@@ -102,7 +123,7 @@ status:age() {
   fi
 }
 
-# status:refs prints "<ref> <sha>" for origin's branches and the tags, the refs a fetch moves.
+# status:refs prints "<ref> <sha>" for origin's branches and for the tags: the refs a fetch moves.
 status:refs() {
   git for-each-ref --format='%(refname) %(objectname)' refs/remotes/origin refs/tags | grep --invert-match '/HEAD '
   return 0
@@ -116,9 +137,9 @@ status:plural() {
   fi
 }
 
-# status:fetch-summary <before> <after> <default-branch> prints one line naming what moved between two status:refs
-# snapshots: the commits new on origin's default branch, then the branches updated, new, and pruned, then the tags
-# new; "nothing new" when nothing moved.
+# status:fetch-summary <before> <after> <default-branch> prints one line listing what changed between two
+# status:refs snapshots: new commits on origin's default branch, then branches updated, new, and pruned, then new
+# tags. It prints "nothing new" when nothing changed.
 status:fetch-summary() {
   local default_ref="refs/remotes/origin/$3" kind ref old new commits=0 updated=0 added=0 pruned=0 tags=0 line part
   local -a parts=()
@@ -151,8 +172,8 @@ status:fetch-summary() {
   printf '📥 fetched origin: %s\n' "${line}"
 }
 
-# status:fetch <default-branch> fetches origin, pruning, and prints status:fetch-summary's line and a blank line;
-# where the fetch fails, a warning in its place.
+# status:fetch <default-branch> fetches origin with --prune, then prints status:fetch-summary's line and a blank
+# line. When the fetch fails, it prints a warning instead of the summary.
 status:fetch() {
   local before
   before=$(status:refs)
@@ -165,15 +186,15 @@ status:fetch() {
   printf '\n' >&2
 }
 
-# status:collect prints one JSON object per open pull request, the documents the forge provider folds, or
-# nothing with a warning where the forge cannot be asked.
+# status:collect prints one JSON object per open pull request, as the forge provider builds them. When the forge
+# cannot be reached, it prints nothing and a warning.
 status:collect() {
   use forge
   forge:open-prs || warn "no pull request is shown; see above"
 }
 
-# status:select <login>… keeps, of the pull request documents on stdin, those an author named here opened; with
-# no login named, every one.
+# status:select <login>… reads pull request documents on stdin and keeps those opened by one of the named
+# authors. With no login, it keeps every one.
 status:select() {
   if (( $# == 0 ))
   then cat
@@ -186,9 +207,9 @@ status:fork() {
   git merge-base "origin/$2" "$1" 2>/dev/null || git merge-base "$2" "$1" 2>/dev/null || true
 }
 
-# status:relative <path> prints <path> relative to the directory the command was typed in: ".", a descent, or a
-# climb. Both sides are resolved physically, the target through its nearest directory that exists, so a symlinked
-# directory on either side still climbs correctly.
+# status:relative <path> prints <path> relative to the directory the command was run from: ".", a path down, or
+# a path up through ../. Both paths are resolved physically (the target through its nearest existing directory),
+# so a symlinked directory on either side still gives the right ../ path.
 status:relative() {
   local target=$1 here=${kit_invoked_in:-$(pwd -P)} up='' dir rest=''
   dir=${target}
@@ -217,11 +238,18 @@ status:relative() {
   fi
 }
 
-# status:checkout <path> <branch> <default-branch> prints one JSON object measuring the checkout at <path>: path,
-# relative, branch (empty when detached), detached, ahead of and behind the point where the branch left origin's
-# default branch, the lines the working tree adds and removes against that point, the count of uncommitted paths
-# and each as {status, path} with git's two-letter status, and the commits past that point as [{sha, subject}]. A detached checkout measures its lines against its own head
-# and lists no commits.
+# status:checkout <path> <branch> <default-branch> prints one JSON object that measures the checkout at <path>.
+# The fork point is where the branch left origin's default branch. The fields:
+#
+#   path, relative      the checkout's path, and that path relative to the caller's directory
+#   branch, detached    the branch (empty when detached), and whether the checkout is detached
+#   ahead, behind       the commits on the branch past the fork point, and on origin's default branch past it
+#   added, removed      the lines the working tree adds and removes against the fork point
+#   uncommitted         the number of uncommitted paths
+#   changes             each uncommitted path as {status, path}, with git's two-letter status
+#   commits             the commits past the fork point, as [{sha, subject}]
+#
+# A detached checkout measures its lines against its own HEAD and lists no commits.
 status:checkout() {
   local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _
   [[ -n "${branch}" ]] && fork=$(status:fork "${branch}" "${default_branch}")
@@ -250,9 +278,13 @@ status:checkout() {
         commits: [split("\n")[] | select(. != "") | split("\t") | { sha: .[0], subject: (.[1:] | join("\t")) }] }'
 }
 
-# status:label <relative> <branch> prints the label of a checkout and its plain width, tab-separated: the path with
-# the directory dim and the branch underlined when the path's last component is the branch or ends in "-<branch>",
-# the branch alone at ".", or "branch on path" otherwise. A detached checkout is its path.
+# status:label <relative> <branch> prints a checkout's label and its plain width, tab-separated. The label is:
+#
+#   - for a detached checkout: its path
+#   - at ".": the branch alone
+#   - when the path's last component is the branch or ends in "-<branch>": the path, with the directory dim and
+#     the branch underlined
+#   - otherwise: "<branch> on <path>"
 status:label() {
   local relative=$1 branch=$2 dir
   if [[ -z "${branch}" ]]
@@ -270,9 +302,9 @@ status:label() {
   fi
 }
 
-# status:paint-count <count> <sign> <sgr> <width> <side> prints <sign><count> padded to <width> characters on the
-# left or the right, in <sgr> above zero and dim at zero. The padding is by character, since the arrows are
-# multibyte and printf's field width counts bytes.
+# status:paint-count <count> <sign> <sgr> <width> <side> prints <sign><count> padded to <width> characters,
+# aligned to <side> (left or right). The text is in <sgr> above zero and dim at zero. It pads by characters,
+# because the arrows are multibyte and printf's field width counts bytes.
 status:paint-count() {
   local count=$1 sign=$2 sgr=$3 width=$4 side=$5 text pad=''
   (( count > 0 )) || sgr=90
@@ -286,15 +318,15 @@ status:paint-count() {
   fi
 }
 
-# status:measures <checkout-json> [<widths>] prints "↑a ↓b · +x -y", and " · n uncommitted" in yellow when n is
-# above zero. <widths> is status:count-widths' line; with it, ahead and added are right-aligned and behind and
-# removed left-aligned in columns of those widths, so the dots of every row fall under each other.
+# status:measures <checkout-json> [<widths>] prints "↑a ↓b · +x -y", then " · n uncommitted" in yellow when n is
+# above zero. <widths> is status:count-widths' line. With it, ahead and added are right-aligned, and behind and
+# removed left-aligned, in columns of those widths, so the dots line up across rows.
 status:measures() {
   local ahead behind added removed uncommitted ahead_w=0 behind_w=0 added_w=0 removed_w=0
   IFS=$'\t' read -r ahead behind added removed uncommitted \
     < <(jq --raw-output '[.ahead, .behind, .added, .removed, .uncommitted] | @tsv' <<<"$1")
   [[ -n "${2:-}" ]] && IFS=' ' read -r ahead_w behind_w added_w removed_w <<<"$2"
-  # The last column is padded only when something follows it, so no row ends in blanks.
+  # The last column is padded only when something follows it, so no row ends in trailing spaces.
   (( uncommitted > 0 )) || removed_w=0
   printf '%s %s · %s %s' \
     "$(status:paint-count "${ahead}" '↑' '1;32' "${ahead_w}" right)" \
@@ -313,10 +345,14 @@ status:count-widths() {
     | map(tostring | length + 1) | join(" ")'
 }
 
-# status:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout: its row, with the
-# counts in status:count-widths' columns, then its uncommitted paths, yellow status and path, then its commits,
-# dim hash and subject. Past status_commit_cap it prints the first paths and a count of the rest, and the newest
-# commits, a dim count of the hidden, and the oldest.
+# status:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout:
+#
+#   1. its row, with the counts in status:count-widths' columns
+#   2. its uncommitted paths, each with its status in yellow
+#   3. its commits, each with its hash dim
+#
+# Past status_commit_cap, it prints the first paths and a count of the rest. For commits, it prints the newest
+# ones, a dim count of the hidden ones, and the oldest one.
 status:checkout-block() {
   local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
@@ -324,7 +360,7 @@ status:checkout-block() {
   [[ -n "${branch}" ]] || mark="   $(status:paint 33 '❗ detached HEAD')"
   printf '%s %s%*s%s   %s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" \
     "$(status:measures "${doc}" "${widths}")" >&2
-  # A status can open with a blank, which a tab read would drop, so the separator is one it cannot.
+  # A status can start with a space, which a tab-separated read would drop, so the separator is \x1f instead.
   while IFS=$'\x1f' read -r code path
   do
     [[ -n "${path}" ]] || continue
@@ -358,12 +394,16 @@ status:checkout-block() {
     | @tsv' <<<"${doc}")
 }
 
-# status:check-cell <checks-json> prints the checks as "✅ <passed> / <total> · <took>", the duration dim, or
-# "❌ <failing> · <passed> / <total> · <took>", or "🏃 <passed> / <total> · <elapsed>"; nothing when none has
-# reported.
+# status:check-cell <checks-json> prints the checks cell, with the duration dim:
+#
+#   - passed: "✅ <passed> / <total> · <took>"
+#   - failed: "❌ <failing> · <passed> / <total> · <took>"
+#   - running: "🏃 <passed> / <total> · <elapsed>"
+#
+# It prints nothing when no check has reported.
 status:check-cell() {
   local state passed total failing took text
-  # A field here can be empty, and a tab read collapses an empty field, so the separator is one that cannot.
+  # A field can be empty, and a tab-separated read collapses an empty field, so the separator is \x1f instead.
   IFS=$'\x1f' read -r state passed total failing took \
     < <(jq --raw-output '[.state, .passed, .total, .failing, (.took // "")] | map(tostring) | join("\u001f")' <<<"$1")
   case "${state}" in
@@ -378,8 +418,8 @@ status:check-cell() {
 }
 
 # status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <worktree> prints a pull request:
-# its row, with the author before the state where the owner width is above zero and ending with its branch where
-# a worktree here holds it, then the issues it closes.
+# its row, then the issues it closes. The row shows the author before the state when <owner-width> is above zero,
+# and ends with the branch when a worktree here has it checked out.
 status:pr-block() {
   local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6
   local number ref title author branch state age unresolved row issue checks
@@ -404,8 +444,8 @@ status:pr-block() {
   return 0
 }
 
-# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] draws the picture the file header
-# describes, or prints it as one JSON document.
+# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the output the file header
+# describes, or the same data as one JSON document.
 status:render() {
   local no_fetch=false json=false choice=all arg main_root default_branch desk_branch path branch doc gone
   local -a owners=()
@@ -422,9 +462,9 @@ status:render() {
         return 2
     esac
   done
-  # The forge is the slow read and needs nothing local, so it starts first and runs while the fetch and the local
-  # reads do; its warnings are held for the pull requests' place in the picture, so they do not land among the
-  # checkouts. --mine asks the forge who the caller is in the same job.
+  # The forge call is the slow one and needs nothing local, so it starts first and runs during the fetch and the
+  # local reads. Its warnings are saved and printed where the pull requests appear, so they do not land among the
+  # checkouts. With --mine, the same background job also asks the forge for the caller's login.
   local scratch prs_job prs_failed=false
   scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
   # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
@@ -453,7 +493,7 @@ status:render() {
   desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   gone=$(git:gone-branches)
 
-  # The desk and the worktrees by issue number, each as JSON.
+  # Measure the desk, then the worktrees in issue-number order, each as JSON.
   local desk prs
   local -a worktrees=()
   desk=$(status:checkout "${main_root}" "${desk_branch}" "${default_branch}")
@@ -477,7 +517,7 @@ status:render() {
     return 0
   fi
 
-  # The checkouts are drawn while the forge may still be answering.
+  # Draw the checkouts while the forge call may still be running.
   local label_w=0 width relative widths
   local -A worktree_on=()
   for doc in "${desk}" "${worktrees[@]}"
@@ -504,7 +544,7 @@ status:render() {
   [[ "${prs_failed}" == false ]] || return 1
   prs=$(<"${scratch}/prs")
 
-  # Column widths across the pull requests; the author column is there unless --mine chose the rows.
+  # Compute the column widths across the pull requests. The author column is shown unless --mine is given.
   local title_w=0 owner_w=0 state_w=0 age_w=0 text author state_text age_secs
   while IFS=$'\x1f' read -r text author state_text age_secs
   do
@@ -538,8 +578,8 @@ status:render() {
   fi
 }
 
-# status:by-number sorts git:worktrees lines by the issue number their directory opens with; a directory that
-# opens with no number sorts first.
+# status:by-number sorts git:worktrees lines by the issue number their directory name starts with. A directory
+# name that does not start with a number sorts first.
 status:by-number() {
   local path rest dir number
   while IFS=$'\t' read -r path rest

@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# policy-patterns.sh - the default policy engine: each subject matched against its pattern in bash (sourced module)
+# policy-patterns.sh - the default policy provider: matches each subject against its pattern in bash (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The engine bin/policy.sh uses unless the repository names another. It needs no tool: each rule of the facts'
-# policy object is matched with bash's =~ against its subject, and a rule whose pattern is empty is off. The
-# refusals are worded exactly as the policy-opa module's Rego words them, so either engine says the same thing.
+# bin/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
+# the facts' policy object against its subject with bash's =~. A rule with an empty pattern is off. The refusals
+# use the same wording as the policy-opa module's Rego, so both providers print the same messages.
 
 # policy-patterns:deny <input-file> prints one refusal per subject that does not match its pattern.
 policy-patterns:deny() {

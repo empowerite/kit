@@ -1,31 +1,41 @@
 # shellcheck shell=bash
-# toolchain.sh - the seam over how a checkout gets the tools its gate runs: mise, brew, or docker (sourced module)
+# toolchain.sh - one interface to the tool managers (mise, brew, docker) that install the gate's tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Which tool manager puts a repository's tools on a desk or a runner is the repository's decision. A repository
-# declares its toolchains in .kit/settings.yml, or the kit detects them from the files each one reads:
+# Each repository picks the tool managers that install the tools its gate runs, on the root checkout (the desk)
+# and on a CI runner. Each tool manager is a provider: toolchain-<name>.sh in this directory, whose functions are
+# named toolchain-<name>:<call>. A provider reads the fields of its settings record with toolchain:field.
+#
+# A repository can use more than one provider. They are chosen by:
+#
+#   1. the `toolchains` list in .kit/settings.yml, in the order listed
+#   2. otherwise every provider whose file is at the repository root, in this order:
+#        - mise: mise.toml or .mise.toml
+#        - brew: Brewfile
+#        - docker: toolchain.Dockerfile
+#
+# A `toolchains` setting looks like this:
 #
 #   toolchains:
-#     - provider: mise                       detected from mise.toml or .mise.toml
-#     - provider: brew                       detected from Brewfile
+#     - provider: mise
+#     - provider: brew
 #       file: Brewfile
-#     - provider: docker                     detected from toolchain.Dockerfile
+#     - provider: docker
 #       file: toolchain.Dockerfile
 #       image: example/toolchain
 #
-# A provider is toolchain-<name>.sh beside this file, its functions named toolchain-<name>:<call>, each reading its
-# record's fields through toolchain:field. A provider answers:
+# Every provider implements the calls below, except where noted.
 #
 #   file                    the file it reads, relative to the repository root
-#   require                 its own tool is present, or a remedy
-#   install                 every pinned tool installed, from the file and its lock
-#   outdated                one line per tool behind its source: "<name>\t<installed>\t<latest>"
-#   update                  every tool moved to its latest, and the pins and the lock rewritten
-#   path                    the directories that put its tools first on PATH, one per line
-#   run <command>…          the command run with its tools; only a provider that isolates, docker, answers
+#   require                 succeeds when its own tool is present; otherwise fails with a remedy
+#   install                 installs every pinned tool, from the file and its lock
+#   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"
+#   update                  moves every tool to its latest version, and rewrites the pins and the lock
+#   path                    the directories to put first on PATH for its tools, one per line
+#   run <command>…          runs the command with its tools; only docker implements it, because it isolates
 #
-# A command runs with every toolchain's path first on PATH, or inside the container where docker is declared, so
-# the gate sees the same tools on a desk and on a runner.
+# toolchain:run runs a command inside the container when docker is declared, and otherwise with every
+# toolchain's path first on PATH. Either way the gate sees the same tools on the desk and on a runner.
 #
 # see: docs/toolchains.md
 
@@ -38,9 +48,8 @@ toolchain:providers() {
     | LC_ALL=C sort | paste -s -d ' ' -)
 }
 
-# toolchain:declared prints the declared providers, one per line, in the order the settings name them; with none
-# declared, the ones whose file is here, in the order mise, brew, docker. A provider the kit does not carry is
-# refused by name.
+# toolchain:declared prints the chosen providers, one per line, as the file header describes. It fails, naming
+# the provider, when a declared provider is not one the kit has.
 toolchain:declared() {
   local provider found=''
   local -a declared=()
@@ -68,8 +77,8 @@ toolchain:declared() {
   printf '%s' "${found}"
 }
 
-# toolchain:field <provider> <field> prints a field of the provider's record, or nothing. The loop reads to the
-# end, so the reader is never left writing into a pipe nobody reads.
+# toolchain:field <provider> <field> prints a field of the provider's record, or nothing. The while loop reads
+# every record, even after a match, so yaml:records never writes into a pipe that nobody reads.
 toolchain:field() {
   local provider value found=''
   while IFS=$'\x1f' read -r provider value
@@ -102,15 +111,16 @@ toolchain:path() {
   toolchain:each path
 }
 
-# toolchain:isolating prints the declared toolchain that runs a command in a place of its own, docker, or nothing.
+# toolchain:isolating prints docker when docker is declared, otherwise nothing. docker is the only provider that
+# runs a command in its own container.
 toolchain:isolating() {
   local providers
   providers=$(toolchain:declared) || return 1
   grep --line-regexp docker <<<"${providers}" || true
 }
 
-# toolchain:run <command>… runs the command with the declared toolchains' tools: inside the container where docker
-# is declared, else with every toolchain's path first on PATH. With none declared the command runs as it is.
+# toolchain:run <command>… runs the command with the declared toolchains' tools: inside the container when docker
+# is declared, otherwise with every toolchain's path first on PATH. With no toolchain, the command runs as is.
 toolchain:run() {
   local isolating dirs
   isolating=$(toolchain:isolating) || return 1

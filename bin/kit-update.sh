@@ -2,9 +2,26 @@
 # kit-update - move the repository, and the home directory, to the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The previous release is the base of every merge. KIT_BASE names its root; the same release as the current
-# one is its own base; otherwise release:fetch finds or fetches it. A path left for lack of a base keeps the
-# manifest at the previous version, so the next run starts where this one stopped.
+# kit update takes no arguments. It moves the repository and the home directory from the release .kit/manifest
+# records (the previous release) to the pinned release. For each delivered file:
+#
+#   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
+#   - a merged JSON file is merged by key
+#   - a region is regenerated
+#   - a missing file is written
+#   - a file unchanged since the previous release is replaced
+#   - a file edited since the previous release gets a three-way merge, which leaves conflict markers on a conflict
+#
+# A merge by key, or a three-way merge, needs the previous release as its base. The base is the first of:
+#
+#   1. the directory KIT_BASE names
+#   2. this release, when the previous release is the same version
+#   3. the previous release, which release:fetch finds or fetches (never for an unreleased previous version)
+#
+# kit update checks that every merge has its base before it writes anything. When a base is missing, it writes
+# nothing and the manifest stays at the previous version, so the next run starts from the same place.
+#
+# Exits 0 when the update is complete, and 1 when a base is missing or a file needs to be resolved by hand.
 #
 # see: bin/release.sh
 
@@ -44,8 +61,42 @@ then
   exit 1
 fi
 
-conflicts=0
+# lacks-base <base> <path> <src> is true when updating the path needs the base release, and the base release is
+# missing.
+lacks-base() {
+  local base=$1 path=$2 src=$3 dest recorded kind
+  dest=$(release:dest "${base}" "${path}")
+  recorded=$(release:recorded "${base}" "${path}")
+  [[ -n "${recorded}" ]] || return 1
+  [[ -z "${base_root}" || -z "$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")" ]] || return 1
+  kind=$(release:kind "${src}" "${dest}")
+  [[ "${kind}" == merge ]] && return 0
+  [[ "${kind}" != region ]] && release:installed "${src}" "${dest}" >/dev/null 2>&1 \
+    && [[ "${recorded}" != "$(release:installed "${src}" "${dest}" | release:digest)" ]]
+}
+
+# Find every path that lacks its base before writing anything, so an update is all or nothing.
 skipped=0
+for base in $(release:bases)
+do
+  while IFS=$'\t' read -r path src
+  do
+    [[ -n "${path}" ]] || continue
+    if lacks-base "${base}" "${path}" "${src}"
+    then
+      error "$(release:dest "${base}" "${path}") cannot be updated without the base release ${previous};" \
+        "set KIT_BASE to a copy of it"
+      skipped=$(( skipped + 1 ))
+    fi
+  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+done
+if (( skipped > 0 ))
+then
+  error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run: kit update"
+  exit 1
+fi
+
+conflicts=0
 for base in $(release:bases)
 do
   while IFS=$'\t' read -r path src
@@ -55,18 +106,12 @@ do
     recorded=$(release:recorded "${base}" "${path}")
     if [[ -z "${recorded}" ]]
     then
-      # New in this release: written where there is nothing, or the same thing, and refused over anything else.
+      # New in this release: written when nothing, or the same content, is there, and refused otherwise.
       release:place-new "${src}" "${dest}" "new in ${current}" || conflicts=$(( conflicts + 1 ))
       continue
     fi
     previous_src=""
     [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")
-    if [[ -z "${previous_src}" ]]
-    then
-      error "${dest} cannot be updated without the base release ${previous}; set KIT_BASE to a copy of it"
-      skipped=$(( skipped + 1 ))
-      continue
-    fi
     kind=$(release:kind "${src}" "${dest}")
     if [[ "${kind}" == merge ]]
     then
@@ -74,7 +119,7 @@ do
       release:place "${src}" "${dest}" "${previous_src}"
     elif [[ "${kind}" == region ]]
     then
-      # A region is what its command makes it, so it is regenerated, never merged.
+      # A region's content comes from its command, so it is regenerated, never merged.
       step "${dest}: the region regenerated"
       release:place "${src}" "${dest}"
     elif ! release:installed "${src}" "${dest}" >/dev/null 2>&1
@@ -97,11 +142,6 @@ do
   release:retire "${base_root}" "${base}" "${previous}" "${current}" "${modules[@]}"
 done
 
-if (( skipped > 0 ))
-then
-  error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run: kit update"
-  exit 1
-fi
 release:write-manifests "${modules[@]}"
 if (( conflicts > 0 ))
 then

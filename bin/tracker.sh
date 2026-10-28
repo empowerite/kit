@@ -1,11 +1,29 @@
 # shellcheck shell=bash
-# tracker.sh - the loop's seam over the trackers that hold its issues (sourced module)
+# tracker.sh - one interface to the issue trackers: forge issues, Azure DevOps work items (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# An issue lives in a tracker, and the tracker is not the forge: GitHub issues and GitLab issues happen to live in
-# theirs, Azure DevOps work items and Jira do not, and a repository may use more than one at once. A reference
-# names its tracker in its syntax, as the trackers themselves write it: `#7` or `7` for the forge's own, `AB#4521`
-# for an Azure DevOps work item. `.kit/settings.yml` declares the others, a prefix and a provider each:
+# Verbs that read, assign, or create issues call tracker:of or tracker:at here. Each call is passed to the
+# provider for the issue's tracker: tracker-<name>.sh in this directory, whose functions are named
+# tracker-<name>:<call>.
+#
+# The tracker is not always the forge, the service that hosts the repository (GitHub or GitLab). GitHub and GitLab
+# issues are on the forge; Azure DevOps work items and Jira issues are not. A repository can use more than one
+# tracker at once.
+#
+# An issue reference names its tracker with a prefix, written the way that tracker writes it:
+#
+#   - `#7` or `7`: an issue in the forge's own tracker
+#   - `AB#4521`: an Azure DevOps work item
+#
+# The provider for a reference is chosen by:
+#
+#   1. a bare number is read as `#<number>`
+#   2. the longest prefix that the reference starts with, followed only by digits, picks a record: one in the
+#      `trackers` list in .kit/settings.yml, or the built-in `#` record for the forge's own tracker
+#   3. that record's `provider` field names the provider
+#
+# A record in `trackers` declares a prefix, a provider, and the provider's own fields. A record with the prefix
+# `#` replaces the built-in one.
 #
 #   trackers:
 #     - prefix: "AB#"
@@ -13,15 +31,15 @@
 #       organization: https://dev.azure.com/example
 #       project: Claims
 #
-# `#` is the forge's own tracker unless a record claims it. A provider is tracker-<name>.sh beside this file, its
-# functions named tracker-<name>:<call>, each taking the reference's number first and the prefix's record through
-# tracker:field. A provider answers these calls, printing its result on stdout and failing with a remedy:
+# Every provider implements the calls below. Each prints its result on stdout. On failure it prints a remedy. A
+# call about one issue gets the reference's number, without the prefix, as <id>. TRACKER_PREFIX is set to the
+# prefix, and the provider reads its record's fields with tracker:field.
 #
 #   title <id>              the issue's title
 #   state <id>              OPEN or CLOSED
 #   assignees <id>          the assignees' logins, space-separated
 #   assign <id> <login>     adds the assignee
-#   me                      the caller's login in this tracker, which need not be the forge's
+#   me                      the caller's login in this tracker, which can differ from the forge login
 #   create <title>          the number of the issue it creates
 #   url <id>                the issue's browser URL
 #
@@ -29,8 +47,8 @@
 
 use release yaml
 
-# tracker:records prints "<prefix>\x1f<provider>" for every declared tracker, then the forge's own as "#" unless a
-# record claims it.
+# tracker:records prints "<prefix>\x1f<provider>" for every declared tracker, then "#\x1fforge" for the forge's
+# own tracker, unless a record declares the prefix `#`.
 tracker:records() {
   local prefix provider forge_claimed=false
   while IFS=$'\x1f' read -r prefix provider
@@ -42,8 +60,9 @@ tracker:records() {
   [[ "${forge_claimed}" == true ]] || printf '#\x1fforge\n'
 }
 
-# tracker:field <prefix> <field> prints a field of the prefix's record, or nothing. Every loop over records here
-# reads to the end, so the reader is never left writing into a pipe nobody reads.
+# tracker:field <prefix> <field> prints a field of the prefix's record, or nothing. Every while loop over records
+# here reads every record, even after a match, so the command feeding it never writes into a pipe that nobody
+# reads.
 tracker:field() {
   local prefix value found=''
   while IFS=$'\x1f' read -r prefix value
@@ -53,9 +72,9 @@ tracker:field() {
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 
-# tracker:parse <reference> prints "<prefix>\t<number>": the longest declared prefix the reference opens with, and
-# the digits after it; a bare number is the forge's own. A reference no declared tracker answers is refused, naming
-# the prefixes there are.
+# tracker:parse <reference> prints "<prefix>\t<number>": the longest declared prefix that the reference starts
+# with, and the digits after it. A bare number is in the forge's own tracker. When no tracker matches the
+# reference, it fails and lists the prefixes.
 tracker:parse() {
   local ref=$1 prefix best='' provider
   [[ "${ref}" =~ ^[0-9]+$ ]] && ref="#${ref}"
@@ -75,7 +94,7 @@ tracker:parse() {
   printf '%s\t%s\n' "${best}" "${ref#"${best}"}"
 }
 
-# tracker:provider <prefix> prints the provider that answers the prefix.
+# tracker:provider <prefix> prints the provider for the prefix.
 tracker:provider() {
   local prefix provider found=''
   while IFS=$'\x1f' read -r prefix provider
@@ -90,7 +109,8 @@ tracker:provider() {
   printf '%s\n' "${found}"
 }
 
-# tracker:of <reference> <call> <argument>… runs the call of the tracker the reference names, with its number.
+# tracker:of <reference> <call> <argument>… runs the call on the reference's tracker, passing the reference's
+# number first.
 tracker:of() {
   local ref=$1 call=$2 prefix number provider
   shift 2
@@ -111,7 +131,7 @@ tracker:at() {
   TRACKER_PREFIX=${prefix} "tracker-${provider}:${call}" "$@"
 }
 
-# tracker:normal <reference> prints the reference as its tracker writes it: `7` becomes `#7`.
+# tracker:normal <reference> prints the reference in its tracker's own form: `7` becomes `#7`.
 tracker:normal() {
   local prefix number
   IFS=$'\t' read -r prefix number < <(tracker:parse "$1") || return 2
@@ -119,16 +139,16 @@ tracker:normal() {
   printf '%s%s\n' "${prefix}" "${number}"
 }
 
-# tracker:is-forge <reference> is true when the forge's own tracker answers the reference, so the forge can link a
-# branch to it and close it on merge by itself.
+# tracker:is-forge <reference> succeeds when the reference is in the forge's own tracker. The forge can then link
+# a branch to the issue and close the issue on merge by itself.
 tracker:is-forge() {
   local prefix number
   IFS=$'\t' read -r prefix number < <(tracker:parse "$1" 2>/dev/null) || return 1
   [[ -n "${prefix}" && "$(tracker:provider "${prefix}")" == forge ]]
 }
 
-# tracker:key <reference> prints the reference as a branch name opens with it: the forge's own issue 7 as `7`, a
-# work item AB#4521 as `ab4521`, letters lowered and anything not a letter or a digit dropped.
+# tracker:key <reference> prints the reference in the form a branch name starts with: forge issue 7 as `7`, work
+# item AB#4521 as `ab4521` (lowercased, with everything but letters and digits removed).
 tracker:key() {
   local ref
   ref=$(tracker:normal "$1") || return 2
@@ -141,7 +161,8 @@ tracker:key() {
   fi
 }
 
-# tracker:branch-ref <branch> prints the reference a branch was made for, read back from its key, or nothing.
+# tracker:branch-ref <branch> prints the reference a branch was made for, read back from the key the branch name
+# starts with, or nothing.
 tracker:branch-ref() {
   local branch=$1 prefix provider key found=''
   while IFS=$'\x1f' read -r prefix provider
@@ -158,8 +179,8 @@ tracker:branch-ref() {
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 
-# tracker:body-refs <body> prints every reference a closing keyword names in a change's body, for the trackers the
-# forge does not link by itself: `Closes AB#4521`, `fixes AB#4521`, `Resolves: AB#4521`.
+# tracker:body-refs <body> prints every reference that follows a closing keyword in a change's body, for the
+# trackers the forge does not link by itself: `Closes AB#4521`, `fixes AB#4521`, `Resolves: AB#4521`.
 tracker:body-refs() {
   local body=$1 prefix provider escaped
   while IFS=$'\x1f' read -r prefix provider
