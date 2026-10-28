@@ -177,7 +177,7 @@ issue:link-secondaries() {
 # issue:start [<number>…] is the on-ramp the file header describes. A desk without a signing key is refused
 # where the require_signing setting is true, before anything is written.
 issue:start() {
-  local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr created
+  local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
   forge:require || return 1
   me=$(forge:me) || return 1
   if [[ "$(release:setting require_signing)" == true ]]
@@ -231,7 +231,8 @@ issue:start() {
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return
   (( $# > 1 )) && issue:link-secondaries "${pr}" "${@:2}"
 
-  ok "Draft pull request #${pr} on ${branch}, primary #${primary}${2:+, secondaries: ${*:2}}"
+  IFS=$'\t' read -r sigil noun < <(forge:noun)
+  ok "Draft ${noun} ${sigil}${pr} on ${branch}, primary #${primary}${2:+, secondaries: ${*:2}}"
   ok "Worktree ready: ${wt}"
   step "cd '${wt}'    # do all work there; this checkout stays on ${desk_branch}"
 }

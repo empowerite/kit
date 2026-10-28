@@ -14,6 +14,8 @@
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
 #   repo-url                      the repository's browser URL
+#   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
+#   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
 #   issue-create <title>          the number of the issue it creates
 #   issue-title <n>               the issue's title
@@ -33,8 +35,10 @@
 
 use release
 
-# forge:provider prints the provider's name: the forge setting, else github for an origin at github.com. It
-# fails, naming the remedy, where neither names a provider the kit carries.
+# forge:provider prints the provider's name: the forge setting, else github for an origin at github.com and
+# gitlab for one at gitlab.com. A self-hosted forge is named by the setting. It fails, naming the remedy, where
+# neither names a provider the kit carries. One origin is one forge: a repository on two is a mirror or a
+# migration, and the setting says which one the loop runs on.
 forge:provider() {
   local provider host=''
   provider=$(release:setting forge)
@@ -43,6 +47,7 @@ forge:provider() {
     host=$(git remote get-url origin 2>/dev/null | sed -E 's#^([a-z]+://)?([^@/]+@)?([^/:]+).*#\3#')
     case "${host}" in
       (github.com | *.github.com) provider=github ;;
+      (gitlab.com | *.gitlab.com) provider=gitlab ;;
     esac
   fi
   if [[ -z "${provider}" ]]
@@ -79,6 +84,8 @@ forge:require()             { forge:call require "$@"; }
 forge:repo()                { forge:call repo "$@"; }
 forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
+forge:noun()                { forge:call noun "$@"; }
+forge:pr-url()              { forge:call pr-url "$@"; }
 forge:issue-create()        { forge:call issue-create "$@"; }
 forge:issue-title()         { forge:call issue-title "$@"; }
 forge:issue-state()         { forge:call issue-state "$@"; }

@@ -8,8 +8,8 @@
   "properties": {
     "forge": {
       "type": "string",
-      "enum": ["github"],
-      "description": "The provider the loop's verbs use. Detected from origin's host when absent."
+      "enum": ["github", "gitlab"],
+      "description": "The provider the loop's verbs use: github or gitlab. Detected from origin's host, github.com or gitlab.com, when absent; a self-hosted forge is named here."
     },
     "gate": {
       "type": "string",

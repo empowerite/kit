@@ -298,11 +298,12 @@ status:check-cell() {
 # a worktree here holds it, then the issues it closes.
 status:pr-block() {
   local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6
-  local number title author branch state age unresolved row issue checks
-  IFS=$'\x1f' read -r number title author branch state age unresolved \
-    < <(jq --raw-output '[.number, .title, .author, .branch, .state, .age, .unresolved] | map(tostring)
+  local number ref title author branch state age unresolved row issue checks
+  IFS=$'\x1f' read -r number ref title author branch state age unresolved \
+    < <(jq --raw-output '[.number, (.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
+          | map(tostring)
           | join("\u001f")' <<<"${doc}")
-  row="🔀 $(status:cell "#${number} ${title}" "${title_w}")"
+  row="🔀 $(status:cell "${ref} ${title}" "${title_w}")"
   (( owner_w > 0 )) && row+="   👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
   row+="   $(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
@@ -390,7 +391,7 @@ status:render() {
     (( ${#state_text} > state_w )) && state_w=${#state_text}
     text=$(status:age "${age_secs}")
     (( ${#text} > age_w )) && age_w=${#text}
-  done < <(jq --raw-output '["#\(.number) \(.title)", .author, .state, .age] | map(tostring) | join("\u001f")' \
+  done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring) | join("\u001f")' \
     <<<"${prs}")
   width=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 6 : 0) ))
   (( width < 20 )) && width=20

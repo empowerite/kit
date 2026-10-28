@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# fake-tool - stands in for a forge's command-line tool in the conformance suite (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Linked as gh or glab on PATH. Every call is appended to ${FAKE_DIR}/<tool>.calls. The response is the first line
+# of ${FAKE_DIR}/<tool>.routes whose glob matches the arguments joined by spaces: "<glob>\t<file>", the file's
+# contents printed, or "<glob>\t!<status>" to fail with that status. A gh call carrying --jq has the filter applied
+# to the response, as gh does, so the provider's own filter is what is tested. An unrouted call fails.
+
+set -o errexit -o nounset -o pipefail
+tool=${0##*/}
+printf '%s\n' "$*" >> "${FAKE_DIR}/${tool}.calls"
+filter=''
+args=("$@")
+for (( i = 0; i < ${#args[@]}; i++ ))
+do
+  [[ "${args[i]}" == --jq ]] && filter=${args[i + 1]}
+done
+while IFS=$'\t' read -r glob response
+do
+  # shellcheck disable=SC2053  # the route is a glob on purpose
+  [[ -n "${glob}" && "$*" == ${glob} ]] || continue
+  if [[ "${response}" == '!'* ]]
+  then
+    exit "${response#!}"
+  fi
+  if [[ -n "${filter}" ]]
+  then
+    jq --raw-output "${filter}" "${FAKE_DIR}/${response}"
+  else
+    cat "${FAKE_DIR}/${response}"
+  fi
+  exit 0
+done < "${FAKE_DIR}/${tool}.routes"
+echo "${tool}: unrouted call: $*" >&2
+exit 1

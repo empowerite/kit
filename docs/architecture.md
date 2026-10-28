@@ -57,11 +57,15 @@ work off the desk into the worktree, the one change it makes to the desk, and sa
 the worktree: `kit context` before a change, `kit lint` for the pre-commit linters by hand, `kit rebase` to bring the
 branch onto the default branch at origin and push it, and `gh pr ready` when the pull request body is the report.
 
-Every call the loop makes to the forge, an issue's title, a branch linked to it, a pull request and its state,
-its checks and threads and linked issues, goes through one seam, `forge:` in `bin/forge.sh`, and a provider
-answers: `forge-github.sh` over `gh`, chosen by the `forge` setting or by origin's host. The core verbs never
-reach the seam, so a repository on no forge still installs, updates, checks, and runs `kit context`, and `gh` is
-the GitHub provider's requirement alone.
+Every call the loop makes to the forge, an issue's title, a branch linked to it, a change and its state, its checks and
+threads and linked issues, goes through one seam, `forge:` in `bin/forge.sh`, and a provider answers: `forge-github.sh`
+over `gh`, or `forge-gitlab.sh` over `glab`, chosen by the `forge` setting or by origin's host, github.com or
+gitlab.com; a self-hosted forge is named by the setting. Each answers in the same shape, so `kit status` draws the same
+picture on either, and each names the change in its own words, a pull request `#3` or a merge request `!3`. One origin
+is one forge: a repository on two is a mirror or a migration, and the setting says which one the loop runs on.
+tests/forge-conformance.bats drives every provider through a fake of its tool against one world and holds every answer
+to one shape. The core verbs never reach the seam, so a repository on no forge still installs, updates, checks, and runs
+`kit context`, and each forge's tool is its provider's requirement alone.
 The delivered check is `kit ci`, three checks that are each one kit command, run by the delivered GitHub Actions
 job for a pull request into the default branch, or by any pipeline. `kit gate` runs the repository's own gate,
 the `gate` setting or the detected justfile recipe, Makefile target, or `package.json` script, and refuses when

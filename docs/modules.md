@@ -114,7 +114,7 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
-| `forge` | The provider the loop's verbs use, `github`; detected from origin's host when absent. |
+| `forge` | The provider the loop's verbs use, `github` or `gitlab`; detected from origin's host when absent, and named here for a self-hosted forge. |
 | `gate` | What `kit gate` runs; a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script is detected when absent. |
 | `require_signing` | `true` makes `kit issue` refuse a desk without a signing key. |
 | `answers` | The values a module's templates take, overriding the module's own defaults. |

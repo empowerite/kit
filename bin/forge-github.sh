@@ -27,6 +27,10 @@ forge-github:repo-url() {
     || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }
 }
 
+forge-github:noun() { printf '#\tpull request\n'; }
+
+forge-github:pr-url() { printf '%s/pull/%s\n' "$(forge-github:repo-url)" "$1"; }
+
 forge-github:me() {
   gh api user --jq '.login' 2>/dev/null && return 0
   error "run: gh auth login (the GitHub CLI is not authenticated)"
@@ -123,7 +127,7 @@ forge-github:pr-closing-issues() {
 }
 
 # One request: every open pull request with the issues it closes, its review threads, and the checks on its
-# head, folded into the document kit status draws: number, branch, title, author, createdAt, age in seconds,
+# head, folded into the document kit status draws: number, ref, branch, title, author, createdAt, age in seconds,
 # state, checks {state, passed, total, failing, took in seconds or null}, unresolved, and closes [{number, title}].
 forge-github:open-prs() {
   local repo query filter
@@ -174,7 +178,7 @@ forge-github:open-prs() {
        elif $unresolved > 0 then "comments:open"
        elif (.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED") then "blocked:approval"
        else "ready" end) as $state
-    | { number, branch: .headRefName, title, author: (.author.login // ""), createdAt,
+    | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
         age: ($now - (.createdAt | fromdateiso8601)), state: $state,
         checks: { state: $check, passed: $ok, total: $n, failing: $failing, took: $took },
         unresolved: $unresolved,

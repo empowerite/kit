@@ -21,7 +21,7 @@ provider() {
   bash -c 'source "${kit_root}/bin/1st.sh" && use forge && forge:provider'
 }
 
-@test "an origin at github.com names the github provider, by https or ssh" {
+@test "an origin at github.com names the github provider, and one at gitlab.com the gitlab one, by https or ssh" {
   git remote add origin https://github.com/empowerite/kit.git
   run provider
   [ "$status" -eq 0 ]
@@ -29,14 +29,17 @@ provider() {
   git remote set-url origin git@github.com:empowerite/kit.git
   run provider
   [ "$output" = "github" ]
+  git remote set-url origin git@gitlab.com:empowerite/kit.git
+  run provider
+  [ "$output" = "gitlab" ]
 }
 
 @test "an origin elsewhere, or none, is refused naming the setting and the forges the kit knows" {
-  git remote add origin https://gitlab.com/empowerite/kit.git
+  git remote add origin https://codeberg.org/empowerite/kit.git
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"set forge in .kit/settings.yml; origin's host 'gitlab.com' names no forge the kit knows"* ]]
-  [[ "$output" == *"(github)"* ]]
+  [[ "$output" == *"set forge in .kit/settings.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
+  [[ "$output" == *"(github gitlab)"* ]]
   git remote remove origin
   run provider
   [ "$status" -eq 1 ]
@@ -44,7 +47,7 @@ provider() {
 }
 
 @test "the forge setting wins, and an unknown one is refused by name" {
-  git remote add origin https://gitlab.com/empowerite/kit.git
+  git remote add origin https://codeberg.org/empowerite/kit.git
   mkdir .kit && printf 'forge: github\n' > .kit/settings.yml
   run provider
   [ "$status" -eq 0 ]
@@ -52,7 +55,7 @@ provider() {
   printf 'forge: sourcehut\n' > .kit/settings.yml
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'sourcehut' is not a forge the kit knows; the forges are: github"* ]]
+  [[ "$output" == *"'sourcehut' is not a forge the kit knows; the forges are: github gitlab"* ]]
 }
 
 @test "the core verbs need no forge and no gh" {

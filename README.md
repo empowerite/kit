@@ -58,9 +58,9 @@ export PATH="${PWD}/kit/bin:${PATH}"
 ```
 
 The kit needs bash 4.4 or later, git, and `jq`. The loop's verbs, `kit issue`, `kit status`, `kit tidy`, and `kit
-linked`, also need the tool of the forge, the service that hosts the repository: `gh` for GitHub. macOS ships bash 3.2,
-and `brew install bash` gives a current one. With mise, an exact pin installs the minute a release exists; a range pin
-sees a new kit a day after it ships unless `[settings]` carries `minimum_release_age_excludes =
+linked`, also need the tool of the forge, the service that hosts the repository: `gh` for GitHub, `glab` for GitLab.
+macOS ships bash 3.2, and `brew install bash` gives a current one. With mise, an exact pin installs the minute a release
+exists; a range pin sees a new kit a day after it ships unless `[settings]` carries `minimum_release_age_excludes =
 ["github:empowerite/kit"]`.
 
 ## Take the kit
