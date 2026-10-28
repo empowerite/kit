@@ -1,36 +1,17 @@
 #!/usr/bin/env bash
-# kit - the kit's command: runs the verb script bin/kit-<verb>.sh (executed entrypoint)
+# kit - the kit's command: runs the verb script bin/kit-<verb> (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit <verb> runs bin/kit-<verb>.sh with the remaining arguments. Before it does, it:
-#
-#   1. finds the release: the directory above bin/, following any symlink to this file (Homebrew links it into
-#      its own bin)
-#   2. exports the release directory as kit_root
-#   3. exports the directory the command was typed in as kit_invoked_in, for verbs that take relative paths
-#   4. changes to the repository root, so every verb reads and writes the same paths wherever it was typed
-#
-# Each verb script does everything else, including printing its own usage.
+# kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
+# bin), with the remaining arguments. Each verb sets up its own process through bash/1st.sh, so it runs the same
+# when called directly, and prints its own usage.
 #
 # see: .kit/1st.md
 
 set -o errexit -o nounset -o pipefail
 
-if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) ))
-then
-  echo "kit needs bash 4.4 or later; this is ${BASH_VERSION}" >&2
-  exit 1
-fi
-
 # readlink -f needs macOS 12.3 or later. Older macOS has no GNU-compatible readlink.
-kit_root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
-export kit_root
-kit_invoked_in=$(pwd -P)
-export kit_invoked_in
-if repository=$(git rev-parse --show-toplevel 2>/dev/null)
-then
-  cd "${repository}"
-fi
+kit_bin=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 
 verb=${1:-help}
 case "${verb}" in
@@ -72,13 +53,13 @@ Run kit <verb> --help for a verb's usage.
 USAGE
     ;;
   (*)
-    if [[ ! -x "${kit_root}/bin/kit-${verb}.sh" ]]
+    if [[ ! -x "${kit_bin}/kit-${verb}" ]]
     then
       echo "kit: unknown verb '${verb}'; run: kit help" >&2
       exit 2
     fi
     shift
-    exec "${kit_root}/bin/kit-${verb}.sh" "$@"
+    exec "${kit_bin}/kit-${verb}" "$@"
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

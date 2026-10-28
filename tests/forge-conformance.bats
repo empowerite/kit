@@ -29,12 +29,12 @@ teardown() {
 
 # call <call> <argument>… runs one call of the seam, as a verb would.
 call() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use forge && "forge:$0" "$@"' "$@"
+  bash -c 'source "${kit_root}/bash/1st.sh" && use forge && "forge:$0" "$@"' "$@"
 }
 
 # provider prints the provider the seam picks here.
 provider() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use forge && forge:provider'
+  bash -c 'source "${kit_root}/bash/1st.sh" && use forge && forge:provider'
 }
 
 # fixture <name> writes stdin to a response file the routes name.

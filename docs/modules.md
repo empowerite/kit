@@ -40,7 +40,7 @@ sets where a file lands:
 
 ## Metadata
 
-`module.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `bin/yaml.sh`
+`module.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `bash/yaml.sh`
 reads: scalars, lists of `- item`, and one level of map. A line starting with `#` is a comment.
 
 ```yaml
@@ -191,6 +191,7 @@ answers:
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
+| `bash_path` | The bash module path: the directories `use` sources a module from, in order, starting with `kit:bash/`; see [architecture.md](architecture.md#bash-modules). |
 
 ## Modules a repository defines
 

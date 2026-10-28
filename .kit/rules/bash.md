@@ -44,8 +44,9 @@ Applies to:
 6. A `case` label has both parentheses: `(vanilla)`. The last group has no `;;`.
 7. Quote every expansion outside `[[ ]]` and `(( ))`.
 8. Name a function in a sourced module `<module>:<kebab-name>`, where `<module>` is the file's basename. The
-   loader, `1st.sh`, is the exception. Its verbs have bare names (`use`, `info`, `step`, `ok`, `section`, `warn`,
-   `error`, and `summary`), and its helpers use the `out:` and `guard:` prefixes.
+   loader, `1st.sh`, is the exception. Its verbs have bare names (`use`, `run`, `info`, `step`, `ok`, `section`,
+   `warn`, `error`, and `summary`), and its helpers use the `use:`, `kit:`, `out:`, `guard:`, and `ere:` prefixes.
+   `super.sh` adds the bare `super`.
 9. Name a function private to one executed script in bare kebab-case.
 
 ## Behavior

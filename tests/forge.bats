@@ -18,7 +18,7 @@ teardown() {
 
 # provider prints the provider the seam picks here.
 provider() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use forge && forge:provider'
+  bash -c 'source "${kit_root}/bash/1st.sh" && use forge && forge:provider'
 }
 
 @test "an origin at github.com names the github provider, and one at gitlab.com the gitlab one, by https or ssh" {

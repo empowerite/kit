@@ -33,7 +33,7 @@ shims() {
 # later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
 later-release() {
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/bash" "${kit_checkout}/modules" "$1/"
   printf '9.9.9\n' > "$1/version"
   printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/modules/kit/files/repo/.kit/rules/json.md"
 }
@@ -476,7 +476,7 @@ later-release() {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install claude
   grep --quiet '^version 9.9.9$' .kit/manifest
-  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
+  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/bash" "${repo}.later/modules" "${repo}.newer/"
   printf '9.9.10\n' > "${repo}.newer/version"
   printf 'Added in 9.9.10.\n' >> "${repo}.newer/modules/kit/files/repo/.kit/rules/json.md"
   printf 'edited\n' >> .kit/rules/bash.md
@@ -494,7 +494,7 @@ later-release() {
 @test "update without the base release replaces every file still as it was placed, where none is merged by key" {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install
-  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/modules" "${repo}.newer/"
+  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/bash" "${repo}.later/modules" "${repo}.newer/"
   printf '9.9.10\n' > "${repo}.newer/version"
   printf 'Added in 9.9.10.\n' >> "${repo}.newer/modules/kit/files/repo/.kit/rules/json.md"
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update

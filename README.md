@@ -188,6 +188,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | Directory | Contents |
 | --- | --- |
 | `bin/` | the `kit` command and its verbs |
+| `bash/` | the bash modules the verbs share |
 | `modules/` | everything a release delivers |
 | `docs/`, `modules/*/docs/` | the documentation |
 

@@ -35,7 +35,7 @@ teardown() {
 
 # in_tracker <command>… runs a command with the tracker seam loaded, as a verb would.
 in_tracker() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use tracker && "$@"' _ "$@"
+  bash -c 'source "${kit_root}/bash/1st.sh" && use tracker && "$@"' _ "$@"
 }
 
 fixture() { cat > "${FAKE_DIR}/$1"; }

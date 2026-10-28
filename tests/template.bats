@@ -19,7 +19,7 @@ teardown() {
 
 # in_template <command>… runs a command with the template module loaded, from the repository, as a verb would.
 in_template() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use template && "$@"' _ "$@"
+  bash -c 'source "${kit_root}/bash/1st.sh" && use template && "$@"' _ "$@"
 }
 
 # shape <path>… runs only the shape check of every rule governing the paths, as kit lint does, without the linters.
@@ -30,7 +30,7 @@ shape() {
     while IFS= read -r rule
     do
       in_template template:check "${rule}" "${path}" || status=1
-    done < <(bash -c 'source "${kit_root}/bin/1st.sh" && use context && context:rules "$1"' _ "${path}")
+    done < <(bash -c 'source "${kit_root}/bash/1st.sh" && use context && context:rules "$1"' _ "${path}")
   done
   return "${status}"
 }
@@ -38,20 +38,20 @@ shape() {
 @test "a new file is made at the root from its rule's first template, its holes filled, and made executable" {
   mkdir -p deep/er
   cd deep/er
-  run "${kit_root}/bin/kit" new file bin/deploy.sh --purpose="push the build"
+  run "${kit_root}/bin/kit" new file bash/deploy.sh --purpose="push the build"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"made bin/deploy.sh from .kit/templates/bash/script"* ]]
+  [[ "$output" == *"made bash/deploy.sh from .kit/templates/bash/script"* ]]
   [[ "$output" == *".kit/rules/bash.md"* ]]
   cd "${repo}"
-  [ -x bin/deploy.sh ]
-  [ "$(sed -n 1,2p bin/deploy.sh)" = "$(printf '#!/usr/bin/env bash\n# deploy.sh - push the build')" ]
-  [ "$(tail -c 1 bin/deploy.sh | od -An -c | tr -d ' ')" = '\n' ]
-  [ "$(tail -n 1 bin/deploy.sh)" != "" ]
-  grep --quiet 'bin/deploy.sh' "$(git rev-parse --git-common-dir)/kit/context.log"
+  [ -x bash/deploy.sh ]
+  [ "$(sed -n 1,2p bash/deploy.sh)" = "$(printf '#!/usr/bin/env bash\n# deploy.sh - push the build')" ]
+  [ "$(tail -c 1 bash/deploy.sh | od -An -c | tr -d ' ')" = '\n' ]
+  [ "$(tail -n 1 bash/deploy.sh)" != "" ]
+  grep --quiet 'bash/deploy.sh' "$(git rev-parse --git-common-dir)/kit/context.log"
 }
 
 @test "every file kit new file makes has the shape of its own template" {
-  "${kit_root}/bin/kit" new file bin/a.sh --purpose=a
+  "${kit_root}/bin/kit" new file bash/a.sh --purpose=a
   "${kit_root}/bin/kit" new file lib/b.sh --variant=module --purpose=b
   [ ! -x lib/b.sh ]
   "${kit_root}/bin/kit" new file justfile
@@ -64,7 +64,7 @@ shape() {
   "${kit_root}/bin/kit" new file sub/.gitignore
   "${kit_root}/bin/kit" new file .github/workflows/check.yml --purpose=gate --workflow=check
   grep --quiet '^name: check$' .github/workflows/check.yml
-  run shape bin/a.sh lib/b.sh justfile tools.just docs/guide.md conf/app.yml sub/.gitignore \
+  run shape bash/a.sh lib/b.sh justfile tools.just docs/guide.md conf/app.yml sub/.gitignore \
     .github/workflows/check.yml
   [ "$status" -eq 0 ]
 }
@@ -103,11 +103,11 @@ shape() {
 }
 
 @test "a file off its template's shape is named with the line it leaves, and a hole named twice must agree" {
-  "${kit_root}/bin/kit" new file bin/a.sh --purpose=a
-  sed -i.bak '/^set -o/d' bin/a.sh
-  run shape bin/a.sh
+  "${kit_root}/bin/kit" new file bash/a.sh --purpose=a
+  sed -i.bak '/^set -o/d' bash/a.sh
+  run shape bash/a.sh
   [ "$status" -ne 0 ]
-  [[ "$output" == *"bin/a.sh does not have the shape of the bash template (script, module)"* ]]
+  [[ "$output" == *"bash/a.sh does not have the shape of the bash template (script, module)"* ]]
   [[ "$output" == *".kit/templates/bash/script line 5: set -o errexit -o nounset -o pipefail"* ]]
   "${kit_root}/bin/kit" new file tools.just
   sed -i.bak 's/"${tools_justfile}"/"${other_justfile}"/' tools.just

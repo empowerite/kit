@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# kit-lint - run each rule's linter over the paths it governs (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit lint [--all-files] [<path>…]
+#
+# Runs each rule's checks over the files the rule governs. The files are:
+#
+#   - the paths given, relative to the current directory
+#   - with no paths, the staged files
+#   - with no paths and --all-files, every tracked file
+#
+# Each file is matched to the rules that govern it, the same way kit context matches. Then, for each rule:
+#
+#   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
+#     that is not on PATH is a failure, not a skip.
+#   - When the rule has templates, each of its files must have the shape of one of them (see bash/template.sh).
+#
+# Files under .kit/templates/ are templates, not files of their kind, and are not linted.
+#
+# kit lint assumes no hook manager. The lefthook module runs it from a pre-commit hook.
+#
+# Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
+# failed.
+#
+# see: bash/context.sh, bash/template.sh, docs/context.md, docs/templates.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+kit:enter
+use context template yaml
+
+all=false
+paths=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--help)
+      echo "usage: kit lint [--all-files] [<path>…]" >&2
+      exit 0
+      ;;
+    (--all-files) all=true ;;
+    (-*)
+      error "unknown flag '${arg}' (usage: kit lint [--all-files] [<path>…])"
+      exit 2
+      ;;
+    (*) paths+=("${arg}")
+  esac
+done
+# A named path is relative to the current directory, and is converted to a path from the repository root. git's
+# lists are already root-relative. They are read NUL-separated, so a name with a space or a non-ASCII character
+# survives.
+for i in "${!paths[@]}"
+do
+  paths[i]=$(context:relative "${paths[i]}")
+done
+if (( ${#paths[@]} == 0 ))
+then
+  if [[ "${all}" == true ]]
+  then
+    readarray -d '' -t paths < <(git ls-files -z)
+  else
+    readarray -d '' -t paths < <(git diff --cached --name-only --diff-filter=ACMR -z)
+  fi
+fi
+if (( ${#paths[@]} == 0 ))
+then
+  ok "nothing to lint"
+  exit 0
+fi
+
+# The paths each rule governs, newline-separated, keyed by the rule file.
+declare -A governed=()
+for path in "${paths[@]}"
+do
+  [[ -f "${path}" && ! "${path}" =~ (^|/)\.kit/templates/ ]] || continue
+  while IFS= read -r rule
+  do
+    [[ -n "${rule}" ]] || continue
+    governed[${rule}]+="${path}"$'\n'
+  done < <(context:rules "${path}")
+done
+
+refused=0
+for rule in $(printf '%s\n' "${!governed[@]}" | LC_ALL=C sort)
+do
+  if [[ -n "$(template:variants "${rule}")" ]]
+  then
+    held=()
+    while IFS= read -r path
+    do
+      [[ -n "${path}" ]] && ! template:exempt "${path}" && held+=("${path}")
+    done < <(printf '%s' "${governed[${rule}]}")
+    step "${rule}: the shape of its templates over ${#held[@]} path(s)"
+    if (( ${#held[@]} > 0 )) && ! template:check "${rule}" "${held[@]}"
+    then
+      refused=$(( refused + 1 ))
+    fi
+  fi
+  lint=$(yaml:value "${rule}" lint)
+  [[ -n "${lint}" ]] || continue
+  read -r -a command <<<"${lint}"
+  readarray -t targets < <(printf '%s' "${governed[${rule}]}")
+  step "${rule}: ${lint} over ${#targets[@]} path(s)"
+  if ! guard:require "tool:${command[0]}"
+  then
+    refused=$(( refused + 1 ))
+    continue
+  fi
+  "${command[@]}" "${targets[@]}" || refused=$(( refused + 1 ))
+done
+if (( refused > 0 ))
+then
+  error "${refused} rule(s) refused; see above"
+  exit "${refused}"
+fi
+ok "every governed path passes its rule's linter"
+
+# ----------------------------------------------------------------------------------------------------------------------

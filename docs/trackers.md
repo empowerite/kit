@@ -8,7 +8,8 @@ reference selects its tracker:
 kit issue AB#4521
 ```
 
-The workflow commands look up issues through one interface, `bin/tracker.sh`. A repository can use more than one
+The workflow commands look up issues through one seam, `bash/tracker.sh`;
+[architecture.md](architecture.md#forges-seams-and-providers) says what a seam is. A repository can use more than one
 tracker at once, for example GitHub issues for bugs and Azure DevOps for planned work.
 
 ## References
@@ -57,7 +58,7 @@ and the error lists the known prefixes.
 
 | Provider | Tool | Fields | Closed when the state is |
 | --- | --- | --- | --- |
-| `forge` | the forge's own, through `bin/forge.sh` | none | the forge's closed state |
+| `forge` | the forge's own, through `bash/forge.sh` | none | the forge's closed state |
 | `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`) | Closed, Done, or Removed |
 
 A provider is `bin/tracker-<name>.sh`. It implements these calls:

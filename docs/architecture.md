@@ -16,11 +16,39 @@ verify the work follows the rules. This page covers:
 
 A release is one tarball, `kit-<version>.tar.gz`, with the same layout as this checkout:
 
-- `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>.sh` beside it. The verbs share bash modules,
-  loaded with `use`.
+- `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
+  directly. `bin/` holds only commands a person runs.
+- `bash/` holds the bash modules the verbs share, loaded with `use`; see [Bash modules](#bash-modules).
 - `modules/` holds everything a release delivers.
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
+
+### Bash modules
+
+A module is a sourced `<module>.sh`. `use <module>` finds it on the module path, the `bash_path` setting in
+`.kit/settings.yml`, and sources every `<module>.sh` on the path in order, once per process:
+
+```yaml
+bash_path:
+  - kit:bash/   # the kit's own modules, always first
+  - bash/       # this repository's, relative to its root
+```
+
+An entry is `kit:<dir>`, a directory in the installed kit; an absolute directory; or a directory relative to the
+repository root. Without the setting, the path is `kit:bash/` alone.
+
+A later file extends a module: it adds functions, or replaces one an earlier file defined. A provider, such as
+`forge-<name>.sh`, counts wherever it is on the path, so a repository can add its own. To wrap a function rather
+than replace it, a module loads `super` and names the function before redefining it:
+
+```bash
+use super
+super:override forge:issue-title
+forge:issue-title() { super "$@" | sed 's/^\[WIP\] //'; }
+```
+
+Within the modules, work is a function call. Across a process boundary it is `run kit <verb>`, which runs this
+release's `kit` rather than the one on `PATH`, and passes the trace depth to the child as `kit_depth`.
 
 ### Modules
 
@@ -111,23 +139,31 @@ Work starts from an issue:
 3. `gh pr ready` once the pull request body holds the report.
 4. A human merges, and `kit tidy` removes the worktree and the branch.
 
-### Forges, interfaces, and providers
+### Forges, seams, and providers
 
-A forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab. kit says
-forge rather than GitHub because the workflow runs on more than one.
+A forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab. The word
+comes from SourceForge, which in 1999 became the first widely used site of this kind; GitLab, Gitea, and Forgejo still
+use it for the category. kit says forge rather than GitHub because the workflow runs on more than one.
 
-Four files each define an interface: a list of calls, and the rule that picks which provider implements them. Shell
-has no types, so the choice is made at run time: a setting, or origin's host, becomes part of a function name. In
-Michael Feathers' terms (*Working Effectively with Legacy Code*), each is a seam.
+Four files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004), and
+he took it from tailoring: a seam is where two pieces of cloth are joined, and where a garment can be let out or taken
+in without recutting either piece. In code, a seam is a place where behavior can change without editing the code at
+that place. Every seam has an enabling point, the spot that decides which behavior runs.
 
-| Interface | Providers | Chosen by |
+kit says seam rather than interface because seam is the more precise word for these files. An interface is only a
+contract: the calls a provider must answer. It says nothing about who picks the provider, or when. A seam is the
+contract plus its enabling point, and each of these files holds both. Its header lists the calls, and its code picks
+the provider at run time, from a setting or origin's host, by building the provider's function name from a string.
+Shell has no types, so there is no separate interface declaration to point at; the seam is the whole of what exists.
+
+| Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `bin/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
-| `bin/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `bin/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
-| `bin/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
+| `bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
+| `bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
+| `bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
-Every forge call the workflow makes goes through `forge:` in `bin/forge.sh`: an issue's title, the branch linked to
+Every forge call the workflow makes goes through `forge:` in `bash/forge.sh`: an issue's title, the branch linked to
 it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must be named in the
 `forge` setting.
 

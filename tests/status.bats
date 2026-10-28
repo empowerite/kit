@@ -25,7 +25,7 @@ teardown() {
 
 # in_status <command>… runs a command with the status module loaded, from this directory, as a verb would.
 in_status() {
-  kit_invoked_in=$(pwd -P) bash -c 'source "${kit_root}/bin/1st.sh" && use status && "$@"' _ "$@"
+  kit_invoked_in=$(pwd -P) bash -c 'source "${kit_root}/bash/1st.sh" && use status && "$@"' _ "$@"
 }
 
 # commits-in <path> <n> makes <n> commits in the checkout at <path>.

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 560" width="1040" height="560" role="img"
   aria-labelledby="title desc">
   <title id="title">Delivery: a release's modules, through the kit's verbs, into a repository and a home</title>
-  <desc id="desc">The release carries bin/ and modules/. The verbs render templates, merge JSON by key, and copy the
+  <desc id="desc">The release carries bin/, bash/, and modules/. The verbs render templates, merge JSON by key, and copy the
     rest into the repository root and the user's home, each recorded in its own manifest.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">

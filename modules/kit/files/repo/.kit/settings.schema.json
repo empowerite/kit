@@ -128,6 +128,19 @@
         "opa"
       ],
       "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise."
+    },
+    "bash_path": {
+      "type": "array",
+      "description": "The bash module path: the directories that `use <module>` sources every <module>.sh from, in order, so a later directory overrides or extends an earlier one. It starts with kit:bash/, the kit's own modules. An entry is kit:<dir>, a directory in the installed kit; an absolute directory; or a directory relative to the repository root. Default: [kit:bash/].",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "contains": {
+        "const": "kit:bash/"
+      }
     }
   }
 }

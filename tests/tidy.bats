@@ -26,13 +26,13 @@ teardown() {
 # decide <path> runs tidy's decision on <path>, a detached checkout, with main as the default branch and no dry
 # run.
 decide() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use git \
+  bash -c 'source "${kit_root}/bash/1st.sh" && use git \
     && git:tidy-worktree "$1" "" true main "$(git rev-parse --show-toplevel)" false' _ "$1"
 }
 
 # fields prints every linked worktree as "<dir> <detached> [<branch>]", read the way the verbs read git:worktrees.
 fields() {
-  bash -c 'source "${kit_root}/bin/1st.sh" && use git && git:worktrees' \
+  bash -c 'source "${kit_root}/bash/1st.sh" && use git && git:worktrees' \
     | while IFS=$'\t' read -r path detached branch
   do
     printf '%s %s [%s]\n' "${path##*/}" "${detached}" "${branch}"

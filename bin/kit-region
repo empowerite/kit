@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# kit-region - print the content the active modules deliver as the region at a path (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit region [--home] [<path>]
+#
+# Prints the content an active module delivers as the region at <path>. Every region the kit delivers is filled
+# this way: kit install writes a bare directive, such as `kit:generate AGENTS.md`, and kit generate fills it by
+# running `kit region` with the region's name in KIT_GENERATE_REGION.
+#
+#   <path>    the region's path, relative to the repository root. Default: KIT_GENERATE_REGION.
+#   --home    makes the path relative to the home directory instead.
+#
+# Only one active module delivers a region at a given path, so kit region prints that module's
+# regions/<base>/<path>.
+#
+# Exits 0 when it prints the region, 1 when no active module delivers a region at <path>, and 2 on a usage error.
+#
+# see: bash/generate.sh, bash/release.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+kit:enter
+use release
+
+base=repo
+path=''
+for arg in "$@"
+do
+  case "${arg}" in
+    (--help)
+      echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
+      exit 0
+      ;;
+    (--home) base=home ;;
+    (-*)
+      error "unknown flag '${arg}' (usage: kit region [--home] [<path>])"
+      exit 2
+      ;;
+    (*) path=${arg}
+  esac
+done
+path=${path:-${KIT_GENERATE_REGION:-}}
+if [[ -z "${path}" ]]
+then
+  echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
+  exit 2
+fi
+release:require-manifest
+readarray -t modules < <(release:manifest-modules)
+release:render-all "${kit_root}" "${modules[@]}"
+src=$(release:source-of "${kit_root}" "${base}" "${path}" "${modules[@]}")
+if [[ -z "${src}" ]] || [[ "$(release:kind "${src}" "${path}")" != region ]]
+then
+  error "no active module delivers a region at ${path} (modules: ${modules[*]}); see .kit/manifest"
+  exit 1
+fi
+cat "${src}"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 # desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted when the branch it
 # was tagged on is deleted; see retire-pre-releases.yml.
 #
-# see: bin/kit-release.sh
+# see: bin/kit-release
 
 name: release
 

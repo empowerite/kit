@@ -56,7 +56,7 @@ teardown() {
   mkdir unpacked && tar --extract --gzip --file "kit-${version}.tar.gz" --directory unpacked
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
-  [ -x "unpacked/kit-${version}/bin/kit-install.sh" ]
+  [ -x "unpacked/kit-${version}/bin/kit-install" ]
   [ -f "unpacked/kit-${version}/modules/claude/module.yml" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh
