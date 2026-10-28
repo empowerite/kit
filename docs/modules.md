@@ -40,7 +40,7 @@ sets where a file lands:
 
 ## Metadata
 
-`module.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `bash/yaml.sh`
+`module.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `kit/bash/yaml.sh`
 reads: scalars, lists of `- item`, and one level of map. A line starting with `#` is a comment.
 
 ```yaml
@@ -60,7 +60,7 @@ answers:
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
 | `expects` | Lines the module expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 
-[module.schema.json](../modules/module.schema.json) is the schema, in JSON Schema 2020-12. This repository's gate
+[module.schema.json](../kit/modules/module.schema.json) is the schema, in JSON Schema 2020-12. This repository's gate
 (its own CI command) validates every `module.yml` against it with `ajv`. Without a validator, `kit install` applies
 the same contract and refuses, naming the problem:
 
@@ -170,7 +170,7 @@ fails the install, and the error names the key and the module.
 
 `.kit/settings.yml` belongs to the repository. The kit reads it and never writes it.
 
-- Its schema is [settings.schema.json](../modules/kit/files/repo/.kit/settings.schema.json), delivered beside it as
+- Its schema is [settings.schema.json](../kit/modules/kit/files/repo/.kit/settings.schema.json), delivered beside it as
   `.kit/settings.schema.json`.
 - An editor validates the file through the modeline `# yaml-language-server: $schema=settings.schema.json`.
 - Before every install, update, and check, the kit checks the file against the schema's main points, and

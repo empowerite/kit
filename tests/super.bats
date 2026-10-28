@@ -4,7 +4,7 @@
 
 setup() {
   export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main

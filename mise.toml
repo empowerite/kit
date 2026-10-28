@@ -14,9 +14,9 @@ lockfile = true
 # A lock written on a desk also covers the runner's platforms; see: https://mise.jdx.dev/dev-tools/mise-lock.html
 lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64"]
 
-# Put bin/ on PATH, so `kit` runs here the same way it runs in a consumer repository.
+# Put kit/bin/ on PATH, so `kit` runs here the same way it runs in a consumer repository.
 [env]
-_.path = ["bin"]
+_.path = ["kit/bin"]
 
 # Why each tool is here:
 #   actionlint          the workflows rule's linter, over .github/workflows/, in kit lint and the gate
@@ -28,7 +28,7 @@ _.path = ["bin"]
 #   ajv-cli             validates every module.yml and .kit/settings.yml against their schemas, in the gate
 #   markdownlint-cli2   the markdown rule's linter, over every .md file, in kit lint and the gate
 #   opa                 the OPA policy engine; tests/policy.bats checks it matches the patterns engine
-#   shellcheck          the bash rule's linter, over bin/, bash/, and tests/, in kit lint and the gate
+#   shellcheck          the bash rule's linter, over kit/, scripts/, and tests/, in kit lint and the gate
 [tools]
 actionlint = "1.7"
 bats = "1.14"

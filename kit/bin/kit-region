@@ -19,7 +19,7 @@
 # see: bash/generate.sh, bash/release.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=bash/1st.sh
+# shellcheck source=SCRIPTDIR/../bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
 use release

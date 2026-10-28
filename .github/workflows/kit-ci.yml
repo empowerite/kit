@@ -6,7 +6,7 @@
 #   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
 #      runners)
 #   2. puts kit on PATH: the release .kit/manifest records, downloaded from its public URL, or this checkout's own
-#      bin/ when the manifest records unreleased
+#      kit/bin/ when the manifest records unreleased
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
@@ -55,12 +55,12 @@ jobs:
             exit 1
           fi
           version=$(sed -n 's/^version //p' .kit/manifest)
-          if [[ "${version}" == unreleased && -x bin/kit ]]
+          if [[ "${version}" == unreleased && -x kit/bin/kit ]]
           then
-            printf '%s/bin\n' "${PWD}" >> "${GITHUB_PATH}"
+            printf '%s/kit/bin\n' "${PWD}" >> "${GITHUB_PATH}"
           elif [[ "${version}" == unreleased ]]
           then
-            echo '::error::.kit/manifest says unreleased and there is no bin/kit; pin a release and run kit update'
+            echo '::error::.kit/manifest says unreleased and there is no kit/bin/kit; pin a release and run kit update'
             exit 1
           elif ! command -v kit >/dev/null
           then

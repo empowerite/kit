@@ -44,7 +44,7 @@ A repository's own rules live in its own files, and updates leave them alone.
 
 ## Install
 
-A release is a tarball containing `bin/`, `modules/`, and a `version` file. Install it the same way the
+A release is a tarball containing `bin/`, `bash/`, `modules/`, and a `version` file. Install it the same way the
 repository installs its other tools.
 
 With mise, pin it in `mise.toml`:
@@ -187,35 +187,37 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 
 | Directory | Contents |
 | --- | --- |
-| `bin/` | the `kit` command and its verbs |
-| `bash/` | the bash modules the verbs share |
-| `modules/` | everything a release delivers |
-| `docs/`, `modules/*/docs/` | the documentation |
+| `kit/` | the release, packed as it is: everything in it ships, and nothing outside it does |
+| `kit/bin/` | the `kit` command and its verbs |
+| `kit/bash/` | the bash modules the verbs share |
+| `kit/modules/` | everything a release delivers |
+| `scripts/` | this repository's gate, `scripts/ci`, and `scripts/refresh` |
+| `docs/`, `kit/modules/*/docs/` | the documentation |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
 [docs/modules.md](docs/modules.md) describes the module format.
 
-This repository installs its own kit. The installed copies are written by `bin/kit install`; do not edit them by hand:
+This repository installs its own kit. The installed copies are written by `kit/bin/kit install`; do not edit them by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `modules/kit/files/repo/.kit/` |
-| `.kit/lefthook.yml` | `modules/lefthook/files/repo/.kit/lefthook.yml` |
-| `.github/workflows/kit-ci.yml` | `modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
-| `.claude/CLAUDE.md` | `modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
-| `.claude/settings.json` | `modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
-| `AGENTS.md`, `.gitignore` | `modules/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/modules/kit/files/repo/.kit/` |
+| `.kit/lefthook.yml` | `kit/modules/lefthook/files/repo/.kit/lefthook.yml` |
+| `.github/workflows/kit-ci.yml` | `kit/modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
+| `.claude/CLAUDE.md` | `kit/modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
+| `.claude/settings.json` | `kit/modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
+| `AGENTS.md`, `.gitignore` | `kit/modules/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
 | `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
 
 `.kit/settings.yml` belongs to this repository and is not delivered.
 
-When a commit changes a file under `modules/`, the installed copies must change in the same commit:
+When a commit changes a file under `kit/` or `.kit/settings.yml`, the installed copies must change in the same commit:
 
 - With the pre-commit hook installed, this happens automatically: the hook runs `scripts/refresh`, which regenerates
   the copies from the index and stages them.
 - Without the hook, stage your change, run `scripts/refresh`, and commit.
 
-`bin/kit check`, which the gate runs, names any installed copy that does not match its source. Each delivered file
+`kit/bin/kit check`, which the gate runs, names any installed copy that does not match its source. Each delivered file
 says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and the table above
 serves as the notice for `settings.json`.
 
@@ -232,7 +234,8 @@ The release workflow runs two commands:
 
 1. `kit release verify` rejects a tag that is not `release/<version>`, a release tag on a commit not on `main`, and a
    pre-release tag on a commit on `main`.
-2. `kit release publish` packs `bin/`, `modules/`, and `version` into `kit-<version>.tar.gz` and publishes it.
+2. `kit release publish` packs `kit/` (`bin/`, `bash/`, and `modules/`) and `version` into
+   `kit-<version>.tar.gz` and publishes it.
 
 `kit release pack` builds the same tarball locally. `kit release publish` refuses to publish a release anywhere but
 the CI runner, so only the workflow publishes releases. A pre-release can be published from a developer machine.

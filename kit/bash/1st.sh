@@ -51,6 +51,7 @@ use:path() {
   local entry dir
   local -a entries
   # yaml.sh is read in a subshell, so this does not count as loading it.
+  # shellcheck source=SCRIPTDIR/yaml.sh
   readarray -t entries < <(source "${kit_root}/bash/yaml.sh" && yaml:list .kit/settings.yml bash_path)
   (( ${#entries[@]} )) || entries=(kit:bash/)
   if [[ "${entries[0]}" != kit:bash/ ]]

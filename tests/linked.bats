@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
   mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${BATS_TEST_TMPDIR}/shims"
   printf '#!/usr/bin/env bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/shims/gh" && chmod +x "${BATS_TEST_TMPDIR}/shims/gh"

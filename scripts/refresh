@@ -2,10 +2,10 @@
 # refresh - bring this repository's installed copies of its own kit up to the index, and stage the result
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# This repository installs its own kit, and its checkout is the release. The installed copies (.kit/, the CI
-# workflow, .claude/settings.json, and the regions in AGENTS.md, .gitignore, and .claude/CLAUDE.md) are rendered by
-# bin/ and bash/ from modules/ and .kit/settings.yml. When a commit changes any of those, the copies must change in
-# the same commit, so the pre-commit hook runs this script. Run it by hand on a desk without the hook.
+# This repository installs its own kit, and its kit/ is the release. The installed copies (.kit/, the CI workflow,
+# .claude/settings.json, and the regions in AGENTS.md, .gitignore, and .claude/CLAUDE.md) are rendered by kit/bin/
+# and kit/bash/ from kit/modules/ and .kit/settings.yml. When a commit changes any of those, the copies must change
+# in the same commit, so the pre-commit hook runs this script. Run it by hand on a desk without the hook.
 #
 # It renders from the index, which is what the commit will contain, not from the working tree, which may hold edits
 # that are not being committed. Unstaged edits outside a region, or outside kit's entries in a merged JSON file, stay
@@ -30,18 +30,18 @@ export-staged() {
   git checkout-index --all --prefix="$1/"
 }
 
-# export-base <dir> writes HEAD's modules/ under <dir>. kit update needs the release the copies were last rendered
-# from, to tell a copy someone edited from one that is only out of date. A path the source removed is removed from
-# the copy, because the base still has it.
+# export-base <dir> writes HEAD's kit/modules/ as <dir>/modules/. kit update needs the release the copies were last
+# rendered from, to tell a copy someone edited from one that is only out of date. A path the source removed is
+# removed from the copy, because the base still has it.
 export-base() {
   mkdir -p "$1"
-  git archive HEAD modules | tar -x -C "$1"
+  git archive HEAD kit/modules | tar -x -C "$1" --strip-components 1
 }
 
 # update-staged <staged> <base> runs the staged kit's update over the staged files. The ceiling stops git from
 # finding this repository above the export, which is not a repository of its own.
 update-staged() {
-  (cd "$1" && GIT_CEILING_DIRECTORIES="$(dirname "$1")" KIT_BASE="$2" bin/kit update >/dev/null)
+  (cd "$1" && GIT_CEILING_DIRECTORIES="$(dirname "$1")" KIT_BASE="$2" kit/bin/kit update >/dev/null)
 }
 
 # stage-export <staged> makes the index match the export, by adding it under a copy of the index and then reading
@@ -56,7 +56,7 @@ stage-export() {
 # update-desk <staged> <base> runs the staged kit's update in the working tree too, so the desk's copies match the
 # index in the parts kit owns.
 update-desk() {
-  KIT_BASE="$2" "$1/bin/kit" update >/dev/null
+  KIT_BASE="$2" "$1/kit/bin/kit" update >/dev/null
 }
 
 cd "$(git rev-parse --show-toplevel)"

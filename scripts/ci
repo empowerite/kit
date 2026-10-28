@@ -9,7 +9,7 @@
 #   - ajv: every module.yml and .kit/settings.yml against its schema
 #   - lychee: every link in the markdown, offline, including fragments
 #   - the bats suite
-#   - bin/kit check over this repository's installed copy of its own kit
+#   - kit/bin/kit check over this repository's installed copy of its own kit
 #
 # The pre-commit hook is a faster check over the staged paths only.
 #
@@ -18,12 +18,12 @@
 set -o errexit -o nounset -o pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-bin/kit lint --all-files
-ajv validate --spec=draft2020 -s modules/module.schema.json -d 'modules/*/module.yml'
+kit/bin/kit lint --all-files
+ajv validate --spec=draft2020 -s kit/modules/module.schema.json -d 'kit/modules/*/module.yml'
 ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
-lychee --offline --include-fragments --no-progress README.md AGENTS.md docs modules .kit
+lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/modules .kit
 bats --timing --print-output-on-failure tests/
-bin/kit check
+kit/bin/kit check
 echo "✅ ci passed"
 
 # ----------------------------------------------------------------------------------------------------------------------

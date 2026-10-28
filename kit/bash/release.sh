@@ -4,7 +4,7 @@
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bash/1st.sh
 #
-# A release is bin/ and modules/. Each modules/<name>/ is a module, which contains:
+# A release is bin/, bash/, and modules/. Each modules/<name>/ is a module, which contains:
 #
 #   module.yml          the module's metadata
 #   files/<base>/       files copied to the base's root, at the same paths

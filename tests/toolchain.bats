@@ -8,7 +8,7 @@
 
 setup() {
   export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
   export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
   mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"

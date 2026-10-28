@@ -13,7 +13,7 @@ pre-commit:
     # When a commit changes what the installed copies are rendered from (the modules, the kit that renders them, or
     # the settings that fill their templates), rebuild the copies in the same commit. The script stages them.
     refresh:
-      glob: "{modules/**,bin/**,bash/**,.kit/settings.yml}"
+      glob: "{kit/**,.kit/settings.yml}"
       run: scripts/refresh
 
 # ----------------------------------------------------------------------------------------------------------------------

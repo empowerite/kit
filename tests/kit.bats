@@ -6,7 +6,7 @@
 # it. The update tests build a second, later release from the first so the three-way merge has a base.
 
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   repo=$(mktemp -d)
   git -C "${repo}" init --quiet --initial-branch=main
   # a home directory of the test's own, so no test ever writes under the real one

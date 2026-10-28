@@ -3,7 +3,7 @@ version unreleased
 modules kit ci-github claude lefthook
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
-05de28f9c629c2ae0364cf268d51f48afa6a80ccb023667ac763370e8c9a733d  .github/workflows/kit-ci.yml
+c90164505919ec6cb80b22639a8c64130333b6e4ece8448552fb60ff54c33c3f  .github/workflows/kit-ci.yml
 919cc90013e2c104fe87c56c5192d327518d3f2adc2eb2da2b0536c6b5c890f4  .gitignore
 35f31c081db3393a9d79fac0e6dc707f685a45e8252c5360cf0b44d2a74cabb5  .kit/1st.md
 88cfa681c54a2c2f5822d41e25a0c387f4e03a53a10aa612a65f8a2f5e04a0e4  .kit/lefthook.yml

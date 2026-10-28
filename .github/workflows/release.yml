@@ -16,7 +16,7 @@
 # desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted when the branch it
 # was tagged on is deleted; see retire-pre-releases.yml.
 #
-# see: bin/kit-release
+# see: kit/bin/kit-release
 
 name: release
 
@@ -37,11 +37,11 @@ jobs:
           fetch-depth: 0
 
       - name: verify
-        run: bin/kit release verify "${GITHUB_REF_NAME}"
+        run: kit/bin/kit release verify "${GITHUB_REF_NAME}"
 
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bin/kit release publish "${GITHUB_REF_NAME}"
+        run: kit/bin/kit release publish "${GITHUB_REF_NAME}"
 
 # ----------------------------------------------------------------------------------------------------------------------

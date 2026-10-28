@@ -5,7 +5,7 @@
 # every pre-release, tag included, whose commit is no longer on any branch. A release is never deleted, because
 # it is on main and main is never deleted. Deleting a tag also sends a delete event, and that one is ignored.
 #
-# see: bin/kit-release, .github/workflows/release.yml
+# see: kit/bin/kit-release, .github/workflows/release.yml
 
 name: retire-pre-releases
 
@@ -28,6 +28,6 @@ jobs:
       - name: retire
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bin/kit release retire
+        run: kit/bin/kit release retire
 
 # ----------------------------------------------------------------------------------------------------------------------

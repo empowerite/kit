@@ -14,7 +14,7 @@ verify the work follows the rules. This page covers:
 
 ![Delivery: a release's modules, through the verbs, into a repository and a home](delivery.svg)
 
-A release is one tarball, `kit-<version>.tar.gz`, with the same layout as this checkout:
+A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checkout's `kit/`:
 
 - `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
   directly. `bin/` holds only commands a person runs.
@@ -158,12 +158,12 @@ Shell has no types, so there is no separate interface declaration to point at; t
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
-| `bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
-| `bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
+| `kit/bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
+| `kit/bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `kit/bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
+| `kit/bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
-Every forge call the workflow makes goes through `forge:` in `bash/forge.sh`: an issue's title, the branch linked to
+Every forge call the workflow makes goes through `forge:` in `kit/bash/forge.sh`: an issue's title, the branch linked to
 it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must be named in the
 `forge` setting.
 
