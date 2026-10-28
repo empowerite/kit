@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "A pre-commit hook that runs kit lint over the staged paths, for the repository's lefthook.yml to extend"
+description: "A pre-commit hook that runs kit lint and kit generate --check over the staged paths, for lefthook.yml to extend"
 depends:
   - kit
 expects:

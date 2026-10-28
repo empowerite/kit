@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "One GitHub Actions job that runs kit ci: the gate, kit check, and the linked-open-issue refusal"
+description: "One GitHub Actions job that runs kit ci: the gate, kit check, kit linked, and kit policy"
 depends:
   - kit
 answers:

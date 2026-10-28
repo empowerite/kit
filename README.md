@@ -88,7 +88,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | Package | Delivers |
    | --- | --- |
    | `ci-github` | the GitHub Actions workflow that runs `kit ci` |
-   | `lefthook` | a pre-commit hook that runs `kit lint` |
+   | `lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
    | `claude` | the Claude Code adapter |
    | `policy-opa` | the naming policy as Open Policy Agent rules |
 
