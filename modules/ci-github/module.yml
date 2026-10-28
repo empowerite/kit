@@ -1,0 +1,9 @@
+# modules/ci-github/module.yml - the ci-github module: one GitHub Actions job that runs kit ci
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/modules.md
+
+description: "One GitHub Actions job that runs kit ci: the gate, kit check, and the linked-open-issue refusal"
+depends:
+  - kit
+answers:
+  ci_runner: ubuntu-latest

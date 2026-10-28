@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# kit-release - verify a release tag, pack a checkout as a release, publish it, and retire pre-releases (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]
+#
+# Releases the kit itself. The release workflows and the root checkout (the desk) run the same subcommands.
+#
+#   verify <tag>              checks the tag. A release tag is release/<major>.<minor>.<patch>, on the default
+#                             branch. A pre-release tag adds -<suffix>, and is on a commit off the default
+#                             branch. Any other tag is refused, with the reason.
+#   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
+#                             directory). The tarball holds one directory, kit-<version>/, with bin/, modules/,
+#                             and a version file.
+#   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
+#                             pre-release. Only a runner publishes a release, from the release workflow that a
+#                             pushed tag starts. A desk may publish a pre-release.
+#   retire [<branch>]         deletes every pre-release whose commit no remaining branch reaches. It runs after
+#                             <branch> is deleted. Default: the branch in the runner's delete event. A pre-release
+#                             merged by a merge commit stays reachable from the default branch, so it is kept. A
+#                             squash merge leaves it unreachable, so it is deleted.
+#
+# A release is permanent and never changes. Only a pre-release is ever retired.
+#
+# see: .github/workflows/release.yml, .github/workflows/retire-pre-releases.yml
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=bin/1st.sh
+source "${kit_root:?run through bin/kit}/bin/1st.sh"
+use git release
+
+usage() { echo "usage: kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
+
+# refuse-tag <message> prints the message as an error and to the step summary, then exits 1.
+refuse-tag() {
+  error "$1"
+  summary "### ❌ $1"
+  exit 1
+}
+
+# tag-version <tag> prints the tag's version, the part after release/. It refuses a tag that is not a release tag.
+tag-version() {
+  local version=${1#release/}
+  if [[ "$1" != release/* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+  then
+    refuse-tag "$1 is not a release tag: release/<major>.<minor>.<patch>, with -<suffix> for a pre-release"
+  fi
+  printf '%s\n' "${version}"
+}
+
+verb=${1:-}
+case "${verb}" in
+  (--help | '') usage; exit 0 ;;
+  (verify | pack | publish | retire) ;;
+  (*) usage; exit 2
+esac
+shift
+
+case "${verb}" in
+  (verify)
+    (( $# == 1 )) || { usage; exit 2; }
+    tag=$1
+    version=$(tag-version "${tag}")
+    default_branch=$(git:default-branch)
+    on_default=false
+    git merge-base --is-ancestor "${tag}" "origin/${default_branch}" 2>/dev/null && on_default=true
+    if [[ "${version}" == *-* && "${on_default}" == true ]]
+    then
+      refuse-tag "${tag} is a pre-release tag on ${default_branch}; tag a pre-release on a commit off it"
+    fi
+    if [[ "${version}" != *-* && "${on_default}" == false ]]
+    then
+      refuse-tag "${tag} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
+    fi
+    ok "${tag} is a version tag on the right side of ${default_branch} (on it: ${on_default})"
+    summary "✅ ${tag} is a version tag on the right side of ${default_branch}."
+    ;;
+  (pack)
+    (( $# >= 1 && $# <= 2 )) || { usage; exit 2; }
+    version=$(tag-version "$1")
+    into=${2:-.}
+    staging=$(mktemp -d)
+    # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
+    trap "rm -rf '${staging}'" EXIT
+    mkdir -p "${into}" "${staging}/kit-${version}"
+    cp -R "${kit_root}/bin" "${kit_root}/modules" "${staging}/kit-${version}/"
+    printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
+    tar --create --gzip --file "${into}/kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
+    printf '%s  kit-%s.tar.gz\n' "$(release:digest < "${into}/kit-${version}.tar.gz")" "${version}" \
+      > "${into}/kit-${version}.tar.gz.sha256"
+    ok "packed kit ${version}: ${into}/kit-${version}.tar.gz and its .sha256"
+    ;;
+  (publish)
+    (( $# == 1 )) || { usage; exit 2; }
+    tag=$1
+    version=$(tag-version "${tag}")
+    if [[ "${version}" != *-* && -z "${GITHUB_ACTIONS:-}" ]]
+    then
+      refuse-tag "a release is published by the release workflow, not from a desk; push the tag: git push origin ${tag}"
+    fi
+    guard:require tool:gh
+    into=$(mktemp -d)
+    # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
+    trap "rm -rf '${into}'" EXIT
+    "${kit_root}/bin/kit" release pack "${tag}" "${into}"
+    pin=$(printf '"github:empowerite/kit" = { version = "%s", version_prefix = "release/" }' "${version}")
+    notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    %s\n\n' "${pin}"
+      printf 'Then, in the repository: kit install\n')
+    flags=()
+    [[ "${version}" == *-* ]] && flags+=(--prerelease)
+    gh release create "${tag}" "${into}/kit-${version}.tar.gz" "${into}/kit-${version}.tar.gz.sha256" \
+      --title "kit ${version}" --notes "${notes}" "${flags[@]}"
+    ok "released kit ${version}"
+    summary "✅ Released kit ${version}."
+    ;;
+  (retire)
+    (( $# <= 1 )) || { usage; exit 2; }
+    deleted=${1:-}
+    [[ -n "${deleted}" || -z "${GITHUB_EVENT_PATH:-}" ]] \
+      || deleted=$(jq --raw-output '.ref // empty' "${GITHUB_EVENT_PATH}")
+    guard:require tool:gh
+    git fetch --quiet --tags origin
+    retired=0
+    while IFS= read -r tag
+    do
+      [[ -n "${tag}" ]] || continue
+      commit=$(git rev-parse --verify --quiet "${tag}^{commit}" || true)
+      if [[ -z "${commit}" ]]
+      then
+        warn "${tag} has no commit here; leaving it"
+        continue
+      fi
+      if git branch --remotes --contains "${commit}" | grep --quiet --invert-match 'origin/HEAD'
+      then
+        step "keeping ${tag}: a branch still reaches ${commit:0:7}"
+        continue
+      fi
+      gh release delete "${tag}" --cleanup-tag --yes
+      step "retired ${tag}: no branch reaches ${commit:0:7}${deleted:+ since ${deleted} was deleted}"
+      retired=$(( retired + 1 ))
+    done < <(gh release list --limit 1000 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease) | .tagName')
+    ok "retired ${retired} pre-release(s)"
+    summary "✅ Retired ${retired} pre-release(s)."
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=settings.schema.json
+require_signing: true
+# The commit-subject rule is off for the history of #1, the first release, whose early commits predate it. Remove
+# this comment and the two lines below once that pull request merges, and every later branch is held to the kit's default.
+policy:
+  commit_subject: ''

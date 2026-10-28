@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
+  "title": ".kit/settings.yml",
+  "description": "The repository's settings. The kit reads this file and never writes it. This schema is delivered by kit, not edited by hand. Each key is described in https://github.com/empowerite/kit/blob/main/docs/modules.md. To have an editor validate the file against this schema, add the modeline: # yaml-language-server: $schema=settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "forge": {
+      "type": "string",
+      "enum": [
+        "github",
+        "gitlab"
+      ],
+      "description": "The forge (the service that hosts the repository) the workflow commands use: github or gitlab. When absent, it is detected from origin's host, github.com or gitlab.com. A self-hosted forge must be set here."
+    },
+    "gate": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The command kit gate runs. When absent, kit gate detects a root justfile ci recipe, a Makefile ci target, or a package.json ci script."
+    },
+    "require_signing": {
+      "type": "boolean",
+      "description": "When true, kit issue fails before writing anything if git has no signing key configured."
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "string",
+          "description": "The value a module's templates use for this key, written @key@ in a template."
+        }
+      }
+    },
+    "trackers": {
+      "type": "array",
+      "description": "The issue trackers the workflow uses in addition to the forge's own issues. The forge's tracker handles the # prefix unless an entry here claims it. A reference names its tracker by its prefix: #7, AB#4521.",
+      "items": {
+        "type": "object",
+        "required": [
+          "prefix",
+          "provider"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Za-z]*#?$",
+            "description": "The text a reference to this tracker starts with, before the number: AB# for Azure DevOps work items."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "forge",
+              "ado"
+            ],
+            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items."
+          },
+          "organization": {
+            "type": "string",
+            "description": "ado: the organization's URL, https://dev.azure.com/<name>."
+          },
+          "project": {
+            "type": "string",
+            "description": "ado: the project a new work item is created in."
+          },
+          "type": {
+            "type": "string",
+            "description": "ado: the type of a new work item. Default: Task."
+          }
+        }
+      }
+    },
+    "toolchains": {
+      "type": "array",
+      "description": "The toolchains that put the gate's tools on PATH, in order. When absent, they are detected from mise.toml, Brewfile, and toolchain.Dockerfile.",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "mise",
+              "brew",
+              "docker"
+            ],
+            "description": "The tool manager: mise, brew, or docker."
+          },
+          "file": {
+            "type": "string",
+            "description": "brew and docker: the file the tool manager reads. Default: Brewfile or toolchain.Dockerfile."
+          },
+          "image": {
+            "type": "string",
+            "description": "docker: the name of the built image. Default: kit-toolchain."
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The patterns that the branch name, commit subjects, and pull request title must match. Each is an extended regular expression, limited to the subset RE2 also supports. An absent key uses the kit's default. An empty pattern turns that rule off.",
+      "properties": {
+        "branch": {
+          "type": "string",
+          "description": "The pattern for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit issue gives a branch."
+        },
+        "commit_subject": {
+          "type": "string",
+          "description": "The pattern for the subject of every commit since the branch forked. Default: ^([A-Z]+)?#[0-9]+ [^ ], a subject that starts with its issue's reference."
+        },
+        "change_title": {
+          "type": "string",
+          "description": "The pattern for the open pull request's title. Default: ^[^[:cntrl:]]{1,120}$."
+        }
+      }
+    },
+    "policy_engine": {
+      "type": "string",
+      "enum": [
+        "patterns",
+        "opa"
+      ],
+      "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise."
+    }
+  }
+}

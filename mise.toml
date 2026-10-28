@@ -1,0 +1,42 @@
+# mise.toml - the pinned tools a desk and a runner share; see: https://mise.jdx.dev/configuration/environments.html
+#
+# mise always reads this file. It also reads:
+#
+#   - mise.desk.toml when MISE_ENV=desk, which a desk exports in its shell profile
+#   - mise.ci.toml when MISE_ENV=ci, which the CI workflow sets
+#
+# Put a tool in the file for whoever runs it. Lefthook runs only on a desk; no tool runs only on the runner.
+# `lockfile = true` records each pin's exact version in a lock file beside its file. git and bash come from the
+# machine.
+
+[settings]
+lockfile = true
+# A lock written on a desk also covers the runner's platforms; see: https://mise.jdx.dev/dev-tools/mise-lock.html
+lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64"]
+
+# Put bin/ on PATH, so `kit` runs here the same way it runs in a consumer repository.
+[env]
+_.path = ["bin"]
+
+# Why each tool is here:
+#   actionlint          the workflows rule's linter, over .github/workflows/, in kit lint and the gate
+#   bats                runs tests/, the suite the gate runs
+#   gh                  the GitHub provider's tool: workflow commands, kit linked, kit release publish and retire
+#   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit status
+#   just                runs the justfile: just ci (the gate) and just refresh (the installed copies)
+#   lychee              checks every link in the markdown, offline, fragments included, in the gate
+#   ajv-cli             validates every module.yml and .kit/settings.yml against their schemas, in the gate
+#   markdownlint-cli2   the markdown rule's linter, over every .md file, in kit lint and the gate
+#   opa                 the OPA policy engine; tests/policy.bats checks it matches the patterns engine
+#   shellcheck          the bash rule's linter, over bin/ and tests/, in kit lint and the gate
+[tools]
+actionlint = "1.7"
+bats = "1.14"
+gh = "2.103"
+jq = "1.8"
+just = "1.59"
+lychee = "0.24"
+"npm:ajv-cli" = "5"
+"npm:markdownlint-cli2" = "0.24"
+opa = "1.21"
+shellcheck = "0.11"

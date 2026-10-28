@@ -1,0 +1,19 @@
+# Delivered by kit, not edited by hand. A change is a new release, then kit update.
+#
+# The pre-commit hook runs two commands over the staged files:
+#
+#   - kit-lint runs kit lint: each rule's own linter, declared in the rule's frontmatter, over the files the rule
+#     governs
+#   - kit-generate runs kit generate --check, which fails when a generated region is stale
+#
+# The repository's lefthook.yml includes this file with `extends: [.kit/lefthook.yml]`, and can add commands of its
+# own. Lefthook merges commands by name. Run `lefthook install` once per clone.
+#
+# see: https://lefthook.dev
+
+pre-commit:
+  commands:
+    kit-lint:
+      run: kit lint {staged_files}
+    kit-generate:
+      run: kit generate --check {staged_files}

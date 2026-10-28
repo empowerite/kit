@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 560" width="1040" height="560" role="img"
+  aria-labelledby="title desc">
+  <title id="title">Delivery: a release's modules, through the kit's verbs, into a repository and a home</title>
+  <desc id="desc">The release carries bin/ and modules/. The verbs render templates, merge JSON by key, and copy the
+    rest into the repository root and the user's home, each recorded in its own manifest.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      text { font-family: Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 14px; fill: #0f172a; }
+      .h { font-size: 16px; font-weight: 600; }
+      .m { font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+      .d { fill: #475569; font-size: 12.5px; }
+      .box { stroke: #334155; stroke-width: 1.25; rx: 8; }
+      .edge { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <!-- release -->
+  <rect class="box" x="24" y="40" width="300" height="480" fill="#e0f2fe"/>
+  <text class="h" x="40" y="68">Release</text>
+  <text class="m" x="40" y="88">kit-&lt;version&gt;/</text>
+
+  <rect class="box" x="40" y="104" width="268" height="118" fill="#ffffff"/>
+  <text class="m" x="52" y="126">bin/</text>
+  <text class="m" x="68" y="148">kit</text>
+  <text class="d" x="200" y="148">the command</text>
+  <text class="m" x="68" y="170">kit-&lt;verb&gt;.sh</text>
+  <text class="d" x="200" y="170">one per verb</text>
+  <text class="m" x="68" y="192">release.sh context.sh …</text>
+  <text class="d" x="258" y="212">sourced modules</text>
+
+  <rect class="box" x="40" y="236" width="268" height="268" fill="#ffffff"/>
+  <text class="m" x="52" y="258">modules/&lt;name&gt;/</text>
+  <text class="m" x="68" y="282">module.yml</text>
+  <text class="d" x="180" y="282">description, default,</text>
+  <text class="d" x="180" y="298">depends, answers</text>
+  <text class="m" x="68" y="322">files/repo/</text>
+  <text class="d" x="180" y="322">mirrored at the root</text>
+  <text class="m" x="68" y="346">files/home/</text>
+  <text class="d" x="180" y="346">mirrored at ~</text>
+  <text class="m" x="68" y="370">templates/&lt;base&gt;/</text>
+  <text class="d" x="180" y="386">@key@ rendered; regions/&lt;base&gt;/</text>
+  <text class="m" x="68" y="412">docs/</text>
+  <text class="d" x="180" y="412">packed, placed nowhere</text>
+  <text class="d" x="52" y="446">kit is default; ci-github, lefthook,</text>
+  <text class="d" x="52" y="462">and claude are named; each may depend</text>
+  <text class="d" x="52" y="478">on others, resolved at install.</text>
+  <text class="m" x="52" y="500">version</text>
+  <text class="d" x="140" y="500">stamped by the release workflow</text>
+
+  <!-- verbs -->
+  <rect class="box" x="380" y="150" width="280" height="260" fill="#ede9fe"/>
+  <text class="h" x="396" y="178">The verbs</text>
+  <text class="m" x="396" y="204">kit install [&lt;module&gt;…]</text>
+  <text class="m" x="396" y="226">kit update</text>
+  <text class="m" x="396" y="248">kit check</text>
+  <text class="m" x="396" y="270">kit module list|add|remove</text>
+  <line x1="396" y1="286" x2="644" y2="286" stroke="#a78bfa" stroke-width="1"/>
+  <text class="d" x="396" y="308">resolve the active set and its depends</text>
+  <text class="d" x="396" y="326">render @key@ from .kit/settings.yml</text>
+  <text class="d" x="396" y="344">merge a .json destination by key; generate a region</text>
+  <text class="d" x="396" y="362">copy everything else</text>
+  <text class="d" x="396" y="380">digest each path into the manifest</text>
+  <text class="d" x="396" y="398">three-way merge an edited file on update</text>
+
+  <!-- repository -->
+  <rect class="box" x="716" y="40" width="300" height="300" fill="#dcfce7"/>
+  <text class="h" x="732" y="68">Repository root</text>
+  <text class="d" x="732" y="88">base: repo</text>
+  <text class="m" x="732" y="116">.kit/1st.md</text>
+  <text class="m" x="732" y="138">.kit/rules/&lt;kind&gt;.md</text>
+  <text class="m" x="732" y="160">.kit/lefthook.yml</text>
+  <text class="m" x="732" y="182">.github/workflows/kit-ci.yml</text>
+  <text class="m" x="732" y="204">.claude/CLAUDE.md</text>
+  <text class="d" x="912" y="204">region</text>
+  <text class="m" x="732" y="226">.claude/settings.json</text>
+  <text class="d" x="912" y="226">merged</text>
+  <line x1="732" y1="244" x2="1000" y2="244" stroke="#4ade80" stroke-width="1"/>
+  <text class="m" x="732" y="268">.kit/manifest</text>
+  <text class="d" x="856" y="268">version, modules, digests</text>
+  <text class="m" x="732" y="290">.kit/settings.yml</text>
+  <text class="d" x="856" y="290">yours, never written</text>
+  <text class="m" x="732" y="312">AGENTS.md .gitignore</text>
+  <text class="d" x="912" y="312">regions</text>
+
+  <!-- home -->
+  <rect class="box" x="716" y="380" width="300" height="140" fill="#fef9c3"/>
+  <text class="h" x="732" y="408">Home</text>
+  <text class="d" x="800" y="408">base: home, the user's ~</text>
+  <text class="m" x="732" y="436">~/.kit/manifest</text>
+  <text class="d" x="732" y="456">the desk's record, not the repository's;</text>
+  <text class="d" x="732" y="472">a runner has none, and kit check says so.</text>
+  <text class="d" x="732" y="500">No module in this release delivers here.</text>
+
+  <!-- edges -->
+  <path class="edge" d="M 324 280 L 376 280"/>
+  <path class="edge" d="M 660 220 C 690 220, 690 190, 712 190"/>
+  <path class="edge" d="M 660 340 C 690 340, 690 450, 712 450"/>
+</svg>

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# kit - the kit's command: runs the verb script bin/kit-<verb>.sh (executed entrypoint)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit <verb> runs bin/kit-<verb>.sh with the remaining arguments. Before it does, it:
+#
+#   1. finds the release: the directory above bin/, following any symlink to this file (Homebrew links it into
+#      its own bin)
+#   2. exports the release directory as kit_root
+#   3. exports the directory the command was typed in as kit_invoked_in, for verbs that take relative paths
+#   4. changes to the repository root, so every verb reads and writes the same paths wherever it was typed
+#
+# Each verb script does everything else, including printing its own usage.
+#
+# see: .kit/1st.md
+
+set -o errexit -o nounset -o pipefail
+
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) ))
+then
+  echo "kit needs bash 4.4 or later; this is ${BASH_VERSION}" >&2
+  exit 1
+fi
+
+# readlink -f needs macOS 12.3 or later. Older macOS has no GNU-compatible readlink.
+kit_root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+export kit_root
+kit_invoked_in=$(pwd -P)
+export kit_invoked_in
+if repository=$(git rev-parse --show-toplevel 2>/dev/null)
+then
+  cd "${repository}"
+fi
+
+verb=${1:-help}
+case "${verb}" in
+  (help | -h | --help)
+    cat <<'USAGE'
+usage: kit <verb> [<argument>…]
+
+  install [<module>…]   activate the default modules and the named ones, place their files, write .kit/manifest
+  update                after the pin is bumped: replace unchanged files, three-way merge changed ones
+  check                 fail when a delivered file differs from the pinned release
+  module <list|add|remove> [<module>…]
+                        list, add, or remove the modules this repository uses
+  context <path>…       print the rules that govern each path, and log the request
+  new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
+                        create a file from the template of the rule that governs it; <path> is from the root
+  generate [--check] [<path>…]
+                        rewrite every kit:generate region with its command's output; --check fails if one is stale
+  region [--home] [<path>]
+                        print the content the active modules deliver as the region at a path
+  ci                    run the delivered CI job's checks anywhere (gate, check, linked, policy); report every failure
+  policy [--input]      refuse a branch, commit subject, or change title the repository's policy does not allow
+  gate                  run the repository's gate (the gate setting, else the detected one); fail when there is none
+  linked [<number>]     fail when the pull request is not linked to an open issue of this repository
+  toolchain <list|install|outdated|update|path|run> …
+                        manage the tools the gate runs, through mise, brew, or docker
+  issue [<reference>…]  start or resume an issue (#7, AB#4521): linked branch, worktree, start commit, draft change
+  rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk (root checkout)
+  tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
+  status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]
+                        show the desk, the worktrees, and the open pull requests: everyone's, yours, or the named
+                        authors'
+  lint [--all-files] [<path>…]
+                        run each rule's linter over the paths it governs: staged, named, or every tracked one
+  release <verify|pack|publish|retire> …
+                        the kit's own release: verify a tag, pack a checkout, publish it, retire pre-releases
+  version               print this release's version
+
+Run kit <verb> --help for a verb's usage.
+USAGE
+    ;;
+  (*)
+    if [[ ! -x "${kit_root}/bin/kit-${verb}.sh" ]]
+    then
+      echo "kit: unknown verb '${verb}'; run: kit help" >&2
+      exit 2
+    fi
+    shift
+    exec "${kit_root}/bin/kit-${verb}.sh" "$@"
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

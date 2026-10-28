@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 500" width="1040" height="500" role="img"
+  aria-labelledby="title desc">
+  <title id="title">The loop: an issue becomes a worktree and a draft pull request, the gate holds it, a human merges</title>
+  <desc id="desc">The desk is the root checkout and stays the human's. kit issue makes a worktree per issue with a
+    linked branch and a draft pull request. Work happens there under kit context, kit lint, and kit rebase. The
+    delivered CI job runs the gate, kit check, and the linked-open-issue refusal. A human merges, and kit tidy sweeps.
+    kit status draws the whole picture.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      text { font-family: Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 14px; fill: #0f172a; }
+      .h { font-size: 16px; font-weight: 600; }
+      .m { font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+      .d { fill: #475569; font-size: 12.5px; }
+      .box { stroke: #334155; stroke-width: 1.25; rx: 8; }
+      .edge { stroke: #475569; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .lbl { fill: #334155; font-size: 12px; }
+    </style>
+  </defs>
+
+  <!-- desk -->
+  <rect class="box" x="24" y="40" width="300" height="130" fill="#fef9c3"/>
+  <text class="h" x="40" y="68">The desk</text>
+  <text class="d" x="40" y="92">The root checkout, the human's. Usually on main,</text>
+  <text class="d" x="40" y="108">sometimes on a branch no worktree holds. No agent</text>
+  <text class="d" x="40" y="124">checks out, resets, or rebases it.</text>
+  <text class="m" x="40" y="152">kit status</text>
+  <text class="d" x="140" y="152">draws desk, worktrees, pull requests</text>
+
+  <!-- issue -->
+  <rect class="box" x="24" y="210" width="300" height="80" fill="#f1f5f9"/>
+  <text class="h" x="40" y="238">An issue</text>
+  <text class="d" x="40" y="262">A change without one has not started.</text>
+  <text class="d" x="40" y="278">A design is prose in its body.</text>
+
+  <!-- worktree -->
+  <rect class="box" x="380" y="40" width="300" height="250" fill="#dcfce7"/>
+  <text class="h" x="396" y="68">The worktree</text>
+  <text class="m" x="396" y="92">kit issue &lt;N&gt;</text>
+  <text class="d" x="396" y="112">worktrees/&lt;N&gt;-&lt;slug&gt;, a branch linked under</text>
+  <text class="d" x="396" y="128">Development, a start commit, a draft pull request.</text>
+  <line x1="396" y1="144" x2="664" y2="144" stroke="#4ade80" stroke-width="1"/>
+  <text class="d" x="396" y="166">Work happens here, and only here:</text>
+  <text class="m" x="396" y="190">kit context &lt;path&gt;</text>
+  <text class="d" x="560" y="190">before a change</text>
+  <text class="m" x="396" y="212">kit lint</text>
+  <text class="d" x="560" y="212">the hook by hand</text>
+  <text class="m" x="396" y="234">kit rebase</text>
+  <text class="d" x="560" y="234">onto the default branch, pushed</text>
+  <text class="m" x="396" y="256">gh pr ready</text>
+  <text class="d" x="560" y="256">the body is the report</text>
+  <text class="d" x="396" y="280">Signed commits, subject #&lt;N&gt; &lt;area&gt;: &lt;subject&gt;.</text>
+
+  <!-- gate -->
+  <rect class="box" x="736" y="40" width="280" height="250" fill="#ede9fe"/>
+  <text class="h" x="752" y="68">The check: kit ci</text>
+  <text class="d" x="752" y="92">The delivered job, on a pull request into main:</text>
+  <text class="m" x="752" y="118">kit gate</text>
+  <text class="d" x="752" y="136">the gate setting, or the one detected</text>
+  <text class="m" x="752" y="162">kit check</text>
+  <text class="d" x="752" y="180">every delivered file matches the release</text>
+  <text class="m" x="752" y="206">kit linked</text>
+  <text class="d" x="752" y="224">refused without an open issue of this</text>
+  <text class="d" x="752" y="240">repository under Development</text>
+  <text class="d" x="752" y="268">On a desk, the pre-commit hook runs the</text>
+  <text class="d" x="752" y="284">linters over what is staged.</text>
+
+  <!-- merge -->
+  <rect class="box" x="380" y="340" width="300" height="120" fill="#f1f5f9"/>
+  <text class="h" x="396" y="368">A human merges</text>
+  <text class="d" x="396" y="392">Nothing reaches main any other way, and</text>
+  <text class="d" x="396" y="408">nothing is called merged until it is observed.</text>
+  <text class="m" x="396" y="436">kit tidy</text>
+  <text class="d" x="480" y="436">removes the worktree and its branch</text>
+
+  <!-- harness guards -->
+  <rect class="box" x="736" y="340" width="280" height="120" fill="#e0f2fe"/>
+  <text class="h" x="752" y="368">The harness adapter</text>
+  <text class="d" x="752" y="392">Deny list: the raw git spellings .kit/1st.md</text>
+  <text class="d" x="752" y="408">forbids, rebase, push --force, and the rest.</text>
+  <text class="d" x="752" y="432">Hook: kit context before every write.</text>
+  <text class="d" x="752" y="448">Nothing copied from the rules.</text>
+
+  <!-- edges -->
+  <path class="edge" d="M 324 250 C 350 250, 350 92, 376 92"/>
+  <text class="lbl" x="300" y="196">kit issue</text>
+  <path class="edge" d="M 680 165 L 732 165"/>
+  <text class="lbl" x="686" y="158">push</text>
+  <path class="edge" d="M 876 290 C 876 320, 700 320, 684 380"/>
+  <text class="lbl" x="886" y="318">green, reviewed</text>
+  <path class="edge" d="M 380 400 C 200 400, 174 300, 174 174"/>
+  <text class="lbl" x="196" y="330">main advances; the desk pulls</text>
+</svg>
