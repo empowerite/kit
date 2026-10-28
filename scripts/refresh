@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# refresh - bring this repository's installed copies of its own kit up to the index, and stage the result
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# This repository installs its own kit, and its checkout is the release. The installed copies (.kit/, the CI
+# workflow, .claude/settings.json, and the regions in AGENTS.md, .gitignore, and .claude/CLAUDE.md) are rendered by
+# bin/ and bash/ from modules/ and .kit/settings.yml. When a commit changes any of those, the copies must change in
+# the same commit, so the pre-commit hook runs this script. Run it by hand on a desk without the hook.
+#
+# It renders from the index, which is what the commit will contain, not from the working tree, which may hold edits
+# that are not being committed. Unstaged edits outside a region, or outside kit's entries in a merged JSON file, stay
+# unstaged.
+#
+#   scripts/refresh
+
+set -o errexit -o nounset -o pipefail
+
+# pinned-tools-first puts the pinned tools' own directories first on PATH, when mise is installed. kit update runs
+# inside the export, which has a mise.toml of its own, and a mise shim refuses to run under a mise.toml it has not
+# been told to trust. Without mise, PATH stays as it is, and the tools come from wherever it finds them.
+pinned-tools-first() {
+  command -v mise >/dev/null 2>&1 || return 0
+  local dirs
+  dirs=$(mise bin-paths 2>/dev/null | paste -s -d ':' -)
+  PATH=${dirs:+${dirs}:}${PATH}
+}
+
+# export-staged <dir> writes every staged file under <dir>: the commit as it stands, with the staged kit in it.
+export-staged() {
+  git checkout-index --all --prefix="$1/"
+}
+
+# export-base <dir> writes HEAD's modules/ under <dir>. kit update needs the release the copies were last rendered
+# from, to tell a copy someone edited from one that is only out of date. A path the source removed is removed from
+# the copy, because the base still has it.
+export-base() {
+  mkdir -p "$1"
+  git archive HEAD modules | tar -x -C "$1"
+}
+
+# update-staged <staged> <base> runs the staged kit's update over the staged files. The ceiling stops git from
+# finding this repository above the export, which is not a repository of its own.
+update-staged() {
+  (cd "$1" && GIT_CEILING_DIRECTORIES="$(dirname "$1")" KIT_BASE="$2" bin/kit update >/dev/null)
+}
+
+# stage-export <staged> makes the index match the export, by adding it under a copy of the index and then reading
+# the resulting tree into the real one. The real index changes only once the whole result is ready.
+stage-export() {
+  local index=$1.index
+  cp "$(git rev-parse --git-path index)" "${index}"
+  GIT_DIR=$(git rev-parse --absolute-git-dir) GIT_WORK_TREE="$1" GIT_INDEX_FILE="${index}" git -C "$1" add --all
+  git read-tree "$(GIT_INDEX_FILE="${index}" git write-tree)"
+}
+
+# update-desk <staged> <base> runs the staged kit's update in the working tree too, so the desk's copies match the
+# index in the parts kit owns.
+update-desk() {
+  KIT_BASE="$2" "$1/bin/kit" update >/dev/null
+}
+
+cd "$(git rev-parse --show-toplevel)"
+pinned-tools-first
+work=$(mktemp -d)
+trap 'rm -rf "${work}"' EXIT
+
+export-staged "${work}/staged"
+export-base "${work}/base"
+update-staged "${work}/staged" "${work}/base"
+stage-export "${work}/staged"
+update-desk "${work}/staged" "${work}/base"
+
+modules=$(sed -n 's/^modules *//p' .kit/manifest)
+count=$(awk 'length($1) == 64' .kit/manifest | wc -l | tr -d ' ')
+echo "✅ refreshed from the index and staged: ${count} delivered paths, modules ${modules}"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ _.path = ["bin"]
 #   bats                runs tests/, the suite the gate runs
 #   gh                  the GitHub provider's tool: workflow commands, kit linked, kit release publish and retire
 #   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit status
-#   just                runs the justfile: just ci (the gate) and just refresh (the installed copies)
+#   just                tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
 #   lychee              checks every link in the markdown, offline, fragments included, in the gate
 #   ajv-cli             validates every module.yml and .kit/settings.yml against their schemas, in the gate
 #   markdownlint-cli2   the markdown rule's linter, over every .md file, in kit lint and the gate

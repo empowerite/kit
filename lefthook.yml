@@ -10,10 +10,10 @@ extends:
 
 pre-commit:
   commands:
-    # When a commit changes a delivered file's source, rebuild the installed copies in the same commit. The recipe
-    # stages what it rebuilt.
+    # When a commit changes what the installed copies are rendered from (the modules, the kit that renders them, or
+    # the settings that fill their templates), rebuild the copies in the same commit. The script stages them.
     refresh:
-      glob: "modules/**"
-      run: just refresh
+      glob: "{modules/**,bin/**,bash/**,.kit/settings.yml}"
+      run: scripts/refresh
 
 # ----------------------------------------------------------------------------------------------------------------------

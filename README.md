@@ -179,7 +179,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`.
    - `kit rebase` rebases the branch onto `main` and pushes it.
    - `kit status` shows every open pull request and the worktree it lives in.
-4. Run the gate, `just ci`. The justfile lists what it runs.
+4. Run the gate, `kit gate`. It runs `scripts/ci`, which lists what it checks.
 5. Run `gh pr ready` when the work is done. The pull request body is the report.
 6. A human merges. Then `kit tidy` removes the worktree and its branch.
 
@@ -211,11 +211,11 @@ This repository installs its own kit. The installed copies are written by `bin/k
 
 When a commit changes a file under `modules/`, the installed copies must change in the same commit:
 
-- With the pre-commit hook installed, this happens automatically: the hook runs `just refresh`, which regenerates the
-  copies from the index and stages them.
-- Without the hook, stage your change, run `just refresh`, and commit.
+- With the pre-commit hook installed, this happens automatically: the hook runs `scripts/refresh`, which regenerates
+  the copies from the index and stages them.
+- Without the hook, stage your change, run `scripts/refresh`, and commit.
 
-`bin/kit check`, which `just ci` runs, names any installed copy that does not match its source. Each delivered file
+`bin/kit check`, which the gate runs, names any installed copy that does not match its source. Each delivered file
 says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and the table above
 serves as the notice for `settings.json`.
 
