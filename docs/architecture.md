@@ -25,30 +25,10 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
 
 ### Bash modules
 
-A module is a sourced `<module>.sh`. `use <module>` finds it on the module path, the `bash_path` setting in
-`.kit/settings.yml`, and sources every `<module>.sh` on the path in order, once per process:
-
-```yaml
-bash_path:
-  - kit:bash/   # the kit's own modules, always first
-  - bash/       # this repository's, relative to its root
-```
-
-An entry is `kit:<dir>`, a directory in the installed kit; an absolute directory; or a directory relative to the
-repository root. Without the setting, the path is `kit:bash/` alone.
-
-A later file extends a module: it adds functions, or replaces one an earlier file defined. A provider, such as
-`forge-<name>.sh`, counts wherever it is on the path, so a repository can add its own. To wrap a function rather
-than replace it, a module loads `super` and names the function before redefining it:
-
-```bash
-use super
-super:override forge:issue-title
-forge:issue-title() { super "$@" | sed 's/^\[WIP\] //'; }
-```
-
-Within the modules, work is a function call. Across a process boundary it is `run kit <verb>`, which runs this
-release's `kit` rather than the one on `PATH`, and passes the trace depth to the child as `kit_depth`.
+The verbs share bash modules, sourced `<module>.sh` files that `use <module>` loads from the module path, the
+`bash_path` setting. A repository extends the kit by putting its own modules on that path: a later file adds
+functions, replaces one, or wraps one with `super`, and a provider of a seam counts wherever it is.
+[bash.md](bash.md) describes the module system in full.
 
 ### Modules
 

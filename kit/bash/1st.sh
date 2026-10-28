@@ -42,11 +42,11 @@ kit:enter() {
   fi
 }
 
-# use:path fills kit_bash_path with the module path's directories, once per process: each entry of the bash_path
-# setting, else kit:bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, or a directory
-# relative to the repository root. It returns 2 on a path that does not start with kit:bash/, an entry that is not
-# a directory, or a root other than kit:.
-use:path() {
+# use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the
+# bash_path setting, else kit:bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir>
+# (in the home directory), or a directory relative to the repository root. A directory that does not exist is
+# skipped, as PATH skips one. It returns 2 on a path that does not start with kit:bash/, or a root other than kit:.
+use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
   local entry dir
   local -a entries
@@ -64,22 +64,26 @@ use:path() {
     case "${entry}" in
       (kit:*) dir=${kit_root}/${entry#kit:} ;;
       (/*) dir=${entry} ;;
+      (\~ | \~/*) dir=${HOME}${entry#\~} ;;
       ([A-Za-z0-9_-]*:*)
-        error "bash_path entry '${entry}' names a root the kit does not know; the root is kit: (bash_path in .kit/settings.yml)"
+        error "bash_path entry '${entry}' names a root the kit does not know; the root is kit:" \
+          "(bash_path in .kit/settings.yml)"
         return 2
         ;;
       (*) dir=$(pwd -P)/${entry}
     esac
-    if [[ ! -d "${dir}" ]]
-    then
-      error "bash_path entry '${entry}' is not a directory (bash_path in .kit/settings.yml)"
-      return 2
-    fi
-    kit_bash_path+=("$(cd "${dir}" && pwd -P)")
+    [[ -d "${dir}" ]] && kit_bash_path+=("$(cd "${dir}" && pwd -P)")
   done
+  return 0
 }
 
-# use:find <module> prints the path of every <module>.sh on the module path, in order. Call use:path first.
+# use:path prints the module path's directories, one per line, in order: the entries of bash_path that exist.
+use:path() {
+  use:load-path || return 2
+  printf '%s\n' "${kit_bash_path[@]}"
+}
+
+# use:find <module> prints the path of every <module>.sh on the module path, in order. Call use:load-path first.
 use:find() {
   local dir
   for dir in "${kit_bash_path[@]}"
@@ -92,7 +96,7 @@ use:find() {
 # use:modules <pattern> prints the name of every module on the module path that matches the glob <pattern>, once
 # each, sorted: use:modules 'forge-*' lists the forge providers.
 use:modules() {
-  use:path || return 2
+  use:load-path || return 2
   local dir file
   for dir in "${kit_bash_path[@]}"
   do
@@ -108,7 +112,7 @@ use:modules() {
 use() {
   local module file
   local -a files
-  use:path || return 2
+  use:load-path || return 2
   for module in "$@"
   do
     [[ ${kit_modules[${module}]+x} ]] && continue

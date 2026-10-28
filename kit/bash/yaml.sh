@@ -36,12 +36,17 @@ yaml:value() {
     }'
 }
 
-# yaml:list <file> <key> prints the items of the list under <key>, unquoted, one per line.
+# yaml:list <file> <key> prints the items of the list under <key>, unquoted, one per line. A # after an unquoted
+# item, with a space before it, starts a comment, as in YAML.
 yaml:list() {
   yaml:read "$1" | awk -v key="$2" '
     $0 == key ":" { on = 1; next }
     /^[A-Za-z0-9_-]/ { on = 0 }
-    on && /^  - / { v = $0; sub(/^  - /, "", v); gsub(/^"|"$/, "", v); print v }'
+    on && /^  - / {
+      v = $0; sub(/^  - /, "", v)
+      if (v ~ /^"/) gsub(/^"|"$/, "", v); else sub(/[ \t]+#.*$/, "", v)
+      print v
+    }'
 }
 
 # yaml:map <file> <key> prints "<name>\t<value>" for every entry of the map under <key>, values unquoted.

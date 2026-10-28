@@ -196,6 +196,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
 [docs/modules.md](docs/modules.md) describes the module format.
+[docs/bash.md](docs/bash.md) describes the bash module system the verbs are built on, and how a repository extends it.
 
 This repository installs its own kit. The installed copies are written by `kit/bin/kit install`; do not edit them by hand:
 

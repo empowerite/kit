@@ -21,9 +21,18 @@ kit-bash() {
 }
 
 @test "with no bash_path setting, the path is the kit's own bash directory" {
-  run kit-bash 'use:path && printf "%s\n" "${kit_bash_path[@]}"'
+  run kit-bash 'use:path'
   [ "$status" -eq 0 ]
   [ "$output" = "${kit_root}/bash" ]
+}
+
+@test "an entry is kit:, absolute, under ~/, or relative to the root; a missing one is skipped, as PATH skips it" {
+  mkdir -p home/lib/bash abs
+  printf 'bash_path:\n  - kit:bash/   # the kit\x27s own\n  - nowhere/\n  - ~/lib/bash/\n  - %s/abs\n  - bash/\n' \
+    "$(pwd -P)" > .kit/settings.yml
+  run env HOME="$(pwd -P)/home" bash -c 'source "${kit_root}/bash/1st.sh" && use:path'
+  [ "$status" -eq 0 ]
+  [ "$output" = "${kit_root}/bash"$'\n'"$(pwd -P)/home/lib/bash"$'\n'"$(pwd -P)/abs"$'\n'"$(pwd -P)/bash" ]
 }
 
 @test "use sources the module from every directory on the path, in order, so a later file overrides" {
@@ -56,11 +65,7 @@ kit-bash() {
   [[ "$output" == *"bash_path must start with kit:bash/"* ]]
 }
 
-@test "a bash_path entry that is not a directory, or has a root other than kit:, is refused by name" {
-  printf 'bash_path:\n  - kit:bash/\n  - nowhere/\n' > .kit/settings.yml
-  run kit-bash 'use yaml'
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"bash_path entry 'nowhere/' is not a directory"* ]]
+@test "a bash_path entry with a root other than kit: is refused by name" {
   printf 'bash_path:\n  - kit:bash/\n  - other:bash/\n' > .kit/settings.yml
   run kit-bash 'use yaml'
   [ "$status" -eq 2 ]
