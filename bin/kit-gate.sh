@@ -5,14 +5,15 @@
 # The gate is the `gate` setting in .kit/settings.yml, else the first of: a root justfile with a ci recipe, a
 # Makefile with a ci target, a package.json with a ci script. A gate that cannot run clears nothing: a repository
 # with none, or one whose justfile cannot be read, is refused, naming the remedy. On a runner, each outcome also
-# lands in the step summary.
+# lands in the step summary. The gate runs with the declared toolchains' tools, inside the container where the
+# toolchain is docker; see bin/toolchain.sh.
 #
 # see: modules/ci-github/templates/repo/.github/workflows/kit-ci.yml
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=bin/1st.sh
 source "${kit_root:?run through bin/kit}/bin/1st.sh"
-use release
+use release toolchain
 
 if [[ "${1:-}" == --help ]]
 then
@@ -57,7 +58,7 @@ then
   exit 1
 fi
 step "the gate: ${gate}"
-if ! bash -c "${gate}"
+if ! toolchain:run bash -c "${gate}"
 then
   error "the gate failed: ${gate}"
   summary "### ❌ The gate failed: \`${gate}\`"

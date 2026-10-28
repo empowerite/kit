@@ -112,6 +112,10 @@ forge-gitlab:pr-create() {
   printf '%s\n' "${number}"
 }
 
+forge-gitlab:pr-title() {
+  forge-gitlab:api "merge_requests/$1" | jq --raw-output '.title'
+}
+
 forge-gitlab:pr-body() {
   forge-gitlab:api "merge_requests/$1" | jq --raw-output '.description // ""'
 }

@@ -60,6 +60,7 @@ world-github() {
   fixture pr-all.json <<<'[{"state": "OPEN"}]'
   fixture pr-url.txt <<<'https://github.com/empowerite/example/pull/3'
   fixture issue-url.txt <<<'https://github.com/empowerite/example/issues/7'
+  fixture pr.json <<<'{"title": "Fix the thing", "body": "Closes #7"}'
   fixture closing.json <<'JSON'
 {"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": [
   {"number": 7, "state": "OPEN", "repository": {"nameWithOwner": "empowerite/example"}}]}}}}}
@@ -86,6 +87,7 @@ JSON
   route gh 'pr list --head 7-fix-the-thing --state open*' pr-open.json
   route gh 'pr list --head 7-fix-the-thing --state all*' pr-all.json
   route gh 'pr create --draft --base main --head 7-fix-the-thing --title Fix the thing*' pr-url.txt
+  route gh 'pr view 3 --json *' pr.json
   route gh 'api graphql*number=3*' closing.json
   route gh 'api graphql*' open-prs.json
 }
@@ -105,7 +107,7 @@ world-gitlab() {
   fixture mr.json <<'JSON'
 {"iid": 3, "title": "Fix the thing", "draft": false, "source_branch": "7-fix-the-thing",
  "created_at": "2026-10-01T09:00:00.000Z", "author": {"username": "ada"}, "has_conflicts": false,
- "detailed_merge_status": "mergeable", "description": "", "head_pipeline": {"id": 11, "status": "success"}}
+ "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"}}
 JSON
   fixture jobs.json <<'JSON'
 [{"name": "a", "status": "success", "started_at": "2026-10-01T10:00:00.120Z", "finished_at": "2026-10-01T10:00:30.000Z"},
@@ -174,6 +176,10 @@ JSON
     [ "$output" = "3" ]
     run call pr-closing-issues 3
     [ "$output" = "7 OPEN empowerite/example" ]
+    run call pr-title 3
+    [ "$output" = "Fix the thing" ]
+    run call pr-body 3
+    [ "$output" = "Closes #7" ]
   done
 }
 

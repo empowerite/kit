@@ -3,8 +3,10 @@
 #
 # One job, CI, which is the check name a ruleset requires, run for a pull request into the default branch. It
 # takes the kit release .kit/manifest names from its public URL, or this checkout's own bin/ where the manifest
-# says unreleased, and runs `kit ci`: the gate, `kit check`, and `kit linked`, every one reported. mise is used
-# only where the repository has a mise.toml, so the gate's own tools come from wherever the repository pins them.
+# says unreleased, installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker
+# manages them, and runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, every one reported. The
+# one setup action puts the mise binary on the runner where the repository has a mise.toml; brew and docker are
+# on GitHub's runners already.
 #
 # Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner
 # answer, from answers: in .kit/settings.yml.
@@ -32,10 +34,15 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # kit policy reads every commit past the fork from the default branch.
+          fetch-depth: 0
 
-      - name: tools-from-mise
+      - name: mise-on-path
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
-        if: ${{ hashFiles('mise.toml') != '' }}
+        if: ${{ hashFiles('mise.toml', '.mise.toml') != '' }}
+        with:
+          install: false
 
       - name: kit-on-path
         run: |
@@ -61,6 +68,9 @@ jobs:
               | tar --extract --gzip --directory "${RUNNER_TEMP}/kit" --strip-components 1
             printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
           fi
+
+      - name: toolchain
+        run: kit toolchain install && kit toolchain path >> "${GITHUB_PATH}"
 
       - name: kit-ci
         env:

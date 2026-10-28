@@ -8,8 +8,10 @@ agents to them, as a versioned release any repository can take and keep taking.
 
 The rules are the smaller part. The point is verification that does not depend on anyone's word:
 
-- `kit ci`, which refuses a pull request without a linked open issue and refuses to pass a gate that did not
-  run, from the delivered GitHub Actions job or from any pipeline;
+- `kit ci`, which refuses a pull request without a linked open issue, a branch, commit subject, or title off the
+  repository's policy, and a gate that did not run, from the delivered GitHub Actions job or from any pipeline;
+- `kit toolchain`, which installs, reports, and updates the gate's tools whether mise, Homebrew, or a container
+  image manages them, and runs the gate with them;
 - `kit check`, which holds every delivered file to its release and every generated region to its command;
 - `kit lint`, each rule's own linter over the paths it governs, before a commit or anywhere;
 - a deny list that refuses the spellings the rules forbid;
@@ -77,8 +79,10 @@ exists; a range pin sees a new kit a day after it ships unless `[settings]` carr
   [docs/generate.md](docs/generate.md) says how.
 - Commit what `install` wrote.
 - Keep a gate: a `ci` recipe in the root justfile, a `ci` target in a Makefile, a `ci` script in `package.json`,
-  or any command as `gate` in `.kit/settings.yml`. The delivered check, `kit ci`, runs it with `kit check` and
-  `kit linked`, from the delivered workflow or from any pipeline of your own, and refuses when there is none.
+  or any command as `gate` in `.kit/settings.yml`. The delivered check, `kit ci`, runs it with `kit check`,
+  `kit linked`, and `kit policy`, from the delivered workflow or from any pipeline of your own, and refuses when
+  there is none. The gate runs with the tools your toolchain manages, mise, Homebrew, or a container image; see
+  [docs/toolchains.md](docs/toolchains.md). The naming policy is in [docs/policy.md](docs/policy.md).
 - Run the linters before a commit. `kit lint` runs each rule's own linter over the staged paths with no hook
   manager at all. The `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
   in `lefthook.yml`, and run `lefthook install` once per clone. `kit check` refuses until that line is there,

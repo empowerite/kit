@@ -118,6 +118,9 @@ answers:
 | `gate` | What `kit gate` runs; a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script is detected when absent. |
 | `require_signing` | `true` makes `kit issue` refuse a desk without a signing key. |
 | `answers` | The values a module's templates take, overriding the module's own defaults. |
+| `toolchains` | The tool managers that put the gate's tools on `PATH`, `mise`, `brew`, or `docker`; see [toolchains.md](toolchains.md). |
+| `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
+| `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | The trackers besides the forge's own whose issues the loop takes, a prefix and a provider each; see [trackers.md](trackers.md). |
 
 ## Modules a repository defines
@@ -147,5 +150,6 @@ found by `kit context` like any other.
 | `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` |
 | `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | `claude` | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
+| `policy-opa` | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
 
 No module in this release delivers to `home`. Each module's `docs/README.md` says what it places and why.

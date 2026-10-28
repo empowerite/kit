@@ -106,9 +106,12 @@ as it is.
 - `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` over the staged paths. A repository's
   `lefthook.yml` takes it with `extends` and adds commands of its own. `kit lint` itself needs no hook manager:
   it runs each rule's linter over the paths the rule governs.
-- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that runs `kit ci`: the repository's gate,
-  `kit check`, and the refusal of a pull request not linked to an open issue. `kit ci` runs the same three
-  anywhere.
+- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job that installs the gate's tools with
+  `kit toolchain install` and runs `kit ci`: the repository's gate, `kit check`, the refusal of a change not
+  linked to an open issue, and `kit policy`, the refusal of a branch, commit subject, or title off the
+  repository's policy. `kit ci` runs the same four anywhere.
+- `policy-opa`: `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent and a
+  rule can say what a pattern cannot.
 - `claude`: for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`: a region in
   `.claude/CLAUDE.md` importing `AGENTS.md`, so it is read in every case; the deny list above merged into
   `.claude/settings.json`; and a hook that runs `kit context` before every write so the rules are named to the agent

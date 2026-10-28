@@ -44,9 +44,12 @@ usage: kit <verb> [<argument>…]
                         expand every kit:generate region to what its command makes, or check that it is
   region [--home] [<path>]
                         print the content the active modules deliver as the region at a path
-  ci                    the delivered CI job's checks, anywhere: gate, check, and linked, every one reported
+  ci                    the delivered CI job's checks, anywhere: gate, check, linked, and policy, every one reported
+  policy [--input]      refuse a branch, commit subject, or change title the repository's policy does not allow
   gate                  run the repository's gate, the gate setting or the detected one; refuse when there is none
   linked [<number>]     refuse a pull request not linked to an open issue of this repository
+  toolchain <list|install|outdated|update|path|run> …
+                        the tools the gate runs, whatever manages them: mise, brew, or docker
   issue [<reference>…]  start or resume an issue, #7 or AB#4521: linked branch, worktree, start commit, draft change
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches

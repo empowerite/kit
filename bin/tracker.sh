@@ -165,7 +165,7 @@ tracker:body-refs() {
   while IFS=$'\x1f' read -r prefix provider
   do
     [[ "${provider}" == forge ]] && continue
-    escaped=$(sed 's/[][\.*^$+?(){}|/]/\\&/g' <<<"${prefix}")
+    escaped=$(ere:quote "${prefix}")
     grep --only-matching --ignore-case --extended-regexp \
       "(close[sd]?|fix(e[sd])?|resolve[sd]?):? ${escaped}[0-9]+" <<<"${body}" \
       | grep --only-matching --extended-regexp "[0-9]+\$" | sed "s/^/${prefix//\//\\/}/" || true

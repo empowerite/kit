@@ -66,11 +66,14 @@ is one forge: a repository on two is a mirror or a migration, and the setting sa
 tests/forge-conformance.bats drives every provider through a fake of its tool against one world and holds every answer
 to one shape. The core verbs never reach the seam, so a repository on no forge still installs, updates, checks, and runs
 `kit context`, and each forge's tool is its provider's requirement alone.
-The delivered check is `kit ci`, three checks that are each one kit command, run by the delivered GitHub Actions
-job for a pull request into the default branch, or by any pipeline. `kit gate` runs the repository's own gate,
-the `gate` setting or the detected justfile recipe, Makefile target, or `package.json` script, and refuses when
-there is none, since a gate that cannot run clears nothing. `kit check` holds the delivered files to
-the release. `kit linked` refuses a pull request not linked to an open issue of the repository. A human merges, and
+The delivered check is `kit ci`, four checks that are each one kit command, run by the delivered GitHub Actions job for
+a pull request into the default branch, or by any pipeline. `kit gate` runs the repository's own gate, the `gate`
+setting or the detected justfile recipe, Makefile target, or `package.json` script, and refuses when there is none,
+since a gate that cannot run clears nothing; it runs with the tools the repository's toolchains manage, mise, Homebrew,
+or a container image, as [toolchains.md](toolchains.md) describes. `kit check` holds the delivered files to the release.
+`kit linked` refuses a change not linked to an open issue. `kit policy` refuses a branch, a commit subject, or a change
+title off the repository's policy, matched by patterns or decided by Open Policy Agent, as [policy.md](policy.md)
+describes. A human merges, and
 `kit tidy` removes the worktree and the branch afterwards. `kit status` draws the whole picture: the desk, every
 worktree with its commits past the fork, and every open pull request with its state, age, and checks.
 
@@ -81,7 +84,9 @@ worktree with its commits past the fork, and every open pull request with its st
 | A delivered file is the release's | `kit check`, in the gate and on a desk, against the release's files and the manifest's version |
 | A change has an issue | `kit linked` in the gate; `kit issue` makes the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which refuses when there is no gate to run |
-| All three held, wherever CI runs | `kit ci`, the delivered check, the three as one verb, every one reported |
+| The loop's names follow the policy | `kit policy`, patterns or Open Policy Agent over the same facts |
+| The gate ran with the pinned tools | `kit toolchain install`, then the gate through the toolchain, on a desk and a runner |
+| All four held, wherever CI runs | `kit ci`, the delivered check, the four as one verb, every one reported |
 | A file's rules were named to the agent | the Claude Code hook; `kit context` in every other harness |
 | A file's rules were asked for | `.git/kit/context.log`, one line per ask |
 | A file keeps its rule's mechanical part | `kit lint`, each rule's own linter over the paths it governs |

@@ -26,6 +26,7 @@
 #   link-branch <n> <default>     makes a branch linked to the issue, from <default>, pushed to origin
 #   pr-for-branch <branch>        the number of the open pull request on the branch, or nothing
 #   pr-create <branch> <default> <title>   opens a draft pull request and prints its number
+#   pr-title <n>                  the pull request's title
 #   pr-body <n>                   the pull request's body
 #   pr-set-body <n> <body>        replaces it
 #   pr-state-for-branch <branch>  MERGED, CLOSED, or OPEN for the latest pull request on the branch, or nothing
@@ -95,6 +96,7 @@ forge:branch-for-issue()    { forge:call branch-for-issue "$@"; }
 forge:link-branch()         { forge:call link-branch "$@"; }
 forge:pr-for-branch()       { forge:call pr-for-branch "$@"; }
 forge:pr-create()           { forge:call pr-create "$@"; }
+forge:pr-title()            { forge:call pr-title "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
 forge:pr-set-body()         { forge:call pr-set-body "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }

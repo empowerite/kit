@@ -27,12 +27,13 @@ teardown() {
   [[ "$output" == *"gate ran"* ]]
   [[ "$output" == *"every delivered file matches"* ]]
   [[ "$output" == *"kit linked <number>"* ]]
-  [[ "$output" == *"1 of 3 checks refused"* ]]
+  [[ "$output" == *"the patterns policy allows"* ]]
+  [[ "$output" == *"1 of 4 checks refused"* ]]
   printf 'edited\n' >> .kit/1st.md
   rm justfile
   run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
   [ "$status" -eq 3 ]
-  [[ "$output" == *"3 of 3 checks refused"* ]]
+  [[ "$output" == *"3 of 4 checks refused"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

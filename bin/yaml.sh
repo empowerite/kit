@@ -24,7 +24,11 @@
 # yaml:value <file> <key> prints the scalar under <key>, unquoted, or nothing.
 yaml:value() {
   yaml:read "$1" | awk -v key="$2" '
-    $0 ~ "^" key ": " { v = $0; sub("^" key ": *", "", v); gsub(/^"|"$/, "", v); print v; exit }'
+    $0 ~ "^" key ": " {
+      v = $0; sub("^" key ": *", "", v)
+      if (v ~ /^".*"$/ || v ~ /^\x27.*\x27$/) v = substr(v, 2, length(v) - 2)
+      print v; exit
+    }'
 }
 
 # yaml:list <file> <key> prints the items of the list under <key>, unquoted, one per line.
@@ -42,7 +46,7 @@ yaml:map() {
     /^[A-Za-z0-9_-]/ { on = 0 }
     on && /^  [A-Za-z0-9_-]+: / {
       n = $0; sub(/^  /, "", n); sub(/: .*$/, "", n); v = $0; sub(/^  [A-Za-z0-9_-]+: */, "", v);
-      gsub(/^"|"$/, "", v); print n "\t" v }'
+      if (v ~ /^".*"$/ || v ~ /^\x27.*\x27$/) v = substr(v, 2, length(v) - 2); print n "\t" v }'
 }
 
 # yaml:records <file> <key> <field>… prints one line per record of the list under <key>: the named fields' values,

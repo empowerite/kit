@@ -41,6 +41,21 @@ else
   declare -gr out_color=0
 fi
 
+# ere:quote <text> prints the text with every extended-regular-expression metacharacter escaped, so it stands for
+# itself in a pattern. Done in bash, so no sed dialect decides what a bracket expression means.
+ere:quote() {
+  local text=$1 out='' c i
+  for (( i = 0; i < ${#text}; i++ ))
+  do
+    c=${text:i:1}
+    case "${c}" in
+      ('.' | '[' | ']' | '*' | '^' | '$' | "\\" | '+' | '?' | '(' | ')' | '{' | '}' | '|') out+="\\${c}" ;;
+      (*) out+=${c} ;;
+    esac
+  done
+  printf '%s\n' "${out}"
+}
+
 # out:sgr <code> prints the escape for one SGR code when color is on, and nothing otherwise.
 out:sgr() {
   (( out_color )) && printf '\x1b[%sm' "$1"

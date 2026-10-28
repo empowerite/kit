@@ -86,6 +86,10 @@ forge-github:pr-create() {
   printf '%s\n' "${url##*/}"
 }
 
+forge-github:pr-title() {
+  gh pr view "$1" --json title --jq '.title'
+}
+
 forge-github:pr-body() {
   gh pr view "$1" --json body --jq '.body // ""'
 }

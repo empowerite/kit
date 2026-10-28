@@ -71,6 +71,63 @@
           }
         }
       }
+    },
+    "toolchains": {
+      "type": "array",
+      "description": "The toolchains that put the gate's tools on PATH, in order. Detected from mise.toml, Brewfile, and toolchain.Dockerfile when absent.",
+      "items": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "mise",
+              "brew",
+              "docker"
+            ],
+            "description": "Which tool manager answers."
+          },
+          "file": {
+            "type": "string",
+            "description": "brew and docker: the file it reads, Brewfile or toolchain.Dockerfile by default."
+          },
+          "image": {
+            "type": "string",
+            "description": "docker: the built image's name, kit-toolchain by default."
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The patterns the loop's names must match, extended regular expressions in the subset RE2 shares. A subject absent takes the kit's default; an empty pattern turns that rule off.",
+      "properties": {
+        "branch": {
+          "type": "string",
+          "description": "The branch's name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, as kit issue makes it."
+        },
+        "commit_subject": {
+          "type": "string",
+          "description": "Every commit's subject past the fork. Default: ^([A-Z]+)?#[0-9]+ [^ ], opening with its issue's reference."
+        },
+        "change_title": {
+          "type": "string",
+          "description": "The open change's title. Default: ^[^[:cntrl:]]{1,120}$."
+        }
+      }
+    },
+    "policy_engine": {
+      "type": "string",
+      "enum": [
+        "patterns",
+        "opa"
+      ],
+      "description": "Which engine decides: patterns, matched in bash, or opa, over the Rego under .kit/policy. opa is chosen when absent and a .rego file is there."
     }
   }
 }

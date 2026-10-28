@@ -262,7 +262,7 @@ release:validate-settings() {
   for key in $(yaml:keys "${settings}")
   do
     case "${key}" in
-      (forge | gate | require_signing | answers | trackers) ;;
+      (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
         return 1

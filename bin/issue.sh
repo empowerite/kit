@@ -176,7 +176,7 @@ issue:link-in-body() {
   body=$(forge:pr-body "${pr}")
   for ref in "$@"
   do
-    escaped=$(sed 's/[][\.*^$+?(){}|/]/\\&/g' <<<"${ref}")
+    escaped=$(ere:quote "${ref}")
     if ! grep --quiet --ignore-case --extended-regexp \
       "(close[sd]?|fix(e[sd])?|resolve[sd]?):? ${escaped}([^0-9]|\$)" <<<"${body}"
     then
