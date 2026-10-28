@@ -196,7 +196,7 @@ release:validate() {
   for key in $(yaml:keys "${meta}")
   do
     case "${key}" in
-      (description | default | depends | answers) ;;
+      (description | default | depends | answers | expects) ;;
       (*)
         error "$(release:meta "${root}" "${module}") has a key the kit does not know: ${key}" \
           "(see modules/module.schema.json)"
@@ -222,6 +222,34 @@ release:validate() {
       return 1
     fi
   done
+}
+
+# release:expectations <root> <module>… prints "<path>\x1f<pattern>\x1f<remedy>" for each line the modules expect
+# of a file the repository owns, the include a format composes by: lefthook's extends, just's import.
+release:expectations() {
+  local root=$1 module
+  shift
+  for module in "$@"
+  do
+    yaml:records "$(release:meta "${root}" "${module}")" expects path pattern remedy
+  done
+}
+
+# release:unmet <root> <module>… prints the remedy of every expectation the repository does not meet, one per
+# line: its file is missing, or no line of it matches the pattern, an extended regular expression. The kit
+# writes nothing into such a file; it only says what is missing.
+release:unmet() {
+  local root=$1 path pattern remedy
+  shift
+  while IFS=$'\x1f' read -r path pattern remedy
+  do
+    [[ -n "${path}" ]] || continue
+    if [[ ! -f "${path}" ]] || ! grep --quiet --extended-regexp -- "${pattern}" "${path}"
+    then
+      printf '%s: %s\n' "${path}" "${remedy:-a line matching ${pattern} is expected}"
+    fi
+  done < <(release:expectations "${root}" "$@")
+  return 0
 }
 
 # release:validate-settings refuses a settings file the schema would refuse, as far as bash can tell: a key the
@@ -958,7 +986,18 @@ release:require-manifest() {
 # release:finish <module>… reports a completed install or update.
 release:finish() {
   ok "kit $(release:version) is installed, modules: ${*:-none}; .kit/manifest is written."
+  release:say-unmet "$@"
   step "Commit the delivered files. The loop is in .kit/1st.md."
+}
+
+# release:say-unmet <module>… names, as a step left to do, every expectation of the modules not yet met.
+release:say-unmet() {
+  local line
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] && warn "left to do in ${line}"
+  done < <(release:unmet "${kit_root}" "$@")
+  return 0
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

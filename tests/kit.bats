@@ -349,6 +349,23 @@ later-release() {
   ! grep --quiet 'something else' AGENTS.md
 }
 
+@test "a module's expected include is named at install, refused by check until it is there, and never written" {
+  run "${kit_checkout}/bin/kit" install lefthook
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"left to do in lefthook.yml: put extends: [.kit/lefthook.yml] in lefthook.yml"* ]]
+  [ ! -e lefthook.yml ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lefthook.yml: put extends: [.kit/lefthook.yml] in lefthook.yml"* ]]
+  printf 'pre-commit:\n  commands: {}\n' > lefthook.yml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  [ "$(cat lefthook.yml)" = "$(printf 'extends:\n  - .kit/lefthook.yml')" ]
+}
+
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
@@ -367,6 +384,7 @@ later-release() {
 
 @test "check passes after install and fails on a drifted, a missing, and a lost deny entry" {
   "${kit_checkout}/bin/kit" install claude lefthook
+  printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'edited\n' >> .kit/rules/yaml.md

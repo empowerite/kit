@@ -5,3 +5,7 @@
 description: "A pre-commit hook that runs kit lint over the staged paths, for the repository's lefthook.yml to extend"
 depends:
   - kit
+expects:
+  - path: lefthook.yml
+    pattern: '\.kit/lefthook\.yml'
+    remedy: "put extends: [.kit/lefthook.yml] in lefthook.yml, so the kit's pre-commit commands run"

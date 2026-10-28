@@ -81,7 +81,8 @@ sees a new kit a day after it ships unless `[settings]` carries `minimum_release
   `kit linked`, from the delivered workflow or from any pipeline of your own, and refuses when there is none.
 - Run the linters before a commit. `kit lint` runs each rule's own linter over the staged paths with no hook
   manager at all. The `lefthook` module wires lefthook to it: pin `lefthook`, put `extends: [.kit/lefthook.yml]`
-  in `lefthook.yml`, and run `lefthook install` once per clone.
+  in `lefthook.yml`, and run `lefthook install` once per clone. `kit check` refuses until that line is there,
+  and the kit never writes it for you.
 
 `claude` is the adapter for Claude Code, which reads `AGENTS.md` only as a fallback, when no `CLAUDE.md` is present.
 The module places a region in `.claude/CLAUDE.md` importing `AGENTS.md`, so Claude reads what every agent reads in

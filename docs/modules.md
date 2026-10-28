@@ -47,6 +47,7 @@ answers:
 | `default` | `true` for a module active unless removed: `kit`. |
 | `depends` | Modules activated with this one. `kit module remove` refuses a module another active module depends on. |
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
+| `expects` | Lines the module expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 
 [module.schema.json](../modules/module.schema.json) is the schema, JSON Schema 2020-12. This repository's gate validates
 every `module.yml` against it with `ajv`, and `kit install` holds a module to the same contract where no validator is: a
@@ -59,6 +60,23 @@ A file under `files/<base>/` is placed at the same path under the base's root. A
 than a schema, `*.schema.json`, is merged by key: the kit's keys are set, its array entries added, and on update or
 removal only the previous release's entries are taken out, so a repository's own keys and entries survive. Every other
 destination is a copy. Where two active modules deliver the same path, the later module in dependency order wins.
+
+Where a format composes, a module delivers a whole file of its own under `.kit/` and expects the repository's file to
+take it with one include line: lefthook's `extends`, just's `import`, git's `include`, markdownlint's `extends`. The
+module says so under `expects:`, a `path`, an extended regular expression some line of that file must match, and a
+`remedy`. `kit install` and `kit module add` name each one not yet met as left to do, `kit check` refuses until it is,
+and the kit writes nothing into the file, which stays the repository's entirely. The rule for any file the kit touches
+is then: an include where the format composes, a region where it has comments, a merge by key where it has neither, and
+a copy only where the file is the kit's own.
+
+```yaml
+expects:
+  - path: lefthook.yml
+    pattern: '\.kit/lefthook\.yml'
+    remedy: "put extends: [.kit/lefthook.yml] in lefthook.yml, so the kit's pre-commit commands run"
+```
+
+A single-quoted value is taken literally, backslashes and all, which is how a pattern is written.
 
 A file under `regions/<base>/` is the content of a region inside the file at the same path, rendered as a template
 is. What is placed there is the bare directive `kit:generate <path>`, the content, and the marker `kit:end <path>`, in

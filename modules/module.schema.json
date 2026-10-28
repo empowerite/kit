@@ -5,7 +5,9 @@
   "description": "The metadata of one kit module, modules/<name>/module.yml; docs/modules.md says what each key means.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["description"],
+  "required": [
+    "description"
+  ],
   "properties": {
     "description": {
       "type": "string",
@@ -33,6 +35,36 @@
         "^[a-z_]+$": {
           "type": "string",
           "description": "The default value of a template key, written @key@ in the module's templates."
+        }
+      }
+    },
+    "expects": {
+      "type": "array",
+      "description": "Lines the module expects in files the repository owns, such as the include a format composes by; kit check reports one that is missing, with its remedy, and the kit writes none of them.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "pattern",
+          "remedy"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file, relative to the repository root."
+          },
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "description": "An extended regular expression some line of the file must match."
+          },
+          "remedy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What to add, and why, printed when no line matches."
+          }
         }
       }
     }

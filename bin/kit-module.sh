@@ -57,6 +57,7 @@ case "${verb}" in
     fi
     release:write-manifests "${wanted[@]}"
     ok "modules: ${wanted[*]}"
+    release:say-unmet "${wanted[@]}"
     ;;
   (remove)
     (( $# > 0 )) || { usage; exit 2; }

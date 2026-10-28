@@ -67,6 +67,13 @@ do
     fi
   done <<<"${delivered}"
 done
+# Every line a module expects of a file the repository owns is there; the kit writes none of them.
+while IFS= read -r unmet
+do
+  [[ -n "${unmet}" ]] || continue
+  error "${unmet}"
+  findings=$(( findings + 1 ))
+done < <(release:unmet "${kit_root}" "${modules[@]}")
 # Every generated region, the kit's and the repository's own, is what its command makes it.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
