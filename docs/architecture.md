@@ -92,7 +92,7 @@ gets the same answer:
 - Claude Code's `PreToolUse` hook, which the `claude` module wires to `kit context --claude`, so the rules are shown
   before every write.
 
-The log records which rules were shown, and when.
+The log records each path asked about, and when.
 
 A rule also names its linter. `kit lint` runs each rule's linter over the files the rule covers, so a hook manager
 only has to call `kit lint`. A rule's templates are skeleton files of its kind: `kit new file <path>` creates a file
@@ -110,8 +110,8 @@ in place.
 Work starts from an issue:
 
 1. `kit issue <N>` creates `worktrees/<N>-<slug>`, a branch linked to the issue, a start commit, and a draft pull
-   request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so. That is the
-   only change it makes to the desk.
+   request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so. When the desk is
+   on the default branch, `kit issue` also fast-forwards it. It changes nothing else on the desk.
 2. In the worktree:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,
@@ -173,8 +173,9 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
 `kit status` shows everything in flight:
 
 - what the last fetch brought in,
-- the desk and every worktree, with its uncommitted paths and its commits since the branch point, and
-- every open pull request, with its state, age, and checks.
+- the desk and every worktree, with its uncommitted paths and its commits since the branch point,
+- every open pull request, with its state, age, and checks, and
+- the branches whose upstream is gone.
 
 It queries the forge in the background and draws the local checkouts while it waits.
 

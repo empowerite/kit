@@ -72,9 +72,10 @@ export PATH="${PWD}/kit/bin:${PATH}"
 Requirements:
 
 - bash 4.4 or later. macOS ships bash 3.2; run `brew install bash`.
-- git and `jq`.
+- git, `jq`, and `curl`, which `kit update` uses to fetch the release it updates from.
 - For `kit issue`, `kit status`, `kit tidy`, and `kit linked`: the command-line tool of the forge, the service that
   hosts the repository. That is `gh` for GitHub or `glab` for GitLab.
+- For an Azure DevOps tracker: `az`, the Azure CLI.
 
 With mise, an exact version pin installs as soon as a release exists. A range pin waits one day after a release
 unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite/kit"]`.
@@ -99,11 +100,11 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    `kit check` fails when a region is out of date. Your own files can contain regions too; see
    [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote.
-3. Give the repository a gate, the command that CI runs. kit looks for one of these:
+3. Give the repository a gate, the command that CI runs. kit takes the first of these:
+   - any command, set as `gate` in `.kit/settings.yml`
    - a `ci` recipe in the root justfile
    - a `ci` target in a Makefile
    - a `ci` script in `package.json`
-   - any command, set as `gate` in `.kit/settings.yml`
 
    `kit ci` runs the gate together with `kit check`, `kit linked`, and `kit policy`, and fails when there is no gate.
    The gate runs with the tools your toolchain manages; see [docs/toolchains.md](docs/toolchains.md). The naming
@@ -192,17 +193,18 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | `kit/bash/` | the bash modules the verbs share |
 | `kit/modules/` | everything a release delivers |
 | `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |
-| `docs/`, `kit/modules/*/docs/` | the documentation |
+| `docs/` | the documentation, with a page per module under `docs/modules/` |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
 [docs/modules.md](docs/modules.md) describes the module format.
 [docs/bash.md](docs/bash.md) describes the bash module system the verbs are built on, and how a repository extends it.
 
-This repository installs its own kit. The installed copies are written by `kit/bin/kit install`; do not edit them by hand:
+This repository installs its own kit. The installed copies are written by `bin/refresh`, which runs `kit update`
+from the index. Do not edit them by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/modules/kit/files/repo/.kit/` |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc` | `kit/modules/kit/files/repo/.kit/` |
 | `.kit/lefthook.yml` | `kit/modules/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `kit/modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |

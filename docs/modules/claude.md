@@ -20,7 +20,7 @@ alone:
   `git push --force`, and `git push -f`.
 - `hooks.PreToolUse`: on `Write`, `Edit`, and `MultiEdit`, runs `kit context --claude`, which shows the agent the
   rules that govern the file. It is described in
-  [docs/context.md](https://github.com/empowerite/kit/blob/main/docs/context.md).
+  [docs/context.md](../context.md).
 
 `.claude/rules/` belongs to the repository. `AGENTS.md` contains no `@` import for Claude Code, because every
 harness reads `AGENTS.md`.

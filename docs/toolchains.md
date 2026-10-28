@@ -60,7 +60,7 @@ toolchains:
 The delivered workflow runs `kit toolchain install`, then appends the output of `kit toolchain path` to the
 runner's `PATH`.
 
-- Its one setup action puts the `mise` binary on the runner when the repository has a `mise.toml`. The action's
+- Its one setup action puts the `mise` binary on the runner when the repository has a `mise.toml` or `.mise.toml`. The action's
   own install step is turned off.
 - Homebrew and Docker are already on GitHub's hosted runners.
 - The brew provider finds Homebrew at its own prefix when the runner leaves it off `PATH`.

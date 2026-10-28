@@ -20,11 +20,10 @@ modules/<name>/
   files/<base>/       files mirrored at the base's root
   templates/<base>/   files rendered from the repository's answers, then mirrored the same way
   regions/<base>/     each file a region the kit owns inside a file the repository owns
-  docs/               the module's documentation; packed with the release, placed in no repository
 ```
 
-A module must have `module.yml`. `files/`, `templates/`, `regions/`, and `docs/` are optional. The base
-sets where a file lands:
+A module must have `module.yml`. `files/`, `templates/`, and `regions/` are optional, and the kit reads nothing
+else in the module's directory. The base sets where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
@@ -132,7 +131,8 @@ follows the file's extension:
 - `<!-- … -->` for markdown, HTML, XML, and SVG
 - `//` for JavaScript, TypeScript, Go, Rust, C, C++, Java, Kotlin, Swift, C#, and Scala
 - `--` for SQL, Lua, and Haskell
-- `#` for everything else
+- `#` for the other kinds the kit knows: shell, YAML, TOML, Python, Ruby, Perl, just, make, and plain text
+- a file with no extension takes `#`; a file with any other extension cannot carry a region
 
 The block is placed like this:
 
@@ -193,6 +193,10 @@ answers:
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a module from, in order, starting with `kit:bash/`. A directory that does not exist is skipped; see [bash.md](bash.md#the-module-path). |
 
+A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or a toolchain, takes one of the kit's
+providers, or one the repository adds on its module path: `forge: bitbucket` with a `bash/forge-bitbucket.sh`.
+See [bash.md](bash.md#writing-a-module).
+
 ## Modules a repository defines
 
 A directory `.kit/modules/<name>/` in the repository is a module in every respect. It has the same parts:
@@ -212,10 +216,10 @@ A directory `.kit/modules/<name>/` in the repository is a module in every respec
 
 | Module | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| `kit` | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc`; regions in `AGENTS.md` and `.gitignore` |
-| `lefthook` | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
-| `ci-github` | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
-| `claude` | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
-| `policy-opa` | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
+| [`kit`](modules/kit.md) | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc`; regions in `AGENTS.md` and `.gitignore` |
+| [`lefthook`](modules/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
+| [`ci-github`](modules/ci-github.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
+| [`claude`](modules/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
+| [`policy-opa`](modules/policy-opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
 
-No module in this release delivers to `home`. Each module's `docs/README.md` describes what it places and why.
+No module in this release delivers to `home`. Each module's page, linked above, describes what it places and why.

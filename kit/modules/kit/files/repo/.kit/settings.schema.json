@@ -8,11 +8,19 @@
   "properties": {
     "forge": {
       "type": "string",
-      "enum": [
-        "github",
-        "gitlab"
-      ],
-      "description": "The forge (the service that hosts the repository) the workflow commands use: github or gitlab. When absent, it is detected from origin's host, github.com or gitlab.com. A self-hosted forge must be set here."
+      "description": "The forge (the service that hosts the repository) the workflow commands use: github or gitlab. When absent, it is detected from origin's host, github.com or gitlab.com. A self-hosted forge must be set here.",
+      "anyOf": [
+        {
+          "enum": [
+            "github",
+            "gitlab"
+          ]
+        },
+        {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "a provider the repository adds on its module path, bash_path"
+        }
+      ]
     },
     "gate": {
       "type": "string",
@@ -51,11 +59,19 @@
           },
           "provider": {
             "type": "string",
-            "enum": [
-              "forge",
-              "ado"
-            ],
-            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items."
+            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items.",
+            "anyOf": [
+              {
+                "enum": [
+                  "forge",
+                  "ado"
+                ]
+              },
+              {
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "a provider the repository adds on its module path, bash_path"
+              }
+            ]
           },
           "organization": {
             "type": "string",
@@ -84,12 +100,20 @@
         "properties": {
           "provider": {
             "type": "string",
-            "enum": [
-              "mise",
-              "brew",
-              "docker"
-            ],
-            "description": "The tool manager: mise, brew, or docker."
+            "description": "The tool manager: mise, brew, or docker.",
+            "anyOf": [
+              {
+                "enum": [
+                  "mise",
+                  "brew",
+                  "docker"
+                ]
+              },
+              {
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "a provider the repository adds on its module path, bash_path"
+              }
+            ]
           },
           "file": {
             "type": "string",
@@ -123,11 +147,19 @@
     },
     "policy_engine": {
       "type": "string",
-      "enum": [
-        "patterns",
-        "opa"
-      ],
-      "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise."
+      "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise.",
+      "anyOf": [
+        {
+          "enum": [
+            "patterns",
+            "opa"
+          ]
+        },
+        {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "a provider the repository adds on its module path, bash_path"
+        }
+      ]
     },
     "bash_path": {
       "type": "array",
