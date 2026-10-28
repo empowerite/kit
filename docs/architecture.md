@@ -25,10 +25,13 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
 
 ### Bash modules
 
-The verbs share bash modules, sourced `<module>.sh` files that `use <module>` loads from the module path, the
-`bash_path` setting. A repository extends the kit by putting its own modules on that path: a later file adds
-functions, replaces one, or wraps one with `super`, and a provider of a seam counts wherever it is.
-[bash.md](bash.md) describes the module system in full.
+The kit's commands share code through bash modules. A bash module is a file of functions, such as `forge.sh`, and a
+command loads it with `use forge`. `use` looks in each directory listed in the `bash_path` setting and loads every
+`forge.sh` it finds, in that order.
+
+That is how a repository changes the kit without editing it. It lists its own directory after the kit's, and its
+`forge.sh` loads second, so it can add functions, replace the kit's, or wrap them. It can add support for another
+forge or toolchain the same way. [bash.md](bash.md) has the details.
 
 ### Modules
 
