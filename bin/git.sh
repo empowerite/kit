@@ -2,7 +2,8 @@
 # git.sh - the default branch, the worktrees, the sweep, and the rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The sweep asks the forge, through bin/forge.sh, whether a worktree's pull request is merged or closed.
+# The sweep asks the forge, through bin/forge.sh, whether a worktree's change is merged or closed, and the issue's
+# tracker, through bin/tracker.sh, whether its issue is.
 
 use forge
 
@@ -61,7 +62,7 @@ git:clean() {
 # git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides one worktree and
 # says why. It returns 0 when the worktree was removed, or would be under a dry run, and 1 when it is kept.
 git:tidy-worktree() {
-  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" number
+  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref
   if [[ "${path}" == "${self_root}" ]]
   then
     step "keeping ${path} (this command runs in it)"
@@ -75,10 +76,11 @@ git:tidy-worktree() {
   if [[ -n "${branch}" ]]
   then
     state=$(forge:pr-state-for-branch "${branch}")
-    if [[ -z "${state}" && "${branch}" =~ ^([0-9]+)- ]]
+    if [[ -z "${state}" ]]
     then
-      number=${BASH_REMATCH[1]}
-      [[ "$(forge:issue-state "${number}")" == CLOSED ]] && state=CLOSED
+      use tracker
+      ref=$(tracker:branch-ref "${branch}")
+      [[ -n "${ref}" && "$(tracker:of "${ref}" state)" == CLOSED ]] && state=CLOSED
     fi
   elif [[ "${detached}" == true ]]
   then
@@ -104,7 +106,7 @@ git:tidy-worktree() {
       return 0
       ;;
     (*)
-      step "keeping ${path} (${branch:-detached}, pull request ${state:-open or unknown})"
+      step "keeping ${path} (${branch:-detached}, change ${state:-open or unknown})"
       return 1
   esac
 }

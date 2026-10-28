@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2154  # kit_root is exported by bin/kit
 # shellcheck disable=SC2016  # the $ in a pattern anchors a line; nothing is meant to expand
-# generate.sh - a directive opens a named region a command fills: discovery, expansion, and the fixed point (sourced module)
+# generate.sh - a directive opens a named region a command fills, expanded to a fixed point (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A line that is `kit:generate <name>`, or `kit:generate <name> `<command>``, with nothing but non-alphanumeric

@@ -1,12 +1,15 @@
 # shellcheck shell=bash
-# issue.sh - the issue on-ramp: a linked branch, a worktree, a start commit, and a draft pull request (sourced module)
+# issue.sh - the issue on-ramp: a linked branch, a worktree, a start commit, and a draft change (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# issue:start [<number>…] is the one command the loop needs and no vendor provides. The first number is the
-# primary issue, linked to the branch the forge makes, which closes it on merge; any further number is a
-# secondary, closed by a `Closes #N` line in the pull request body. Every listed issue is assigned to the caller.
-# It never switches the checkout it runs from: the branch is checked out in worktrees/<N>-<slug> under the main
-# checkout, and an existing branch, worktree, or pull request is reused, so a re-run reconciles.
+# issue:start [<reference>…] is the one command the loop needs and no vendor provides. A reference names its
+# tracker, as bin/tracker.sh describes: `7` or `#7` for the forge's own issues, `AB#4521` for a declared one. The
+# first is the primary issue. One of the forge's own is linked to the branch the forge makes, which closes it on
+# merge; any other, and every further reference, a secondary, is closed by a `Closes <reference>` line in the
+# change's body. Every listed issue is assigned to the caller, as each tracker knows the caller. It never switches
+# the checkout it runs from: the branch is checked out in worktrees/<key>-<slug> under the main checkout, the key
+# being the reference as a branch name opens with it, 7 or ab4521, and an existing branch, worktree, or change is
+# reused, so a re-run reconciles.
 #
 # With no argument and a terminal on stdin it asks for a title and creates the issue; without a terminal the
 # usage error stands, so an agent never hangs on a prompt. Uncommitted work in the root checkout, the human's
@@ -14,12 +17,12 @@
 # the default branch; inside any other checkout, dirty files are that issue's own and stay. A sweep that cannot
 # apply leaves the stash in place and stops.
 #
-# Every call to the forge goes through bin/forge.sh. Each step below prints its one result on stdout and talks
-# on stderr, so issue:start reads them in order.
+# Every call to the forge goes through bin/forge.sh, and every call about an issue through bin/tracker.sh. Each
+# step below prints its one result on stdout and talks on stderr, so issue:start reads them in order.
 
-use git forge
+use git forge tracker
 
-# issue:create asks for a title at the terminal and prints the number of the issue the forge creates.
+# issue:create asks for a title at the terminal and prints the reference of the issue the forge's tracker creates.
 issue:create() {
   local title number
   read -r -p "Issue title: " title
@@ -28,44 +31,57 @@ issue:create() {
     error "an issue title is required"
     return 2
   fi
-  number=$(forge:issue-create "${title}") || return 1
+  number=$(tracker:at '#' create "${title}") || return 1
   ok "Created #${number}: ${title}"
-  printf '%s\n' "${number}"
+  printf '#%s\n' "${number}"
 }
 
-# issue:assign <me> <number>… adds <me> to each issue's assignees, warning where someone else is there already.
+# issue:assign <reference>… adds the caller, as each issue's tracker knows the caller, to each issue's assignees,
+# warning where someone else is there already.
 issue:assign() {
-  local me=$1 n assignees
-  shift
-  for n in "$@"
+  local ref prefix me assignees
+  local -A me_in=()
+  for ref in "$@"
   do
-    assignees=$(forge:issue-assignees "${n}")
+    prefix=$(tracker:parse "${ref}" | cut -f 1)
+    [[ -n "${me_in[${prefix}]:-}" ]] || me_in[${prefix}]=$(tracker:at "${prefix}" me) || return 1
+    me=${me_in[${prefix}]}
+    assignees=$(tracker:of "${ref}" assignees)
     [[ " ${assignees} " == *" ${me} "* ]] && continue
     [[ -z "${assignees}" ]] \
-      || warn "#${n} is already assigned to ${assignees}; adding you as well. Coordinate before continuing."
-    forge:issue-assign "${n}" "${me}" || warn "#${n} could not be assigned to ${me}; assign it by hand."
+      || warn "${ref} is already assigned to ${assignees}; adding you as well. Coordinate before continuing."
+    tracker:of "${ref}" assign "${me}" || warn "${ref} could not be assigned to ${me}; assign it by hand."
   done
 }
 
-# issue:branch <number> <default-branch> prints the branch linked to the issue, making and linking one if none
-# exists. An existing one is found by an open pull request's head, then by the remote ref, so a second run never
-# forks a duplicate.
+# issue:branch <reference> <default-branch> <title> prints the branch made for the issue, making one if none
+# exists: linked by the forge for one of its own issues, and named <key>-<slug of the title> from the default
+# branch for any other. An existing one is found by an open change's head, then by the remote ref, so a second run
+# never forks a duplicate.
 issue:branch() {
-  local number=$1 default_branch=$2 branch
-  branch=$(forge:branch-for-issue "${number}")
+  local ref=$1 default_branch=$2 title=$3 key branch slug
+  key=$(tracker:key "${ref}") || return 2
+  branch=$(forge:branch-for-issue "${key}")
   [[ -n "${branch}" ]] \
-    || branch=$(git ls-remote --heads origin "${number}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
-  if [[ -z "${branch}" ]]
+    || branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
+  if [[ -z "${branch}" ]] && tracker:is-forge "${ref}"
   then
-    step "Linking a branch to #${number}"
-    forge:link-branch "${number}" "${default_branch}" || return 1
+    step "Linking a branch to ${ref}"
+    forge:link-branch "${key}" "${default_branch}" || return 1
     git fetch --quiet origin
-    branch=$(git ls-remote --heads origin "${number}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
+    branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
     if [[ -z "${branch}" ]]
     then
-      error "the branch the forge made for #${number} could not be found on origin; link one by hand and re-run"
+      error "the branch the forge made for ${ref} could not be found on origin; link one by hand and re-run"
       return 1
     fi
+  elif [[ -z "${branch}" ]]
+  then
+    slug=$(tr '[:upper:]' '[:lower:]' <<<"${title}" | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c 1-60)
+    branch="${key}-${slug%-}"
+    step "Making ${branch} for ${ref} from ${default_branch}"
+    git push --quiet origin "refs/remotes/origin/${default_branch}:refs/heads/${branch}" || return 1
+    git fetch --quiet origin
   fi
   printf '%s\n' "${branch}"
 }
@@ -97,15 +113,15 @@ issue:worktree() {
   printf '%s\n' "${wt}"
 }
 
-# issue:start-commit <worktree> <default-branch> <number> <title> gives the branch its first commit when it has
-# none: a forge cannot open a pull request with nothing to compare. --only keeps the commit empty, so work
-# already staged in a reused worktree stays in the index. The subject follows the loop's shape.
+# issue:start-commit <worktree> <default-branch> <reference> <title> gives the branch its first commit when it has
+# none: a forge cannot open a change with nothing to compare. --only keeps the commit empty, so work already
+# staged in a reused worktree stays in the index. The subject follows the loop's shape, the reference first.
 issue:start-commit() {
-  local wt=$1 default_branch=$2 number=$3 title=$4
+  local wt=$1 default_branch=$2 ref=$3 title=$4
   if [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]]
   then
     step "Adding the start commit"
-    git -C "${wt}" commit --quiet --allow-empty --only --message "#${number} start: ${title}"
+    git -C "${wt}" commit --quiet --allow-empty --only --message "${ref} start: ${title}"
   fi
 }
 
@@ -139,47 +155,48 @@ issue:sweep-apply() {
     || warn "${default_branch} could not fast-forward to origin; it is left as it was."
 }
 
-# issue:pull-request <branch> <default-branch> <title> prints the number of the open pull request for the
-# branch, opening a draft if there is none.
+# issue:pull-request <branch> <default-branch> <title> prints the number of the open change for the branch,
+# opening a draft if there is none.
 issue:pull-request() {
   local branch=$1 default_branch=$2 title=$3 pr
   pr=$(forge:pr-for-branch "${branch}")
   if [[ -z "${pr}" ]]
   then
-    step "Opening a draft pull request"
+    step "Opening a draft change"
     pr=$(forge:pr-create "${branch}" "${default_branch}" "${title}") || return 1
   fi
   printf '%s\n' "${pr}"
 }
 
-# issue:link-secondaries <pr> <number>… adds a `Closes #N` line to the pull request body for each number not
-# there.
-issue:link-secondaries() {
-  local pr=$1 n body changed=false
+# issue:link-in-body <change> <reference>… adds a `Closes <reference>` line to the change's body for each reference
+# not there: a secondary issue, or a primary the forge cannot link by itself.
+issue:link-in-body() {
+  local pr=$1 ref escaped body changed=false
   shift
   body=$(forge:pr-body "${pr}")
-  for n in "$@"
+  for ref in "$@"
   do
+    escaped=$(sed 's/[][\.*^$+?(){}|/]/\\&/g' <<<"${ref}")
     if ! grep --quiet --ignore-case --extended-regexp \
-      "(close[sd]?|fix(e[sd])?|resolve[sd]?):? #${n}([^0-9]|\$)" <<<"${body}"
+      "(close[sd]?|fix(e[sd])?|resolve[sd]?):? ${escaped}([^0-9]|\$)" <<<"${body}"
     then
-      body="${body}"$'\n'"Closes #${n}"
+      body="${body}"$'\n'"Closes ${ref}"
       changed=true
     fi
   done
   if [[ "${changed}" == true ]]
   then
-    step "Linking the secondary issues in the pull request body"
+    step "Linking the issues in the change's body"
     forge:pr-set-body "${pr}" "${body}"
   fi
 }
 
-# issue:start [<number>…] is the on-ramp the file header describes. A desk without a signing key is refused
+# issue:start [<reference>…] is the on-ramp the file header describes. A desk without a signing key is refused
 # where the require_signing setting is true, before anything is written.
 issue:start() {
-  local me n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
+  local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
+  local -a refs=() in_body=()
   forge:require || return 1
-  me=$(forge:me) || return 1
   if [[ "$(release:setting require_signing)" == true ]]
   then
     guard:require signing-key || return 1
@@ -188,7 +205,7 @@ issue:start() {
   then
     if [[ ! -t 0 ]]
     then
-      error "usage: kit issue <issue-number> [<issue-number>…]"
+      error "usage: kit issue <reference> [<reference>…]"
       return 2
     fi
     created=$(issue:create) || return
@@ -196,28 +213,28 @@ issue:start() {
   fi
   for n in "$@"
   do
-    if [[ ! "${n}" =~ ^[0-9]+$ ]]
-    then
-      error "not an issue number: '${n}'"
-      return 2
-    fi
+    n=$(tracker:normal "${n}") || return 2
+    refs+=("${n}")
   done
+  set -- "${refs[@]}"
   primary=$1
+  tracker:is-forge "${primary}" || in_body+=("${primary}")
+  in_body+=("${@:2}")
 
   git fetch --quiet --prune origin
   default_branch=$(git:default-branch)
   main_root=$(git:main-root)
   desk=$(git rev-parse --show-toplevel)
   desk_branch=$(git -C "${desk}" rev-parse --abbrev-ref HEAD)
-  title=$(forge:issue-title "${primary}") || return 1
-  issue:assign "${me}" "$@"
-  section "Starting #${primary}: ${title}"
+  title=$(tracker:of "${primary}" title) || return 1
+  issue:assign "$@" || return
+  section "Starting ${primary}: ${title}"
 
-  branch=$(issue:branch "${primary}" "${default_branch}") || return
+  branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
   if [[ "${desk}" == "${main_root}" ]] && ! git:clean "${desk}"
   then
     step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
-    stash=$(issue:sweep-push "${desk}" "kit issue #${primary} → ${branch}") || return
+    stash=$(issue:sweep-push "${desk}" "kit issue ${primary} → ${branch}") || return
   fi
   wt=$(issue:worktree "${main_root}" "${branch}") || return
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
@@ -229,10 +246,10 @@ issue:start() {
     issue:sweep-apply "${desk}" "${wt}" "${stash}" "${default_branch}" || return
   fi
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return
-  (( $# > 1 )) && issue:link-secondaries "${pr}" "${@:2}"
+  (( ${#in_body[@]} > 0 )) && issue:link-in-body "${pr}" "${in_body[@]}"
 
   IFS=$'\t' read -r sigil noun < <(forge:noun)
-  ok "Draft ${noun} ${sigil}${pr} on ${branch}, primary #${primary}${2:+, secondaries: ${*:2}}"
+  ok "Draft ${noun} ${sigil}${pr} on ${branch}, primary ${primary}${2:+, secondaries: ${*:2}}"
   ok "Worktree ready: ${wt}"
   step "cd '${wt}'    # do all work there; this checkout stays on ${desk_branch}"
 }

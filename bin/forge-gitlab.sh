@@ -55,8 +55,8 @@ forge-gitlab:me() {
 
 forge-gitlab:issue-create() {
   local number
-  number=$(glab issue create --title "$1" --description "" --yes 2>/dev/null | sed -n 's@.*/-/issues/\([0-9]*\).*@\1@p' \
-    | tail -n 1)
+  number=$(glab issue create --title "$1" --description "" --yes 2>/dev/null \
+    | sed -n 's@.*/-/issues/\([0-9]*\).*@\1@p' | tail -n 1)
   if [[ ! "${number}" =~ ^[0-9]+$ ]]
   then
     error "run: glab auth status (the issue could not be created)"
@@ -84,7 +84,8 @@ forge-gitlab:issue-assign() {
 
 forge-gitlab:branch-for-issue() {
   forge-gitlab:api "merge_requests?state=opened&per_page=100" 2>/dev/null \
-    | jq --raw-output --arg n "$1" '[.[] | select(.source_branch | startswith($n + "-"))] | .[0].source_branch // empty' \
+    | jq --raw-output --arg n "$1" \
+      '[.[] | select(.source_branch | startswith($n + "-"))] | .[0].source_branch // empty' \
     || true
 }
 

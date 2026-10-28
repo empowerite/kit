@@ -129,7 +129,9 @@ Work here moves by the loop in [.kit/1st.md](.kit/1st.md):
 
 - An issue exists. A change without an issue has not started.
 - `kit issue <N>` makes `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens a
-  draft pull request. It never switches the checkout it runs from.
+  draft pull request. It never switches the checkout it runs from. An issue in another tracker is named by its
+  own reference, `kit issue AB#4521` for an Azure DevOps work item; [docs/trackers.md](docs/trackers.md) says how a
+  repository declares one.
 - Work happens in that worktree. Commits are signed, and their subject is `#<N> <area>: <subject>`. `kit rebase`
   brings the branch up to date with `main` and pushes it, and `kit status` shows every pull request in flight
   and the worktree it is written in.

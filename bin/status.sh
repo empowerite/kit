@@ -391,7 +391,8 @@ status:render() {
     (( ${#state_text} > state_w )) && state_w=${#state_text}
     text=$(status:age "${age_secs}")
     (( ${#text} > age_w )) && age_w=${#text}
-  done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring) | join("\u001f")' \
+  done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring)
+      | join("\u001f")' \
     <<<"${prs}")
   width=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 6 : 0) ))
   (( width < 20 )) && width=20

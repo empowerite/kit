@@ -8,7 +8,10 @@
   "properties": {
     "forge": {
       "type": "string",
-      "enum": ["github", "gitlab"],
+      "enum": [
+        "github",
+        "gitlab"
+      ],
       "description": "The provider the loop's verbs use: github or gitlab. Detected from origin's host, github.com or gitlab.com, when absent; a self-hosted forge is named here."
     },
     "gate": {
@@ -27,6 +30,45 @@
         "^[a-z_]+$": {
           "type": "string",
           "description": "The value a module's template takes for this key, written @key@ in the template."
+        }
+      }
+    },
+    "trackers": {
+      "type": "array",
+      "description": "The trackers whose issues the loop takes besides the forge's own, which answers # unless a record claims it. A reference names its tracker by its prefix: #7, AB#4521.",
+      "items": {
+        "type": "object",
+        "required": [
+          "prefix",
+          "provider"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Za-z]*#?$",
+            "description": "What a reference to this tracker opens with, before the number: AB# for Azure DevOps work items."
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "forge",
+              "ado"
+            ],
+            "description": "Which tracker answers: forge for the forge's own issues, ado for Azure DevOps work items."
+          },
+          "organization": {
+            "type": "string",
+            "description": "ado: the organization's URL, https://dev.azure.com/<name>."
+          },
+          "project": {
+            "type": "string",
+            "description": "ado: the project a new work item is created in."
+          },
+          "type": {
+            "type": "string",
+            "description": "ado: the type of a new work item, Task when absent."
+          }
         }
       }
     }

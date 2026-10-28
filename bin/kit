@@ -47,7 +47,7 @@ usage: kit <verb> [<argument>…]
   ci                    the delivered CI job's checks, anywhere: gate, check, and linked, every one reported
   gate                  run the repository's gate, the gate setting or the detected one; refuse when there is none
   linked [<number>]     refuse a pull request not linked to an open issue of this repository
-  issue [<number>…]     start or resume an issue: linked branch, worktree, start commit, draft pull request
+  issue [<reference>…]  start or resume an issue, #7 or AB#4521: linked branch, worktree, start commit, draft change
   rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk
   tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
   status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]

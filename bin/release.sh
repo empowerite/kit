@@ -4,17 +4,16 @@
 # release.sh - the release's modules, the one merge rule, the templates, and the manifests (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/,
-# mirrored at the base's root; templates/<base>/, with @key@ rendered from the repository's settings, then
-# mirrored the same way; and regions/<base>/, rendered the same way, each file placed as a region the kit owns
-# inside a file the repository owns, between a bare kit:generate line and a kit:end line that name the path,
-# so the rest of that file stays the repository's and kit generate makes the region what kit region prints. A
-# repository
-# defines modules of its own the same way under .kit/modules/<name>/, and a name is looked up in the release
-# first, then there. Two bases: repo, the repository root, recorded in .kit/manifest; and home, the user's home
-# directory, recorded in ~/.kit/manifest, which every repository on the desk shares. A destination ending in
-# .json is merged by key, the kit owning only the entries it writes, and a region is regenerated, never merged. The repository's choices live in .kit/settings.yml, which the kit reads and never
-# writes. docs/modules.md is the format's description.
+# A release is bin/ and modules/. Each modules/<name>/ is a module: module.yml, its metadata; files/<base>/, mirrored at
+# the base's root; templates/<base>/, with @key@ rendered from the repository's settings, then mirrored the same way;
+# and regions/<base>/, rendered the same way, each file placed as a region the kit owns inside a file the repository
+# owns, between a bare kit:generate line and a kit:end line that name the path, so the rest of that file stays the
+# repository's and kit generate makes the region what kit region prints. A repository defines modules of its own the
+# same way under .kit/modules/<name>/, and a name is looked up in the release first, then there. Two bases: repo, the
+# repository root, recorded in .kit/manifest; and home, the user's home directory, recorded in ~/.kit/manifest, which
+# every repository on the desk shares. A destination ending in .json is merged by key, the kit owning only the entries
+# it writes, and a region is regenerated, never merged. The repository's choices live in .kit/settings.yml, which the
+# kit reads and never writes. docs/modules.md is the format's description.
 #
 # Every function reads a release from a root, kit_root by default, which bin/kit exports. bin/kit also moves to
 # the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and comm here
@@ -263,7 +262,7 @@ release:validate-settings() {
   for key in $(yaml:keys "${settings}")
   do
     case "${key}" in
-      (forge | gate | require_signing | answers) ;;
+      (forge | gate | require_signing | answers | trackers) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
         return 1
@@ -281,6 +280,15 @@ release:validate-settings() {
     error "${settings}: the answer key '${key}' is not letters and underscores, as a template's @key@ must be"
     return 1
   done < <(yaml:map "${settings}" answers)
+  while IFS=$'\x1f' read -r key value
+  do
+    [[ -n "${key}${value}" ]] || continue
+    if [[ -z "${key}" || ! "${key}" =~ ^[A-Za-z]*#?$ || -z "${value}" ]]
+    then
+      error "${settings}: a tracker needs a prefix, letters and an optional #, and a provider (prefix '${key}')"
+      return 1
+    fi
+  done < <(yaml:records "${settings}" trackers prefix provider)
 }
 
 # release:context <root> <module> prints "<key>\t<value>" for every key a template or region of the module may

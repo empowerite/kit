@@ -118,6 +118,7 @@ answers:
 | `gate` | What `kit gate` runs; a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script is detected when absent. |
 | `require_signing` | `true` makes `kit issue` refuse a desk without a signing key. |
 | `answers` | The values a module's templates take, overriding the module's own defaults. |
+| `trackers` | The trackers besides the forge's own whose issues the loop takes, a prefix and a provider each; see [trackers.md](trackers.md). |
 
 ## Modules a repository defines
 
