@@ -4,7 +4,8 @@
 #
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
 # bin), with the remaining arguments. Each verb sets up its own process through bash/1st.sh, so it runs the same
-# when called directly, and prints its own usage.
+# when called directly. kit with no verb, or with -h or --help, runs kit help, which reads each verb's usage
+# from its header.
 #
 # see: .kit/1st.md
 
@@ -14,52 +15,15 @@ set -o errexit -o nounset -o pipefail
 kit_bin=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 
 verb=${1:-help}
+(( $# == 0 )) || shift
 case "${verb}" in
-  (help | -h | --help)
-    cat <<'USAGE'
-usage: kit <verb> [<argument>…]
-
-  install [<module>…]   activate the default modules and the named ones, place their files, write .kit/manifest
-  update                after the pin is bumped: replace unchanged files, three-way merge changed ones
-  check                 fail when a delivered file differs from the pinned release
-  module <list|add|remove> [<module>…]
-                        list, add, or remove the modules this repository uses
-  context <path>…       print the rules that govern each path, and log the request
-  new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
-                        create a file from the template of the rule that governs it; <path> is from the root
-  generate [--check] [<path>…]
-                        rewrite every kit:generate region with its command's output; --check fails if one is stale
-  region [--home] [<path>]
-                        print the content the active modules deliver as the region at a path
-  ci                    run the delivered CI job's checks anywhere (gate, check, linked, policy); report every failure
-  policy [--input]      refuse a branch, commit subject, or change title the repository's policy does not allow
-  gate                  run the repository's gate (the gate setting, else the detected one); fail when there is none
-  linked [<number>]     fail when the pull request is not linked to an open issue of this repository
-  toolchain <list|install|outdated|update|path|run> …
-                        manage the tools the gate runs, through mise, brew, or docker
-  issue [<reference>…]  start or resume an issue (#7, AB#4521): linked branch, worktree, start commit, draft change
-  rebase [<path>]       rebase a worktree's branch onto the default branch and push it; never the desk (root checkout)
-  tidy [--dry-run]      remove worktrees whose pull request is merged or closed, and gone branches
-  status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]
-                        show the desk, the worktrees, and the open pull requests: everyone's, yours, or the named
-                        authors'
-  lint [--all-files] [<path>…]
-                        run each rule's linter over the paths it governs: staged, named, or every tracked one
-  release <verify|pack|publish|retire> …
-                        the kit's own release: verify a tag, pack a checkout, publish it, retire pre-releases
-  version               print this release's version
-
-Run kit <verb> --help for a verb's usage.
-USAGE
-    ;;
-  (*)
-    if [[ ! -x "${kit_bin}/kit-${verb}" ]]
-    then
-      echo "kit: unknown verb '${verb}'; run: kit help" >&2
-      exit 2
-    fi
-    shift
-    exec "${kit_bin}/kit-${verb}" "$@"
+  (-h | --help) verb=help
 esac
+if [[ ! -x "${kit_bin}/kit-${verb}" ]]
+then
+  echo "kit: unknown verb '${verb}'; run: kit help" >&2
+  exit 2
+fi
+exec "${kit_bin}/kit-${verb}" "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

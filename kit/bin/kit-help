@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# kit-help - print the verbs' usage, or one verb's help page (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit help [<verb>]
+#
+# Prints the help each verb's header holds. <verb> is a verb's name, or the start of one: kit help re matches
+# rebase, region, and release.
+#
+#   - With no <verb>, or one that matches several verbs, it prints each matching verb's usage and purpose.
+#   - With a <verb> that matches one verb, it prints that verb's page: its usage and its description.
+#
+# Exits 0 on success, and 2 when no verb matches.
+#
+# see: bash/help.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+use help
+
+if (( $# > 1 ))
+then
+  error "usage: kit help [<verb>]"
+  exit 2
+fi
+
+readarray -t verbs < <(help:verbs "${1:-}")
+case "${#verbs[@]}" in
+  (0)
+    error "no kit verb matches '$1'; run: kit help"
+    exit 2
+    ;;
+  (1)
+    help:page "${verbs[0]}"
+    ;;
+  (*)
+    printf 'usage: kit <verb> [<argument>…]\n\n'
+    help:summary "${verbs[@]}"
+    printf '\nRun kit help <verb> for a verb'"'"'s page.\n'
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------
