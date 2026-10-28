@@ -11,7 +11,7 @@
 # that are not being committed. Unstaged edits outside a region, or outside kit's entries in a merged JSON file, stay
 # unstaged.
 #
-#   scripts/refresh
+#   bin/refresh
 
 set -o errexit -o nounset -o pipefail
 

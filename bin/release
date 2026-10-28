@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# kit-release - verify a release tag, pack a checkout as a release, publish it, and retire pre-releases (kit verb)
+# release - verify a release tag, pack kit/ as a release, publish it, and retire pre-releases
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]
+# bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]
 #
-# Releases the kit itself. The release workflows and the root checkout (the desk) run the same subcommands.
+# Releases the kit itself, so it is this repository's command, not one of the kit's verbs: no repository that
+# installs the kit has a release of the kit to make. The release workflows and the root checkout (the desk) run the
+# same subcommands.
 #
 #   verify <tag>              checks the tag. A release tag is release/<major>.<minor>.<patch>, on the default
 #                             branch. A pre-release tag adds -<suffix>, and is on a commit off the default
@@ -25,12 +27,13 @@
 # see: .github/workflows/release.yml, .github/workflows/retire-pre-releases.yml
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+self=$(readlink -f "${BASH_SOURCE[0]}")
+# shellcheck source=SCRIPTDIR/../kit/bash/1st.sh
+source "$(dirname "${self}")/../kit/bash/1st.sh"
 kit:enter
 use git release
 
-usage() { echo "usage: kit release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
+usage() { echo "usage: bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
 # refuse-tag <message> prints the message as an error and to the step summary, then exits 1.
 refuse-tag() {
@@ -103,7 +106,7 @@ case "${verb}" in
     into=$(mktemp -d)
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
     trap "rm -rf '${into}'" EXIT
-    run kit release pack "${tag}" "${into}"
+    run "${self}" pack "${tag}" "${into}"
     pin=$(printf '"github:empowerite/kit" = { version = "%s", version_prefix = "release/" }' "${version}")
     notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    %s\n\n' "${pin}"
       printf 'Then, in the repository: kit install\n')

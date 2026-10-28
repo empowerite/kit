@@ -14,7 +14,7 @@ This repository is the kit's own source, and uses it.
   file under `kit/` is written from `kit/`, as it reads in the tarball: `bash/forge.sh`, not `kit/bash/forge.sh`.
 - Releases and pre-releases: [README.md](README.md) § Release.
 - `.kit/`, `.github/workflows/kit-ci.yml`, `.claude/settings.json`, and the regions in `AGENTS.md`, `.gitignore`, and
-  `.claude/CLAUDE.md` are this repository's installed copies of its own kit, written by `scripts/refresh` from
+  `.claude/CLAUDE.md` are this repository's installed copies of its own kit, written by `bin/refresh` from
   `kit/modules/`; see [README.md](README.md) § Maintaining. Edit the source; the pre-commit hook refreshes the
-  copies into the same commit, and a desk without the hook runs `scripts/refresh` and commits both.
-- `kit gate` runs the gate, `scripts/ci`, which says what it runs.
+  copies into the same commit, and a desk without the hook runs `bin/refresh` and commits both.
+- `kit gate` runs the gate, `bin/ci`, which says what it runs.

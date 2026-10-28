@@ -14,6 +14,6 @@ pre-commit:
     # the settings that fill their templates), rebuild the copies in the same commit. The script stages them.
     refresh:
       glob: "{kit/**,.kit/settings.yml}"
-      run: scripts/refresh
+      run: bin/refresh
 
 # ----------------------------------------------------------------------------------------------------------------------

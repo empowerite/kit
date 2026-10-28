@@ -21,14 +21,14 @@ _.path = ["kit/bin"]
 # Why each tool is here:
 #   actionlint          the workflows rule's linter, over .github/workflows/, in kit lint and the gate
 #   bats                runs tests/, the suite the gate runs
-#   gh                  the GitHub provider's tool: workflow commands, kit linked, kit release publish and retire
+#   gh                  the GitHub provider's tool: workflow commands, kit linked, bin/release publish and retire
 #   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit status
 #   just                tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
 #   lychee              checks every link in the markdown, offline, fragments included, in the gate
 #   ajv-cli             validates every module.yml and .kit/settings.yml against their schemas, in the gate
 #   markdownlint-cli2   the markdown rule's linter, over every .md file, in kit lint and the gate
 #   opa                 the OPA policy engine; tests/policy.bats checks it matches the patterns engine
-#   shellcheck          the bash rule's linter, over kit/, scripts/, and tests/, in kit lint and the gate
+#   shellcheck          the bash rule's linter, over kit/, bin/, and tests/, in kit lint and the gate
 [tools]
 actionlint = "1.7"
 bats = "1.14"

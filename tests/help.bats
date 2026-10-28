@@ -44,7 +44,8 @@ setup() {
 @test "kit help <prefix> lists every verb that starts with it, and a verb's own name wins over a longer one" {
   run "${kit_root}/bin/kit" help re
   [ "$status" -eq 0 ]
-  [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* && "$output" == *"  release verify"* ]]
+  [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
+  [[ "$output" != *"  release"* ]]
   [[ "$output" != *"  status"* ]]
   run "${kit_root}/bin/kit" help gate
   [ "${lines[0]}" = "kit gate - run the repository's gate, and refuse when there is none" ]

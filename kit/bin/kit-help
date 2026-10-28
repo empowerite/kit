@@ -5,7 +5,7 @@
 # kit help [<verb>]
 #
 # Prints the help each verb's header holds. <verb> is a verb's name, or the start of one: kit help re matches
-# rebase, region, and release.
+# rebase and region.
 #
 #   - With no <verb>, or one that matches several verbs, it prints each matching verb's usage and purpose.
 #   - With a <verb> that matches one verb, it prints that verb's page: its usage and its description.

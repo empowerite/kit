@@ -179,7 +179,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`.
    - `kit rebase` rebases the branch onto `main` and pushes it.
    - `kit status` shows every open pull request and the worktree it lives in.
-4. Run the gate, `kit gate`. It runs `scripts/ci`, which lists what it checks.
+4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
 5. Run `gh pr ready` when the work is done. The pull request body is the report.
 6. A human merges. Then `kit tidy` removes the worktree and its branch.
 
@@ -191,7 +191,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | `kit/bin/` | the `kit` command and its verbs |
 | `kit/bash/` | the bash modules the verbs share |
 | `kit/modules/` | everything a release delivers |
-| `scripts/` | this repository's gate, `scripts/ci`, and `scripts/refresh` |
+| `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |
 | `docs/`, `kit/modules/*/docs/` | the documentation |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
@@ -213,9 +213,9 @@ This repository installs its own kit. The installed copies are written by `kit/b
 
 When a commit changes a file under `kit/` or `.kit/settings.yml`, the installed copies must change in the same commit:
 
-- With the pre-commit hook installed, this happens automatically: the hook runs `scripts/refresh`, which regenerates
+- With the pre-commit hook installed, this happens automatically: the hook runs `bin/refresh`, which regenerates
   the copies from the index and stages them.
-- Without the hook, stage your change, run `scripts/refresh`, and commit.
+- Without the hook, stage your change, run `bin/refresh`, and commit.
 
 `kit/bin/kit check`, which the gate runs, names any installed copy that does not match its source. Each delivered file
 says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and the table above
@@ -232,12 +232,12 @@ serves as the notice for `settings.json`.
 
 The release workflow runs two commands:
 
-1. `kit release verify` rejects a tag that is not `release/<version>`, a release tag on a commit not on `main`, and a
+1. `bin/release verify` rejects a tag that is not `release/<version>`, a release tag on a commit not on `main`, and a
    pre-release tag on a commit on `main`.
-2. `kit release publish` packs `kit/` (`bin/`, `bash/`, and `modules/`) and `version` into
+2. `bin/release publish` packs `kit/` (`bin/`, `bash/`, and `modules/`) and `version` into
    `kit-<version>.tar.gz` and publishes it.
 
-`kit release pack` builds the same tarball locally. `kit release publish` refuses to publish a release anywhere but
+`bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but
 the CI runner, so only the workflow publishes releases. A pre-release can be published from a developer machine.
 
 A release is permanent. A pre-release is deleted, tag and all, once the branch it was tagged on is deleted and no

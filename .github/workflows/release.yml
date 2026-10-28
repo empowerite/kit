@@ -4,19 +4,19 @@
 # Pushing a tag such as release/0.1.0 runs this workflow. It has two steps, and each step is one kit command, so
 # the same thing can be run on a laptop:
 #
-#   kit release verify    checks the tag. A release tag, release/0.1.0, must point at a commit on main. A
+#   bin/release verify    checks the tag. A release tag, release/0.1.0, must point at a commit on main. A
 #                         pre-release tag, release/0.1.0-rc.1, must point at a commit that is not on main. Any
 #                         other tag is refused.
-#   kit release publish   packs this checkout into kit-<version>.tar.gz, writes the version after release/ into
+#   bin/release publish     packs kit/ into kit-<version>.tar.gz, writes the version after release/ into
 #                         it, and publishes it as a GitHub release named by that version. A version with a
 #                         suffix is published as a pre-release.
 #
 # GitHub does not let a published release change, so a version is tagged once and never again. A release is
-# published here and nowhere else: kit release publish refuses a release tag anywhere but on the runner, so a
+# published here and nowhere else: bin/release publish refuses a release tag anywhere but on the runner, so a
 # desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted when the branch it
 # was tagged on is deleted; see retire-pre-releases.yml.
 #
-# see: kit/bin/kit-release
+# see: bin/release
 
 name: release
 
@@ -37,11 +37,11 @@ jobs:
           fetch-depth: 0
 
       - name: verify
-        run: kit/bin/kit release verify "${GITHUB_REF_NAME}"
+        run: bin/release verify "${GITHUB_REF_NAME}"
 
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: kit/bin/kit release publish "${GITHUB_REF_NAME}"
+        run: bin/release publish "${GITHUB_REF_NAME}"
 
 # ----------------------------------------------------------------------------------------------------------------------
