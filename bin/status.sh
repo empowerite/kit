@@ -48,6 +48,9 @@ use git
 # status_commit_cap is how many uncommitted paths or commits a checkout block lists before it counts the rest.
 status_commit_cap=10
 
+# status_sep separates the cells of every row kit status prints.
+status_sep=' · '
+
 # status:width prints the terminal's width in columns: COLUMNS, else the width of the terminal on stderr, else
 # 100. A width under 60 also gives 100.
 status:width() {
@@ -167,7 +170,7 @@ status:fetch-summary() {
   line=${parts[0]}
   for part in "${parts[@]:1}"
   do
-    line+=" · ${part}"
+    line+="${status_sep}${part}"
   done
   printf '📥 fetched origin: %s\n' "${line}"
 }
@@ -328,12 +331,13 @@ status:measures() {
   [[ -n "${2:-}" ]] && IFS=' ' read -r ahead_w behind_w added_w removed_w <<<"$2"
   # The last column is padded only when something follows it, so no row ends in trailing spaces.
   (( uncommitted > 0 )) || removed_w=0
-  printf '%s %s · %s %s' \
+  printf '%s %s%s%s %s' \
     "$(status:paint-count "${ahead}" '↑' '1;32' "${ahead_w}" right)" \
     "$(status:paint-count "${behind}" '↓' '1;31' "${behind_w}" left)" \
+    "${status_sep}" \
     "$(status:paint-count "${added}" '+' '1;32' "${added_w}" right)" \
     "$(status:paint-count "${removed}" '-' '1;31' "${removed_w}" left)"
-  (( uncommitted > 0 )) && printf ' · %s' "$(status:paint 33 "${uncommitted} uncommitted")"
+  (( uncommitted > 0 )) && printf '%s%s' "${status_sep}" "$(status:paint 33 "${uncommitted} uncommitted")"
   return 0
 }
 
@@ -357,8 +361,8 @@ status:checkout-block() {
   local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
   IFS=$'\t' read -r label width < <(status:label "${relative}" "${branch}")
-  [[ -n "${branch}" ]] || mark="   $(status:paint 33 '❗ detached HEAD')"
-  printf '%s %s%*s%s   %s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" \
+  [[ -n "${branch}" ]] || mark="${status_sep}$(status:paint 33 '❗ detached HEAD')"
+  printf '%s %s%*s%s%s%s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" "${status_sep}" \
     "$(status:measures "${doc}" "${widths}")" >&2
   # A status can start with a space, which a tab-separated read would drop, so the separator is \x1f instead.
   while IFS=$'\x1f' read -r code path
@@ -396,9 +400,9 @@ status:checkout-block() {
 
 # status:check-cell <checks-json> prints the checks cell, with the duration dim:
 #
-#   - passed: "✅ <passed> / <total> · <took>"
-#   - failed: "❌ <failing> · <passed> / <total> · <took>"
-#   - running: "🏃 <passed> / <total> · <elapsed>"
+#   - passed: "✅ <passed> / <total> <took>"
+#   - failed: "❌ <failing> failing <passed> / <total> <took>"
+#   - running: "🏃 <passed> / <total> <elapsed>"
 #
 # It prints nothing when no check has reported.
 status:check-cell() {
@@ -408,18 +412,18 @@ status:check-cell() {
     < <(jq --raw-output '[.state, .passed, .total, .failing, (.took // "")] | map(tostring) | join("\u001f")' <<<"$1")
   case "${state}" in
     (SUCCESS) text="✅ ${total} / ${total}" ;;
-    (FAILURE) text="❌ ${failing} · ${passed} / ${total}" ;;
+    (FAILURE) text="❌ ${failing} failing ${passed} / ${total}" ;;
     (PENDING) text="🏃 ${passed} / ${total}" ;;
     (*) return 0 ;;
   esac
   printf '%s' "${text}"
-  [[ -n "${took}" ]] && printf ' · %s' "$(status:paint 90 "$(status:age "${took}")")"
+  [[ -n "${took}" ]] && printf ' %s' "$(status:paint 90 "$(status:age "${took}")")"
   return 0
 }
 
 # status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <worktree> prints a pull request:
-# its row, then the issues it closes. The row shows the author before the state when <owner-width> is above zero,
-# and ends with the branch when a worktree here has it checked out.
+# its row, then the issues it closes. The state and its age share a cell. The row shows the author before the state
+# when <owner-width> is above zero, and ends with the branch when a worktree here has it checked out.
 status:pr-block() {
   local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6
   local number ref title author branch state age unresolved row issue checks
@@ -428,14 +432,14 @@ status:pr-block() {
           | map(tostring)
           | join("\u001f")' <<<"${doc}")
   row="🔀 $(status:cell "${ref} ${title}" "${title_w}")"
-  (( owner_w > 0 )) && row+="   👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
-  row+="   $(status:state-emoji "${state}")"
+  (( owner_w > 0 )) && row+="${status_sep}👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
+  row+="${status_sep}$(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
-  row+="   $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}")")"
+  row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}")")"
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
-  [[ -n "${checks}" ]] && row+="   ${checks}"
-  (( unresolved > 0 )) && row+="   $(status:paint 33 "💬 ${unresolved} unresolved")"
-  [[ -n "${worktree}" ]] && row+="   $(status:paint 90 "🌿 ${branch}")"
+  [[ -n "${checks}" ]] && row+="${status_sep}${checks}"
+  (( unresolved > 0 )) && row+="${status_sep}$(status:paint 33 "💬 ${unresolved} unresolved")"
+  [[ -n "${worktree}" ]] && row+="${status_sep}$(status:paint 90 "🌿 ${branch}")"
   printf '%s\n' "${row}" >&2
   while IFS= read -r issue
   do
@@ -573,7 +577,8 @@ status:render() {
     printf '\n' >&2
     while IFS= read -r branch
     do
-      printf '🔖 %s   %s\n' "${branch}" "$(status:paint 90 'upstream gone · kit tidy removes it')" >&2
+      printf '🔖 %s%s%s\n' "${branch}" "${status_sep}" \
+        "$(status:paint 90 "upstream gone${status_sep}kit tidy removes it")" >&2
     done <<<"${gone}"
   fi
 }

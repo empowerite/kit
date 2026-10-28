@@ -64,7 +64,7 @@ commits-in() {
   doc=$(in_status status:checkout "${PWD}/worktrees/topic" topic main)
   run in_status status:checkout-block 🌿 "${doc}" 15
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🌿 worktrees/topic   ↑15 ↓0 · +15 -0" ]
+  [ "${lines[0]}" = "🌿 worktrees/topic · ↑15 ↓0 · +15 -0" ]
   [ "${#lines[@]}" -eq 12 ]
   [[ "${lines[1]}" == *" c15" ]]
   [[ "${lines[9]}" == *" c7" ]]
@@ -78,7 +78,7 @@ commits-in() {
   doc=$(in_status status:checkout "${PWD}" main main)
   run in_status status:checkout-block 🏠 "${doc}" 4
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🏠 main   ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
+  [ "${lines[0]}" = "🏠 main · ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
   [ "${lines[1]}" = "   ?? c" ]
   [[ "${lines[2]}" == *" two" ]]
   [ "${#lines[@]}" -eq 3 ]
@@ -89,7 +89,7 @@ commits-in() {
   for i in $(seq 1 12); do printf '%s\n' "${i}" > "n${i}"; done
   doc=$(in_status status:checkout "${PWD}" main main)
   run in_status status:checkout-block 🏠 "${doc}" 4
-  [ "${lines[0]}" = "🏠 main   ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
+  [ "${lines[0]}" = "🏠 main · ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
   [ "${lines[1]}" = "    M a" ]
   [ "${lines[2]}" = "   ?? n1" ]
   [ "${lines[11]}" = "   … and 3 more" ]
@@ -110,7 +110,8 @@ commits-in() {
   )
   run in_status status:fetch main
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "📥 fetched origin: 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned · 1 new tag" ]
+  expected='📥 fetched origin: 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
+  [ "${lines[0]}" = "${expected} · 1 new tag" ]
   run in_status status:fetch main
   [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
 }
@@ -119,7 +120,7 @@ commits-in() {
   printf 'x\n' > c
   run "${kit_root}/bin/kit" status
   [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
-  [ "${lines[1]}" = "🏠 main   ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
+  [ "${lines[1]}" = "🏠 main · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
   [ "${lines[2]}" = "   ?? c" ]
   [[ "${lines[3]}" == *"forge"* ]]
 }
@@ -128,7 +129,7 @@ commits-in() {
   git worktree add --quiet --detach worktrees/loose main
   doc=$(in_status status:checkout "${PWD}/worktrees/loose" '' main)
   run in_status status:checkout-block 🌿 "${doc}" 15
-  [ "$output" = "🌿 worktrees/loose   ❗ detached HEAD   ↑0 ↓0 · +0 -0" ]
+  [ "$output" = "🌿 worktrees/loose · ❗ detached HEAD · ↑0 ↓0 · +0 -0" ]
 }
 
 @test "the counts of every checkout sit in columns, ahead and added right-aligned, behind and removed left-aligned" {
@@ -156,12 +157,17 @@ commits-in() {
   doc+='"unresolved":0,"checks":{"state":"PENDING","passed":0,"total":1,"failing":0,"took":36},'
   doc+='"closes":[{"number":1,"title":"One"},{"number":4,"title":"Four"}]}'
   run in_status status:pr-block "${doc}" 12 0 6 2 worktrees/2-the-first
-  [ "${lines[0]}" = "🔀 #2 The first   🚦 queued   3d   🏃 0 / 1 · 36s   🌿 2-the-first" ]
+  [ "${lines[0]}" = "🔀 #2 The first · 🚦 queued 3d · 🏃 0 / 1 36s · 🌿 2-the-first" ]
   [ "${lines[1]}" = "   closes #1 One" ]
   [ "${lines[2]}" = "   closes #4 Four" ]
   [ "${#lines[@]}" -eq 3 ]
   run in_status status:pr-block "${doc}" 12 5 6 2 ''
-  [ "${lines[0]}" = "🔀 #2 The first   👤 ada     🚦 queued   3d   🏃 0 / 1 · 36s" ]
+  [ "${lines[0]}" = "🔀 #2 The first · 👤 ada   · 🚦 queued 3d · 🏃 0 / 1 36s" ]
+}
+
+@test "a failed checks cell names the failing count, then passed of total, then the time taken" {
+  run in_status status:check-cell '{"state":"FAILURE","passed":3,"total":5,"failing":2,"took":31}'
+  [ "$output" = "❌ 2 failing 3 / 5 31s" ]
 }
 
 @test "the pull requests shown are everyone's, or the named authors' alone" {
