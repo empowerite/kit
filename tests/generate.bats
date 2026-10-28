@@ -169,7 +169,7 @@ joined() { paste -s -d '|' - < "$1"; }
   printf '# kit:generate nothing\n# kit:end nothing\n' > bare.txt
   run "${kit_checkout}/bin/kit" generate bare.txt
   [ "$status" -eq 1 ]
-  [[ "$output" == *"no active module delivers a region at nothing"* ]]
+  [[ "$output" == *"no active package delivers a region at nothing"* ]]
   [[ "$output" == *"bare.txt:1: the command failed: kit region"* ]]
 }
 

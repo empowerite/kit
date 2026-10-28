@@ -9,7 +9,7 @@
 #   - a delivered file is missing, or differs from the release's copy
 #   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
 #   - a file that should contain a kit region has none
-#   - a file the repository owns is missing a line a module expects in it
+#   - a file the repository owns is missing a line a package expects in it
 #   - a generated region differs from what its command makes
 #
 # Files delivered to the home directory are checked only when ~/.kit/manifest exists, that is, on a machine where
@@ -32,9 +32,9 @@ then
 fi
 
 release:require-manifest
-readarray -t modules < <(release:manifest-modules)
+readarray -t packages < <(release:manifest-packages)
 version=$(release:manifest-version)
-release:render-all "${kit_root}" "${modules[@]}"
+release:render-all "${kit_root}" "${packages[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
@@ -43,7 +43,7 @@ then
 fi
 for base in $(release:bases)
 do
-  delivered=$(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+  delivered=$(release:delivered "${kit_root}" "${base}" "${packages[@]}")
   [[ -n "${delivered}" ]] || continue
   if [[ "${base}" != repo && ! -f "$(release:manifest "${base}")" ]]
   then
@@ -80,13 +80,13 @@ do
     fi
   done <<<"${delivered}"
 done
-# Report each line a module expects in a file the repository owns that is missing. The kit never writes these lines.
+# Report each line a package expects in a file the repository owns that is missing. The kit never writes these lines.
 while IFS= read -r unmet
 do
   [[ -n "${unmet}" ]] || continue
   error "${unmet}"
   findings=$(( findings + 1 ))
-done < <(release:unmet "${kit_root}" "${modules[@]}")
+done < <(release:unmet "${kit_root}" "${packages[@]}")
 # Check that every generated region, the kit's and the repository's own, matches what its command makes.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
@@ -95,6 +95,6 @@ then
     "a generated region by kit generate."
   exit 1
 fi
-ok "kit ${version}, modules ${modules[*]:-none}: every delivered file matches the pinned release."
+ok "kit ${version}, packages ${packages[*]:-none}: every delivered file matches the pinned release."
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# kit-module - list, activate, or deactivate the modules this repository takes (kit verb)
+# kit-package - list, activate, or deactivate the packages this repository takes (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit module list | add <module>… | remove <module>…
+# kit package list | add <package>… | remove <package>…
 #
-#   list                 prints every module in reach, with a ✅ beside the active ones, its origin (release or
+#   list                 prints every package in reach, with a ✅ beside the active ones, its origin (release or
 #                        repository), and its description. This is the default.
-#   add <module>…        activates the modules and the modules they depend on, places the files they deliver,
+#   add <package>…       activates the packages and the packages they depend on, places the files they deliver,
 #                        and rewrites the manifests. When a different file is already at a delivered path, it is
 #                        named and left alone, and no manifest is written.
-#   remove <module>…     takes out what the modules delivered (files, the kit's JSON entries, and the kit's
-#                        regions) and rewrites the manifests. A module that an active module depends on is refused.
+#   remove <package>…    takes out what the packages delivered (files, the kit's JSON entries, and the kit's
+#                        regions) and rewrites the manifests. A package that an active package depends on is refused.
 #
-# Exits 0 on success, 2 on a usage error or a module the release does not have, and 1 for any other failure.
+# Exits 0 on success, 2 on a usage error or a package the release does not have, and 1 for any other failure.
 #
-# see: bash/release.sh, docs/modules.md
+# see: bash/release.sh, docs/packages.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../bash/1st.sh
@@ -22,7 +22,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
 use release
 
-usage() { echo "usage: kit module list | kit module add <module>… | kit module remove <module>…" >&2; }
+usage() { echo "usage: kit package list | kit package add <package>… | kit package remove <package>…" >&2; }
 
 verb=${1:-list}
 shift || true
@@ -32,27 +32,27 @@ case "${verb}" in
   (*) usage; exit 2
 esac
 release:require-manifest
-readarray -t active < <(release:manifest-modules)
+readarray -t active < <(release:manifest-packages)
 
 case "${verb}" in
   (list)
-    for module in $(release:modules)
+    for package in $(release:packages)
     do
-      if release:among "${module}" "${active[@]}"
+      if release:among "${package}" "${active[@]}"
       then mark='✅'
       else mark='  '
       fi
-      printf '%s %-10s %-10s %s\n' "${mark}" "${module}" "$(release:origin "${kit_root}" "${module}")" \
-        "$(release:description "${kit_root}" "${module}")"
+      printf '%s %-10s %-10s %s\n' "${mark}" "${package}" "$(release:origin "${kit_root}" "${package}")" \
+        "$(release:description "${kit_root}" "${package}")"
     done
     ;;
   (add)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq
-    release:require-modules "${kit_root}" "$@"
+    release:require-packages "${kit_root}" "$@"
     readarray -t wanted < <(release:resolve "${kit_root}" "${active[@]}" "$@")
     release:render-all "${kit_root}" "${wanted[@]}"
-    section "kit module add $*"
+    section "kit package add $*"
     refused=0
     for base in $(release:bases)
     do
@@ -65,35 +65,35 @@ case "${verb}" in
     done
     if (( refused > 0 ))
     then
-      error "${refused} path(s) already hold a different file; move each aside, then run: kit module add $*"
+      error "${refused} path(s) already hold a different file; move each aside, then run: kit package add $*"
       exit 1
     fi
     release:write-manifests "${wanted[@]}"
-    ok "modules: ${wanted[*]}"
+    ok "packages: ${wanted[*]}"
     release:say-unmet "${wanted[@]}"
     ;;
   (remove)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq
-    release:require-modules "${kit_root}" "$@"
+    release:require-packages "${kit_root}" "$@"
     remaining=("${active[@]}")
-    for module in "$@"
+    for package in "$@"
     do
-      release:among "${module}" "${active[@]}" || step "${module}: not active"
-      readarray -t remaining < <(release:without "${module}" "${remaining[@]}")
+      release:among "${package}" "${active[@]}" || step "${package}: not active"
+      readarray -t remaining < <(release:without "${package}" "${remaining[@]}")
     done
-    # Dependents are checked against the modules that remain, so the order of the named modules does not matter.
-    for module in "$@"
+    # Dependents are checked against the packages that remain, so the order of the named packages does not matter.
+    for package in "$@"
     do
-      readarray -t dependents < <(release:dependents "${kit_root}" "${module}" "${remaining[@]}")
+      readarray -t dependents < <(release:dependents "${kit_root}" "${package}" "${remaining[@]}")
       if (( ${#dependents[@]} > 0 ))
       then
-        error "${module} cannot be removed while ${dependents[*]} depend(s) on it"
+        error "${package} cannot be removed while ${dependents[*]} depend(s) on it"
         exit 1
       fi
     done
     release:render-all "${kit_root}" "${active[@]}"
-    section "kit module remove $*"
+    section "kit package remove $*"
     for base in $(release:bases)
     do
       while IFS= read -r path
@@ -104,7 +104,7 @@ case "${verb}" in
       done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
     done
     release:write-manifests "${remaining[@]}"
-    ok "modules: ${remaining[*]:-none}"
+    ok "packages: ${remaining[*]:-none}"
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -39,11 +39,11 @@ fi
 
 guard:require tool:jq
 release:require-manifest
-readarray -t modules < <(release:manifest-modules)
+readarray -t packages < <(release:manifest-packages)
 previous=$(release:manifest-version)
 current=$(release:version)
-release:render-all "${kit_root}" "${modules[@]}"
-section "kit update ${previous} → ${current}, modules: ${modules[*]}"
+release:render-all "${kit_root}" "${packages[@]}"
+section "kit update ${previous} → ${current}, packages: ${packages[*]}"
 
 base_root=""
 if [[ -n "${KIT_BASE:-}" ]]
@@ -56,7 +56,7 @@ elif [[ "${previous}" != "$(release:unreleased)" ]]
 then
   base_root=$(release:fetch "${previous}" || true)
 fi
-if [[ -n "${base_root}" ]] && ! release:render-all "${base_root}" "${modules[@]}"
+if [[ -n "${base_root}" ]] && ! release:render-all "${base_root}" "${packages[@]}"
 then
   error "the base release at ${base_root} could not be read; see above"
   exit 1
@@ -69,7 +69,7 @@ lacks-base() {
   dest=$(release:dest "${base}" "${path}")
   recorded=$(release:recorded "${base}" "${path}")
   [[ -n "${recorded}" ]] || return 1
-  [[ -z "${base_root}" || -z "$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")" ]] || return 1
+  [[ -z "${base_root}" || -z "$(release:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")" ]] || return 1
   kind=$(release:kind "${src}" "${dest}")
   [[ "${kind}" == merge ]] && return 0
   [[ "${kind}" != region ]] && release:installed "${src}" "${dest}" >/dev/null 2>&1 \
@@ -89,7 +89,7 @@ do
         "set KIT_BASE to a copy of it"
       skipped=$(( skipped + 1 ))
     fi
-  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
+  done < <(release:delivered "${kit_root}" "${base}" "${packages[@]}")
 done
 if (( skipped > 0 ))
 then
@@ -112,7 +112,7 @@ do
       continue
     fi
     previous_src=""
-    [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${modules[@]}")
+    [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")
     kind=$(release:kind "${src}" "${dest}")
     if [[ "${kind}" == merge ]]
     then
@@ -139,16 +139,16 @@ do
         conflicts=$(( conflicts + 1 ))
       fi
     fi
-  done < <(release:delivered "${kit_root}" "${base}" "${modules[@]}")
-  release:retire "${base_root}" "${base}" "${previous}" "${current}" "${modules[@]}"
+  done < <(release:delivered "${kit_root}" "${base}" "${packages[@]}")
+  release:retire "${base_root}" "${base}" "${previous}" "${current}" "${packages[@]}"
 done
 
-release:write-manifests "${modules[@]}"
+release:write-manifests "${packages[@]}"
 if (( conflicts > 0 ))
 then
   error "${conflicts} file(s) need a hand; see above."
   exit 1
 fi
-release:finish "${modules[@]}"
+release:finish "${packages[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/empowerite/kit/modules/module.schema.json",
-  "title": "module.yml",
-  "description": "The metadata of one kit module, modules/<name>/module.yml. Each key is described in docs/modules.md.",
+  "$id": "https://github.com/empowerite/kit/packages/package.schema.json",
+  "title": "package.yml",
+  "description": "The metadata of one kit package, packages/<name>/package.yml. Each key is described in docs/packages.md.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,11 +13,11 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 120,
-      "description": "One line, shown by kit module list."
+      "description": "One line, shown by kit package list."
     },
     "default": {
       "type": "boolean",
-      "description": "When true, the module is active unless removed. kit install activates every default module."
+      "description": "When true, the package is active unless removed. kit install activates every default package."
     },
     "depends": {
       "type": "array",
@@ -25,7 +25,7 @@
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*$",
-        "description": "The name of another module in the release, activated with this one."
+        "description": "The name of another package in the release, activated with this one."
       }
     },
     "answers": {
@@ -34,13 +34,13 @@
       "patternProperties": {
         "^[a-z_]+$": {
           "type": "string",
-          "description": "The default value of a template key, written @key@ in the module's templates."
+          "description": "The default value of a template key, written @key@ in the package's templates."
         }
       }
     },
     "expects": {
       "type": "array",
-      "description": "Lines the module expects in files the repository owns, such as the line that includes a delivered file (extends: [.kit/lefthook.yml]). kit check reports each missing line with its remedy. The kit never writes these lines.",
+      "description": "Lines the package expects in files the repository owns, such as the line that includes a delivered file (extends: [.kit/lefthook.yml]). kit check reports each missing line with its remedy. The kit never writes these lines.",
       "items": {
         "type": "object",
         "additionalProperties": false,

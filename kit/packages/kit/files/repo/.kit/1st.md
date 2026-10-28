@@ -14,7 +14,7 @@ directory. The repository's own rules in `AGENTS.md` apply as well. Where the tw
 5. Rules live in the repository, never in a session's memory. When you learn a convention or receive a correction,
    write it down, through the workflow, in one of these places, where every agent and every person reads it:
    - `AGENTS.md`
-   - a module of the repository's own under `.kit/modules/`
+   - a package of the repository's own under `.kit/packages/`
    - a kit release
 
 ## The root checkout is the human's desk
@@ -126,19 +126,19 @@ The repository contains the text:
 
 - this file
 - the rules under `.kit/rules/`
-- `.kit/manifest`, which records the release version, the active modules, and a checksum for each delivered file
+- `.kit/manifest`, which records the release version, the active packages, and a checksum for each delivered file
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
 are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, and `kit lint`. Run them
 exactly as written here, and in no other way.
 
-Everything the release delivers belongs to a module. A repository activates the modules it wants:
+Everything the release delivers belongs to a package. A repository activates the packages it wants:
 
-- `kit install ci-github lefthook claude` activates modules when the kit is installed.
-- `kit module add claude` activates a module later.
-- `kit module remove` deactivates a module.
+- `kit install ci-github lefthook claude` activates packages when the kit is installed.
+- `kit package add claude` activates a package later.
+- `kit package remove` deactivates a package.
 
-A module of the repository's own lives under `.kit/modules/` and is activated the same way.
+A package of the repository's own lives under `.kit/packages/` and is activated the same way.
 
 How a delivered file is placed depends on its destination:
 
@@ -147,7 +147,7 @@ How a delivered file is placed depends on its destination:
   by running the command the directive names.
 - Every other file is copied as it is.
 
-The modules:
+The packages:
 
 - `kit`: this file, the rules, and their templates, and two regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file

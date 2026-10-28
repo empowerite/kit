@@ -1,6 +1,6 @@
-# modules/lefthook/module.yml - the lefthook module: a pre-commit hook for kit lint and kit generate --check
+# packages/lefthook/package.yml - the lefthook package: a pre-commit hook for kit lint and kit generate --check
 # ----------------------------------------------------------------------------------------------------------------------
-# see: docs/modules.md
+# see: docs/packages.md
 
 description: "A pre-commit hook that runs kit lint over the staged paths, for the repository's lefthook.yml to extend"
 depends:

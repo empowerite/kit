@@ -44,7 +44,7 @@ A repository's own rules live in its own files, and updates leave them alone.
 
 ## Install
 
-A release is a tarball containing `bin/`, `bash/`, `modules/`, and a `version` file. Install it the same way the
+A release is a tarball containing `bin/`, `bash/`, `packages/`, and a `version` file. Install it the same way the
 repository installs its other tools.
 
 With mise, pin it in `mise.toml`:
@@ -82,17 +82,17 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 
 ## Take the kit
 
-1. Run `kit install` with the modules you want. The `kit` module (the entry file and the rules) is always
-   installed. The optional modules are:
+1. Run `kit install` with the packages you want. The `kit` package (the entry file and the rules) is always
+   installed. The optional packages are:
 
-   | Module | Delivers |
+   | Package | Delivers |
    | --- | --- |
    | `ci-github` | the GitHub Actions workflow that runs `kit ci` |
    | `lefthook` | a pre-commit hook that runs `kit lint` |
    | `claude` | the Claude Code adapter |
    | `policy-opa` | the naming policy as Open Policy Agent rules |
 
-   `kit install ci-github lefthook claude` takes three of them. `kit module add` adds one later.
+   `kit install ci-github lefthook claude` takes three of them. `kit package add` adds one later.
 
    `install` also writes a line into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds `/worktrees/`
    to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The rest of each file
@@ -115,19 +115,19 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    - add `extends: [.kit/lefthook.yml]` to `lefthook.yml`, and
    - run `lefthook install` once per clone.
 
-   With the `lefthook` module installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit never
+   With the `lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit never
    writes it for you.
 
-Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `claude` module adds a region to
+Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `claude` package adds a region to
 `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude always reads the same instructions as every other agent. The
-rest of `.claude/CLAUDE.md` is yours. Without the module, any agent that reads `AGENTS.md` still gets the rules.
+rest of `.claude/CLAUDE.md` is yours. Without the package, any agent that reads `AGENTS.md` still gets the rules.
 
-`kit module list`, `kit module add`, and `kit module remove` show and change the installed modules. The module format
-is in [docs/modules.md](docs/modules.md).
+`kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The package format
+is in [docs/packages.md](docs/packages.md).
 
 ### Working with the rules
 
-- Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `claude` module
+- Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `claude` package
   makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
 - `kit new file "${path}"` creates a file from its rule's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
@@ -191,12 +191,12 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | `kit/` | the release, packed as it is: everything in it ships, and nothing outside it does |
 | `kit/bin/` | the `kit` command and its verbs |
 | `kit/bash/` | the bash modules the verbs share |
-| `kit/modules/` | everything a release delivers |
+| `kit/packages/` | everything a release delivers |
 | `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |
-| `docs/` | the documentation, with a page per module under `docs/modules/` |
+| `docs/` | the documentation, with a page per package under `docs/packages/` |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
-[docs/modules.md](docs/modules.md) describes the module format.
+[docs/packages.md](docs/packages.md) describes the package format.
 [docs/bash.md](docs/bash.md) describes the bash module system the verbs are built on, and how a repository extends it.
 
 This repository installs its own kit. The installed copies are written by `bin/refresh`, which runs `kit update`
@@ -204,13 +204,13 @@ from the index. Do not edit them by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc` | `kit/modules/kit/files/repo/.kit/` |
-| `.kit/lefthook.yml` | `kit/modules/lefthook/files/repo/.kit/lefthook.yml` |
-| `.github/workflows/kit-ci.yml` | `kit/modules/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
-| `.claude/CLAUDE.md` | `kit/modules/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
-| `.claude/settings.json` | `kit/modules/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
-| `AGENTS.md`, `.gitignore` | `kit/modules/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
-| `.kit/manifest` | the release version (`unreleased` here), the active modules, and a digest per delivered path |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc` | `kit/packages/kit/files/repo/.kit/` |
+| `.kit/lefthook.yml` | `kit/packages/lefthook/files/repo/.kit/lefthook.yml` |
+| `.github/workflows/kit-ci.yml` | `kit/packages/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
+| `.claude/CLAUDE.md` | `kit/packages/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
+| `.claude/settings.json` | `kit/packages/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
+| `AGENTS.md`, `.gitignore` | `kit/packages/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
+| `.kit/manifest` | the release version (`unreleased` here), the active packages, and a digest per delivered path |
 
 `.kit/settings.yml` belongs to this repository and is not delivered.
 
@@ -237,7 +237,7 @@ The release workflow runs two commands:
 
 1. `bin/release verify` rejects a tag that is not `release/<version>`, a release tag on a commit not on `main`, and a
    pre-release tag on a commit on `main`.
-2. `bin/release publish` packs `kit/` (`bin/`, `bash/`, and `modules/`) and `version` into
+2. `bin/release publish` packs `kit/` (`bin/`, `bash/`, and `packages/`) and `version` into
    `kit-<version>.tar.gz` and publishes it.
 
 `bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but

@@ -17,7 +17,7 @@ setup() {
     [[ "$output" == *$'\n'"  ${verb}"[\ $'\n']* ]] || { echo "missing: ${verb}"; return 1; }
   done
   [[ "$output" == *"  tidy [--dry-run]      remove merged worktrees and gone branches"* ]]
-  [[ "$output" == *"  install [<module>…]   mirror the release"* ]]
+  [[ "$output" == *"  install [<package>…]  mirror the release"* ]]
   local listed=$output
   run "${kit_root}/bin/kit"
   [ "$output" = "${listed}" ]

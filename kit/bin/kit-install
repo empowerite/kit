@@ -2,18 +2,18 @@
 # kit-install - mirror the release into the repository, and into the home directory (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit install [<module>…]
+# kit install [<package>…]
 #
 # Sets up kit in a repository that does not have it yet:
 #
-#   1. Activates the default modules, the named modules, and the modules they depend on.
-#   2. Places the files those modules deliver, in the repository and in the home directory.
-#   3. Writes .kit/manifest, and ~/.kit/manifest when the modules deliver files to the home directory.
+#   1. Activates the default packages, the named packages, and the packages they depend on.
+#   2. Places the files those packages deliver, in the repository and in the home directory.
+#   3. Writes .kit/manifest, and ~/.kit/manifest when the packages deliver files to the home directory.
 #
 # When a different file is already at a delivered path, kit install names it and leaves it alone. It writes no
 # manifest until every path is clear. A repository that already has .kit/manifest is refused: run kit update.
 #
-# Exits 0 on success, 2 for a module the release does not have, and 1 for any other failure.
+# Exits 0 on success, 2 for a package the release does not have, and 1 for any other failure.
 #
 # see: bash/release.sh
 
@@ -25,32 +25,32 @@ use release
 
 if [[ "${1:-}" == --help ]]
 then
-  echo "usage: kit install [<module>…]" >&2
+  echo "usage: kit install [<package>…]" >&2
   exit 0
 fi
 
 guard:require tool:jq
-release:require-modules "${kit_root}" "$@"
+release:require-packages "${kit_root}" "$@"
 if [[ -f .kit/manifest ]]
 then
   error "run: kit update (this repository already carries kit $(release:manifest-version))"
   exit 1
 fi
-readarray -t defaults < <(release:default-modules "${kit_root}")
-readarray -t modules < <(release:resolve "${kit_root}" "${defaults[@]}" "$@")
-release:render-all "${kit_root}" "${modules[@]}"
-section "kit install $(release:version), modules: ${modules[*]}"
+readarray -t defaults < <(release:default-packages "${kit_root}")
+readarray -t packages < <(release:resolve "${kit_root}" "${defaults[@]}" "$@")
+release:render-all "${kit_root}" "${packages[@]}"
+section "kit install $(release:version), packages: ${packages[*]}"
 refused=0
 for base in $(release:bases)
 do
-  release:place-all "${kit_root}" "${base}" "${modules[@]}" || refused=$(( refused + $? ))
+  release:place-all "${kit_root}" "${base}" "${packages[@]}" || refused=$(( refused + $? ))
 done
 if (( refused > 0 ))
 then
   error "${refused} path(s) already hold a different file; move each aside, then run: kit install"
   exit 1
 fi
-release:write-manifests "${modules[@]}"
-release:finish "${modules[@]}"
+release:write-manifests "${packages[@]}"
+release:finish "${packages[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

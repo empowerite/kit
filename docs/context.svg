@@ -35,7 +35,7 @@
   <rect class="box" x="24" y="312" width="250" height="104" fill="#ede9fe"/>
   <text class="h" x="40" y="340">Claude Code</text>
   <text class="d" x="40" y="364">PreToolUse on Write, Edit, MultiEdit,</text>
-  <text class="d" x="40" y="380">wired by the claude module:</text>
+  <text class="d" x="40" y="380">wired by the claude package:</text>
   <text class="m" x="40" y="404">kit context --claude</text>
 
   <!-- the call -->

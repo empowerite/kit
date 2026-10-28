@@ -71,7 +71,7 @@ in a script in the tree, where it can be read and tested.
 ### No command
 
 A directive with no command runs `kit region`. `kit region` reads the region's name from its environment and
-treats it as the path of a region an active module delivers. A name no module delivers fails, and the error names
+treats it as the path of a region an active package delivers. A name no package delivers fails, and the error names
 the directive's line, so a forgotten command never passes silently. The directive can be in any file; the name
 only selects the region.
 
@@ -106,15 +106,15 @@ in two places:
 
 - `kit check`, over the whole repository, so `kit ci` checks every generated region, the kit's and the
   repository's own.
-- The `lefthook` module's pre-commit hook, over the staged paths.
+- The `lefthook` package's pre-commit hook, over the staged paths.
 
-`kit region [--home] [<path>]` prints the content the active modules deliver as the region at a path, rendered
+`kit region [--home] [<path>]` prints the content the active packages deliver as the region at a path, rendered
 the way a template is. It is the command behind every region the kit delivers.
 
 - The path defaults to `KIT_GENERATE_REGION`, so a bare directive needs no argument.
-- Only one active module can deliver a region at a given path. `kit region` prints that module's
+- Only one active package can deliver a region at a given path. `kit region` prints that package's
   `regions/<base>/<path>`.
-- A path no active module delivers is refused.
+- A path no active package delivers is refused.
 
 ## What is refused
 
@@ -132,8 +132,8 @@ fails the run, naming the file and the line:
 
 ## The kit's regions
 
-A file under a module's `regions/<base>/<path>` is a template for a region's content. Every `@key@` in it is
-rendered from `.kit/settings.yml` and the module's defaults, as [modules.md](modules.md) describes.
+A file under a package's `regions/<base>/<path>` is a template for a region's content. Every `@key@` in it is
+rendered from `.kit/settings.yml` and the package's defaults, as [packages.md](packages.md) describes.
 
 `kit install` writes the region into the file at `<path>`: the bare directive naming the path, the rendered
 content, and the end marker, in the file's comment syntax. Where the block goes depends on the file:
@@ -147,16 +147,16 @@ After that:
 - The repository can move the block anywhere in the file and write anything around it.
 - `kit update` regenerates the region. There is no three-way merge, because the region's content is never the
   repository's to edit.
-- `kit module remove` takes the block out, and removes the file if that leaves it empty.
+- `kit package remove` takes the block out, and removes the file if that leaves it empty.
 - A directive with no end marker is refused, by name.
-- Two modules that deliver a region to the same file are refused when the kit reads the modules.
+- Two packages that deliver a region to the same file are refused when the kit reads the packages.
 - A region under `home` must spell out its command, `kit region --home <path>`, because the bare directive cannot
   select the home directory.
 
-| Module | File | Region |
+| Package | File | Region |
 | --- | --- | --- |
 | `kit` | `AGENTS.md` | the sentence that sends every agent to `.kit/1st.md` |
 | `kit` | `.gitignore` | the `/worktrees/` entry |
 | `claude` | `.claude/CLAUDE.md` | an import of `AGENTS.md` |
 
-[modules.md](modules.md) describes modules, and [architecture.md](architecture.md) describes the whole kit.
+[packages.md](packages.md) describes packages, and [architecture.md](architecture.md) describes the whole kit.

@@ -38,9 +38,9 @@ templates:
 
 The JSON rule has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 
-The `kit` module delivers the templates. To change one, write a module of your own under `.kit/modules/` that
-depends on `kit` and places a file at the same path. The later module in dependency order wins.
-see: [modules.md](modules.md)
+The `kit` package delivers the templates. To change one, write a package of your own under `.kit/packages/` that
+depends on `kit` and places a file at the same path. The later package in dependency order wins.
+see: [packages.md](packages.md)
 
 ## Holes
 
@@ -93,7 +93,7 @@ variant, `kit lint` reports:
 Three kinds of path are not checked against any template:
 
 - a template itself
-- a module's region, which is a fragment of a file
+- a package's region, which is a fragment of a file
 - a path that `.gitattributes` marks `linguist-generated`, because a tool writes it
 
 ```text

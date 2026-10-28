@@ -1,12 +1,12 @@
 # shellcheck shell=bash
-# release.sh - reads a release's modules, renders templates and regions, merges JSON, writes manifests (sourced module)
+# release.sh - reads a release's packages, renders templates and regions, merges JSON, writes manifests (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
 # shellcheck disable=SC2154  # kit_root is exported by bash/1st.sh
 #
-# A release is bin/, bash/, and modules/. Each modules/<name>/ is a module, which contains:
+# A release is bin/, bash/, and packages/. Each packages/<name>/ is a package, which contains:
 #
-#   module.yml          the module's metadata
+#   package.yml          the package's metadata
 #   files/<base>/       files copied to the base's root, at the same paths
 #   templates/<base>/   files whose @key@ placeholders are filled from the repository's settings, then copied the
 #                       same way
@@ -16,10 +16,10 @@
 # end line, both naming the path. The rest of the file belongs to the repository. kit generate replaces the
 # region's content with what kit region prints.
 #
-# A repository can define its own modules the same way, under .kit/modules/<name>/. A module name is looked up in
+# A repository can define its own packages the same way, under .kit/packages/<name>/. A package name is looked up in
 # the release first, then there.
 #
-# The bases a module delivers to:
+# The bases a package delivers to:
 #
 #   repo    the repository root, recorded in .kit/manifest
 #   home    the user's home directory, recorded in ~/.kit/manifest, which every repository on the machine shares
@@ -37,7 +37,7 @@
 # changes to the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and
 # comm here uses the C locale, so an order written on one machine reads the same on another.
 #
-# see: docs/modules.md
+# see: docs/packages.md
 
 use yaml
 
@@ -51,7 +51,7 @@ release:version() {
   cat "${kit_root}/version" 2>/dev/null || release:unreleased
 }
 
-# release:bases prints the bases a module can deliver to. Each base is a subdirectory name under files/,
+# release:bases prints the bases a package can deliver to. Each base is a subdirectory name under files/,
 # templates/, and regions/.
 release:bases() { printf 'repo\nhome\n'; }
 
@@ -79,7 +79,7 @@ release:dest() {
 # release:manifest <base> prints the base's manifest: .kit/manifest in the repository, ~/.kit/manifest for home.
 release:manifest() { release:dest "$1" .kit/manifest; }
 
-# release_local is the root of the repository's own modules, .kit/modules/<name>/, laid out like the release's.
+# release_local is the root of the repository's own packages, .kit/packages/<name>/, laid out like the release's.
 declare -gr release_local=.kit
 
 # release:settings prints the path of the repository's settings file.
@@ -88,27 +88,27 @@ release:settings() { printf '.kit/settings.yml\n'; }
 # release:setting <key> prints the value of one top-level setting, or nothing.
 release:setting() { yaml:value "$(release:settings)" "$1"; }
 
-# release:modules [<root>] prints the modules in reach: every modules/<name>/ that contains a module.yml, in the
-# release at <root> and in the repository's .kit/modules/.
-release:modules() {
+# release:packages [<root>] prints the packages in reach: every packages/<name>/ that contains a package.yml, in the
+# release at <root> and in the repository's .kit/packages/.
+release:packages() {
   local root=${1:-${kit_root}} dir
   for dir in "${root}" "${release_local}"
   do
-    [[ -d "${dir}/modules" ]] || continue
-    (cd "${dir}/modules" && find . -mindepth 2 -maxdepth 2 -name module.yml | sed 's@^\./@@; s@/module.yml$@@')
+    [[ -d "${dir}/packages" ]] || continue
+    (cd "${dir}/packages" && find . -mindepth 2 -maxdepth 2 -name package.yml | sed 's@^\./@@; s@/package.yml$@@')
   done | LC_ALL=C sort --unique
 }
 
-# release:home <root> <module> prints the directory that contains the module: <root> when the release has the
-# module, otherwise the repository's .kit. The module's files are under <home>/modules/<module>/.
+# release:home <root> <package> prints the directory that contains the package: <root> when the release has the
+# package, otherwise the repository's .kit. The package's files are under <home>/packages/<package>/.
 release:home() {
-  if [[ -f "$1/modules/$2/module.yml" || ! -f "${release_local}/modules/$2/module.yml" ]]
+  if [[ -f "$1/packages/$2/package.yml" || ! -f "${release_local}/packages/$2/package.yml" ]]
   then printf '%s\n' "$1"
   else printf '%s\n' "${release_local}"
   fi
 }
 
-# release:origin <root> <module> prints where the module comes from: "release" or "repository".
+# release:origin <root> <package> prints where the package comes from: "release" or "repository".
 release:origin() {
   if [[ "$(release:home "$1" "$2")" == "$1" ]]
   then printf 'release\n'
@@ -116,56 +116,56 @@ release:origin() {
   fi
 }
 
-# release:meta <root> <module> prints the path of the module's metadata.
-release:meta() { printf '%s/modules/%s/module.yml\n' "$(release:home "$1" "$2")" "$2"; }
+# release:meta <root> <package> prints the path of the package's metadata.
+release:meta() { printf '%s/packages/%s/package.yml\n' "$(release:home "$1" "$2")" "$2"; }
 
-# release:description <root> <module> prints the module's one-line description.
+# release:description <root> <package> prints the package's one-line description.
 release:description() { yaml:value "$(release:meta "$1" "$2")" description; }
 
-# release:depends <root> <module> prints the modules this one depends on, one per line.
+# release:depends <root> <package> prints the packages this one depends on, one per line.
 release:depends() { yaml:list "$(release:meta "$1" "$2")" depends; }
 
-# release:default-modules <root> prints the modules whose default is true. They are active unless removed.
-release:default-modules() {
-  local module
-  for module in $(release:modules "$1")
+# release:default-packages <root> prints the packages whose default is true. They are active unless removed.
+release:default-packages() {
+  local package
+  for package in $(release:packages "$1")
   do
-    [[ "$(yaml:value "$(release:meta "$1" "${module}")" default)" == true ]] && printf '%s\n' "${module}"
+    [[ "$(yaml:value "$(release:meta "$1" "${package}")" default)" == true ]] && printf '%s\n' "${package}"
   done
   return 0
 }
 
-# release:require-modules <root> <name>… fails on a module that is not in reach, and lists the modules that are.
-release:require-modules() {
-  local root=$1 module
+# release:require-packages <root> <name>… fails on a package that is not in reach, and lists the packages that are.
+release:require-packages() {
+  local root=$1 package
   shift
-  for module in "$@"
+  for package in "$@"
   do
-    if [[ ! -f "$(release:meta "${root}" "${module}")" ]]
+    if [[ ! -f "$(release:meta "${root}" "${package}")" ]]
     then
-      error "'${module}' is not a module in reach; the modules are:" \
-        "$(release:modules "${root}" | paste -s -d ' ' -)"
+      error "'${package}' is not a package in reach; the packages are:" \
+        "$(release:packages "${root}" | paste -s -d ' ' -)"
       return 2
     fi
   done
 }
 
-# release:resolve <root> <name>… prints the named modules and all their dependencies, each once. Each module
-# comes after the modules it depends on. Ties are broken alphabetically, so the order is the same on every
+# release:resolve <root> <name>… prints the named packages and all their dependencies, each once. Each package
+# comes after the packages it depends on. Ties are broken alphabetically, so the order is the same on every
 # machine. It fails on a dependency cycle.
 release:resolve() {
-  local root=$1 module dep ready placed_count=0
+  local root=$1 package dep ready placed_count=0
   shift
   (( $# > 0 )) || return 0
   local -A wanted=() placed=()
   local -a queue=("$@") names=()
   while (( ${#queue[@]} > 0 ))
   do
-    module=${queue[0]}
+    package=${queue[0]}
     queue=("${queue[@]:1}")
-    [[ -n "${wanted[${module}]:-}" ]] && continue
-    wanted[${module}]=1
-    for dep in $(release:depends "${root}" "${module}")
+    [[ -n "${wanted[${package}]:-}" ]] && continue
+    wanted[${package}]=1
+    for dep in $(release:depends "${root}" "${package}")
     do
       queue+=("${dep}")
     done
@@ -174,19 +174,19 @@ release:resolve() {
   while (( placed_count < ${#names[@]} ))
   do
     ready=''
-    for module in "${names[@]}"
+    for package in "${names[@]}"
     do
-      [[ -n "${placed[${module}]:-}" ]] && continue
-      for dep in $(release:depends "${root}" "${module}")
+      [[ -n "${placed[${package}]:-}" ]] && continue
+      for dep in $(release:depends "${root}" "${package}")
       do
         [[ -n "${placed[${dep}]:-}" ]] || continue 2
       done
-      ready=${module}
+      ready=${package}
       break
     done
     if [[ -z "${ready}" ]]
     then
-      error "the modules' depends lines form a cycle among: ${names[*]}"
+      error "the packages' depends lines form a cycle among: ${names[*]}"
       return 1
     fi
     placed[${ready}]=1
@@ -195,75 +195,75 @@ release:resolve() {
   done
 }
 
-# release:dependents <root> <module> <active>… prints the active modules that depend on <module>.
+# release:dependents <root> <package> <active>… prints the active packages that depend on <package>.
 release:dependents() {
-  local root=$1 module=$2 other dep
+  local root=$1 package=$2 other dep
   shift 2
   for other in "$@"
   do
     for dep in $(release:depends "${root}" "${other}")
     do
-      [[ "${dep}" == "${module}" ]] && printf '%s\n' "${other}"
+      [[ "${dep}" == "${package}" ]] && printf '%s\n' "${other}"
     done
   done
 }
 
-# release:validate <root> <module> fails on metadata that the schema rejects, as far as bash can check without a
+# release:validate <root> <package> fails on metadata that the schema rejects, as far as bash can check without a
 # validator:
 #
 #   - a key the kit does not know
 #   - a missing description
 #   - a default that is not true or false
-#   - a dependency on a module that is not in reach
+#   - a dependency on a package that is not in reach
 #
-# The gate validates against modules/module.schema.json in full.
+# The gate validates against packages/package.schema.json in full.
 release:validate() {
-  local root=$1 module=$2 meta key value dep
-  meta=$(release:meta "${root}" "${module}")
+  local root=$1 package=$2 meta key value dep
+  meta=$(release:meta "${root}" "${package}")
   for key in $(yaml:keys "${meta}")
   do
     case "${key}" in
       (description | default | depends | answers | expects) ;;
       (*)
-        error "$(release:meta "${root}" "${module}") has a key the kit does not know: ${key}" \
-          "(see modules/module.schema.json)"
+        error "$(release:meta "${root}" "${package}") has a key the kit does not know: ${key}" \
+          "(see packages/package.schema.json)"
         return 1
     esac
   done
   if [[ -z "$(yaml:value "${meta}" description)" ]]
   then
-    error "$(release:meta "${root}" "${module}") has no description"
+    error "$(release:meta "${root}" "${package}") has no description"
     return 1
   fi
   value=$(yaml:value "${meta}" default)
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
   then
-    error "$(release:meta "${root}" "${module}"): default must be true or false, not '${value}'"
+    error "$(release:meta "${root}" "${package}"): default must be true or false, not '${value}'"
     return 1
   fi
-  for dep in $(release:depends "${root}" "${module}")
+  for dep in $(release:depends "${root}" "${package}")
   do
     if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
     then
-      error "$(release:meta "${root}" "${module}") depends on '${dep}', which is not in reach"
+      error "$(release:meta "${root}" "${package}") depends on '${dep}', which is not in reach"
       return 1
     fi
   done
 }
 
-# release:expectations <root> <module>… prints "<path>\x1f<pattern>\x1f<remedy>" for each line the modules expect
+# release:expectations <root> <package>… prints "<path>\x1f<pattern>\x1f<remedy>" for each line the packages expect
 # in a file the repository owns. Such a line is the include that pulls in the kit's file, such as lefthook's
 # extends or just's import.
 release:expectations() {
-  local root=$1 module
+  local root=$1 package
   shift
-  for module in "$@"
+  for package in "$@"
   do
-    yaml:records "$(release:meta "${root}" "${module}")" expects path pattern remedy
+    yaml:records "$(release:meta "${root}" "${package}")" expects path pattern remedy
   done
 }
 
-# release:unmet <root> <module>… prints the remedy for each expectation the repository does not meet, one per
+# release:unmet <root> <package>… prints the remedy for each expectation the repository does not meet, one per
 # line. An expectation is unmet when its file is missing, or when no line in the file matches its pattern (an
 # extended regular expression). The kit never writes to such a file; it only reports what is missing.
 release:unmet() {
@@ -325,14 +325,14 @@ release:validate-settings() {
   done < <(yaml:records "${settings}" trackers prefix provider)
 }
 
-# release:context <root> <module> prints "<key>\t<value>" for every key a template or region of the module can
+# release:context <root> <package> prints "<key>\t<value>" for every key a template or region of the package can
 # use. The keys come from:
 #
-#   1. the module's defaults under answers: in module.yml, as <key> and as answers.<key>
+#   1. the package's defaults under answers: in package.yml, as <key> and as answers.<key>
 #   2. .kit/settings.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
 #
-# A later source overrides an earlier one, so the repository's answer wins over the module's default.
+# A later source overrides an earlier one, so the repository's answer wins over the package's default.
 release:context() {
   local settings key name value
   settings=$(release:settings)
@@ -368,24 +368,24 @@ release:tmp() {
   printf '%s\n' "${release_tmp}"
 }
 
-# release:render <root> <module> <kind> <base> renders the module's <kind> (templates or regions) for <base>, once
-# per process, and prints the directory that contains the result. It prints nothing when the module has none. The
-# directory keeps the modules/<module>/<kind>/<base> layout, so a rendered region is still recognized as a region.
+# release:render <root> <package> <kind> <base> renders the package's <kind> (templates or regions) for <base>, once
+# per process, and prints the directory that contains the result. It prints nothing when the package has none. The
+# directory keeps the packages/<package>/<kind>/<base> layout, so a rendered region is still recognized as a region.
 #
 # A placeholder is written @key@ (autoconf's form), which cannot be confused with bash's ${var} or GitHub's
 # ${{ }}. A key can be dotted: @answers.key@. A key with no value fails, and the error names the key.
 release:render() {
-  local root=$1 module=$2 kind=$3 base=$4 source out key value text file rel map
+  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map
   local -A answer=()
-  source="$(release:home "${root}" "${module}")/modules/${module}/${kind}/${base}"
+  source="$(release:home "${root}" "${package}")/packages/${package}/${kind}/${base}"
   [[ -d "${source}" ]] || return 0
-  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/modules/${module}/${kind}/${base}"
+  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/packages/${package}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
     while IFS=$'\t' read -r key value
     do
       [[ -n "${key}" ]] && answer[${key}]=${value}
-    done < <(release:context "${root}" "${module}")
+    done < <(release:context "${root}" "${package}")
     while IFS= read -r file
     do
       rel=${file#"${source}"/}
@@ -397,7 +397,7 @@ release:render() {
           map=answers
           [[ "${key}" == *.* ]] && map=${key%.*}
           error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in .kit/settings.yml" \
-            "(module ${module})"
+            "(package ${package})"
           return 1
         fi
         text=${text//"@${key}@"/"${answer[${key}]}"}
@@ -409,34 +409,34 @@ release:render() {
   printf '%s\n' "${out}"
 }
 
-# release:render-all <root> <module>… prepares the release at <root> for the named modules. In order, it:
+# release:render-all <root> <package>… prepares the release at <root> for the named packages. In order, it:
 #
 #   1. validates the settings
-#   2. fails on a named module that is not in reach
-#   3. validates every module in reach
+#   2. fails on a named package that is not in reach
+#   3. validates every package in reach
 #   4. fails on a base the kit does not deliver to
-#   5. renders the named modules' templates and regions
+#   5. renders the named packages' templates and regions
 #   6. fails on a delivered file that is a link to nothing, and on regions that release:regions-apart rejects
 release:render-all() {
-  local root=$1 module kind base
+  local root=$1 package kind base
   shift
   release:validate-settings || return 1
-  release:require-modules "${root}" "$@" || return 2
-  for module in $(release:modules "${root}")
+  release:require-packages "${root}" "$@" || return 2
+  for package in $(release:packages "${root}")
   do
-    release:validate "${root}" "${module}" || return 1
+    release:validate "${root}" "${package}" || return 1
   done
-  for module in "$@"
+  for package in "$@"
   do
     for kind in files templates regions
     do
-      for base in $(cd "$(release:home "${root}" "${module}")/modules/${module}/${kind}" 2>/dev/null \
+      for base in $(cd "$(release:home "${root}" "${package}")/packages/${package}/${kind}" 2>/dev/null \
         && find . -mindepth 1 -maxdepth 1 -type d | sed 's@^\./@@')
       do
         # shellcheck disable=SC2046  # the bases are single words
         if ! release:among "${base}" $(release:bases)
         then
-          error "modules/${module}/${kind}/${base} names a base the kit does not deliver to; the bases are:" \
+          error "packages/${package}/${kind}/${base} names a base the kit does not deliver to; the bases are:" \
             "$(release:bases | paste -s -d ' ' -)"
           return 1
         fi
@@ -446,7 +446,7 @@ release:render-all() {
     do
       for base in $(release:bases)
       do
-        release:render "${root}" "${module}" "${kind}" "${base}" >/dev/null || return 1
+        release:render "${root}" "${package}" "${kind}" "${base}" >/dev/null || return 1
       done
     done
   done
@@ -457,49 +457,49 @@ release:render-all() {
   done
 }
 
-# release:regions-apart <root> <base> <module>… fails when two of the modules deliver a region to the same path (a
+# release:regions-apart <root> <base> <package>… fails when two of the packages deliver a region to the same path (a
 # file can have only one kit region), or when a region is in a kind of file whose comment syntax the kit does not
 # know.
 release:regions-apart() {
-  local root=$1 base=$2 module home file rel owner
+  local root=$1 base=$2 package home file rel owner
   shift 2
   local -A owner_of=()
-  for module in "$@"
+  for package in "$@"
   do
-    home=$(release:home "${root}" "${module}")
-    [[ -d "${home}/modules/${module}/regions/${base}" ]] || continue
+    home=$(release:home "${root}" "${package}")
+    [[ -d "${home}/packages/${package}/regions/${base}" ]] || continue
     while IFS= read -r file
     do
-      rel=${file#"${home}/modules/${module}/regions/${base}/"}
+      rel=${file#"${home}/packages/${package}/regions/${base}/"}
       if ! release:region-known "${rel}"
       then
-        error "modules/${module}/regions/${base}/${rel}: the kit knows no comment syntax for that kind of file," \
+        error "packages/${package}/regions/${base}/${rel}: the kit knows no comment syntax for that kind of file," \
           "so it cannot mark a region there"
         return 1
       fi
       owner=${owner_of[${rel}]:-}
       if [[ -n "${owner}" ]]
       then
-        error "modules ${owner} and ${module} both deliver a region to ${rel}; one file holds one kit region"
+        error "packages ${owner} and ${package} both deliver a region to ${rel}; one file holds one kit region"
         return 1
       fi
-      owner_of[${rel}]=${module}
-    done < <(find "${home}/modules/${module}/regions/${base}" -type f)
+      owner_of[${rel}]=${package}
+    done < <(find "${home}/packages/${package}/regions/${base}" -type f)
   done
 }
 
-# release:layers <root> <base> <module>… prints the directories copied to the base's root, in module order: each
-# module's files/<base>, its rendered templates/<base>, and its rendered regions/<base>.
+# release:layers <root> <base> <package>… prints the directories copied to the base's root, in package order: each
+# package's files/<base>, its rendered templates/<base>, and its rendered regions/<base>.
 release:layers() {
-  local root=$1 base=$2 module home kind rendered
+  local root=$1 base=$2 package home kind rendered
   shift 2
-  for module in "$@"
+  for package in "$@"
   do
-    home=$(release:home "${root}" "${module}")
-    [[ -d "${home}/modules/${module}/files/${base}" ]] && printf '%s\n' "${home}/modules/${module}/files/${base}"
+    home=$(release:home "${root}" "${package}")
+    [[ -d "${home}/packages/${package}/files/${base}" ]] && printf '%s\n' "${home}/packages/${package}/files/${base}"
     for kind in templates regions
     do
-      rendered=$(release:render "${root}" "${module}" "${kind}" "${base}")
+      rendered=$(release:render "${root}" "${package}" "${kind}" "${base}")
       [[ -n "${rendered}" ]] && printf '%s\n' "${rendered}"
     done
   done
@@ -508,14 +508,14 @@ release:layers() {
 
 # release:kind <source> <path> prints how the content is placed:
 #
-#   region   the source is under a module's regions/<base>/
+#   region   the source is under a package's regions/<base>/
 #   merge    the destination is a merged .json file (see release:merged)
 #   copy     anything else
 #
-# The region test looks only at the source's last modules/ segment, so a checkout under a directory named modules
+# The region test looks only at the source's last packages/ segment, so a checkout under a directory named packages
 # works the same as one anywhere else.
 release:kind() {
-  if [[ "${1##*/modules/}" =~ ^[^/]+/regions/(repo|home)/ ]]
+  if [[ "${1##*/packages/}" =~ ^[^/]+/regions/(repo|home)/ ]]
   then printf 'region\n'
   elif release:merged "$2"
   then printf 'merge\n'
@@ -547,7 +547,7 @@ release:region-command() {
 # release:region-markers <dest> prints the region's two marker lines in the file's comment syntax, chosen by
 # extension: an HTML comment, //, --, or #. The first line is the directive, `kit:generate <name>`, followed by
 # the command in backticks when there is one. The second is the end marker, `kit:end <name>`. A kind of file with
-# no comment syntax the kit knows is rejected earlier, by release:render-all, when it reads the module.
+# no comment syntax the kit knows is rejected earlier, by release:render-all, when it reads the package.
 release:region-markers() {
   local open close name command
   case "${1##*.}" in
@@ -666,8 +666,8 @@ release:region-remove() {
   fi
 }
 
-# release:delivered <root> <base> <module>… prints "<path>\t<source>" for every path under the base's root that
-# the release at <root> delivers for those modules, sorted by path. When layers deliver the same path, the last
+# release:delivered <root> <base> <package>… prints "<path>\t<source>" for every path under the base's root that
+# the release at <root> delivers for those packages, sorted by path. When layers deliver the same path, the last
 # layer wins. A symlink counts as a source only when it points at a file. A dangling symlink fails here, where it
 # is found.
 release:delivered() {
@@ -689,14 +689,14 @@ release:delivered() {
   done
 }
 
-# release:source-of <root> <base> <path> <module>… prints the release file behind one delivered path, or nothing.
+# release:source-of <root> <base> <path> <package>… prints the release file behind one delivered path, or nothing.
 release:source-of() {
   local root=$1 base=$2 path=$3
   shift 3
   release:delivered "${root}" "${base}" "$@" | awk -F '\t' -v p="${path}" '$1 == p { print $2 }'
 }
 
-# release:paths-beyond <root> <base> <before> <after> prints the paths under the base that the module set <after>
+# release:paths-beyond <root> <base> <before> <after> prints the paths under the base that the package set <after>
 # delivers and <before> does not. Each set is passed as one space-separated word.
 release:paths-beyond() {
   local root=$1 base=$2
@@ -905,7 +905,7 @@ release:place-new() {
   fi
 }
 
-# release:place-all <root> <base> <module>… places every path the modules deliver under the base. A path where a
+# release:place-all <root> <base> <package>… places every path the packages deliver under the base. A path where a
 # different file exists fails. It returns the number of failures.
 release:place-all() {
   local root=$1 base=$2 path src refused=0
@@ -938,7 +938,7 @@ release:unplace() {
   esac
 }
 
-# release:retire <base-root> <base> <previous> <current> <module>… handles the paths that the base's manifest
+# release:retire <base-root> <base> <previous> <current> <package>… handles the paths that the base's manifest
 # records and the current release no longer delivers. <base-root> is the base release (the previous version), or
 # empty when it is not available. For each such path that still exists:
 #
@@ -948,7 +948,7 @@ release:unplace() {
 #     warns that the file was edited and leaves it as it is
 #
 # Under home, whose manifest every repository shares, it touches only paths the previous release delivered for
-# these modules, and nothing at all without the base release.
+# these packages, and nothing at all without the base release.
 release:retire() {
   local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates
   shift 4
@@ -987,9 +987,9 @@ release:retire() {
   done <<<"${candidates}"
 }
 
-# release:write-manifest <base> <module>… writes the base's manifest: the version, the active modules, and the
+# release:write-manifest <base> <package>… writes the base's manifest: the version, the active packages, and the
 # digest of the release's file for every path delivered under the base. The repository's manifest is always
-# written. Home's manifest is shared by every repository on the machine. It is written when these modules deliver
+# written. Home's manifest is shared by every repository on the machine. It is written when these packages deliver
 # to home. When they do not, it drops the lines whose paths no longer exist, and removes the file once no line
 # is left.
 release:write-manifest() {
@@ -1018,8 +1018,8 @@ release:write-manifest() {
     printf '# .kit/manifest - written by kit, not by hand\n'
     printf 'version %s\n' "$(release:version)"
     if (( $# > 0 ))
-    then printf 'modules %s\n' "$*"
-    else printf 'modules\n'
+    then printf 'packages %s\n' "$*"
+    else printf 'packages\n'
     fi
     while IFS=$'\t' read -r path src
     do
@@ -1032,7 +1032,7 @@ release:write-manifest() {
   } > "${manifest}"
 }
 
-# release:write-manifests <module>… writes every base's manifest.
+# release:write-manifests <package>… writes every base's manifest.
 release:write-manifests() {
   local base
   for base in $(release:bases)
@@ -1044,8 +1044,8 @@ release:write-manifests() {
 # release:manifest-version prints the version the repository's manifest records.
 release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 
-# release:manifest-modules prints the active modules the repository's manifest records, one per line.
-release:manifest-modules() { sed -n 's/^modules *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
+# release:manifest-packages prints the active packages the repository's manifest records, one per line.
+release:manifest-packages() { sed -n 's/^packages *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
 
 # release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-character
 # hex digest, two spaces, and the path, which can contain spaces.
@@ -1073,14 +1073,14 @@ release:require-manifest() {
   fi
 }
 
-# release:finish <module>… reports a finished install or update.
+# release:finish <package>… reports a finished install or update.
 release:finish() {
-  ok "kit $(release:version) is installed, modules: ${*:-none}; .kit/manifest is written."
+  ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/manifest is written."
   release:say-unmet "$@"
   step "Commit the delivered files. The workflow is in .kit/1st.md."
 }
 
-# release:say-unmet <module>… warns about each unmet expectation of the modules, as a step left to do.
+# release:say-unmet <package>… warns about each unmet expectation of the packages, as a step left to do.
 release:say-unmet() {
   local line
   while IFS= read -r line

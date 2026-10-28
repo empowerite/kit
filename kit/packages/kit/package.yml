@@ -1,6 +1,6 @@
-# modules/kit/module.yml - the kit module: the agents' entry point, the rules for each file kind, and kit context
+# packages/kit/package.yml - the kit package: the agents' entry point, the rules for each file kind, and kit context
 # ----------------------------------------------------------------------------------------------------------------------
-# see: docs/modules.md
+# see: docs/packages.md
 
 description: "The entry every agent reads, the rules by file kind, and the context call that names them"
 default: true

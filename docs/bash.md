@@ -4,8 +4,8 @@ The kit is written in bash. Its commands share code through bash modules, which 
 own. This page says how the module system works. The style every bash file follows is in the bash rule,
 [.kit/rules/bash.md](../.kit/rules/bash.md).
 
-A bash module is not a kit module. A bash module is a sourced `.sh` file of functions. A kit module is a unit of
-delivery under `kit/modules/`, described in [modules.md](modules.md).
+A bash module is a sourced `.sh` file of functions. It is not a package: a package is what the kit delivers into a
+repository, under `kit/packages/`, described in [packages.md](packages.md).
 
 ## Layout
 

@@ -4,7 +4,7 @@
 #
 # The kit reads three kinds of file with this module:
 #
-#   - a module's module.yml
+#   - a package's package.yml
 #   - the repository's .kit/settings.yml
 #   - a rule file's frontmatter, between the opening and closing `---`
 #

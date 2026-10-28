@@ -15,7 +15,7 @@
 # not read at all.
 #
 # The directive and end lines stay. The command's standard output replaces the lines between them. With no
-# command, the command is `kit region`, which reads the region's name as the path of a region an active module
+# command, the command is `kit region`, which reads the region's name as the path of a region an active package
 # delivers.
 #
 # The command is a bash command line, pipes included. It runs:

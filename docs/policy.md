@@ -72,8 +72,8 @@ and OPA's RE2 share, so both engines read them the same way:
 
 The `opa` engine needs `opa`. Pin it in the repository's toolchain.
 
-The `policy-opa` module delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
-refusals. Because it is a `.rego` file, adding the module selects the `opa` engine, and the results stay the same.
+The `policy-opa` package delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
+refusals. Because it is a `.rego` file, adding the package selects the `opa` engine, and the results stay the same.
 Write a rule that a pattern cannot express in a separate `.rego` file beside it:
 
 ```rego

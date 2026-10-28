@@ -95,7 +95,7 @@ change() {
   [ "$status" -eq 0 ]
 }
 
-@test "the opa engine, given the policy-opa module's Rego, refuses exactly what the patterns engine does" {
+@test "the opa engine, given the policy-opa package's Rego, refuses exactly what the patterns engine does" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
   "${kit_root}/bin/kit" install policy-opa >/dev/null 2>&1
   [ -f .kit/policy/kit.rego ]

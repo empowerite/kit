@@ -22,8 +22,8 @@
 # line.
 #
 # The same template both makes a file (kit new file) and checks one (kit lint). A file passes when it matches any
-# variant its path allows. To change a template, a repository adds a module of its own that places the same path.
-# The later module in dependency order wins.
+# variant its path allows. To change a template, a repository adds a package of its own that places the same path.
+# The later package in dependency order wins.
 #
 # see: docs/templates.md
 
@@ -35,10 +35,10 @@ declare -gr template_dir=.kit/templates
 # template:exempt <path> is true for a path that no template checks:
 #
 #   - a template itself
-#   - a module's region, which is a fragment of a file
+#   - a package's region, which is a fragment of a file
 #   - a path .gitattributes marks linguist-generated, because a tool writes it
 template:exempt() {
-  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)modules/[^/]+/regions/ ]] && return 0
+  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)packages/[^/]+/regions/ ]] && return 0
   [[ "$(git check-attr linguist-generated -- "$1" 2>/dev/null)" == *': linguist-generated: set' ]]
 }
 

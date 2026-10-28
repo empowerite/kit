@@ -1,4 +1,4 @@
-# The ci-github module
+# The ci-github package
 
 Delivers `.github/workflows/kit-ci.yml`: one GitHub Actions job, `CI`, that runs for each pull request into the
 default branch. The job:

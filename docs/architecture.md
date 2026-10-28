@@ -8,18 +8,18 @@ verify the work follows the rules. This page covers:
 - how a change moves from an issue to `main`, and
 - which check verifies which claim.
 
-[modules.md](modules.md) and [context.md](context.md) describe the module format and the rule lookup in detail.
+[packages.md](packages.md) and [context.md](context.md) describe the package format and the rule lookup in detail.
 
 ## The release and its delivery
 
-![Delivery: a release's modules, through the verbs, into a repository and a home](delivery.svg)
+![Delivery: a release's packages, through the verbs, into a repository and a home](delivery.svg)
 
 A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checkout's `kit/`:
 
 - `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
   directly. `bin/` holds only commands a person runs.
 - `bash/` holds the bash modules the verbs share, loaded with `use`; see [Bash modules](#bash-modules).
-- `modules/` holds everything a release delivers.
+- `packages/` holds everything a release delivers.
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
 
@@ -33,13 +33,13 @@ That is how a repository changes the kit without editing it. It lists its own di
 `forge.sh` loads second, so it can add functions, replace the kit's, or wrap them. It can add support for another
 forge or toolchain the same way. [bash.md](bash.md) has the details.
 
-### Modules
+### Packages
 
-A module is a directory under `modules/`, named after the module. It contains:
+A package is a directory under `packages/`, named after the package. It contains:
 
 | Path | Purpose |
 | --- | --- |
-| `module.yml` | whether the module is on by default, which modules it depends on, and default answers for its templates |
+| `package.yml` | whether the package is on by default, which packages it depends on, and default answers for its templates |
 | `files/<base>/` | files copied as they are to the same path under the base |
 | `templates/<base>/` | files copied after each `@key@` is replaced by a setting |
 | `regions/<base>/` | content kit owns inside a file the repository owns, rendered like a template |
@@ -51,12 +51,12 @@ There are two bases: `repo` is the repository root, and `home` is the user's hom
 
 Content reaches a repository only through these verbs:
 
-- `kit install` resolves the active modules (`kit`, the ones named, and their dependencies), renders them, places the
+- `kit install` resolves the active packages (`kit`, the ones named, and their dependencies), renders them, places the
   files, and writes the manifests.
 - `kit update` moves to a newly pinned release. It replaces each file the repository never edited and merges each
   edited file three ways, with the previous release as the base.
 - `kit check` fails when a delivered file differs from the release.
-- `kit module` changes the set of active modules.
+- `kit package` changes the set of active packages.
 
 How a file is placed depends on its destination:
 
@@ -71,9 +71,9 @@ How a file is placed depends on its destination:
 Each base has a manifest:
 
 - `.kit/manifest`, committed with the repository.
-- `~/.kit/manifest` on a developer machine, when a module delivers to the home directory.
+- `~/.kit/manifest` on a developer machine, when a package delivers to the home directory.
 
-A manifest records the version, the active modules, and the release's digest of every delivered path. `kit update`
+A manifest records the version, the active packages, and the release's digest of every delivered path. `kit update`
 compares a file against its digest to tell whether the repository edited it.
 
 ## Finding a file's rules
@@ -92,7 +92,7 @@ gets the same answer:
 - an agent in any harness, following the instruction in `.kit/1st.md`,
 - a person at the shell,
 - a tool reading `--json`, and
-- Claude Code's `PreToolUse` hook, which the `claude` module wires to `kit context --claude`, so the rules are shown
+- Claude Code's `PreToolUse` hook, which the `claude` package wires to `kit context --claude`, so the rules are shown
   before every write.
 
 The log records each path asked about, and when.
@@ -196,7 +196,7 @@ It queries the forge in the background and draws the local checkouts while it wa
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it covers |
 | A file keeps its rule's shape | `kit lint`, against the rule's templates; `kit new file` creates it in that shape |
-| The forbidden git commands were not used | the harness's deny list, delivered by its adapter module |
+| The forbidden git commands were not used | the harness's deny list, delivered by its adapter package |
 | The desk was not changed | `kit rebase` refusing the root checkout; `kit issue` never switching its branch |
 
 No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds

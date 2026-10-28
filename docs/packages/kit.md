@@ -1,6 +1,6 @@
-# The kit module
+# The kit package
 
-The core module. It is active in every repository that uses the kit. It delivers:
+The core package. It is active in every repository that uses the kit. It delivers:
 
 - `.kit/1st.md`, the entry file every agent reads. The repository's `AGENTS.md` points to it.
 - `.kit/rules/<kind>.md`, one rule file per kind of file. Each rule file's frontmatter declares the paths and
