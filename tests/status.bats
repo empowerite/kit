@@ -55,6 +55,7 @@ commits-in() {
   [ "$status" -eq 0 ]
   fields='[.relative, .branch, .ahead, .behind, .added, .removed, .uncommitted, (.commits | length)] | @tsv'
   [ "$(jq -r "${fields}" <<<"$output")" = "$(printf 'worktrees/topic\ttopic\t1\t1\t2\t0\t1\t1')" ]
+  [ "$(jq --compact-output .changes <<<"$output")" = '[{"status":"??","path":"x"}]' ]
 }
 
 @test "a block shows the newest commits, counts the hidden ones, and ends with the oldest" {
@@ -78,7 +79,49 @@ commits-in() {
   run in_status status:checkout-block 🏠 "${doc}" 4
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "🏠 main   ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
-  [[ "${lines[1]}" == *" two" ]]
+  [ "${lines[1]}" = "   ?? c" ]
+  [[ "${lines[2]}" == *" two" ]]
+  [ "${#lines[@]}" -eq 3 ]
+}
+
+@test "a block lists its uncommitted paths with git's status, the first ten and a count of the rest" {
+  printf 'changed\n' > a
+  for i in $(seq 1 12); do printf '%s\n' "${i}" > "n${i}"; done
+  doc=$(in_status status:checkout "${PWD}" main main)
+  run in_status status:checkout-block 🏠 "${doc}" 4
+  [ "${lines[0]}" = "🏠 main   ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
+  [ "${lines[1]}" = "    M a" ]
+  [ "${lines[2]}" = "   ?? n1" ]
+  [ "${lines[11]}" = "   … and 3 more" ]
+  [ "${#lines[@]}" -eq 12 ]
+}
+
+@test "the fetch's line names the commits new on the default branch and the branches and tags it moved" {
+  git push --quiet origin main:old main:stays
+  git fetch --quiet origin
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  (
+    cd ../other
+    git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
+    printf 'b\n' > b && git add b && git commit --quiet --message b
+    printf 'c\n' > c && git add c && git commit --quiet --message c
+    git push --quiet origin main main:fresh main:stays HEAD:refs/tags/v1
+    git push --quiet origin --delete old
+  )
+  run in_status status:fetch main
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "📥 fetched origin: 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned · 1 new tag" ]
+  run in_status status:fetch main
+  [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
+}
+
+@test "kit status prints the fetch first, then the checkouts, then what the forge said, held until its place" {
+  printf 'x\n' > c
+  run "${kit_root}/bin/kit" status
+  [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
+  [ "${lines[1]}" = "🏠 main   ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
+  [ "${lines[2]}" = "   ?? c" ]
+  [[ "${lines[3]}" == *"forge"* ]]
 }
 
 @test "a detached checkout is marked and lists no commits" {

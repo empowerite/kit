@@ -4,9 +4,11 @@
 #
 # status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the checkouts and the open pull
 # requests, and changes nothing. It asks the forge once, for every open pull request with the issues it closes,
-# its review threads, and the checks on its head; everything else is a local git read.
+# its review threads, and the checks on its head; everything else is a local git read. The forge is asked first,
+# in the background, so its answer arrives while the fetch and the checkouts are drawn.
 #
-# The picture: the desk, the root checkout, first; then each worktree under worktrees/; then each open pull request with
+# The picture: what the fetch brought, unless --no-fetch; the desk, the root checkout; then each worktree under
+# worktrees/, each with its uncommitted paths before its commits; then each open pull request with
 # its author, state, age, checks, the worktree holding its branch, and the issues it closes; then the branches whose
 # upstream is gone. --mine shows the pull requests the caller opened and no author column; --all, the default, shows
 # every open one, and --owner=<login>, given once or more, those the named authors opened, each with the author before
@@ -100,6 +102,69 @@ status:age() {
   fi
 }
 
+# status:refs prints "<ref> <sha>" for origin's branches and the tags, the refs a fetch moves.
+status:refs() {
+  git for-each-ref --format='%(refname) %(objectname)' refs/remotes/origin refs/tags | grep --invert-match '/HEAD '
+  return 0
+}
+
+# status:plural <count> <singular> <plural> prints "<count> <singular>" or "<count> <plural>".
+status:plural() {
+  if (( $1 == 1 ))
+  then printf '1 %s' "$2"
+  else printf '%s %s' "$1" "$3"
+  fi
+}
+
+# status:fetch-summary <before> <after> <default-branch> prints one line naming what moved between two status:refs
+# snapshots: the commits new on origin's default branch, then the branches updated, new, and pruned, then the tags
+# new; "nothing new" when nothing moved.
+status:fetch-summary() {
+  local default_ref="refs/remotes/origin/$3" kind ref old new commits=0 updated=0 added=0 pruned=0 tags=0 line part
+  local -a parts=()
+  while IFS=' ' read -r kind ref old new
+  do
+    case "${kind}:${ref}" in
+      (moved:"${default_ref}") commits=$(git rev-list --count "${old}..${new}" 2>/dev/null || printf 0) ;;
+      (moved:refs/remotes/*) updated=$(( updated + 1 )) ;;
+      (new:refs/remotes/*) added=$(( added + 1 )) ;;
+      (gone:refs/remotes/*) pruned=$(( pruned + 1 )) ;;
+      (new:refs/tags/*) tags=$(( tags + 1 )) ;;
+    esac
+  done < <(awk 'NR == FNR { old[$1] = $2; next }
+                !($1 in old) { print "new", $1, "-", $2; next }
+                old[$1] != $2 { print "moved", $1, old[$1], $2 }
+                { delete old[$1] }
+                END { for (ref in old) print "gone", ref, old[ref], "-" }' \
+             <(printf '%s\n' "$1" | grep .) <(printf '%s\n' "$2" | grep .))
+  (( commits > 0 )) && parts+=("$(status:plural "${commits}" 'new commit' 'new commits') on $3")
+  (( updated > 0 )) && parts+=("$(status:plural "${updated}" 'branch updated' 'branches updated')")
+  (( added > 0 )) && parts+=("$(status:plural "${added}" 'new branch' 'new branches')")
+  (( pruned > 0 )) && parts+=("$(status:plural "${pruned}" 'branch pruned' 'branches pruned')")
+  (( tags > 0 )) && parts+=("$(status:plural "${tags}" 'new tag' 'new tags')")
+  (( ${#parts[@]} > 0 )) || parts=('nothing new')
+  line=${parts[0]}
+  for part in "${parts[@]:1}"
+  do
+    line+=" · ${part}"
+  done
+  printf '📥 fetched origin: %s\n' "${line}"
+}
+
+# status:fetch <default-branch> fetches origin, pruning, and prints status:fetch-summary's line and a blank line;
+# where the fetch fails, a warning in its place.
+status:fetch() {
+  local before
+  before=$(status:refs)
+  if git fetch --quiet --prune origin
+  then
+    status:fetch-summary "${before}" "$(status:refs)" "$1" >&2
+  else
+    warn "git fetch --prune failed; ahead and behind counts may be stale"
+  fi
+  printf '\n' >&2
+}
+
 # status:collect prints one JSON object per open pull request, the documents the forge provider folds, or
 # nothing with a warning where the forge cannot be asked.
 status:collect() {
@@ -154,11 +219,11 @@ status:relative() {
 
 # status:checkout <path> <branch> <default-branch> prints one JSON object measuring the checkout at <path>: path,
 # relative, branch (empty when detached), detached, ahead of and behind the point where the branch left origin's
-# default branch, the lines the working tree adds and removes against that point, the count of uncommitted paths,
-# and the commits past that point as [{sha, subject}]. A detached checkout measures its lines against its own head
+# default branch, the lines the working tree adds and removes against that point, the count of uncommitted paths
+# and each as {status, path} with git's two-letter status, and the commits past that point as [{sha, subject}]. A detached checkout measures its lines against its own head
 # and lists no commits.
 status:checkout() {
-  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 uncommitted a r _
+  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _
   [[ -n "${branch}" ]] && fork=$(status:fork "${branch}" "${default_branch}")
   if [[ -n "${fork}" ]]
   then
@@ -170,17 +235,19 @@ status:checkout() {
     [[ -n "${a}" && "${a}" != '-' ]] && added=$(( added + a ))
     [[ -n "${r}" && "${r}" != '-' ]] && removed=$(( removed + r ))
   done < <(git -C "${path}" diff --numstat "${fork:-HEAD}" 2>/dev/null || true)
-  uncommitted=$(git -C "${path}" status --porcelain | grep --count . || true)
+  changes=$(git -C "${path}" status --porcelain 2>/dev/null || true)
   {
     [[ -n "${fork}" ]] && git -C "${path}" log --format='%h%x09%s' "${fork}..${branch}" 2>/dev/null
     true
   } | jq --raw-input --slurp --compact-output \
     --arg path "${path}" --arg relative "$(status:relative "${path}")" --arg branch "${branch}" \
     --argjson ahead "${ahead}" --argjson behind "${behind}" --argjson added "${added}" --argjson removed "${removed}" \
-    --argjson uncommitted "${uncommitted}" '
-    { path: $path, relative: $relative, branch: $branch, detached: ($branch == ""),
-      ahead: $ahead, behind: $behind, added: $added, removed: $removed, uncommitted: $uncommitted,
-      commits: [split("\n")[] | select(. != "") | split("\t") | { sha: .[0], subject: (.[1:] | join("\t")) }] }'
+    --arg changes "${changes}" '
+    [$changes | split("\n")[] | select(. != "") | { status: .[0:2], path: .[3:] }] as $changes
+    | { path: $path, relative: $relative, branch: $branch, detached: ($branch == ""),
+        ahead: $ahead, behind: $behind, added: $added, removed: $removed, uncommitted: ($changes | length),
+        changes: $changes,
+        commits: [split("\n")[] | select(. != "") | split("\t") | { sha: .[0], subject: (.[1:] | join("\t")) }] }'
 }
 
 # status:label <relative> <branch> prints the label of a checkout and its plain width, tab-separated: the path with
@@ -247,15 +314,32 @@ status:count-widths() {
 }
 
 # status:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout: its row, with the
-# counts in status:count-widths' columns, then its commits, dim hash and subject. Past status_commit_cap it prints
-# the newest, a dim count of the hidden, and the oldest.
+# counts in status:count-widths' columns, then its uncommitted paths, yellow status and path, then its commits,
+# dim hash and subject. Past status_commit_cap it prints the first paths and a count of the rest, and the newest
+# commits, a dim count of the hidden, and the oldest.
 status:checkout-block() {
-  local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject
+  local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
   IFS=$'\t' read -r label width < <(status:label "${relative}" "${branch}")
   [[ -n "${branch}" ]] || mark="   $(status:paint 33 '❗ detached HEAD')"
   printf '%s %s%*s%s   %s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" \
     "$(status:measures "${doc}" "${widths}")" >&2
+  # A status can open with a blank, which a tab read would drop, so the separator is one it cannot.
+  while IFS=$'\x1f' read -r code path
+  do
+    [[ -n "${path}" ]] || continue
+    if [[ "${code}" == '…' ]]
+    then
+      printf '   %s\n' "$(status:paint 90 "… ${path}")" >&2
+    else
+      printf '   %s %s\n' "$(status:paint 33 "${code}")" "${path}" >&2
+    fi
+  done < <(jq --raw-output --argjson cap "${status_commit_cap}" '
+    (.changes // []) as $c | ($c | length) as $n
+    | (if $n > $cap + 1
+       then ($c[:$cap][] | [.status, .path]), ["…", "and \($n - $cap) more"]
+       else $c[] | [.status, .path] end)
+    | join("\u001f")' <<<"${doc}")
   while IFS=$'\t' read -r sha subject
   do
     [[ -n "${sha}" ]] || continue
@@ -338,21 +422,38 @@ status:render() {
         return 2
     esac
   done
-  if [[ "${choice}" == mine ]]
-  then
-    use forge
-    owners=("$(forge:me)") || return 1
-  fi
-  if [[ "${no_fetch}" != true ]]
-  then
-    git fetch --quiet --prune origin || warn "git fetch --prune failed; ahead and behind counts may be stale"
-  fi
+  # The forge is the slow read and needs nothing local, so it starts first and runs while the fetch and the local
+  # reads do; its warnings are held for the pull requests' place in the picture, so they do not land among the
+  # checkouts. --mine asks the forge who the caller is in the same job.
+  local scratch prs_job prs_failed=false
+  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
+  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
+  trap "rm -rf '${scratch}'" EXIT
+  (
+    if [[ "${choice}" == mine ]]
+    then
+      use forge
+      owners=("$(forge:me)") || exit 1
+    fi
+    status:collect | status:select "${owners[@]}"
+  ) > "${scratch}/prs" 2> "${scratch}/prs.err" &
+  prs_job=$!
+
   main_root=$(git:main-root)
   default_branch=$(git:default-branch)
+  if [[ "${no_fetch}" == true ]]
+  then
+    true
+  elif [[ "${json}" == true ]]
+  then
+    status:fetch "${default_branch}" 2>/dev/null
+  else
+    status:fetch "${default_branch}"
+  fi
   desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   gone=$(git:gone-branches)
 
-  # The desk, the worktrees by issue number, and the pull requests, each as JSON.
+  # The desk and the worktrees by issue number, each as JSON.
   local desk prs
   local -a worktrees=()
   desk=$(status:checkout "${main_root}" "${desk_branch}" "${default_branch}")
@@ -361,10 +462,13 @@ status:render() {
     [[ -n "${path}" ]] || continue
     worktrees+=("$(status:checkout "${path}" "${branch}" "${default_branch}")")
   done < <(git:worktrees | status:by-number)
-  prs=$(status:collect | status:select "${owners[@]}")
 
   if [[ "${json}" == true ]]
   then
+    wait "${prs_job}" || prs_failed=true
+    cat "${scratch}/prs.err" >&2
+    [[ "${prs_failed}" == false ]] || return 1
+    prs=$(<"${scratch}/prs")
     jq --null-input --argjson desk "${desk}" \
       --argjson worktrees "$(printf '%s\n' "${worktrees[@]}" | jq --slurp .)" \
       --argjson pullRequests "$(jq --slurp . <<<"${prs}")" \
@@ -373,8 +477,8 @@ status:render() {
     return 0
   fi
 
-  # Column widths across the rows that share a column; the author column is there unless --mine chose the rows.
-  local label_w=0 width title_w=0 owner_w=0 state_w=0 age_w=0 text author state_text age_secs relative
+  # The checkouts are drawn while the forge may still be answering.
+  local label_w=0 width relative widths
   local -A worktree_on=()
   for doc in "${desk}" "${worktrees[@]}"
   do
@@ -383,6 +487,25 @@ status:render() {
     (( width > label_w )) && label_w=${width}
     [[ -n "${branch}" && "${doc}" != "${desk}" ]] && worktree_on[${branch}]=${relative}
   done
+  widths=$(status:count-widths "${desk}" "${worktrees[@]}")
+  status:checkout-block '🏠' "${desk}" "${label_w}" "${widths}"
+  for doc in "${worktrees[@]}"
+  do
+    printf '\n' >&2
+    status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
+  done
+
+  wait "${prs_job}" || prs_failed=true
+  if [[ -s "${scratch}/prs.err" ]]
+  then
+    printf '\n' >&2
+    cat "${scratch}/prs.err" >&2
+  fi
+  [[ "${prs_failed}" == false ]] || return 1
+  prs=$(<"${scratch}/prs")
+
+  # Column widths across the pull requests; the author column is there unless --mine chose the rows.
+  local title_w=0 owner_w=0 state_w=0 age_w=0 text author state_text age_secs
   while IFS=$'\x1f' read -r text author state_text age_secs
   do
     [[ -n "${text}" ]] || continue
@@ -398,14 +521,6 @@ status:render() {
   (( width < 20 )) && width=20
   (( title_w > width )) && title_w=${width}
 
-  local widths
-  widths=$(status:count-widths "${desk}" "${worktrees[@]}")
-  status:checkout-block '🏠' "${desk}" "${label_w}" "${widths}"
-  for doc in "${worktrees[@]}"
-  do
-    printf '\n' >&2
-    status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
-  done
   while IFS= read -r doc
   do
     [[ -n "${doc}" ]] || continue

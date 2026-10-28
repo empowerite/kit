@@ -74,8 +74,10 @@ or a container image, as [toolchains.md](toolchains.md) describes. `kit check` h
 `kit linked` refuses a change not linked to an open issue. `kit policy` refuses a branch, a commit subject, or a change
 title off the repository's policy, matched by patterns or decided by Open Policy Agent, as [policy.md](policy.md)
 describes. A human merges, and
-`kit tidy` removes the worktree and the branch afterwards. `kit status` draws the whole picture: the desk, every
-worktree with its commits past the fork, and every open pull request with its state, age, and checks.
+`kit tidy` removes the worktree and the branch afterwards. `kit status` draws the whole picture: what the fetch
+brought, the desk and every worktree with its uncommitted paths and its commits past the fork, and every open pull
+request with its state, age, and checks. It asks the forge first, in the background, so the checkouts are drawn while
+the forge answers.
 
 ## What verifies what
 
