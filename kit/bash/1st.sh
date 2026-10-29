@@ -23,6 +23,11 @@ then
   return 1
 fi
 
+# Sourcing the loader again in the same process is a no-op: a verb sources it after BASH_ENV already has, and the
+# readonly declarations below would fail a second time. kit_modules is not exported, so a new process loads afresh.
+# It is tested by declaration: before it is an associative array, kit_modules[1st] is read as an arithmetic index.
+declare -p kit_modules &>/dev/null && return 0
+
 # kit_root is the release: the directory above this file's.
 kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export kit_root

@@ -90,6 +90,27 @@ kit-bash() {
   [ "$output" = unreleased ]
 }
 
+@test "sourcing the loader again is a no-op: it keeps the loaded modules and does not fail under errexit" {
+  printf 'bash_path:\n  - kit:bash/\n  - bash/\n' > .kit/settings.yml
+  printf 'count=$(( ${count:-0} + 1 ))\n' > bash/local.sh
+  run bash -c 'set -o errexit; source "${kit_root}/bash/1st.sh"; use local
+    source "${kit_root}/bash/1st.sh"; use local; echo "${count}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = 1 ]
+}
+
+@test "kit root prints the release, so a script outside the kit can source its loader, and BASH_ENV can name it" {
+  run "${kit_root}/bin/kit" root
+  [ "$status" -eq 0 ]
+  [ "$output" = "${kit_root}" ]
+  run env -u kit_root bash -c 'source "$("${0}" root)/bash/1st.sh" && use yaml && use:path' "${kit_root}/bin/kit"
+  [ "$status" -eq 0 ]
+  [ "$output" = "${kit_root}/bash" ]
+  run env -u kit_root BASH_ENV="${kit_root}/bash/1st.sh" "${kit_root}/bin/kit" version
+  [ "$status" -eq 0 ]
+  [ "$output" = unreleased ]
+}
+
 @test "run kit runs this release's kit, not the one on PATH, one level deeper" {
   mkdir shims
   printf '#!/usr/bin/env bash\necho impostor\n' > shims/kit && chmod +x shims/kit
