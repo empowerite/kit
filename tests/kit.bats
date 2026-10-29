@@ -463,7 +463,7 @@ later-release() {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" package add 'style/*'
   [ "$status" -eq 0 ]
-  styles='style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml'
+  styles='style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml'
   grep --quiet "^packages kit ${styles}$" .kit/manifest
   [ -f .kit/style/bash.md ]
   run "${kit_checkout}/bin/kit" package remove 'style/j*'
@@ -482,7 +482,7 @@ later-release() {
   [ -f .kit/style/just.md ]
   [ -f .github/workflows/kit-ci.yml ]
   members='agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
-  members+=' style/workflows style/yaml'
+  members+=' style/prose style/workflows style/yaml'
   grep --quiet "^packages kit ${members} empowerite$" .kit/manifest
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]

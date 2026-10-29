@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/style.md
 
-description: "Markdown style: plain prose, a wrap at 118 columns, link habits, the templates, and markdownlint"
+description: "Markdown style: lists and tables, a wrap at 118 columns, link habits, the templates, and markdownlint"
 depends:
   - kit

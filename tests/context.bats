@@ -36,6 +36,19 @@ teardown() {
   [ "${#lines[@]}" -eq 2 ]
 }
 
+@test "the prose style governs every file, after the rule and the style for the file's kind" {
+  "${kit_checkout}/bin/kit" package add style/bash style/prose >/dev/null 2>&1
+  mkdir bin && printf '#!/usr/bin/env bash\necho\n' > bin/tool
+  run "${kit_checkout}/bin/kit" context bin/tool
+  [ "${lines[0]}" = ".kit/rules/bash.md" ]
+  [ "${lines[1]}" = ".kit/style/bash.md" ]
+  [ "${lines[2]}" = ".kit/style/prose.md" ]
+  [ "${#lines[@]}" -eq 3 ]
+  run "${kit_checkout}/bin/kit" context bin/other
+  [ "$output" = ".kit/style/prose.md" ]
+  grep --quiet 'indicative' .kit/style/prose.md
+}
+
 @test "a relative path is taken from the directory the command was typed in" {
   mkdir docs && cd docs
   run "${kit_checkout}/bin/kit" context x.md

@@ -1,11 +1,11 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml empowerite house
+packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml empowerite house
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
 830aeb4d9e0f1bf5a4687e2cb587b0f32a4ed34ae168a8c7a0bb9f5588d5f9d0  .github/workflows/kit-ci.yml
 919cc90013e2c104fe87c56c5192d327518d3f2adc2eb2da2b0536c6b5c890f4  .gitignore
-a5fb46828670bc246b1864c4ff668f48e292f1677d0148a379bd6edda97f02d4  .kit/1st.md
+88547835b6d0204364fa23b641f10fef1151986fc78fde66b2d5cd7ab04482ee  .kit/1st.md
 37a8aa17573c0ee454f3100acd78ab82be702575deca4dc52c76a3c9e0ca4f4c  .kit/lefthook.yml
 4fe58cbfae87e9ee5f3ac919850d7ef68da60290520419725ab7afd423f72d01  .kit/markdownlint.jsonc
 fc08485800e8307d3537d077626ba49c0689dfff2f974af1e9662fd3b5b96eaf  .kit/rules/bash.md
@@ -15,11 +15,12 @@ f4b1eb3e366ca48a91544e84319eb5676e8251afbb48f4eb3915de6a93ba297c  .kit/rules/jus
 3a3153dd497b0b553e348441cd3370c7bd5994456784553e61ca38539462d107  .kit/rules/markdown.md
 c9a29fa20ffd2fc8410d10a00536dd0c7b86d5c2bd4762aa2af366441511c7c7  .kit/rules/workflows.md
 6cd064d77ed96d0266ecc384ed2bf651a7b7bfa310bc70f0ff3cd142ce373e04  .kit/settings.schema.json
-7485d0b1dfaf0c944ff09d5a34701caf3b13b5b605c6744b64b0b678c8f55796  .kit/style/bash.md
+5eced7e840384b579b063529db6d0987aca16d69cfd26bd34b04117a3e0ce26a  .kit/style/bash.md
 897bb4e13ffb0fafdb14d2804b880f0ff80c8290d233fb8e766426e70d66b082  .kit/style/gitignore.md
 c998a3e88b95c758d61ad07266aeea33269094f922a47427ec5d9b16357b03ba  .kit/style/json.md
 25ae3f25797f86f2db6608fbde2e291ca32d214bd9f02e298a025fd5107d1ca2  .kit/style/just.md
-52af9565c9a867fb161ebc0dd4ba1548fe5c429c72a1f3df07847cd7f8ab8301  .kit/style/markdown.md
+2fb62401dea10827d19f4d12ba9a469526f1ee99fa93af74cf43e29d1bed328a  .kit/style/markdown.md
+e13d657c2280444502c468dde0acb69bba3266eed701883ac7e178f70c6bebaa  .kit/style/prose.md
 46d62d853a85e816d626004bf544e1c67caa76f8dd5a09fd63d9230803bc25c0  .kit/style/workflows.md
 79b0f52e67ef8dffce55a8f20c5c587a38a7382387f0dd16fe33b13af1e25aa7  .kit/style/yaml.md
 fe662eb346060b6810f00e447bc982425fed30ee4b43b038a42dd5599a1fe849  .kit/templates/bash/module

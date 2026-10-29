@@ -161,6 +161,8 @@ The packages:
   `style/gitignore`: the style for one kind of file each, under `.kit/style/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
   the ones it agrees with, or writes its own.
+- `style/prose`: `.kit/style/prose.md`, the style of prose in every file, documents and comments alike.
+  `kit context` prints it after the rule and the style for the file's kind.
 - `hooks/lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
@@ -176,7 +178,7 @@ The packages:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
   - a hook that runs `kit context` before every write, so the agent is told the file's rules without asking
-- `empowerite`: a bundle, with no file of its own. It includes the seven style packages, `github/ci`,
+- `empowerite`: a bundle, with no file of its own. It includes every style package, `github/ci`,
   `agents/claude`, and `hooks/lefthook`, which is what Empowerite's repositories take.
 
 Any file may also contain a `kit:generate` directive of the repository's own, naming any command. `kit check` fails

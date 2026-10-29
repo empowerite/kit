@@ -1,7 +1,8 @@
 # The style packages
 
-Seven optional packages, one per kind of file, each delivering the style for its kind: how a file looks, as
-opposed to what the work must do, which is the rule's. A repository takes the ones it agrees with.
+Eight optional packages: one per kind of file, each delivering the style for its kind, and `style/prose`, for the
+prose in every file. Style is how a file looks, as opposed to what the work must do, which is the rule's. A
+repository takes the ones it agrees with.
 
 | Package | Delivers |
 | --- | --- |
@@ -12,8 +13,9 @@ opposed to what the work must do, which is the rule's. A repository takes the on
 | `style/yaml` | `.kit/style/yaml.md`; the `document` template under `.kit/templates/yaml/` |
 | `style/json` | `.kit/style/json.md` |
 | `style/gitignore` | `.kit/style/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
+| `style/prose` | `.kit/style/prose.md`, which governs every file: plain sentences, the indicative to describe, the imperative to instruct |
 
-Each depends only on `kit`. The `empowerite` bundle includes all seven.
+Each depends only on `kit`. The `empowerite` bundle includes all eight.
 
 - `kit context` prints a style file after the rule for the same kind, so an agent reads both.
 - `kit lint` runs a style's linter, and holds a file to the shape of one of its style's templates.

@@ -47,6 +47,4 @@ checks a file against them. A repository can replace them with templates of its 
 
 1. A comment states what the code does and any non-obvious reason for it. It contains no history and does not
    defend an obvious choice.
-2. A comment that documents a function describes it in the indicative, and tells the caller what to do in the
-   imperative: `# use:find <module> prints every <module>.sh on the path. Call use:load-path first.`
-3. A pointer is `# see: <ref>`, on its own line after the comment it supports.
+2. A pointer is `# see: <ref>`, on its own line after the comment it supports.

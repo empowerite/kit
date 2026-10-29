@@ -235,10 +235,11 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`style/yaml`](packages/style.md) | no | `kit` | `.kit/style/yaml.md` and the `document` template |
 | [`style/json`](packages/style.md) | no | `kit` | `.kit/style/json.md` |
 | [`style/gitignore`](packages/style.md) | no | `kit` | `.kit/style/gitignore.md` and the `file` and `region` templates |
+| [`style/prose`](packages/style.md) | no | `kit` | `.kit/style/prose.md`, which governs every file |
 | [`hooks/lefthook`](packages/hooks/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
-| [`empowerite`](packages/empowerite.md) | no | `kit`; includes the seven `style/*`, `github/ci`, `agents/claude`, and `hooks/lefthook` | nothing of its own: it is the bundle Empowerite's repositories take |
+| [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, and `hooks/lefthook` | nothing of its own: it is the bundle Empowerite's repositories take |
 
 No package in this release delivers to `home`. Each package's page, linked above, describes what it places and why.

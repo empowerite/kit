@@ -11,6 +11,7 @@ includes:
   - style/json
   - style/just
   - style/markdown
+  - style/prose
   - style/workflows
   - style/yaml
   - github/ci

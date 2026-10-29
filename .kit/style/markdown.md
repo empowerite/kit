@@ -13,20 +13,14 @@ templates:
 ---
 # Markdown style
 
-Applies to `*.md`. The rule, `.kit/rules/markdown.md`, also applies.
+Applies to `*.md`. The rule, `.kit/rules/markdown.md`, also applies, and so does the prose style,
+`.kit/style/prose.md`, where the repository takes it.
 
 ## Prose
 
-1. Write plain declarative sentences, with the thing under discussion as the subject.
-2. Describe in the indicative and instruct in the imperative. A description of what a function, command, or
-   file does is indicative: "`kit check` compares every delivered file with the pinned release." A step the reader
-   takes, such as how to call it, is imperative: "Run `kit check` before you push."
-3. Use a list for a list, a procedure, or a workflow, so it scans. Use a table where the content has columns.
-4. Do not bold words for emphasis.
-5. Do not end a paragraph on a slogan. Do not restate what the code or config already states.
-6. Use the serial comma in every list of three or more.
-7. Expand an uncommon acronym the first time it appears.
-8. A pointer is `see: <ref>`, where `<ref>` is a URL, a repository-relative path, or `issue #N`. Put it inline
+1. Use a list for a list, a procedure, or a workflow, so it scans. Use a table where the content has columns.
+2. Do not bold words for emphasis.
+3. A pointer is `see: <ref>`, where `<ref>` is a URL, a repository-relative path, or `issue #N`. Put it inline
    when it keeps the sentence on one line. Otherwise put it on its own line at the end of the paragraph.
 
 ## Snippets
