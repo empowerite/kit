@@ -10,8 +10,9 @@
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
-# Delivered by kit, not edited by hand. A change is a new release, then kit update. runs-on is the ci_runner value
-# under answers: in .kit/settings.yml.
+# Added by kit's ci-github package. To remove it, run kit package remove ci-github.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# runs-on is the ci_runner value under answers: in .kit/settings.yml.
 #
 # see: .kit/1st.md
 

@@ -1,5 +1,6 @@
 ---
-# Delivered by kit's style-gitignore package, not edited by hand. A change is a new release, then kit update.
+# Added by kit's style-gitignore package. To remove it, run kit package remove style-gitignore.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 paths:
   - ".gitignore"
   - "**/.gitignore"

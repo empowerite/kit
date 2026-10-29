@@ -1,7 +1,9 @@
 // .kit/markdownlint.jsonc - the markdownlint configuration the markdown style's linter reads
 // ----------------------------------------------------------------------------------------------------------------------
-// Delivered by kit's style-markdown package, not edited by hand. A change is a new release, then kit update. The
-// markdown style, .kit/style/markdown.md, is the convention; each setting here is one of its lines the linter can hold.
+// Added by kit's style-markdown package. To remove it, run kit package remove style-markdown.
+// To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+// The markdown style, .kit/style/markdown.md, is the convention; each setting here is one of its lines the
+// linter can hold.
 
 {
   // MD003 heading-style: ATX headings.

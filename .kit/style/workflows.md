@@ -1,5 +1,6 @@
 ---
-# Delivered by kit's style-workflows package, not edited by hand. A change is a new release, then kit update.
+# Added by kit's style-workflows package. To remove it, run kit package remove style-workflows.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 paths:
   - ".github/workflows/*.yml"
   - ".github/workflows/*.yaml"

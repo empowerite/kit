@@ -1,7 +1,9 @@
 # kit.rego - the kit's naming policy in Rego: the same rules as the patterns engine
 # ----------------------------------------------------------------------------------------------------------------------
-# Delivered by kit, not edited by hand. A change is a new release, then kit update. Put the repository's own rules
-# in a separate file beside this one, in the same package, adding to deny. `kit policy --input` prints the input.
+# Added by kit's policy-opa package. To remove it, run kit package remove policy-opa.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# Put the repository's own rules in a separate file beside this one, in the same package, adding to deny.
+# `kit policy --input` prints the input.
 
 package kit.policy
 

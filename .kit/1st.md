@@ -1,4 +1,4 @@
-<!-- Delivered by kit, not edited by hand. A change is a new release, then kit update. -->
+<!-- Added by the kit package. Do not edit it here; to change it, see "Changing what kit adds" below. -->
 # Read this first
 
 This file is the kit's entry point. Every agent follows it in every session, in any repository that has a `.kit/`
@@ -177,5 +177,17 @@ The packages:
 Any file may also contain a `kit:generate` directive of the repository's own, naming any command. `kit check` fails
 when any region differs from what its command produces.
 
-`kit check` fails when a delivered file differs from the pinned release. Change the kit's files by pinning a new
-release and running `kit update`, never by editing them in place.
+## Changing what kit adds
+
+Every file kit adds belongs to a package, and the file's first lines name it. `kit check` fails when the file
+differs from that package's copy in the pinned release, so do not edit it in place. Instead:
+
+- To stop using a file, remove its package: `kit package remove <package>`. It takes out everything the package
+  added. A package that another active package depends on is refused until that one is removed.
+- To replace a file, write a package of the repository's own under `.kit/packages/<name>/`. Its `package.yml`
+  depends on the package that adds the file, and it places the replacement at the same path under `files/repo/`.
+  Activate it with `kit package add <name>`. The later package in dependency order wins, so the repository's file
+  is used, and `kit update` still brings everything else from the next release.
+- To fill in a value that a template asks for, set it under `answers:` in `.kit/settings.yml`.
+- In a file kit shares with the repository, such as `AGENTS.md`, `.gitignore`, or `.claude/settings.json`, only
+  the kit's region or the kit's entries are kit's. The rest of the file is the repository's to edit.

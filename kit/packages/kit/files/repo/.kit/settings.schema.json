@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
   "title": ".kit/settings.yml",
-  "description": "The repository's settings. The kit reads this file and never writes it. This schema is delivered by kit, not edited by hand. Each key is described in https://github.com/empowerite/kit/blob/main/docs/packages.md. To have an editor validate the file against this schema, add the modeline: # yaml-language-server: $schema=settings.schema.json",
+  "description": "The repository's settings. The kit reads this file and never writes it. kit adds this schema through its kit package; to change it, see \"Changing what kit adds\" in .kit/1st.md rather than editing it. Each key is described in https://github.com/empowerite/kit/blob/main/docs/packages.md. To have an editor validate the file against this schema, add the modeline: # yaml-language-server: $schema=settings.schema.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {

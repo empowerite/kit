@@ -40,7 +40,9 @@ A copied file drifts. A release does not:
 - It is updated by a pull request that bumps the version, so every repository gets the change the same way.
 - It is checked: `kit check` fails the build when someone edits a delivered file in place.
 
-A repository's own rules live in its own files, and updates leave them alone.
+A repository's own rules live in its own files, and updates leave them alone. To change a file the kit adds, a
+repository removes the package that adds it, or replaces the file through a package of its own; `.kit/1st.md` says
+how, under "Changing what kit adds".
 
 ## Install
 
