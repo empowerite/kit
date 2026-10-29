@@ -10,6 +10,7 @@ setup() {
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main
+  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   "${kit_checkout}/bin/kit" install >/dev/null
   script bad.sh 'echo $x'
   script good.sh 'echo "${x:-}"'
@@ -45,16 +46,23 @@ teardown() {
   run "${kit_checkout}/bin/kit" lint tool
   [ "$status" -eq 1 ]
   [[ "$output" == *"SC2086"* ]]
-  git add good.sh
-  git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit --quiet --no-verify --message good
-  git add bad.sh
-  git -c user.name=t -c user.email=t@example.com -c commit.gpgsign=false commit --quiet --no-verify --message bad
+  git add good.sh && git commit --quiet --no-verify --message good
+  git add bad.sh && git commit --quiet --no-verify --message bad
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 0 ]
   [[ "$output" == *"nothing to lint"* ]]
   run "${kit_checkout}/bin/kit" lint --all-files
   [ "$status" -eq 1 ]
   [[ "$output" == *"bad.sh"* ]]
+}
+
+@test "a named directory stands for the tracked paths under it" {
+  mkdir sub && cp bad.sh sub/bad.sh && cp good.sh sub/good.sh && git add sub
+  cp tool sub/untracked
+  run "${kit_checkout}/bin/kit" lint sub
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"sub/bad.sh"* ]]
+  [[ "$output" != *"untracked"* ]]
 }
 
 @test "a named path is taken from the directory the command was typed in, and the staged list from the root" {

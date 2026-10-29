@@ -6,7 +6,7 @@
 #
 # Runs each rule's checks over the files the rule governs. The files are:
 #
-#   - the paths given, relative to the current directory
+#   - the paths given, relative to the current directory; a directory stands for the tracked files under it
 #   - with no paths, the staged files
 #   - with no paths and --all-files, every tracked file
 #
@@ -14,11 +14,11 @@
 #
 #   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
 #     that is not on PATH is a failure, not a skip.
-#   - When the rule has templates, each of its files must have the shape of one of them (see bash/template.sh).
+#   - When the rule has templates, each of its files must have the shape of one of them.
 #
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted.
 #
-# kit lint assumes no hook manager. The hooks/lefthook package runs it from a pre-commit hook.
+# kit lint needs no hook manager. The hooks/lefthook package runs it from a pre-commit hook.
 #
 # Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
 # failed.
@@ -48,13 +48,8 @@ do
     (*) paths+=("${arg}")
   esac
 done
-# A named path is relative to the current directory, and is converted to a path from the repository root. git's
-# lists are already root-relative. They are read NUL-separated, so a name with a space or a non-ASCII character
+# git's lists are root-relative already, and NUL-separated so that a name with a space or a non-ASCII character
 # survives.
-for i in "${!paths[@]}"
-do
-  paths[i]=$(context:relative "${paths[i]}")
-done
 if (( ${#paths[@]} == 0 ))
 then
   if [[ "${all}" == true ]]
@@ -63,6 +58,20 @@ then
   else
     readarray -d '' -t paths < <(git diff --cached --name-only --diff-filter=ACMR -z)
   fi
+else
+  named=("${paths[@]}")
+  paths=()
+  for path in "${named[@]}"
+  do
+    path=$(context:relative "${path}")
+    if [[ -d "${path}" ]]
+    then
+      readarray -d '' -t under < <(git ls-files -z -- "${path}")
+      paths+=("${under[@]}")
+    else
+      paths+=("${path}")
+    fi
+  done
 fi
 if (( ${#paths[@]} == 0 ))
 then
