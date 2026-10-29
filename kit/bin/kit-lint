@@ -18,7 +18,7 @@
 #
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted.
 #
-# kit lint assumes no hook manager. The lefthook package runs it from a pre-commit hook.
+# kit lint assumes no hook manager. The hooks/lefthook package runs it from a pre-commit hook.
 #
 # Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
 # failed.

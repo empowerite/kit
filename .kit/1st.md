@@ -136,8 +136,8 @@ exactly as written here, and in no other way.
 
 Everything the release delivers belongs to a package. A repository activates the packages it wants:
 
-- `kit install ci-github lefthook claude` activates packages when the kit is installed.
-- `kit package add claude` activates a package later.
+- `kit install github/ci hooks/lefthook agents/claude` activates packages when the kit is installed.
+- `kit package add agents/claude` activates a package later.
 - `kit package remove` deactivates a package.
 
 A package of the repository's own lives under `.kit/packages/` and is activated the same way.
@@ -154,22 +154,22 @@ The packages:
 - `kit`: this file, the rules, and two regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
-- `style-bash`, `style-markdown`, `style-just`, `style-workflows`, `style-yaml`, `style-json`, and
-  `style-gitignore`: the style for one kind of file each, under `.kit/style/`, with its templates. `style-markdown`
+- `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
+  `style/gitignore`: the style for one kind of file each, under `.kit/style/`, with its templates. `style/markdown`
   also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes the ones it agrees
   with, or writes its own.
-- `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
+- `hooks/lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
-- `ci-github`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
+- `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
   `kit toolchain install`, then runs `kit ci`. `kit ci` runs four checks, and runs the same four on any machine:
   - the repository's gate
   - `kit check`
   - `kit linked`, which refuses a change that is not linked to an open issue
   - `kit policy`, which refuses a branch name, commit subject, or title that breaks the repository's policy
-- `policy-opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
+- `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
-- `claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
+- `agents/claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
   - a hook that runs `kit context` before every write, so the agent sees the rules without asking

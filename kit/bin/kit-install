@@ -30,6 +30,10 @@ then
 fi
 
 guard:require tool:jq
+# A glob such as style/* stands for every package it matches.
+expanded=$(release:expand "${kit_root}" "$@") || exit 2
+readarray -t named < <(awk 'NF' <<<"${expanded}")
+set -- "${named[@]}"
 release:require-packages "${kit_root}" "$@"
 if [[ -f .kit/manifest ]]
 then

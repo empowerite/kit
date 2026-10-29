@@ -1,5 +1,5 @@
 ---
-# Added by kit's style-bash package. To remove it, run kit package remove style-bash.
+# Added by kit's style/bash package. To remove it, run kit package remove style/bash.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 paths:
   - "**/*.sh"

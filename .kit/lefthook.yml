@@ -1,4 +1,4 @@
-# Added by kit's lefthook package. To remove it, run kit package remove lefthook.
+# Added by kit's hooks/lefthook package. To remove it, run kit package remove hooks/lefthook.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 #
 # The pre-commit hook runs two commands over the staged files:

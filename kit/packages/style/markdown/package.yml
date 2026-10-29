@@ -1,0 +1,7 @@
+# packages/style/markdown/package.yml - the style/markdown package: the markdown style, its templates, and markdownlint
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "Markdown style: plain prose, a wrap at 118 columns, link habits, the templates, and markdownlint"
+depends:
+  - kit

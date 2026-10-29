@@ -95,9 +95,9 @@ change() {
   [ "$status" -eq 0 ]
 }
 
-@test "the opa engine, given the policy-opa package's Rego, refuses exactly what the patterns engine does" {
+@test "the opa engine, given the policy/opa package's Rego, refuses exactly what the patterns engine does" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
-  "${kit_root}/bin/kit" install policy-opa >/dev/null 2>&1
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
   [ -f .kit/policy/kit.rego ]
   branch topic "#7 cli: fine" "wip" "Also wrong"
   change "A title that is fine"
@@ -115,7 +115,7 @@ change() {
 
 @test "a rule of the repository's own in Rego adds to the kit's, and a policy engine the kit does not know is refused" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
-  "${kit_root}/bin/kit" install policy-opa >/dev/null 2>&1
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
   cat > .kit/policy/ours.rego <<'REGO'
 package kit.policy
 

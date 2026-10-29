@@ -1,0 +1,11 @@
+# packages/hooks/lefthook/package.yml - the hooks/lefthook package: a pre-commit hook for kit lint and kit generate
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "A pre-commit hook that runs kit lint and kit generate --check over the staged paths, for lefthook.yml to extend"
+depends:
+  - kit
+expects:
+  - path: lefthook.yml
+    pattern: '\.kit/lefthook\.yml'
+    remedy: "put extends: [.kit/lefthook.yml] in lefthook.yml, so the kit's pre-commit commands run"

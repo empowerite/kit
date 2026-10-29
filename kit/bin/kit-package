@@ -36,19 +36,24 @@ readarray -t active < <(release:manifest-packages)
 
 case "${verb}" in
   (list)
+    width=$(release:packages | awk 'length > w { w = length } END { print w }')
     for package in $(release:packages)
     do
       if release:among "${package}" "${active[@]}"
       then mark='✅'
       else mark='  '
       fi
-      printf '%s %-10s %-10s %s\n' "${mark}" "${package}" "$(release:origin "${kit_root}" "${package}")" \
+      printf '%s %-*s %-10s %s\n' "${mark}" "${width}" "${package}" "$(release:origin "${kit_root}" "${package}")" \
         "$(release:description "${kit_root}" "${package}")"
     done
     ;;
   (add)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq
+    # A glob such as style/* stands for every package it matches.
+    expanded=$(release:expand "${kit_root}" "$@") || exit 2
+    readarray -t named < <(awk 'NF' <<<"${expanded}")
+    set -- "${named[@]}"
     release:require-packages "${kit_root}" "$@"
     readarray -t wanted < <(release:resolve "${kit_root}" "${active[@]}" "$@")
     release:render-all "${kit_root}" "${wanted[@]}"
@@ -75,6 +80,10 @@ case "${verb}" in
   (remove)
     (( $# > 0 )) || { usage; exit 2; }
     guard:require tool:jq
+    # A glob such as style/* stands for every package it matches.
+    expanded=$(release:expand "${kit_root}" "$@") || exit 2
+    readarray -t named < <(awk 'NF' <<<"${expanded}")
+    set -- "${named[@]}"
     release:require-packages "${kit_root}" "$@"
     remaining=("${active[@]}")
     for package in "$@"

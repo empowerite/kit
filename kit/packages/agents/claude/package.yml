@@ -1,0 +1,7 @@
+# packages/agents/claude/package.yml - the agents/claude package: Claude Code's deny list, and the kit context hook
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "Claude Code: the deny list of the spellings the rules forbid, and the hook that names a file's rules"
+depends:
+  - kit

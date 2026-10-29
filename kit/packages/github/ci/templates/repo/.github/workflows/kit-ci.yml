@@ -1,0 +1,83 @@
+# kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request into the default branch
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Runs one job, CI, on each pull request into the default branch. CI is the check name a ruleset requires. The job:
+#
+#   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
+#      runners)
+#   2. puts kit on PATH: the release .kit/manifest records, downloaded from its public URL, or this checkout's own
+#      kit/bin/ when the manifest records unreleased
+#   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
+#   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
+#
+# Added by kit's github/ci package. To remove it, run kit package remove github/ci.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# runs-on is the ci_runner value under answers: in .kit/settings.yml.
+#
+# see: .kit/1st.md
+
+name: kit
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  CI:
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: "@ci_runner@"
+    env:
+      # mise also reads mise.ci.toml, on top of mise.toml, for the tools only a runner needs.
+      MISE_ENV: ci
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # kit policy reads every commit since the branch forked from the default branch.
+          fetch-depth: 0
+
+      - name: mise-on-path
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+        if: ${{ hashFiles('mise.toml', '.mise.toml') != '' }}
+        with:
+          install: false
+
+      - name: kit-on-path
+        run: |
+          set -o errexit -o nounset -o pipefail
+          if [[ ! -f .kit/manifest ]]
+          then
+            echo '::error::run kit install and commit what it writes; this repository has no .kit/manifest'
+            exit 1
+          fi
+          version=$(sed -n 's/^version //p' .kit/manifest)
+          if [[ "${version}" == unreleased && -x kit/bin/kit ]]
+          then
+            printf '%s/kit/bin\n' "${PWD}" >> "${GITHUB_PATH}"
+          elif [[ "${version}" == unreleased ]]
+          then
+            echo '::error::.kit/manifest says unreleased and there is no kit/bin/kit; pin a release and run kit update'
+            exit 1
+          elif ! command -v kit >/dev/null
+          then
+            mkdir -p "${RUNNER_TEMP}/kit"
+            curl --fail --silent --location \
+              "https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz" \
+              | tar --extract --gzip --directory "${RUNNER_TEMP}/kit" --strip-components 1
+            printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+          fi
+
+      - name: toolchain
+        run: kit toolchain install && kit toolchain path >> "${GITHUB_PATH}"
+
+      - name: kit-ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: kit ci
+
+# ----------------------------------------------------------------------------------------------------------------------

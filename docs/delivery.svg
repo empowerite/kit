@@ -44,8 +44,8 @@
   <text class="d" x="180" y="386">@key@ rendered; regions/&lt;base&gt;/</text>
   <text class="m" x="68" y="412">docs/</text>
   <text class="d" x="180" y="412">packed, placed nowhere</text>
-  <text class="d" x="52" y="446">kit is default; ci-github, lefthook,</text>
-  <text class="d" x="52" y="462">and claude are named; each may depend</text>
+  <text class="d" x="52" y="446">kit is default; github/ci, hooks/lefthook,</text>
+  <text class="d" x="52" y="462">and agents/claude are named; each may depend</text>
   <text class="d" x="52" y="478">on others, resolved at install.</text>
   <text class="m" x="52" y="500">version</text>
   <text class="d" x="140" y="500">stamped by the release workflow</text>

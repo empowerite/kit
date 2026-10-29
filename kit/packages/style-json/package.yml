@@ -1,7 +1,0 @@
-# packages/style-json/package.yml - the style-json package: the JSON style
-# ----------------------------------------------------------------------------------------------------------------------
-# see: docs/packages/style.md
-
-description: "JSON style: two-space indent, a stable key order, and commented JSONC"
-depends:
-  - kit

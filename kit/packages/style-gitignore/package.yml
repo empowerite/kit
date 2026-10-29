@@ -1,7 +1,0 @@
-# packages/style-gitignore/package.yml - the style-gitignore package: the ignore list style and its templates
-# ----------------------------------------------------------------------------------------------------------------------
-# see: docs/packages/style.md
-
-description: "Ignore list style: a header, grouped entries of what the repository produces, and the templates"
-depends:
-  - kit

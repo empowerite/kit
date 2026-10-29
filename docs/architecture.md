@@ -94,8 +94,8 @@ gets the same answer:
 - an agent in any harness, following the instruction in `.kit/1st.md`,
 - a person at the shell,
 - a tool reading `--json`, and
-- Claude Code's `PreToolUse` hook, which the `claude` package wires to `kit context --claude`, so the rules are shown
-  before every write.
+- Claude Code's `PreToolUse` hook, which the `agents/claude` package wires to `kit context --claude`, so the rules are
+  shown before every write.
 
 The log records each path asked about, and when.
 

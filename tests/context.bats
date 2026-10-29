@@ -52,7 +52,7 @@ teardown() {
 }
 
 @test "a style the repository takes is printed after the rule, and the hook asks for each to be read" {
-  "${kit_checkout}/bin/kit" package add style-bash >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" package add style/bash >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" context lib/run.sh
   [ "${lines[0]}" = ".kit/rules/bash.md" ]
   [ "${lines[1]}" = ".kit/style/bash.md" ]

@@ -58,10 +58,10 @@ teardown() {
   [ "$(ls unpacked)" = "kit-${version}" ]
   [ -x "unpacked/kit-${version}/bin/kit" ]
   [ -x "unpacked/kit-${version}/bin/kit-install" ]
-  [ -f "unpacked/kit-${version}/packages/claude/package.yml" ]
+  [ -f "unpacked/kit-${version}/packages/agents/claude/package.yml" ]
   mkdir fresh && git -C fresh init --quiet --initial-branch=main
   cd fresh
-  run "${work}/unpacked/kit-${version}/bin/kit" install claude
+  run "${work}/unpacked/kit-${version}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]

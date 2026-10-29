@@ -50,7 +50,7 @@ A rule governs a file when any of its globs or any of its patterns matches.
 
 `kit lint` runs each rule's `lint:` command once over the paths that rule governs. The paths are the staged paths,
 the paths you name, or every tracked path with `--all-files`. A linter that is not on `PATH` is a failure, not a
-skip. The kit assumes no hook manager; the `lefthook` package adds a pre-commit hook that runs `kit lint`.
+skip. The kit assumes no hook manager; the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`.
 
 [templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
 `kit lint` runs against them.
@@ -58,7 +58,7 @@ skip. The kit assumes no hook manager; the `lefthook` package adds a pre-commit 
 ## Harness adapters
 
 A harness that can run a command before a write can call `kit context` itself, so the agent gets the rules without
-having to remember to ask. The `claude` package adds a Claude Code `PreToolUse` hook on `Write`, `Edit`, and
+having to remember to ask. The `agents/claude` package adds a Claude Code `PreToolUse` hook on `Write`, `Edit`, and
 `MultiEdit` that runs:
 
 ```sh

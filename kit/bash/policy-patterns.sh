@@ -4,7 +4,7 @@
 #
 # bash/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
 # the facts' policy object against its subject with bash's =~. A rule with an empty pattern is off. The refusals
-# use the same wording as the policy-opa package's Rego, so both providers print the same messages.
+# use the same wording as the policy/opa package's Rego, so both providers print the same messages.
 
 # policy-patterns:deny <input-file> prints one refusal per subject that does not match its pattern.
 policy-patterns:deny() {

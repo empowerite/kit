@@ -89,13 +89,13 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 
    | Package | Delivers |
    | --- | --- |
-   | `ci-github` | the GitHub Actions workflow that runs `kit ci` |
-   | `lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
-   | `claude` | the Claude Code adapter |
-   | `policy-opa` | the naming policy as Open Policy Agent rules |
-   | `style-<kind>` | the style for one kind of file, with its templates: `style-bash`, `style-markdown`, `style-just`, `style-workflows`, `style-yaml`, `style-json`, `style-gitignore` |
+   | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
+   | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
+   | `agents/claude` | the Claude Code adapter |
+   | `policy/opa` | the naming policy as Open Policy Agent rules |
+   | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
 
-   `kit install ci-github lefthook claude` takes three of them. `kit package add` adds one later.
+   `kit install github/ci hooks/lefthook agents/claude` takes three of them. `kit package add` adds one later.
 
    `install` also writes a line into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds `/worktrees/`
    to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The rest of each file
@@ -118,10 +118,10 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    - add `extends: [.kit/lefthook.yml]` to `lefthook.yml`, and
    - run `lefthook install` once per clone.
 
-   With the `lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit never
-   writes it for you.
+   With the `hooks/lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit
+   never writes it for you.
 
-Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `claude` package adds a region to
+Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `agents/claude` package adds a region to
 `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude always reads the same instructions as every other agent. The
 rest of `.claude/CLAUDE.md` is yours. Without the package, any agent that reads `AGENTS.md` still gets the rules.
 
@@ -130,8 +130,8 @@ package format is in [docs/packages.md](docs/packages.md).
 
 ### Working with the rules
 
-- Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `claude` package
-  makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
+- Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`
+  package makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
 - `kit new file "${path}"` creates a file from its rule's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
 
@@ -208,12 +208,12 @@ from the index. Do not edit them by hand:
 | Installed copy | Written from |
 | --- | --- |
 | `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/packages/kit/files/repo/.kit/` |
-| `.kit/style/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style-<kind>/files/repo/.kit/` |
+| `.kit/style/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style/<kind>/files/repo/.kit/` |
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
-| `.kit/lefthook.yml` | `kit/packages/lefthook/files/repo/.kit/lefthook.yml` |
-| `.github/workflows/kit-ci.yml` | `kit/packages/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
-| `.claude/CLAUDE.md` | `kit/packages/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
-| `.claude/settings.json` | `kit/packages/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
+| `.kit/lefthook.yml` | `kit/packages/hooks/lefthook/files/repo/.kit/lefthook.yml` |
+| `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
+| `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
+| `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `AGENTS.md`, `.gitignore` | `kit/packages/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
 | `.kit/manifest` | the release version (`unreleased` here), the active packages, and a digest per delivered path |
 

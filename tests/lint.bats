@@ -70,7 +70,7 @@ teardown() {
 
 @test "the delivered markdown passes the delivered markdown linter in a fresh repository" {
   command -v markdownlint-cli2 >/dev/null || skip "markdownlint-cli2, the markdown style's linter, is not on PATH"
-  "${kit_checkout}/bin/kit" package add style-markdown >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" package add style/markdown >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" lint .kit/1st.md .kit/rules/bash.md .kit/style/markdown.md AGENTS.md
   [ "$status" -eq 0 ]
   [[ "$output" == *".kit/markdownlint.jsonc"* ]]

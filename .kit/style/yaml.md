@@ -1,5 +1,5 @@
 ---
-# Added by kit's style-yaml package. To remove it, run kit package remove style-yaml.
+# Added by kit's style/yaml package. To remove it, run kit package remove style/yaml.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 paths:
   - "**/*.yml"

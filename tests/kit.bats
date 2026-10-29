@@ -50,9 +50,9 @@ later-release() {
   [ ! -e .claude ]
   grep --quiet '^version unreleased$' .kit/manifest
   grep --quiet '^packages kit$' .kit/manifest
-  run "${kit_checkout}/bin/kit" install ci-github
+  run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 1 ]
-  run "${kit_checkout}/bin/kit" package add ci-github
+  run "${kit_checkout}/bin/kit" package add github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
@@ -64,9 +64,9 @@ later-release() {
 }
 
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
-  run "${kit_checkout}/bin/kit" install claude
+  run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
-  grep --quiet '^packages kit claude$' .kit/manifest
+  grep --quiet '^packages kit agents/claude$' .kit/manifest
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
@@ -77,7 +77,7 @@ later-release() {
 @test "install refuses a package this release does not know and names the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"the packages are: ci-github claude kit lefthook"* ]]
+  [[ "$output" == *"the packages are: agents/claude github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }
 
@@ -87,14 +87,14 @@ later-release() {
   "${kit_checkout}/bin/kit" install
   run "${kit_checkout}/bin/kit" package list
   [[ "$output" == *"✅ kit "* ]]
-  [[ "$output" == *"   claude "* ]]
-  run "${kit_checkout}/bin/kit" package add claude
+  [[ "$output" =~ "   agents/claude " ]]
+  run "${kit_checkout}/bin/kit" package add agents/claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
-  grep --quiet '^packages kit claude$' .kit/manifest
+  grep --quiet '^packages kit agents/claude$' .kit/manifest
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package remove claude
+  run "${kit_checkout}/bin/kit" package remove agents/claude
   [ "$status" -eq 0 ]
   [ ! -e .claude/CLAUDE.md ]
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
@@ -106,27 +106,27 @@ later-release() {
 }
 
 @test "package remove refuses a package another active package depends on, and removes a leaf" {
-  "${kit_checkout}/bin/kit" install claude ci-github
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
   run "${kit_checkout}/bin/kit" package remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]
   [ -f .kit/1st.md ]
-  run "${kit_checkout}/bin/kit" package remove ci-github
+  run "${kit_checkout}/bin/kit" package remove github/ci
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
-  grep --quiet '^packages kit claude$' .kit/manifest
+  grep --quiet '^packages kit agents/claude$' .kit/manifest
 }
 
 @test "a template takes the repository's answer over the package's default, and refuses a key with neither" {
   mkdir .kit && printf 'answers:\n  ci_runner: blacksmith-2vcpu\n' > .kit/settings.yml
-  run "${kit_checkout}/bin/kit" install ci-github
+  run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "blacksmith-2vcpu"$' .github/workflows/kit-ci.yml
   grep --quiet 'uses: actions/checkout@' .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   later-release "${repo}.later"
-  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/packages/ci-github/templates/repo/OWNER"
+  printf 'runner @ci_runner@ owner @owner@\n' > "${repo}.later/packages/github/ci/templates/repo/OWNER"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"OWNER needs an answer for 'owner'"* ]]
@@ -135,12 +135,12 @@ later-release() {
 
 @test "a package whose metadata has a key the schema does not know is refused, naming the key" {
   later-release "${repo}.later"
-  printf 'description: "x"\ndependz:\n  - kit\n' > "${repo}.later/packages/lefthook/package.yml"
+  printf 'description: "x"\ndependz:\n  - kit\n' > "${repo}.later/packages/hooks/lefthook/package.yml"
   run "${repo}.later/bin/kit" install
   [ "$status" -eq 1 ]
-  [[ "$output" == *"packages/lefthook/package.yml has a key the kit does not know: dependz"* ]]
+  [[ "$output" == *"packages/hooks/lefthook/package.yml has a key the kit does not know: dependz"* ]]
   [ ! -e .kit/manifest ]
-  printf 'description: "x"\ndefault: yes\n' > "${repo}.later/packages/lefthook/package.yml"
+  printf 'description: "x"\ndefault: yes\n' > "${repo}.later/packages/hooks/lefthook/package.yml"
   run "${repo}.later/bin/kit" install
   [ "$status" -eq 1 ]
   [[ "$output" == *"default must be true or false"* ]]
@@ -157,9 +157,9 @@ later-release() {
 
 @test "a package delivering to home lands under it with a manifest of its own, and leaves with it" {
   later-release "${repo}.later"
-  mkdir -p "${repo}.later/packages/claude/files/home/.kit"
-  printf 'user level\n' > "${repo}.later/packages/claude/files/home/.kit/claude"
-  run "${repo}.later/bin/kit" install claude
+  mkdir -p "${repo}.later/packages/agents/claude/files/home/.kit"
+  printf 'user level\n' > "${repo}.later/packages/agents/claude/files/home/.kit/claude"
+  run "${repo}.later/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
   [ "$(cat "${KIT_HOME}/.kit/claude")" = "user level" ]
   grep --quiet '^version 9.9.9$' "${KIT_HOME}/.kit/manifest"
@@ -171,7 +171,7 @@ later-release() {
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"/.kit/claude differs"* ]]
-  run "${repo}.later/bin/kit" package remove claude
+  run "${repo}.later/bin/kit" package remove agents/claude
   [ "$status" -eq 0 ]
   [ ! -e "${KIT_HOME}/.kit/claude" ]
   [ ! -e "${KIT_HOME}/.kit/manifest" ]
@@ -199,8 +199,8 @@ later-release() {
   grep --quiet '^packages kit python$' .kit/manifest
   [ "$(cat .python-version)" = "python 3.13" ]
   run "${kit_checkout}/bin/kit" package list
-  [[ "$output" == *"python     repository"* ]]
-  [[ "$output" == *"kit        release"* ]]
+  [[ "$output" =~ python\ +repository ]]
+  [[ "$output" =~ kit\ +release ]]
   run "${kit_checkout}/bin/kit" context app.py
   [ "$output" = ".kit/rules/python.md" ]
   run "${kit_checkout}/bin/kit" check
@@ -352,7 +352,7 @@ later-release() {
 }
 
 @test "a package's expected include is named at install, refused by check until it is there, and never written" {
-  run "${kit_checkout}/bin/kit" install lefthook
+  run "${kit_checkout}/bin/kit" install hooks/lefthook
   [ "$status" -eq 0 ]
   [[ "$output" == *"left to do in lefthook.yml: put extends: [.kit/lefthook.yml] in lefthook.yml"* ]]
   [ ! -e lefthook.yml ]
@@ -371,7 +371,7 @@ later-release() {
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny | index("Bash(rm -rf /)")' .claude/settings.json >/dev/null
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
@@ -385,7 +385,7 @@ later-release() {
 }
 
 @test "check passes after install and fails on a drifted, a missing, and a lost deny entry" {
-  "${kit_checkout}/bin/kit" install claude lefthook
+  "${kit_checkout}/bin/kit" install agents/claude hooks/lefthook
   printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
@@ -407,7 +407,7 @@ later-release() {
 }
 
 @test "update replaces unchanged files, merges an edited one, and records the release's digests" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
   # a consumer edit to a file the later release also changes, on a different line
   sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
@@ -427,7 +427,7 @@ later-release() {
 }
 
 @test "update refuses a path new in the release where the repository already has a different file" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
   printf 'new rule\n' > "${repo}.later/packages/kit/files/repo/.kit/rules/toml.md"
   printf 'mine\n' > .kit/rules/toml.md
@@ -438,7 +438,7 @@ later-release() {
 }
 
 @test "update of an untouched install leaves check green" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
@@ -447,7 +447,7 @@ later-release() {
 }
 
 @test "update leaves conflict markers and fails when the same lines changed" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
   theirs="${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
   sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${theirs}" && rm "${theirs}.bak"
@@ -456,6 +456,23 @@ later-release() {
   [ "$status" -eq 1 ]
   grep --quiet '^<<<<<<<' .kit/rules/json.md
   [[ "$output" == *"conflict markers"* ]]
+}
+
+@test "a glob names every package it matches, and a glob that matches nothing is refused" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" package add 'style/*'
+  [ "$status" -eq 0 ]
+  grep --quiet '^packages kit style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml$' \
+    .kit/manifest
+  [ -f .kit/style/bash.md ]
+  run "${kit_checkout}/bin/kit" package remove 'style/j*'
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/style/json.md ]
+  [ ! -e .kit/style/just.md ]
+  [ -f .kit/style/yaml.md ]
+  run "${kit_checkout}/bin/kit" package add 'nothing/*'
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'nothing/*' matches no package in reach"* ]]
 }
 
 @test "update reads a base release that predates an active package: that release delivered nothing for it" {
@@ -472,7 +489,7 @@ later-release() {
 }
 
 @test "update retires a path the new release no longer delivers, unless it was edited" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
   rm "${repo}.later/packages/kit/files/repo/.kit/rules/gitignore.md" "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
   printf 'mine too\n' >> .kit/rules/json.md
@@ -489,7 +506,7 @@ later-release() {
 
 @test "update without the base release refuses an edited file, names the base, and leaves the manifest's version" {
   later-release "${repo}.later"
-  "${repo}.later/bin/kit" install claude
+  "${repo}.later/bin/kit" install agents/claude
   grep --quiet '^version 9.9.9$' .kit/manifest
   mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/bash" "${repo}.later/packages" "${repo}.newer/"
   printf '9.9.10\n' > "${repo}.newer/version"
@@ -522,7 +539,7 @@ later-release() {
 }
 
 @test "update at the same version uses the release as its own base, and a second run changes nothing" {
-  "${kit_checkout}/bin/kit" install claude
+  "${kit_checkout}/bin/kit" install agents/claude
   printf 'edited\n' >> .kit/rules/bash.md
   run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
@@ -537,7 +554,7 @@ later-release() {
   mkdir -p docs/deep && cd docs/deep
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package add claude
+  run "${kit_checkout}/bin/kit" package add agents/claude
   [ "$status" -eq 0 ]
   [ -f "${repo}/.claude/settings.json" ]
   [ ! -e .claude ]
@@ -553,21 +570,21 @@ later-release() {
   rm .kit/1st.md
   "${kit_checkout}/bin/kit" install
   printf 'theirs\n' > .kit/lefthook.yml
-  run "${kit_checkout}/bin/kit" package add lefthook
+  run "${kit_checkout}/bin/kit" package add hooks/lefthook
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/lefthook.yml: a different file is there already"* ]]
   grep --quiet '^packages kit$' .kit/manifest
   rm .kit/lefthook.yml
   mkdir .claude && printf '# Ours\n' > .claude/CLAUDE.md
-  run "${kit_checkout}/bin/kit" package add claude lefthook
+  run "${kit_checkout}/bin/kit" package add agents/claude hooks/lefthook
   [ "$status" -eq 0 ]
   [ "$(sed -n '1p' .claude/CLAUDE.md)" = "# Ours" ]
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
 }
 
 @test "package remove judges dependents against what stays, in any order" {
-  "${kit_checkout}/bin/kit" install claude
-  run "${kit_checkout}/bin/kit" package remove kit lefthook claude
+  "${kit_checkout}/bin/kit" install agents/claude
+  run "${kit_checkout}/bin/kit" package remove kit hooks/lefthook agents/claude
   [ "$status" -eq 0 ]
   grep --quiet '^packages$' .kit/manifest
   [ ! -e .kit/1st.md ]

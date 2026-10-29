@@ -5,13 +5,13 @@ opposed to what the work must do, which is the rule's. A repository takes the on
 
 | Package | Delivers |
 | --- | --- |
-| `style-bash` | `.kit/style/bash.md`; the `script` and `module` templates under `.kit/templates/bash/` |
-| `style-markdown` | `.kit/style/markdown.md`; four templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
-| `style-just` | `.kit/style/just.md`; the `root` and `module` templates under `.kit/templates/just/` |
-| `style-workflows` | `.kit/style/workflows.md`; the `workflow` template under `.kit/templates/workflows/` |
-| `style-yaml` | `.kit/style/yaml.md`; the `document` template under `.kit/templates/yaml/` |
-| `style-json` | `.kit/style/json.md` |
-| `style-gitignore` | `.kit/style/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
+| `style/bash` | `.kit/style/bash.md`; the `script` and `module` templates under `.kit/templates/bash/` |
+| `style/markdown` | `.kit/style/markdown.md`; four templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
+| `style/just` | `.kit/style/just.md`; the `root` and `module` templates under `.kit/templates/just/` |
+| `style/workflows` | `.kit/style/workflows.md`; the `workflow` template under `.kit/templates/workflows/` |
+| `style/yaml` | `.kit/style/yaml.md`; the `document` template under `.kit/templates/yaml/` |
+| `style/json` | `.kit/style/json.md` |
+| `style/gitignore` | `.kit/style/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
 
 Each depends only on `kit`.
 
@@ -20,7 +20,7 @@ Each depends only on `kit`.
 - `kit new file` makes a file from a style's template. With no style package for a kind, there is no template for
   it, and the file is written by hand.
 
-`style-markdown` is the one that brings a linter: `markdownlint-cli2`, configured by `.kit/markdownlint.jsonc`. The
+`style/markdown` is the one that brings a linter: `markdownlint-cli2`, configured by `.kit/markdownlint.jsonc`. The
 repository pins `markdownlint-cli2` like any other tool its gate runs.
 
 A repository changes a style without editing the delivered file: a package of its own under `.kit/packages/`

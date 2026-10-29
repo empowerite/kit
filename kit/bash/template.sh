@@ -38,7 +38,7 @@ declare -gr template_dir=.kit/templates
 #   - a package's region, which is a fragment of a file
 #   - a path .gitattributes marks linguist-generated, because a tool writes it
 template:exempt() {
-  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)packages/[^/]+/regions/ ]] && return 0
+  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)packages/[^/]+(/[^/]+)?/regions/ ]] && return 0
   [[ "$(git check-attr linguist-generated -- "$1" 2>/dev/null)" == *': linguist-generated: set' ]]
 }
 

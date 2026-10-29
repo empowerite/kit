@@ -1,13 +1,13 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-packages kit ci-github claude lefthook style-bash style-gitignore style-json style-just style-markdown style-workflows style-yaml house
+packages kit github/ci agents/claude hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml house
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
-fcfefc4249065c432dea2e56342c990e561320cb8d116d5705bad123a7a4211e  .github/workflows/kit-ci.yml
+2e9e9e0f7603fc58a408e127a536f2a60253a981f9aea0281b1759d82a0cccb3  .github/workflows/kit-ci.yml
 919cc90013e2c104fe87c56c5192d327518d3f2adc2eb2da2b0536c6b5c890f4  .gitignore
-262881ea0e0dad5d2a59b8ac3f9a6edf6118e3c7b0e8d18f565a3e9cf69f5b42  .kit/1st.md
-7dc734f42ddf9ae4cf192c5363203950054d1befecff0d6d1a33843c44e60c41  .kit/lefthook.yml
-54362b9f8ad095f70e2489db8046daf0177cf6ba2c9facdd92ee32da7454cec5  .kit/markdownlint.jsonc
+24b19756e9cf37694eb53dc71dd382cf0c8865c0266329cb49de61c4a933a567  .kit/1st.md
+37a8aa17573c0ee454f3100acd78ab82be702575deca4dc52c76a3c9e0ca4f4c  .kit/lefthook.yml
+2325d784a7a46118dba0f6a63abf2f54f530276fb49722aff87dd8143797d625  .kit/markdownlint.jsonc
 569da24c9cc458f2b58cca3442615ace77da39d5bad078197785de744766918d  .kit/rules/bash.md
 d8298a5c645f7803eadbfe70cda644ee36a70addcee5f0a848df60aa4da82856  .kit/rules/gitignore.md
 01ec154187676dee929a2e0cfd18b5e2b071caa76abf70d1cbf82f7bead7b24f  .kit/rules/json.md
@@ -15,13 +15,13 @@ f4b1eb3e366ca48a91544e84319eb5676e8251afbb48f4eb3915de6a93ba297c  .kit/rules/jus
 3a3153dd497b0b553e348441cd3370c7bd5994456784553e61ca38539462d107  .kit/rules/markdown.md
 3f029dfee79213e21ab9229e3b277481524b10c9c2166c3503fe1993ee69185f  .kit/rules/workflows.md
 81bf6210ea2592c36fe23f6687f6197c2268422a7afdd9e984dd931bc9dcf3cb  .kit/settings.schema.json
-4ac82361291e0d219fa27cf3c0fd4f19b74672b127c81e5915ee2c4e2a3a36ce  .kit/style/bash.md
-b0a7dcb900e2bb6f1e513fcd79012b2936ff1ebf0216d5889aac86219438bf81  .kit/style/gitignore.md
-bd0510a02bac6da6442610d420a560793edd1eac2e5a9486ec0e693690d3ed5f  .kit/style/json.md
-c1816110249bc4f9ac45da3ad1efd01559cd7adaeba563c27fcf67aefba954a2  .kit/style/just.md
-cb91a9ba95f9f4ec0709b3c2dc09d6cf9f9dbf10100ef2d7a08efcde77b12601  .kit/style/markdown.md
-3902c7ac48a9cbb047c009a2b8b5326654ae4d7cc10061f693633a42f4d5af37  .kit/style/workflows.md
-ffa4841cb724ebcaeda0e1a620117673d639e6f44c889a54b1eb3de1bab054b2  .kit/style/yaml.md
+7485d0b1dfaf0c944ff09d5a34701caf3b13b5b605c6744b64b0b678c8f55796  .kit/style/bash.md
+897bb4e13ffb0fafdb14d2804b880f0ff80c8290d233fb8e766426e70d66b082  .kit/style/gitignore.md
+c998a3e88b95c758d61ad07266aeea33269094f922a47427ec5d9b16357b03ba  .kit/style/json.md
+d79bed9091a8a23fe0b9dede8b7d5049140ba7970e0a51bf2da8ce3a513a108a  .kit/style/just.md
+52af9565c9a867fb161ebc0dd4ba1548fe5c429c72a1f3df07847cd7f8ab8301  .kit/style/markdown.md
+46d62d853a85e816d626004bf544e1c67caa76f8dd5a09fd63d9230803bc25c0  .kit/style/workflows.md
+79b0f52e67ef8dffce55a8f20c5c587a38a7382387f0dd16fe33b13af1e25aa7  .kit/style/yaml.md
 fe662eb346060b6810f00e447bc982425fed30ee4b43b038a42dd5599a1fe849  .kit/templates/bash/module
 940c173655e2158eca3f7e0aedc62f64f94ecc7910c9eb806f9bb654ae7353ae  .kit/templates/bash/script
 3dc3428c169ffe8d9556e3d544d9ef94b87856deb64480842ab828e8ae467327  .kit/templates/gitignore/file

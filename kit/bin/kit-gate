@@ -17,7 +17,7 @@
 #
 # Exits 0 when the gate passes, and 1 otherwise.
 #
-# see: bash/toolchain.sh, packages/ci-github/templates/repo/.github/workflows/kit-ci.yml
+# see: bash/toolchain.sh, packages/github/ci/templates/repo/.github/workflows/kit-ci.yml
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../bash/1st.sh

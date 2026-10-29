@@ -24,7 +24,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^[a-z][a-z0-9-]*$",
+        "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
         "description": "The name of another package in the release, activated with this one."
       }
     },

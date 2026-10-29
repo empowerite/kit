@@ -1,0 +1,9 @@
+# packages/github/ci/package.yml - the github/ci package: one GitHub Actions job that runs kit ci
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "One GitHub Actions job that runs kit ci: the gate, kit check, kit linked, and kit policy"
+depends:
+  - kit
+answers:
+  ci_runner: ubuntu-latest

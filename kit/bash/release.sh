@@ -88,15 +88,52 @@ release:settings() { printf '.kit/settings.yml\n'; }
 # release:setting <key> prints the value of one top-level setting, or nothing.
 release:setting() { yaml:value "$(release:settings)" "$1"; }
 
-# release:packages [<root>] prints the packages in reach: every packages/<name>/ that contains a package.yml, in the
-# release at <root> and in the repository's .kit/packages/.
+# release:packages [<root>] prints the packages in reach, in the release at <root> and in the repository's
+# .kit/packages/. A package is a directory that contains a package.yml: packages/<name>/, or
+# packages/<namespace>/<name>/ under a namespace, a directory with no package.yml of its own. Its name is its path:
+# kit, or style/bash. A package's own subdirectories are never packages.
 release:packages() {
   local root=${1:-${kit_root}} dir
   for dir in "${root}" "${release_local}"
   do
     [[ -d "${dir}/packages" ]] || continue
-    (cd "${dir}/packages" && find . -mindepth 2 -maxdepth 2 -name package.yml | sed 's@^\./@@; s@/package.yml$@@')
-  done | LC_ALL=C sort --unique
+    (cd "${dir}/packages" && find . -mindepth 2 -maxdepth 3 -name package.yml | sed 's@^\./@@; s@/package.yml$@@')
+  done | LC_ALL=C sort --unique | awk '
+    { name[NR] = $0; if ($0 !~ /\//) top[$0] = 1 }
+    END {
+      for (i = 1; i <= NR; i++) { split(name[i], part, "/"); if (!(name[i] ~ /\// && part[1] in top)) print name[i] }
+    }'
+}
+
+# release:expand <root> <name>… prints each package a name stands for, in reach of the release at <root>: the name
+# itself, or every package a glob matches, such as style/*. It fails on a glob that matches nothing, and leaves a
+# plain name to release:require-packages.
+release:expand() {
+  local root=$1 name package matched
+  shift
+  for name in "$@"
+  do
+    if [[ "${name}" != *[*?[]* ]]
+    then
+      printf '%s\n' "${name}"
+      continue
+    fi
+    matched=0
+    while IFS= read -r package
+    do
+      # shellcheck disable=SC2053  # the glob is the point
+      if [[ "${package}" == ${name} ]]
+      then
+        printf '%s\n' "${package}"
+        matched=1
+      fi
+    done < <(release:packages "${root}")
+    if (( matched == 0 ))
+    then
+      error "'${name}' matches no package in reach; the packages are: $(release:packages "${root}" | paste -s -d ' ' -)"
+      return 2
+    fi
+  done
 }
 
 # release:home <root> <package> prints the directory that contains the package: <root> when the release has the
@@ -523,7 +560,7 @@ release:layers() {
 # The region test looks only at the source's last packages/ segment, so a checkout under a directory named packages
 # works the same as one anywhere else.
 release:kind() {
-  if [[ "${1##*/packages/}" =~ ^[^/]+/regions/(repo|home)/ ]]
+  if [[ "${1##*/packages/}" =~ ^[^/]+(/[^/]+)?/regions/(repo|home)/ ]]
   then printf 'region\n'
   elif release:merged "$2"
   then printf 'merge\n'

@@ -106,7 +106,7 @@ in two places:
 
 - `kit check`, over the whole repository, so `kit ci` checks every generated region, the kit's and the
   repository's own.
-- The `lefthook` package's pre-commit hook, over the staged paths.
+- The `hooks/lefthook` package's pre-commit hook, over the staged paths.
 
 `kit region [--home] [<path>]` prints the content the active packages deliver as the region at a path, rendered
 the way a template is. It is the command behind every region the kit delivers.
@@ -157,6 +157,6 @@ After that:
 | --- | --- | --- |
 | `kit` | `AGENTS.md` | the sentence that sends every agent to `.kit/1st.md` |
 | `kit` | `.gitignore` | the `/worktrees/` entry |
-| `claude` | `.claude/CLAUDE.md` | an import of `AGENTS.md` |
+| `agents/claude` | `.claude/CLAUDE.md` | an import of `AGENTS.md` |
 
 [packages.md](packages.md) describes packages, and [architecture.md](architecture.md) describes the whole kit.

@@ -61,7 +61,7 @@ provider() {
 @test "the core verbs need no forge and no gh" {
   mkdir -p "${BATS_TEST_TMPDIR}/shims" && printf '#!/usr/bin/env bash\nexit 127\n' > "${BATS_TEST_TMPDIR}/shims/gh"
   chmod +x "${BATS_TEST_TMPDIR}/shims/gh"
-  run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" install claude
+  run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
   run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" check
   [ "$status" -eq 0 ]

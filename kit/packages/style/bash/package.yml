@@ -1,0 +1,7 @@
+# packages/style/bash/package.yml - the style/bash package: the bash style and its templates
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "Bash style: a banner, then and do on their own lines, braced variables, and the script and module templates"
+depends:
+  - kit

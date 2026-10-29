@@ -12,7 +12,7 @@ setup() {
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main
-  "${kit_root}/bin/kit" install style-bash style-gitignore style-just style-markdown style-workflows style-yaml >/dev/null 2>&1
+  "${kit_root}/bin/kit" install 'style/*' >/dev/null 2>&1
 }
 
 teardown() {
@@ -53,7 +53,7 @@ shape() {
 }
 
 @test "without a style package no template governs a file, and kit new file says where templates come from" {
-  "${kit_root}/bin/kit" package remove style-bash >/dev/null 2>&1
+  "${kit_root}/bin/kit" package remove style/bash >/dev/null 2>&1
   run "${kit_root}/bin/kit" new file bash/deploy.sh --purpose=x
   [ "$status" -eq 2 ]
   [[ "$output" == *"no template governs bash/deploy.sh: a style package delivers them"* ]]

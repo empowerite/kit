@@ -9,7 +9,7 @@
 # is the facts document, so a rule reads input.branch, input.commits, input.change, and input.policy (the
 # patterns, with the kit's defaults filled in).
 #
-# The repository's toolchain must pin opa, like any tool its gate runs. The policy-opa package delivers
+# The repository's toolchain must pin opa, like any tool its gate runs. The policy/opa package delivers
 # .kit/policy/kit.rego, the patterns provider's rules written in Rego, to build on.
 
 policy-opa:deny() {
