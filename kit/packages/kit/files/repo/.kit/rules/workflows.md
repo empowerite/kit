@@ -5,6 +5,8 @@ paths:
   - ".github/workflows/*.yml"
   - ".github/workflows/*.yaml"
 lint: actionlint
+checks:
+  - pinned
 ---
 # Workflows
 

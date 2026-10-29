@@ -38,6 +38,7 @@ templates:
 | `paths:` | Globs matched against the repository-relative path. |
 | `content:` | Extended regular expressions matched against the first line of a file that already exists. |
 | `lint:` | The linter command for the files the rule governs. |
+| `checks:` | The kit's own checks for the files the rule governs, by name. This release has `pinned`, which the workflows rule names: every `uses:` is a local action, a docker image, or an action pinned to a full commit SHA with its version as a trailing comment. |
 | `templates:` | The shapes a file of this kind takes; see [templates.md](templates.md). |
 
 A rule governs a file when any of its globs or any of its patterns matches.

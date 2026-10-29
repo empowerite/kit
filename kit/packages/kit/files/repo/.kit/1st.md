@@ -88,6 +88,7 @@ file looks. Rule files and style files have the same frontmatter, with these key
 | `paths:` | Globs matched against a file's path from the repository root. |
 | `content:` | Patterns matched against the first line of a file that exists. |
 | `lint:` | The linter that `kit lint` runs over the files it governs. |
+| `checks:` | The kit's own checks that `kit lint` runs over the files it governs, by name. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
 A rule or style governs a file when any of its globs or patterns matches.

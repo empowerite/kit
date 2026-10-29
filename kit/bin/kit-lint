@@ -14,6 +14,9 @@
 #
 #   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
 #     that is not on PATH is a failure, not a skip.
+#   - When the rule's frontmatter lists names under `checks:`, kit lint runs each of the kit's own checks so named
+#     over the rule's files. This release has one, `pinned`: every `uses:` in a workflow names a local action, a
+#     docker image, or an action pinned to a full commit SHA with the version as a trailing comment.
 #   - When the rule has templates, each of its files must have the shape of one of them.
 #
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted.
@@ -23,13 +26,13 @@
 # Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
 # failed.
 #
-# see: bash/context.sh, bash/template.sh, docs/context.md, docs/templates.md
+# see: bash/context.sh, bash/lint.sh, bash/template.sh, docs/context.md, docs/templates.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
-use context template yaml
+use context lint template yaml
 
 all=false
 paths=()
@@ -94,6 +97,7 @@ done
 refused=0
 for rule in $(printf '%s\n' "${!governed[@]}" | LC_ALL=C sort)
 do
+  readarray -t targets < <(printf '%s' "${governed[${rule}]}")
   if [[ -n "$(template:variants "${rule}")" ]]
   then
     held=()
@@ -107,11 +111,21 @@ do
       refused=$(( refused + 1 ))
     fi
   fi
-  lint=$(yaml:value "${rule}" lint)
-  [[ -n "${lint}" ]] || continue
-  read -r -a command <<<"${lint}"
-  readarray -t targets < <(printf '%s' "${governed[${rule}]}")
-  step "${rule}: ${lint} over ${#targets[@]} path(s)"
+  for name in $(yaml:list "${rule}" checks)
+  do
+    if ! declare -F "lint:${name}" >/dev/null
+    then
+      error "${rule} names a check the kit does not have: ${name}; the checks are: $(lint:names | paste -s -d ' ' -)"
+      refused=$(( refused + 1 ))
+      continue
+    fi
+    step "${rule}: the ${name} check over ${#targets[@]} path(s)"
+    "lint:${name}" "${targets[@]}" || refused=$(( refused + 1 ))
+  done
+  linter=$(yaml:value "${rule}" lint)
+  [[ -n "${linter}" ]] || continue
+  read -r -a command <<<"${linter}"
+  step "${rule}: ${linter} over ${#targets[@]} path(s)"
   if ! guard:require "tool:${command[0]}"
   then
     refused=$(( refused + 1 ))

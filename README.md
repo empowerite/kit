@@ -16,7 +16,8 @@ What kit checks:
   It runs in the delivered GitHub Actions job or in any other pipeline.
 - `kit check` fails when a delivered file differs from the release, or a generated region differs from the output
   of its command.
-- `kit lint` runs each rule's linter over the files the rule governs, before a commit or at any time.
+- `kit lint` runs each rule's linter, and the kit's own checks, over the files the rule governs, before a commit or
+  at any time. One check refuses a workflow action that is not pinned to a full commit SHA.
 - A deny list blocks the raw git commands the rules forbid, such as `git rebase`.
 
 What else kit provides:

@@ -84,6 +84,34 @@ teardown() {
   [[ "$output" == *".kit/markdownlint.jsonc"* ]]
 }
 
+@test "the workflows rule's pinned check refuses a uses: without a commit SHA and its version, and accepts local and docker actions" {
+  command -v actionlint >/dev/null || skip "actionlint, the workflows rule's linter, is not on PATH"
+  mkdir -p .github/workflows .github/actions/local
+  printf 'name: local\ndescription: a local action\nruns:\n  using: composite\n  steps:\n    - run: true\n      shell: bash\n' \
+    > .github/actions/local/action.yml
+  cat > .github/workflows/w.yml <<'YAML'
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/checkout@v7
+      - uses: "jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c"
+      - uses: ./.github/actions/local
+      - uses: docker://alpine:3.20
+YAML
+  run "${kit_checkout}/bin/kit" lint .github/workflows/w.yml
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/rules/workflows.md: the pinned check over 1 path(s)"* ]]
+  [[ "$output" == *"w.yml:7: uses: actions/checkout@v7 is not pinned to a commit SHA"* ]]
+  [[ "$output" == *"w.yml:8: uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c has no version comment"* ]]
+  [[ "$output" != *"w.yml:6:"* && "$output" != *"w.yml:9:"* && "$output" != *"w.yml:10:"* ]]
+  grep -v -e '@v7$' -e 'mise-action' .github/workflows/w.yml > w.ok && mv w.ok .github/workflows/w.yml
+  run "${kit_checkout}/bin/kit" lint .github/workflows/w.yml
+  [ "$status" -eq 0 ]
+}
+
 @test "a linter a rule names that is not on PATH is a refusal, named" {
   mkdir -p "${BATS_TEST_TMPDIR}/path" && ln -s "$(command -v git)" "${BATS_TEST_TMPDIR}/path/git"
   for tool in bash jq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env uname \

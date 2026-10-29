@@ -4,7 +4,8 @@ The core package. It is active in every repository that uses the kit. It deliver
 
 - `.kit/1st.md`, the entry file every agent reads. The repository's `AGENTS.md` points to it.
 - `.kit/rules/<kind>.md`, one rule file per kind of file. A rule says what the work must do to be trusted. Each
-  rule file's frontmatter declares the paths and first lines it governs, and the linter `kit lint` runs over them.
+  rule file's frontmatter declares the paths and first lines it governs, and the linter and checks `kit lint` runs
+  over them.
 - `.kit/settings.schema.json`, the schema of the repository's `.kit/settings.yml`.
 - A region in `AGENTS.md`: the sentence that sends every agent to `.kit/1st.md`.
 - A region in `.gitignore`: the `/worktrees/` entry the workflow needs.
