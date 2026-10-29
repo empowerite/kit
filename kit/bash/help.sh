@@ -5,7 +5,7 @@
 # A verb is an executable kit-<verb> beside bin/kit. Its header is the only place its help is written:
 #
 #   # kit-<verb> - <purpose> (kit verb)        the banner, on line 2
-#   # ---…                                     the rule
+#   # ---…                                     a line of dashes, if the verb has one
 #   #
 #   # kit <verb> <arguments>                   a usage line: a paragraph of one line that ends without . or :
 #   #
@@ -35,11 +35,12 @@ help:purpose() {
   sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb)$//; p;}' "${kit_root}/bin/kit-$1"
 }
 
-# help:header <verb> prints the verb's header text below the rule, without the comment marks, and without the blank
-# lines at either end and the see: lines.
+# help:header <verb> prints the verb's header text below the banner, without the comment marks, and without a line of
+# dashes, the blank lines at either end, and the see: lines.
 help:header() {
   awk '
-    NR <= 3 { next }
+    NR <= 2 { next }
+    /^# -+$/ { next }
     !/^#/ { exit }
     /^# see: / { next }
     { sub(/^# ?/, ""); line[++n] = $0 }

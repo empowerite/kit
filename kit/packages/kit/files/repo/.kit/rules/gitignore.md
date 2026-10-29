@@ -14,11 +14,12 @@ Applies to `.gitignore` at any depth.
 
 ## Shape
 
-1. A file the repository writes opens with `# .gitignore - untracked files and folders`, a line of dashes to
-   column 120, and a blank line. A file the kit created that contains only the kit's region belongs to the kit
-   until the repository adds to it.
+The templates in `.kit/templates/gitignore/` hold the exact shape. A repository can replace them with templates of its
+own.
+
+1. A file the repository writes opens with `# .gitignore - untracked files and folders` and a blank line. A file
+   the kit created that contains only the kit's region belongs to the kit until the repository adds to it.
 2. Group the entries. Each group opens with `# <what produces it>; see: <ref>` and ends with a blank line.
-3. The file ends with a line of dashes.
 
 ## Entries
 

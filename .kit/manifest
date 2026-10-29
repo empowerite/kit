@@ -1,6 +1,6 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-packages kit ci-github claude lefthook
+packages kit ci-github claude house lefthook
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
 c90164505919ec6cb80b22639a8c64130333b6e4ece8448552fb60ff54c33c3f  .github/workflows/kit-ci.yml
@@ -8,10 +8,10 @@ c90164505919ec6cb80b22639a8c64130333b6e4ece8448552fb60ff54c33c3f  .github/workfl
 66a9d589167047a33d7be35d2fd06a3fa13f36ea468cbb941caa932dbe5ebc33  .kit/1st.md
 88cfa681c54a2c2f5822d41e25a0c387f4e03a53a10aa612a65f8a2f5e04a0e4  .kit/lefthook.yml
 acf52f60f178be28ca2f09bb22f8a982bba0e61eff611ca1a91f1f8dae2ccbce  .kit/markdownlint.jsonc
-d06af32b58845045405ec688be360dda7070a6a1c996c3c263f64fbd1bce2a0e  .kit/rules/bash.md
-db3c9f89c38d8890530f8276323cd0e87306876fc7c490004a3f4d10aad911c2  .kit/rules/gitignore.md
+7679004e6469f90e7a7edfcb14ae0333aebe1fc1d0f4e5d5aba79d089e3228dc  .kit/rules/bash.md
+4d2ed0396a2ba18ddd5721f2200ad79661fd16e3c41e4c0fa8335c3982e57a26  .kit/rules/gitignore.md
 9c2ec9138933576774ab176d58e69bfb672eba33f0cf55b11ee8a6822b9739f5  .kit/rules/json.md
-63288173fb2da9e215e86d0339cb41a1534ddd9f4bbbb1b94203f9c782d4d587  .kit/rules/just.md
+1121f2b17c5b1080842460f122b80d7c4e9266b1bb00589b374e8ff6927e024a  .kit/rules/just.md
 a6b792b7ccca4bd378fcfcef2cd719e1f5c32bcc70539f8c59fa719c46678d09  .kit/rules/markdown.md
 651d22705944023b1e043448c2b61204379985f4c45f76cd20546e839842819f  .kit/rules/workflows.md
 ea7f66ea35c18a8fbc12d601bcc59d5906d3db51977715bb04535b7750e8cc1b  .kit/rules/yaml.md

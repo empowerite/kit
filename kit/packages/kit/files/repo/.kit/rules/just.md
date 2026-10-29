@@ -17,9 +17,11 @@ Applies to `justfile` and `*.just`. A `[script]` recipe body is bash, so the bas
 
 ## Shape
 
-1. Every justfile opens with `# <file> - see: https://just.systems/man/en/`, a line of dashes to column 120,
-   and a description of what the file is and who imports it. The root justfile has the
-   `#!/usr/bin/env just --justfile` shebang above those lines. A module does not.
+The templates in `.kit/templates/just/` hold the exact shape. A repository can replace them with templates of its own.
+
+1. Every justfile opens with `# <file> - see: https://just.systems/man/en/` and a description of what the file is
+   and who imports it. The root justfile has the `#!/usr/bin/env just --justfile` shebang above those lines. A
+   module does not.
 2. The settings block comes next:
    - `set dotenv-load := true`
    - `set fallback := true`, only in a module, never in the root, because the root has no parent
@@ -57,7 +59,6 @@ Applies to `justfile` and `*.just`. A `[script]` recipe body is bash, so the bas
 
 5. In a module the root imports with `mod <name> "<path>"`, every recipe has `[no-cd]`. The recipe body then
    runs from the invoking root, not from the module's directory.
-6. The file ends with a line of dashes.
 
 ## Recipes
 

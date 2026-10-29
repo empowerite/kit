@@ -40,6 +40,8 @@ The JSON rule has no template. A JSON file has no comments and no fixed opening,
 
 The `kit` package delivers the templates. To change one, write a package of your own under `.kit/packages/` that
 depends on `kit` and places a file at the same path. The later package in dependency order wins.
+This repository does that with its `house` package, `.kit/packages/house/`, whose bash, gitignore, and just
+templates add a line of dashes under the banner and at the end of the file. The templates the kit delivers have none.
 see: [packages.md](packages.md)
 
 ## Holes

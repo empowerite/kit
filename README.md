@@ -204,6 +204,7 @@ from the index. Do not edit them by hand:
 | Installed copy | Written from |
 | --- | --- |
 | `.kit/1st.md`, `.kit/rules/`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc` | `kit/packages/kit/files/repo/.kit/` |
+| `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the kit package's |
 | `.kit/lefthook.yml` | `kit/packages/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `kit/packages/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
@@ -213,7 +214,8 @@ from the index. Do not edit them by hand:
 
 `.kit/settings.yml` belongs to this repository and is not delivered.
 
-When a commit changes a file under `kit/` or `.kit/settings.yml`, the installed copies must change in the same commit:
+When a commit changes a file under `kit/` or `.kit/packages/`, or `.kit/settings.yml`, the installed copies must change
+in the same commit:
 
 - With the pre-commit hook installed, this happens automatically: the hook runs `bin/refresh`, which regenerates
   the copies from the index and stages them.

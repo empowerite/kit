@@ -4,8 +4,9 @@
 #
 # This repository installs its own kit, and its kit/ is the release. The installed copies (.kit/, the CI workflow,
 # .claude/settings.json, and the regions in AGENTS.md, .gitignore, and .claude/CLAUDE.md) are rendered by kit/bin/
-# and kit/bash/ from kit/packages/ and .kit/settings.yml. When a commit changes any of those, the copies must change
-# in the same commit, so the pre-commit hook runs this script. Run it by hand on a desk without the hook.
+# and kit/bash/ from kit/packages/, the house package in .kit/packages/house/, and .kit/settings.yml. When a commit
+# changes any of those, the copies must change in the same commit, so the pre-commit hook runs this script. Run it
+# by hand on a desk without the hook.
 #
 # It renders from the index, which is what the commit will contain, not from the working tree, which may hold edits
 # that are not being committed. Unstaged edits outside a region, or outside kit's entries in a merged JSON file, stay

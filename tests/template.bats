@@ -102,13 +102,20 @@ shape() {
   [ "$(cut -d $'\x1f' -f 1 <<<"$output")" = "module" ]
 }
 
+@test "the delivered templates impose no house style: a script passes with or without a line of dashes" {
+  printf '#!/usr/bin/env bash\n# plain.sh - no dashes\n\nset -o errexit -o nounset -o pipefail\necho hi\n' > plain.sh
+  printf '#!/usr/bin/env bash\n# dashed.sh - dashes\n# %s\n\nset -o errexit -o nounset -o pipefail\necho hi\n# %s\n' \
+    "$(printf -- '-%.0s' {1..118})" "$(printf -- '-%.0s' {1..118})" > dashed.sh
+  shape plain.sh dashed.sh
+}
+
 @test "a file off its template's shape is named with the line it leaves, and a hole named twice must agree" {
   "${kit_root}/bin/kit" new file bash/a.sh --purpose=a
   sed -i.bak '/^set -o/d' bash/a.sh
   run shape bash/a.sh
   [ "$status" -ne 0 ]
   [[ "$output" == *"bash/a.sh does not have the shape of the bash template (script, module)"* ]]
-  [[ "$output" == *".kit/templates/bash/script line 5: set -o errexit -o nounset -o pipefail"* ]]
+  [[ "$output" == *".kit/templates/bash/script line 4: set -o errexit -o nounset -o pipefail"* ]]
   "${kit_root}/bin/kit" new file tools.just
   sed -i.bak 's/"${tools_justfile}"/"${other_justfile}"/' tools.just
   run shape tools.just

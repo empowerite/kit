@@ -21,16 +21,17 @@ Applies to:
 
 ## Shape
 
+The templates in `.kit/templates/bash/` hold the exact shape. `kit new file` makes a file from them, and `kit lint`
+checks a file against them. A repository can replace them with templates of its own.
+
 1. An executed script opens with these lines, in order:
    1. `#!/usr/bin/env bash`
    2. a `# <file> - <purpose>` banner under 120 columns
-   3. a line of dashes to column 120
-   4. a blank line
-   5. an optional comment paragraph
-   6. `set -o errexit -o nounset -o pipefail`
+   3. a blank line
+   4. an optional comment paragraph
+   5. `set -o errexit -o nounset -o pipefail`
 2. A sourced module opens with `# shellcheck shell=bash`, then the same banner. It sets no shell options, because
    they would change the caller's options.
-3. The file ends with the same line of dashes.
 
 ## Style
 

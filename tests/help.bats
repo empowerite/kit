@@ -51,6 +51,18 @@ setup() {
   [ "${lines[0]}" = "kit gate - run the repository's gate, and refuse when there is none" ]
 }
 
+@test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
+  local root="${BATS_TEST_TMPDIR}/kit"
+  mkdir -p "${root}"
+  cp -R "${kit_root}/bin" "${kit_root}/bash" "${root}/"
+  printf '#!/usr/bin/env bash\n# kit-plain - a verb in no house style (kit verb)\n# kit plain <thing>\n#\n# Does it.\n' \
+    > "${root}/bin/kit-plain"
+  chmod +x "${root}/bin/kit-plain"
+  run "${root}/bin/kit" help plain
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'Usage\n  kit plain <thing>\n\nDescription\n  Does it.'* ]]
+}
+
 @test "kit help refuses a name no verb starts with, and more than one name" {
   run "${kit_root}/bin/kit" help nonesuch
   [ "$status" -eq 2 ]
