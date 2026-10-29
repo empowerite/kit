@@ -1,11 +1,10 @@
 # empowerite/kit: **k**eep **i**t **t**rustworthy
 
-kit is a versioned set of rules for AI coding agents, plus the checks that enforce them. A repository installs a
-release, pins it, and updates it like any other tool.
-
-Agents learn from everything people have written, including the shortcuts: work called done that was not, a skipped
-test reported as passing, a rebase that overwrote a colleague's branch. kit puts the rules where agents read them and
-checks the work in CI, so the result does not depend on an agent's word.
+Do you trust your agents? They were trained on the whole of what people have written, and that includes every shortcut
+anyone ever took: the "done" that was not, the test that was skipped and reported as passing, the rebase that quietly
+rewrote a colleague's branch. An agent is a tireless new colleague who has read everything and holds none of your house
+rules, unless you put them where it looks. kit is the house rules, put where agents look, and the checks that hold
+agents to them, as a versioned release any repository can take and keep taking.
 
 What kit checks:
 
