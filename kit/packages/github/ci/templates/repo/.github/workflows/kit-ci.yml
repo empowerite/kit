@@ -5,8 +5,8 @@
 #
 #   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
 #      runners)
-#   2. puts kit on PATH: the release .kit/manifest records, downloaded from its public URL, or this checkout's own
-#      kit/bin/ when the manifest records unreleased
+#   2. puts kit on PATH: the release .kit/manifest names, downloaded from its GitHub release, or the checkout's own
+#      kit/bin/ when the manifest says unreleased
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #

@@ -18,7 +18,7 @@ setup() {
 }
 
 teardown() {
-  rm -rf "${repo}" "${repo}.later" "${repo}.home" "${repo}.cache" "${repo}.shims"
+  rm -rf "${repo}" "${repo}.later" "${repo}.newer" "${repo}.home" "${repo}.cache" "${repo}.shims"
 }
 
 # shims <tool>… puts a failing stand-in for each tool first on PATH, so a test proves a path is not taken.
@@ -32,12 +32,14 @@ shims() {
   printf '%s:%s\n' "${repo}.shims" "${PATH}"
 }
 
-# later-release <dir> copies this checkout's release to <dir> as version 9.9.9 with one changed rule line.
+# later-release <dir> [<version>] copies this checkout's release to <dir> as <version>, 9.9.9 unless given, with one
+# rule line added in that version.
 later-release() {
+  local version=${2:-9.9.9}
   mkdir -p "$1"
   cp -R "${kit_checkout}/bin" "${kit_checkout}/bash" "${kit_checkout}/packages" "$1/"
-  printf '9.9.9\n' > "$1/version"
-  printf '\n## Added in 9.9.9\n\nA new rule.\n' >> "$1/packages/kit/files/repo/.kit/rules/json.md"
+  printf '%s\n' "${version}" > "$1/version"
+  printf '\n## Added in %s\n\nA new rule.\n' "${version}" >> "$1/packages/kit/files/repo/.kit/rules/json.md"
 }
 
 @test "install with no package writes the kit package and nothing else" {
@@ -187,7 +189,7 @@ later-release() {
   [[ "$output" == *"home: nothing is installed under ${KIT_HOME} on this machine"* ]]
 }
 
-@test "a package the repository defines under .kit/packages installs, checks, updates, and removes like a delivered one" {
+@test "a package the repository defines in .kit/packages installs, checks, updates, and removes like a delivered one" {
   mkdir -p .kit/packages/python/files/repo/.kit/rules .kit/packages/python/templates/repo
   printf 'description: "The Python rule and the tool pins"\ndepends:\n  - kit\nanswers:\n  python: "3.13"\n' \
     > .kit/packages/python/package.yml
@@ -210,7 +212,7 @@ later-release() {
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/rules/python.md differs"* ]]
   printf 'answers:\n  python: "3.14"\n' > .kit/settings.yml
-  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(cat .python-version)" = "python 3.14" ]
   grep --quiet '^edited$' .kit/rules/python.md
@@ -278,7 +280,7 @@ later-release() {
   grep --quiet 'Read .kit/1st.md' AGENTS.md
   run "${kit_checkout}/bin/kit" package remove kit
   [ "$status" -eq 0 ]
-  [ "$(cat AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions.|## More of ours" ]
+  [ "$(paste -s -d '|' - < AGENTS.md)" = "# Ours||Our own instructions.|## More of ours" ]
   [ "$(cat .gitignore)" = "build/" ]
 }
 
@@ -348,7 +350,7 @@ later-release() {
   [[ "$output" == *"AGENTS.md: placed, the region regenerated"* ]]
   [ "$(sed -n '1p' AGENTS.md)" = "# Ours" ]
   grep --quiet 'Read .kit/1st.md' AGENTS.md
-  ! grep --quiet 'something else' AGENTS.md
+  run ! grep --quiet 'something else' AGENTS.md
 }
 
 @test "a package's expected include is named at install, refused by check until it is there, and never written" {
@@ -419,7 +421,6 @@ later-release() {
   # the manifest carries the release's digest, so the edit still reads as an edit
   release_digest=$(shasum -a 256 "${repo}.later/packages/kit/files/repo/.kit/rules/json.md" | cut -d ' ' -f 1)
   grep --quiet "^${release_digest}  .kit/rules/json.md$" .kit/manifest
-  # and check names the one file that still differs from the release
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/rules/json.md differs"* ]]
@@ -462,8 +463,8 @@ later-release() {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" package add 'style/*'
   [ "$status" -eq 0 ]
-  grep --quiet '^packages kit style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml$' \
-    .kit/manifest
+  styles='style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml'
+  grep --quiet "^packages kit ${styles}$" .kit/manifest
   [ -f .kit/style/bash.md ]
   run "${kit_checkout}/bin/kit" package remove 'style/j*'
   [ "$status" -eq 0 ]
@@ -480,8 +481,9 @@ later-release() {
   [ "$status" -eq 0 ]
   [ -f .kit/style/just.md ]
   [ -f .github/workflows/kit-ci.yml ]
-  grep --quiet '^packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml empowerite$' \
-    .kit/manifest
+  members='agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
+  members+=' style/workflows style/yaml'
+  grep --quiet "^packages kit ${members} empowerite$" .kit/manifest
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]
   [ ! -e .kit/style/just.md ]
@@ -558,7 +560,8 @@ later-release() {
 @test "update retires a path the new release no longer delivers, unless it was edited" {
   "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"
-  rm "${repo}.later/packages/kit/files/repo/.kit/rules/gitignore.md" "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
+  rm "${repo}.later/packages/kit/files/repo/.kit/rules/gitignore.md" \
+    "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
   printf 'mine too\n' >> .kit/rules/json.md
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
@@ -575,9 +578,7 @@ later-release() {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install agents/claude
   grep --quiet '^version 9.9.9$' .kit/manifest
-  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/bash" "${repo}.later/packages" "${repo}.newer/"
-  printf '9.9.10\n' > "${repo}.newer/version"
-  printf 'Added in 9.9.10.\n' >> "${repo}.newer/packages/kit/files/repo/.kit/rules/json.md"
+  later-release "${repo}.newer" 9.9.10
   printf 'edited\n' >> .kit/rules/bash.md
   # neither the cache, nor mise, nor the release can produce 9.9.9
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
@@ -587,31 +588,27 @@ later-release() {
   grep --quiet '^version 9.9.9$' .kit/manifest
   # whole or not at all: the file that needed no base was not written either
   run ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
-  rm -rf "${repo}.newer"
 }
 
 @test "update without the base release replaces every file still as it was placed, where none is merged by key" {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install
-  mkdir -p "${repo}.newer" && cp -R "${repo}.later/bin" "${repo}.later/bash" "${repo}.later/packages" "${repo}.newer/"
-  printf '9.9.10\n' > "${repo}.newer/version"
-  printf 'Added in 9.9.10.\n' >> "${repo}.newer/packages/kit/files/repo/.kit/rules/json.md"
+  later-release "${repo}.newer" 9.9.10
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
   [ "$status" -eq 0 ]
   grep --quiet 'Added in 9.9.10' .kit/rules/json.md
   grep --quiet '^version 9.9.10$' .kit/manifest
   run "${repo}.newer/bin/kit" check
   [ "$status" -eq 0 ]
-  rm -rf "${repo}.newer"
 }
 
 @test "update at the same version uses the release as its own base, and a second run changes nothing" {
   "${kit_checkout}/bin/kit" install agents/claude
   printf 'edited\n' >> .kit/rules/bash.md
-  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   grep --quiet '^edited$' .kit/rules/bash.md
-  run env PATH="$(shims mise gh)" "${kit_checkout}/bin/kit" update
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [[ "$output" != *"conflict"* ]]
 }
@@ -660,7 +657,7 @@ later-release() {
 @test "a home manifest another repository wrote is left alone, and its surviving lines are kept" {
   mkdir -p "${KIT_HOME}/.kit" && printf 'theirs\n' > "${KIT_HOME}/.kit/theirs"
   digest=$(shasum -a 256 "${KIT_HOME}/.kit/theirs" | cut -d ' ' -f 1)
-  printf '# manifest\nversion 0.0.1\nmodules other\n%s  .kit/theirs\n' "${digest}" > "${KIT_HOME}/.kit/manifest"
+  printf '# manifest\nversion 0.0.1\npackages other\n%s  .kit/theirs\n' "${digest}" > "${KIT_HOME}/.kit/manifest"
   "${kit_checkout}/bin/kit" install
   [ -f "${KIT_HOME}/.kit/theirs" ]
   grep --quiet '  .kit/theirs$' "${KIT_HOME}/.kit/manifest"
@@ -670,12 +667,14 @@ later-release() {
 @test "a region is a template: @key@ takes the repository's answer, the package's default, or a settings key, and refuses a key with none" {
   mkdir -p .kit/packages/extra/regions/repo
   printf 'description: "x"\ndepends:\n  - kit\nanswers:\n  ci_runner: ours\n' > .kit/packages/extra/package.yml
-  printf 'runner = "@ci_runner@"\nsigning = @require_signing@\nagain = "@answers.ci_runner@"\n' > .kit/packages/extra/regions/repo/config.toml
+  printf 'runner = "@ci_runner@"\nsigning = @require_signing@\nagain = "@answers.ci_runner@"\n' \
+    > .kit/packages/extra/regions/repo/config.toml
   printf 'require_signing: false\n' > .kit/settings.yml
   run "${kit_checkout}/bin/kit" install extra
   [ "$status" -eq 0 ]
-  [ "$(sed -n '2,4p' config.toml | paste -s -d '|' -)" = 'runner = "ours"|signing = false|again = "ours"' ]
-  [ "$("${kit_checkout}/bin/kit" region config.toml | paste -s -d '|' -)" = 'runner = "ours"|signing = false|again = "ours"' ]
+  rendered='runner = "ours"|signing = false|again = "ours"'
+  [ "$(sed -n '2,4p' config.toml | paste -s -d '|' -)" = "${rendered}" ]
+  [ "$("${kit_checkout}/bin/kit" region config.toml | paste -s -d '|' -)" = "${rendered}" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'require_signing: false\nanswers:\n  ci_runner: theirs\n' > .kit/settings.yml
@@ -689,7 +688,8 @@ later-release() {
   printf 'x = @missing@\n' > .kit/packages/extra/regions/repo/other.toml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"other.toml needs an answer for 'missing'; add 'missing: <value>' under answers: in .kit/settings.yml (package extra)"* ]]
+  remedy="other.toml needs an answer for 'missing'; add 'missing: <value>' under answers: in .kit/settings.yml"
+  [[ "$output" == *"${remedy} (package extra)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

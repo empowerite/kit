@@ -2,6 +2,8 @@
 # tracker.bats - a reference names its tracker, the forge's own or a declared one, and each answers the same calls
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   export kit_root NO_COLOR=1
   kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
@@ -67,7 +69,7 @@ route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
   run in_tracker tracker:branch-ref topic
   [ -z "$output" ]
   in_tracker tracker:is-forge '#7'
-  ! in_tracker tracker:is-forge 'AB#4521'
+  run ! in_tracker tracker:is-forge 'AB#4521'
 }
 
 @test "the body's closing keywords name references to the trackers the forge does not link by itself" {

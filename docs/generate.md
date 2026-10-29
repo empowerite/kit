@@ -133,23 +133,12 @@ fails the run, naming the file and the line:
 ## The kit's regions
 
 A file under a package's `regions/<base>/<path>` is a template for a region's content. Every `@key@` in it is
-rendered from `.kit/settings.yml` and the package's defaults, as [packages.md](packages.md) describes.
+rendered from `.kit/settings.yml` and the package's defaults. `kit install` writes the region into the file at
+`<path>`: the bare directive naming the path, the rendered content, and the end marker, in the file's comment
+syntax. [packages.md](packages.md#regions) says where the block goes, and what `kit update` and
+`kit package remove` do with it. In addition:
 
-`kit install` writes the region into the file at `<path>`: the bare directive naming the path, the rendered
-content, and the end marker, in the file's comment syntax. Where the block goes depends on the file:
-
-- The file has the directive and end marker: the content goes between them.
-- The file exists without them: the block is appended after a blank line.
-- The file does not exist: the block becomes the whole file.
-
-After that:
-
-- The repository can move the block anywhere in the file and write anything around it.
-- `kit update` regenerates the region. There is no three-way merge, because the region's content is never the
-  repository's to edit.
-- `kit package remove` takes the block out, and removes the file if that leaves it empty.
 - A directive with no end marker is refused, by name.
-- Two packages that deliver a region to the same file are refused when the kit reads the packages.
 - A region under `home` must spell out its command, `kit region --home <path>`, because the bare directive cannot
   select the home directory.
 

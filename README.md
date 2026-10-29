@@ -11,12 +11,12 @@ What kit checks:
 - `kit ci` refuses a pull request when:
   - it is not linked to an open issue,
   - its branch name, commit subjects, or title break the repository's naming policy, or
-  - the repository's gate did not run.
+  - the repository's gate fails, or it has none.
 
   It runs in the delivered GitHub Actions job or in any other pipeline.
 - `kit check` fails when a delivered file differs from the release, or a generated region differs from the output
   of its command.
-- `kit lint` runs each rule's linter over the files the rule covers, before a commit or at any time.
+- `kit lint` runs each rule's linter over the files the rule governs, before a commit or at any time.
 - A deny list blocks the raw git commands the rules forbid, such as `git rebase`.
 
 What else kit provides:
@@ -99,10 +99,10 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    `kit install github/ci hooks/lefthook agents/claude` takes three of them. `kit package add` adds one later.
    `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
-   `install` also writes a line into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds `/worktrees/`
-   to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The rest of each file
-   is yours, and you can move the region anywhere in it. `kit generate` rewrites a region from its command, and
-   `kit check` fails when a region is out of date. Your own files can contain regions too; see
+   `install` also writes a sentence into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds
+   `/worktrees/` to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The
+   rest of each file is yours, and you can move the region anywhere in it. `kit generate` rewrites a region from
+   its command, and `kit check` fails when a region is out of date. Your own files can contain regions too; see
    [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
@@ -134,7 +134,7 @@ package format is in [docs/packages.md](docs/packages.md).
 
 - Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`
   package makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
-- `kit new file "${path}"` creates a file from its rule's template, and `kit lint` checks that every file keeps the
+- `kit new file "${path}"` creates a file from its style's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
 
 ### Updating
@@ -145,8 +145,6 @@ Bump the pin or reinstall, then run `kit update`:
 - A delivered file you edited is merged three ways, with the previous release as the base. `kit update` downloads
   the previous release from GitHub when it is not on the machine. Where it cannot, set `KIT_BASE` to a copy of it.
 - Your own deny list entries and settings keys are kept.
-
-`kit check` fails, locally and in CI, when a delivered file differs from the pinned release.
 
 ## Setup
 
@@ -198,7 +196,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | `kit/bash/` | the bash modules the verbs share |
 | `kit/packages/` | everything a release delivers |
 | `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |
-| `docs/` | the documentation, with a page per package under `docs/packages/` |
+| `docs/` | the documentation, with the packages' pages under `docs/packages/` |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
 [docs/packages.md](docs/packages.md) describes the package format.

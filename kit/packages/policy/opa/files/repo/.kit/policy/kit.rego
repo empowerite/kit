@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Added by kit's policy/opa package. To remove it, run kit package remove policy/opa.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-# Put the repository's own rules in a separate file beside this one, in the same package, adding to deny.
+# Put the repository's own rules in a file beside this one, in the same Rego package, kit.policy, adding to deny.
 # `kit policy --input` prints the input.
 
 package kit.policy

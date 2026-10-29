@@ -16,8 +16,8 @@
 #   checks          the jobs of its pipeline
 #   review threads  its resolvable discussions
 #
-# Only this file requires glab. It reads the REST API through `glab api` and builds every result here with jq, so
-# all of the provider's logic is in this file and a test can drive it.
+# Only this file requires glab. It reads the REST API through `glab api` and shapes every result with jq, so a
+# fake glab can drive it in a test.
 #
 # see: bash/forge.sh
 

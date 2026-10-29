@@ -137,7 +137,8 @@ template:render() {
     | length as $n
     | to_entries
     | map(.key as $i | .value
-          | if test("^«[a-z_]+»$") then ($v[ltrimstr("«") | rtrimstr("»")] // (if $i == $n - 1 then null else "" end))
+          | if test("^«[a-z_]+»$")
+            then ($v[ltrimstr("«") | rtrimstr("»")] // (if $i == $n - 1 then null else "" end))
             else gsub("«(?<k>[a-z_]+)»"; $v[.k] // "«\(.k)»") end
           | select(. != null) | . + "\n")
     | add // ""' < "$1"

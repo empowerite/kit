@@ -31,7 +31,9 @@ kit-bash() {
 }
 
 @test "the origin of each replaced definition is kept, and the live one is not recorded" {
-  run kit-bash 'use foo && printf "%s=%s\n" "foo:bar^^" "${super_origin[foo:bar^^]}" "foo:bar^" "${super_origin[foo:bar^]}" && [[ -z ${super_origin[foo:bar]+x} ]]'
+  code='use foo && printf "%s=%s\n" "foo:bar^^" "${super_origin[foo:bar^^]}" "foo:bar^" "${super_origin[foo:bar^]}"'
+  code+=' && [[ -z ${super_origin[foo:bar]+x} ]]'
+  run kit-bash "${code}"
   [ "$status" -eq 0 ]
   [ "$output" = "foo:bar^^=1 $(pwd -P)/a/foo.sh"$'\n'"foo:bar^=3 $(pwd -P)/b/foo.sh" ]
 }

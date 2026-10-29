@@ -10,8 +10,8 @@ default branch. The job:
    them. The gate is the repository's own CI command, such as `just ci`.
 4. Runs `kit ci`, which runs the gate, `kit check`, `kit linked`, and `kit policy`, and reports each one.
 
-The workflow has one setup action: `jdx/mise-action`, with its own install turned off. It puts the `mise` binary
-on the runner when the repository has a `mise.toml` or `.mise.toml`. GitHub's hosted runners already have Homebrew and Docker.
+GitHub's hosted runners already have Homebrew and Docker. The workflow's one setup action, `jdx/mise-action`
+with its own install turned off, puts `mise` on the runner when the repository has a `mise.toml` or `.mise.toml`.
 
 A repository on another CI system calls `kit toolchain install` and `kit ci` from its own pipeline.
 

@@ -38,9 +38,10 @@ joined() { paste -s -d '|' - < "$1"; }
   [[ "$output" == *"settled in 1 pass"* ]]
 }
 
-@test "a command is a bash command line: a pipe works, a failure holds the file, and the file and region are in its environment" {
+@test "a command runs in bash: a pipe works, a failure holds the file, and its environment names the file and region" {
   printf '# kit:generate sorted `./lines.sh c b a | sort`\n# kit:end sorted\n' > sorted.txt
-  printf '# kit:generate env `printf "%%s %%s\\n" "$KIT_GENERATE_FILE" "$KIT_GENERATE_REGION"`\n# kit:end env\n' > env.txt
+  printf '# kit:generate env `printf "%%s %%s\\n" "$KIT_GENERATE_FILE" "$KIT_GENERATE_REGION"`\n# kit:end env\n' \
+    > env.txt
   run "${kit_checkout}/bin/kit" generate sorted.txt env.txt
   [ "$status" -eq 0 ]
   [ "$(joined sorted.txt)" = '# kit:generate sorted `./lines.sh c b a | sort`|a|b|c|# kit:end sorted' ]
@@ -58,12 +59,16 @@ joined() { paste -s -d '|' - < "$1"; }
 }
 
 @test "a region nests when its command's output opens one, and an output must be balanced on its own" {
-  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "head" "# kit:generate inner \\`./lines.sh deep\\`" "# kit:end inner" "tail"\n' > nest.sh
+  cat > nest.sh <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' head '# kit:generate inner `./lines.sh deep`' '# kit:end inner' tail
+SH
   chmod +x nest.sh
   printf '# kit:generate outer `./nest.sh`\n# kit:end outer\n' > n.txt
   run "${kit_checkout}/bin/kit" generate n.txt
   [ "$status" -eq 0 ]
-  [ "$(joined n.txt)" = '# kit:generate outer `./nest.sh`|head|# kit:generate inner `./lines.sh deep`|deep|# kit:end inner|tail|# kit:end outer' ]
+  nested='# kit:generate outer `./nest.sh`|head|# kit:generate inner `./lines.sh deep`|deep|# kit:end inner|tail'
+  [ "$(joined n.txt)" = "${nested}|# kit:end outer" ]
   run "${kit_checkout}/bin/kit" generate --check
   [ "$status" -eq 0 ]
   [[ "$output" == *"every region as its command makes it"* ]]
@@ -72,7 +77,8 @@ joined() { paste -s -d '|' - < "$1"; }
   [ "$status" -eq 1 ]
   [[ "$output" == *"close.txt:1 (the output of ./lines.sh \"# kit:end outer\"):1: closes 'outer', which is not open"* ]]
   grep --quiet '^held$' close.txt
-  printf '# kit:generate outer `./lines.sh "# kit:generate loose \\`./lines.sh x\\`"`\nheld\n# kit:end outer\n' > open.txt
+  printf '# kit:generate outer `./lines.sh "# kit:generate loose \\`./lines.sh x\\`"`\nheld\n# kit:end outer\n' \
+    > open.txt
   run "${kit_checkout}/bin/kit" generate open.txt
   [ "$status" -eq 1 ]
   [[ "$output" == *"open.txt:1 (the output of"*"):1: the region 'loose' never closes"* ]]
@@ -174,7 +180,11 @@ joined() { paste -s -d '|' - < "$1"; }
 }
 
 @test "a nested command's failure names the output's line, and an output that leaves a markdown fence open is refused" {
-  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "head" "# kit:generate inner \\`false\\`" "# kit:end inner"\n' > nf.sh && chmod +x nf.sh
+  cat > nf.sh <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' head '# kit:generate inner `false`' '# kit:end inner'
+SH
+  chmod +x nf.sh
   printf '# kit:generate outer `./nf.sh`\nheld\n# kit:end outer\n' > nf.txt
   run "${kit_checkout}/bin/kit" generate nf.txt
   [ "$status" -eq 1 ]

@@ -1,8 +1,8 @@
 // .markdownlint-cli2.jsonc - markdownlint-cli2 options: what the linter scopes in and out
 //
-// Rule configuration lives in .markdownlint.jsonc; this file defines scope. The repository's .gitignore files are
-// the source of truth for exclusions, so worktrees/ is never linted, and the glob form scopes to ignore files
-// inside the tree being linted, so a per-issue worktree lints identically to the repository root checkout.
+// The rules are configured in .kit/markdownlint.jsonc; this file sets the scope. The repository's .gitignore
+// files say what is left out, so worktrees/ is never linted, and the glob form reads the ignore files inside the
+// tree being linted, so a worktree lints the same as the root checkout.
 //
 // see: https://github.com/DavidAnson/markdownlint-cli2#markdownlint-cli2jsonc
 {

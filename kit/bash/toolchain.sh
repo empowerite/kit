@@ -36,9 +36,6 @@
 #   path                    the directories to put first on PATH for its tools, one per line
 #   run <command>…          runs the command with its tools; only docker implements it, because it isolates
 #
-# toolchain:run runs a command inside the container when docker is declared, and otherwise with every
-# toolchain's path first on PATH. Either way the gate sees the same tools on the desk and on a runner.
-#
 # see: docs/toolchains.md
 
 use release yaml

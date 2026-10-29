@@ -67,8 +67,8 @@ forge-github:issue-assign() {
   gh issue edit "$1" --add-assignee "$2" >/dev/null 2>&1
 }
 
-# Find the branch through an open pull request's head branch, so a second run never creates a duplicate
-# <N>-<slug>-1 branch.
+# forge-github:branch-for-issue reads the branch from an open pull request's head, so a second run never creates
+# a duplicate <N>-<slug>-1 branch.
 forge-github:branch-for-issue() {
   gh pr list --state open --json headRefName \
     --jq "[.[] | select(.headRefName | test(\"^$1-\"))] | .[0].headRefName // empty" 2>/dev/null || true

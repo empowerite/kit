@@ -8,10 +8,10 @@ whichever manager the repository uses.
 kit toolchain install
 ```
 
-`kit/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#forges-seams-and-providers) says what a seam
-is), and each manager has a provider, `kit/bash/toolchain-<name>.sh`, that
-implements it. Every provider answers the same calls, so the root checkout (the desk), a CI runner, and the
-delivered CI job report the same results whichever manager the repository uses.
+`kit/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#forges-seams-and-providers) says what a
+seam is), and each manager has a provider, `kit/bash/toolchain-<name>.sh`, that implements it. Every provider
+answers the same calls, so the root checkout (the desk), a CI runner, and the delivered CI job report the same
+results.
 
 ## Declaring
 
@@ -58,11 +58,7 @@ toolchains:
 ## On a runner
 
 The delivered workflow runs `kit toolchain install`, then appends the output of `kit toolchain path` to the
-runner's `PATH`.
-
-- Its one setup action puts the `mise` binary on the runner when the repository has a `mise.toml` or `.mise.toml`. The action's
-  own install step is turned off.
-- Homebrew and Docker are already on GitHub's hosted runners.
-- The brew provider finds Homebrew at its own prefix when the runner leaves it off `PATH`.
+runner's `PATH`; [packages/github/ci.md](packages/github/ci.md) says what else the job sets up. The brew provider
+finds Homebrew at its own prefix when the runner leaves it off `PATH`.
 
 `tests/toolchain.bats` tests each provider against a fake of its tool.

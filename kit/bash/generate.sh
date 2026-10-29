@@ -12,7 +12,7 @@
 # Only non-alphanumeric characters may come before or after the marker on its line. So a directive works inside
 # any comment syntax without the kit knowing that syntax: `#`, `//`, `--`, `;`, `%`, `'`, `<!-- -->`, `/* */`,
 # and any other, since comment delimiters are punctuation. A line of prose has letters before the marker, so it is
-# not read at all.
+# skipped.
 #
 # The directive and end lines stay. The command's standard output replaces the lines between them. With no
 # command, the command is `kit region`, which reads the region's name as the path of a region an active package
@@ -47,12 +47,11 @@
 #
 # see: bin/kit-generate, bin/kit-region, docs/generate.md
 
-# The directive patterns. A line is a directive only when nothing but non-alphanumeric characters (the comment
-# opener and closer) come before and after the marker. The name is any run of characters without whitespace or a
-# backtick. The command is everything between the first backtick after the name and the last backtick on the line.
+# The directive patterns. The name is any run of characters without whitespace or a backtick. The command is
+# everything between the first backtick after the name and the last backtick on the line.
 declare -g generate_open_re='^[^[:alnum:]]*kit:generate[[:space:]]+([^[:space:]`]+)([[:space:]]+`(.+)`)?[^[:alnum:]]*$'
 declare -g generate_end_re='^[^[:alnum:]]*kit:end[[:space:]]+([^[:space:]`]+)[^[:alnum:]]*$'
-# A line that starts with a marker must be a valid directive, or it is an error. It is never read as prose.
+# A line that starts with a marker is a directive or an error, never prose.
 declare -g generate_marker_re='^[^[:alnum:]]*kit:(generate|end)([^[:alnum:]]|$)'
 declare -g generate_fence_re='^[[:space:]]*(```|~~~)'
 
@@ -202,7 +201,8 @@ generate:unit() {
     body=$(mktemp)
     result=$(mktemp)
     if ! generate:command "${file}" "${where}" "$(( i + 1 ))" "${name}" "${command}" "${body}" \
-      || ! generate:unit "${body}" "${result}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" "${markdown}"
+      || ! generate:unit "${body}" "${result}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" \
+        "${markdown}"
     then
       rm -f "${body}" "${result}"
       return 2

@@ -8,9 +8,8 @@
 # provider for the issue's tracker: tracker-<name>.sh in this directory, whose functions are named
 # tracker-<name>:<call>.
 #
-# The tracker is not always the forge, the service that hosts the repository (GitHub or GitLab). GitHub and GitLab
-# issues are on the forge; Azure DevOps work items and Jira issues are not. A repository can use more than one
-# tracker at once.
+# The tracker is not always the forge (GitHub or GitLab): GitHub and GitLab issues are on the forge; Azure DevOps
+# work items are not. A repository can use more than one tracker at once.
 #
 # An issue reference names its tracker with a prefix, written the way that tracker writes it:
 #

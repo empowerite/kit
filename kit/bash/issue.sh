@@ -5,8 +5,7 @@
 # issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
 # bash/tracker.sh describes:
 #
-#   - `7` or `#7`: an issue in the forge's own tracker (the forge is the service that hosts the repository, GitHub
-#     or GitLab)
+#   - `7` or `#7`: an issue in the forge's own tracker (GitHub or GitLab)
 #   - `AB#4521`: a work item in a declared Azure DevOps tracker
 #
 # The first reference is the primary issue. The others are secondary. Each issue is closed on merge by:

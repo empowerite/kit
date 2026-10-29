@@ -38,8 +38,8 @@
 #
 #   deny <input-file>       one refusal per line for the facts document in <input-file>
 #
-# Both providers read the same facts document. A rule that a pattern cannot express can be written in Rego
-# alongside the patterns. The policy/opa package delivers the default patterns as Rego, to start from.
+# A rule that a pattern cannot express can be written in Rego alongside the patterns. The policy/opa package
+# delivers the default patterns as Rego, to start from.
 #
 # Bash matches a pattern as an extended regular expression; OPA matches it as RE2. Write patterns in the subset
 # both support: character classes, anchors, alternation, and counted repetition.

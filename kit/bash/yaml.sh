@@ -6,10 +6,9 @@
 #
 #   - a package's package.yml
 #   - the repository's .kit/settings.yml
-#   - a rule file's frontmatter, between the opening and closing `---`
+#   - a rule or style file's frontmatter, between the opening and closing `---`
 #
-# All three use the same small subset of YAML. One reader handles all of them, so their formats cannot drift
-# apart:
+# All three are written in the same subset of YAML:
 #
 #   key: value          a scalar, quoted or not
 #   key:                a list, one `  - item` per line

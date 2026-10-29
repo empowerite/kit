@@ -70,8 +70,8 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 3. Never run `kit issue`, create a branch, or create a worktree. These were done before the handoff.
 4. Implement what the issue asks and nothing else.
 5. Push as you go.
-6. Before you call anything done, run the repository's gate (its own CI command, such as `just ci`) through
-   the pinned toolchain.
+6. Before you call anything done, run `kit gate`: the repository's gate (its own CI command, such as `just ci`)
+   through the pinned toolchain.
 7. Finish with `gh pr ready`, with the report in the pull request body.
 8. If the gate fails or the work is partial, leave the pull request as a draft and say why.
 9. Never merge.
@@ -85,10 +85,12 @@ file looks. Rule files and style files have the same frontmatter, with these key
 
 | Key | Contains |
 | --- | --- |
-| `paths:` | Globs matched against a file's path from the repository root. The file governs a path that matches. |
-| `content:` | Patterns matched against a file's first line. The file governs a file that matches. |
+| `paths:` | Globs matched against a file's path from the repository root. |
+| `content:` | Patterns matched against the first line of a file that exists. |
 | `lint:` | The linter that `kit lint` runs over the files it governs. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
+
+A rule or style governs a file when any of its globs or patterns matches.
 
 Before you change a file:
 
@@ -128,11 +130,11 @@ The repository contains the text:
 - this file
 - the rules under `.kit/rules/`
 - the style under `.kit/style/`, from the style packages the repository takes
-- `.kit/manifest`, which records the release version, the active packages, and a checksum for each delivered file
+- `.kit/manifest`, which records the release version, the active packages, and the digest of each delivered file
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
-are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, and `kit lint`. Run them
-exactly as written here, and in no other way.
+are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, and `kit gate`.
+Run them exactly as written here, and in no other way.
 
 Everything the release delivers belongs to a package. A repository activates the packages it wants:
 
@@ -145,19 +147,19 @@ A package of the repository's own lives under `.kit/packages/` and is activated 
 How a delivered file is placed depends on its destination:
 
 - A `.json` file, other than a schema, is merged by key. The kit owns only the entries it writes.
-- A region inside a file the repository owns starts at a `kit:generate` directive. `kit generate` fills the region
-  by running the command the directive names.
+- A region inside a file the repository owns starts at a `kit:generate` directive and ends at a `kit:end` line.
+  `kit generate` fills it with the output of the directive's command, or of `kit region` when it names none.
 - Every other file is copied as it is.
 
 The packages:
 
-- `kit`: this file, the rules, and two regions that `kit region` fills:
+- `kit`: this file, the rules, `.kit/settings.schema.json`, and two regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
-  `style/gitignore`: the style for one kind of file each, under `.kit/style/`, with its templates. `style/markdown`
-  also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes the ones it agrees
-  with, or writes its own.
+  `style/gitignore`: the style for one kind of file each, under `.kit/style/`, and the kind's templates (JSON has
+  none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
+  the ones it agrees with, or writes its own.
 - `hooks/lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
@@ -172,7 +174,7 @@ The packages:
 - `agents/claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
-  - a hook that runs `kit context` before every write, so the agent sees the rules without asking
+  - a hook that runs `kit context` before every write, so the agent is told the file's rules without asking
 - `empowerite`: a bundle, with no file of its own. It includes the seven style packages, `github/ci`,
   `agents/claude`, and `hooks/lefthook`, which is what Empowerite's repositories take.
 

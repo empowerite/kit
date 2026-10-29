@@ -2,8 +2,7 @@
 // ----------------------------------------------------------------------------------------------------------------------
 // Added by kit's style/markdown package. To remove it, run kit package remove style/markdown.
 // To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-// The markdown style, .kit/style/markdown.md, is the convention; each setting here is one of its lines the
-// linter can hold.
+// Each setting here holds the linter to one item of the markdown style, .kit/style/markdown.md.
 
 {
   // MD003 heading-style: ATX headings.

@@ -45,10 +45,9 @@
 
 use release
 
-# forge:provider prints the provider's name: the forge setting, else github for an origin at github.com and
-# gitlab for one at gitlab.com. A self-hosted forge needs the setting. It fails with a remedy when neither gives
-# a provider the kit has. A repository hosted on two forges (a mirror, or mid-migration) uses the setting to pick
-# one.
+# forge:provider prints the provider's name, chosen as the file header describes. A self-hosted forge, or a
+# repository on two forges, needs the setting. It fails with a remedy when neither the setting nor origin's host
+# names a provider the kit has.
 forge:provider() {
   local provider host=''
   provider=$(release:setting forge)

@@ -129,7 +129,7 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The patterns that the branch name, commit subjects, and pull request title must match. Each is an extended regular expression, limited to the subset RE2 also supports. An absent key uses the kit's default. An empty pattern turns that rule off.",
+      "description": "The patterns that the branch name, commit subjects, and the open change's title must match. Each is an extended regular expression, limited to the subset RE2 also supports. An absent key uses the kit's default. An empty pattern turns that rule off.",
       "properties": {
         "branch": {
           "type": "string",
@@ -141,7 +141,7 @@
         },
         "change_title": {
           "type": "string",
-          "description": "The pattern for the open pull request's title. Default: ^[^[:cntrl:]]{1,120}$."
+          "description": "The pattern for the open change's title, a pull request on GitHub or a merge request on GitLab. Default: ^[^[:cntrl:]]{1,120}$."
         }
       }
     },

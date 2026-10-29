@@ -80,14 +80,14 @@ do
     fi
   done <<<"${delivered}"
 done
-# Report each line a package expects in a file the repository owns that is missing. The kit never writes these lines.
+# The kit never writes a line a package expects in a file the repository owns; it only reports one that is missing.
 while IFS= read -r unmet
 do
   [[ -n "${unmet}" ]] || continue
   error "${unmet}"
   findings=$(( findings + 1 ))
 done < <(release:unmet "${kit_root}" "${packages[@]}")
-# Check that every generated region, the kit's and the repository's own, matches what its command makes.
+# Every generated region, the kit's and the repository's own.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
 then

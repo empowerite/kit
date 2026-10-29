@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# ci.bats - kit ci runs the gate, the kit's check, and the issue link, and reports every one
+# ci.bats - kit ci runs the gate, kit check, kit linked, and kit policy, and reports every one
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {

@@ -39,11 +39,10 @@ templates:
 
 JSON style has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 
-The style packages deliver the templates, one package per kind. To change one, write a package of your own under
-`.kit/packages/` that depends on that style package and places a file at the same path. The later package in
-dependency order wins. This repository does that with its `house` package, `.kit/packages/house/`, whose bash,
-gitignore, and just templates add a line of dashes under the banner and at the end of the file. The templates the
-kit delivers have none.
+To change a template, write a package of your own under `.kit/packages/` that depends on the style package that
+delivers it, and place a file at the same path. The later package in dependency order wins. This repository does
+that with its `house` package, `.kit/packages/house/`, whose bash, gitignore, and just templates add a line of
+dashes under the banner and at the end of the file. The templates the kit delivers have none.
 see: [packages.md](packages.md)
 
 ## Holes

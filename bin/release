@@ -22,7 +22,7 @@
 #                             merged by a merge commit stays reachable from the default branch, so it is kept. A
 #                             squash merge leaves it unreachable, so it is deleted.
 #
-# A release is permanent and never changes. Only a pre-release is ever retired.
+# A release is permanent. Only a pre-release is ever retired.
 #
 # see: .github/workflows/release.yml, .github/workflows/retire-pre-releases.yml
 

@@ -142,7 +142,7 @@ shape() {
   run ! in_template template:matches "${BATS_TEST_TMPDIR}/t" after
   printf 'a.b «x»\n' > "${BATS_TEST_TMPDIR}/dot"
   printf 'aXb y\n' > dot
-  ! in_template template:matches "${BATS_TEST_TMPDIR}/dot" dot
+  run ! in_template template:matches "${BATS_TEST_TMPDIR}/dot" dot
 }
 
 @test "kit lint holds a governed file to its shape, and skips templates, regions, and generated paths" {

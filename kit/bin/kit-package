@@ -15,7 +15,8 @@
 #                        A member of a bundle that stays active is recorded as excluded, so that kit update does not
 #                        bring it back.
 #
-# Exits 0 on success, 2 on a usage error or a package the release does not have, and 1 for any other failure.
+# Exits 0 on success, 2 on a usage error or a package that is neither in the release nor under .kit/packages/, and
+# 1 for any other failure.
 #
 # see: bash/release.sh, docs/packages.md
 
@@ -115,7 +116,6 @@ case "${verb}" in
     done
     release:render-all "${kit_root}" "${active[@]}"
     section "kit package remove $*"
-    # A member of a bundle that stays active is excluded, so that an update does not bring it back.
     newly=''
     for package in "$@"
     do

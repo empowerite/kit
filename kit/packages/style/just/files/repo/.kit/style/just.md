@@ -27,7 +27,7 @@ The templates in `.kit/templates/just/` hold the exact shape. A repository can r
    - `set dotenv-load := true`
    - `set fallback := true`, only in a module, never in the root, because the root has no parent
    - `set positional-arguments := true`
-   - `set script-interpreter := ['bash']`, with the interpreter named bare so the pinned bash is used
+   - `set script-interpreter := ['bash']`, with the interpreter named bare, so the `bash` first on `PATH` runs it
 
    `set export := true` comes after the default-and-help pair, so that the pair is identical in every justfile.
 3. Where mise pins the tools, the root justfile puts them first on `PATH`, once, at parse time, from

@@ -1038,7 +1038,7 @@ release:unplace() {
 #     warns that the file was edited and leaves it as it is
 #
 # Under home, whose manifest every repository shares, it touches only paths the previous release delivered for
-# these packages, and nothing at all without the base release.
+# these packages, and nothing without the base release.
 release:retire() {
   local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates
   shift 4
@@ -1098,7 +1098,10 @@ release:write-manifest() {
     then
       rm -f "${manifest}"
     else
-      { awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "${manifest}"; printf '%s\n' "${kept}"; } > "${manifest}.kit-new"
+      {
+        awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "${manifest}"
+        printf '%s\n' "${kept}"
+      } > "${manifest}.kit-new"
       mv "${manifest}.kit-new" "${manifest}"
     fi
     return 0

@@ -13,7 +13,7 @@ lint: shellcheck --shell=bash --external-sources
 Applies to:
 
 - `*.sh` and `*.bash` files
-- recipe bodies under `#!/usr/bin/env bash`
+- recipe bodies in a justfile that bash runs: `[script]` bodies, and shebang bodies under `#!/usr/bin/env bash`
 - `run:` blocks in workflows
 
 ## Running
@@ -36,5 +36,5 @@ Applies to:
 
 ## Modules on the kit's module path
 
-A file that `use` loads from the kit's bash module path is a sourced file. Name each function in it
-`<module>:<name>`, where `<module>` is the file's basename, so that every function says where it is defined.
+A module, a file that `use` loads from the kit's bash module path, is a sourced file. Name each function in it
+`<module>:<name>`, where `<module>` is the file's name without `.sh`, so every function says where it is defined.

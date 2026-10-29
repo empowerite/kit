@@ -12,9 +12,8 @@
 #
 # The rules are found where they are and copied nowhere, so every harness and every person finds them the same way.
 #
-# context:claude gives the same answer in Claude Code's hook protocol. It reads the hook input on stdin and prints
-# the rules' paths as additional context on stdout. It names the rules but does not quote them, so the agent still
-# reads each rule itself, and a hook on Read can record that.
+# context:claude gives the same answer in Claude Code's hook protocol. It names the rules but does not quote them,
+# so the agent still reads each rule itself, and a hook on Read can record that.
 #
 # see: docs/context.md
 

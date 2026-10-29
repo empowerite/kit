@@ -7,6 +7,7 @@
 # Rebases the branch checked out at <path> (default: the current checkout) onto the default branch at origin, and
 # pushes it with --force-with-lease. kit rebase refuses:
 #
+#   - a checkout with no branch checked out
 #   - the root checkout (the desk), which belongs to the human, whatever branch it has
 #   - the default branch, in any checkout
 #   - a worktree with uncommitted changes

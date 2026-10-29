@@ -115,6 +115,10 @@ else
   fi
 fi
 
+if [[ -n "${variant}" ]]
+then candidates=$(template:variants "${rule}")
+else candidates=$(template:applies "${rule}" "${path}")
+fi
 chosen='' executable=''
 while IFS=$'\x1f' read -r name _ exec_flag
 do
@@ -125,7 +129,7 @@ do
     executable=${exec_flag}
     break
   fi
-done < <(if [[ -n "${variant}" ]]; then template:variants "${rule}"; else template:applies "${rule}" "${path}"; fi)
+done <<<"${candidates}"
 if [[ -z "${chosen}" ]]
 then
   error "the $(template:rule-name "${rule}") rule has no template ${variant:-for ${path}}; its templates are:" \

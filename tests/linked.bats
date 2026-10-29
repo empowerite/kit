@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# linked.bats - kit linked names the pull request it needs when none can be found; the rest needs GitHub
+# linked.bats - kit linked names the pull request it needs when none can be found; the forge fakes test the rest
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {

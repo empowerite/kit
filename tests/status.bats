@@ -86,7 +86,10 @@ commits-in() {
 
 @test "a block lists its uncommitted paths with git's status, the first ten and a count of the rest" {
   printf 'changed\n' > a
-  for i in $(seq 1 12); do printf '%s\n' "${i}" > "n${i}"; done
+  for i in $(seq 1 12)
+  do
+    printf '%s\n' "${i}" > "n${i}"
+  done
   doc=$(in_status status:checkout "${PWD}" main main)
   run in_status status:checkout-block 🏠 "${doc}" 4
   [ "${lines[0]}" = "🏠 main · ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
@@ -189,3 +192,5 @@ commits-in() {
   run in_status status:relative "${PWD%/worktrees}"
   [ "$output" = ".." ]
 }
+
+# ----------------------------------------------------------------------------------------------------------------------

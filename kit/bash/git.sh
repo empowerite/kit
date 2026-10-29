@@ -4,8 +4,7 @@
 #
 # kit tidy (git:tidy) decides whether a worktree's work is finished by asking:
 #
-#   - the forge, the service that hosts the repository (GitHub, GitLab), through bash/forge.sh: is the branch's pull
-#     request merged or closed?
+#   - the forge (GitHub, GitLab), through bash/forge.sh: is the branch's pull request merged or closed?
 #   - when the branch has no pull request, the issue's tracker, through bash/tracker.sh: is the branch's issue
 #     closed?
 
@@ -149,7 +148,6 @@ git:tidy() {
         return 2
     esac
   done
-  use forge
   forge:require || return 1
   repo=$(forge:repo) || return 1
   if [[ "${dry_run}" == true ]]

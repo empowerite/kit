@@ -19,7 +19,8 @@ set -o errexit -o nounset -o pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 kit/bin/kit lint --all-files
-ajv validate --spec=draft2020 -s kit/packages/package.schema.json -d 'kit/packages/*/package.yml' -d 'kit/packages/*/*/package.yml'
+ajv validate --spec=draft2020 -s kit/packages/package.schema.json \
+  -d 'kit/packages/*/package.yml' -d 'kit/packages/*/*/package.yml'
 ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
 bats --timing --print-output-on-failure tests/

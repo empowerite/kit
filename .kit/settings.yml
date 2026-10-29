@@ -2,6 +2,6 @@
 require_signing: true
 gate: bin/ci
 # The commit-subject rule is off for the history of #1, the first release, whose early commits predate it. Remove
-# this comment and the two lines below once that pull request merges, and every later branch is held to the kit's default.
+# this comment and the two lines below once that pull request merges, and the kit's default applies again.
 policy:
   commit_subject: ''

@@ -1,9 +1,9 @@
 # lefthook.yml - this repository's git hooks; see: https://lefthook.dev
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The linters come from the kit's installed .kit/lefthook.yml, as in any consumer repository: kit lint over the
-# staged paths. This repository adds a step that refreshes its installed copies. Once per clone, run:
-# lefthook install
+# The kit's commands come from its installed .kit/lefthook.yml, as in any consumer repository: kit lint and
+# kit generate --check over the staged paths. This repository adds a command that refreshes its installed copies.
+# Once per clone, run: lefthook install
 
 extends:
   - .kit/lefthook.yml

@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "Claude Code: the deny list of the spellings the rules forbid, and the hook that names a file's rules"
+description: "Claude Code: a deny list of the git commands .kit/1st.md forbids, and a hook that names a file's rules"
 depends:
   - kit

@@ -110,8 +110,10 @@ world-gitlab() {
  "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"}}
 JSON
   fixture jobs.json <<'JSON'
-[{"name": "a", "status": "success", "started_at": "2026-10-01T10:00:00.120Z", "finished_at": "2026-10-01T10:00:30.000Z"},
- {"name": "b", "status": "success", "started_at": "2026-10-01T10:00:10.000Z", "finished_at": "2026-10-01T10:01:00.450Z"}]
+[{"name": "a", "status": "success",
+  "started_at": "2026-10-01T10:00:00.120Z", "finished_at": "2026-10-01T10:00:30.000Z"},
+ {"name": "b", "status": "success",
+  "started_at": "2026-10-01T10:00:10.000Z", "finished_at": "2026-10-01T10:01:00.450Z"}]
 JSON
   fixture discussions.json <<'JSON'
 [{"notes": [{"resolvable": true, "resolved": true}]}, {"notes": [{"resolvable": true, "resolved": false}]},

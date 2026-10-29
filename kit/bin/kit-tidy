@@ -5,8 +5,9 @@
 # kit tidy [--dry-run]
 #
 # Removes finished worktrees under worktrees/, and deletes each local branch whose upstream is gone. A worktree is
-# finished when its pull request is merged or closed, or when it is detached, clean, and at a commit the default
-# branch already has. kit tidy also prunes git's worktree records. It never touches:
+# finished when its pull request is merged or closed, when it has no pull request and its issue is closed, or when
+# it is detached, clean, and at a commit the default branch already has. kit tidy also prunes git's worktree
+# records. It never touches:
 #
 #   - the default branch
 #   - a branch checked out in a live worktree

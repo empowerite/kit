@@ -18,7 +18,8 @@
 #
 #   1. the directory KIT_BASE names
 #   2. this release, when the previous release is the same version
-#   3. the previous release, which release:fetch finds or fetches (never for an unreleased previous version)
+#   3. the previous release, from the kit's cache, from mise, or downloaded from its public tarball (never for an
+#      unreleased previous version)
 #
 # kit update checks that every merge has its base before it writes anything. When a base is missing, it writes
 # nothing and the manifest stays at the previous version, so the next run starts from the same place.
@@ -45,8 +46,7 @@ readarray -t recorded < <(release:manifest-packages)
 readarray -t excluded < <(release:manifest-excludes)
 readarray -t defaults < <(release:default-packages "${kit_root}")
 release:require-packages "${kit_root}" "${recorded[@]}"
-# The active set is resolved again from this release: a package that an active one now depends on or includes comes
-# in, and so does a new default package. An excluded member stays out, unless a package depends on it.
+# The active set is resolved again from this release; the header says what comes in and what stays out.
 readarray -t packages < <(release:resolve "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}")
 for package in "${excluded[@]}"
 do
@@ -126,7 +126,6 @@ do
     recorded=$(release:recorded "${base}" "${path}")
     if [[ -z "${recorded}" ]]
     then
-      # New in this release: written when nothing, or the same content, is there, and refused otherwise.
       release:place-new "${src}" "${dest}" "new in ${current}" || conflicts=$(( conflicts + 1 ))
       continue
     fi

@@ -9,6 +9,8 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   depend on, and the members they include. It records the set on the `packages` line of `.kit/manifest`.
 - `kit package list` shows every package the release has, which are active, and which are excluded.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
+- A glob names every package it matches, in `kit install`, `kit package add`, and `kit package remove`:
+  `kit package add 'style/*'`. A glob that matches nothing is refused.
 - `kit package remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,
   and takes the kit's entries back out of any merged `.json` file. A package that an active package depends on is
   refused.
@@ -47,7 +49,7 @@ else in the package's directory. The base sets where a file lands:
 ## Metadata
 
 `package.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `kit/bash/yaml.sh`
-reads: scalars, lists of `- item`, and one level of map. A line starting with `#` is a comment.
+reads: scalars, lists of `- item`, one level of map, and lists of records. A line starting with `#` is a comment.
 
 ```yaml
 description: "One GitHub Actions job that runs kit ci"
@@ -208,7 +210,7 @@ See [bash.md](bash.md#writing-a-module).
 ## Packages a repository defines
 
 A directory `.kit/packages/<name>/` in the repository is a package in every respect. It has the same parts:
-`package.yml`, `files/<base>/`, `templates/<base>/`, `regions/<base>/`, and `docs/`.
+`package.yml`, `files/<base>/`, `templates/<base>/`, and `regions/<base>/`.
 
 - The kit looks up a package name in the release first, then in `.kit/packages/`.
 - It is validated like a delivered package, and it may depend on delivered packages.

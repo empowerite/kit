@@ -13,7 +13,8 @@
 # When a different file is already at a delivered path, kit install names it and leaves it alone. It writes no
 # manifest until every path is clear. A repository that already has .kit/manifest is refused: run kit update.
 #
-# Exits 0 on success, 2 for a package the release does not have, and 1 for any other failure.
+# Exits 0 on success, 2 for a package that is neither in the release nor under .kit/packages/, and 1 for any
+# other failure.
 #
 # see: bash/release.sh
 

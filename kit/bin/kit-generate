@@ -11,7 +11,7 @@
 #   - With no paths, kit generate repeats until a pass changes nothing.
 #   - --check writes nothing, and fails naming every stale file.
 #
-# kit check runs kit generate --check, and the lefthook pre-commit hook runs it over the staged paths.
+# kit check makes the same check, and the lefthook pre-commit hook runs kit generate --check over the staged paths.
 #
 # Exits 0 on success, 2 on an unknown flag, and non-zero when a file is stale (with --check) or cannot be expanded.
 #

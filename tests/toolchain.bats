@@ -38,7 +38,8 @@ route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
   [[ "$output" == *"no toolchain is declared or detected"* ]]
   touch mise.toml Brewfile toolchain.Dockerfile
   run "${kit_root}/bin/kit" toolchain list
-  [ "$(awk '{ print $1 "=" $2 }' <<<"$output" | paste -s -d ' ' -)" = "mise=mise.toml brew=Brewfile docker=toolchain.Dockerfile" ]
+  detected=$(awk '{ print $1 "=" $2 }' <<<"$output" | paste -s -d ' ' -)
+  [ "${detected}" = "mise=mise.toml brew=Brewfile docker=toolchain.Dockerfile" ]
   mkdir .kit && printf 'toolchains:\n  - provider: brew\n    file: tools/Brewfile\n' > .kit/settings.yml
   run "${kit_root}/bin/kit" toolchain list
   [ "$output" = "brew     tools/Brewfile" ]
@@ -111,19 +112,21 @@ JSON
   route docker 'buildx imagetools inspect debian:12 *' debian.json
   run "${kit_root}/bin/kit" toolchain install
   [ "$status" -eq 0 ]
-  tag=$(sed -n 's/^build --quiet --file toolchain.Dockerfile --tag \(kit-toolchain:[0-9a-f]*\) \.$/\1/p' "${FAKE_DIR}/docker.calls")
+  tag=$(sed -n 's/^build --quiet --file toolchain.Dockerfile --tag \(kit-toolchain:[0-9a-f]*\) \.$/\1/p' \
+    "${FAKE_DIR}/docker.calls")
   [ "${#tag}" -eq 26 ]
   run "${kit_root}/bin/kit" toolchain run just ci
   [ "$status" -eq 0 ]
-  grep --quiet -- "run --rm --volume $(pwd -P):/work --workdir /work --user $(id -u):$(id -g) --env HOME=/tmp ${tag} just ci" \
-    "${FAKE_DIR}/docker.calls"
+  call="run --rm --volume $(pwd -P):/work --workdir /work --user $(id -u):$(id -g) --env HOME=/tmp ${tag} just ci"
+  grep --quiet -- "${call}" "${FAKE_DIR}/docker.calls"
   run "${kit_root}/bin/kit" toolchain outdated
   [[ "$output" == *"alpine:3.20"*"sha256:old"*"→ sha256:new"* ]]
   [[ "$output" == *"debian:12"*"unpinned"*"→ sha256:deb"* ]]
   [[ "$output" != *"tools"*"→"* ]]
   run "${kit_root}/bin/kit" toolchain update
   [ "$status" -eq 0 ]
-  [ "$(cat toolchain.Dockerfile)" = "$(printf 'FROM alpine:3.20@sha256:new AS tools\nRUN true\nFROM tools\nFROM debian:12@sha256:deb')" ]
+  pinned=$'FROM alpine:3.20@sha256:new AS tools\nRUN true\nFROM tools\nFROM debian:12@sha256:deb'
+  [ "$(cat toolchain.Dockerfile)" = "${pinned}" ]
 }
 
 @test "the gate runs inside the docker toolchain, and with mise's path first otherwise" {

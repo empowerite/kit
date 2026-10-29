@@ -47,7 +47,14 @@ setup() {
   [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
   [[ "$output" != *"  release"* ]]
   [[ "$output" != *"  status"* ]]
-  run "${kit_root}/bin/kit" help gate
+  # no real verb is a prefix of another, so the own-name rule is proved with a copy of the kit that has kit-gates
+  local root="${BATS_TEST_TMPDIR}/kit"
+  mkdir -p "${root}"
+  cp -R "${kit_root}/bin" "${kit_root}/bash" "${root}/"
+  cp "${root}/bin/kit-gate" "${root}/bin/kit-gates"
+  run "${root}/bin/kit" help gat
+  [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
+  run "${root}/bin/kit" help gate
   [ "${lines[0]}" = "kit gate - run the repository's gate, and refuse when there is none" ]
 }
 
@@ -55,8 +62,8 @@ setup() {
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
   cp -R "${kit_root}/bin" "${kit_root}/bash" "${root}/"
-  printf '#!/usr/bin/env bash\n# kit-plain - a verb in no house style (kit verb)\n# kit plain <thing>\n#\n# Does it.\n' \
-    > "${root}/bin/kit-plain"
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb in no house style (kit verb)' '# kit plain <thing>' '#' \
+    '# Does it.' > "${root}/bin/kit-plain"
   chmod +x "${root}/bin/kit-plain"
   run "${root}/bin/kit" help plain
   [ "$status" -eq 0 ]

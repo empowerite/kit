@@ -1,12 +1,7 @@
 # Architecture
 
-kit has three parts: a release that a repository installs, commands that agents and people both run, and checks that
-verify the work follows the rules. This page covers:
-
-- what a release contains and how it reaches a repository,
-- how kit finds the rules for a file,
-- how a change moves from an issue to `main`, and
-- which check verifies which claim.
+kit has three parts: a release that a repository installs, commands that agents and people both run, and
+checks that verify the work follows the rules.
 
 [packages.md](packages.md) and [context.md](context.md) describe the package format and the rule lookup in detail.
 
@@ -43,7 +38,6 @@ A package is a directory under `packages/`, named after the package. It contains
 | `files/<base>/` | files copied as they are to the same path under the base |
 | `templates/<base>/` | files copied after each `@key@` is replaced by a setting |
 | `regions/<base>/` | content kit owns inside a file the repository owns, rendered like a template |
-| `docs/` | documentation, packed with the release and never installed |
 
 There are two bases: `repo` is the repository root, and `home` is the user's home directory.
 
@@ -51,8 +45,8 @@ There are two bases: `repo` is the repository root, and `home` is the user's hom
 
 Content reaches a repository only through these verbs:
 
-- `kit install` resolves the active packages (`kit`, the ones named, and their dependencies), renders them, places the
-  files, and writes the manifests.
+- `kit install` resolves the active packages (`kit`, the ones named, their dependencies, and a bundle's members),
+  renders them, places the files, and writes the manifests.
 - `kit update` moves to a newly pinned release. It replaces each file the repository never edited and merges each
   edited file three ways, with the previous release as the base.
 - `kit check` fails when a delivered file differs from the release.
@@ -83,12 +77,12 @@ compares a file against its digest to tell whether the repository edited it.
 Each rule lives in one file, `.kit/rules/<kind>.md`, and is not copied into any agent tool's own directory. A
 style package adds `.kit/style/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
 style says how the file looks, and a repository takes the style it agrees with. Each file's frontmatter says which
-files it covers:
+files it governs:
 
 - `paths:` lists globs matched against the repository-relative path.
 - `content:` lists patterns matched against the first line of an existing file.
 
-`kit context <path>` prints the rules that cover a path and appends a line to `.git/kit/context.log`. Every caller
+`kit context <path>` prints the rules that govern a path and appends a line to `.git/kit/context.log`. Every caller
 gets the same answer:
 
 - an agent in any harness, following the instruction in `.kit/1st.md`,
@@ -99,9 +93,9 @@ gets the same answer:
 
 The log records each path asked about, and when.
 
-A rule also names its linter. `kit lint` runs each rule's linter over the files the rule covers, so a hook manager
-only has to call `kit lint`. A rule's templates are skeleton files of its kind: `kit new file <path>` creates a file
-from one, and `kit lint` checks that every file the rule covers keeps the shape of one; see
+A rule, or a style, can name a linter. `kit lint` runs each linter over the files its rule or style governs, so a
+hook manager only has to call `kit lint`. A style's templates are skeleton files of its kind: `kit new file <path>`
+creates a file from one, and `kit lint` checks that every file the style governs keeps the shape of one; see
 [templates.md](templates.md).
 
 ## The workflow and the gate
@@ -196,8 +190,8 @@ It queries the forge in the background and draws the local checkouts while it wa
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
 | An agent was shown a file's rules | the Claude Code hook; `kit context` in other harnesses |
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |
-| A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it covers |
-| A file keeps its rule's shape | `kit lint`, against the rule's templates; `kit new file` creates it in that shape |
+| A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
+| A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
 | The forbidden git commands were not used | the harness's deny list, delivered by its adapter package |
 | The desk was not changed | `kit rebase` refusing the root checkout; `kit issue` never switching its branch |
 

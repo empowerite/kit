@@ -16,8 +16,8 @@ Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A
 
 ## How a rule declares the files it governs
 
-A rule file, or a style file, opens with a frontmatter block. Every key in it is optional. In the kit's own files,
-the rules carry `paths:`, `content:`, and `lint:`, and the templates belong to the style:
+A rule file, or a style file, opens with a frontmatter block. Every key in it is optional. The templates belong
+to the style; the other keys appear in rules and styles alike:
 
 ```yaml
 ---

@@ -55,7 +55,8 @@ change() {
   run "${kit_root}/bin/kit" policy --input
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output .branch <<<"$output")" = "7-fix-the-thing" ]
-  [ "$(jq --raw-output '[.commits[].subject] | join("|")' <<<"$output")" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
+  subjects=$(jq --raw-output '[.commits[].subject] | join("|")' <<<"$output")
+  [ "${subjects}" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
   [ "$(jq --raw-output .change.title <<<"$output")" = "Fix the thing" ]
   [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject" ]
   run "${kit_root}/bin/kit" policy
@@ -74,7 +75,7 @@ change() {
   [[ "$output" == *"3 refusal(s) by the patterns policy"* ]]
 }
 
-@test "the repository's patterns override the defaults, an empty one turns a rule off, and an unknown subject is refused" {
+@test "a repository's patterns replace the defaults, an empty one turns a rule off, and an unknown subject is refused" {
   branch feature/login "wip"
   printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  commit_subject: ''\n" > .kit/settings.yml
   run "${kit_root}/bin/kit" policy

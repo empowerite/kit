@@ -4,10 +4,9 @@
 #
 # kit toolchain list | install | outdated [--check] | update | path | run <command>…
 #
-# Manages the tools the gate runs, through each declared toolchain: mise, brew, or docker. The same subcommands work
-# on a developer's machine and in the delivered CI job, whichever tool manager is in use. The toolchains are the
-# `toolchains` setting in .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or
-# toolchain.Dockerfile.
+# Manages the tools the gate runs, through each declared toolchain: mise, brew, or docker. The same subcommands run
+# on a developer's machine and in the delivered CI job. The toolchains are the `toolchains` setting in
+# .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile.
 #
 #   list                    prints each declared toolchain and the file it reads
 #   install                 installs every toolchain's pinned tools
@@ -17,7 +16,7 @@
 #   run <command>…          runs the command with the tools: inside the container for docker, else with the
 #                           toolchains' directories first on PATH
 #
-# Exits 0 on success, 2 on a usage error, and 1 when a subcommand fails.
+# Exits 0 on success, 2 on a usage error, and 1 when a subcommand fails; run exits with the command's own status.
 #
 # see: bash/toolchain.sh, docs/toolchains.md
 
@@ -54,7 +53,11 @@ case "${verb}" in
     for provider in ${providers}
     do
       step "${provider}: installing from $(toolchain:call "${provider}" file)"
-      toolchain:call "${provider}" install || { error "${provider}: the tools could not be installed; see above"; exit 1; }
+      if ! toolchain:call "${provider}" install
+      then
+        error "${provider}: the tools could not be installed; see above"
+        exit 1
+      fi
     done
     ok "toolchains installed: ${providers//$'\n'/ }"
     summary "✅ Toolchains installed: ${providers//$'\n'/ }."
