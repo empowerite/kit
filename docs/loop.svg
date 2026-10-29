@@ -27,7 +27,7 @@
   <text class="d" x="40" y="108">sometimes on a branch no worktree holds. No agent</text>
   <text class="d" x="40" y="124">checks out, resets, or rebases it.</text>
   <text class="m" x="40" y="152">kit status</text>
-  <text class="d" x="140" y="152">draws desk, worktrees, pull requests</text>
+  <text class="d" x="140" y="152">draws the whole picture</text>
 
   <!-- issue -->
   <rect class="box" x="24" y="210" width="300" height="80" fill="#f1f5f9"/>
@@ -48,7 +48,7 @@
   <text class="m" x="396" y="212">kit lint</text>
   <text class="d" x="560" y="212">the hook by hand</text>
   <text class="m" x="396" y="234">kit rebase</text>
-  <text class="d" x="560" y="234">onto the default branch, pushed</text>
+  <text class="d" x="560" y="234">onto main, pushed</text>
   <text class="m" x="396" y="256">gh pr ready</text>
   <text class="d" x="560" y="256">the body is the report</text>
   <text class="d" x="396" y="280">Signed commits, subject #&lt;N&gt; &lt;area&gt;: &lt;subject&gt;.</text>
@@ -74,7 +74,7 @@
   <text class="d" x="396" y="392">Nothing reaches main any other way, and</text>
   <text class="d" x="396" y="408">nothing is called merged until it is observed.</text>
   <text class="m" x="396" y="436">kit tidy</text>
-  <text class="d" x="480" y="436">removes the worktree and its branch</text>
+  <text class="d" x="480" y="436">removes worktree and branch</text>
 
   <!-- harness guards -->
   <rect class="box" x="736" y="340" width="280" height="120" fill="#e0f2fe"/>
