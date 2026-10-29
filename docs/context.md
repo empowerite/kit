@@ -11,11 +11,13 @@ kit context "${path}"
 - `--json` prints one object per path, with that path's rules.
 - Every call appends one line to `.git/kit/context.log`: the epoch time and the path.
 
-Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else.
+Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A style package adds
+`.kit/style/<kind>.md` for its kind, with the same frontmatter, and `kit context` prints it after the rule.
 
 ## How a rule declares the files it governs
 
-A rule file opens with a frontmatter block. Every key in it is optional:
+A rule file, or a style file, opens with a frontmatter block. Every key in it is optional. In the kit's own files,
+the rules carry `paths:`, `content:`, and `lint:`, and the templates belong to the style:
 
 ```yaml
 ---

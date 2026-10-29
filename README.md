@@ -21,7 +21,8 @@ What kit checks:
 
 What else kit provides:
 
-- `.kit/1st.md`, the file every agent reads first, and one rule file per kind of file.
+- `.kit/1st.md`, the file every agent reads first, and one rule file per kind of file. Style, how a file looks, is
+  optional: a style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
 - `kit toolchain`, which installs, lists, and updates the gate's tools (mise, Homebrew, or a container image) and
   runs the gate with them.
@@ -90,6 +91,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
    | `claude` | the Claude Code adapter |
    | `policy-opa` | the naming policy as Open Policy Agent rules |
+   | `style-<kind>` | the style for one kind of file, with its templates: `style-bash`, `style-markdown`, `style-just`, `style-workflows`, `style-yaml`, `style-json`, `style-gitignore` |
 
    `kit install ci-github lefthook claude` takes three of them. `kit package add` adds one later.
 
@@ -121,8 +123,8 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `claude` pa
 `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude always reads the same instructions as every other agent. The
 rest of `.claude/CLAUDE.md` is yours. Without the package, any agent that reads `AGENTS.md` still gets the rules.
 
-`kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The package format
-is in [docs/packages.md](docs/packages.md).
+`kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The
+package format is in [docs/packages.md](docs/packages.md).
 
 ### Working with the rules
 
@@ -203,8 +205,9 @@ from the index. Do not edit them by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc` | `kit/packages/kit/files/repo/.kit/` |
-| `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the kit package's |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/packages/kit/files/repo/.kit/` |
+| `.kit/style/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style-<kind>/files/repo/.kit/` |
+| `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
 | `.kit/lefthook.yml` | `kit/packages/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `kit/packages/ci-github/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |

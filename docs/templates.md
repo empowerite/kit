@@ -1,8 +1,9 @@
 # Templates
 
-A template is a file of one kind with holes in it, attached to the rule for that kind. `kit new file` fills
-the holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of
-its rule's templates.
+A template is a file of one kind with holes in it, attached to the style for that kind. `kit new file` fills the
+holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of its
+templates. A style package delivers the templates for its kind, so a repository that takes no style package for a
+kind has no templates for it.
 
 ```sh
 kit new file "${path}" --purpose="${purpose}"
@@ -10,9 +11,9 @@ kit new file "${path}" --purpose="${purpose}"
 
 ## Where a template lives
 
-A rule lists its templates in its frontmatter, in the order they are tried. Each template is a variant of the file,
-stored at `.kit/templates/<rule>/<variant>`. A variant can be limited to one path glob (`path:`) or marked
-executable (`executable: true`):
+A style file, `.kit/style/<kind>.md`, lists its templates in its frontmatter, in the order they are tried. Each
+template is a variant of the file, stored at `.kit/templates/<kind>/<variant>`. A variant can be limited to one
+path glob (`path:`) or marked executable (`executable: true`):
 
 ```yaml
 templates:
@@ -21,7 +22,7 @@ templates:
   - variant: module
 ```
 
-| Rule | Variant | Limited to | Notes |
+| Style | Variant | Limited to | Notes |
 | --- | --- | --- | --- |
 | bash | `script` | | executable |
 | bash | `module` | | a sourced file |
@@ -36,12 +37,13 @@ templates:
 | gitignore | `file` | | |
 | gitignore | `region` | `.gitignore` | a file the kit made of its region alone |
 
-The JSON rule has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
+JSON style has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 
-The `kit` package delivers the templates. To change one, write a package of your own under `.kit/packages/` that
-depends on `kit` and places a file at the same path. The later package in dependency order wins.
-This repository does that with its `house` package, `.kit/packages/house/`, whose bash, gitignore, and just
-templates add a line of dashes under the banner and at the end of the file. The templates the kit delivers have none.
+The style packages deliver the templates, one package per kind. To change one, write a package of your own under
+`.kit/packages/` that depends on that style package and places a file at the same path. The later package in
+dependency order wins. This repository does that with its `house` package, `.kit/packages/house/`, whose bash,
+gitignore, and just templates add a line of dashes under the banner and at the end of the file. The templates the
+kit delivers have none.
 see: [packages.md](packages.md)
 
 ## Holes
@@ -68,10 +70,10 @@ kit new file "${path}" [--rule="${rule}"] [--variant="${variant}"] [--"${hole}"=
 
 - The path is relative to the repository root, wherever you type the command. A path outside the repository, or
   one that already exists, is refused. Nothing is overwritten.
-- The rule is the most specific rule that governs the path and has templates: the one whose matching glob has the
-  most characters other than wildcards. So `.github/workflows/check.yml` gets the workflows rule, not the YAML
-  rule. Use `--rule` when the path alone cannot select a rule, such as a script with no extension.
-- The variant is the first one the rule lists that the path allows. Use `--variant` to pick another.
+- The template comes from the most specific style that governs the path and has templates: the one whose matching
+  glob has the most characters other than wildcards. So `.github/workflows/check.yml` gets the workflows style,
+  not the YAML style. Use `--rule` when the path alone cannot select one, such as a script with no extension.
+- The variant is the first one the style lists that the path allows. Use `--variant` to pick another.
 - An executable variant is made executable.
 - The command then prints the rules to read before you write the rest, as `kit context` does, and records the call
   in the context log.
@@ -81,8 +83,8 @@ A new file is a starting point, not a finished file. For example, a workflow mad
 
 ## Checking a file
 
-For each path governed by a rule with templates, `kit lint` checks that the file has the shape of one
-variant its path allows. It does this in addition to running the rule's linter. When a file matches no
+For each path governed by a style with templates, `kit lint` checks that the file has the shape of one variant its
+path allows. It does this in addition to running the linters of the rule and the style. When a file matches no
 variant, `kit lint` reports:
 
 - the variants it was checked against
@@ -102,5 +104,6 @@ Three kinds of path are not checked against any template:
 /.mise/locks/** linguist-generated
 ```
 
-A template fixes the shape a rule requires: the lines a file must have, and their order. Style that varies line by
-line, such as the inside of a recipe or a function, is left to the rule's linter and the rule's text.
+A template fixes the shape a style requires: the lines a file must have, and their order. What varies line by
+line, such as the inside of a recipe or a function, is left to the linters and to the text of the rule and the
+style.

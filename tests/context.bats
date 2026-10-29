@@ -33,8 +33,7 @@ teardown() {
   run "${kit_checkout}/bin/kit" context docs/a.md "${PWD}/.github/workflows/x.yml" lib/x.md
   [ "${lines[0]}" = ".kit/rules/markdown.md" ]
   [ "${lines[1]}" = ".kit/rules/workflows.md" ]
-  [ "${lines[2]}" = ".kit/rules/yaml.md" ]
-  [ "${#lines[@]}" -eq 3 ]
+  [ "${#lines[@]}" -eq 2 ]
 }
 
 @test "a relative path is taken from the directory the command was typed in" {
@@ -50,6 +49,18 @@ teardown() {
   [ "$(jq -c .rules <<<"${lines[0]}")" = '[".kit/rules/just.md"]' ]
   [ "$(jq -r .path <<<"${lines[1]}")" = "README.md" ]
   [ "$(cut -f 2 .git/kit/context.log | paste -s -d ' ' -)" = "justfile README.md" ]
+}
+
+@test "a style the repository takes is printed after the rule, and the hook asks for each to be read" {
+  "${kit_checkout}/bin/kit" package add style-bash >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" context lib/run.sh
+  [ "${lines[0]}" = ".kit/rules/bash.md" ]
+  [ "${lines[1]}" = ".kit/style/bash.md" ]
+  [ "${#lines[@]}" -eq 2 ]
+  input=$(printf '{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"%s/lib/run.sh"}}' "${PWD}")
+  run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
+  [ "$(jq -r .hookSpecificOutput.additionalContext <<<"$output")" \
+    = "kit: lib/run.sh is governed by .kit/rules/bash.md .kit/style/bash.md; read each before this change." ]
 }
 
 @test "the claude hook names the rules of the file about to be written, and nothing for a file none governs" {

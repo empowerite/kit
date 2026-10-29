@@ -414,11 +414,9 @@ release:render() {
 #   1. validates the settings
 #   2. fails on a named package that is not in reach
 #   3. validates every package in reach
-#   4. fails on a base the kit does not deliver to
-#   5. renders the named packages' templates and regions
-#   6. fails on a delivered file that is a link to nothing, and on regions that release:regions-apart rejects
+#   4. renders the named packages, as release:render-packages does
 release:render-all() {
-  local root=$1 package kind base
+  local root=$1 package
   shift
   release:validate-settings || return 1
   release:require-packages "${root}" "$@" || return 2
@@ -426,6 +424,16 @@ release:render-all() {
   do
     release:validate "${root}" "${package}" || return 1
   done
+  release:render-packages "${root}" "$@"
+}
+
+# release:render-packages <root> <package>… renders the named packages' templates and regions. It fails on a base
+# the kit does not deliver to, on a delivered file that is a link to nothing, and on regions that
+# release:regions-apart rejects. A package the release at <root> does not have renders nothing, so kit update can
+# read a base release that predates a package: that release delivered nothing for it.
+release:render-packages() {
+  local root=$1 package kind base
+  shift
   for package in "$@"
   do
     for kind in files templates regions

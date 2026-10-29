@@ -56,7 +56,9 @@ elif [[ "${previous}" != "$(release:unreleased)" ]]
 then
   base_root=$(release:fetch "${previous}" || true)
 fi
-if [[ -n "${base_root}" ]] && ! release:render-all "${base_root}" "${packages[@]}"
+# The base is read, not validated: the current release was validated above, and a package the base predates renders
+# nothing from it.
+if [[ -n "${base_root}" ]] && ! release:render-packages "${base_root}" "${packages[@]}"
 then
   error "the base release at ${base_root} could not be read; see above"
   exit 1

@@ -210,13 +210,21 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
   from its source.
 - On update, its files are compared with its own current source. An edit under `.kit/packages/` is never merged
   against a release.
-- `kit context` finds a rule file it places under `.kit/rules/` like any other rule.
+- `kit context` finds a rule file it places under `.kit/rules/`, or a style file under `.kit/style/`, like any
+  other.
 
 ## This release's packages
 
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/templates/`, `.kit/settings.schema.json`, `.kit/markdownlint.jsonc`; regions in `AGENTS.md` and `.gitignore` |
+| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
+| [`style-bash`](packages/style.md) | no | `kit` | `.kit/style/bash.md` and the `script` and `module` templates |
+| [`style-markdown`](packages/style.md) | no | `kit` | `.kit/style/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
+| [`style-just`](packages/style.md) | no | `kit` | `.kit/style/just.md` and the `root` and `module` templates |
+| [`style-workflows`](packages/style.md) | no | `kit` | `.kit/style/workflows.md` and the `workflow` template |
+| [`style-yaml`](packages/style.md) | no | `kit` | `.kit/style/yaml.md` and the `document` template |
+| [`style-json`](packages/style.md) | no | `kit` | `.kit/style/json.md` |
+| [`style-gitignore`](packages/style.md) | no | `kit` | `.kit/style/gitignore.md` and the `file` and `region` templates |
 | [`lefthook`](packages/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
 | [`ci-github`](packages/ci-github.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`claude`](packages/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |

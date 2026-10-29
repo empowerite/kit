@@ -2,8 +2,9 @@
 # context.sh - which rules govern a file (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# context:render <path>… [--json] prints the rule files under .kit/rules/ that govern each path. It also logs each
-# request in the repository's context log. A rule's frontmatter declares what it governs:
+# context:render <path>… [--json] prints the files that govern each path: the rules under .kit/rules/, then the
+# style under .kit/style/ that the repository takes. It also logs each request in the repository's context log.
+# Each file's frontmatter declares what it governs:
 #
 #   - `paths:` globs matched against the repository-relative path, where ** matches any depth
 #   - `content:` patterns matched against the first line of a file that exists, so a bash script with no extension
@@ -57,11 +58,12 @@ context:glob-matches() {
   [[ "${path}" == ${glob} ]]
 }
 
-# context:rules <path> prints each rule file that governs <path>, by a `paths:` glob or a `content:` pattern.
+# context:rules <path> prints each rule file, then each style file, that governs <path>, by a `paths:` glob or a
+# `content:` pattern.
 context:rules() {
   local path=$1 rule glob pattern first=''
   [[ -f "${path}" ]] && first=$(head -n 1 "${path}" 2>/dev/null || true)
-  for rule in .kit/rules/*.md
+  for rule in .kit/rules/*.md .kit/style/*.md
   do
     [[ -f "${rule}" ]] || continue
     # Read each glob with read, not word splitting: an unquoted glob would expand against the working tree first.
@@ -150,7 +152,12 @@ context:claude() {
   context:log "${path}"
   rules=$(context:rules "${path}" | paste -s -d ' ' -)
   [[ -n "${rules}" ]] || return 0
-  text="kit: ${path} is governed by ${rules}; read it before this change."
+  if [[ "${rules}" == *" "* ]]
+  then
+    text="kit: ${path} is governed by ${rules}; read each before this change."
+  else
+    text="kit: ${path} is governed by ${rules}; read it before this change."
+  fi
   jq --null-input --compact-output --arg text "${text}" \
     '{ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: $text } }'
 }

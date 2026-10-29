@@ -79,43 +79,44 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 
 ## Rules by file type
 
-Each kind of file has a rule file under `.kit/rules/`. The frontmatter at the top of a rule file has these keys:
+Each kind of file has a rule file under `.kit/rules/`. A rule says what the work must do to be trusted. A
+repository that takes a style package also has a style file for that kind under `.kit/style/`, which says how the
+file looks. Rule files and style files have the same frontmatter, with these keys:
 
 | Key | Contains |
 | --- | --- |
-| `paths:` | Globs matched against a file's path from the repository root. The rule governs a file that matches. |
-| `content:` | Patterns matched against a file's first line. The rule governs a file that matches. |
-| `lint:` | The linter that `kit lint` runs over the files the rule governs. |
+| `paths:` | Globs matched against a file's path from the repository root. The file governs a path that matches. |
+| `content:` | Patterns matched against a file's first line. The file governs a file that matches. |
+| `lint:` | The linter that `kit lint` runs over the files it governs. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
 Before you change a file:
 
-1. Run `kit context <path>`. It prints the rules that govern the file, and records that you asked.
-2. Read every rule it prints.
+1. Run `kit context <path>`. It prints the rules, then the style, that govern the file, and records that you asked.
+2. Read every file it prints.
 
 No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them.
 
-Create a new file with `kit new file <path>`, giving the path from the repository root. Never write a new file
-from nothing. `kit new file`:
+Where a template governs a new file, create it with `kit new file <path>`, giving the path from the repository
+root, and never write it from nothing. `kit new file`:
 
-- writes the file from its rule's template
+- writes the file from its template
 - fills the template's holes that the path supplies
 - refuses a hole you left empty, and names the flag that fills it, such as `--purpose=<…>` or `--title=<…>`
 - prints the rules to read before you write the rest of the file
 
 Two flags choose the template:
 
-- `--variant=<…>` picks another of the rule's shapes, such as a sourced bash module.
-- `--rule=<…>` names the rule for a path with no extension.
+- `--variant=<…>` picks another of the shapes, such as a sourced bash module.
+- `--rule=<…>` names the rule or style for a path with no extension.
 
-`kit lint` fails any file, including one written by hand, whose shape matches none of its rule's templates.
+`kit lint` fails any file, including one written by hand, whose shape matches none of its templates.
 
 | Kind | Rule |
 | --- | --- |
 | Markdown | [rules/markdown.md](rules/markdown.md) |
 | Bash | [rules/bash.md](rules/bash.md) |
 | Just | [rules/just.md](rules/just.md) |
-| YAML | [rules/yaml.md](rules/yaml.md) |
 | Workflows | [rules/workflows.md](rules/workflows.md) |
 | JSON | [rules/json.md](rules/json.md) |
 | Ignore lists | [rules/gitignore.md](rules/gitignore.md) |
@@ -126,6 +127,7 @@ The repository contains the text:
 
 - this file
 - the rules under `.kit/rules/`
+- the style under `.kit/style/`, from the style packages the repository takes
 - `.kit/manifest`, which records the release version, the active packages, and a checksum for each delivered file
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
@@ -149,9 +151,13 @@ How a delivered file is placed depends on its destination:
 
 The packages:
 
-- `kit`: this file, the rules, and their templates, and two regions that `kit region` fills:
+- `kit`: this file, the rules, and two regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
+- `style-bash`, `style-markdown`, `style-just`, `style-workflows`, `style-yaml`, `style-json`, and
+  `style-gitignore`: the style for one kind of file each, under `.kit/style/`, with its templates. `style-markdown`
+  also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes the ones it agrees
+  with, or writes its own.
 - `lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.

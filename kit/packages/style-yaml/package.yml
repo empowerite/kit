@@ -1,0 +1,7 @@
+# packages/style-yaml/package.yml - the style-yaml package: the YAML style and its template
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "YAML style: an opening comment, comments without history, and the template"
+depends:
+  - kit

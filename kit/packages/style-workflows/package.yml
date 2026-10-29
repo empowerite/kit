@@ -1,0 +1,7 @@
+# packages/style-workflows/package.yml - the style-workflows package: the workflow style and its template
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "Workflow style: the opening comment, key order, named steps, summary lines, and the template"
+depends:
+  - kit

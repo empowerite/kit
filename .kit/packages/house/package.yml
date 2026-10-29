@@ -1,11 +1,19 @@
 # .kit/packages/house/package.yml - the house package: this repository's own taste, kept out of the kit it delivers
 # ----------------------------------------------------------------------------------------------------------------------
-# The kit package delivers templates with no taste of their own. This package replaces some of them for this
-# repository only, so kit new file makes, and kit lint requires, the house style here: a line of dashes to column
-# 120 under the banner and at the end of the file. A repository that installs the kit never sees this package.
+# The kit delivers its style as optional packages, one per kind of file. This repository takes all of them, and
+# this package goes further: it replaces some of their templates, so kit new file makes, and kit lint requires, a
+# line of dashes to column 120 under the banner and at the end of the file. A repository that installs the kit never
+# sees this package.
 #
 # see: docs/packages.md
 
-description: "This repository's own style: templates that put a line of dashes under the banner and at the end"
+description: "This repository's own style: every style package, and templates with a line of dashes under the banner"
 depends:
   - kit
+  - style-bash
+  - style-gitignore
+  - style-json
+  - style-just
+  - style-markdown
+  - style-workflows
+  - style-yaml

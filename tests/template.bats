@@ -12,7 +12,7 @@ setup() {
   repo=$(mktemp -d)
   cd "${repo}"
   git init --quiet --initial-branch=main
-  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  "${kit_root}/bin/kit" install style-bash style-gitignore style-just style-markdown style-workflows style-yaml >/dev/null 2>&1
 }
 
 teardown() {
@@ -52,6 +52,14 @@ shape() {
   grep --quiet 'bash/deploy.sh' "$(git rev-parse --git-common-dir)/kit/context.log"
 }
 
+@test "without a style package no template governs a file, and kit new file says where templates come from" {
+  "${kit_root}/bin/kit" package remove style-bash >/dev/null 2>&1
+  run "${kit_root}/bin/kit" new file bash/deploy.sh --purpose=x
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"no template governs bash/deploy.sh: a style package delivers them"* ]]
+  [ ! -e bash/deploy.sh ]
+}
+
 @test "every file kit new file makes has the shape of its own template" {
   "${kit_root}/bin/kit" new file bash/a.sh --purpose=a
   "${kit_root}/bin/kit" new file lib/b.sh --variant=module --purpose=b
@@ -84,7 +92,7 @@ shape() {
   [ "$status" -eq 2 ]
   run "${kit_root}/bin/kit" new file data.json
   [ "$status" -eq 2 ]
-  [[ "$output" == *"no rule with a template governs data.json"* ]]
+  [[ "$output" == *"no template governs data.json: a style package delivers them"* ]]
   run "${kit_root}/bin/kit" new file x.sh --variant=nope --purpose=x
   [[ "$output" == *"its templates are: script module"* ]]
   run "${kit_root}/bin/kit" new file x --rule=nope
@@ -96,11 +104,11 @@ shape() {
 
 @test "the most specific rule's template is chosen, and a path-limited variant is the default only on its path" {
   run in_template template:rules .github/workflows/check.yml
-  [ "${lines[0]}" = ".kit/rules/workflows.md" ]
-  [ "${lines[1]}" = ".kit/rules/yaml.md" ]
-  run in_template template:applies .kit/rules/just.md justfile
+  [ "${lines[0]}" = ".kit/style/workflows.md" ]
+  [ "${lines[1]}" = ".kit/style/yaml.md" ]
+  run in_template template:applies .kit/style/just.md justfile
   [ "$(cut -d $'\x1f' -f 1 <<<"$output" | paste -s -d ' ' -)" = "root module" ]
-  run in_template template:applies .kit/rules/just.md tools.just
+  run in_template template:applies .kit/style/just.md tools.just
   [ "$(cut -d $'\x1f' -f 1 <<<"$output")" = "module" ]
 }
 
@@ -146,7 +154,7 @@ shape() {
   [[ "$output" == *"loose.sh does not have the shape of the bash template"* ]]
   [[ "$output" != *"locks/a.yaml does not"* ]]
   [[ "$output" != *"templates/bash/script does not"* ]]
-  [[ "$output" == *".kit/rules/yaml.md: the shape of its templates over 0 path(s)"* ]]
+  [[ "$output" == *".kit/style/yaml.md: the shape of its templates over 0 path(s)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

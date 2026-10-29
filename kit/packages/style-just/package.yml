@@ -1,0 +1,7 @@
+# packages/style-just/package.yml - the style-just package: the justfile style and its templates
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "Justfile style: the settings block, the default-and-help pair, documented recipes, and the templates"
+depends:
+  - kit

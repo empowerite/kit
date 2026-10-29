@@ -389,12 +389,12 @@ later-release() {
   printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'edited\n' >> .kit/rules/yaml.md
+  printf 'edited\n' >> .kit/rules/markdown.md
   rm .kit/lefthook.yml
   jq '.permissions.deny -= ["Bash(git reset --hard *)"]' .claude/settings.json > s && mv s .claude/settings.json
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/rules/yaml.md differs"* ]]
+  [[ "$output" == *".kit/rules/markdown.md differs"* ]]
   [[ "$output" == *".kit/lefthook.yml is missing"* ]]
   [[ "$output" == *"missing an entry the kit writes"* ]]
   [[ "$output" == *"3 finding(s)"* ]]
@@ -458,18 +458,31 @@ later-release() {
   [[ "$output" == *"conflict markers"* ]]
 }
 
+@test "update reads a base release that predates an active package: that release delivered nothing for it" {
+  "${kit_checkout}/bin/kit" install
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/packages/extra/files/repo/.kit"
+  printf 'description: "A package new in 9.9.9"\ndepends:\n  - kit\n' > "${repo}.later/packages/extra/package.yml"
+  printf 'extra\n' > "${repo}.later/packages/extra/files/repo/.kit/extra"
+  "${repo}.later/bin/kit" package add extra >/dev/null 2>&1
+  run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ "$(cat .kit/extra)" = "extra" ]
+  grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
+}
+
 @test "update retires a path the new release no longer delivers, unless it was edited" {
   "${kit_checkout}/bin/kit" install claude
   later-release "${repo}.later"
-  rm "${repo}.later/packages/kit/files/repo/.kit/rules/yaml.md" "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
+  rm "${repo}.later/packages/kit/files/repo/.kit/rules/gitignore.md" "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
   printf 'mine too\n' >> .kit/rules/json.md
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
-  [ ! -e .kit/rules/yaml.md ]
+  [ ! -e .kit/rules/gitignore.md ]
   [ -e .kit/rules/json.md ]
-  [[ "$output" == *".kit/rules/yaml.md: retired in 9.9.9, removed"* ]]
+  [[ "$output" == *".kit/rules/gitignore.md: retired in 9.9.9, removed"* ]]
   [[ "$output" == *".kit/rules/json.md: retired in 9.9.9, but edited"* ]]
-  run ! grep --quiet 'rules/yaml.md' .kit/manifest
+  run ! grep --quiet 'rules/gitignore.md' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
 }
