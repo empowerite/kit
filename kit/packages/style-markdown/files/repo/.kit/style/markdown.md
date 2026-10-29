@@ -19,7 +19,7 @@ Applies to `*.md`. The rule, `.kit/rules/markdown.md`, also applies.
 
 1. Write plain declarative sentences, with the thing under discussion as the subject.
 2. Use a list for a list, a procedure, or a workflow, so it scans. Use a table where the content has columns.
-3. Do not bold words for emphasis. Do not open a list item with a bolded term and a colon.
+3. Do not bold words for emphasis.
 4. Do not end a paragraph on a slogan. Do not restate what the code or config already states.
 5. Use the serial comma in every list of three or more.
 6. Expand an uncommon acronym the first time it appears.
