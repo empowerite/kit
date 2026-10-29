@@ -2,6 +2,8 @@
 # template.bats - a rule's template makes a new file, kit new file, and holds every file to its shape, kit lint
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   export kit_root NO_COLOR=1
   kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
@@ -129,7 +131,7 @@ shape() {
   printf 'head x tail\nend\nmore\n' > after
   in_template template:matches "${BATS_TEST_TMPDIR}/t" none
   in_template template:matches "${BATS_TEST_TMPDIR}/t" two
-  ! in_template template:matches "${BATS_TEST_TMPDIR}/t" after
+  run ! in_template template:matches "${BATS_TEST_TMPDIR}/t" after
   printf 'a.b «x»\n' > "${BATS_TEST_TMPDIR}/dot"
   printf 'aXb y\n' > dot
   ! in_template template:matches "${BATS_TEST_TMPDIR}/dot" dot

@@ -5,6 +5,8 @@
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against
 # it. The update tests build a second, later release from the first so the three-way merge has a base.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   repo=$(mktemp -d)
@@ -162,7 +164,7 @@ later-release() {
   [ "$(cat "${KIT_HOME}/.kit/claude")" = "user level" ]
   grep --quiet '^version 9.9.9$' "${KIT_HOME}/.kit/manifest"
   grep --quiet '  .kit/claude$' "${KIT_HOME}/.kit/manifest"
-  ! grep --quiet 'claude$' .kit/manifest
+  run ! grep --quiet '  .kit/claude$' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
   printf 'edited\n' >> "${KIT_HOME}/.kit/claude"
@@ -467,7 +469,7 @@ later-release() {
   [ -e .kit/rules/json.md ]
   [[ "$output" == *".kit/rules/yaml.md: retired in 9.9.9, removed"* ]]
   [[ "$output" == *".kit/rules/json.md: retired in 9.9.9, but edited"* ]]
-  ! grep --quiet 'rules/yaml.md' .kit/manifest
+  run ! grep --quiet 'rules/yaml.md' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
 }
@@ -487,7 +489,7 @@ later-release() {
   [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]
   grep --quiet '^version 9.9.9$' .kit/manifest
   # whole or not at all: the file that needed no base was not written either
-  ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
+  run ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
   rm -rf "${repo}.newer"
 }
 
