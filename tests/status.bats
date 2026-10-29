@@ -113,16 +113,16 @@ commits-in() {
   )
   run in_status status:fetch main
   [ "$status" -eq 0 ]
-  expected='📥 fetched origin: 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
+  expected='📥 origin: fetched 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
   [ "${lines[0]}" = "${expected} · 1 new tag" ]
   run in_status status:fetch main
-  [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
+  [ "${lines[0]}" = "📥 origin: unchanged" ]
 }
 
 @test "kit status prints the fetch first, then the checkouts, then what the forge said, held until its place" {
   printf 'x\n' > c
   run "${kit_root}/bin/kit" status
-  [ "${lines[0]}" = "📥 fetched origin: nothing new" ]
+  [ "${lines[0]}" = "📥 origin: unchanged" ]
   [ "${lines[1]}" = "🏠 main · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
   [ "${lines[2]}" = "   ?? c" ]
   [[ "${lines[3]}" == *"forge"* ]]

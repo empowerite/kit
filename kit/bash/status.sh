@@ -142,7 +142,7 @@ status:plural() {
 
 # status:fetch-summary <before> <after> <default-branch> prints one line listing what changed between two
 # status:refs snapshots: new commits on origin's default branch, then branches updated, new, and pruned, then new
-# tags. It prints "nothing new" when nothing changed.
+# tags, after "origin: fetched". It prints "origin: unchanged" when nothing changed.
 status:fetch-summary() {
   local default_ref="refs/remotes/origin/$3" kind ref old new commits=0 updated=0 added=0 pruned=0 tags=0 line part
   local -a parts=()
@@ -166,13 +166,17 @@ status:fetch-summary() {
   (( added > 0 )) && parts+=("$(status:plural "${added}" 'new branch' 'new branches')")
   (( pruned > 0 )) && parts+=("$(status:plural "${pruned}" 'branch pruned' 'branches pruned')")
   (( tags > 0 )) && parts+=("$(status:plural "${tags}" 'new tag' 'new tags')")
-  (( ${#parts[@]} > 0 )) || parts=('nothing new')
+  if (( ${#parts[@]} == 0 ))
+  then
+    printf '📥 origin: unchanged\n'
+    return 0
+  fi
   line=${parts[0]}
   for part in "${parts[@]:1}"
   do
     line+="${status_sep}${part}"
   done
-  printf '📥 fetched origin: %s\n' "${line}"
+  printf '📥 origin: fetched %s\n' "${line}"
 }
 
 # status:fetch <default-branch> fetches origin with --prune, then prints status:fetch-summary's line and a blank
