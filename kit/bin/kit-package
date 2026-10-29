@@ -4,13 +4,16 @@
 #
 # kit package list | add <package>… | remove <package>…
 #
-#   list                 prints every package in reach, with a ✅ beside the active ones, its origin (release or
-#                        repository), and its description. This is the default.
-#   add <package>…       activates the packages and the packages they depend on, places the files they deliver,
-#                        and rewrites the manifests. When a different file is already at a delivered path, it is
-#                        named and left alone, and no manifest is written.
+#   list                 prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
+#                        excluded ones, its origin (release or repository), and its description. This is the default.
+#   add <package>…       activates the packages, the packages they depend on, and the members they include, places
+#                        the files they deliver, and rewrites the manifests. When a different file is already at a
+#                        delivered path, it is named and left alone, and no manifest is written. A package named
+#                        here is no longer excluded.
 #   remove <package>…    takes out what the packages delivered (files, the kit's JSON entries, and the kit's
 #                        regions) and rewrites the manifests. A package that an active package depends on is refused.
+#                        A member of a bundle that stays active is recorded as excluded, so that kit update does not
+#                        bring it back.
 #
 # Exits 0 on success, 2 on a usage error or a package the release does not have, and 1 for any other failure.
 #
@@ -33,6 +36,7 @@ case "${verb}" in
 esac
 release:require-manifest
 readarray -t active < <(release:manifest-packages)
+readarray -t excluded < <(release:manifest-excludes)
 
 case "${verb}" in
   (list)
@@ -41,6 +45,8 @@ case "${verb}" in
     do
       if release:among "${package}" "${active[@]}"
       then mark='✅'
+      elif release:among "${package}" "${excluded[@]}"
+      then mark='❌'
       else mark='  '
       fi
       printf '%s %-*s %-10s %s\n' "${mark}" "${width}" "${package}" "$(release:origin "${kit_root}" "${package}")" \
@@ -55,7 +61,12 @@ case "${verb}" in
     readarray -t named < <(awk 'NF' <<<"${expanded}")
     set -- "${named[@]}"
     release:require-packages "${kit_root}" "$@"
-    readarray -t wanted < <(release:resolve "${kit_root}" "${active[@]}" "$@")
+    # A package named here is wanted, whatever was recorded about it.
+    for package in "$@"
+    do
+      readarray -t excluded < <(release:without "${package}" "${excluded[@]}")
+    done
+    readarray -t wanted < <(release:resolve "${kit_root}" "${excluded[*]}" "${active[@]}" "$@")
     release:render-all "${kit_root}" "${wanted[@]}"
     section "kit package add $*"
     refused=0
@@ -73,7 +84,8 @@ case "${verb}" in
       error "${refused} path(s) already hold a different file; move each aside, then run: kit package add $*"
       exit 1
     fi
-    release:write-manifests "${wanted[@]}"
+    readarray -t excluded < <(release:exclusions "${excluded[*]}" "${wanted[@]}")
+    release:write-manifests "${excluded[*]}" "${wanted[@]}"
     ok "packages: ${wanted[*]}"
     release:say-unmet "${wanted[@]}"
     ;;
@@ -103,6 +115,18 @@ case "${verb}" in
     done
     release:render-all "${kit_root}" "${active[@]}"
     section "kit package remove $*"
+    # A member of a bundle that stays active is excluded, so that an update does not bring it back.
+    newly=''
+    for package in "$@"
+    do
+      readarray -t includers < <(release:includers "${kit_root}" "${package}" "${remaining[@]}")
+      if (( ${#includers[@]} > 0 ))
+      then
+        newly+=" ${package}"
+        step "${package}: excluded, so an update does not bring it back as a member of ${includers[*]}"
+      fi
+    done
+    readarray -t excluded < <(release:exclusions "${excluded[*]}${newly}" "${remaining[@]}")
     for base in $(release:bases)
     do
       while IFS= read -r path
@@ -112,7 +136,7 @@ case "${verb}" in
           "$(release:dest "${base}" "${path}")"
       done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
     done
-    release:write-manifests "${remaining[@]}"
+    release:write-manifests "${excluded[*]}" "${remaining[@]}"
     ok "packages: ${remaining[*]:-none}"
 esac
 

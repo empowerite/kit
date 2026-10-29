@@ -3,7 +3,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit update takes no arguments. It moves the repository and the home directory from the release .kit/manifest
-# records (the previous release) to the pinned release. For each delivered file:
+# records (the previous release) to the pinned release. The active packages are resolved again from the pinned
+# release: a package that an active one now depends on or includes comes in, and so does a new default package. A
+# package the manifest records as excluded stays out, unless a package depends on it. For each delivered file:
 #
 #   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
 #   - a merged JSON file is merged by key
@@ -39,7 +41,22 @@ fi
 
 guard:require tool:jq
 release:require-manifest
-readarray -t packages < <(release:manifest-packages)
+readarray -t recorded < <(release:manifest-packages)
+readarray -t excluded < <(release:manifest-excludes)
+readarray -t defaults < <(release:default-packages "${kit_root}")
+release:require-packages "${kit_root}" "${recorded[@]}"
+# The active set is resolved again from this release: a package that an active one now depends on or includes comes
+# in, and so does a new default package. An excluded member stays out, unless a package depends on it.
+readarray -t packages < <(release:resolve "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}")
+for package in "${excluded[@]}"
+do
+  if release:among "${package}" "${packages[@]}"
+  then
+    needed=$(release:dependents "${kit_root}" "${package}" "${packages[@]}" | paste -s -d ' ' -)
+    warn "${package} was excluded, but ${needed} depends on it, so it is back"
+  fi
+done
+readarray -t excluded < <(release:exclusions "${excluded[*]}" "${packages[@]}")
 previous=$(release:manifest-version)
 current=$(release:version)
 release:render-all "${kit_root}" "${packages[@]}"
@@ -145,7 +162,7 @@ do
   release:retire "${base_root}" "${base}" "${previous}" "${current}" "${packages[@]}"
 done
 
-release:write-manifests "${packages[@]}"
+release:write-manifests "${excluded[*]}" "${packages[@]}"
 if (( conflicts > 0 ))
 then
   error "${conflicts} file(s) need a hand; see above."

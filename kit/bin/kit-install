@@ -6,7 +6,7 @@
 #
 # Sets up kit in a repository that does not have it yet:
 #
-#   1. Activates the default packages, the named packages, and the packages they depend on.
+#   1. Activates the default packages, the named packages, and the packages they depend on and include.
 #   2. Places the files those packages deliver, in the repository and in the home directory.
 #   3. Writes .kit/manifest, and ~/.kit/manifest when the packages deliver files to the home directory.
 #
@@ -41,7 +41,7 @@ then
   exit 1
 fi
 readarray -t defaults < <(release:default-packages "${kit_root}")
-readarray -t packages < <(release:resolve "${kit_root}" "${defaults[@]}" "$@")
+readarray -t packages < <(release:resolve "${kit_root}" '' "${defaults[@]}" "$@")
 release:render-all "${kit_root}" "${packages[@]}"
 section "kit install $(release:version), packages: ${packages[*]}"
 refused=0
@@ -54,7 +54,7 @@ then
   error "${refused} path(s) already hold a different file; move each aside, then run: kit install"
   exit 1
 fi
-release:write-manifests "${packages[@]}"
+release:write-manifests '' "${packages[@]}"
 release:finish "${packages[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

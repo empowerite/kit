@@ -173,6 +173,8 @@ The packages:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
   - a hook that runs `kit context` before every write, so the agent sees the rules without asking
+- `empowerite`: a bundle, with no file of its own. It includes the seven style packages, `github/ci`,
+  `agents/claude`, and `hooks/lefthook`, which is what Empowerite's repositories take.
 
 Any file may also contain a `kit:generate` directive of the repository's own, naming any command. `kit check` fails
 when any region differs from what its command produces.
@@ -183,7 +185,9 @@ Every file kit adds belongs to a package, and the file's first lines name it. `k
 differs from that package's copy in the pinned release, so do not edit it in place. Instead:
 
 - To stop using a file, remove its package: `kit package remove <package>`. It takes out everything the package
-  added. A package that another active package depends on is refused until that one is removed.
+  added. A package that another active package depends on is refused until that one is removed. A member of a
+  bundle such as `empowerite` can be removed on its own: kit records it as excluded, and `kit update` leaves it
+  out.
 - To replace a file, write a package of the repository's own under `.kit/packages/<name>/`. Its `package.yml`
   depends on the package that adds the file, and it places the replacement at the same path under `files/repo/`.
   Activate it with `kit package add <name>`. The later package in dependency order wins, so the repository's file

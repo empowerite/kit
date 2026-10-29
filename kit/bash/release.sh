@@ -162,6 +162,10 @@ release:description() { yaml:value "$(release:meta "$1" "$2")" description; }
 # release:depends <root> <package> prints the packages this one depends on, one per line.
 release:depends() { yaml:list "$(release:meta "$1" "$2")" depends; }
 
+# release:includes <root> <package> prints the members of this bundle, one per line: packages activated with it, each
+# of which can be removed on its own.
+release:includes() { yaml:list "$(release:meta "$1" "$2")" includes; }
+
 # release:default-packages <root> prints the packages whose default is true. They are active unless removed.
 release:default-packages() {
   local package
@@ -187,12 +191,13 @@ release:require-packages() {
   done
 }
 
-# release:resolve <root> <name>… prints the named packages and all their dependencies, each once. Each package
-# comes after the packages it depends on. Ties are broken alphabetically, so the order is the same on every
-# machine. It fails on a dependency cycle.
+# release:resolve <root> <excluded> <name>… prints the named packages, the packages they depend on, and the members
+# they include, each once. <excluded> is a space-separated list of packages that no bundle brings in; a package that
+# another depends on comes in regardless. Each package comes after the packages it depends on and includes. Ties
+# are broken alphabetically, so the order is the same on every machine. It fails on a cycle.
 release:resolve() {
-  local root=$1 package dep ready placed_count=0
-  shift
+  local root=$1 excluded=$2 package dep ready placed_count=0
+  shift 2
   (( $# > 0 )) || return 0
   local -A wanted=() placed=()
   local -a queue=("$@") names=()
@@ -206,6 +211,11 @@ release:resolve() {
     do
       queue+=("${dep}")
     done
+    for dep in $(release:includes "${root}" "${package}")
+    do
+      # shellcheck disable=SC2086  # the list splits on purpose
+      release:among "${dep}" ${excluded} || queue+=("${dep}")
+    done
   done
   readarray -t names < <(printf '%s\n' "${!wanted[@]}" | LC_ALL=C sort)
   while (( placed_count < ${#names[@]} ))
@@ -214,16 +224,17 @@ release:resolve() {
     for package in "${names[@]}"
     do
       [[ -n "${placed[${package}]:-}" ]] && continue
-      for dep in $(release:depends "${root}" "${package}")
+      # An excluded member is not waited for.
+      for dep in $(release:depends "${root}" "${package}") $(release:includes "${root}" "${package}")
       do
-        [[ -n "${placed[${dep}]:-}" ]] || continue 2
+        [[ -z "${wanted[${dep}]:-}" || -n "${placed[${dep}]:-}" ]] || continue 2
       done
       ready=${package}
       break
     done
     if [[ -z "${ready}" ]]
     then
-      error "the packages' depends lines form a cycle among: ${names[*]}"
+      error "the packages' depends and includes lines form a cycle among: ${names[*]}"
       return 1
     fi
     placed[${ready}]=1
@@ -243,6 +254,32 @@ release:dependents() {
       [[ "${dep}" == "${package}" ]] && printf '%s\n' "${other}"
     done
   done
+  return 0
+}
+
+# release:includers <root> <package> <active>… prints the active packages that include <package>.
+release:includers() {
+  local root=$1 package=$2 other member
+  shift 2
+  for other in "$@"
+  do
+    for member in $(release:includes "${root}" "${other}")
+    do
+      [[ "${member}" == "${package}" ]] && printf '%s\n' "${other}"
+    done
+  done
+  return 0
+}
+
+# release:exclusions <excluded> <active>… prints the packages of <excluded>, a space-separated list, that are not
+# active: sorted, each once, one per line.
+release:exclusions() {
+  local excluded=$1 package
+  shift
+  for package in ${excluded}
+  do
+    release:among "${package}" "$@" || printf '%s\n' "${package}"
+  done | LC_ALL=C sort --unique
 }
 
 # release:validate <root> <package> fails on metadata that the schema rejects, as far as bash can check without a
@@ -251,7 +288,7 @@ release:dependents() {
 #   - a key the kit does not know
 #   - a missing description
 #   - a default that is not true or false
-#   - a dependency on a package that is not in reach
+#   - a dependency on, or a member that is, a package not in reach
 #
 # The gate validates against packages/package.schema.json in full.
 release:validate() {
@@ -260,7 +297,7 @@ release:validate() {
   for key in $(yaml:keys "${meta}")
   do
     case "${key}" in
-      (description | default | depends | answers | expects) ;;
+      (description | default | depends | includes | answers | expects) ;;
       (*)
         error "$(release:meta "${root}" "${package}") has a key the kit does not know: ${key}" \
           "(see packages/package.schema.json)"
@@ -283,6 +320,14 @@ release:validate() {
     if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
     then
       error "$(release:meta "${root}" "${package}") depends on '${dep}', which is not in reach"
+      return 1
+    fi
+  done
+  for dep in $(release:includes "${root}" "${package}")
+  do
+    if [[ ! -f "$(release:meta "${root}" "${dep}")" ]]
+    then
+      error "$(release:meta "${root}" "${package}") includes '${dep}', which is not in reach"
       return 1
     fi
   done
@@ -1038,8 +1083,8 @@ release:retire() {
 # to home. When they do not, it drops the lines whose paths no longer exist, and removes the file once no line
 # is left.
 release:write-manifest() {
-  local base=$1 manifest path src delivered kept
-  shift
+  local base=$1 excluded=$2 manifest path src delivered kept
+  shift 2
   manifest=$(release:manifest "${base}")
   delivered=$(release:delivered "${kit_root}" "${base}" "$@")
   if [[ "${base}" != repo && -z "${delivered}" ]]
@@ -1053,7 +1098,7 @@ release:write-manifest() {
     then
       rm -f "${manifest}"
     else
-      { sed -n '1,3p' "${manifest}"; printf '%s\n' "${kept}"; } > "${manifest}.kit-new"
+      { awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "${manifest}"; printf '%s\n' "${kept}"; } > "${manifest}.kit-new"
       mv "${manifest}.kit-new" "${manifest}"
     fi
     return 0
@@ -1066,6 +1111,7 @@ release:write-manifest() {
     then printf 'packages %s\n' "$*"
     else printf 'packages\n'
     fi
+    [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
     while IFS=$'\t' read -r path src
     do
       # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
@@ -1077,12 +1123,14 @@ release:write-manifest() {
   } > "${manifest}"
 }
 
-# release:write-manifests <package>… writes every base's manifest.
+# release:write-manifests <excluded> <package>… writes every base's manifest: the active packages, and the excluded
+# ones as a space-separated list, which is empty when there are none.
 release:write-manifests() {
-  local base
+  local excluded=$1 base
+  shift
   for base in $(release:bases)
   do
-    release:write-manifest "${base}" "$@"
+    release:write-manifest "${base}" "${excluded}" "$@"
   done
 }
 
@@ -1091,6 +1139,10 @@ release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
 
 # release:manifest-packages prints the active packages the repository's manifest records, one per line.
 release:manifest-packages() { sed -n 's/^packages *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
+
+# release:manifest-excludes prints the packages the repository's manifest records as excluded, one per line: members
+# of an active bundle that were removed, which kit update leaves out.
+release:manifest-excludes() { sed -n 's/^excludes *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
 
 # release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-character
 # hex digest, two spaces, and the path, which can contain spaces.

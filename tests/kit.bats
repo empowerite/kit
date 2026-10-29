@@ -77,7 +77,7 @@ later-release() {
 @test "install refuses a package this release does not know and names the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"the packages are: agents/claude github/ci hooks/lefthook kit policy/opa style/bash"* ]]
+  [[ "$output" == *"the packages are: agents/claude empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }
 
@@ -473,6 +473,73 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add 'nothing/*'
   [ "$status" -eq 2 ]
   [[ "$output" == *"'nothing/*' matches no package in reach"* ]]
+}
+
+@test "a bundle brings its members in, a member leaves on its own, and the exclusion holds through update" {
+  run "${kit_checkout}/bin/kit" install empowerite
+  [ "$status" -eq 0 ]
+  [ -f .kit/style/just.md ]
+  [ -f .github/workflows/kit-ci.yml ]
+  grep --quiet '^packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml empowerite$' \
+    .kit/manifest
+  run "${kit_checkout}/bin/kit" package remove style/just
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/style/just.md ]
+  grep --quiet '^excludes style/just$' .kit/manifest
+  [[ "$(sed -n 's/^packages //p' .kit/manifest)" != *style/just* ]]
+  run "${kit_checkout}/bin/kit" package list
+  [[ "$output" == *"❌ style/just "* ]]
+  run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/style/just.md ]
+  grep --quiet '^excludes style/just$' .kit/manifest
+  run "${kit_checkout}/bin/kit" package add style/just
+  [ "$status" -eq 0 ]
+  [ -f .kit/style/just.md ]
+  run ! grep --quiet '^excludes' .kit/manifest
+  # a package the bundle depends on is still refused; the bundle itself leaves without its members
+  run "${kit_checkout}/bin/kit" package remove kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit cannot be removed while"* ]]
+  run "${kit_checkout}/bin/kit" package remove empowerite
+  [ "$status" -eq 0 ]
+  [ -f .kit/style/just.md ]
+  # with no active package including it, a removed package is not an exclusion
+  run "${kit_checkout}/bin/kit" package remove style/just
+  [ "$status" -eq 0 ]
+  run ! grep --quiet '^excludes' .kit/manifest
+}
+
+@test "update resolves the active set from the new release: a new member arrives, and a new dependency brings an excluded package back, saying so" {
+  "${kit_checkout}/bin/kit" install empowerite >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" package remove style/json style/yaml >/dev/null 2>&1
+  grep --quiet '^excludes style/json style/yaml$' .kit/manifest
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/packages/extra/files/repo/.kit"
+  printf 'description: "A package new in 9.9.9"\ndepends:\n  - kit\n' > "${repo}.later/packages/extra/package.yml"
+  printf 'extra\n' > "${repo}.later/packages/extra/files/repo/.kit/extra"
+  printf '  - extra\n' >> "${repo}.later/packages/empowerite/package.yml"
+  printf '  - style/json\n' >> "${repo}.later/packages/style/markdown/package.yml"
+  run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ "$(cat .kit/extra)" = "extra" ]
+  [ -f .kit/style/json.md ]
+  [ ! -e .kit/style/yaml.md ]
+  [[ "$output" == *"style/json was excluded, but style/markdown depends on it"* ]]
+  grep --quiet '^excludes style/yaml$' .kit/manifest
+  [[ "$(sed -n 's/^packages //p' .kit/manifest)" == *" extra "* ]]
+  printf 'extends: [.kit/lefthook.yml]\n' > lefthook.yml
+  run "${repo}.later/bin/kit" check
+  [ "$status" -eq 0 ]
+}
+
+@test "a package including a member the release does not have is refused, naming it" {
+  later-release "${repo}.later"
+  printf 'description: "x"\nincludes:\n  - nothing\n' > "${repo}.later/packages/hooks/lefthook/package.yml"
+  run "${repo}.later/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"packages/hooks/lefthook/package.yml includes 'nothing', which is not in reach"* ]]
+  [ ! -e .kit/manifest ]
 }
 
 @test "update reads a base release that predates an active package: that release delivered nothing for it" {

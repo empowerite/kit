@@ -13,7 +13,7 @@ opposed to what the work must do, which is the rule's. A repository takes the on
 | `style/json` | `.kit/style/json.md` |
 | `style/gitignore` | `.kit/style/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
 
-Each depends only on `kit`.
+Each depends only on `kit`. The `empowerite` bundle includes all seven.
 
 - `kit context` prints a style file after the rule for the same kind, so an agent reads both.
 - `kit lint` runs a style's linter, and holds a file to the shape of one of its style's templates.

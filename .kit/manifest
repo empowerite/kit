@@ -1,11 +1,11 @@
 # .kit/manifest - written by kit, not by hand
 version unreleased
-packages kit github/ci agents/claude hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml house
+packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/workflows style/yaml empowerite house
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
 2e9e9e0f7603fc58a408e127a536f2a60253a981f9aea0281b1759d82a0cccb3  .github/workflows/kit-ci.yml
 919cc90013e2c104fe87c56c5192d327518d3f2adc2eb2da2b0536c6b5c890f4  .gitignore
-24b19756e9cf37694eb53dc71dd382cf0c8865c0266329cb49de61c4a933a567  .kit/1st.md
+07cad79f806d7987970e2c99871491f39264878e90a1e5aed6e647eefc43a45b  .kit/1st.md
 37a8aa17573c0ee454f3100acd78ab82be702575deca4dc52c76a3c9e0ca4f4c  .kit/lefthook.yml
 2325d784a7a46118dba0f6a63abf2f54f530276fb49722aff87dd8143797d625  .kit/markdownlint.jsonc
 569da24c9cc458f2b58cca3442615ace77da39d5bad078197785de744766918d  .kit/rules/bash.md

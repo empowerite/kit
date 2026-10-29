@@ -94,8 +94,10 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `agents/claude` | the Claude Code adapter |
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
+   | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, and `hooks/lefthook` |
 
    `kit install github/ci hooks/lefthook agents/claude` takes three of them. `kit package add` adds one later.
+   `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
    `install` also writes a line into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds `/worktrees/`
    to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The rest of each file

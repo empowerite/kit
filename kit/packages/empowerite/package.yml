@@ -1,0 +1,18 @@
+# packages/empowerite/package.yml - the empowerite package: the bundle of packages Empowerite's repositories take
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/empowerite.md
+
+description: "What Empowerite's repositories take: every style package, GitHub Actions CI, Claude Code, and lefthook"
+depends:
+  - kit
+includes:
+  - style/bash
+  - style/gitignore
+  - style/json
+  - style/just
+  - style/markdown
+  - style/workflows
+  - style/yaml
+  - github/ci
+  - agents/claude
+  - hooks/lefthook

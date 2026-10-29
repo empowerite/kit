@@ -39,7 +39,7 @@ A package is a directory under `packages/`, named after the package. It contains
 
 | Path | Purpose |
 | --- | --- |
-| `package.yml` | whether the package is on by default, which packages it depends on, and default answers for its templates |
+| `package.yml` | whether the package is on by default, which packages it depends on or includes, and default answers for its templates |
 | `files/<base>/` | files copied as they are to the same path under the base |
 | `templates/<base>/` | files copied after each `@key@` is replaced by a setting |
 | `regions/<base>/` | content kit owns inside a file the repository owns, rendered like a template |

@@ -5,12 +5,19 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 
 ## Activation
 
-- `kit install [<package>…]` activates `kit`, the one default package, plus the named packages and their
-  dependencies. It records the set on the `packages` line of `.kit/manifest`.
-- `kit package list` shows every package the release has, and which are active.
+- `kit install [<package>…]` activates `kit`, the one default package, plus the named packages, the packages they
+  depend on, and the members they include. It records the set on the `packages` line of `.kit/manifest`.
+- `kit package list` shows every package the release has, which are active, and which are excluded.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
 - `kit package remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,
-  and takes the kit's entries back out of any merged `.json` file.
+  and takes the kit's entries back out of any merged `.json` file. A package that an active package depends on is
+  refused.
+- A bundle is a package that includes others, such as `empowerite`. Adding it activates its members, and a member
+  can be removed on its own: `kit package remove` records it on the `excludes` line of `.kit/manifest`, and
+  `kit update` leaves it out. Naming it in `kit package add` ends the exclusion.
+- `kit update` resolves the active set again from the new release, so a new member of a bundle, a new dependency,
+  or a new default package arrives with the release. An excluded member stays out, unless a package depends on it,
+  which the update says.
 
 ## Layout
 
@@ -56,6 +63,7 @@ answers:
 | `description` | Required. One line, shown by `kit package list`. |
 | `default` | `true` makes the package active unless removed. In this release only `kit` sets it. |
 | `depends` | Packages activated with this one. `kit package remove` refuses a package another active package depends on. |
+| `includes` | The members of a bundle: packages activated with this one, each of which `kit package remove` can take out on its own. |
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 
@@ -66,7 +74,7 @@ the same contract and refuses, naming the problem:
 - a key it does not know
 - a missing `description`
 - a `default` that is not `true` or `false`
-- a dependency the release does not have
+- a dependency, or a member, the release does not have
 
 ## Delivery
 
@@ -229,5 +237,6 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
+| [`empowerite`](packages/empowerite.md) | no | `kit`; includes the seven `style/*`, `github/ci`, `agents/claude`, and `hooks/lefthook` | nothing of its own: it is the bundle Empowerite's repositories take |
 
 No package in this release delivers to `home`. Each package's page, linked above, describes what it places and why.

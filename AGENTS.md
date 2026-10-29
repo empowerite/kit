@@ -15,8 +15,9 @@ This repository is the kit's own source, and uses it.
 - Releases and pre-releases: [README.md](README.md) § Release.
 - The kit imposes no taste on a consumer. The `kit` package delivers rules: what the work must do to be trusted.
   Style, how a file looks, ships in the optional `style/<kind>` packages. This repository's own taste beyond those,
-  such as the line of dashes under a banner, is the `house` package in `.kit/packages/house/`, which applies here
-  only. When a new item is about how a file looks, it goes in a style package or in house, never in a rule.
+  such as the line of dashes under a banner, is the `house` package in `.kit/packages/house/`, which takes the
+  `empowerite` bundle and applies here only. When a new item is about how a file looks, it goes in a style package
+  or in house, never in a rule.
 - `.kit/`, `.github/workflows/kit-ci.yml`, `.claude/settings.json`, and the regions in `AGENTS.md`, `.gitignore`, and
   `.claude/CLAUDE.md` are this repository's installed copies of its own kit, written by `bin/refresh` from
   `kit/packages/` and `.kit/packages/house/`; see [README.md](README.md) § Maintaining. Edit the source; the

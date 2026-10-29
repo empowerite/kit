@@ -25,7 +25,16 @@
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
-        "description": "The name of another package in the release, activated with this one."
+        "description": "The name of another package in the release, activated with this one. kit package remove refuses it while this one is active."
+      }
+    },
+    "includes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
+        "description": "The name of a member of this bundle: another package in the release, activated with this one. Unlike a dependency, a member can be removed on its own; kit package remove records it as excluded, and kit update leaves it out."
       }
     },
     "answers": {
