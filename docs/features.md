@@ -117,8 +117,8 @@ see: [toolchains.md](toolchains.md)
 ## Packages
 
 Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is always active;
-the others are optional, such as one style package per kind of file, the CI job, the pre-commit hook, and the
-Claude Code adapter.
+the others are optional, such as one style package per kind of file, the CI job, the pre-commit hook, and an
+adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 
 - `kit install` and `kit package add` activate packages, with the packages they depend on. `kit package remove`
   deactivates one and takes out everything it placed. `kit package list` shows the active set.

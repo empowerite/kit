@@ -82,3 +82,8 @@ between calls except the log line.
 
 A harness with no hook, and a person, run `kit context "${path}"` directly. `.kit/1st.md` lists it as the step
 before creating or changing any file.
+
+Cursor and GitHub Copilot have no hook, but a rule file loaded by path. The `agents/cursor` and `agents/copilot`
+packages deliver one per kind, attached by the rule's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
+so the agent reads the rule itself there too. A rule file says less than `kit context`, which also matches a file by
+its content, such as a bash script with no suffix; the body names `kit context <path>` for those.

@@ -191,6 +191,12 @@ The packages:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
   - a hook that runs `kit context` before every write, so the agent is told the file's rules without asking
+- `agents/cursor`: support for Cursor, which reads `AGENTS.md` on its own. It delivers a rule under `.cursor/rules/`
+  for each kind of file, attached by the rule's paths, whose body sends the agent to `.kit/rules/<kind>.md`.
+- `agents/copilot`: support for GitHub Copilot, which reads `AGENTS.md` on its own. It delivers an instruction file
+  under `.github/instructions/` for each kind, applied to the rule's paths, whose body sends the agent to the rule.
+- `agents/gemini`: support for Gemini CLI, which reads `GEMINI.md` unless told otherwise. It merges `AGENTS.md` into
+  the context files and the deny list above into `.gemini/settings.json`.
 - `empowerite`: a bundle, with no file of its own. It includes every style package, `github/ci`,
   `agents/claude`, and `hooks/lefthook`, which is what Empowerite's repositories take.
 

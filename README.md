@@ -93,12 +93,16 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
    | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
    | `agents/claude` | the Claude Code adapter |
+   | `agents/cursor` | the Cursor adapter: a rule per kind under `.cursor/rules/`, attached by the kit rule's paths |
+   | `agents/copilot` | the GitHub Copilot adapter: an instruction file per kind under `.github/instructions/`, applied to the same paths |
+   | `agents/gemini` | the Gemini CLI adapter: `AGENTS.md` among its context files, and the deny list, in `.gemini/settings.json` |
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
    | `style/prose` | the style of prose in every file, documents and comments alike |
    | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, and `hooks/lefthook` |
 
-   `kit install github/ci hooks/lefthook agents/claude` takes three of them. `kit package add` adds one later.
+   `kit install github/ci hooks/lefthook agents/claude` takes three of them, and a team on Cursor would name
+   `agents/cursor` beside them. `kit package add` adds one later.
    `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
    `install` also writes a sentence into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds

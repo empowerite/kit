@@ -199,7 +199,7 @@ It queries the forge in the background and draws the local checkouts while it wa
 | Branch names, commit subjects, and titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
 | The gate ran with the pinned tools | `kit toolchain install`, then the gate run through the toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
-| An agent was shown a file's rules | the Claude Code hook; `kit context` in other harnesses |
+| An agent was shown a file's rules | the Claude Code hook; a rule file per kind, attached by path, in Cursor and Copilot; `kit context` elsewhere |
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
 | A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
