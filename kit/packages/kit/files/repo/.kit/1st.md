@@ -123,6 +123,7 @@ Two flags choose the template:
 | Just | [rules/just.md](rules/just.md) |
 | Workflows | [rules/workflows.md](rules/workflows.md) |
 | JSON | [rules/json.md](rules/json.md) |
+| jq modules | [rules/jq.md](rules/jq.md) |
 | Ignore lists | [rules/gitignore.md](rules/gitignore.md) |
 
 ## What the kit delivers
@@ -135,7 +136,8 @@ The repository commits the declaration, and every worktree holds the text:
   takes, and the rest of what the packages deliver under `.kit/`, placed by `kit hydrate`: each a link to its
   source when the source is inside the worktree, and otherwise a copy without the write bit. `.kit/.gitignore`
   names every one, so git never sees them.
-- `.kit/manifest`, which records the digest of each delivered file, written by kit and ignored like them
+- `.kit/manifest`, which records the digest of each delivered file, and `.kit/.gitignore` itself: written by kit,
+  ignored like them, and without the write bit like them
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
 are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, `kit gate`, and

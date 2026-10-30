@@ -18,7 +18,11 @@ setup() {
       status=1
       continue
     fi
-    jq -L "${kit_root}/modules/jq" --run-tests "${BATS_TEST_DIRNAME}/jq/${name}.test" || status=1
+    # jq --run-tests then runs jq's own library tests, whose lines follow its summary and say nothing of the
+    # module, so the report stops at the summary.
+    jq -L "${kit_root}/modules/jq" --run-tests "${BATS_TEST_DIRNAME}/jq/${name}.test" > "${BATS_TEST_TMPDIR}/out" \
+      || status=1
+    sed '/tests passed/q' "${BATS_TEST_TMPDIR}/out"
   done
   return "${status}"
 }

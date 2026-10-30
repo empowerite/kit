@@ -96,8 +96,9 @@ Each kind of source file is placed differently:
   repository's own keys and entries stay.
 - Every other destination under `.kit/` is materialized: a link to its source when the source is inside the
   worktree, as the repository's own packages and this repository's own release are, and otherwise a copy without
-  the write bit. `.kit/.gitignore`, which kit writes, names each one, so git never sees them. `kit hydrate` brings
-  them to that state from the declaration, and every verb that reads a delivered file does the same first.
+  the write bit. `.kit/.gitignore`, which kit writes, names each one, so git never sees them; it and `.kit/manifest`
+  have no write bit either. `kit hydrate` brings them to that state from the declaration, and every verb that reads a
+  delivered file does the same first.
 - Every other destination outside `.kit/` is a copy.
 - Where two active packages deliver the same path, the later package in dependency order wins.
 

@@ -46,4 +46,30 @@ lint:pinned() {
   (( findings == 0 ))
 }
 
+# lint:jq-compiles <file>… compiles every jq module and refers to each function it defines, so jq resolves every
+# name each body calls. Importing a module alone does not: a function that calls an undefined one passes until
+# something calls it. A module may import modules beside it, and the kit's own.
+lint:jq-compiles() {
+  local file name dir refs message n findings=0
+  for file in "$@"
+  do
+    name=$(basename "${file}" .jq)
+    dir=$(dirname "${file}")
+    # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+    if ! refs=$(jq --null-input --raw-output -L "${dir}" -L "${kit_jq}" --arg m "${name}" '
+        $m | modulemeta | .defs
+        | map(split("/") | .[0] + (if .[1] == "0" then "" else "(\([range(.[1] | tonumber)] | map(".") | join(";")))" end))
+        | join(", ")' 2>&1) \
+      || ! message=$(jq --null-input -L "${dir}" -L "${kit_jq}" \
+           "include \"${name}\"; if false then (${refs:-empty}) else empty end" 2>&1)
+    then
+      message=${message:-${refs}}
+      [[ "${message}" =~ line\ ([0-9]+) ]] && n=${BASH_REMATCH[1]} || n=1
+      printf '%s:%s: %s\n' "${file}" "${n}" "${message%%$'\n'*}"
+      findings=$(( findings + 1 ))
+    fi
+  done
+  (( findings == 0 ))
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

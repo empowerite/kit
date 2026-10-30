@@ -96,7 +96,7 @@ shape() {
   run "${kit_root}/bin/kit" new file x.sh --variant=nope --purpose=x
   [[ "$output" == *"its templates are: script module"* ]]
   run "${kit_root}/bin/kit" new file x --rule=nope
-  [[ "$output" == *"there is no rule nope; the rules are: bash gitignore json just markdown prose workflows yaml"* ]]
+  [[ "$output" == *"there is no rule nope; the rules are: bash gitignore jq json just markdown prose workflows yaml"* ]]
   run "${kit_root}/bin/kit" new file bin/tool --rule=bash --purpose="no extension"
   [ "$status" -eq 0 ]
   [ "$(head -n 1 bin/tool)" = "#!/usr/bin/env bash" ]
