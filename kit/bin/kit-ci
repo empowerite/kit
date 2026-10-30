@@ -20,13 +20,8 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
-[[ "${1:-}" == --help ]] || release:hydrate
-
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit ci" >&2
-  exit 0
-fi
+guard:no-arguments ci "$@" || exit 2
+release:hydrate
 
 refused=0
 for verb in gate check linked policy

@@ -26,11 +26,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use issue
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit issue [<reference>…]    (none, at a terminal: ask for a title and create the issue)" >&2
-  exit 0
-fi
+guard:no-flags issue "$@" || exit 2
 
 issue:start "$@"
 

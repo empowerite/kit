@@ -20,12 +20,6 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use status
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit status [--no-fetch] [--json] [--mine | --all | --owner=<login>…]" >&2
-  exit 0
-fi
-
 status:render "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

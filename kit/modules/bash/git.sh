@@ -144,7 +144,7 @@ git:tidy() {
         dry_run=true
         ;;
       (*)
-        error "unknown flag '${flag}' (only --dry-run is recognized)"
+        error "unknown flag '${flag}'; run: kit help tidy"
         return 2
     esac
   done

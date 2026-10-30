@@ -26,17 +26,11 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use context template release
-[[ "${1:-}" == --help ]] || release:hydrate
+release:hydrate
 
-usage="usage: kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…"
-if [[ "${1:-}" == --help ]]
-then
-  echo "${usage}" >&2
-  exit 0
-fi
 if [[ "${1:-}" != file ]]
 then
-  error "kit new makes a file: ${usage}"
+  error "kit new makes a file; run: kit help new"
   exit 2
 fi
 shift
@@ -54,13 +48,13 @@ do
       values[${key}]=${arg#*=}
       ;;
     (-*)
-      error "unknown flag '${arg}' (${usage})"
+      error "unknown flag '${arg}'; run: kit help new"
       exit 2
       ;;
     (*)
       if [[ -n "${path}" ]]
       then
-        error "one path at a time (${usage})"
+        error "one path at a time; run: kit help new"
         exit 2
       fi
       path=${arg}
@@ -68,7 +62,7 @@ do
 done
 if [[ -z "${path}" ]]
 then
-  error "${usage}"
+  error "kit new file needs a path; run: kit help new"
   exit 2
 fi
 

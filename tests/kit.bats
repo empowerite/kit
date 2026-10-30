@@ -346,7 +346,7 @@ later-release() {
   [[ "$output" == "Read .kit/1st.md"* ]]
   run "${kit_checkout}/bin/kit" region
   [ "$status" -eq 2 ]
-  [[ "$output" == *"usage: kit region"* ]]
+  [[ "$output" == *"run: kit help region"* ]]
   run "${kit_checkout}/bin/kit" region README.md
   [ "$status" -eq 1 ]
   [[ "$output" == *"no active package delivers a region at README.md"* ]]

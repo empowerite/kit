@@ -25,12 +25,6 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use git
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit tidy [--dry-run]" >&2
-  exit 0
-fi
-
 git:tidy "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

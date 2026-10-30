@@ -22,11 +22,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use git
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit rebase [<path>]    (no path: the checkout this runs in)" >&2
-  exit 0
-fi
+guard:no-flags rebase "$@" || exit 2
 
 guard:require tool:git
 git:rebase "$@"

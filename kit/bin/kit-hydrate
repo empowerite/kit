@@ -2,12 +2,14 @@
 # kit-hydrate - places what the active packages deliver under .kit/, from the declaration alone (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit hydrate takes no arguments. It reads the packages .kit/settings.yml declares and brings every path they
-# deliver under .kit/ to its state: a link to its source when the source is inside the worktree, and otherwise a
-# copy without the write bit. It writes .kit/.gitignore, which names those paths and itself, and .kit/manifest when
-# it is missing. It chooses nothing; kit install chooses. It prints one line per path it placed or replaced, and
-# says nothing about a path already in its state. It warns about a delivered path git still tracks, and about a
-# file under a delivered directory that no active package delivers, both of which a person settles.
+# kit hydrate [--quick]
+#
+# Reads the packages .kit/settings.yml declares and brings every path they deliver under .kit/ to its state: a link to
+# its source when the source is inside the worktree, and otherwise a copy without the write bit. It writes
+# .kit/.gitignore, which names those paths and itself, and .kit/manifest when it is missing. It chooses nothing; kit
+# install chooses. It prints one line per path it placed or replaced, and says nothing about a path already in its
+# state. It warns about a delivered path git still tracks, and about a file under a delivered directory that no active
+# package delivers, both of which a person settles.
 #
 # Every verb that reads a delivered file hydrates first, so this verb is for a fresh clone or worktree before any
 # other command. With --quick, for a shell hook such as mise's [hooks] enter = "kit hydrate --quick", it starts
@@ -25,10 +27,6 @@ kit:enter
 use release
 
 case "${1:-}" in
-  (--help)
-    echo "usage: kit hydrate [--quick]" >&2
-    exit 0
-    ;;
   (--quick)
     [[ -n "$(release:declared-version)" ]] || exit 0
     release:hydrated && exit 0
@@ -37,7 +35,7 @@ case "${1:-}" in
     release:require-declaration
     ;;
   (*)
-    echo "usage: kit hydrate [--quick]" >&2
+    error "unknown argument '$1'; run: kit help hydrate"
     exit 2
 esac
 release:hydrate --full

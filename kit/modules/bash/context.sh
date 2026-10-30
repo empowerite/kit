@@ -107,7 +107,7 @@ context:render() {
     case "${arg}" in
       (--json) json=true ;;
       (-*)
-        error "unknown flag '${arg}' (usage: kit context <path>… [--json] | kit context --claude)"
+        error "unknown flag '${arg}'; run: kit help context"
         return 2
         ;;
       (*) paths+=("${arg}")
@@ -115,7 +115,7 @@ context:render() {
   done
   if (( ${#paths[@]} == 0 ))
   then
-    error "usage: kit context <path>… [--json] | kit context --claude"
+    error "kit context needs a path; run: kit help context"
     return 2
   fi
   cd "$(git rev-parse --show-toplevel)" || return 1

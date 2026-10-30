@@ -21,7 +21,7 @@ use help
 
 if (( $# > 1 ))
 then
-  error "usage: kit help [<verb>]"
+  error "kit help takes one verb at most; run: kit help help"
   exit 2
 fi
 

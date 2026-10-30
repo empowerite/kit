@@ -21,10 +21,10 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use forge tracker
 
-if [[ "${1:-}" == --help ]]
+if (( $# > 0 )) && [[ ! "$1" =~ ^[0-9]+$ ]]
 then
-  echo "usage: kit linked [<number>]" >&2
-  exit 0
+  error "'$1' is not a number; run: kit help linked"
+  exit 2
 fi
 
 number=${1:-}

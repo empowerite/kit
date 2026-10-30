@@ -23,20 +23,16 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
-[[ "${1:-}" == --help ]] || release:hydrate
+release:hydrate
 
 base=repo
 path=''
 for arg in "$@"
 do
   case "${arg}" in
-    (--help)
-      echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
-      exit 0
-      ;;
     (--home) base=home ;;
     (-*)
-      error "unknown flag '${arg}' (usage: kit region [--home] [<path>])"
+      error "unknown flag '${arg}'; run: kit help region"
       exit 2
       ;;
     (*) path=${arg}
@@ -45,7 +41,7 @@ done
 path=${path:-${KIT_GENERATE_REGION:-}}
 if [[ -z "${path}" ]]
 then
-  echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
+  error "kit region needs a path, or KIT_GENERATE_REGION; run: kit help region"
   exit 2
 fi
 release:require-declaration

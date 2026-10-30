@@ -26,14 +26,13 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
 
-usage() { echo "usage: kit package list | kit package add <package>… | kit package remove <package>…" >&2; }
-
 verb=${1:-list}
 shift || true
 case "${verb}" in
-  (--help) usage; exit 0 ;;
   (list | add | remove) ;;
-  (*) usage; exit 2
+  (*)
+    error "kit package has no subcommand '${verb}'; run: kit help package"
+    exit 2
 esac
 release:require-declaration
 readarray -t active < <(release:declared-packages)
@@ -55,7 +54,7 @@ case "${verb}" in
     done
     ;;
   (add)
-    (( $# > 0 )) || { usage; exit 2; }
+    (( $# > 0 )) || { error "kit package add needs a package; run: kit help package"; exit 2; }
     guard:require tool:jq
     # A glob such as style/* stands for every package it matches.
     expanded=$(release:expand "${kit_root}" "$@") || exit 2
@@ -92,7 +91,7 @@ case "${verb}" in
     release:say-unmet "${wanted[@]}"
     ;;
   (remove)
-    (( $# > 0 )) || { usage; exit 2; }
+    (( $# > 0 )) || { error "kit package remove needs a package; run: kit help package"; exit 2; }
     guard:require tool:jq
     # A glob such as style/* stands for every package it matches.
     expanded=$(release:expand "${kit_root}" "$@") || exit 2

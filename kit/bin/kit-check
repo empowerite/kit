@@ -27,11 +27,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release generate
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit check" >&2
-  exit 0
-fi
+guard:no-arguments check "$@" || exit 2
 
 release:require-declaration
 readarray -t packages < <(release:declared-packages)

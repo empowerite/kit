@@ -24,20 +24,16 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use policy release
-[[ "${1:-}" == --help ]] || release:hydrate
+release:hydrate
 
 case "${1:-}" in
-  (--help)
-    echo "usage: kit policy [--input]" >&2
-    exit 0
-    ;;
   (--input)
     policy:input
     exit 0
     ;;
   ('') ;;
   (*)
-    echo "usage: kit policy [--input]" >&2
+    error "unknown argument '$1'; run: kit help policy"
     exit 2
 esac
 

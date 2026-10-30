@@ -27,6 +27,23 @@ setup() {
   [ "$output" = "kit: unknown verb '-h'; run: kit help" ]
 }
 
+@test "no verb takes --help: each refuses it with a pointer to its page, and kit help knows no verb by that name" {
+  cd "${BATS_TEST_TMPDIR}" && git init --quiet --initial-branch=main
+  local verb
+  for verb in "${kit_root}"/bin/kit-*
+  do
+    [[ -x "${verb}" ]] || continue
+    verb=${verb##*/kit-}
+    [[ "${verb}" != help ]] || continue
+    run "${kit_root}/bin/kit" "${verb}" --help
+    [ "$status" -eq 2 ] || { echo "${verb}: exit ${status}: ${output}"; return 1; }
+    [[ "$output" == *"; run: kit help ${verb}"* ]] || { echo "${verb}: ${output}"; return 1; }
+  done
+  run "${kit_root}/bin/kit" help --help
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"no kit verb matches '--help'; run: kit help"* ]]
+}
+
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {
   run "${kit_root}/bin/kit" help tidy
   [ "$status" -eq 0 ]

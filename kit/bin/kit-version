@@ -11,11 +11,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit version" >&2
-  exit 0
-fi
+guard:no-arguments version "$@" || exit 2
 
 release:version
 

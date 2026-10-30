@@ -29,14 +29,12 @@ use toolchain
 # Every subcommand reads the declared toolchains once, here, so an invalid declaration stops every subcommand.
 providers=$(toolchain:declared) || exit 1
 
-usage() { echo "usage: kit toolchain list | install | outdated [--check] | update | path | run <command>…" >&2; }
-
 verb=${1:-}
 [[ -n "${verb}" ]] && shift
 case "${verb}" in
-  (--help | '')
-    usage
-    exit 0
+  ('')
+    error "kit toolchain needs a subcommand; run: kit help toolchain"
+    exit 2
     ;;
   (list)
     for provider in ${providers}
@@ -94,11 +92,11 @@ case "${verb}" in
     toolchain:path
     ;;
   (run)
-    (( $# > 0 )) || { usage; exit 2; }
+    (( $# > 0 )) || { error "kit toolchain run needs a command; run: kit help toolchain"; exit 2; }
     toolchain:run "$@"
     ;;
   (*)
-    usage
+    error "kit toolchain has no subcommand '${verb}'; run: kit help toolchain"
     exit 2
 esac
 

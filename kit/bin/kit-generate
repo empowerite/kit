@@ -22,19 +22,15 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use context generate release
-[[ "${1:-}" == --help ]] || release:hydrate
+release:hydrate
 
 args=()
 for arg in "$@"
 do
   case "${arg}" in
-    (--help)
-      echo "usage: kit generate [--check] [--iterations=<n>] [<path>…]" >&2
-      exit 0
-      ;;
     (--check | --iterations=*) args+=("${arg}") ;;
     (-*)
-      error "unknown flag '${arg}' (usage: kit generate [--check] [--iterations=<n>] [<path>…])"
+      error "unknown flag '${arg}'; run: kit help generate"
       exit 2
       ;;
     (*) args+=("$(context:relative "${arg}")")

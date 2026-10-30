@@ -151,6 +151,9 @@ use <module>
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
+- A verb has no `--help`: `kit help <verb>` prints its header. An argument the verb does not take is refused with
+  a pointer to that page, by `guard:no-arguments`, `guard:no-flags`, or the verb's own `case`, and the refusal never
+  restates the usage.
 
 ## jq modules
 

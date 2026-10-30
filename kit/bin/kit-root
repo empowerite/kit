@@ -13,11 +13,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit root" >&2
-  exit 0
-fi
+guard:no-arguments root "$@" || exit 2
 
 printf '%s\n' "${kit_root}"
 

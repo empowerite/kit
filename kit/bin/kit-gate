@@ -24,13 +24,8 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release toolchain
-[[ "${1:-}" == --help ]] || release:hydrate
-
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit gate" >&2
-  exit 0
-fi
+guard:no-arguments gate "$@" || exit 2
+release:hydrate
 
 # detect-gate prints the command of the first gate found, or nothing. It fails when the root justfile cannot be read.
 detect-gate() {

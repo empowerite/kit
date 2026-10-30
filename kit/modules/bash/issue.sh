@@ -247,7 +247,7 @@ issue:start() {
   then
     if [[ ! -t 0 ]]
     then
-      error "usage: kit issue <reference> [<reference>…]"
+      error "kit issue needs a reference, or a terminal to ask for a title; run: kit help issue"
       return 2
     fi
     created=$(issue:create) || return
