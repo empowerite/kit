@@ -50,7 +50,7 @@ jobs:
       - name: kit-on-path
         run: |
           set -o errexit -o nounset -o pipefail
-          version=$(sed -n 's/^version: *//p' .kit/settings.yml 2>/dev/null)
+          version=$(sed -n 's/^version: *//p' .kit/settings.yml 2>/dev/null | sed "s/[[:space:]]*#.*//; s/^[\"']//; s/[\"']$//")
           if [[ -z "${version}" ]]
           then
             echo '::error::run kit install and commit what it writes; .kit/settings.yml declares no kit version'

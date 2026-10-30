@@ -18,11 +18,11 @@ lockfile_platforms = ["linux-x64", "linux-arm64", "macos-arm64", "macos-x64"]
 [env]
 _.path = ["kit/bin"]
 
-# What kit places under .kit/ is not committed, so a shell that enters the desk or a worktree hydrates it at once.
-# The hook runs only in a shell with `mise activate`; an agent's subprocess shell and the runner rely on the verbs'
-# own call instead. See docs/toolchains.md.
+# What kit places under .kit/ is not committed, so a shell that enters the desk or a worktree hydrates it at once,
+# quietly when everything is in place. The hook runs only in a shell with `mise activate`; an agent's subprocess
+# shell and the runner rely on the verbs' own call instead. See docs/toolchains.md.
 [hooks]
-enter = "kit hydrate"
+enter = "kit hydrate --quick"
 
 # Why each tool is here:
 #   actionlint          the workflows rule's linter, over .github/workflows/, in kit lint and the gate

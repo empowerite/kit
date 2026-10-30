@@ -134,15 +134,16 @@ issue:worktree() {
 }
 
 # issue:hydrate <worktree> places what the active packages deliver under .kit/ in the worktree, with the kit that
-# runs there: the worktree's own kit/bin/kit when the repository carries its release, as the kit's own does, so the
-# links lead into that worktree's sources, and otherwise this release's kit. A worktree whose .kit/settings.yml
+# runs there: the worktree's own kit/bin/kit where the repository is the kit, which declares `unreleased` and carries
+# kit/bash/1st.sh beside it, so the links lead into that worktree's sources, and otherwise this release's kit. A worktree whose .kit/settings.yml
 # declares no kit version is left alone. What hydrate placed is said in one line; its own lines are shown only when
 # it fails.
 issue:hydrate() {
   local wt=$1 out
   grep --quiet '^version:' "${wt}/.kit/settings.yml" 2>/dev/null || return 0
   step "Hydrating ${wt}"
-  if [[ -x "${wt}/kit/bin/kit" ]]
+  if grep --quiet '^version: unreleased$' "${wt}/.kit/settings.yml" \
+    && [[ -x "${wt}/kit/bin/kit" && -f "${wt}/kit/bash/1st.sh" ]]
   then
     out=$(cd "${wt}" && kit_depth=$(( ${kit_depth:-0} + 1 )) kit/bin/kit hydrate 2>&1) && return 0
   else

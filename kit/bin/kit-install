@@ -38,9 +38,9 @@ expanded=$(release:expand "${kit_root}" "$@") || exit 2
 readarray -t named < <(awk 'NF' <<<"${expanded}")
 set -- "${named[@]}"
 release:require-packages "${kit_root}" "$@"
-if [[ -n "$(release:setting version)" ]]
+if [[ -n "$(release:declared-version)" ]]
 then
-  error "run: kit update (this repository already declares kit $(release:setting version))"
+  error "run: kit update (this repository already declares kit $(release:declared-version))"
   exit 1
 fi
 readarray -t defaults < <(release:default-packages "${kit_root}")

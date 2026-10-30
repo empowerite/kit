@@ -198,7 +198,7 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
-| `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. |
+| `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until `kit update` moves it here. |
 | `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and `kit package`. |
 | `excludes` | Members of an active bundle removed with `kit package remove`, which `kit update` leaves out. Written by `kit package` and `kit update`. |
 | `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |

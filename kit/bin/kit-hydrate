@@ -10,9 +10,11 @@
 # file under a delivered directory that no active package delivers, both of which a person settles.
 #
 # Every verb that reads a delivered file hydrates first, so this verb is for a fresh clone or worktree before any
-# other command, and for a mise enter hook: [hooks] enter = "kit hydrate" in mise.toml.
+# other command. With --quick, for a shell hook such as mise's [hooks] enter = "kit hydrate --quick", it starts
+# nothing and says nothing when everything is in place, or outside a repository that declares a kit version, and does
+# the whole job otherwise.
 #
-# Exits 0 on success, and 1 in a repository that declares no kit version.
+# Exits 0 on success, and 1 in a repository that declares no kit version, unless --quick.
 #
 # see: bash/release.sh, docs/toolchains.md
 
@@ -22,13 +24,22 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
 use release
 
-if [[ "${1:-}" == --help ]]
-then
-  echo "usage: kit hydrate" >&2
-  exit 0
-fi
-
-release:require-declaration
+case "${1:-}" in
+  (--help)
+    echo "usage: kit hydrate [--quick]" >&2
+    exit 0
+    ;;
+  (--quick)
+    [[ -n "$(release:declared-version)" ]] || exit 0
+    release:hydrated && exit 0
+    ;;
+  ('')
+    release:require-declaration
+    ;;
+  (*)
+    echo "usage: kit hydrate [--quick]" >&2
+    exit 2
+esac
 release:hydrate --full
 ok "kit $(release:version) hydrated .kit/, packages: $(release:declared-packages | paste -s -d ' ' -)"
 

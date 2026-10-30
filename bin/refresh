@@ -55,11 +55,11 @@ stage-export() {
   git read-tree "$(GIT_INDEX_FILE="${index}" git write-tree)"
 }
 
-# update-desk <staged> <base> runs the staged kit's update in the working tree too, so the desk's copies match the
-# index in the parts kit owns.
+# update-desk <base> runs the desk's own kit's update in the working tree, so the desk's copies outside .kit/ are
+# rendered from the working tree in the parts kit owns, and what it places under .kit/ links to the desk's sources,
+# since that kit's root is inside the worktree.
 update-desk() {
-  # The desk's own kit, whose root is inside the worktree, so what it places under .kit/ links to the desk's sources.
-  KIT_BASE="$2" kit/bin/kit update >/dev/null
+  KIT_BASE="$1" kit/bin/kit update >/dev/null
 }
 
 cd "$(git rev-parse --show-toplevel)"
@@ -71,7 +71,7 @@ export-staged "${work}/staged"
 export-base "${work}/base"
 update-staged "${work}/staged" "${work}/base"
 stage-export "${work}/staged"
-update-desk "${work}/staged" "${work}/base"
+update-desk "${work}/base"
 
 packages=$(sed -n '/^packages:$/,/^[a-z]/{ s/^  - //p; }' .kit/settings.yml | paste -s -d ' ' -)
 count=$(awk 'length($1) == 64' .kit/manifest | wc -l | tr -d ' ')

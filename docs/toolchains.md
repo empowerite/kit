@@ -63,11 +63,12 @@ can hydrate when a shell enters it, so a fresh worktree is complete before its f
 
 ```toml
 [hooks]
-enter = "kit hydrate"
+enter = "kit hydrate --quick"
 ```
 
-The hook runs only in a shell with `mise activate`. An agent's subprocess shell and a CI runner have none, and there
-the verbs' own call and `kit ci` do the work. mise's documentation marks hooks experimental.
+With `--quick`, the hook starts nothing and says nothing when everything is in place, and does the whole job
+otherwise. The hook runs only in a shell with `mise activate`. An agent's subprocess shell and a CI runner have
+none, and there the verbs' own call and `kit ci` do the work. mise's documentation marks hooks experimental.
 
 ## On a runner
 

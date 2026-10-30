@@ -484,6 +484,45 @@ later-release() {
   [ -f .kit/manifest ]
 }
 
+@test "a repository from a release whose manifest still declared the version and packages is taken as declared, and update moves the declaration into settings.yml" {
+  "${kit_checkout}/bin/kit" install agents/claude
+  # the shape rc.3 to rc.6 left behind: no declaration in settings.yml, the manifest's version and packages lines
+  sed -i.bak -e '/^version:/d' -e '/^packages:/d' -e '/^  - /d' .kit/settings.yml && rm .kit/settings.yml.bak
+  { printf '# .kit/manifest - written by kit, not by hand\nversion unreleased\npackages kit agents/claude\n'
+    grep '  ' .kit/manifest; } > m && mv m .kit/manifest
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"run: kit update"* ]]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ "$(declared version)" = unreleased ]
+  [ "$(declared packages)" = "kit agents/claude" ]
+  run ! grep --quiet '^version ' .kit/manifest
+  git add --force .kit/manifest
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/manifest is tracked by git"* ]]
+}
+
+@test "the declaration is rewritten where it stands, so the repository's own keys and comments keep their places" {
+  mkdir .kit
+  printf 'require_signing: true\n\n# the kit\nversion: unreleased\npackages:\n  - kit\n\ngate: bin/ci\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  [ "$status" -eq 0 ]
+  expected='require_signing: true||# the kit|version: unreleased|packages:|  - kit|  - hooks/lefthook||gate: bin/ci'
+  [ "$(paste -s -d '|' - < .kit/settings.yml)" = "${expected}" ]
+}
+
+@test "the delivered workflow's version read strips quotes and a trailing comment" {
+  "${kit_checkout}/bin/kit" install github/ci
+  printf 'version: "9.9.9"  # pinned\n' > s.yml
+  line=$(grep 'version=\$(sed' .github/workflows/kit-ci.yml | sed 's/^ *//; s#\.kit/settings\.yml#s.yml#')
+  eval "${line}"
+  [ "${version}" = "9.9.9" ]
+}
+
 @test "update refuses a path new in the release where the repository already has a different file" {
   "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"

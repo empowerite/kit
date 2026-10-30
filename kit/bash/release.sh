@@ -1023,14 +1023,22 @@ release:place-all() {
 # commits the declaration in .kit/settings.yml and its own packages under .kit/packages/, and nothing kit places.
 release:owned() { [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* ]]; }
 
-# release:inside <path> succeeds when the path's real location is under the directory the verb runs in, the
-# repository root: inside the worktree. This repository's release, kit/, is inside. A release that mise or brew
-# installed for a consumer is outside, and so is a rendered template, written under a temporary directory. A link
+# release:within <real-path> succeeds when an absolute real path is inside the worktree: under the directory the verb
+# runs in, the repository root, and not under a nested checkout such as a worktree under worktrees/, which has a .git
+# of its own and goes away with kit tidy. This repository's release, kit/, is within. A release that mise or brew
+# installed for a consumer is not, and neither is a rendered template, written under a temporary directory. A link
 # never leaves the worktree: the worktree is what gets bind-mounted, copied, or synced as a unit, and a link that
 # left it would dangle there, and again when the tool manager moved the release.
-release:inside() {
+release:within() {
+  local dir
   [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
-  [[ "$(readlink -f "$1")" == "${release_root}"/* ]]
+  [[ "$1" == "${release_root}"/* ]] || return 1
+  dir=${1%/*}
+  while [[ "${dir}" == "${release_root}"/* ]]
+  do
+    [[ ! -e "${dir}/.git" ]] || return 1
+    dir=${dir%/*}
+  done
 }
 
 # release:relative <from-dir> <to> prints <to> as a path relative to <from-dir>. Both are absolute real paths.
@@ -1049,8 +1057,7 @@ release:relative() {
 release:state() {
   local real
   real=$(readlink -f "$1")
-  [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
-  if [[ "${real}" == "${release_root}"/* ]]
+  if release:within "${real}"
   then printf 'link %s\n' "$(release:relative "${release_root}/${2%/*}" "${real}")"
   else printf 'copy\n'
   fi
@@ -1226,7 +1233,7 @@ release:materialize() {
   done
   if (( ${#owned[@]} > 0 )) && git rev-parse --is-inside-work-tree >/dev/null 2>&1
   then
-    readarray -t tracked < <(git ls-files -- "${owned[@]}")
+    readarray -t tracked < <(git ls-files -- "${owned[@]}" .kit/manifest .kit/.gitignore)
     for path in "${tracked[@]}"
     do
       [[ -n "${path}" ]] || continue
@@ -1262,7 +1269,8 @@ release:materialize() {
 # release:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
 # write bit, and .kit/manifest exists. Where this release is itself inside the worktree, as the kit's own kit/ is,
 # every path must be a link: a copy there came from a kit outside the worktree, and the full run turns it into a
-# link. It starts two processes at most, so a reading verb asks on every run. A fresh clone, a `git clean -fdx`, a
+# link. It starts one process, to resolve the release's root, so a reading verb asks on every run. A fresh clone, a
+# `git clean -fdx`, a
 # link an editor's save replaced, and a copy with its write bit back all fail it, and the full release:materialize
 # follows, as it does when .kit/settings.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled
 # since the last full run, whose packages may have come or gone. A copy changed and put back without the write bit
@@ -1272,15 +1280,18 @@ release:hydrated() {
   local line path inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
   [[ ! .kit/settings.yml -nt .kit/.gitignore ]] || return 1
-  [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
-  [[ "$(readlink -f "${kit_root}")" != "${release_root}"/* ]] || inside=true
+  ! release:within "$(readlink -f "${kit_root}")" || inside=true
   while IFS= read -r line
   do
     [[ "${line}" == /* && "${line}" != /.gitignore && "${line}" != /manifest ]] || continue
     path=.kit${line}
     if [[ "${inside}" == true ]]
-    then [[ -L "${path}" && -e "${path}" ]] || return 1
-    else [[ -e "${path}" && ( -L "${path}" || ! -w "${path}" ) ]] || return 1
+    then
+      [[ -L "${path}" && -e "${path}" ]] || return 1
+    else
+      [[ -e "${path}" ]] || return 1
+      # As root every file is writable, so the write bit says nothing, and a regular file passes.
+      [[ -L "${path}" || ! -w "${path}" ]] || (( EUID == 0 )) || return 1
     fi
   done < .kit/.gitignore
 }
@@ -1291,12 +1302,21 @@ release:hydrated() {
 # command. Where release:hydrated finds everything in place it does nothing more, so the common run costs nothing;
 # with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It warns when this
 # release is not the declared one, since what it places is this release's. It rewrites .kit/manifest, so what the
-# declaration added is recorded, and a later release's change to it is kit's to replace.
+# declaration added is recorded, and a later release's change to it is kit's to replace. Where the declaration still
+# sits on the manifest's lines, from a release before it, it moves into .kit/settings.yml first.
 release:hydrate() {
   local declared
   local -a packages
-  declared=$(release:setting version)
+  declared=$(release:declared-version)
   [[ -n "${declared}" ]] || return 0
+  if [[ -z "$(release:setting version)" ]]
+  then
+    # A manifest from a release before the declaration still carries it. It moves into .kit/settings.yml now, before
+    # anything rewrites the manifest, which would drop its only copy.
+    readarray -t packages < <(release:declared-packages)
+    release:declare "${declared}" "$(release:declared-excludes | paste -s -d ' ' -)" "${packages[@]}"
+    step ".kit/settings.yml: the declaration moved here from .kit/manifest"
+  fi
   if [[ "${1:-}" != --full ]] && release:hydrated
   then
     return 0
@@ -1392,10 +1412,9 @@ release:retire() {
 
 # release:write-manifest <base> <excluded> <package>… writes the base's manifest: the digest of the release's file
 # for every path delivered under the base, and under home, which has no settings file, the version and the active
-# packages as well. The repository's manifest is always
-# written. Home's manifest is shared by every repository on the machine. It is written when these packages deliver
-# to home. When they do not, it drops the lines whose paths no longer exist, and removes the file once no line
-# is left.
+# packages as well. The repository's manifest is always written. Home's manifest is shared by every repository on
+# the machine. It is written when these packages deliver to home. When they do not, it drops the lines whose paths
+# no longer exist, and removes the file once no line is left.
 release:write-manifest() {
   local base=$1 excluded=$2 manifest path src delivered kept
   shift 2
@@ -1458,27 +1477,28 @@ release:write-manifests() {
 
 # release:declare <version> <excluded> <package>… writes the repository's declaration into .kit/settings.yml: the
 # top-level keys version, packages, and excludes, the last left out when nothing is excluded. Every other line of
-# the file stays as it is: the three keys' blocks are dropped and the new ones appended after one blank line. A
-# missing file is created with the schema modeline. yaml.sh only reads, so this is a line-oriented rewrite.
+# the file stays as it is, and in its place: the three keys' blocks are dropped and the declaration is written
+# where the first of them stood, or appended after one blank line when the file had none. A missing file is created
+# with the schema modeline. yaml.sh only reads, so this is a line-oriented rewrite.
 release:declare() {
-  local version=$1 excluded=$2 settings kept item
+  local version=$1 excluded=$2 settings kept declaration line item
   local -a excludes=()
   shift 2
   settings=$(release:settings)
   mkdir -p "$(dirname "${settings}")"
   if [[ -f "${settings}" ]]
   then
-    # A block is its key line and the indented lines after it. Command substitution drops the trailing blank lines.
+    # A block is its key line and the indented lines after it. A marker, \001, takes the first block's place.
+    # Command substitution drops the trailing blank lines.
     kept=$(awk '
-      /^(version|packages|excludes):/ { skip = 1; next }
+      /^(version|packages|excludes):/ { if (!seen) { print "\001"; seen = 1 }; skip = 1; next }
       skip && /^  / { next }
       { skip = 0; print }' "${settings}")
   else
     kept='# yaml-language-server: $schema=settings.schema.json'
   fi
   [[ -z "${excluded}" ]] || read -r -a excludes <<<"${excluded}"
-  {
-    [[ -z "${kept}" ]] || printf '%s\n\n' "${kept}"
+  declaration=$(
     printf 'version: %s\n' "${version}"
     printf 'packages:\n'
     for item in "$@"
@@ -1493,19 +1513,58 @@ release:declare() {
         printf '  - %s\n' "${item}"
       done
     fi
+  )
+  {
+    if [[ "${kept}" == *$'\001'* ]]
+    then
+      while IFS= read -r line
+      do
+        if [[ "${line}" == $'\001' ]]
+        then printf '%s\n' "${declaration}"
+        else printf '%s\n' "${line}"
+        fi
+      done <<<"${kept}"
+    else
+      [[ -z "${kept}" ]] || printf '%s\n\n' "${kept}"
+      printf '%s\n' "${declaration}"
+    fi
   } > "${settings}.kit-new"
   mv "${settings}.kit-new" "${settings}"
 }
 
-# release:declared-version prints the kit version the repository declares in .kit/settings.yml.
-release:declared-version() { release:setting version; }
+# release:declared-version prints the kit version the repository declares in .kit/settings.yml. A manifest that
+# still carries a version line, from a release before the declaration, is read as the declaration until kit update
+# moves it, and so are its packages and excludes lines below.
+release:declared-version() {
+  local version
+  version=$(release:setting version)
+  [[ -n "${version}" ]] || version=$(sed -n 's/^version //p' .kit/manifest 2>/dev/null)
+  printf '%s\n' "${version}"
+}
+
+# release:declared-line <key> prints the items of an old manifest's <key> line, one per line, where .kit/settings.yml
+# declares no version.
+release:declared-line() {
+  [[ -z "$(release:setting version)" ]] || return 0
+  sed -n "s/^$1 *//p" .kit/manifest 2>/dev/null | tr ' ' '\n' | awk 'NF'
+}
 
 # release:declared-packages prints the active packages the repository declares in .kit/settings.yml, one per line.
-release:declared-packages() { yaml:list "$(release:settings)" packages; }
+release:declared-packages() {
+  if [[ -n "$(release:setting version)" ]]
+  then yaml:list "$(release:settings)" packages
+  else release:declared-line packages
+  fi
+}
 
 # release:declared-excludes prints the packages the repository declares as excluded in .kit/settings.yml, one per
 # line: members of an active bundle that were removed, which kit update leaves out.
-release:declared-excludes() { yaml:list "$(release:settings)" excludes; }
+release:declared-excludes() {
+  if [[ -n "$(release:setting version)" ]]
+  then yaml:list "$(release:settings)" excludes
+  else release:declared-line excludes
+  fi
+}
 
 # release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-character
 # hex digest, two spaces, and the path, which can contain spaces.
@@ -1527,7 +1586,7 @@ release:recorded() {
 # release:require-declaration fails in a repository where the kit was never installed: its .kit/settings.yml
 # declares no kit version.
 release:require-declaration() {
-  if [[ -z "$(release:setting version)" ]]
+  if [[ -z "$(release:declared-version)" ]]
   then
     error "run: kit install (.kit/settings.yml declares no kit version in this repository)"
     return 1

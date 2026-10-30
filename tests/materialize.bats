@@ -226,4 +226,39 @@ later-release() {
   [[ "$output" == *"kit 9.9.9 hydrated"* ]]
 }
 
+@test "a release under a nested checkout counts as outside the worktree, so nothing links into what kit tidy removes" {
+  mkdir -p worktrees/x && printf 'gitdir: elsewhere\n' > worktrees/x/.git
+  cp -R "${kit_checkout}" worktrees/x/kit
+  run worktrees/x/kit/bin/kit install
+  [ "$status" -eq 0 ]
+  [ -f .kit/rules/bash.md ]
+  [ ! -L .kit/rules/bash.md ]
+  [ ! -w .kit/rules/bash.md ]
+}
+
+@test "a worktree's own kit is trusted only where the repository is the kit: a release declared, a kit/bin/kit of its own is not run" {
+  "${kit_checkout}/bin/kit" install
+  git add --all && git commit --quiet --message init
+  git worktree add --quiet wt -b wt
+  sed -i.bak 's/^version: unreleased$/version: 9.9.9/' wt/.kit/settings.yml && rm wt/.kit/settings.yml.bak
+  mkdir -p wt/kit/bin && printf '#!/usr/bin/env bash\nexit 7\n' > wt/kit/bin/kit && chmod +x wt/kit/bin/kit
+  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt
+  [ "$status" -eq 0 ]
+  [ -f wt/.kit/1st.md ]
+  [ ! -L wt/.kit/1st.md ]
+}
+
+@test "kit hydrate --quick says nothing and starts nothing when everything is in place, and does the whole job otherwise" {
+  "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" hydrate --quick
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  rm .kit/rules/bash.md
+  run "${kit_checkout}/bin/kit" hydrate --quick
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".kit/rules/bash.md: placed"* ]]
+  [[ "$output" == *"hydrated .kit/"* ]]
+  [ -f .kit/rules/bash.md ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
