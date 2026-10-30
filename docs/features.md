@@ -7,12 +7,15 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 
 - `.kit/1st.md` is the file every agent reads first. It sets the integrity rules for reporting, the workflow, the
   worker contract, and the kit commands that replace raw git commands.
-- `install` writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`. The `agents/claude` package
-  makes Claude Code read `AGENTS.md` as well.
+- `install` writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`. Claude Code reads
+  `AGENTS.md` on its own only when the project has no `CLAUDE.md`, so the `agents/claude` package imports
+  `AGENTS.md` from `.claude/CLAUDE.md`.
 - Each kind of file has one rule, `.kit/rules/<kind>.md`, that names the paths it governs and the linter it runs. A
   style package adds `.kit/styles/<kind>.md`, how a file of that kind looks, with the same frontmatter.
-- `kit context "${path}"` prints the rules that govern a path, and appends the request to `.git/kit/context.log`. The
-  `agents/claude` package calls it through a hook before each edit, so the agent is shown the rules without asking.
+- `kit context` takes one or more paths and prints the rules that govern them, each rule once. `--json` prints the
+  rules per path. Every call appends the paths to `.git/kit/context.log`.
+- The `agents/claude` package calls `kit context` through a hook before each edit, so the agent is shown the rules
+  without asking.
 - A repository's own rules sit beside the delivered ones, in `AGENTS.md` or a package of its own. Updates leave them
   alone.
 
@@ -30,12 +33,21 @@ every pull request, and any other pipeline can run it too.
 | `kit linked` | the pull request is not linked to an open issue |
 | `kit policy` | a branch name, commit subject, or pull request title breaks the naming policy |
 
-- The gate is the repository's own CI command: the `gate` setting, a `ci` recipe in the root justfile, a `ci` target
-  in a Makefile, or a `ci` script in `package.json`.
-- The naming policy is a set of patterns, or an Open Policy Agent policy with the `policy/opa` package.
-- `kit lint` runs each rule's linter over the staged files, or any files, before a commit or at any time. It needs no
-  hook manager; the `hooks/lefthook` package runs it from lefthook.
-- `kit lint` also refuses a workflow action not pinned to a full commit SHA.
+`kit lint` runs each rule's linter over the staged files, or any files, before a commit or at any time. It needs no
+hook manager; the `hooks/lefthook` package runs it from lefthook.
+
+The four checks are fixed. What each one runs is found at run time, from the repository's files:
+
+| What | Found from |
+| --- | --- |
+| the gate | the `gate` setting, else a `ci` recipe in the root justfile, a `ci` target in a Makefile, or a `ci` script in `package.json` |
+| the linters | the `lint:` command in the frontmatter of each rule and style that governs a file |
+| the kit's own checks | the names under `checks:` in that frontmatter; the workflows rule names `pinned`, which refuses an action not pinned to a full commit SHA |
+| the templates | the `templates:` list in that frontmatter |
+| the policy engine | Open Policy Agent when `.kit/policy/` holds a `.rego` file, else the patterns in `.kit/settings.yml` |
+| the toolchains | the `toolchains` setting, else the files present, such as `mise.toml` or a `Brewfile` |
+
+A repository that adds a rule or a style adds its linter, its checks, and its templates with it.
 
 see: [architecture.md](architecture.md#the-checks), [policy.md](policy.md)
 
@@ -46,14 +58,14 @@ see: [architecture.md](architecture.md#the-checks), [policy.md](policy.md)
   path and from flags, and prints the rules to read before writing the rest.
 - `kit lint` checks that every governed file still has the shape of one of its templates, and names the line where a
   file leaves it.
-- A repository changes a template by placing its own at the same path through a package of its own.
+- A repository changes a template by replacing it through a package of its own, as it replaces any delivered file.
 
 see: [templates.md](templates.md)
 
 ## The workflow
 
-Work runs from an issue to a merged pull request, and never through the desk: the root checkout on the human's
-machine, which no agent changes in place.
+An agent works from an issue to a merged pull request, in a worktree of its own. It never changes the desk, the
+root checkout on the human's machine. The human at the desk is not bound by these limits.
 
 1. `kit issue <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
@@ -89,22 +101,46 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-
 
 see: [toolchains.md](toolchains.md)
 
-## Delivery
+## Packages
 
-- A release is one tarball, pinned like any other tool: with mise, with Homebrew, or by hand.
-- Everything a release delivers comes from a package. `kit install` and `kit package add` activate packages, and
-  `kit package remove` deactivates them. A bundle, such as `empowerite`, activates its members, and any member can be
-  removed on its own.
-- `kit update` moves a repository to the pinned release. It replaces a delivered file left as placed, merges an
+Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is always active;
+the others are optional, such as one style package per kind of file, the CI job, the pre-commit hook, and the
+Claude Code adapter.
+
+- `kit install` and `kit package add` activate packages, with the packages they depend on. `kit package remove`
+  deactivates one and takes out everything it placed. `kit package list` shows the active set.
+- A bundle, such as `empowerite`, activates its members. Any member can be removed on its own, and stays out
+  through later updates.
+- A repository defines packages of its own under `.kit/packages/<name>/`, in the same format. One can add rules,
+  styles, or templates the release does not have.
+- To replace a delivered file, a repository's package depends on the package that delivers it and places its own
+  file at the same path. Where two active packages deliver the same path, the later in dependency order wins, so
+  the repository's file is used and every other file still comes from the release.
+- A value a delivered template asks for, such as the CI runner, is set under `answers:` in `.kit/settings.yml`.
+
+A file kit shares with the repository is changed in the least intrusive way its format allows:
+
+| When the file | kit uses |
+| --- | --- |
+| has a format that supports includes, such as `lefthook.yml` | an include line the repository adds, which `kit check` requires |
+| has a format with comments, such as `AGENTS.md` | a region |
+| supports neither, such as `.claude/settings.json` | a merge by key, which keeps the repository's own keys |
+| belongs entirely to kit | a link or a read-only copy under `.kit/` |
+
+see: [packages.md](packages.md), the "Changing what kit adds" section of `.kit/1st.md`
+
+## Releases and updates
+
+- A kit release is one tarball, `kit-<version>.tar.gz`, published from the tag `release/<version>` on this
+  repository. A repository pins it like any other tool: with mise, with Homebrew, or by hand.
+- `kit update` moves a repository to the release it pins. It replaces a delivered file left as placed, merges an
   edited one three ways against the previous release, and keeps the repository's own deny list entries and settings
   keys. When it lacks the previous release for a file it must merge, it refuses before writing anything.
-- What kit places under `.kit/` is ignored by git and declared in `.kit/settings.yml`. `kit hydrate` places it from
-  that declaration in a fresh clone or worktree, and every verb that reads a delivered file hydrates first. With
-  mise, a hook can hydrate as a shell enters the checkout.
-- A package of the repository's own, under `.kit/packages/`, works like a delivered one. It can add rules, styles, or
-  templates, or replace a delivered file.
+- What kit places under `.kit/` is ignored by git, and the active packages are declared in `.kit/settings.yml`.
+  `kit hydrate` places the files from that declaration in a fresh clone or worktree, and every verb that reads a
+  delivered file hydrates first. With mise, a hook can hydrate as a shell enters the checkout.
 
-see: [packages.md](packages.md)
+see: [packages.md](packages.md), the Release section of [README.md](../README.md#release)
 
 ## Regions
 
@@ -118,9 +154,11 @@ see: [generate.md](generate.md)
 
 ## Extending
 
-- The verbs share bash modules loaded with `use`. A repository can add modules or override a function in its own.
-- Each forge, tracker, toolchain, and policy engine sits behind a seam: one file that defines the calls and picks
-  the provider at run time. A new provider implements the same calls.
+- The verbs share bash modules loaded with `use`. A repository can add modules, or override a function, in its own
+  directory on the module path.
+- Each forge, tracker, toolchain, and policy engine sits behind a seam: one file whose header lists the calls a
+  provider answers, and whose code picks the provider at run time. A new provider is a module that answers those
+  calls.
 
 see: [bash.md](bash.md), [architecture.md](architecture.md#forges-seams-and-providers)
 
