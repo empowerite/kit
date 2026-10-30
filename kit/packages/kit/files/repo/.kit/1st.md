@@ -34,8 +34,9 @@ under `worktrees/`, one per issue. Work reaches `main` only through a merged pul
      first command there
    - a branch, linked to the issue under Development
    - a draft pull request
-3. Work in that worktree. Sign every commit. Write each commit subject as `#<N> <area>: <subject>`. Run
-   `kit rebase` to bring the branch up to date with the default branch and push it.
+3. Work in that worktree. Commit with `kit commit`, with the subject `#<N> <area>: <subject>`; it supplies `#<N>`
+   from the branch when the subject lacks it. Sign every commit. Push with `kit submit`. Run `kit rebase` to bring
+   the branch up to date with the default branch and push it.
 4. Run `gh pr ready` when the work is done. The pull request body is the report. It states:
    - what changed
    - what was checked, and how
@@ -49,6 +50,10 @@ command. A harness with a deny list refuses the raw git command.
 
 - `kit rebase`, never `git rebase`. `kit rebase` refuses to run in the root checkout or on the default branch.
   Otherwise it rebases the worktree's branch onto the default branch at origin and pushes it.
+- `kit commit`, never `git commit`. `kit commit` refuses the desk and the default branch, runs the linters over the
+  staged paths, refuses a path the kit placed, and holds the subject to the policy before the commit exists.
+- `kit submit`, never `git push`. `kit submit` commits what is staged the same way, then pushes the branch. It never
+  forces: when origin has moved, it names `kit rebase`.
 - `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
 - An agent never switches or resets the desk. `git checkout main`, `git switch main`, `git reset --hard`, and
@@ -140,8 +145,8 @@ The repository commits the declaration, and every worktree holds the text:
   ignored like them, and without the write bit like them
 
 The installed release contains the code. You run it through the kit CLI, `kit` on `PATH`. The workflow commands
-are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, `kit gate`, and
-`kit hydrate`. Run them exactly as written here, and in no other way.
+are `kit issue`, `kit commit`, `kit submit`, `kit rebase`, `kit todo`, `kit tidy`, `kit status`, `kit context`,
+`kit new file`, `kit lint`, `kit gate`, and `kit hydrate`. Run them exactly as written here, and in no other way.
 
 Everything the release delivers belongs to a package. A repository activates the packages it wants:
 

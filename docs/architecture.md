@@ -121,9 +121,13 @@ Work starts from an issue:
 2. In the worktree:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,
+   - `kit commit` to commit, with the checks its rule requires, and `kit submit` to commit and push,
    - `kit rebase` to rebase the branch onto the default branch at origin and push it.
 3. `gh pr ready` once the pull request body holds the report.
 4. A human merges, and `kit tidy` removes the worktree and the branch.
+
+`kit todo` lists the open issues with what is already in flight for each, so the next `kit issue <N>` is a pick, not a
+search.
 
 ### Forges, seams, and providers
 
