@@ -212,7 +212,7 @@ written by `bin/refresh`, which runs `kit update` from the index. Do not edit th
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
+| `.kit/1st.md`, `.kit/README.md`, `.kit/rules/`, `.kit/settings.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
 | `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | links into `kit/packages/style/<kind>/files/repo/.kit/` |
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | links into `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
 | `.kit/lefthook.yml` | a link into `kit/packages/hooks/lefthook/files/repo/.kit/` |

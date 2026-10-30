@@ -161,7 +161,8 @@ How a delivered file is placed depends on its destination:
 
 The packages:
 
-- `kit`: this file, the rules, `.kit/settings.schema.json`, and two regions that `kit region` fills:
+- `kit`: this file, `.kit/README.md` for the person at the desk, the rules, `.kit/settings.schema.json`, and two
+  regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and

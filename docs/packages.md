@@ -237,7 +237,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
+| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |

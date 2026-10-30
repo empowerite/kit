@@ -3,6 +3,8 @@
 The core package. It is active in every repository that uses the kit. It delivers:
 
 - `.kit/1st.md`, the entry file every agent reads. The repository's `AGENTS.md` points to it.
+- `.kit/README.md`, the directory explained to the person at the desk: what is committed, what is placed, and how to
+  change what kit adds.
 - `.kit/rules/<kind>.md`, one rule file per kind of file. A rule says what the work must do to be trusted. Each
   rule file's frontmatter declares the paths and first lines it governs, and the linter and checks `kit lint` runs
   over them.

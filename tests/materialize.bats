@@ -44,6 +44,8 @@ later-release() {
   grep --quiet --line-regexp '/manifest' .kit/.gitignore
   [ ! -w .kit/.gitignore ]
   [ ! -w .kit/manifest ]
+  [ -f .kit/README.md ]
+  [ ! -w .kit/README.md ]
   [ "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" = "?? .kit/settings.yml" ]
   run bash -c 'echo edited > .kit/rules/bash.md'
   [ "$status" -ne 0 ]
