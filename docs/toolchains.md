@@ -67,8 +67,10 @@ enter = "kit hydrate --quick"
 ```
 
 With `--quick`, the hook starts nothing and says nothing when everything is in place, and does the whole job
-otherwise. The hook runs only in a shell with `mise activate`. An agent's subprocess shell and a CI runner have
-none, and there the verbs' own call and `kit ci` do the work. mise's documentation marks hooks experimental.
+otherwise. The hook runs only in a shell with `mise activate`. A desk that uses direnv instead gets the same from an
+`.envrc` of two lines, `use mise` and `kit hydrate --quick`, as this repository's does. An agent's subprocess shell
+and a CI runner have neither, and there the verbs' own call and `kit ci` do the work. mise's documentation marks
+hooks experimental.
 
 ## On a runner
 
