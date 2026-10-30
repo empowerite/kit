@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # todo.sh - the forge's open issues, oldest first, each with what is already in flight for it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # status_sep is set by modules/bash/status.sh
+# shellcheck disable=SC2154  # modules/bash/status.sh sets status_sep, status_issue_sgr, and status_change_sgr
 #
 # kit todo is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, and for each
 # whether work has started, which is when an open change closes it or a branch for it is on origin. An issue with
@@ -11,13 +11,15 @@
 #
 # A row is drawn as kit status draws a pull request, its cells separated by status_sep and sized across the rows:
 #
-#   🎫 #7 Fix the thing · 👤 bob · 🛫 in flight 40d · 🔀 #3 · 🌿 7-fix-the-thing
+#    #7 · 👤 bob · 🛫 in flight 40d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing
+#   #11 · 👤 ada · ⏳ idle      30d ·       ·                    · 🎫 Third thing
 #
-# that is the issue with its title, its assignees (dropped under --mine, as kit status drops the author, and without
-# the glyph when it has none), its state with the issue's age, right-aligned, then the change and the branch in
-# flight. The title is clipped to what the terminal's width leaves after the other cells. The state's color shows its
-# family, as kit status's does: yellow when a human owes the next move, blue when the next move is someone else's.
-# Detail is dim: the assignees, the age, the change, and the branch.
+# that is the issue's number, right-aligned, its assignees (dropped under --mine, as kit status drops the author),
+# its state with the issue's age, right-aligned, the change and the branch in flight, and last the title, clipped to
+# what the terminal's width leaves after the other cells. A cell a row has nothing for is blank, glyph included, so
+# every title starts at the same column. The state's color shows its family, as kit status's does: yellow when a
+# human owes the next move, blue when the next move is someone else's. The issue's number is cyan and the change's
+# magenta, as in kit status. Detail is dim: the assignees, the age, and the branch.
 #
 #   state       glyph   color
 #   idle        ⏳      yellow   nothing is in flight; the next move is a pick, kit issue <N>
@@ -69,12 +71,12 @@ todo:state-emoji() {
   esac
 }
 
-# todo:rows <issues-json> prints one line per issue with its cells joined by \x1f: the title cell's text, the
+# todo:rows <issues-json> prints one line per issue with its cells joined by \x1f: the issue's ref, its title, the
 # assignees, the state, the age in seconds, then the change and the branch in flight, each empty when there is none.
 # The separator is \x1f, not a tab: a tab is IFS whitespace, and read would drop an empty assignees cell.
 todo:rows() {
   jq --raw-output \
-    '.[] | ["\(.ref) \(.title)", (.assignees | join(" ")), (if .inflight == null then "idle" else "in flight" end),
+    '.[] | [.ref, .title, (.assignees | join(" ")), (if .inflight == null then "idle" else "in flight" end),
             .age, (.inflight.change // "" | tostring), (.inflight.branch // "")]
       | join("\u001f")' <<<"$1"
 }
@@ -115,28 +117,29 @@ todo:render() {
     return 0
   fi
 
-  # Size the cells across the rows. The title gets what the terminal's width leaves after the others, 20 at least.
-  local text assignees state age change branch tail row glyph
-  local title_w=0 owner_w=0 state_w=0 age_w=0 tail_w=0 width
-  while IFS=$'\x1f' read -r text assignees state age change branch
+  # Size the cells across the rows. A column no row fills is left out, and a row that has nothing for a column gets
+  # blanks, so every title starts at the same column.
+  local ref title assignees state age change branch text row glyph
+  local ref_w=0 owner_w=0 state_w=0 age_w=0 change_w=0 branch_w=0 width
+  while IFS=$'\x1f' read -r ref title assignees state age change branch
   do
-    (( ${#text} > title_w )) && title_w=${#text}
+    (( ${#ref} > ref_w )) && ref_w=${#ref}
     [[ "${choice}" != mine ]] && (( ${#assignees} > owner_w )) && owner_w=${#assignees}
     (( ${#state} > state_w )) && state_w=${#state}
     text=$(status:age "${age}")
     (( ${#text} > age_w )) && age_w=${#text}
-    tail=0
-    [[ -n "${change}" ]] && tail=$(( tail + 3 + 3 + 1 + ${#change} ))
-    [[ -n "${branch}" ]] && tail=$(( tail + 3 + 3 + ${#branch} ))
-    (( tail > tail_w )) && tail_w=${tail}
+    [[ -n "${change}" ]] && (( ${#change} + 1 > change_w )) && change_w=$(( ${#change} + 1 ))
+    (( ${#branch} > branch_w )) && branch_w=${#branch}
   done < <(todo:rows "${doc}")
-  width=$(( $(status:width) - 3 - (owner_w > 0 ? owner_w + 6 : 0) - 3 - 3 - state_w - 1 - age_w - tail_w ))
+  # The title is last, and gets what the terminal's width leaves after the other cells, 20 at least. A cell with a
+  # glyph takes six columns beyond its text: the separator, the glyph, which is drawn two wide, and a space.
+  width=$(( $(status:width) - ref_w - (owner_w > 0 ? 6 + owner_w : 0) - 6 - state_w - 1 - age_w
+            - (change_w > 0 ? 6 + change_w : 0) - (branch_w > 0 ? 6 + branch_w : 0) - 6 ))
   (( width < 20 )) && width=20
-  (( title_w > width )) && title_w=${width}
 
-  while IFS=$'\x1f' read -r text assignees state age change branch
+  while IFS=$'\x1f' read -r ref title assignees state age change branch
   do
-    row="🎫 $(status:cell "${text}" "${title_w}")"
+    row=$(status:paint "${status_issue_sgr}" "$(status:cell "${ref}" "${ref_w}" right)")
     if (( owner_w > 0 ))
     then
       glyph='   '
@@ -146,9 +149,23 @@ todo:render() {
     row+="${status_sep}$(todo:state-emoji "${state}")"
     row+=" $(status:paint "$(todo:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
     row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
-    [[ -n "${change}" ]] && row+="${status_sep}$(status:paint 90 "🔀 #${change}")"
-    [[ -n "${branch}" ]] && row+="${status_sep}$(status:paint 90 "🌿 ${branch}")"
-    printf '%s\n' "${row}" >&2
+    if (( change_w > 0 ))
+    then
+      if [[ -n "${change}" ]]
+      then
+        row+="${status_sep}🔀 $(status:paint "${status_change_sgr}" "$(status:cell "#${change}" "${change_w}" right)")"
+      else row+="${status_sep}   $(status:cell '' "${change_w}")"
+      fi
+    fi
+    if (( branch_w > 0 ))
+    then
+      if [[ -n "${branch}" ]]
+      then row+="${status_sep}$(status:paint 90 "🌿 $(status:cell "${branch}" "${branch_w}")")"
+      else row+="${status_sep}   $(status:cell '' "${branch_w}")"
+      fi
+    fi
+    (( ${#title} > width )) && title="${title:0:width-1}…"
+    printf '%s%s🎫 %s\n' "${row}" "${status_sep}" "${title}" >&2
   done < <(todo:rows "${doc}")
 }
 

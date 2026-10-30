@@ -63,18 +63,17 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-# title-of <row> prints the title cell of a row: what is between the issue glyph and the first separator.
+# title-of <row> prints the title cell of a row, the last: what follows the issue glyph.
 title-of() {
-  local row=${1#🎫 }
-  printf '%s\n' "${row%% · *}"
+  printf '%s\n' "${1##*🎫 }"
 }
 
-@test "kit todo draws each issue as kit status draws a change: title, assignees, state, age, and what is in flight" {
+@test "kit todo draws each issue as kit status draws a change: number, assignees, state, age, in flight, then title" {
   run kit todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
-  [[ "${lines[1]}" == "🎫 #9 Other thing   ·        · 🛫 in flight "*"d · 🌿 9-other" ]]
-  [[ "${lines[2]}" == "🎫 #11 Third thing  · 👤 ada · ⏳ idle      "*"d" ]]
+  [[ "${lines[0]}" == " #7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == " #9 ·        · 🛫 in flight "*"d ·       · 🌿 9-other         · 🎫 Other thing" ]]
+  [[ "${lines[2]}" == "#11 · 👤 ada · ⏳ idle      "*"d ·       ·                    · 🎫 Third thing" ]]
   [[ "${lines[2]}" != *"🔀"* && "${lines[2]}" != *"🌿"* ]]
   [ "${#lines[@]}" -eq 3 ]
 }
@@ -87,19 +86,18 @@ title-of() {
 JSON
   run kit todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #5 Old thing     · ⏳ idle      "[0-9][0-9][0-9][0-9]"d" ]]
-  expected="🎫 #7 Fix the thing · 🛫 in flight  "
-  [[ "${lines[1]}" == "${expected}"[0-9][0-9][0-9]"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+  [[ "${lines[0]}" == "#5 · ⏳ idle      "[0-9][0-9][0-9][0-9]"d ·       ·                    · 🎫 Old thing" ]]
+  [[ "${lines[1]}" == "#7 · 🛫 in flight  "[0-9][0-9][0-9]"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
 }
 
 @test "kit todo --mine drops the assignee column, as kit status --mine drops the author; --owner keeps it" {
   run kit todo --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #11 Third thing · ⏳ idle "*"d" ]]
+  [[ "${lines[0]}" == "#11 · ⏳ idle "*"d · 🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit todo --owner=bob
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
   [ "${#lines[@]}" -eq 1 ]
 }
 
@@ -109,8 +107,8 @@ JSON
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "7 9" ]
   run kit todo --others
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
-  [[ "${lines[1]}" == "🎫 #9 Other thing   ·        · 🛫 in flight "*"d · 🌿 9-other" ]]
+  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == "#9 ·        · 🛫 in flight "*"d ·       · 🌿 9-other         · 🎫 Other thing" ]]
   [ "${#lines[@]}" -eq 2 ]
 }
 
@@ -130,9 +128,10 @@ JSON
   [[ "$output" == *"${esc}[34min flight${esc}[0m"* ]]
   [[ "$output" == *"${esc}[33midle     ${esc}[0m"* ]]
   [[ "$output" == *"${esc}[90mbob${esc}[0m"* ]]
-  [[ "$output" == *"${esc}[90m🔀 #3${esc}[0m"* ]]
+  [[ "$output" == *"🔀 ${esc}[35m#3${esc}[0m"* ]]
+  [[ "$output" == *"${esc}[36m #7${esc}[0m"* ]]
   [[ "$output" == *"${esc}[90m🌿 7-fix-the-thing${esc}[0m"* ]]
-  [[ "$output" != *"${esc}[90m#7 Fix the thing"* ]]
+  [[ "$output" == *"🎫 Fix the thing"* ]]
   run env -u NO_COLOR "${kit_checkout}/bin/kit" todo
   [ "$status" -eq 0 ]
   [[ "$output" != *"${esc}["* ]]
@@ -146,19 +145,18 @@ JSON
 [{"number": 7, "title": "A very long title that goes on and on, far past what a narrow terminal shows",
   "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
-  run env COLUMNS=80 "${kit_checkout}/bin/kit" todo
-  [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #7 A very long"*"… · 👤 bob · 🛫 in flight "* ]]
-  [[ "${lines[0]}" == *"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
-  narrow=$(title-of "${lines[0]}")
   run env COLUMNS=100 "${kit_checkout}/bin/kit" todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #7 A very long"*"… · 👤 bob · "* ]]
+  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 A very long"*"…" ]]
+  narrow=$(title-of "${lines[0]}")
+  run env COLUMNS=120 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == *" · 🎫 A very long"*"…" ]]
   wide=$(title-of "${lines[0]}")
   [ "${#wide}" -eq $(( ${#narrow} + 20 )) ]
-  run env COLUMNS=140 "${kit_checkout}/bin/kit" todo
+  run env COLUMNS=160 "${kit_checkout}/bin/kit" todo
   [ "$status" -eq 0 ]
-  [ "$(title-of "${lines[0]}")" = "#7 A very long title that goes on and on, far past what a narrow terminal shows" ]
+  [ "$(title-of "${lines[0]}")" = "A very long title that goes on and on, far past what a narrow terminal shows" ]
 }
 
 @test "kit todo --today lists the issues opened in the last 24 hours, and combines with --mine and --json" {
@@ -170,12 +168,12 @@ JSON
 JSON
   run kit todo --today
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #13 Fresh thing · 👤 ada · ⏳ idle "* ]]
-  [[ "${lines[1]}" == "🎫 #14 Fresh other ·        · ⏳ idle "* ]]
+  [[ "${lines[0]}" == "#13 · 👤 ada · ⏳ idle "*" · 🎫 Fresh thing" ]]
+  [[ "${lines[1]}" == "#14 ·        · ⏳ idle "*" · 🎫 Fresh other" ]]
   [ "${#lines[@]}" -eq 2 ]
   run kit todo --today --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🎫 #13 Fresh thing · ⏳ idle "* ]]
+  [[ "${lines[0]}" == "#13 · ⏳ idle "*" · 🎫 Fresh thing" ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit todo --today --json
   [ "$status" -eq 0 ]

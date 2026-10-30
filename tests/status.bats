@@ -175,6 +175,16 @@ commits-in() {
   [ "${lines[0]}" = "🔀 #2 The first · 👤 ada   · 🚦 queued 3d · 🏃 0 / 1 36s" ]
 }
 
+@test "a change's number is magenta and the number of an issue it closes cyan, as kit todo draws them" {
+  local esc=$'\x1b'
+  doc='{"number":2,"title":"The first","author":"ada","branch":"2-the-first","state":"queued","age":60,'
+  doc+='"unresolved":0,"checks":{"state":"NONE"},"closes":[{"number":1,"title":"One"}]}'
+  run env -u NO_COLOR CLICOLOR_FORCE=1 \
+    bash -c 'source "${kit_root}/modules/bash/1st.sh" && use status && status:pr-block "$@"' _ "${doc}" 12 0 6 2 ''
+  [[ "${lines[0]}" == "🔀 ${esc}[35m#2${esc}[0m The first "* ]]
+  [[ "${lines[1]}" == "   ${esc}[90mcloses${esc}[0m ${esc}[36m#1${esc}[0m ${esc}[90mOne${esc}[0m" ]]
+}
+
 @test "a failed checks cell names the failing count, then passed of total, then the time taken" {
   run in_status status:check-cell '{"state":"FAILURE","passed":3,"total":5,"failing":2,"took":31}'
   [ "$output" = "❌ 2 failing 3 / 5 31s" ]

@@ -30,7 +30,8 @@
 #
 # A pull request's state is the first of these that applies. Its color shows the state's family, never the
 # single state: green when nothing is left to decide, yellow when a human owes a decision, and blue when the next
-# move is a machine's or a reviewer's. Detail is dim.
+# move is a machine's or a reviewer's. Detail is dim. An issue's number is always cyan and a change's magenta,
+# the two colors no family uses, so either reads as what it is in every table the kit draws.
 #
 #   state              glyph   color
 #   draft              🔨      dim
@@ -52,6 +53,10 @@ status_commit_cap=10
 
 # status_sep separates the cells of every row kit status prints.
 status_sep=' · '
+
+# status_issue_sgr and status_change_sgr color an issue's number and a change's, in every table the kit draws.
+status_issue_sgr=36
+status_change_sgr=35
 
 # status:width prints the terminal's width in columns: COLUMNS, else the width of the terminal on stderr, else
 # 100. A width under 60 also gives 100.
@@ -433,7 +438,7 @@ status:pr-block() {
     < <(jq --raw-output '[.number, (.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
           | map(tostring)
           | join("\u001f")' <<<"${doc}")
-  row="🔀 $(status:cell "${ref} ${title}" "${title_w}")"
+  row="🔀 $(status:paint "${status_change_sgr}" "${ref}") $(status:cell "${title}" $(( title_w - ${#ref} - 1 )))"
   (( owner_w > 0 )) && row+="${status_sep}👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
   row+="${status_sep}$(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
@@ -443,10 +448,12 @@ status:pr-block() {
   (( unresolved > 0 )) && row+="${status_sep}$(status:paint 33 "💬 ${unresolved} unresolved")"
   [[ -n "${worktree}" ]] && row+="${status_sep}$(status:paint 90 "🌿 ${branch}")"
   printf '%s\n' "${row}" >&2
-  while IFS= read -r issue
+  while IFS=$'\x1f' read -r issue title
   do
-    [[ -n "${issue}" ]] && printf '   %s\n' "$(status:paint 90 "closes ${issue}")" >&2
-  done < <(jq --raw-output '.closes[] | "#\(.number) \(.title)"' <<<"${doc}")
+    [[ -n "${issue}" ]] || continue
+    printf '   %s %s %s\n' "$(status:paint 90 closes)" "$(status:paint "${status_issue_sgr}" "${issue}")" \
+      "$(status:paint 90 "${title}")" >&2
+  done < <(jq --raw-output '.closes[] | "#\(.number)\u001f\(.title)"' <<<"${doc}")
   return 0
 }
 
