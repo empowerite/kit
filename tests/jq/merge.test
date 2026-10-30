@@ -1,0 +1,29 @@
+# merge.test - the merge jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is [current, previous release, new release].
+
+# A key the repository added stays, and the release's keys take the new release's values.
+import "merge" as merge; merge::apply(.[0]; .[1]; .[2])
+[{"ours": 1, "model": "old"}, {"model": "old"}, {"model": "new"}]
+{"ours":1,"model":"new"}
+
+# In an array, the repository's own entries stay, the previous release's go, and the new release's are added once.
+import "merge" as merge; merge::apply(.[0]; .[1]; .[2])
+[{"deny": ["mine", "kit-old", "kit-both"]}, {"deny": ["kit-old", "kit-both"]}, {"deny": ["kit-both", "kit-new"]}]
+{"deny":["mine","kit-both","kit-new"]}
+
+# With no current file, the new release's content is written whole.
+import "merge" as merge; merge::apply(.[0]; .[1]; .[2])
+[null, null, {"permissions": {"deny": ["a"]}}]
+{"permissions":{"deny":["a"]}}
+
+# Removing a release takes out its array entries, and leaves the repository's entries and every scalar.
+import "merge" as merge; merge::remove(.[0]; .[1])
+[{"deny": ["mine", "kit"], "model": "kept"}, {"deny": ["kit"], "model": "kept"}]
+{"deny":["mine"],"model":"kept"}
+
+# A file holds a release when it contains every key, entry, and value the release writes.
+import "merge" as merge; [merge::holds(.[0]; .[1]), merge::holds(.[0]; .[2]), merge::holds(.[0]; .[3])]
+[{"deny": ["mine", "kit"], "model": "x"}, {"deny": ["kit"]}, {"deny": ["gone"]}, {"model": "y"}]
+[true,false,false]
