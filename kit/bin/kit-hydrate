@@ -30,6 +30,6 @@ fi
 
 release:require-declaration
 release:hydrate --full
-ok "kit $(release:declared-version) is hydrated under .kit/, packages: $(release:declared-packages | paste -s -d ' ' -)"
+ok "kit $(release:version) hydrated .kit/, packages: $(release:declared-packages | paste -s -d ' ' -)"
 
 # ----------------------------------------------------------------------------------------------------------------------

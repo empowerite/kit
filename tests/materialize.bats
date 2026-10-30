@@ -175,4 +175,55 @@ later-release() {
   [ -L .kit/rules/bash.md ]
 }
 
+@test "a declaration edited by hand is noticed by the next verb, which places what it added" {
+  "${kit_checkout}/bin/kit" install
+  [ ! -e .kit/lefthook.yml ]
+  touch -t 202001010000 .kit/.gitignore
+  printf '  - hooks/lefthook\n' >> .kit/settings.yml
+  printf 'x\n' > x.md
+  run "${kit_checkout}/bin/kit" context x.md
+  [ "$status" -eq 0 ]
+  [ -f .kit/lefthook.yml ]
+  grep --quiet --line-regexp '/lefthook.yml' .kit/.gitignore
+  [ .kit/.gitignore -nt .kit/settings.yml ]
+}
+
+@test "kit hydrate removes what the declaration dropped and records what it added, so a pulled declaration is enough" {
+  "${kit_checkout}/bin/kit" install style/yaml
+  [ -f .kit/styles/yaml.md ]
+  sed -i.bak '/^  - style\/yaml$/d' .kit/settings.yml && rm .kit/settings.yml.bak
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/styles/yaml.md ]
+  [ ! -e .kit/templates/yaml ]
+  run ! grep --quiet 'styles/yaml.md' .kit/.gitignore
+  run ! grep --quiet 'styles/yaml.md' .kit/manifest
+  printf '  - style/json\n' >> .kit/settings.yml
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  [ -f .kit/styles/json.md ]
+  grep --quiet '  .kit/styles/json.md$' .kit/manifest
+  [ "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" = "?? .kit/settings.yml" ]
+}
+
+@test "a readonly .kit-new left by an interrupted run does not block the next hydrate" {
+  "${kit_checkout}/bin/kit" install
+  cp .kit/rules/bash.md .kit/rules/bash.md.kit-new && chmod a-w .kit/rules/bash.md.kit-new
+  chmod u+w .kit/rules/bash.md && printf 'edited\n' >> .kit/rules/bash.md
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  run ! grep --quiet '^edited$' .kit/rules/bash.md
+  [ ! -e .kit/rules/bash.md.kit-new ]
+}
+
+@test "hydrate says which kit placed the files, and warns when it is not the declared one" {
+  "${kit_checkout}/bin/kit" install
+  later-release "${repo}.later"
+  run "${repo}.later/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"declares kit unreleased, and this is kit 9.9.9"* ]]
+  [[ "$output" == *"run: kit update"* ]]
+  [[ "$output" == *"kit 9.9.9 hydrated"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

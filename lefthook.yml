@@ -3,7 +3,7 @@
 #
 # The kit's commands come from its installed .kit/lefthook.yml, as in any consumer repository: kit lint and
 # kit generate --check over the staged paths. This repository adds a command that refreshes its installed copies.
-# Once per clone, run: lefthook install
+# Once per clone, run: kit hydrate && lefthook install (lefthook skips a missing .kit/lefthook.yml without a word)
 
 extends:
   - .kit/lefthook.yml

@@ -83,12 +83,26 @@ then
   exit 1
 fi
 
+# recorded-digest <base> <path> prints the digest the manifest records for the path. When it records none, as in a
+# fresh clone or bin/refresh's export, where the manifest is not committed, it prints the base release's digest of
+# the path, read from base_delivered, when that release delivers it. A path with neither is new in this release.
+recorded-digest() {
+  local recorded src
+  recorded=$(release:recorded "$1" "$2")
+  if [[ -z "${recorded}" && -n "${base_delivered}" ]]
+  then
+    src=$(awk -F '\t' -v p="$2" '$1 == p { print $2 }' <<<"${base_delivered}")
+    [[ -z "${src}" ]] || recorded=$(release:digest < "${src}")
+  fi
+  printf '%s\n' "${recorded}"
+}
+
 # lacks-base <base> <path> <src> is true when updating the path needs the base release, and the base release is
 # missing.
 lacks-base() {
   local base=$1 path=$2 src=$3 dest recorded kind
   dest=$(release:dest "${base}" "${path}")
-  recorded=$(release:recorded "${base}" "${path}")
+  recorded=$(recorded-digest "${base}" "${path}")
   [[ -n "${recorded}" ]] || return 1
   # A materialized path is brought to its state from this release alone.
   if release:owned "${base}" "${path}" && [[ "$(release:kind "${src}" "${dest}")" == copy ]]
@@ -104,8 +118,10 @@ lacks-base() {
 
 # Find every path that lacks its base before writing anything, so an update is all or nothing.
 skipped=0
+base_delivered=""
 for base in $(release:bases)
 do
+  [[ -z "${base_root}" ]] || base_delivered=$(release:delivered "${base_root}" "${base}" "${packages[@]}")
   while IFS=$'\t' read -r path src
   do
     [[ -n "${path}" ]] || continue
@@ -126,11 +142,12 @@ fi
 conflicts=0
 for base in $(release:bases)
 do
+  [[ -z "${base_root}" ]] || base_delivered=$(release:delivered "${base_root}" "${base}" "${packages[@]}")
   while IFS=$'\t' read -r path src
   do
     [[ -n "${path}" ]] || continue
     dest=$(release:dest "${base}" "${path}")
-    recorded=$(release:recorded "${base}" "${path}")
+    recorded=$(recorded-digest "${base}" "${path}")
     if [[ -z "${recorded}" ]]
     then
       release:place-new "${src}" "${dest}" "new in ${current}" || conflicts=$(( conflicts + 1 ))

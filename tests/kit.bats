@@ -470,6 +470,20 @@ later-release() {
   [[ "$output" == *"1 finding(s)"* ]]
 }
 
+@test "update without a manifest takes the base release's digest for a path, so an edited copy outside .kit/ is merged, not refused" {
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
+  later-release "${repo}.later"
+  printf '# later\n' >> "${repo}.later/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml"
+  sed -i.bak 's/^name: kit$/name: ours/' .github/workflows/kit-ci.yml && rm .github/workflows/kit-ci.yml.bak
+  # a fresh clone, or bin/refresh's export: the manifest is not committed
+  rm .kit/manifest
+  run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
+  [ "$status" -eq 0 ]
+  grep --quiet '^name: ours$' .github/workflows/kit-ci.yml
+  grep --quiet '^# later$' .github/workflows/kit-ci.yml
+  [ -f .kit/manifest ]
+}
+
 @test "update refuses a path new in the release where the repository already has a different file" {
   "${kit_checkout}/bin/kit" install agents/claude
   later-release "${repo}.later"

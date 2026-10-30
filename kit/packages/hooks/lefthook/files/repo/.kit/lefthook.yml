@@ -8,7 +8,8 @@
 #   - kit-generate runs kit generate --check, which fails when a generated region is stale
 #
 # The repository's lefthook.yml includes this file with `extends: [.kit/lefthook.yml]`, and can add commands of its
-# own. Lefthook merges commands by name. Run `lefthook install` once per clone.
+# own. Lefthook merges commands by name. Run `kit hydrate && lefthook install` once per clone: kit hydrate places
+# this file, and lefthook skips a missing include without a word.
 #
 # see: https://lefthook.dev
 

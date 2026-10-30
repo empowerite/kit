@@ -1091,10 +1091,23 @@ release:materialize-one() {
   then
     ln -sfn "${state#link }" "${dest}"
   else
+    # A readonly .kit-new that an interrupted run left behind would refuse the copy on GNU cp.
+    rm -f "${dest}.kit-new"
     cp "${src}" "${dest}.kit-new"
     chmod a-w "${dest}.kit-new"
     mv -f "${dest}.kit-new" "${dest}"
   fi
+}
+
+# release:prune-dirs <path> removes the directories a removed path leaves empty, up to .kit/ itself, which stays.
+release:prune-dirs() {
+  local dir
+  dir=$(dirname "$1")
+  while [[ "${dir}" == .kit/* && -d "${dir}" && -z "$(find "${dir}" -mindepth 1 -maxdepth 1 | head -n 1)" ]]
+  do
+    rmdir "${dir}"
+    dir=$(dirname "${dir}")
+  done
 }
 
 # release:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, and the file
@@ -1140,6 +1153,24 @@ release:materialize() {
       dir=$(dirname "${dir}")
     done
   done < <(release:delivered "${kit_root}" repo "$@")
+  # A path the manifest records that no active package delivers any more, as after a pulled declaration dropped a
+  # package: removed, and the directories it leaves empty with it.
+  while IFS= read -r path
+  do
+    [[ -n "${path}" ]] || continue
+    release:owned repo "${path}" || continue
+    [[ -z "${source[${path}]+x}" ]] || continue
+    [[ -e "${path}" || -L "${path}" ]] || continue
+    if [[ "${check}" == true ]]
+    then
+      error "${path} is no longer delivered by any active package; run: kit hydrate"
+      findings=$(( findings + 1 ))
+    else
+      step "${path}: removed, no active package delivers it"
+      rm -f "${path}"
+      release:prune-dirs "${path}"
+    fi
+  done < <(release:manifest-paths repo)
   for path in "${owned[@]}"
   do
     src=${source[${path}]}
@@ -1222,6 +1253,9 @@ release:materialize() {
     mkdir -p .kit
     printf '%s\n' "${ignore}" > .kit/.gitignore
     step ".kit/.gitignore: written"
+  else
+    # Newer than .kit/settings.yml again: release:hydrated reads that as the declaration having been seen.
+    touch .kit/.gitignore
   fi
 }
 
@@ -1230,12 +1264,14 @@ release:materialize() {
 # every path must be a link: a copy there came from a kit outside the worktree, and the full run turns it into a
 # link. It starts two processes at most, so a reading verb asks on every run. A fresh clone, a `git clean -fdx`, a
 # link an editor's save replaced, and a copy with its write bit back all fail it, and the full release:materialize
-# follows. A copy changed and put back without the write bit, and a declaration edited by hand, pass it: kit check
-# and kit hydrate judge those. A template rendered under .kit/ is a copy even inside, so a release that delivers one
-# there takes the full run every time; none does.
+# follows, as it does when .kit/settings.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled
+# since the last full run, whose packages may have come or gone. A copy changed and put back without the write bit
+# passes it: kit check judges that. A template rendered under .kit/ is a copy even inside, so a release that delivers
+# one there takes the full run every time; none does.
 release:hydrated() {
   local line path inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
+  [[ ! .kit/settings.yml -nt .kit/.gitignore ]] || return 1
   [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
   [[ "$(readlink -f "${kit_root}")" != "${release_root}"/* ]] || inside=true
   while IFS= read -r line
@@ -1253,19 +1289,27 @@ release:hydrated() {
 # repository that declares a kit version, and does nothing elsewhere. Every verb that reads a delivered file calls it
 # first, so a fresh clone or worktree, a `git clean -fdx`, or a link an editor's save replaced heals on the next kit
 # command. Where release:hydrated finds everything in place it does nothing more, so the common run costs nothing;
-# with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It writes .kit/manifest
-# when it is missing.
+# with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It warns when this
+# release is not the declared one, since what it places is this release's. It rewrites .kit/manifest, so what the
+# declaration added is recorded, and a later release's change to it is kit's to replace.
 release:hydrate() {
+  local declared
   local -a packages
-  [[ -n "$(release:setting version)" ]] || return 0
+  declared=$(release:setting version)
+  [[ -n "${declared}" ]] || return 0
   if [[ "${1:-}" != --full ]] && release:hydrated
   then
     return 0
   fi
+  if [[ "${declared}" != "$(release:version)" ]]
+  then
+    warn ".kit/settings.yml declares kit ${declared}, and this is kit $(release:version); what is placed is this" \
+      "kit's; run: kit update"
+  fi
   readarray -t packages < <(release:declared-packages)
   release:render-all "${kit_root}" "${packages[@]}" || return 1
   release:materialize "${packages[@]}"
-  [[ -f .kit/manifest ]] || release:write-manifest repo '' "${packages[@]}"
+  release:write-manifest repo '' "${packages[@]}"
 }
 
 # release:unplace <source> <path> removes the release's content from <path>: the kit's entries from a .json
@@ -1285,6 +1329,10 @@ release:unplace() {
     (*)
       step "removing ${path}"
       rm -f "${path}"
+      if release:owned repo "${path}"
+      then
+        release:prune-dirs "${path}"
+      fi
   esac
 }
 

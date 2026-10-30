@@ -120,7 +120,8 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    lefthook instead:
    - pin `lefthook`,
    - add `extends: [.kit/lefthook.yml]` to `lefthook.yml`, and
-   - run `lefthook install` once per clone.
+   - run `kit hydrate && lefthook install` once per clone; lefthook skips a missing `.kit/lefthook.yml` without a
+     word.
 
    With the `hooks/lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit
    never writes it for you.
@@ -166,7 +167,7 @@ git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
 export MISE_ENV=desk
 mise install
-lefthook install
+kit hydrate && lefthook install
 ```
 
 Put `export MISE_ENV=desk` in your shell profile. It makes mise read `mise.desk.toml`, the tools only a developer
