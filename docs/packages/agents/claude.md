@@ -15,9 +15,9 @@ The package also merges two entries into `.claude/settings.json`, by key, and le
 alone:
 
 - `permissions.deny`: the git commands that `.kit/1st.md` forbids an agent, because the kit's commands and the
-  workflow replace them. They are `git rebase`, `git worktree add`, `git checkout -b`, `git switch -c`,
-  `git worktree remove`, `git branch -D`, `git checkout main`, `git switch main`, `git reset --hard`,
-  `git push --force`, and `git push -f`.
+  workflow replace them. They are `git commit` and `git push`, which `kit commit` and `kit submit` replace;
+  `git rebase`, `git worktree add`, `git checkout -b`, `git switch -c`, `git worktree remove`, `git branch -D`,
+  `git checkout main`, `git switch main`, `git reset --hard`, `git push --force`, and `git push -f`.
 - `hooks.PreToolUse`: on `Write`, `Edit`, and `MultiEdit`, runs `kit context --claude`, which shows the agent the
   rules that govern the file. It is described in
   [docs/context.md](../../context.md).

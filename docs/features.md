@@ -72,16 +72,24 @@ root checkout on the human's machine. The human at the desk is not bound by thes
 
 1. `kit issue <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
-2. `kit rebase` rebases the worktree's branch onto the default branch at origin and pushes it. It refuses the desk,
+2. `kit commit` commits what is staged, after the checks a commit's rule requires: the linters over the staged paths,
+   no path the kit placed, and a subject the policy allows, with the issue's reference supplied from the branch. It
+   refuses the desk and the default branch.
+3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
+   first time. It never forces: when origin has moved, the remedy is `kit rebase`.
+4. `kit rebase` rebases the worktree's branch onto the default branch at origin and pushes it. It refuses the desk,
    the default branch, and a worktree with uncommitted changes.
-3. `kit gate` runs the gate locally, with the same tools CI uses.
-4. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
+5. `kit gate` runs the gate locally, with the same tools CI uses.
+6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
 `kit status` shows everything in flight: what the last fetch brought in, the desk and every worktree with its
 uncommitted paths and commits, every open pull request with its state, age, and checks, and the gone branches.
 
+`kit todo` lists the open issues, oldest first, each with its assignees and what is already in flight for it: the open
+change that closes it, or the branch for it on origin. The next issue to take up is one with nothing in flight.
+
 The `agents/claude` package delivers a deny list that refuses the raw git commands these verbs replace, such as
-`git rebase`, `git worktree add`, `git branch -D`, and `git push --force`.
+`git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
 
 see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 

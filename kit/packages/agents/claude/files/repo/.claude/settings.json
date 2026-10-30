@@ -1,6 +1,8 @@
 {
   "permissions": {
     "deny": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
       "Bash(git rebase *)",
       "Bash(git worktree add *)",
       "Bash(git checkout -b *)",
