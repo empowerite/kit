@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
-# bash/tracker.sh describes:
+# modules/bash/tracker.sh describes:
 #
 #   - `7` or `#7`: an issue in the forge's own tracker (GitHub or GitLab)
 #   - `AB#4521`: a work item in a declared Azure DevOps tracker
@@ -30,7 +30,7 @@
 #     applied in the worktree, it stays in the stash and the command stops.
 #   - in any other checkout: left in place, since it belongs to that checkout's issue
 #
-# Every forge call goes through bash/forge.sh, and every issue call through bash/tracker.sh. Each helper below
+# Every forge call goes through modules/bash/forge.sh, and every issue call through modules/bash/tracker.sh. Each helper below
 # prints its one result on stdout and its messages on stderr, so issue:start can capture the results in order.
 
 use git forge tracker
@@ -135,7 +135,7 @@ issue:worktree() {
 
 # issue:hydrate <worktree> places what the active packages deliver under .kit/ in the worktree, with the kit that
 # runs there: the worktree's own kit/bin/kit where the repository is the kit, which declares `unreleased` and carries
-# kit/bash/1st.sh beside it, so the links lead into that worktree's sources, and otherwise this release's kit. A worktree whose .kit/settings.yml
+# kit/modules/bash/1st.sh beside it, so the links lead into that worktree's sources, and otherwise this release's kit. A worktree whose .kit/settings.yml
 # declares no kit version is left alone. What hydrate placed is said in one line; its own lines are shown only when
 # it fails.
 issue:hydrate() {
@@ -143,7 +143,7 @@ issue:hydrate() {
   grep --quiet '^version:' "${wt}/.kit/settings.yml" 2>/dev/null || return 0
   step "Hydrating ${wt}"
   if grep --quiet '^version: unreleased$' "${wt}/.kit/settings.yml" \
-    && [[ -x "${wt}/kit/bin/kit" && -f "${wt}/kit/bash/1st.sh" ]]
+    && [[ -x "${wt}/kit/bin/kit" && -f "${wt}/kit/modules/bash/1st.sh" ]]
   then
     out=$(cd "${wt}" && kit_depth=$(( ${kit_depth:-0} + 1 )) kit/bin/kit hydrate 2>&1) && return 0
   else

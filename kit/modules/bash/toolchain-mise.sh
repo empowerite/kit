@@ -2,7 +2,7 @@
 # toolchain-mise.sh - the mise toolchain provider: mise.toml pins the tools, mise.lock records them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/toolchain.sh loads this provider for `provider: mise`, or when mise.toml or .mise.toml is at the repository
+# modules/bash/toolchain.sh loads this provider for `provider: mise`, or when mise.toml or .mise.toml is at the repository
 # root. The provider needs mise. When the caller sets MISE_ENV, mise layers mise.<env>.toml on top, as it always
 # does.
 

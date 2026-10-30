@@ -1,0 +1,38 @@
+# template.test - the template jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A hole within a line matches any text on it, and a hole that is a line any run of lines.
+import "template" as template; template::regex as $re | ["# a.sh - p\nx\ny\n", "# a.sh - p\n", "# a.sh\n"] | map(test($re))
+"# «name» - «purpose»\n«body»\n"
+[true,true,false]
+
+# A name used twice must match the same text each time.
+import "template" as template; template::regex as $re | ["a a\n", "a b\n"] | map(test($re))
+"«n» «n»\n"
+[true,false]
+
+# A character a regular expression gives a meaning matches only itself.
+import "template" as template; template::regex as $re | ["a.b\n", "aXb\n"] | map(test($re))
+"a.b\n"
+[true,false]
+
+# Rendering fills a hole within a line, and a hole that is the last line gives nothing.
+import "template" as template; template::render({title: "Guide"})
+"# «title»\n«body»\n"
+"# Guide\n"
+
+# A hole that is a line, with no value, gives a blank line, and a hole within a line with no value stays a hole.
+import "template" as template; template::render({})
+"a «x»\n«body»\nb\n"
+"a «x»\n\nb\n"
+
+# A value with several lines fills a hole that is a line.
+import "template" as template; template::render({body: "one\ntwo"})
+"a\n«body»\nb\n"
+"a\none\ntwo\nb\n"
+
+# A path that no variant applies to is skipped; one that matches none of its variants is unmatched.
+import "template" as template; [template::unmatched({v: "\\Aok\\n\\z"}; ["ok\n", "no\n", "no\n"]) | .path]
+[{"path": "a", "variants": ["v"]}, {"path": "b", "variants": ["v"]}, {"path": "c", "variants": []}]
+["b"]

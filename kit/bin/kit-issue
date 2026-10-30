@@ -18,11 +18,11 @@
 #
 # With no reference, at a terminal, kit issue asks for a title and creates the issue.
 #
-# see: bash/issue.sh, bash/forge.sh, bash/tracker.sh
+# see: modules/bash/issue.sh, modules/bash/forge.sh, modules/bash/tracker.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use issue
 

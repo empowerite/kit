@@ -27,7 +27,7 @@ teardown() {
 # later-release <dir> copies this checkout's release to <dir> as 9.9.9, without the just rule.
 later-release() {
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/bash" "${kit_checkout}/packages" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
   printf '9.9.9\n' > "$1/version"
   rm "$1/packages/kit/files/repo/.kit/rules/just.md"
 }
@@ -42,10 +42,14 @@ later-release() {
   grep --quiet --line-regexp '/1st.md' .kit/.gitignore
   grep --quiet --line-regexp '/.gitignore' .kit/.gitignore
   grep --quiet --line-regexp '/manifest' .kit/.gitignore
+  [ ! -w .kit/.gitignore ]
+  [ ! -w .kit/manifest ]
   [ "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" = "?? .kit/settings.yml" ]
   run bash -c 'echo edited > .kit/rules/bash.md'
   [ "$status" -ne 0 ]
   [ "$(head -n 1 .kit/rules/bash.md)" != "edited" ]
+  run bash -c 'echo /mine >> .kit/.gitignore'
+  [ "$status" -ne 0 ]
 }
 
 @test "a copy changed in place and a stray file are findings for check; the next verb restores the copy and leaves the stray to a person" {
@@ -150,7 +154,7 @@ later-release() {
   git add --all && git commit --quiet --message init
   git worktree add --quiet wt-copies -b copies
   [ ! -e wt-copies/.kit/1st.md ]
-  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-copies
+  run bash -c 'source "$0/modules/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-copies
   [ "$status" -eq 0 ]
   [ -f wt-copies/.kit/1st.md ]
   [ ! -L wt-copies/.kit/1st.md ]
@@ -159,7 +163,7 @@ later-release() {
   cp -R "${kit_checkout}" kit
   git add --all && git commit --quiet --message release
   git worktree add --quiet wt-links -b links
-  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-links
+  run bash -c 'source "$0/modules/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-links
   [ "$status" -eq 0 ]
   [ -L wt-links/.kit/rules/bash.md ]
   [ "$(readlink wt-links/.kit/rules/bash.md)" = "../../kit/packages/kit/files/repo/.kit/rules/bash.md" ]
@@ -242,7 +246,7 @@ later-release() {
   git worktree add --quiet wt -b wt
   sed -i.bak 's/^version: unreleased$/version: 9.9.9/' wt/.kit/settings.yml && rm wt/.kit/settings.yml.bak
   mkdir -p wt/kit/bin && printf '#!/usr/bin/env bash\nexit 7\n' > wt/kit/bin/kit && chmod +x wt/kit/bin/kit
-  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt
+  run bash -c 'source "$0/modules/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt
   [ "$status" -eq 0 ]
   [ -f wt/.kit/1st.md ]
   [ ! -L wt/.kit/1st.md ]

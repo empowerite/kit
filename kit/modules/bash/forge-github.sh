@@ -3,10 +3,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2016  # jq filters and GraphQL queries name their variables with $, in single quotes on purpose
 #
-# bash/forge.sh loads this provider when the repository's forge is github. It implements the calls listed in the
-# header of bash/forge.sh. Only this file requires gh.
+# modules/bash/forge.sh loads this provider when the repository's forge is github. It implements the calls listed in the
+# header of modules/bash/forge.sh. Only this file requires gh.
 #
-# see: bash/forge.sh
+# see: modules/bash/forge.sh
 
 # forge-github:require fails when gh is missing or not authenticated. It makes a real API call, because
 # `gh auth status` passes with a revoked token.

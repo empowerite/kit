@@ -4,8 +4,8 @@
 #
 # kit tidy (git:tidy) decides whether a worktree's work is finished by asking:
 #
-#   - the forge (GitHub, GitLab), through bash/forge.sh: is the branch's pull request merged or closed?
-#   - when the branch has no pull request, the issue's tracker, through bash/tracker.sh: is the branch's issue
+#   - the forge (GitHub, GitLab), through modules/bash/forge.sh: is the branch's pull request merged or closed?
+#   - when the branch has no pull request, the issue's tracker, through modules/bash/tracker.sh: is the branch's issue
 #     closed?
 
 use forge

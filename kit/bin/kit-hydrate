@@ -16,11 +16,11 @@
 #
 # Exits 0 on success, and 1 in a repository that declares no kit version, unless --quick.
 #
-# see: bash/release.sh, docs/toolchains.md
+# see: modules/bash/release.sh, docs/toolchains.md
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
 

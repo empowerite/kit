@@ -48,8 +48,9 @@ else in the package's directory. The base sets where a file lands:
 
 ## Metadata
 
-`package.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that `kit/bash/yaml.sh`
-reads: scalars, lists of `- item`, one level of map, and lists of records. A line starting with `#` is a comment.
+`package.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that
+`kit/modules/bash/yaml.sh` reads: scalars, lists of `- item`, one level of map, and lists of records. A line
+starting with `#` is a comment.
 
 ```yaml
 description: "One GitHub Actions job that runs kit ci"
@@ -209,11 +210,11 @@ answers:
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
-| `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:bash/`. A directory that does not exist is skipped; see [bash.md](bash.md#the-module-path). |
+| `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
 
 A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or a toolchain, takes one of the kit's
-providers, or one the repository adds on its bash module path: `forge: bitbucket` with a `bash/forge-bitbucket.sh`.
-See [bash.md](bash.md#writing-a-module).
+providers, or one the repository adds on its bash module path: `forge: bitbucket` with a
+`modules/bash/forge-bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Packages a repository defines
 

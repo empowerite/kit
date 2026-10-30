@@ -9,7 +9,7 @@ setup() {
   cd "${repo}"
   git init --quiet --initial-branch=main
   mkdir -p .kit a b c
-  printf 'bash_path:\n  - kit:bash/\n  - a/\n  - b/\n  - c/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - a/\n  - b/\n  - c/\n' > .kit/settings.yml
   printf 'foo:bar() { echo "A($*)"; }\nfoo:baz() { echo "baz $(foo:bar x)"; }\n' > a/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "B[$(super "$@")]"; }\n' > b/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "C{$(super "$@")}"; }\n' > c/foo.sh
@@ -21,7 +21,7 @@ teardown() {
 
 # kit-bash <code> runs <code> in a fresh bash that has sourced the loader.
 kit-bash() {
-  bash -c 'source "${kit_root}/bash/1st.sh" && eval "$1"' kit-bash "$1"
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && eval "$1"' kit-bash "$1"
 }
 
 @test "each override reaches the one it replaced, and every caller gets the last" {

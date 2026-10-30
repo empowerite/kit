@@ -47,7 +47,7 @@ declared() {
 later-release() {
   local version=${2:-9.9.9}
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/bash" "${kit_checkout}/packages" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
   printf '%s\n' "${version}" > "$1/version"
   printf '\n## Added in %s\n\nA new rule.\n' "${version}" >> "$1/packages/kit/files/repo/.kit/rules/json.md"
 }

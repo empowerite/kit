@@ -2,8 +2,8 @@
 # tracker-forge.sh - the tracker provider for the forge's own issues, on GitHub or GitLab (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/tracker.sh loads this provider for the prefix `#`, unless a record in `trackers` declares `#`. Each call
-# except url passes straight to the matching issue call of the forge seam, bash/forge.sh, so the forge's
+# modules/bash/tracker.sh loads this provider for the prefix `#`, unless a record in `trackers` declares `#`. Each call
+# except url passes straight to the matching issue call of the forge seam, modules/bash/forge.sh, so the forge's
 # provider does the work. url builds the issue's address from the repository's URL.
 
 use forge

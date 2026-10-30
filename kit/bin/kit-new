@@ -19,11 +19,11 @@
 #
 # Exits 0 when the file is made, 1 when the path exists or the template is missing, and 2 on a usage error.
 #
-# see: bash/template.sh, docs/templates.md
+# see: modules/bash/template.sh, docs/templates.md
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use context template release
 [[ "${1:-}" == --help ]] || release:hydrate

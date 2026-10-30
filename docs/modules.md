@@ -1,32 +1,46 @@
-# Bash modules
+# Modules
 
-The kit is written in bash. Its commands share code through bash modules, which a repository can extend with its
-own. The rule is [.kit/rules/bash.md](../.kit/rules/bash.md), the style [.kit/styles/bash.md](../.kit/styles/bash.md).
+A module is code the verbs share. Modules extend how kit works; packages extend what kit can do in a repository. A
+module runs each time a verb does. A package is placed into a repository once, by `kit install`, and kept current by
+`kit update`; [packages.md](packages.md) describes it.
 
-A bash module is a sourced `.sh` file of functions. It is not a package: a package is what the kit delivers into a
-repository, under `kit/packages/`, described in [packages.md](packages.md).
+| | Module | Package |
+| --- | --- | --- |
+| Extends | how kit works | what kit can do in a repository |
+| Is | a file of functions, in one language | rules, styles, templates, and files to deliver |
+| Lives in | `kit/modules/<language>/`, and a repository's directories on the module path | `kit/packages/`, and a repository's `.kit/packages/` |
+| Reaches a repository | never: it runs from the release | `kit install`, `kit update`, and `kit hydrate` place it |
+| Example | `modules/bash/template.sh`, `modules/jq/template.jq` | `style/bash`, `github/ci` |
 
 ## Layout
 
 | Directory | Holds |
 | --- | --- |
 | `bin/` | commands a person runs: `kit`, and each verb as `kit-<verb>`, with no extension |
-| `bash/` | modules: `<module>.sh`, sourced, never run |
+| `modules/bash/` | bash modules: `<module>.sh`, sourced, never run |
+| `modules/jq/` | jq modules: `<module>.jq`, imported by the jq programs the bash modules run |
+| `packages/` | packages |
 
-A verb runs the same through `kit <verb>` and called directly as `kit-<verb>`. In this repository both are under
-`kit/`, the release.
+Every module sits under `modules/`, in a directory named for its language, so each language's loader searches one
+directory of its own. A verb runs the same through `kit <verb>` and called directly as `kit-<verb>`. In this
+repository all of it is under `kit/`, the release.
 
-## The module path
+## Bash modules
+
+The verbs are written in bash, and share code through bash modules, which a repository can extend with its own. The
+rule is [.kit/rules/bash.md](../.kit/rules/bash.md), the style [.kit/styles/bash.md](../.kit/styles/bash.md).
+
+### The module path
 
 `use <module>` sources every `<module>.sh` on the module path, in order, once per process. The path is the
 `bash_path` setting in `.kit/settings.yml`:
 
 ```yaml
 bash_path:
-  - kit:bash/        # the kit's own modules, always first
-  - bash/            # this repository's, relative to its root
-  - ~/lib/bash/      # the person's own, on this machine
-  - /opt/team/bash/  # an absolute directory
+  - kit:modules/bash/  # the kit's own modules, always first
+  - modules/bash/      # this repository's, relative to its root
+  - ~/lib/bash/        # the person's own, on this machine
+  - /opt/team/bash/    # an absolute directory
 ```
 
 | Entry | Directory |
@@ -36,8 +50,8 @@ bash_path:
 | `~/<dir>` | `<dir>` in the home directory |
 | `<dir>` | `<dir>` relative to the repository root |
 
-- Without the setting, the path is `kit:bash/` alone.
-- The path starts with `kit:bash/`. A path that does not is refused.
+- Without the setting, the path is `kit:modules/bash/` alone.
+- The path starts with `kit:modules/bash/`. A path that does not is refused.
 - A directory that does not exist is skipped, as `PATH` skips one. A root other than `kit:` is refused.
 - `use:path` prints the directories the path resolved to, one per line, which shows what was skipped.
 
@@ -45,9 +59,10 @@ A module only one directory has loads from there. A module several directories h
 order, so a later file adds functions to the module or replaces one an earlier file defined. A module that no
 directory has is a bug in the caller: `use` names the path it searched and returns 2.
 
-## What every verb and module can call
+### What every verb and module can call
 
-`bash/1st.sh` is the loader. Every verb sources it first. It defines:
+`modules/bash/1st.sh` is the loader. Every verb sources it first. It sets `kit_root`, the release, and `kit_jq`, its
+jq module directory, and defines:
 
 | Function | Does |
 | --- | --- |
@@ -63,9 +78,9 @@ directory has is a bug in the caller: `use` names the path it searched and retur
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
 
-## Writing a module
+### Writing a bash module
 
-A module is `<module>.sh` in a directory on the path. It:
+A bash module is `<module>.sh` in a directory on the path. It:
 
 - opens with `# shellcheck shell=bash` and the banner, and sets no shell options, because it runs in its caller's
   shell
@@ -74,9 +89,9 @@ A module is `<module>.sh` in a directory on the path. It:
 - returns non-zero to refuse, and leaves `exit` to the verb
 
 A provider of a seam, such as `forge-<name>.sh` or `toolchain-<name>.sh`, counts wherever it is on the path. A
-repository adds a provider by putting it in its own `bash/` directory.
+repository adds a provider by putting it in a directory of its own on the path, such as `modules/bash/`.
 
-## Overriding a function
+### Overriding a function
 
 A later file on the path can replace a function an earlier file defined. Calls are bound when they run, so every
 caller of the function, in any module, gets the replacement.
@@ -93,7 +108,7 @@ forge:issue-title() { super "$@" | sed 's/^\[WIP\] //'; }
 Each override reaches the one before it, however many files override the same function. `super_origin` records the
 file and line each replaced definition came from.
 
-## Processes
+### Processes
 
 Within the modules, work is a function call. Across a process boundary it is `run`:
 
@@ -105,7 +120,7 @@ run kit-lint --all-files
 `run kit` and `run kit-<verb>` run this release's own commands, not whichever `kit` is first on `PATH`. The command
 runs with `kit_depth` one more than the caller's, so a trace can nest it under the process that started it.
 
-## Writing a verb
+### Writing a verb
 
 A verb is an executable `kit-<verb>` in `bin/`. Its header is the only place its help is written, and `kit help`
 reads it:
@@ -119,11 +134,11 @@ reads it:
 #
 # <description>
 #
-# see: bash/<module>.sh
+# see: modules/bash/<module>.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use <module>
 ```
@@ -134,3 +149,25 @@ use <module>
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
+
+## jq modules
+
+Much of the kit's logic is jq: matching a file against a template, rendering one, folding a forge's answers into
+one shape. A jq program longer than a line belongs in a jq module, where it is tested as jq, not quoted inside bash.
+
+A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
+imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:
+
+```bash
+template:regex() {
+  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::regex'
+}
+```
+
+- A jq module opens with the banner, and a comment over each `def` says what it reads and what it gives.
+- Its tests are `tests/jq/<module>.test`, in the format of `jq --run-tests`: a program, an input, and the outputs it
+  gives. `tests/jq.bats` runs every module's tests, and fails a module that has none.
+- jq compiles a program each time it starts, and has no compiled form to keep. Starting jq takes about 20 ms, and
+  importing a module adds no measurable time to that, so speed comes from starting jq fewer times: one jq process
+  for all the files a verb reads, not one per file.
+- The jq modules come from the release alone. A repository has no jq module path of its own.

@@ -2,7 +2,7 @@
 # policy-patterns.sh - the default policy provider: matches each subject against its pattern in bash (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
+# modules/bash/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
 # the facts' policy object against its subject with bash's =~. A rule with an empty pattern is off. The refusals
 # use the same wording as the policy/opa package's Rego, so both providers print the same messages.
 

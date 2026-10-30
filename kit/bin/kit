@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
-# bin), with the remaining arguments. Each verb sets up its own process through bash/1st.sh, so it runs the same
+# bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
 # when called directly. kit with no verb, or with -h or --help, runs kit help, which reads each verb's usage
 # from its header.
 #

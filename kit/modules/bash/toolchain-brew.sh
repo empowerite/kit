@@ -2,7 +2,7 @@
 # toolchain-brew.sh - the Homebrew toolchain provider: a Brewfile lists the formulae and casks (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/toolchain.sh loads this provider for `provider: brew`, or when a Brewfile is at the repository root. The
+# modules/bash/toolchain.sh loads this provider for `provider: brew`, or when a Brewfile is at the repository root. The
 # `file:` field names a different file.
 #
 # A Brewfile pins a formula by name only, so its version moves with Homebrew unless the name includes it

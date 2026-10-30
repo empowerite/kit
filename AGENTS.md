@@ -9,9 +9,10 @@ This repository is the kit's own source, and uses it.
 
 ## This repository's own rules
 
-- The release is `kit/`, and only `kit/`: `kit/bin/`, `kit/bash/`, and `kit/packages/`. Everything in it is written
-  for a consumer: no file names a consumer, a person, or another repository as the source of a rule. A path in a
-  file under `kit/` is written from `kit/`, as it reads in the tarball: `bash/forge.sh`, not `kit/bash/forge.sh`.
+- The release is `kit/`, and only `kit/`: `kit/bin/`, `kit/modules/`, and `kit/packages/`. Everything in it is
+  written for a consumer: no file names a consumer, a person, or another repository as the source of a rule. A path
+  in a file under `kit/` is written from `kit/`, as it reads in the tarball: `modules/bash/forge.sh`, not
+  `kit/modules/bash/forge.sh`.
 - Releases and pre-releases: [README.md](README.md) § Release.
 - The kit imposes no taste on a consumer. The `kit` package delivers rules: what the work must do to be trusted.
   Style, how a file looks, ships in the optional `style/<kind>` packages. This repository's own taste beyond those,

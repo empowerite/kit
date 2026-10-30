@@ -21,7 +21,7 @@ teardown() {
 
 # in_template <command>… runs a command with the template module loaded, from the repository, as a verb would.
 in_template() {
-  bash -c 'source "${kit_root}/bash/1st.sh" && use template && "$@"' _ "$@"
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use template && "$@"' _ "$@"
 }
 
 # shape <path>… runs only the shape check of every rule governing the paths, as kit lint does, without the linters.
@@ -32,7 +32,7 @@ shape() {
     while IFS= read -r rule
     do
       in_template template:check "${rule}" "${path}" || status=1
-    done < <(bash -c 'source "${kit_root}/bash/1st.sh" && use context && context:rules "$1"' _ "${path}")
+    done < <(bash -c 'source "${kit_root}/modules/bash/1st.sh" && use context && context:rules "$1"' _ "${path}")
   done
   return "${status}"
 }

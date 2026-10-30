@@ -12,8 +12,8 @@
 #                             branch. A pre-release tag adds -<suffix>, and may be on any commit, the default
 #                             branch included. Any other tag is refused, with the reason.
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
-#                             directory). The tarball holds one directory, kit-<version>/, with bin/, bash/, packages/,
-#                             and a version file.
+#                             directory). The tarball holds one directory, kit-<version>/, with bin/,
+#                             modules/, packages/, and a version file.
 #   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
 #                             pre-release. Only a runner publishes a release, from the release workflow that a
 #                             pushed tag starts. A desk may publish a pre-release.
@@ -28,8 +28,8 @@
 
 set -o errexit -o nounset -o pipefail
 self=$(readlink -f "${BASH_SOURCE[0]}")
-# shellcheck source=SCRIPTDIR/../kit/bash/1st.sh
-source "$(dirname "${self}")/../kit/bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../kit/modules/bash/1st.sh
+source "$(dirname "${self}")/../kit/modules/bash/1st.sh"
 kit:enter
 use git release
 
@@ -85,7 +85,7 @@ case "${verb}" in
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
     trap "rm -rf '${staging}'" EXIT
     mkdir -p "${into}" "${staging}/kit-${version}"
-    cp -R "${kit_root}/bin" "${kit_root}/bash" "${kit_root}/packages" "${staging}/kit-${version}/"
+    cp -R "${kit_root}/bin" "${kit_root}/modules" "${kit_root}/packages" "${staging}/kit-${version}/"
     printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
     tar --create --gzip --file "${into}/kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
     printf '%s  kit-%s.tar.gz\n' "$(release:digest < "${into}/kit-${version}.tar.gz")" "${version}" \

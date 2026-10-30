@@ -3,12 +3,12 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2016  # jq filters name their variables with $, in single quotes on purpose
 #
-# bash/forge.sh loads this provider when the repository's forge is gitlab:
+# modules/bash/forge.sh loads this provider when the repository's forge is gitlab:
 #
 #   - gitlab.com, detected from origin's host
 #   - a self-hosted GitLab, set with `forge: gitlab` in .kit/settings.yml; glab finds the host from origin
 #
-# It implements the calls listed in the header of bash/forge.sh, with the same output as the GitHub provider. The
+# It implements the calls listed in the header of modules/bash/forge.sh, with the same output as the GitHub provider. The
 # GitLab equivalents:
 #
 #   pull request    a merge request
@@ -19,7 +19,7 @@
 # Only this file requires glab. It reads the REST API through `glab api` and shapes every result with jq, so a
 # fake glab can drive it in a test.
 #
-# see: bash/forge.sh
+# see: modules/bash/forge.sh
 
 # forge-gitlab:project prints the project's full path, read from origin: group/subgroup/name.
 forge-gitlab:project() {

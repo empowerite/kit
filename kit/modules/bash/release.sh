@@ -2,9 +2,9 @@
 # release.sh - reads a release's packages, renders templates and regions, merges JSON, writes manifests (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2016  # jq filters name jq variables with $, in single quotes on purpose
-# shellcheck disable=SC2154  # kit_root is exported by bash/1st.sh
+# shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# A release is bin/, bash/, and packages/. Each packages/<name>/ is a package, which contains:
+# A release is bin/, modules/, and packages/. Each packages/<name>/ is a package, which contains:
 #
 #   package.yml          the package's metadata
 #   files/<base>/       files copied to the base's root, at the same paths
@@ -33,7 +33,7 @@
 #
 # The repository's choices are in .kit/settings.yml. The kit reads that file and never writes it.
 #
-# Every function reads a release from a root directory: kit_root by default, which bash/1st.sh exports. kit:enter
+# Every function reads a release from a root directory: kit_root by default, which modules/bash/1st.sh exports. kit:enter
 # changes to the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and
 # comm here uses the C locale, so an order written on one machine reads the same on another.
 #
@@ -1258,7 +1258,10 @@ release:materialize() {
   elif [[ ! -f .kit/.gitignore || "$(<.kit/.gitignore)" != "${ignore}" ]]
   then
     mkdir -p .kit
-    printf '%s\n' "${ignore}" > .kit/.gitignore
+    # Written beside and moved over: the file has no write bit, as every file kit places here has none.
+    printf '%s\n' "${ignore}" > .kit/.gitignore.kit-new
+    chmod a-w .kit/.gitignore.kit-new
+    mv -f .kit/.gitignore.kit-new .kit/.gitignore
     step ".kit/.gitignore: written"
   else
     # Newer than .kit/settings.yml again: release:hydrated reads that as the declaration having been seen.
@@ -1280,6 +1283,8 @@ release:hydrated() {
   local line path inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
   [[ ! .kit/settings.yml -nt .kit/.gitignore ]] || return 1
+  # Both are kit's to write, so both are without the write bit, except as root, where the bit says nothing.
+  [[ ! -w .kit/.gitignore && ! -w .kit/manifest ]] || (( EUID == 0 )) || return 1
   ! release:within "$(readlink -f "${kit_root}")" || inside=true
   while IFS= read -r line
   do
@@ -1435,7 +1440,8 @@ release:write-manifest() {
         awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "${manifest}"
         printf '%s\n' "${kept}"
       } > "${manifest}.kit-new"
-      mv "${manifest}.kit-new" "${manifest}"
+      chmod a-w "${manifest}.kit-new"
+      mv -f "${manifest}.kit-new" "${manifest}"
     fi
     return 0
   fi
@@ -1460,7 +1466,10 @@ release:write-manifest() {
         printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
       fi
     done <<<"${delivered}"
-  } > "${manifest}"
+  } > "${manifest}.kit-new"
+  # Written beside and moved over: the manifest has no write bit, as every file kit places under .kit/ has none.
+  chmod a-w "${manifest}.kit-new"
+  mv -f "${manifest}.kit-new" "${manifest}"
 }
 
 # release:write-manifests <excluded> <package>… writes every base's manifest, then the repository's declaration in

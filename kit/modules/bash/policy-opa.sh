@@ -2,7 +2,7 @@
 # policy-opa.sh - the policy provider that runs Open Policy Agent over the Rego in .kit/policy (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/policy.sh uses this provider when the policy_engine setting is opa, or when the setting is not set and
+# modules/bash/policy.sh uses this provider when the policy_engine setting is opa, or when the setting is not set and
 # .kit/policy/ contains a .rego file.
 #
 # opa loads every .rego file in .kit/policy/. Each string in the set data.kit.policy.deny is a refusal. The input

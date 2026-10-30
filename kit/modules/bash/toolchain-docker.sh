@@ -2,7 +2,7 @@
 # toolchain-docker.sh - the container image toolchain provider: a Dockerfile installs the tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/toolchain.sh loads this provider for `provider: docker`, or when toolchain.Dockerfile is at the repository
+# modules/bash/toolchain.sh loads this provider for `provider: docker`, or when toolchain.Dockerfile is at the repository
 # root. The `file:` field names a different file. The `image:` field names the image (default: kit-toolchain).
 #
 # The image is built from the file and tagged with the file's digest. A changed file builds a new image; an

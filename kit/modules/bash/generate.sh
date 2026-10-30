@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # generate.sh - fill each kit:generate region with its command's output, until nothing changes (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # kit_root is exported by bash/1st.sh
+# shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 # shellcheck disable=SC2016  # the $ in a pattern anchors a line; nothing is meant to expand
 #
 # A region starts at a directive line and ends at an end line:

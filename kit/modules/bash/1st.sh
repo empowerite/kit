@@ -8,9 +8,9 @@
 #   - A verb is an executable bin/kit-<verb>, with no extension.
 #   - A module is a sourced <module>.sh in a directory on the module path. The verb or module that needs it loads
 #     it with `use <module>`, which sources every <module>.sh on the path, in order, once per process.
-#   - The module path is the bash_path setting in .kit/settings.yml. Its first entry is kit:bash/, this file's
-#     directory. A later file can replace a function an earlier one defined; super.sh lets it call the one it
-#     replaced.
+#   - The module path is the bash_path setting in .kit/settings.yml. Its first entry is kit:modules/bash/, this
+#     file's directory. A later file can replace a function an earlier one defined; super.sh lets it call the one
+#     it replaced.
 #   - Within the modules, work is a function call. Across a process boundary it is `run kit <verb>`, which runs
 #     this release's kit and carries the trace depth.
 #
@@ -28,9 +28,11 @@ fi
 # It is tested by declaration: before it is an associative array, kit_modules[1st] is read as an arithmetic index.
 declare -p kit_modules &>/dev/null && return 0
 
-# kit_root is the release: the directory above this file's.
-kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-export kit_root
+# kit_root is the release: two directories above this file's, modules/bash/. kit_jq is the release's jq module
+# directory, for jq -L "${kit_jq}".
+kit_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+kit_jq=${kit_root}/modules/jq
+export kit_root kit_jq
 declare -Ag kit_modules=([1st]=1)
 declare -ag kit_bash_path=()
 
@@ -48,20 +50,21 @@ kit:enter() {
 }
 
 # use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the
-# bash_path setting, else kit:bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir>
-# (in the home directory), or a directory relative to the repository root. A directory that does not exist is
-# skipped, as PATH skips one. It returns 2 on a path that does not start with kit:bash/, or a root other than kit:.
+# bash_path setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory,
+# ~/<dir> (in the home directory), or a directory relative to the repository root. A directory that does not exist
+# is skipped, as PATH skips one. It returns 2 on a path that does not start with kit:modules/bash/, or a root other
+# than kit:.
 use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
   local entry dir
   local -a entries
   # yaml.sh is read in a subshell, so this does not count as loading it.
   # shellcheck source=SCRIPTDIR/yaml.sh
-  readarray -t entries < <(source "${kit_root}/bash/yaml.sh" && yaml:list .kit/settings.yml bash_path)
-  (( ${#entries[@]} )) || entries=(kit:bash/)
-  if [[ "${entries[0]}" != kit:bash/ ]]
+  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list .kit/settings.yml bash_path)
+  (( ${#entries[@]} )) || entries=(kit:modules/bash/)
+  if [[ "${entries[0]}" != kit:modules/bash/ ]]
   then
-    error "bash_path must start with kit:bash/, the kit's own modules (bash_path in .kit/settings.yml)"
+    error "bash_path must start with kit:modules/bash/, the kit's own modules (bash_path in .kit/settings.yml)"
     return 2
   fi
   for entry in "${entries[@]}"

@@ -47,7 +47,7 @@ how, under "Changing what kit adds".
 
 ## Install
 
-A release is a tarball containing `bin/`, `bash/`, `packages/`, and a `version` file. Install it the same way the
+A release is a tarball containing `bin/`, `modules/`, `packages/`, and a `version` file. Install it the same way the
 repository installs its other tools.
 
 With mise, pin it in `mise.toml`:
@@ -196,14 +196,15 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | --- | --- |
 | `kit/` | the release, packed as it is: everything in it ships, and nothing outside it does |
 | `kit/bin/` | the `kit` command and its verbs |
-| `kit/bash/` | the bash modules the verbs share |
+| `kit/modules/` | the modules the verbs share: `bash/` and `jq/`, one directory per language |
 | `kit/packages/` | everything a release delivers |
 | `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |
 | `docs/` | the documentation, with the packages' pages under `docs/packages/` |
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, with diagrams.
 [docs/packages.md](docs/packages.md) describes the package format.
-[docs/bash.md](docs/bash.md) describes the bash module system the verbs are built on, and how a repository extends it.
+[docs/modules.md](docs/modules.md) describes the modules the verbs are built on, in bash and jq, and how a
+repository extends them.
 
 This repository installs its own kit. What kit places under `.kit/` is a link into the package that delivers it,
 live and ignored by git, so an edit through it is an edit of the source. The installed copies outside `.kit/` are
@@ -248,7 +249,7 @@ serves as the notice for `settings.json`.
 The release workflow runs two commands:
 
 1. `bin/release verify` rejects a tag that is not `release/<version>`, and a release tag on a commit not on `main`.
-2. `bin/release publish` packs `kit/` (`bin/`, `bash/`, and `packages/`) and `version` into
+2. `bin/release publish` packs `kit/` (`bin/`, `modules/`, and `packages/`) and `version` into
    `kit-<version>.tar.gz` and publishes it.
 
 `bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but

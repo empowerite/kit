@@ -5,7 +5,7 @@
 # This repository installs its own kit, and its kit/ is the release. What kit places under .kit/ is a link into
 # kit/packages/ or .kit/packages/house/, live and never committed, so nothing there needs refreshing. The installed
 # copies outside .kit/ (the CI workflow, .claude/settings.json, and the regions in AGENTS.md, .gitignore, and
-# .claude/CLAUDE.md) are rendered by kit/bin/ and kit/bash/ from kit/packages/, the house package, and
+# .claude/CLAUDE.md) are rendered by kit/bin/ and kit/modules/bash/ from kit/packages/, the house package, and
 # .kit/settings.yml. When a commit changes any of those, the copies must change in the same commit, so the
 # pre-commit hook runs this script. Run it by hand on a desk without the hook.
 #

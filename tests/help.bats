@@ -50,7 +50,7 @@ setup() {
   # no real verb is a prefix of another, so the own-name rule is proved with a copy of the kit that has kit-gates
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/bash" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
   cp "${root}/bin/kit-gate" "${root}/bin/kit-gates"
   run "${root}/bin/kit" help gat
   [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
@@ -61,7 +61,7 @@ setup() {
 @test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/bash" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
   printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb in no house style (kit verb)' '# kit plain <thing>' '#' \
     '# Does it.' > "${root}/bin/kit-plain"
   chmod +x "${root}/bin/kit-plain"

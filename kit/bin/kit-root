@@ -2,15 +2,16 @@
 # kit-root - print the directory of the release that runs (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit root takes no arguments. It prints the release's directory, the one that holds bash/ and bin/, so a script
-# outside the kit can load its modules without being a verb: source "$(kit root)/bash/1st.sh", or in a justfile,
-# export BASH_ENV := `kit root` / "bash/1st.sh". It reads nothing from the repository, so it runs outside one.
+# kit root takes no arguments. It prints the release's directory, the one that holds bin/ and modules/, so a
+# script outside the kit can load its modules without being a verb: source "$(kit root)/modules/bash/1st.sh", or
+# in a justfile, export BASH_ENV := `kit root` / "modules/bash/1st.sh". It reads nothing from the repository, so it
+# runs outside one.
 #
-# see: bash/1st.sh
+# see: modules/bash/1st.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../bash/1st.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
 if [[ "${1:-}" == --help ]]
 then

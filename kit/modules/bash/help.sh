@@ -18,7 +18,7 @@
 # otherwise every verb whose name starts with <pattern>. With no pattern, it prints every verb.
 help:verbs() {
   local pattern=${1:-} file
-  # shellcheck disable=SC2154  # kit_root is exported by bash/1st.sh
+  # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
   if [[ -n "${pattern}" && -x "${kit_root}/bin/kit-${pattern}" ]]
   then
     printf '%s\n' "${pattern}"

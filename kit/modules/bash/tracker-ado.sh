@@ -2,7 +2,7 @@
 # tracker-ado.sh - the Azure DevOps tracker provider: work items, through az boards (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# bash/tracker.sh loads this provider for a prefix whose record sets `provider: ado`. The record gives the
+# modules/bash/tracker.sh loads this provider for a prefix whose record sets `provider: ado`. The record gives the
 # organization's URL, the project that new work items are created in, and optionally the work item type (default:
 # Task):
 #

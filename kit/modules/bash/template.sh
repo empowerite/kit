@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # template.sh - a rule's templates: make a new file from one, and check a file still matches one (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # A rule can have templates, one per variant of the file it governs, at .kit/templates/<rule>/<variant>. The rule's
 # frontmatter lists them in the order they are tried. Each entry can limit its template to a path glob, and can
@@ -76,22 +77,7 @@ template:applies() {
 # template:regex reads a template on stdin and prints the regular expression that matches a file with its shape,
 # in Oniguruma syntax, which jq uses.
 template:regex() {
-  jq --raw-input --slurp --raw-output '
-    def literal: gsub("(?<c>[.^$|?*+()\\[\\]{}\\\\])"; "\\\(.c)");
-    reduce (split("\n") | if .[-1] == "" then .[:-1] else . end)[] as $line
-      ({re: "", seen: {}};
-       if ($line | test("^«[a-z_]+»$")) then .re += "(?:[^\\n]*\\n)*?"
-       else
-         ([$line | match("«([a-z_]+)»"; "g") | .captures[0].string]) as $names
-         | ([$line | splits("«[a-z_]+»")] | map(literal)) as $parts
-         | reduce range(0; $names | length) as $i
-             (.line = $parts[0];
-              if .seen[$names[$i]] then .line += "\\k<\($names[$i])>"
-              else .line += "(?<\($names[$i])>[^\\n]*?)" | .seen[$names[$i]] = true end
-              | .line += $parts[$i + 1])
-         | .re += .line + "\\n" | del(.line)
-       end)
-    | "\\A" + .re + "\\z"'
+  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::regex'
 }
 
 # template:test <regex> <file> is true when the file matches template:regex's expression.
@@ -132,16 +118,8 @@ template:holes() {
 #   - a hole that is a line gets its value's lines, else one blank line. When it is the template's last line and
 #     has no value, it gets nothing, so the file never ends in a blank line.
 template:render() {
-  jq --raw-input --slurp --join-output --argjson v "$2" '
-    split("\n") | if .[-1] == "" then .[:-1] else . end
-    | length as $n
-    | to_entries
-    | map(.key as $i | .value
-          | if test("^«[a-z_]+»$")
-            then ($v[ltrimstr("«") | rtrimstr("»")] // (if $i == $n - 1 then null else "" end))
-            else gsub("«(?<k>[a-z_]+)»"; $v[.k] // "«\(.k)»") end
-          | select(. != null) | . + "\n")
-    | add // ""' < "$1"
+  jq -L "${kit_jq}" --raw-input --slurp --join-output --argjson v "$2" \
+    'import "template" as template; template::render($v)' < "$1"
 }
 
 # template:rules <path> prints the rules that govern the path and have templates, most specific first. The most
@@ -208,20 +186,17 @@ template:check() {
     done
     error "${path} does not have the shape of the $(template:rule-name "${rule}") template (${variants// /, });" \
       "it leaves ${where}"
-  done < <(jq --null-input --raw-output \
+  done < <(jq -L "${kit_jq}" --null-input --raw-output \
       --rawfile files <(for path in "$@"; do printf '%s\t%s\n' "${path}" "${allowed[${path}]}"; done) \
       --rawfile regexes <(for variant in "${!regex[@]}"
                           do
                             printf '%s\x1f%s\x1e' "${variant}" "${regex[${variant}]}"
                           done) \
       --rawfile contents <(for path in "$@"; do cat "${path}"; printf '\x1e'; done) '
+    import "template" as template;
     ($regexes | split("\u001e") | map(select(. != "") | split("\u001f") | {(.[0]): .[1]}) | add) as $regex
-    | ($contents | split("\u001e")) as $text
     | ($files | split("\n") | map(select(. != "") | split("\t") | {path: .[0], variants: (.[1] | split(" "))}))
-    | to_entries[]
-    | .key as $i | .value
-    | select((.variants | length) > 0)
-    | select(any(.variants[]; . as $v | $text[$i] | test($regex[$v])) | not)
+    | template::unmatched($regex; $contents | split("\u001e"))
     | "\(.path)\t\(.variants | join(" "))"')
   (( failed == 0 ))
 }

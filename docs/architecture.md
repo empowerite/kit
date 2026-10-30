@@ -13,7 +13,8 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
 
 - `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
   directly. `bin/` holds only commands a person runs.
-- `bash/` holds the bash modules the verbs share, loaded with `use`; see [Bash modules](#bash-modules).
+- `modules/` holds the modules the verbs share, one directory per language: `modules/bash/`, loaded with `use`, and
+  `modules/jq/`, imported by the jq programs they run; see [Bash modules](#bash-modules).
 - `packages/` holds everything a release delivers.
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
@@ -26,7 +27,7 @@ command loads it with `use forge`. `use` looks in each directory listed in the `
 
 That is how a repository changes the kit without editing it. It lists its own directory after the kit's, and its
 `forge.sh` loads second, so it can add functions, replace the kit's, or wrap them. It can add support for another
-forge or toolchain the same way. [bash.md](bash.md) has the details.
+forge or toolchain the same way. [modules.md](modules.md) has the details.
 
 ### Packages
 
@@ -143,14 +144,14 @@ Shell has no types, so there is no separate interface declaration to point at; t
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `kit/bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
-| `kit/bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `kit/bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
-| `kit/bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
+| `kit/modules/bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
+| `kit/modules/bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
-Every forge call the workflow makes goes through `forge:` in `kit/bash/forge.sh`: an issue's title, the branch linked to
-it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must be named in the
-`forge` setting.
+Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
+branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must
+be named in the `forge` setting.
 
 - Every provider returns the same shape, so `kit status` shows the same picture on either forge.
 - Each provider uses its forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.

@@ -157,13 +157,15 @@ see: [generate.md](generate.md)
 
 ## Extending
 
-- The verbs share bash modules loaded with `use`. A repository can add modules, or override a function, in its own
-  directory on the module path.
+- Modules extend how kit works, as packages extend what it can do in a repository. The verbs share modules, one
+  directory per language under `modules/`: bash modules, loaded with `use`, and jq modules, imported by the jq
+  programs the bash modules run and tested with `jq --run-tests`.
+- A repository can add bash modules, or override a function, in its own directory on the module path.
 - Each forge, tracker, toolchain, and policy engine sits behind a seam: one file whose header lists the calls a
   provider answers, and whose code picks the provider at run time. A new provider is a module that answers those
   calls.
 
-see: [bash.md](bash.md), [architecture.md](architecture.md#forges-seams-and-providers)
+see: [modules.md](modules.md), [architecture.md](architecture.md#forges-seams-and-providers)
 
 ## What no check covers
 
