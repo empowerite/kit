@@ -2,9 +2,16 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Every `uses:` in .github/workflows/ is pinned to a full commit SHA, with the version as a trailing comment. The SHA
-# advances when a pull request from Dependabot's github-actions ecosystem merges: once a week, it opens one that
-# moves each SHA and its comment together. The tools come from mise.toml, which Dependabot does not read;
-# `mise outdated` answers for those.
+# advances when a pull request from Dependabot's github-actions ecosystem merges. Once a week, Dependabot moves every
+# SHA that is behind, with its comment, in one pull request for the whole group, so a week with three bumps is one
+# review and one CI run.
+#
+# The commit subject is `actions: <what moved>`: the loop's `<area>: <subject>` without the `#<N>`, since a bot has no
+# issue to name. `linked_exempt` in .kit/settings.yml names dependabot[bot], so kit linked and kit policy pass its
+# pull request by name.
+#
+# This is the one ecosystem Dependabot reads here. The tools come from mise.toml, which Dependabot does not read;
+# `mise outdated` answers for those, and Renovate is the tool that reads mise.toml should that ever be automated.
 #
 # see: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
@@ -14,5 +21,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: actions
+    groups:
+      actions:
+        patterns:
+          - "*"
 
 # ----------------------------------------------------------------------------------------------------------------------
