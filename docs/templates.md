@@ -47,7 +47,8 @@ see: [packages.md](packages.md)
 
 ## Holes
 
-A hole is a name between guillemets, `«name»`. No file kind the rules govern uses guillemets.
+A hole is a name between guillemets, `«name»`. No file kind the rules govern uses guillemets. On a Mac, type `«`
+with Option-\ and `»` with Shift-Option-\.
 
 | Hole | When making a file | When checking a file |
 | --- | --- | --- |
