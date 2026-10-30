@@ -3,8 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the checkouts and the open pull
-# requests. It changes nothing.
+# status:render [--no-fetch] [--json] [--mine | --others | --all | --owner=<login>…] prints the checkouts and the
+# open pull requests. It changes nothing.
 #
 # It calls the forge (GitHub or GitLab) once, for every open pull request with the issues it closes, its review
 # threads, and the checks on its head commit. Everything else is read from local git. The forge call starts
@@ -23,6 +23,7 @@
 #
 #   --all              every open pull request (the default)
 #   --mine             the pull requests the caller opened, without the author column
+#   --others           the pull requests anyone but the caller opened
 #   --owner=<login>    the pull requests the named author opened; repeat the flag for more authors
 #
 # Every choice except --mine shows the author before the state.
@@ -205,12 +206,16 @@ status:collect() {
   forge:open-prs || warn "no pull request is shown; see above"
 }
 
-# status:select <login>… reads pull request documents on stdin and keeps those opened by one of the named
-# authors. With no login, it keeps every one.
+# status:select [--except] <login>… reads pull request documents on stdin and keeps those opened by one of the
+# named authors, or with --except, those opened by none of them. With no login, it keeps every one.
 status:select() {
+  local except=false
+  [[ "${1:-}" == --except ]] && { except=true; shift; }
   if (( $# == 0 ))
   then cat
-  else jq --compact-output --arg logins "$*" 'select(.author as $a | ($logins | split(" ")) | index($a))'
+  else
+    jq --compact-output --arg logins "$*" --argjson except "${except}" \
+      'select((.author as $a | ($logins | split(" ")) | index($a) != null) != $except)'
   fi
 }
 
@@ -445,17 +450,18 @@ status:pr-block() {
   return 0
 }
 
-# status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the output the file header
-# describes, or the same data as one JSON document.
+# status:render [--no-fetch] [--json] [--mine | --others | --all | --owner=<login>…] prints the output the file
+# header describes, or the same data as one JSON document.
 status:render() {
   local no_fetch=false json=false choice=all arg main_root default_branch desk_branch path branch doc gone
-  local -a owners=()
+  local -a owners=() except=()
   for arg in "$@"
   do
     case "${arg}" in
       (--no-fetch) no_fetch=true ;;
       (--json) json=true ;;
       (--mine) choice=mine ;;
+      (--others) choice=others ;;
       (--all) choice=all ;;
       (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
       (*)
@@ -465,18 +471,19 @@ status:render() {
   done
   # The forge call is the slow one and needs nothing local, so it starts first and runs during the fetch and the
   # local reads. Its warnings are saved and printed where the pull requests appear, so they do not land among the
-  # checkouts. With --mine, the same background job also asks the forge for the caller's login.
+  # checkouts. With --mine or --others, the same background job also asks the forge for the caller's login.
   local scratch prs_job prs_failed=false
   scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
   # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
   trap "rm -rf '${scratch}'" EXIT
   (
-    if [[ "${choice}" == mine ]]
+    if [[ "${choice}" == mine || "${choice}" == others ]]
     then
       use forge
       owners=("$(forge:me)") || exit 1
+      [[ "${choice}" == others ]] && except=(--except)
     fi
-    status:collect | status:select "${owners[@]}"
+    status:collect | status:select "${except[@]}" "${owners[@]}"
   ) > "${scratch}/prs" 2> "${scratch}/prs.err" &
   prs_job=$!
 

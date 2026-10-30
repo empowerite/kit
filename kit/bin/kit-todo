@@ -2,7 +2,7 @@
 # kit-todo - lists the forge's open issues, oldest first, and what is already in flight for each (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit todo [--json] [--today] [--mine | --all | --owner=<login>…]
+# kit todo [--json] [--today] [--mine | --others | --all | --owner=<login>…]
 #
 # Lists every open issue of the repository on its forge, oldest first, each drawn as kit status draws a pull request:
 # the issue with its title, its assignees, its state with its age, then what is already in flight for it, the open
@@ -13,6 +13,7 @@
 #   --json            prints the same facts as one JSON array; each issue carries inflight: {change, branch}, or null
 #   --today           only the issues opened in the last 24 hours; combines with the flags below
 #   --mine            the issues assigned to the caller, without the assignee column
+#   --others          the issues not assigned to the caller, unassigned ones included
 #   --all             every open issue (the default)
 #   --owner=<login>   the issues assigned to the named login; give it once or more
 #

@@ -103,6 +103,17 @@ JSON
   [ "${#lines[@]}" -eq 1 ]
 }
 
+@test "kit todo --others is every issue --mine leaves out, unassigned ones included, with the assignee column" {
+  run kit todo --others --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "7 9" ]
+  run kit todo --others
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+  [[ "${lines[1]}" == "🎫 #9 Other thing   ·        · 🛫 in flight "*"d · 🌿 9-other" ]]
+  [ "${#lines[@]}" -eq 2 ]
+}
+
 @test "kit todo --json says the same as data, with inflight: {change, branch} or null" {
   run kit todo --json
   [ "$status" -eq 0 ]

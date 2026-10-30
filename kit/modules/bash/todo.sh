@@ -6,8 +6,8 @@
 # kit todo is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, and for each
 # whether work has started, which is when an open change closes it or a branch for it is on origin. An issue with
 # nothing in flight is one to take up with kit issue <N>. The flags are kit status's: --mine is the issues assigned to
-# the caller, --owner=<login> the named assignees', --all every open issue; --today keeps only the issues opened in
-# the last 24 hours, whichever of those is chosen.
+# the caller, --others the rest, unassigned ones included, --owner=<login> the named assignees', --all every open
+# issue; --today keeps only the issues opened in the last 24 hours, whichever of those is chosen.
 #
 # A row is drawn as kit status draws a pull request, its cells separated by status_sep and sized across the rows:
 #
@@ -27,16 +27,17 @@
 
 use forge status
 
-# todo:collect <login>… prints the open issues as one JSON array, oldest first, each with inflight: {change, branch}
-# when an open change closes it or a branch on origin starts with its number, and null otherwise. With logins, only
-# the issues assigned to one of them.
+# todo:collect [--except] <login>… prints the open issues as one JSON array, oldest first, each with inflight:
+# {change, branch} when an open change closes it or a branch on origin starts with its number, and null otherwise.
+# With logins, only the issues assigned to one of them, or with --except, those assigned to none of them.
 todo:collect() {
-  local issues changes heads
+  local issues changes heads except=false
+  [[ "${1:-}" == --except ]] && { except=true; shift; }
   issues=$(forge:open-issues) || return 1
   changes=$(forge:open-prs) || return 1
   heads=$(git ls-remote --heads origin 2>/dev/null | sed 's@.*refs/heads/@@' || true)
   jq --compact-output --slurp --argjson changes "$(jq --slurp . <<<"${changes}")" --arg heads "${heads}" \
-    --arg logins "$*" '
+    --arg logins "$*" --argjson except "${except}" '
     ($heads | split("\n") | map(select(. != ""))) as $heads
     | ($logins | split(" ") | map(select(. != ""))) as $logins
     | map(. as $issue
@@ -44,7 +45,8 @@ todo:collect() {
         | ($heads | map(select(test("^\($issue.number)-"))) | first) as $branch
         | . + {inflight: (if $change == null and $branch == null then null
                           else {change: $change, branch: $branch} end)})
-    | if ($logins | length) == 0 then . else map(select(.assignees | any(. as $a | $logins | index($a)))) end' \
+    | if ($logins | length) == 0 then .
+      else map(select((.assignees | any(. as $a | $logins | index($a))) != $except)) end' \
     <<<"${issues}"
 }
 
@@ -77,27 +79,29 @@ todo:rows() {
       | join("\u001f")' <<<"$1"
 }
 
-# todo:render [--json] [--today] [--mine | --all | --owner=<login>…] prints the issues, one row each as the file
-# header draws them, to stderr. With --json it prints todo:collect's array to stdout.
+# todo:render [--json] [--today] [--mine | --others | --all | --owner=<login>…] prints the issues, one row each as
+# the file header draws them, to stderr. With --json it prints todo:collect's array to stdout.
 todo:render() {
   local json=false today=false choice=all arg doc when=''
-  local -a owners=()
+  local -a owners=() except=()
   for arg in "$@"
   do
     case "${arg}" in
       (--json) json=true ;;
       (--today) today=true ;;
       (--mine) choice=mine ;;
+      (--others) choice=others ;;
       (--all) choice=all ;;
       (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
       (*) error "unknown flag '${arg}'; run: kit help todo"; return 2 ;;
     esac
   done
-  if [[ "${choice}" == mine ]]
+  if [[ "${choice}" == mine || "${choice}" == others ]]
   then
     owners=("$(forge:me)") || return 1
+    [[ "${choice}" == others ]] && except=(--except)
   fi
-  doc=$(todo:collect "${owners[@]}") || return 1
+  doc=$(todo:collect "${except[@]}" "${owners[@]}") || return 1
   [[ "${today}" == false ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
   if [[ "${json}" == true ]]
   then

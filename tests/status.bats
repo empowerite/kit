@@ -180,7 +180,7 @@ commits-in() {
   [ "$output" = "❌ 2 failing 3 / 5 31s" ]
 }
 
-@test "the pull requests shown are everyone's, or the named authors' alone" {
+@test "the pull requests shown are everyone's, the named authors' alone, or everyone's but theirs" {
   docs=$(printf '{"number":1,"author":"ada"}\n{"number":2,"author":"bob"}\n{"number":3,"author":"cy"}\n')
   run in_status status:select <<<"${docs}"
   [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = "[1,2,3]" ]
@@ -188,6 +188,10 @@ commits-in() {
   [ "$(jq --slurp 'map(.number) | join(",")' --raw-output <<<"$output")" = "1,3" ]
   run in_status status:select nobody <<<"${docs}"
   [ -z "$output" ]
+  run in_status status:select --except ada <<<"${docs}"
+  [ "$(jq --slurp 'map(.number) | join(",")' --raw-output <<<"$output")" = "2,3" ]
+  run in_status status:select --except nobody <<<"${docs}"
+  [ "$(jq --slurp 'map(.number) | join(",")' --raw-output <<<"$output")" = "1,2,3" ]
 }
 
 @test "a path is printed relative to the current directory" {
