@@ -1,0 +1,7 @@
+# Added by the kit package, which kit always installs.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+#
+# An ignore list, at any depth.
+paths:
+  - ".gitignore"
+  - "**/.gitignore"

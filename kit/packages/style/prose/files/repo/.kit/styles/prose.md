@@ -1,8 +1,8 @@
 ---
 # Added by kit's style/prose package. To remove it, run kit package remove style/prose.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - "**"
+kind:
+  - any
 ---
 # Prose style
 

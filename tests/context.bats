@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# context.bats - kit context names a file's rules by path or by first line, logs the ask, and answers Claude's hook
+# context.bats - kit context classifies a file into its kinds, names the rules by kind and by what a kind embeds, logs the ask, and answers Claude's hook
 # ----------------------------------------------------------------------------------------------------------------------
 
 setup() {
@@ -23,7 +23,9 @@ teardown() {
   [ "$output" = ".kit/rules/markdown.md" ]
   run "${kit_checkout}/bin/kit" context justfile
   [ "$status" -eq 0 ]
-  [ "$output" = ".kit/rules/just.md" ]
+  [ "${lines[0]}" = ".kit/rules/just.md" ]
+  [ "${lines[1]}" = ".kit/rules/bash.md" ]
+  [ "${#lines[@]}" -eq 2 ]
   mkdir bin && printf '#!/usr/bin/env bash\necho\n' > bin/tool
   run "${kit_checkout}/bin/kit" context bin/tool
   [ "$output" = ".kit/rules/bash.md" ]
@@ -33,7 +35,8 @@ teardown() {
   run "${kit_checkout}/bin/kit" context docs/a.md "${PWD}/.github/workflows/x.yml" lib/x.md
   [ "${lines[0]}" = ".kit/rules/markdown.md" ]
   [ "${lines[1]}" = ".kit/rules/workflows.md" ]
-  [ "${#lines[@]}" -eq 2 ]
+  [ "${lines[2]}" = ".kit/rules/bash.md" ]
+  [ "${#lines[@]}" -eq 3 ]
 }
 
 @test "the prose style governs every file, after the rule and the style for the file's kind" {
@@ -56,12 +59,52 @@ teardown() {
   [ "$(cut -f 2 ../.git/kit/context.log)" = "docs/x.md" ]
 }
 
-@test "the json answer is one object per path, and every ask is logged" {
+@test "the json answer is one object per path with its kinds and its rules, and every ask is logged" {
   run "${kit_checkout}/bin/kit" context --json justfile README.md
   [ "$status" -eq 0 ]
-  [ "$(jq -c .rules <<<"${lines[0]}")" = '[".kit/rules/just.md"]' ]
+  [ "$(jq -c .kinds <<<"${lines[0]}")" = '["any","just"]' ]
+  [ "$(jq -c .rules <<<"${lines[0]}")" = '[".kit/rules/just.md",".kit/rules/bash.md"]' ]
   [ "$(jq -r .path <<<"${lines[1]}")" = "README.md" ]
+  [ "$(jq -c .kinds <<<"${lines[1]}")" = '["any","markdown"]' ]
   [ "$(cut -f 2 .git/kit/context.log | paste -s -d ' ' -)" = "justfile README.md" ]
+}
+
+@test "a kind is defined once under .kit/kinds/, and the rule and the style of a kind name it, so neither carries a glob" {
+  "${kit_checkout}/bin/kit" package add style/bash >/dev/null 2>&1
+  [ -f .kit/kinds/bash.yml ]
+  grep --quiet --line-regexp '  - "\*\*/\*.sh"' .kit/kinds/bash.yml
+  for file in .kit/rules/*.md .kit/styles/*.md
+  do
+    ! grep --quiet --line-regexp 'paths:' "${file}"
+    ! grep --quiet --line-regexp 'content:' "${file}"
+    grep --quiet --line-regexp 'kind:' "${file}"
+  done
+  grep --quiet --line-regexp '  - bash' .kit/kinds/just.yml
+  grep --quiet --line-regexp 'embeds:' .kit/kinds/workflows.yml
+  mkdir -p .github/workflows && printf 'on: push\n' > .github/workflows/w.yml
+  run "${kit_checkout}/bin/kit" context --json .github/workflows/w.yml
+  [ "$(jq -c .kinds <<<"$output")" = '["any","workflows","yaml"]' ]
+  [ "$(jq -c .rules <<<"$output")" = '[".kit/rules/workflows.md",".kit/rules/bash.md"]' ]
+}
+
+@test "a repository package adds a kind with its rule, and replaces a delivered kind to widen it" {
+  mkdir -p .kit/packages/toml/files/repo/.kit/kinds .kit/packages/toml/files/repo/.kit/rules
+  printf 'description: "The TOML kind and its rule"\ndepends:\n  - kit\n' > .kit/packages/toml/package.yml
+  printf '# The TOML kind\npaths:\n  - "**/*.toml"\n' > .kit/packages/toml/files/repo/.kit/kinds/toml.yml
+  printf -- '---\nkind:\n  - toml\n---\n# TOML\n\nQuote every key.\n' > .kit/packages/toml/files/repo/.kit/rules/toml.md
+  run "${kit_checkout}/bin/kit" package add toml
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" context Cargo.toml
+  [ "$output" = ".kit/rules/toml.md" ]
+  mkdir -p .kit/packages/mdx/files/repo/.kit/kinds
+  printf 'description: "Markdown with components counts as markdown"\ndepends:\n  - kit\n' > .kit/packages/mdx/package.yml
+  printf '# The markdown kind, with .mdx\npaths:\n  - "**/*.md"\n  - "**/*.mdx"\n' > .kit/packages/mdx/files/repo/.kit/kinds/markdown.yml
+  run "${kit_checkout}/bin/kit" package add mdx
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" context docs/page.mdx
+  [ "$output" = ".kit/rules/markdown.md" ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
 }
 
 @test "a style the repository takes is printed after the rule, and the hook asks for each to be read" {

@@ -1,12 +1,8 @@
 ---
 # Added by kit's style/just package. To remove it, run kit package remove style/just.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - "justfile"
-  - "**/justfile"
-  - "**/*.just"
-content:
-  - "^#!.*/(env +)?just( |$)"
+kind:
+  - just
 templates:
   - variant: root
     path: justfile

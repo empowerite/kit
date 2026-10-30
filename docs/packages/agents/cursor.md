@@ -7,8 +7,9 @@ a file it names is in context.
 Each `.cursor/rules/kit-<kind>.mdc` is a short rule with the frontmatter Cursor loads:
 
 - `description`: one line naming the kind
-- `globs`: the `paths` of `.kit/rules/<kind>.md`, comma-separated, unquoted, with no space after a comma. That is
-  the form Cursor's loader takes; it is not a YAML parser, and a quoted or bracketed value does not attach.
+- `globs`: the `paths` of the kind, `.kit/kinds/<kind>.yml`, comma-separated, unquoted, with no space after a
+  comma. That is the form Cursor's loader takes; it is not a YAML parser, and a quoted or bracketed value does not
+  attach.
 - `alwaysApply: false`, so the rule attaches by its globs
 
 The body does not repeat the rule. It tells the agent to read `@.kit/rules/<kind>.md` and follow it, which is what

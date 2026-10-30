@@ -1,9 +1,8 @@
 ---
 # Added by the kit package, which kit always installs.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - ".gitignore"
-  - "**/.gitignore"
+kind:
+  - gitignore
 ---
 # Ignore lists
 

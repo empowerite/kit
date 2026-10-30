@@ -14,17 +14,43 @@ kit context "${path}"
 Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A style package adds
 `.kit/styles/<kind>.md` for its kind, with the same frontmatter, and `kit context` prints it after the rule.
 
-## How a rule declares the files it governs
+## Kinds, and how a rule names what it governs
 
-A rule file, or a style file, opens with a frontmatter block. Every key in it is optional. The templates belong
-to the style; the other keys appear in rules and styles alike:
+A kind of file is defined once, in `.kit/kinds/<kind>.yml`, and everything that asks what a file is reads it there:
+
+```yaml
+paths:
+  - "justfile"
+  - "**/justfile"
+  - "**/*.just"
+content:
+  - "^#!.*/(env +)?just( |$)"
+embeds:
+  - bash
+```
+
+| Key | Contents |
+| --- | --- |
+| `paths:` | Globs matched against the repository-relative path. |
+| `content:` | Extended regular expressions matched against the first line of a file that already exists. |
+| `embeds:` | Kinds whose text appears inside this kind's files: a justfile's recipe bodies and a workflow's `run:` blocks are bash. |
+
+A path is of every kind whose glob or pattern matches it. A workflow is of kind `yaml` and of kind `workflows`,
+and every path is of kind `any`, whose one glob matches everything, so a style can govern every file.
+
+- In a glob, `**` matches any depth, and a lone `*` also crosses directories. So `**/*.sh` and `*.sh` both match
+  every `.sh` file.
+- A glob with no wildcard, such as `justfile`, matches that one path.
+- A `content:` pattern lets a bash script with no extension match by its shebang.
+- A file that does not exist yet is matched by its path alone.
+
+A rule file, or a style file, opens with a frontmatter block that names the kinds it governs and carries no glob of
+its own. The templates belong to the style; the other keys appear in rules and styles alike:
 
 ```yaml
 ---
-paths:
-  - "**/*.sh"
-content:
-  - "^#!.*/(env +)?(ba)?sh( |$)"
+kind:
+  - bash
 lint: shellcheck --shell=bash --external-sources
 templates:
   - variant: script
@@ -35,23 +61,25 @@ templates:
 
 | Key | Contents |
 | --- | --- |
-| `paths:` | Globs matched against the repository-relative path. |
-| `content:` | Extended regular expressions matched against the first line of a file that already exists. |
-| `lint:` | The linter command for the files the rule governs. |
-| `checks:` | The kit's own checks for the files the rule governs, by name. This release has `pinned`, which the workflows rule names: every `uses:` is a local action, a docker image, or an action pinned to a full commit SHA with its version as a trailing comment. |
+| `kind:` | The kinds the file governs. |
+| `lint:` | The linter command for the files of those kinds. |
+| `checks:` | The kit's own checks for the files of those kinds, by name. This release has `pinned`, which the workflows rule names: every `uses:` is a local action, a docker image, or an action pinned to a full commit SHA with its version as a trailing comment; and `jq-compiles`, which the jq rule names. |
 | `templates:` | The shapes a file of this kind takes; see [templates.md](templates.md). |
 
-A rule governs a file when any of its globs or any of its patterns matches.
+`kit context <path>` prints the rules, then the styles, whose `kind:` meets the path's kinds, and then the rules of
+the kinds those kinds embed. So opening a justfile names the just rule, the just style, and the bash rule, with no
+sentence in one rule pointing at another. `--json` reports the kinds beside the rules.
 
-- In a glob, `**` matches any depth, and a lone `*` also crosses directories. So `**/*.sh` and `*.sh` both match
-  every `.sh` file.
-- A glob with no wildcard, such as `justfile`, matches that one path.
-- A `content:` pattern lets a bash script with no extension match by its shebang.
-- A file that does not exist yet is matched by its path alone.
+`kit lint` runs each rule's `lint:` command once over the paths of that rule's kinds, and never follows `embeds:`,
+so no linter runs over a file it cannot parse. The paths are the staged paths, the paths you name, or every tracked
+path with `--all-files`. A linter that is not on `PATH` is a failure, not a skip. The kit assumes no hook manager;
+the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through
+the same classification.
 
-`kit lint` runs each rule's `lint:` command once over the paths that rule governs. The paths are the staged paths,
-the paths you name, or every tracked path with `--all-files`. A linter that is not on `PATH` is a failure, not a
-skip. The kit assumes no hook manager; the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`.
+The kit package delivers the kinds its rules and styles name. A repository adds a kind by delivering
+`.kit/kinds/<kind>.yml` from a package of its own, with a rule that names it. It widens a delivered kind, say with
+one more suffix under `markdown`, by delivering a file at the same path from a package that depends on `kit`: the
+later package in dependency order wins, as it does for any delivered file.
 
 [templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
 `kit lint` runs against them.
@@ -84,6 +112,7 @@ A harness with no hook, and a person, run `kit context "${path}"` directly. `.ki
 before creating or changing any file.
 
 Cursor and GitHub Copilot have no hook, but a rule file loaded by path. The `agents/cursor` and `agents/copilot`
-packages deliver one per kind, attached by the rule's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
+packages deliver one per kind, attached by the kind's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
 so the agent reads the rule itself there too. A rule file says less than `kit context`, which also matches a file by
-its content, such as a bash script with no suffix; the body names `kit context <path>` for those.
+its content, such as a bash script with no suffix, and follows what a kind embeds; the body names
+`kit context <path>` for those.

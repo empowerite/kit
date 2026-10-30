@@ -2,8 +2,9 @@
   aria-labelledby="title desc">
   <title id="title">Context: how any agent, and Claude Code's hook, find the rules that govern a file</title>
   <desc id="desc">An agent or a person runs kit context with a path. The kit matches the path and the file's first
-    line against each rule's frontmatter, names the governing rules, and appends the ask to the context log. Claude
-    Code's PreToolUse hook makes the same call before every write.</desc>
+    line against the kinds under .kit/kinds/, names the rules and styles of those kinds and the rules of the kinds
+    they embed, and appends the ask to the context log. Claude Code's PreToolUse hook makes the same call before
+    every write.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
@@ -41,24 +42,24 @@
   <!-- the call -->
   <rect class="box" x="340" y="120" width="300" height="200" fill="#dcfce7"/>
   <text class="h" x="356" y="148">kit context</text>
-  <text class="d" x="356" y="172">For each path, every rule file whose</text>
-  <text class="d" x="356" y="188">frontmatter matches:</text>
+  <text class="d" x="356" y="172">For each path, the kinds whose matchers</text>
+  <text class="d" x="356" y="188">hit, from .kit/kinds/&lt;kind&gt;.yml:</text>
   <text class="m" x="372" y="214">paths:</text>
   <text class="d" x="440" y="214">globs on the repository path</text>
   <text class="m" x="372" y="236">content:</text>
   <text class="d" x="440" y="236">patterns on the first line</text>
-  <text class="d" x="356" y="264">Then the ask is appended to the log.</text>
-  <text class="d" x="356" y="290">Nothing is copied; the rule is named,</text>
-  <text class="d" x="356" y="306">and reading it stays the caller's act.</text>
+  <text class="d" x="356" y="264">then the rules and styles of those kinds,</text>
+  <text class="d" x="356" y="290">the rules of what they embed, and the log.</text>
+  <text class="d" x="356" y="306">The rule is named, never copied.</text>
 
   <!-- rules -->
   <rect class="box" x="716" y="40" width="300" height="150" fill="#e0f2fe"/>
-  <text class="h" x="732" y="68">The rules, once</text>
-  <text class="m" x="732" y="94">.kit/rules/&lt;kind&gt;.md</text>
-  <text class="m" x="732" y="120">---</text>
-  <text class="m" x="732" y="138">paths: ["**/*.sh"]</text>
-  <text class="m" x="732" y="156">content: ["^#!.*/(env +)?(ba)?sh( |$)"]</text>
-  <text class="m" x="732" y="174">---</text>
+  <text class="h" x="732" y="68">The kinds and the rules, once</text>
+  <text class="m" x="732" y="94">.kit/kinds/bash.yml</text>
+  <text class="m" x="732" y="120">paths: ["**/*.sh"]  content: ["^#!…sh"]</text>
+  <text class="m" x="732" y="138">.kit/rules/bash.md</text>
+  <text class="m" x="732" y="156">---  kind: [bash]  lint: shellcheck  ---</text>
+  <text class="m" x="732" y="174">.kit/styles/bash.md: kind: [bash] as well</text>
 
   <!-- log -->
   <rect class="box" x="716" y="220" width="300" height="90" fill="#fef9c3"/>

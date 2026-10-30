@@ -238,7 +238,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
+| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |
@@ -250,7 +250,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`hooks/lefthook`](packages/hooks/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
-| [`agents/cursor`](packages/agents/cursor.md) | no | `kit` | `.cursor/rules/kit-<kind>.mdc`, a rule per kind attached by the kit rule's paths, pointing at `.kit/rules/<kind>.md` |
+| [`agents/cursor`](packages/agents/cursor.md) | no | `kit` | `.cursor/rules/kit-<kind>.mdc`, a rule per kind attached by its kind's paths, pointing at `.kit/rules/<kind>.md` |
 | [`agents/copilot`](packages/agents/copilot.md) | no | `kit` | `.github/instructions/kit-<kind>.instructions.md`, an instruction file per kind applied to the kit rule's paths, pointing at the rule |
 | [`agents/gemini`](packages/agents/gemini.md) | no | `kit` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, and the deny list as `run_shell_command` exclusions |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |

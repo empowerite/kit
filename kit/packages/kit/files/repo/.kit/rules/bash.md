@@ -1,18 +1,15 @@
 ---
 # Added by the kit package, which kit always installs.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - "**/*.sh"
-  - "**/*.bash"
-content:
-  - "^#!.*/(env +)?(ba)?sh( |$)"
+kind:
+  - bash
 lint: shellcheck --shell=bash --external-sources
 ---
 # Bash
 
-Applies to:
+Applies to files of kind `bash`, and to the bodies of every kind that embeds it:
 
-- `*.sh` and `*.bash` files
+- `*.sh` and `*.bash` files, and a script with no suffix whose first line is a bash shebang
 - recipe bodies in a justfile that bash runs: `[script]` bodies, and shebang bodies under `#!/usr/bin/env bash`
 - `run:` blocks in workflows
 

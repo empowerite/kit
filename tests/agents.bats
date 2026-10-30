@@ -36,13 +36,11 @@ kinds() {
   done
 }
 
-# rule-paths <kind> prints the rule's paths: entries, comma-joined, as a harness's glob list.
+# rule-paths <kind> prints the kind's paths: entries, comma-joined, as a harness's glob list.
 rule-paths() {
-  awk '/^---$/ { n++; next }
-       n == 2 { exit }
-       n == 1 && /^[a-z]+:/ { p = ($0 == "paths:") }
-       n == 1 && p && /^  - / { gsub(/^  - "|"$/, ""); printf "%s%s", sep, $0; sep = "," }
-       END { printf "\n" }' "${kit_checkout}/packages/kit/files/repo/.kit/rules/$1.md"
+  awk '/^[a-z]+:/ { p = ($0 == "paths:") }
+       p && /^  - / { gsub(/^  - "|"$/, ""); printf "%s%s", sep, $0; sep = "," }
+       END { printf "\n" }' "${kit_checkout}/packages/kit/files/repo/.kit/kinds/$1.yml"
 }
 
 # claude-prefixes prints the command prefixes of the Claude deny list, with one that another covers left out.

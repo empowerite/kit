@@ -83,11 +83,12 @@ the repository edited it.
 
 Each rule lives in one file, `.kit/rules/<kind>.md`, and is not copied into any agent tool's own directory. A
 style package adds `.kit/styles/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
-style says how the file looks, and a repository takes the style it agrees with. Each file's frontmatter says which
-files it governs:
+style says how the file looks, and a repository takes the style it agrees with. A kind of file is defined once, in
+`.kit/kinds/<kind>.yml`, and each rule's and style's frontmatter names the kinds it governs under `kind:`:
 
-- `paths:` lists globs matched against the repository-relative path.
-- `content:` lists patterns matched against the first line of an existing file.
+- `paths:` in a kind lists globs matched against the repository-relative path.
+- `content:` in a kind lists patterns matched against the first line of an existing file.
+- `embeds:` in a kind lists the kinds found inside its files, so a justfile brings the bash rule to its reader.
 
 `kit context <path>` prints the rules that govern a path and appends a line to `.git/kit/context.log`. Every caller
 gets the same answer:

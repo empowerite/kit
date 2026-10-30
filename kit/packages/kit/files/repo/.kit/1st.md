@@ -85,19 +85,22 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 
 ## Rules by file type
 
-Each kind of file has a rule file under `.kit/rules/`. A rule says what the work must do to be trusted. A
-repository that takes a style package also has a style file for that kind under `.kit/styles/`, which says how the
-file looks. Rule files and style files have the same frontmatter, with these keys:
+Each kind of file is defined under `.kit/kinds/`: the path globs and first-line patterns that make a file of that
+kind, and the kinds found inside its files, such as the bash in a justfile's recipes. Each kind has a rule file
+under `.kit/rules/`. A rule says what the work must do to be trusted. A repository that takes a style package also
+has a style file for that kind under `.kit/styles/`, which says how the file looks. Rule files and style files have
+the same frontmatter, with these keys:
 
 | Key | Contains |
 | --- | --- |
-| `paths:` | Globs matched against a file's path from the repository root. |
-| `content:` | Patterns matched against the first line of a file that exists. |
+| `kind:` | The kinds of file it governs, by name. |
 | `lint:` | The linter that `kit lint` runs over the files it governs. |
 | `checks:` | The kit's own checks that `kit lint` runs over the files it governs, by name. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
-A rule or style governs a file when any of its globs or patterns matches.
+A rule or style governs every file of a kind it names. `kit context` also prints the rules of the kinds a file's
+kind embeds, so a justfile brings the bash rule with it; `kit lint` does not follow them, so no linter runs over a
+file it cannot parse.
 
 Before you change a file:
 
@@ -137,10 +140,10 @@ The repository commits the declaration, and every worktree holds the text:
 
 - `.kit/settings.yml`, whose `version:` and `packages:` declare the release and the active packages, committed
 - `.kit/packages/`, the repository's own packages, committed
-- this file, the rules under `.kit/rules/`, the style under `.kit/styles/` from the style packages the repository
-  takes, and the rest of what the packages deliver under `.kit/`, placed by `kit hydrate`: each a link to its
-  source when the source is inside the worktree, and otherwise a copy without the write bit. `.kit/.gitignore`
-  names every one, so git never sees them.
+- this file, the kinds under `.kit/kinds/`, the rules under `.kit/rules/`, the style under `.kit/styles/` from
+  the style packages the repository takes, and the rest of what the packages deliver under `.kit/`, placed by
+  `kit hydrate`: each a link to its source when the source is inside the worktree, and otherwise a copy without
+  the write bit. `.kit/.gitignore` names every one, so git never sees them.
 - `.kit/manifest`, which records the digest of each delivered file, and `.kit/.gitignore` itself: written by kit,
   ignored like them, and without the write bit like them
 
@@ -166,8 +169,8 @@ How a delivered file is placed depends on its destination:
 
 The packages:
 
-- `kit`: this file, `.kit/README.md` for the person at the desk, the rules, `.kit/settings.schema.json`, and two
-  regions that `kit region` fills:
+- `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/settings.schema.json`,
+  and two regions that `kit region` fills:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and

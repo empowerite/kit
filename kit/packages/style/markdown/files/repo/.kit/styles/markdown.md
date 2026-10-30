@@ -1,8 +1,8 @@
 ---
 # Added by kit's style/markdown package. To remove it, run kit package remove style/markdown.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - "**/*.md"
+kind:
+  - markdown
 lint: markdownlint-cli2 --config .kit/markdownlint.jsonc
 templates:
   - variant: agents

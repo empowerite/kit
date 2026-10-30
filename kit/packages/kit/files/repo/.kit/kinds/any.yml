@@ -1,0 +1,6 @@
+# Added by the kit package, which kit always installs.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+#
+# The kind of every file. The prose style names it, so a style can govern every file; no rule does.
+paths:
+  - "**"

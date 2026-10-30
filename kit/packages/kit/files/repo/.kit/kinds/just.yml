@@ -1,0 +1,13 @@
+# Added by the kit package, which kit always installs.
+# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+#
+# A justfile, or a just module. Its [script] and shebang recipe bodies are bash, which embeds: says, so kit context
+# names the bash rule beside the just rule and kit lint runs no bash linter over the file.
+paths:
+  - "justfile"
+  - "**/justfile"
+  - "**/*.just"
+content:
+  - "^#!.*/(env +)?just( |$)"
+embeds:
+  - bash

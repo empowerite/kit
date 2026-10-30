@@ -53,9 +53,11 @@ set it under `answers:` in `settings.yml`. The steps are in [1st.md](1st.md), un
 
 ## Rules, styles, and templates
 
-`rules/` holds one rule per kind of file: what the kit holds a file of that kind to, and the linter that checks it.
-`styles/` holds the styles the repository takes, one per kind, and `templates/` the shapes `kit new file` makes a
-file from. A rule or a style names the files it governs in its frontmatter, and `kit context <path>` prints the
-ones that match, which is how an agent, a hook, and `kit lint` all find the same rules for the same file.
+`kinds/` defines each kind of file: the paths and first lines that make a file of that kind, and the kinds found
+inside its files, such as the bash in a justfile. `rules/` holds one rule per kind: what the kit holds a file of
+that kind to, and the linter that checks it. `styles/` holds the styles the repository takes, one per kind, and
+`templates/` the shapes `kit new file` makes a file from. A rule or a style names the kinds it governs in its
+frontmatter, and `kit context <path>` prints the ones that match, which is how an agent, a hook, and `kit lint`
+all find the same rules for the same file.
 
 How the kit works, and how to install it, is in the kit's own README, at the link above.

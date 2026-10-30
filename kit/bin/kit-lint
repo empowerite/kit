@@ -10,7 +10,8 @@
 #   - with no paths, the staged files
 #   - with no paths and --all-files, every tracked file
 #
-# Each file is matched to the rules that govern it, the same way kit context matches. Then, for each rule:
+# Each file is matched to the rules of its kinds, as kit context matches, without the rules of the kinds a kind
+# embeds, so no linter runs over a file it cannot parse. Then, for each rule:
 #
 #   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
 #     that is not on PATH is a failure, not a skip.
@@ -81,6 +82,7 @@ fi
 
 # The paths each rule governs, newline-separated, keyed by the rule file.
 declare -A governed=()
+context:load
 for path in "${paths[@]}"
 do
   [[ -f "${path}" && ! "${path}" =~ (^|/)\.kit/templates/ ]] || continue
@@ -88,7 +90,7 @@ do
   do
     [[ -n "${rule}" ]] || continue
     governed[${rule}]+="${path}"$'\n'
-  done < <(context:rules "${path}")
+  done < <(context:rules "${path}" --direct)
 done
 
 refused=0

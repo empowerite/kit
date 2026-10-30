@@ -1,11 +1,8 @@
 ---
 # Added by kit's style/bash package. To remove it, run kit package remove style/bash.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-paths:
-  - "**/*.sh"
-  - "**/*.bash"
-content:
-  - "^#!.*/(env +)?(ba)?sh( |$)"
+kind:
+  - bash
 templates:
   - variant: script
     executable: true

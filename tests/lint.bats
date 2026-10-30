@@ -76,6 +76,17 @@ teardown() {
   [[ "$output" == *"SC2086"* ]]
 }
 
+@test "an embedded kind's rule reaches the reader through kit context, and never its linter through kit lint" {
+  printf '[script]\nbuild:\n  echo $x\n' > justfile
+  run "${kit_checkout}/bin/kit" context justfile
+  [ "${lines[0]}" = ".kit/rules/just.md" ]
+  [ "${lines[1]}" = ".kit/rules/bash.md" ]
+  run "${kit_checkout}/bin/kit" lint justfile
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"bash.md"* ]]
+  [[ "$output" != *"shellcheck"* ]]
+}
+
 @test "the delivered markdown passes the delivered markdown linter in a fresh repository" {
   command -v markdownlint-cli2 >/dev/null || skip "markdownlint-cli2, the markdown style's linter, is not on PATH"
   "${kit_checkout}/bin/kit" package add style/markdown >/dev/null 2>&1

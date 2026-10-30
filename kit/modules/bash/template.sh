@@ -122,25 +122,29 @@ template:render() {
     'import "template" as template; template::render($v)' < "$1"
 }
 
-# template:rules <path> prints the rules that govern the path and have templates, most specific first. The most
-# specific rule has the matching glob with the most non-wildcard characters. A rule matched only by the file's
-# first line sorts last.
+# template:rules <path> prints the rules of the path's own kinds that have templates, most specific first. The most
+# specific rule names the kind whose matching glob has the most non-wildcard characters. A rule whose kind matched
+# only by the file's first line sorts last.
 template:rules() {
-  local path=$1 rule glob best literal
+  local path=$1 rule glob best literal kind
+  context:load
   while IFS= read -r rule
   do
     [[ -n "${rule}" && -n "$(template:variants "${rule}")" ]] || continue
     best=0
-    while IFS= read -r glob
+    for kind in ${context_file_kinds[${rule}]-}
     do
-      if [[ -n "${glob}" ]] && context:glob-matches "${path}" "${glob}"
-      then
-        literal=${glob//\*/}
-        (( ${#literal} > best )) && best=${#literal}
-      fi
-    done < <(yaml:list "${rule}" paths)
+      while IFS= read -r glob
+      do
+        if [[ -n "${glob}" ]] && context:glob-matches "${path}" "${glob}"
+        then
+          literal=${glob//\*/}
+          (( ${#literal} > best )) && best=${#literal}
+        fi
+      done <<<"${context_kind_paths[${kind}]-}"
+    done
     printf '%s\t%s\n' "${best}" "${rule}"
-  done < <(context:rules "${path}") | LC_ALL=C sort -t $'\t' -k1,1nr -k2,2 | cut -f2
+  done < <(context:rules "${path}" --direct) | LC_ALL=C sort -t $'\t' -k1,1nr -k2,2 | cut -f2
 }
 
 # template:check <rule-file> <path>… is true when every file matches a variant the rule allows at its path. For
