@@ -71,12 +71,16 @@ status:width() {
   fi
 }
 
-# status:cell <text> <width> prints <text> padded to <width> characters, or clipped to it with an ellipsis.
+# status:cell <text> <width> [right] prints <text> padded to <width> characters, or clipped to it with an ellipsis.
+# The padding follows the text, or precedes it with right, which is for a number.
 status:cell() {
-  local text=$1 width=$2
+  local text=$1 width=$2 side=${3:-left}
   if (( ${#text} > width ))
   then
     printf '%s…' "${text:0:width-1}"
+  elif [[ "${side}" == right ]]
+  then
+    printf '%*s%s' $(( width - ${#text} )) '' "${text}"
   else
     printf '%s%*s' "${text}" $(( width - ${#text} )) ''
   fi
@@ -428,7 +432,7 @@ status:pr-block() {
   (( owner_w > 0 )) && row+="${status_sep}👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
   row+="${status_sep}$(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
-  row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}")")"
+  row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
   [[ -n "${checks}" ]] && row+="${status_sep}${checks}"
   (( unresolved > 0 )) && row+="${status_sep}$(status:paint 33 "💬 ${unresolved} unresolved")"

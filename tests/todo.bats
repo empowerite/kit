@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# todo.bats - kit todo lists the forge's open issues, oldest first, and marks the ones already in flight
+# todo.bats - kit todo lists the forge's open issues, oldest first, drawn as kit status draws a change
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3 open on branch 7-fix-the-thing and closing it; and issue 9 "Other thing", assigned to nobody. The
-# branch 9-other is on origin with no change, so 9 is in flight by its branch alone. Issue 11 has neither.
+# branch 9-other is on origin with no change, so 9 is in flight by its branch alone. Issue 11 has neither: it is idle.
 
 bats_require_minimum_version 1.5.0
 
@@ -63,32 +63,91 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-@test "kit todo lists every open issue oldest first, with its assignees, and marks the change or the branch in flight" {
+# title-of <row> prints the title cell of a row: what is between the issue glyph and the first separator.
+title-of() {
+  local row=${1#🎫 }
+  printf '%s\n' "${row%% · *}"
+}
+
+@test "kit todo draws each issue as kit status draws a change: title, assignees, state, age, and what is in flight" {
   run kit todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#7 "*"Fix the thing"*"bob"*"#3"*"7-fix-the-thing"* ]]
-  [[ "${lines[1]}" == "#9 "*"Other thing"*"9-other"* ]]
-  [[ "${lines[1]}" != *"#3"* ]]
-  [[ "${lines[2]}" == "#11 "*"Third thing"*"ada"* ]]
-  [[ "${lines[2]}" != *"in flight"* ]]
+  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+  [[ "${lines[1]}" == "🎫 #9 Other thing   ·        · 🛫 in flight "*"d · 🌿 9-other" ]]
+  [[ "${lines[2]}" == "🎫 #11 Third thing  · 👤 ada · ⏳ idle      "*"d" ]]
+  [[ "${lines[2]}" != *"🔀"* && "${lines[2]}" != *"🌿"* ]]
   [ "${#lines[@]}" -eq 3 ]
 }
 
-@test "kit todo --mine lists the caller's, --owner the named assignees', and --json says the same as data" {
+@test "kit todo right-aligns the age, a number, in its column" {
+  # The dates give ages of four and three digits, widths that hold until 2028.
+  fixture issues.json <<'JSON'
+[{"number": 7, "title": "Fix the thing", "assignees": [], "createdAt": "2025-06-01T09:00:00Z"},
+ {"number": 5, "title": "Old thing", "assignees": [], "createdAt": "2020-01-01T09:00:00Z"}]
+JSON
+  run kit todo
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #5 Old thing     · ⏳ idle      "[0-9][0-9][0-9][0-9]"d" ]]
+  expected="🎫 #7 Fix the thing · 🛫 in flight  "
+  [[ "${lines[1]}" == "${expected}"[0-9][0-9][0-9]"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+}
+
+@test "kit todo --mine drops the assignee column, as kit status --mine drops the author; --owner keeps it" {
   run kit todo --mine
   [ "$status" -eq 0 ]
-  [[ "$output" == "#11 "* ]]
+  [[ "${lines[0]}" == "🎫 #11 Third thing · ⏳ idle "*"d" ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit todo --owner=bob
   [ "$status" -eq 0 ]
-  [[ "$output" == "#7 "* ]]
+  [[ "${lines[0]}" == "🎫 #7 Fix the thing · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
   [ "${#lines[@]}" -eq 1 ]
+}
+
+@test "kit todo --json says the same as data, with inflight: {change, branch} or null" {
   run kit todo --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "7 9 11" ]
   [ "$(jq --compact-output '.[0].inflight' <<<"$output")" = '{"change":3,"branch":"7-fix-the-thing"}' ]
   [ "$(jq --compact-output '.[1].inflight' <<<"$output")" = '{"change":null,"branch":"9-other"}' ]
   [ "$(jq --compact-output '.[2].inflight' <<<"$output")" = 'null' ]
+}
+
+@test "kit todo paints the state by its family, idle yellow and in flight blue, and the detail dim" {
+  local esc=$'\x1b'
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"${esc}[34min flight${esc}[0m"* ]]
+  [[ "$output" == *"${esc}[33midle     ${esc}[0m"* ]]
+  [[ "$output" == *"${esc}[90mbob${esc}[0m"* ]]
+  [[ "$output" == *"${esc}[90m🔀 #3${esc}[0m"* ]]
+  [[ "$output" == *"${esc}[90m🌿 7-fix-the-thing${esc}[0m"* ]]
+  [[ "$output" != *"${esc}[90m#7 Fix the thing"* ]]
+  run env -u NO_COLOR "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"${esc}["* ]]
+  run env -u NO_COLOR CLICOLOR_FORCE=0 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"${esc}["* ]]
+}
+
+@test "kit todo clips the title to what the terminal's width leaves after the other cells" {
+  fixture issues.json <<'JSON'
+[{"number": 7, "title": "A very long title that goes on and on, far past what a narrow terminal shows",
+  "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
+JSON
+  run env COLUMNS=80 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #7 A very long"*"… · 👤 bob · 🛫 in flight "* ]]
+  [[ "${lines[0]}" == *"d · 🔀 #3 · 🌿 7-fix-the-thing" ]]
+  narrow=$(title-of "${lines[0]}")
+  run env COLUMNS=100 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #7 A very long"*"… · 👤 bob · "* ]]
+  wide=$(title-of "${lines[0]}")
+  [ "${#wide}" -eq $(( ${#narrow} + 20 )) ]
+  run env COLUMNS=140 "${kit_checkout}/bin/kit" todo
+  [ "$status" -eq 0 ]
+  [ "$(title-of "${lines[0]}")" = "#7 A very long title that goes on and on, far past what a narrow terminal shows" ]
 }
 
 @test "kit todo refuses an unknown flag with a pointer to its page" {

@@ -4,12 +4,14 @@
 #
 # kit todo [--json] [--mine | --all | --owner=<login>…]
 #
-# Lists every open issue of the repository on its forge, oldest first: its reference, title, assignees, and age, then
-# what is already in flight for it: an open change that closes it, a branch for it on origin, or nothing. An issue
-# with nothing in flight is one to pick up with kit issue <N>.
+# Lists every open issue of the repository on its forge, oldest first, each drawn as kit status draws a pull request:
+# the issue with its title, its assignees, its state with its age, then what is already in flight for it, the open
+# change that closes it and the branch for it on origin. An issue with nothing in flight is idle: one to pick up with
+# kit issue <N>. The title is clipped to the terminal's width. NO_COLOR turns the color off; CLICOLOR_FORCE turns it
+# on without a terminal.
 #
 #   --json            prints the same facts as one JSON array; each issue carries inflight: {change, branch}, or null
-#   --mine            the issues assigned to the caller
+#   --mine            the issues assigned to the caller, without the assignee column
 #   --all             every open issue (the default)
 #   --owner=<login>   the issues assigned to the named login; give it once or more
 #

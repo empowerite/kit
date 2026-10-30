@@ -45,6 +45,13 @@ commits-in() {
   [ "$output" = "abcd…" ]
 }
 
+@test "a cell is right-aligned on request, for a number" {
+  run in_status status:cell 3d 4 right
+  [ "$output" = "  3d" ]
+  run in_status status:cell abcdefgh 5 right
+  [ "$output" = "abcd…" ]
+}
+
 @test "a checkout is measured from where its branch left origin's default branch" {
   git worktree add --quiet -b topic worktrees/topic main
   printf 'two\nthree\n' > worktrees/topic/b
