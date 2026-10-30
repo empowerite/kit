@@ -79,13 +79,15 @@ forge:providers() {
   use:modules 'forge-*' | sed 's/^forge-//' | paste -s -d ' ' -
 }
 
-# forge:call <call> <argument>… runs the provider's function for <call>, loading the provider once.
+# forge:call <call> <argument>… runs the provider's function for <call>, loading the provider once. The provider's
+# tool runs with color forced off: gh and glab honor CLICOLOR_FORCE and GH_FORCE_TTY, and color even the JSON kit
+# reads, so a desk that sets them in its shell reaches the tool as one that does not.
 forge:call() {
   local call=$1 provider
   shift
   provider=$(forge:provider) || return 1
   use "forge-${provider}"
-  "forge-${provider}:${call}" "$@"
+  CLICOLOR_FORCE=0 GH_FORCE_TTY='' "forge-${provider}:${call}" "$@"
 }
 
 forge:require()             { forge:call require "$@"; }

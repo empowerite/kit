@@ -14,8 +14,9 @@
 #   - Within the modules, work is a function call. Across a process boundary it is `run kit <verb>`, which runs
 #     this release's kit and carries the trace depth.
 #
-# Every message goes to stderr, so stdout carries only data. Color is off when stderr is not a terminal or NO_COLOR
-# is set. Under GitHub Actions, warn and error also print the matching workflow command (::warning::, ::error::).
+# Every message goes to stderr, so stdout carries only data. Color is on when stderr is a terminal or CLICOLOR_FORCE
+# is set to other than 0, and off when NO_COLOR is set, which wins. Under GitHub Actions, warn and error also print
+# the matching workflow command (::warning::, ::error::).
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) ))
 then
@@ -160,7 +161,7 @@ run() {
 if [[ -n "${NO_COLOR:-}" ]]
 then
   declare -gr out_color=0
-elif [[ -t 2 ]]
+elif [[ ( -n "${CLICOLOR_FORCE:-}" && "${CLICOLOR_FORCE}" != 0 ) || -t 2 ]]
 then
   declare -gr out_color=1
 else

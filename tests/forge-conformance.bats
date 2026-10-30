@@ -270,4 +270,14 @@ JSON
   done
 }
 
+@test "every provider reaches its tool with color forced off, so a desk's CLICOLOR_FORCE cannot color its data" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    CLICOLOR_FORCE=1 GH_FORCE_TTY=1 run call open-issues
+    [ "$status" -eq 0 ]
+    [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = "[7,9]" ]
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
