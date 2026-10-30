@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # todo.sh - the forge's open issues, oldest first, each with what is already in flight for it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # modules/bash/status.sh sets status_sep, status_issue_sgr, and status_change_sgr
+# shellcheck disable=SC2154  # modules/bash/status.sh sets status_gap, status_issue_sgr, and status_change_sgr
 #
 # kit todo is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, and for each
 # whether work has started, which is when an open change closes it or a branch for it is on origin. An issue with
@@ -9,10 +9,11 @@
 # the caller, --others the rest, unassigned ones included, --owner=<login> the named assignees', --all every open
 # issue; --today keeps only the issues opened in the last 24 hours, whichever of those is chosen.
 #
-# A row is drawn as kit status draws a pull request, its cells separated by status_sep and sized across the rows:
+# A row is drawn as kit status draws a pull request, its cells sized across the rows. Every cell after the number
+# opens with a glyph, so status_gap separates them, not status_sep's dot:
 #
-#    #7 · 👤 bob · 🛫 in flight 40d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing
-#   #11 · 👤 ada · ⏳ idle      30d ·       ·                    · 🎫 Third thing
+#    #7  👤 bob  🛫 in flight 40d  🔀 #3  🌿 7-fix-the-thing  🎫 Fix the thing
+#   #11  👤 ada  ⏳ idle      30d                            🎫 Third thing
 #
 # that is the issue's number, right-aligned, its assignees (dropped under --mine, as kit status drops the author),
 # its state with the issue's age, right-aligned, the change and the branch in flight, and last the title, clipped to
@@ -132,9 +133,9 @@ todo:render() {
     (( ${#branch} > branch_w )) && branch_w=${#branch}
   done < <(todo:rows "${doc}")
   # The title is last, and gets what the terminal's width leaves after the other cells, 20 at least. A cell with a
-  # glyph takes six columns beyond its text: the separator, the glyph, which is drawn two wide, and a space.
-  width=$(( $(status:width) - ref_w - (owner_w > 0 ? 6 + owner_w : 0) - 6 - state_w - 1 - age_w
-            - (change_w > 0 ? 6 + change_w : 0) - (branch_w > 0 ? 6 + branch_w : 0) - 6 ))
+  # glyph takes five columns beyond its text: the gap, the glyph, which is drawn two wide, and a space.
+  width=$(( $(status:width) - ref_w - (owner_w > 0 ? 5 + owner_w : 0) - 5 - state_w - 1 - age_w
+            - (change_w > 0 ? 5 + change_w : 0) - (branch_w > 0 ? 5 + branch_w : 0) - 5 ))
   (( width < 20 )) && width=20
 
   while IFS=$'\x1f' read -r ref title assignees state age change branch
@@ -144,28 +145,28 @@ todo:render() {
     then
       glyph='   '
       [[ -n "${assignees}" ]] && glyph='👤 '
-      row+="${status_sep}${glyph}$(status:paint 90 "$(status:cell "${assignees}" "${owner_w}")")"
+      row+="${status_gap}${glyph}$(status:paint 90 "$(status:cell "${assignees}" "${owner_w}")")"
     fi
-    row+="${status_sep}$(todo:state-emoji "${state}")"
+    row+="${status_gap}$(todo:state-emoji "${state}")"
     row+=" $(status:paint "$(todo:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
     row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
     if (( change_w > 0 ))
     then
       if [[ -n "${change}" ]]
       then
-        row+="${status_sep}🔀 $(status:paint "${status_change_sgr}" "$(status:cell "#${change}" "${change_w}" right)")"
-      else row+="${status_sep}   $(status:cell '' "${change_w}")"
+        row+="${status_gap}🔀 $(status:paint "${status_change_sgr}" "$(status:cell "#${change}" "${change_w}" right)")"
+      else row+="${status_gap}   $(status:cell '' "${change_w}")"
       fi
     fi
     if (( branch_w > 0 ))
     then
       if [[ -n "${branch}" ]]
-      then row+="${status_sep}$(status:paint 90 "🌿 $(status:cell "${branch}" "${branch_w}")")"
-      else row+="${status_sep}   $(status:cell '' "${branch_w}")"
+      then row+="${status_gap}$(status:paint 90 "🌿 $(status:cell "${branch}" "${branch_w}")")"
+      else row+="${status_gap}   $(status:cell '' "${branch_w}")"
       fi
     fi
     (( ${#title} > width )) && title="${title:0:width-1}…"
-    printf '%s%s🎫 %s\n' "${row}" "${status_sep}" "${title}" >&2
+    printf '%s%s🎫 %s\n' "${row}" "${status_gap}" "${title}" >&2
   done < <(todo:rows "${doc}")
 }
 

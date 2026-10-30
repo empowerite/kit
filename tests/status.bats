@@ -139,7 +139,7 @@ commits-in() {
   git worktree add --quiet --detach worktrees/loose main
   doc=$(in_status status:checkout "${PWD}/worktrees/loose" '' main)
   run in_status status:checkout-block 🌿 "${doc}" 15
-  [ "$output" = "🌿 worktrees/loose · ❗ detached HEAD · ↑0 ↓0 · +0 -0" ]
+  [ "$output" = "🌿 worktrees/loose  ❗ detached HEAD · ↑0 ↓0 · +0 -0" ]
 }
 
 @test "the counts of every checkout sit in columns, ahead and added right-aligned, behind and removed left-aligned" {
@@ -167,12 +167,12 @@ commits-in() {
   doc+='"unresolved":0,"checks":{"state":"PENDING","passed":0,"total":1,"failing":0,"took":36},'
   doc+='"closes":[{"number":1,"title":"One"},{"number":4,"title":"Four"}]}'
   run in_status status:pr-block "${doc}" 12 0 6 2 worktrees/2-the-first
-  [ "${lines[0]}" = "🔀 #2 The first · 🚦 queued 3d · 🏃 0 / 1 36s · 🌿 2-the-first" ]
+  [ "${lines[0]}" = "🔀 #2 The first  🚦 queued 3d  🏃 0 / 1 36s  🌿 2-the-first" ]
   [ "${lines[1]}" = "   closes #1 One" ]
   [ "${lines[2]}" = "   closes #4 Four" ]
   [ "${#lines[@]}" -eq 3 ]
   run in_status status:pr-block "${doc}" 12 5 6 2 ''
-  [ "${lines[0]}" = "🔀 #2 The first · 👤 ada   · 🚦 queued 3d · 🏃 0 / 1 36s" ]
+  [ "${lines[0]}" = "🔀 #2 The first  👤 ada    🚦 queued 3d  🏃 0 / 1 36s" ]
 }
 
 @test "a change's number is magenta and the number of an issue it closes cyan, as kit todo draws them" {

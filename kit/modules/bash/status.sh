@@ -51,8 +51,10 @@ use git
 # status_commit_cap is how many uncommitted paths or commits a checkout block lists before it counts the rest.
 status_commit_cap=10
 
-# status_sep separates the cells of every row kit status prints.
+# status_sep separates the cells of every row kit status prints, and status_gap replaces it before a cell that
+# opens with a glyph, which marks the boundary already. A blank cell that stands in for one takes the gap too.
 status_sep=' · '
+status_gap='  '
 
 # status_issue_sgr and status_change_sgr color an issue's number and a change's, in every table the kit draws.
 status_issue_sgr=36
@@ -374,7 +376,7 @@ status:checkout-block() {
   local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
   IFS=$'\t' read -r label width < <(status:label "${relative}" "${branch}")
-  [[ -n "${branch}" ]] || mark="${status_sep}$(status:paint 33 '❗ detached HEAD')"
+  [[ -n "${branch}" ]] || mark="${status_gap}$(status:paint 33 '❗ detached HEAD')"
   printf '%s %s%*s%s%s%s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" "${status_sep}" \
     "$(status:measures "${doc}" "${widths}")" >&2
   # A status can start with a space, which a tab-separated read would drop, so the separator is \x1f instead.
@@ -439,14 +441,14 @@ status:pr-block() {
           | map(tostring)
           | join("\u001f")' <<<"${doc}")
   row="🔀 $(status:paint "${status_change_sgr}" "${ref}") $(status:cell "${title}" $(( title_w - ${#ref} - 1 )))"
-  (( owner_w > 0 )) && row+="${status_sep}👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
-  row+="${status_sep}$(status:state-emoji "${state}")"
+  (( owner_w > 0 )) && row+="${status_gap}👤 $(status:paint 90 "$(status:cell "${author}" "${owner_w}")")"
+  row+="${status_gap}$(status:state-emoji "${state}")"
   row+=" $(status:paint "$(status:state-sgr "${state}")" "$(status:cell "${state}" "${state_w}")")"
   row+=" $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
   checks=$(status:check-cell "$(jq --compact-output .checks <<<"${doc}")")
-  [[ -n "${checks}" ]] && row+="${status_sep}${checks}"
-  (( unresolved > 0 )) && row+="${status_sep}$(status:paint 33 "💬 ${unresolved} unresolved")"
-  [[ -n "${worktree}" ]] && row+="${status_sep}$(status:paint 90 "🌿 ${branch}")"
+  [[ -n "${checks}" ]] && row+="${status_gap}${checks}"
+  (( unresolved > 0 )) && row+="${status_gap}$(status:paint 33 "💬 ${unresolved} unresolved")"
+  [[ -n "${worktree}" ]] && row+="${status_gap}$(status:paint 90 "🌿 ${branch}")"
   printf '%s\n' "${row}" >&2
   while IFS=$'\x1f' read -r issue title
   do
@@ -572,7 +574,7 @@ status:render() {
   done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring)
       | join("\u001f")' \
     <<<"${prs}")
-  width=$(( $(status:width) - 3 - 3 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 6 : 0) ))
+  width=$(( $(status:width) - 3 - 2 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 5 : 0) ))
   (( width < 20 )) && width=20
   (( title_w > width )) && title_w=${width}
 

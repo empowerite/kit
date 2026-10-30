@@ -71,9 +71,9 @@ title-of() {
 @test "kit todo draws each issue as kit status draws a change: number, assignees, state, age, in flight, then title" {
   run kit todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == " #7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == " #9 ·        · 🛫 in flight "*"d ·       · 🌿 9-other         · 🎫 Other thing" ]]
-  [[ "${lines[2]}" == "#11 · 👤 ada · ⏳ idle      "*"d ·       ·                    · 🎫 Third thing" ]]
+  [[ "${lines[0]}" == " #7  👤 bob  🛫 in flight "*"d  🔀 #3  🌿 7-fix-the-thing  🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == " #9          🛫 in flight "*"d         🌿 9-other          🎫 Other thing" ]]
+  [[ "${lines[2]}" == "#11  👤 ada  ⏳ idle      "*"d                             🎫 Third thing" ]]
   [[ "${lines[2]}" != *"🔀"* && "${lines[2]}" != *"🌿"* ]]
   [ "${#lines[@]}" -eq 3 ]
 }
@@ -86,18 +86,18 @@ title-of() {
 JSON
   run kit todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#5 · ⏳ idle      "[0-9][0-9][0-9][0-9]"d ·       ·                    · 🎫 Old thing" ]]
-  [[ "${lines[1]}" == "#7 · 🛫 in flight  "[0-9][0-9][0-9]"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == "#5  ⏳ idle      "[0-9][0-9][0-9][0-9]"d                             🎫 Old thing" ]]
+  [[ "${lines[1]}" == "#7  🛫 in flight  "[0-9][0-9][0-9]"d  🔀 #3  🌿 7-fix-the-thing  🎫 Fix the thing" ]]
 }
 
 @test "kit todo --mine drops the assignee column, as kit status --mine drops the author; --owner keeps it" {
   run kit todo --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#11 · ⏳ idle "*"d · 🎫 Third thing" ]]
+  [[ "${lines[0]}" == "#11  ⏳ idle "*"d  🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit todo --owner=bob
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == "#7  👤 bob  🛫 in flight "*"d  🔀 #3  🌿 7-fix-the-thing  🎫 Fix the thing" ]]
   [ "${#lines[@]}" -eq 1 ]
 }
 
@@ -107,8 +107,8 @@ JSON
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "7 9" ]
   run kit todo --others
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == "#9 ·        · 🛫 in flight "*"d ·       · 🌿 9-other         · 🎫 Other thing" ]]
+  [[ "${lines[0]}" == "#7  👤 bob  🛫 in flight "*"d  🔀 #3  🌿 7-fix-the-thing  🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == "#9          🛫 in flight "*"d         🌿 9-other          🎫 Other thing" ]]
   [ "${#lines[@]}" -eq 2 ]
 }
 
@@ -147,11 +147,11 @@ JSON
 JSON
   run env COLUMNS=100 "${kit_checkout}/bin/kit" todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#7 · 👤 bob · 🛫 in flight "*"d · 🔀 #3 · 🌿 7-fix-the-thing · 🎫 A very long"*"…" ]]
+  [[ "${lines[0]}" == "#7  👤 bob  🛫 in flight "*"d  🔀 #3  🌿 7-fix-the-thing  🎫 A very long"*"…" ]]
   narrow=$(title-of "${lines[0]}")
   run env COLUMNS=120 "${kit_checkout}/bin/kit" todo
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == *" · 🎫 A very long"*"…" ]]
+  [[ "${lines[0]}" == *"  🎫 A very long"*"…" ]]
   wide=$(title-of "${lines[0]}")
   [ "${#wide}" -eq $(( ${#narrow} + 20 )) ]
   run env COLUMNS=160 "${kit_checkout}/bin/kit" todo
@@ -168,12 +168,12 @@ JSON
 JSON
   run kit todo --today
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#13 · 👤 ada · ⏳ idle "*" · 🎫 Fresh thing" ]]
-  [[ "${lines[1]}" == "#14 ·        · ⏳ idle "*" · 🎫 Fresh other" ]]
+  [[ "${lines[0]}" == "#13  👤 ada  ⏳ idle "*"  🎫 Fresh thing" ]]
+  [[ "${lines[1]}" == "#14          ⏳ idle "*"  🎫 Fresh other" ]]
   [ "${#lines[@]}" -eq 2 ]
   run kit todo --today --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#13 · ⏳ idle "*" · 🎫 Fresh thing" ]]
+  [[ "${lines[0]}" == "#13  ⏳ idle "*"  🎫 Fresh thing" ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit todo --today --json
   [ "$status" -eq 0 ]
