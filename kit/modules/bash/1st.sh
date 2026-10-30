@@ -250,4 +250,29 @@ guard:require() {
   done
 }
 
+# guard:no-arguments <verb> <argument>… is the argument check of a verb that takes none. With any argument it prints
+# the refusal, which points to the verb's help page, and returns 2.
+guard:no-arguments() {
+  local verb=$1
+  shift
+  (( $# == 0 )) && return 0
+  error "kit ${verb} takes no arguments; run: kit help ${verb}"
+  return 2
+}
+
+# guard:no-flags <verb> <argument>… is the flag check of a verb whose arguments are all operands. An argument that
+# starts with - is refused as an unknown flag, with a pointer to the verb's help page, and it returns 2.
+guard:no-flags() {
+  local verb=$1 argument
+  shift
+  for argument in "$@"
+  do
+    if [[ "${argument}" == -* ]]
+    then
+      error "unknown flag '${argument}'; run: kit help ${verb}"
+      return 2
+    fi
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

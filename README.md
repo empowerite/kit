@@ -195,7 +195,7 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 | Directory | Contents |
 | --- | --- |
 | `kit/` | the release, packed as it is: everything in it ships, and nothing outside it does |
-| `kit/bin/` | the `kit` command and its verbs |
+| `kit/bin/` | the kit CLI, `kit`, and its verbs |
 | `kit/modules/` | the modules the verbs share: `bash/` and `jq/`, one directory per language |
 | `kit/packages/` | everything a release delivers |
 | `bin/` | this repository's own commands, not on `PATH`: its gate, `bin/ci`; `bin/refresh`; and `bin/release` |

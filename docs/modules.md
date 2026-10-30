@@ -75,6 +75,8 @@ jq module directory, and defines:
 | `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner |
 | `summary <line>…` | appends lines to the GitHub step summary, when there is one |
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
+| `guard:no-arguments <verb> <argument>…` | refuses any argument, pointing to `kit help <verb>`, for a verb that takes none |
+| `guard:no-flags <verb> <argument>…` | refuses an argument that starts with `-`, pointing to `kit help <verb>`, for a verb whose arguments are all operands |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
 

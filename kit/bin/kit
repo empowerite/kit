@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# kit - the kit's command: runs the verb script bin/kit-<verb> (executed entrypoint)
+# kit - the kit CLI: runs the verb script bin/kit-<verb> (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
 # bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
-# when called directly. kit with no verb, or with -h or --help, runs kit help, which reads each verb's usage
-# from its header.
+# when called directly. kit with no verb runs kit tui, the interactive terminal UI. A verb that does not exist, -h and
+# --help among them, is refused with a pointer to kit help, which reads each verb's usage from its header.
 #
 # see: .kit/1st.md
 
@@ -14,11 +14,8 @@ set -o errexit -o nounset -o pipefail
 # readlink -f needs macOS 12.3 or later. Older macOS has no GNU-compatible readlink.
 kit_bin=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 
-verb=${1:-help}
+verb=${1:-tui}
 (( $# == 0 )) || shift
-case "${verb}" in
-  (-h | --help) verb=help
-esac
 if [[ ! -x "${kit_bin}/kit-${verb}" ]]
 then
   echo "kit: unknown verb '${verb}'; run: kit help" >&2

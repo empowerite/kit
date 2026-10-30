@@ -7,22 +7,24 @@ setup() {
   kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
 }
 
-@test "kit help lists every verb beside bin/kit, with its purpose, and kit alone or --help does the same" {
+@test "kit help lists every verb beside bin/kit, with its purpose; -h and --help are unknown verbs that point to it" {
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
   local verb
   for verb in "${kit_root}"/bin/kit-*
   do
+    [[ -x "${verb}" ]] || continue
     verb=${verb##*/kit-}
     [[ "$output" == *$'\n'"  ${verb}"[\ $'\n']* ]] || { echo "missing: ${verb}"; return 1; }
   done
   [[ "$output" == *"  tidy [--dry-run]      removes merged worktrees and gone branches"* ]]
   [[ "$output" == *"  install [<package>…]  mirrors the release"* ]]
-  local listed=$output
-  run "${kit_root}/bin/kit"
-  [ "$output" = "${listed}" ]
   run "${kit_root}/bin/kit" --help
-  [ "$output" = "${listed}" ]
+  [ "$status" -eq 2 ]
+  [ "$output" = "kit: unknown verb '--help'; run: kit help" ]
+  run "${kit_root}/bin/kit" -h
+  [ "$status" -eq 2 ]
+  [ "$output" = "kit: unknown verb '-h'; run: kit help" ]
 }
 
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {

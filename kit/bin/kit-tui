@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# kit-tui - runs the interactive terminal UI (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit tui takes no arguments. It is the kit CLI's default verb: kit with no verb runs it. This release has no
+# interactive terminal UI, so kit tui refuses, and points to kit help, and to kit status for the work in flight.
+#
+# Exits 2.
+#
+# see: bin/kit
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+
+guard:no-arguments tui "$@" || exit 2
+error "this release has no interactive terminal UI; run: kit help, or kit status for the work in flight"
+exit 2
+
+# ----------------------------------------------------------------------------------------------------------------------

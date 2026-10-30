@@ -11,7 +11,7 @@ checks that verify the work follows the rules.
 
 A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checkout's `kit/`:
 
-- `bin/kit` is the command. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
+- `bin/kit` is the kit CLI. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
   directly. `bin/` holds only commands a person runs.
 - `modules/` holds the modules the verbs share, one directory per language: `modules/bash/`, loaded with `use`, and
   `modules/jq/`, imported by the jq programs they run; see [Bash modules](#bash-modules).
