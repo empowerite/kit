@@ -1,0 +1,7 @@
+# packages/agents/copilot/package.yml - the agents/copilot package: a Copilot instruction file per kind, applied by path
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md, docs/packages/agents/copilot.md
+
+description: "GitHub Copilot: an instruction file under .github/instructions/ per kind, applied to the kit rule's paths"
+depends:
+  - kit

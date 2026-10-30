@@ -1,0 +1,20 @@
+{
+  "context": {
+    "fileName": ["GEMINI.md", "AGENTS.md"]
+  },
+  "tools": {
+    "exclude": [
+      "run_shell_command(git commit)",
+      "run_shell_command(git push)",
+      "run_shell_command(git rebase)",
+      "run_shell_command(git worktree add)",
+      "run_shell_command(git checkout -b)",
+      "run_shell_command(git switch -c)",
+      "run_shell_command(git worktree remove)",
+      "run_shell_command(git branch -D)",
+      "run_shell_command(git checkout main)",
+      "run_shell_command(git switch main)",
+      "run_shell_command(git reset --hard)"
+    ]
+  }
+}

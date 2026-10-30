@@ -1,0 +1,7 @@
+# packages/agents/cursor/package.yml - the agents/cursor package: a Cursor rule per kind, attached by path, pointing at the rule
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md, docs/packages/agents/cursor.md
+
+description: "Cursor: a rule under .cursor/rules/ for each kind of file, attached by the kit rule's paths, that points at it"
+depends:
+  - kit

@@ -1,0 +1,8 @@
+---
+description: The kit's rule for just: justfiles and .just modules
+globs: justfile,**/justfile,**/*.just
+alwaysApply: false
+---
+Before you change a file this rule is attached to, read @.kit/rules/just.md and follow it. The kit places it there
+and keeps it current, so it is read, never edited. A file this rule governs by its content rather than its name, such
+as a script with no suffix, is named by `kit context <path>`. How the kit works is in .kit/1st.md.

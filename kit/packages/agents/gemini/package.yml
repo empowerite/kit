@@ -1,0 +1,7 @@
+# packages/agents/gemini/package.yml - the agents/gemini package: Gemini CLI reads AGENTS.md, and refuses the same commands
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md, docs/packages/agents/gemini.md
+
+description: "Gemini CLI: AGENTS.md among its context files, and the deny list, merged into .gemini/settings.json"
+depends:
+  - kit
