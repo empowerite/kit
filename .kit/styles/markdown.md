@@ -14,7 +14,7 @@ templates:
 # Markdown style
 
 Applies to `*.md`. The rule, `.kit/rules/markdown.md`, also applies, and so does the prose style,
-`.kit/style/prose.md`, where the repository takes it.
+`.kit/styles/prose.md`, where the repository takes it.
 
 ## Prose
 

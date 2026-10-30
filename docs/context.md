@@ -12,7 +12,7 @@ kit context "${path}"
 - Every call appends one line to `.git/kit/context.log`: the epoch time and the path.
 
 Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A style package adds
-`.kit/style/<kind>.md` for its kind, with the same frontmatter, and `kit context` prints it after the rule.
+`.kit/styles/<kind>.md` for its kind, with the same frontmatter, and `kit context` prints it after the rule.
 
 ## How a rule declares the files it governs
 

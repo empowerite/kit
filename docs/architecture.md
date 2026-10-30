@@ -75,7 +75,7 @@ compares a file against its digest to tell whether the repository edited it.
 ![Context: how any agent, and Claude Code's hook, find the rules that govern a file](context.svg)
 
 Each rule lives in one file, `.kit/rules/<kind>.md`, and is not copied into any agent tool's own directory. A
-style package adds `.kit/style/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
+style package adds `.kit/styles/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
 style says how the file looks, and a repository takes the style it agrees with. Each file's frontmatter says which
 files it governs:
 

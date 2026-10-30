@@ -465,12 +465,12 @@ later-release() {
   [ "$status" -eq 0 ]
   styles='style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml'
   grep --quiet "^packages kit ${styles}$" .kit/manifest
-  [ -f .kit/style/bash.md ]
+  [ -f .kit/styles/bash.md ]
   run "${kit_checkout}/bin/kit" package remove 'style/j*'
   [ "$status" -eq 0 ]
-  [ ! -e .kit/style/json.md ]
-  [ ! -e .kit/style/just.md ]
-  [ -f .kit/style/yaml.md ]
+  [ ! -e .kit/styles/json.md ]
+  [ ! -e .kit/styles/just.md ]
+  [ -f .kit/styles/yaml.md ]
   run "${kit_checkout}/bin/kit" package add 'nothing/*'
   [ "$status" -eq 2 ]
   [[ "$output" == *"'nothing/*' matches no package in reach"* ]]
@@ -479,25 +479,25 @@ later-release() {
 @test "a bundle brings its members in, a member leaves on its own, and the exclusion holds through update" {
   run "${kit_checkout}/bin/kit" install empowerite
   [ "$status" -eq 0 ]
-  [ -f .kit/style/just.md ]
+  [ -f .kit/styles/just.md ]
   [ -f .github/workflows/kit-ci.yml ]
   members='agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
   members+=' style/prose style/workflows style/yaml'
   grep --quiet "^packages kit ${members} empowerite$" .kit/manifest
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]
-  [ ! -e .kit/style/just.md ]
+  [ ! -e .kit/styles/just.md ]
   grep --quiet '^excludes style/just$' .kit/manifest
   [[ "$(sed -n 's/^packages //p' .kit/manifest)" != *style/just* ]]
   run "${kit_checkout}/bin/kit" package list
   [[ "$output" == *"❌ style/just "* ]]
   run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
-  [ ! -e .kit/style/just.md ]
+  [ ! -e .kit/styles/just.md ]
   grep --quiet '^excludes style/just$' .kit/manifest
   run "${kit_checkout}/bin/kit" package add style/just
   [ "$status" -eq 0 ]
-  [ -f .kit/style/just.md ]
+  [ -f .kit/styles/just.md ]
   run ! grep --quiet '^excludes' .kit/manifest
   # a package the bundle depends on is still refused; the bundle itself leaves without its members
   run "${kit_checkout}/bin/kit" package remove kit
@@ -505,7 +505,7 @@ later-release() {
   [[ "$output" == *"kit cannot be removed while"* ]]
   run "${kit_checkout}/bin/kit" package remove empowerite
   [ "$status" -eq 0 ]
-  [ -f .kit/style/just.md ]
+  [ -f .kit/styles/just.md ]
   # with no active package including it, a removed package is not an exclusion
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]
@@ -525,8 +525,8 @@ later-release() {
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(cat .kit/extra)" = "extra" ]
-  [ -f .kit/style/json.md ]
-  [ ! -e .kit/style/yaml.md ]
+  [ -f .kit/styles/json.md ]
+  [ ! -e .kit/styles/yaml.md ]
   [[ "$output" == *"style/json was excluded, but style/markdown depends on it"* ]]
   grep --quiet '^excludes style/yaml$' .kit/manifest
   [[ "$(sed -n 's/^packages //p' .kit/manifest)" == *" extra "* ]]

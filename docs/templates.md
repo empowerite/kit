@@ -11,7 +11,7 @@ kit new file "${path}" --purpose="${purpose}"
 
 ## Where a template lives
 
-A style file, `.kit/style/<kind>.md`, lists its templates in its frontmatter, in the order they are tried. Each
+A style file, `.kit/styles/<kind>.md`, lists its templates in its frontmatter, in the order they are tried. Each
 template is a variant of the file, stored at `.kit/templates/<kind>/<variant>`. A variant can be limited to one
 path glob (`path:`) or marked executable (`executable: true`):
 

@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # context:render <path>… [--json] prints the files that govern each path: the rules under .kit/rules/, then the
-# style under .kit/style/ that the repository takes. It also logs each request in the repository's context log.
+# style under .kit/styles/ that the repository takes. It also logs each request in the repository's context log.
 # Each file's frontmatter declares what it governs:
 #
 #   - `paths:` globs matched against the repository-relative path, where ** matches any depth
@@ -62,7 +62,7 @@ context:glob-matches() {
 context:rules() {
   local path=$1 rule glob pattern first=''
   [[ -f "${path}" ]] && first=$(head -n 1 "${path}" 2>/dev/null || true)
-  for rule in .kit/rules/*.md .kit/style/*.md
+  for rule in .kit/rules/*.md .kit/styles/*.md
   do
     [[ -f "${rule}" ]] || continue
     # Read each glob with read, not word splitting: an unquoted glob would expand against the working tree first.

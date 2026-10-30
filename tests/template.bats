@@ -104,11 +104,11 @@ shape() {
 
 @test "the most specific rule's template is chosen, and a path-limited variant is the default only on its path" {
   run in_template template:rules .github/workflows/check.yml
-  [ "${lines[0]}" = ".kit/style/workflows.md" ]
-  [ "${lines[1]}" = ".kit/style/yaml.md" ]
-  run in_template template:applies .kit/style/just.md justfile
+  [ "${lines[0]}" = ".kit/styles/workflows.md" ]
+  [ "${lines[1]}" = ".kit/styles/yaml.md" ]
+  run in_template template:applies .kit/styles/just.md justfile
   [ "$(cut -d $'\x1f' -f 1 <<<"$output" | paste -s -d ' ' -)" = "root module" ]
-  run in_template template:applies .kit/style/just.md tools.just
+  run in_template template:applies .kit/styles/just.md tools.just
   [ "$(cut -d $'\x1f' -f 1 <<<"$output")" = "module" ]
 }
 
@@ -154,7 +154,7 @@ shape() {
   [[ "$output" == *"loose.sh does not have the shape of the bash template"* ]]
   [[ "$output" != *"locks/a.yaml does not"* ]]
   [[ "$output" != *"templates/bash/script does not"* ]]
-  [[ "$output" == *".kit/style/yaml.md: the shape of its templates over 0 path(s)"* ]]
+  [[ "$output" == *".kit/styles/yaml.md: the shape of its templates over 0 path(s)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

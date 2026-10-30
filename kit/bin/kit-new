@@ -97,11 +97,11 @@ fi
 if [[ -n "${rule_name}" ]]
 then
   # The templates are a style's, so a style of that name comes before a rule of that name.
-  rule=".kit/style/${rule_name}.md"
+  rule=".kit/styles/${rule_name}.md"
   [[ -f "${rule}" ]] || rule=".kit/rules/${rule_name}.md"
   if [[ ! -f "${rule}" ]]
   then
-    error "there is no rule ${rule_name}; the rules are: $(find .kit/rules .kit/style -maxdepth 1 -name '*.md' \
+    error "there is no rule ${rule_name}; the rules are: $(find .kit/rules .kit/styles -maxdepth 1 -name '*.md' \
       2>/dev/null | sed 's@^.*/@@; s/\.md$//' | LC_ALL=C sort -u | paste -s -d ' ' -)"
     exit 2
   fi

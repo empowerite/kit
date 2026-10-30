@@ -220,7 +220,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
   from its source.
 - On update, its files are compared with its own current source. An edit under `.kit/packages/` is never merged
   against a release.
-- `kit context` finds a rule file it places under `.kit/rules/`, or a style file under `.kit/style/`, like any
+- `kit context` finds a rule file it places under `.kit/rules/`, or a style file under `.kit/styles/`, like any
   other.
 
 ## This release's packages
@@ -228,14 +228,14 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
 | [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; regions in `AGENTS.md` and `.gitignore` |
-| [`style/bash`](packages/style.md) | no | `kit` | `.kit/style/bash.md` and the `script` and `module` templates |
-| [`style/markdown`](packages/style.md) | no | `kit` | `.kit/style/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
-| [`style/just`](packages/style.md) | no | `kit` | `.kit/style/just.md` and the `root` and `module` templates |
-| [`style/workflows`](packages/style.md) | no | `kit` | `.kit/style/workflows.md` and the `workflow` template |
-| [`style/yaml`](packages/style.md) | no | `kit` | `.kit/style/yaml.md` and the `document` template |
-| [`style/json`](packages/style.md) | no | `kit` | `.kit/style/json.md` |
-| [`style/gitignore`](packages/style.md) | no | `kit` | `.kit/style/gitignore.md` and the `file` and `region` templates |
-| [`style/prose`](packages/style.md) | no | `kit` | `.kit/style/prose.md`, which governs every file |
+| [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
+| [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
+| [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |
+| [`style/workflows`](packages/style.md) | no | `kit` | `.kit/styles/workflows.md` and the `workflow` template |
+| [`style/yaml`](packages/style.md) | no | `kit` | `.kit/styles/yaml.md` and the `document` template |
+| [`style/json`](packages/style.md) | no | `kit` | `.kit/styles/json.md` |
+| [`style/gitignore`](packages/style.md) | no | `kit` | `.kit/styles/gitignore.md` and the `file` and `region` templates |
+| [`style/prose`](packages/style.md) | no | `kit` | `.kit/styles/prose.md`, which governs every file |
 | [`hooks/lefthook`](packages/hooks/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |

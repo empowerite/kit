@@ -1,7 +1,7 @@
 # Bash modules
 
 The kit is written in bash. Its commands share code through bash modules, which a repository can extend with its
-own. The rule is [.kit/rules/bash.md](../.kit/rules/bash.md), the style [.kit/style/bash.md](../.kit/style/bash.md).
+own. The rule is [.kit/rules/bash.md](../.kit/rules/bash.md), the style [.kit/styles/bash.md](../.kit/styles/bash.md).
 
 A bash module is a sourced `.sh` file of functions. It is not a package: a package is what the kit delivers into a
 repository, under `kit/packages/`, described in [packages.md](packages.md).

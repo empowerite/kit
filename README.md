@@ -210,7 +210,7 @@ from the index. Do not edit them by hand:
 | Installed copy | Written from |
 | --- | --- |
 | `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/packages/kit/files/repo/.kit/` |
-| `.kit/style/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style/<kind>/files/repo/.kit/` |
+| `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style/<kind>/files/repo/.kit/` |
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
 | `.kit/lefthook.yml` | `kit/packages/hooks/lefthook/files/repo/.kit/lefthook.yml` |
 | `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |

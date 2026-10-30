@@ -6,14 +6,14 @@ repository takes the ones it agrees with.
 
 | Package | Delivers |
 | --- | --- |
-| `style/bash` | `.kit/style/bash.md`; the `script` and `module` templates under `.kit/templates/bash/` |
-| `style/markdown` | `.kit/style/markdown.md`; four templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
-| `style/just` | `.kit/style/just.md`; the `root` and `module` templates under `.kit/templates/just/` |
-| `style/workflows` | `.kit/style/workflows.md`; the `workflow` template under `.kit/templates/workflows/` |
-| `style/yaml` | `.kit/style/yaml.md`; the `document` template under `.kit/templates/yaml/` |
-| `style/json` | `.kit/style/json.md` |
-| `style/gitignore` | `.kit/style/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
-| `style/prose` | `.kit/style/prose.md`, which governs every file: plain sentences, the indicative to describe, the imperative to instruct |
+| `style/bash` | `.kit/styles/bash.md`; the `script` and `module` templates under `.kit/templates/bash/` |
+| `style/markdown` | `.kit/styles/markdown.md`; four templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
+| `style/just` | `.kit/styles/just.md`; the `root` and `module` templates under `.kit/templates/just/` |
+| `style/workflows` | `.kit/styles/workflows.md`; the `workflow` template under `.kit/templates/workflows/` |
+| `style/yaml` | `.kit/styles/yaml.md`; the `document` template under `.kit/templates/yaml/` |
+| `style/json` | `.kit/styles/json.md` |
+| `style/gitignore` | `.kit/styles/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
+| `style/prose` | `.kit/styles/prose.md`, which governs every file: plain sentences, the indicative to describe, the imperative to instruct |
 
 Each depends only on `kit`. The `empowerite` bundle includes all eight.
 

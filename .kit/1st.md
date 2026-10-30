@@ -80,7 +80,7 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 ## Rules by file type
 
 Each kind of file has a rule file under `.kit/rules/`. A rule says what the work must do to be trusted. A
-repository that takes a style package also has a style file for that kind under `.kit/style/`, which says how the
+repository that takes a style package also has a style file for that kind under `.kit/styles/`, which says how the
 file looks. Rule files and style files have the same frontmatter, with these keys:
 
 | Key | Contains |
@@ -130,7 +130,7 @@ The repository contains the text:
 
 - this file
 - the rules under `.kit/rules/`
-- the style under `.kit/style/`, from the style packages the repository takes
+- the style under `.kit/styles/`, from the style packages the repository takes
 - `.kit/manifest`, which records the release version, the active packages, and the digest of each delivered file
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
@@ -158,10 +158,10 @@ The packages:
   - the sentence in the repository's `AGENTS.md` that points to this file
   - the `/worktrees/` entry in the repository's `.gitignore`
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
-  `style/gitignore`: the style for one kind of file each, under `.kit/style/`, and the kind's templates (JSON has
+  `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
   the ones it agrees with, or writes its own.
-- `style/prose`: `.kit/style/prose.md`, the style of prose in every file, documents and comments alike.
+- `style/prose`: `.kit/styles/prose.md`, the style of prose in every file, documents and comments alike.
   `kit context` prints it after the rule and the style for the file's kind.
 - `hooks/lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
