@@ -1,0 +1,49 @@
+# forge.test - the forge jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. Every case
+# fixes the time as $now, 1000000 seconds after the epoch.
+
+# A time reads the same with or without fractional seconds.
+import "forge" as forge; map(forge::epoch)
+["1970-01-12T13:46:40Z", "1970-01-12T13:46:40.123Z"]
+[1000000,1000000]
+
+# Of two runs of one name, the later counts, so a rerun that passed supersedes the run that failed.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "test", "verdict": "failed", "at": "a", "since": 1, "took": 5}, {"name": "test", "verdict": "passed", "at": "b", "since": 2, "took": 50}, {"name": "lint", "verdict": "passed", "at": "a", "since": 1, "took": 9}]
+{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50}
+
+# A failed check makes the state FAILURE, and failing names the first, by name.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "zeta", "verdict": "failed", "at": "", "since": null, "took": 3}, {"name": "beta", "verdict": "failed", "at": "", "since": null, "took": 4}]
+{"state":"FAILURE","passed":0,"total":2,"failing":"beta","took":4}
+
+# While a check is pending, took is the wait since the earliest pending run started.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "a", "verdict": "pending", "at": "", "since": 999900, "took": null}, {"name": "b", "verdict": "pending", "at": "", "since": 999990, "took": null}]
+{"state":"PENDING","passed":0,"total":2,"failing":"","took":100}
+
+# With no runs, the state is NONE and took is null.
+import "forge" as forge; forge::checks(1000000)
+[]
+{"state":"NONE","passed":0,"total":0,"failing":"","took":null}
+
+# The first state that holds wins: a draft is a draft, whatever its checks.
+import "forge" as forge; map(forge::state)
+[{"draft": true, "checks": {"state": "FAILURE"}}, {"draft": false, "checks": {"state": "PENDING"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 1, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": false}]
+["draft","queued","conflicted","comments:open","blocked:approval","ready"]
+
+# A GitHub check run is pending until it completes, and a status context's EXPECTED is pending too.
+import "forge" as forge; forge::github_runs | map([.name, .verdict, .took])
+[{"__typename": "CheckRun", "name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "1970-01-12T13:45:00Z", "completedAt": "1970-01-12T13:46:40Z"}, {"__typename": "CheckRun", "name": "lint", "status": "IN_PROGRESS", "conclusion": null, "startedAt": "1970-01-12T13:45:00Z", "completedAt": null}, {"__typename": "StatusContext", "context": "ci/legacy", "state": "EXPECTED", "createdAt": "1970-01-12T13:45:00Z"}, {"__typename": "CheckRun", "name": "skipped", "status": "COMPLETED", "conclusion": "SKIPPED", "startedAt": null, "completedAt": null}, {"__typename": "StatusContext", "context": "ci/other", "state": "ERROR", "createdAt": "1970-01-12T13:45:00Z"}]
+[["test","passed",100],["lint","pending",null],["ci/legacy","pending",null],["skipped","passed",null],["ci/other","failed",null]]
+
+# A GitLab job that is manual or skipped has passed, and one that is running is pending.
+import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
+[{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00.5Z", "finished_at": "1970-01-12T13:46:40.5Z"}, {"name": "deploy", "status": "manual", "started_at": null, "finished_at": null, "created_at": "1970-01-12T13:45:00Z"}, {"name": "lint", "status": "running", "started_at": "1970-01-12T13:45:00Z", "finished_at": null}, {"name": "build", "status": "failed", "started_at": null, "finished_at": null}]
+[["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
+
+# A merge request folds into the document, with its ref written !<iid>.
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing"}])
+{"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing"}]}

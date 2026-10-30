@@ -135,19 +135,11 @@ forge-github:pr-closing-issues() {
 }
 
 # forge-github:open-prs makes one GraphQL request for every open pull request, with the issues it closes, its
-# review threads, and the checks on its head commit. It prints one JSON object per pull request, the document
-# kit status renders. The fields:
-#
-#   number, ref, branch, title, author, createdAt
-#   age         seconds since the pull request was created
-#   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
-#   checks      {state, passed, total, failing, took}. Of several runs of one name on the head commit, as after a
-#               rerun, only the latest counts. took is the slowest of those runs' own durations in seconds, the
-#               wait so far while one is pending, or null.
-#   unresolved  the number of unresolved review threads
-#   closes      [{number, title}] of the issues it closes
+# review threads, and the checks on its head commit. It prints one JSON object per pull request: the document kit
+# status renders, which modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit,
+# as after a rerun, only the latest counts.
 forge-github:open-prs() {
-  local repo query filter
+  local repo query answer
   repo=$(forge-github:repo) || return 1
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -166,44 +158,11 @@ forge-github:open-prs() {
       }
     }
   }'
-  filter='
-    def verdict: if .__typename == "CheckRun" then (if .status == "COMPLETED" then .conclusion else "PENDING" end)
-                 else .state end;
-    def pending: IN("PENDING", "EXPECTED");
-    def passed: IN("SUCCESS", "NEUTRAL", "SKIPPED");
-    (now | floor) as $now
-    | .data.repository.pullRequests.nodes[]
-    | ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?]
-       | group_by(.name // .context) | map(sort_by(.startedAt // .createdAt // "") | last)) as $checks
-    | ($checks | length) as $n
-    | ([$checks[] | verdict | select(pending)] | length) as $running
-    | ([$checks[] | verdict | select(passed)] | length) as $ok
-    | ([$checks[] | select((verdict | pending or passed) | not) | (.name // .context)] | first // "") as $failing
-    | (if $n == 0 then "NONE" elif $failing != "" then "FAILURE" elif $running > 0 then "PENDING" else "SUCCESS" end)
-      as $check
-    | ([$checks[] | select(verdict | pending) | .startedAt // .createdAt // empty | fromdateiso8601] | min)
-      as $waiting
-    | ([$checks[] | select(.startedAt != null and .completedAt != null)
-        | (.completedAt | fromdateiso8601) - (.startedAt | fromdateiso8601)] | max) as $longest
-    | (if $check == "PENDING" then (if $waiting == null then null else $now - $waiting end)
-       else $longest end) as $took
-    | ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length) as $unresolved
-    | (if .isDraft then "draft"
-       elif $check == "PENDING" then "queued"
-       elif .mergeStateStatus == "DIRTY" then "conflicted"
-       elif $check == "FAILURE" then "failing:gate"
-       elif $check == "NONE" then "no-check"
-       elif $unresolved > 0 then "comments:open"
-       elif (.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED") then "blocked:approval"
-       else "ready" end) as $state
-    | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
-        age: ($now - (.createdAt | fromdateiso8601)), state: $state,
-        checks: { state: $check, passed: $ok, total: $n, failing: $failing, took: $took },
-        unresolved: $unresolved,
-        closes: [.closingIssuesReferences.nodes[] | { number, title }] }
-    | tojson'
-  gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" --jq "${filter}" \
-    2>/dev/null || { error "run: gh auth status (the pull requests could not be read)"; return 1; }
+  answer=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" \
+    2>/dev/null) || { error "run: gh auth status (the pull requests could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_prs($now)' \
+    <<<"${answer}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
