@@ -53,12 +53,15 @@ see: [architecture.md](architecture.md#the-checks), [policy.md](policy.md)
 
 ## Templates
 
-- A style package delivers templates for its kind of file, such as a bash script, a justfile, or a workflow.
-- `kit new file "${path}"` creates a file from the template of the style that governs it, fills its holes from the
-  path and from flags, and prints the rules to read before writing the rest.
-- `kit lint` checks that every governed file still has the shape of one of its templates, and names the line where a
-  file leaves it.
-- A repository changes a template by replacing it through a package of its own, as it replaces any delivered file.
+A template is a file written in kit's template language, which has one construct: the hole, `«name»`. The same
+template both generates files and validates them.
+
+- `kit new file "${path}"` generates a file from the template of the style that governs it. It fills the holes from
+  the path and from flags, and prints the rules to read before writing the rest.
+- `kit lint` validates every governed file against its style's templates, and names the line where a file leaves the
+  closest one.
+- A style package delivers the templates for its kind of file, such as a bash script, a justfile, or a workflow. A
+  repository replaces one through a package of its own, as it replaces any delivered file.
 
 see: [templates.md](templates.md)
 
