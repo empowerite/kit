@@ -162,7 +162,8 @@ forge-gitlab:pr-closing-issues() {
 
 # forge-gitlab:open-prs prints one JSON object per open merge request, the document kit status renders. The fields
 # match forge-github:open-prs: number, ref, branch, title, author, createdAt, age, state, checks {state, passed,
-# total, failing, took}, unresolved, and closes. GitLab's REST API needs four reads per merge request:
+# total, failing, took}, unresolved, and closes. Of several jobs of one name in the pipeline, as after a retry, only
+# the latest counts, and took is the slowest of those jobs' own durations, or the wait so far while one is pending. GitLab's REST API needs four reads per merge request:
 #
 #   - the merge request
 #   - its pipeline's jobs
@@ -186,18 +187,20 @@ forge-gitlab:open-prs() {
       def pending: IN("created", "pending", "running", "preparing", "waiting_for_resource", "scheduled");
       def passed: IN("success", "skipped", "manual");
       (now | floor) as $now
-      | ($jobs | length) as $n
-      | ([$jobs[] | select(.status | pending)] | length) as $running
-      | ([$jobs[] | select(.status | passed)] | length) as $ok
-      | ([$jobs[] | select((.status | pending or passed) | not) | .name] | first // "") as $failing
+      | ($jobs | group_by(.name) | map(sort_by(.started_at // .created_at // "") | last)) as $latest
+      | ($latest | length) as $n
+      | ([$latest[] | select(.status | pending)] | length) as $running
+      | ([$latest[] | select(.status | passed)] | length) as $ok
+      | ([$latest[] | select((.status | pending or passed) | not) | .name] | first // "") as $failing
       | (if $n == 0 then "NONE" elif $failing != "" then "FAILURE" elif $running > 0 then "PENDING" else "SUCCESS" end)
         as $check
-      | ([$jobs[] | .started_at // empty | sub("\\.[0-9]+"; "") | fromdateiso8601] | min) as $started
-      | ([$jobs[] | .finished_at // empty | sub("\\.[0-9]+"; "") | fromdateiso8601] | max) as $completed
-      | (if $started == null then null
-         elif $check == "PENDING" then $now - $started
-         elif $completed == null then null
-         else $completed - $started end) as $took
+      | ([$latest[] | select(.status | pending) | .started_at // .created_at // empty | sub("\\.[0-9]+"; "")
+          | fromdateiso8601] | min) as $waiting
+      | ([$latest[] | select(.started_at != null and .finished_at != null)
+          | (.finished_at | sub("\\.[0-9]+"; "") | fromdateiso8601)
+            - (.started_at | sub("\\.[0-9]+"; "") | fromdateiso8601)] | max) as $longest
+      | (if $check == "PENDING" then (if $waiting == null then null else $now - $waiting end)
+         else $longest end) as $took
       | ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length) as $unresolved
       | (if $mr.draft then "draft"
          elif $check == "PENDING" then "queued"

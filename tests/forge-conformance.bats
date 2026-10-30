@@ -4,7 +4,8 @@
 #
 # One world, seen through each forge's own API: the repository empowerite/example, the caller ada, issue 7 "Fix
 # the thing" assigned to bob, and change 3 on branch 7-fix-the-thing, opened by ada, closing issue 7, with two
-# checks that passed in a minute and one unresolved review thread. Each provider is driven by tests/fakes/fake-tool
+# checks that passed, the slower in fifty seconds, a failed run of one of them from the day before that a rerun
+# superseded, and one unresolved review thread. Each provider is driven by tests/fakes/fake-tool
 # standing in for its tool, so what is proven is the provider's own folding of its forge's answers into the seam's
 # shape. What only a real forge can prove, that the API answers as the fixtures do, is not proven here.
 
@@ -73,6 +74,8 @@ JSON
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing"}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
+    {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
+     "startedAt": "2026-09-30T10:00:00Z", "completedAt": "2026-09-30T10:05:00Z"},
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "SUCCESS",
      "startedAt": "2026-10-01T10:00:00Z", "completedAt": "2026-10-01T10:00:30Z"},
     {"__typename": "CheckRun", "name": "b", "status": "COMPLETED", "conclusion": "SUCCESS",
@@ -110,7 +113,9 @@ world-gitlab() {
  "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"}}
 JSON
   fixture jobs.json <<'JSON'
-[{"name": "a", "status": "success",
+[{"name": "a", "status": "failed",
+  "started_at": "2026-09-30T10:00:00.000Z", "finished_at": "2026-09-30T10:05:00.000Z"},
+ {"name": "a", "status": "success",
   "started_at": "2026-10-01T10:00:00.120Z", "finished_at": "2026-10-01T10:00:30.000Z"},
  {"name": "b", "status": "success",
   "started_at": "2026-10-01T10:00:10.000Z", "finished_at": "2026-10-01T10:01:00.450Z"}]
@@ -187,7 +192,7 @@ JSON
 
 @test "every provider folds its open changes into the one document kit status draws" {
   expected='{"number":3,"branch":"7-fix-the-thing","title":"Fix the thing","author":"ada",'
-  expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":60},'
+  expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
   expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing"}]}'
   for forge in github gitlab
   do

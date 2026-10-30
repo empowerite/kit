@@ -408,6 +408,9 @@ status:checkout-block() {
 #   - failed: "❌ <failing> failing <passed> / <total> <took>"
 #   - running: "🏃 <passed> / <total> <elapsed>"
 #
+# <took> is the slowest check's own duration, and <elapsed> how long the pending one has waited. A check that ran
+# again counts once, by its latest run.
+#
 # It prints nothing when no check has reported.
 status:check-cell() {
   local state passed total failing took text
