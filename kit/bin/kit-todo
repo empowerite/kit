@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# kit-todo - lists the forge's open issues, oldest first, and what is already in flight for each (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit todo [--json] [--mine | --all | --owner=<login>…]
+#
+# Lists every open issue of the repository on its forge, oldest first: its reference, title, assignees, and age, then
+# what is already in flight for it: an open change that closes it, a branch for it on origin, or nothing. An issue
+# with nothing in flight is one to pick up with kit issue <N>.
+#
+#   --json            prints the same facts as one JSON array; each issue carries inflight: {change, branch}, or null
+#   --mine            the issues assigned to the caller
+#   --all             every open issue (the default)
+#   --owner=<login>   the issues assigned to the named login; give it once or more
+#
+# see: modules/bash/todo.sh, modules/bash/forge.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use todo
+
+guard:require tool:git tool:jq
+todo:render "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------
