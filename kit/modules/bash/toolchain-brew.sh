@@ -43,11 +43,9 @@ toolchain-brew:outdated() {
   brew=$(toolchain-brew:brew) || return 1
   names=$("${brew}" bundle list --file "$(toolchain-brew:file)" --formula --cask 2>/dev/null) || return 1
   doc=$("${brew}" outdated --json=v2 2>/dev/null) || return 1
-  jq --raw-output --arg names "${names}" '
-    ($names | split("\n") | map(select(. != ""))) as $wanted
-    | (.formulae + .casks)[]
-    | select(.name as $n | $wanted | index($n))
-    | "\(.name)\t\(.installed_versions | last)\t\(.current_version)"' <<<"${doc}"
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --raw-output --arg names "${names}" \
+    'import "toolchain" as toolchain; toolchain::brew_outdated($names)' <<<"${doc}"
 }
 
 toolchain-brew:update() {

@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # status.sh - shows the checkouts and the open pull requests in progress (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # status:render [--no-fetch] [--json] [--mine | --all | --owner=<login>…] prints the checkouts and the open pull
 # requests. It changes nothing.
@@ -274,15 +275,11 @@ status:checkout() {
   {
     [[ -n "${fork}" ]] && git -C "${path}" log --format='%h%x09%s' "${fork}..${branch}" 2>/dev/null
     true
-  } | jq --raw-input --slurp --compact-output \
+  } | jq -L "${kit_jq}" --raw-input --slurp --compact-output \
     --arg path "${path}" --arg relative "$(status:relative "${path}")" --arg branch "${branch}" \
     --argjson ahead "${ahead}" --argjson behind "${behind}" --argjson added "${added}" --argjson removed "${removed}" \
-    --arg changes "${changes}" '
-    [$changes | split("\n")[] | select(. != "") | { status: .[0:2], path: .[3:] }] as $changes
-    | { path: $path, relative: $relative, branch: $branch, detached: ($branch == ""),
-        ahead: $ahead, behind: $behind, added: $added, removed: $removed, uncommitted: ($changes | length),
-        changes: $changes,
-        commits: [split("\n")[] | select(. != "") | split("\t") | { sha: .[0], subject: (.[1:] | join("\t")) }] }'
+    --arg changes "${changes}" \
+    'import "status" as status; status::checkout($ARGS.named | del(.changes); $changes)'
 }
 
 # status:label <relative> <branch> prints a checkout's label and its plain width, tab-separated. The label is:
@@ -348,9 +345,7 @@ status:measures() {
 # status:count-widths <checkout-json>… prints the widest "↑a", "↓b", "+x", and "-y" across the checkouts, as four
 # numbers on one line.
 status:count-widths() {
-  printf '%s\n' "$@" | jq --raw-output --slurp '
-    [ (map(.ahead) | max), (map(.behind) | max), (map(.added) | max), (map(.removed) | max) ]
-    | map(tostring | length + 1) | join(" ")'
+  printf '%s\n' "$@" | jq -L "${kit_jq}" --raw-output --slurp 'import "status" as status; status::widths'
 }
 
 # status:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout:
@@ -378,12 +373,8 @@ status:checkout-block() {
     else
       printf '   %s %s\n' "$(status:paint 33 "${code}")" "${path}" >&2
     fi
-  done < <(jq --raw-output --argjson cap "${status_commit_cap}" '
-    (.changes // []) as $c | ($c | length) as $n
-    | (if $n > $cap + 1
-       then ($c[:$cap][] | [.status, .path]), ["…", "and \($n - $cap) more"]
-       else $c[] | [.status, .path] end)
-    | join("\u001f")' <<<"${doc}")
+  done < <(jq -L "${kit_jq}" --raw-output --argjson cap "${status_commit_cap}" \
+    'import "status" as status; status::changes_shown($cap) | join("\u001f")' <<<"${doc}")
   while IFS=$'\t' read -r sha subject
   do
     [[ -n "${sha}" ]] || continue
@@ -393,13 +384,8 @@ status:checkout-block() {
     else
       printf '   %s %s\n' "$(status:paint 90 "${sha}")" "${subject}" >&2
     fi
-  done < <(jq --raw-output --argjson cap "${status_commit_cap}" '
-    (.commits | length) as $n
-    | (if $n > $cap + 1
-       then (.commits[:$cap - 1][] | [.sha, .subject]), ["…", "and \($n - $cap) more"],
-            (.commits[-1] | [.sha, .subject])
-       else .commits[] | [.sha, .subject] end)
-    | @tsv' <<<"${doc}")
+  done < <(jq -L "${kit_jq}" --raw-output --argjson cap "${status_commit_cap}" \
+    'import "status" as status; status::commits_shown($cap) | @tsv' <<<"${doc}")
 }
 
 # status:check-cell <checks-json> prints the checks cell, with the duration dim:
@@ -469,7 +455,7 @@ status:render() {
       (--all) choice=all ;;
       (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
       (*)
-        error "unknown flag '${arg}' (usage: kit status [--no-fetch] [--json] [--mine | --all | --owner=<login>…])"
+        error "unknown flag '${arg}'; run: kit help status"
         return 2
     esac
   done

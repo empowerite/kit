@@ -1,0 +1,34 @@
+# status.test - the status jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A checkout's document holds its facts, its uncommitted paths with their two-character status, and its commits; a
+# subject keeps a tab it contains.
+import "status" as status; status::checkout({path: "/r/wt", relative: "wt", branch: "7-x", ahead: 2, behind: 0, added: 3, removed: 1}; " M a.sh\n?? new file.md\n")
+"abc1234\tsecond\tpart\ndef5678\tfirst\n"
+{"path":"/r/wt","relative":"wt","branch":"7-x","ahead":2,"behind":0,"added":3,"removed":1,"detached":false,"uncommitted":2,"changes":[{"status":" M","path":"a.sh"},{"status":"??","path":"new file.md"}],"commits":[{"sha":"abc1234","subject":"second\tpart"},{"sha":"def5678","subject":"first"}]}
+
+# A checkout with no branch is detached, and one with nothing to show has empty lists.
+import "status" as status; status::checkout({branch: ""}; "") | [.detached, .uncommitted, .changes, .commits]
+""
+[true,0,[],[]]
+
+# A column is as wide as its widest count, with one more for its arrow or sign.
+import "status" as status; status::widths
+[{"ahead": 2, "behind": 0, "added": 120, "removed": 7}, {"ahead": 15, "behind": 3, "added": 4, "removed": 0}]
+"3 2 4 2"
+
+# Paths up to the cap and one more are shown whole, so a count never stands in for a single path.
+import "status" as status; [status::changes_shown(2)]
+{"changes": [{"status": " M", "path": "a"}, {"status": " M", "path": "b"}, {"status": " M", "path": "c"}]}
+[[" M","a"],[" M","b"],[" M","c"]]
+
+# Past that, the first paths up to the cap are shown, then a count of the rest.
+import "status" as status; [status::changes_shown(2)]
+{"changes": [{"status": " M", "path": "a"}, {"status": " M", "path": "b"}, {"status": " M", "path": "c"}, {"status": "??", "path": "d"}]}
+[[" M","a"],[" M","b"],["…","and 2 more"]]
+
+# Past the cap and one more, the newest commits are shown, then a count, then the oldest, at the fork.
+import "status" as status; [status::commits_shown(3)]
+{"commits": [{"sha": "e", "subject": "5"}, {"sha": "d", "subject": "4"}, {"sha": "c", "subject": "3"}, {"sha": "b", "subject": "2"}, {"sha": "a", "subject": "1"}]}
+[["e","5"],["d","4"],["…","and 2 more"],["a","1"]]

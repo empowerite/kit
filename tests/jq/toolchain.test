@@ -1,0 +1,13 @@
+# toolchain.test - the toolchain jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# Only the Brewfile's formulae and casks count, with the latest installed version beside the current one.
+import "toolchain" as toolchain; [toolchain::brew_outdated("jq\nfirefox\n")]
+{"formulae": [{"name": "jq", "installed_versions": ["1.7", "1.7.1"], "current_version": "1.8.2"}, {"name": "wget", "installed_versions": ["1.0"], "current_version": "1.1"}], "casks": [{"name": "firefox", "installed_versions": ["130"], "current_version": "131"}]}
+["jq\t1.7.1\t1.8.2","firefox\t130\t131"]
+
+# A Brewfile with nothing outdated gives nothing.
+import "toolchain" as toolchain; [toolchain::brew_outdated("jq\n")]
+{"formulae": [{"name": "wget", "installed_versions": ["1.0"], "current_version": "1.1"}], "casks": []}
+[]

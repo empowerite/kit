@@ -152,8 +152,17 @@ use <module>
 
 ## jq modules
 
-Much of the kit's logic is jq: matching a file against a template, rendering one, folding a forge's answers into
-one shape. A jq program longer than a line belongs in a jq module, where it is tested as jq, not quoted inside bash.
+Much of the kit's logic is jq. A jq program that decides something, by folding, merging, matching, or selecting,
+belongs in a jq module, where it is tested as jq, not quoted inside bash. Reading a field, or building an object
+from arguments, stays inline where it is used.
+
+| Module | Decides |
+| --- | --- |
+| `template.jq` | the expression that checks a file against a template, and the file a template makes |
+| `forge.jq` | a pull request's checks and state, from either forge's answers |
+| `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
+| `status.jq` | a checkout's document, and what of it fits on the screen |
+| `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:
