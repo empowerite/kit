@@ -5,7 +5,7 @@
 # the same thing can be run on a laptop:
 #
 #   bin/release verify    checks the tag. A release tag, release/0.1.0, must point at a commit on main. A
-#                         pre-release tag, release/0.1.0-rc.1, must point at a commit that is not on main. Any
+#                         pre-release tag, release/0.1.0-rc.1, may point at any commit, on main or off it. Any
 #                         other tag is refused.
 #   bin/release publish     packs kit/ into kit-<version>.tar.gz, writes the version after release/ into
 #                         it, and publishes it as a GitHub release named by that version. A version with a
@@ -13,8 +13,8 @@
 #
 # GitHub does not let a published release change, so a version is tagged once and never again. A release is
 # published here and nowhere else: bin/release publish refuses a release tag anywhere but on the runner, so a
-# desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted when the branch it
-# was tagged on is deleted; see retire-pre-releases.yml.
+# desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted once no branch reaches
+# its commit, as when the branch it was tagged on is deleted; see retire-pre-releases.yml.
 #
 # see: bin/release
 

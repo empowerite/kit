@@ -239,23 +239,22 @@ serves as the notice for `settings.json`.
 ## Release
 
 - A release is the tag `release/<version>` on any commit on `main`, not only the latest one.
-- A pre-release is `release/<version>-<suffix>`, such as `release/0.1.0-rc.1`, on a commit that is not on `main`.
-  It is published as a GitHub pre-release.
+- A pre-release is `release/<version>-<suffix>`, such as `release/0.1.0-rc.1`, on any commit, on `main` or off it. It
+  is published as a GitHub pre-release.
 - The tag is the version. The repository has no version file. The release workflow writes the part after `release/`
   into the packed kit and names the release after it.
 - Published releases are immutable, so a tag is never reused.
 
 The release workflow runs two commands:
 
-1. `bin/release verify` rejects a tag that is not `release/<version>`, a release tag on a commit not on `main`, and a
-   pre-release tag on a commit on `main`.
+1. `bin/release verify` rejects a tag that is not `release/<version>`, and a release tag on a commit not on `main`.
 2. `bin/release publish` packs `kit/` (`bin/`, `bash/`, and `packages/`) and `version` into
    `kit-<version>.tar.gz` and publishes it.
 
 `bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but
 the CI runner, so only the workflow publishes releases. A pre-release can be published from a developer machine.
 
-A release is permanent. A pre-release is deleted, tag and all, once the branch it was tagged on is deleted and no
-other branch contains its commit.
+A release is permanent. A pre-release is deleted, tag and all, once no branch contains its commit, which is what
+deleting the branch it was tagged on does. A pre-release on `main` stays.
 
 The branch ruleset is managed in [empowerite/infrastructure](https://github.com/empowerite/infrastructure).

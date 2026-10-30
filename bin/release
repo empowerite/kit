@@ -9,8 +9,8 @@
 # same subcommands.
 #
 #   verify <tag>              checks the tag. A release tag is release/<major>.<minor>.<patch>, on the default
-#                             branch. A pre-release tag adds -<suffix>, and is on a commit off the default
-#                             branch. Any other tag is refused, with the reason.
+#                             branch. A pre-release tag adds -<suffix>, and may be on any commit, the default
+#                             branch included. Any other tag is refused, with the reason.
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
 #                             directory). The tarball holds one directory, kit-<version>/, with bin/, bash/, packages/,
 #                             and a version file.
@@ -19,8 +19,8 @@
 #                             pushed tag starts. A desk may publish a pre-release.
 #   retire [<branch>]         deletes every pre-release whose commit no remaining branch reaches. It runs after
 #                             <branch> is deleted. Default: the branch in the runner's delete event. A pre-release
-#                             merged by a merge commit stays reachable from the default branch, so it is kept. A
-#                             squash merge leaves it unreachable, so it is deleted.
+#                             tagged on the default branch, or merged into it by a merge commit, stays reachable,
+#                             so it is kept. A squash merge leaves it unreachable, so it is deleted.
 #
 # A release is permanent. Only a pre-release is ever retired.
 #
@@ -68,16 +68,14 @@ case "${verb}" in
     default_branch=$(git:default-branch)
     on_default=false
     git merge-base --is-ancestor "${tag}" "origin/${default_branch}" 2>/dev/null && on_default=true
-    if [[ "${version}" == *-* && "${on_default}" == true ]]
-    then
-      refuse-tag "${tag} is a pre-release tag on ${default_branch}; tag a pre-release on a commit off it"
-    fi
     if [[ "${version}" != *-* && "${on_default}" == false ]]
     then
       refuse-tag "${tag} is not on ${default_branch}; a release is tagged there, a pre-release has a suffix"
     fi
-    ok "${tag} is a version tag on the right side of ${default_branch} (on it: ${on_default})"
-    summary "✅ ${tag} is a version tag on the right side of ${default_branch}."
+    kind=release
+    [[ "${version}" == *-* ]] && kind=pre-release
+    ok "${tag} is a ${kind} tag (on ${default_branch}: ${on_default})"
+    summary "✅ ${tag} is a ${kind} tag (on ${default_branch}: ${on_default})."
     ;;
   (pack)
     (( $# >= 1 && $# <= 2 )) || { usage; exit 2; }

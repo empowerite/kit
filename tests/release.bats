@@ -15,7 +15,7 @@ teardown() {
   rm -rf "${work}"
 }
 
-@test "verify holds a tag to its shape and its side of the default branch" {
+@test "verify holds a tag to its shape, and a release tag to the default branch" {
   git init --quiet --bare --initial-branch=main origin.git && git clone --quiet origin.git desk 2>/dev/null && cd desk
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
@@ -28,8 +28,7 @@ teardown() {
   run "${repo_bin}/release" verify release/1.2.4-rc.1
   [ "$status" -eq 0 ]
   run "${repo_bin}/release" verify release/1.2.3-rc.1
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"is a pre-release tag on main"* ]]
+  [ "$status" -eq 0 ]
   run "${repo_bin}/release" verify release/1.2.4
   [ "$status" -eq 1 ]
   [[ "$output" == *"is not on main"* ]]
