@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# kit-commit - commits what is staged, after the checks a commit's rule requires (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit commit [--all] (--message <text>… | --file <path>) [<path>…]
+#
+# Commits in a worktree, never on the desk or the default branch. Before the commit exists, kit commit:
+#
+#   - refuses when nothing is staged, and refuses a staged path the kit placed under .kit/
+#   - runs kit lint and kit generate --check over the staged paths, with no hook manager needed
+#   - supplies the issue's reference from the branch when the subject carries none, 7-fix-the-thing giving #7, and
+#     judges the subject by the repository's policy, as kit policy judges it in CI
+#   - warns when commits here are not signed
+#
+#   --all              stages every change to a tracked file first, as git commit --all does
+#   --message <text>   the message; given twice or more, the first is the subject and the rest are paragraphs
+#   --file <path>      reads the message from a file, whose first line is the subject
+#   <path>…            commits those paths alone, as git commit -- <path>… does; each must be known to git
+#
+# kit commit opens no editor. Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.
+#
+# see: modules/bash/commit.sh, kit-submit
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use commit
+
+guard:require tool:git tool:jq
+commit:commit "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

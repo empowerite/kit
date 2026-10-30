@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# kit-submit - commits what is staged, as kit commit does, then pushes the branch (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit submit [--all] [--message <text>… | --file <path>] [<path>…]
+#
+# Runs in a worktree, never on the desk or the default branch. When something is staged, or --all or <path>… say what
+# to take, kit submit commits it as kit commit does, with the same checks and the same options. Then it pushes the
+# branch to origin, setting the upstream on the first push. With nothing to commit and nothing to push, it says so.
+#
+# kit submit never forces. When origin has commits this branch lacks, the push is refused and the remedy is kit
+# rebase, so a conflict with the default branch never blocks sharing the work that was done.
+#
+# Exits 0 when the branch is at origin, 1 on a refusal, and 2 on a usage error.
+#
+# see: modules/bash/commit.sh, kit-commit, kit-rebase
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use commit
+
+guard:require tool:git tool:jq
+commit:submit "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------
