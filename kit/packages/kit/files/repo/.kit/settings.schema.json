@@ -31,6 +31,15 @@
       "type": "boolean",
       "description": "When true, kit issue fails before writing anything if git has no signing key configured."
     },
+    "linked_exempt": {
+      "type": "array",
+      "description": "Logins whose changes kit linked passes without a linked issue, and kit policy passes without checking the branch, the commits, or the title, each saying so by name: a bot such as dependabot[bot], whose changes have no issue and never will. One login per line under the key.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "answers": {
       "type": "object",
       "additionalProperties": false,

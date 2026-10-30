@@ -22,7 +22,7 @@ kit policy
   "branch": "7-fix-the-thing",
   "default_branch": "main",
   "commits": [{"sha": "56d4f4b…", "subject": "#7 cli: fix the thing"}],
-  "change": {"number": 3, "title": "Fix the thing", "body": "Closes #7"},
+  "change": {"number": 3, "title": "Fix the thing", "body": "Closes #7", "author": "ada"},
   "policy": {"branch": "…", "commit_subject": "…", "change_title": "…"}
 }
 ```
@@ -32,7 +32,7 @@ kit policy
 | `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
-| `change` | The change's number, title, and body, read through the forge (the service that hosts the repository). `null` when there is no forge or no change. |
+| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change. |
 | `policy` | The patterns, with the kit's defaults filled in. |
 
 ## The rules
@@ -42,6 +42,9 @@ kit policy
 - A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`.
 - An empty pattern turns that rule off.
 - A subject the kit does not know is refused.
+- A change whose author is a login under `linked_exempt` in `.kit/settings.yml` passes with no rule checked, and
+  `kit policy` says so by name. Its branch, its commits, and its title are a bot's, such as `dependabot[bot]`'s,
+  and the same setting passes the change through `kit linked`; see [packages.md](packages.md#settings).
 
 | Subject | Checks | Default |
 | --- | --- | --- |

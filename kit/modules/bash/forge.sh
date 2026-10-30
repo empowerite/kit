@@ -36,6 +36,7 @@
 #   pr-title <n>                  the pull request's title
 #   pr-body <n>                   the pull request's body
 #   pr-set-body <n> <body>        replaces it
+#   pr-author <n>                 the login of the change's author, as the forge shows it: dependabot[bot]
 #   pr-state-for-branch <branch>  MERGED, CLOSED, or OPEN for the latest pull request on the branch, or nothing
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
@@ -108,6 +109,7 @@ forge:pr-create()           { forge:call pr-create "$@"; }
 forge:pr-title()            { forge:call pr-title "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
 forge:pr-set-body()         { forge:call pr-set-body "$@"; }
+forge:pr-author()           { forge:call pr-author "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }
 forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }

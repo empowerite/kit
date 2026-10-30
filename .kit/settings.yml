@@ -1,6 +1,9 @@
 # yaml-language-server: $schema=settings.schema.json
 require_signing: true
 gate: bin/ci
+# Dependabot's pull requests have no issue and never will; kit linked and kit policy pass them by this name.
+linked_exempt:
+  - dependabot[bot]
 # The commit-subject rule is off for the history of #1, the first release, whose early commits predate it. Remove
 # this comment and the two lines below once that pull request merges, and the kit's default applies again.
 policy:

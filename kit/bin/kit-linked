@@ -11,7 +11,12 @@
 # open and belongs to this repository. A closed issue, or one in another repository, is reported and does not
 # count. On a CI runner, the remedy is also written to the step summary.
 #
-# Exits 0 when at least one linked issue counts, 1 when none does, and 2 when there is no pull request to check.
+# A pull request by a login the repository lists under linked_exempt in .kit/settings.yml passes without an issue,
+# and the output names the exemption. That is for a bot such as dependabot[bot], whose pull requests have no issue
+# and never will. The repository says which logins it trusts that way; the kit decides nothing for it.
+#
+# Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, and 2 when there is
+# no pull request to check.
 #
 # see: modules/bash/forge.sh
 
@@ -19,7 +24,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use forge tracker
+use forge tracker release yaml
 
 if (( $# > 0 )) && [[ ! "$1" =~ ^[0-9]+$ ]]
 then
@@ -43,6 +48,19 @@ remedy=$(printf '%s\n' \
   "1. add a line \`Closes <reference>\` to its description for each open issue it resolves, #7 or AB#4521" \
   "2. re-run the check: linking fires no event, so it does not re-run on its own" "" \
   "\`kit issue <N>\` makes this link when it starts the work.")
+# The author is asked for only when a login is exempt, so a repository with none makes no extra call.
+readarray -t exempt < <(yaml:list "$(release:settings)" linked_exempt)
+if (( ${#exempt[@]} > 0 ))
+then
+  author=$(forge:pr-author "${number}") || exit 1
+  for login in "${exempt[@]}"
+  do
+    [[ -n "${login}" && "${login}" == "${author}" ]] || continue
+    ok "${change} is ${author}'s, exempt from the linked-issue check by .kit/settings.yml"
+    summary "✅ The ${change} is ${author}'s, exempt from the linked-issue check by .kit/settings.yml."
+    exit 0
+  done
+fi
 refs=$(forge:pr-closing-issues "${number}") || exit 1
 # The forge does not link issues of other trackers, such as Azure DevOps. A closing keyword in the pull request's
 # body links them: `Closes AB#4521`.

@@ -45,8 +45,12 @@ branch() {
 change() {
   grep --quiet '^forge:' .kit/settings.yml 2>/dev/null || printf 'forge: github\n' >> .kit/settings.yml
   fixture pr.json <<<"{\"number\": 3, \"title\": \"$1\", \"body\": \"Closes #7\"}"
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example"}'
+  fixture pull.json <<<"{\"user\": {\"login\": \"${2:-ada}\"}}"
   route gh 'pr view --json number*' pr.json
   route gh 'pr view 3 --json *' pr.json
+  route gh 'repo view*' repo.json
+  route gh 'api repos/empowerite/example/pulls/3 *' pull.json
 }
 
 @test "the facts are the branch, the commits past the fork, the change, and the rules with the kit's defaults" {
@@ -58,6 +62,7 @@ change() {
   subjects=$(jq --raw-output '[.commits[].subject] | join("|")' <<<"$output")
   [ "${subjects}" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
   [ "$(jq --raw-output .change.title <<<"$output")" = "Fix the thing" ]
+  [ "$(jq --raw-output .change.author <<<"$output")" = "ada" ]
   [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject" ]
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
@@ -84,6 +89,19 @@ change() {
   run "${kit_root}/bin/kit" policy
   [ "$status" -ne 0 ]
   [[ "$output" == *"policy has a subject the kit does not know: branche"* ]]
+}
+
+@test "a change by a login in linked_exempt passes the policy by name, since its branch and subjects are the bot's" {
+  branch dependabot/github-actions/actions-1a2b3c "actions: bump actions/checkout from 4 to 5"
+  change "actions: bump actions/checkout from 4 to 5" 'dependabot[bot]'
+  printf 'linked_exempt:\n  - dependabot[bot]\n' >> .kit/settings.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pull request #3 is dependabot[bot]'s, exempt from the policy by .kit/settings.yml"* ]]
+  printf 'forge: github\n' > .kit/settings.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'dependabot/github-actions/actions-1a2b3c' does not match policy.branch"* ]]
 }
 
 @test "on the default branch, or detached, nothing is under check" {

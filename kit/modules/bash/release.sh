@@ -380,6 +380,7 @@ release:validate-settings() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
+      (linked_exempt) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
         return 1
@@ -397,6 +398,12 @@ release:validate-settings() {
     error "${settings}: the answer key '${key}' is not letters and underscores, as a template's @key@ must be"
     return 1
   done < <(yaml:map "${settings}" answers)
+  value=$(yaml:value "${settings}" linked_exempt)
+  if [[ -n "${value}" ]]
+  then
+    error "${settings}: linked_exempt must be a list of logins, one per line under it, not '${value}'"
+    return 1
+  fi
   while IFS=$'\x1f' read -r key value
   do
     [[ -n "${key}${value}" ]] || continue

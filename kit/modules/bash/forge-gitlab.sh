@@ -135,6 +135,10 @@ forge-gitlab:pr-set-body() {
   forge-gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
 }
 
+forge-gitlab:pr-author() {
+  forge-gitlab:api "merge_requests/$1" | jq --raw-output '.author.username'
+}
+
 forge-gitlab:pr-state-for-branch() {
   forge-gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
     | jq --raw-output '.[0].state // empty | {merged: "MERGED", closed: "CLOSED", locked: "CLOSED"}[.] // "OPEN"' \

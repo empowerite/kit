@@ -50,7 +50,8 @@ and the error lists the known prefixes.
     pull request or merge request). GitHub's Azure Boards integration reads that line as a link.
 - `kit linked` passes when the forge reports that the change closes an open issue of the repository. It also
   passes when the change's body names an open issue of a declared tracker with a closing keyword:
-  `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`.
+  `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`. A change by a login under `linked_exempt` in
+  `.kit/settings.yml` passes without an issue, and the output says so.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
 

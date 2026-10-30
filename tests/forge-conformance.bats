@@ -62,10 +62,12 @@ world-github() {
   fixture pr-url.txt <<<'https://github.com/empowerite/example/pull/3'
   fixture issue-url.txt <<<'https://github.com/empowerite/example/issues/7'
   fixture pr.json <<<'{"title": "Fix the thing", "body": "Closes #7"}'
+  fixture pull.json <<<'{"user": {"login": "ada"}}'
   fixture closing.json <<'JSON'
 {"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": [
   {"number": 7, "state": "OPEN", "repository": {"nameWithOwner": "empowerite/example"}}]}}}}}
 JSON
+  fixture closing-none.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
   fixture open-prs.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": false, "headRefName": "7-fix-the-thing",
@@ -96,7 +98,8 @@ JSON
   route gh 'pr list --head 7-fix-the-thing --state all*' pr-all.json
   route gh 'pr create --draft --base main --head 7-fix-the-thing --title Fix the thing*' pr-url.txt
   route gh 'pr view 3 --json *' pr.json
-  route gh 'api graphql*number=3*' closing.json
+  route gh 'api repos/empowerite/example/pulls/3 *' pull.json
+  route gh 'api graphql*number=3*' "${GITHUB_CLOSING:-closing.json}"
   route gh 'api graphql*' open-prs.json
 }
 
@@ -197,6 +200,8 @@ JSON
     [ "$output" = "Fix the thing" ]
     run call pr-body 3
     [ "$output" = "Closes #7" ]
+    run call pr-author 3
+    [ "$output" = "ada" ]
   done
 }
 
@@ -255,6 +260,25 @@ JSON
   run "${kit_root}/bin/kit" linked 3
   [ "$status" -eq 0 ]
   [[ "$output" == *"merge request !3 is linked to #7"* ]]
+}
+
+@test "kit linked passes a change by a login the repository exempts, naming the exemption, and checks any other" {
+  export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
+  for forge in github gitlab
+  do
+    GITHUB_CLOSING=closing-none.json GITLAB_CLOSES=none.json world "${forge}"
+    mkdir -p .kit && printf 'linked_exempt:\n  - ada\n' > .kit/settings.yml
+    : > "${GITHUB_STEP_SUMMARY}"
+    run "${kit_root}/bin/kit" linked 3
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"3 is ada's, exempt from the linked-issue check by .kit/settings.yml"* ]]
+    grep --quiet "✅ .*3 is ada's, exempt" "${GITHUB_STEP_SUMMARY}"
+    printf 'linked_exempt:\n  - bob\n' > .kit/settings.yml
+    run "${kit_root}/bin/kit" linked 3
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"3 is not linked to any issue"* ]]
+    rm -r .kit
+  done
 }
 
 @test "every provider lists its open issues in one shape, oldest first, with the assignees by login" {

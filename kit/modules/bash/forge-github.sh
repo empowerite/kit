@@ -101,6 +101,15 @@ forge-github:pr-set-body() {
   gh pr edit "$1" --body "$2" >/dev/null
 }
 
+# The REST API names a bot by the login the pull request page shows, dependabot[bot]. gh's own JSON names the same
+# author app/dependabot, which is not a login anyone would write in a setting.
+forge-github:pr-author() {
+  local repo
+  repo=$(forge-github:repo) || return 1
+  gh api "repos/${repo}/pulls/$1" --jq '.user.login' 2>/dev/null \
+    || { error "run: gh auth status (the author of #$1 could not be read)"; return 1; }
+}
+
 forge-github:pr-state-for-branch() {
   gh pr list --head "$1" --state all --json state --jq '.[0].state // empty' 2>/dev/null || true
 }

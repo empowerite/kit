@@ -206,6 +206,7 @@ answers:
 | `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
+| `linked_exempt` | Logins whose changes `kit linked` passes without a linked issue, and `kit policy` passes without checking the branch, the commits, or the title, each saying so by name: a bot such as `dependabot[bot]`, whose changes have no issue and never will. One login per line under the key. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `toolchains` | The tool managers that put the gate's tools on `PATH`: `mise`, `brew`, or `docker`; see [toolchains.md](toolchains.md). |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |

@@ -13,7 +13,7 @@
 #
 #   - the branch and the default branch
 #   - the commits past the fork from the default branch, merges excluded
-#   - the open change on the branch, with its title and body
+#   - the open change on the branch, with its title, body, and author
 #   - the policy settings, with the kit's defaults filled in
 #
 # The rules are the `policy:` map in .kit/settings.yml, one extended regular expression per subject. A subject
@@ -96,7 +96,7 @@ policy:branch() {
 # or no open change. On the default branch or a detached HEAD, the branch is null and there are no commits or
 # change.
 policy:input() {
-  local default_branch branch commits='[]' change='null' rules number title body
+  local default_branch branch commits='[]' change='null' rules number title body author
   rules=$(policy:rules) || return 1
   default_branch=$(git:default-branch)
   branch=$(policy:branch)
@@ -114,8 +114,10 @@ policy:input() {
     then
       title=$(forge:pr-title "${number}" 2>/dev/null || true)
       body=$(forge:pr-body "${number}" 2>/dev/null || true)
+      author=$(forge:pr-author "${number}" 2>/dev/null || true)
       change=$(jq --null-input --argjson number "${number}" --arg title "${title}" --arg body "${body}" \
-        '{number: $number, title: $title, body: $body}')
+        --arg author "${author}" \
+        '{number: $number, title: $title, body: $body, author: (if $author == "" then null else $author end)}')
     fi
   else
     branch=''

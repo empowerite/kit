@@ -13,6 +13,10 @@
 # The policy engine then reports every refusal. The engine is patterns (the default) or Open Policy Agent. With
 # --input, kit policy prints the facts as JSON instead: the document a rule is written against.
 #
+# A change by a login the repository lists under linked_exempt in .kit/settings.yml passes with nothing checked,
+# and the output says so: its branch, its commits, and its title are a bot's, such as dependabot[bot]'s, and the
+# same setting passes it through kit linked.
+#
 # kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
 #
 # Exits 0 when the policy allows every name, 1 on any refusal, and 2 on a usage error.
@@ -40,6 +44,20 @@ esac
 input=$(mktemp)
 trap 'rm -f "${input}"' EXIT
 policy:input > "${input}"
+author=$(jq --raw-output '.change.author // empty' "${input}")
+if [[ -n "${author}" ]]
+then
+  while IFS= read -r login
+  do
+    [[ -n "${login}" && "${login}" == "${author}" ]] || continue
+    use forge
+    IFS=$'\t' read -r sigil noun < <(forge:noun)
+    number=$(jq --raw-output '.change.number' "${input}")
+    ok "${noun} ${sigil}${number} is ${author}'s, exempt from the policy by .kit/settings.yml"
+    summary "✅ The ${noun} ${sigil}${number} is ${author}'s, exempt from the policy by .kit/settings.yml."
+    exit 0
+  done < <(yaml:list "$(release:settings)" linked_exempt)
+fi
 engine=$(policy:engine)
 refusals=$(policy:deny "${input}") || exit 1
 if [[ -n "${refusals}" ]]

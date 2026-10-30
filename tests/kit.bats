@@ -247,7 +247,11 @@ later-release() {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
   [[ "$output" == *"require_signing must be true or false"* ]]
-  printf 'require_signing: false\nanswers:\n  ci_runner: x\n' > .kit/settings.yml
+  printf 'linked_exempt: dependabot[bot]\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"linked_exempt must be a list of logins, one per line under it"* ]]
+  printf 'require_signing: false\nanswers:\n  ci_runner: x\nlinked_exempt:\n  - dependabot[bot]\n' > .kit/settings.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
   [ -f .kit/settings.schema.json ]
