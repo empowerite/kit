@@ -145,4 +145,34 @@ later-release() {
   [ "$status" -eq 0 ]
 }
 
+@test "a new worktree is hydrated by the kit that runs there: copies from a release outside it, links to one it carries" {
+  "${kit_checkout}/bin/kit" install
+  git add --all && git commit --quiet --message init
+  git worktree add --quiet wt-copies -b copies
+  [ ! -e wt-copies/.kit/1st.md ]
+  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-copies
+  [ "$status" -eq 0 ]
+  [ -f wt-copies/.kit/1st.md ]
+  [ ! -L wt-copies/.kit/1st.md ]
+  [ ! -w wt-copies/.kit/1st.md ]
+  # a repository that carries its release, as the kit's own does, gets links into the worktree's own copy of it
+  cp -R "${kit_checkout}" kit
+  git add --all && git commit --quiet --message release
+  git worktree add --quiet wt-links -b links
+  run bash -c 'source "$0/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt-links
+  [ "$status" -eq 0 ]
+  [ -L wt-links/.kit/rules/bash.md ]
+  [ "$(readlink wt-links/.kit/rules/bash.md)" = "../../kit/packages/kit/files/repo/.kit/rules/bash.md" ]
+}
+
+@test "where the release is inside the worktree, a reading verb turns a readonly copy back into a link" {
+  cp -R "${kit_checkout}" kit
+  kit/bin/kit install >/dev/null 2>&1
+  [ -L .kit/rules/bash.md ]
+  rm .kit/rules/bash.md && cp kit/packages/kit/files/repo/.kit/rules/bash.md .kit/rules/bash.md && chmod a-w .kit/rules/bash.md
+  run kit/bin/kit context AGENTS.md
+  [ "$status" -eq 0 ]
+  [ -L .kit/rules/bash.md ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

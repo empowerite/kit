@@ -16,8 +16,9 @@
 # Every listed issue is assigned to the caller, as each tracker identifies the caller.
 #
 # issue:start never switches the checkout it runs from. It checks the branch out in worktrees/<key>-<slug> under
-# the main checkout. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch,
-# worktree, or pull request is reused, so running it again fills in whatever is missing.
+# the main checkout, and hydrates it: what the kit delivers under .kit/ is in place before the first command runs
+# there. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch, worktree, or pull
+# request is reused, so running it again fills in whatever is missing.
 #
 # With no argument and a terminal on stdin, it asks for a title and creates the issue. Without a terminal it fails
 # with a usage error, so an agent never waits on a prompt.
@@ -130,6 +131,25 @@ issue:worktree() {
     fi
   fi
   printf '%s\n' "${wt}"
+}
+
+# issue:hydrate <worktree> places what the active packages deliver under .kit/ in the worktree, with the kit that
+# runs there: the worktree's own kit/bin/kit when the repository carries its release, as the kit's own does, so the
+# links lead into that worktree's sources, and otherwise this release's kit. A worktree whose .kit/settings.yml
+# declares no kit version is left alone. What hydrate placed is said in one line; its own lines are shown only when
+# it fails.
+issue:hydrate() {
+  local wt=$1 out
+  grep --quiet '^version:' "${wt}/.kit/settings.yml" 2>/dev/null || return 0
+  step "Hydrating ${wt}"
+  if [[ -x "${wt}/kit/bin/kit" ]]
+  then
+    out=$(cd "${wt}" && kit_depth=$(( ${kit_depth:-0} + 1 )) kit/bin/kit hydrate 2>&1) && return 0
+  else
+    out=$(cd "${wt}" && run kit hydrate 2>&1) && return 0
+  fi
+  printf '%s\n' "${out}" >&2
+  return 1
 }
 
 # issue:start-commit <worktree> <default-branch> <reference> <title> adds an empty first commit when the branch has
@@ -260,6 +280,7 @@ issue:start() {
   wt=$(issue:worktree "${main_root}" "${branch}") || return
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
     || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a commit"
+  issue:hydrate "${wt}" || return 1
   issue:start-commit "${wt}" "${default_branch}" "${primary}" "${title}"
   git -C "${wt}" push --quiet --set-upstream origin "${branch}"
   if [[ -n "${stash}" ]]

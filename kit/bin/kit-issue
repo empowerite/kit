@@ -7,7 +7,7 @@
 # Starts work on an issue, or resumes it. kit issue makes each of these, and reuses any that already exists:
 #
 #   - a branch linked to the issue
-#   - a worktree for the branch
+#   - a worktree for the branch, hydrated: what the kit delivers under .kit/ is in place
 #   - a start commit
 #   - a draft pull request (a merge request on GitLab)
 #

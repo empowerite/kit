@@ -114,9 +114,9 @@ in place.
 
 Work starts from an issue:
 
-1. `kit issue <N>` creates `worktrees/<N>-<slug>`, a branch linked to the issue, a start commit, and a draft pull
-   request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so. When the desk is
-   on the default branch, `kit issue` also fast-forwards it. It changes nothing else on the desk.
+1. `kit issue <N>` creates `worktrees/<N>-<slug>`, hydrated, a branch linked to the issue, a start commit, and a
+   draft pull request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so. When
+   the desk is on the default branch, `kit issue` also fast-forwards it. It changes nothing else on the desk.
 2. In the worktree:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,

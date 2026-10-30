@@ -30,7 +30,8 @@ under `worktrees/`, one per issue. Work reaches `main` only through a merged pul
 
 1. Start from an issue. A change without an issue has not started.
 2. `kit issue <N>` creates the following, and never switches the checkout you run it from:
-   - the worktree `worktrees/<N>-<slug>`
+   - the worktree `worktrees/<N>-<slug>`, hydrated: what the kit delivers under `.kit/` is in place before your
+     first command there
    - a branch, linked to the issue under Development
    - a draft pull request
 3. Work in that worktree. Sign every commit. Write each commit subject as `#<N> <area>: <subject>`. Run

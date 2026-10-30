@@ -1226,18 +1226,26 @@ release:materialize() {
 }
 
 # release:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
-# write bit, and .kit/manifest exists. It starts no process, so a reading verb asks on every run. A fresh clone, a
-# `git clean -fdx`, a link an editor's save replaced, and a copy with its write bit back all fail it, and the full
-# release:materialize follows. A copy changed and put back without the write bit, and a declaration edited by hand,
-# pass it: kit check and kit hydrate judge those.
+# write bit, and .kit/manifest exists. Where this release is itself inside the worktree, as the kit's own kit/ is,
+# every path must be a link: a copy there came from a kit outside the worktree, and the full run turns it into a
+# link. It starts two processes at most, so a reading verb asks on every run. A fresh clone, a `git clean -fdx`, a
+# link an editor's save replaced, and a copy with its write bit back all fail it, and the full release:materialize
+# follows. A copy changed and put back without the write bit, and a declaration edited by hand, pass it: kit check
+# and kit hydrate judge those. A template rendered under .kit/ is a copy even inside, so a release that delivers one
+# there takes the full run every time; none does.
 release:hydrated() {
-  local line path
+  local line path inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
+  [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
+  [[ "$(readlink -f "${kit_root}")" != "${release_root}"/* ]] || inside=true
   while IFS= read -r line
   do
     [[ "${line}" == /* && "${line}" != /.gitignore && "${line}" != /manifest ]] || continue
     path=.kit${line}
-    [[ -e "${path}" && ( -L "${path}" || ! -w "${path}" ) ]] || return 1
+    if [[ "${inside}" == true ]]
+    then [[ -L "${path}" && -e "${path}" ]] || return 1
+    else [[ -e "${path}" && ( -L "${path}" || ! -w "${path}" ) ]] || return 1
+    fi
   done < .kit/.gitignore
 }
 
