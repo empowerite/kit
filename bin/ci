@@ -6,7 +6,8 @@
 # and kit ci runs it in CI. It runs, in order:
 #
 #   - kit lint over every tracked path
-#   - ajv: every package.yml and .kit/settings.yml against its schema
+#   - ajv: every package.yml, .kit/settings.yml, every kind, and the frontmatter of every rule and style against
+#     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
 #   - the bats suite
 #   - kit/bin/kit check over this repository's installed copy of its own kit
@@ -22,6 +23,15 @@ kit/bin/kit lint --all-files
 ajv validate --spec=draft2020 -s kit/packages/package.schema.json \
   -d 'kit/packages/*/package.yml' -d 'kit/packages/*/*/package.yml'
 ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
+ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d 'kit/packages/*/files/repo/.kit/kinds/*.yml'
+# A rule's frontmatter is YAML between the two --- lines; ajv reads it from a copy of just those lines.
+frontmatter=$(mktemp -d)
+trap 'rm -rf "${frontmatter}"' EXIT
+for file in kit/packages/*/files/repo/.kit/rules/*.md kit/packages/*/*/files/repo/.kit/styles/*.md
+do
+  awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit } on' "${file}" > "${frontmatter}/${file//\//-}.yml"
+done
+ajv validate --spec=draft2020 -s kit/packages/rule.schema.json -d "${frontmatter}/*.yml"
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
 bats --timing --print-output-on-failure tests/
 kit/bin/kit check
