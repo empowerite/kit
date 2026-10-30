@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-gate - run the repository's gate, and refuse when there is none (kit verb)
+# kit-gate - runs the repository's gate, and refuses when there is none (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit gate takes no arguments. It runs the repository's gate, the repository's own CI command. The gate is the

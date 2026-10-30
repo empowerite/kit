@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# release - verify a release tag, pack kit/ as a release, publish it, and retire pre-releases
+# release - verifies a release tag, packs kit/ as a release, publishes it, and retires pre-releases
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]

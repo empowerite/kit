@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-issue - start or resume an issue (kit verb)
+# kit-issue - starts or resumes an issue (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit issue [<reference>…]

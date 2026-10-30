@@ -23,7 +23,8 @@ checks a file against them. A repository can replace them with templates of its 
 
 1. An executed script opens with these lines, in order:
    1. `#!/usr/bin/env bash`
-   2. a `# <file> - <purpose>` banner under 120 columns
+   2. a `# <file> - <purpose>` banner under 120 columns; the purpose is in the indicative, what the file does, as
+      `kit help` prints a verb's
    3. a blank line
    4. an optional comment paragraph
    5. `set -o errexit -o nounset -o pipefail`

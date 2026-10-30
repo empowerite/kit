@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-toolchain - install, report, and update the tools the repository's gate runs, whatever manages them (kit verb)
+# kit-toolchain - installs, reports, and updates the tools the repository's gate runs, whatever manages them (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit toolchain list | install | outdated [--check] | update | path | run <command>…

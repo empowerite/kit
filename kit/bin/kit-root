@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-root - print the directory of the release that runs (kit verb)
+# kit-root - prints the directory of the release that runs (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit root takes no arguments. It prints the release's directory, the one that holds bin/ and modules/, so a

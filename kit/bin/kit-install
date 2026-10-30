@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-install - mirror the release into the repository, and into the home directory (kit verb)
+# kit-install - mirrors the release into the repository, and into the home directory (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit install [<package>…]

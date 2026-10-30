@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-tidy - remove merged worktrees and gone branches (kit verb)
+# kit-tidy - removes merged worktrees and gone branches (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit tidy [--dry-run]

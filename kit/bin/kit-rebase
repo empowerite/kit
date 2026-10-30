@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-rebase - rebase a worktree's branch onto the default branch and push it (kit verb)
+# kit-rebase - rebases a worktree's branch onto the default branch and pushes it (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit rebase [<path>]

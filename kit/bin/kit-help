@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-help - print the verbs' usage, or one verb's help page (kit verb)
+# kit-help - prints the verbs' usage, or one verb's help page (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit help [<verb>]

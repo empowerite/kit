@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-update - move the repository, and the home directory, to the pinned release (kit verb)
+# kit-update - moves the repository, and the home directory, to the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit update takes no arguments. It moves the repository and the home directory from the release .kit/settings.yml

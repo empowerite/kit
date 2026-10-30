@@ -16,8 +16,8 @@ setup() {
     verb=${verb##*/kit-}
     [[ "$output" == *$'\n'"  ${verb}"[\ $'\n']* ]] || { echo "missing: ${verb}"; return 1; }
   done
-  [[ "$output" == *"  tidy [--dry-run]      remove merged worktrees and gone branches"* ]]
-  [[ "$output" == *"  install [<package>…]  mirror the release"* ]]
+  [[ "$output" == *"  tidy [--dry-run]      removes merged worktrees and gone branches"* ]]
+  [[ "$output" == *"  install [<package>…]  mirrors the release"* ]]
   local listed=$output
   run "${kit_root}/bin/kit"
   [ "$output" = "${listed}" ]
@@ -28,7 +28,7 @@ setup() {
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {
   run "${kit_root}/bin/kit" help tidy
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "kit tidy - remove merged worktrees and gone branches" ]
+  [ "${lines[0]}" = "kit tidy - removes merged worktrees and gone branches" ]
   [[ "$output" == *$'Usage\n  kit tidy [--dry-run]\n\nDescription\n  Removes finished worktrees'* ]]
   [[ "$output" != *"# "* ]]
   [[ "$output" != *"see:"* ]]
@@ -55,7 +55,7 @@ setup() {
   run "${root}/bin/kit" help gat
   [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
   run "${root}/bin/kit" help gate
-  [ "${lines[0]}" = "kit gate - run the repository's gate, and refuse when there is none" ]
+  [ "${lines[0]}" = "kit gate - runs the repository's gate, and refuses when there is none" ]
 }
 
 @test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
