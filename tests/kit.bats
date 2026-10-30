@@ -91,7 +91,7 @@ later-release() {
 @test "install refuses a package this release does not know and names the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"the packages are: agents/claude empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
+  [[ "$output" == *"the packages are: agents/claude agents/copilot agents/cursor agents/gemini empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }
 
