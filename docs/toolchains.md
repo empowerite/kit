@@ -55,6 +55,20 @@ toolchains:
 - When docker is declared, inside the image, with the checkout mounted at `/work` and run as the caller's user, so
   the files the gate writes belong to the caller. The image needs `bash`, because the gate runs as `bash -c`.
 
+## Hydrating on cd
+
+What kit delivers under `.kit/` is not committed. `kit hydrate` places it from the declaration in
+`.kit/settings.yml`, and every verb that reads a delivered file does the same first. A repository that uses mise
+can hydrate when a shell enters it, so a fresh worktree is complete before its first command:
+
+```toml
+[hooks]
+enter = "kit hydrate"
+```
+
+The hook runs only in a shell with `mise activate`. An agent's subprocess shell and a CI runner have none, and there
+the verbs' own call and `kit ci` do the work. mise's documentation marks hooks experimental.
+
 ## On a runner
 
 The delivered workflow runs `kit toolchain install`, then appends the output of `kit toolchain path` to the

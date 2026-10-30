@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# kit-hydrate - place what the active packages deliver under .kit/, from the declaration alone (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit hydrate takes no arguments. It reads the packages .kit/settings.yml declares and brings every path they
+# deliver under .kit/ to its state: a link to its source when the source is inside the worktree, and otherwise a
+# copy without the write bit. It writes .kit/.gitignore, which names those paths and itself, and .kit/manifest when
+# it is missing. It chooses nothing; kit install chooses. It prints one line per path it placed or replaced, and
+# says nothing about a path already in its state. It warns about a delivered path git still tracks, and about a
+# file under a delivered directory that no active package delivers, both of which a person settles.
+#
+# Every verb that reads a delivered file hydrates first, so this verb is for a fresh clone or worktree before any
+# other command, and for a mise enter hook: [hooks] enter = "kit hydrate" in mise.toml.
+#
+# Exits 0 on success, and 1 in a repository that declares no kit version.
+#
+# see: bash/release.sh, docs/toolchains.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
+kit:enter
+use release
+
+if [[ "${1:-}" == --help ]]
+then
+  echo "usage: kit hydrate" >&2
+  exit 0
+fi
+
+release:require-declaration
+release:hydrate --full
+ok "kit $(release:declared-version) is hydrated under .kit/, packages: $(release:declared-packages | paste -s -d ' ' -)"
+
+# ----------------------------------------------------------------------------------------------------------------------

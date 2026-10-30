@@ -126,17 +126,19 @@ Two flags choose the template:
 
 ## What the kit delivers
 
-The repository contains the text:
+The repository commits the declaration, and every worktree holds the text:
 
-- this file
-- the rules under `.kit/rules/`
-- the style under `.kit/styles/`, from the style packages the repository takes
-- `.kit/settings.yml`, whose `version:` and `packages:` declare the release and the active packages
-- `.kit/manifest`, which records the digest of each delivered file
+- `.kit/settings.yml`, whose `version:` and `packages:` declare the release and the active packages, committed
+- `.kit/packages/`, the repository's own packages, committed
+- this file, the rules under `.kit/rules/`, the style under `.kit/styles/` from the style packages the repository
+  takes, and the rest of what the packages deliver under `.kit/`, placed by `kit hydrate`: each a link to its
+  source when the source is inside the worktree, and otherwise a copy without the write bit. `.kit/.gitignore`
+  names every one, so git never sees them.
+- `.kit/manifest`, which records the digest of each delivered file, written by kit and ignored like them
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
-are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, and `kit gate`.
-Run them exactly as written here, and in no other way.
+are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, `kit gate`, and
+`kit hydrate`. Run them exactly as written here, and in no other way.
 
 Everything the release delivers belongs to a package. A repository activates the packages it wants:
 
@@ -151,7 +153,8 @@ How a delivered file is placed depends on its destination:
 - A `.json` file, other than a schema, is merged by key. The kit owns only the entries it writes.
 - A region inside a file the repository owns starts at a `kit:generate` directive and ends at a `kit:end` line.
   `kit generate` fills it with the output of the directive's command, or of `kit region` when it names none.
-- Every other file is copied as it is.
+- Every other file under `.kit/` is a link to its source when the source is inside the worktree, and otherwise a
+  copy without the write bit. Every other file outside `.kit/` is copied as it is.
 
 The packages:
 
@@ -187,8 +190,9 @@ when any region differs from what its command produces.
 
 ## Changing what kit adds
 
-Every file kit adds belongs to a package, and the file's first lines name it. `kit check` fails when the file
-differs from that package's copy in the pinned release, so do not edit it in place. Instead:
+Every file kit adds belongs to a package, and the file's first lines name it. A file under `.kit/` cannot be edited
+where it lies: a link leads to its source, a copy has no write bit, and git never sees either, so an edit there
+never reaches a commit. `kit check` fails when any delivered file differs from the pinned release. Instead:
 
 - To stop using a file, remove its package: `kit package remove <package>`. It takes out everything the package
   added. A package that another active package depends on is refused until that one is removed. A member of a

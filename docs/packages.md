@@ -36,7 +36,7 @@ else in the package's directory. The base sets where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
-| `repo` | the repository root | the declaration in `.kit/settings.yml`, and `.kit/manifest`, both committed with the repository |
+| `repo` | the repository root | the declaration in `.kit/settings.yml`, committed; `.kit/manifest`, written beside what kit placed under `.kit/` and ignored like it |
 | `home` | the user's home directory, `~` | `~/.kit/manifest`, on the user's machine; a CI runner has none |
 
 - `files/home/.kit/<name>` is a user-level setting. Each machine has one copy, from whichever repository installed
@@ -93,7 +93,11 @@ Each kind of source file is placed differently:
 - A destination ending in `.json` is merged by key, except a schema (`*.schema.json`). The kit sets its keys and
   adds its array entries. On update or removal it takes out only the previous release's entries, so the
   repository's own keys and entries stay.
-- Every other destination is a copy.
+- Every other destination under `.kit/` is materialized: a link to its source when the source is inside the
+  worktree, as the repository's own packages and this repository's own release are, and otherwise a copy without
+  the write bit. `.kit/.gitignore`, which kit writes, names each one, so git never sees them. `kit hydrate` brings
+  them to that state from the declaration, and every verb that reads a delivered file does the same first.
+- Every other destination outside `.kit/` is a copy.
 - Where two active packages deliver the same path, the later package in dependency order wins.
 
 ### Includes
@@ -129,7 +133,7 @@ The kit changes a file it touches in one of four ways:
 | has a format that supports includes | an include line the repository adds |
 | has a format with comments | a region |
 | supports neither | a merge by key |
-| belongs entirely to the kit | a copy |
+| belongs entirely to the kit | a link or a readonly copy under `.kit/`, a copy elsewhere |
 
 ### Regions
 

@@ -25,7 +25,8 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
-use context template
+use context template release
+[[ "${1:-}" == --help ]] || release:hydrate
 
 usage="usage: kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…"
 if [[ "${1:-}" == --help ]]

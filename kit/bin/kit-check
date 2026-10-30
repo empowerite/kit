@@ -8,6 +8,8 @@
 #   - .kit/settings.yml declares a kit version other than the pinned release
 #   - a delivered file is missing, or differs from the release's copy
 #   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
+#   - a path under .kit/ is not the link or the readonly copy kit keeps there, .kit/.gitignore is not what kit
+#     writes, a file under a delivered directory comes from no active package, or a delivered path is tracked by git
 #   - a file that should contain a kit region has none
 #   - a file the repository owns is missing a line a package expects in it
 #   - a generated region differs from what its command makes
@@ -54,6 +56,11 @@ do
   do
     dest=$(release:dest "${base}" "${path}")
     kind=$(release:kind "${src}" "${dest}")
+    if release:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
+    then
+      # A materialized path is judged below, by release:materialize --check.
+      continue
+    fi
     if [[ ! -f "${dest}" ]]
     then
       error "${dest} is missing"
@@ -80,6 +87,8 @@ do
     fi
   done <<<"${delivered}"
 done
+# Every materialized path, .kit/.gitignore, a stray file under a delivered directory, and a tracked delivered path.
+findings=$(( findings + $(release:materialize --check "${packages[@]}") ))
 # The kit never writes a line a package expects in a file the repository owns; it only reports one that is missing.
 while IFS= read -r unmet
 do

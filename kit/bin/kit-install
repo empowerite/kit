@@ -58,6 +58,7 @@ then
   exit 1
 fi
 release:write-manifests '' "${packages[@]}"
+release:materialize "${packages[@]}"
 release:finish "${packages[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

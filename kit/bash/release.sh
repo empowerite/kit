@@ -465,6 +465,8 @@ release:render() {
   out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/packages/${package}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
+    # Made before the loop, so a kind with a directory and no file left in it is still a layer that exists.
+    mkdir -p "${out}"
     while IFS=$'\t' read -r key value
     do
       [[ -n "${key}" ]] && answer[${key}]=${value}
@@ -923,7 +925,8 @@ release:digest() {
 }
 
 # release:place <source> <path> [<base-source>] writes the release's content to <path>. It merges a .json file,
-# writes the region for a region source, and otherwise copies the file, keeping the source's mode.
+# writes the region for a region source, brings a materialized path under .kit/ to its state (release:owned), and
+# otherwise copies the file, keeping the source's mode.
 release:place() {
   local src=$1 path=$2 base=${3:-/dev/null}
   case "$(release:kind "${src}" "${path}")" in
@@ -934,10 +937,15 @@ release:place() {
       release:region-write "${path}" "${src}"
       ;;
     (*)
-      path=$(release:target "${path}")
-      mkdir -p "$(dirname "${path}")"
-      cp "${src}" "${path}.kit-new"
-      mv "${path}.kit-new" "${path}"
+      if release:owned repo "${path}"
+      then
+        release:materialize-one "${src}" "${path}" >/dev/null
+      else
+        path=$(release:target "${path}")
+        mkdir -p "$(dirname "${path}")"
+        cp "${src}" "${path}.kit-new"
+        mv "${path}.kit-new" "${path}"
+      fi
   esac
 }
 
@@ -1009,6 +1017,249 @@ release:place-all() {
   return "${refused}"
 }
 
+# release:owned <base> <path> succeeds for a path the kit materializes: one under .kit/ in the repository, other than
+# the repository's own packages. Such a path is a link to its source when the source is inside the worktree, and
+# otherwise a copy without the write bit. .kit/.gitignore names every one, so git never sees them: the repository
+# commits the declaration in .kit/settings.yml and its own packages under .kit/packages/, and nothing kit places.
+release:owned() { [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* ]]; }
+
+# release:inside <path> succeeds when the path's real location is under the directory the verb runs in, the
+# repository root: inside the worktree. This repository's release, kit/, is inside. A release that mise or brew
+# installed for a consumer is outside, and so is a rendered template, written under a temporary directory. A link
+# never leaves the worktree: the worktree is what gets bind-mounted, copied, or synced as a unit, and a link that
+# left it would dangle there, and again when the tool manager moved the release.
+release:inside() {
+  [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
+  [[ "$(readlink -f "$1")" == "${release_root}"/* ]]
+}
+
+# release:relative <from-dir> <to> prints <to> as a path relative to <from-dir>. Both are absolute real paths.
+release:relative() {
+  local from=$1 to=$2 up=''
+  while [[ "${to}" != "${from}"/* && "${from}" != / ]]
+  do
+    from=$(dirname "${from}")
+    up+='../'
+  done
+  printf '%s%s\n' "${up}" "${to#"${from}"/}"
+}
+
+# release:state <source> <dest> prints the state the kit keeps a materialized path in: `link <target>`, the relative
+# link to a source inside the worktree, or `copy` for a source outside it.
+release:state() {
+  local real
+  real=$(readlink -f "$1")
+  [[ -n "${release_root:-}" ]] || release_root=$(pwd -P)
+  if [[ "${real}" == "${release_root}"/* ]]
+  then printf 'link %s\n' "$(release:relative "${release_root}/${2%/*}" "${real}")"
+  else printf 'copy\n'
+  fi
+}
+
+# release:materialize-ok <source> <dest> [<state>] succeeds when the destination is in its state (release:state's,
+# computed here when not given): the link to the source, or a regular file with the source's content. The write bit
+# is not judged here; release:materialize-one takes it back off a copy without a word.
+release:materialize-ok() {
+  local state=${3:-}
+  [[ -n "${state}" ]] || state=$(release:state "$1" "$2")
+  if [[ "${state}" == link* ]]
+  then [[ -L "$2" && "$(readlink "$2")" == "${state#link }" ]]
+  else [[ ! -L "$2" && -f "$2" ]] && cmp --silent "$1" "$2"
+  fi
+}
+
+# release:materialize-one <source> <dest> brings a materialized path to its state and prints what it did: kept,
+# placed where nothing was there, or replaced where something else was.
+release:materialize-one() {
+  local src=$1 dest=$2 state
+  state=$(release:state "${src}" "${dest}")
+  if release:materialize-ok "${src}" "${dest}" "${state}"
+  then
+    if [[ "${state}" == copy && -w "${dest}" ]]
+    then
+      chmod a-w "${dest}"
+    fi
+    printf 'kept\n'
+    return 0
+  fi
+  if [[ -e "${dest}" || -L "${dest}" ]]
+  then printf 'replaced\n'
+  else printf 'placed\n'
+  fi
+  mkdir -p "$(dirname "${dest}")"
+  if [[ "${state}" == link* ]]
+  then
+    ln -sfn "${state#link }" "${dest}"
+  else
+    cp "${src}" "${dest}.kit-new"
+    chmod a-w "${dest}.kit-new"
+    mv -f "${dest}.kit-new" "${dest}"
+  fi
+}
+
+# release:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, and the file
+# itself, so git never sees them.
+release:ignore-text() {
+  local path
+  printf '# .kit/.gitignore - what kit placed here, which git never sees (written by kit, not by hand)\n'
+  {
+    printf '/.gitignore\n/manifest\n'
+    for path in "$@"
+    do
+      printf '/%s\n' "${path#.kit/}"
+    done
+  } | LC_ALL=C sort
+}
+
+# release:materialize [--check] <package>… brings every path the packages deliver under .kit/ to its state and writes
+# .kit/.gitignore. It says what it changed, one line per path. A path the manifest never recorded that holds a
+# different file is the repository's: it is left alone and named, as kit install names it. It warns about a file
+# under a delivered directory that no active package delivers, and about a delivered path git still tracks, both of
+# which a person settles; an empty directory left behind by a removed package is removed without a word. With
+# --check it changes nothing: each of those is an error, and it prints how many on stdout.
+release:materialize() {
+  local check=false path src dir entry state did ignore findings=0
+  local -a owned=() tracked=()
+  local -A source=() within=()
+  if [[ "${1:-}" == --check ]]
+  then
+    check=true
+    shift
+  fi
+  while IFS=$'\t' read -r path src
+  do
+    [[ -n "${path}" ]] || continue
+    release:owned repo "${path}" || continue
+    [[ "$(release:kind "${src}" "${path}")" == copy ]] || continue
+    owned+=("${path}")
+    source[${path}]=${src}
+    dir=$(dirname "${path}")
+    while [[ "${dir}" != .kit ]]
+    do
+      within[${dir}]=1
+      dir=$(dirname "${dir}")
+    done
+  done < <(release:delivered "${kit_root}" repo "$@")
+  for path in "${owned[@]}"
+  do
+    src=${source[${path}]}
+    if [[ "${check}" == false ]]
+    then
+      if [[ ( -e "${path}" || -L "${path}" ) && -z "$(release:recorded repo "${path}")" ]] \
+        && ! release:materialize-ok "${src}" "${path}"
+      then
+        warn "${path}: a different file is there already; move it aside, or remove it if it is not yours"
+        continue
+      fi
+      did=$(release:materialize-one "${src}" "${path}")
+      case "${did}" in
+        (placed) step "${path}: placed" ;;
+        (replaced) warn "${path} was changed in place, or came from another release; replaced"
+      esac
+    elif [[ ! -e "${path}" && ! -L "${path}" ]]
+    then
+      error "${path} is missing; run: kit hydrate"
+      findings=$(( findings + 1 ))
+    elif ! release:materialize-ok "${src}" "${path}"
+    then
+      state=$(release:state "${src}" "${path}")
+      if [[ "${state}" == link* ]]
+      then error "${path} is not a link to ${state#link }; run: kit hydrate"
+      elif [[ -z "$(release:recorded repo "${path}")" ]]
+      then error "${path} holds a different file; move it aside, or remove it if it is not yours, then run: kit hydrate"
+      else error "${path} was changed in place; run: kit hydrate (a delivered file changes by a new release, never in place)"
+      fi
+      findings=$(( findings + 1 ))
+    fi
+  done
+  for dir in "${!within[@]}"
+  do
+    [[ -d "${dir}" ]] || continue
+    while IFS= read -r entry
+    do
+      [[ -n "${entry}" && "${entry##*/}" != .* ]] || continue
+      [[ -z "${source[${entry}]+x}" && -z "${within[${entry}]+x}" ]] || continue
+      if [[ -d "${entry}" && -z "$(find "${entry}" -mindepth 1 -maxdepth 1 | head -n 1)" ]]
+      then
+        [[ "${check}" == true ]] || rmdir "${entry}"
+        continue
+      fi
+      if [[ "${check}" == true ]]
+      then
+        error "${entry} is not delivered by any active package; add it through a package under .kit/packages/, or remove it"
+        findings=$(( findings + 1 ))
+      else
+        warn "${entry} is not delivered by any active package; add it through a package under .kit/packages/, or remove it"
+      fi
+    done < <(find "${dir}" -mindepth 1 -maxdepth 1 | LC_ALL=C sort)
+  done
+  if (( ${#owned[@]} > 0 )) && git rev-parse --is-inside-work-tree >/dev/null 2>&1
+  then
+    readarray -t tracked < <(git ls-files -- "${owned[@]}")
+    for path in "${tracked[@]}"
+    do
+      [[ -n "${path}" ]] || continue
+      if [[ "${check}" == true ]]
+      then
+        error "${path} is tracked by git; run: git rm --cached '${path}', and commit, so the kit's file never reaches a commit"
+        findings=$(( findings + 1 ))
+      else
+        warn "${path} is tracked by git; run: git rm --cached '${path}', and commit, so the kit's file never reaches a commit"
+      fi
+    done
+  fi
+  ignore=$(release:ignore-text "${owned[@]}")
+  if [[ "${check}" == true ]]
+  then
+    if [[ ! -f .kit/.gitignore || "$(<.kit/.gitignore)" != "${ignore}" ]]
+    then
+      error ".kit/.gitignore is not what kit writes; run: kit hydrate"
+      findings=$(( findings + 1 ))
+    fi
+    printf '%s\n' "${findings}"
+  elif [[ ! -f .kit/.gitignore || "$(<.kit/.gitignore)" != "${ignore}" ]]
+  then
+    mkdir -p .kit
+    printf '%s\n' "${ignore}" > .kit/.gitignore
+    step ".kit/.gitignore: written"
+  fi
+}
+
+# release:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
+# write bit, and .kit/manifest exists. It starts no process, so a reading verb asks on every run. A fresh clone, a
+# `git clean -fdx`, a link an editor's save replaced, and a copy with its write bit back all fail it, and the full
+# release:materialize follows. A copy changed and put back without the write bit, and a declaration edited by hand,
+# pass it: kit check and kit hydrate judge those.
+release:hydrated() {
+  local line path
+  [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
+  while IFS= read -r line
+  do
+    [[ "${line}" == /* && "${line}" != /.gitignore && "${line}" != /manifest ]] || continue
+    path=.kit${line}
+    [[ -e "${path}" && ( -L "${path}" || ! -w "${path}" ) ]] || return 1
+  done < .kit/.gitignore
+}
+
+# release:hydrate [--full] places what the declared packages deliver under .kit/, as release:materialize does, in a
+# repository that declares a kit version, and does nothing elsewhere. Every verb that reads a delivered file calls it
+# first, so a fresh clone or worktree, a `git clean -fdx`, or a link an editor's save replaced heals on the next kit
+# command. Where release:hydrated finds everything in place it does nothing more, so the common run costs nothing;
+# with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It writes .kit/manifest
+# when it is missing.
+release:hydrate() {
+  local -a packages
+  [[ -n "$(release:setting version)" ]] || return 0
+  if [[ "${1:-}" != --full ]] && release:hydrated
+  then
+    return 0
+  fi
+  readarray -t packages < <(release:declared-packages)
+  release:render-all "${kit_root}" "${packages[@]}" || return 1
+  release:materialize "${packages[@]}"
+  [[ -f .kit/manifest ]] || release:write-manifest repo '' "${packages[@]}"
+}
+
 # release:unplace <source> <path> removes the release's content from <path>: the kit's entries from a .json
 # file, the kit's region from a region file, and otherwise the file itself.
 release:unplace() {
@@ -1067,6 +1318,11 @@ release:retire() {
       else
         warn "${dest}: retired in ${current}; without the base release its entries stay, and it is left as it was"
       fi
+    elif release:owned "${base}" "${path}"
+    then
+      # A materialized path is kit's link or copy, never the repository's edit, so it goes whatever it holds.
+      step "${dest}: retired in ${current}, removed"
+      rm -f "${dest}"
     elif [[ "$(release:recorded "${base}" "${path}")" \
       == "$(release:installed "${previous_src:-/dev/null}" "${dest}" | release:digest)" ]]
     then
@@ -1226,7 +1482,8 @@ release:require-declaration() {
 release:finish() {
   ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/settings.yml declares them."
   release:say-unmet "$@"
-  step "Commit the delivered files. The workflow is in .kit/1st.md."
+  step "Commit .kit/settings.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored. The" \
+    "workflow is in .kit/1st.md."
 }
 
 # release:say-unmet <package>… warns about each unmet expectation of the packages, as a step left to do.

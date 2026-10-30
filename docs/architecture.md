@@ -51,6 +51,8 @@ Content reaches a repository only through these verbs:
   edited file three ways, with the previous release as the base.
 - `kit check` fails when a delivered file differs from the release.
 - `kit package` changes the set of active packages.
+- `kit hydrate` brings every path under `.kit/` to its state from the declaration, choosing nothing. Every verb that
+  reads a delivered file does the same first.
 
 How a file is placed depends on its destination:
 
@@ -58,13 +60,15 @@ How a file is placed depends on its destination:
 - A region lives inside a file the repository owns. It starts at a `kit:generate` line naming the file's path and
   ends at a matching end line. `kit generate` replaces the region with the output of `kit region`. It does the same
   for every region any file in the repository declares; see [generate.md](generate.md).
-- Every other file is copied.
+- Every other file under `.kit/` is a link to its source inside the worktree, or a copy without the write bit, named
+  in `.kit/.gitignore` so git never sees it. Every other file outside `.kit/` is copied.
 
 ### Manifests
 
 Each base has a manifest:
 
-- `.kit/manifest`, committed with the repository beside the declaration in `.kit/settings.yml`.
+- `.kit/manifest`, written beside what kit placed under `.kit/` and ignored like it. The repository commits the
+  declaration in `.kit/settings.yml` instead.
 - `~/.kit/manifest` on a developer machine, when a package delivers to the home directory.
 
 The repository's manifest records the release's digest of every delivered path. The version and the active packages

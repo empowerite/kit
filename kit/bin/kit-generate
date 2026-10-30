@@ -21,7 +21,8 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
-use context generate
+use context generate release
+[[ "${1:-}" == --help ]] || release:hydrate
 
 args=()
 for arg in "$@"

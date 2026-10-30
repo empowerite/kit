@@ -87,6 +87,7 @@ case "${verb}" in
     fi
     readarray -t excluded < <(release:exclusions "${excluded[*]}" "${wanted[@]}")
     release:write-manifests "${excluded[*]}" "${wanted[@]}"
+    release:materialize "${wanted[@]}"
     ok "packages: ${wanted[*]}"
     release:say-unmet "${wanted[@]}"
     ;;
@@ -137,6 +138,7 @@ case "${verb}" in
       done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
     done
     release:write-manifests "${excluded[*]}" "${remaining[@]}"
+    release:materialize "${remaining[@]}"
     ok "packages: ${remaining[*]:-none}"
 esac
 

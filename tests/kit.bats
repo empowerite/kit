@@ -219,10 +219,12 @@ later-release() {
   [ "$output" = ".kit/rules/python.md" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
+  # the rule is a link into the package, so an edit through it lands in the source and check stays green
+  [ -L .kit/rules/python.md ]
   printf 'edited\n' >> .kit/rules/python.md
+  grep --quiet '^edited$' .kit/packages/python/files/repo/.kit/rules/python.md
   run "${kit_checkout}/bin/kit" check
-  [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/rules/python.md differs"* ]]
+  [ "$status" -eq 0 ]
   # the file now carries the declaration, so the repository's own keys are added to it
   printf 'answers:\n  python: "3.14"\n' >> .kit/settings.yml
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
@@ -404,12 +406,12 @@ later-release() {
   printf 'extends:\n  - .kit/lefthook.yml\n' > lefthook.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'edited\n' >> .kit/rules/markdown.md
+  chmod u+w .kit/rules/markdown.md && printf 'edited\n' >> .kit/rules/markdown.md
   rm .kit/lefthook.yml
   jq '.permissions.deny -= ["Bash(git reset --hard *)"]' .claude/settings.json > s && mv s .claude/settings.json
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/rules/markdown.md differs"* ]]
+  [[ "$output" == *".kit/rules/markdown.md was changed in place"* ]]
   [[ "$output" == *".kit/lefthook.yml is missing"* ]]
   [[ "$output" == *"missing an entry the kit writes"* ]]
   [[ "$output" == *"3 finding(s)"* ]]
@@ -443,22 +445,28 @@ later-release() {
   [ "$(grep -c '^require_signing: true$' .kit/settings.yml)" -eq 1 ]
 }
 
-@test "update replaces unchanged files, merges an edited one, and records the release's digests" {
-  "${kit_checkout}/bin/kit" install agents/claude
+@test "update replaces an edited copy under .kit/, merges an edited file outside it, and records the release's digests" {
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
   later-release "${repo}.later"
-  # a consumer edit to a file the later release also changes, on a different line
+  printf '# later\n' >> "${repo}.later/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml"
+  # an edit under .kit/ is replaced; an edit outside it, to a file the later release also changes elsewhere, is merged
+  chmod u+w .kit/rules/json.md
   sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
+  sed -i.bak 's/^name: kit$/name: ours/' .github/workflows/kit-ci.yml && rm .github/workflows/kit-ci.yml.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(declared version)" = "9.9.9" ]
-  grep --quiet '^# JSON (ours)$' .kit/rules/json.md
+  run ! grep --quiet '^# JSON (ours)$' .kit/rules/json.md
   grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
-  # the manifest carries the release's digest, so the edit still reads as an edit
+  [ ! -w .kit/rules/json.md ]
+  grep --quiet '^name: ours$' .github/workflows/kit-ci.yml
+  grep --quiet '^# later$' .github/workflows/kit-ci.yml
   release_digest=$(shasum -a 256 "${repo}.later/packages/kit/files/repo/.kit/rules/json.md" | cut -d ' ' -f 1)
   grep --quiet "^${release_digest}  .kit/rules/json.md$" .kit/manifest
+  # the merged workflow still reads as an edit
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/rules/json.md differs"* ]]
+  [[ "$output" == *".github/workflows/kit-ci.yml differs"* ]]
   [[ "$output" == *"1 finding(s)"* ]]
 }
 
@@ -482,15 +490,15 @@ later-release() {
   [ "$status" -eq 0 ]
 }
 
-@test "update leaves conflict markers and fails when the same lines changed" {
-  "${kit_checkout}/bin/kit" install agents/claude
+@test "update leaves conflict markers and fails when the same lines changed, in a file outside .kit/" {
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
   later-release "${repo}.later"
-  theirs="${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
-  sed -i.bak 's/^# JSON$/# JSON (theirs)/' "${theirs}" && rm "${theirs}.bak"
-  sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
+  theirs="${repo}.later/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml"
+  sed -i.bak 's/^name: kit$/name: theirs/' "${theirs}" && rm "${theirs}.bak"
+  sed -i.bak 's/^name: kit$/name: ours/' .github/workflows/kit-ci.yml && rm .github/workflows/kit-ci.yml.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 1 ]
-  grep --quiet '^<<<<<<<' .kit/rules/json.md
+  grep --quiet '^<<<<<<<' .github/workflows/kit-ci.yml
   [[ "$output" == *"conflict markers"* ]]
 }
 
@@ -592,34 +600,34 @@ later-release() {
   grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
 }
 
-@test "update retires a path the new release no longer delivers, unless it was edited" {
-  "${kit_checkout}/bin/kit" install agents/claude
+@test "update retires a path the new release no longer delivers, unless it was edited outside .kit/" {
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
   later-release "${repo}.later"
   rm "${repo}.later/packages/kit/files/repo/.kit/rules/gitignore.md" \
-    "${repo}.later/packages/kit/files/repo/.kit/rules/json.md"
-  printf 'mine too\n' >> .kit/rules/json.md
+    "${repo}.later/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml"
+  printf '# mine too\n' >> .github/workflows/kit-ci.yml
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   [ ! -e .kit/rules/gitignore.md ]
-  [ -e .kit/rules/json.md ]
+  [ -e .github/workflows/kit-ci.yml ]
   [[ "$output" == *".kit/rules/gitignore.md: retired in 9.9.9, removed"* ]]
-  [[ "$output" == *".kit/rules/json.md: retired in 9.9.9, but edited"* ]]
+  [[ "$output" == *".github/workflows/kit-ci.yml: retired in 9.9.9, but edited"* ]]
   run ! grep --quiet 'rules/gitignore.md' .kit/manifest
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
 }
 
-@test "update without the base release refuses an edited file, names the base, and leaves the manifest's version" {
+@test "update without the base release refuses an edited file outside .kit/, names the base, and leaves the declared version" {
   later-release "${repo}.later"
-  "${repo}.later/bin/kit" install agents/claude
+  "${repo}.later/bin/kit" install agents/claude github/ci
   [ "$(declared version)" = "9.9.9" ]
   later-release "${repo}.newer" 9.9.10
-  printf 'edited\n' >> .kit/rules/bash.md
+  printf '# edited\n' >> .github/workflows/kit-ci.yml
   # neither the cache, nor mise, nor the release can produce 9.9.9
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"could not be fetched"* ]]
-  [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]
+  [[ "$output" == *".github/workflows/kit-ci.yml cannot be updated without the base release 9.9.9"* ]]
   [ "$(declared version)" = "9.9.9" ]
   # whole or not at all: the file that needed no base was not written either
   run ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
@@ -638,11 +646,11 @@ later-release() {
 }
 
 @test "update at the same version uses the release as its own base, and a second run changes nothing" {
-  "${kit_checkout}/bin/kit" install agents/claude
-  printf 'edited\n' >> .kit/rules/bash.md
+  "${kit_checkout}/bin/kit" install agents/claude github/ci
+  printf '# edited\n' >> .github/workflows/kit-ci.yml
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
-  grep --quiet '^edited$' .kit/rules/bash.md
+  grep --quiet '^# edited$' .github/workflows/kit-ci.yml
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [[ "$output" != *"conflict"* ]]

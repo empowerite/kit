@@ -11,8 +11,10 @@
 #   - a merged JSON file is merged by key
 #   - a region is regenerated
 #   - a missing file is written
-#   - a file unchanged since the previous release is replaced
-#   - a file edited since the previous release gets a three-way merge, which leaves conflict markers on a conflict
+#   - a path under .kit/ is brought to its state: a link to its source, or a readonly copy (see release:owned)
+#   - any other file unchanged since the previous release is replaced
+#   - any other file edited since the previous release gets a three-way merge, which leaves conflict markers on a
+#     conflict
 #
 # A merge by key, or a three-way merge, needs the previous release as its base. The base is the first of:
 #
@@ -88,6 +90,11 @@ lacks-base() {
   dest=$(release:dest "${base}" "${path}")
   recorded=$(release:recorded "${base}" "${path}")
   [[ -n "${recorded}" ]] || return 1
+  # A materialized path is brought to its state from this release alone.
+  if release:owned "${base}" "${path}" && [[ "$(release:kind "${src}" "${dest}")" == copy ]]
+  then
+    return 1
+  fi
   [[ -z "${base_root}" || -z "$(release:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")" ]] || return 1
   kind=$(release:kind "${src}" "${dest}")
   [[ "${kind}" == merge ]] && return 0
@@ -132,6 +139,17 @@ do
     previous_src=""
     [[ -n "${base_root}" ]] && previous_src=$(release:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")
     kind=$(release:kind "${src}" "${dest}")
+    if release:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
+    then
+      # A materialized path is a link to its source or a copy of the release's file, brought to that state, never
+      # merged: an edit under .kit/ is nobody's to keep.
+      case "$(release:materialize-one "${src}" "${dest}")" in
+        (kept) step "${dest}: as ${current} has it" ;;
+        (placed) step "${dest}: placed from ${current}" ;;
+        (replaced) step "${dest}: replaced from ${current}"
+      esac
+      continue
+    fi
     if [[ "${kind}" == merge ]]
     then
       step "${dest}: merged by key"
@@ -161,6 +179,8 @@ do
   release:retire "${base_root}" "${base}" "${previous}" "${current}" "${packages[@]}"
 done
 
+# Before the manifest is rewritten, so a path the loop refused to overwrite is still unrecorded, and stays as it is.
+release:materialize "${packages[@]}"
 release:write-manifests "${excluded[*]}" "${packages[@]}"
 if (( conflicts > 0 ))
 then

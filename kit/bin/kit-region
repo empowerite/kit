@@ -23,6 +23,7 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../bash/1st.sh"
 kit:enter
 use release
+[[ "${1:-}" == --help ]] || release:hydrate
 
 base=repo
 path=''

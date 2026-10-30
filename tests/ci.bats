@@ -29,7 +29,8 @@ teardown() {
   [[ "$output" == *"kit linked <number>"* ]]
   [[ "$output" == *"the patterns policy allows"* ]]
   [[ "$output" == *"1 of 4 checks refused"* ]]
-  printf 'edited\n' >> .kit/1st.md
+  # a stray file under a delivered directory: check reports it, and no verb heals it
+  printf 'rogue\n' > .kit/rules/rogue.md
   rm justfile
   run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
   [ "$status" -eq 3 ]
