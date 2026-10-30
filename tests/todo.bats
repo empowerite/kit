@@ -150,6 +150,30 @@ JSON
   [ "$(title-of "${lines[0]}")" = "#7 A very long title that goes on and on, far past what a narrow terminal shows" ]
 }
 
+@test "kit todo --today lists the issues opened in the last 24 hours, and combines with --mine and --json" {
+  now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  fixture issues.json <<JSON
+[{"number": 13, "title": "Fresh thing", "assignees": [{"login": "ada"}], "createdAt": "${now}"},
+ {"number": 14, "title": "Fresh other", "assignees": [], "createdAt": "${now}"},
+ {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
+JSON
+  run kit todo --today
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #13 Fresh thing · 👤 ada · ⏳ idle "* ]]
+  [[ "${lines[1]}" == "🎫 #14 Fresh other ·        · ⏳ idle "* ]]
+  [ "${#lines[@]}" -eq 2 ]
+  run kit todo --today --mine
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🎫 #13 Fresh thing · ⏳ idle "* ]]
+  [ "${#lines[@]}" -eq 1 ]
+  run kit todo --today --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output 'map(.number)' <<<"$output")" = "[13,14]" ]
+  run kit todo --today --owner=bob
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to pick up: no open issue opened in the last 24 hours assigned to bob"* ]]
+}
+
 @test "kit todo refuses an unknown flag with a pointer to its page" {
   run kit todo --help
   [ "$status" -eq 2 ]

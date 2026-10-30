@@ -6,7 +6,8 @@
 # kit todo is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, and for each
 # whether work has started, which is when an open change closes it or a branch for it is on origin. An issue with
 # nothing in flight is one to take up with kit issue <N>. The flags are kit status's: --mine is the issues assigned to
-# the caller, --owner=<login> the named assignees', --all every open issue.
+# the caller, --owner=<login> the named assignees', --all every open issue; --today keeps only the issues opened in
+# the last 24 hours, whichever of those is chosen.
 #
 # A row is drawn as kit status draws a pull request, its cells separated by status_sep and sized across the rows:
 #
@@ -76,15 +77,16 @@ todo:rows() {
       | join("\u001f")' <<<"$1"
 }
 
-# todo:render [--json] [--mine | --all | --owner=<login>…] prints the issues, one row each as the file header draws
-# them, to stderr. With --json it prints todo:collect's array to stdout.
+# todo:render [--json] [--today] [--mine | --all | --owner=<login>…] prints the issues, one row each as the file
+# header draws them, to stderr. With --json it prints todo:collect's array to stdout.
 todo:render() {
-  local json=false choice=all arg doc
+  local json=false today=false choice=all arg doc when=''
   local -a owners=()
   for arg in "$@"
   do
     case "${arg}" in
       (--json) json=true ;;
+      (--today) today=true ;;
       (--mine) choice=mine ;;
       (--all) choice=all ;;
       (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
@@ -96,6 +98,7 @@ todo:render() {
     owners=("$(forge:me)") || return 1
   fi
   doc=$(todo:collect "${owners[@]}") || return 1
+  [[ "${today}" == false ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
   if [[ "${json}" == true ]]
   then
     printf '%s\n' "${doc}"
@@ -103,7 +106,8 @@ todo:render() {
   fi
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    step "nothing to pick up: no open issue${owners:+ assigned to ${owners[*]}}"
+    [[ "${today}" == false ]] || when=' opened in the last 24 hours'
+    step "nothing to pick up: no open issue${when}${owners:+ assigned to ${owners[*]}}"
     return 0
   fi
 

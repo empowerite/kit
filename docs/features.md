@@ -87,7 +87,8 @@ uncommitted paths and commits, every open pull request with its state, age, and 
 
 `kit todo` lists the open issues, oldest first, each with its assignees and what is already in flight for it: the open
 change that closes it, or the branch for it on origin. The next issue to take up is one with nothing in flight. Its
-rows are drawn as `kit status` draws its pull requests, in the same colors, clipped to the terminal's width.
+rows are drawn as `kit status` draws its pull requests, in the same colors, clipped to the terminal's width; `--today`
+keeps the issues opened in the last 24 hours.
 
 The `agents/claude` package delivers a deny list that refuses the raw git commands these verbs replace, such as
 `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
