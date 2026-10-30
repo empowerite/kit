@@ -165,4 +165,15 @@ forge-github:open-prs() {
     <<<"${answer}"
 }
 
+# forge-github:open-issues prints one document per open issue, oldest first, as the seam's header says. gh issue list
+# answers with issues alone, never pull requests.
+forge-github:open-issues() {
+  local answer
+  answer=$(gh issue list --state open --limit 1000 --json number,title,assignees,createdAt 2>/dev/null) \
+    || { error "run: gh auth status (the issues could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_issues($now)' \
+    <<<"${answer}"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

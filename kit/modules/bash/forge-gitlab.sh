@@ -188,4 +188,14 @@ forge-gitlab:open-prs() {
   done < <(jq --raw-output '.[].iid' <<<"${list}")
 }
 
+# forge-gitlab:open-issues prints one document per open issue, oldest first, as the seam's header says.
+forge-gitlab:open-issues() {
+  local list
+  list=$(forge-gitlab:api "issues?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \
+    || { error "run: glab auth status (the issues could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::gitlab_issues($now)' \
+    <<<"${list}"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -85,7 +85,12 @@ JSON
   route gh 'repo view*' repo.json
   route gh 'issue view 7 *' issue.json
   route gh 'issue create*' issue-url.txt
+  fixture issues.json <<'JSON'
+[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "2026-09-25T09:00:00Z"},
+ {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
+JSON
   route gh 'issue edit 7 --add-assignee ada' '!0'
+  route gh 'issue list --state open --limit 1000 --json *' issues.json
   route gh 'pr list --state open --json headRefName*' open-heads.json
   route gh 'pr list --head 7-fix-the-thing --state open*' pr-open.json
   route gh 'pr list --head 7-fix-the-thing --state all*' pr-all.json
@@ -131,7 +136,12 @@ JSON
   route glab 'api user' user.json
   route glab "api ${p}/issues/7" issue.json
   route glab 'issue create*' issue-url.txt
+  fixture issues.json <<'JSON'
+[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "2026-09-20T09:00:00.000Z"},
+ {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.500Z"}]
+JSON
   route glab 'issue update 7 --assignee +ada' '!0'
+  route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc" issues.json
   route glab "api ${p}/merge_requests?state=opened&per_page=100&order_by=*" mrs-list.json
   route glab "api ${p}/merge_requests?state=opened&per_page=100" mrs-open.json
   route glab "api ${p}/merge_requests?state=opened&source_branch=7-fix-the-thing" mr-by-branch.json
@@ -245,6 +255,19 @@ JSON
   run "${kit_root}/bin/kit" linked 3
   [ "$status" -eq 0 ]
   [[ "$output" == *"merge request !3 is linked to #7"* ]]
+}
+
+@test "every provider lists its open issues in one shape, oldest first, with the assignees by login" {
+  expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"]},'
+  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[]}]'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run call open-issues
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .createdAt))' <<<"$output")" \
+      = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

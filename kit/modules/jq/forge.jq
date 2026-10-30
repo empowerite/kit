@@ -95,3 +95,18 @@ def gitlab_pr($now; $jobs; $discussions; $closes):
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),
     closes: [$closes[] | { number: .iid, title }] }
   | document($now);
+
+# issue($now) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue document kit todo
+# draws: those, ref, and age in seconds.
+def issue($now):
+  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch))};
+
+# github_issues($now) reads gh issue list's JSON, the answer to forge-github:open-issues, and gives one document per
+# open issue, oldest first.
+def github_issues($now):
+  sort_by(.createdAt, .number)[] | {number, title, assignees: [.assignees[].login], createdAt} | issue($now);
+
+# gitlab_issues($now) reads GitLab's issues, the answer to forge-gitlab:open-issues, and gives the same documents.
+def gitlab_issues($now):
+  sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
+  | issue($now);
