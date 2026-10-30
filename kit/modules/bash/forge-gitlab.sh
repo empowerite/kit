@@ -158,7 +158,7 @@ forge-gitlab:pr-here() {
 }
 
 forge-gitlab:pr-closing-issues() {
-  forge-gitlab:api "merge_requests/$1/closes_issues" 2>/dev/null \
+  forge-gitlab:api "merge_requests/$1/closes_issues?per_page=100" 2>/dev/null \
     | jq --raw-output '.[] | "\(.iid) \(if .state == "closed" then "CLOSED" else "OPEN" end) \(.references.full
         | sub("#[0-9]+$"; ""))"' \
     || { error "run: glab auth status (merge request !$1 could not be read)"; return 1; }
@@ -184,7 +184,7 @@ forge-gitlab:open-prs() {
     jobs='[]'
     [[ -n "${pipeline}" ]] && jobs=$(forge-gitlab:api "pipelines/${pipeline}/jobs?per_page=100")
     discussions=$(forge-gitlab:api "merge_requests/${iid}/discussions?per_page=100")
-    closes=$(forge-gitlab:api "merge_requests/${iid}/closes_issues")
+    closes=$(forge-gitlab:api "merge_requests/${iid}/closes_issues?per_page=100")
     # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
     jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --argjson jobs "${jobs}" \
       --argjson discussions "${discussions}" --argjson closes "${closes}" \

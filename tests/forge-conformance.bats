@@ -149,7 +149,7 @@ JSON
   route glab "api ${p}/merge_requests?state=opened&per_page=100" mrs-open.json
   route glab "api ${p}/merge_requests?state=opened&source_branch=7-fix-the-thing" mr-by-branch.json
   route glab "api ${p}/merge_requests?state=all&source_branch=7-fix-the-thing*" mr-states.json
-  route glab "api ${p}/merge_requests/3/closes_issues" "${GITLAB_CLOSES:-closes.json}"
+  route glab "api ${p}/merge_requests/3/closes_issues?per_page=100" "${GITLAB_CLOSES:-closes.json}"
   route glab "api ${p}/merge_requests/3/discussions*" discussions.json
   route glab "api ${p}/merge_requests/3" mr.json
   route glab "api ${p}/pipelines/11/jobs*" jobs.json
@@ -217,6 +217,27 @@ JSON
     [ "$(jq --compact-output --sort-keys 'del(.age, .createdAt, .ref)' <<<"$output")" \
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
   done
+}
+
+@test "a change that closes more issues than a page holds is drawn with every one: each provider asks for a hundred" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    if [[ "${forge}" == github ]]
+    then
+      jq '.data.repository.pullRequests.nodes[0].closingIssuesReferences.nodes
+            = [range(1; 13) | {number: ., title: "Issue \(.)"}]' "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/many.json"
+      mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/open-prs.json"
+    else
+      jq --null-input '[range(1; 13) | {iid: ., title: "Issue \(.)", state: "opened",
+                                        references: {full: "empowerite/example#\(.)"}}]' > "${FAKE_DIR}/closes.json"
+    fi
+    run call open-prs
+    [ "$status" -eq 0 ]
+    [ "$(jq '.closes | length' <<<"$output")" -eq 12 ]
+  done
+  grep --quiet 'closingIssuesReferences(first: 100)' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'merge_requests/3/closes_issues?per_page=100' "${FAKE_DIR}/glab.calls"
 }
 
 @test "each provider names the change in its own words, and the rest of the picture is identical" {
