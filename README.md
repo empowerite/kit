@@ -204,22 +204,25 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 [docs/packages.md](docs/packages.md) describes the package format.
 [docs/bash.md](docs/bash.md) describes the bash module system the verbs are built on, and how a repository extends it.
 
-This repository installs its own kit. The installed copies are written by `bin/refresh`, which runs `kit update`
-from the index. Do not edit them by hand:
+This repository installs its own kit. What kit places under `.kit/` is a link into the package that delivers it,
+live and ignored by git, so an edit through it is an edit of the source. The installed copies outside `.kit/` are
+written by `bin/refresh`, which runs `kit update` from the index. Do not edit those by hand:
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | `kit/packages/kit/files/repo/.kit/` |
-| `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | `kit/packages/style/<kind>/files/repo/.kit/` |
-| `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
-| `.kit/lefthook.yml` | `kit/packages/hooks/lefthook/files/repo/.kit/lefthook.yml` |
+| `.kit/1st.md`, `.kit/rules/`, `.kit/settings.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
+| `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | links into `kit/packages/style/<kind>/files/repo/.kit/` |
+| `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | links into `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
+| `.kit/lefthook.yml` | a link into `kit/packages/hooks/lefthook/files/repo/.kit/` |
 | `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `AGENTS.md`, `.gitignore` | `kit/packages/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
-| `.kit/manifest` | a digest per delivered path; the release version (`unreleased` here) and the active packages are declared in `.kit/settings.yml` |
+| `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `.kit/settings.yml` |
 
-`.kit/settings.yml` belongs to this repository and is not delivered.
+`.kit/settings.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
+`excludes` keys there. A fresh clone or worktree holds nothing else under `.kit/` until a kit verb runs, or `cd`
+hydrates it through the mise hook in `mise.toml`.
 
 When a commit changes a file under `kit/` or `.kit/packages/`, or `.kit/settings.yml`, the installed copies must change
 in the same commit:
