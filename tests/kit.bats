@@ -32,6 +32,16 @@ shims() {
   printf '%s:%s\n' "${repo}.shims" "${PATH}"
 }
 
+# declared <key> prints a top-level key of .kit/settings.yml: a scalar's value, or a list's items on one line.
+declared() {
+  awk -v key="$1" '
+    $0 ~ "^" key ": " { v = $0; sub("^" key ": *", "", v); print v; exit }
+    $0 == key ":" { on = 1; next }
+    /^[A-Za-z]/ { on = 0 }
+    on && /^  - / { sub(/^  - /, ""); printf "%s%s", (n++ ? " " : ""), $0 }
+    END { if (n) print "" }' .kit/settings.yml 2>/dev/null
+}
+
 # later-release <dir> [<version>] copies this checkout's release to <dir> as <version>, 9.9.9 unless given, with one
 # rule line added in that version.
 later-release() {
@@ -50,13 +60,15 @@ later-release() {
   [ ! -e .kit/lefthook.yml ]
   [ ! -e .github ]
   [ ! -e .claude ]
-  grep --quiet '^version unreleased$' .kit/manifest
-  grep --quiet '^packages kit$' .kit/manifest
+  [ "$(declared version)" = "unreleased" ]
+  [ "$(declared packages)" = "kit" ]
   run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 1 ]
+  [[ "$output" == *"run: kit update"* ]]
   run "${kit_checkout}/bin/kit" package add github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
+  grep --quiet "sed -n 's/^version: \*//p' .kit/settings.yml" .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   # a stray file under a package not active is nobody's business
@@ -68,7 +80,7 @@ later-release() {
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
-  grep --quiet '^packages kit agents/claude$' .kit/manifest
+  [ "$(declared packages)" = "kit agents/claude" ]
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
@@ -93,7 +105,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add agents/claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
-  grep --quiet '^packages kit agents/claude$' .kit/manifest
+  [ "$(declared packages)" = "kit agents/claude" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" package remove agents/claude
@@ -102,7 +114,7 @@ later-release() {
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny == ["Bash(rm -rf /)"]' .claude/settings.json >/dev/null
   jq --exit-status '.hooks == {"PreToolUse": []}' .claude/settings.json >/dev/null
-  grep --quiet '^packages kit$' .kit/manifest
+  [ "$(declared packages)" = "kit" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
 }
@@ -116,7 +128,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package remove github/ci
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
-  grep --quiet '^packages kit agents/claude$' .kit/manifest
+  [ "$(declared packages)" = "kit agents/claude" ]
 }
 
 @test "a template takes the repository's answer over the package's default, and refuses a key with neither" {
@@ -198,7 +210,7 @@ later-release() {
   printf 'python @python@\n' > .kit/packages/python/templates/repo/.python-version
   run "${kit_checkout}/bin/kit" install python
   [ "$status" -eq 0 ]
-  grep --quiet '^packages kit python$' .kit/manifest
+  [ "$(declared packages)" = "kit python" ]
   [ "$(cat .python-version)" = "python 3.13" ]
   run "${kit_checkout}/bin/kit" package list
   [[ "$output" =~ python\ +repository ]]
@@ -211,7 +223,8 @@ later-release() {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/rules/python.md differs"* ]]
-  printf 'answers:\n  python: "3.14"\n' > .kit/settings.yml
+  # the file now carries the declaration, so the repository's own keys are added to it
+  printf 'answers:\n  python: "3.14"\n' >> .kit/settings.yml
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(cat .python-version)" = "python 3.14" ]
@@ -402,10 +415,32 @@ later-release() {
   [[ "$output" == *"3 finding(s)"* ]]
 }
 
-@test "check refuses without a manifest and names install" {
+@test "check refuses in a repository that declares no kit version, and names install" {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: kit install"* ]]
+  [[ "$output" == *".kit/settings.yml"* ]]
+}
+
+@test "install writes the declaration into settings.yml, keeps the repository's own lines, and the manifest records digests only" {
+  mkdir .kit
+  printf '# yaml-language-server: $schema=settings.schema.json\nrequire_signing: true\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" install agents/claude
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '1p' .kit/settings.yml)" = '# yaml-language-server: $schema=settings.schema.json' ]
+  grep --quiet '^require_signing: true$' .kit/settings.yml
+  [ "$(declared version)" = unreleased ]
+  [ "$(declared packages)" = "kit agents/claude" ]
+  run ! grep --quiet '^excludes' .kit/settings.yml
+  run ! grep --quiet '^version' .kit/manifest
+  run ! grep --quiet '^packages' .kit/manifest
+  grep --quiet '  .kit/1st.md$' .kit/manifest
+  # a later write replaces the declaration in place, once
+  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  [ "$status" -eq 0 ]
+  [ "$(declared packages)" = "kit agents/claude hooks/lefthook" ]
+  [ "$(grep -c '^version:' .kit/settings.yml)" -eq 1 ]
+  [ "$(grep -c '^require_signing: true$' .kit/settings.yml)" -eq 1 ]
 }
 
 @test "update replaces unchanged files, merges an edited one, and records the release's digests" {
@@ -415,7 +450,7 @@ later-release() {
   sed -i.bak 's/^# JSON$/# JSON (ours)/' .kit/rules/json.md && rm .kit/rules/json.md.bak
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
-  grep --quiet '^version 9.9.9$' .kit/manifest
+  [ "$(declared version)" = "9.9.9" ]
   grep --quiet '^# JSON (ours)$' .kit/rules/json.md
   grep --quiet '^## Added in 9.9.9$' .kit/rules/json.md
   # the manifest carries the release's digest, so the edit still reads as an edit
@@ -464,7 +499,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add 'style/*'
   [ "$status" -eq 0 ]
   styles='style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml'
-  grep --quiet "^packages kit ${styles}$" .kit/manifest
+  [ "$(declared packages)" = "kit ${styles}" ]
   [ -f .kit/styles/bash.md ]
   run "${kit_checkout}/bin/kit" package remove 'style/j*'
   [ "$status" -eq 0 ]
@@ -483,22 +518,22 @@ later-release() {
   [ -f .github/workflows/kit-ci.yml ]
   members='agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
   members+=' style/prose style/workflows style/yaml'
-  grep --quiet "^packages kit ${members} empowerite$" .kit/manifest
+  [ "$(declared packages)" = "kit ${members} empowerite" ]
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/just.md ]
-  grep --quiet '^excludes style/just$' .kit/manifest
-  [[ "$(sed -n 's/^packages //p' .kit/manifest)" != *style/just* ]]
+  [ "$(declared excludes)" = "style/just" ]
+  [[ " $(declared packages) " != *style/just* ]]
   run "${kit_checkout}/bin/kit" package list
   [[ "$output" == *"❌ style/just "* ]]
   run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/just.md ]
-  grep --quiet '^excludes style/just$' .kit/manifest
+  [ "$(declared excludes)" = "style/just" ]
   run "${kit_checkout}/bin/kit" package add style/just
   [ "$status" -eq 0 ]
   [ -f .kit/styles/just.md ]
-  run ! grep --quiet '^excludes' .kit/manifest
+  [ -z "$(declared excludes)" ]
   # a package the bundle depends on is still refused; the bundle itself leaves without its members
   run "${kit_checkout}/bin/kit" package remove kit
   [ "$status" -eq 1 ]
@@ -509,13 +544,13 @@ later-release() {
   # with no active package including it, a removed package is not an exclusion
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]
-  run ! grep --quiet '^excludes' .kit/manifest
+  [ -z "$(declared excludes)" ]
 }
 
 @test "update resolves the active set from the new release: a new member arrives, and a new dependency brings an excluded package back, saying so" {
   "${kit_checkout}/bin/kit" install empowerite >/dev/null 2>&1
   "${kit_checkout}/bin/kit" package remove style/json style/yaml >/dev/null 2>&1
-  grep --quiet '^excludes style/json style/yaml$' .kit/manifest
+  [ "$(declared excludes)" = "style/json style/yaml" ]
   later-release "${repo}.later"
   mkdir -p "${repo}.later/packages/extra/files/repo/.kit"
   printf 'description: "A package new in 9.9.9"\ndepends:\n  - kit\n' > "${repo}.later/packages/extra/package.yml"
@@ -528,8 +563,8 @@ later-release() {
   [ -f .kit/styles/json.md ]
   [ ! -e .kit/styles/yaml.md ]
   [[ "$output" == *"style/json was excluded, but style/markdown depends on it"* ]]
-  grep --quiet '^excludes style/yaml$' .kit/manifest
-  [[ "$(sed -n 's/^packages //p' .kit/manifest)" == *" extra "* ]]
+  [ "$(declared excludes)" = "style/yaml" ]
+  [[ " $(declared packages) " == *" extra "* ]]
   printf 'extends: [.kit/lefthook.yml]\n' > lefthook.yml
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 0 ]
@@ -577,7 +612,7 @@ later-release() {
 @test "update without the base release refuses an edited file, names the base, and leaves the manifest's version" {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install agents/claude
-  grep --quiet '^version 9.9.9$' .kit/manifest
+  [ "$(declared version)" = "9.9.9" ]
   later-release "${repo}.newer" 9.9.10
   printf 'edited\n' >> .kit/rules/bash.md
   # neither the cache, nor mise, nor the release can produce 9.9.9
@@ -585,7 +620,7 @@ later-release() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"could not be fetched"* ]]
   [[ "$output" == *".kit/rules/bash.md cannot be updated without the base release 9.9.9"* ]]
-  grep --quiet '^version 9.9.9$' .kit/manifest
+  [ "$(declared version)" = "9.9.9" ]
   # whole or not at all: the file that needed no base was not written either
   run ! grep --quiet 'Added in 9.9.10' .kit/rules/json.md
 }
@@ -597,7 +632,7 @@ later-release() {
   run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
   [ "$status" -eq 0 ]
   grep --quiet 'Added in 9.9.10' .kit/rules/json.md
-  grep --quiet '^version 9.9.10$' .kit/manifest
+  [ "$(declared version)" = "9.9.10" ]
   run "${repo}.newer/bin/kit" check
   [ "$status" -eq 0 ]
 }
@@ -637,7 +672,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add hooks/lefthook
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/lefthook.yml: a different file is there already"* ]]
-  grep --quiet '^packages kit$' .kit/manifest
+  [ "$(declared packages)" = "kit" ]
   rm .kit/lefthook.yml
   mkdir .claude && printf '# Ours\n' > .claude/CLAUDE.md
   run "${kit_checkout}/bin/kit" package add agents/claude hooks/lefthook
@@ -650,7 +685,7 @@ later-release() {
   "${kit_checkout}/bin/kit" install agents/claude
   run "${kit_checkout}/bin/kit" package remove kit hooks/lefthook agents/claude
   [ "$status" -eq 0 ]
-  grep --quiet '^packages$' .kit/manifest
+  [ "$(declared packages)" = "" ]
   [ ! -e .kit/1st.md ]
 }
 
@@ -677,7 +712,7 @@ later-release() {
   [ "$("${kit_checkout}/bin/kit" region config.toml | paste -s -d '|' -)" = "${rendered}" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'require_signing: false\nanswers:\n  ci_runner: theirs\n' > .kit/settings.yml
+  printf 'answers:\n  ci_runner: theirs\n' >> .kit/settings.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"config.toml: stale"* ]]

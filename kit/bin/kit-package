@@ -35,9 +35,9 @@ case "${verb}" in
   (list | add | remove) ;;
   (*) usage; exit 2
 esac
-release:require-manifest
-readarray -t active < <(release:manifest-packages)
-readarray -t excluded < <(release:manifest-excludes)
+release:require-declaration
+readarray -t active < <(release:declared-packages)
+readarray -t excluded < <(release:declared-excludes)
 
 case "${verb}" in
   (list)

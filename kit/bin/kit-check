@@ -2,10 +2,10 @@
 # kit-check - fail when a delivered file differs from the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit check takes no arguments. It compares the repository with the release pinned in .kit/manifest, and reports
+# kit check takes no arguments. It compares the repository with the release pinned in .kit/settings.yml, and reports
 # a finding when:
 #
-#   - .kit/manifest records a kit version other than the pinned release
+#   - .kit/settings.yml declares a kit version other than the pinned release
 #   - a delivered file is missing, or differs from the release's copy
 #   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
 #   - a file that should contain a kit region has none
@@ -31,14 +31,14 @@ then
   exit 0
 fi
 
-release:require-manifest
-readarray -t packages < <(release:manifest-packages)
-version=$(release:manifest-version)
+release:require-declaration
+readarray -t packages < <(release:declared-packages)
+version=$(release:declared-version)
 release:render-all "${kit_root}" "${packages[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
-  error ".kit/manifest records kit ${version}, and the pinned release is $(release:version); run: kit update"
+  error ".kit/settings.yml declares kit ${version}, and the pinned release is $(release:version); run: kit update"
   findings=$(( findings + 1 ))
 fi
 for base in $(release:bases)

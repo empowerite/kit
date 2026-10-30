@@ -131,7 +131,8 @@ The repository contains the text:
 - this file
 - the rules under `.kit/rules/`
 - the style under `.kit/styles/`, from the style packages the repository takes
-- `.kit/manifest`, which records the release version, the active packages, and the digest of each delivered file
+- `.kit/settings.yml`, whose `version:` and `packages:` declare the release and the active packages
+- `.kit/manifest`, which records the digest of each delivered file
 
 The installed release contains the code. You run it through the `kit` command on `PATH`. The workflow commands
 are `kit issue`, `kit rebase`, `kit tidy`, `kit status`, `kit context`, `kit new file`, `kit lint`, and `kit gate`.

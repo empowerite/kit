@@ -5,3 +5,20 @@ gate: bin/ci
 # this comment and the two lines below once that pull request merges, and the kit's default applies again.
 policy:
   commit_subject: ''
+
+version: unreleased
+packages:
+  - kit
+  - agents/claude
+  - github/ci
+  - hooks/lefthook
+  - style/bash
+  - style/gitignore
+  - style/json
+  - style/just
+  - style/markdown
+  - style/prose
+  - style/workflows
+  - style/yaml
+  - empowerite
+  - house

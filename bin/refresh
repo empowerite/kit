@@ -71,7 +71,7 @@ update-staged "${work}/staged" "${work}/base"
 stage-export "${work}/staged"
 update-desk "${work}/staged" "${work}/base"
 
-packages=$(sed -n 's/^packages *//p' .kit/manifest)
+packages=$(sed -n '/^packages:$/,/^[a-z]/{ s/^  - //p; }' .kit/settings.yml | paste -s -d ' ' -)
 count=$(awk 'length($1) == 64' .kit/manifest | wc -l | tr -d ' ')
 echo "✅ refreshed from the index and staged: ${count} delivered paths, packages ${packages}"
 

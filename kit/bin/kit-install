@@ -8,10 +8,12 @@
 #
 #   1. Activates the default packages, the named packages, and the packages they depend on and include.
 #   2. Places the files those packages deliver, in the repository and in the home directory.
-#   3. Writes .kit/manifest, and ~/.kit/manifest when the packages deliver files to the home directory.
+#   3. Declares the version and the packages in .kit/settings.yml, and writes .kit/manifest, and ~/.kit/manifest
+#      when the packages deliver files to the home directory.
 #
 # When a different file is already at a delivered path, kit install names it and leaves it alone. It writes no
-# manifest until every path is clear. A repository that already has .kit/manifest is refused: run kit update.
+# manifest until every path is clear. A repository whose .kit/settings.yml already declares a kit version is
+# refused: run kit update.
 #
 # Exits 0 on success, 2 for a package that is neither in the release nor under .kit/packages/, and 1 for any
 # other failure.
@@ -36,9 +38,9 @@ expanded=$(release:expand "${kit_root}" "$@") || exit 2
 readarray -t named < <(awk 'NF' <<<"${expanded}")
 set -- "${named[@]}"
 release:require-packages "${kit_root}" "$@"
-if [[ -f .kit/manifest ]]
+if [[ -n "$(release:setting version)" ]]
 then
-  error "run: kit update (this repository already carries kit $(release:manifest-version))"
+  error "run: kit update (this repository already declares kit $(release:setting version))"
   exit 1
 fi
 readarray -t defaults < <(release:default-packages "${kit_root}")

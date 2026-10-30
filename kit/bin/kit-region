@@ -47,13 +47,13 @@ then
   echo "usage: kit region [--home] [<path>]    (the path defaults to KIT_GENERATE_REGION)" >&2
   exit 2
 fi
-release:require-manifest
-readarray -t packages < <(release:manifest-packages)
+release:require-declaration
+readarray -t packages < <(release:declared-packages)
 release:render-all "${kit_root}" "${packages[@]}"
 src=$(release:source-of "${kit_root}" "${base}" "${path}" "${packages[@]}")
 if [[ -z "${src}" ]] || [[ "$(release:kind "${src}" "${path}")" != region ]]
 then
-  error "no active package delivers a region at ${path} (packages: ${packages[*]}); see .kit/manifest"
+  error "no active package delivers a region at ${path} (packages: ${packages[*]}); see .kit/settings.yml"
   exit 1
 fi
 cat "${src}"

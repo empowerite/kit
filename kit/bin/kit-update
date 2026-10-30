@@ -2,10 +2,10 @@
 # kit-update - move the repository, and the home directory, to the pinned release (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit update takes no arguments. It moves the repository and the home directory from the release .kit/manifest
-# records (the previous release) to the pinned release. The active packages are resolved again from the pinned
+# kit update takes no arguments. It moves the repository and the home directory from the release .kit/settings.yml
+# declares (the previous release) to the pinned release. The active packages are resolved again from the pinned
 # release: a package that an active one now depends on or includes comes in, and so does a new default package. A
-# package the manifest records as excluded stays out, unless a package depends on it. For each delivered file:
+# package .kit/settings.yml declares as excluded stays out, unless a package depends on it. For each delivered file:
 #
 #   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
 #   - a merged JSON file is merged by key
@@ -22,7 +22,7 @@
 #      unreleased previous version)
 #
 # kit update checks that every merge has its base before it writes anything. When a base is missing, it writes
-# nothing and the manifest stays at the previous version, so the next run starts from the same place.
+# nothing and the declared version stays the previous one, so the next run starts from the same place.
 #
 # Exits 0 when the update is complete, and 1 when a base is missing or a file needs to be resolved by hand.
 #
@@ -41,9 +41,9 @@ then
 fi
 
 guard:require tool:jq
-release:require-manifest
-readarray -t recorded < <(release:manifest-packages)
-readarray -t excluded < <(release:manifest-excludes)
+release:require-declaration
+readarray -t recorded < <(release:declared-packages)
+readarray -t excluded < <(release:declared-excludes)
 readarray -t defaults < <(release:default-packages "${kit_root}")
 release:require-packages "${kit_root}" "${recorded[@]}"
 # The active set is resolved again from this release; the header says what comes in and what stays out.
@@ -57,7 +57,7 @@ do
   fi
 done
 readarray -t excluded < <(release:exclusions "${excluded[*]}" "${packages[@]}")
-previous=$(release:manifest-version)
+previous=$(release:declared-version)
 current=$(release:version)
 release:render-all "${kit_root}" "${packages[@]}"
 section "kit update ${previous} → ${current}, packages: ${packages[*]}"

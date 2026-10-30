@@ -5,8 +5,8 @@
 #
 #   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
 #      runners)
-#   2. puts kit on PATH: the release .kit/manifest names, downloaded from its GitHub release, or the checkout's own
-#      kit/bin/ when the manifest says unreleased
+#   2. puts kit on PATH: the release .kit/settings.yml declares, downloaded from its GitHub release, or the
+#      checkout's own kit/bin/ when it declares unreleased
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
@@ -50,18 +50,18 @@ jobs:
       - name: kit-on-path
         run: |
           set -o errexit -o nounset -o pipefail
-          if [[ ! -f .kit/manifest ]]
+          version=$(sed -n 's/^version: *//p' .kit/settings.yml 2>/dev/null)
+          if [[ -z "${version}" ]]
           then
-            echo '::error::run kit install and commit what it writes; this repository has no .kit/manifest'
+            echo '::error::run kit install and commit what it writes; .kit/settings.yml declares no kit version'
             exit 1
           fi
-          version=$(sed -n 's/^version //p' .kit/manifest)
           if [[ "${version}" == unreleased && -x kit/bin/kit ]]
           then
             printf '%s/kit/bin\n' "${PWD}" >> "${GITHUB_PATH}"
           elif [[ "${version}" == unreleased ]]
           then
-            echo '::error::.kit/manifest says unreleased and there is no kit/bin/kit; pin a release and run kit update'
+            echo '::error::.kit/settings.yml declares unreleased and there is no kit/bin/kit; pin a release and run kit update'
             exit 1
           elif ! command -v kit >/dev/null
           then

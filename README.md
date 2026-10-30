@@ -217,7 +217,7 @@ from the index. Do not edit them by hand:
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `AGENTS.md`, `.gitignore` | `kit/packages/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
-| `.kit/manifest` | the release version (`unreleased` here), the active packages, and a digest per delivered path |
+| `.kit/manifest` | a digest per delivered path; the release version (`unreleased` here) and the active packages are declared in `.kit/settings.yml` |
 
 `.kit/settings.yml` belongs to this repository and is not delivered.
 

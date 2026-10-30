@@ -1,11 +1,9 @@
 # .kit/manifest - written by kit, not by hand
-version unreleased
-packages kit agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml empowerite house
 7b50d15feae7b63b94d845b2fa6e19e3220527c5b0cac69303b7fc19bd7484a8  .claude/CLAUDE.md
 deaba46bfba4fa7787fa0bf98832225b1f6926b12cececd921bc935ae5e7da94  .claude/settings.json
-830aeb4d9e0f1bf5a4687e2cb587b0f32a4ed34ae168a8c7a0bb9f5588d5f9d0  .github/workflows/kit-ci.yml
+c09c4434d3f9df3cb71d4bedb13b8da856fb80b4fbe6fea2dd083a7aaccf2694  .github/workflows/kit-ci.yml
 919cc90013e2c104fe87c56c5192d327518d3f2adc2eb2da2b0536c6b5c890f4  .gitignore
-d952b37f99b26c01238daf912cfef4be6735af36ba8ea39b80f26ca867e9b70c  .kit/1st.md
+0fbee5dd6658e677c4f0b1e2197c62b104ca3e6bf91062b88481a50e6018f2ec  .kit/1st.md
 37a8aa17573c0ee454f3100acd78ab82be702575deca4dc52c76a3c9e0ca4f4c  .kit/lefthook.yml
 1740263f21979ac85b6d1fa0263adf3347f03091508022f7e612c69ef6d6d796  .kit/markdownlint.jsonc
 fc08485800e8307d3537d077626ba49c0689dfff2f974af1e9662fd3b5b96eaf  .kit/rules/bash.md
@@ -14,7 +12,7 @@ d8298a5c645f7803eadbfe70cda644ee36a70addcee5f0a848df60aa4da82856  .kit/rules/git
 f4b1eb3e366ca48a91544e84319eb5676e8251afbb48f4eb3915de6a93ba297c  .kit/rules/just.md
 3a3153dd497b0b553e348441cd3370c7bd5994456784553e61ca38539462d107  .kit/rules/markdown.md
 c9a29fa20ffd2fc8410d10a00536dd0c7b86d5c2bd4762aa2af366441511c7c7  .kit/rules/workflows.md
-6cd064d77ed96d0266ecc384ed2bf651a7b7bfa310bc70f0ff3cd142ce373e04  .kit/settings.schema.json
+8c81bfb70cd1d733c0dbc466a4c9068548d62e9d16fc530e17ed26fff9a0350d  .kit/settings.schema.json
 5eced7e840384b579b063529db6d0987aca16d69cfd26bd34b04117a3e0ce26a  .kit/styles/bash.md
 897bb4e13ffb0fafdb14d2804b880f0ff80c8290d233fb8e766426e70d66b082  .kit/styles/gitignore.md
 c998a3e88b95c758d61ad07266aeea33269094f922a47427ec5d9b16357b03ba  .kit/styles/json.md

@@ -66,7 +66,7 @@ teardown() {
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
-  grep --quiet "^version ${version}$" .kit/manifest
+  grep --quiet "^version: ${version}$" .kit/settings.yml
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

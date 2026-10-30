@@ -6,7 +6,7 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 ## Activation
 
 - `kit install [<package>…]` activates `kit`, the one default package, plus the named packages, the packages they
-  depend on, and the members they include. It records the set on the `packages` line of `.kit/manifest`.
+  depend on, and the members they include. It declares the set under `packages:` in `.kit/settings.yml`.
 - `kit package list` shows every package the release has, which are active, and which are excluded.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
 - A glob names every package it matches, in `kit install`, `kit package add`, and `kit package remove`:
@@ -15,7 +15,7 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   and takes the kit's entries back out of any merged `.json` file. A package that an active package depends on is
   refused.
 - A bundle is a package that includes others, such as `empowerite`. Adding it activates its members, and a member
-  can be removed on its own: `kit package remove` records it on the `excludes` line of `.kit/manifest`, and
+  can be removed on its own: `kit package remove` lists it under `excludes:` in `.kit/settings.yml`, and
   `kit update` leaves it out. Naming it in `kit package add` ends the exclusion.
 - `kit update` resolves the active set again from the new release, so a new member of a bundle, a new dependency,
   or a new default package arrives with the release. An excluded member stays out, unless a package depends on it,
@@ -36,7 +36,7 @@ else in the package's directory. The base sets where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
-| `repo` | the repository root | `.kit/manifest`, committed with the repository |
+| `repo` | the repository root | the declaration in `.kit/settings.yml`, and `.kit/manifest`, both committed with the repository |
 | `home` | the user's home directory, `~` | `~/.kit/manifest`, on the user's machine; a CI runner has none |
 
 - `files/home/.kit/<name>` is a user-level setting. Each machine has one copy, from whichever repository installed
@@ -178,7 +178,8 @@ fails the install, and the error names the key and the package.
 
 ## Settings
 
-`.kit/settings.yml` belongs to the repository. The kit reads it and never writes it.
+`.kit/settings.yml` belongs to the repository. The kit writes three keys in it, `version`, `packages`, and `excludes`,
+which declare the pinned release and the active packages, and reads the rest.
 
 - Its schema is [settings.schema.json](../kit/packages/kit/files/repo/.kit/settings.schema.json), delivered beside it as
   `.kit/settings.schema.json`.
@@ -193,6 +194,9 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
+| `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. |
+| `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and `kit package`. |
+| `excludes` | Members of an active bundle removed with `kit package remove`, which `kit update` leaves out. Written by `kit package` and `kit update`. |
 | `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |

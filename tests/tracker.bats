@@ -140,7 +140,7 @@ JSON
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   run "${kit_root}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'trackers:\n  - prefix: "A B#"\n    provider: ado\n' > .kit/settings.yml
+  printf 'trackers:\n  - prefix: "A B#"\n    provider: ado\n' >> .kit/settings.yml
   run "${kit_root}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"a tracker needs a prefix, letters and an optional #, and a provider (prefix 'A B#')"* ]]

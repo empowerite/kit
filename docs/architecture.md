@@ -64,11 +64,13 @@ How a file is placed depends on its destination:
 
 Each base has a manifest:
 
-- `.kit/manifest`, committed with the repository.
+- `.kit/manifest`, committed with the repository beside the declaration in `.kit/settings.yml`.
 - `~/.kit/manifest` on a developer machine, when a package delivers to the home directory.
 
-A manifest records the version, the active packages, and the release's digest of every delivered path. `kit update`
-compares a file against its digest to tell whether the repository edited it.
+The repository's manifest records the release's digest of every delivered path. The version and the active packages
+are declared in `.kit/settings.yml`, the three keys the kit writes there. Home's manifest, with no settings file
+beside it, records its version and packages itself. `kit update` compares a file against its digest to tell whether
+the repository edited it.
 
 ## Finding a file's rules
 

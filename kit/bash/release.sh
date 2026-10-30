@@ -21,7 +21,7 @@
 #
 # The bases a package delivers to:
 #
-#   repo    the repository root, recorded in .kit/manifest
+#   repo    the repository root, declared in .kit/settings.yml and recorded in .kit/manifest
 #   home    the user's home directory, recorded in ~/.kit/manifest, which every repository on the machine shares
 #
 # How a delivered file is placed:
@@ -378,6 +378,7 @@ release:validate-settings() {
   for key in $(yaml:keys "${settings}")
   do
     case "${key}" in
+      (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
@@ -1077,8 +1078,9 @@ release:retire() {
   done <<<"${candidates}"
 }
 
-# release:write-manifest <base> <package>… writes the base's manifest: the version, the active packages, and the
-# digest of the release's file for every path delivered under the base. The repository's manifest is always
+# release:write-manifest <base> <excluded> <package>… writes the base's manifest: the digest of the release's file
+# for every path delivered under the base, and under home, which has no settings file, the version and the active
+# packages as well. The repository's manifest is always
 # written. Home's manifest is shared by every repository on the machine. It is written when these packages deliver
 # to home. When they do not, it drops the lines whose paths no longer exist, and removes the file once no line
 # is left.
@@ -1109,12 +1111,16 @@ release:write-manifest() {
   mkdir -p "$(dirname "${manifest}")"
   {
     printf '# .kit/manifest - written by kit, not by hand\n'
-    printf 'version %s\n' "$(release:version)"
-    if (( $# > 0 ))
-    then printf 'packages %s\n' "$*"
-    else printf 'packages\n'
+    if [[ "${base}" != repo ]]
+    then
+      # Home has no settings file, so its manifest carries the version and the packages that wrote it.
+      printf 'version %s\n' "$(release:version)"
+      if (( $# > 0 ))
+      then printf 'packages %s\n' "$*"
+      else printf 'packages\n'
+      fi
+      [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
     fi
-    [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
     while IFS=$'\t' read -r path src
     do
       # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
@@ -1126,8 +1132,8 @@ release:write-manifest() {
   } > "${manifest}"
 }
 
-# release:write-manifests <excluded> <package>… writes every base's manifest: the active packages, and the excluded
-# ones as a space-separated list, which is empty when there are none.
+# release:write-manifests <excluded> <package>… writes every base's manifest, then the repository's declaration in
+# .kit/settings.yml. <excluded> is the excluded packages as a space-separated list, empty when there are none.
 release:write-manifests() {
   local excluded=$1 base
   shift
@@ -1135,17 +1141,59 @@ release:write-manifests() {
   do
     release:write-manifest "${base}" "${excluded}" "$@"
   done
+  release:declare "$(release:version)" "${excluded}" "$@"
 }
 
-# release:manifest-version prints the version the repository's manifest records.
-release:manifest-version() { sed -n 's/^version //p' .kit/manifest; }
+# release:declare <version> <excluded> <package>… writes the repository's declaration into .kit/settings.yml: the
+# top-level keys version, packages, and excludes, the last left out when nothing is excluded. Every other line of
+# the file stays as it is: the three keys' blocks are dropped and the new ones appended after one blank line. A
+# missing file is created with the schema modeline. yaml.sh only reads, so this is a line-oriented rewrite.
+release:declare() {
+  local version=$1 excluded=$2 settings kept item
+  local -a excludes=()
+  shift 2
+  settings=$(release:settings)
+  mkdir -p "$(dirname "${settings}")"
+  if [[ -f "${settings}" ]]
+  then
+    # A block is its key line and the indented lines after it. Command substitution drops the trailing blank lines.
+    kept=$(awk '
+      /^(version|packages|excludes):/ { skip = 1; next }
+      skip && /^  / { next }
+      { skip = 0; print }' "${settings}")
+  else
+    kept='# yaml-language-server: $schema=settings.schema.json'
+  fi
+  [[ -z "${excluded}" ]] || read -r -a excludes <<<"${excluded}"
+  {
+    [[ -z "${kept}" ]] || printf '%s\n\n' "${kept}"
+    printf 'version: %s\n' "${version}"
+    printf 'packages:\n'
+    for item in "$@"
+    do
+      printf '  - %s\n' "${item}"
+    done
+    if (( ${#excludes[@]} > 0 ))
+    then
+      printf 'excludes:\n'
+      for item in "${excludes[@]}"
+      do
+        printf '  - %s\n' "${item}"
+      done
+    fi
+  } > "${settings}.kit-new"
+  mv "${settings}.kit-new" "${settings}"
+}
 
-# release:manifest-packages prints the active packages the repository's manifest records, one per line.
-release:manifest-packages() { sed -n 's/^packages *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
+# release:declared-version prints the kit version the repository declares in .kit/settings.yml.
+release:declared-version() { release:setting version; }
 
-# release:manifest-excludes prints the packages the repository's manifest records as excluded, one per line: members
-# of an active bundle that were removed, which kit update leaves out.
-release:manifest-excludes() { sed -n 's/^excludes *//p' .kit/manifest | tr ' ' '\n' | awk 'NF'; }
+# release:declared-packages prints the active packages the repository declares in .kit/settings.yml, one per line.
+release:declared-packages() { yaml:list "$(release:settings)" packages; }
+
+# release:declared-excludes prints the packages the repository declares as excluded in .kit/settings.yml, one per
+# line: members of an active bundle that were removed, which kit update leaves out.
+release:declared-excludes() { yaml:list "$(release:settings)" excludes; }
 
 # release:manifest-paths <base> prints every path the base's manifest records. A record line is a 64-character
 # hex digest, two spaces, and the path, which can contain spaces.
@@ -1164,18 +1212,19 @@ release:recorded() {
   awk -v p="$2" 'length($1) == 64 && substr($0, 67) == p { print $1 }' "${manifest}"
 }
 
-# release:require-manifest fails in a repository where the kit was never installed.
-release:require-manifest() {
-  if [[ ! -f .kit/manifest ]]
+# release:require-declaration fails in a repository where the kit was never installed: its .kit/settings.yml
+# declares no kit version.
+release:require-declaration() {
+  if [[ -z "$(release:setting version)" ]]
   then
-    error "run: kit install (this repository carries no .kit/manifest)"
+    error "run: kit install (.kit/settings.yml declares no kit version in this repository)"
     return 1
   fi
 }
 
 # release:finish <package>… reports a finished install or update.
 release:finish() {
-  ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/manifest is written."
+  ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/settings.yml declares them."
   release:say-unmet "$@"
   step "Commit the delivered files. The workflow is in .kit/1st.md."
 }
