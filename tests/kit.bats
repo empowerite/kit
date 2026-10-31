@@ -97,7 +97,7 @@ later-release() {
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
-  [ "$(declared packages)" = "kit agents/claude" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
   jq --exit-status '.permissions.deny | index("Bash(git rebase *)")' .claude/settings.json >/dev/null
   jq --exit-status '.hooks.PreToolUse[0].hooks[0].command == "kit context --claude"' .claude/settings.json >/dev/null
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
@@ -125,7 +125,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add agents/claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
-  [ "$(declared packages)" = "kit agents/claude" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" package remove agents/claude
@@ -148,7 +148,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package remove github/ci
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
-  [ "$(declared packages)" = "kit agents/claude" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
 }
 
 @test "a template takes the repository's answer over the package's default, and refuses a key with neither" {
@@ -458,7 +458,7 @@ later-release() {
   [ "$(sed -n '1p' .kit/settings.yml)" = '# yaml-language-server: $schema=settings.schema.json' ]
   grep --quiet '^require_signing: true$' .kit/settings.yml
   [ "$(declared version)" = unreleased ]
-  [ "$(declared packages)" = "kit agents/claude" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
   run ! grep --quiet '^excludes' .kit/settings.yml
   run ! grep --quiet '^version' .kit/manifest
   run ! grep --quiet '^packages' .kit/manifest
@@ -524,7 +524,7 @@ later-release() {
   run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(declared version)" = unreleased ]
-  [ "$(declared packages)" = "kit agents/claude" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
   run ! grep --quiet '^version ' .kit/manifest
   git add --force .kit/manifest
   run "${kit_checkout}/bin/kit" check

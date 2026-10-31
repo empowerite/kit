@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kit": {
+      "args": [
+        "serve"
+      ],
+      "command": "kit"
+    }
+  }
+}

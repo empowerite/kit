@@ -297,7 +297,7 @@ release:validate() {
   for key in $(yaml:keys "${meta}")
   do
     case "${key}" in
-      (description | default | depends | includes | answers | expects) ;;
+      (description | default | depends | includes | answers | expects | notices) ;;
       (*)
         error "$(release:meta "${root}" "${package}") has a key the kit does not know: ${key}" \
           "(see packages/package.schema.json)"
@@ -421,6 +421,7 @@ release:validate-settings() {
 #   1. the package's defaults under answers: in package.yml, as <key> and as answers.<key>
 #   2. .kit/settings.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
+#   3. kit_version: the version of the release at <root>, the one being rendered, unreleased for a checkout
 #
 # A later source overrides an earlier one, so the repository's answer wins over the package's default.
 release:context() {
@@ -443,6 +444,8 @@ release:context() {
         [[ "${key}" == answers ]] && printf '%s\t%s\n' "${name}" "${value}"
       done < <(yaml:map "${settings}" "${key}")
     done
+  # kit_version is the version of the release being rendered, so a pin moves with kit update
+  printf 'kit_version\t%s\n' "$(cat "$1/version" 2>/dev/null || release:unreleased)"
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
 
@@ -971,6 +974,7 @@ release:place-new() {
     || { [[ "${kind}" == region ]] && ! release:installed "${src}" "${path}" >/dev/null; }
   then
     step "${path}${label:+: ${label}}"
+    release:holds "${src}" "${path}" 2>/dev/null || release_placed+=("${path}")
     release:place "${src}" "${path}"
   elif release:holds "${src}" "${path}"
   then
@@ -984,6 +988,10 @@ release:place-new() {
     return 1
   fi
 }
+
+# release_placed holds each path this process placed afresh, or merged an entry into that was not there, so that
+# release:say-notices tells the person only about what changed.
+declare -ga release_placed=()
 
 # release:place-all <root> <base> <package>… places every path the packages deliver under the base. A path where a
 # different file exists fails. It returns the number of failures.
@@ -1587,8 +1595,27 @@ release:require-declaration() {
 release:finish() {
   ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/settings.yml declares them."
   release:say-unmet "$@"
+  release:say-notices "$@"
   step "Commit .kit/settings.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored. The" \
     "workflow is in .kit/1st.md."
+}
+
+# release:say-notices <package>… prints each notice of the packages whose path this process placed afresh, or merged
+# a new entry into: what happens next, such as a harness asking once whether to use a server the file names.
+release:say-notices() {
+  local package path text placed
+  for package in "$@"
+  do
+    while IFS=$'\x1f' read -r path text
+    do
+      [[ -n "${path}" ]] || continue
+      for placed in "${release_placed[@]}"
+      do
+        [[ "${placed}" == "${path}" ]] && step "${path}: ${text}"
+      done
+    done < <(yaml:records "$(release:meta "${kit_root}" "${package}")" notices path text)
+  done
+  return 0
 }
 
 # release:say-unmet <package>… warns about each unmet expectation of the packages, as a step left to do.

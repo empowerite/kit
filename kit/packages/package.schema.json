@@ -76,6 +76,30 @@
           }
         }
       }
+    },
+    "notices": {
+      "type": "array",
+      "description": "What happens next, told to the person when the kit places a path afresh, or merges an entry into it that was not there: on kit install, kit package add, and kit update.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "text"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file, relative to the repository root, as the package delivers it."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The line printed after the path, in the indicative or the imperative."
+          }
+        }
+      }
     }
   }
 }

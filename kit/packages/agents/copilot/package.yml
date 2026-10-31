@@ -2,7 +2,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md, docs/packages/agents/copilot.md
 
-description: "GitHub Copilot: an instruction file under .github/instructions/ per kind, applied to the kit rule's paths"
+description: "GitHub Copilot: an instruction file per kind under .github/instructions/, applied to the kit rule's paths, and the kit's MCP server"
 depends:
   - kit
   - agents/generic
+notices:
+  - path: .vscode/mcp.json
+    text: "VS Code starts the kit server this file names once you trust the workspace, and Copilot's agent mode lists its tools"

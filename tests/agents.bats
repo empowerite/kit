@@ -111,4 +111,26 @@ claude-prefixes() {
   [ "$(jq --raw-output '.tools.exclude[]' .gemini/settings.json | sort)" = "${expected}" ]
 }
 
+@test "each agents package merges the kit's MCP server beside the repository's own, tells the person once, and remove takes only the kit's out" {
+  printf '{"mcpServers": {"ours": {"command": "ours"}}}\n' > .mcp.json
+  run kit install agents/claude
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".mcp.json: Claude Code asks once, at the start of the next session"* ]]
+  jq --exit-status '.mcpServers == {ours: {command: "ours"}, kit: {command: "kit", args: ["serve"]}}' .mcp.json
+  run kit check
+  [ "$status" -eq 0 ]
+  run kit package add agents/cursor agents/copilot agents/gemini
+  [ "$status" -eq 0 ]
+  [[ "$output" != *".mcp.json: Claude Code asks"* ]]
+  [[ "$output" == *".cursor/mcp.json: Cursor starts the kit server"* ]]
+  [[ "$output" == *".vscode/mcp.json: VS Code starts the kit server"* ]]
+  [[ "$output" == *".gemini/settings.json: Gemini CLI starts the kit server"* ]]
+  jq --exit-status '.mcpServers.kit == {type: "stdio", command: "kit", args: ["serve"]}' .cursor/mcp.json
+  jq --exit-status '.servers.kit == {type: "stdio", command: "kit", args: ["serve"]}' .vscode/mcp.json
+  jq --exit-status '.mcpServers.kit == {command: "kit", args: ["serve"]}' .gemini/settings.json
+  run kit package remove agents/claude
+  [ "$status" -eq 0 ]
+  jq --exit-status '.mcpServers == {ours: {command: "ours"}}' .mcp.json
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

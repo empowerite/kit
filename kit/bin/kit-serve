@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# kit-serve - serves the kit to an agent over the Model Context Protocol, on stdio (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit serve
+#
+# Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, in the repository it starts
+# in, until stdin ends. It opens no network port. Stdout carries only the protocol's messages, one JSON object per
+# line, and every log line goes to stderr.
+#
+# Its tools are the verbs that read and report, and change nothing: backlog, changes, check, context, help, lint,
+# package-list (kit package list), status, syntax, and version. A tool's description is the verb's help, and the
+# tool takes args, the verb's arguments as an array of strings. Its resources are the kit's files: kit://1st.md,
+# and kit://rules/<kind>, kit://styles/<kind>, and kit://kinds/<kind> for each one the repository has.
+#
+# An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration, such
+# as mcpServers.kit in .mcp.json for Claude Code. It answers the 2026-07-28 revision of the protocol, and the ones
+# before it to a client that opens with initialize.
+#
+# Exits 0 when stdin ends, and 2 on a usage error.
+#
+# see: modules/bash/serve.sh, docs/serve.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use release
+
+guard:arguments serve "$@" || exit $?
+guard:require tool:jq || exit 1
+# Hydrating writes its steps to stderr, and places the files the resources name before the first request.
+release:hydrate >&2
+
+use serve
+serve:main
+
+# ----------------------------------------------------------------------------------------------------------------------

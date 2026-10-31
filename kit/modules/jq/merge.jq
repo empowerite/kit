@@ -15,10 +15,14 @@ def apply($cur; $base; $new):
     ((($cur // []) - ($base // [])) as $kept | $kept + ($new - $kept))
   else $new end;
 
-# remove($cur; $base) removes $base's array entries from $cur, key by key. Scalar values stay.
+# remove($cur; $base) removes $base's array entries from $cur, key by key. Scalar values stay. An object $base wrote
+# that is still exactly as $base wrote it goes whole, such as a server entry the release named and nobody changed.
 def remove($cur; $base):
   if ($base | type) == "object" then
-    reduce ($base | keys[]) as $k ($cur; if has($k) then .[$k] = remove($cur[$k]; $base[$k]) else . end)
+    reduce ($base | keys[]) as $k ($cur;
+      if has($k) | not then .
+      elif ($base[$k] | type) == "object" and $cur[$k] == $base[$k] then del(.[$k])
+      else .[$k] = remove($cur[$k]; $base[$k]) end)
   elif ($base | type) == "array" then ($cur // []) - $base
   else $cur end;
 

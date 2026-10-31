@@ -23,6 +23,12 @@ import "merge" as merge; merge::remove(.[0]; .[1])
 [{"deny": ["mine", "kit"], "model": "kept"}, {"deny": ["kit"], "model": "kept"}]
 {"deny":["mine"],"model":"kept"}
 
+# An object the release wrote goes whole while it is as the release wrote it, and stays, less the release's entries,
+# once the repository has changed it.
+import "merge" as merge; merge::remove(.[0]; .[1])
+[{"servers": {"ours": {"c": "o"}, "kit": {"c": "kit", "a": ["serve"]}, "edited": {"c": "mine", "a": ["serve"]}}}, {"servers": {"kit": {"c": "kit", "a": ["serve"]}, "edited": {"c": "kit", "a": ["serve"]}}}]
+{"servers":{"ours":{"c":"o"},"edited":{"c":"mine","a":[]}}}
+
 # A file holds a release when it contains every key, entry, and value the release writes.
 import "merge" as merge; [merge::holds(.[0]; .[1]), merge::holds(.[0]; .[2]), merge::holds(.[0]; .[3])]
 [{"deny": ["mine", "kit"], "model": "x"}, {"deny": ["kit"]}, {"deny": ["gone"]}, {"model": "y"}]

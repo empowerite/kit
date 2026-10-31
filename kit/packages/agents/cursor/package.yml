@@ -2,7 +2,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md, docs/packages/agents/cursor.md
 
-description: "Cursor: a rule under .cursor/rules/ for each kind of file, attached by the kit rule's paths, that points at it"
+description: "Cursor: a rule per kind under .cursor/rules/, attached by the kit rule's paths, and the kit's MCP server"
 depends:
   - kit
   - agents/generic
+notices:
+  - path: .cursor/mcp.json
+    text: "Cursor starts the kit server this file names, and asks before it runs each of its tools unless you allow it"

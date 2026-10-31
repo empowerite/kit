@@ -2,6 +2,12 @@
   "context": {
     "fileName": ["GEMINI.md", "AGENTS.md"]
   },
+  "mcpServers": {
+    "kit": {
+      "command": "kit",
+      "args": ["serve"]
+    }
+  },
   "tools": {
     "exclude": [
       "run_shell_command(git commit)",

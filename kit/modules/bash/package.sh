@@ -59,6 +59,7 @@ package:add() {
   release:materialize "${wanted[@]}"
   ok "packages: ${wanted[*]}"
   release:say-unmet "${wanted[@]}"
+  release:say-notices "${wanted[@]}"
 }
 
 # package:remove <package>… takes out what the packages delivered (files, the kit's JSON entries, and the kit's
