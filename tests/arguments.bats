@@ -46,7 +46,7 @@ kit-bash() {
   [[ "$output" == *"kit commit needs --message or --file; run: kit help commit"* ]]
   run "${kit_root}/bin/kit" new
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit new needs file; run: kit help new"* ]]
+  [[ "$output" == *"kit new needs file or kind; run: kit help new"* ]]
   run "${kit_root}/bin/kit" new file
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit new file needs <path>; run: kit help new"* ]]
