@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root, kit_bash_path, and help_groups are set by modules/bash/1st.sh and help.sh
 
-use template
+use template file
 
 # new:choices <key> [<answer>…] answers kit syntax --choices for --rule, the rules that have templates, each with its
 # variants as the description, and for --variant, the variants of the rule and the style the answers name with
@@ -409,11 +409,12 @@ new:template() {
     .kit/packages/"${package}"/files/repo/.kit/rules/"${rule}".md
   do
     [[ -f "${owner}" ]] || continue
-    awk -v variant="${variant}" '
+    # shellcheck disable=SC2016  # the awk program names its fields with $ on purpose
+    file:replace "${owner}" awk -v variant="${variant}" '
       NR == 1 && $0 == "---" { front = 1; print; next }
       front && $0 == "templates:" { listed = 1; print; print "  - variant: " variant; next }
       front && $0 == "---" { if (!listed) { print "templates:"; print "  - variant: " variant }; front = 0 }
-      { print }' "${owner}" > "${owner}.kit-new" && mv "${owner}.kit-new" "${owner}"
+      { print }' "${owner}"
     step "listed the ${variant} variant under templates: in ${owner}"
     new:offer "${package}" "the ${variant} template" "kit new file <path> --rule=${rule} --variant=${variant}"
     return 0

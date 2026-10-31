@@ -31,7 +31,8 @@
 #   - a region is regenerated, never merged
 #   - every other file is copied
 #
-# The repository's choices are in kit.yml. The kit reads that file and never writes it.
+# The repository's choices are in kit.yml. The kit writes three keys there, version, packages, and excludes
+# (release:declare), and reads the rest. Every file it writes goes through modules/bash/file.sh, whole or not at all.
 #
 # Every function reads a release from a root directory: kit_root by default, which modules/bash/1st.sh exports. kit:enter
 # changes to the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and
@@ -39,7 +40,7 @@
 #
 # see: docs/packages.md
 
-use yaml sources
+use yaml sources file
 
 # release:unreleased prints `unreleased`, the version of a kit checkout. The release workflow
 # (.github/workflows/release.yml) writes a version file into each release; a checkout has none. kit update never
@@ -815,18 +816,7 @@ release:host-insert() {
     awk -v k="${k}" 'NR <= k' "${dest}" > "${prefix}.file"
     if [[ ! -s "${prefix}" && "${k}" -eq 0 ]] || template:unapply "${prefix}" "${prefix}.file" >/dev/null 2>&1
     then
-      rest=$(tail -n "+$(( k + 1 ))" "${dest}")
-      {
-        awk -v k="${k}" 'NR <= k' "${dest}"
-        (( k == 0 )) || printf '\n'
-        printf '%s\n%s\n' "${begin}" "${end}"
-        if [[ -n "${rest}" ]]
-        then
-          [[ -z "$(head -n 1 <<<"${rest}")" ]] || printf '\n'
-          printf '%s\n' "${rest}"
-        fi
-      } > "${dest}.kit-new"
-      mv "${dest}.kit-new" "${dest}"
+      file:replace "${dest}" release:host-inserted "${dest}" "${k}" "${begin}" "${end}" || return 1
       return 0
     fi
   done
@@ -834,6 +824,21 @@ release:host-insert() {
   error "${dest} does not open as the ${rest%%/hosts/*} package's host template has it, so the kit cannot place" \
     "its region; put ${begin} and ${end} where it belongs, then run: kit generate ${dest}"
   return 1
+}
+
+# release:host-inserted <dest> <k> <begin> <end> prints the file with an empty region, its markers alone, after its
+# first <k> lines: a blank line before them unless k is 0, and one after them unless the rest starts with one.
+release:host-inserted() {
+  local dest=$1 k=$2 begin=$3 end=$4 rest
+  rest=$(tail -n "+$(( k + 1 ))" "${dest}")
+  awk -v k="${k}" 'NR <= k' "${dest}"
+  (( k == 0 )) || printf '\n'
+  printf '%s\n%s\n' "${begin}" "${end}"
+  if [[ -n "${rest}" ]]
+  then
+    [[ -z "$(head -n 1 <<<"${rest}")" ]] || printf '\n'
+    printf '%s\n' "${rest}"
+  fi
 }
 
 # release:region-write <dest> <content-file> sets the region's content to <content-file>, the output of the
@@ -848,7 +853,6 @@ release:region-write() {
   local path content=$2 begin end status=0 host
   path=$(release:target "$1")
   { read -r begin; read -r end; } < <(release:region-markers "$1")
-  mkdir -p "$(dirname "${path}")"
   host=$(release:host "${content}")
   release:region-has "${path}" || status=$?
   (( status == 2 )) && return 1
@@ -859,51 +863,58 @@ release:region-write() {
     then
       release:host-insert "${path}" "${host}" "${begin}" "${end}" || return 1
     else
-      template:render "${host}" '{}' > "${path}"
+      file:replace "${path}" template:render "${host}" '{}' || return 1
     fi
     status=0
   fi
-  if (( status == 0 ))
+  file:replace "${path}" release:region-filled "${path}" "${content}" "${begin}" "${end}" "${status}"
+}
+
+# release:region-filled <path> <content-file> <begin> <end> <has> prints the file with the region's content in place:
+# between its markers when <has> is 0, the file has them; otherwise after the file's text and a blank line, or as the
+# whole file when there is no text.
+release:region-filled() {
+  local path=$1 content=$2 begin=$3 end=$4 has=$5
+  if (( has == 0 ))
   then
     awk -v b="${begin}" -v e="${end}" -v c="${content}" '
       $0 == b { print; while ((getline line < c) > 0) print line; skip = 1; next }
       $0 == e { skip = 0 }
-      !skip { print }' "${path}" > "${path}.kit-new"
-  else
-    {
-      if [[ -s "${path}" ]]
-      then
-        cat "${path}"
-        [[ "$(tail -c 1 "${path}")" == "" ]] || printf '\n'
-        printf '\n'
-      fi
-      printf '%s\n' "${begin}"
-      cat "${content}"
-      printf '%s\n' "${end}"
-    } > "${path}.kit-new"
+      !skip { print }' "${path}"
+    return 0
   fi
-  mv "${path}.kit-new" "${path}"
+  if [[ -s "${path}" ]]
+  then
+    cat "${path}"
+    [[ "$(tail -c 1 "${path}")" == "" ]] || printf '\n'
+    printf '\n'
+  fi
+  printf '%s\n' "${begin}"
+  cat "${content}"
+  printf '%s\n' "${end}"
 }
 
 # release:region-remove <dest> [<content-file>] removes the region, its directive, its end marker, and the blank line
 # before it. A file left empty is deleted, and so is one left as the package's host template made it, holes at their
 # defaults, when <content-file> names the region's source and its package states a host.
 release:region-remove() {
-  local path begin end host made
+  local path begin end host made stripped
   path=$(release:target "$1")
   [[ -f "${path}" ]] || return 0
   { read -r begin; read -r end; } < <(release:region-markers "$1")
-  release:region-strip "${begin}" "${end}" < "${path}" > "${path}.kit-new"
+  # The x keeps the trailing newlines a command substitution would drop.
+  stripped=$(release:region-strip "${begin}" "${end}" < "${path}" && printf x) || return 1
+  stripped=${stripped%x}
   host=$( [[ -n "${2:-}" ]] && release:host "$2" )
   if [[ -n "${host}" ]]
   then
     use template
     made=$(template:render "${host}" '{}' | release:region-strip "${begin}" "${end}")
-    [[ "$(cat "${path}.kit-new")" != "${made}" ]] || : > "${path}.kit-new"
+    [[ "$(printf '%s' "${stripped}")" != "${made}" ]] || stripped=''
   fi
-  if [[ -s "${path}.kit-new" ]]
-  then mv "${path}.kit-new" "${path}"
-  else rm -f "${path}.kit-new" "${path}"
+  if [[ -n "${stripped}" ]]
+  then file:replace "${path}" printf '%s' "${stripped}"
+  else rm -f "${path}"
   fi
 }
 
@@ -1030,15 +1041,19 @@ release:without() {
 }
 
 # release:json-write <path> <filter> [<jq option>…] rewrites the JSON at <path> through <filter>, which can call
-# modules/jq/merge.jq as merge::. It creates the file, as {}, when it is missing.
+# modules/jq/merge.jq as merge::. It creates the file, as {}, when it is missing. A file jq cannot read, such as one
+# with comments, is named, left as it was, and fails.
 release:json-write() {
   local path filter=$2
   path=$(release:target "$1")
   shift 2
   mkdir -p "$(dirname "${path}")"
   [[ -f "${path}" ]] || printf '{}\n' > "${path}"
-  jq -L "${kit_jq}" --indent 2 "import \"merge\" as merge; ${filter}" "$@" "${path}" > "${path}.kit-new"
-  mv "${path}.kit-new" "${path}"
+  if ! file:replace "${path}" jq -L "${kit_jq}" --indent 2 "import \"merge\" as merge; ${filter}" "$@" "${path}"
+  then
+    error "${path}: not JSON jq can read, so the kit's entries in it were not changed; it is left as it was"
+    return 1
+  fi
 }
 
 # release:json-holds <path> <source> succeeds when the JSON at <path> contains every entry that the release's
@@ -1075,10 +1090,7 @@ release:place() {
       then
         release:materialize-one "${src}" "${path}" >/dev/null
       else
-        path=$(release:target "${path}")
-        mkdir -p "$(dirname "${path}")"
-        cp "${src}" "${path}.kit-new"
-        mv "${path}.kit-new" "${path}"
+        file:copy "${src}" "$(release:target "${path}")"
       fi
   esac
 }
@@ -1237,11 +1249,7 @@ release:materialize-one() {
   then
     ln -sfn "${state#link }" "${dest}"
   else
-    # A readonly .kit-new that an interrupted run left behind would refuse the copy on GNU cp.
-    rm -f "${dest}.kit-new"
-    cp "${src}" "${dest}.kit-new"
-    chmod a-w "${dest}.kit-new"
-    mv -f "${dest}.kit-new" "${dest}"
+    file:copy --read-only "${src}" "${dest}"
   fi
 }
 
@@ -1396,11 +1404,8 @@ release:materialize() {
     printf '%s\n' "${findings}"
   elif [[ ! -f .kit/.gitignore || "$(<.kit/.gitignore)" != "${ignore}" ]]
   then
-    mkdir -p .kit
-    # Written beside and moved over: the file has no write bit, as every file kit places here has none.
-    printf '%s\n' "${ignore}" > .kit/.gitignore.kit-new
-    chmod a-w .kit/.gitignore.kit-new
-    mv -f .kit/.gitignore.kit-new .kit/.gitignore
+    # The file has no write bit, as every file kit places here has none.
+    file:replace --read-only .kit/.gitignore printf '%s\n' "${ignore}"
     step ".kit/.gitignore: written"
   else
     # Newer than kit.yml again: release:hydrated reads that as the declaration having been seen.
@@ -1575,40 +1580,45 @@ release:write-manifest() {
     then
       rm -f "${manifest}"
     else
-      {
-        awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "${manifest}"
-        printf '%s\n' "${kept}"
-      } > "${manifest}.kit-new"
-      chmod a-w "${manifest}.kit-new"
-      mv -f "${manifest}.kit-new" "${manifest}"
+      file:replace --read-only "${manifest}" release:manifest-kept "${manifest}" "${kept}"
     fi
     return 0
   fi
-  mkdir -p "$(dirname "${manifest}")"
-  {
-    printf '# .kit/manifest - written by kit, not by hand\n'
-    if [[ "${base}" != repo ]]
-    then
-      # Home has no settings file, so its manifest carries the version and the packages that wrote it.
-      printf 'version %s\n' "$(release:version)"
-      if (( $# > 0 ))
-      then printf 'packages %s\n' "$*"
-      else printf 'packages\n'
-      fi
-      [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
+  # The manifest has no write bit, as every file kit places under .kit/ has none.
+  file:replace --read-only "${manifest}" release:manifest-text "${base}" "${excluded}" "${delivered}" "$@"
+}
+
+# release:manifest-kept <manifest> <kept> prints home's manifest with its header lines and the record lines in <kept>.
+release:manifest-kept() {
+  awk '!(length($1) == 64 && $0 ~ /^[0-9a-f]+  /)' "$1"
+  printf '%s\n' "$2"
+}
+
+# release:manifest-text <base> <excluded> <delivered> <package>… prints a manifest: its header; under home, the
+# version, the packages, and the excludes; and one record per "<path>\t<source>" line of <delivered>, the source's
+# digest and the path.
+release:manifest-text() {
+  local base=$1 excluded=$2 delivered=$3 path src
+  shift 3
+  printf '# .kit/manifest - written by kit, not by hand\n'
+  if [[ "${base}" != repo ]]
+  then
+    # Home has no settings file, so its manifest carries the version and the packages that wrote it.
+    printf 'version %s\n' "$(release:version)"
+    if (( $# > 0 ))
+    then printf 'packages %s\n' "$*"
+    else printf 'packages\n'
     fi
-    while IFS=$'\t' read -r path src
-    do
-      # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
-      if [[ -n "${path}" ]]
-      then
-        printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
-      fi
-    done <<<"${delivered}"
-  } > "${manifest}.kit-new"
-  # Written beside and moved over: the manifest has no write bit, as every file kit places under .kit/ has none.
-  chmod a-w "${manifest}.kit-new"
-  mv -f "${manifest}.kit-new" "${manifest}"
+    [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
+  fi
+  while IFS=$'\t' read -r path src
+  do
+    # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
+    if [[ -n "${path}" ]]
+    then
+      printf '%s  %s\n' "$(release:digest < "${src}")" "${path}"
+    fi
+  done <<<"${delivered}"
 }
 
 # release:write-manifests <excluded> <package>… writes every base's manifest, then the repository's declaration in
@@ -1629,19 +1639,14 @@ release:write-manifests() {
 # where the first of them stood, or appended after one blank line when the file had none. A missing file is created
 # with the schema modeline. yaml.sh only reads, so this is a line-oriented rewrite.
 release:declare() {
-  local version=$1 excluded=$2 settings kept declaration line item
+  local version=$1 excluded=$2 settings kept declaration item
   local -a excludes=()
   shift 2
   settings=$(release:settings)
-  mkdir -p "$(dirname "${settings}")"
   if [[ -f "${settings}" ]]
   then
-    # A block is its key line and the indented lines after it. A marker, \001, takes the first block's place.
-    # Command substitution drops the trailing blank lines.
-    kept=$(awk '
-      /^(version|packages|excludes):/ { if (!seen) { print "\001"; seen = 1 }; skip = 1; next }
-      skip && /^  / { next }
-      { skip = 0; print }' "${settings}")
+    # A marker, \001, takes the first block's place. Command substitution drops the trailing blank lines.
+    kept=$(release:declaration-kept "${settings}" $'\001')
   else
     kept='# yaml-language-server: $schema=.kit/kit.schema.json'
   fi
@@ -1662,22 +1667,40 @@ release:declare() {
       done
     fi
   )
-  {
-    if [[ "${kept}" == *$'\001'* ]]
-    then
-      while IFS= read -r line
-      do
-        if [[ "${line}" == $'\001' ]]
-        then printf '%s\n' "${declaration}"
-        else printf '%s\n' "${line}"
-        fi
-      done <<<"${kept}"
-    else
-      [[ -z "${kept}" ]] || printf '%s\n\n' "${kept}"
-      printf '%s\n' "${declaration}"
-    fi
-  } > "${settings}.kit-new"
-  mv "${settings}.kit-new" "${settings}"
+  file:replace "${settings}" release:declaration-text "${kept}" "${declaration}"
+}
+
+# release:declaration-kept <settings> <marker> prints the settings file without the blocks of version, packages, and
+# excludes, with <marker> on a line of its own where the first block stood, or nothing there when it is empty. A block
+# is its key line, the indented lines after it, and the comments and blank lines among them. A comment or blank line
+# after the block's last item belongs to what follows, and stays.
+release:declaration-kept() {
+  awk -v marker="$2" '
+    function flush() { for (i = 1; i <= held; i++) print hold[i]; held = 0 }
+    /^(version|packages|excludes):/ { if (!seen) { if (marker != "") print marker; seen = 1 }; skip = 1; held = 0; next }
+    skip && /^  / { held = 0; next }
+    skip && (/^#/ || /^[[:space:]]*$/) { hold[++held] = $0; next }
+    { if (skip) flush(); skip = 0; print }
+    END { if (skip) flush() }' "$1"
+}
+
+# release:declaration-text <kept> <declaration> prints kit.yml: the kept lines with the declaration where the marker
+# stands, or, with no marker, the kept lines, a blank line, and the declaration.
+release:declaration-text() {
+  local kept=$1 declaration=$2 line
+  if [[ "${kept}" == *$'\001'* ]]
+  then
+    while IFS= read -r line
+    do
+      if [[ "${line}" == $'\001' ]]
+      then printf '%s\n' "${declaration}"
+      else printf '%s\n' "${line}"
+      fi
+    done <<<"${kept}"
+  else
+    [[ -z "${kept}" ]] || printf '%s\n\n' "${kept}"
+    printf '%s\n' "${declaration}"
+  fi
 }
 
 # release:declared-version prints the kit version the repository declares in kit.yml. A manifest that

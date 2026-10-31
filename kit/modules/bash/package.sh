@@ -119,7 +119,7 @@ package:add() {
   done
   if (( refused > 0 ))
   then
-    error "${refused} path(s) already hold a different file; move each aside, then run: kit package add ${named[*]}"
+    error "${refused} path(s) could not be placed, each named above; settle each, then run: kit package add ${named[*]}"
     return 1
   fi
   readarray -t excluded < <(release:exclusions "${excluded[*]}" "${wanted[@]}")

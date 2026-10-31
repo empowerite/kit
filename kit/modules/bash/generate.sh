@@ -47,6 +47,8 @@
 #
 # see: bin/kit-generate, bin/kit-region, docs/generate.md
 
+use file
+
 # The directive patterns. The name is any run of characters without whitespace or a backtick. The command is
 # everything between the first backtick after the name and the last backtick on the line.
 declare -g generate_open_re='^[^[:alnum:]]*kit:generate[[:space:]]+([^[:space:]`]+)([[:space:]]+`(.+)`)?[^[:alnum:]]*$'
@@ -300,8 +302,8 @@ generate:twice() {
   done < "${expanded}"
 }
 
-# generate:expand <file> <mode> expands the file's regions into a temp file beside it and compares the two. Only
-# mode write writes the file. It returns:
+# generate:expand <file> <mode> expands the file's regions into a temporary file and compares the two. Only mode
+# write writes the file, whole, through file:replace. It returns:
 #
 #   0  nothing changed
 #   1  the file was rewritten (mode write) or is stale (mode check)
@@ -319,8 +321,7 @@ generate:expand() {
     return 2
   fi
   target=$(generate:target "${file}")
-  temp="${target}.kit-new"
-  cp -p "${target}" "${temp}"
+  temp=$(mktemp)
   generate:markdown "${file}" && markdown=true
   if ! generate:unit "${file}" "${temp}" "${file}" "${file}" "${markdown}"
   then
@@ -345,7 +346,12 @@ generate:expand() {
     rm -f "${temp}"
     return 1
   fi
-  mv "${temp}" "${target}"
+  if ! file:replace "${target}" cat "${temp}"
+  then
+    rm -f "${temp}"
+    return 2
+  fi
+  rm -f "${temp}"
   step "${file}: regenerated"
   return 1
 }
