@@ -17,6 +17,9 @@
 #   --file <path>      reads the message from a file, whose first line is the subject
 #   <path>…            commits those paths alone, as git commit -- <path>… does; each must be known to git
 #
+# A subject that names an issue other than the branch's own attaches that issue to the branch's change: kit commit
+# adds a Closes line for it to the change's body, and assigns the caller to it when no one is assigned.
+#
 # kit commit opens no editor. Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.
 #
 # see: modules/bash/commit.sh, kit-submit

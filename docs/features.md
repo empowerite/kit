@@ -76,7 +76,8 @@ root checkout on the human's machine. The human at the desk is not bound by thes
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
 2. `kit commit` commits what is staged, after the checks a commit's rule requires: the linters over the staged paths,
    no path the kit placed, and a subject the policy allows, with the issue's reference supplied from the branch. It
-   refuses the desk and the default branch.
+   refuses the desk and the default branch. A subject that names another issue adds that issue to the issues the
+   change closes, and assigns it to the caller when no one is assigned.
 3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
    first time. It never forces: when origin has moved, the remedy is `kit rebase`.
 4. `kit rebase` rebases the worktree's branch onto the default branch at origin and pushes it. It refuses the desk,

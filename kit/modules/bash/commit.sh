@@ -15,6 +15,10 @@
 #     repository's policy through the policy seam, as kit policy judges it in CI
 #   - warns when commits here are not signed; it cannot make a key appear, so it does not refuse
 #
+# A commit whose subject names an issue other than the branch's own attaches that issue to the branch's change, so
+# kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to the issue when no
+# one is assigned. The commit exists by then, so a forge that fails only warns.
+#
 # kit submit commits when there is something to commit, then pushes, setting the upstream on the first push. It never
 # rebases: a push origin refuses as not fast-forward names kit rebase as the remedy, so one verb does one thing and a
 # conflict with the default branch never blocks sharing work.
@@ -118,6 +122,36 @@ commit:with-reference() {
     printf '%s %s\n' "${reference}" "${subject}"
   else
     printf '%s\n' "${subject}"
+  fi
+}
+
+# commit:attach <branch> <subject> closes the issue the subject names in the branch's open change, and assigns the
+# caller to it when it has no assignee, when that issue is not the branch's own. It asks the forge nothing otherwise,
+# nor in a repository with no forge, and it only warns: the commit exists already.
+commit:attach() {
+  local branch=$1 subject=$2 ref pr prefix me assignees
+  [[ "${subject}" =~ ^(([A-Z]+)?#[0-9]+)\  ]] || return 0
+  ref=$(tracker:normal "${BASH_REMATCH[1]}" 2>/dev/null) || return 0
+  [[ "${ref}" != "$(tracker:branch-ref "${branch}")" ]] || return 0
+  use issue
+  forge:provider >/dev/null 2>&1 || return 0
+  pr=$(forge:pr-for-branch "${branch}")
+  if [[ -z "${pr}" ]]
+  then
+    warn "${ref} is not closed by a change: ${branch} has no open change; add Closes ${ref} to its body when it has one"
+  else
+    issue:link-in-body "${pr}" "${ref}" \
+      || warn "${ref} could not be added to change ${pr}'s body; add Closes ${ref} by hand"
+  fi
+  prefix=$(tracker:parse "${ref}" | cut -f 1)
+  assignees=$(tracker:of "${ref}" assignees) || { warn "${ref}'s assignees could not be read"; return 0; }
+  [[ -z "${assignees}" ]] || return 0
+  me=$(tracker:at "${prefix}" me) || return 0
+  if tracker:of "${ref}" assign "${me}"
+  then
+    ok "${ref} assigned to ${me}, as no one was"
+  else
+    warn "${ref} could not be assigned to ${me}; assign it by hand"
   fi
 }
 
@@ -244,6 +278,7 @@ commit:commit() {
   fi
   rm -f "${message}"
   ok "committed $(git rev-parse --short HEAD): ${subject}"
+  commit:attach "${branch}" "${subject}"
 }
 
 # commit:submit <argument>… commits when something is staged, or when --all or paths say what to take, then pushes the

@@ -146,4 +146,65 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git log -1 --format=%s)" = "#7 x: mine" ]
 }
 
+# forge-world routes a fake gh for change 3, open on this branch with the body "Closes #7", and issue 9 with the
+# assignees given, if any; ada is the caller. Every gh call lands in ${FAKE_DIR}/gh.calls.
+forge-world() {
+  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
+  mkdir -p "${FAKE_DIR}/bin"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
+  export PATH="${FAKE_DIR}/bin:${PATH}"
+  printf 'forge: github\n' >> .kit/settings.yml
+  printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
+  printf '[{"number": 3}]\n' > "${FAKE_DIR}/pr-open.json"
+  printf '{"body": "Closes #7"}\n' > "${FAKE_DIR}/pr.json"
+  jq --null-input --compact-output '{assignees: [$ARGS.positional[] | {login: .}]}' --args "$@" \
+    > "${FAKE_DIR}/issue.json"
+  printf '%s\t%s\n' \
+    'api user*' user.json \
+    'pr list --head 7-fix-the-thing --state open*' pr-open.json \
+    'pr view 3 --json body*' pr.json \
+    'pr edit 3 --body *' '!0' \
+    'issue view 9 --json assignees*' issue.json \
+    'issue edit 9 --add-assignee ada' '!0' > "${FAKE_DIR}/gh.routes"
+}
+
+@test "kit commit for another issue closes it in the branch's change, and assigns the caller when no one is" {
+  forge-world
+  printf 'x\n' > x && git add x
+  run kit commit --message '#9 x: a file' x
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'Closes #9' "${FAKE_DIR}/gh.calls"
+  grep --quiet --line-regexp 'issue edit 9 --add-assignee ada' "${FAKE_DIR}/gh.calls"
+}
+
+@test "kit commit for another issue leaves its assignees, and a body that closes it already, as they are" {
+  forge-world bob
+  printf '{"body": "Closes #7\\nfixes #9"}\n' > "${FAKE_DIR}/pr.json"
+  printf 'x\n' > x && git add x
+  run kit commit --message '#9 x: a file' x
+  [ "$status" -eq 0 ]
+  ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
+  ! grep --quiet '^issue edit' "${FAKE_DIR}/gh.calls"
+}
+
+@test "kit commit for the branch's own issue asks the forge nothing" {
+  forge-world
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file' x
+  [ "$status" -eq 0 ]
+  printf 'y\n' > y && git add y
+  run kit commit --message 'y: no reference' y
+  [ "$status" -eq 0 ]
+  [ ! -e "${FAKE_DIR}/gh.calls" ]
+}
+
+@test "kit commit for another issue on a branch with no open change keeps the commit and says the issue is not closed" {
+  forge-world
+  printf '[]\n' > "${FAKE_DIR}/pr-open.json"
+  printf 'x\n' > x && git add x
+  run kit commit --message '#9 x: a file' x
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"committed "* && "$output" == *"#9"*"no open change"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
