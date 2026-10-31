@@ -16,6 +16,9 @@
 # nothing and says nothing when everything is in place, or outside a repository that declares a kit version, and does
 # the whole job otherwise.
 #
+#   --quick   for a shell hook, such as mise's enter hook: starts nothing and says nothing when everything is in place,
+#             or outside a repository that declares a kit version
+#
 # Exits 0 on success, and 1 in a repository that declares no kit version, unless --quick.
 #
 # see: modules/bash/release.sh, docs/toolchains.md

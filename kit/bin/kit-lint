@@ -4,11 +4,11 @@
 #
 # kit lint [--all-files] [<path>…]
 #
-# Runs each rule's checks over the files the rule governs. The files are:
+# Runs each rule's checks over the files the rule governs.
 #
-#   - the paths given, relative to the current directory; a directory stands for the tracked files under it
-#   - with no paths, the staged files
-#   - with no paths and --all-files, every tracked file
+#   <path>…       the files to check, relative to the current directory; a directory stands for the tracked files
+#                 under it; with none, the staged files
+#   --all-files   with no paths, every tracked file instead of the staged ones
 #
 # Each file is matched to the rules of its kinds, as kit context matches, without the rules of the kinds a kind
 # embeds, so no linter runs over a file it cannot parse. Then, for each rule:

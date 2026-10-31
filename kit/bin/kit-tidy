@@ -15,7 +15,7 @@
 #   - a detached worktree whose commit nothing else reaches
 #   - the worktree it runs in
 #
-# --dry-run prints what kit tidy would do, and changes nothing.
+#   --dry-run   prints what kit tidy would do, and changes nothing
 #
 # see: modules/bash/git.sh
 

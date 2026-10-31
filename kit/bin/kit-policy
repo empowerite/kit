@@ -10,8 +10,9 @@
 #   - the subject of each commit since the branch forked from the default branch
 #   - the open pull request's title
 #
-# The policy engine then reports every refusal. The engine is patterns (the default) or Open Policy Agent. With
-# --input, kit policy prints the facts as JSON instead: the document a rule is written against.
+# The policy engine then reports every refusal. The engine is patterns (the default) or Open Policy Agent.
+#
+#   --input   prints the facts as JSON instead of judging them: the document a rule is written against
 #
 # A change by a login the repository lists under linked_exempt in .kit/settings.yml passes with nothing checked,
 # and the output says so: its branch, its commits, and its title are a bot's, such as dependabot[bot]'s, and the

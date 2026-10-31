@@ -4,12 +4,12 @@
 #
 # kit generate [--check] [--iterations=<n>] [<path>…]
 #
-# Paths are relative to the current directory. With no paths, kit generate expands every tracked file and every
-# untracked file git does not ignore.
+# Expands each kit:generate region in the given files to what its command makes, and writes the result in place.
 #
-#   - Named files are expanded once, or <n> times with --iterations=<n>.
-#   - With no paths, kit generate repeats until a pass changes nothing.
-#   - --check writes nothing, and fails naming every stale file.
+#   --check             writes nothing, and fails naming every stale file
+#   --iterations=<n>    expands the named files <n> times instead of once
+#   <path>…             the files to expand, relative to the current directory; with none, every tracked file and
+#                       every untracked file git does not ignore, repeated until a pass changes nothing
 #
 # kit check makes the same check, and the lefthook pre-commit hook runs kit generate --check over the staged paths.
 #

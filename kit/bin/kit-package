@@ -14,6 +14,8 @@
 #                        regions) and rewrites the manifests. A package that an active package depends on is refused.
 #                        A member of a bundle that stays active is recorded as excluded, so that kit update does not
 #                        bring it back.
+#   <package>…           a package's name, such as style/bash, or a glob over names, such as 'style/*'; each must
+#                        be in the release or under .kit/packages/
 #
 # Exits 0 on success, 2 on a usage error or a package that is neither in the release nor under .kit/packages/, and
 # 1 for any other failure.

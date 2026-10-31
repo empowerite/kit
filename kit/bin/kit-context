@@ -9,6 +9,11 @@
 # --json, it prints one JSON object per path with that path's kinds and rules. Each request is logged to
 # kit/context.log in git's common directory.
 #
+#   <path>…    the files whose rules to print, relative to the current directory; a path need not exist yet
+#   --json     prints one JSON object per path, with the path, its kinds, and its rules
+#   --claude   runs as Claude Code's PreToolUse hook: reads the hook's input on stdin, and answers with the rules that
+#              govern the file the tool is about to write
+#
 # kit context --claude
 #
 # Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and returns the rules that govern the

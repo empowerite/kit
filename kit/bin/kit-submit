@@ -8,6 +8,11 @@
 # to take, kit submit commits it as kit commit does, with the same checks and the same options. Then it pushes the
 # branch to origin, setting the upstream on the first push. With nothing to commit and nothing to push, it says so.
 #
+#   --all              stages every change to a tracked file first, as git commit --all does
+#   --message <text>   the message; given twice or more, the first is the subject and the rest are paragraphs
+#   --file <path>      reads the message from a file, whose first line is the subject
+#   <path>…            commits those paths alone, as git commit -- <path>… does; each must be known to git
+#
 # kit submit never forces. When origin has commits this branch lacks, the push is refused and the remedy is kit
 # rebase, so a conflict with the default branch never blocks sharing the work that was done.
 #

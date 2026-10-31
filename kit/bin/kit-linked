@@ -7,9 +7,10 @@
 # Fails when a pull request is not linked to an open issue of this repository. kit ci runs it in the delivered CI
 # job, and anyone can run it on any pull request. On GitLab it checks a merge request, and its messages say so.
 #
-# The pull request is <number>, or else the one this checkout is working on. A linked issue counts when it is
-# open and belongs to this repository. A closed issue, or one in another repository, is reported and does not
-# count. On a CI runner, the remedy is also written to the step summary.
+#   <number>   the pull request to check; default: the one this checkout is working on
+#
+# A linked issue counts when it is open and belongs to this repository. A closed issue, or one in another
+# repository, is reported and does not count. On a CI runner, the remedy is also written to the step summary.
 #
 # A pull request by a login the repository lists under linked_exempt in .kit/settings.yml passes without an issue,
 # and the output names the exemption. That is for a bot such as dependabot[bot], whose pull requests have no issue

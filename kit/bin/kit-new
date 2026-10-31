@@ -7,6 +7,7 @@
 # Makes a new file from a rule's template. Then it prints the rules to read before writing the rest of the file,
 # as kit context does.
 #
+#   file                  what to make; this release makes files alone
 #   <path>                the new file, relative to the repository root wherever the command runs. An absolute
 #                         path inside the repository is accepted. A path outside it is refused.
 #   --rule=<rule>         the rule whose template to use. Default: the most specific rule that governs the path

@@ -12,6 +12,8 @@
 #   - the default branch, in any checkout
 #   - a worktree with uncommitted changes
 #
+#   <path>   the checkout whose branch to rebase; default: the current checkout
+#
 # On a conflict, kit rebase aborts and leaves the worktree as it was.
 #
 # see: modules/bash/git.sh
