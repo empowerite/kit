@@ -49,15 +49,18 @@ see: [packages.md](packages.md)
 
 A hole is a name between guillemets, `«name»`, with `[a-z_]+` for the name. No file kind the rules govern uses
 guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and `…` with Option-;. Without them, type
-`<<name>>`, `<<name...>>`, or `<<name:-default>>`, and `kit template fix <path>` rewrites them.
+`<<name>>`, `<<name...>>`, or `<<name=default>>`, and `kit template fix <path>` rewrites them.
 
 | Hole | When making a file | When checking a file |
 | --- | --- | --- |
 | `«name»` within a line | Replaced by a value. | Matches any text on that line. |
 | `«name…»` | Replaced by a value. | Matches any text, across lines. |
 | `«name»` on a line of its own | Replaced by the value's lines. With no value, one blank line, or nothing when it is the template's last line. | Matches any run of whole lines, including none. |
-| `«name:-default»`, `«name…:-default»` | The value, else the default; `\n` in a default is a newline. | As without the default. |
+| `«name=default»`, `«name…=default»` | The value, else the default; `\n` in a default is a newline. | As without the default. |
 
+- A name may be a dotted path in `.kit/settings.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
+  `answers:`. Making a file fills it with that setting's value, and `kit new file` refuses when the settings leave it
+  unset and it has no default. Checking a file binds it as it binds `path`: the setting's value is literal text.
 - `path`, `name`, and `stem` come from the path, and are bound before a file is checked, so they are literal text
   there: a script whose banner names another file does not match. For `bin/deploy.sh` they are `bin/deploy.sh`,
   `deploy.sh`, and `deploy`.

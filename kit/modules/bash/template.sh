@@ -18,7 +18,8 @@
 #   «name…»                the same, across lines
 #   «name» on its own line making a file fills it with the value's lines, else one blank line; checking one matches
 #                          any run of whole lines
-#   «name:-default»        any of these, with the text it makes when no value is given
+#   «name=default»         any of these, with the text it makes when no value is given
+#   «answers.ci_runner»    a dotted name is a path in .kit/settings.yml, whose value fills the hole
 #
 # path, name, and stem are bound to the file's path, so a file whose banner names another file does not match. A
 # name that appears more than once takes one value per appearance. A region in a template, between a kit:generate
@@ -76,13 +77,30 @@ template:applies() {
   done < <(template:variants "$1")
 }
 
+# template:settings <template>… prints, as one JSON object, the value .kit/settings.yml gives each hole the templates
+# name by a dotted path: «answers.ci_runner» is ci_runner under answers. A path the settings leave unset is left out,
+# and so is one more than one level deep, which the settings' YAML does not nest.
+template:settings() {
+  local name key value json='{}'
+  while IFS= read -r name
+  do
+    key=${name%%.*}
+    [[ "${name#*.}" != *.* ]] || continue
+    value=$(yaml:map .kit/settings.yml "${key}" | awk -F '\t' -v k="${name#*.}" '$1 == k { print $2; exit }')
+    [[ -z "${value}" ]] || json=$(jq --compact-output --arg k "${name}" --arg v "${value}" '.[$k] = $v' <<<"${json}")
+  done < <(cat "$@" | grep --only-matching --extended-regexp '«[a-z_]+(\.[a-z_]+)+' | tr -d '«' | LC_ALL=C sort -u)
+  printf '%s\n' "${json}"
+}
+
 # template:unapply <template> <file> prints, as one JSON object, the values the file gives the template's holes, path,
-# name, and stem bound to the file's path. It returns 1 when the file does not have the template's shape.
+# name, and stem bound to the file's path, and the settings' values to the holes that name them. It returns 1 when the
+# file does not have the template's shape.
 template:unapply() {
   local name=${2##*/}
   jq -L "${kit_jq}" --null-input --exit-status --rawfile template "$1" --rawfile text "$2" \
-    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" \
-    'import "template" as template; $template | template::unapply({path: $path, name: $name, stem: $stem}; $text)'
+    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" --argjson settings "$(template:settings "$1")" \
+    'import "template" as template;
+     $template | template::unapply({path: $path, name: $name, stem: $stem} + $settings; $text)'
 }
 
 # template:leaves <template> <file> prints the template line where the file leaves the template, "end" when it holds
@@ -90,9 +108,9 @@ template:unapply() {
 template:leaves() {
   local name=${2##*/}
   jq -L "${kit_jq}" --null-input --raw-output --rawfile template "$1" --rawfile text "$2" \
-    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" '
+    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" --argjson settings "$(template:settings "$1")" '
     import "template" as template;
-    $template | template::bind({path: $path, name: $name, stem: $stem}) | template::parts | template::match($text)
+    $template | template::bind({path: $path, name: $name, stem: $stem} + $settings) | template::parts | template::match($text)
     | if .ok then empty else (.line // "end") end'
 }
 
@@ -109,12 +127,15 @@ template:holes() {
     < "$1"
 }
 
-# template:render <template> <values-json> prints the file the template makes with the values object: each hole takes
-# its value, else its default; else a hole within a line stays a hole, and a hole that is a line gives one blank line,
-# or nothing as the template's last line. A region gives the template's own lines, for kit generate to fill.
+# template:render <template> <values-json> prints the file the template makes with the values object, over the values
+# .kit/settings.yml gives the holes that name a path in it: each hole takes its value, else its default; else a hole
+# within a line stays a hole, and a hole that is a line gives one blank line, or nothing as the template's last line.
+# A region gives the template's own lines, for kit generate to fill.
 template:render() {
-  jq -L "${kit_jq}" --raw-input --slurp --join-output --argjson v "$2" \
-    'import "template" as template; template::parts | template::render($v)' < "$1"
+  local settings
+  settings=$(template:settings "$1")
+  jq -L "${kit_jq}" --raw-input --slurp --join-output --argjson v "$2" --argjson settings "${settings}" \
+    'import "template" as template; template::parts | template::render($settings + $v)' < "$1"
 }
 
 # template:rules <path> prints the rules of the path's own kinds that have templates, most specific first. The most
@@ -178,7 +199,7 @@ template:check() {
                               printf '\x1e'
                             done) \
       --rawfile contents <(for path in "$@"; do printf '%s\x1f' "${path}"; cat "${path}"; printf '\x1e'; done) \
-      --args '
+      --argjson settings "$(template:settings "${files[@]}")" --args '
     import "template" as template;
     ($templates | split("\u001e") | map(select(. != "") | split("\u001f") | {(.[0]): .[1]}) | add) as $templates
     | [range(0; $ARGS.positional | length; 2) as $i | {variant: $ARGS.positional[$i], glob: $ARGS.positional[$i + 1]}]
@@ -186,7 +207,7 @@ template:check() {
     | [$contents | split("\u001e")[] | select(. != "") | split("\u001f") | .[0] as $path
         | {path: $path, text: (.[1:] | join("\u001f")),
            variants: [$globs[] | select(.glob as $g | $g == "" or ($path | test($g))) | .variant]}] as $files
-    | template::check($templates; $files)
+    | template::check($templates; $files; $settings)
     | "\(.path)\t\(.variants | join(" "))\t\(.line // "")\t\(.variant // "")"' "${globs[@]}") || {
     error "the $(template:rule-name "${rule}") templates could not be checked; see above"
     return 1

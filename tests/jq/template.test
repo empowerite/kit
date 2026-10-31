@@ -46,7 +46,7 @@ import "template" as template; [template::parts | template::ambiguous]
 # Rendering fills a hole, takes its default without a value, keeps a hole within a line with neither, and gives a
 # hole that is a line a blank line, or nothing as the last part.
 import "template" as template; template::parts | template::render({title: "Guide"})
-"# «title»\n«note:-none\\nyet»\nx «x»\n«gap»\ny\n«body»\n"
+"# «title»\n«note=none\\nyet»\nx «x»\n«gap»\ny\n«body»\n"
 "# Guide\nnone\nyet\nx «x»\n\ny\n"
 
 # An array fills each appearance with its element, and a string fills every one.
@@ -61,10 +61,16 @@ true
 
 # The holes a caller fills are those within a line, or across lines, without a default, once each.
 import "template" as template; template::parts | template::holes
-"# «name» - «purpose»\n«about»\n«purpose» «x:-d» «y…»\n"
+"# «name» - «purpose»\n«about»\n«purpose» «x=d» «y…»\n"
 ["name","purpose","y"]
 
 # A file is judged against the variants its path allows, by the furthest line any of them reached.
-import "template" as template; [template::check({a: "one\ntwo\n", b: "one\nthree\nfour\n"}; [{path: "p", text: "one\nthree\nfive\n", variants: ["a", "b"]}, {path: "q", text: "one\ntwo\n", variants: ["a"]}, {path: "r", text: "x", variants: []}])]
+import "template" as template; [template::check({a: "one\ntwo\n", b: "one\nthree\nfour\n"}; [{path: "p", text: "one\nthree\nfive\n", variants: ["a", "b"]}, {path: "q", text: "one\ntwo\n", variants: ["a"]}, {path: "r", text: "x", variants: []}]; {})]
 null
 [{"path":"p","variants":["a","b"],"line":3,"variant":"b"}]
+
+# A dotted name is a path in the settings: bound, its value is literal text, and rendering takes it from the values.
+import "template" as template; [(template::bind({"answers.who": "ada"}) | template::parts | template::match("by ada\n") | .ok), (template::parts | template::render({"answers.who": "bob"}))]
+"by «answers.who»\n"
+[true,"by bob\n"]
+

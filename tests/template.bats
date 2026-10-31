@@ -238,4 +238,27 @@ shape() {
   done
 }
 
+@test "a hole named by a dotted path takes its value from .kit/settings.yml, and its default is written with =" {
+  mkdir -p .kit/packages/team/files/repo/.kit/templates/notes .kit/packages/team/files/repo/.kit/styles
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/team/package.yml
+  printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: page\n    path: "**/*.notes.md"\n---\n# Notes\n' \
+    > .kit/packages/team/files/repo/.kit/styles/notes.md
+  printf '# «title»\n\nOwned by «answers.team», reviewed «cadence=weekly».\n' \
+    > .kit/packages/team/files/repo/.kit/templates/notes/page
+  "${kit_root}/bin/kit" package add team >/dev/null 2>&1
+  run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"reads answers.team from .kit/settings.yml, which does not set it"* ]]
+  printf 'answers:\n  team: core\n' >> .kit/settings.yml
+  run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
+  [ "$status" -eq 0 ]
+  [ "$(sed -n 3p a.notes.md)" = "Owned by core, reviewed weekly." ]
+  run "${kit_root}/bin/kit" lint a.notes.md
+  [ "$status" -eq 0 ]
+  sed -i.bak 's/core/other/' a.notes.md && rm a.notes.md.bak
+  run "${kit_root}/bin/kit" lint a.notes.md
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"a.notes.md does not have the shape of the notes template"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

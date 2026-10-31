@@ -141,14 +141,28 @@ name=${path##*/}
 values[path]=${values[path]:-${path}}
 values[name]=${values[name]:-${name}}
 values[stem]=${values[stem]:-${name%.*}}
-missing=()
+missing=() unset=()
+settings=$(template:settings "${template}")
 while IFS= read -r hole
 do
-  [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] && missing+=("--${hole}=<…>")
+  [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] || continue
+  if [[ "${hole}" == *.* ]]
+  then
+    # A dotted hole is a path in .kit/settings.yml, which fills it when it is set.
+    [[ "$(jq --arg k "${hole}" 'has($k)' <<<"${settings}")" == true ]] || unset+=("${hole}")
+  else
+    missing+=("--${hole}=<…>")
+  fi
 done < <(template:holes "${template}")
 if (( ${#missing[@]} > 0 ))
 then
   error "the ${chosen} template of the $(template:rule-name "${rule}") rule needs ${missing[*]}"
+  exit 2
+fi
+if (( ${#unset[@]} > 0 ))
+then
+  error "the ${chosen} template of the $(template:rule-name "${rule}") rule reads ${unset[*]} from .kit/settings.yml," \
+    "which does not set it"
   exit 2
 fi
 

@@ -6,10 +6,10 @@
 #   «name»                 within a line: any text on that line
 #   «name…»                within a line: any text, across lines
 #   «name» on its own line any run of whole lines, including none
-#   «name:-default»        any of the above, with the text it makes when no value is given; \n in it is a newline
+#   «name=default»        any of the above, with the text it makes when no value is given; \n in it is a newline
 #
-# A name is [a-z_]+. path, name, and stem are bound to the file's path before anything else, so they are literal
-# text. A name that appears once takes a string, and one that appears more than once takes an array, one element per
+# A name is [a-z_]+, or a dotted path in .kit/settings.yml, such as answers.ci_runner, whose value fills it. path,
+# name, and stem, and a dotted name the settings set, are bound before anything else, so they are literal text. A name that appears once takes a string, and one that appears more than once takes an array, one element per
 # appearance in template order. The lines between a kit:generate directive and its kit:end line are a region: a
 # command owns them, so a file may hold anything there, and the template makes them as it has them.
 #
@@ -19,11 +19,11 @@
 # see: modules/bash/template.sh, docs/templates.md
 
 # hole_re matches one hole: its name, its … mark, and its default.
-def hole_re: "«(?<name>[a-z_]+)(?<span>…)?(?::-(?<default>[^»]*))?»";
+def hole_re: "«(?<name>[a-z_]+(?:\\.[a-z_]+)*)(?<span>…)?(?:=(?<default>[^»]*))?»";
 
 # bind($bound) replaces each hole whose name is a key of $bound with the key's value, in the template's text.
 def bind($bound):
-  reduce ($bound | to_entries[]) as $e (.; gsub("«\($e.key)(…)?(:-[^»]*)?»"; $e.value));
+  reduce ($bound | to_entries[]) as $e (.; gsub("«\($e.key | gsub("\\."; "\\."))(…)?(=[^»]*)?»"; $e.value));
 
 # lines_of splits text into lines, each with its newline, the last without one when the text does not end in one.
 def lines_of: [match("[^\n]*\n|[^\n]+$"; "g").string];
@@ -146,16 +146,17 @@ def holes:
   [.[] | select(.hole != null and .kind != "lines" and .default == null) | .hole] | reduce .[] as $h ([];
     if index($h) then . else . + [$h] end);
 
-# check($templates; $files) reads nothing and judges each file: $templates maps a variant to its template's text, and
-# $files is [{path, text, variants}]. It gives one {path, variants, line} per file that matches none of the variants
+# check($templates; $files; $settings) reads nothing and judges each file: $templates maps a variant to its template's
+# text, $files is [{path, text, variants}], and $settings the values .kit/settings.yml gives dotted names, bound with
+# path, name, and stem. It gives one {path, variants, line} per file that matches none of the variants
 # its path allows: line is the furthest template line any of them reached, and variant the one that reached it, both
 # null when every one ran to its end.
-def check($templates; $files):
+def check($templates; $files; $settings):
   ($templates | map_values(parts)) as $parsed
   | $files[] | . as $f
   | select(($f.variants | length) > 0)
   | ($f.path | split("/") | last) as $name
-  | {path: $f.path, name: $name, stem: ($name | sub("\\.[^.]*$"; ""))} as $bound
+  | ({path: $f.path, name: $name, stem: ($name | sub("\\.[^.]*$"; ""))} + $settings) as $bound
   | [$f.variants[] as $v | $parsed[$v] | bind_parts($bound) | match($f.text) | .variant = $v] as $results
   | select(any($results[]; .ok) | not)
   | ([$results[] | select(.line != null)] | max_by(.line)) as $furthest

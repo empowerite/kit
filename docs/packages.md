@@ -198,7 +198,7 @@ repository's own content, with the region's directive and end marker where the r
 gives `AGENTS.md` its title, a blank line, the region, then the repository's own instructions:
 
 ```text
-# «title:-AGENTS.md»
+# «title=AGENTS.md»
 
 <!-- kit:generate AGENTS.md -->
 <!-- kit:end AGENTS.md -->

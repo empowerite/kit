@@ -1,4 +1,4 @@
 «head»
-policy/«stem»:deny()«call_deny…:- { error "not written yet"; return 1; }»
+policy/«stem»:deny()«call_deny…= { error "not written yet"; return 1; }»
 # The seam's calls end here; what follows is this provider's own.
 «rest»

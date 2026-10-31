@@ -4,8 +4,8 @@
 #
 # kit template fix <path>…
 #
-# A template's holes are written «name», «name…», and «name:-default». « and » are Option-\ and Shift-Option-\ on a
-# US Mac keyboard, and … is Option-;. Anyone without them types <<name>>, <<name...>>, and <<name:-default>>, and
+# A template's holes are written «name», «name…», and «name=default». « and » are Option-\ and Shift-Option-\ on a
+# US Mac keyboard, and … is Option-;. Anyone without them types <<name>>, <<name...>>, and <<name=default>>, and
 # kit template fix rewrites those in place to the one spelling the language has. It changes nothing else, and says
 # how many holes it rewrote in each file.
 #
@@ -33,10 +33,10 @@ do
     status=1
     continue
   fi
-  count=$(grep --only-matching --extended-regexp '<<[a-z_]+(\.\.\.)?(:-[^>]*)?>>' "${path}" | wc -l | tr -d ' ')
+  count=$(grep --only-matching --extended-regexp '<<[a-z_.]+(\.\.\.)?(=[^>]*)?>>' "${path}" | wc -l | tr -d ' ')
   if (( count > 0 ))
   then
-    sed -E -i.kit-fix 's/<<([a-z_]+)\.\.\.(:-[^>]*)?>>/«\1…\2»/g; s/<<([a-z_]+)(:-[^>]*)?>>/«\1\2»/g' "${path}"
+    sed -E -i.kit-fix 's/<<([a-z_.]*[a-z_])\.\.\.(=[^>]*)?>>/«\1…\2»/g; s/<<([a-z_.]+)(=[^>]*)?>>/«\1\2»/g' "${path}"
     rm -f "${path}.kit-fix"
   fi
   ok "${path#"${kit_invoked_in}"/}: ${count} hole(s) rewritten"
