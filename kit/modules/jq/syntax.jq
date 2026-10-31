@@ -46,9 +46,11 @@ def given_keys($node; $st):
 def held($alt; $st):
   [$alt | .. | objects | select(.kind == "flag" or .kind == "option") | given_keys(.; $st)[]];
 
-# firsts($alt) gives the keys an alternative can start with: its first node's key, through a group's alternatives.
+# firsts($alt) gives the keys an alternative needs first: its first node's key, through a group's alternatives, and past
+# an optional group to the node after it, which is what is missing when nothing is given.
 def firsts($alt):
   if ($alt | length) == 0 then []
+  elif $alt[0].kind == "group" and $alt[0].optional and ($alt | length) > 1 then firsts($alt[1:])
   elif $alt[0].kind == "group" then [$alt[0].alternatives[] | firsts(.)[]]
   else [$alt[0] | key] end;
 
@@ -63,7 +65,7 @@ def unknown_word($alts; $st):
 # a group walks the alternative the words select, or is skipped when optional and nothing selects it.
 #
 # choose($alts; $s) picks the alternative the words select: the one a literal opens when the next word is that
-# literal; else the one that holds a given flag or option, two such being a refusal, as is a word left for an operand
+# literal; else the one that holds a given flag or option, two holding different ones being a refusal, as is a word left for an operand
 # that opens another alternative; else the first whose walk completes, the one that takes the most words winning a tie. It gives {index}, {refusal}, or {} when nothing selects.
 def walk_sequence($nodes; $st):
   def choose($alts; $s):
@@ -72,7 +74,12 @@ def walk_sequence($nodes; $st):
         | select(($alts[.] | length) > 0 and $alts[.][0].kind == "literal" and $alts[.][0].name == $next)] as $by_literal
     | if ($by_literal | length) > 0 then {index: $by_literal[0]}
       else [range($alts | length) | {index: ., keys: held($alts[.]; $s)} | select(.keys | length > 0)] as $by_given
-      | if ($by_given | length) > 1 then
+      | if ($by_given | length) > 1 and ($by_given | map(.keys) | unique | length) == 1 then
+          # the same flags in several alternatives decide nothing: the one whose walk completes is chosen
+          [$by_given[].index as $i
+            | walk_sequence($alts[$i]; $s) | select(.refusal == null and .missing == null) | {index: $i, left: (.pos | length)}]
+          | sort_by(.left) | first // {index: $by_given[0].index}
+        elif ($by_given | length) > 1 then
           {refusal: "\($by_given[0].keys[0]) cannot be combined with \($by_given[1].keys[0])"}
         elif ($by_given | length) == 1 then
           # a word the chosen alternative leaves over, for an operand that opens another, cannot go with the flag

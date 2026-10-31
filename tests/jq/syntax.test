@@ -74,3 +74,14 @@ import "syntax" as syntax; [syntax::match(["run","kit","generate","--check"]), s
 import "syntax" as syntax; [syntax::match(["--title","a","--title","b"]) | .refusal, ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose="]) | .options)]
 {"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","inline":false,"name":"title","value":"text","repeat":false}]],"repeat":false}]]}
 ["--title is given twice; run: kit help issue",{"--purpose":[""]}]
+
+# A required alternative that opens with an optional group is missing what follows the group, not the group's flag.
+import "syntax" as syntax; syntax::match([]) | .missing
+{"verb":"x","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"v","repeat":false}]],"repeat":false},{"kind":"operand","name":"path","repeat":false}],[{"kind":"flag","name":"claude","repeat":false}]],"repeat":false}]]}
+"<path> or --claude"
+
+# A flag two alternatives share selects neither by itself: the words that follow decide, and nothing is "combined
+# with" itself.
+import "syntax" as syntax; [syntax::match(["--a", "one"]), syntax::match(["--a", "two", "x"])] | map(.refusal // .literals)
+{"verb":"x","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"one","repeat":false}],[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"two","repeat":false},{"kind":"operand","name":"y","repeat":false}]],"repeat":false}]]}
+[["one"],["two"]]
