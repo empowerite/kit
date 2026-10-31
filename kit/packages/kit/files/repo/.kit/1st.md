@@ -85,11 +85,11 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 
 ## Rules by file type
 
-Each kind of file is defined under `.kit/kinds/`: the path globs and first-line patterns that make a file of that
-kind, and the kinds found inside its files, such as the bash in a justfile's recipes. Each kind has a rule file
-under `.kit/rules/`. A rule says what the work must do to be trusted. A repository that takes a style package also
-has a style file for that kind under `.kit/styles/`, which says how the file looks. Rule files and style files have
-the same frontmatter, with these keys:
+Each kind of file is defined under `.kit/kinds/`, by its `name:`: the path globs and first-line patterns that make a
+file of that kind, and the kinds found inside its files, such as the bash in a justfile's recipes. Each kind has a
+rule file under `.kit/rules/`. A rule says what the work must do to be trusted. A repository that takes a style
+package also has a style file for that kind under `.kit/styles/`, which says how the file looks. Rule files and style
+files have the same frontmatter, with these keys:
 
 | Key | Contains |
 | --- | --- |
@@ -178,7 +178,7 @@ The packages:
   `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
   the ones it agrees with, or writes its own.
-- `style/prose`: `.kit/styles/prose.md`, the style of prose in every file, documents and comments alike.
+- `style/prose`: `.kit/styles/prose.md`, the style of prose in every text file, documents and comments alike.
   `kit context` prints it after the rule and the style for the file's kind.
 - `hooks/lefthook`: `.kit/lefthook.yml`, a pre-commit hook that runs `kit lint` and `kit generate --check` over the
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`

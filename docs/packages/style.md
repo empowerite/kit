@@ -1,7 +1,7 @@
 # The style packages
 
 Eight optional packages: one per kind of file, each delivering the style for its kind, and `style/prose`, for the
-prose in every file. Style is how a file looks, as opposed to what the work must do, which is the rule's. A
+prose in every text file. Style is how a file looks, as opposed to what the work must do, which is the rule's. A
 repository takes the ones it agrees with.
 
 | Package | Delivers |
@@ -13,7 +13,7 @@ repository takes the ones it agrees with.
 | `style/yaml` | `.kit/styles/yaml.md`; the `document` template under `.kit/templates/yaml/` |
 | `style/json` | `.kit/styles/json.md` |
 | `style/gitignore` | `.kit/styles/gitignore.md`; the `file` and `region` templates under `.kit/templates/gitignore/` |
-| `style/prose` | `.kit/styles/prose.md`, which governs every file: plain sentences, the indicative to describe, the imperative to instruct |
+| `style/prose` | `.kit/styles/prose.md`, which governs every file of kind `text`: plain sentences, the indicative to describe, the imperative to instruct |
 
 Each depends only on `kit`. The `empowerite` bundle includes all eight.
 

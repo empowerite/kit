@@ -11,7 +11,7 @@
 # Its tools are the verbs that read and report, and change nothing: backlog, changes, check, context, help, lint,
 # package-list (kit package list), status, syntax, and version. A tool's description is the verb's help, and the
 # tool takes args, the verb's arguments as an array of strings. Its resources are the kit's files: kit://1st.md,
-# and kit://rules/<kind>, kit://styles/<kind>, and kit://kinds/<kind> for each one the repository has.
+# kit://rules/<kind> and kit://styles/<kind> for each rule and style, and kit://kinds/<file> for each kinds file.
 #
 # An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration, such
 # as mcpServers.kit in .mcp.json for Claude Code. It answers the 2026-07-28 revision of the protocol, and the ones

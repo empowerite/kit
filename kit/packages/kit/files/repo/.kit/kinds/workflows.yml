@@ -2,6 +2,7 @@
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 #
 # A GitHub Actions workflow. It is of kind yaml as well, and its run: blocks are bash, which embeds: says.
+name: workflows
 paths:
   - ".github/workflows/*.yml"
   - ".github/workflows/*.yaml"

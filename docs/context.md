@@ -16,9 +16,11 @@ Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A
 
 ## Kinds, and how a rule names what it governs
 
-A kind of file is defined once, in `.kit/kinds/<kind>.yml`, and everything that asks what a file is reads it there:
+A kind of file is defined once, in a kinds file under `.kit/kinds/`, and everything that asks what a file is reads
+it there:
 
 ```yaml
+name: just
 paths:
   - "justfile"
   - "**/justfile"
@@ -31,12 +33,19 @@ embeds:
 
 | Key | Contents |
 | --- | --- |
+| `name:` | Required. The kind's name, which a rule or a style names under `kind:`. The file's own name plays no part. |
 | `paths:` | Globs matched against the repository-relative path. |
 | `content:` | Extended regular expressions matched against the first line of a file that already exists. |
 | `embeds:` | Kinds whose text appears inside this kind's files: a justfile's recipe bodies and a workflow's `run:` blocks are bash. |
+| `kinds:` | Kinds this kind is made of: a path of any of them is of this kind too. |
+
+A kinds file holds one kind, or several as a YAML stream: one document per kind, separated by `---` lines. Two
+kinds with the same name, in one file or in two, are refused, and so is a document without a name.
 
 A path is of every kind whose glob or pattern matches it. A workflow is of kind `yaml` and of kind `workflows`,
-and every path is of kind `any`, whose one glob matches everything, so a style can govern every file.
+and every path is of kind `any`, whose one glob matches everything. A kind made of others under `kinds:` gathers
+them: `text` lists every kind the kit defines that holds prose, plus `**/*.txt`, so the prose style, which governs
+`text`, applies to each of them and to no binary file.
 
 - In a glob, `**` matches any depth, and a lone `*` also crosses directories. So `**/*.sh` and `*.sh` both match
   every `.sh` file.
@@ -76,10 +85,10 @@ path with `--all-files`. A linter that is not on `PATH` is a failure, not a skip
 the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through
 the same classification.
 
-The kit package delivers the kinds its rules and styles name. A repository adds a kind by delivering
-`.kit/kinds/<kind>.yml` from a package of its own, with a rule that names it. It widens a delivered kind, say with
-one more suffix under `markdown`, by delivering a file at the same path from a package that depends on `kit`: the
-later package in dependency order wins, as it does for any delivered file.
+The kit package delivers the kinds its rules and styles name, one file each, named for its kind. A repository adds
+a kind by delivering a kinds file from a package of its own, with a rule that names it. It widens a delivered kind,
+say with one more suffix under `markdown`, by delivering a file at the same path from a package that depends on
+`kit`: the later package in dependency order wins, as it does for any delivered file.
 
 [templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
 `kit lint` runs against them.

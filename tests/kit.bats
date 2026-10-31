@@ -226,7 +226,7 @@ later-release() {
     .kit/packages/python/templates/repo
   printf 'description: "The Python rule and the tool pins"\ndepends:\n  - kit\nanswers:\n  python: "3.13"\n' \
     > .kit/packages/python/package.yml
-  printf '# The Python kind\npaths:\n  - "**/*.py"\n' > .kit/packages/python/files/repo/.kit/kinds/python.yml
+  printf '# The Python kind\nname: python\npaths:\n  - "**/*.py"\n' > .kit/packages/python/files/repo/.kit/kinds/python.yml
   printf -- '---\nkind:\n  - python\n---\n# Python\n\nType everything.\n' \
     > .kit/packages/python/files/repo/.kit/rules/python.md
   printf 'python @python@\n' > .kit/packages/python/templates/repo/.python-version

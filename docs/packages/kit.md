@@ -6,8 +6,8 @@ The core package. It is active in every repository that uses the kit. It deliver
   `AGENTS.md` to it; see [agents/generic.md](agents/generic.md).
 - `.kit/README.md`, the directory explained to the person at the desk: what is committed, what is placed, and how to
   change what kit adds.
-- `.kit/kinds/<kind>.yml`, one file per kind of file: the paths and first lines that make a file of that kind, and
-  the kinds found inside its files, such as the bash in a justfile.
+- `.kit/kinds/<kind>.yml`, one file per kind, each with the kind's `name:`: the paths and first lines that make a
+  file of that kind, and the kinds found inside its files, such as the bash in a justfile.
 - `.kit/rules/<kind>.md`, one rule file per kind of file. A rule says what the work must do to be trusted. Each
   rule file's frontmatter names the kind it governs, and the linter and checks `kit lint` runs over its files.
 - `.kit/settings.schema.json`, the schema of the repository's `.kit/settings.yml`.

@@ -10,10 +10,10 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 - The `agents/generic` package writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`, and
   every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own only when the project
   has no `CLAUDE.md`, so the `agents/claude` package imports `AGENTS.md` from `.claude/CLAUDE.md`.
-- Each kind of file is defined once, in `.kit/kinds/<kind>.yml`: the paths and first lines that make a file of that
-  kind, and the kinds found inside its files. Each kind has one rule, `.kit/rules/<kind>.md`, that names the kind
-  and the linter it runs. A style package adds `.kit/styles/<kind>.md`, how a file of that kind looks, with the
-  same frontmatter.
+- Each kind of file is defined once, by its `name:`, in a kinds file under `.kit/kinds/`, which may define several:
+  the paths and first lines that make a file of that kind, and the kinds found inside its files. Each kind has one
+  rule, `.kit/rules/<kind>.md`, that names the kind and the linter it runs. A style package adds
+  `.kit/styles/<kind>.md`, how a file of that kind looks, with the same frontmatter.
 - `kit context` takes one or more paths and prints the rules that govern them, each rule once. `--json` prints the
   rules per path. Every call appends the paths to `.git/kit/context.log`.
 - The `agents/claude` package calls `kit context` through a hook before each edit, so the agent is shown the rules

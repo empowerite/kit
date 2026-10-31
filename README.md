@@ -100,7 +100,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `agents/gemini` | the Gemini CLI adapter: `AGENTS.md` among its context files, and the deny list, in `.gemini/settings.json` |
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
-   | `style/prose` | the style of prose in every file, documents and comments alike |
+   | `style/prose` | the style of prose in every text file, documents and comments alike |
    | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, and `hooks/lefthook` |
 
    `kit install github/ci hooks/lefthook agents/claude` takes three of them, and a team on Cursor would name

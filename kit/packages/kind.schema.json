@@ -1,10 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/packages/kind.schema.json",
-  "title": ".kit/kinds/<kind>.yml",
-  "description": "One kind of file, which a rule or a style names under kind: in its frontmatter. A path is of every kind whose glob or pattern matches it. Each key is described in docs/context.md.",
+  "title": "A document of a kinds file under .kit/kinds/",
+  "description": "One kind of file, which a rule or a style names under kind: in its frontmatter. A kinds file holds one such document per kind, separated by --- lines. A path is of every kind whose glob or pattern matches it. Each key is described in docs/context.md.",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "name"
+  ],
   "anyOf": [
     {
       "required": [
@@ -15,9 +18,19 @@
       "required": [
         "content"
       ]
+    },
+    {
+      "required": [
+        "kinds"
+      ]
     }
   ],
   "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The kind's name, which rules and styles name under kind:. The file's own name plays no part, and no two kinds share a name."
+    },
     "paths": {
       "type": "array",
       "uniqueItems": true,
@@ -43,6 +56,15 @@
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*$",
         "description": "A kind whose text appears inside this kind's files, so kit context names its rules too and kit lint leaves them out."
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "description": "A kind this kind is made of: a path of that kind is of this kind too."
       }
     }
   }

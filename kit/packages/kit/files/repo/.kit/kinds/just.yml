@@ -3,6 +3,7 @@
 #
 # A justfile, or a just module. Its [script] and shebang recipe bodies are bash, which embeds: says, so kit context
 # names the bash rule beside the just rule and kit lint runs no bash linter over the file.
+name: just
 paths:
   - "justfile"
   - "**/justfile"

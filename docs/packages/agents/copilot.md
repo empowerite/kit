@@ -5,7 +5,7 @@ the neutral tree already reaches it. What the package adds is Copilot's native d
 file per kind under `.github/instructions/`, applied when a file it names is changed.
 
 Each `.github/instructions/kit-<kind>.instructions.md` has the one frontmatter key Copilot reads, `applyTo`, set to
-the `paths` of the kind, `.kit/kinds/<kind>.yml`, comma-separated in one quoted string, which is the documented
+the `paths` of the kind in `.kit/kinds/`, comma-separated in one quoted string, which is the documented
 form. The body tells the agent to read `.kit/rules/<kind>.md` and follow it, as the `agents/cursor` rules do, so the
 rule text is in one place. A rule that governs a file by its content, such as a bash script with no suffix, is
 beyond a glob, so the body names `kit context <path>` for those.

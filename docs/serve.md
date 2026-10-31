@@ -41,7 +41,7 @@ The resources are the kit's files under `.kit/`, each as the repository has it:
 | `kit://1st.md` | `.kit/1st.md` | `text/markdown` |
 | `kit://rules/<kind>` | `.kit/rules/<kind>.md` | `text/markdown` |
 | `kit://styles/<kind>` | `.kit/styles/<kind>.md` | `text/markdown` |
-| `kit://kinds/<kind>` | `.kit/kinds/<kind>.yml` | `application/yaml` |
+| `kit://kinds/<file>` | `.kit/kinds/<file>.yml`, which defines one kind or several | `application/yaml` |
 
 The server's instructions tell an agent to read `kit://1st.md` first, and to call `context` with a path before it
 changes that file.

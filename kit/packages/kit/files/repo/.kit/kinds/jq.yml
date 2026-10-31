@@ -2,5 +2,6 @@
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 #
 # A jq module: a file of defs that a program imports with jq -L.
+name: jq
 paths:
   - "**/*.jq"

@@ -2,12 +2,17 @@
 # context.sh - which kinds a file is of, and which rules govern it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# A kind of file is defined once, in .kit/kinds/<kind>.yml, and read by everything that asks what a file is:
+# A kind of file is defined once, in a kinds file under .kit/kinds/, and read by everything that asks what a file is.
+# A kinds file is a YAML stream of one document per kind, separated by `---` lines, so one file may define several
+# kinds. Each document has:
 #
+#   - `name:` the kind's name, which rules and styles use; the file's own name plays no part
 #   - `paths:` globs matched against the repository-relative path, where ** matches any depth
 #   - `content:` patterns matched against the first line of a file that exists, so a bash script with no extension
 #     is matched by its shebang
 #   - `embeds:` the kinds whose text appears inside this kind's files: a justfile's recipe bodies are bash
+#   - `kinds:` other kinds this kind is made of: a path of any of them is of this kind too, so text names bash,
+#     markdown, and the rest, and a style that governs text governs them all
 #
 # A path is of every kind whose glob or pattern matches it. A rule under .kit/rules/ and a style under .kit/styles/
 # name the kinds they govern under `kind:` in their frontmatter, and carry no glob of their own.
@@ -29,7 +34,8 @@ shopt -s extglob
 
 # The kinds and the frontmatter, read once per process by context:load: each kind's globs, patterns, and embedded
 # kinds, newline-separated, by kind; and each rule's and style's kinds, space-separated, by file.
-declare -gA context_kind_paths=() context_kind_content=() context_kind_embeds=() context_file_kinds=()
+declare -gA context_kind_paths=() context_kind_content=() context_kind_embeds=() context_kind_members=()
+declare -gA context_file_kinds=()
 declare -g context_loaded=false
 
 # context:log-path prints the path of the context log. It is under the repository's common git directory, so every
@@ -74,16 +80,31 @@ context:glob-matches() {
 # tables instead of each reading the files again.
 context:load() {
   [[ "${context_loaded}" == true ]] && return 0
-  local file kind
-  for file in .kit/kinds/*.yml
+  local file kind field value
+  local -A defined=()
+  while IFS=$'\x1f' read -r file kind field value
   do
-    [[ -f "${file}" ]] || continue
-    kind=${file##*/}
-    kind=${kind%.yml}
-    context_kind_paths[${kind}]=$(yaml:list "${file}" paths)
-    context_kind_content[${kind}]=$(yaml:list "${file}" content)
-    context_kind_embeds[${kind}]=$(yaml:list "${file}" embeds)
-  done
+    case "${field}" in
+      (error)
+        error "${file}: ${value}"
+        return 1
+        ;;
+      (name)
+        if [[ -n "${defined[${kind}]:-}" ]]
+        then
+          error "${file}: the kind ${kind} is defined twice, here and in ${defined[${kind}]}"
+          return 1
+        fi
+        defined[${kind}]=${file}
+        context_kind_paths[${kind}]='' context_kind_content[${kind}]='' context_kind_embeds[${kind}]=''
+        context_kind_members[${kind}]=''
+        ;;
+      (paths) context_kind_paths[${kind}]+=${value}$'\n' ;;
+      (content) context_kind_content[${kind}]+=${value}$'\n' ;;
+      (embeds) context_kind_embeds[${kind}]+=${value}$'\n' ;;
+      (kinds) context_kind_members[${kind}]+=${value}$'\n'
+    esac
+  done < <(context:read-kinds .kit/kinds/*.yml)
   for file in .kit/rules/*.md .kit/styles/*.md
   do
     [[ -f "${file}" ]] || continue
@@ -92,13 +113,48 @@ context:load() {
   context_loaded=true
 }
 
+# context:read-kinds <file>… prints every kind the kinds files define, one field to a line: "<file>", "<kind>",
+# "<field>", and "<value>", joined by the unit separator \x1f. A name line opens each kind, then one line follows per
+# item of its paths, content, embeds, and kinds lists, unquoted as yaml:list unquotes. A document without a name prints an
+# error line instead, with an empty kind and the field error. The separator is not a tab, because read collapses
+# consecutive tabs and the empty kind would vanish.
+context:read-kinds() {
+  local file
+  for file in "$@"
+  do
+    [[ -f "${file}" ]] || continue
+    awk -v file="${file}" '
+      function close_doc() {
+        if (lines && name == "") print file "\037\037error\037a kind has no name: (see packages/kind.schema.json)"
+        else for (i = 1; i <= n; i++) print file "\037" name "\037" out[i]
+        name = ""; n = 0; lines = 0; key = ""
+      }
+      /^---[ \t]*$/ { close_doc(); next }
+      /^#/ || /^[ \t]*$/ { next }
+      /^name: / {
+        v = $0; sub(/^name: */, "", v)
+        if (v ~ /^".*"$/ || v ~ /^\x27.*\x27$/) v = substr(v, 2, length(v) - 2)
+        name = v; out[++n] = "name\037" v; lines++; next
+      }
+      /^[A-Za-z0-9_-]+:/ { key = $0; sub(/:.*$/, "", key); lines++; next }
+      /^  - / && (key == "paths" || key == "content" || key == "embeds" || key == "kinds") {
+        v = $0; sub(/^  - /, "", v)
+        if (v ~ /^"/) gsub(/^"|"$/, "", v); else sub(/[ \t]+#.*$/, "", v)
+        out[++n] = key "\037" v; lines++
+      }
+      END { close_doc() }' "${file}"
+  done
+}
+
 # context:kinds <path> prints the kinds <path> is of, one per line in name order: every kind with a glob that
-# matches the path, or a pattern that matches its first line when the file exists.
+# matches the path, or a pattern that matches its first line when the file exists, and then every kind made of one
+# of those under kinds:, and of those in turn.
 context:kinds() {
-  local path=$1 kind glob pattern first=''
+  local path=$1 kind glob pattern member first='' grew=true
+  local -A is=()
   context:load
   [[ -f "${path}" ]] && first=$(head -n 1 "${path}" 2>/dev/null || true)
-  for kind in $(printf '%s\n' "${!context_kind_paths[@]}" | LC_ALL=C sort)
+  for kind in "${!context_kind_paths[@]}"
   do
     # Read each glob with read, not word splitting: an unquoted glob would expand against the working tree first.
     while IFS= read -r glob
@@ -106,7 +162,7 @@ context:kinds() {
       [[ -n "${glob}" ]] || continue
       if context:glob-matches "${path}" "${glob}"
       then
-        printf '%s\n' "${kind}"
+        is[${kind}]=1
         continue 2
       fi
     done <<<"${context_kind_paths[${kind}]}"
@@ -116,11 +172,30 @@ context:kinds() {
       [[ -n "${pattern}" ]] || continue
       if [[ "${first}" =~ ${pattern} ]]
       then
-        printf '%s\n' "${kind}"
+        is[${kind}]=1
         continue 2
       fi
     done <<<"${context_kind_content[${kind}]}"
   done
+  while [[ "${grew}" == true ]]
+  do
+    grew=false
+    for kind in "${!context_kind_members[@]}"
+    do
+      [[ -z "${is[${kind}]:-}" ]] || continue
+      while IFS= read -r member
+      do
+        if [[ -n "${member}" && -n "${is[${member}]:-}" ]]
+        then
+          is[${kind}]=1
+          grew=true
+          break
+        fi
+      done <<<"${context_kind_members[${kind}]}"
+    done
+  done
+  (( ${#is[@]} )) || return 0
+  printf '%s\n' "${!is[@]}" | LC_ALL=C sort
 }
 
 # context:embedded <kind>… prints the kinds the given kinds embed, and what those embed in turn, leaving out the

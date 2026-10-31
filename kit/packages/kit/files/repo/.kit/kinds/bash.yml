@@ -3,6 +3,7 @@
 #
 # A bash file: by its suffix, or by its shebang when it has no suffix. A kind that lists bash under embeds: holds bash
 # inside its own files, so kit context hands the bash rule to whoever opens one of those.
+name: bash
 paths:
   - "**/*.sh"
   - "**/*.bash"

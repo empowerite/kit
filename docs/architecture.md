@@ -19,6 +19,10 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
 
+Beside the tarball, the release carries `kittui`, the binary `kit tui` runs, built from this checkout's `tui/` for
+linux and macos on x64 and arm64: `kittui-<version>-<os>-<arch>`, each with a `.sha256`. The `kittui` package pins it
+in a repository's mise at the kit's version; see [toolchains.md](toolchains.md#kit-tuis-binary).
+
 ### Bash modules
 
 The kit's commands share code through bash modules. A bash module is a file of functions, such as `forge.sh`, and a
@@ -83,8 +87,9 @@ the repository edited it.
 
 Each rule lives in one file, `.kit/rules/<kind>.md`, and is not copied into any agent tool's own directory. A
 style package adds `.kit/styles/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
-style says how the file looks, and a repository takes the style it agrees with. A kind of file is defined once, in
-`.kit/kinds/<kind>.yml`, and each rule's and style's frontmatter names the kinds it governs under `kind:`:
+style says how the file looks, and a repository takes the style it agrees with. A kind of file is defined once, by
+its `name:`, in a kinds file under `.kit/kinds/`, and each rule's and style's frontmatter names the kinds it governs
+under `kind:`:
 
 - `paths:` in a kind lists globs matched against the repository-relative path.
 - `content:` in a kind lists patterns matched against the first line of an existing file.

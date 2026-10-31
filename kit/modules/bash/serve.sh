@@ -17,12 +17,12 @@
 # functions kit help uses, and its one argument is args, the verb's arguments as an array of strings. A call runs
 # kit <verb> <args>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
 #
-# A resource is one of the kit's files under .kit/: kit://1st.md, and kit://rules/<kind>, kit://styles/<kind>, and
-# kit://kinds/<kind> for each one the repository has.
+# A resource is one of the kit's files under .kit/: kit://1st.md, kit://rules/<kind> and kit://styles/<kind> for each
+# rule and style, and kit://kinds/<file> for each kinds file, which may define several kinds.
 #
 # see: kit/bin/kit-serve, docs/serve.md, https://modelcontextprotocol.io/specification/2026-07-28
 
-use help release syntax
+use context help release syntax
 
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
@@ -282,9 +282,9 @@ serve:resources() {
   for file in .kit/kinds/*.yml
   do
     [[ -f "${file}" ]] || continue
-    kind=$(basename "${file}" .yml)
+    kind=$(context:read-kinds "${file}" | awk -F '\x1f' '$3 == "name" { printf "%s%s", sep, $2; sep = ", " }')
     printf 'kit://kinds/%s\t%s\tapplication/yaml\tthe paths and first lines that make a file of kind %s\n' \
-      "${kind}" "${file}" "${kind}"
+      "$(basename "${file}" .yml)" "${file}" "${kind}"
   done
 }
 

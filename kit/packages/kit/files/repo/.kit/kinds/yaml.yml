@@ -2,6 +2,7 @@
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 #
 # A YAML file. A workflow under .github/workflows/ is one too, and of kind workflows besides.
+name: yaml
 paths:
   - "**/*.yml"
   - "**/*.yaml"

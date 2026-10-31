@@ -2,12 +2,12 @@
 # Added by kit's style/prose package. To remove it, run kit package remove style/prose.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 kind:
-  - any
+  - text
 ---
 # Prose style
 
-Applies to every file: the prose of a document and the comments in code and configuration alike. The style for
-the file's kind, where the repository takes one, also applies.
+Applies to every file of kind `text`: the prose of a document and the comments in code and configuration alike.
+The style for the file's kind, where the repository takes one, also applies.
 
 1. Write plain declarative sentences, with the thing under discussion as the subject.
 2. Describe in the indicative and instruct in the imperative. What a function, command, or file does is

@@ -2,6 +2,7 @@
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 #
 # A JSON file, with or without comments.
+name: json
 paths:
   - "**/*.json"
   - "**/*.jsonc"
