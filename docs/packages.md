@@ -34,9 +34,10 @@ packages/<name>/
   files/<base>/       files mirrored at the base's root
   templates/<base>/   files rendered from the repository's answers, then mirrored the same way
   regions/<base>/     each file a region the kit owns inside a file the repository owns
+  hosts/<base>/       for a region, the template of the file that holds it, at the region's path
 ```
 
-A package must have `package.yml`. `files/`, `templates/`, and `regions/` are optional, and the kit reads nothing
+A package must have `package.yml`. `files/`, `templates/`, `regions/`, and `hosts/` are optional, and the kit reads nothing
 else in the package's directory. The base sets where a file lands:
 
 | Base | Root | Record |
@@ -191,9 +192,31 @@ The block is placed like this:
 - The file exists without the directive: the block is appended after a blank line.
 - The file does not exist: the block becomes the whole file.
 
+A package can state the shape of the file that holds its region, with a host template at the region's path under
+`hosts/<base>/`. It is a template in the language [templates.md](templates.md) describes, whose holes stand for the
+repository's own content, with the region's directive and end marker where the region belongs. `agents/generic`
+gives `AGENTS.md` its title, a blank line, the region, then the repository's own instructions:
+
+```text
+# «title:-AGENTS.md»
+
+<!-- kit:generate AGENTS.md -->
+<!-- kit:end AGENTS.md -->
+«instructions»
+```
+
+With a host template, the block is placed like this instead:
+
+- The file does not exist: the host template is made, each hole at its default, and the region is filled.
+- The file exists without the directive: the block goes where the host template puts it, after the fewest of the
+  file's first lines that match the template's part before the region, with a blank line on either side. When no
+  run of first lines matches, the kit refuses, names the package, and asks for the directive where it belongs.
+- `kit check` also holds the file to the host template, and names the line where it leaves it.
+
 After that:
 
-- The repository can move the block anywhere in the file and write anything around it.
+- The repository can write anything in the host template's holes, and, without a host template, can move the block
+  anywhere in the file and write anything around it.
 - `kit check` checks the region against its command.
 - `kit update` regenerates the region and never merges it.
 - Removal takes the block out, leaves the rest of the file, and removes the file if that leaves it empty.

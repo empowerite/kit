@@ -8,7 +8,8 @@ So the package delivers a region in `.claude/CLAUDE.md` that contains `@../AGENT
 a `kit:generate` directive, and `kit generate` fills it. As a result:
 
 - Claude Code reads what every other agent reads, in every case.
-- The rest of `.claude/CLAUDE.md`, and any root `CLAUDE.md`, belong to the repository.
+- The rest of `.claude/CLAUDE.md`, and any root `CLAUDE.md`, belong to the repository. Its host template gives the
+  file a title, the region, then the repository's own instructions, as `agents/generic` does for `AGENTS.md`.
 - `kit check` checks only the region.
 
 The package also merges two entries into `.claude/settings.json`, by key, and leaves the repository's own entries

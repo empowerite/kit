@@ -28,7 +28,6 @@ templates:
 | bash | `module` | | a sourced file |
 | just | `root` | `justfile` | |
 | just | `module` | | |
-| markdown | `agents` | `AGENTS.md` | |
 | markdown | `document` | | |
 | markdown | `notice` | | |
 | markdown | `frontmatter` | | |

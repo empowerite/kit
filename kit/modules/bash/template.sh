@@ -38,10 +38,10 @@ declare -gr template_dir=.kit/templates
 # template:exempt <path> is true for a path that no template checks:
 #
 #   - a template itself
-#   - a package's region, which is a fragment of a file
+#   - a package's region, which is a fragment of a file, and its host template, which is a template
 #   - a path .gitattributes marks linguist-generated, because a tool writes it
 template:exempt() {
-  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)packages/[^/]+(/[^/]+)?/regions/ ]] && return 0
+  [[ "$1" =~ (^|/)\.kit/templates/ || "$1" =~ (^|/)packages/[^/]+(/[^/]+)?/(regions|hosts)/ ]] && return 0
   [[ "$(git check-attr linguist-generated -- "$1" 2>/dev/null)" == *': linguist-generated: set' ]]
 }
 
@@ -83,6 +83,17 @@ template:unapply() {
   jq -L "${kit_jq}" --null-input --exit-status --rawfile template "$1" --rawfile text "$2" \
     --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" \
     'import "template" as template; $template | template::unapply({path: $path, name: $name, stem: $stem}; $text)'
+}
+
+# template:leaves <template> <file> prints the template line where the file leaves the template, "end" when it holds
+# more than the template does, and nothing when the file has the template's shape. path, name, and stem are bound.
+template:leaves() {
+  local name=${2##*/}
+  jq -L "${kit_jq}" --null-input --raw-output --rawfile template "$1" --rawfile text "$2" \
+    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" '
+    import "template" as template;
+    $template | template::bind({path: $path, name: $name, stem: $stem}) | template::parts | template::match($text)
+    | if .ok then empty else (.line // "end") end'
 }
 
 # template:ambiguous <template> prints the line of each hole that follows another hole with nothing between them.

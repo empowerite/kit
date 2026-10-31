@@ -110,7 +110,7 @@ setup() {
 @test "kit syntax new --choices --variant lists the rule's variants, and --rule the rules with templates; both closed" {
   run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=markdown
   [ "$status" -eq 0 ]
-  [ "$(cut -f1 <<<"$output" | paste -sd' ' -)" = "agents document notice frontmatter" ]
+  [ "$(cut -f1 <<<"$output" | paste -sd' ' -)" = "document notice frontmatter" ]
   run "${kit_root}/bin/kit" syntax new --choices --rule
   [ "$status" -eq 0 ]
   grep -q $'^bash\t' <<<"$output"

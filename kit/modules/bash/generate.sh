@@ -59,10 +59,12 @@ declare -g generate_fence_re='^[[:space:]]*(```|~~~)'
 # (seven =) is not matched: it is also a markdown heading underline, and git never writes it without the opening one.
 declare -g generate_conflict_re='^(<{7}|>{7})([[:space:]].*)?$'
 
-# generate:carries <file> is true when the file has a line that starts with a marker. Files under .kit/templates/
-# never count: a template is the skeleton of a file, and its directive belongs to the file made from it.
+# generate:carries <file> is true when the file has a line that starts with a marker. A template never counts, under
+# .kit/templates/ or a package's hosts/: it is the skeleton of a file, and its directive belongs to the file made
+# from it.
 generate:carries() {
-  [[ -f "$1" && ! "$1" =~ (^|/)\.kit/templates/ ]] && grep --quiet --extended-regexp "${generate_marker_re}" "$1"
+  [[ -f "$1" && ! "$1" =~ (^|/)\.kit/templates/ && ! "$1" =~ (^|/)packages/[^/]+(/[^/]+)?/hosts/ ]] \
+    && grep --quiet --extended-regexp "${generate_marker_re}" "$1"
 }
 
 # generate:markdown <file> is true for a markdown file (.md or .markdown), the only kind where fenced code blocks

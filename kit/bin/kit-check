@@ -25,7 +25,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release generate
+use release generate template
 
 guard:arguments check "$@" || exit $?
 
@@ -67,10 +67,19 @@ do
       findings=$(( findings + 1 ))
     elif [[ "${kind}" == region ]]
     then
-      # Only the directive is checked here. Its content is checked below, with every other generated region.
+      # The directive, and the host file's shape when the package states one, are checked here. The region's
+      # content is checked below, with every other generated region.
       if ! release:installed "${src}" "${dest}" >/dev/null
       then
         error "${dest} has no kit region; run: kit update"
+        findings=$(( findings + 1 ))
+      elif host=$(release:host "${src}") && [[ -n "${host}" ]] && line=$(template:leaves "${host}" "${dest}") \
+        && [[ -n "${line}" ]]
+      then
+        rest=${host##*/packages/}
+        error "${dest} does not have the shape of the ${rest%%/hosts/*} package's host template; it leaves" \
+          "${rest#*/hosts/repo/} at $( [[ "${line}" == end ]] && printf 'its end' || printf 'line %s: %s' "${line}" \
+          "$(sed -n "${line}p" "${host}")")"
         findings=$(( findings + 1 ))
       fi
     elif ! release:holds "${src}" "${dest}"

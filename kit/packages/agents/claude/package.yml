@@ -7,5 +7,9 @@ depends:
   - kit
   - agents/generic
 notices:
+  - path: .claude/CLAUDE.md
+    text: "Claude Code reads it when a session starts; an open session reads it at its next /clear, /compact, or restart"
+  - path: .claude/settings.json
+    text: "Claude Code reloads its settings when they change, so the deny list and the hook apply in open sessions too"
   - path: .mcp.json
     text: "Claude Code asks once, at the start of the next session, whether to use the kit server this file names; say yes, and the agent can call the kit's verbs as tools"

@@ -167,7 +167,7 @@ SH
 @test "a bare directive means kit region, which reads the name, so the kit's regions carry no command and need only kit on PATH" {
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
+  [ "$(sed -n '3p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
   printf '## Ours\n' >> AGENTS.md
   run env PATH="$(dirname "$(command -v bash)"):/usr/bin:/bin" "${kit_checkout}/bin/kit" generate --check
   [ "$status" -eq 0 ]

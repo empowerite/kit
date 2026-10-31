@@ -5,8 +5,6 @@ kind:
   - markdown
 lint: markdownlint-cli2 --config .kit/markdownlint.jsonc
 templates:
-  - variant: agents
-    path: AGENTS.md
   - variant: document
   - variant: notice
   - variant: frontmatter

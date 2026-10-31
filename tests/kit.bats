@@ -94,6 +94,27 @@ later-release() {
   [ ! -e AGENTS.md ]
 }
 
+@test "a host template makes the file, places the region in one without it, refuses one it cannot place, and holds the shape" {
+  printf 'Our rules, and no title.\n' > AGENTS.md
+  run "${kit_checkout}/bin/kit" install agents/generic
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"AGENTS.md does not open as the agents/generic package's host template has it"* ]]
+  [ "$(cat AGENTS.md)" = "Our rules, and no title." ]
+  printf '# Ours\nOur rules.\n' > AGENTS.md
+  run "${kit_checkout}/bin/kit" install agents/claude
+  [ "$status" -eq 0 ]
+  [ "$(paste -s -d '|' - < AGENTS.md | sed 's/|<!-- kit:generate.*kit:end AGENTS.md -->|/|REGION|/')" = "# Ours||REGION||Our rules." ]
+  [ "$(sed -n '1,3p' .claude/CLAUDE.md | paste -s -d '|' -)" = "# CLAUDE.md||<!-- kit:generate .claude/CLAUDE.md -->" ]
+  [[ "$output" == *".claude/CLAUDE.md: Claude Code reads it when a session starts"* ]]
+  [[ "$output" == *".claude/settings.json: Claude Code reloads its settings when they change"* ]]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  sed -i.bak '1d' AGENTS.md && rm AGENTS.md.bak
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"AGENTS.md does not have the shape of the agents/generic package's host template; it leaves AGENTS.md at line 1"* ]]
+}
+
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
@@ -291,8 +312,9 @@ later-release() {
   printf 'build/\n' > .gitignore
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions." ]
-  grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' AGENTS.md
+  # the host template puts the region after the title, with a blank line on either side
+  [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = "# Ours||<!-- kit:generate AGENTS.md -->" ]
+  [ "$(tail -n 2 AGENTS.md | paste -s -d '|' -)" = "|Our own instructions." ]
   grep --quiet --line-regexp '<!-- kit:end AGENTS.md -->' AGENTS.md
   grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
   [ "$(sed -n '1p' .gitignore)" = "build/" ]
@@ -381,7 +403,7 @@ later-release() {
 @test "a region makes the file where there is none, and one holding different content is regenerated" {
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
+  [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = '# AGENTS.md||<!-- kit:generate AGENTS.md -->' ]
   run "${kit_checkout}/bin/kit" package remove kit agents/generic
   [ ! -e AGENTS.md ]
   [ ! -e .gitignore ]
