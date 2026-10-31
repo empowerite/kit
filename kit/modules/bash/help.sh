@@ -110,13 +110,19 @@ help:summary() {
   done
 }
 
+# help:styled is true when a help page's headings are bold: NO_COLOR is not set, and stdout is a terminal or
+# CLICOLOR_FORCE asks for the effects anyway, as kit tui does for the page it shows beside the verbs.
+help:styled() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -t 1 ]] || [[ -n "${CLICOLOR_FORCE:-}" && "${CLICOLOR_FORCE}" != 0 ]]
+}
+
 # help:overview prints kit help's page: what kit is, its usage, each verb's name and purpose under its group, a few
-# examples, and where to learn more, as gh help lays itself out. Headings are bold when stdout is a
-# terminal and NO_COLOR is not set.
+# examples, and where to learn more, as gh help lays itself out. Headings are bold as help:styled says.
 help:overview() {
   local bold='' plain='' group verb
   local -a verbs members
-  if [[ -t 1 && -z "${NO_COLOR:-}" ]]
+  if help:styled
   then
     bold=$'\x1b[1m' plain=$'\x1b[0m'
   fi
@@ -151,10 +157,10 @@ help:overview() {
 }
 
 # help:page <verb> prints the verb's help page: its name and purpose, its usage, its description, and the other verbs
-# of its group. Headings are bold when stdout is a terminal and NO_COLOR is not set.
+# of its group. Headings are bold as help:styled says.
 help:page() {
   local bold='' plain=''
-  if [[ -t 1 && -z "${NO_COLOR:-}" ]]
+  if help:styled
   then
     bold=$'\x1b[1m' plain=$'\x1b[0m'
   fi
