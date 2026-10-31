@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the runner's tests: answers syntax and help, and records any other call (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# The syntax answers come from the syntax package's fixtures; help is a fixed page; any other verb's arguments and
+# working directory are written to the file FAKE_KIT_RECORD names, for the exec test to read.
+
+set -o errexit -o nounset -o pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+fixtures=${here}/../../syntax/testdata
+
+case "${1:-}" in
+  (syntax)
+    shift
+    if (( $# == 0 ))
+    then
+      printf '['
+      cat "${fixtures}/commit.json"
+      printf ','
+      cat "${fixtures}/version.json"
+      printf ']\n'
+    elif [[ "${2:-}" == --choices ]]
+    then
+      verb=$1 key=$3
+      shift 3
+      [[ "${1:-}" != -- ]] || shift
+      printf 'a\tthe first\tactive\t\n'
+      printf 'b\t\t\tb: kept, c depend(s) on it\n'
+      printf 'answers\t%s %s %s\t\t\n' "${verb}" "${key}" "$*"
+    elif [[ "${2:-}" == --extend ]]
+    then
+      shift 2
+      [[ "${1:-}" != -- ]] || shift
+      if (( $# == 0 ))
+      then
+        printf '{}\n'
+      else
+        printf '{"--title": {"description": "", "extended": true}}\n'
+      fi
+    elif [[ -f "${fixtures}/$1.json" ]]
+    then
+      cat "${fixtures}/$1.json"
+    else
+      echo "❌ no kit verb '$1'; run: kit help" >&2
+      exit 2
+    fi
+    ;;
+  (help)
+    printf 'kit %s - a purpose for the test\n\nUsage\n  kit %s\n\nDescription\n  Does it.\n' "$2" "$2"
+    ;;
+  (*)
+    printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
+    pwd -P >> "${FAKE_KIT_RECORD}"
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------
