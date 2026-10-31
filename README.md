@@ -93,6 +93,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | --- | --- |
    | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
    | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
+   | `agents/generic` | for any agent that reads `AGENTS.md`: a sentence there that sends it to `.kit/1st.md` |
    | `agents/claude` | the Claude Code adapter |
    | `agents/cursor` | the Cursor adapter: a rule per kind under `.cursor/rules/`, attached by the kit rule's paths |
    | `agents/copilot` | the GitHub Copilot adapter: an instruction file per kind under `.github/instructions/`, applied to the same paths |
@@ -106,11 +107,11 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    `agents/cursor` beside them. `kit package add` adds one later.
    `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
-   `install` also writes a sentence into `AGENTS.md` telling every agent to read `.kit/1st.md`, and adds
-   `/worktrees/` to `.gitignore`. Each sits in a region between a `kit:generate` line and a `kit:end` line. The
-   rest of each file is yours, and you can move the region anywhere in it. `kit generate` rewrites a region from
-   its command, and `kit check` fails when a region is out of date. Your own files can contain regions too; see
-   [docs/generate.md](docs/generate.md).
+   `install` adds `/worktrees/` to `.gitignore`, and every `agents/<harness>` package, through `agents/generic`,
+   writes a sentence into `AGENTS.md` telling every agent to read `.kit/1st.md`. Each sits in a region that runs
+   from a `kit:generate` line to a `kit:end` line. The rest of each file is yours, and you can move the region
+   anywhere in it. `kit generate` rewrites a region from its command, and `kit check` fails when a region is out of
+   date. Your own files can contain regions too; see [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
    - any command, set as `gate` in `.kit/settings.yml`
@@ -133,7 +134,8 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 
 Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `agents/claude` package adds a region to
 `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude always reads the same instructions as every other agent. The
-rest of `.claude/CLAUDE.md` is yours. Without the package, any agent that reads `AGENTS.md` still gets the rules.
+rest of `.claude/CLAUDE.md` is yours. Without it, `agents/generic` alone still gives any agent that reads
+`AGENTS.md` the rules.
 
 `kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The
 package format is in [docs/packages.md](docs/packages.md).
@@ -226,7 +228,8 @@ written by `bin/refresh`, which runs `kit update` from the index. Do not edit th
 | `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
-| `AGENTS.md`, `.gitignore` | `kit/packages/kit/regions/repo/`, regions; the rest of each file belongs to this repository |
+| `AGENTS.md` | `kit/packages/agents/generic/regions/repo/AGENTS.md`, a region; the rest of the file belongs to this repository |
+| `.gitignore` | `kit/packages/kit/regions/repo/.gitignore`, a region; the rest of the file belongs to this repository |
 | `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `.kit/settings.yml` |
 
 `.kit/settings.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and

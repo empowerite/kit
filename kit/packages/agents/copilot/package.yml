@@ -5,3 +5,4 @@
 description: "GitHub Copilot: an instruction file under .github/instructions/ per kind, applied to the kit rule's paths"
 depends:
   - kit
+  - agents/generic

@@ -5,3 +5,4 @@
 description: "Gemini CLI: AGENTS.md among its context files, and the deny list, merged into .gemini/settings.json"
 depends:
   - kit
+  - agents/generic

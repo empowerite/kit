@@ -7,7 +7,7 @@ Examples of regions:
 
 - a table built from the manifests
 - a list of commands built from their help text
-- the sentence the kit puts in `AGENTS.md`
+- the sentence the `agents/generic` package puts in `AGENTS.md`
 
 A hand edit makes a region stale. `kit check` fails on a stale region, so `kit ci` fails wherever it runs.
 
@@ -144,7 +144,7 @@ syntax. [packages.md](packages.md#regions) says where the block goes, and what `
 
 | Package | File | Region |
 | --- | --- | --- |
-| `kit` | `AGENTS.md` | the sentence that sends every agent to `.kit/1st.md` |
+| `agents/generic` | `AGENTS.md` | the sentence that sends every agent to `.kit/1st.md` |
 | `kit` | `.gitignore` | the `/worktrees/` entry |
 | `agents/claude` | `.claude/CLAUDE.md` | an import of `AGENTS.md` |
 

@@ -77,6 +77,23 @@ later-release() {
   [ "$status" -eq 0 ]
 }
 
+@test "AGENTS.md comes from agents/generic, which every agents package depends on, and kit alone writes none" {
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [ ! -e AGENTS.md ]
+  grep --quiet --line-regexp '/worktrees/' .gitignore
+  for package in claude cursor copilot gemini
+  do
+    grep --quiet --line-regexp '  - agents/generic' "${kit_checkout}/packages/agents/${package}/package.yml"
+  done
+  run "${kit_checkout}/bin/kit" package add agents/generic
+  [ "$status" -eq 0 ]
+  grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
+  run "${kit_checkout}/bin/kit" package remove agents/generic
+  [ "$status" -eq 0 ]
+  [ ! -e AGENTS.md ]
+}
+
 @test "install with claude adds the deny list and the context hook, and copies no rule" {
   run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
@@ -86,6 +103,7 @@ later-release() {
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
   grep --quiet --line-regexp '<!-- kit:generate .claude/CLAUDE.md -->' .claude/CLAUDE.md
   [ ! -e .claude/rules ]
+  grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
 }
 
 @test "install refuses a package this release does not know, in the words the form uses, and the choices list the known ones" {
@@ -271,7 +289,7 @@ later-release() {
 @test "a region is placed inside the repository's own file, held to the release, and taken out whole" {
   printf '# Ours\n\nOur own instructions.\n' > AGENTS.md
   printf 'build/\n' > .gitignore
-  run "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
   [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = "# Ours||Our own instructions." ]
   grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' AGENTS.md
@@ -285,7 +303,7 @@ later-release() {
   printf '## More of ours\n' >> AGENTS.md
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  sed -i.bak 's/^Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
+  sed -i.bak 's/Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"AGENTS.md: stale; run: kit generate"* ]]
@@ -296,12 +314,12 @@ later-release() {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   # a region is what its command makes it: update regenerates an edited one rather than merging it
-  sed -i.bak 's/^Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
+  sed -i.bak 's/Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: the region regenerated"* ]]
   grep --quiet 'Read .kit/1st.md' AGENTS.md
-  run "${kit_checkout}/bin/kit" package remove kit
+  run "${kit_checkout}/bin/kit" package remove kit agents/generic
   [ "$status" -eq 0 ]
   [ "$(paste -s -d '|' - < AGENTS.md)" = "# Ours||Our own instructions.|## More of ours" ]
   [ "$(cat .gitignore)" = "build/" ]
@@ -309,13 +327,13 @@ later-release() {
 
 @test "a symlinked destination keeps its link, and a directory at a destination is refused" {
   mkdir docs && printf '# Ours\n' > docs/AGENTS.md && ln -s docs/AGENTS.md AGENTS.md
-  run "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
   [ -L AGENTS.md ]
   grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' docs/AGENTS.md
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package remove kit
+  run "${kit_checkout}/bin/kit" package remove kit agents/generic
   [ "$status" -eq 0 ]
   mkdir -p .kit/1st.md
   run "${kit_checkout}/bin/kit" package add kit
@@ -325,19 +343,19 @@ later-release() {
 
 @test "a region that opens and never closes is refused by name, and two packages cannot share a region's file" {
   printf '<!-- kit:generate AGENTS.md -->\nhalf\n' > AGENTS.md
-  run "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 1 ]
   [[ "$output" == *"AGENTS.md: the kit's region opens with '<!-- kit:generate AGENTS.md -->' and never closes"* ]]
   rm AGENTS.md
   mkdir -p .kit/packages/extra/regions/repo
   printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/extra/package.yml
   printf 'extra\n' > .kit/packages/extra/regions/repo/AGENTS.md
-  run "${kit_checkout}/bin/kit" install extra
+  run "${kit_checkout}/bin/kit" install agents/generic extra
   [ "$status" -eq 1 ]
-  [[ "$output" == *"packages kit and extra both deliver a region to AGENTS.md"* ]]
+  [[ "$output" == *"packages agents/generic and extra both deliver a region to AGENTS.md"* ]]
   printf 'x = 1\n' > .kit/packages/extra/regions/repo/config.toml
   rm .kit/packages/extra/regions/repo/AGENTS.md
-  run "${kit_checkout}/bin/kit" install extra
+  run "${kit_checkout}/bin/kit" install agents/generic extra
   [ "$status" -eq 0 ]
   [ "$(sed -n '1p' config.toml)" = '# kit:generate config.toml' ]
   [ "$("${kit_checkout}/bin/kit" region config.toml)" = "x = 1" ]
@@ -348,10 +366,10 @@ later-release() {
   [ "$(sed -n '3p' lib.js)" = '// kit:end lib.js' ]
   run "${kit_checkout}/bin/kit" region AGENTS.md
   [ "$status" -eq 0 ]
-  [[ "$output" == "Read .kit/1st.md"* ]]
+  [[ "$output" == "## Follow rules defined by kit"*"Read .kit/1st.md"* ]]
   run env KIT_GENERATE_REGION=AGENTS.md "${kit_checkout}/bin/kit" region
   [ "$status" -eq 0 ]
-  [[ "$output" == "Read .kit/1st.md"* ]]
+  [[ "$output" == "## Follow rules defined by kit"*"Read .kit/1st.md"* ]]
   run "${kit_checkout}/bin/kit" region
   [ "$status" -eq 2 ]
   [[ "$output" == *"run: kit help region"* ]]
@@ -361,14 +379,14 @@ later-release() {
 }
 
 @test "a region makes the file where there is none, and one holding different content is regenerated" {
-  run "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
   [ "$(sed -n '1p' AGENTS.md)" = '<!-- kit:generate AGENTS.md -->' ]
-  run "${kit_checkout}/bin/kit" package remove kit
+  run "${kit_checkout}/bin/kit" package remove kit agents/generic
   [ ! -e AGENTS.md ]
   [ ! -e .gitignore ]
   printf '# Ours\n\n<!-- kit:generate AGENTS.md -->\nsomething else\n<!-- kit:end AGENTS.md -->\n' > AGENTS.md
-  run "${kit_checkout}/bin/kit" package add kit
+  run "${kit_checkout}/bin/kit" package add agents/generic
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: placed, the region regenerated"* ]]
   [ "$(sed -n '1p' AGENTS.md)" = "# Ours" ]
@@ -752,7 +770,7 @@ later-release() {
 
 @test "package remove judges dependents against what stays, in any order" {
   "${kit_checkout}/bin/kit" install agents/claude
-  run "${kit_checkout}/bin/kit" package remove kit hooks/lefthook agents/claude
+  run "${kit_checkout}/bin/kit" package remove kit hooks/lefthook agents/claude agents/generic
   [ "$status" -eq 0 ]
   [ "$(declared packages)" = "" ]
   [ ! -e .kit/1st.md ]

@@ -5,3 +5,4 @@
 description: "Cursor: a rule under .cursor/rules/ for each kind of file, attached by the kit rule's paths, that points at it"
 depends:
   - kit
+  - agents/generic

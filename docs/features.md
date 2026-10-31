@@ -7,9 +7,9 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 
 - `.kit/1st.md` is the file every agent reads first. It sets the integrity rules for reporting, the workflow, the
   worker contract, and the kit commands that replace raw git commands.
-- `install` writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`. Claude Code reads
-  `AGENTS.md` on its own only when the project has no `CLAUDE.md`, so the `agents/claude` package imports
-  `AGENTS.md` from `.claude/CLAUDE.md`.
+- The `agents/generic` package writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`, and
+  every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own only when the project
+  has no `CLAUDE.md`, so the `agents/claude` package imports `AGENTS.md` from `.claude/CLAUDE.md`.
 - Each kind of file is defined once, in `.kit/kinds/<kind>.yml`: the paths and first lines that make a file of that
   kind, and the kinds found inside its files. Each kind has one rule, `.kit/rules/<kind>.md`, that names the kind
   and the linter it runs. A style package adds `.kit/styles/<kind>.md`, how a file of that kind looks, with the
@@ -164,7 +164,7 @@ see: [packages.md](packages.md), the Release section of [README.md](../README.md
 - A region is a part of a file that a command writes, between a `kit:generate` line and a `kit:end` line. The rest
   of the file stays the repository's own.
 - `kit generate` rewrites every region from its command. `kit check` fails on a stale one.
-- The kit's own sentence in `AGENTS.md` and its `/worktrees/` line in `.gitignore` are regions, and a repository can
+- The kit's sentence in `AGENTS.md` and its `/worktrees/` line in `.gitignore` are regions, and a repository can
   add regions of its own, such as a table built from its manifests.
 
 see: [generate.md](generate.md)

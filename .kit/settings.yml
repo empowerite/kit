@@ -12,6 +12,7 @@ policy:
 version: unreleased
 packages:
   - kit
+  - agents/generic
   - agents/claude
   - github/ci
   - hooks/lefthook

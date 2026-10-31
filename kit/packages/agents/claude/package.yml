@@ -5,3 +5,4 @@
 description: "Claude Code: a deny list of the git commands .kit/1st.md forbids, and a hook that names a file's rules"
 depends:
   - kit
+  - agents/generic

@@ -171,9 +171,7 @@ How a delivered file is placed depends on its destination:
 The packages:
 
 - `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/settings.schema.json`,
-  and two regions that `kit region` fills:
-  - the sentence in the repository's `AGENTS.md` that points to this file
-  - the `/worktrees/` entry in the repository's `.gitignore`
+  and a region that `kit region` fills: the `/worktrees/` entry in the repository's `.gitignore`.
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
   `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
@@ -191,6 +189,8 @@ The packages:
   - `kit policy`, which refuses a branch name, commit subject, or title that breaks the repository's policy
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
+- `agents/generic`: support for any agent that reads `AGENTS.md`. Every `agents/<harness>` package below depends
+  on it. It delivers a region in the repository's `AGENTS.md`, filled by `kit region`, that points to this file.
 - `agents/claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`

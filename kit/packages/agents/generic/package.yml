@@ -1,0 +1,7 @@
+# packages/agents/generic/package.yml - the agents/generic package: AGENTS.md sends any agent to .kit/1st.md
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md, docs/packages/agents/generic.md
+
+description: "Any agent that reads AGENTS.md: a region in AGENTS.md that sends it to .kit/1st.md"
+depends:
+  - kit
