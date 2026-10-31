@@ -19,8 +19,8 @@
 #
 #   --check   prints no JSON; reports each usage line that does not parse and each argument the header does not
 #             describe, and fails when there is any
-#   --list    prints no JSON; prints each verb and its purpose, tab-separated, one per line, which a palette opens on
-#             at once
+#   --list    prints no JSON; prints each verb, its purpose, and its group, tab-separated, one per line, which a
+#             palette opens on at once
 #   --choices <argument>   prints the choices of that argument instead, one per line, tab-separated: the value, its
 #                          description, its state (active, excluded, or none), and the line the verb would print about
 #                          it given the answers; closed when they are the only values the verb accepts, open when they
@@ -61,7 +61,7 @@ for verb in "${verbs[@]}"
 do
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
   then
-    error "no kit verb '${verb}'; run: kit help"
+    error "unknown verb '${verb}'; run: kit help"
     exit 2
   fi
 done
@@ -101,7 +101,7 @@ if [[ -n "${syntax_options[--list]+x}" ]]
 then
   for verb in "${verbs[@]}"
   do
-    printf '%s\t%s\n' "${verb}" "$(help:purpose "${verb}")"
+    printf '%s\t%s\t%s\n' "${verb}" "$(help:purpose "${verb}")" "$(help:group "${verb}")"
   done
   exit 0
 fi

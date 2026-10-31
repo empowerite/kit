@@ -4,7 +4,8 @@
 #
 # kit help [<verb>…]
 #
-# Prints the help each verb's header holds.
+# Prints the help each verb's header holds. kit <verb> --help, or -h, prints the same page as kit help <verb>, and
+# kit --help the same as kit help.
 #
 #   <verb>…   verbs' names, or the starts of them: kit help re matches rebase and region
 #
@@ -35,7 +36,7 @@ for word in "$@"
 do
   if [[ -z "$(help:verbs "${word}")" ]]
   then
-    error "no kit verb matches '${word}'; run: kit help"
+    error "unknown verb '${word}'; run: kit help"
     exit 2
   fi
 done

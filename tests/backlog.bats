@@ -180,9 +180,9 @@ JSON
 }
 
 @test "kit backlog refuses an unknown flag with a pointer to its page, and kit todo is no verb" {
-  run kit backlog --help
+  run kit backlog --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--help'; run: kit help backlog"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help backlog"* ]]
   run kit todo
   [ "$status" -ne 0 ]
   [[ "$output" == *"todo"* ]]

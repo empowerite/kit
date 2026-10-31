@@ -162,7 +162,8 @@ use <module>
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
-- A verb has no `--help`: `kit help <verb>` prints its header. Every verb calls `guard:arguments <verb> "$@"` first,
+- A verb has no `--help` of its own: `kit help <verb>` prints its header, and so does `kit <verb> --help` or `-h`,
+  which `guard:arguments` answers before it judges anything. Every verb calls `guard:arguments <verb> "$@"` first,
   which judges the arguments against the usage line and refuses in one line that points to that page: an unknown
   flag or argument, a missing value, two alternatives together, or a required argument missing. The verb parses what
   the guard let through, and never restates the usage.

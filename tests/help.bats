@@ -15,7 +15,7 @@ group-has() {
   [[ $'\n'"${group}" =~ ${line} ]] || { echo "$2 is not under $1"; return 1; }
 }
 
-@test "kit help lists every verb beside bin/kit with its purpose, under its group; -h and --help are unknown verbs that point to it" {
+@test "kit help lists every verb beside bin/kit with its purpose, under its group; kit --help and kit -h print the same page" {
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
   local verb
@@ -31,12 +31,13 @@ group-has() {
   [[ "$output" == *$'\nEXAMPLES\n'* && "$output" == *$'\nLEARN MORE\n'* ]]
   [[ "$output" == *$'\nLEARN MORE\n  • kit help <verb>… '* ]]
   [[ "$output" != *$'\nOTHER\n'* ]]
+  page=$output
   run "${kit_root}/bin/kit" --help
-  [ "$status" -eq 2 ]
-  [ "$output" = "kit: unknown verb '--help'; run: kit help" ]
+  [ "$status" -eq 0 ]
+  [ "$output" = "${page}" ]
   run "${kit_root}/bin/kit" -h
-  [ "$status" -eq 2 ]
-  [ "$output" = "kit: unknown verb '-h'; run: kit help" ]
+  [ "$status" -eq 0 ]
+  [ "$output" = "${page}" ]
 }
 
 @test "every verb names one of the groups in its banner, and its page names the group and the verbs beside it" {
@@ -62,24 +63,42 @@ group-has() {
   [[ "$output" != *"Usage"* && "$output" != *"Description"* ]]
   run "${kit_root}/bin/kit" usage che
   [ "$status" -eq 2 ]
-  [[ "$output" == *"no kit verb 'che'; run: kit help"* ]]
+  [ "$output" = "❌ unknown verb 'che'; run: kit help" ]
 }
 
-@test "no verb takes --help: each refuses it with a pointer to its page, and kit help knows no verb by that name" {
+@test "every verb prints its page on --help or -h, before any --, as kit help <verb> does, through bin/kit or called directly" {
   cd "${BATS_TEST_TMPDIR}" && git init --quiet --initial-branch=main
-  local verb
+  local verb page
   for verb in "${kit_root}"/bin/kit-*
   do
     [[ -x "${verb}" ]] || continue
     verb=${verb##*/kit-}
-    [[ "${verb}" != help ]] || continue
+    page=$("${kit_root}/bin/kit" help "${verb}")
     run "${kit_root}/bin/kit" "${verb}" --help
-    [ "$status" -eq 2 ] || { echo "${verb}: exit ${status}: ${output}"; return 1; }
-    [[ "$output" == *"; run: kit help ${verb}"* ]] || { echo "${verb}: ${output}"; return 1; }
+    [ "$status" -eq 0 ] || { echo "${verb}: exit ${status}: ${output}"; return 1; }
+    [ "$output" = "${page}" ] || { echo "${verb}: ${output}"; return 1; }
   done
-  run "${kit_root}/bin/kit" help --help
+  run "${kit_root}/bin/kit-status" -h
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "kit status - "* ]]
+  run "${kit_root}/bin/kit" status --no-fetch --help
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "kit status - "* ]]
+  # after --, the words belong to the verb named there, so tui gets them and refuses as it does without a terminal
+  run "${kit_root}/bin/kit" tui -- status --help
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--help'; run: kit help help"* ]]
+  [[ "$output" != "kit status - "* ]]
+}
+
+@test "an unknown verb is refused in the same words by kit, kit help, kit usage, and kit syntax" {
+  local command
+  for command in '' help usage syntax
+  do
+    # shellcheck disable=SC2086  # an empty command is bin/kit alone
+    run "${kit_root}/bin/kit" ${command} nonesuch
+    [ "$status" -eq 2 ] || { echo "kit ${command} nonesuch: exit ${status}"; return 1; }
+    [ "$output" = "❌ unknown verb 'nonesuch'; run: kit help" ] || { echo "kit ${command} nonesuch: ${output}"; return 1; }
+  done
 }
 
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {
@@ -133,7 +152,7 @@ group-has() {
 @test "kit help prints a page for each verb named, in order, and refuses a name no verb starts with before printing any" {
   run "${kit_root}/bin/kit" help nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"no kit verb matches 'nonesuch'; run: kit help"* ]]
+  [[ "$output" == *"unknown verb 'nonesuch'; run: kit help"* ]]
   run "${kit_root}/bin/kit" help tidy gate
   [ "$status" -eq 0 ]
   [ "$(grep -E '^kit [a-z]+ - ' <<<"$output" | cut -d ' ' -f 2 | paste -s -d ' ' -)" = "tidy gate" ]

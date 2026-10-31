@@ -65,7 +65,7 @@ setup() {
   jq -e '.syntax == [[]] and .usage == ["kit version"]' <<<"$output"
   run "${kit_root}/bin/kit" syntax nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"no kit verb 'nonesuch'; run: kit help"* ]]
+  [[ "$output" == *"unknown verb 'nonesuch'; run: kit help"* ]]
 }
 
 @test "kit syntax --check is clean for every verb" {
@@ -189,11 +189,13 @@ setup() {
   [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["add"],"<package>"]' ]
 }
 
-@test "kit syntax --list prints each verb and its purpose, one per line, for a palette to open on" {
+@test "kit syntax --list prints each verb, its purpose, and its group, one per line, for a palette to open on" {
   run "${kit_root}/bin/kit" syntax --list
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq "$(compgen -G "${kit_root}/bin/kit-*" | wc -l | tr -d ' ')" ]
-  grep -q $'^tidy\tremoves merged worktrees and gone branches$' <<<"$output"
+  grep -q $'^tidy\tremoves merged worktrees and gone branches\tworkflow$' <<<"$output"
+  # every line has the three columns, and the group is one word
+  [ "$(grep -c $'^[a-z-]*\t[^\t]*\t[a-z]*$' <<<"$output")" -eq "${#lines[@]}" ]
   run "${kit_root}/bin/kit" syntax --list --check
   [ "$status" -eq 2 ]
   [[ "$output" == *"--check cannot be combined with --list; run: kit help syntax"* ]]

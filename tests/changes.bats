@@ -96,9 +96,9 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 }
 
 @test "kit changes refuses an unknown flag with a pointer to its page" {
-  run kit changes --help
+  run kit changes --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--help'; run: kit help changes"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help changes"* ]]
 }
 
 @test "kit changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {

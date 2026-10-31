@@ -4,8 +4,10 @@
 #
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
 # bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
-# when called directly. kit with no verb runs kit tui, the interactive terminal UI. A verb that does not exist, -h and
-# --help among them, is refused with a pointer to kit help, which reads each verb's usage from its header.
+# when called directly. kit with no verb runs kit tui, the interactive terminal UI. kit --help and kit -h run kit help,
+# which reads each verb's usage from its header; kit <verb> --help is the verb's page, which guard:arguments in
+# modules/bash/1st.sh answers. A verb that does not exist is refused with a pointer to kit help, in the words every
+# verb uses for one.
 #
 # see: .kit/1st.md
 
@@ -16,9 +18,15 @@ kit_bin=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 
 verb=${1:-tui}
 (( $# == 0 )) || shift
+case "${verb}" in
+  (--help | -h) verb=help
+esac
 if [[ ! -x "${kit_bin}/kit-${verb}" ]]
 then
-  echo "kit: unknown verb '${verb}'; run: kit help" >&2
+  # The loader is sourced only to refuse: the verbs load it themselves.
+  # shellcheck source=../modules/bash/1st.sh
+  source "${kit_bin}/../modules/bash/1st.sh"
+  error "unknown verb '${verb}'; run: kit help"
   exit 2
 fi
 exec "${kit_bin}/kit-${verb}" "$@"

@@ -131,7 +131,7 @@
       "description": "prints no JSON; reports each usage line that does not parse and each argument the header does not describe, and fails when there is any"
     },
     "--list": {
-      "description": "prints no JSON; prints each verb and its purpose, tab-separated, one per line, which a palette opens on at once"
+      "description": "prints no JSON; prints each verb, its purpose, and its group, tab-separated, one per line, which a palette opens on at once"
     },
     "--choices": {
       "description": "prints the choices of that argument instead, one per line, tab-separated: the value, its description, its state (active, excluded, or none), and the line the verb would print about it given the answers; closed when they are the only values the verb accepts, open when they are suggestions and any value is still allowed"
