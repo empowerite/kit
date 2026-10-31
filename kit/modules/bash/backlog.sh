@@ -37,7 +37,7 @@ backlog:collect() {
 # backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues, one row each,
 # to stderr. With --json it prints backlog:collect's array to stdout. The owner flags combine as status:filter says.
 backlog:render() {
-  local json=false today=false mine=false others=false choice arg doc when='' about='' filter widths ref_w owner_w
+  local json=false today=false mine=false others=false choice arg doc filter widths ref_w owner_w
   local age_w branch_w issue
   local -a owners=() selection=()
   for arg in "$@"
@@ -61,17 +61,8 @@ backlog:render() {
     printf '%s\n' "${doc}"
     return 0
   fi
-  if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
-  then
-    [[ "${today}" == false ]] || when=' opened in the last 24 hours'
-    case "${selection[0]:-}" in
-      ('') ;;
-      (--except) about=" not assigned to ${selection[*]:1}" ;;
-      (*) about=" assigned to ${selection[*]}"
-    esac
-    step "nothing in the backlog: no open issue${when}${about}"
-    return 0
-  fi
+  # Nothing to list prints nothing, so a script reads an empty answer as none.
+  [[ "$(jq 'length' <<<"${doc}")" != 0 ]] || return 0
   # The assignee column goes under --mine, as the author column goes under kit status --mine.
   read -r ref_w owner_w age_w branch_w <<<"$(status:issue-widths "${doc}")"
   [[ "${choice}" != mine ]] || owner_w=0

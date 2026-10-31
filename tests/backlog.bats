@@ -176,7 +176,7 @@ JSON
   [ "$(jq --compact-output 'map(.number)' <<<"$output")" = "[13,14]" ]
   run kit backlog --today --owner=bob
   [ "$status" -eq 0 ]
-  [[ "$output" == *"nothing in the backlog: no open issue opened in the last 24 hours assigned to bob"* ]]
+  [ -z "$output" ]
 }
 
 @test "kit backlog refuses an unknown flag with a pointer to its page, and kit todo is no verb" {
