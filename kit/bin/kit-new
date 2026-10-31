@@ -37,6 +37,7 @@ declare -A values=()
 for arg in "$@"
 do
   case "${arg}" in
+    (--) ;;
     (--rule=?*) rule_name=${arg#--rule=} ;;
     (--variant=?*) variant=${arg#--variant=} ;;
     (--[a-z_]*=*)

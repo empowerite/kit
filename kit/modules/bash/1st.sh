@@ -259,6 +259,7 @@ guard:require() {
 guard:arguments() {
   local verb=$1 status
   shift
+  guard:require tool:jq || return 2
   use syntax || return 2
   syntax:match "${verb}" "$@" && return 0
   status=$?

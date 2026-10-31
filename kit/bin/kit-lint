@@ -42,6 +42,7 @@ paths=()
 for arg in "$@"
 do
   case "${arg}" in
+    (--) ;;
     (--all-files) all=true ;;
     (*) paths+=("${arg}")
   esac

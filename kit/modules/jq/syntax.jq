@@ -107,41 +107,63 @@ def walk_sequence($nodes; $st):
     elif $node.kind == "operand" then
       if (.pos | length) == 0 then .missing = ["<\($node.name)>"]
       elif .pos[0].dash then .refusal = "unknown flag '\(.pos[0].word)'"
-      elif $node.repeat then (.pos | map(.word)) as $w | .operands += $w | .values["<\($node.name)>"] += $w | .pos = []
+      elif $node.repeat then
+        (.pos | map(.word)) as $w | .trailing = {key: "<\($node.name)>", at: .pos[0].at}
+        | .operands += $w | .values["<\($node.name)>"] += $w | .pos = []
       else .pos[0].word as $w | .operands += [$w] | .values["<\($node.name)>"] += [$w] | .pos |= .[1:] end
     elif $node.kind == "group" then walk_group($node; .)
     else given_keys($node; .) as $keys
       | if ($keys | length) > 0 then .used += $keys else .missing = [$node | key] end
     end);
 
-# lex($rest; $st; $by_key; $wild) sorts the words: a named flag or option is taken wherever it stands, with its value
-# inline or as the next word; -- ends the flags; every other word is kept in order, a dash-word tentatively, for a
-# repeated operand to take or the walk to refuse.
-def lex($rest; $st; $by_key; $wild):
-  if $st.refusal != null or ($rest | length) == 0 then $st
-  else $rest[0] as $w
+# lex($words; $i; $st; $by_key; $wild) sorts the words from the one at $i on: a named flag or option is taken wherever
+# it stands, with its value inline or as the next word, and the indices it took are kept in spans; an option written
+# once is refused twice; -- ends the flags; every other word is kept in order with its index, a dash-word tentatively,
+# for a repeated operand to take or the walk to refuse. A wildcard option may be empty: a hole may be filled with nothing.
+def lex($words; $i; $st; $by_key; $wild):
+  if $st.refusal != null or $i >= ($words | length) then $st
+  else $words[$i] as $w
   | if $st.plain or ($w | startswith("-") | not) or $w == "-" then
-      lex($rest[1:]; $st | .pos += [{word: $w, dash: false}]; $by_key; $wild)
-    elif $w == "--" then lex($rest[1:]; $st | .plain = true; $by_key; $wild)
+      lex($words; $i + 1; $st | .pos += [{word: $w, dash: false, at: $i}]; $by_key; $wild)
+    elif $w == "--" then lex($words; $i + 1; $st | .plain = true | .dashdash = $i; $by_key; $wild)
     else ($w | index("=")) as $eq
     | (if $eq == null then $w else $w[:$eq] end) as $name
     | (if $eq == null then null else $w[$eq + 1:] end) as $inline
     | $by_key[$name] as $node
     | if $node != null and $node.kind == "flag" then
-        if $eq != null then lex($rest[1:]; $st | .pos += [{word: $w, dash: true}]; $by_key; $wild)
-        else lex($rest[1:]; $st | .given[$name] = ["1"]; $by_key; $wild) end
+        if $eq != null then lex($words; $i + 1; $st | .pos += [{word: $w, dash: true, at: $i}]; $by_key; $wild)
+        else lex($words; $i + 1; $st | .given[$name] = ["1"] | .spans[$name] += [[$i]]; $by_key; $wild) end
       elif $node != null then
-        if $eq != null then
+        if ($st.given[$name] // [] | length) > 0 and ($node.repeat | not) then $st | .refusal = "\($name) is given twice"
+        elif $eq != null then
           if $inline == "" then $st | .refusal = "\($name) needs a value"
-          else lex($rest[1:]; $st | .given[$name] += [$inline]; $by_key; $wild) end
-        elif $node.inline or ($rest | length) < 2 then $st | .refusal = "\($name) needs a value"
-        else lex($rest[2:]; $st | .given[$name] += [$rest[1]]; $by_key; $wild) end
+          else lex($words; $i + 1; $st | .given[$name] += [$inline] | .spans[$name] += [[$i]]; $by_key; $wild) end
+        elif $node.inline or $i + 1 >= ($words | length) then $st | .refusal = "\($name) needs a value"
+        else lex($words; $i + 2; $st | .given[$name] += [$words[$i + 1]] | .spans[$name] += [[$i, $i + 1]]; $by_key; $wild) end
       elif $wild and $eq != null and ($name | test("^--[^=]+$")) then
-        if $inline == "" then $st | .refusal = "\($name) needs a value"
-        else lex($rest[1:]; $st | .given[$name] += [$inline] | .wild += [$name]; $by_key; $wild) end
-      else lex($rest[1:]; $st | .pos += [{word: $w, dash: true}]; $by_key; $wild) end
+        lex($words; $i + 1; $st | .given[$name] += [$inline] | .spans[$name] += [[$i]]
+          | if (.wild | index($name)) == null then .wild += [$name] else . end; $by_key; $wild)
+      else lex($words; $i + 1; $st | .pos += [{word: $w, dash: true, at: $i}]; $by_key; $wild) end
     end
   end;
+
+# reclaim($words) hands the flags and options the walk did not use to the repeated operand that took every word left,
+# when each of them stands after that operand's first word: a command kit toolchain run runs owns its own --check. The
+# operand's words become every word from its first one on, less the ones a used flag or option took and the --.
+def reclaim($words):
+  . as $st
+  | ((.given | keys_unsorted) - .used) as $unused
+  | if ($unused | length) == 0 or .trailing == null then .
+    elif any($unused[] as $k | $st.spans[$k][][]; . < $st.trailing.at) then .
+    else [.used[] as $k | .spans[$k][][]] as $taken
+    | [range(.trailing.at; $words | length) as $j | select(($taken | index($j)) == null and $j != $st.dashdash) | $words[$j]]
+        as $words_of_it
+    | (.values[.trailing.key] | length) as $had
+    | .operands = .operands[:(.operands | length) - $had] + $words_of_it
+    | .values[.trailing.key] = $words_of_it
+    | .given = (.given | with_entries(select(.key as $k | $unused | index($k) | . == null)))
+    | .values = (.values | with_entries(select(.key as $k | $unused | index($k) | . == null)))
+    end;
 
 # match($words) judges a command line against the spec's syntax, as the loader's guard:arguments does. It gives
 # status 0 with literals, operands, options (each key to its values, a flag's being ["1"]), and values (every operand
@@ -155,10 +177,10 @@ def match($words):
   | ($named | any(.wildcard)) as $wild
   | if $spec.syntax == [[]] and ($words | length) > 0 then
       {status: 2, refusal: "kit \($spec.verb) takes no arguments; run: kit help \($spec.verb)"}
-    else lex($words; {pos: [], given: {}, wild: [], used: [], literals: [], operands: [], values: {}, refusal: null,
-        missing: null, plain: false}; $by_key; $wild)
+    else lex($words; 0; {pos: [], given: {}, spans: {}, wild: [], used: [], literals: [], operands: [], values: {},
+        trailing: null, dashdash: null, refusal: null, missing: null, plain: false}; $by_key; $wild)
     | if .refusal != null then .
-      else walk_sequence([{kind: "group", optional: false, alternatives: $spec.syntax, repeat: false}]; .) end
+      else walk_sequence([{kind: "group", optional: false, alternatives: $spec.syntax, repeat: false}]; .) | reclaim($words) end
     | (.pos | map(select(.dash))) as $dashed
     | if .refusal != null then {status: 2, refusal: "\(.refusal); run: kit help \($spec.verb)"}
       elif .missing != null and ($dashed | length) > 0 then

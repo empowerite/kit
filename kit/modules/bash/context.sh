@@ -210,6 +210,7 @@ context:render() {
   for arg in "$@"
   do
     case "${arg}" in
+      (--) ;;
       (--json) json=true ;;
       (*) paths+=("${arg}")
     esac

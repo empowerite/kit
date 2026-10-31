@@ -298,7 +298,7 @@ syntax:match() {
     --args -- "$@")
   if (( ${#fields[@]} == 0 ))
   then
-    syntax_refusal="kit ${verb}: the arguments could not be judged; run: kit help ${verb}"
+    syntax_refusal="kit ${verb}: the arguments could not be judged (jq 1.7 or later is needed); run: mise install"
     return 2
   fi
   i=0
@@ -396,6 +396,8 @@ syntax:offered() {
 # syntax:answers <verb> <name> succeeds when a module named after the verb defines <verb>:<name>, loading the module
 # first, so a verb's choices and extensions live beside its code and the syntax itself never names them.
 syntax:answers() {
+  # the verb syntax is this module: its syntax:choices and syntax:extend are the API below, not answers
+  [[ "$1" != syntax ]] || return 1
   use:load-path || return 2
   [[ -n "$(use:find "$1")" ]] || return 1
   use "$1" || return 2

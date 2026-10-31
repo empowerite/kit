@@ -63,3 +63,14 @@ import "syntax" as syntax; [syntax::match(["--json"]), ({"verb":"new","syntax":[
 import "syntax" as syntax; [syntax::match(["7","--title","x"]), syntax::match(["--title","x"]), syntax::match(["7"])] | map(.refusal // .status)
 {"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","inline":false,"name":"title","value":"text","repeat":false}]],"repeat":false}]]}
 ["<reference> cannot be combined with --title; run: kit help issue",0,0]
+
+# A verb's own flag after a repeated operand's first word belongs to the command that operand is; one before it does
+# not, and one the walk used stays a flag.
+import "syntax" as syntax; [syntax::match(["run","kit","generate","--check"]), syntax::match(["run","--check","kit"]), syntax::match(["outdated","--check"])] | map(.refusal // [.operands, .options])
+{"verb":"toolchain","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+[[["kit","generate","--check"],{}],"--check cannot be combined with run; run: kit help toolchain",[[],{"--check":["1"]}]]
+
+# An option written once is refused twice; a repeated one keeps both values; a wildcard option may be empty.
+import "syntax" as syntax; [syntax::match(["--title","a","--title","b"]) | .refusal, ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose="]) | .options)]
+{"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","inline":false,"name":"title","value":"text","repeat":false}]],"repeat":false}]]}
+["--title is given twice; run: kit help issue",{"--purpose":[""]}]

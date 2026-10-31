@@ -29,6 +29,7 @@ args=()
 for arg in "$@"
 do
   case "${arg}" in
+    (--) ;;
     (--check | --iterations=*) args+=("${arg}") ;;
     (*) args+=("$(context:relative "${arg}")")
   esac

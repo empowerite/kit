@@ -66,4 +66,17 @@ teardown() {
   [ ! -e .cursor/rules/kit-bash.mdc ]
 }
 
+@test "select keeps a member removed earlier out of its bundle unless the member is named" {
+  "${kit_checkout}/bin/kit" install empowerite
+  "${kit_checkout}/bin/kit" package remove hooks/lefthook
+  [ ! -e .kit/lefthook.yml ]
+  run "${kit_checkout}/bin/kit" package select empowerite agents/cursor
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/lefthook.yml ]
+  grep -q 'hooks/lefthook' .kit/settings.yml
+  run "${kit_checkout}/bin/kit" package select empowerite hooks/lefthook
+  [ "$status" -eq 0 ]
+  [ -e .kit/lefthook.yml ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

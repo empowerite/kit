@@ -116,14 +116,21 @@ package:remove() {
 
 # package:select <package>… makes exactly the named packages, with the packages they depend on and the members they
 # include, the active set: it removes what the set omits, then adds what it lacks, and says which active package it
-# kept for another's sake. With nothing to change it says the set and changes nothing.
+# kept for another's sake. A member removed earlier stays excluded unless it is named. With nothing to change it says
+# the set and changes nothing.
 package:select() {
   local package names
-  local -a named active wanted drop=() take=() dependents includers
+  local -a named active excluded wanted drop=() take=() dependents includers
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
   readarray -t active < <(release:declared-packages)
-  readarray -t wanted < <(release:resolve "${kit_root}" '' "${named[@]}")
+  readarray -t excluded < <(release:declared-excludes)
+  # A member removed earlier stays out of its bundle unless it is named here, as kit package add keeps it out.
+  for package in "${named[@]}"
+  do
+    readarray -t excluded < <(release:without "${package}" "${excluded[@]}")
+  done
+  readarray -t wanted < <(release:resolve "${kit_root}" "${excluded[*]}" "${named[@]}")
   for package in "${active[@]}"
   do
     release:among "${package}" "${wanted[@]}" || drop+=("${package}")
@@ -188,9 +195,17 @@ package:choices() {
       [[ -f "$(release:meta "${kit_root}" "${package}")" ]] && known+=("${package}")
     done
   done
-  (( ${#known[@]} == 0 )) || readarray -t wanted < <(release:resolve "${kit_root}" '' "${known[@]}")
   readarray -t active < <(release:declared-packages)
   readarray -t excluded < <(release:declared-excludes)
+  if (( ${#known[@]} > 0 ))
+  then
+    local -a kept=("${excluded[@]}")
+    for package in "${known[@]}"
+    do
+      readarray -t kept < <(release:without "${package}" "${kept[@]}")
+    done
+    readarray -t wanted < <(release:resolve "${kit_root}" "${kept[*]}" "${known[@]}")
+  fi
   for package in $(release:packages)
   do
     state='' note=''

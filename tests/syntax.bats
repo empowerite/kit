@@ -153,4 +153,16 @@ setup() {
   [[ "$output" == *"kit commit does not extend its arguments; run: kit help syntax"* ]]
 }
 
+@test "only kit new extends its arguments: the verb syntax does not answer with the API's own functions" {
+  run "${kit_root}/bin/kit" syntax
+  [ "$(jq -r '[.[] | select(.extends) | .verb] | join(" ")' <<<"$output")" = "new" ]
+  [ "$(jq -r '[.[] | .arguments[] | select(.choices) | .choices] | unique | join(" ")' <<<"$output")" = "closed open" ]
+  run "${kit_root}/bin/kit" syntax syntax --extend
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit syntax does not extend its arguments; run: kit help syntax"* ]]
+  run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: kit help syntax"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

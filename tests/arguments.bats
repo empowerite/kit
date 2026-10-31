@@ -116,4 +116,43 @@ kit-bash() {
   [ "$output" = 0 ]
 }
 
+@test "a verb's own flag after a trailing operand's first word belongs to the command, and an option meant once is refused twice" {
+  run kit-bash 'syntax:match toolchain run kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
+  [ "$output" = "0 kit generate --check | none" ]
+  run kit-bash 'syntax:match toolchain run --check kit generate; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --check cannot be combined with run; run: kit help toolchain" ]
+  run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
+  [ "$output" = "1  | 1" ]
+  run kit-bash 'syntax:match commit --message m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
+  [ "$output" = "0 a.txt | 1" ]
+  run kit-bash 'syntax:match issue --title a --title b; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --title is given twice; run: kit help issue" ]
+  run kit-bash 'syntax:match commit --message a --message b; echo "$? ${syntax_options[--message]}"'
+  [ "$output" = $'0 a\nb' ]
+}
+
+@test "a wildcard option may be empty, -- never reaches a verb as a path, and a missing jq is refused with the mise line" {
+  run kit-bash 'syntax:match new file x --purpose=; echo "$? [${syntax_options[--purpose]}]"'
+  [ "$output" = "0 []" ]
+  run kit-bash 'syntax:match new file x --rule=; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --rule needs a value; run: kit help new" ]
+  cd "${kit_root}/.."
+  run "${kit_root}/bin/kit" context README.md
+  local plain=$output
+  run "${kit_root}/bin/kit" context -- README.md
+  [ "$status" -eq 0 ]
+  [ "$output" = "${plain}" ]
+  # a PATH with every tool but jq, and this bash rather than the system's 3.2
+  mkdir -p "${BATS_TEST_TMPDIR}/nojq"
+  for tool in /usr/bin/* /bin/*
+  do
+    [[ "${tool##*/}" != jq ]] && ln -sf "${tool}" "${BATS_TEST_TMPDIR}/nojq/"
+  done
+  ln -sf "$(command -v bash)" "${BATS_TEST_TMPDIR}/nojq/bash"
+  run env PATH="${BATS_TEST_TMPDIR}/nojq" "${kit_root}/bin/kit" version
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"run: mise install (jq is not on PATH)"* ]]
+  [[ "$output" != *"command not found"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
