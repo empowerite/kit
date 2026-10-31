@@ -142,7 +142,7 @@ reads it:
 # see: modules/bash/<module>.sh
 
 set -o errexit -o nounset -o pipefail
-# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+# shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use <module>
