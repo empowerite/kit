@@ -2,7 +2,7 @@
 # kit-changes - lists the open changes, each with the issues it closes, as kit status draws them (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit changes [--json] [--mine | --others | --all | --owner=<login>…]
+# kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Lists every open change of the repository on its forge, a pull request on GitHub or a merge request on GitLab,
 # oldest first, each drawn as kit status draws one: its number and title, its author, its state with its age, its
@@ -12,10 +12,11 @@
 # terminal.
 #
 #   --json            prints the same facts as one JSON array, one document per change with its issues under closes
-#   --mine            the changes the caller opened, without the author column
+#   --mine            the changes the caller opened; alone, without the author column
 #   --others          the changes anyone but the caller opened
-#   --all             every open change (the default)
-#   --owner=<login>   the changes the named author opened; give it once or more
+#   --all             every open change (the default); it stands alone
+#   --owner=<login>   the changes the named author opened; give it once or more. The three filters combine: --mine
+#                     --owner=bob shows the caller's and bob's
 #
 # see: modules/bash/changes.sh, modules/bash/status.sh, modules/bash/forge.sh
 

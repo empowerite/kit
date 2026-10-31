@@ -188,4 +188,21 @@ JSON
   [[ "$output" == *"todo"* ]]
 }
 
+@test "kit backlog --mine combines with --owner and --others as a union, keeping the assignee column; --all stands alone" {
+  # #7 is in flight: change #3 closes it, so the backlog never lists it
+  run kit backlog --mine --owner=bob --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "11" ]
+  run kit backlog --mine --owner=bob
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "#11  👤 ada  "*"d  🎫 Third thing" ]]
+  [ "${#lines[@]}" -eq 1 ]
+  run kit backlog --mine --others --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "9 11" ]
+  run kit backlog --all --mine
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--all cannot be combined with --mine; run: kit help backlog"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

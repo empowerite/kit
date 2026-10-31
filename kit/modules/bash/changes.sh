@@ -12,29 +12,27 @@
 
 use forge status
 
-# changes:render [--json] [--mine | --others | --all | --owner=<login>…] prints the changes, one block each, to
-# stderr. With --json it prints the change documents as one array to stdout.
+# changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the changes, one block each, to
+# stderr. With --json it prints the change documents as one array to stdout. The owner flags combine as status:filter
+# says.
 changes:render() {
-  local json=false choice=all arg prs me by=''
-  local -a owners=() except=()
+  local json=false mine=false others=false choice arg prs filter by=''
+  local -a owners=() selection=()
   for arg in "$@"
   do
     case "${arg}" in
       (--json) json=true ;;
-      (--mine) choice=mine ;;
-      (--others) choice=others ;;
-      (--all) choice=all ;;
-      (--owner=?*) choice=owner; owners+=("${arg#--owner=}")
+      (--mine) mine=true ;;
+      (--others) others=true ;;
+      (--all) ;;
+      (--owner=?*) owners+=("${arg#--owner=}")
     esac
   done
-  if [[ "${choice}" == mine || "${choice}" == others ]]
-  then
-    me=$(forge:me) || return 1
-    owners=("${me}")
-    [[ "${choice}" == others ]] && except=(--except)
-  fi
+  choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
+  filter=$(status:filter "${mine}" "${others}" "${owners[@]}") || return 1
+  read -r -a selection <<<"${filter}"
   prs=$(forge:open-prs) || return 1
-  prs=$(status:select "${except[@]}" "${owners[@]}" <<<"${prs}")
+  prs=$(status:select "${selection[@]}" <<<"${prs}")
   if [[ "${json}" == true ]]
   then
     jq --slurp --compact-output . <<<"${prs}"
@@ -42,10 +40,10 @@ changes:render() {
   fi
   if [[ -z "${prs}" ]]
   then
-    case "${choice}" in
-      (mine) by=" by ${me}" ;;
-      (others) by=" by anyone but ${me}" ;;
-      (owner) by=" by ${owners[*]}" ;;
+    case "${selection[0]:-}" in
+      ('') ;;
+      (--except) by=" by anyone but ${selection[*]:1}" ;;
+      (*) by=" by ${selection[*]}"
     esac
     step "no open change${by}"
     return 0

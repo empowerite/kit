@@ -38,28 +38,27 @@ backlog:collect() {
     <<<"${issues}"
 }
 
-# backlog:render [--json] [--today] [--mine | --others | --all | --owner=<login>…] prints the issues, one row each,
-# to stderr. With --json it prints backlog:collect's array to stdout.
+# backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues, one row each,
+# to stderr. With --json it prints backlog:collect's array to stdout. The owner flags combine as status:filter says.
 backlog:render() {
-  local json=false today=false choice=all arg doc when='' widths ref_w owner_w age_w branch_w issue
-  local -a owners=() except=()
+  local json=false today=false mine=false others=false choice arg doc when='' about='' filter widths ref_w owner_w
+  local age_w branch_w issue
+  local -a owners=() selection=()
   for arg in "$@"
   do
     case "${arg}" in
       (--json) json=true ;;
       (--today) today=true ;;
-      (--mine) choice=mine ;;
-      (--others) choice=others ;;
-      (--all) choice=all ;;
-      (--owner=?*) choice=owner; owners+=("${arg#--owner=}")
+      (--mine) mine=true ;;
+      (--others) others=true ;;
+      (--all) ;;
+      (--owner=?*) owners+=("${arg#--owner=}")
     esac
   done
-  if [[ "${choice}" == mine || "${choice}" == others ]]
-  then
-    owners=("$(forge:me)") || return 1
-    [[ "${choice}" == others ]] && except=(--except)
-  fi
-  doc=$(backlog:collect "${except[@]}" "${owners[@]}") || return 1
+  choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
+  filter=$(status:filter "${mine}" "${others}" "${owners[@]}") || return 1
+  read -r -a selection <<<"${filter}"
+  doc=$(backlog:collect "${selection[@]}") || return 1
   [[ "${today}" == false ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
   if [[ "${json}" == true ]]
   then
@@ -69,7 +68,12 @@ backlog:render() {
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
     [[ "${today}" == false ]] || when=' opened in the last 24 hours'
-    step "nothing in the backlog: no open issue${when}${owners:+ assigned to ${owners[*]}}"
+    case "${selection[0]:-}" in
+      ('') ;;
+      (--except) about=" not assigned to ${selection[*]:1}" ;;
+      (*) about=" assigned to ${selection[*]}"
+    esac
+    step "nothing in the backlog: no open issue${when}${about}"
     return 0
   fi
   # The assignee column goes under --mine, as the author column goes under kit status --mine.

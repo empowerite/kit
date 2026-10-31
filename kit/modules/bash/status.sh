@@ -219,6 +219,55 @@ status:collect() {
   forge:open-prs || warn "no pull request is shown; see above"
 }
 
+# status:choice <mine> <others> <owners> names what the owner flags chose, for the wording and the owner column: mine when
+# --mine stands alone (the tables leave the owner column out), others when --others does without --mine, owner when
+# logins were named, with --mine or not, and all otherwise, --mine with --others included.
+status:choice() {
+  if [[ "$1" == true && "$2" == true ]]
+  then
+    printf 'all\n'
+  elif [[ "$2" == true ]]
+  then
+    printf 'others\n'
+  elif (( $3 > 0 ))
+  then
+    printf 'owner\n'
+  elif [[ "$1" == true ]]
+  then
+    printf 'mine\n'
+  else
+    printf 'all\n'
+  fi
+}
+
+# status:filter <mine> <others> <login>… prints, on one line, the arguments status:select and backlog:collect take to
+# keep the rows the owner flags ask for, as the union of the filters: --except and the caller's login when --others
+# is given without --mine and the caller is not among the logins; else the logins named, with the caller's under
+# --mine; nothing when every row is kept. It asks the forge for the caller's login only when a flag needs it.
+status:filter() {
+  local mine=$1 others=$2 me login
+  local -a logins=()
+  shift 2
+  if [[ "${mine}" == true || "${others}" == true ]]
+  then
+    use forge
+    me=$(forge:me) || return 1
+  fi
+  if [[ "${others}" == true ]]
+  then
+    [[ "${mine}" != true ]] || return 0
+    for login in "$@"
+    do
+      [[ "${login}" != "${me}" ]] || return 0
+    done
+    printf -- '--except %s\n' "${me}"
+    return 0
+  fi
+  logins=("$@")
+  [[ "${mine}" != true ]] || logins+=("${me}")
+  printf '%s\n' "${logins[*]}"
+}
+
 # status:select [--except] <login>… reads pull request documents on stdin and keeps those opened by one of the
 # named authors, or with --except, those opened by none of them. With no login, it keeps every one.
 status:select() {
@@ -573,22 +622,24 @@ status:pr-table() {
   done <<<"${prs}"
 }
 
-# status:render [--no-fetch] [--json] [--mine | --others | --all | --owner=<login>…] prints the output the file
-# header describes, or the same data as one JSON document.
+# status:render [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the output the file
+# header describes, or the same data as one JSON document. The owner flags combine as status:filter says.
 status:render() {
-  local no_fetch=false json=false choice=all arg main_root default_branch desk_branch path branch doc gone
-  local -a owners=() except=()
+  local no_fetch=false json=false mine=false others=false choice arg main_root default_branch desk_branch path branch
+  local doc gone filter
+  local -a owners=() selection=()
   for arg in "$@"
   do
     case "${arg}" in
       (--no-fetch) no_fetch=true ;;
       (--json) json=true ;;
-      (--mine) choice=mine ;;
-      (--others) choice=others ;;
-      (--all) choice=all ;;
-      (--owner=?*) choice=owner; owners+=("${arg#--owner=}")
+      (--mine) mine=true ;;
+      (--others) others=true ;;
+      (--all) ;;
+      (--owner=?*) owners+=("${arg#--owner=}")
     esac
   done
+  choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
   # The forge call is the slow one and needs nothing local, so it starts first and runs during the fetch and the
   # local reads. Its warnings are saved and printed where the pull requests appear, so they do not land among the
   # checkouts. With --mine or --others, the same background job also asks the forge for the caller's login.
@@ -597,13 +648,9 @@ status:render() {
   # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
   trap "rm -rf '${scratch}'" EXIT
   (
-    if [[ "${choice}" == mine || "${choice}" == others ]]
-    then
-      use forge
-      owners=("$(forge:me)") || exit 1
-      [[ "${choice}" == others ]] && except=(--except)
-    fi
-    status:collect | status:select "${except[@]}" "${owners[@]}"
+    filter=$(status:filter "${mine}" "${others}" "${owners[@]}") || exit 1
+    read -r -a selection <<<"${filter}"
+    status:collect | status:select "${selection[@]}"
   ) > "${scratch}/prs" 2> "${scratch}/prs.err" &
   prs_job=$!
 

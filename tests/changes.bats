@@ -101,4 +101,19 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" == *"unknown flag '--help'; run: kit help changes"* ]]
 }
 
+@test "kit changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
+  run kit changes --mine --owner=bob
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
+  run kit changes --others --owner=bob
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no open change by anyone but ada"* ]]
+  run kit changes --mine --others
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
+  run kit changes --all --owner=bob
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--all cannot be combined with --owner; run: kit help changes"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

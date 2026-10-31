@@ -223,4 +223,16 @@ commits-in() {
   [ "$output" = ".." ]
 }
 
+@test "status:filter turns the owner flags into status:select's arguments, and kit status refuses --all beside --mine" {
+  run in_status status:filter false false bob cy
+  [ "$status" -eq 0 ]
+  [ "$output" = "bob cy" ]
+  run in_status status:filter false false
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run "${kit_root}/bin/kit" status --all --mine
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--all cannot be combined with --mine; run: kit help status"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
