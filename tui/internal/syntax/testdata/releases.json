@@ -2,7 +2,7 @@
   "verb": "releases",
   "purpose": "lists the repository's releases on its forge, newest first",
   "usage": [
-    "kit releases [--json]"
+    "kit releases [--json | --jq]"
   ],
   "syntax": [
     [
@@ -16,6 +16,13 @@
               "name": "json",
               "repeat": false
             }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
           ]
         ],
         "repeat": false
@@ -25,6 +32,9 @@
   "arguments": {
     "--json": {
       "description": "prints the same facts as one JSON array: version, tag, name, kind, latest, at, and age in seconds"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     }
   }
 }

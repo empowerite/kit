@@ -162,14 +162,23 @@ func TestOneOfArrows(t *testing.T) {
 }
 
 func TestAnyOfSpace(t *testing.T) {
+	// status's owner row, its second alternative chosen, opens an any-of row of --mine and --others
 	m := newForm(t, "status", Answers{}, false)
-	m, _ = drive(t, m, keys("space", "right", "space")...)
-	if got := strings.Join(m.CommandLine(), " "); got != "--no-fetch --json" {
+	m, _ = drive(t, m, keys("down", "down", "right", "right", "down", "space", "right", "space")...)
+	if got := strings.Join(m.CommandLine(), " "); got != "--mine --others" {
 		t.Errorf("toggled: %q", got)
 	}
 	m, _ = drive(t, m, keys("space")...)
-	if got := strings.Join(m.CommandLine(), " "); got != "--no-fetch" {
+	if got := strings.Join(m.CommandLine(), " "); got != "--mine" {
 		t.Errorf("toggled back: %q", got)
+	}
+}
+
+func TestJSONAndJQAreOneOrTheOther(t *testing.T) {
+	m := newForm(t, "status", Answers{}, false)
+	m, _ = drive(t, m, keys("down", "right", "right")...)
+	if got := strings.Join(m.CommandLine(), " "); got != "--jq" {
+		t.Errorf("the output row: %q", got)
 	}
 }
 

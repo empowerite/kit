@@ -2,13 +2,14 @@
 # kit-kinds - lists the kinds of file the repository defines, and what makes a path of each (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit kinds [--json] [<kind>…]
+# kit kinds [--json | --jq] [<kind>…]
 #
 # Lists every kind under .kit/kinds/, or the named ones, in name order: its name, the file that defines it, and what
 # makes a path of it: its globs, the patterns its first line may match, the kinds it is made of, and the kinds it
 # embeds. kit kind prints the kinds of a path; kit new kind makes a kind.
 #
 #   --json     prints one JSON object per kind instead: name, file, paths, content, kinds, and embeds
+#   --jq       prints the same JSON as --json, formatted by jq for a person to read
 #   <kind>…    only the kinds with these names
 #
 # Exits 0 on success, 1 when a kinds file is malformed, and 2 on a usage error.

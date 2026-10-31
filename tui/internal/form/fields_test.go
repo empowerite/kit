@@ -115,23 +115,24 @@ func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "AnyOf OneOf" {
+	if kinds(fields) != "Toggle OneOf OneOf" {
 		t.Fatalf("status: %s", kinds(fields))
 	}
-	if strings.Join(fields[0].Options, " ") != "--no-fetch --json" || len(fields[0].Values) != 0 {
-		t.Errorf("the any-of row: %+v", fields[0])
+	if strings.Join(fields[1].Options, "|") != "--json|--jq" || fields[1].Required {
+		t.Errorf("the output row, one or the other or neither: %+v", fields[1])
 	}
-	if strings.Join(fields[1].Options, "|") != "--all|--mine --others --owner" {
-		t.Errorf("the owner group: %+v", fields[1])
+	if strings.Join(fields[2].Options, "|") != "--all|--mine --others --owner" {
+		t.Errorf("the owner group: %+v", fields[2])
 	}
 	chosen := FromMatch(syntax.Match{Options: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}},
 		Values: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}}})
 	fields, _ = Fields(specs(t)["status"], chosen)
-	if kinds(fields) != "AnyOf OneOf AnyOf Lines" || fields[1].Chosen != 1 || fields[3].Values[1] != "bob" {
+	// the chosen --json brings its required flag as a field of its own, as every chosen flag alternative does
+	if kinds(fields) != "Toggle OneOf Toggle OneOf AnyOf Lines" || fields[1].Chosen != 0 || fields[3].Chosen != 1 || fields[5].Values[1] != "bob" {
 		t.Errorf("status --json --mine --owner: %s %+v", kinds(fields), fields)
 	}
-	if strings.Join(fields[0].Values, " ") != "--json" || strings.Join(fields[2].Values, " ") != "--mine" {
-		t.Errorf("toggled: %+v %+v", fields[0], fields[2])
+	if strings.Join(fields[4].Options, " ") != "--mine --others" || strings.Join(fields[4].Values, " ") != "--mine" {
+		t.Errorf("the any-of row of owner flags: %+v", fields[4])
 	}
 }
 
@@ -162,7 +163,7 @@ func TestContextHasTwoDoors(t *testing.T) {
 		t.Fatalf("context: %s %+v", kinds(fields), fields)
 	}
 	fields, _ = Fields(specs(t)["context"], FromMatch(syntax.Match{Operands: []string{"a.md"}, Values: map[string][]string{"<path>": {"a.md"}}}))
-	if kinds(fields) != "OneOf PickMany Toggle" || fields[0].Chosen != 0 {
+	if kinds(fields) != "OneOf PickMany OneOf" || fields[0].Chosen != 0 || strings.Join(fields[2].Options, " ") != "--json --jq" {
 		t.Errorf("context a.md: %s", kinds(fields))
 	}
 }

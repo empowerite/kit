@@ -2,7 +2,7 @@
 # kit-status - shows every worktree with its branch, pull request, and state (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit status [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit status [--no-fetch] [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Shows every worktree with its branch, pull request, and state. It changes nothing. Where it runs decides what it
 # draws: at a desk, the root checkout, every linked worktree and the open pull requests; in a worktree, that worktree
@@ -11,6 +11,7 @@
 #
 #   --no-fetch          skips the git fetch
 #   --json              prints the same facts as one JSON document
+#   --jq                prints the same JSON as --json, formatted by jq for a person to read
 #   --mine              the pull requests the caller opened; alone, without the author column
 #   --others            the pull requests anyone but the caller opened
 #   --all               every open pull request (the default); it stands alone

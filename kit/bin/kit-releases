@@ -2,13 +2,14 @@
 # kit-releases - lists the repository's releases on its forge, newest first (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit releases [--json]
+# kit releases [--json | --jq]
 #
 # Lists the releases on the repository's forge, newest first, one row each: the version (the tag without release/),
 # the kind, a release, a pre-release, or a draft, with its glyph and its age, and the latest marked. kit release
 # makes one.
 #
 #   --json   prints the same facts as one JSON array: version, tag, name, kind, latest, at, and age in seconds
+#   --jq     prints the same JSON as --json, formatted by jq for a person to read
 #
 # Exits 0 on success, and 1 when the forge cannot be read.
 #

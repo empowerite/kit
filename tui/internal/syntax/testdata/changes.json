@@ -2,7 +2,7 @@
   "verb": "changes",
   "purpose": "lists the open changes, each with the issues it closes, as kit status draws them",
   "usage": [
-    "kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…]"
+    "kit changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…]"
   ],
   "syntax": [
     [
@@ -14,6 +14,13 @@
             {
               "kind": "flag",
               "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
               "repeat": false
             }
           ]
@@ -99,6 +106,9 @@
   "arguments": {
     "--json": {
       "description": "prints the same facts as one JSON array, one document per change with its issues under closes"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     },
     "--mine": {
       "description": "the changes the caller opened; alone, without the author column"

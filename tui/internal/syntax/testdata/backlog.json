@@ -2,7 +2,7 @@
   "verb": "backlog",
   "purpose": "lists the open issues nothing is in flight for, oldest first",
   "usage": [
-    "kit backlog [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]]"
+    "kit backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]"
   ],
   "syntax": [
     [
@@ -14,6 +14,13 @@
             {
               "kind": "flag",
               "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
               "repeat": false
             }
           ]
@@ -99,6 +106,9 @@
   "arguments": {
     "--json": {
       "description": "prints the same facts as one JSON array; each issue carries branch, a name or null"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     },
     "--today": {
       "description": "only the issues opened in the last 24 hours; combines with the flags below"

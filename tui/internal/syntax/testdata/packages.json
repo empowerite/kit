@@ -2,7 +2,7 @@
   "verb": "packages",
   "purpose": "lists the packages in reach, and which are active",
   "usage": [
-    "kit packages [--active | --inactive] [--json] [<package>…]"
+    "kit packages [--active | --inactive] [--json | --jq] [<package>…]"
   ],
   "syntax": [
     [
@@ -37,6 +37,13 @@
               "name": "json",
               "repeat": false
             }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
           ]
         ],
         "repeat": false
@@ -66,6 +73,9 @@
     },
     "--json": {
       "description": "prints one JSON object per package instead: name, origin, state, and description"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     },
     "<package>": {
       "description": "only the packages with these names, or that match these globs, such as 'style/*'"

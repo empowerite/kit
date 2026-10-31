@@ -1,6 +1,8 @@
  kit status - shows every worktree with its branch, pull request, and state
 
-   --no-fetch   --json      skips the git fetch
+   --no-fetch               skips the git fetch
+
+   --json   --jq            prints the same facts as one JSON document
 
    --all                    every open pull request (the default); it stands alone
    --mine --others --owner

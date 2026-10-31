@@ -2,7 +2,7 @@
   "verb": "kind",
   "purpose": "prints the kinds a file is of",
   "usage": [
-    "kit kind <path>… [--json]"
+    "kit kind <path>… [--json | --jq]"
   ],
   "syntax": [
     [
@@ -21,6 +21,13 @@
               "name": "json",
               "repeat": false
             }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
           ]
         ],
         "repeat": false
@@ -33,6 +40,9 @@
     },
     "--json": {
       "description": "prints one JSON object per path instead, with the path and its kinds"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     }
   }
 }

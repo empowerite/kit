@@ -46,7 +46,7 @@ setup() {
 @test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {
   run "${kit_root}/bin/kit" usage context check
   [ "$status" -eq 0 ]
-  [ "$output" = $'kit context <path>… [--json]\nkit context --claude\nkit check' ]
+  [ "$output" = $'kit context <path>… [--json | --jq]\nkit context --claude\nkit check' ]
   run "${kit_root}/bin/kit" usage
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -ge "$(find "${kit_root}/bin" -name 'kit-*' -perm -u+x | wc -l)" ]
@@ -84,7 +84,7 @@ setup() {
 
 @test "a verb with two usage lines shows both, and one that takes no arguments shows kit <verb>" {
   run "${kit_root}/bin/kit" help context
-  [[ "$output" == *$'Usage\n  kit context <path>… [--json]\n  kit context --claude\n'* ]]
+  [[ "$output" == *$'Usage\n  kit context <path>… [--json | --jq]\n  kit context --claude\n'* ]]
   run "${kit_root}/bin/kit" help check
   [[ "$output" == *$'Usage\n  kit check\n\nDescription\n  kit check takes no arguments.'* ]]
 }
@@ -93,7 +93,7 @@ setup() {
   run "${kit_root}/bin/kit" help re
   [ "$status" -eq 0 ]
   [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
-  [[ "$output" == *"  release <version> [--lower]"* && "$output" == *"  releases [--json]"* ]]
+  [[ "$output" == *"  release <version> [--lower]"* && "$output" == *"  releases [--json | --jq]"* ]]
   [[ "$output" != *"  status"* ]]
   # release is a prefix of releases, and its own name wins
   run "${kit_root}/bin/kit" help release

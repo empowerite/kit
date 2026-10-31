@@ -261,20 +261,48 @@ guard:require() {
   done
 }
 
+# guard:jq <verb> <argument>… replaces the process with the verb run again, --jq given as --json, from the directory
+# the command was typed in, its output formatted by jq ., and the verb's status kept: --jq for every verb at once.
+guard:jq() {
+  local verb=$1 arg replaced=false
+  local -a args=()
+  shift
+  for arg in "$@"
+  do
+    if [[ "${replaced}" == false && "${arg}" == --jq ]]
+    then
+      arg=--json replaced=true
+    fi
+    args+=("${arg}")
+  done
+  # shellcheck disable=SC2016  # the script is single-quoted for bash -c, its arguments after it
+  exec bash -o pipefail -c 'cd "$1" && shift && "$@" | jq .' guard:jq "${kit_invoked_in:-.}" "${kit_root}/bin/kit" \
+    "${verb}" "${args[@]}"
+}
+
 # guard:arguments <verb> <argument>… judges a verb's arguments against its syntax, read from its header, so every verb
 # refuses in one place and in the same words: an unknown flag or argument, an option without its value, two
 # alternatives of one group together, or a required argument missing, each in one line that points to kit help <verb>.
 # A verb short of a required argument hands off instead, when stdin, stdout, and stderr are all terminals and kittui
 # can be found (modules/bash/tui.sh): it execs kit tui -- <verb> <argument>…, whose form asks for the rest. It
-# returns 2 on a refusal, and 0 when the arguments complete the syntax, which the verb then parses as it does today.
+# returns 2 on a refusal, and 0 when the arguments complete the syntax, which the verb then parses as it does today;
+# with --jq beside a --json the verb takes, guard:jq runs it in this process's place.
 # shellcheck disable=SC2154  # syntax_literals, syntax_missing, and syntax_refusal are set by modules/bash/syntax.sh
 guard:arguments() {
-  local verb=$1 status
+  local verb=$1 status=0
   shift
   guard:require tool:jq || return 2
   use syntax || return 2
-  syntax:match "${verb}" "$@" && return 0
-  status=$?
+  syntax:match "${verb}" "$@" || status=$?
+  if (( status == 0 ))
+  then
+    # --jq beside --json is --json read through jq .; kit new's --jq, with no --json beside it, means its own thing
+    if [[ -n "${syntax_options[--jq]+x}" ]] && help:usage "${verb}" | grep --quiet -- '--json'
+    then
+      guard:jq "${verb}" "$@"
+    fi
+    return 0
+  fi
   if (( status == 1 ))
   then
     if [[ -t 0 && -t 1 && -t 2 ]] && use tui && tui:binary --probe >/dev/null 2>&1

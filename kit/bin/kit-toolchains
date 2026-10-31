@@ -2,12 +2,13 @@
 # kit-toolchains - lists the toolchains that manage the gate's tools, and the file each reads (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit toolchains [--json]
+# kit toolchains [--json | --jq]
 #
 # Lists each declared toolchain, mise, brew, or docker, and the file it reads, one per line: the toolchains setting
 # in .kit/settings.yml, or else the ones whose file is present. kit toolchain installs and updates their tools.
 #
 #   --json   prints one JSON object per toolchain instead: provider and file
+#   --jq     prints the same JSON as --json, formatted by jq for a person to read
 #
 # Exits 0 on success, 1 when the declaration names a toolchain the kit does not know, and 2 on a usage error.
 #

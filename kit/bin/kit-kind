@@ -2,7 +2,7 @@
 # kit-kind - prints the kinds a file is of (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit kind <path>… [--json]
+# kit kind <path>… [--json | --jq]
 #
 # Prints the kinds each path is of, as kit context finds them: every kind under .kit/kinds/ with a glob that matches
 # the path, or a pattern that matches the first line of a file that exists, and every kind made of one of those under
@@ -13,6 +13,7 @@
 #   <path>…   the files to classify, relative to the current directory; a path need not exist, and is then matched
 #             by its name alone
 #   --json    prints one JSON object per path instead, with the path and its kinds
+#   --jq      prints the same JSON as --json, formatted by jq for a person to read
 #
 # Exits 0 on success, and 2 on a usage error.
 #

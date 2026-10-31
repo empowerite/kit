@@ -2,7 +2,7 @@
 # kit-packages - lists the packages in reach, and which are active (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit packages [--active | --inactive] [--json] [<package>…]
+# kit packages [--active | --inactive] [--json | --jq] [<package>…]
 #
 # Lists every package in reach, from the release and from .kit/packages/, one row each: a ✅ beside an active one and
 # a ❌ beside one the repository excludes, its name, its origin (release or repository), and its description. kit
@@ -11,6 +11,7 @@
 #   --active       only the active packages
 #   --inactive     only the packages that are not active, the excluded ones among them
 #   --json         prints one JSON object per package instead: name, origin, state, and description
+#   --jq           prints the same JSON as --json, formatted by jq for a person to read
 #   <package>…     only the packages with these names, or that match these globs, such as 'style/*'
 #
 # Exits 0 on success, and 2 on a usage error.

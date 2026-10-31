@@ -1,6 +1,6 @@
  kit changes - lists the open changes, each with the issues it closes, as kit status draws them
 
-   --json                   prints the same facts as one JSON array, one document per change with
+   --json   --jq            prints the same facts as one JSON array, one document per change with
                             its issues under closes
 
    --all                    every open change (the default); it stands alone

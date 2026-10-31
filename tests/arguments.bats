@@ -155,4 +155,23 @@ kit-bash() {
   [[ "$output" != *"command not found"* ]]
 }
 
+@test "every verb with --json takes --jq too, described, and the two are one or the other" {
+  run "${kit_root}/bin/kit" syntax
+  [ "$(jq -r '[.[] | select(.arguments | has("--json")) | select(.arguments["--jq"].description | not) | .verb] | join(" ")' <<<"$output")" = "" ]
+  [ "$(jq '[.[] | select(.arguments | has("--json"))] | length' <<<"$output")" -gt 0 ]
+  run "${kit_root}/bin/kit" context README.md --json --jq
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--json cannot be combined with --jq; run: kit help context"* ]]
+}
+
+@test "--jq prints what --json prints, formatted by jq, from where the command was typed, with the verb's status" {
+  cd "${kit_root}/../docs"
+  local json
+  json=$("${kit_root}/bin/kit" context features.md --json | jq .)
+  run "${kit_root}/bin/kit" context features.md --jq
+  [ "$status" -eq 0 ]
+  [ "$output" = "${json}" ]
+  [ "$(wc -l <<<"$output")" -gt 1 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

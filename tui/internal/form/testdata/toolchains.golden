@@ -1,6 +1,6 @@
  kit toolchains - lists the toolchains that manage the gate's tools, and the file each reads
 
-   --json  prints one JSON object per toolchain instead: provider and file
+   --json   --jq  prints one JSON object per toolchain instead: provider and file
 
 
  kit toolchains

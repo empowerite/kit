@@ -2,7 +2,7 @@
   "verb": "kinds",
   "purpose": "lists the kinds of file the repository defines, and what makes a path of each",
   "usage": [
-    "kit kinds [--json] [<kind>…]"
+    "kit kinds [--json | --jq] [<kind>…]"
   ],
   "syntax": [
     [
@@ -14,6 +14,13 @@
             {
               "kind": "flag",
               "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
               "repeat": false
             }
           ]
@@ -39,6 +46,9 @@
   "arguments": {
     "--json": {
       "description": "prints one JSON object per kind instead: name, file, paths, content, kinds, and embeds"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     },
     "<kind>": {
       "description": "only the kinds with these names"

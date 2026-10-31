@@ -2,7 +2,7 @@
   "verb": "status",
   "purpose": "shows every worktree with its branch, pull request, and state",
   "usage": [
-    "kit status [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]]"
+    "kit status [--no-fetch] [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]"
   ],
   "syntax": [
     [
@@ -28,6 +28,13 @@
             {
               "kind": "flag",
               "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
               "repeat": false
             }
           ]
@@ -102,6 +109,9 @@
     },
     "--json": {
       "description": "prints the same facts as one JSON document"
+    },
+    "--jq": {
+      "description": "prints the same JSON as --json, formatted by jq for a person to read"
     },
     "--mine": {
       "description": "the pull requests the caller opened; alone, without the author column"
