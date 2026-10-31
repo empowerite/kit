@@ -70,7 +70,12 @@ func (m Model) Result() (bool, string, []string) {
 func (m Model) Fields() []form.Field { return m.form.Fields() }
 
 // Interrupted says whether ctrl-c ended the program.
-func (m Model) Interrupted() bool { return m.inForm && m.form.Interrupted() }
+func (m Model) Interrupted() bool {
+	if m.inForm {
+		return m.form.Interrupted()
+	}
+	return m.palette.Interrupted()
+}
 
 // Init starts what is on the screen.
 func (m Model) Init() tea.Cmd {

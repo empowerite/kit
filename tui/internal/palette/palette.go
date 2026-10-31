@@ -30,6 +30,7 @@ type Model struct {
 	pages         map[string]string
 	width, height int
 	cancelled     bool
+	interrupted   bool
 }
 
 // New opens the palette on the verbs, leaving out tui itself.
@@ -45,6 +46,9 @@ func New(verbs []kit.Verb, r kit.Runner) Model {
 
 // Init fetches the first verb's page.
 func (m Model) Init() tea.Cmd { return m.page() }
+
+// Interrupted says whether ctrl-c ended the palette.
+func (m Model) Interrupted() bool { return m.interrupted }
 
 // Cancelled says whether esc ended the palette.
 func (m Model) Cancelled() bool { return m.cancelled }
@@ -74,8 +78,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		visible := m.Visible()
 		switch msg.String() {
-		case "esc", "ctrl+c":
+		case "esc":
 			m.cancelled = true
+			return m, tea.Quit
+		case "ctrl+c":
+			m.interrupted = true
 			return m, tea.Quit
 		case "enter":
 			if m.cursor < len(visible) {
