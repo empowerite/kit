@@ -7,7 +7,7 @@
 uses empowerite/kit to keep this repository trustworthy.
 <!-- kit:end AGENTS.md -->
 
-This repository is the kit's own source, and uses it.
+This repository is the source for kit as well as its first consumer.
 
 ## This repository's own rules
 
