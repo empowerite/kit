@@ -1,5 +1,5 @@
 // Package transcript writes what kit tui leaves in the scrollback when it runs a verb: the command line it built,
-// quoted as a shell needs it, behind a runner, so the verb's own output follows the command that made it.
+// quoted as a shell needs it, so the verb's own output follows the command that made it.
 package transcript
 
 import (
@@ -8,10 +8,7 @@ import (
 	"github.com/empowerite/kit/tui/internal/form"
 )
 
-// Runner marks the command line: the plain runner, one code point, which every terminal draws at its width.
-const Runner = "🏃"
-
-// Render gives the transcript of a form that ran kit <verb> <args>…: the runner and the command line, on one line.
+// Render gives the transcript of a form that ran kit <verb> <args>…: the command line alone, on one line.
 func Render(verb string, args []string) string {
-	return Runner + " " + strings.TrimSpace("kit "+verb+" "+form.Quote(args)) + "\n"
+	return strings.TrimSpace("kit "+verb+" "+form.Quote(args)) + "\n"
 }

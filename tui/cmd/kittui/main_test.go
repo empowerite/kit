@@ -96,7 +96,7 @@ func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
 	if code != 0 || len(ran) == 0 || ran[0] != "commit" {
 		t.Fatalf("exit %d, ran %q", code, ran)
 	}
-	if !strings.HasPrefix(stderr.String(), "🏃") || !strings.Contains(stderr.String(), " kit commit ") || strings.Contains(stderr.String(), "✓") {
+	if !strings.HasPrefix(stderr.String(), "kit commit ") || strings.Contains(stderr.String(), "✓") {
 		t.Errorf("transcript %q", stderr.String())
 	}
 }

@@ -57,7 +57,7 @@ func parse(args []string) (string, []string) {
 }
 
 // finish ends as the form ended: 130 and nothing printed on ctrl-c, 1 and nothing printed on esc, and on run the
-// command line, behind a runner, to stderr, and the verb exec'd in its place, where the command was typed.
+// command line to stderr, and the verb exec'd in its place, where the command was typed.
 func finish(m app.Model, stderr io.Writer, exec func(verb string, args []string) error) int {
 	if m.Interrupted() {
 		return 130

@@ -114,8 +114,8 @@ arrow shows the highlighted verb's help page beside the names instead, and the l
 opens that verb's form. A verb run at a terminal without an argument it needs opens the same form
 instead of refusing, filled with what was given, as `kit commit` with no message does. The form has one field per
 part of the verb's usage line, offers the values the repository has (changed paths, packages, templates), shows the
-command line it builds, and runs it from Enter on that line, leaving that command line in the scrollback behind a
-runner, 🏃, above the verb's own output. `kit package select` shows the whole set of packages, each
+command line it builds, and runs it from Enter on that line, leaving that command line in the scrollback
+above the verb's own output. `kit package select` shows the whole set of packages, each
 marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
