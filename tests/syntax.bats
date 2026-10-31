@@ -92,4 +92,49 @@ setup() {
   [[ "$output" != *"kit plain: --b"* ]]
 }
 
+@test "kit syntax package --choices lists every package with its state, closed, and a planned set says what it keeps" {
+  run "${kit_root}/bin/kit" syntax package --choices '<package>'
+  [ "$status" -eq 0 ]
+  grep -q $'^agents/claude\t.*\tactive\t$' <<<"$output"
+  grep -q $'^agents/copilot\t.*\t\t$' <<<"$output"
+  run "${kit_root}/bin/kit" syntax package
+  [ "$(jq -r '.arguments["<package>"].choices' <<<"$output")" = closed ]
+  [ "$(jq -r '.arguments["list"].choices' <<<"$output")" = null ]
+  run "${kit_root}/bin/kit" syntax package --choices '<package>' '<package>=empowerite' '<package>=agents/claude'
+  [ "$status" -eq 0 ]
+  grep -q $'^hooks/lefthook\t.*\tactive\thooks/lefthook: kept, a member of empowerite$' <<<"$output"
+  grep -q $'^kit\t.*\tactive\tkit: kept, .* depend(s) on it$' <<<"$output"
+  grep -q $'^agents/copilot\t.*\t\t$' <<<"$output"
+}
+
+@test "kit syntax new --choices --variant lists the rule's variants, and --rule the rules with templates; both closed" {
+  run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=markdown
+  [ "$status" -eq 0 ]
+  [ "$(cut -f1 <<<"$output" | paste -sd' ' -)" = "agents document notice frontmatter" ]
+  run "${kit_root}/bin/kit" syntax new --choices --rule
+  [ "$status" -eq 0 ]
+  grep -q $'^bash\t' <<<"$output"
+  grep -q $'^markdown\t' <<<"$output"
+  run "${kit_root}/bin/kit" syntax new
+  [ "$(jq -r '[.arguments["--rule"].choices, .arguments["--variant"].choices, (.arguments["<path>"].choices // "none")] | join(" ")' <<<"$output")" = "closed closed none" ]
+}
+
+@test "open choices suggest and never refuse: commit's paths are the changed files with their state, help's verbs carry their purpose" {
+  cd "${BATS_TEST_TMPDIR}" && git init --quiet --initial-branch=main
+  printf 'x\n' > new.txt
+  printf 'y\n' > staged.txt
+  git add staged.txt
+  run "${kit_root}/bin/kit" syntax commit --choices '<path>'
+  [ "$status" -eq 0 ]
+  grep -q $'^new.txt\tuntracked\t\t$' <<<"$output"
+  grep -q $'^staged.txt\tadded\tactive\t$' <<<"$output"
+  run "${kit_root}/bin/kit" syntax commit
+  [ "$(jq -r '.arguments["<path>"].choices' <<<"$output")" = open ]
+  run "${kit_root}/bin/kit" syntax help --choices '<verb>'
+  grep -q $'^tidy\tremoves merged worktrees and gone branches\t\t$' <<<"$output"
+  run "${kit_root}/bin/kit" syntax help --choices '--bogus'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit help has no choices for '--bogus'; run: kit help syntax"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

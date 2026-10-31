@@ -100,4 +100,20 @@ kit-bash() {
   [ "$(grep -L 'guard:arguments' "${kit_root}"/bin/kit-* | wc -l)" -eq 0 ]
 }
 
+@test "a value off a closed set is refused in one line by the verb itself, a glob that matches is not, and an open set never refuses" {
+  run "${kit_root}/bin/kit" package add nonesuch
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"<package> 'nonesuch' is not one of the choices; run: kit help package"* ]]
+  run kit-bash 'syntax:match package select "style/*" kit; echo "$?"'
+  [ "$output" = 0 ]
+  run kit-bash 'syntax:match package select "nonesuch/*"; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 <package> 'nonesuch/*' is not one of the choices; run: kit help package" ]
+  run kit-bash 'cd "${kit_root}/.." && syntax:match new file x --rule=markdown --variant=document; echo "$?"'
+  [ "$output" = 0 ]
+  run kit-bash 'cd "${kit_root}/.." && syntax:match new file x --rule=markdown --variant=nonesuch; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --variant 'nonesuch' is not one of the choices; run: kit help new" ]
+  run kit-bash 'syntax:match context nonesuch.md; echo "$?"'
+  [ "$output" = 0 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

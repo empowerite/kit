@@ -161,4 +161,62 @@ package:select() {
   fi
 }
 
+# package:choices <key> [<answer>…] answers kit syntax --choices for <package>: a closed set, every package in reach
+# with its description and its state (active, excluded, or none). When the answers name packages, as <package>=house,
+# a package they omit but kit package select would keep or bring, a dependency or a member of a named bundle, carries
+# the line select prints about it.
+package:choices() {
+  local key=$1 answer package expanded state note word
+  local -a active excluded named=() known=() wanted=() dependents includers
+  shift
+  [[ "${key}" == '<package>' ]] || return 1
+  if [[ "${1:-}" == --kind ]]
+  then
+    printf 'closed\n'
+    return 0
+  fi
+  for answer in "$@"
+  do
+    [[ "${answer}" == '<package>='* ]] && named+=("${answer#<package>=}")
+  done
+  # A name the answers give may be a glob, or not in reach yet; only the packages they stand for count.
+  for answer in "${named[@]}"
+  do
+    expanded=$(release:expand "${kit_root}" "${answer}" 2>/dev/null) || continue
+    for package in ${expanded}
+    do
+      [[ -f "$(release:meta "${kit_root}" "${package}")" ]] && known+=("${package}")
+    done
+  done
+  (( ${#known[@]} == 0 )) || readarray -t wanted < <(release:resolve "${kit_root}" '' "${known[@]}")
+  readarray -t active < <(release:declared-packages)
+  readarray -t excluded < <(release:declared-excludes)
+  for package in $(release:packages)
+  do
+    state='' note=''
+    if release:among "${package}" "${active[@]}"
+    then
+      state=active
+    elif release:among "${package}" "${excluded[@]}"
+    then
+      state=excluded
+    fi
+    if (( ${#known[@]} > 0 )) && ! release:among "${package}" "${known[@]}" && release:among "${package}" "${wanted[@]}"
+    then
+      word='comes along'
+      [[ "${state}" != active ]] || word=kept
+      readarray -t dependents < <(release:dependents "${kit_root}" "${package}" "${wanted[@]}")
+      readarray -t includers < <(release:includers "${kit_root}" "${package}" "${wanted[@]}")
+      if (( ${#dependents[@]} > 0 ))
+      then
+        note="${package}: ${word}, ${dependents[*]} depend(s) on it"
+      elif (( ${#includers[@]} > 0 ))
+      then
+        note="${package}: ${word}, a member of ${includers[*]}"
+      fi
+    fi
+    printf '%s\t%s\t%s\t%s\n' "${package}" "$(release:description "${kit_root}" "${package}")" "${state}" "${note}"
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

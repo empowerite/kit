@@ -94,9 +94,11 @@ shape() {
   [ "$status" -eq 2 ]
   [[ "$output" == *"no template governs data.json: a style package delivers them"* ]]
   run "${kit_root}/bin/kit" new file x.sh --variant=nope --purpose=x
-  [[ "$output" == *"its templates are: script module"* ]]
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--variant 'nope' is not one of the choices; run: kit help new"* ]]
   run "${kit_root}/bin/kit" new file x --rule=nope
-  [[ "$output" == *"there is no rule nope; the rules are: bash gitignore jq json just markdown prose workflows yaml"* ]]
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--rule 'nope' is not one of the choices; run: kit help new"* ]]
   run "${kit_root}/bin/kit" new file bin/tool --rule=bash --purpose="no extension"
   [ "$status" -eq 0 ]
   [ "$(head -n 1 bin/tool)" = "#!/usr/bin/env bash" ]

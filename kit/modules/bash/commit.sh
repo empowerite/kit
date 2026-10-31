@@ -304,4 +304,43 @@ commit:push-refused() {
   done <<<"$2"
 }
 
+# commit:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every path git status reports,
+# with what became of it as the description, and active for a path that is staged already. kit submit answers the same.
+commit:choices() {
+  local record xy path skip=false description state
+  local -a records
+  [[ "$1" == '<path>' ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'open\n'
+    return 0
+  fi
+  readarray -d '' -t records < <(git status --porcelain=v1 -z)
+  for record in "${records[@]}"
+  do
+    # a rename's or copy's old name is the record after it
+    if [[ "${skip}" == true ]]
+    then
+      skip=false
+      continue
+    fi
+    xy=${record:0:2} path=${record:3}
+    [[ "${xy:0:1}" != [RC] ]] || skip=true
+    case "${xy}" in
+      ('??') description=untracked ;;
+      (' M' | MM | AM) description=modified ;;
+      (' D') description=deleted ;;
+      ('A ') description=added ;;
+      ('M ') description=staged ;;
+      ('D ') description='deleted, staged' ;;
+      (R* | C*) description=renamed ;;
+      (*) description=changed
+    esac
+    state=''
+    [[ "${xy:0:1}" == [' ?'] ]] || state=active
+    printf '%s\t%s\t%s\t\n' "${path}" "${description}" "${state}"
+  done
+  return 0
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

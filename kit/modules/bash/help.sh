@@ -116,4 +116,20 @@ help:page() {
   help:description "$1" | sed 's/^./  &/'
 }
 
+# help:choices <key> [<answer>…] answers kit syntax --choices for <verb>: an open set, every verb with its purpose, since
+# kit help takes the start of a name too.
+help:choices() {
+  local verb
+  [[ "$1" == '<verb>' ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'open\n'
+    return 0
+  fi
+  for verb in $(help:verbs)
+  do
+    printf '%s\t%s\t\t\n' "${verb}" "$(help:purpose "${verb}")"
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

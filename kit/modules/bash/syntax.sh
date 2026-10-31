@@ -31,13 +31,13 @@ declare -g syntax_pos=0 syntax_json='' syntax_error=''
 # What syntax:match sorted from the last command line it judged.
 declare -g syntax_refusal='' syntax_missing=''
 declare -ag syntax_literals=() syntax_operands=()
-declare -Ag syntax_options=()
+declare -Ag syntax_options=() syntax_values=()
 
 # syntax:spec <verb> prints the verb's syntax as the kit syntax JSON: verb, purpose, usage, syntax, and arguments, the
-# descriptions in the header's argument block. When a usage line does not parse, the JSON carries error instead of
+# descriptions in the header's argument block, each with choices, closed or open, when the verb's module lists them. When a usage line does not parse, the JSON carries error instead of
 # syntax, and it returns 1.
 syntax:spec() {
-  local verb=$1 syntax
+  local verb=$1 syntax arguments
   local -a usage
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
@@ -46,9 +46,12 @@ syntax:spec() {
       '{verb: $verb, usage: $ARGS.positional, error: $error}' --args "${usage[@]}"
     return 1
   fi
+  arguments=$(syntax:arguments "${verb}")
   jq --null-input --arg verb "${verb}" --arg purpose "$(help:purpose "${verb}")" --argjson syntax "${syntax}" \
-    --argjson arguments "$(syntax:arguments "${verb}")" \
-    '{verb: $verb, purpose: $purpose, usage: $ARGS.positional, syntax: $syntax, arguments: $arguments}' --args "${usage[@]}"
+    --argjson arguments "${arguments}" --argjson kinds "$(syntax:kinds "${verb}" "${arguments}")" \
+    '{verb: $verb, purpose: $purpose, usage: $ARGS.positional, syntax: $syntax,
+      arguments: ($arguments | with_entries(.value += (if $kinds[.key] then {choices: $kinds[.key]} else {} end)))}' \
+    --args "${usage[@]}"
 }
 
 # syntax:parse <verb> <usage-line>… prints the syntax JSON of the usage lines: the alternatives of every line, in
@@ -270,13 +273,15 @@ syntax:check() {
 # dash-words included. It returns 0 when the arguments complete the syntax, 1 when a required literal, operand, or
 # group is missing, and 2 when a word is refused, and sets what it sorted: syntax_refusal (the whole line, on 2),
 # syntax_missing (the keys that could come next, joined by " or ", on 1), syntax_literals and syntax_operands (in
-# order), and syntax_options (each flag or option given, by its key, to its values joined by newlines; a flag's is 1).
+# order), syntax_options (each flag or option given, by its key, to its values joined by newlines; a flag's is 1), and
+# syntax_values (every operand and option key given, to its values the same way). When the arguments complete the
+# syntax, a value off a closed set of choices is refused too: <key> '<value>' is not one of the choices.
 syntax:match() {
   local verb=$1 syntax status=0 key name count value i n
   local -a fields usage
   shift
   syntax_refusal='' syntax_missing=''
-  syntax_literals=() syntax_operands=() syntax_options=()
+  syntax_literals=() syntax_operands=() syntax_options=() syntax_values=()
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
   then
@@ -312,17 +317,118 @@ syntax:match() {
         done
         i=$(( i + 2 + count ))
         ;;
-      (option)
+      (option | argument)
         name=${fields[i + 1]} count=${fields[i + 2]} value=''
         for (( n = 0; n < count; n++ ))
         do
           value+="${value:+$'\n'}${fields[i + 3 + n]}"
         done
-        syntax_options[${name}]=${value}
+        if [[ "${key}" == option ]]
+        then
+          syntax_options[${name}]=${value}
+        else
+          syntax_values[${name}]=${value}
+        fi
         i=$(( i + 3 + count ))
+        ;;
+      (*)
+        syntax_refusal="kit ${verb}: the arguments could not be judged; run: kit help ${verb}"
+        return 2
     esac
   done
-  return "${status}"
+  (( status == 0 )) || return "${status}"
+  syntax:closed "${verb}"
+}
+
+# syntax:closed <verb> refuses, returning 2 and setting syntax_refusal, a value syntax:match sorted that is off a closed
+# set of choices: the verb's module says which keys have choices and lists them, given every answer so far, and a glob
+# counts when it matches one. An open set, or a key the module does not answer, is never refused.
+syntax:closed() {
+  local verb=$1 key value kind choices
+  local -a answers=()
+  syntax:answers "${verb}" choices || return 0
+  for key in "${!syntax_values[@]}"
+  do
+    while IFS= read -r value
+    do
+      answers+=("${key}=${value}")
+    done <<<"${syntax_values[${key}]}"
+  done
+  for key in "${!syntax_values[@]}"
+  do
+    kind=$(syntax:kind "${verb}" "${key}") || continue
+    [[ "${kind}" == closed ]] || continue
+    choices=$(syntax:choices "${verb}" "${key}" "${answers[@]}") || continue
+    choices=$(cut -f 1 <<<"${choices}")
+    while IFS= read -r value
+    do
+      syntax:offered "${value}" "${choices}" && continue
+      syntax_refusal="${key} '${value}' is not one of the choices; run: kit help ${verb}"
+      return 2
+    done <<<"${syntax_values[${key}]}"
+  done
+  return 0
+}
+
+# syntax:offered <value> <choices> succeeds when the value is one of the choices, one per line, or is a glob that
+# matches one of them, as kit package expands a glob.
+syntax:offered() {
+  local choice
+  while IFS= read -r choice
+  do
+    [[ -n "${choice}" ]] || continue
+    if [[ "$1" == *[*?[]* ]]
+    then
+      # shellcheck disable=SC2053  # the value is a glob on purpose
+      [[ "${choice}" == $1 ]] && return 0
+    else
+      [[ "${choice}" == "$1" ]] && return 0
+    fi
+  done <<<"$2"
+  return 1
+}
+
+# syntax:answers <verb> <name> succeeds when a module named after the verb defines <verb>:<name>, loading the module
+# first, so a verb's choices and extensions live beside its code and the syntax itself never names them.
+syntax:answers() {
+  use:load-path || return 2
+  [[ -n "$(use:find "$1")" ]] || return 1
+  use "$1" || return 2
+  declare -F "$1:$2" >/dev/null
+}
+
+# syntax:kind <verb> <key> prints closed or open when the verb's module answers choices for the key, and nothing,
+# returning 1, when it does not.
+syntax:kind() {
+  syntax:answers "$1" choices || return 1
+  "$1:choices" "$2" --kind
+}
+
+# syntax:choices <verb> <key> [<answer>…] prints the choices of one argument, one row per value, tab-separated: the
+# value, its description, its state (active, excluded, or empty), and the line the verb would print about it given
+# the answers so far, each <key>=<value>. It returns 1 when the verb's module answers nothing for the key.
+syntax:choices() {
+  local verb=$1
+  shift
+  syntax:answers "${verb}" choices || return 1
+  "${verb}:choices" "$@"
+}
+
+# syntax:kinds <verb> <arguments-json> prints {"<key>": "closed" | "open"} for every key of the arguments object the
+# verb's module answers choices for, and {} when it answers none.
+syntax:kinds() {
+  local verb=$1 key kind
+  if ! syntax:answers "${verb}" choices
+  then
+    printf '{}\n'
+    return 0
+  fi
+  while IFS= read -r key
+  do
+    kind=$("${verb}:choices" "${key}" --kind) || continue
+    printf '%s\t%s\n' "${key}" "${kind}"
+  done < <(jq --raw-output 'keys[]' <<<"$2") |
+    jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\t") | {key: .[0], value: .[1]}) | from_entries'
 }
 
 # syntax:render <json> prints a node, or a sequence of nodes, as usage text: --message <text>…, [--all],

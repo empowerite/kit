@@ -58,35 +58,37 @@ def unknown_word($alts; $st):
   if ($st.pos | length) > 0 and ($st.pos[0].dash | not) and any($alts[]; length > 0 and .[0].kind == "literal")
   then "unknown argument '\($st.pos[0].word)'" else null end;
 
-# choose($alts; $st) picks the alternative the command line selects: the one a literal opens when the next word is
-# that literal; else the one that holds a given flag or option, two such being a refusal; else the first that opens
-# with an operand when a word is left. It gives {index}, {refusal}, or {} when nothing selects.
-def choose($alts; $st):
-  ($st.pos[0].word) as $next
-  | [range($alts | length) | select(($alts[.] | length) > 0 and $alts[.][0].kind == "literal" and $alts[.][0].name == $next)]
-    as $by_literal
-  | if ($by_literal | length) > 0 then {index: $by_literal[0]}
-    else [range($alts | length) | {index: ., keys: held($alts[.]; $st)} | select(.keys | length > 0)] as $by_given
-    | if ($by_given | length) > 1 then
-        {refusal: "\($by_given[0].keys[0]) cannot be combined with \($by_given[1].keys[0])"}
-      elif ($by_given | length) == 1 then {index: $by_given[0].index}
-      else [range($alts | length) | select(($alts[.] | length) > 0 and $alts[.][0].kind == "operand" and ($st.pos | length) > 0)]
-        as $by_operand
-      | if ($by_operand | length) > 0 then {index: $by_operand[0]} else {} end
-      end
-    end;
-
 # walk_sequence($nodes; $st) matches the sorted words against one sequence, node by node: a literal must be the next
 # word, an operand takes the next word (a repeated one every word left), a flag or option must have been given, and
 # a group walks the alternative the words select, or is skipped when optional and nothing selects it.
+#
+# choose($alts; $s) picks the alternative the words select: the one a literal opens when the next word is that
+# literal; else the one that holds a given flag or option, two such being a refusal; else the first whose walk
+# completes, the one that takes the most words winning a tie. It gives {index}, {refusal}, or {} when nothing selects.
 def walk_sequence($nodes; $st):
+  def choose($alts; $s):
+    ($s.pos[0].word) as $next
+    | [range($alts | length)
+        | select(($alts[.] | length) > 0 and $alts[.][0].kind == "literal" and $alts[.][0].name == $next)] as $by_literal
+    | if ($by_literal | length) > 0 then {index: $by_literal[0]}
+      else [range($alts | length) | {index: ., keys: held($alts[.]; $s)} | select(.keys | length > 0)] as $by_given
+      | if ($by_given | length) > 1 then
+          {refusal: "\($by_given[0].keys[0]) cannot be combined with \($by_given[1].keys[0])"}
+        elif ($by_given | length) == 1 then {index: $by_given[0].index}
+        else [range($alts | length) as $i
+            | walk_sequence($alts[$i]; $s) | select(.refusal == null and .missing == null) | {index: $i, left: (.pos | length)}]
+          | sort_by(.left) | first // {}
+        end
+      end;
   def walk_group($node; $s):
-    choose($node.alternatives; $s) as $c
+    if ($node.alternatives | length) == 1 and ($node.optional | not) then walk_sequence($node.alternatives[0]; $s)
+    else choose($node.alternatives; $s) as $c
     | if $c.refusal != null then $s | .refusal = $c.refusal
       elif $c.index != null then walk_sequence($node.alternatives[$c.index]; $s)
       elif unknown_word($node.alternatives; $s) != null then $s | .refusal = unknown_word($node.alternatives; $s)
       elif $node.optional then $s
-      else $s | .missing = [$node.alternatives[] | firsts(.)[]] end;
+      else $s | .missing = [$node.alternatives[] | firsts(.)[]] end
+    end;
   reduce $nodes[] as $node ($st;
     if .refusal != null or .missing != null then .
     elif $node.kind == "literal" then
@@ -96,8 +98,8 @@ def walk_sequence($nodes; $st):
     elif $node.kind == "operand" then
       if (.pos | length) == 0 then .missing = ["<\($node.name)>"]
       elif .pos[0].dash then .refusal = "unknown flag '\(.pos[0].word)'"
-      elif $node.repeat then .operands += [.pos[].word] | .pos = []
-      else .operands += [.pos[0].word] | .pos |= .[1:] end
+      elif $node.repeat then (.pos | map(.word)) as $w | .operands += $w | .values["<\($node.name)>"] += $w | .pos = []
+      else .pos[0].word as $w | .operands += [$w] | .values["<\($node.name)>"] += [$w] | .pos |= .[1:] end
     elif $node.kind == "group" then walk_group($node; .)
     else given_keys($node; .) as $keys
       | if ($keys | length) > 0 then .used += $keys else .missing = [$node | key] end
@@ -133,9 +135,10 @@ def lex($rest; $st; $by_key; $wild):
   end;
 
 # match($words) judges a command line against the spec's syntax, as the loader's guard:arguments does. It gives
-# status 0 with literals, operands, and options (each key to its values, a flag's being ["1"]) when the words complete
-# the syntax; status 1 with missing, the keys that could come next joined by " or ", and the literals so far, when
-# a required literal, operand, or group is missing; and status 2 with refusal, the whole line, when a word is refused.
+# status 0 with literals, operands, options (each key to its values, a flag's being ["1"]), and values (every operand
+# and option key to its values) when the words complete the syntax; status 1 with missing, the keys that could come
+# next joined by " or ", and the literals so far, when a required literal, operand, or group is missing; and status 2
+# with refusal, the whole line, when a word is refused.
 def match($words):
   . as $spec
   | ($spec.syntax | [.. | objects | select(.kind == "flag" or .kind == "option")]) as $named
@@ -143,42 +146,35 @@ def match($words):
   | ($named | any(.wildcard)) as $wild
   | if $spec.syntax == [[]] and ($words | length) > 0 then
       {status: 2, refusal: "kit \($spec.verb) takes no arguments; run: kit help \($spec.verb)"}
-    else lex($words; {pos: [], given: {}, wild: [], used: [], literals: [], operands: [], refusal: null, missing: null,
-        plain: false}; $by_key; $wild)
+    else lex($words; {pos: [], given: {}, wild: [], used: [], literals: [], operands: [], values: {}, refusal: null,
+        missing: null, plain: false}; $by_key; $wild)
     | if .refusal != null then .
-      elif ($spec.syntax | length) == 1 then walk_sequence($spec.syntax[0]; .)
-      else . as $st | choose($spec.syntax; $st) as $c
-        | if $c.refusal != null then .refusal = $c.refusal
-          elif $c.index != null then walk_sequence($spec.syntax[$c.index]; $st)
-          elif unknown_word($spec.syntax; $st) != null then .refusal = unknown_word($spec.syntax; $st)
-          else ([$spec.syntax[] | walk_sequence(.; $st) | select(.refusal == null and .missing == null and (.pos | length) == 0)]
-            | first) // ($st | .missing = [$spec.syntax[] | firsts(.)[]])
-          end
-      end
+      else walk_sequence([{kind: "group", optional: false, alternatives: $spec.syntax, repeat: false}]; .) end
     | (.pos | map(select(.dash))) as $dashed
     | if .refusal != null then {status: 2, refusal: "\(.refusal); run: kit help \($spec.verb)"}
       elif .missing != null and ($dashed | length) > 0 then
         {status: 2, refusal: "unknown flag '\($dashed[0].word)'; run: kit help \($spec.verb)"}
       elif .missing != null then
         {status: 1, missing: (.missing | reduce .[] as $k ([]; if index($k) then . else . + [$k] end) | join(" or ")),
-          literals: .literals, operands: .operands, options: .given}
+          literals: .literals, operands: .operands, options: .given, values: (.given + .values)}
       elif (.pos | length) > 0 then
         {status: 2, refusal: "\(if .pos[0].dash then "unknown flag" else "unknown argument" end) '\(.pos[0].word)'; run: kit help \($spec.verb)"}
       else ((.given | keys_unsorted) - .used) as $unused
       | if ($unused | length) > 0 then
           {status: 2, refusal: "\($unused[0]) cannot be combined with \((.literals + .used + .operands)[0]); run: kit help \($spec.verb)"}
-        else {status: 0, literals: .literals, operands: .operands, options: .given} end
+        else {status: 0, literals: .literals, operands: .operands, options: .given, values: (.given + .values)} end
       end
     end;
 
 # fields flattens a match for a shell to read, one string per record: status and its value; refusal and missing with
-# theirs (empty when absent); literals and operands, each as a count and the words; and option, key, count, values
-# for every option given.
+# theirs (empty when absent); literals and operands, each as a count and the words; option, key, count, values for
+# every option given; and argument, key, count, values for every operand and option key.
 def fields:
   ["status", (.status | tostring), "refusal", (.refusal // ""), "missing", (.missing // ""),
     "literals", (.literals // [] | length | tostring), (.literals // [])[],
     "operands", (.operands // [] | length | tostring), (.operands // [])[],
-    ((.options // {}) | to_entries[] | "option", .key, (.value | length | tostring), .value[])]
+    ((.options // {}) | to_entries[] | "option", .key, (.value | length | tostring), .value[]),
+    ((.values // {}) | to_entries[] | "argument", .key, (.value | length | tostring), .value[])]
   | .[];
 
 # ----------------------------------------------------------------------------------------------------------------------

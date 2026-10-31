@@ -4,18 +4,27 @@
 #
 # kit syntax [--check] [<verb>…]
 #
+# kit syntax <verb> --choices <argument> [<answer>…]
+#
 # Prints the grammar of a verb's command line as JSON, read from the usage lines in the verb's header. The JSON is
 # the contract between the verbs and whatever needs to know what they take, kit tui first: verb, purpose, usage (the
 # lines as written), syntax (an array of alternatives, each a sequence of nodes of kind literal, operand, flag,
 # option, or group), and arguments (each argument's description, keyed as the header's argument block writes it:
-# --name, <name>, word, or --<hole>). modules/bash/syntax.sh describes the grammar and the nodes.
+# --name, <name>, word, or --<hole>, with choices, closed or open, when the verb lists them). modules/bash/syntax.sh
+# describes the grammar and the nodes.
 #
 #   --check   prints no JSON; reports each usage line that does not parse and each argument the header does not
 #             describe, and fails when there is any
+#   --choices <argument>   prints the choices of that argument instead, one per line, tab-separated: the value, its
+#                          description, its state (active, excluded, or none), and the line the verb would print about
+#                          it given the answers; closed when they are the only values the verb accepts, open when they
+#                          are suggestions and any value is still allowed
+#   <answer>…              an argument answered already, as <package>=house or --rule=markdown, since a list may depend
+#                          on it; an answer that starts with - follows a --
 #   <verb>…   the verbs to print; one prints its object, several print an array, and none prints every verb
 #
 # Exits 0 when every usage line parses (and, with --check, every argument is described), 1 when one does not (its
-# object carries error), and 2 when a name is not a verb.
+# object carries error) or the verb has no choices for the argument, and 2 when a name is not a verb.
 #
 # see: modules/bash/syntax.sh, modules/jq/syntax.jq
 
@@ -28,16 +37,11 @@ guard:arguments syntax "$@" || exit $?
 
 guard:require tool:jq
 
-check=0
-verbs=()
-for arg in "$@"
-do
-  case "${arg}" in
-    (--check) check=1 ;;
-    (*) verbs+=("${arg}")
-  esac
-done
+# The guard sorted the arguments: the verbs named, --check, and --choices with the answers after the verb.
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+verbs=("${syntax_operands[@]}")
 (( ${#verbs[@]} )) || readarray -t verbs < <(help:verbs)
+[[ -z "${syntax_options[--choices]+x}" ]] || verbs=("${verbs[0]}")
 for verb in "${verbs[@]}"
 do
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
@@ -47,8 +51,18 @@ do
   fi
 done
 
+if [[ -n "${syntax_options[--choices]+x}" ]]
+then
+  if ! syntax:choices "${verbs[0]}" "${syntax_options[--choices]}" "${syntax_operands[@]:1}"
+  then
+    error "kit ${verbs[0]} has no choices for '${syntax_options[--choices]}'; run: kit help syntax"
+    exit 1
+  fi
+  exit 0
+fi
+
 status=0
-if (( check ))
+if [[ -n "${syntax_options[--check]+x}" ]]
 then
   for verb in "${verbs[@]}"
   do

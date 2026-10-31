@@ -88,10 +88,12 @@ later-release() {
   [ ! -e .claude/rules ]
 }
 
-@test "install refuses a package this release does not know and names the known ones" {
+@test "install refuses a package this release does not know, in the words the form uses, and the choices list the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"the packages are: agents/claude agents/copilot agents/cursor agents/gemini empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
+  [[ "$output" == *"<package> 'gemini' is not one of the choices; run: kit help install"* ]]
+  run "${kit_checkout}/bin/kit" syntax install --choices '<package>'
+  [[ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" == "agents/claude agents/copilot agents/cursor agents/gemini empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }
 
@@ -575,7 +577,7 @@ later-release() {
   [ -f .kit/styles/yaml.md ]
   run "${kit_checkout}/bin/kit" package add 'nothing/*'
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'nothing/*' matches no package in reach"* ]]
+  [[ "$output" == *"<package> 'nothing/*' is not one of the choices; run: kit help package"* ]]
 }
 
 @test "a bundle brings its members in, a member leaves on its own, and the exclusion holds through update" {

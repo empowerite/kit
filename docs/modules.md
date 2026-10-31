@@ -158,6 +158,12 @@ use <module>
   which judges the arguments against the usage line and refuses in one line that points to that page: an unknown
   flag or argument, a missing value, two alternatives together, or a required argument missing. The verb parses what
   the guard let through, and never restates the usage.
+- A verb whose arguments have choices answers `kit syntax <verb> --choices` from a module named after it. The module
+  defines `<verb>:choices <key> --kind`, which prints `closed` or `open`, and `<verb>:choices <key> [<answer>…]`, which
+  prints one row per value, tab-separated: the value, its description, its state (`active`, `excluded`, or none), and
+  the line the verb would print about it given the answers so far, each `<key>=<value>`. It returns 1 for a key it
+  does not answer. A closed set holds the only values the verb accepts, and `guard:arguments` refuses any other in the
+  words the form uses; an open set only suggests, and a value off it is never refused.
 
 ## jq modules
 
