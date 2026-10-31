@@ -144,6 +144,9 @@ package format is in [docs/packages.md](docs/packages.md).
 
 - Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`
   package makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
+- `kit serve` offers the same verbs that change nothing, and the rules, to any agent over the Model Context
+  Protocol. Each `agents/<harness>` package registers it in its harness's MCP configuration; see
+  [docs/serve.md](docs/serve.md).
 - `kit new file "${path}"` creates a file from its style's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
 

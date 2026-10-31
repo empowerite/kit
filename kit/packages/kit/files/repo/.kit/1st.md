@@ -107,7 +107,9 @@ Before you change a file:
 1. Run `kit context <path>`. It prints the rules, then the style, that govern the file, and records that you asked.
 2. Read every file it prints.
 
-No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them.
+No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them. Where
+the harness has the kit's MCP server, `kit serve`, the same verbs are tools: `context`, `lint`, `check`, `status`,
+and the other verbs that change nothing, and the rules are resources, starting at `kit://1st.md`.
 
 Where a template governs a new file, create it with `kit new file <path>`, giving the path from the repository
 root, and never write it from nothing. `kit new file`:

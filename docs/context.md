@@ -108,8 +108,9 @@ This command:
 It prints nothing when the tool input has no file path or no rule governs the file. Nothing is kept
 between calls except the log line.
 
-A harness with no hook, and a person, run `kit context "${path}"` directly. `.kit/1st.md` lists it as the step
-before creating or changing any file.
+A harness that speaks the Model Context Protocol also has `context` as a tool of `kit serve`; see
+[serve.md](serve.md). A harness with no hook, and a person, run `kit context "${path}"` directly. `.kit/1st.md`
+lists it as the step before creating or changing any file.
 
 Cursor and GitHub Copilot have no hook, but a rule file loaded by path. The `agents/cursor` and `agents/copilot`
 packages deliver one per kind, attached by the kind's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,

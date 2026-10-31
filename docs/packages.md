@@ -73,6 +73,7 @@ answers:
 | `includes` | The members of a bundle: packages activated with this one, each of which `kit package remove` can take out on its own. |
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
+| `notices` | What happens next, told when the kit places a path afresh or merges a new entry into it, each a `path` and a `text`; see below. |
 
 [package.schema.json](../kit/packages/package.schema.json) is the schema, in JSON Schema 2020-12. This repository's gate
 (its own CI command) validates every `package.yml` against it with `ajv`. Without a validator, `kit install` applies
@@ -131,6 +132,21 @@ expects:
 - The kit writes nothing into the file. It belongs entirely to the repository.
 
 A single-quoted value is taken literally, backslashes included. Write patterns that way.
+
+### Notices
+
+Some files change what a harness does only after the person answers it, such as a server a harness asks once
+whether to start. The package says so under `notices:`. An entry has a `path`, a file the package delivers, and a
+`text`, the line printed after it.
+
+```yaml
+notices:
+  - path: .mcp.json
+    text: "Claude Code asks once, at the start of the next session, whether to use the kit server this file names"
+```
+
+`kit install`, `kit package add`, and `kit update` print a notice when they place its path afresh, or merge into it
+an entry that was not there. A path the repository already holds as the release has it prints nothing.
 
 The kit changes a file it touches in one of four ways:
 
@@ -254,10 +270,10 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`hooks/lefthook`](packages/hooks/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/generic`](packages/agents/generic.md) | no | `kit` | a region in `AGENTS.md` that sends any agent to `.kit/1st.md` |
-| [`agents/claude`](packages/agents/claude.md) | no | `kit`, `agents/generic` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook |
-| [`agents/cursor`](packages/agents/cursor.md) | no | `kit`, `agents/generic` | `.cursor/rules/kit-<kind>.mdc`, a rule per kind attached by its kind's paths, pointing at `.kit/rules/<kind>.md` |
-| [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, an instruction file per kind applied to the kit rule's paths, pointing at the rule |
-| [`agents/gemini`](packages/agents/gemini.md) | no | `kit`, `agents/generic` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, and the deny list as `run_shell_command` exclusions |
+| [`agents/claude`](packages/agents/claude.md) | no | `kit`, `agents/generic` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook; `.mcp.json`, merged: the kit's MCP server |
+| [`agents/cursor`](packages/agents/cursor.md) | no | `kit`, `agents/generic` | `.cursor/rules/kit-<kind>.mdc`, a rule per kind attached by its kind's paths, pointing at `.kit/rules/<kind>.md`; `.cursor/mcp.json`, merged: the kit's MCP server |
+| [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, an instruction file per kind applied to the kit rule's paths, pointing at the rule; `.vscode/mcp.json`, merged: the kit's MCP server |
+| [`agents/gemini`](packages/agents/gemini.md) | no | `kit`, `agents/generic` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, the deny list as `run_shell_command` exclusions, and the kit's MCP server |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
 | [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, and `hooks/lefthook` | nothing of its own: it is the bundle Empowerite's repositories take |
 

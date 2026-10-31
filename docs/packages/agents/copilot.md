@@ -14,6 +14,10 @@ On GitHub.com the files apply to the Copilot coding agent and to Copilot code re
 and agent mode. Copilot offers no deny list a repository can commit, so the git commands `.kit/1st.md` forbids are
 refused by the hooks and the ruleset alone.
 
+The package also merges `servers.kit` into `.vscode/mcp.json`, with `type: stdio`: the kit's MCP server,
+`kit serve`; see [docs/serve.md](../../serve.md). VS Code starts a workspace's servers once the person trusts the
+workspace.
+
 `.github/instructions/` otherwise belongs to the repository. The package places only its seven files, `kit check`
 holds them to the release, and `kit package remove agents/copilot` takes them out.
 
