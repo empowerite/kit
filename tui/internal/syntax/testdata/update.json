@@ -1,0 +1,11 @@
+{
+  "verb": "update",
+  "purpose": "moves the repository, and the home directory, to the pinned release",
+  "usage": [
+    "kit update"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

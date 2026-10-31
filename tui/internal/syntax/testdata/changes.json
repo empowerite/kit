@@ -1,0 +1,102 @@
+{
+  "verb": "changes",
+  "purpose": "lists the open changes, each with the issues it closes, as kit status draws them",
+  "usage": [
+    "kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "mine",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "others",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "option",
+                    "inline": true,
+                    "name": "owner",
+                    "value": "login",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "prints the same facts as one JSON array, one document per change with its issues under closes"
+    },
+    "--mine": {
+      "description": "the changes the caller opened; alone, without the author column"
+    },
+    "--others": {
+      "description": "the changes anyone but the caller opened"
+    },
+    "--all": {
+      "description": "every open change (the default); it stands alone"
+    },
+    "--owner": {
+      "description": "the changes the named author opened; give it once or more. The three filters combine: --mine --owner=bob shows the caller's and bob's"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "verb": "rebase",
+  "purpose": "rebases a worktree's branch onto the default branch and pushes it",
+  "usage": [
+    "kit rebase [<path>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the checkout whose branch to rebase; default: the current checkout"
+    }
+  }
+}

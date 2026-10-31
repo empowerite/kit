@@ -1,0 +1,79 @@
+{
+  "verb": "package",
+  "purpose": "lists, activates, or deactivates the packages this repository takes",
+  "usage": [
+    "kit package [list | select <package>… | add <package>… | remove <package>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "list",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "select",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "add",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "remove",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "list": {
+      "description": "prints every package in reach, with a ✅ beside the active ones and a ❌ beside the excluded ones, its origin (release or repository), and its description. This is the default."
+    },
+    "select": {
+      "description": "makes exactly the named packages, with the packages they depend on and the members they include, the active set: it removes what the set omits, adds what it lacks, and says which active package it kept for another's sake; with nothing to change it says the set"
+    },
+    "add": {
+      "description": "activates the packages, the packages they depend on, and the members they include, places the files they deliver, and rewrites the manifests. When a different file is already at a delivered path, it is named and left alone, and no manifest is written. A package named here is no longer excluded."
+    },
+    "remove": {
+      "description": "takes out what the packages delivered (files, the kit's JSON entries, and the kit's regions) and rewrites the manifests. A package that an active package depends on is refused. A member of a bundle that stays active is recorded as excluded, so that kit update does not bring it back."
+    },
+    "<package>": {
+      "description": "a package's name, such as style/bash, or a glob over names, such as 'style/*'; each must be in the release or under .kit/packages/",
+      "choices": "closed"
+    }
+  }
+}

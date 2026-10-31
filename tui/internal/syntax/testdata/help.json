@@ -1,0 +1,31 @@
+{
+  "verb": "help",
+  "purpose": "prints the verbs' usage, or one verb's help page",
+  "usage": [
+    "kit help [<verb>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "verb",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<verb>": {
+      "description": "a verb's name, or the start of one: kit help re matches rebase and region",
+      "choices": "open"
+    }
+  }
+}

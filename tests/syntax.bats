@@ -165,4 +165,14 @@ setup() {
   [[ "$output" == *"kit syntax has no choices for '<verb>'; run: kit help syntax"* ]]
 }
 
+@test "the Go fixtures under tui/ are what kit syntax prints today" {
+  local fixture verb
+  for fixture in "${kit_root}"/../tui/internal/syntax/testdata/*.json
+  do
+    verb=$(basename "${fixture}" .json)
+    diff <("${kit_root}/bin/kit" syntax "${verb}") "${fixture}" >/dev/null \
+      || { echo "stale: ${verb}; rerun: kit syntax ${verb} > tui/internal/syntax/testdata/${verb}.json"; return 1; }
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

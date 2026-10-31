@@ -11,6 +11,7 @@
 #     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
 #   - the bats suite
+#   - gofmt, go vet, and go test over tui/, the kit tui binary
 #   - kit/bin/kit check over this repository's installed copy of its own kit
 #
 # The pre-commit hook is a faster check over the staged paths only.
@@ -36,6 +37,7 @@ done
 ajv validate --spec=draft2020 -s kit/packages/rule.schema.json -d "${frontmatter}/*.yml"
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
 bats --timing --print-output-on-failure tests/
+(cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
 kit/bin/kit check
 echo "✅ ci passed"
 

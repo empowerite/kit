@@ -1,0 +1,31 @@
+{
+  "verb": "install",
+  "purpose": "mirrors the release into the repository, and into the home directory",
+  "usage": [
+    "kit install [<package>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<package>": {
+      "description": "packages to activate beside the default ones, by name or by a glob such as 'style/*'; each must be in the release or under .kit/packages/",
+      "choices": "closed"
+    }
+  }
+}

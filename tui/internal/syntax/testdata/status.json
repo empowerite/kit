@@ -1,0 +1,119 @@
+{
+  "verb": "status",
+  "purpose": "shows every worktree with its branch, pull request, and state",
+  "usage": [
+    "kit status [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "no-fetch",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "mine",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "others",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "option",
+                    "inline": true,
+                    "name": "owner",
+                    "value": "login",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--no-fetch": {
+      "description": "skips the git fetch"
+    },
+    "--json": {
+      "description": "prints the same facts as one JSON document"
+    },
+    "--mine": {
+      "description": "the pull requests the caller opened; alone, without the author column"
+    },
+    "--others": {
+      "description": "the pull requests anyone but the caller opened"
+    },
+    "--all": {
+      "description": "every open pull request (the default); it stands alone"
+    },
+    "--owner": {
+      "description": "the pull requests the named author opened; give it once or more. The three filters combine: --mine --owner=bob shows the caller's and bob's"
+    }
+  }
+}

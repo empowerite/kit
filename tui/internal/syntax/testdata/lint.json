@@ -1,0 +1,48 @@
+{
+  "verb": "lint",
+  "purpose": "runs each rule's linter over the paths it governs",
+  "usage": [
+    "kit lint [--all-files] [<path>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all-files",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the files to check, relative to the current directory; a directory stands for the tracked files under it; with none, the staged files",
+      "choices": "open"
+    },
+    "--all-files": {
+      "description": "with no paths, every tracked file instead of the staged ones"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "verb": "gate",
+  "purpose": "runs the repository's gate, and refuses when there is none",
+  "usage": [
+    "kit gate"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

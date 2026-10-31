@@ -1,0 +1,50 @@
+{
+  "verb": "context",
+  "purpose": "prints the rules that govern a file, and logs the request",
+  "usage": [
+    "kit context <path>… [--json]",
+    "kit context --claude"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "operand",
+        "name": "path",
+        "repeat": true
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "claude",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the files whose rules to print, relative to the current directory; a path need not exist yet",
+      "choices": "open"
+    },
+    "--json": {
+      "description": "prints one JSON object per path, with the path, its kinds, and its rules"
+    },
+    "--claude": {
+      "description": "runs as Claude Code's PreToolUse hook: reads the hook's input on stdin, and answers with the rules that govern the file the tool is about to write"
+    }
+  }
+}

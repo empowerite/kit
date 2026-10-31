@@ -1,0 +1,67 @@
+{
+  "verb": "generate",
+  "purpose": "expands every kit:generate region to what its command makes, or checks that it is",
+  "usage": [
+    "kit generate [--check] [--iterations=<n>] [<path>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "check",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "iterations",
+              "value": "n",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--check": {
+      "description": "writes nothing, and fails naming every stale file"
+    },
+    "--iterations": {
+      "description": "expands the named files <n> times instead of once"
+    },
+    "<path>": {
+      "description": "the files to expand, relative to the current directory; with none, every tracked file and every untracked file git does not ignore, repeated until a pass changes nothing",
+      "choices": "open"
+    }
+  }
+}

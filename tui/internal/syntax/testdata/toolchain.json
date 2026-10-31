@@ -1,0 +1,96 @@
+{
+  "verb": "toolchain",
+  "purpose": "installs, reports, and updates the tools the repository's gate runs, whatever manages them",
+  "usage": [
+    "kit toolchain list | install | outdated [--check] | update | path | run <command>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "literal",
+        "name": "list",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "install",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "outdated",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "check",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "update",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "path",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "run",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "command",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "list": {
+      "description": "prints each declared toolchain and the file it reads"
+    },
+    "install": {
+      "description": "installs every toolchain's pinned tools"
+    },
+    "outdated": {
+      "description": "prints one line per tool behind its latest version"
+    },
+    "--check": {
+      "description": "with outdated: fails when any tool is behind"
+    },
+    "update": {
+      "description": "updates every toolchain to its latest versions, and rewrites its pins and lock"
+    },
+    "path": {
+      "description": "prints the directories that put the tools first on PATH, one per line, for a runner"
+    },
+    "run": {
+      "description": "runs the command with the tools: inside the container for docker, else with the toolchains' directories first on PATH"
+    },
+    "<command>": {
+      "description": "with run: the command and its arguments, as typed; a word that starts with - is the command's, not kit's"
+    }
+  }
+}

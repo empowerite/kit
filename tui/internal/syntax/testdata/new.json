@@ -1,0 +1,90 @@
+{
+  "verb": "new",
+  "purpose": "makes a new file from the template of the rule that governs it",
+  "usage": [
+    "kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "literal",
+        "name": "file",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "path",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "rule",
+              "value": "rule",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "variant",
+              "value": "variant",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "wildcard": true,
+              "inline": true,
+              "name": "hole",
+              "value": "value",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "file": {
+      "description": "what to make; this release makes files alone"
+    },
+    "<path>": {
+      "description": "the new file, relative to the repository root wherever the command runs. An absolute path inside the repository is accepted. A path outside it is refused."
+    },
+    "--rule": {
+      "description": "the rule whose template to use. Default: the most specific rule that governs the path and has templates. A script with no extension needs this flag.",
+      "choices": "closed"
+    },
+    "--variant": {
+      "description": "the template to use. Default: the first variant the rule lists that the path allows.",
+      "choices": "closed"
+    },
+    "--<hole>": {
+      "description": "the value of a hole («name») within a line of the template. The holes path, name, and stem default to values taken from the path. Every other hole needs its flag."
+    }
+  },
+  "extends": true
+}

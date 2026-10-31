@@ -1,0 +1,11 @@
+{
+  "verb": "version",
+  "purpose": "prints this release's version",
+  "usage": [
+    "kit version"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

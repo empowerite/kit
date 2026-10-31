@@ -1,0 +1,47 @@
+{
+  "verb": "region",
+  "purpose": "prints the content the active packages deliver as the region at a path",
+  "usage": [
+    "kit region [--home] [<path>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "home",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the region's path, relative to the repository root. Default: KIT_GENERATE_REGION."
+    },
+    "--home": {
+      "description": "makes the path relative to the home directory instead."
+    }
+  }
+}

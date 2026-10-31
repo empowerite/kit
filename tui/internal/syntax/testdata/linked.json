@@ -1,0 +1,30 @@
+{
+  "verb": "linked",
+  "purpose": "refuses a change not linked to an open issue of this repository",
+  "usage": [
+    "kit linked [<number>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "number",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<number>": {
+      "description": "the pull request to check; default: the one this checkout is working on"
+    }
+  }
+}

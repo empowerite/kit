@@ -1,0 +1,11 @@
+{
+  "verb": "check",
+  "purpose": "fails when a delivered file differs from the pinned release",
+  "usage": [
+    "kit check"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

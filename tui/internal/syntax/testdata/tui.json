@@ -1,0 +1,11 @@
+{
+  "verb": "tui",
+  "purpose": "runs the interactive terminal UI",
+  "usage": [
+    "kit tui"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

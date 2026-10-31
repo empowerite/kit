@@ -1,0 +1,30 @@
+{
+  "verb": "policy",
+  "purpose": "refuses a branch, a commit subject, or a change title the repository's policy does not allow",
+  "usage": [
+    "kit policy [--input]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "input",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--input": {
+      "description": "prints the facts as JSON instead of judging them: the document a rule is written against"
+    }
+  }
+}

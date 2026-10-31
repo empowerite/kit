@@ -1,0 +1,79 @@
+{
+  "verb": "commit",
+  "purpose": "commits what is staged, after the checks a commit's rule requires",
+  "usage": [
+    "kit commit [--all] (--message <text>… | --file <path>) [<path>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": false,
+              "name": "message",
+              "value": "text",
+              "repeat": true
+            }
+          ],
+          [
+            {
+              "kind": "option",
+              "inline": false,
+              "name": "file",
+              "value": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--all": {
+      "description": "stages every change to a tracked file first, as git commit --all does"
+    },
+    "--message": {
+      "description": "the message; given twice or more, the first is the subject and the rest are paragraphs"
+    },
+    "--file": {
+      "description": "reads the message from a file, whose first line is the subject"
+    },
+    "<path>": {
+      "description": "commits those paths alone, as git commit -- <path>… does; each must be known to git",
+      "choices": "open"
+    }
+  }
+}
