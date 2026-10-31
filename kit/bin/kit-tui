@@ -2,19 +2,31 @@
 # kit-tui - runs the interactive terminal UI (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit tui takes no arguments. It is the kit CLI's default verb: kit with no verb runs it. This release has no
-# interactive terminal UI, so kit tui refuses, and points to kit help, and to kit status for the work in flight.
+# kit tui [<verb> [<argument>…]]
 #
-# Exits 2.
+# Opens the palette of verbs, or with a verb that verb's form, filled from the arguments given, asking only for the
+# rest. The form shows the command line it builds, and Enter on it runs the verb, after a transcript of the answers.
+# kit tui is the kit CLI's default verb: kit with no verb runs it. A verb short of a required argument, run with a
+# terminal on stdin, stdout, and stderr, hands off to it as kit tui -- <verb> <argument>…: the words follow a --, so
+# kit reads none of them as its own.
 #
-# see: bin/kit
+#   <verb>        the verb whose form to open; with none, the palette of every verb
+#   <argument>…   the arguments given so far, which fill the form
+#
+# kit tui runs kittui, the binary each release builds and mise installs from it; without it, kit tui says how to
+# install it. kittui needs a terminal on stdin, stdout, and stderr.
+#
+# Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
+# on ctrl-c.
+#
+# see: bin/kit, modules/bash/1st.sh, tui/
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
 guard:arguments tui "$@" || exit $?
-error "this release has no interactive terminal UI; run: kit help, or kit status for the work in flight"
-exit 2
+guard:require tool:kittui || exit 1
+exec kittui "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

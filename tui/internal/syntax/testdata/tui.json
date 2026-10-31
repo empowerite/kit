@@ -2,10 +2,46 @@
   "verb": "tui",
   "purpose": "runs the interactive terminal UI",
   "usage": [
-    "kit tui"
+    "kit tui [<verb> [<argument>…]]"
   ],
   "syntax": [
-    []
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "verb",
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "operand",
+                    "name": "argument",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
   ],
-  "arguments": {}
+  "arguments": {
+    "<verb>": {
+      "description": "the verb whose form to open; with none, the palette of every verb"
+    },
+    "<argument>": {
+      "description": "the arguments given so far, which fill the form"
+    }
+  }
 }

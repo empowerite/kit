@@ -75,7 +75,7 @@ jq module directory, and defines:
 | `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner |
 | `summary <line>…` | appends lines to the GitHub step summary, when there is one |
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
-| `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`: an unknown flag or argument, a missing value, two alternatives together, or a required argument missing |
+| `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`: an unknown flag or argument, a missing value, two alternatives together, or a required argument missing; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
 

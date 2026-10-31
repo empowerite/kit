@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# fake-kittui - stands in for kittui: prints how it was called, so a test sees kit tui exec it (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Linked as kittui on PATH. It prints "kittui" and its arguments on stdout, and exits 0.
+
+set -o errexit -o nounset -o pipefail
+printf 'kittui%s\n' "${*:+ $*}"
+
+# ----------------------------------------------------------------------------------------------------------------------
