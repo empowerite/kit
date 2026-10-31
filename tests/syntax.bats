@@ -218,4 +218,23 @@ setup() {
   ! grep -q $'^docs/features.md\t' <<<"$output"
 }
 
+@test "a verb whose usage line does not parse refuses with the check that names why" {
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-askew - a verb whose usage line does not parse (kit verb: help)' '#' '# kit askew [<a>' \
+    '#' '# Does it.' '' 'source "$(dirname "$0")/../modules/bash/1st.sh"' 'guard:arguments askew "$@" || exit $?' \
+    > "${root}/bin/kit-askew"
+  chmod +x "${root}/bin/kit-askew"
+  run "${root}/bin/kit" askew x
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit askew: usage does not parse: '[' is not closed; run: kit syntax --check askew"* ]]
+}
+
+@test "--choices tells a verb with no choices for an argument from one that cannot list them for these answers" {
+  run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: kit help syntax"* ]]
+  run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=nonesuch
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit new lists no --variant for these answers: --rule=nonesuch; run: kit help new"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

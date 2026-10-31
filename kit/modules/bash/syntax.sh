@@ -289,7 +289,7 @@ syntax:match() {
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
   then
-    syntax_refusal="kit ${verb}: usage does not parse: ${syntax}"
+    syntax_refusal="kit ${verb}: usage does not parse: ${syntax}; run: kit syntax --check ${verb}"
     return 2
   fi
   readarray -d '' -t fields < <(jq --null-input --raw-output0 -L "${kit_jq}" --arg verb "${verb}" \

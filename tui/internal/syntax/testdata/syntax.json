@@ -137,7 +137,7 @@
       "description": "prints the choices of that argument instead, one per line, tab-separated: the value, its description, its state (active, excluded, or none), and the line the verb would print about it given the answers; closed when they are the only values the verb accepts, open when they are suggestions and any value is still allowed"
     },
     "<answer>": {
-      "description": "an argument answered already, as <package>=house or --rule=markdown, since a list may depend on it; an answer that starts with - follows a --"
+      "description": "an argument answered already, as <package>=house or --rule=markdown, or a subcommand word chosen, as select, since a list may depend on them; an answer that starts with - follows a --"
     },
     "--extend": {
       "description": "prints instead the arguments the verb learns from the answers, as an object of arguments entries marked extended, for a form to add as fields; kit new answers with the holes of the template the answers name, and {} before it knows"

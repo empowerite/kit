@@ -25,8 +25,9 @@
 #                          description, its state (active, excluded, or none), and the line the verb would print about
 #                          it given the answers; closed when they are the only values the verb accepts, open when they
 #                          are suggestions and any value is still allowed
-#   <answer>…              an argument answered already, as <package>=house or --rule=markdown, since a list may
-#                          depend on it; an answer that starts with - follows a --
+#   <answer>…              an argument answered already, as <package>=house or --rule=markdown, or a subcommand
+#                          word chosen, as select, since a list may depend on them; an answer that starts with -
+#                          follows a --
 #   --extend               prints instead the arguments the verb learns from the answers, as an object of arguments
 #                          entries marked extended, for a form to add as fields; kit new answers with the holes of the
 #                          template the answers name, and {} before it knows
@@ -67,9 +68,16 @@ done
 
 if [[ -n "${syntax_options[--choices]+x}" ]]
 then
-  if ! syntax:choices "${verbs[0]}" "${syntax_options[--choices]}" "${syntax_operands[@]:1}"
+  if ! syntax:kind "${verbs[0]}" "${syntax_options[--choices]}" >/dev/null
   then
     error "kit ${verbs[0]} has no choices for '${syntax_options[--choices]}'; run: kit help syntax"
+    exit 1
+  fi
+  # the verb lists this argument, but perhaps not from these answers: --variant needs a rule that exists
+  if ! syntax:choices "${verbs[0]}" "${syntax_options[--choices]}" "${syntax_operands[@]:1}"
+  then
+    error "kit ${verbs[0]} lists no ${syntax_options[--choices]} for these answers: ${syntax_operands[*]:1}; run:" \
+      "kit help ${verbs[0]}"
     exit 1
   fi
   exit 0
