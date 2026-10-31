@@ -1,4 +1,4 @@
-# «title:-AGENTS.md»
+# «title=AGENTS.md»
 
 <!-- kit:generate AGENTS.md -->
 <!-- kit:end AGENTS.md -->
