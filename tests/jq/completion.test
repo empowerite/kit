@@ -1,0 +1,20 @@
+# completion.test - the completion jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is a verb's syntax, cut down to what each case needs.
+
+# A word that starts with - is a flag or an option: one given already is left out unless it repeats, and an inline
+# option ends in =.
+import "completion" as completion; completion::next(["--all", "--message", "x"]; "-") | .candidates | map(.[0])
+{"syntax":[[{"kind":"flag","name":"all","repeat":false},{"kind":"option","name":"message","value":"text","inline":false,"repeat":true},{"kind":"option","name":"rule","value":"rule","inline":true,"repeat":false}]],"arguments":{"--all":{"description":"stages"}}}
+["--message","--rule="]
+
+# After an option that takes its value apart, or inside --name=, the word is that option's value.
+import "completion" as completion; [completion::next(["--file"]; ""), completion::next([]; "--rule=ma")] | map({mode, key, value, prefix})
+{"syntax":[[{"kind":"option","name":"file","value":"path","inline":false,"repeat":false},{"kind":"option","name":"rule","value":"rule","inline":true,"repeat":false}]],"arguments":{}}
+[{"mode":"value","key":"--file","value":"path","prefix":""},{"mode":"value","key":"--rule","value":"rule","prefix":"--rule="}]
+
+# A verb with literal words offers them until one is typed, and then its operands.
+import "completion" as completion; [completion::next([]; ""), completion::next(["add"]; "")] | map({candidates, operands})
+{"syntax":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"add","repeat":false},{"kind":"operand","name":"package","repeat":true}]],"arguments":{"add":{"description":"activates"}}}
+[{"candidates":[["add","activates"],["list",""]],"operands":null},{"candidates":[],"operands":["<package>"]}]

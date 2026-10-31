@@ -140,6 +140,9 @@ rest of `.claude/CLAUDE.md` is yours. Without it, `agents/generic` alone still g
 `kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The
 package format is in [docs/packages.md](docs/packages.md).
 
+`kit completion zsh` prints the zsh completion, which completes the verbs, their flags, and the values they take,
+read from the verbs themselves; see [docs/completion.md](docs/completion.md).
+
 ### Working with the rules
 
 - Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`

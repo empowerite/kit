@@ -186,6 +186,7 @@ from arguments, stays inline where it is used.
 | `status.jq` | a checkout's document, and what of it fits on the screen |
 | `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
+| `completion.jq` | what the word being typed may be, from a verb's syntax: a flag, an option's value, a literal word, or an operand |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:

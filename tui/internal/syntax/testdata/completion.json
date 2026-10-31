@@ -1,0 +1,40 @@
+{
+  "verb": "completion",
+  "purpose": "prints the shell completion for kit, and the words it offers",
+  "usage": [
+    "kit completion zsh",
+    "kit completion candidates <word>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "literal",
+        "name": "zsh",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "candidates",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "word",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "zsh": {
+      "description": "prints the zsh completion script"
+    },
+    "candidates": {
+      "description": "prints the candidates for the last of the words"
+    },
+    "<word>": {
+      "description": "the words typed so far, the first of them kit itself and the last the one being completed"
+    }
+  }
+}
