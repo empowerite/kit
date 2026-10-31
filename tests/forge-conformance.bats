@@ -328,4 +328,32 @@ JSON
   done
 }
 
+@test "every provider lists its releases in one shape, newest first, with the kind and the latest" {
+  fixture gh-releases.json <<'JSON'
+[{"tagName": "release/0.0.9", "name": "kit 0.0.9", "isPrerelease": false, "isDraft": false, "isLatest": true,
+  "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"},
+ {"tagName": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "isPrerelease": true, "isDraft": false, "isLatest": false,
+  "publishedAt": "2026-10-27T07:30:14Z", "createdAt": "2026-10-27T07:30:14Z"}]
+JSON
+  fixture gl-releases.json <<'JSON'
+[{"tag_name": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "released_at": "2026-10-27T07:30:14.000Z",
+  "upcoming_release": false},
+ {"tag_name": "release/0.0.9", "name": "kit 0.0.9", "released_at": "2026-10-20T07:30:14.000Z",
+  "upcoming_release": false}]
+JSON
+  expected='[{"version":"0.1.0-rc.6","tag":"release/0.1.0-rc.6","name":"kit 0.1.0-rc.6","kind":"pre-release","latest":false},'
+  expected+='{"version":"0.0.9","tag":"release/0.0.9","name":"kit 0.0.9","kind":"release","latest":true}]'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    route gh 'release list --limit 1000 --json *' gh-releases.json
+    route glab 'api projects/empowerite%2Fexample/releases?per_page=100' gl-releases.json
+    run call releases
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .at))' <<<"$output")" \
+      = "$(jq --compact-output --sort-keys . <<<"${expected}")" ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --slurp 'map(.age > 0) | all' <<<"$output")" = true ]
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

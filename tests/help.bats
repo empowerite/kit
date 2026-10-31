@@ -93,9 +93,12 @@ setup() {
   run "${kit_root}/bin/kit" help re
   [ "$status" -eq 0 ]
   [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
-  [[ "$output" != *"  release"* ]]
+  [[ "$output" == *"  release <version> [--lower]"* && "$output" == *"  releases [--json]"* ]]
   [[ "$output" != *"  status"* ]]
-  # no real verb is a prefix of another, so the own-name rule is proved with a copy of the kit that has kit-gates
+  # release is a prefix of releases, and its own name wins
+  run "${kit_root}/bin/kit" help release
+  [ "${lines[0]}" = "kit release - tags HEAD as a release and pushes the tag, after the rules a release keeps" ]
+  # and with a copy of the kit that has kit-gates beside kit-gate
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
   cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"

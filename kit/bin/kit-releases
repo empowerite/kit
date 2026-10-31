@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# kit-releases - lists the repository's releases on its forge, newest first (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit releases [--json]
+#
+# Lists the releases on the repository's forge, newest first, one row each: the version (the tag without release/),
+# the kind, a release, a pre-release, or a draft, with its glyph and its age, and the latest marked. kit release
+# makes one.
+#
+#   --json   prints the same facts as one JSON array: version, tag, name, kind, latest, at, and age in seconds
+#
+# Exits 0 on success, and 1 when the forge cannot be read.
+#
+# see: modules/bash/releases.sh, modules/bash/forge.sh, kit-release
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use releases
+guard:arguments releases "$@" || exit $?
+
+guard:require tool:git tool:jq
+releases:render "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

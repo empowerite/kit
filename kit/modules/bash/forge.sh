@@ -42,6 +42,7 @@
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit status draws
 #   open-issues                   one JSON object per open issue, oldest first, the documents kit backlog draws
+#   releases                      one JSON object per release, newest first, the documents kit releases draws
 #
 # see: docs/architecture.md
 
@@ -115,5 +116,6 @@ forge:pr-here()             { forge:call pr-here "$@"; }
 forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }
 forge:open-prs()            { forge:call open-prs "$@"; }
 forge:open-issues()         { forge:call open-issues "$@"; }
+forge:releases()            { forge:call releases "$@"; }
 
 # ----------------------------------------------------------------------------------------------------------------------

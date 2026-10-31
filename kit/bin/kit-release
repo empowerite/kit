@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# kit-release - tags HEAD as a release and pushes the tag, after the rules a release keeps (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit release <version> [--lower]
+#
+# Tags HEAD as release/<version>, annotated, and signed when require_signing is true in .kit/settings.yml, and pushes
+# that tag, and only that tag, to origin. That is how a release starts; the repository's release workflow, where it
+# has one, publishes it. No branch is pushed. Before tagging, kit release refuses:
+#
+#   - a version that is not <major>.<minor>.<patch>, with -<suffix> for a pre-release
+#   - a tag that exists already, here or on origin: a version is tagged once
+#   - a release, a version with no suffix, when HEAD is not on the default branch at origin; a pre-release may be
+#     tagged on any commit, and the push then sends the commits that only the tag reaches, which it says
+#   - a version not higher than every release tag on origin, by semantic-version precedence, unless --lower
+#
+#   <version>   the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release
+#   --lower     confirms a version that is not higher than the highest release on origin, such as a fix to an older
+#               line; kit asks nothing itself, so the confirmation is this flag
+#
+# Exits 0 when the tag is on origin, 1 on a refusal, and 2 on a usage error.
+#
+# see: modules/bash/releases.sh, modules/jq/version.jq, kit-releases
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use releases
+guard:arguments release "$@" || exit $?
+
+guard:require tool:git tool:jq
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+releases:release "${syntax_operands[0]}" "${syntax_options[--lower]:+lower}"
+
+# ----------------------------------------------------------------------------------------------------------------------

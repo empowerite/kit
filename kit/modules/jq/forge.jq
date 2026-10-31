@@ -115,3 +115,24 @@ def github_issues($now):
 def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
   | issue($now);
+
+# release($now) shapes a release found on either forge into the document kit releases draws: version (the tag without
+# release/), tag, name, kind (release, pre-release, or draft), latest, at (when it was published, or made, for a
+# draft), and age in seconds. It is given an object with tag, name, kind, latest, and at.
+def release($now):
+  {version: (.tag | sub("^release/"; "")), tag, name, kind, latest, at, age: ($now - (.at | epoch))};
+
+# github_releases($now) reads gh release list's answer and gives one document per release, newest first.
+def github_releases($now):
+  map({tag: .tagName, name, latest: .isLatest, at: (.publishedAt // .createdAt),
+      kind: (if .isDraft then "draft" elif .isPrerelease then "pre-release" else "release" end)})
+  | sort_by(.at) | reverse[] | release($now);
+
+# gitlab_releases($now) reads GitLab's releases and gives the same documents. GitLab marks no pre-release, so a tag
+# with a suffix is one, as kit release names it; a release not yet due is a draft; the latest is the newest release.
+def gitlab_releases($now):
+  map({tag: .tag_name, name, at: .released_at,
+      kind: (if .upcoming_release then "draft" elif (.tag_name | test("-")) then "pre-release" else "release" end)})
+  | sort_by(.at) | reverse
+  | (map(select(.kind == "release")) | first | .tag) as $latest
+  | .[] | . + {latest: (.tag == $latest)} | release($now);

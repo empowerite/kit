@@ -187,4 +187,14 @@ forge-github:open-issues() {
     <<<"${answer}"
 }
 
+# forge-github:releases prints one document per release, newest first, as the seam's header says.
+forge-github:releases() {
+  local answer
+  answer=$(gh release list --limit 1000 --json tagName,name,isPrerelease,isDraft,isLatest,publishedAt,createdAt \
+    2>/dev/null) || { error "run: gh auth status (the releases could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_releases($now)' \
+    <<<"${answer}"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

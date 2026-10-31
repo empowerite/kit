@@ -59,3 +59,8 @@ import "forge" as forge; forge::gitlab_issues(1000000)
 [{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "1970-01-12T13:46:20.000Z"}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
 {"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"createdAt":"1970-01-12T13:46:20.000Z","age":20}
 {"number":9,"ref":"#9","title":"Other thing","assignees":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10}
+
+# A draft has no publishing time and is dated by when it was made; releases come newest first.
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
+[{"tagName": "release/0.0.9", "name": "a", "isPrerelease": false, "isDraft": false, "isLatest": true, "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"}, {"tagName": "release/0.1.0-rc.7", "name": "b", "isPrerelease": true, "isDraft": true, "isLatest": false, "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
+["0.1.0-rc.7 draft false","0.0.9 release true"]

@@ -1,0 +1,30 @@
+{
+  "verb": "releases",
+  "purpose": "lists the repository's releases on its forge, newest first",
+  "usage": [
+    "kit releases [--json]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "prints the same facts as one JSON array: version, tag, name, kind, latest, at, and age in seconds"
+    }
+  }
+}

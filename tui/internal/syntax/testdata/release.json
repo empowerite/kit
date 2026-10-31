@@ -1,0 +1,38 @@
+{
+  "verb": "release",
+  "purpose": "tags HEAD as a release and pushes the tag, after the rules a release keeps",
+  "usage": [
+    "kit release <version> [--lower]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "operand",
+        "name": "version",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "lower",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<version>": {
+      "description": "the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release"
+    },
+    "--lower": {
+      "description": "confirms a version that is not higher than the highest release on origin, such as a fix to an older line; kit asks nothing itself, so the confirmation is this flag"
+    }
+  }
+}

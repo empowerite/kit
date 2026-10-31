@@ -202,4 +202,14 @@ forge-gitlab:open-issues() {
     <<<"${list}"
 }
 
+# forge-gitlab:releases prints one document per release, newest first, as the seam's header says.
+forge-gitlab:releases() {
+  local list
+  list=$(forge-gitlab:api "releases?per_page=100" 2>/dev/null) \
+    || { error "run: glab auth status (the releases could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::gitlab_releases($now)' \
+    <<<"${list}"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

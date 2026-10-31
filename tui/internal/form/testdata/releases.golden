@@ -1,0 +1,7 @@
+ lists the repository's releases on its forge, newest first
+
+   --json  prints the same facts as one JSON array: version, tag, name, kind, latest, at, and age in
+           seconds
+
+
+ kit releases

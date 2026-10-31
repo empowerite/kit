@@ -1,0 +1,19 @@
+# version.test - the version jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# Versions sort by semantic-version precedence: numbers as numbers, a pre-release below its release, numeric
+# identifiers below alphanumeric ones, and a longer set of identifiers above its own prefix.
+import "version" as version; sort_by(version::key)
+["0.2.0", "0.10.0", "0.2.0-rc.10", "0.2.0-rc.2", "0.2.0-beta", "0.2.0-rc", "1.0.0-alpha.1", "1.0.0-alpha"]
+["0.2.0-beta","0.2.0-rc","0.2.0-rc.2","0.2.0-rc.10","0.2.0","0.10.0","1.0.0-alpha","1.0.0-alpha.1"]
+
+# higher($versions) says whether a version is above every one of them; with none, it is.
+import "version" as version; [("0.2.0-rc.1" | version::higher(["0.2.0-rc.2"])), ("0.2.0" | version::higher(["0.2.0-rc.2", "0.1.9"])), ("0.2.0" | version::higher(["0.2.0"])), ("0.0.1" | version::higher([]))]
+null
+[false,true,false,true]
+
+# highest gives the highest of the versions, or null for none.
+import "version" as version; [version::highest, ([] | version::highest)]
+["0.2.0-rc.2", "0.1.9", "0.2.0-rc.10"]
+["0.2.0-rc.10",null]
