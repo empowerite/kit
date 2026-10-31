@@ -80,10 +80,10 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
   run kit changes --others
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no open change by anyone but ada"* ]]
+  [ -z "$output" ]
   run kit changes --owner=bob
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no open change by bob"* ]]
+  [ -z "$output" ]
 }
 
 @test "kit changes --json prints the change documents, each issue with its assignees and age" {
@@ -107,7 +107,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   run kit changes --others --owner=bob
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no open change by anyone but ada"* ]]
+  [ -z "$output" ]
   run kit changes --mine --others
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
@@ -116,7 +116,10 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" == *"--all cannot be combined with --owner; run: kit help changes"* ]]
 }
 
-@test "kit changes <issue>… lists only the changes that close one of the issues, with or without the #" {
+@test "kit changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
+  run kit changes 3
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   run kit changes 7
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
@@ -128,13 +131,13 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
   run kit changes 11
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no open change closes #11"* ]]
+  [ -z "$output" ]
   run kit changes 9 --mine
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no open change by ada closes #9"* ]]
+  [ -z "$output" ]
   run kit changes x7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'x7' is not an issue number: 7 or #7; run: kit help changes"* ]]
+  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help changes"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -13,12 +13,12 @@
 
 use forge status
 
-# changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…] prints the changes, one block
+# changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…] prints the changes, one block
 # each, to stderr. With --json it prints the change documents as one array to stdout. The owner flags combine as
-# status:filter says; issues given keep only the changes that close one of them. It returns 2 on a word that is not an
-# issue number.
+# status:filter says; numbers given keep only the changes numbered so, or that close an issue numbered so. With no
+# change to list it prints nothing, or [] with --json. It returns 2 on a word that is not a number.
 changes:render() {
-  local json=false mine=false others=false choice arg prs filter by='' closing=''
+  local json=false mine=false others=false choice arg prs filter
   local -a owners=() selection=() issues=()
   for arg in "$@"
   do
@@ -32,7 +32,7 @@ changes:render() {
       (*)
         if [[ ! "${arg}" =~ ^#?[0-9]+$ ]]
         then
-          error "'${arg}' is not an issue number: 7 or #7; run: kit help changes"
+          error "'${arg}' is not a number: 7 or #7; run: kit help changes"
           return 2
         fi
         issues+=("${arg#\#}")
@@ -45,25 +45,16 @@ changes:render() {
   prs=$(status:select "${selection[@]}" <<<"${prs}")
   if (( ${#issues[@]} > 0 ))
   then
-    prs=$(jq --compact-output -L "${kit_jq}" --argjson issues "[$(IFS=,; printf '%s' "${issues[*]}")]" \
-      'import "changes" as changes; changes::closing($issues)' <<<"${prs}")
-    closing=" closes $(printf '#%s\n' "${issues[@]}" | paste -s -d ' ' - | sed 's/ / or /g')"
+    prs=$(jq --compact-output -L "${kit_jq}" --argjson refs "[$(IFS=,; printf '%s' "${issues[*]}")]" \
+      'import "changes" as changes; changes::concerning($refs)' <<<"${prs}")
   fi
   if [[ "${json}" == true ]]
   then
     jq --slurp --compact-output . <<<"${prs}"
     return 0
   fi
-  if [[ -z "${prs}" ]]
-  then
-    case "${selection[0]:-}" in
-      ('') ;;
-      (--except) by=" by anyone but ${selection[*]:1}" ;;
-      (*) by=" by ${selection[*]}"
-    esac
-    step "no open change${by}${closing}"
-    return 0
-  fi
+  # Nothing to list prints nothing, so a script reads an empty answer as none.
+  [[ -n "${prs}" ]] || return 0
   status:pr-table "${choice}" "${prs}" always between
 }
 

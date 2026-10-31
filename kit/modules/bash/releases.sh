@@ -98,11 +98,8 @@ releases:render() {
     jq --slurp --compact-output . <<<"${docs}"
     return 0
   fi
-  if [[ -z "${docs}" ]]
-  then
-    step "no release yet; run: kit release <version>"
-    return 0
-  fi
+  # No release prints nothing, so a script reads an empty answer as none.
+  [[ -n "${docs}" ]] || return 0
   width=$(jq --slurp '[.[].version | length] | max' <<<"${docs}")
   kind_width=$(jq --slurp '[.[].kind | length] | max' <<<"${docs}")
   age_width=$(while read -r age; do status:age "${age}"; echo; done < <(jq --raw-output '.age' <<<"${docs}") \
