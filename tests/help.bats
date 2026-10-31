@@ -40,7 +40,7 @@ setup() {
       || { echo "no known group: ${verb##*/}"; return 1; }
   done
   run "${kit_root}/bin/kit" help kind
-  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit new, kit region'* ]]
+  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit kinds, kit new, kit region'* ]]
 }
 
 @test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {

@@ -7,7 +7,14 @@
 # Makes a new file from a rule's template. Then it prints the rules to read before writing the rest of the file,
 # as kit context does.
 #
-#   file                  what to make; this release makes files alone
+# kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
+#
+# Makes a kind of file in a package of the repository's own, at .kit/packages/<package>/files/repo/.kit/kinds/, as
+# <name>.yml. It makes the package too when there is none. When the package is active it places the kind, so kit
+# kind and kit context know it at once; otherwise it names the command that activates the package.
+#
+#   file                  makes a file from a template
+#   kind                  makes a kind of file
 #   <path>                the new file, relative to the repository root wherever the command runs. An absolute
 #                         path inside the repository is accepted. A path outside it is refused.
 #   --rule=<rule>         the rule whose template to use. Default: the most specific rule that governs the path
@@ -15,8 +22,17 @@
 #   --variant=<variant>   the template to use. Default: the first variant the rule lists that the path allows.
 #   --<hole>=<value>      the value of a hole («name») within a line of the template. The holes path, name, and
 #                         stem default to values taken from the path. Every other hole needs its flag.
+#   <name>                the kind's name: a lowercase letter, then lowercase letters, digits, and dashes
+#   --package=<name>      the package to put the kind in. Default: the repository's one package under
+#                         .kit/packages/, or else local
+#   --path=<glob>         a glob a path of the kind matches; ** matches any depth
+#   --content=<regex>     an extended regular expression the first line of a file of the kind matches
+#   --kinds=<kind>        a kind this kind is made of
+#   --embeds=<kind>       a kind whose text appears inside this kind's files
 #
-# kit new never overwrites a file: an existing path is refused.
+# A kind needs at least one --path, --content, or --kinds.
+#
+# kit new never overwrites a file: an existing path, or a kind's name already defined, is refused.
 #
 # Exits 0 when the file is made, 1 when the path exists or the template is missing, and 2 on a usage error.
 #
@@ -30,6 +46,12 @@ use context template release new
 guard:arguments new "$@" || exit $?
 release:hydrate
 
+if [[ "$1" == kind ]]
+then
+  shift
+  new:kind "$@"
+  exit $?
+fi
 shift
 
 path='' rule_name='' variant=''

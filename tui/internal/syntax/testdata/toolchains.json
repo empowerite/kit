@@ -1,0 +1,30 @@
+{
+  "verb": "toolchains",
+  "purpose": "lists the toolchains that manage the gate's tools, and the file each reads",
+  "usage": [
+    "kit toolchains [--json]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "prints one JSON object per toolchain instead: provider and file"
+    }
+  }
+}

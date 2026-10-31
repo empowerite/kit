@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# kit-package - lists, activates, or deactivates the packages this repository takes (kit verb: installation)
+# kit-package - activates or deactivates the packages this repository takes (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit package [list | select <package>… | add <package>… | remove <package>…]
+# kit package (select <package>… | add <package>… | remove <package>…)
 #
-#   list                 prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
-#                        excluded ones, its origin (release or repository), and its description. This is the default.
+# kit packages lists the packages; kit package changes which are active.
+#
 #   select <package>…    makes exactly the named packages, with the packages they depend on and the members they
 #                        include, the active set: it removes what the set omits, adds what it lacks, and says which
 #                        active package it kept for another's sake; with nothing to change it says the set
@@ -32,27 +32,11 @@ kit:enter
 use release package
 guard:arguments package "$@" || exit $?
 
-verb=${1:-list}
-shift || true
+verb=$1
+shift
 release:require-declaration
 
 case "${verb}" in
-  (list)
-    readarray -t active < <(release:declared-packages)
-    readarray -t excluded < <(release:declared-excludes)
-    width=$(release:packages | awk 'length > w { w = length } END { print w }')
-    for package in $(release:packages)
-    do
-      if release:among "${package}" "${active[@]}"
-      then mark='✅'
-      elif release:among "${package}" "${excluded[@]}"
-      then mark='❌'
-      else mark='  '
-      fi
-      printf '%s %-*s %-10s %s\n' "${mark}" "${width}" "${package}" "$(release:origin "${kit_root}" "${package}")" \
-        "$(release:description "${kit_root}" "${package}")"
-    done
-    ;;
   (select) package:select "$@" ;;
   (add) package:add "$@" ;;
   (remove) package:remove "$@"

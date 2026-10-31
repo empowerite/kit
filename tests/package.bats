@@ -29,7 +29,7 @@ teardown() {
   [ ! -e .github/instructions/kit-bash.instructions.md ]
   [[ "$output" == *"agents/claude: kept, a member of empowerite"* ]]
   [[ "$output" == *"kit: kept, "*" depend(s) on it"* ]]
-  run "${kit_checkout}/bin/kit" package list
+  run "${kit_checkout}/bin/kit" packages
   [ "$status" -eq 0 ]
   [[ "$output" == *"✅ agents/cursor"* && "$output" == *"✅ agents/claude"* && "$output" == *"✅ empowerite"* ]]
   [[ "$output" != *"✅ agents/copilot"* ]]
@@ -52,7 +52,7 @@ teardown() {
   [ "$(cat .kit/settings.yml)" = "${before}" ]
   run "${kit_checkout}/bin/kit" package select 'style/*'
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package list
+  run "${kit_checkout}/bin/kit" packages
   [[ "$output" == *"✅ style/bash"* && "$output" == *"✅ style/yaml"* ]]
 }
 
@@ -77,6 +77,50 @@ teardown() {
   run "${kit_checkout}/bin/kit" package select empowerite hooks/lefthook
   [ "$status" -eq 0 ]
   [ -e .kit/lefthook.yml ]
+}
+
+@test "kit packages lists the packages, filtered by state and by name or glob, or as JSON, and kit package wants a change" {
+  "${kit_checkout}/bin/kit" install agents/claude >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" packages --active
+  [ "$(awk '{ print $2 }' <<<"$output" | paste -s -d ' ' -)" = "agents/claude agents/generic kit" ]
+  run "${kit_checkout}/bin/kit" packages --inactive 'agents/*'
+  [ "$(awk '{ print $1 }' <<<"$output" | paste -s -d ' ' -)" = "agents/copilot agents/cursor agents/gemini" ]
+  run "${kit_checkout}/bin/kit" packages --json kit style/bash
+  [ "$(jq -sc 'map({name, state, origin})' <<<"$output")" = \
+    '[{"name":"kit","state":"active","origin":"release"},{"name":"style/bash","state":"inactive","origin":"release"}]' ]
+  run "${kit_checkout}/bin/kit" package
+  [ "$status" -eq 2 ]
+  run "${kit_checkout}/bin/kit" package list
+  [ "$status" -eq 2 ]
+}
+
+@test "kit new kind writes a kind into the repository's own package, which kit kinds then lists and kit kind applies" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" new kind toml --path='**/*.toml' --embeds=bash
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"run: kit package add local"* ]]
+  [ -f .kit/packages/local/package.yml ]
+  [ "$(sed -n 3p .kit/packages/local/files/repo/.kit/kinds/toml.yml)" = "name: toml" ]
+  "${kit_checkout}/bin/kit" package add local >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" kind Cargo.toml
+  [ "$output" = $'any\ntoml' ]
+  run "${kit_checkout}/bin/kit" new kind conf --kinds=toml --kinds=json
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the conf kind is in place"* ]]
+  run "${kit_checkout}/bin/kit" kinds --json conf
+  [ "$(jq -c '{file, kinds}' <<<"$output")" = '{"file":".kit/kinds/conf.yml","kinds":["toml","json"]}' ]
+  run "${kit_checkout}/bin/kit" kind Cargo.toml
+  [ "$output" = $'any\nconf\ntoml' ]
+  run "${kit_checkout}/bin/kit" new kind toml --path='*.tml'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the kind toml is defined already"* ]]
+  run "${kit_checkout}/bin/kit" new kind Bad --path='*.x'
+  [ "$status" -eq 2 ]
+  run "${kit_checkout}/bin/kit" new kind empty
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"needs --path, --content, or --kinds"* ]]
+  run "${kit_checkout}/bin/kit" kinds
+  [[ "$output" == *"toml "*".kit/kinds/toml.yml"*"**/*.toml · embeds bash"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

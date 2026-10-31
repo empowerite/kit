@@ -1,8 +1,5 @@
- lists, activates, or deactivates the packages this repository takes
+ activates or deactivates the packages this repository takes
 
-   list    prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
-           excluded ones, its origin (release or repository), and its description. This is the
-           default.
    select  makes exactly the named packages, with the packages they depend on and the members they
            include, the active set: it removes what the set omits, adds what it lacks, and says
            which active package it kept for another's sake; with nothing to change it says the set

@@ -125,7 +125,8 @@ the others are optional, such as one style package per kind of file, the CI job,
 adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 
 - `kit install` and `kit package add` activate packages, with the packages they depend on. `kit package remove`
-  deactivates one and takes out everything it placed. `kit package list` shows the active set.
+  deactivates one and takes out everything it placed. `kit packages` lists them, the active set
+  among them.
 - A bundle, such as `empowerite`, activates its members. Any member can be removed on its own, and stays out
   through later updates.
 - A repository defines packages of its own under `.kit/packages/<name>/`, in the same format. One can add rules,

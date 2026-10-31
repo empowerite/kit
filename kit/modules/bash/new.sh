@@ -158,4 +158,101 @@ new:extend() {
       | from_entries'
 }
 
+# new:kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
+# writes a kind into a package of the repository's own, makes the package when there is none, and places the kind
+# when the package is active, or names the command that activates it. It refuses a name already defined, a kind
+# with nothing to match a path by, and a value that holds a double quote, which the kinds file could not hold.
+new:kind() {
+  local name='' package='' arg key value file dir
+  local -a packages
+  local -A lists=([paths]='' [content]='' [kinds]='' [embeds]='')
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--package=?*) package=${arg#--package=} ;;
+      (--path=?* | --content=?* | --kinds=?* | --embeds=?*)
+        key=${arg%%=*}
+        key=${key#--}
+        [[ "${key}" == path ]] && key=paths
+        value=${arg#*=}
+        if [[ "${value}" == *'"'* ]]
+        then
+          error "--${key%s}=${value}: a kind's value cannot hold a double quote"
+          return 2
+        fi
+        lists[${key}]+=${value}$'\n'
+        ;;
+      (*) name=${arg}
+    esac
+  done
+  if [[ ! "${name}" =~ ^[a-z][a-z0-9-]*$ ]]
+  then
+    error "a kind's name is a lowercase letter, then lowercase letters, digits, and dashes, not '${name}'"
+    return 2
+  fi
+  if [[ -z "${lists[paths]}${lists[content]}${lists[kinds]}" ]]
+  then
+    error "kit new kind ${name} needs --path, --content, or --kinds, to say what makes a path of the kind"
+    return 2
+  fi
+  use context
+  context:load || return 1
+  if [[ -n "${context_kind_paths[${name}]+x}" ]]
+  then
+    error "the kind ${name} is defined already; run: kit kinds ${name}"
+    return 1
+  fi
+  if [[ -z "${package}" ]]
+  then
+    readarray -t packages < <(find .kit/packages -mindepth 2 -maxdepth 2 -name package.yml 2>/dev/null \
+      | sed 's|^\.kit/packages/||; s|/package\.yml$||' | LC_ALL=C sort)
+    package=local
+    (( ${#packages[@]} == 1 )) && package=${packages[0]}
+  fi
+  dir=.kit/packages/${package}
+  file=${dir}/files/repo/.kit/kinds/${name}.yml
+  if [[ -e "${file}" ]]
+  then
+    error "${file} is there already; kit new makes a file, it never overwrites one"
+    return 1
+  fi
+  if [[ ! -f "${dir}/package.yml" ]]
+  then
+    mkdir -p "${dir}"
+    printf '%s\n' "# .kit/packages/${package}/package.yml - the ${package} package: this repository's own kinds" \
+      '' "description: \"This repository's own kinds, rules, and styles\"" 'depends:' '  - kit' > "${dir}/package.yml"
+    step "made ${dir}/package.yml"
+  fi
+  mkdir -p "$(dirname "${file}")"
+  {
+    printf '# kit:generated -- the %s kind, from the %s package\n' "${name}" "${package}"
+    printf '# see: kit package remove %s, or "Changing what kit adds" in .kit/1st.md\n' "${package}"
+    printf 'name: %s\n' "${name}"
+    for key in paths content kinds embeds
+    do
+      [[ -n "${lists[${key}]}" ]] || continue
+      printf '%s:\n' "${key}"
+      while IFS= read -r value
+      do
+        [[ -n "${value}" ]] || continue
+        if [[ "${key}" == paths || "${key}" == content ]]
+        then
+          printf '  - "%s"\n' "${value}"
+        else
+          printf '  - %s\n' "${value}"
+        fi
+      done <<<"${lists[${key}]}"
+    done
+  } > "${file}"
+  ok "made ${file}"
+  readarray -t packages < <(release:declared-packages)
+  if release:among "${package}" "${packages[@]}"
+  then
+    run kit hydrate >/dev/null
+    step "the ${name} kind is in place; run: kit kinds ${name}"
+  else
+    step "the ${package} package is not active; run: kit package add ${package}"
+  fi
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

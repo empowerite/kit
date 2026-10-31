@@ -137,7 +137,7 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `agents/cla
 rest of `.claude/CLAUDE.md` is yours. Without it, `agents/generic` alone still gives any agent that reads
 `AGENTS.md` the rules.
 
-`kit package list`, `kit package add`, and `kit package remove` show and change the installed packages. The
+`kit packages` lists the packages, and `kit package add` and `kit package remove` change which are installed. The
 package format is in [docs/packages.md](docs/packages.md).
 
 `kit completion zsh` prints the zsh completion, which completes the verbs, their flags, and the values they take,

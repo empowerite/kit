@@ -2,16 +2,9 @@
   "verb": "toolchain",
   "purpose": "installs, reports, and updates the tools the gate runs, whatever manages them",
   "usage": [
-    "kit toolchain list | install | outdated [--check] | update | path | run <command>…"
+    "kit toolchain install | outdated [--check] | update | path | run <command>…"
   ],
   "syntax": [
-    [
-      {
-        "kind": "literal",
-        "name": "list",
-        "repeat": false
-      }
-    ],
     [
       {
         "kind": "literal",
@@ -68,9 +61,6 @@
     ]
   ],
   "arguments": {
-    "list": {
-      "description": "prints each declared toolchain and the file it reads"
-    },
     "install": {
       "description": "installs every toolchain's pinned tools"
     },

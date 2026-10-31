@@ -42,7 +42,7 @@ toolchains:
 
 | Command | What it does |
 | --- | --- |
-| `kit toolchain list` | Prints each declared toolchain and the file it reads. |
+| `kit toolchains` | Lists each declared toolchain and the file it reads; `--json` prints them as JSON. |
 | `kit toolchain install` | Installs every toolchain's pinned tools: `mise install`, `brew bundle install --no-upgrade`, or a `docker build` of the image. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
 | `kit toolchain outdated` | Prints one line per tool that is behind its source. With `--check`, fails when there is one. |
 | `kit toolchain update` | Moves every tool to its latest version and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, or new `FROM` digests in the Dockerfile. Commit the files it rewrote. |

@@ -31,20 +31,20 @@ fixture() { cat > "${FAKE_DIR}/$1"; }
 route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
 
 @test "the toolchains are detected from their files, in order, and a declared one wins" {
-  run "${kit_root}/bin/kit" toolchain list
+  run "${kit_root}/bin/kit" toolchains
   [ -z "$output" ]
   run "${kit_root}/bin/kit" toolchain install
   [ "$status" -eq 0 ]
   [[ "$output" == *"no toolchain is declared or detected"* ]]
   touch mise.toml Brewfile toolchain.Dockerfile
-  run "${kit_root}/bin/kit" toolchain list
+  run "${kit_root}/bin/kit" toolchains
   detected=$(awk '{ print $1 "=" $2 }' <<<"$output" | paste -s -d ' ' -)
   [ "${detected}" = "mise=mise.toml brew=Brewfile docker=toolchain.Dockerfile" ]
   mkdir .kit && printf 'toolchains:\n  - provider: brew\n    file: tools/Brewfile\n' > .kit/settings.yml
-  run "${kit_root}/bin/kit" toolchain list
+  run "${kit_root}/bin/kit" toolchains
   [ "$output" = "brew     tools/Brewfile" ]
   printf 'toolchains:\n  - provider: nix\n' > .kit/settings.yml
-  run "${kit_root}/bin/kit" toolchain list
+  run "${kit_root}/bin/kit" toolchains
   [ "$status" -ne 0 ]
   [[ "$output" == *"'nix' is not a toolchain the kit knows; the toolchains are: brew docker mise"* ]]
 }

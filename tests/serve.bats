@@ -53,7 +53,7 @@ call() {
   answer 1 | jq --exit-status '.result | .protocolVersion == "2025-06-18" and .serverInfo.name == "kit"
     and .capabilities == {tools: {}, resources: {}} and (.instructions | contains("kit://1st.md"))'
   answer 2 | jq --exit-status '.result == {}'
-  answer 3 | jq --exit-status '.result.tools | length == 11'
+  answer 3 | jq --exit-status '.result.tools | length == 13'
   serve '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1999-01-01","capabilities":{}}}'
   answer 1 | jq --exit-status '.result.protocolVersion == "2025-11-25"'
 }
@@ -87,24 +87,22 @@ call() {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'
   [ "$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')" = \
-    "backlog changes check context help kind lint package-list status syntax version" ]
+    "backlog changes check context help kind kinds lint packages status syntax toolchains version" ]
   local verb
-  for verb in backlog changes check context help kind lint status syntax version
+  for verb in backlog changes check context help kind kinds lint packages status syntax toolchains version
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
       sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
       '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose))
         and (.inputSchema.properties | keys == ["args"]) and .annotations.readOnlyHint'
   done
-  answer 1 | jq --exit-status '.result.tools[] | select(.name == "package-list")
-    | (.description | startswith("kit package list prints every package in reach"))'
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["backlog", "changes", "status"]'
 }
 
 @test "a tool runs its verb: context names a bash file's rule, and lint's finding comes back as an error" {
   command -v shellcheck >/dev/null || skip "shellcheck, the bash rule's linter, is not on PATH"
   printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > tool.sh
-  serve "$(call 1 context tool.sh)" "$(call 2 lint tool.sh)" "$(call 3 package-list)"
+  serve "$(call 1 context tool.sh)" "$(call 2 lint tool.sh)" "$(call 3 packages)"
   answer 1 | jq --exit-status '.result | .isError == false and (.content[0].text | split("\n") | index(".kit/rules/bash.md"))'
   answer 2 | jq --exit-status '.result | .isError and (.content[0].text | contains("SC2086"))
     and (.content[0].text | contains("kit lint exited with status 1"))'

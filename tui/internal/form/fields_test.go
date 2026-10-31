@@ -98,7 +98,7 @@ func TestPackageLiteralChoosesItsAlternative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "OneOf PickMany" || fields[0].Options[2] != "add" || fields[0].Chosen != 2 || fields[0].Required {
+	if kinds(fields) != "OneOf PickMany" || fields[0].Options[1] != "add" || fields[0].Chosen != 1 || !fields[0].Required {
 		t.Fatalf("package add: %s %+v", kinds(fields), fields[0])
 	}
 	if fields[1].Key != "<package>" || fields[1].Choices != "closed" || !fields[1].Required {
@@ -135,16 +135,20 @@ func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
 	}
 }
 
-func TestNewKeepsTheLiteralInTheLabelAndEndsWithTheWildcard(t *testing.T) {
+func TestNewChoosesWhatToMakeAndEndsWithTheWildcard(t *testing.T) {
 	fields, err := Fields(specs(t)["new"], Answers{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "Text Pick Pick Wildcard" || fields[0].Label != "file <path>" || fields[0].Key != "<path>" || !fields[0].Required {
-		t.Fatalf("new: %s %+v", kinds(fields), fields)
+	if kinds(fields) != "OneOf" || strings.Join(fields[0].Options, " ") != "file kind" || !fields[0].Required {
+		t.Fatalf("bare new: %s %+v", kinds(fields), fields)
 	}
-	if fields[1].Key != "--rule" || fields[1].Choices != "closed" || fields[3].Key != "--<hole>" {
-		t.Errorf("new's options: %+v", fields)
+	fields, _ = Fields(specs(t)["new"], FromMatch(syntax.Match{Literals: []string{"file"}}))
+	if kinds(fields) != "OneOf Text Pick Pick Wildcard" || fields[1].Key != "<path>" || !fields[1].Required {
+		t.Fatalf("new file: %s %+v", kinds(fields), fields)
+	}
+	if fields[2].Key != "--rule" || fields[2].Choices != "closed" || fields[4].Key != "--<hole>" {
+		t.Errorf("new file's options: %+v", fields)
 	}
 }
 

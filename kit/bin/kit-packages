@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# kit-packages - lists the packages in reach, and which are active (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit packages [--active | --inactive] [--json] [<package>…]
+#
+# Lists every package in reach, from the release and from .kit/packages/, one row each: a ✅ beside an active one and
+# a ❌ beside one the repository excludes, its name, its origin (release or repository), and its description. kit
+# package changes which are active.
+#
+#   --active       only the active packages
+#   --inactive     only the packages that are not active, the excluded ones among them
+#   --json         prints one JSON object per package instead: name, origin, state, and description
+#   <package>…     only the packages with these names, or that match these globs, such as 'style/*'
+#
+# Exits 0 on success, and 2 on a usage error.
+#
+# see: modules/bash/package.sh, docs/packages.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use release package
+guard:arguments packages "$@" || exit $?
+release:require-declaration
+
+package:list "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -144,8 +144,9 @@ func TestOneOfArrows(t *testing.T) {
 	if m.fields[0].Chosen != 1 || len(m.fields) != 2 || m.fields[1].Key != "<package>" {
 		t.Fatalf("right twice: %+v", m.fields)
 	}
+	// kit package needs one of its words, so backspace leaves the choice where it is.
 	m, _ = drive(t, m, keys("backspace")...)
-	if m.fields[0].Chosen != -1 || len(m.fields) != 1 {
+	if m.fields[0].Chosen != 1 || len(m.fields) != 2 {
 		t.Errorf("backspace: %+v", m.fields)
 	}
 }
@@ -242,10 +243,10 @@ func TestExtendedFieldsReplaceTheWildcard(t *testing.T) {
 	for _, f := range m.fields {
 		labels = append(labels, f.Label)
 	}
-	if strings.Join(labels, " ") != "file <path> --rule --variant «title» «purpose»" {
+	if strings.Join(labels, " ") != "file | kind <path> --rule --variant «title» «purpose»" {
 		t.Fatalf("labels: %q", labels)
 	}
-	m.focus = 3
+	m.focus = 4
 	m.enter()
 	m, _ = drive(t, m, typed("kit tui")...)
 	if got := Quote(m.CommandLine()); got != "file docs/x.md --rule=markdown --title='kit tui'" {

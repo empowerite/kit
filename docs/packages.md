@@ -7,7 +7,8 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 
 - `kit install [<package>…]` activates `kit`, the one default package, plus the named packages, the packages they
   depend on, and the members they include. It declares the set under `packages:` in `.kit/settings.yml`.
-- `kit package list` shows every package the release has, which are active, and which are excluded.
+- `kit packages` lists every package in reach, which are active, and which are excluded, filtered by state with
+  `--active` or `--inactive`, by name or glob, and as JSON with `--json`.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
 - `kit package select <package>…` names the active set itself: the named packages, the packages they depend on, and
   the members they include become the set, and nothing else stays. It removes what the set omits, adds what it lacks,
@@ -80,7 +81,7 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
-| `description` | Required. One line, shown by `kit package list`. |
+| `description` | Required. One line, shown by `kit packages`. |
 | `default` | `true` makes the package active unless removed. In this release only `kit` sets it. |
 | `depends` | Packages activated with this one. `kit package remove` refuses a package another active package depends on. |
 | `includes` | The members of a bundle: packages activated with this one, each of which `kit package remove` can take out on its own. |
@@ -259,7 +260,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 - The kit looks up a package name in the release first, then in `.kit/packages/`.
 - It is validated like a delivered package, and it may depend on delivered packages.
 - Activate it with `kit install <name>` or `kit package add <name>`.
-- `kit package list` shows it with its origin.
+- `kit packages` shows it with its origin.
 - Its paths are recorded in the manifest with their digests, so `kit check` can tell an edited installed copy
   from its source.
 - On update, its files are compared with its own current source. An edit under `.kit/packages/` is never merged

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# kit-toolchains - lists the toolchains that manage the gate's tools, and the file each reads (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit toolchains [--json]
+#
+# Lists each declared toolchain, mise, brew, or docker, and the file it reads, one per line: the toolchains setting
+# in .kit/settings.yml, or else the ones whose file is present. kit toolchain installs and updates their tools.
+#
+#   --json   prints one JSON object per toolchain instead: provider and file
+#
+# Exits 0 on success, 1 when the declaration names a toolchain the kit does not know, and 2 on a usage error.
+#
+# see: modules/bash/toolchain.sh, docs/toolchains.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use toolchain
+guard:arguments toolchains "$@" || exit $?
+
+providers=$(toolchain:declared) || exit 1
+for provider in ${providers}
+do
+  file=$(toolchain:call "${provider}" file)
+  if [[ "${1:-}" == --json ]]
+  then
+    jq --null-input --compact-output --arg provider "${provider}" --arg file "${file}" \
+      '{provider: $provider, file: $file}'
+  else
+    printf '%-8s %s\n' "${provider}" "${file}"
+  fi
+done
+
+# ----------------------------------------------------------------------------------------------------------------------

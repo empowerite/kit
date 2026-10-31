@@ -119,7 +119,7 @@ later-release() {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
   "${kit_checkout}/bin/kit" install
-  run "${kit_checkout}/bin/kit" package list
+  run "${kit_checkout}/bin/kit" packages
   [[ "$output" == *"✅ kit "* ]]
   [[ "$output" =~ "   agents/claude " ]]
   run "${kit_checkout}/bin/kit" package add agents/claude
@@ -234,7 +234,7 @@ later-release() {
   [ "$status" -eq 0 ]
   [ "$(declared packages)" = "kit python" ]
   [ "$(cat .python-version)" = "python 3.13" ]
-  run "${kit_checkout}/bin/kit" package list
+  run "${kit_checkout}/bin/kit" packages
   [[ "$output" =~ python\ +repository ]]
   [[ "$output" =~ kit\ +release ]]
   run "${kit_checkout}/bin/kit" context app.py
@@ -611,7 +611,7 @@ later-release() {
   [ ! -e .kit/styles/just.md ]
   [ "$(declared excludes)" = "style/just" ]
   [[ " $(declared packages) " != *style/just* ]]
-  run "${kit_checkout}/bin/kit" package list
+  run "${kit_checkout}/bin/kit" packages
   [[ "$output" == *"❌ style/just "* ]]
   run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]

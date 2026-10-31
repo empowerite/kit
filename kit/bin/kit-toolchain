@@ -2,13 +2,13 @@
 # kit-toolchain - installs, reports, and updates the tools the gate runs, whatever manages them (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit toolchain list | install | outdated [--check] | update | path | run <command>…
+# kit toolchain install | outdated [--check] | update | path | run <command>…
 #
 # Manages the tools the gate runs, through each declared toolchain: mise, brew, or docker. The same subcommands run
 # on a developer's machine and in the delivered CI job. The toolchains are the `toolchains` setting in
-# .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile.
+# .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile. kit
+# toolchains lists them.
 #
-#   list                    prints each declared toolchain and the file it reads
 #   install                 installs every toolchain's pinned tools
 #   outdated [--check]      prints one line per tool behind its latest version
 #   --check                 with outdated: fails when any tool is behind
@@ -36,12 +36,6 @@ providers=$(toolchain:declared) || exit 1
 verb=${1:-}
 [[ -n "${verb}" ]] && shift
 case "${verb}" in
-  (list)
-    for provider in ${providers}
-    do
-      printf '%-8s %s\n' "${provider}" "$(toolchain:call "${provider}" file)"
-    done
-    ;;
   (install)
     if [[ -z "${providers}" ]]
     then

@@ -185,8 +185,8 @@ setup() {
   run "${kit_root}/bin/kit" syntax commit --match -- --bogus
   [ "$status" -eq 0 ]
   [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help commit" ]
-  run "${kit_root}/bin/kit" syntax package --match
-  [ "$(jq -c '[.status, .literals]' <<<"$output")" = '[0,[]]' ]
+  run "${kit_root}/bin/kit" syntax package --match -- add
+  [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["add"],"<package>"]' ]
 }
 
 @test "kit syntax --list prints each verb and its purpose, one per line, for a palette to open on" {

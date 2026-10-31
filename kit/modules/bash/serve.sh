@@ -27,8 +27,8 @@ use context help release syntax
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools, each a verb that changes nothing. package-list runs kit package list.
-declare -gra serve_tools=(backlog changes check context help kind lint package-list status syntax version)
+# The tools, each a verb that changes nothing.
+declare -gra serve_tools=(backlog changes check context help kind kinds lint packages status syntax toolchains version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(backlog changes status)
@@ -187,20 +187,13 @@ serve:tool() {
   do
     [[ "${tool}" == "${world}" ]] && open=true
   done
-  if [[ "${tool}" == package-list ]]
-  then
-    verb=package
-    description="kit package list $(syntax:spec package | jq --raw-output '.arguments.list.description')"$'\n\n'
-    description+=$'Usage:\n  kit package list'
-  else
-    description="kit ${verb} $(help:purpose "${verb}")"$'\n\nUsage:\n'
-    description+=$(help:usage "${verb}" | sed 's/^/  /')$'\n\n'
-    description+=$(help:description "${verb}")
-  fi
+  description="kit ${verb} $(help:purpose "${verb}")"$'\n\nUsage:\n'
+  description+=$(help:usage "${verb}" | sed 's/^/  /')$'\n\n'
+  description+=$(help:description "${verb}")
   jq --null-input --compact-output --arg name "${tool}" --arg description "${description}" \
     --arg verb "${verb}" --argjson open "${open}" '{
       name: $name,
-      title: ("kit " + ($name | sub("-"; " "))),
+      title: ("kit " + $name),
       description: $description,
       inputSchema: {
         type: "object",
@@ -208,7 +201,7 @@ serve:tool() {
           args: {
             type: "array",
             items: {type: "string"},
-            description: ("the arguments that follow kit " + ($name | sub("-"; " ")) + ", as the usage lines write them")
+            description: ("the arguments that follow kit " + $name + ", as the usage lines write them")
           }
         },
         additionalProperties: false
@@ -235,7 +228,6 @@ serve:tools-call() {
   fi
   readarray -d '' -t args < <(jq --raw-output0 '.arguments.args // [] | .[]' <<<"$2")
   command=("${name}")
-  [[ "${name}" == package-list ]] && command=(package list)
   out=$(mktemp) err=$(mktemp)
   (
     export NO_COLOR=1

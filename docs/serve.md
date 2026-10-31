@@ -17,10 +17,12 @@ The tools are the verbs that read and report, and change nothing:
 | `context` | `kit context` |
 | `help` | `kit help` |
 | `kind` | `kit kind` |
+| `kinds` | `kit kinds` |
 | `lint` | `kit lint` |
-| `package-list` | `kit package list` |
+| `packages` | `kit packages` |
 | `status` | `kit status` |
 | `syntax` | `kit syntax` |
+| `toolchains` | `kit toolchains` |
 | `version` | `kit version` |
 
 - A tool's description is its verb's help, read from the verb's header by the functions `kit help` uses, so the

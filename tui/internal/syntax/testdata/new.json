@@ -2,7 +2,8 @@
   "verb": "new",
   "purpose": "makes a new file from the template of the rule that governs it",
   "usage": [
-    "kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…"
+    "kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…",
+    "kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]"
   ],
   "syntax": [
     [
@@ -65,11 +66,106 @@
         ],
         "repeat": true
       }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "kind",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "path",
+              "value": "glob",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "content",
+              "value": "regex",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "kinds",
+              "value": "kind",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "embeds",
+              "value": "kind",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "package",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
     "file": {
-      "description": "what to make; this release makes files alone"
+      "description": "makes a file from a template"
+    },
+    "kind": {
+      "description": "makes a kind of file"
     },
     "<path>": {
       "description": "the new file, relative to the repository root wherever the command runs. An absolute path inside the repository is accepted. A path outside it is refused."
@@ -84,6 +180,24 @@
     },
     "--<hole>": {
       "description": "the value of a hole («name») within a line of the template. The holes path, name, and stem default to values taken from the path. Every other hole needs its flag."
+    },
+    "<name>": {
+      "description": "the kind's name: a lowercase letter, then lowercase letters, digits, and dashes"
+    },
+    "--package": {
+      "description": "the package to put the kind in. Default: the repository's one package under .kit/packages/, or else local"
+    },
+    "--path": {
+      "description": "a glob a path of the kind matches; ** matches any depth"
+    },
+    "--content": {
+      "description": "an extended regular expression the first line of a file of the kind matches"
+    },
+    "--kinds": {
+      "description": "a kind this kind is made of"
+    },
+    "--embeds": {
+      "description": "a kind whose text appears inside this kind's files"
     }
   },
   "extends": true

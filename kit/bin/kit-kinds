@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# kit-kinds - lists the kinds of file the repository defines, and what makes a path of each (kit verb: files)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit kinds [--json] [<kind>…]
+#
+# Lists every kind under .kit/kinds/, or the named ones, in name order: its name, the file that defines it, and what
+# makes a path of it: its globs, the patterns its first line may match, the kinds it is made of, and the kinds it
+# embeds. kit kind prints the kinds of a path; kit new kind makes a kind.
+#
+#   --json     prints one JSON object per kind instead: name, file, paths, content, kinds, and embeds
+#   <kind>…    only the kinds with these names
+#
+# Exits 0 on success, 1 when a kinds file is malformed, and 2 on a usage error.
+#
+# see: modules/bash/context.sh, docs/context.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context release
+guard:arguments kinds "$@" || exit $?
+release:hydrate
+
+json=false
+names=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--json) json=true ;;
+    (*) names+=("${arg}")
+  esac
+done
+context:load || exit 1
+
+# One JSON object per kind, from the kinds files, in name order; the named ones alone when names are given.
+kinds=$(context:read-kinds .kit/kinds/*.yml | jq --raw-input --slurp --compact-output --args '
+  ($ARGS.positional) as $names
+  | [split("\n")[] | select(length > 0) | split("\u001f")]
+  | reduce .[] as [$file, $kind, $field, $value] ({};
+      if $field == "name" then .[$kind] = {name: $kind, file: $file, paths: [], content: [], kinds: [], embeds: []}
+      else .[$kind][$field] += [$value] end)
+  | [.[]] | sort_by(.name)[]
+  | select(($names | length) == 0 or (.name as $n | $names | index($n)))' "${names[@]}")
+
+if [[ "${json}" == true ]]
+then
+  printf '%s\n' "${kinds}" | awk 'NF'
+  exit 0
+fi
+[[ -n "${kinds}" ]] || exit 0
+jq --raw-output --slurp '
+  (map(.name | length) | max) as $w | (map(.file | length) | max) as $f
+  | .[] | [
+      (.name + (" " * ($w - (.name | length)))),
+      (.file + (" " * ($f - (.file | length)))),
+      ([(.paths | join(" ")), (.content | map("first line " + .) | join(" ")),
+        (if .kinds | length > 0 then "any of " + (.kinds | join(" ")) else empty end),
+        (if .embeds | length > 0 then "embeds " + (.embeds | join(" ")) else empty end)]
+       | map(select(length > 0)) | join(" · "))
+    ] | join("  ")' <<<"${kinds}"
+
+# ----------------------------------------------------------------------------------------------------------------------

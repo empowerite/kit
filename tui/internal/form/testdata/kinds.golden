@@ -1,0 +1,8 @@
+ lists the kinds of file the repository defines, and what makes a path of each
+
+   --json   prints one JSON object per kind instead: name, file, paths, content, kinds, and embeds
+
+   <kind>…  only the kinds with these names
+
+
+ kit kinds

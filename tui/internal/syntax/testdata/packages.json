@@ -1,0 +1,74 @@
+{
+  "verb": "packages",
+  "purpose": "lists the packages in reach, and which are active",
+  "usage": [
+    "kit packages [--active | --inactive] [--json] [<package>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "active",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "inactive",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--active": {
+      "description": "only the active packages"
+    },
+    "--inactive": {
+      "description": "only the packages that are not active, the excluded ones among them"
+    },
+    "--json": {
+      "description": "prints one JSON object per package instead: name, origin, state, and description"
+    },
+    "<package>": {
+      "description": "only the packages with these names, or that match these globs, such as 'style/*'"
+    }
+  }
+}

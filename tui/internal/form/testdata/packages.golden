@@ -1,0 +1,10 @@
+ lists the packages in reach, and which are active
+
+   --active   --inactive  only the active packages
+
+   --json      prints one JSON object per package instead: name, origin, state, and description
+
+   <package>…  only the packages with these names, or that match these globs, such as 'style/*'
+
+
+ kit packages

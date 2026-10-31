@@ -21,6 +21,74 @@ package:named() {
   printf '%s\n' "${named[@]}"
 }
 
+# package:list [--active | --inactive] [--json] [<package>…] prints every package in reach, or those that match a
+# name or a glob, one row each: a ✅ beside an active one and a ❌ beside an excluded one, its name, its origin (release
+# or repository), and its description. --active keeps the active ones, --inactive the rest. --json prints one object
+# per package instead: name, origin, state (active, excluded, or inactive), and description.
+package:list() {
+  local json=false state='' arg package mark origin width state_word
+  local -a patterns=() active excluded shown=()
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--json) json=true ;;
+      (--active) state=active ;;
+      (--inactive) state=inactive ;;
+      (*) patterns+=("${arg}")
+    esac
+  done
+  readarray -t active < <(release:declared-packages)
+  readarray -t excluded < <(release:declared-excludes)
+  for package in $(release:packages)
+  do
+    if (( ${#patterns[@]} ))
+    then
+      package:matches "${package}" "${patterns[@]}" || continue
+    fi
+    if release:among "${package}" "${active[@]}"
+    then
+      [[ "${state}" != inactive ]] || continue
+    else
+      [[ "${state}" != active ]] || continue
+    fi
+    shown+=("${package}")
+  done
+  (( ${#shown[@]} )) || return 0
+  width=$(printf '%s\n' "${shown[@]}" | awk 'length > w { w = length } END { print w }')
+  for package in "${shown[@]}"
+  do
+    origin=$(release:origin "${kit_root}" "${package}")
+    if release:among "${package}" "${active[@]}"
+    then mark='✅' state_word=active
+    elif release:among "${package}" "${excluded[@]}"
+    then mark='❌' state_word=excluded
+    else mark='  ' state_word=inactive
+    fi
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${package}" --arg origin "${origin}" --arg state "${state_word}" \
+        --arg description "$(release:description "${kit_root}" "${package}")" \
+        '{name: $name, origin: $origin, state: $state, description: $description}'
+    else
+      printf '%s %-*s %-10s %s\n' "${mark}" "${width}" "${package}" "${origin}" \
+        "$(release:description "${kit_root}" "${package}")"
+    fi
+  done
+}
+
+# package:matches <package> <pattern>… is true when the package's name is one of the patterns, or matches one as a
+# glob, as kit package add expands 'style/*'.
+package:matches() {
+  local package=$1 pattern
+  shift
+  for pattern in "$@"
+  do
+    # shellcheck disable=SC2053  # the pattern is a glob on purpose
+    [[ "${package}" == ${pattern} ]] && return 0
+  done
+  return 1
+}
+
 # package:add <package>… activates the packages, the packages they depend on, and the members they include, places
 # the files they deliver, and rewrites the manifests. A package named here is no longer excluded. When a different
 # file is already at a delivered path, it is named and left alone, no manifest is written, and it returns 1.

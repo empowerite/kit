@@ -91,10 +91,12 @@ path with `--all-files`. A linter that is not on `PATH` is a failure, not a skip
 the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through
 the same classification.
 
-The kit package delivers the kinds its rules and styles name, one file each, named for its kind. A repository adds
-a kind by delivering a kinds file from a package of its own, with a rule that names it. It widens a delivered kind,
-say with one more suffix under `markdown`, by delivering a file at the same path from a package that depends on
-`kit`: the later package in dependency order wins, as it does for any delivered file.
+The kit package delivers the kinds its rules and styles name, one file each, named for its kind. `kit kinds` lists
+every kind with the file that defines it and what makes a path of it. A repository adds a kind by delivering a kinds
+file from a package of its own, with a rule that names it. `kit new kind <name> --path=<glob>` writes one into the
+repository's own package, makes the package when there is none, and places the kind when the package is active. It
+widens a delivered kind, say with one more suffix under `markdown`, by delivering a file at the same path from a
+package that depends on `kit`: the later package in dependency order wins, as it does for any delivered file.
 
 [templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
 `kit lint` runs against them.

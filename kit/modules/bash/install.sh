@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# install.sh - what kit install offers: the packages, as kit package lists them (sourced module)
+# install.sh - what kit install offers: the packages, as kit packages lists them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 
 use package
