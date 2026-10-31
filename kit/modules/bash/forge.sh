@@ -5,7 +5,7 @@
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # Verbs that read or change issues, branches, and pull requests call forge:<call> here. Each call is passed to a
-# provider, forge-<name>.sh in this directory, whose functions are named forge-<name>:<call>.
+# provider, forge/<name>.sh beside it, whose functions are named forge/<name>:<call>.
 #
 # The provider is chosen by:
 #
@@ -68,7 +68,7 @@ forge:provider() {
       "($(forge:providers))"
     return 1
   fi
-  if [[ -z "$(use:modules "forge-${provider}")" ]]
+  if [[ -z "$(use:modules "forge/${provider}")" ]]
   then
     error "'${provider}' is not a forge the kit knows; the forges are: $(forge:providers) (forge in .kit/settings.yml)"
     return 1
@@ -78,7 +78,7 @@ forge:provider() {
 
 # forge:providers prints the providers on the module path, space-separated.
 forge:providers() {
-  use:modules 'forge-*' | sed 's/^forge-//' | paste -s -d ' ' -
+  use:modules 'forge/*' | sed 's|^forge/||' | paste -s -d ' ' -
 }
 
 # forge:call <call> <argument>… runs the provider's function for <call>, loading the provider once. The provider's
@@ -88,8 +88,8 @@ forge:call() {
   local call=$1 provider
   shift
   provider=$(forge:provider) || return 1
-  use "forge-${provider}"
-  CLICOLOR_FORCE=0 GH_FORCE_TTY='' "forge-${provider}:${call}" "$@"
+  use "forge/${provider}"
+  CLICOLOR_FORCE=0 GH_FORCE_TTY='' "forge/${provider}:${call}" "$@"
 }
 
 forge:require()             { forge:call require "$@"; }

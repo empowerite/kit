@@ -153,10 +153,10 @@ Shell has no types, so there is no separate interface declaration to point at; t
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `kit/modules/bash/forge.sh` | `forge-github.sh` over `gh`, `forge-gitlab.sh` over `glab` | the `forge` setting, else origin's host |
-| `kit/modules/bash/tracker.sh` | `tracker-forge.sh`, `tracker-ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `kit/modules/bash/toolchain.sh` | `toolchain-mise.sh`, `toolchain-brew.sh`, `toolchain-docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
-| `kit/modules/bash/policy.sh` | `policy-patterns.sh`, `policy-opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
+| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else origin's host |
+| `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/brew.sh`, `toolchain/docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
 Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
 branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must

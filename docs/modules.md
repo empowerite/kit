@@ -68,7 +68,7 @@ jq module directory, and defines:
 | --- | --- |
 | `use <module>…` | loads modules from the module path |
 | `use:path` | prints the module path's directories |
-| `use:modules <pattern>` | prints the modules on the path whose names match a glob: `use:modules 'forge-*'` |
+| `use:modules <pattern>` | prints the modules on the path whose names match a glob: `use:modules 'forge/*'` |
 | `kit:enter` | starts a verb's process: records where the command was typed, and moves to the repository root |
 | `run <command> <argument>…` | runs a command in a new process: see [Processes](#processes) |
 | `info`, `step`, `ok`, `section` | print a message to stderr |
@@ -81,16 +81,20 @@ Stdout carries only data, so a verb's output can be piped. Every message goes to
 
 ### Writing a bash module
 
-A bash module is `<module>.sh` in a directory on the path. It:
+A bash module is `<module>.sh` in a directory on the path, or below one: the module `toolchain/brew` is
+`toolchain/brew.sh`, and `use toolchain/brew` loads it. A name with an empty, `.`, or `..` part, or a leading `/`, is
+refused, so no module loads from outside the path. A module:
 
 - opens with `# shellcheck shell=bash` and the banner, and sets no shell options, because it runs in its caller's
   shell
-- names each function `<module>:<name>`, so that every function says where it is defined
+- names each function `<module>:<name>`, so that every function says where it is defined:
+  `toolchain/brew:install` in `toolchain/brew.sh`
 - loads what it needs with `use`, at the top
 - returns non-zero to refuse, and leaves `exit` to the verb
 
-A provider of a seam, such as `forge-<name>.sh` or `toolchain-<name>.sh`, counts wherever it is on the path. A
-repository adds a provider by putting it in a directory of its own on the path, such as `modules/bash/`.
+A seam's providers sit in a directory named for the seam, beside it: `forge.sh` and `forge/github.sh`, and
+`use:modules 'forge/*'` lists them. A provider counts wherever it is on the path. A repository adds one by putting it
+in the seam's directory under a directory of its own on the path, such as `modules/bash/forge/local.sh`.
 
 ### Overriding a function
 
@@ -183,9 +187,11 @@ from arguments, stays inline where it is used.
 | `template.jq` | the expression that checks a file against a template, and the file a template makes |
 | `forge.jq` | a pull request's checks and state, from either forge's answers |
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
-| `status.jq` | a checkout's document, and what of it fits on the screen |
+| `status.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
 | `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
+| `backlog.jq` | the issues no open change closes, with the branch on origin that claims each |
+| `changes.jq` | the open changes that close one of the issues named |
 | `completion.jq` | what the word being typed may be, from a verb's syntax: a flag, an option's value, a literal word, or an operand |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and

@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # backlog.sh - the open issues nothing is in flight for, oldest first, with the branch that claims one (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # kit backlog is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, less the
 # ones an open change closes, which are kit changes's. An issue with a branch for it on origin is claimed, and its
@@ -26,16 +27,11 @@ backlog:collect() {
   issues=$(forge:open-issues) || return 1
   changes=$(forge:open-prs) || return 1
   heads=$(git ls-remote --heads origin 2>/dev/null | sed 's@.*refs/heads/@@' || true)
-  jq --compact-output --slurp --argjson changes "$(jq --slurp . <<<"${changes}")" --arg heads "${heads}" \
-    --arg logins "$*" --argjson except "${except}" '
-    ($heads | split("\n") | map(select(. != ""))) as $heads
-    | ($logins | split(" ") | map(select(. != ""))) as $logins
-    | ($changes | map(.closes[].number)) as $closed
-    | map(select(.number as $n | $closed | index($n) | not)
-          | . + {branch: (. as $issue | $heads | map(select(test("^\($issue.number)-"))) | first)})
-    | if ($logins | length) == 0 then .
-      else map(select((.assignees | any(. as $a | $logins | index($a))) != $except)) end' \
-    <<<"${issues}"
+  jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${changes}")" \
+    --arg heads "${heads}" --arg logins "$*" --argjson except "${except}" '
+    import "backlog" as backlog;
+    backlog::unclaimed($changes; $heads | split("\n") | map(select(. != ""));
+      $logins | split(" ") | map(select(. != "")); $except)' <<<"${issues}"
 }
 
 # backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues, one row each,

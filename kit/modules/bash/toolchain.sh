@@ -5,8 +5,8 @@
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # Each repository picks the tool managers that install the tools its gate runs, on the root checkout (the desk)
-# and on a CI runner. Each tool manager is a provider: toolchain-<name>.sh in this directory, whose functions are
-# named toolchain-<name>:<call>. A provider reads the fields of its settings record with toolchain:field.
+# and on a CI runner. Each tool manager is a provider: toolchain/<name>.sh beside it, whose functions are
+# named toolchain/<name>:<call>. A provider reads the fields of its settings record with toolchain:field.
 #
 # A repository can use more than one provider. They are chosen by:
 #
@@ -42,7 +42,7 @@ use release yaml
 
 # toolchain:providers prints the providers on the module path, space-separated.
 toolchain:providers() {
-  use:modules 'toolchain-*' | sed 's/^toolchain-//' | paste -s -d ' ' -
+  use:modules 'toolchain/*' | sed 's|^toolchain/||' | paste -s -d ' ' -
 }
 
 # toolchain:declared prints the chosen providers, one per line, as the file header describes. It fails, naming
@@ -58,7 +58,7 @@ toolchain:declared() {
   then
     for provider in "${declared[@]}"
     do
-      if [[ -z "$(use:modules "toolchain-${provider}")" ]]
+      if [[ -z "$(use:modules "toolchain/${provider}")" ]]
       then
         error "'${provider}' is not a toolchain the kit knows; the toolchains are: $(toolchain:providers)" \
           "(toolchains in .kit/settings.yml)"
@@ -89,8 +89,8 @@ toolchain:field() {
 toolchain:call() {
   local provider=$1 call=$2
   shift 2
-  use "toolchain-${provider}" || return 1
-  "toolchain-${provider}:${call}" "$@"
+  use "toolchain/${provider}" || return 1
+  "toolchain/${provider}:${call}" "$@"
 }
 
 # toolchain:each <call> runs the call on every declared toolchain in order, stopping at the first that fails.

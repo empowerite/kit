@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# tracker-forge.sh - the tracker provider for the forge's own issues, on GitHub or GitLab (sourced module)
+# forge.sh - the tracker provider for the forge's own issues, on GitHub or GitLab (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # modules/bash/tracker.sh loads this provider for the prefix `#`, unless a record in `trackers` declares `#`. Each call
@@ -8,14 +8,14 @@
 
 use forge
 
-tracker-forge:title()     { forge:issue-title "$1"; }
-tracker-forge:state()     { forge:issue-state "$1"; }
-tracker-forge:assignees() { forge:issue-assignees "$1"; }
-tracker-forge:assign()    { forge:issue-assign "$1" "$2"; }
-tracker-forge:me()        { forge:me; }
-tracker-forge:create()    { forge:issue-create "$1"; }
+tracker/forge:title()     { forge:issue-title "$1"; }
+tracker/forge:state()     { forge:issue-state "$1"; }
+tracker/forge:assignees() { forge:issue-assignees "$1"; }
+tracker/forge:assign()    { forge:issue-assign "$1" "$2"; }
+tracker/forge:me()        { forge:me; }
+tracker/forge:create()    { forge:issue-create "$1"; }
 
-tracker-forge:url() {
+tracker/forge:url() {
   local repo_url
   repo_url=$(forge:repo-url) || return 1
   if [[ "$(forge:provider)" == gitlab ]]

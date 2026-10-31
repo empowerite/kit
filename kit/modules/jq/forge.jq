@@ -12,7 +12,7 @@
 #   closes      [{number, title, assignees, age}] of the issues it closes, the assignees as logins, so a change's
 #               issues are drawn as kit backlog draws an issue without a second call to the forge
 #
-# see: modules/bash/forge.sh, modules/bash/forge-github.sh, modules/bash/forge-gitlab.sh
+# see: modules/bash/forge.sh, modules/bash/forge/github.sh, modules/bash/forge/gitlab.sh
 
 # epoch reads an ISO 8601 time, with or without fractional seconds, and gives seconds since the epoch.
 def epoch: sub("\\.[0-9]+"; "") | fromdateiso8601;
@@ -68,7 +68,7 @@ def github_runs:
           took: (if .startedAt != null and .completedAt != null
                  then (.completedAt | epoch) - (.startedAt | epoch) else null end) });
 
-# github_prs($now) reads the answer to forge-github:open-prs's GraphQL query and gives one document per pull request.
+# github_prs($now) reads the answer to forge/github:open-prs's GraphQL query and gives one document per pull request.
 def github_prs($now):
   .data.repository.pullRequests.nodes[]
   | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
@@ -106,12 +106,12 @@ def gitlab_pr($now; $jobs; $discussions; $closes):
 def issue($now):
   {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch))};
 
-# github_issues($now) reads gh issue list's JSON, the answer to forge-github:open-issues, and gives one document per
+# github_issues($now) reads gh issue list's JSON, the answer to forge/github:open-issues, and gives one document per
 # open issue, oldest first.
 def github_issues($now):
   sort_by(.createdAt, .number)[] | {number, title, assignees: [.assignees[].login], createdAt} | issue($now);
 
-# gitlab_issues($now) reads GitLab's issues, the answer to forge-gitlab:open-issues, and gives the same documents.
+# gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents.
 def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
   | issue($now);
@@ -136,3 +136,13 @@ def gitlab_releases($now):
   | sort_by(.at) | reverse
   | (map(select(.kind == "release")) | first | .tag) as $latest
   | .[] | . + {latest: (.tag == $latest)} | release($now);
+
+# gitlab_branch_for_issue($n) reads GitLab's open merge requests and gives the first source branch that starts with
+# the issue's number and a dash, or nothing.
+def gitlab_branch_for_issue($n):
+  [.[] | select(.source_branch | startswith("\($n)-"))] | .[0].source_branch // empty;
+
+# gitlab_pr_state reads GitLab's merge requests for a branch, newest first, and gives the newest one's state in
+# GitHub's words: MERGED, CLOSED for a closed or locked one, else OPEN; nothing when there is none.
+def gitlab_pr_state:
+  .[0].state // empty | {merged: "MERGED", closed: "CLOSED", locked: "CLOSED"}[.] // "OPEN";

@@ -34,4 +34,5 @@ Applies to files of kind `bash`, and to the bodies of every kind that embeds it:
 ## Modules on the kit's module path
 
 A module, a file that `use` loads from the kit's bash module path, is a sourced file. Name each function in it
-`<module>:<name>`, where `<module>` is the file's name without `.sh`, so every function says where it is defined.
+`<module>:<name>`, where `<module>` is the module's name, its path from the module directory without `.sh`, so every
+function says where it is defined: `forge:repo` in `forge.sh`, and `toolchain/brew:install` in `toolchain/brew.sh`.

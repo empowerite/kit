@@ -290,8 +290,8 @@ status:select() {
   if (( $# == 0 ))
   then cat
   else
-    jq --compact-output --arg logins "$*" --argjson except "${except}" \
-      'select((.author as $a | ($logins | split(" ")) | index($a) != null) != $except)'
+    jq --compact-output -L "${kit_jq}" --argjson except "${except}" \
+      'import "status" as status; status::by_authors($ARGS.positional; $except)' --args "$@"
   fi
 }
 

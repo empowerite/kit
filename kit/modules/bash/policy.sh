@@ -6,7 +6,7 @@
 #
 # A policy sets what a branch name, a commit subject, or a change title may be. kit policy enforces it: it gathers
 # the facts, reads the rules, and calls a provider (the policy engine) to list every refusal. A provider is
-# policy-<name>.sh in this directory, whose functions are named policy-<name>:<call>.
+# policy/<name>.sh beside it, whose functions are named policy/<name>:<call>.
 #
 # The facts are one JSON document, built by policy:input. `kit policy --input` prints it, to write a rule against.
 # It contains:
@@ -138,7 +138,7 @@ policy:engine() {
     engine=patterns
     compgen -G '.kit/policy/*.rego' >/dev/null && engine=opa
   fi
-  if [[ -z "$(use:modules "policy-${engine}")" ]]
+  if [[ -z "$(use:modules "policy/${engine}")" ]]
   then
     error "'${engine}' is not a policy engine the kit knows; the engines are: patterns opa (policy_engine in" \
       ".kit/settings.yml)"
@@ -152,8 +152,8 @@ policy:engine() {
 policy:deny() {
   local engine
   engine=$(policy:engine) || return 1
-  use "policy-${engine}" || return 1
-  "policy-${engine}:deny" "$1" | LC_ALL=C sort --unique
+  use "policy/${engine}" || return 1
+  "policy/${engine}:deny" "$1" | LC_ALL=C sort --unique
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

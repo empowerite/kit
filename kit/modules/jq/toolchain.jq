@@ -3,7 +3,7 @@
 #
 # import "toolchain" as toolchain; with jq -L "${kit_jq}".
 #
-# see: modules/bash/toolchain.sh, modules/bash/toolchain-brew.sh
+# see: modules/bash/toolchain.sh, modules/bash/toolchain/brew.sh
 
 # brew_outdated($names) reads brew outdated --json=v2 and gives, for each formula or cask named in $names, one name
 # per line, "<name>\t<installed>\t<current>". Brew reports every outdated package on the machine; only the

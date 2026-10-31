@@ -33,3 +33,7 @@ def commits_shown($cap):
   | if $n > $cap + 1
     then (.commits[:$cap - 1][] | [.sha, .subject]), ["…", "and \($n - $cap) more"], (.commits[-1] | [.sha, .subject])
     else .commits[] | [.sha, .subject] end;
+
+# by_authors($logins; $except) keeps a change document opened by one of $logins, or with $except, by none of them.
+def by_authors($logins; $except):
+  select((.author as $a | $logins | index($a) != null) != $except);

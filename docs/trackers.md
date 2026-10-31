@@ -62,7 +62,7 @@ and the error lists the known prefixes.
 | `forge` | the forge's own, through `kit/modules/bash/forge.sh` | none | the forge's closed state |
 | `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`) | Closed, Done, or Removed |
 
-A provider is `kit/modules/bash/tracker-<name>.sh`. It implements these calls:
+A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 
 | Call | Prints |
 | --- | --- |

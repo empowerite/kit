@@ -64,3 +64,12 @@ import "forge" as forge; forge::gitlab_issues(1000000)
 import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
 [{"tagName": "release/0.0.9", "name": "a", "isPrerelease": false, "isDraft": false, "isLatest": true, "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"}, {"tagName": "release/0.1.0-rc.7", "name": "b", "isPrerelease": true, "isDraft": true, "isLatest": false, "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
 ["0.1.0-rc.7 draft false","0.0.9 release true"]
+
+# GitLab: the branch for an issue starts with its number and a dash, and a merge request's state is said as GitHub says it.
+import "forge" as forge; [forge::gitlab_branch_for_issue(7)]
+[{"source_branch": "70-other"}, {"source_branch": "7-start"}]
+["7-start"]
+
+import "forge" as forge; [.[] | [.] | forge::gitlab_pr_state]
+[{"state": "merged"}, {"state": "locked"}, {"state": "opened"}]
+["MERGED","CLOSED","OPEN"]

@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # changes.sh - the open changes, each with the issues it closes, drawn as kit status draws them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # kit changes is the reviewer's picture: every open change of the repository on its forge, as forge:open-prs folds
 # them, each drawn as kit status draws a pull request, and under it the issues it closes, each drawn as kit backlog
@@ -44,8 +45,8 @@ changes:render() {
   prs=$(status:select "${selection[@]}" <<<"${prs}")
   if (( ${#issues[@]} > 0 ))
   then
-    prs=$(jq --compact-output --argjson issues "[$(IFS=,; printf '%s' "${issues[*]}")]" \
-      'select(.closes // [] | any(.number as $n | $issues | index($n)))' <<<"${prs}")
+    prs=$(jq --compact-output -L "${kit_jq}" --argjson issues "[$(IFS=,; printf '%s' "${issues[*]}")]" \
+      'import "changes" as changes; changes::closing($issues)' <<<"${prs}")
     closing=" closes $(printf '#%s\n' "${issues[@]}" | paste -s -d ' ' - | sed 's/ / or /g')"
   fi
   if [[ "${json}" == true ]]

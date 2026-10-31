@@ -32,3 +32,8 @@ import "status" as status; [status::changes_shown(2)]
 import "status" as status; [status::commits_shown(3)]
 {"commits": [{"sha": "e", "subject": "5"}, {"sha": "d", "subject": "4"}, {"sha": "c", "subject": "3"}, {"sha": "b", "subject": "2"}, {"sha": "a", "subject": "1"}]}
 [["e","5"],["d","4"],["…","and 2 more"],["a","1"]]
+
+# A change is kept by its author: one of the logins, or with except, none of them.
+import "status" as status; [[.[] | status::by_authors(["ada"]; false)], [.[] | status::by_authors(["ada"]; true)]] | map(map(.number))
+[{"number": 1, "author": "ada"}, {"number": 2, "author": "bob"}]
+[[1],[2]]

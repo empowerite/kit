@@ -5,8 +5,8 @@
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # Verbs that read, assign, or create issues call tracker:of or tracker:at here. Each call is passed to the
-# provider for the issue's tracker: tracker-<name>.sh in this directory, whose functions are named
-# tracker-<name>:<call>.
+# provider for the issue's tracker: tracker/<name>.sh beside it, whose functions are named
+# tracker/<name>:<call>.
 #
 # The tracker is not always the forge (GitHub or GitLab): GitHub and GitLab issues are on the forge; Azure DevOps
 # work items are not. A repository can use more than one tracker at once.
@@ -118,8 +118,8 @@ tracker:of() {
   IFS=$'\t' read -r prefix number < <(tracker:parse "${ref}") || return 2
   [[ -n "${prefix}" ]] || return 2
   provider=$(tracker:provider "${prefix}") || return 1
-  use "tracker-${provider}" || return 1
-  TRACKER_PREFIX=${prefix} "tracker-${provider}:${call}" "${number}" "$@"
+  use "tracker/${provider}" || return 1
+  TRACKER_PREFIX=${prefix} "tracker/${provider}:${call}" "${number}" "$@"
 }
 
 # tracker:at <prefix> <call> <argument>… runs a call that names no issue, such as me or create, on the prefix's
@@ -128,8 +128,8 @@ tracker:at() {
   local prefix=$1 call=$2 provider
   shift 2
   provider=$(tracker:provider "${prefix}") || return 1
-  use "tracker-${provider}" || return 1
-  TRACKER_PREFIX=${prefix} "tracker-${provider}:${call}" "$@"
+  use "tracker/${provider}" || return 1
+  TRACKER_PREFIX=${prefix} "tracker/${provider}:${call}" "$@"
 }
 
 # tracker:normal <reference> prints the reference in its tracker's own form: `7` becomes `#7`.

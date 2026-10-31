@@ -72,13 +72,39 @@ kit-bash() {
   [[ "$output" == *"bash_path entry 'other:bash/' names a root the kit does not know"* ]]
 }
 
-@test "use:modules lists the modules on the whole path that match a pattern, once each" {
+@test "use:modules lists the modules on the whole path that match a pattern, once each, named from their directory" {
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
-  : > bash/forge-local.sh
-  : > bash/forge-github.sh
-  run kit-bash 'use:modules "forge-*"'
+  mkdir -p bash/forge
+  : > bash/forge/local.sh
+  : > bash/forge/github.sh
+  run kit-bash 'use:modules "forge/*"'
   [ "$status" -eq 0 ]
-  [ "$output" = $'forge-github\nforge-gitlab\nforge-local' ]
+  [ "$output" = $'forge/github\nforge/gitlab\nforge/local' ]
+}
+
+@test "a module in a subdirectory loads by its path, every copy on the path in order, and names its functions so" {
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
+  mkdir -p bash/toolchain
+  printf 'toolchain/local:hello() { printf "hello %%s\\n" "$1"; }\n' > bash/toolchain/local.sh
+  printf 'toolchain/brew:file() { printf "ours\\n"; }\n' > bash/toolchain/brew.sh
+  run kit-bash 'use toolchain/local && toolchain/local:hello there'
+  [ "$status" -eq 0 ]
+  [ "$output" = "hello there" ]
+  run kit-bash 'use toolchain/brew && toolchain/brew:file'
+  [ "$output" = "ours" ]
+  run kit-bash 'use toolchain && toolchain:providers'
+  [ "$output" = "brew docker local mise" ]
+}
+
+@test "use refuses a name that could reach outside the module path" {
+  local name
+  for name in /etc/passwd ../yaml forge/../yaml forge//github ./yaml forge/
+  do
+    run kit-bash "use '${name}'"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"no such kit bash module: ${name} (a module's name has no empty, ., or .. part"* ]] \
+      || { echo "not refused: ${name}"; return 1; }
+  done
 }
 
 @test "a verb runs when called directly, through a symlink, from a subdirectory" {

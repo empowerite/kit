@@ -9,7 +9,7 @@ kit toolchain install
 ```
 
 `kit/modules/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#forges-seams-and-providers)
-says what a seam is), and each manager has a provider, `kit/modules/bash/toolchain-<name>.sh`, that implements it.
+says what a seam is), and each manager has a provider, `kit/modules/bash/toolchain/<name>.sh`, that implements it.
 Every provider answers the same calls, so the root checkout (the desk), a CI runner, and the delivered CI job
 report the same results.
 

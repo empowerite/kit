@@ -6,8 +6,9 @@
 # called directly. This file sets no shell options, so the caller's options stay in effect.
 #
 #   - A verb is an executable bin/kit-<verb>, with no extension.
-#   - A module is a sourced <module>.sh in a directory on the module path. The verb or module that needs it loads
-#     it with `use <module>`, which sources every <module>.sh on the path, in order, once per process.
+#   - A module is a sourced <module>.sh in a directory on the module path, or below one: toolchain/brew is
+#     toolchain/brew.sh. The verb or module that needs it loads it with `use <module>`, which sources every
+#     <module>.sh on the path, in order, once per process.
 #   - The module path is the bash_path setting in .kit/settings.yml. Its first entry is kit:modules/bash/, this
 #     file's directory. A later file can replace a function an earlier one defined; super.sh lets it call the one
 #     it replaced.
@@ -103,27 +104,36 @@ use:find() {
 }
 
 # use:modules <pattern> prints the name of every module on the module path that matches the glob <pattern>, once
-# each, sorted: use:modules 'forge-*' lists the forge providers.
+# each, sorted, named from its directory on the path: use:modules 'forge/*' lists the forge providers, forge/github
+# among them.
 use:modules() {
   use:load-path || return 2
-  local dir file
+  local dir file name
   for dir in "${kit_bash_path[@]}"
   do
     for file in "${dir}"/$1.sh
     do
-      [[ -f "${file}" ]] && basename "${file}" .sh
+      [[ -f "${file}" ]] || continue
+      name=${file#"${dir}"/}
+      printf '%s\n' "${name%.sh}"
     done
   done | LC_ALL=C sort --unique
 }
 
 # use <module>… sources every <module>.sh on the module path, in order, once per module. An unknown module is a bug
-# in the caller: use prints an error and returns 2.
+# in the caller: use prints an error and returns 2. So is a name that could reach outside the module path: one that
+# starts with /, or has an empty, ., or .. part.
 use() {
   local module file
   local -a files
   use:load-path || return 2
   for module in "$@"
   do
+    if [[ "${module}" == /* || "/${module}/" == *//* || "/${module}/" == */./* || "/${module}/" == */../* ]]
+    then
+      error "no such kit bash module: ${module} (a module's name has no empty, ., or .. part, and no leading /)"
+      return 2
+    fi
     [[ ${kit_modules[${module}]+x} ]] && continue
     readarray -t files < <(use:find "${module}")
     if (( ${#files[@]} == 0 ))

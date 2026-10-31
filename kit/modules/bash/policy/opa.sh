@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# policy-opa.sh - the policy provider that runs Open Policy Agent over the Rego in .kit/policy (sourced module)
+# opa.sh - the policy provider that runs Open Policy Agent over the Rego in .kit/policy (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # modules/bash/policy.sh uses this provider when the policy_engine setting is opa, or when the setting is not set and
@@ -12,7 +12,7 @@
 # The repository's toolchain must pin opa, like any tool its gate runs. The policy/opa package delivers
 # .kit/policy/kit.rego, the patterns provider's rules written in Rego, to build on.
 
-policy-opa:deny() {
+policy/opa:deny() {
   local input=$1 out
   if ! command -v opa >/dev/null 2>&1
   then

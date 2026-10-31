@@ -1,13 +1,13 @@
 # shellcheck shell=bash
-# policy-patterns.sh - the default policy provider: matches each subject against its pattern in bash (sourced module)
+# patterns.sh - the default policy provider: matches each subject against its pattern in bash (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # modules/bash/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
 # the facts' policy object against its subject with bash's =~. A rule with an empty pattern is off. The refusals
 # use the same wording as the policy/opa package's Rego, so both providers print the same messages.
 
-# policy-patterns:deny <input-file> prints one refusal per subject that does not match its pattern.
-policy-patterns:deny() {
+# policy/patterns:deny <input-file> prints one refusal per subject that does not match its pattern.
+policy/patterns:deny() {
   local input=$1 branch pattern subject sha title
   branch=$(jq --raw-output '.branch // ""' "${input}")
   pattern=$(jq --raw-output '.policy.branch' "${input}")
