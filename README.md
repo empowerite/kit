@@ -201,6 +201,8 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
    - `kit status` shows every open pull request and the worktree it lives in; `kit changes` the open pull requests
      with the issues each closes; `kit backlog` the open issues no pull request closes, the next ones to pick up.
+   - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick; a verb you run without an
+     argument it needs opens the same form, so the arguments need not be remembered.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
 5. Run `gh pr ready` when the work is done. The pull request body is the report.
 6. A human merges. Then `kit tidy` removes the worktree and its branch.
@@ -262,11 +264,14 @@ serves as the notice for `settings.json`.
   into the packed kit and names the release after it.
 - Published releases are immutable, so a tag is never reused.
 
+`kit release <version>` makes the tag and pushes it alone, after these rules and one more: a version not higher
+than every release on origin needs `--lower`. `kit releases` lists what the forge published.
+
 The release workflow runs two commands:
 
 1. `bin/release verify` rejects a tag that is not `release/<version>`, and a release tag on a commit not on `main`.
-2. `bin/release publish` packs `kit/` (`bin/`, `modules/`, and `packages/`) and `version` into
-   `kit-<version>.tar.gz` and publishes it.
+2. `bin/release publish` packs `kit/` (`bin/`, `modules/`, and `packages/`), `version`, and `libexec/`, which holds
+   `kittui` built from `tui/` for linux and darwin on amd64 and arm64, into `kit-<version>.tar.gz` and publishes it.
 
 `bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but
 the CI runner, so only the workflow publishes releases. A pre-release can be published from a developer machine.

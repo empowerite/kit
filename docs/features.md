@@ -94,10 +94,31 @@ for it on origin when one is started: the next issue to take up is one with no b
 does, in the same colors, clipped to the terminal's width; `kit backlog --today` keeps the issues opened in the
 last 24 hours.
 
+`kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
+release workflow. It refuses a version of the wrong shape, a tag that exists, a release (no suffix) whose commit is
+not on the default branch at origin, and a version not higher than every release on origin unless `--lower`
+confirms it. `kit releases` lists the releases on the forge, newest first, with each one's kind and age.
+
 The `agents/claude` package delivers a deny list that refuses the raw git commands these verbs replace, such as
 `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
 
 see: [architecture.md](architecture.md#the-workflow-and-the-gate)
+
+## The terminal UI
+
+`kit` typed with no verb opens a palette of every verb, filtered as you type, with the highlighted verb's help page
+beside it; Enter opens that verb's form. A verb run at a terminal without an argument it needs opens the same form
+instead of refusing, filled with what was given, as `kit commit` with no message does. The form has one field per
+part of the verb's usage line, offers the values the repository has (changed paths, packages, templates), shows the
+command line it builds, and runs it from Enter on that line, after leaving a transcript of the answers in the
+scrollback. `kit package select` shows the whole set of packages, each marked by what will happen to it.
+
+The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
+verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
+on amd64 and arm64; in a checkout of the kit it is built from `tui/`. Without a terminal on stdin, stdout, and
+stderr, nothing opens: a verb short of an argument refuses in one line, as before.
+
+see: [modules.md](modules.md#writing-a-verb)
 
 ## Forges and trackers
 
