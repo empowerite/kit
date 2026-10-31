@@ -25,6 +25,9 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 - `kit update` resolves the active set again from the new release, so a new member of a bundle, a new dependency,
   or a new default package arrives with the release. An excluded member stays out, unless a package depends on it,
   which the update says.
+- `kit uninstall` deactivates every package, the `kit` package included: it takes out what they delivered, the
+  manifests, and the declaration, and removes `kit.yml` when nothing else is in it. A copied file the repository
+  edited is named and left; `--dry-run` only names what would go.
 
 ## Layout
 

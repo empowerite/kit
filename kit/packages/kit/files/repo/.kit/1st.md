@@ -129,6 +129,7 @@ Everything the release delivers belongs to a package. A repository activates the
 - `kit install github/ci hooks/lefthook agents/claude` activates packages when the kit is installed.
 - `kit package add agents/claude` activates a package later.
 - `kit package remove` deactivates a package.
+- `kit uninstall` takes everything the kit placed out of the repository.
 
 A package of the repository's own lives under `.kit/packages/` and is activated the same way.
 

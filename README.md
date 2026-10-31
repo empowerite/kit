@@ -193,7 +193,7 @@ a `mise.ci.toml`.
 
 ## Getting started
 
-Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
+Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the `workflow` package:
 
 1. Start from an issue. A change without an issue has not started.
 2. Run `kit issue <N>`. It creates `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens

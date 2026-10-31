@@ -57,6 +57,8 @@ Content reaches a repository only through these verbs:
 - `kit package` changes the set of active packages.
 - `kit hydrate` brings every path under `.kit/` to its state from the declaration, choosing nothing. Every verb that
   reads a delivered file does the same first.
+- `kit uninstall` takes it all out again: every path the active packages deliver, the manifests, and the
+  declaration, leaving the repository's own files, its own packages, and any copy it edited.
 
 How a file is placed depends on its destination:
 
