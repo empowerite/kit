@@ -111,7 +111,7 @@ later-release() {
   [ "$status" -eq 2 ]
   [[ "$output" == *"<package> 'gemini' is not one of the choices; run: kit help install"* ]]
   run "${kit_checkout}/bin/kit" syntax install --choices '<package>'
-  [[ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" == "agents/claude agents/copilot agents/cursor agents/gemini empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
+  [[ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" == "agents/claude agents/copilot agents/cursor agents/gemini agents/generic empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }
 
@@ -133,8 +133,8 @@ later-release() {
   [ ! -e .claude/CLAUDE.md ]
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
   jq --exit-status '.permissions.deny == ["Bash(rm -rf /)"]' .claude/settings.json >/dev/null
-  jq --exit-status '.hooks == {"PreToolUse": []}' .claude/settings.json >/dev/null
-  [ "$(declared packages)" = "kit" ]
+  jq --exit-status 'has("hooks") | not' .claude/settings.json >/dev/null
+  [ "$(declared packages)" = "kit agents/generic" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
 }
@@ -466,7 +466,7 @@ later-release() {
   # a later write replaces the declaration in place, once
   run "${kit_checkout}/bin/kit" package add hooks/lefthook
   [ "$status" -eq 0 ]
-  [ "$(declared packages)" = "kit agents/claude hooks/lefthook" ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude hooks/lefthook" ]
   [ "$(grep -c '^version:' .kit/settings.yml)" -eq 1 ]
   [ "$(grep -c '^require_signing: true$' .kit/settings.yml)" -eq 1 ]
 }
@@ -514,7 +514,7 @@ later-release() {
   "${kit_checkout}/bin/kit" install agents/claude
   # the shape rc.3 to rc.6 left behind: no declaration in settings.yml, the manifest's version and packages lines
   sed -i.bak -e '/^version:/d' -e '/^packages:/d' -e '/^  - /d' .kit/settings.yml && rm .kit/settings.yml.bak
-  { printf '# .kit/manifest - written by kit, not by hand\nversion unreleased\npackages kit agents/claude\n'
+  { printf '# .kit/manifest - written by kit, not by hand\nversion unreleased\npackages kit agents/generic agents/claude\n'
     grep '  ' .kit/manifest; } > m && mv m .kit/manifest
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
@@ -603,7 +603,7 @@ later-release() {
   [ "$status" -eq 0 ]
   [ -f .kit/styles/just.md ]
   [ -f .github/workflows/kit-ci.yml ]
-  members='agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
+  members='agents/generic agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
   members+=' style/prose style/workflows style/yaml'
   [ "$(declared packages)" = "kit ${members} empowerite" ]
   run "${kit_checkout}/bin/kit" package remove style/just
