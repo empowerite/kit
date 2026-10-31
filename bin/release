@@ -14,7 +14,7 @@
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
 #                             directory). The tarball holds one directory, kit-<version>/, with bin/,
 #                             modules/, packages/, a version file, and libexec/, which holds kittui, the binary kit
-#                             tui runs, built from tui/ with go for linux and macos on amd64 and arm64.
+#                             tui runs, built from tui/ with go for linux and darwin on amd64 and arm64.
 #   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
 #                             pre-release. Only a runner publishes a release, from the release workflow that a
 #                             pushed tag starts. A desk may publish a pre-release.
