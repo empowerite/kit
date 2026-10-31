@@ -1,6 +1,6 @@
 {
   "verb": "toolchain",
-  "purpose": "installs, reports, and updates the tools the repository's gate runs, whatever manages them",
+  "purpose": "installs, reports, and updates the tools the gate runs, whatever manages them",
   "usage": [
     "kit toolchain list | install | outdated [--check] | update | path | run <command>…"
   ],

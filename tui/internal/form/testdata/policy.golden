@@ -1,4 +1,4 @@
- refuses a branch, a commit subject, or a change title the repository's policy does not allow
+ refuses a branch, commit subject, or change title the repository's policy forbids
 
    --input  prints the facts as JSON instead of judging them: the document a rule is written against
 

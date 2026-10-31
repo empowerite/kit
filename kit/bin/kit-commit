@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-commit - commits what is staged, after the checks a commit's rule requires (kit verb)
+# kit-commit - commits what is staged, after the checks a commit's rule requires (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit commit [--all] (--message <text>… | --file <path>) [<path>…]

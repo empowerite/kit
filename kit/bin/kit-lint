@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-lint - runs each rule's linter over the paths it governs (kit verb)
+# kit-lint - runs each rule's linter over the paths it governs (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit lint [--all-files] [<path>…]

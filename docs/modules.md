@@ -128,7 +128,7 @@ reads it:
 
 ```bash
 #!/usr/bin/env bash
-# kit-<verb> - <purpose> (kit verb)
+# kit-<verb> - <purpose> (kit verb: <group>)
 # ---…
 #
 # kit <verb> [<argument>…]
@@ -144,7 +144,11 @@ kit:enter
 use <module>
 ```
 
-- The banner's purpose is what `kit help` lists beside the verb.
+- The banner's purpose is what `kit help` lists beside the verb, and its group is the heading it lists the verb
+  under: one of `workflow`, `files`, `checks`, `installation`, `interfaces`, and `help`, in that order, as
+  `help_groups` in `modules/bash/help.sh` names them. A verb's page names its group and the verbs beside it.
+- `kit usage <verb>` prints the usage lines alone, `kit help <verb>` the whole page, and `kit syntax <verb>` the
+  grammar as JSON.
 - A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several. A verb with none
   takes no arguments.
 - Every argument a usage line names has a line in the header's argument block: two spaces, the argument as the usage

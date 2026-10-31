@@ -1,6 +1,6 @@
 {
   "verb": "policy",
-  "purpose": "refuses a branch, a commit subject, or a change title the repository's policy does not allow",
+  "purpose": "refuses a branch, commit subject, or change title the repository's policy forbids",
   "usage": [
     "kit policy [--input]"
   ],

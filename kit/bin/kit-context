@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-context - prints the rules that govern a file, and logs the request (kit verb)
+# kit-context - prints the rules that govern a file, and logs the request (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit context <path>… [--json]

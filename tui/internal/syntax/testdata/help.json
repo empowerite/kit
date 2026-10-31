@@ -1,6 +1,6 @@
 {
   "verb": "help",
-  "purpose": "prints the verbs' usage, or one verb's help page",
+  "purpose": "prints what kit is and its verbs by group, or one verb's help page",
   "usage": [
     "kit help [<verb>]"
   ],

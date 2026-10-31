@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-submit - commits what is staged, as kit commit does, then pushes the branch (kit verb)
+# kit-submit - commits what is staged, as kit commit does, then pushes the branch (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit submit [--all] [--message <text>… | --file <path>] [<path>…]

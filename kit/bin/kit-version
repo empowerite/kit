@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-version - prints this release's version (kit verb)
+# kit-version - prints this release's version (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit version takes no arguments. It prints the version of the kit that runs, or unreleased for a checkout of the

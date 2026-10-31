@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-changes - lists the open changes, each with the issues it closes, as kit status draws them (kit verb)
+# kit-changes - lists the open changes, each with the issues it closes, as kit status draws them (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…]

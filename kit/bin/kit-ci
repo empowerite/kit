@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-ci - runs the delivered CI job's four checks on any machine (kit verb)
+# kit-ci - runs the delivered CI job's four checks on any machine (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit ci takes no arguments. It runs these checks in order:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-kind - prints the kinds a file is of (kit verb)
+# kit-kind - prints the kinds a file is of (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit kind <path>… [--json]

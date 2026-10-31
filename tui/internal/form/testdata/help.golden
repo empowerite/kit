@@ -1,4 +1,4 @@
- prints the verbs' usage, or one verb's help page
+ prints what kit is and its verbs by group, or one verb's help page
 
    <verb>  a verb's name, or the start of one: kit help re matches rebase and region
 

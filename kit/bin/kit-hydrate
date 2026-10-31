@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-hydrate - places what the active packages deliver under .kit/, from the declaration alone (kit verb)
+# kit-hydrate - places what the active packages deliver under .kit/, from the declaration alone (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit hydrate [--quick]

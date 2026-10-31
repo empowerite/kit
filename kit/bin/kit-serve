@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-serve - serves the kit to an agent over the Model Context Protocol, on stdio (kit verb)
+# kit-serve - serves the kit to an agent over the Model Context Protocol, on stdio (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit serve

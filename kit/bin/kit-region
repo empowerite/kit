@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-region - prints the content the active packages deliver as the region at a path (kit verb)
+# kit-region - prints the content the active packages deliver as the region at a path (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit region [--home] [<path>]

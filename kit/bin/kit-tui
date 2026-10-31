@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-tui - runs the interactive terminal UI (kit verb)
+# kit-tui - runs the interactive terminal UI (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit tui [<verb> [<argument>…]]

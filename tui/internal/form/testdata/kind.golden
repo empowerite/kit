@@ -1,0 +1,9 @@
+ prints the kinds a file is of
+
+   <path>…  the files to classify, relative to the current directory; a path need not exist, and is
+            then matched by its name alone
+
+   --json   prints one JSON object per path instead, with the path and its kinds
+
+
+ kit kind

@@ -7,7 +7,7 @@ setup() {
   kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
 }
 
-@test "kit help lists every verb beside bin/kit, with its purpose; -h and --help are unknown verbs that point to it" {
+@test "kit help lists every verb beside bin/kit with its purpose, under its group; -h and --help are unknown verbs that point to it" {
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
   local verb
@@ -15,16 +15,45 @@ setup() {
   do
     [[ -x "${verb}" ]] || continue
     verb=${verb##*/kit-}
-    [[ "$output" == *$'\n'"  ${verb}"[\ $'\n']* ]] || { echo "missing: ${verb}"; return 1; }
+    [[ "$output" == *$'\n'"  ${verb}: "* ]] || { echo "missing: ${verb}"; return 1; }
   done
-  [[ "$output" == *"  tidy [--dry-run]      removes merged worktrees and gone branches"* ]]
-  [[ "$output" == *"  install [<package>…]  mirrors the release"* ]]
+  [[ "$output" == *$'WORKFLOW\n'*"  tidy:        removes merged worktrees and gone branches"$'\n\nFILES\n'* ]]
+  [[ "$output" == *$'INSTALLATION\n'*"  install:     mirrors the release"* ]]
+  [[ "$output" == *$'USAGE\n  kit <verb> [<argument>…]\n'* ]]
+  [[ "$output" == *$'\nEXAMPLES\n'* && "$output" == *$'\nLEARN MORE\n'* ]]
+  [[ "$output" != *$'\nOTHER\n'* ]]
   run "${kit_root}/bin/kit" --help
   [ "$status" -eq 2 ]
   [ "$output" = "kit: unknown verb '--help'; run: kit help" ]
   run "${kit_root}/bin/kit" -h
   [ "$status" -eq 2 ]
   [ "$output" = "kit: unknown verb '-h'; run: kit help" ]
+}
+
+@test "every verb names one of the groups in its banner, and its page names the group and the verbs beside it" {
+  local verb group
+  for verb in "${kit_root}"/bin/kit-*
+  do
+    [[ -x "${verb}" ]] || continue
+    group=$(sed -n '2s/^.* (kit verb: \([a-z]*\))$/\1/p' "${verb}")
+    [[ " workflow files checks installation interfaces help " == *" ${group} "* && -n "${group}" ]] \
+      || { echo "no known group: ${verb##*/}"; return 1; }
+  done
+  run "${kit_root}/bin/kit" help kind
+  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit new, kit region'* ]]
+}
+
+@test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {
+  run "${kit_root}/bin/kit" usage context check
+  [ "$status" -eq 0 ]
+  [ "$output" = $'kit context <path>… [--json]\nkit context --claude\nkit check' ]
+  run "${kit_root}/bin/kit" usage
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -ge "$(find "${kit_root}/bin" -name 'kit-*' -perm -u+x | wc -l)" ]
+  [[ "$output" != *"Usage"* && "$output" != *"Description"* ]]
+  run "${kit_root}/bin/kit" usage che
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"no kit verb 'che'; run: kit help"* ]]
 }
 
 @test "no verb takes --help: each refuses it with a pointer to its page, and kit help knows no verb by that name" {

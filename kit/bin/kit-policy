@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-policy - refuses a branch, a commit subject, or a change title the repository's policy does not allow (kit verb)
+# kit-policy - refuses a branch, commit subject, or change title the repository's policy forbids (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit policy [--input]

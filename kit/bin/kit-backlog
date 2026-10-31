@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-backlog - lists the open issues nothing is in flight for, oldest first (kit verb)
+# kit-backlog - lists the open issues nothing is in flight for, oldest first (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit backlog [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]]

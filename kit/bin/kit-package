@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-package - lists, activates, or deactivates the packages this repository takes (kit verb)
+# kit-package - lists, activates, or deactivates the packages this repository takes (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit package [list | select <package>… | add <package>… | remove <package>…]

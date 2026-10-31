@@ -1,4 +1,4 @@
- installs, reports, and updates the tools the repository's gate runs, whatever manages them
+ installs, reports, and updates the tools the gate runs, whatever manages them
 
    list      prints each declared toolchain and the file it reads
    install   installs every toolchain's pinned tools

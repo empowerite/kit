@@ -1,0 +1,11 @@
+{
+  "verb": "serve",
+  "purpose": "serves the kit to an agent over the Model Context Protocol, on stdio",
+  "usage": [
+    "kit serve"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

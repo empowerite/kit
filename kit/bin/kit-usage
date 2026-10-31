@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# kit-usage - prints the usage lines of the verbs, and nothing else (kit verb: help)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit usage [<verb>…]
+#
+# Prints each verb's usage lines, as its header writes them, one per line and nothing else: kit help prints a verb's
+# whole page, and kit syntax its grammar as JSON. A verb that takes no arguments prints kit <verb>.
+#
+#   <verb>…   the verbs whose usage to print, by their whole names; with none, every verb, in name order
+#
+# Exits 0 on success, and 2 when a name is not a verb.
+#
+# see: modules/bash/help.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+use help
+
+guard:arguments usage "$@" || exit $?
+
+verbs=("$@")
+(( ${#verbs[@]} )) || readarray -t verbs < <(help:verbs)
+for verb in "${verbs[@]}"
+do
+  if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
+  then
+    error "no kit verb '${verb}'; run: kit help"
+    exit 2
+  fi
+done
+for verb in "${verbs[@]}"
+do
+  help:usage "${verb}"
+done
+
+# ----------------------------------------------------------------------------------------------------------------------

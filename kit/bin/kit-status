@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-status - shows every worktree with its branch, pull request, and state (kit verb)
+# kit-status - shows every worktree with its branch, pull request, and state (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit status [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]]

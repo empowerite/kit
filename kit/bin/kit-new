@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-new - makes a new file from the template of the rule that governs it (kit verb)
+# kit-new - makes a new file from the template of the rule that governs it (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…

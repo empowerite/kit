@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-linked - refuses a change not linked to an open issue of this repository (kit verb)
+# kit-linked - refuses a change not linked to an open issue of this repository (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit linked [<number>]

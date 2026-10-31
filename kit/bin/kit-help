@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-help - prints the verbs' usage, or one verb's help page (kit verb)
+# kit-help - prints what kit is and its verbs by group, or one verb's help page (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit help [<verb>]
@@ -8,8 +8,11 @@
 #
 #   <verb>   a verb's name, or the start of one: kit help re matches rebase and region
 #
-#   - With no <verb>, or one that matches several verbs, it prints each matching verb's usage and purpose.
-#   - With a <verb> that matches one verb, it prints that verb's page: its usage and its description.
+#   - With no <verb>, it prints what kit is, and every verb's name and purpose under the verb's group, as gh help
+#     lays itself out; kit usage prints the usage lines.
+#   - With a <verb> that matches several verbs, it prints each one's usage and purpose.
+#   - With a <verb> that matches one verb, it prints that verb's page: its usage, its description, and the other
+#     verbs of its group.
 #
 # Exits 0 on success, and 2 when no verb matches.
 #
@@ -31,6 +34,11 @@ case "${#verbs[@]}" in
     help:page "${verbs[0]}"
     ;;
   (*)
+    if [[ -z "${1:-}" ]]
+    then
+      help:overview
+      exit 0
+    fi
     printf 'usage: kit <verb> [<argument>…]\n\n'
     help:summary "${verbs[@]}"
     printf '\nRun kit help <verb> for a verb'"'"'s page.\n'

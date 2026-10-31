@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-syntax - prints a verb's syntax as JSON, and judges its header's discipline (kit verb)
+# kit-syntax - prints a verb's syntax as JSON, and judges its header's discipline (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit syntax [--check | --list] [<verb>…]

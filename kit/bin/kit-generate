@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-generate - expands every kit:generate region to what its command makes, or checks that it is (kit verb)
+# kit-generate - expands every kit:generate region to what its command makes, or checks that it is (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit generate [--check] [--iterations=<n>] [<path>…]

@@ -1,0 +1,38 @@
+{
+  "verb": "kind",
+  "purpose": "prints the kinds a file is of",
+  "usage": [
+    "kit kind <path>… [--json]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "operand",
+        "name": "path",
+        "repeat": true
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the files to classify, relative to the current directory; a path need not exist, and is then matched by its name alone"
+    },
+    "--json": {
+      "description": "prints one JSON object per path instead, with the path and its kinds"
+    }
+  }
+}
