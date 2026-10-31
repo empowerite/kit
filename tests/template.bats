@@ -159,4 +159,11 @@ shape() {
   [[ "$output" == *".kit/styles/yaml.md: the shape of its templates over 0 path(s)"* ]]
 }
 
+@test "any --name=value is a hole's value, whatever its case, and never the path" {
+  run "${kit_root}/bin/kit" new file bash/up.sh --purpose=x --Odd=y
+  [ "$status" -eq 0 ]
+  [ -f bash/up.sh ]
+  [ ! -e ./--Odd=y ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
