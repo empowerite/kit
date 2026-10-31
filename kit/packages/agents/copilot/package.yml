@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md, docs/packages/agents/copilot.md
 
-description: "GitHub Copilot: an instruction file per kind under .github/instructions/, applied to the kit rule's paths, and the kit's MCP server"
+description: "GitHub Copilot: an instruction file per kind, applied to the kit rule's paths, and the kit's MCP server"
 depends:
   - kit
   - agents/generic
