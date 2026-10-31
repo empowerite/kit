@@ -1,7 +1,14 @@
- makes a new file from the template of the rule that governs it
+ makes a new file, or a kind, rule, style, package, template, module, provider, or verb
 
-   file  makes a file from a template
-   kind  makes a kind of file
+   file      makes a file from a template
+   kind      makes a kind of file
+   rule      makes a rule for a kind
+   style     makes a style for a kind
+   package   makes a package of the repository's own
+   template  makes a template, and lists it in its package's rule or style
+   module    makes a bash module, or a jq module with --jq
+   provider  makes a provider of a seam: forge, policy, toolchain, or tracker
+   verb      makes a verb of the kit
 
 
  kit new

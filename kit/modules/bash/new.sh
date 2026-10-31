@@ -1,6 +1,7 @@
 # shellcheck shell=bash
-# new.sh - what kit new makes a file from, and what it offers: the rules, the variants, and the holes (sourced module)
+# new.sh - what kit new makes: a file from a template, a kind, rule, style, package, module, or verb (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_root, kit_bash_path, and help_groups are set by modules/bash/1st.sh and help.sh
 
 use template
 
@@ -202,27 +203,10 @@ new:kind() {
     error "the kind ${name} is defined already; run: kit kinds ${name}"
     return 1
   fi
-  if [[ -z "${package}" ]]
-  then
-    readarray -t packages < <(find .kit/packages -mindepth 2 -maxdepth 2 -name package.yml 2>/dev/null \
-      | sed 's|^\.kit/packages/||; s|/package\.yml$||' | LC_ALL=C sort)
-    package=local
-    (( ${#packages[@]} == 1 )) && package=${packages[0]}
-  fi
-  dir=.kit/packages/${package}
-  file=${dir}/files/repo/.kit/kinds/${name}.yml
-  if [[ -e "${file}" ]]
-  then
-    error "${file} is there already; kit new makes a file, it never overwrites one"
-    return 1
-  fi
-  if [[ ! -f "${dir}/package.yml" ]]
-  then
-    mkdir -p "${dir}"
-    printf '%s\n' "# .kit/packages/${package}/package.yml - the ${package} package: this repository's own kinds" \
-      '' "description: \"This repository's own kinds, rules, and styles\"" 'depends:' '  - kit' > "${dir}/package.yml"
-    step "made ${dir}/package.yml"
-  fi
+  package=$(new:package-for "${package}")
+  file=.kit/packages/${package}/files/repo/.kit/kinds/${name}.yml
+  new:clear "${file}" || return 1
+  new:ensure-package "${package}"
   mkdir -p "$(dirname "${file}")"
   {
     printf '# kit:generated -- the %s kind, from the %s package\n' "${name}" "${package}"
@@ -245,14 +229,369 @@ new:kind() {
     done
   } > "${file}"
   ok "made ${file}"
+  new:offer "${package}" "the ${name} kind" "kit kinds ${name}"
+}
+
+# new:package-for [<package>] prints the package a made thing goes into: the one named, else the repository's one
+# package under .kit/packages/, else local.
+new:package-for() {
+  local -a packages
+  if [[ -n "$1" ]]
+  then
+    printf '%s\n' "$1"
+    return 0
+  fi
+  readarray -t packages < <(find .kit/packages -mindepth 2 -maxdepth 3 -name package.yml 2>/dev/null \
+    | sed 's|^\.kit/packages/||; s|/package\.yml$||' | LC_ALL=C sort)
+  if (( ${#packages[@]} == 1 ))
+  then
+    printf '%s\n' "${packages[0]}"
+  else
+    printf 'local\n'
+  fi
+}
+
+# new:clear <path> is true when nothing is at <path>; otherwise it refuses, since kit new never overwrites a file.
+new:clear() {
+  if [[ -e "$1" ]]
+  then
+    error "$1 is there already; kit new makes a file, it never overwrites one"
+    return 1
+  fi
+}
+
+# new:ensure-package <package> [<description>] makes .kit/packages/<package>/package.yml, depending on kit, when the
+# package has none.
+new:ensure-package() {
+  local dir=.kit/packages/$1 description="This repository's own kinds, rules, and styles"
+  [[ -f "${dir}/package.yml" ]] && return 0
+  [[ -z "${2:-}" ]] || description=$2
+  mkdir -p "${dir}"
+  printf '%s\n' "# .kit/packages/$1/package.yml - the $1 package, of this repository's own" '' \
+    "description: \"${description}\"" 'depends:' '  - kit' > "${dir}/package.yml"
+  step "made ${dir}/package.yml"
+}
+
+# new:offer <package> <what> <command> says what to run next: the command that shows <what> when the package is
+# active, which kit hydrate then places, or the command that activates it.
+new:offer() {
+  local -a packages
   readarray -t packages < <(release:declared-packages)
-  if release:among "${package}" "${packages[@]}"
+  if release:among "$1" "${packages[@]}"
   then
     run kit hydrate >/dev/null
-    step "the ${name} kind is in place; run: kit kinds ${name}"
+    step "$2 is in place; run: $3"
   else
-    step "the ${package} package is not active; run: kit package add ${package}"
+    step "the $1 package is not active; run: kit package add $1"
   fi
+}
+
+# new:frontmatter <package> <what> <kind> [<lint>] prints the frontmatter of a rule or a style of the package that
+# governs <kind>: the kit:generated and see: lines, kind:, and lint: when there is a linter.
+new:frontmatter() {
+  printf -- '---\n# kit:generated -- %s, from the %s package\n' "$2" "$1"
+  printf '# see: kit package remove %s, or "Changing what kit adds" in .kit/1st.md\n' "$1"
+  printf 'kind:\n  - %s\n' "$3"
+  [[ -z "${4:-}" ]] || printf 'lint: %s\n' "$4"
+  printf -- '---\n'
+}
+
+# new:rule <rule|style> <kind> [--lint=<command>] [--package=<name>] writes a rule or a style for <kind> into a
+# package of the repository's own, with the frontmatter that names the kind and its linter, and a heading and a first
+# line to write under. It warns when no kind of that name is defined yet.
+new:rule() {
+  local which=$1 kind=$2 lint='' package='' arg file title
+  shift 2
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--lint=?*) lint=${arg#--lint=} ;;
+      (--package=?*) package=${arg#--package=}
+    esac
+  done
+  new:name "${kind}" kind || return 2
+  package=$(new:package-for "${package}")
+  file=.kit/packages/${package}/files/repo/.kit/${which}s/${kind}.md
+  new:clear "${file}" || return 1
+  use context
+  context:load || return 1
+  [[ -n "${context_kind_paths[${kind}]+x}" ]] || warn "no kind ${kind} is defined yet; run: kit new kind ${kind}"
+  new:ensure-package "${package}"
+  mkdir -p "$(dirname "${file}")"
+  title="${kind^}"
+  [[ "${which}" == style ]] && title+=' style'
+  {
+    new:frontmatter "${package}" "the ${kind} ${which}" "${kind}" "${lint}"
+    # shellcheck disable=SC2016  # the backquotes are markdown's code spans, printed as they are
+    printf '# %s\n\nApplies to files of kind `%s`; `kit kinds %s` says which they are.\n' "${title}" "${kind}" "${kind}"
+  } > "${file}"
+  ok "made ${file}"
+  new:offer "${package}" "the ${kind} ${which}" "kit context <path>"
+}
+
+# new:package <name> [--description=<text>] [--depends=<package>…] writes .kit/packages/<name>/package.yml, depending
+# on kit and the packages named.
+new:package() {
+  local name=$1 description="This repository's own $1 package" arg file
+  local -a depends=(kit)
+  shift
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--description=?*) description=${arg#--description=} ;;
+      (--depends=?*) depends+=("${arg#--depends=}")
+    esac
+  done
+  if [[ ! "${name}" =~ ^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$ ]]
+  then
+    error "a package's name is lowercase words with dashes, one / at most, as style/bash, not '${name}'"
+    return 2
+  fi
+  if [[ "${description}" == *'"'* ]]
+  then
+    error "--description cannot hold a double quote"
+    return 2
+  fi
+  file=.kit/packages/${name}/package.yml
+  new:clear "${file}" || return 1
+  mkdir -p "$(dirname "${file}")"
+  {
+    printf '# .kit/packages/%s/package.yml - the %s package, of this repository'"'"'s own\n\n' "${name}" "${name}"
+    printf 'description: "%s"\ndepends:\n' "${description}"
+    printf '  - %s\n' "${depends[@]}"
+  } > "${file}"
+  ok "made ${file}; put what it delivers under .kit/packages/${name}/files/repo/"
+  step "run: kit package add ${name}"
+}
+
+# new:template <rule> <variant> [--from=<path>] [--package=<name>] writes a template, the file at <path> or a single
+# body hole, into a package of the repository's own, and lists the variant under templates: in that package's rule or
+# style for <rule>, when it has one; otherwise it says where to list it.
+new:template() {
+  local rule=$1 variant=$2 from='' package='' arg file owner
+  shift 2
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--from=?*) from=${arg#--from=} ;;
+      (--package=?*) package=${arg#--package=}
+    esac
+  done
+  new:name "${rule}" rule || return 2
+  new:name "${variant}" variant || return 2
+  if [[ -n "${from}" && ! -f "${from}" ]]
+  then
+    error "--from=${from}: no such file"
+    return 2
+  fi
+  package=$(new:package-for "${package}")
+  file=.kit/packages/${package}/files/repo/.kit/templates/${rule}/${variant}
+  new:clear "${file}" || return 1
+  new:ensure-package "${package}"
+  mkdir -p "$(dirname "${file}")"
+  if [[ -n "${from}" ]]
+  then
+    cp "${from}" "${file}"
+  else
+    printf '«body»\n' > "${file}"
+  fi
+  ok "made ${file}; write its holes as «name»"
+  for owner in .kit/packages/"${package}"/files/repo/.kit/styles/"${rule}".md \
+    .kit/packages/"${package}"/files/repo/.kit/rules/"${rule}".md
+  do
+    [[ -f "${owner}" ]] || continue
+    awk -v variant="${variant}" '
+      NR == 1 && $0 == "---" { front = 1; print; next }
+      front && $0 == "templates:" { listed = 1; print; print "  - variant: " variant; next }
+      front && $0 == "---" { if (!listed) { print "templates:"; print "  - variant: " variant }; front = 0 }
+      { print }' "${owner}" > "${owner}.kit-new" && mv "${owner}.kit-new" "${owner}"
+    step "listed the ${variant} variant under templates: in ${owner}"
+    new:offer "${package}" "the ${variant} template" "kit new file <path> --rule=${rule} --variant=${variant}"
+    return 0
+  done
+  warn "list it under templates: in a rule or style named ${rule}; run: kit new style ${rule} --package=${package}"
+}
+
+# new:module-dir prints the directory a new bash module goes in: kit/modules/bash/ in the kit's own source, else the
+# first directory of the repository's own on the module path. It refuses when there is none.
+new:module-dir() {
+  local dir root
+  root=$(pwd -P)
+  if new:own-source
+  then
+    printf 'kit/modules/bash\n'
+    return 0
+  fi
+  use:load-path || return 1
+  for dir in "${kit_bash_path[@]}"
+  do
+    if [[ "${dir}" == "${root}"/* ]]
+    then
+      printf '%s\n' "${dir#"${root}"/}"
+      return 0
+    fi
+  done
+  error "the module path has no directory of this repository's own; add one under bash_path in .kit/settings.yml," \
+    "such as bash/"
+  return 1
+}
+
+# new:own-source is true when the repository is the kit's own source: its kit/ is the release that runs.
+new:own-source() {
+  [[ -d kit && "$(cd kit && pwd -P)" == "${kit_root}" ]]
+}
+
+# new:module <name> --purpose=<text> [--jq] writes a bash module into the repository's own directory on the module
+# path, from the bash style's module template where the repository has one. With --jq it writes a jq module and its
+# tests, which the kit's own source alone has.
+new:module() {
+  local name='' purpose='' jq=false arg file test
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--purpose=?*) purpose=${arg#--purpose=} ;;
+      (--jq) jq=true ;;
+      (*) name=${arg}
+    esac
+  done
+  if [[ ! "${name}" =~ ^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)*$ ]]
+  then
+    error "a module's name is lowercase words with dashes, under directories with /, as toolchain/brew, not '${name}'"
+    return 2
+  fi
+  if [[ "${jq}" == true ]]
+  then
+    if ! new:own-source
+    then
+      error "a jq module comes from the release alone; kit new module --jq makes one in the kit's own source"
+      return 1
+    fi
+    file=kit/modules/jq/${name}.jq test=tests/jq/${name}.test
+    new:clear "${file}" && new:clear "${test}" || return 1
+    mkdir -p "$(dirname "${file}")" "$(dirname "${test}")"
+    printf '%s\n' "# ${name}.jq - ${purpose} (jq module)" '#' \
+      "# import \"${name}\" as ${name}; with jq -L \"\${kit_jq}\"." '' \
+      '# identity gives its input unchanged; replace it with the first def the module needs.' \
+      'def identity: .;' > "${file}"
+    printf '%s\n' "# ${name}.test - the ${name} jq module, run by jq -L kit/modules/jq --run-tests" '#' \
+      '# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.' '' \
+      '# identity gives its input unchanged.' "import \"${name}\" as ${name}; ${name}::identity" '{"a": 1}' \
+      '{"a":1}' > "${test}"
+    ok "made ${file} and ${test}"
+    return 0
+  fi
+  file=$(new:module-dir)/${name}.sh || return 1
+  new:bash-file "${file}" module "${purpose} (sourced module)" ''
+}
+
+# new:bash-file <path> <variant> <purpose> <body> makes a bash file through kit new file, from the bash style's
+# template of that variant, with the purpose and body filled in; where the repository has no such template, it writes
+# the banner and the body alone.
+new:bash-file() {
+  local file=$1 variant=$2 purpose=$3 body=$4
+  new:clear "${file}" || return 1
+  if [[ -f ".kit/templates/bash/${variant}" ]]
+  then
+    run kit new file "${file}" --rule=bash --variant="${variant}" --purpose="${purpose}" --body="${body}"
+    return
+  fi
+  mkdir -p "$(dirname "${file}")"
+  if [[ "${variant}" == module ]]
+  then
+    printf '# shellcheck shell=bash\n# %s - %s\n\n%s\n' "${file##*/}" "${purpose}" "${body}" > "${file}"
+  else
+    printf '#!/usr/bin/env bash\n# %s - %s\n\nset -o errexit -o nounset -o pipefail\n%s\n' "${file##*/}" "${purpose}" \
+      "${body}" > "${file}"
+    chmod +x "${file}"
+  fi
+  ok "made ${file}"
+}
+
+# new:seam-calls <seam> prints the calls a seam makes of its providers, once each: the functions every provider of the
+# seam on the module path defines, so a helper one provider keeps to itself is left out.
+new:seam-calls() {
+  local provider file call count=0
+  local -a calls
+  local -A defined=()
+  while IFS= read -r provider
+  do
+    count=$(( count + 1 ))
+    readarray -t calls < <(while IFS= read -r file
+      do
+        sed -n -E "s|^${provider}:([a-z][a-z-]*)\(\).*|\1|p" "${file}"
+      done < <(use:find "${provider}") | LC_ALL=C sort --unique)
+    for call in "${calls[@]}"
+    do
+      [[ -n "${call}" ]] && defined[${call}]=$(( ${defined[${call}]:-0} + 1 ))
+    done
+  done < <(use:modules "$1/*")
+  for call in "${!defined[@]}"
+  do
+    (( defined[${call}] == count )) && printf '%s\n' "${call}"
+  done | LC_ALL=C sort
+}
+
+# new:provider <seam> <name> writes a provider of the seam into the repository's own directory on the module path:
+# <seam>/<name>.sh, with one function for each call the seam makes, each refusing until it is written.
+new:provider() {
+  local seam=$1 name=$2 call body='' module
+  local -a calls
+  new:name "${seam}" seam || return 2
+  new:name "${name}" provider || return 2
+  use:load-path || return 1
+  if [[ -z "$(use:find "${seam}")" ]]
+  then
+    error "no seam ${seam} on the module path; the seams are forge, policy, toolchain, and tracker"
+    return 2
+  fi
+  readarray -t calls < <(new:seam-calls "${seam}")
+  module=${seam}/${name}
+  for call in "${calls[@]}"
+  do
+    body+="# ${module}:${call} answers ${seam}:${call}. It refuses until it is written."$'\n'
+    body+="${module}:${call}() {"$'\n'"  error \"${module}: ${call} is not written yet\""$'\n'"  return 1"$'\n'"}"$'\n\n'
+  done
+  new:bash-file "$(new:module-dir)/${module}.sh" module "the ${name} provider of the ${seam} seam (sourced module)" \
+    "${body%$'\n\n'}"
+}
+
+# new:verb <name> --purpose=<text> --group=<group> writes a verb into the kit's own source: kit/bin/kit-<name>, with
+# the header kit help reads, the loader, and the guard on its arguments.
+new:verb() {
+  local name=$1 purpose='' group='' arg body
+  shift
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--purpose=?*) purpose=${arg#--purpose=} ;;
+      (--group=?*) group=${arg#--group=}
+    esac
+  done
+  if ! new:own-source
+  then
+    error "a verb is part of the kit's own source; kit new verb makes one there"
+    return 1
+  fi
+  new:name "${name}" verb || return 2
+  use help
+  if [[ " ${help_groups[*]} " != *" ${group} "* ]]
+  then
+    error "--group=${group}: a verb's group is one of ${help_groups[*]}"
+    return 2
+  fi
+  body=$'# shellcheck source=modules/bash/1st.sh\nsource "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"'
+  body+=$'\nkit:enter\nguard:arguments '"${name}"' "$@" || exit $?'
+  new:clear "kit/bin/kit-${name}" || return 1
+  run kit new file "kit/bin/kit-${name}" --rule=bash --variant=script --purpose="${purpose} (kit verb: ${group})" \
+    --about=$'#\n# kit '"${name}"$'\n#\n# kit '"${name}"' '"${purpose}"$'.\n#\n# Exits 0 on success, and 2 on a usage error.\n' \
+    --body="${body}"
+}
+
+# new:name <word> <what> is true when <word> is a lowercase word with dashes; otherwise it refuses, naming <what>.
+new:name() {
+  [[ "$1" =~ ^[a-z][a-z0-9-]*$ ]] && return 0
+  error "a $2's name is a lowercase letter, then lowercase letters, digits, and dashes, not '$1'"
+  return 1
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

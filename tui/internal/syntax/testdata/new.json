@@ -1,9 +1,16 @@
 {
   "verb": "new",
-  "purpose": "makes a new file from the template of the rule that governs it",
+  "purpose": "makes a new file, or a kind, rule, style, package, template, module, provider, or verb",
   "usage": [
     "kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…",
-    "kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]"
+    "kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]",
+    "kit new rule <kind> [--lint=<command>] [--package=<name>]",
+    "kit new style <kind> [--lint=<command>] [--package=<name>]",
+    "kit new package <name> [--description=<text>] [--depends=<package>…]",
+    "kit new template <rule> <variant> [--from=<path>] [--package=<name>]",
+    "kit new module <name> --purpose=<text> [--jq]",
+    "kit new provider <seam> <name>",
+    "kit new verb <name> --purpose=<text> --group=<group>"
   ],
   "syntax": [
     [
@@ -158,6 +165,263 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "rule",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "kind",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "lint",
+              "value": "command",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "package",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "style",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "kind",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "lint",
+              "value": "command",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "package",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "package",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "description",
+              "value": "text",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "depends",
+              "value": "package",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "template",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "rule",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "variant",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "from",
+              "value": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": true,
+              "name": "package",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "module",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "inline": true,
+        "name": "purpose",
+        "value": "text",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "provider",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "seam",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "verb",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "inline": true,
+        "name": "purpose",
+        "value": "text",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "inline": true,
+        "name": "group",
+        "value": "group",
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
@@ -166,6 +430,27 @@
     },
     "kind": {
       "description": "makes a kind of file"
+    },
+    "rule": {
+      "description": "makes a rule for a kind"
+    },
+    "style": {
+      "description": "makes a style for a kind"
+    },
+    "package": {
+      "description": "makes a package of the repository's own"
+    },
+    "template": {
+      "description": "makes a template, and lists it in its package's rule or style"
+    },
+    "module": {
+      "description": "makes a bash module, or a jq module with --jq"
+    },
+    "provider": {
+      "description": "makes a provider of a seam: forge, policy, toolchain, or tracker"
+    },
+    "verb": {
+      "description": "makes a verb of the kit"
     },
     "<path>": {
       "description": "the new file, relative to the repository root wherever the command runs. An absolute path inside the repository is accepted. A path outside it is refused."
@@ -182,10 +467,22 @@
       "description": "the value of a hole («name») within a line of the template. The holes path, name, and stem default to values taken from the path. Every other hole needs its flag."
     },
     "<name>": {
-      "description": "the kind's name: a lowercase letter, then lowercase letters, digits, and dashes"
+      "description": "the name of the kind, package, module, provider, or verb: lowercase letters, digits, and dashes, a package's or a module's with / between its parts"
+    },
+    "<kind>": {
+      "description": "the kind a rule or a style governs"
+    },
+    "<rule>": {
+      "description": "the rule or style whose template it is, which names the directory under .kit/templates/"
+    },
+    "<variant>": {
+      "description": "the template's name, which kit new file --variant= takes"
+    },
+    "<seam>": {
+      "description": "the seam the provider answers: forge, policy, toolchain, or tracker"
     },
     "--package": {
-      "description": "the package to put the kind in. Default: the repository's one package under .kit/packages/, or else local"
+      "description": "the package to put it in. Default: the repository's one package under .kit/packages/, or else local"
     },
     "--path": {
       "description": "a glob a path of the kind matches; ** matches any depth"
@@ -198,6 +495,27 @@
     },
     "--embeds": {
       "description": "a kind whose text appears inside this kind's files"
+    },
+    "--lint": {
+      "description": "the linter kit lint runs over the files the rule or style governs"
+    },
+    "--description": {
+      "description": "the package's one line, which kit packages shows"
+    },
+    "--depends": {
+      "description": "a package this one depends on, beside kit"
+    },
+    "--from": {
+      "description": "a file to start the template from; without it the template is one body hole"
+    },
+    "--purpose": {
+      "description": "what the module or verb does, in the indicative, for its banner"
+    },
+    "--jq": {
+      "description": "makes a jq module, with its tests, in place of a bash module"
+    },
+    "--group": {
+      "description": "the heading kit help lists the verb under: workflow, files, checks, installation, interfaces, or help"
     }
   },
   "extends": true

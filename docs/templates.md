@@ -82,6 +82,30 @@ kit new file "${path}" [--rule="${rule}"] [--variant="${variant}"] [--"${hole}"=
 A new file is a starting point, not a finished file. For example, a workflow made from its template has empty
 `on:`, `permissions:`, and `jobs:` keys, and actionlint rejects it until you fill them in.
 
+## Making the rest
+
+`kit new` makes the other things a repository extends the kit with, each in its place and its house shape, and never
+overwrites anything:
+
+| Command | Makes |
+| --- | --- |
+| `kit new kind "${name}" --path="${glob}"` | a kind of file, by `name:` |
+| `kit new rule "${kind}" [--lint="${command}"]` | a rule for a kind, with the frontmatter that names it |
+| `kit new style "${kind}" [--lint="${command}"]` | a style for a kind |
+| `kit new template "${rule}" "${variant}" [--from="${path}"]` | a template, listed under `templates:` in its package's rule or style |
+| `kit new package "${name}" [--depends="${package}"]…` | `.kit/packages/<name>/package.yml`, depending on `kit` |
+| `kit new module "${name}" --purpose="${purpose}"` | a bash module in the repository's own directory on the module path |
+| `kit new provider "${seam}" "${name}"` | a provider of a seam, with one function for each call the seam makes, each refusing until it is written |
+| `kit new verb "${name}" --purpose="${purpose}" --group="${group}"` | a verb of the kit, in the kit's own source alone |
+| `kit new module "${name}" --jq --purpose="${purpose}"` | a jq module and its tests, in the kit's own source alone |
+
+- A kind, a rule, a style, and a template go into a package of the repository's own: the one named with
+  `--package`, else the repository's one package under `.kit/packages/`, else `local`, which is made when there is
+  none.
+- When that package is active, the new file is placed at once. Otherwise the command names `kit package add`.
+- A module and a provider go into the first directory of the repository's own on the module path, the `bash_path`
+  setting, and are made from the bash style's `module` template where the repository has one.
+
 ## Checking a file
 
 For each path governed by a style with templates, `kit lint` checks that the file has the shape of one variant its

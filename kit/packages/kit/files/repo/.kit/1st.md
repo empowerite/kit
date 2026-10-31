@@ -127,6 +127,9 @@ Two flags choose the template:
 
 `kit lint` fails any file, including one written by hand, whose shape matches none of its templates.
 
+`kit new` also makes what a repository extends the kit with, in a package or module directory of its own: a kind,
+a rule, a style, a template, a package, a bash module, and a seam's provider. `kit help new` lists them.
+
 | Kind | Rule |
 | --- | --- |
 | Markdown | [rules/markdown.md](rules/markdown.md) |

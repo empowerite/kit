@@ -253,7 +253,7 @@ func TestExtendedFieldsReplaceTheWildcard(t *testing.T) {
 	for _, f := range m.fields {
 		labels = append(labels, f.Label)
 	}
-	if strings.Join(labels, " ") != "file | kind <path> --rule --variant «title» «purpose»" {
+	if !strings.HasPrefix(labels[0], "file | kind |") || strings.Join(labels[1:], " ") != "<path> --rule --variant «title» «purpose»" {
 		t.Fatalf("labels: %q", labels)
 	}
 	m.focus = 4

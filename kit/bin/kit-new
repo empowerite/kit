@@ -1,42 +1,80 @@
 #!/usr/bin/env bash
-# kit-new - makes a new file from the template of the rule that governs it (kit verb: files)
+# kit-new - makes a new file, or a kind, rule, style, package, template, module, provider, or verb (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
 #
-# Makes a new file from a rule's template. Then it prints the rules to read before writing the rest of the file,
-# as kit context does.
-#
 # kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
 #
-# Makes a kind of file in a package of the repository's own, at .kit/packages/<package>/files/repo/.kit/kinds/, as
-# <name>.yml. It makes the package too when there is none. When the package is active it places the kind, so kit
-# kind and kit context know it at once; otherwise it names the command that activates the package.
+# kit new rule <kind> [--lint=<command>] [--package=<name>]
 #
-#   file                  makes a file from a template
-#   kind                  makes a kind of file
-#   <path>                the new file, relative to the repository root wherever the command runs. An absolute
-#                         path inside the repository is accepted. A path outside it is refused.
-#   --rule=<rule>         the rule whose template to use. Default: the most specific rule that governs the path
-#                         and has templates. A script with no extension needs this flag.
-#   --variant=<variant>   the template to use. Default: the first variant the rule lists that the path allows.
-#   --<hole>=<value>      the value of a hole («name») within a line of the template. The holes path, name, and
-#                         stem default to values taken from the path. Every other hole needs its flag.
-#   <name>                the kind's name: a lowercase letter, then lowercase letters, digits, and dashes
-#   --package=<name>      the package to put the kind in. Default: the repository's one package under
-#                         .kit/packages/, or else local
-#   --path=<glob>         a glob a path of the kind matches; ** matches any depth
-#   --content=<regex>     an extended regular expression the first line of a file of the kind matches
-#   --kinds=<kind>        a kind this kind is made of
-#   --embeds=<kind>       a kind whose text appears inside this kind's files
+# kit new style <kind> [--lint=<command>] [--package=<name>]
 #
-# A kind needs at least one --path, --content, or --kinds.
+# kit new package <name> [--description=<text>] [--depends=<package>…]
 #
-# kit new never overwrites a file: an existing path, or a kind's name already defined, is refused.
+# kit new template <rule> <variant> [--from=<path>] [--package=<name>]
 #
-# Exits 0 when the file is made, 1 when the path exists or the template is missing, and 2 on a usage error.
+# kit new module <name> --purpose=<text> [--jq]
 #
-# see: modules/bash/template.sh, docs/templates.md
+# kit new provider <seam> <name>
+#
+# kit new verb <name> --purpose=<text> --group=<group>
+#
+# Makes one new thing, in its place and its house shape, and never overwrites anything:
+#
+#   - file: a file from a rule's template, then the rules to read before writing the rest, as kit context prints
+#   - kind, rule, style, and template: a file in a package of the repository's own, under
+#     .kit/packages/<package>/files/repo/.kit/, with the package when there is none; when the package is active it
+#     places the file, and otherwise it names the command that activates the package
+#   - package: .kit/packages/<name>/package.yml, depending on kit
+#   - module and provider: a bash module in the repository's own directory on the module path, from the bash style's
+#     template; a provider has one function for each call its seam makes, each refusing until it is written
+#   - verb, and a module with --jq: in the kit's own source alone, a verb with the header kit help reads, and a jq
+#     module with its tests
+#
+#   file                    makes a file from a template
+#   kind                    makes a kind of file
+#   rule                    makes a rule for a kind
+#   style                   makes a style for a kind
+#   package                 makes a package of the repository's own
+#   template                makes a template, and lists it in its package's rule or style
+#   module                  makes a bash module, or a jq module with --jq
+#   provider                makes a provider of a seam: forge, policy, toolchain, or tracker
+#   verb                    makes a verb of the kit
+#   <path>                  the new file, relative to the repository root wherever the command runs. An absolute
+#                           path inside the repository is accepted. A path outside it is refused.
+#   --rule=<rule>           the rule whose template to use. Default: the most specific rule that governs the path
+#                           and has templates. A script with no extension needs this flag.
+#   --variant=<variant>     the template to use. Default: the first variant the rule lists that the path allows.
+#   --<hole>=<value>        the value of a hole («name») within a line of the template. The holes path, name, and
+#                           stem default to values taken from the path. Every other hole needs its flag.
+#   <name>                  the name of the kind, package, module, provider, or verb: lowercase letters, digits, and
+#                           dashes, a package's or a module's with / between its parts
+#   <kind>                  the kind a rule or a style governs
+#   <rule>                  the rule or style whose template it is, which names the directory under .kit/templates/
+#   <variant>               the template's name, which kit new file --variant= takes
+#   <seam>                  the seam the provider answers: forge, policy, toolchain, or tracker
+#   --package=<name>        the package to put it in. Default: the repository's one package under .kit/packages/,
+#                           or else local
+#   --path=<glob>           a glob a path of the kind matches; ** matches any depth
+#   --content=<regex>       an extended regular expression the first line of a file of the kind matches
+#   --kinds=<kind>          a kind this kind is made of
+#   --embeds=<kind>         a kind whose text appears inside this kind's files
+#   --lint=<command>        the linter kit lint runs over the files the rule or style governs
+#   --description=<text>    the package's one line, which kit packages shows
+#   --depends=<package>     a package this one depends on, beside kit
+#   --from=<path>           a file to start the template from; without it the template is one body hole
+#   --purpose=<text>        what the module or verb does, in the indicative, for its banner
+#   --jq                    makes a jq module, with its tests, in place of a bash module
+#   --group=<group>         the heading kit help lists the verb under: workflow, files, checks, installation,
+#                           interfaces, or help
+#
+# A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
+# already defined.
+#
+# Exits 0 when it is made, 1 when the path exists or a template is missing, and 2 on a usage error.
+#
+# see: modules/bash/new.sh, modules/bash/template.sh, docs/templates.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -46,12 +84,15 @@ use context template release new
 guard:arguments new "$@" || exit $?
 release:hydrate
 
-if [[ "$1" == kind ]]
-then
-  shift
-  new:kind "$@"
-  exit $?
-fi
+case "$1" in
+  (kind) shift; new:kind "$@"; exit $? ;;
+  (rule | style) new:rule "$@"; exit $? ;;
+  (package) shift; new:package "$@"; exit $? ;;
+  (template) shift; new:template "$@"; exit $? ;;
+  (module) shift; new:module "$@"; exit $? ;;
+  (provider) shift; new:provider "$@"; exit $? ;;
+  (verb) shift; new:verb "$@"; exit $?
+esac
 shift
 
 path='' rule_name='' variant=''
