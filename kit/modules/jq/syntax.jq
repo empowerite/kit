@@ -106,7 +106,10 @@ def walk_sequence($nodes; $st):
       else $s | .missing = [$node.alternatives[] | firsts(.)[]] end
     end;
   reduce $nodes[] as $node ($st;
-    if .refusal != null or .missing != null then .
+    # a wildcard here, or in an optional group of its own, is open to the inline options nothing else takes
+    (if $node.wildcard or ($node.kind == "group" and ($node.alternatives | length) == 1
+          and any($node.alternatives[0][]; .wildcard)) then .wild_open = true else . end)
+    | if .refusal != null or .missing != null then .
     elif $node.kind == "literal" then
       if (.pos | length) == 0 then .missing = [$node.name]
       elif .pos[0].word == $node.name then .pos |= .[1:] | .literals += [$node.name]
@@ -143,7 +146,10 @@ def lex($words; $i; $st; $by_key; $wild):
       elif $node != null then
         if ($st.given[$name] // [] | length) > 0 and ($node.repeat | not) then $st | .refusal = "\($name) is given twice"
         elif $eq != null then
-          if $inline == "" then $st | .refusal = "\($name) needs a value"
+          if $inline == "" and $wild then
+            # empty, it may yet be a wildcard's hole, which may be empty; match refuses it if a named option keeps it
+            lex($words; $i + 1; $st | .given[$name] += [""] | .spans[$name] += [[$i]] | .empty += [$name]; $by_key; $wild)
+          elif $inline == "" then $st | .refusal = "\($name) needs a value"
           else lex($words; $i + 1; $st | .given[$name] += [$inline] | .spans[$name] += [[$i]]; $by_key; $wild) end
         elif $node.inline or $i + 1 >= ($words | length) then $st | .refusal = "\($name) needs a value"
         else lex($words; $i + 2; $st | .given[$name] += [$words[$i + 1]] | .spans[$name] += [[$i, $i + 1]]; $by_key; $wild) end
@@ -172,6 +178,17 @@ def reclaim($words):
     | .values = (.values | with_entries(select(.key as $k | $unused | index($k) | . == null)))
     end;
 
+# absorb($by_key) hands an open wildcard the options nothing else used that were given inline, --name=value: in kit new's
+# file alternative, --purpose=x is a template's hole even though another alternative names --purpose. Given apart, or
+# with no wildcard open, they are left for the refusal.
+def absorb($by_key):
+  . as $st
+  | if .wild_open then
+      [((.given | keys_unsorted) - .used)[] | select($by_key[.].kind == "option" and ($st.spans[.] | all(length == 1)))]
+        as $taken
+      | .used += $taken | .wild += $taken
+    else . end;
+
 # match($words) judges a command line against the spec's syntax, as the loader's guard:arguments does. It gives
 # status 0 with literals, operands, options (each key to its values, a flag's being ["1"]), and values (every operand
 # and option key to its values) when the words complete the syntax; status 1 with missing, the keys that could come
@@ -187,7 +204,9 @@ def match($words):
     else lex($words; 0; {pos: [], given: {}, spans: {}, wild: [], used: [], literals: [], operands: [], values: {},
         trailing: null, dashdash: null, refusal: null, missing: null, plain: false}; $by_key; $wild)
     | if .refusal != null then .
-      else walk_sequence([{kind: "group", optional: false, alternatives: $spec.syntax, repeat: false}]; .) | reclaim($words) end
+      else walk_sequence([{kind: "group", optional: false, alternatives: $spec.syntax, repeat: false}]; .) | reclaim($words) | absorb($by_key) end
+    | ((.empty // []) - .wild) as $empty
+    | if .refusal == null and ($empty | length) > 0 then .refusal = "\($empty[0]) needs a value" else . end
     | (.pos | map(select(.dash))) as $dashed
     | if .refusal != null then {status: 2, refusal: "\(.refusal); run: kit help \($spec.verb)"}
       elif .missing != null and ($dashed | length) > 0 then

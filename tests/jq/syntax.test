@@ -85,3 +85,15 @@ import "syntax" as syntax; syntax::match([]) | .missing
 import "syntax" as syntax; [syntax::match(["--a", "one"]), syntax::match(["--a", "two", "x"])] | map(.refusal // .literals)
 {"verb":"x","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"one","repeat":false}],[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"two","repeat":false},{"kind":"operand","name":"y","repeat":false}]],"repeat":false}]]}
 [["one"],["two"]]
+
+# In an alternative with a wildcard option, an inline --name=value another alternative names is the wildcard's: a
+# template hole may share a name with another kind's option. Written apart, or where no wildcard is open, it is still
+# refused.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--purpose=p"]) | .refusal // .options), ($s | syntax::match(["file", "x.sh", "--purpose", "p"]) | .refusal), ($s | syntax::match(["module", "m", "--purpose=p"]) | .options), ($s | syntax::match(["kind", "k", "--purpose=p"]) | .refusal)]
+{"verb":"new","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}],[{"kind":"literal","name":"module","repeat":false},{"kind":"operand","name":"name","repeat":false},{"kind":"option","inline":true,"name":"purpose","value":"text","repeat":false}],[{"kind":"literal","name":"kind","repeat":false},{"kind":"operand","name":"name","repeat":false}]],"repeat":false}]]}
+[{"--purpose":["p"]},"--purpose needs a value; run: kit help new",{"--purpose":["p"]},"--purpose cannot be combined with kind; run: kit help new"]
+
+# An empty inline value is a wildcard's hole, which may be empty, but a named option still needs one.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--purpose="]) | .refusal // .options), ($s | syntax::match(["module", "m", "--purpose="]) | .refusal)]
+{"verb":"new","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}],[{"kind":"literal","name":"module","repeat":false},{"kind":"operand","name":"name","repeat":false},{"kind":"option","inline":true,"name":"purpose","value":"text","repeat":false}]],"repeat":false}]]}
+[{"--purpose":[""]},"--purpose needs a value; run: kit help new"]
