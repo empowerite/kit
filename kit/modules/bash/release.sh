@@ -979,11 +979,12 @@ release:merged() { [[ "$1" == *.json && "$1" != *.schema.json ]]; }
 #
 #   1. the kit's cache
 #   2. a copy installed by mise, when mise is present
-#   3. the release's public tarball, downloaded with curl and unpacked into the cache
+#   3. the release's public tarball, downloaded with curl beside the .sha256 the release publishes, and unpacked into
+#      the cache only when its bytes have that digest; a release that publishes no digest is refused
 #
 # The version comes from a manifest, so it must have a version's shape before it is used in a path.
 release:fetch() {
-  local version=$1 root cache fresh
+  local version=$1 root cache fresh tarball published have
   if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
   then
     error "'${version}' is not a kit version"
@@ -1006,16 +1007,37 @@ release:fetch() {
   fi
   step "Fetching kit ${version} from its release"
   fresh=$(mktemp -d)
-  if ! curl --fail --silent --location \
-      "https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz" 2>/dev/null \
-    | tar --extract --gzip --directory "${fresh}" --strip-components 1 2>/dev/null
+  tarball="https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz"
+  if ! curl --fail --silent --location --output "${fresh}/kit.tar.gz" "${tarball}" 2>/dev/null
   then
     rm -rf "${fresh}"
     error "kit ${version} could not be fetched from its release; set KIT_BASE to a copy of it"
     return 1
   fi
+  if ! curl --fail --silent --location --output "${fresh}/kit.tar.gz.sha256" "${tarball}.sha256" 2>/dev/null
+  then
+    rm -rf "${fresh}"
+    error "kit ${version} publishes no digest beside its tarball, so it is not trusted; set KIT_BASE to a copy of it"
+    return 1
+  fi
+  published=$(cut -d ' ' -f 1 "${fresh}/kit.tar.gz.sha256")
+  have=$(release:digest < "${fresh}/kit.tar.gz")
+  if [[ "${have}" != "${published}" ]]
+  then
+    rm -rf "${fresh}"
+    error "kit ${version}'s tarball has digest ${have}, not the ${published} its release publishes; it is not unpacked"
+    return 1
+  fi
+  mkdir "${fresh}/tree"
+  if ! tar --extract --gzip --file "${fresh}/kit.tar.gz" --directory "${fresh}/tree" --strip-components 1 2>/dev/null
+  then
+    rm -rf "${fresh}"
+    error "kit ${version}'s tarball could not be unpacked; set KIT_BASE to a copy of it"
+    return 1
+  fi
   mkdir -p "$(dirname "${cache}")"
-  mv "${fresh}" "${cache}"
+  mv "${fresh}/tree" "${cache}"
+  rm -rf "${fresh}"
   printf '%s\n' "${cache}"
 }
 

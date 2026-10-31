@@ -4,8 +4,9 @@ Delivers `.github/workflows/kit-ci.yml`: one GitHub Actions job, `CI`, that runs
 default branch. The job:
 
 1. Fetches the full history, which `kit policy` reads.
-2. Puts `kit` on `PATH`. Where `.kit/manifest` says `unreleased`, it uses the kit's own checkout. Otherwise it
-   uses the release the manifest names.
+2. Puts `kit` on `PATH`. Where `kit.yml` declares `unreleased`, it uses the kit's own checkout. Otherwise it
+   downloads the release `kit.yml` declares with the `.sha256` published beside it, and unpacks the tarball only when
+   its bytes have that digest.
 3. Installs the gate's tools with `kit toolchain install`, whether mise, Homebrew, or a container image manages
    them. The gate is the repository's own CI command, such as `just ci`.
 4. Runs `kit ci`, which runs the gate, `kit check`, `kit linked`, and `kit policy`, and reports each one.

@@ -5,8 +5,8 @@
 #
 #   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
 #      runners)
-#   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release, or the
-#      checkout's own kit/bin/ when it declares unreleased
+#   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release and unpacked only when
+#      its bytes have the digest published beside it, or the checkout's own kit/bin/ when it declares unreleased
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
@@ -65,10 +65,18 @@ jobs:
             exit 1
           elif ! command -v kit >/dev/null
           then
+            tarball="https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz"
+            curl --fail --silent --location --output "${RUNNER_TEMP}/kit-${version}.tar.gz" "${tarball}"
+            curl --fail --silent --location --output "${RUNNER_TEMP}/kit-${version}.tar.gz.sha256" "${tarball}.sha256"
+            # Nothing from the tarball runs until its bytes have the digest the release publishes beside it.
+            if ! (cd "${RUNNER_TEMP}" && shasum --algorithm 256 --check --status "kit-${version}.tar.gz.sha256")
+            then
+              echo "::error::kit-${version}.tar.gz does not have the digest its release publishes; it is not unpacked"
+              exit 1
+            fi
             mkdir -p "${RUNNER_TEMP}/kit"
-            curl --fail --silent --location \
-              "https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz" \
-              | tar --extract --gzip --directory "${RUNNER_TEMP}/kit" --strip-components 1
+            tar --extract --gzip --file "${RUNNER_TEMP}/kit-${version}.tar.gz" --directory "${RUNNER_TEMP}/kit" \
+              --strip-components 1
             printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
           fi
 
