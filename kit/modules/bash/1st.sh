@@ -277,7 +277,7 @@ guard:arguments() {
   status=$?
   if (( status == 1 ))
   then
-    if [[ -t 0 && -t 1 && -t 2 ]] && use tui && tui:binary >/dev/null 2>&1
+    if [[ -t 0 && -t 1 && -t 2 ]] && use tui && tui:binary --probe >/dev/null 2>&1
     then
       exec "${kit_root}/bin/kit" tui -- "${verb}" "$@"
     fi

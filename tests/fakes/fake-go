@@ -3,9 +3,15 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Linked as go on PATH. Each call is appended to ${FAKES}/go.calls with GOOS, GOARCH, and CGO_ENABLED first. The
-# script it writes prints "kittui <goos>-<goarch>" and its arguments, native for an unset GOOS or GOARCH.
+# script it writes prints "kittui <goos>-<goarch>" and its arguments, native for an unset GOOS or GOARCH. go version
+# answers FAKE_GO_VERSION, or go1.27.3.
 
 set -o errexit -o nounset -o pipefail
+if [[ "${1:-}" == version ]]
+then
+  printf 'go version %s\n' "${FAKE_GO_VERSION:-go1.27.3}"
+  exit 0
+fi
 out=''
 for (( i = 1; i <= $#; i++ ))
 do
