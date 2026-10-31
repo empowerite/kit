@@ -25,8 +25,18 @@ case "${1:-}" in
       verb=$1 key=$3
       shift 3
       [[ "${1:-}" != -- ]] || shift
+      [[ -z "${FAKE_KIT_CALLS:-}" ]] || printf 'choices %s %s %s\n' "${verb}" "${key}" "$*" >> "${FAKE_KIT_CALLS}"
+      if [[ -n "${FAKE_KIT_ROWS:-}" ]]
+      then
+        printf 'docs/guide.md\t\t\t\n'
+        for (( i = 1; i < FAKE_KIT_ROWS; i++ ))
+        do
+          printf 'src/file-%d.go\t\t\t\n' "${i}"
+        done
+        exit 0
+      fi
       printf 'a\tthe first\tactive\t\n'
-      printf 'b\t\t\tb: kept, c depend(s) on it\n'
+      printf 'b\t\tactive\tb: kept, c depend(s) on it\n'
       printf 'answers\t%s %s %s\t\t\n' "${verb}" "${key}" "$*"
     elif [[ "${2:-}" == --match ]]
     then
@@ -41,7 +51,7 @@ case "${1:-}" in
       then
         printf '{}\n'
       else
-        printf '{"--title": {"description": "", "extended": true}}\n'
+        printf '{"--title": {"description": "the title", "extended": true}, "--purpose": {"description": "", "extended": true}}\n'
       fi
     elif [[ -f "${fixtures}/$1.json" ]]
     then

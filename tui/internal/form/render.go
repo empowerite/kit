@@ -11,7 +11,7 @@ import (
 // Styles are the ways the layout marks text: a chosen option, an option off, a label, dim text, a refusal. Each takes
 // the text and gives it back dressed; the plain styles for a static render mark a chosen option with asterisks.
 type Styles struct {
-	Chosen, Off, Label, Dim, Refusal func(string) string
+	Chosen, Off, Label, Dim, Refusal, Cursor func(string) string
 }
 
 // Plain marks only what a plain text must: *chosen*.
@@ -21,6 +21,7 @@ var Plain = Styles{
 	Label:   func(s string) string { return s },
 	Dim:     func(s string) string { return s },
 	Refusal: func(s string) string { return s },
+	Cursor:  func(s string) string { return s },
 }
 
 const (
@@ -29,15 +30,32 @@ const (
 	sep    = "   " // between the names of a row
 )
 
-// RenderStatic draws the form with no focus and plain styles, for golden tests.
-func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
-	return Render(spec, fields, width, -1, -1, Plain)
+// Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
+// cursor in a focused row (-1 for none); the styles; Expand, which may draw a field's answer live in place of its
+// values (the focused text with its caret, a list with its filter); whether the command line has the keyboard, and
+// the refusal under it; and whether the form shows the way back to the palette.
+type Options struct {
+	Width, Focus, Cursor int
+	Styles               Styles
+	Expand               func(field int, indent string) string
+	CommandFocus         bool
+	CommandRefusal       string
+	Back                 bool
 }
 
-// Render draws the form: the purpose, each field's block, and the command line. focus is the field that has the
-// keyboard, -1 for none; cursor is the option under the cursor in a focused row, -1 for none.
-func Render(spec syntax.Spec, fields []Field, width, focus, cursor int, st Styles) string {
-	d := drawer{spec: spec, fields: fields, width: width, focus: focus, cursor: cursor, st: st, column: labelColumn(fields)}
+// RenderStatic draws the form with no focus and plain styles, for golden tests.
+func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
+	return Render(spec, fields, Options{Width: width, Focus: -1, Cursor: -1, Styles: Plain})
+}
+
+// Render draws the form: the way back when there is one, the purpose, each field's block, and the command line.
+func Render(spec syntax.Spec, fields []Field, o Options) string {
+	d := drawer{spec: spec, fields: fields, width: o.Width, focus: o.Focus, cursor: o.Cursor, st: o.Styles, o: o,
+		column: labelColumn(fields)}
+	if o.Back {
+		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n\n")
+	}
+	width := o.Width
 	for _, line := range wrap(spec.Purpose, width-1) {
 		d.b.WriteString(" " + line + "\n")
 	}
@@ -49,8 +67,14 @@ func Render(spec syntax.Spec, fields []Field, width, focus, cursor int, st Style
 		d.block(i, gutter)
 	}
 	d.b.WriteString("\n")
-	for _, line := range wrap("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields)), width-1) {
+	for _, line := range wrap(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
+		if o.CommandFocus {
+			line = o.Styles.Label(line)
+		}
 		d.b.WriteString(" " + line + "\n")
+	}
+	if o.CommandRefusal != "" {
+		d.b.WriteString(" " + o.Styles.Refusal("❌ "+o.CommandRefusal) + "\n")
 	}
 	return d.b.String()
 }
@@ -62,6 +86,7 @@ type drawer struct {
 	width, column int
 	focus, cursor int
 	st            Styles
+	o             Options
 	b             strings.Builder
 }
 
@@ -173,7 +198,7 @@ func (d *drawer) block(i, margin int) {
 		d.row(i, lead)
 	default:
 		d.beside(lead, d.st.Label(f.Label), len([]rune(f.Label)), d.column, f.Description)
-		d.values(f, indent)
+		d.values(i, f, indent)
 	}
 	if f.Refusal != "" {
 		d.b.WriteString(indent + d.st.Refusal("❌ "+f.Refusal) + "\n")
@@ -181,8 +206,14 @@ func (d *drawer) block(i, margin int) {
 	d.b.WriteString("\n")
 }
 
-// values writes a field's answers, one per line, a pick of many with its boxes.
-func (d *drawer) values(f Field, indent string) {
+// values writes a field's answers, one per line, a pick of many with its boxes, or what Expand draws in their place.
+func (d *drawer) values(i int, f Field, indent string) {
+	if d.o.Expand != nil {
+		if s := d.o.Expand(i, indent); s != "" {
+			d.b.WriteString(s)
+			return
+		}
+	}
 	for _, value := range f.Values {
 		mark := ""
 		if f.Kind == PickMany {
@@ -209,10 +240,14 @@ func (d *drawer) row(i int, lead string) {
 		return false
 	}
 	name := func(k int) string {
+		text := d.st.Off(f.Options[k])
 		if on(k) {
-			return d.st.Chosen(f.Options[k])
+			text = d.st.Chosen(f.Options[k])
 		}
-		return d.st.Off(f.Options[k])
+		if i == d.focus && k == d.cursor && f.Kind == AnyOf {
+			text = d.st.Cursor(text)
+		}
+		return text
 	}
 	if !d.vertical(i) {
 		shown := f.Chosen
@@ -244,7 +279,7 @@ func (d *drawer) row(i int, lead string) {
 		for _, j := range nested {
 			g := d.fields[j]
 			if g.Key == option && g.Kind != AnyOf && g.Kind != OneOf {
-				d.values(g, strings.Repeat(" ", d.column)) // the option's own value: no second label
+				d.values(j, g, strings.Repeat(" ", d.column)) // the option's own value: no second label
 				continue
 			}
 			d.b.WriteString("\n")

@@ -129,9 +129,14 @@ func (w *walker) sequence(nodes []syntax.Node, group int) {
 		case "group":
 			w.group(n, group)
 		case "literal":
-			// a literal is fixed by its alternative; it names the operand that follows it, as kit new's file <path>
+			// a literal is fixed by its alternative; at the top it names the operand that follows it, as kit new's file
+			// <path>, and in a row's alternative the row already shows it
 			if i+1 < len(nodes) && nodes[i+1].Kind == "operand" {
-				w.value(nodes[i+1], n.Name+" ", true, group)
+				prefix := n.Name + " "
+				if group >= 0 && i == 0 {
+					prefix = ""
+				}
+				w.value(nodes[i+1], prefix, true, group)
 				i++
 			}
 		case "flag":

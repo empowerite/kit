@@ -53,7 +53,7 @@ func TestChoicesColumnsAndAnswers(t *testing.T) {
 	if rows[0] != (Choice{Value: "a", Description: "the first", State: "active"}) {
 		t.Errorf("row 0: %+v", rows[0])
 	}
-	if rows[1] != (Choice{Value: "b", Refusal: "b: kept, c depend(s) on it"}) {
+	if rows[1] != (Choice{Value: "b", State: "active", Refusal: "b: kept, c depend(s) on it"}) {
 		t.Errorf("row 1: %+v", rows[1])
 	}
 	// the answers reach kit after a --, so one that starts with - is never read as kit's own
@@ -64,13 +64,13 @@ func TestChoicesColumnsAndAnswers(t *testing.T) {
 
 func TestExtendBeforeAndAfterTheAnswers(t *testing.T) {
 	r := fake(t, "")
-	before, err := r.Extend("new", nil)
-	if err != nil || len(before) != 0 {
+	keys, before, err := r.Extend("new", nil)
+	if err != nil || len(before) != 0 || len(keys) != 0 {
 		t.Fatalf("Extend(nil): %v, %+v", err, before)
 	}
-	after, err := r.Extend("new", []string{"--rule=markdown"})
-	if err != nil || !after["--title"].Extended {
-		t.Fatalf("Extend(rule): %v, %+v", err, after)
+	keys, after, err := r.Extend("new", []string{"--rule=markdown"})
+	if err != nil || !after["--title"].Extended || strings.Join(keys, " ") != "--title --purpose" {
+		t.Fatalf("Extend(rule): %v, %v, %+v", err, keys, after)
 	}
 }
 

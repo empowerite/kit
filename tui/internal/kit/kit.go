@@ -90,16 +90,43 @@ func (r Runner) Choices(verb, key string, answers []string) ([]Choice, error) {
 	return rows, nil
 }
 
-// Extend gives the arguments the verb learns from the answers so far, as kit syntax <verb> --extend prints them: none
-// before the verb knows.
-func (r Runner) Extend(verb string, answers []string) (map[string]syntax.Argument, error) {
+// Extend gives the arguments the verb learns from the answers so far, as kit syntax <verb> --extend prints them, with
+// their keys in the order kit printed them (a template's holes in the template's order): none before the verb knows.
+func (r Runner) Extend(verb string, answers []string) ([]string, map[string]syntax.Argument, error) {
 	out, err := r.run(withAnswers([]string{"syntax", verb, "--extend"}, answers)...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	arguments := map[string]syntax.Argument{}
-	err = json.Unmarshal(out, &arguments)
-	return arguments, err
+	if err := json.Unmarshal(out, &arguments); err != nil {
+		return nil, nil, err
+	}
+	var keys []string
+	dec := json.NewDecoder(bytes.NewReader(out))
+	depth := 0
+	for {
+		token, err := dec.Token()
+		if err != nil {
+			break
+		}
+		switch v := token.(type) {
+		case json.Delim:
+			if v == '{' {
+				depth++
+			} else if v == '}' {
+				depth--
+			}
+		case string:
+			if _, ok := arguments[v]; ok && depth == 1 {
+				keys = append(keys, v)
+				var skip json.RawMessage
+				if err := dec.Decode(&skip); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+	}
+	return keys, arguments, nil
 }
 
 // Match judges a command line for the verb as the guard would, through kit syntax <verb> --match; the words follow a --.
