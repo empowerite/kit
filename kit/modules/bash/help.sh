@@ -138,7 +138,7 @@ help:overview() {
     printf '\n%s%s%s\n' "${bold}" "${group^^}" "${plain}"
     for verb in "${members[@]}"
     do
-      printf '  %-12s %s\n' "${verb}:" "$(help:purpose "${verb}")"
+      printf '  %-12s %s\n' "${verb}" "$(help:purpose "${verb}")"
     done
   done
   printf '\n%sEXAMPLES%s\n' "${bold}" "${plain}"
