@@ -2,7 +2,7 @@
   "verb": "help",
   "purpose": "prints what kit is and its verbs by group, or one verb's help page",
   "usage": [
-    "kit help [<verb>]"
+    "kit help [<verb>…]"
   ],
   "syntax": [
     [
@@ -14,7 +14,7 @@
             {
               "kind": "operand",
               "name": "verb",
-              "repeat": false
+              "repeat": true
             }
           ]
         ],
@@ -24,7 +24,7 @@
   ],
   "arguments": {
     "<verb>": {
-      "description": "a verb's name, or the start of one: kit help re matches rebase and region",
+      "description": "verbs' names, or the starts of them: kit help re matches rebase and region",
       "choices": "open"
     }
   }

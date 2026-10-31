@@ -2,19 +2,19 @@
 # kit-help - prints what kit is and its verbs by group, or one verb's help page (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit help [<verb>]
+# kit help [<verb>…]
 #
 # Prints the help each verb's header holds.
 #
-#   <verb>   a verb's name, or the start of one: kit help re matches rebase and region
+#   <verb>…   verbs' names, or the starts of them: kit help re matches rebase and region
 #
 #   - With no <verb>, it prints what kit is, and every verb's name and purpose under the verb's group, as gh help
 #     lays itself out; kit usage prints the usage lines.
-#   - With a <verb> that matches several verbs, it prints each one's usage and purpose.
-#   - With a <verb> that matches one verb, it prints that verb's page: its usage, its description, and the other
-#     verbs of its group.
+#   - For each <verb> that matches one verb, it prints that verb's page: its usage, its description, and the other
+#     verbs of its group. For each that matches several, it prints each one's usage and purpose. The answers follow
+#     one another in the order the verbs are named, a blank line between them.
 #
-# Exits 0 on success, and 2 when no verb matches.
+# Exits 0 on success, and 2 when a name matches no verb; it prints nothing then.
 #
 # see: modules/bash/help.sh
 
@@ -24,24 +24,35 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 use help
 guard:arguments help "$@" || exit $?
 
-readarray -t verbs < <(help:verbs "${1:-}")
-case "${#verbs[@]}" in
-  (0)
-    error "no kit verb matches '$1'; run: kit help"
+if (( $# == 0 ))
+then
+  help:overview
+  exit 0
+fi
+
+# Every name is judged first, so a name that matches nothing is refused before anything is printed.
+for word in "$@"
+do
+  if [[ -z "$(help:verbs "${word}")" ]]
+  then
+    error "no kit verb matches '${word}'; run: kit help"
     exit 2
-    ;;
-  (1)
+  fi
+done
+first=true
+for word in "$@"
+do
+  [[ "${first}" == true ]] || printf '\n'
+  first=false
+  readarray -t verbs < <(help:verbs "${word}")
+  if (( ${#verbs[@]} == 1 ))
+  then
     help:page "${verbs[0]}"
-    ;;
-  (*)
-    if [[ -z "${1:-}" ]]
-    then
-      help:overview
-      exit 0
-    fi
+  else
     printf 'usage: kit <verb> [<argument>…]\n\n'
     help:summary "${verbs[@]}"
     printf '\nRun kit help <verb> for a verb'"'"'s page.\n'
-esac
+  fi
+done
 
 # ----------------------------------------------------------------------------------------------------------------------

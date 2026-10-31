@@ -29,6 +29,7 @@ group-has() {
   group-has INSTALLATION install 'mirrors the release'
   [[ "$output" == *$'USAGE\n  kit <verb> [<argument>…]\n'* ]]
   [[ "$output" == *$'\nEXAMPLES\n'* && "$output" == *$'\nLEARN MORE\n'* ]]
+  [[ "$output" == *$'\nLEARN MORE\n  • kit help <verb>… '* ]]
   [[ "$output" != *$'\nOTHER\n'* ]]
   run "${kit_root}/bin/kit" --help
   [ "$status" -eq 2 ]
@@ -129,12 +130,16 @@ group-has() {
   [[ "$output" == *$'Usage\n  kit plain <thing>\n\nDescription\n  Does it.'* ]]
 }
 
-@test "kit help refuses a name no verb starts with, and more than one name" {
+@test "kit help prints a page for each verb named, in order, and refuses a name no verb starts with before printing any" {
   run "${kit_root}/bin/kit" help nonesuch
   [ "$status" -eq 2 ]
   [[ "$output" == *"no kit verb matches 'nonesuch'; run: kit help"* ]]
   run "${kit_root}/bin/kit" help tidy gate
+  [ "$status" -eq 0 ]
+  [ "$(grep -E '^kit [a-z]+ - ' <<<"$output" | cut -d ' ' -f 2 | paste -s -d ' ' -)" = "tidy gate" ]
+  run "${kit_root}/bin/kit" help tidy nonesuch
   [ "$status" -eq 2 ]
+  [[ "$output" != *"kit tidy -"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
  kit help - prints what kit is and its verbs by group, or one verb's help page
 
-   <verb>  a verb's name, or the start of one: kit help re matches rebase and region
+   <verb>…  verbs' names, or the starts of them: kit help re matches rebase and region
 
 
  kit help
