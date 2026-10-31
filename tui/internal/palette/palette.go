@@ -1,14 +1,18 @@
-// Package palette is what bare kit opens: every verb but tui with its whole purpose, filtered as it is typed, under
-// the keys. The right arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow
-// brings them back. Enter opens the verb's form; esc quits.
+// Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
+// verb with its whole purpose, filtered as it is typed, under the keys. The up and down arrows move over the verbs,
+// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. The right
+// arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them back.
+// Enter opens the verb's form; esc quits.
 package palette
 
 import (
-	"github.com/charmbracelet/x/ansi"
+	"cmp"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
@@ -23,6 +27,9 @@ type pageMsg struct {
 	err        error
 }
 
+// groups is the order kit help lists the groups in; a group it does not name follows them.
+var groups = []string{"workflow", "files", "checks", "installation", "interfaces", "help"}
+
 // Model is the palette on the screen.
 type Model struct {
 	verbs         []kit.Verb
@@ -36,7 +43,8 @@ type Model struct {
 	interrupted   bool
 }
 
-// New opens the palette on the verbs, leaving out tui itself.
+// New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
+// orders the groups, a group kit help does not name after them by its name, and within a group as kit listed them.
 func New(verbs []kit.Verb, r kit.Runner) Model {
 	m := Model{runner: r, pages: map[string]string{}, width: 100, height: 30}
 	for _, v := range verbs {
@@ -44,7 +52,28 @@ func New(verbs []kit.Verb, r kit.Runner) Model {
 			m.verbs = append(m.verbs, v)
 		}
 	}
+	slices.SortStableFunc(m.verbs, func(a, b kit.Verb) int {
+		return cmp.Or(cmp.Compare(rank(a.Group), rank(b.Group)), strings.Compare(a.Group, b.Group))
+	})
 	return m
+}
+
+// rank gives a group's place in the tree: its index among kit help's groups, or past them all for one kit help does
+// not name.
+func rank(group string) int {
+	if i := slices.Index(groups, group); i >= 0 {
+		return i
+	}
+	return len(groups)
+}
+
+// heading gives the heading drawn over a group's verbs: the group's name upper-cased, as kit help prints it, or OTHER
+// for the verbs whose banner names no group, as kit help lists them.
+func heading(group string) string {
+	if group == "" {
+		return "OTHER"
+	}
+	return strings.ToUpper(group)
 }
 
 // Init starts nothing: the list needs no page until the right arrow asks for one.
@@ -56,7 +85,8 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Cancelled says whether esc ended the palette.
 func (m Model) Cancelled() bool { return m.cancelled }
 
-// Visible gives the verbs the filter leaves: those whose name holds the text typed.
+// Visible gives the verbs the filter leaves, those whose name holds the text typed, in the order the tree draws them,
+// which the cursor counts along.
 func (m Model) Visible() []kit.Verb {
 	var out []kit.Verb
 	for _, v := range m.verbs {
@@ -104,6 +134,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(visible)-1 {
 				m.cursor++
 			}
+		case "shift+up":
+			// to the first verb of the cursor's group, or, from there, of the group before; the first group stays
+			if m.cursor < len(visible) {
+				if f := first(visible, m.cursor); f < m.cursor {
+					m.cursor = f
+				} else if f > 0 {
+					m.cursor = first(visible, f-1)
+				}
+			}
+		case "shift+down":
+			if n := next(visible, m.cursor); n < len(visible) {
+				m.cursor = n
+			}
 		case "backspace":
 			if r := []rune(m.filter); len(r) > 0 {
 				m.filter = string(r[:len(r)-1])
@@ -118,6 +161,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.page()
 	}
 	return m, nil
+}
+
+// first gives the index of the first verb in the group of the verb at i.
+func first(visible []kit.Verb, i int) int {
+	for i > 0 && visible[i-1].Group == visible[i].Group {
+		i--
+	}
+	return i
+}
+
+// next gives the index of the first verb of the group after the group of the verb at i, or len(visible) when that
+// group is the last.
+func next(visible []kit.Verb, i int) int {
+	for j := i + 1; j < len(visible); j++ {
+		if visible[j].Group != visible[i].Group {
+			return j
+		}
+	}
+	return len(visible)
 }
 
 // page fetches the highlighted verb's page, once per verb, when the pages are shown.
@@ -137,42 +199,79 @@ func (m Model) page() tea.Cmd {
 	}
 }
 
-// View draws the keys on top, so filtering never moves them, then the filter and the verbs: each with its whole
-// purpose, clipped at the screen's edge, or, after the right arrow, the names beside the highlighted verb's page.
+// row is one line of the tree: a group's heading, or a verb by its index among the visible verbs.
+type row struct {
+	heading string
+	index   int
+}
+
+// tree gives the rows the tree draws for the visible verbs: each group's heading, then its verbs. A group the filter
+// leaves empty has no row.
+func tree(visible []kit.Verb) []row {
+	var rows []row
+	for i, v := range visible {
+		if i == 0 || v.Group != visible[i-1].Group {
+			rows = append(rows, row{heading: heading(v.Group), index: -1})
+		}
+		rows = append(rows, row{index: i})
+	}
+	return rows
+}
+
+// widest gives the width of the names' column: the widest name, or more when a heading, which starts two columns
+// before the names, would run past it.
+func (m Model) widest() int {
+	widest := 0
+	for _, v := range m.verbs {
+		widest = max(widest, len(v.Name), len(heading(v.Group))-2)
+	}
+	return widest
+}
+
+// View draws the keys on top, so filtering never moves them, then the filter and the tree: each group's heading,
+// dimmed, over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the
+// names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	keys := "↑↓ move · type to filter · → pages · ⏎ open · esc quit"
+	keys := "↑↓ move · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
 	if m.showPages {
-		keys = "↑↓ move · type to filter · ← purposes · ⏎ open · esc quit"
+		keys = "↑↓ move · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · esc quit"
 	}
 	var top strings.Builder
 	for _, line := range page(keys, m.width-2) {
 		top.WriteString(" " + style.Off(line) + "\n")
 	}
 	top.WriteString("\n " + style.Filter + " " + m.filter + "▏\n\n")
-	widest := 0
-	for _, v := range m.verbs {
-		if len(v.Name) > widest {
-			widest = len(v.Name)
-		}
-	}
+	widest := m.widest()
 	used := strings.Count(top.String(), "\n")
 	rows := m.height - used - 1
 	if rows < 1 {
 		rows = 1
 	}
+	lines := tree(visible)
+	at := 0
+	for i, r := range lines {
+		if r.index == m.cursor {
+			at = i
+		}
+	}
 	start := 0
-	if m.cursor >= rows {
-		start = m.cursor - rows + 1
+	if at >= rows {
+		start = at - rows + 1
 	}
 	var list strings.Builder
 	if len(visible) == 0 {
 		list.WriteString("   " + style.Off("no verb matches") + "\n")
 	}
-	for i := start; i < len(visible) && i-start < rows; i++ {
-		v := visible[i]
+	for i := start; i < len(lines) && i-start < rows; i++ {
+		r := lines[i]
+		if r.index < 0 {
+			list.WriteString(" " + style.Off(r.heading) + "\n")
+			continue
+		}
+		v := visible[r.index]
 		lead, name := "   ", v.Name
-		if i == m.cursor {
+		if r.index == m.cursor {
 			lead, name = " "+style.Focus+" ", style.Chosen(v.Name)
 		}
 		line := lead + name + strings.Repeat(" ", widest-len(v.Name))

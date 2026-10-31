@@ -57,25 +57,38 @@ func (r Runner) Verbs() ([]syntax.Spec, error) {
 	return syntax.DecodeAll(bytes.NewReader(out))
 }
 
-// Verb is a verb's name and purpose, as kit syntax --list prints them.
+// Verb is a verb's name, purpose, and group, as kit syntax --list prints them; the group is one of kit help's, and
+// empty when the kit printed none.
 type Verb struct {
-	Name, Purpose string
+	Name, Purpose, Group string
 }
 
-// List gives every verb's name and purpose, from kit syntax --list, which answers at once where Verbs reads every
-// verb's grammar.
+// List gives every verb's name, purpose, and group, from kit syntax --list, which answers at once where Verbs reads
+// every verb's grammar.
 func (r Runner) List() ([]Verb, error) {
 	out, err := r.run("syntax", "--list")
 	if err != nil {
 		return nil, err
 	}
+	return parseList(string(out)), nil
+}
+
+// parseList reads the lines kit syntax --list prints, each <verb>, <purpose>, and <group> separated by tabs. A line
+// of two columns, from a kit that prints no group, leaves the group empty; a line with no tab is no verb.
+func parseList(out string) []Verb {
 	var verbs []Verb
-	for _, line := range strings.Split(string(out), "\n") {
-		if name, purpose, ok := strings.Cut(line, "\t"); ok {
-			verbs = append(verbs, Verb{Name: name, Purpose: purpose})
+	for _, line := range strings.Split(out, "\n") {
+		columns := strings.SplitN(line, "\t", 3)
+		if len(columns) < 2 {
+			continue
 		}
+		v := Verb{Name: columns[0], Purpose: columns[1]}
+		if len(columns) == 3 {
+			v.Group = columns[2]
+		}
+		verbs = append(verbs, v)
 	}
-	return verbs, nil
+	return verbs
 }
 
 // Spec gives one verb's spec; a name that is no verb is kit's refusal, an ExitError with code 2.

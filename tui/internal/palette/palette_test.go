@@ -1,4 +1,5 @@
-// The palette lists the verbs, filters them as they are typed, shows the highlighted one's page, and opens it.
+// The palette lists the verbs as a tree of their groups, filters them as they are typed, moves over the verbs and
+// between the groups, shows the highlighted one's page, and opens it.
 package palette
 
 import (
@@ -9,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/kit"
+	"github.com/empowerite/kit/tui/internal/style"
 )
 
 func open(t *testing.T) Model {
@@ -57,6 +59,13 @@ func typed(text string) []tea.Msg {
 	return msgs
 }
 
+var (
+	up        = tea.KeyPressMsg{Code: tea.KeyUp}
+	down      = tea.KeyPressMsg{Code: tea.KeyDown}
+	shiftUp   = tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	shiftDown = tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift}
+)
+
 func names(m Model) string {
 	var out []string
 	for _, v := range m.Visible() {
@@ -65,10 +74,108 @@ func names(m Model) string {
 	return strings.Join(out, " ")
 }
 
-func TestEveryVerbButTui(t *testing.T) {
+// highlighted gives the name of the verb under the cursor.
+func highlighted(m Model) string { return m.Visible()[m.cursor].Name }
+
+// drawn gives the rows of the list as the view draws them, one word each: a heading as itself, a verb as its name,
+// and the highlighted verb as ▸ and its name.
+func drawn(m Model) string {
+	var out []string
+	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	for i, line := range lines {
+		if strings.Contains(line, style.Filter) {
+			lines = lines[i+1:]
+			break
+		}
+	}
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		switch {
+		case len(fields) == 0:
+		case fields[0] == style.Focus:
+			out = append(out, style.Focus+fields[1])
+		default:
+			out = append(out, fields[0])
+		}
+	}
+	return strings.Join(out, " ")
+}
+
+func TestEveryVerbButTuiInTheOrderOfTheGroups(t *testing.T) {
 	m, _ := drive(open(t))
-	if names(m) != "check commit context version" {
+	if names(m) != "commit submit context check version" {
 		t.Errorf("verbs: %q", names(m))
+	}
+}
+
+func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30})
+	if drawn(m) != "WORKFLOW ▸commit submit FILES context CHECKS check INSTALLATION version" {
+		t.Errorf("tree: %q", drawn(m))
+	}
+	view := m.View().Content
+	if !strings.Contains(view, " "+style.Off("WORKFLOW")+"\n") {
+		t.Errorf("the heading is not dimmed on a line of its own:\n%s", view)
+	}
+	if first := strings.SplitN(view, "\n", 2)[0]; !strings.Contains(first, "↑↓ move · ⇧↑↓ group") {
+		t.Errorf("the keys do not say what shift does: %q", first)
+	}
+}
+
+func TestUpAndDownMoveOverTheVerbsAndSkipTheHeadings(t *testing.T) {
+	m, _ := drive(open(t), down, down)
+	if drawn(m) != "WORKFLOW commit submit FILES ▸context CHECKS check INSTALLATION version" {
+		t.Errorf("down twice: %q", drawn(m))
+	}
+	m, _ = drive(m, up)
+	if highlighted(m) != "submit" {
+		t.Errorf("up: %q", highlighted(m))
+	}
+	m, _ = drive(m, up, up)
+	if highlighted(m) != "commit" {
+		t.Errorf("up at the first verb: %q", highlighted(m))
+	}
+}
+
+func TestShiftDownAndShiftUpMoveToTheFirstVerbOfTheNextAndPreviousGroup(t *testing.T) {
+	m, _ := drive(open(t))
+	for _, want := range []string{"context", "check", "version", "version"} {
+		m, _ = drive(m, shiftDown)
+		if highlighted(m) != want {
+			t.Errorf("shift+down: %q, want %q", highlighted(m), want)
+		}
+	}
+	for _, want := range []string{"check", "context", "commit", "commit"} {
+		m, _ = drive(m, shiftUp)
+		if highlighted(m) != want {
+			t.Errorf("shift+up: %q, want %q", highlighted(m), want)
+		}
+	}
+	// from a verb below the first of its group, shift+up goes to that first verb
+	m, _ = drive(m, down, shiftUp)
+	if highlighted(m) != "commit" {
+		t.Errorf("shift+up within a group: %q", highlighted(m))
+	}
+}
+
+func TestAFilterThatEmptiesAGroupHidesItsHeading(t *testing.T) {
+	m, _ := drive(open(t), typed("co")...)
+	if drawn(m) != "WORKFLOW ▸commit FILES context" {
+		t.Errorf("co: %q", drawn(m))
+	}
+	m, _ = drive(open(t), typed("zz")...)
+	if drawn(m) != "no" || !strings.Contains(m.View().Content, "no verb matches") {
+		t.Errorf("zz: %q", drawn(m))
+	}
+}
+
+func TestTheWindowCountsTheHeadingsSoTheCursorStaysOnScreen(t *testing.T) {
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 8}, down, down, down, down)
+	if highlighted(m) != "version" || !strings.HasSuffix(drawn(m), "▸version") {
+		t.Errorf("the cursor's row is off the screen: %q", drawn(m))
+	}
+	if n := strings.Count(strings.TrimRight(m.View().Content, "\n"), "\n") + 1; n > 8 {
+		t.Errorf("%d lines on a screen of 8:\n%s", n, m.View().Content)
 	}
 }
 
@@ -88,14 +195,14 @@ func TestFilterNarrows(t *testing.T) {
 }
 
 func TestEnterOpensHighlighted(t *testing.T) {
-	_, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if got, ok := produced[len(produced)-1].(OpenMsg); !ok || got.Verb != "commit" {
+	_, produced := drive(open(t), down, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got, ok := produced[len(produced)-1].(OpenMsg); !ok || got.Verb != "submit" {
 		t.Fatalf("produced %v", produced)
 	}
 }
 
 func TestTheListShowsWholePurposesAndNoPage(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, tea.KeyPressMsg{Code: tea.KeyDown})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, down)
 	view := m.View().Content
 	if !strings.Contains(view, "commits what is staged, after the checks a commit's rule requires") {
 		t.Errorf("the purpose is not whole:\n%s", view)
@@ -121,13 +228,16 @@ func TestARowWiderThanTheScreenIsClippedAtItsEdge(t *testing.T) {
 }
 
 func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, tea.KeyPressMsg{Code: tea.KeyDown},
-		tea.KeyPressMsg{Code: tea.KeyRight})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, down, tea.KeyPressMsg{Code: tea.KeyRight})
 	view := m.View().Content
-	if !strings.Contains(view, "kit commit - a purpose for the test") || strings.Contains(view, "commits what is staged") {
+	if !strings.Contains(view, "kit submit - a purpose for the test") || strings.Contains(view, "commits what is staged") {
 		t.Fatalf("right did not show the page alone:\n%s", view)
 	}
-	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyDown})
+	// the names' column is wide enough for every heading, so none wraps beside the page
+	if drawn(m) != "WORKFLOW commit ▸submit FILES context CHECKS check INSTALLATION version" {
+		t.Errorf("the tree beside the page: %q", drawn(m))
+	}
+	m, _ = drive(m, down)
 	if !strings.Contains(m.View().Content, "kit context - a purpose for the test") {
 		t.Errorf("down in the pages did not follow:\n%s", m.View().Content)
 	}

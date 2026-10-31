@@ -153,3 +153,19 @@ func TestKindAsksWithTheAnswers(t *testing.T) {
 		t.Errorf("Kind(add) = %q, %v", kind, err)
 	}
 }
+
+func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
+	verbs, err := fake(t, "").List()
+	if err != nil || len(verbs) != 6 {
+		t.Fatalf("List: %v, %+v", err, verbs)
+	}
+	want := Verb{Name: "commit", Purpose: "commits what is staged, after the checks a commit's rule requires", Group: "workflow"}
+	if verbs[1] != want {
+		t.Errorf("verb 1: %+v", verbs[1])
+	}
+	// a kit that prints two columns, and no group, leaves the group empty; a line with no tab is no verb
+	got := parseList("version\tprints this release's version\n\n")
+	if len(got) != 1 || got[0] != (Verb{Name: "version", Purpose: "prints this release's version"}) {
+		t.Errorf("two columns: %+v", got)
+	}
+}
