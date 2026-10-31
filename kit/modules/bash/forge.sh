@@ -41,7 +41,7 @@
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit status draws
-#   open-issues                   one JSON object per open issue, oldest first, the documents kit todo draws
+#   open-issues                   one JSON object per open issue, oldest first, the documents kit backlog draws
 #
 # see: docs/architecture.md
 

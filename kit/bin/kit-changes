@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# kit-changes - lists the open changes, each with the issues it closes, as kit status draws them (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit changes [--json] [--mine | --others | --all | --owner=<login>…]
+#
+# Lists every open change of the repository on its forge, a pull request on GitHub or a merge request on GitLab,
+# oldest first, each drawn as kit status draws one: its number and title, its author, its state with its age, its
+# checks, its unresolved review threads, and its branch. Under each change, the issues it closes, one row each as
+# kit backlog draws an issue, in flight: the number, the assignees, the state with the issue's age, and the title.
+# kit backlog lists the issues no change closes. NO_COLOR turns the color off; CLICOLOR_FORCE turns it on without a
+# terminal.
+#
+#   --json            prints the same facts as one JSON array, one document per change with its issues under closes
+#   --mine            the changes the caller opened, without the author column
+#   --others          the changes anyone but the caller opened
+#   --all             every open change (the default)
+#   --owner=<login>   the changes the named author opened; give it once or more
+#
+# see: modules/bash/changes.sh, modules/bash/status.sh, modules/bash/forge.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use changes
+
+guard:require tool:git tool:jq
+changes:render "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -44,9 +44,9 @@ import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
 [["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
 
 # A merge request folds into the document, with its ref written !<iid>.
-import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing"}])
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}]}])
 {"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
-{"number":3,"ref":"!3","branch":"7-fix-the-thing","title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing"}]}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"age":400}]}
 
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login and the age in seconds.
 import "forge" as forge; forge::github_issues(1000000)

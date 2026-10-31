@@ -156,7 +156,9 @@ forge-github:open-prs() {
         nodes {
           number title isDraft headRefName createdAt mergeStateStatus reviewDecision
           author { login }
-          closingIssuesReferences(first: 100) { nodes { number title } }
+          closingIssuesReferences(first: 100) {
+            nodes { number title createdAt assignees(first: 10) { nodes { login } } }
+          }
           reviewThreads(first: 100) { nodes { isResolved } }
           commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
             __typename

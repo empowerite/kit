@@ -15,8 +15,8 @@
 #   1. what the fetch brought in, unless --no-fetch
 #   2. the root checkout (the desk)
 #   3. each worktree under worktrees/, with its uncommitted paths and then its commits
-#   4. each open pull request, with its author, state, age, checks, the worktree that has its branch checked out,
-#      and the issues it closes
+#   4. each open pull request, with its author, state, age, checks, and the worktree that has its branch checked
+#      out, and under it the issues it closes, one row each as kit backlog draws an issue, in flight
 #   5. the branches whose upstream is gone
 #
 # Which pull requests are shown:
@@ -59,6 +59,10 @@ status_gap='  '
 # status_issue_sgr and status_change_sgr color an issue's number and a change's, in every table the kit draws.
 status_issue_sgr=36
 status_change_sgr=35
+
+# status_worktree_on maps a branch to the worktree that has it checked out, relative to the current directory.
+# status:render fills it; status:pr-table reads it to end a pull request's row with its branch.
+declare -gA status_worktree_on=()
 
 # status:width prints the terminal's width in columns: COLUMNS, else the width of the terminal on stderr, else
 # 100. A width under 60 also gives 100.
@@ -125,9 +129,11 @@ status:state-emoji() {
   esac
 }
 
-# status:age <seconds> prints a duration in its coarsest informative unit: 45s, 12m, 3h, 47d.
+# status:age <seconds> prints a duration in its coarsest informative unit: 45s, 12m, 3h, 47d. It prints nothing
+# for no seconds at all, as an issue without a time has.
 status:age() {
   local secs=$1
+  [[ -n "${secs}" && "${secs}" != null ]] || return 0
   (( secs < 0 )) && secs=0
   if (( secs < 120 ))
   then printf '%ds' "${secs}"
@@ -430,11 +436,80 @@ status:check-cell() {
   return 0
 }
 
-# status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <worktree> prints a pull request:
-# its row, then the issues it closes. The state and its age share a cell. The row shows the author before the state
-# when <owner-width> is above zero, and ends with the branch when a worktree here has it checked out.
+# status:issue-widths <issues-json> reads a JSON array of issue documents and prints the widths of the widest number,
+# assignees, age, and branch across them, space-separated: zero where no issue has one, so the column is left out.
+status:issue-widths() {
+  local ref assignees age branch text ref_w=0 owner_w=0 age_w=0 branch_w=0
+  while IFS=$'\x1f' read -r ref assignees age branch
+  do
+    [[ -n "${ref}" ]] || continue
+    (( ${#ref} > ref_w )) && ref_w=${#ref}
+    (( ${#assignees} > owner_w )) && owner_w=${#assignees}
+    text=$(status:age "${age}")
+    (( ${#text} > age_w )) && age_w=${#text}
+    (( ${#branch} > branch_w )) && branch_w=${#branch}
+  done < <(jq --raw-output '.[] | [(.ref // "#\(.number)"), ((.assignees // []) | join(" ")),
+                                   (.age // "" | tostring), (.branch // "")] | join("\u001f")' <<<"$1")
+  printf '%s %s %s %s\n' "${ref_w}" "${owner_w}" "${age_w}" "${branch_w}"
+}
+
+# status:issue-row <issue-json> <widths> <state> <indent> prints one issue as kit backlog and kit changes draw it:
+# <indent>, the number right-aligned, the assignees when any issue in the table has one, then <state> with the age
+# when <state> is given, as under a change, else the age alone, then the branch when any issue has one, and last
+# the title, clipped to what the terminal's width leaves. <widths> is status:issue-widths' line. Every cell after
+# the number opens with a glyph, so status_gap separates them, and a cell with nothing is blank, glyph included, so
+# every title starts at the same column. The number is cyan; the state is blue, the family of a move that is
+# someone else's; the detail is dim.
+status:issue-row() {
+  local doc=$1 state=$3 indent=$4 ref_w owner_w age_w branch_w ref title assignees age branch row glyph width text
+  read -r ref_w owner_w age_w branch_w <<<"$2"
+  IFS=$'\x1f' read -r ref title assignees age branch \
+    < <(jq --raw-output '[(.ref // "#\(.number)"), .title, ((.assignees // []) | join(" ")),
+                          (.age // "" | tostring), (.branch // "")] | join("\u001f")' <<<"${doc}")
+  row="${indent}$(status:paint "${status_issue_sgr}" "$(status:cell "${ref}" "${ref_w}" right)")"
+  width=$(( $(status:width) - ${#indent} - ref_w - 5 ))
+  if (( owner_w > 0 ))
+  then
+    glyph='   '
+    [[ -n "${assignees}" ]] && glyph='👤 '
+    row+="${status_gap}${glyph}$(status:paint 90 "$(status:cell "${assignees}" "${owner_w}")")"
+    width=$(( width - 5 - owner_w ))
+  fi
+  text=$(status:age "${age}")
+  if [[ -n "${state}" ]]
+  then
+    row+="${status_gap}🛫 $(status:paint 34 "${state}")"
+    width=$(( width - 5 - ${#state} ))
+    if [[ -n "${text}" ]]
+    then
+      row+=" $(status:paint 90 "$(status:cell "${text}" "${age_w}" right)")"
+      width=$(( width - 1 - age_w ))
+    fi
+  elif (( age_w > 0 ))
+  then
+    row+="${status_gap}$(status:paint 90 "$(status:cell "${text}" "${age_w}" right)")"
+    width=$(( width - 2 - age_w ))
+  fi
+  if (( branch_w > 0 ))
+  then
+    if [[ -n "${branch}" ]]
+    then row+="${status_gap}$(status:paint 90 "🌿 $(status:cell "${branch}" "${branch_w}")")"
+    else row+="${status_gap}   $(status:cell '' "${branch_w}")"
+    fi
+    width=$(( width - 5 - branch_w ))
+  fi
+  (( width < 20 )) && width=20
+  (( ${#title} > width )) && title="${title:0:width-1}…"
+  printf '%s%s🎫 %s\n' "${row}" "${status_gap}" "${title}" >&2
+}
+
+# status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <with-branch> <issue-widths>
+# prints a pull request: its row, then the issues it closes, one row each, in flight, indented under it. The state
+# and its age share a cell. The row shows the author before the state when <owner-width> is above zero, and ends
+# with the branch when <with-branch> is not empty: kit status gives the worktree that has it checked out, kit
+# changes gives it always. <issue-widths> is status:issue-widths' line over every issue in the table.
 status:pr-block() {
-  local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6
+  local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6 issue_widths=$7
   local number ref title author branch state age unresolved row issue checks
   IFS=$'\x1f' read -r number ref title author branch state age unresolved \
     < <(jq --raw-output '[.number, (.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
@@ -450,13 +525,52 @@ status:pr-block() {
   (( unresolved > 0 )) && row+="${status_gap}$(status:paint 33 "💬 ${unresolved} unresolved")"
   [[ -n "${worktree}" ]] && row+="${status_gap}$(status:paint 90 "🌿 ${branch}")"
   printf '%s\n' "${row}" >&2
-  while IFS=$'\x1f' read -r issue title
+  while IFS= read -r issue
   do
     [[ -n "${issue}" ]] || continue
-    printf '   %s %s %s\n' "$(status:paint 90 closes)" "$(status:paint "${status_issue_sgr}" "${issue}")" \
-      "$(status:paint 90 "${title}")" >&2
-  done < <(jq --raw-output '.closes[] | "#\(.number)\u001f\(.title)"' <<<"${doc}")
+    status:issue-row "${issue}" "${issue_widths}" 'in flight' '   '
+  done < <(jq --compact-output '.closes[]?' <<<"${doc}")
   return 0
+}
+
+# status:pr-table <choice> <prs> <branches> <lead> draws the pull requests in <prs>, one JSON document per line,
+# one block each, their cells sized across the rows: the row's title, author, state, and age, and the issue rows'
+# number, assignees, and age. <choice> mine leaves the author column out. <branches> is worktrees, when a row ends
+# with its branch only while a worktree here has it checked out, as status_worktree_on records, or always. <lead>
+# is gap, a blank line before every block, or between, a blank line between blocks only.
+status:pr-table() {
+  local choice=$1 prs=$2 branches=$3 lead=$4 doc branch with_branch issue_widths first=true
+  local title_w=0 owner_w=0 state_w=0 age_w=0 width text author state_text age_secs
+  [[ -n "${prs}" ]] || return 0
+  while IFS=$'\x1f' read -r text author state_text age_secs
+  do
+    [[ -n "${text}" ]] || continue
+    (( ${#text} > title_w )) && title_w=${#text}
+    [[ "${choice}" != mine ]] && (( ${#author} > owner_w )) && owner_w=${#author}
+    (( ${#state_text} > state_w )) && state_w=${#state_text}
+    text=$(status:age "${age_secs}")
+    (( ${#text} > age_w )) && age_w=${#text}
+  done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring)
+      | join("\u001f")' \
+    <<<"${prs}")
+  width=$(( $(status:width) - 3 - 2 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 5 : 0) ))
+  (( width < 20 )) && width=20
+  (( title_w > width )) && title_w=${width}
+  issue_widths=$(status:issue-widths "$(jq --slurp --compact-output 'map(.closes[]?)' <<<"${prs}")")
+  while IFS= read -r doc
+  do
+    [[ -n "${doc}" ]] || continue
+    if [[ "${first}" == true && "${lead}" == between ]]
+    then first=false
+    else printf '\n' >&2
+    fi
+    branch=$(jq --raw-output .branch <<<"${doc}")
+    case "${branches}" in
+      (always) with_branch=yes ;;
+      (*) with_branch=${status_worktree_on[${branch}]:-}
+    esac
+    status:pr-block "${doc}" "${title_w}" "${owner_w}" "${state_w}" "${age_w}" "${with_branch}" "${issue_widths}"
+  done <<<"${prs}"
 }
 
 # status:render [--no-fetch] [--json] [--mine | --others | --all | --owner=<login>…] prints the output the file
@@ -536,13 +650,13 @@ status:render() {
 
   # Draw the checkouts while the forge call may still be running.
   local label_w=0 width relative widths
-  local -A worktree_on=()
+  status_worktree_on=()
   for doc in "${desk}" "${worktrees[@]}"
   do
     IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
     IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
     (( width > label_w )) && label_w=${width}
-    [[ -n "${branch}" && "${doc}" != "${desk}" ]] && worktree_on[${branch}]=${relative}
+    [[ -n "${branch}" && "${doc}" != "${desk}" ]] && status_worktree_on[${branch}]=${relative}
   done
   widths=$(status:count-widths "${desk}" "${worktrees[@]}")
   status:checkout-block '🏠' "${desk}" "${label_w}" "${widths}"
@@ -561,30 +675,7 @@ status:render() {
   [[ "${prs_failed}" == false ]] || return 1
   prs=$(<"${scratch}/prs")
 
-  # Compute the column widths across the pull requests. The author column is shown unless --mine is given.
-  local title_w=0 owner_w=0 state_w=0 age_w=0 text author state_text age_secs
-  while IFS=$'\x1f' read -r text author state_text age_secs
-  do
-    [[ -n "${text}" ]] || continue
-    (( ${#text} > title_w )) && title_w=${#text}
-    [[ "${choice}" != mine ]] && (( ${#author} > owner_w )) && owner_w=${#author}
-    (( ${#state_text} > state_w )) && state_w=${#state_text}
-    text=$(status:age "${age_secs}")
-    (( ${#text} > age_w )) && age_w=${#text}
-  done < <(jq --raw-output '["\(.ref // "#\(.number)") \(.title)", .author, .state, .age] | map(tostring)
-      | join("\u001f")' \
-    <<<"${prs}")
-  width=$(( $(status:width) - 3 - 2 - 3 - state_w - 3 - age_w - 3 - 24 - (owner_w > 0 ? owner_w + 5 : 0) ))
-  (( width < 20 )) && width=20
-  (( title_w > width )) && title_w=${width}
-
-  while IFS= read -r doc
-  do
-    [[ -n "${doc}" ]] || continue
-    printf '\n' >&2
-    branch=$(jq --raw-output .branch <<<"${doc}")
-    status:pr-block "${doc}" "${title_w}" "${owner_w}" "${state_w}" "${age_w}" "${worktree_on[${branch}]:-}"
-  done <<<"${prs}"
+  status:pr-table "${choice}" "${prs}" worktrees gap
   if [[ -n "${gone}" ]]
   then
     printf '\n' >&2

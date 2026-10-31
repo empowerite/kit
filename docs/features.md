@@ -87,10 +87,12 @@ root checkout on the human's machine. The human at the desk is not bound by thes
 `kit status` shows everything in flight: what the last fetch brought in, the desk and every worktree with its
 uncommitted paths and commits, every open pull request with its state, age, and checks, and the gone branches.
 
-`kit todo` lists the open issues, oldest first, each with its assignees and what is already in flight for it: the open
-change that closes it, or the branch for it on origin. The next issue to take up is one with nothing in flight. Its
-rows are drawn as `kit status` draws its pull requests, in the same colors, clipped to the terminal's width; `--today`
-keeps the issues opened in the last 24 hours.
+`kit changes` lists the open changes, oldest first, each drawn as `kit status` draws a pull request, and under each
+the issues it closes, one row each: the number, the assignees, the state with the issue's age, and the title.
+`kit backlog` lists the open issues no change closes, oldest first, each with its assignees, its age, and the branch
+for it on origin when one is started: the next issue to take up is one with no branch. Both draw as `kit status`
+does, in the same colors, clipped to the terminal's width; `kit backlog --today` keeps the issues opened in the
+last 24 hours.
 
 The `agents/claude` package delivers a deny list that refuses the raw git commands these verbs replace, such as
 `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.

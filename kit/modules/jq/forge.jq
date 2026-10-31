@@ -9,7 +9,8 @@
 #   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
 #   checks      {state, passed, total, failing, took}
 #   unresolved  the number of unresolved review threads
-#   closes      [{number, title}] of the issues it closes
+#   closes      [{number, title, assignees, age}] of the issues it closes, the assignees as logins, so a change's
+#               issues are drawn as kit backlog draws an issue without a second call to the forge
 #
 # see: modules/bash/forge.sh, modules/bash/forge-github.sh, modules/bash/forge-gitlab.sh
 
@@ -46,11 +47,14 @@ def state:
   else "ready" end;
 
 # document($now) reads {number, ref, branch, title, author, createdAt, draft, conflicted, approval, runs, unresolved,
-# closes} and gives the document.
+# closes} and gives the document. Each of closes is {number, title, assignees, createdAt}, and comes out with its
+# age; an issue an older answer gives without a time has a null age.
 def document($now):
   (.runs | checks($now)) as $checks
   | { number, ref, branch, title, author, createdAt, age: ($now - (.createdAt | epoch)),
-      state: (. + {checks: $checks} | state), checks: $checks, unresolved, closes };
+      state: (. + {checks: $checks} | state), checks: $checks, unresolved,
+      closes: [.closes[] | { number, title, assignees: (.assignees // []),
+                             age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }] };
 
 # github_runs reads a commit's status check contexts, CheckRun and StatusContext alike, and gives its runs.
 def github_runs:
@@ -72,7 +76,8 @@ def github_prs($now):
       approval: ((.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED")),
       runs: ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] | github_runs),
       unresolved: ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length),
-      closes: [.closingIssuesReferences.nodes[] | { number, title }] }
+      closes: [.closingIssuesReferences.nodes[]
+               | { number, title, assignees: [.assignees.nodes[]?.login], createdAt }] }
   | document($now);
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
@@ -93,11 +98,11 @@ def gitlab_pr($now; $jobs; $discussions; $closes):
     approval: ((.detailed_merge_status // "") == "not_approved"),
     runs: ($jobs | gitlab_runs),
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),
-    closes: [$closes[] | { number: .iid, title }] }
+    closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], createdAt: .created_at }] }
   | document($now);
 
-# issue($now) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue document kit todo
-# draws: those, ref, and age in seconds.
+# issue($now) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue document kit
+# backlog draws: those, ref, and age in seconds.
 def issue($now):
   {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch))};
 

@@ -73,7 +73,8 @@ JSON
   "number": 3, "title": "Fix the thing", "isDraft": false, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
-  "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing"}]},
+  "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
+                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
@@ -133,7 +134,8 @@ JSON
  {"notes": [{"resolvable": false, "resolved": false}]}]
 JSON
   fixture closes.json <<'JSON'
-[{"iid": 7, "title": "Fix the thing", "state": "opened", "references": {"full": "empowerite/example#7"}}]
+[{"iid": 7, "title": "Fix the thing", "state": "opened", "references": {"full": "empowerite/example#7"},
+  "created_at": "2026-09-20T09:00:00.000Z", "assignees": [{"username": "bob"}]}]
 JSON
   fixture none.json <<<'[]'
   route glab 'api user' user.json
@@ -208,14 +210,15 @@ JSON
 @test "every provider folds its open changes into the one document kit status draws" {
   expected='{"number":3,"branch":"7-fix-the-thing","title":"Fix the thing","author":"ada",'
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
-  expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing"}]}'
+  expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"]}]}'
   for forge in github gitlab
   do
     world "${forge}"
     run call open-prs
     [ "$status" -eq 0 ]
-    [ "$(jq --compact-output --sort-keys 'del(.age, .createdAt, .ref)' <<<"$output")" \
+    [ "$(jq --compact-output --sort-keys 'del(.age, .createdAt, .ref) | .closes |= map(del(.age))' <<<"$output")" \
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
+    [ "$(jq '.closes[0].age > 0' <<<"$output")" = true ]
   done
 }
 

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# kit-backlog - lists the open issues nothing is in flight for, oldest first (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit backlog [--json] [--today] [--mine | --others | --all | --owner=<login>…]
+#
+# Lists every open issue of the repository on its forge that no open change closes, oldest first: the issues to pick
+# up with kit issue <N>. Each row is the issue's number, its assignees, its age, the branch for it on origin when one
+# has been started and nothing pushed as a change yet, and last its title, clipped to the terminal's width. The
+# issues an open change closes are kit changes's. NO_COLOR turns the color off; CLICOLOR_FORCE turns it on without a
+# terminal.
+#
+#   --json            prints the same facts as one JSON array; each issue carries branch, a name or null
+#   --today           only the issues opened in the last 24 hours; combines with the flags below
+#   --mine            the issues assigned to the caller, without the assignee column
+#   --others          the issues not assigned to the caller, unassigned ones included
+#   --all             every open issue no change closes (the default)
+#   --owner=<login>   the issues assigned to the named login; give it once or more
+#
+# see: modules/bash/backlog.sh, modules/bash/forge.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use backlog
+
+guard:require tool:git tool:jq
+backlog:render "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

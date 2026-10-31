@@ -162,27 +162,36 @@ commits-in() {
   [ "$output" = "$(printf 'topic on ../other\t17')" ]
 }
 
-@test "a pull request's row carries its author when asked and ends with its branch, and the issues it closes follow" {
+@test "a pull request's row carries its author when asked and ends with its branch, and the issues it closes follow as rows" {
   doc='{"number":2,"title":"The first","author":"ada","branch":"2-the-first","state":"queued","age":259200,'
   doc+='"unresolved":0,"checks":{"state":"PENDING","passed":0,"total":1,"failing":0,"took":36},'
-  doc+='"closes":[{"number":1,"title":"One"},{"number":4,"title":"Four"}]}'
-  run in_status status:pr-block "${doc}" 12 0 6 2 worktrees/2-the-first
+  doc+='"closes":[{"number":1,"title":"One","assignees":["ada"],"age":172800},{"number":4,"title":"Four","assignees":[],"age":7200}]}'
+  widths=$(in_status status:issue-widths "$(jq --compact-output .closes <<<"${doc}")")
+  [ "${widths}" = "2 3 2 0" ]
+  run in_status status:pr-block "${doc}" 12 0 6 2 worktrees/2-the-first "${widths}"
   [ "${lines[0]}" = "🔀 #2 The first  🚦 queued 3d  🏃 0 / 1 36s  🌿 2-the-first" ]
-  [ "${lines[1]}" = "   closes #1 One" ]
-  [ "${lines[2]}" = "   closes #4 Four" ]
+  [ "${lines[1]}" = "   #1  👤 ada  🛫 in flight 2d  🎫 One" ]
+  [ "${lines[2]}" = "   #4          🛫 in flight 2h  🎫 Four" ]
   [ "${#lines[@]}" -eq 3 ]
-  run in_status status:pr-block "${doc}" 12 5 6 2 ''
+  run in_status status:pr-block "${doc}" 12 5 6 2 '' "${widths}"
   [ "${lines[0]}" = "🔀 #2 The first  👤 ada    🚦 queued 3d  🏃 0 / 1 36s" ]
 }
 
-@test "a change's number is magenta and the number of an issue it closes cyan, as kit todo draws them" {
-  local esc=$'\x1b'
+@test "an issue row without assignees or age, as an older forge answer gives it, keeps its number and title" {
   doc='{"number":2,"title":"The first","author":"ada","branch":"2-the-first","state":"queued","age":60,'
   doc+='"unresolved":0,"checks":{"state":"NONE"},"closes":[{"number":1,"title":"One"}]}'
+  run in_status status:pr-block "${doc}" 12 0 6 2 '' "$(in_status status:issue-widths '[{"number":1,"title":"One"}]')"
+  [ "${lines[1]}" = "   #1  🛫 in flight  🎫 One" ]
+}
+
+@test "a change's number is magenta and the number of an issue it closes cyan, as kit backlog draws them" {
+  local esc=$'\x1b'
+  doc='{"number":2,"title":"The first","author":"ada","branch":"2-the-first","state":"queued","age":60,'
+  doc+='"unresolved":0,"checks":{"state":"NONE"},"closes":[{"number":1,"title":"One","assignees":[],"age":120}]}'
   run env -u NO_COLOR CLICOLOR_FORCE=1 \
-    bash -c 'source "${kit_root}/modules/bash/1st.sh" && use status && status:pr-block "$@"' _ "${doc}" 12 0 6 2 ''
+    bash -c 'source "${kit_root}/modules/bash/1st.sh" && use status && status:pr-block "$@"' _ "${doc}" 12 0 6 2 '' '2 0 2 0'
   [[ "${lines[0]}" == "🔀 ${esc}[35m#2${esc}[0m The first "* ]]
-  [[ "${lines[1]}" == "   ${esc}[90mcloses${esc}[0m ${esc}[36m#1${esc}[0m ${esc}[90mOne${esc}[0m" ]]
+  [[ "${lines[1]}" == "   ${esc}[36m#1${esc}[0m  🛫 ${esc}[34min flight${esc}[0m ${esc}[90m2m${esc}[0m  🎫 One" ]]
 }
 
 @test "a failed checks cell names the failing count, then passed of total, then the time taken" {

@@ -127,8 +127,8 @@ Work starts from an issue:
 3. `gh pr ready` once the pull request body holds the report.
 4. A human merges, and `kit tidy` removes the worktree and the branch.
 
-`kit todo` lists the open issues with what is already in flight for each, so the next `kit issue <N>` is a pick, not a
-search.
+`kit changes` lists the open changes with the issues each closes, and `kit backlog` the open issues no change
+closes, with the branch that claims one, so the next `kit issue <N>` is a pick, not a search.
 
 ### Forges, seams, and providers
 

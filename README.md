@@ -190,8 +190,8 @@ Work here follows the workflow in [.kit/1st.md](.kit/1st.md):
 3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
-   - `kit status` shows every open pull request and the worktree it lives in; `kit todo` the open issues and what is
-     in flight for each.
+   - `kit status` shows every open pull request and the worktree it lives in; `kit changes` the open pull requests
+     with the issues each closes; `kit backlog` the open issues no pull request closes, the next ones to pick up.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
 5. Run `gh pr ready` when the work is done. The pull request body is the report.
 6. A human merges. Then `kit tidy` removes the worktree and its branch.
