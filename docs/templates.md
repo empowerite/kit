@@ -60,6 +60,7 @@ recipe reads.
 
 `path`, `name`, and `stem` come from the path. For `bin/deploy.sh` they are `bin/deploy.sh`, `deploy.sh`, and
 `deploy`. Every other hole within a line takes its value from the flag of the same name, such as `--purpose=<…>`
+`kit tui` offers those flags as fields: `kit syntax new --extend` lists them once the rule and the variant are known.
 or `--title=<…>`. A missing flag is refused, and the error names it.
 
 ## Making a file

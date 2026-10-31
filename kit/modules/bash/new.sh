@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# new.sh - what kit new offers: the rules with templates, and a rule's variants (sourced module)
+# new.sh - what kit new makes a file from, and what it offers: the rules, the variants, and the holes (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 
 use template
@@ -71,6 +71,91 @@ new:choices() {
     [[ -n "${name}" ]] || continue
     printf '%s\t%s\t\t\n' "${name}" "${glob}"
   done < <(template:variants "${file}")
+}
+
+# new:resolve <path> <rule> <variant> prints the template kit new makes the path from, as "<rule-file>\x1f<variant>\x1f
+# <executable>\x1f<template>", the fields template:variants uses. <rule> names a style or rule, else the most
+# specific rule with templates for the path is taken; <variant> names one of its templates, else the first that applies
+# to the path. It prints the refusal and returns 2 when the rule or the variant does not exist, and 1 when the template
+# is missing.
+new:resolve() {
+  local path=$1 rule_name=$2 variant=$3 rule candidates chosen='' executable='' name exec_flag template
+  if [[ -n "${rule_name}" ]]
+  then
+    if ! rule=$(new:rule-file "${rule_name}")
+    then
+      error "there is no rule ${rule_name}; the rules are: $(find .kit/rules .kit/styles -maxdepth 1 -name '*.md' \
+        2>/dev/null | sed 's@^.*/@@; s/\.md$//' | LC_ALL=C sort -u | paste -s -d ' ' -)"
+      return 2
+    fi
+  else
+    rule=$(template:rules "${path}" | head -n 1)
+    if [[ -z "${rule}" ]]
+    then
+      error "no template governs ${path}: a style package delivers them;" \
+        "name one with --rule=<rule>, or write the file by hand"
+      return 2
+    fi
+  fi
+  if [[ -n "${variant}" ]]
+  then
+    candidates=$(template:variants "${rule}")
+  else
+    candidates=$(template:applies "${rule}" "${path}")
+  fi
+  while IFS=$'\x1f' read -r name _ exec_flag
+  do
+    [[ -n "${name}" ]] || continue
+    if [[ -z "${variant}" || "${name}" == "${variant}" ]]
+    then
+      chosen=${name} executable=${exec_flag:-false}
+      break
+    fi
+  done <<<"${candidates}"
+  if [[ -z "${chosen}" ]]
+  then
+    error "the $(template:rule-name "${rule}") rule has no template ${variant:-for ${path}}; its templates are:" \
+      "$(template:variants "${rule}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)"
+    return 2
+  fi
+  template=$(template:file "${rule}" "${chosen}")
+  if [[ ! -f "${template}" ]]
+  then
+    error "${rule} lists the template ${chosen}, and ${template} is not here; run: kit update"
+    return 1
+  fi
+  printf '%s\x1f%s\x1f%s\x1f%s\n' "${rule}" "${chosen}" "${executable}" "${template}"
+}
+
+# new:extend [<answer>…] answers kit syntax --extend: once the answers give the path (<path>=<path>) or the rule
+# (--rule=<rule>), and the variant (--variant=<variant>) when the first that applies is not meant, the template's holes
+# within a line, other than path, name, and stem, which the path fills, as arguments to add: {"--<hole>":
+# {"description": "", "extended": true}}. Before the template is known, it prints {}.
+new:extend() {
+  local answer path='' rule='' variant='' resolved template hole
+  for answer in "$@"
+  do
+    case "${answer}" in
+      ('<path>='*) path=${answer#<path>=} ;;
+      (--rule=*) rule=${answer#--rule=} ;;
+      (--variant=*) variant=${answer#--variant=}
+    esac
+  done
+  if ! resolved=$(new:resolve "${path}" "${rule}" "${variant}" 2>/dev/null)
+  then
+    printf '{}\n'
+    return 0
+  fi
+  template=${resolved##*$'\x1f'}
+  while IFS= read -r hole
+  do
+    case "${hole}" in
+      ('' | path | name | stem) continue
+    esac
+    printf -- '--%s\n' "${hole}"
+  done < <(template:holes "${template}") |
+    jq --raw-input --slurp 'split("\n") | map(select(. != "") | {key: ., value: {description: "", extended: true}})
+      | from_entries'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

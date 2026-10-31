@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# syntax.sh - parses a verb's usage lines into its syntax, as JSON, and matches a command line against it (sourced module)
+# syntax.sh - parses a verb's usage lines into its syntax, as JSON, and matches a command line to it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-# shellcheck disable=SC2034  # syntax_refusal, syntax_missing, and syntax_options are read by guard:arguments and the verbs
+# shellcheck disable=SC2034  # syntax_refusal, syntax_missing, syntax_options, syntax_values: read by guard and verbs
 #
 # A verb's header holds its usage lines, and help.sh reads them. This module reads what the lines say: after
 # kit <verb>, a usage line is written in this grammar:
@@ -34,10 +34,11 @@ declare -ag syntax_literals=() syntax_operands=()
 declare -Ag syntax_options=() syntax_values=()
 
 # syntax:spec <verb> prints the verb's syntax as the kit syntax JSON: verb, purpose, usage, syntax, and arguments, the
-# descriptions in the header's argument block, each with choices, closed or open, when the verb's module lists them. When a usage line does not parse, the JSON carries error instead of
-# syntax, and it returns 1.
+# descriptions in the header's argument block, each with choices, closed or open, when the verb's module lists them,
+# and extends: true when the module answers --extend. When a usage line does not parse, the JSON carries error
+# instead of syntax, and it returns 1.
 syntax:spec() {
-  local verb=$1 syntax arguments
+  local verb=$1 syntax arguments extends=false
   local -a usage
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
@@ -47,10 +48,13 @@ syntax:spec() {
     return 1
   fi
   arguments=$(syntax:arguments "${verb}")
+  syntax:answers "${verb}" extend && extends=true
   jq --null-input --arg verb "${verb}" --arg purpose "$(help:purpose "${verb}")" --argjson syntax "${syntax}" \
     --argjson arguments "${arguments}" --argjson kinds "$(syntax:kinds "${verb}" "${arguments}")" \
+    --argjson extends "${extends}" \
     '{verb: $verb, purpose: $purpose, usage: $ARGS.positional, syntax: $syntax,
-      arguments: ($arguments | with_entries(.value += (if $kinds[.key] then {choices: $kinds[.key]} else {} end)))}' \
+      arguments: ($arguments | with_entries(.value += (if $kinds[.key] then {choices: $kinds[.key]} else {} end)))}
+      + (if $extends then {extends: true} else {} end)' \
     --args "${usage[@]}"
 }
 
@@ -267,10 +271,10 @@ syntax:check() {
   (( found == 0 ))
 }
 
-# syntax:match <verb> <argument>… judges the arguments against the verb's syntax, as syntax.jq's match does: a named flag
-# or option is taken wherever it stands, with its value inline or as the next word; -- ends the flags; a literal selects
-# its alternative, as does a flag or option given; operands fill in order, and a repeated one takes every word left,
-# dash-words included. It returns 0 when the arguments complete the syntax, 1 when a required literal, operand, or
+# syntax:match <verb> <argument>… judges the arguments against the verb's syntax, as syntax.jq's match does: a named
+# flag or option is taken wherever it stands, with its value inline or as the next word; -- ends the flags; a literal
+# selects its alternative, as does a flag or option given; operands fill in order, and a repeated one takes every word
+# left, dash-words included. It returns 0 when the arguments complete the syntax, 1 when a required literal, operand, or
 # group is missing, and 2 when a word is refused, and sets what it sorted: syntax_refusal (the whole line, on 2),
 # syntax_missing (the keys that could come next, joined by " or ", on 1), syntax_literals and syntax_operands (in
 # order), syntax_options (each flag or option given, by its key, to its values joined by newlines; a flag's is 1), and
@@ -288,7 +292,8 @@ syntax:match() {
     syntax_refusal="kit ${verb}: usage does not parse: ${syntax}"
     return 2
   fi
-  readarray -d '' -t fields < <(jq --null-input --raw-output0 -L "${kit_jq}" --arg verb "${verb}" --argjson syntax "${syntax}" \
+  readarray -d '' -t fields < <(jq --null-input --raw-output0 -L "${kit_jq}" --arg verb "${verb}" \
+    --argjson syntax "${syntax}" \
     'import "syntax" as syntax; {verb: $verb, syntax: $syntax} | syntax::match($ARGS.positional) | syntax::fields' \
     --args -- "$@")
   if (( ${#fields[@]} == 0 ))
@@ -412,6 +417,16 @@ syntax:choices() {
   shift
   syntax:answers "${verb}" choices || return 1
   "${verb}:choices" "$@"
+}
+
+# syntax:extend <verb> [<answer>…] prints the arguments the verb learns from the answers so far, each <key>=<value>,
+# as an object of arguments entries marked extended, for a form to add as fields; kit new answers with its
+# template's holes. It returns 1 when the verb's module has no <verb>:extend.
+syntax:extend() {
+  local verb=$1
+  shift
+  syntax:answers "${verb}" extend || return 1
+  "${verb}:extend" "$@"
 }
 
 # syntax:kinds <verb> <arguments-json> prints {"<key>": "closed" | "open"} for every key of the arguments object the

@@ -137,4 +137,20 @@ setup() {
   [[ "$output" == *"kit help has no choices for '--bogus'; run: kit help syntax"* ]]
 }
 
+@test "kit syntax new --extend lists the template's holes as options once the rule and variant are known, and new's syntax says it extends" {
+  run "${kit_root}/bin/kit" syntax new
+  jq -e '.extends == true' <<<"$output"
+  run "${kit_root}/bin/kit" syntax commit
+  jq -e '.extends | not' <<<"$output"
+  run "${kit_root}/bin/kit" syntax new --extend '<path>=docs/x.md' -- --rule=markdown --variant=document
+  [ "$status" -eq 0 ]
+  jq -e '.["--title"].extended == true and (has("--body") | not) and (has("--path") | not)' <<<"$output"
+  run "${kit_root}/bin/kit" syntax new --extend
+  [ "$status" -eq 0 ]
+  [ "$output" = '{}' ]
+  run "${kit_root}/bin/kit" syntax commit --extend
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit commit does not extend its arguments; run: kit help syntax"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

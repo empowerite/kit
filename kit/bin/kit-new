@@ -26,7 +26,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use context template release
+use context template release new
 guard:arguments new "$@" || exit $?
 release:hydrate
 
@@ -70,54 +70,8 @@ then
   exit 1
 fi
 
-if [[ -n "${rule_name}" ]]
-then
-  # The templates are a style's, so a style of that name comes before a rule of that name.
-  rule=".kit/styles/${rule_name}.md"
-  [[ -f "${rule}" ]] || rule=".kit/rules/${rule_name}.md"
-  if [[ ! -f "${rule}" ]]
-  then
-    error "there is no rule ${rule_name}; the rules are: $(find .kit/rules .kit/styles -maxdepth 1 -name '*.md' \
-      2>/dev/null | sed 's@^.*/@@; s/\.md$//' | LC_ALL=C sort -u | paste -s -d ' ' -)"
-    exit 2
-  fi
-else
-  rule=$(template:rules "${path}" | head -n 1)
-  if [[ -z "${rule}" ]]
-  then
-    error "no template governs ${path}: a style package delivers them;" \
-      "name one with --rule=<rule>, or write the file by hand"
-    exit 2
-  fi
-fi
-
-if [[ -n "${variant}" ]]
-then candidates=$(template:variants "${rule}")
-else candidates=$(template:applies "${rule}" "${path}")
-fi
-chosen='' executable=''
-while IFS=$'\x1f' read -r name _ exec_flag
-do
-  [[ -n "${name}" ]] || continue
-  if [[ -z "${variant}" || "${name}" == "${variant}" ]]
-  then
-    chosen=${name}
-    executable=${exec_flag}
-    break
-  fi
-done <<<"${candidates}"
-if [[ -z "${chosen}" ]]
-then
-  error "the $(template:rule-name "${rule}") rule has no template ${variant:-for ${path}}; its templates are:" \
-    "$(template:variants "${rule}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)"
-  exit 2
-fi
-template=$(template:file "${rule}" "${chosen}")
-if [[ ! -f "${template}" ]]
-then
-  error "${rule} lists the template ${chosen}, and ${template} is not here; run: kit update"
-  exit 1
-fi
+resolved=$(new:resolve "${path}" "${rule_name}" "${variant}") || exit $?
+IFS=$'\x1f' read -r rule chosen executable template <<<"${resolved}"
 
 name=${path##*/}
 values[path]=${values[path]:-${path}}

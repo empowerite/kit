@@ -164,6 +164,9 @@ use <module>
   the line the verb would print about it given the answers so far, each `<key>=<value>`. It returns 1 for a key it
   does not answer. A closed set holds the only values the verb accepts, and `guard:arguments` refuses any other in the
   words the form uses; an open set only suggests, and a value off it is never refused.
+- A verb whose arguments grow with the answers, as `kit new` learns its template's holes, defines `<verb>:extend
+  [<answer>…]`, which prints the arguments to add as an object of entries marked `extended`, and `kit syntax <verb>`
+  then carries `extends: true`; `kit syntax <verb> --extend` prints them.
 
 ## jq modules
 
