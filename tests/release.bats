@@ -68,4 +68,29 @@ teardown() {
   grep --quiet "^version: ${version}$" .kit/settings.yml
 }
 
+@test "publish builds kittui for the four platforms, named as mise's http backend asks, and uploads each with its digest" {
+  local fakes="${BATS_TEST_TMPDIR}/fakes"
+  mkdir -p "${fakes}"
+  # go records each build's platform and flags and writes the file it was asked for; gh records its arguments
+  printf '%s\n' '#!/usr/bin/env bash' \
+    'out=""; for (( i = 1; i <= $#; i++ )); do [[ "${!i}" == -o ]] && { j=$(( i + 1 )); out=${!j}; }; done' \
+    'printf "%s %s %s %s\n" "${GOOS}" "${GOARCH}" "${CGO_ENABLED}" "$*" >> "${FAKES}/go.calls"' \
+    'printf "binary\n" > "${out}"' > "${fakes}/go"
+  printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" >> "${FAKES}/gh.calls"' > "${fakes}/gh"
+  chmod +x "${fakes}/go" "${fakes}/gh"
+  run env GITHUB_ACTIONS=true FAKES="${fakes}" PATH="${fakes}:${PATH}" "${repo_bin}/release" publish release/9.9.9
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "${fakes}/go.calls" | tr -d ' ')" -eq 4 ]
+  grep -q '^linux amd64 0 build -trimpath -ldflags -s -w -X main.version=9.9.9 -o .*/kittui-9.9.9-linux-x64 ./cmd/kittui$' "${fakes}/go.calls"
+  grep -q '^linux arm64 0 .*/kittui-9.9.9-linux-arm64 ' "${fakes}/go.calls"
+  grep -q '^darwin arm64 0 .*/kittui-9.9.9-macos-arm64 ' "${fakes}/go.calls"
+  grep -q '^darwin amd64 0 .*/kittui-9.9.9-macos-x64 ' "${fakes}/go.calls"
+  local asset
+  for asset in kit-9.9.9.tar.gz kittui-9.9.9-linux-x64 kittui-9.9.9-linux-arm64 kittui-9.9.9-macos-arm64 kittui-9.9.9-macos-x64
+  do
+    grep -q "/${asset} " "${fakes}/gh.calls" && grep -q "/${asset}.sha256" "${fakes}/gh.calls" \
+      || { echo "not uploaded: ${asset}"; cat "${fakes}/gh.calls"; return 1; }
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
