@@ -255,8 +255,8 @@ guard:require() {
 # refuses in one place and in the same words: an unknown flag or argument, an option without its value, two
 # alternatives of one group together, or a required argument missing, each in one line that points to kit help <verb>.
 # A verb short of a required argument hands off instead, when stdin, stdout, and stderr are all terminals and kittui
-# is on PATH: it execs kit tui -- <verb> <argument>…, whose form asks for the rest. It returns 2 on a refusal, and 0
-# when the arguments complete the syntax, which the verb then parses as it does today.
+# can be found (modules/bash/tui.sh): it execs kit tui -- <verb> <argument>…, whose form asks for the rest. It
+# returns 2 on a refusal, and 0 when the arguments complete the syntax, which the verb then parses as it does today.
 # shellcheck disable=SC2154  # syntax_literals, syntax_missing, and syntax_refusal are set by modules/bash/syntax.sh
 guard:arguments() {
   local verb=$1 status
@@ -267,7 +267,7 @@ guard:arguments() {
   status=$?
   if (( status == 1 ))
   then
-    if [[ -t 0 && -t 1 && -t 2 ]] && command -v kittui >/dev/null 2>&1
+    if [[ -t 0 && -t 1 && -t 2 ]] && use tui && tui:binary >/dev/null 2>&1
     then
       exec "${kit_root}/bin/kit" tui -- "${verb}" "$@"
     fi

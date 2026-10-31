@@ -13,20 +13,23 @@
 #   <verb>        the verb whose form to open; with none, the palette of every verb
 #   <argument>…   the arguments given so far, which fill the form
 #
-# kit tui runs kittui, the binary each release builds and mise installs from it; without it, kit tui says how to
-# install it. kittui needs a terminal on stdin, stdout, and stderr.
+# kit tui runs kittui, which each release carries for linux and macos on x64 and arm64, so whatever installs the kit
+# installs it at the same version; else kittui on PATH; and in a checkout of the kit, one built from tui/ with go,
+# once for each change to its sources. kittui needs a terminal on stdin, stdout, and stderr.
 #
 # Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
 # on ctrl-c.
 #
-# see: bin/kit, modules/bash/1st.sh, tui/
+# see: bin/kit, modules/bash/1st.sh, modules/bash/tui.sh, tui/
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
+use tui
+
 guard:arguments tui "$@" || exit $?
-guard:require tool:kittui || exit 1
-exec kittui "$@"
+binary=$(tui:binary) || exit 1
+exec "${binary}" "$@"
 
 # ----------------------------------------------------------------------------------------------------------------------

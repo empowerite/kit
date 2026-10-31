@@ -8,9 +8,9 @@
 #                         pre-release tag, release/0.1.0-rc.1, may point at any commit, on main or off it. Any
 #                         other tag is refused.
 #   bin/release publish   packs kit/ into kit-<version>.tar.gz, writes the version after release/ into
-#                         it, builds kittui, kit tui's binary, for linux and macos on x64 and arm64, and
-#                         publishes them as a GitHub release named by that version. A version with a suffix is
-#                         published as a pre-release. The pinned tools come first, through mise, for Go.
+#                         it, with kittui, kit tui's binary, built for linux and darwin on amd64 and arm64 in
+#                         libexec/, and publishes it as a GitHub release named by that version. A version with a
+#                         suffix is published as a pre-release. The pinned tools come first, through mise, for Go.
 #
 # GitHub does not let a published release change, so a version is tagged once and never again. A release is
 # published here and nowhere else: bin/release publish refuses a release tag anywhere but on the runner, so a

@@ -50,13 +50,13 @@ pty() {
   [ "$output" = "kittui -- commit --all" ]
 }
 
-@test "kit tui without kittui refuses with the line that installs it" {
+@test "a checkout with neither kittui nor go refuses with the line that installs go, which builds it" {
   run env PATH="$(without-kittui)" "${kit_root}/bin/kit" tui
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: mise install (kittui is not on PATH)"* ]]
+  [[ "$output" == *"run: mise install (go is not on PATH)"* ]]
   run env PATH="$(without-kittui)" "${kit_root}/bin/kit"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: mise install (kittui is not on PATH)"* ]]
+  [[ "$output" == *"run: mise install (go is not on PATH)"* ]]
 }
 
 @test "a verb short of its arguments hands off to kit tui only when stdin, stdout, and stderr are terminals" {
@@ -76,6 +76,42 @@ pty() {
   run pty "'${kit_root}/bin/kit' status --bogus"
   [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
   [[ "$output" != *"kittui"* ]]
+}
+
+# platform prints this machine's platform as Go names it, as a release's libexec/ names its kittui.
+platform() {
+  local os arch
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  arch=$(uname -m)
+  case "${arch}" in
+    (x86_64 | amd64) arch=amd64 ;;
+    (aarch64 | arm64) arch=arm64 ;;
+  esac
+  printf '%s-%s\n' "${os}" "${arch}"
+}
+
+@test "a release runs the kittui it carries for this machine, with no kittui on PATH" {
+  export FAKES="${BATS_TEST_TMPDIR}/gofakes"
+  mkdir -p "${FAKES}"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${FAKES}/go"
+  PATH="${FAKES}:${PATH}" "${BATS_TEST_DIRNAME}/../bin/release" pack release/9.9.9 "${BATS_TEST_TMPDIR}/rel" >/dev/null 2>&1
+  tar -xzf "${BATS_TEST_TMPDIR}/rel/kit-9.9.9.tar.gz" -C "${BATS_TEST_TMPDIR}/rel"
+  run env PATH="$(without-kittui)" "${BATS_TEST_TMPDIR}/rel/kit-9.9.9/bin/kit" tui -- commit
+  [ "$status" -eq 0 ]
+  [ "$output" = "kittui $(platform) -- commit" ]
+}
+
+@test "a checkout with no kittui builds it from tui/ with go, once, and runs it" {
+  export FAKES="${BATS_TEST_TMPDIR}/gofakes" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
+  mkdir -p "${FAKES}"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${FAKES}/go"
+  run env PATH="${FAKES}:$(without-kittui)" "${kit_root}/bin/kit" tui -- version
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"kittui native-native -- version" ]]
+  run env PATH="${FAKES}:$(without-kittui)" "${kit_root}/bin/kit" tui
+  [ "$status" -eq 0 ]
+  [ "$output" = "kittui native-native" ]
+  [ "$(wc -l < "${FAKES}/go.calls" | tr -d ' ')" -eq 1 ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -13,10 +13,9 @@
 #                             branch included. Any other tag is refused, with the reason.
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
 #                             directory). The tarball holds one directory, kit-<version>/, with bin/,
-#                             modules/, packages/, and a version file.
-#   publish <tag>             packs, builds kittui (kit tui's binary) from tui/ for linux and macos on x64 and
-#                             arm64, then creates a GitHub release with the tarball, each kittui-<version>-<os>-<arch>,
-#                             and the .sha256 of each. A tag with a suffix is marked
+#                             modules/, packages/, a version file, and libexec/, which holds kittui, the binary kit
+#                             tui runs, built from tui/ with go for linux and macos on amd64 and arm64.
+#   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
 #                             pre-release. Only a runner publishes a release, from the release workflow that a
 #                             pushed tag starts. A desk may publish a pre-release.
 #   retire [<branch>]         deletes every pre-release whose commit no remaining branch reaches. It runs after
@@ -37,21 +36,20 @@ use git release
 
 usage() { echo "usage: bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
-# build-kittui <version> <directory> builds kittui from tui/ for the four platforms the lock covers, each as
-# kittui-<version>-<os>-<arch> with its .sha256 beside it. The names are in mise's words, linux or macos and x64 or
-# arm64, because the kittui package pins the binary through mise's http backend, whose URL names them so.
+# build-kittui <version> <directory> builds kittui, the binary kit tui runs, from tui/ for the four platforms the lock
+# covers, static and stripped with the version written in, each as <directory>/kittui-<goos>-<goarch>. The release
+# carries them in libexec/, so whatever installs the kit installs kittui at the same version; modules/bash/tui.sh
+# picks the one for the machine.
 build-kittui() {
-  local version=$1 into=$2 platform goos goarch os arch name
-  for platform in linux/amd64/linux/x64 linux/arm64/linux/arm64 darwin/arm64/macos/arm64 darwin/amd64/macos/x64
+  local version=$1 into=$2 platform goos goarch
+  for platform in linux/amd64 linux/arm64 darwin/arm64 darwin/amd64
   do
-    IFS=/ read -r goos goarch os arch <<<"${platform}"
-    name="kittui-${version}-${os}-${arch}"
+    IFS=/ read -r goos goarch <<<"${platform}"
     (
       cd "${kit_root}/../tui" &&
         GOOS=${goos} GOARCH=${goarch} CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${version}" \
-          -o "${into}/${name}" ./cmd/kittui
+          -o "${into}/kittui-${goos}-${goarch}" ./cmd/kittui
     ) || return 1
-    printf '%s  %s\n' "$(release:digest < "${into}/${name}")" "${name}" > "${into}/${name}.sha256"
   done
 }
 
@@ -105,7 +103,13 @@ case "${verb}" in
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
     trap "rm -rf '${staging}'" EXIT
     mkdir -p "${into}" "${staging}/kit-${version}"
+    guard:require tool:go
     cp -R "${kit_root}/bin" "${kit_root}/modules" "${kit_root}/packages" "${staging}/kit-${version}/"
+    if ! build-kittui "${version}" "${staging}/kit-${version}/libexec"
+    then
+      error "kittui could not be built for kit ${version}; see above"
+      exit 1
+    fi
     printf '%s\n' "${version}" > "${staging}/kit-${version}/version"
     tar --create --gzip --file "${into}/kit-${version}.tar.gz" --directory "${staging}" "kit-${version}"
     printf '%s  kit-%s.tar.gz\n' "$(release:digest < "${into}/kit-${version}.tar.gz")" "${version}" \
@@ -120,23 +124,17 @@ case "${verb}" in
     then
       refuse-tag "a release is published by the release workflow, not from a desk; push the tag: git push origin ${tag}"
     fi
-    guard:require tool:gh tool:go
+    guard:require tool:gh
     into=$(mktemp -d)
     # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
     trap "rm -rf '${into}'" EXIT
     run "${self}" pack "${tag}" "${into}"
-    if ! build-kittui "${version}" "${into}"
-    then
-      error "kittui could not be built for kit ${version}; see above"
-      exit 1
-    fi
-    assets=("${into}/kit-${version}.tar.gz" "${into}/kit-${version}.tar.gz.sha256" "${into}"/kittui-*)
     pin=$(printf '"github:empowerite/kit" = { version = "%s", version_prefix = "release/" }' "${version}")
     notes=$(printf 'Pin it in mise.toml:\n\n    [tools]\n    %s\n\n' "${pin}"
       printf 'Then, in the repository: kit install\n')
     flags=()
     [[ "${version}" == *-* ]] && flags+=(--prerelease)
-    gh release create "${tag}" "${assets[@]}" \
+    gh release create "${tag}" "${into}/kit-${version}.tar.gz" "${into}/kit-${version}.tar.gz.sha256" \
       --title "kit ${version}" --notes "${notes}" "${flags[@]}"
     ok "released kit ${version}"
     summary "✅ Released kit ${version}."
