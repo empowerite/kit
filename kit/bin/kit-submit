@@ -25,6 +25,7 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use commit
+guard:arguments submit "$@" || exit $?
 
 guard:require tool:git tool:jq
 commit:submit "$@"

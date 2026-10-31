@@ -140,12 +140,7 @@ git:tidy() {
   for flag in "$@"
   do
     case "${flag}" in
-      (--dry-run)
-        dry_run=true
-        ;;
-      (*)
-        error "unknown flag '${flag}'; run: kit help tidy"
-        return 2
+      (--dry-run) dry_run=true
     esac
   done
   forge:require || return 1

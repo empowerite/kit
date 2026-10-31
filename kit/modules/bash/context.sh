@@ -211,18 +211,9 @@ context:render() {
   do
     case "${arg}" in
       (--json) json=true ;;
-      (-*)
-        error "unknown flag '${arg}'; run: kit help context"
-        return 2
-        ;;
       (*) paths+=("${arg}")
     esac
   done
-  if (( ${#paths[@]} == 0 ))
-  then
-    error "kit context needs a path; run: kit help context"
-    return 2
-  fi
   cd "$(git rev-parse --show-toplevel)" || return 1
   context:load
   for path in "${paths[@]}"

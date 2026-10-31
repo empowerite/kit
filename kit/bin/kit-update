@@ -36,7 +36,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
 
-guard:no-arguments update "$@" || exit 2
+guard:arguments update "$@" || exit $?
 
 guard:require tool:jq
 release:require-declaration

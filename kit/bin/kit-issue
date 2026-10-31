@@ -25,7 +25,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use issue
 
-guard:no-flags issue "$@" || exit 2
+guard:arguments issue "$@" || exit $?
 
 issue:start "$@"
 

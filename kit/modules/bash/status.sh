@@ -586,10 +586,7 @@ status:render() {
       (--mine) choice=mine ;;
       (--others) choice=others ;;
       (--all) choice=all ;;
-      (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
-      (*)
-        error "unknown flag '${arg}'; run: kit help status"
-        return 2
+      (--owner=?*) choice=owner; owners+=("${arg#--owner=}")
     esac
   done
   # The forge call is the slow one and needs nothing local, so it starts first and runs during the fetch and the

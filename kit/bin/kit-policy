@@ -29,18 +29,14 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use policy release
+guard:arguments policy "$@" || exit $?
 release:hydrate
 
-case "${1:-}" in
-  (--input)
-    policy:input
-    exit 0
-    ;;
-  ('') ;;
-  (*)
-    error "unknown argument '$1'; run: kit help policy"
-    exit 2
-esac
+if [[ "${1:-}" == --input ]]
+then
+  policy:input
+  exit 0
+fi
 
 input=$(mktemp)
 trap 'rm -f "${input}"' EXIT

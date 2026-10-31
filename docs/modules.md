@@ -75,8 +75,7 @@ jq module directory, and defines:
 | `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner |
 | `summary <line>…` | appends lines to the GitHub step summary, when there is one |
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
-| `guard:no-arguments <verb> <argument>…` | refuses any argument, pointing to `kit help <verb>`, for a verb that takes none |
-| `guard:no-flags <verb> <argument>…` | refuses an argument that starts with `-`, pointing to `kit help <verb>`, for a verb whose arguments are all operands |
+| `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`: an unknown flag or argument, a missing value, two alternatives together, or a required argument missing |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
 
@@ -155,9 +154,10 @@ use <module>
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
-- A verb has no `--help`: `kit help <verb>` prints its header. An argument the verb does not take is refused with
-  a pointer to that page, by `guard:no-arguments`, `guard:no-flags`, or the verb's own `case`, and the refusal never
-  restates the usage.
+- A verb has no `--help`: `kit help <verb>` prints its header. Every verb calls `guard:arguments <verb> "$@"` first,
+  which judges the arguments against the usage line and refuses in one line that points to that page: an unknown
+  flag or argument, a missing value, two alternatives together, or a required argument missing. The verb parses what
+  the guard let through, and never restates the usage.
 
 ## jq modules
 
@@ -172,7 +172,7 @@ from arguments, stays inline where it is used.
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
 | `status.jq` | a checkout's document, and what of it fits on the screen |
 | `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
-| `syntax.jq` | the usage text of a syntax node, and the key an argument is known by |
+| `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:

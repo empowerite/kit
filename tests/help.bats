@@ -41,7 +41,7 @@ setup() {
   done
   run "${kit_root}/bin/kit" help --help
   [ "$status" -eq 2 ]
-  [[ "$output" == *"no kit verb matches '--help'; run: kit help"* ]]
+  [[ "$output" == *"unknown flag '--help'; run: kit help help"* ]]
 }
 
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {

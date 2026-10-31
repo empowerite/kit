@@ -27,13 +27,9 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use context template release
+guard:arguments new "$@" || exit $?
 release:hydrate
 
-if [[ "${1:-}" != file ]]
-then
-  error "kit new makes a file; run: kit help new"
-  exit 2
-fi
 shift
 
 path='' rule_name='' variant=''
@@ -48,25 +44,9 @@ do
       key=${key#--}
       values[${key}]=${arg#*=}
       ;;
-    (-*)
-      error "unknown flag '${arg}'; run: kit help new"
-      exit 2
-      ;;
-    (*)
-      if [[ -n "${path}" ]]
-      then
-        error "one path at a time; run: kit help new"
-        exit 2
-      fi
-      path=${arg}
+    (*) path=${arg}
   esac
 done
-if [[ -z "${path}" ]]
-then
-  error "kit new file needs a path; run: kit help new"
-  exit 2
-fi
-
 # An absolute path inside the repository is made relative to the root. A path outside the repository is refused.
 root=$(pwd -P)
 if [[ "${path}" == /* ]]

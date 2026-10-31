@@ -22,6 +22,7 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use context generate release
+guard:arguments generate "$@" || exit $?
 release:hydrate
 
 args=()
@@ -29,10 +30,6 @@ for arg in "$@"
 do
   case "${arg}" in
     (--check | --iterations=*) args+=("${arg}") ;;
-    (-*)
-      error "unknown flag '${arg}'; run: kit help generate"
-      exit 2
-      ;;
     (*) args+=("$(context:relative "${arg}")")
   esac
 done

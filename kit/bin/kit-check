@@ -27,7 +27,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release generate
 
-guard:no-arguments check "$@" || exit 2
+guard:arguments check "$@" || exit $?
 
 release:require-declaration
 readarray -t packages < <(release:declared-packages)

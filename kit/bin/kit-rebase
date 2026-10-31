@@ -24,7 +24,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use git
 
-guard:no-flags rebase "$@" || exit 2
+guard:arguments rebase "$@" || exit $?
 
 guard:require tool:git
 git:rebase "$@"

@@ -13,7 +13,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
-guard:no-arguments root "$@" || exit 2
+guard:arguments root "$@" || exit $?
 
 printf '%s\n' "${kit_root}"
 

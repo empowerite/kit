@@ -31,3 +31,30 @@ import "syntax" as syntax; syntax::undescribed
 import "syntax" as syntax; syntax::undescribed
 {"syntax":[[]],"arguments":{}}
 []
+
+# match sorts a complete line: the literal that selected the alternative, the operands with the dash-words a trailing
+# operand takes, and the options given.
+import "syntax" as syntax; syntax::match(["run","bash","-c","echo hi"])
+{"verb":"toolchain","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+{"status":0,"literals":["run"],"operands":["bash","-c","echo hi"],"options":{}}
+
+# A required group with nothing given is what is missing, named by the first key of each alternative.
+import "syntax" as syntax; syntax::match(["--all"])
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","inline":false,"name":"message","value":"text","repeat":true}],[{"kind":"option","inline":false,"name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+{"status":1,"missing":"--message or --file","literals":[],"operands":[],"options":{"--all":["1"]}}
+
+# Two alternatives of one group together, an option without its value, a word no alternative takes, and a flag given
+# with a value are each refused in the CLI's words.
+import "syntax" as syntax; [syntax::match(["--message","m","--file","f"]), syntax::match(["--message"]), syntax::match(["--bogus"]), syntax::match(["--all=1"])] | map(.refusal)
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","inline":false,"name":"message","value":"text","repeat":true}],[{"kind":"option","inline":false,"name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+["--message cannot be combined with --file; run: kit help commit","--message needs a value; run: kit help commit","unknown flag '--bogus'; run: kit help commit","unknown flag '--all=1'; run: kit help commit"]
+
+# -- ends the flags, an option given twice keeps both values, and a flag given twice counts once.
+import "syntax" as syntax; syntax::match(["--message","a b","--message=c","--all","--all","--","--weird"])
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","inline":false,"name":"message","value":"text","repeat":true}],[{"kind":"option","inline":false,"name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+{"status":0,"literals":[],"operands":["--weird"],"options":{"--message":["a b","c"],"--all":["1"]}}
+
+# A verb that takes nothing refuses any word, and a wildcard option takes any --x=y no named option took.
+import "syntax" as syntax; [syntax::match(["--json"]), ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose=x"]))]
+{"verb":"version","syntax":[[]]}
+[{"status":2,"refusal":"kit version takes no arguments; run: kit help version"},{"status":0,"literals":["file"],"operands":["p"],"options":{"--purpose":["x"]}}]

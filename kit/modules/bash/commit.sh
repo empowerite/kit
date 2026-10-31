@@ -23,12 +23,10 @@
 
 use git policy tracker context
 
-# commit:parse <verb> <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file,
-# and commit_paths. An unknown flag, or an option without its value, is refused with a pointer to the verb's help
-# page, and it returns 2.
+# commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
+# commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
 commit:parse() {
-  local verb=$1 arg
-  shift
+  local arg
   commit_all=false
   commit_messages=()
   commit_file=''
@@ -38,27 +36,19 @@ commit:parse() {
     arg=$1
     shift
     case "${arg}" in
-      (--all | -a) commit_all=true ;;
-      (--message | -m)
-        (( $# > 0 )) || { error "--message needs a text; run: kit help ${verb}"; return 2; }
+      (--all) commit_all=true ;;
+      (--message)
         commit_messages+=("$1")
         shift ;;
       (--message=*) commit_messages+=("${arg#--message=}") ;;
-      (--file | -F)
-        (( $# > 0 )) || { error "--file needs a path; run: kit help ${verb}"; return 2; }
+      (--file)
         commit_file=$1
         shift ;;
       (--file=*) commit_file=${arg#--file=} ;;
       (--) commit_paths+=("$@"); break ;;
-      (-*) error "unknown flag '${arg}'; run: kit help ${verb}"; return 2 ;;
       (*) commit_paths+=("${arg}")
     esac
   done
-  if (( ${#commit_messages[@]} > 0 )) && [[ -n "${commit_file}" ]]
-  then
-    error "--message and --file are one or the other; run: kit help ${verb}"
-    return 2
-  fi
 }
 
 # commit:branch prints the branch checked out here, or refuses: no branch, the root checkout, or the default branch.
@@ -180,7 +170,7 @@ commit:checks() {
 commit:commit() {
   local branch subject path rest message
   local -a staged=()
-  commit:parse commit "$@" || return 2
+  commit:parse "$@" || return 2
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
   then
     error "say what the commit is: --message <text>, or --file <path>; kit commit opens no editor; run: kit help commit"
@@ -262,7 +252,7 @@ commit:commit() {
 commit:submit() {
   local branch upstream ahead refused
   local -a staged=()
-  commit:parse submit "$@" || return 2
+  commit:parse "$@" || return 2
   branch=$(commit:branch) || return 1
   [[ "${commit_all}" == false ]] || git add --update
   readarray -d '' -t staged < <(git diff --cached --name-only -z)

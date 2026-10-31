@@ -28,6 +28,7 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use toolchain
+guard:arguments toolchain "$@" || exit $?
 
 # Every subcommand reads the declared toolchains once, here, so an invalid declaration stops every subcommand.
 providers=$(toolchain:declared) || exit 1
@@ -35,10 +36,6 @@ providers=$(toolchain:declared) || exit 1
 verb=${1:-}
 [[ -n "${verb}" ]] && shift
 case "${verb}" in
-  ('')
-    error "kit toolchain needs a subcommand; run: kit help toolchain"
-    exit 2
-    ;;
   (list)
     for provider in ${providers}
     do
@@ -95,12 +92,7 @@ case "${verb}" in
     toolchain:path
     ;;
   (run)
-    (( $# > 0 )) || { error "kit toolchain run needs a command; run: kit help toolchain"; exit 2; }
     toolchain:run "$@"
-    ;;
-  (*)
-    error "kit toolchain has no subcommand '${verb}'; run: kit help toolchain"
-    exit 2
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -24,8 +24,7 @@ changes:render() {
       (--mine) choice=mine ;;
       (--others) choice=others ;;
       (--all) choice=all ;;
-      (--owner=?*) choice=owner; owners+=("${arg#--owner=}") ;;
-      (*) error "unknown flag '${arg}'; run: kit help changes"; return 2 ;;
+      (--owner=?*) choice=owner; owners+=("${arg#--owner=}")
     esac
   done
   if [[ "${choice}" == mine || "${choice}" == others ]]

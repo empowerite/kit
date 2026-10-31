@@ -2,6 +2,7 @@
 # syntax.sh - parses a verb's usage lines into its syntax, as JSON, and matches a command line against it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+# shellcheck disable=SC2034  # syntax_refusal, syntax_missing, and syntax_options are read by guard:arguments and the verbs
 #
 # A verb's header holds its usage lines, and help.sh reads them. This module reads what the lines say: after
 # kit <verb>, a usage line is written in this grammar:
@@ -26,6 +27,11 @@ use help
 # that stopped it.
 declare -ag syntax_tokens=()
 declare -g syntax_pos=0 syntax_json='' syntax_error=''
+
+# What syntax:match sorted from the last command line it judged.
+declare -g syntax_refusal='' syntax_missing=''
+declare -ag syntax_literals=() syntax_operands=()
+declare -Ag syntax_options=()
 
 # syntax:spec <verb> prints the verb's syntax as the kit syntax JSON: verb, purpose, usage, syntax, and arguments, the
 # descriptions in the header's argument block. When a usage line does not parse, the JSON carries error instead of
@@ -256,6 +262,67 @@ syntax:check() {
     found=1
   done < <(jq --raw-output -L "${kit_jq}" 'import "syntax" as syntax; syntax::undescribed[]' <<<"${spec}")
   (( found == 0 ))
+}
+
+# syntax:match <verb> <argument>… judges the arguments against the verb's syntax, as syntax.jq's match does: a named flag
+# or option is taken wherever it stands, with its value inline or as the next word; -- ends the flags; a literal selects
+# its alternative, as does a flag or option given; operands fill in order, and a repeated one takes every word left,
+# dash-words included. It returns 0 when the arguments complete the syntax, 1 when a required literal, operand, or
+# group is missing, and 2 when a word is refused, and sets what it sorted: syntax_refusal (the whole line, on 2),
+# syntax_missing (the keys that could come next, joined by " or ", on 1), syntax_literals and syntax_operands (in
+# order), and syntax_options (each flag or option given, by its key, to its values joined by newlines; a flag's is 1).
+syntax:match() {
+  local verb=$1 syntax status=0 key name count value i n
+  local -a fields usage
+  shift
+  syntax_refusal='' syntax_missing=''
+  syntax_literals=() syntax_operands=() syntax_options=()
+  readarray -t usage < <(help:usage "${verb}")
+  if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
+  then
+    syntax_refusal="kit ${verb}: usage does not parse: ${syntax}"
+    return 2
+  fi
+  readarray -d '' -t fields < <(jq --null-input --raw-output0 -L "${kit_jq}" --arg verb "${verb}" --argjson syntax "${syntax}" \
+    'import "syntax" as syntax; {verb: $verb, syntax: $syntax} | syntax::match($ARGS.positional) | syntax::fields' \
+    --args -- "$@")
+  if (( ${#fields[@]} == 0 ))
+  then
+    syntax_refusal="kit ${verb}: the arguments could not be judged; run: kit help ${verb}"
+    return 2
+  fi
+  i=0
+  while (( i < ${#fields[@]} ))
+  do
+    key=${fields[i]}
+    case "${key}" in
+      (status) status=${fields[i + 1]}; i=$(( i + 2 )) ;;
+      (refusal) syntax_refusal=${fields[i + 1]}; i=$(( i + 2 )) ;;
+      (missing) syntax_missing=${fields[i + 1]}; i=$(( i + 2 )) ;;
+      (literals | operands)
+        count=${fields[i + 1]}
+        for (( n = 0; n < count; n++ ))
+        do
+          if [[ "${key}" == literals ]]
+          then
+            syntax_literals+=("${fields[i + 2 + n]}")
+          else
+            syntax_operands+=("${fields[i + 2 + n]}")
+          fi
+        done
+        i=$(( i + 2 + count ))
+        ;;
+      (option)
+        name=${fields[i + 1]} count=${fields[i + 2]} value=''
+        for (( n = 0; n < count; n++ ))
+        do
+          value+="${value:+$'\n'}${fields[i + 3 + n]}"
+        done
+        syntax_options[${name}]=${value}
+        i=$(( i + 3 + count ))
+    esac
+  done
+  return "${status}"
 }
 
 # syntax:render <json> prints a node, or a sequence of nodes, as usage text: --message <text>…, [--all],

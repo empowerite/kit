@@ -2,7 +2,7 @@
 # kit-package - lists, activates, or deactivates the packages this repository takes (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit package list | add <package>… | remove <package>…
+# kit package [list | add <package>… | remove <package>…]
 #
 #   list                 prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
 #                        excluded ones, its origin (release or repository), and its description. This is the default.
@@ -27,15 +27,10 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use release
+guard:arguments package "$@" || exit $?
 
 verb=${1:-list}
 shift || true
-case "${verb}" in
-  (list | add | remove) ;;
-  (*)
-    error "kit package has no subcommand '${verb}'; run: kit help package"
-    exit 2
-esac
 release:require-declaration
 readarray -t active < <(release:declared-packages)
 readarray -t excluded < <(release:declared-excludes)
@@ -56,7 +51,6 @@ case "${verb}" in
     done
     ;;
   (add)
-    (( $# > 0 )) || { error "kit package add needs a package; run: kit help package"; exit 2; }
     guard:require tool:jq
     # A glob such as style/* stands for every package it matches.
     expanded=$(release:expand "${kit_root}" "$@") || exit 2
@@ -93,7 +87,6 @@ case "${verb}" in
     release:say-unmet "${wanted[@]}"
     ;;
   (remove)
-    (( $# > 0 )) || { error "kit package remove needs a package; run: kit help package"; exit 2; }
     guard:require tool:jq
     # A glob such as style/* stands for every package it matches.
     expanded=$(release:expand "${kit_root}" "$@") || exit 2
