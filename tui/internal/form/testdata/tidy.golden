@@ -1,0 +1,6 @@
+ removes merged worktrees and gone branches
+
+   --dry-run  prints what kit tidy would do, and changes nothing
+
+
+ kit tidy

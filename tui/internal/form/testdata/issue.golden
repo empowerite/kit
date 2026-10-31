@@ -1,0 +1,9 @@
+ starts or resumes an issue
+
+   <reference>  the issues, each named with its tracker: 7 or #7 for an issue on the forge (the
+                service that hosts the repository, GitHub or GitLab), AB#4521 for an Azure DevOps
+                work item, when that tracker is declared in .kit/settings.yml
+   --title      creates an issue with that title in the forge's tracker, then starts it, in one step
+
+
+ kit issue

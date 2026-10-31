@@ -1,0 +1,7 @@
+ mirrors the release into the repository, and into the home directory
+
+   <package>…  packages to activate beside the default ones, by name or by a glob such as 'style/*';
+               each must be in the release or under .kit/packages/
+
+
+ kit install

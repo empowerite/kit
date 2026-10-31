@@ -1,0 +1,9 @@
+ prints the rules that govern a file, and logs the request
+
+   <path>    the files whose rules to print, relative to the current directory; a path need not
+             exist yet
+   --claude  runs as Claude Code's PreToolUse hook: reads the hook's input on stdin, and answers
+             with the rules that govern the file the tool is about to write
+
+
+ kit context

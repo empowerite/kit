@@ -28,6 +28,11 @@ case "${1:-}" in
       printf 'a\tthe first\tactive\t\n'
       printf 'b\t\t\tb: kept, c depend(s) on it\n'
       printf 'answers\t%s %s %s\t\t\n' "${verb}" "${key}" "$*"
+    elif [[ "${2:-}" == --match ]]
+    then
+      shift 2
+      [[ "${1:-}" != -- ]] || shift
+      printf '{"status": 0, "literals": [], "operands": ["x"], "options": {"--message": ["%s"]}, "values": {"--message": ["%s"], "<path>": ["x"]}}\n' "$*" "$*"
     elif [[ "${2:-}" == --extend ]]
     then
       shift 2

@@ -1,0 +1,8 @@
+ prints the content the active packages deliver as the region at a path
+
+   --home  makes the path relative to the home directory instead.
+
+   <path>  the region's path, relative to the repository root. Default: KIT_GENERATE_REGION.
+
+
+ kit region

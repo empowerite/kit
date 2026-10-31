@@ -102,6 +102,15 @@ func (r Runner) Extend(verb string, answers []string) (map[string]syntax.Argumen
 	return arguments, err
 }
 
+// Match judges a command line for the verb as the guard would, through kit syntax <verb> --match; the words follow a --.
+func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
+	out, err := r.run(withAnswers([]string{"syntax", verb, "--match"}, words)...)
+	if err != nil {
+		return syntax.Match{}, err
+	}
+	return syntax.DecodeMatch(bytes.NewReader(out))
+}
+
 // Exec replaces this process with kit <verb> <args>…, run where the command was typed. It returns only on failure.
 func (r Runner) Exec(verb string, args []string) error {
 	path, err := exec.LookPath(r.Kit)

@@ -126,3 +126,10 @@ func TestNewReadsTheEnvironment(t *testing.T) {
 		t.Errorf("New defaults: %+v", r)
 	}
 }
+
+func TestMatchJudgesTheWordsAfterADoubleDash(t *testing.T) {
+	m, err := fake(t, "").Match("commit", []string{"--message", "hi"})
+	if err != nil || m.Status != 0 || m.Operands[0] != "x" || m.Options["--message"][0] != "--message hi" {
+		t.Fatalf("Match: %v, %+v", err, m)
+	}
+}

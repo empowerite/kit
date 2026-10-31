@@ -1,0 +1,9 @@
+ runs each rule's linter over the paths it governs
+
+   --all-files  with no paths, every tracked file instead of the staged ones
+
+   <path>…      the files to check, relative to the current directory; a directory stands for the
+                tracked files under it; with none, the staged files
+
+
+ kit lint

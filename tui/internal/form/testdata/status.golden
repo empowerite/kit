@@ -1,0 +1,9 @@
+ shows every worktree with its branch, pull request, and state
+
+   --no-fetch   --json      skips the git fetch
+
+   --all                    every open pull request (the default); it stands alone
+   --mine --others --owner
+
+
+ kit status

@@ -1,0 +1,10 @@
+ lists the open issues nothing is in flight for, oldest first
+
+   --json   --today         prints the same facts as one JSON array; each issue carries branch, a
+                            name or null
+
+   --all                    every open issue no change closes (the default); it stands alone
+   --mine --others --owner
+
+
+ kit backlog

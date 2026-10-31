@@ -1,0 +1,4 @@
+ runs the delivered CI job's four checks on any machine
+
+
+ kit ci

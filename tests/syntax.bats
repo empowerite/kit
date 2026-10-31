@@ -175,4 +175,18 @@ setup() {
   done
 }
 
+@test "kit syntax <verb> --match judges a command line and prints what it sorted, as the form reads it" {
+  run "${kit_root}/bin/kit" syntax commit --match -- --message hi x.txt
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.status, .operands, .options["--message"], .values["<path>"]]' <<<"$output")" = '[0,["x.txt"],["hi"],["x.txt"]]' ]
+  run "${kit_root}/bin/kit" syntax commit --match -- --all
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.status, .missing' <<<"$output" | paste -sd' ' -)" = "1 --message or --file" ]
+  run "${kit_root}/bin/kit" syntax commit --match -- --bogus
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help commit" ]
+  run "${kit_root}/bin/kit" syntax package --match
+  [ "$(jq -c '[.status, .literals]' <<<"$output")" = '[0,[]]' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,4 @@
+ fails when a delivered file differs from the pinned release
+
+
+ kit check

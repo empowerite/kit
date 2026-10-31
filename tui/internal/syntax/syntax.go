@@ -115,3 +115,24 @@ func render(n Node) string {
 	}
 	return "--" + n.Name + " <" + n.Value + ">" + mark
 }
+
+// Match is what kit syntax <verb> --match prints: the judgment of a command line against the verb's syntax. Status is
+// 0 when the words complete it, 1 when a required part is missing (Missing names what could come next), and 2 when a
+// word is refused (Refusal is the line kit prints). Literals, Operands, Options, and Values are the words sorted:
+// each flag or option key to its values, a flag's being ["1"], and Values every operand and option key to its values.
+type Match struct {
+	Status   int                 `json:"status"`
+	Refusal  string              `json:"refusal"`
+	Missing  string              `json:"missing"`
+	Literals []string            `json:"literals"`
+	Operands []string            `json:"operands"`
+	Options  map[string][]string `json:"options"`
+	Values   map[string][]string `json:"values"`
+}
+
+// DecodeMatch reads one match, as kit syntax <verb> --match prints it.
+func DecodeMatch(r io.Reader) (Match, error) {
+	var m Match
+	err := json.NewDecoder(r).Decode(&m)
+	return m, err
+}

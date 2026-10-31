@@ -1,0 +1,11 @@
+ commits what is staged, as kit commit does, then pushes the branch
+
+   --all      stages every change to a tracked file first, as git commit --all does
+
+   --message  the message; given twice or more, the first is the subject and the rest are paragraphs
+   --file     reads the message from a file, whose first line is the subject
+
+   <path>…    commits those paths alone, as git commit -- <path>… does; each must be known to git
+
+
+ kit submit

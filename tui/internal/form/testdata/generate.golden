@@ -1,0 +1,12 @@
+ expands every kit:generate region to what its command makes, or checks that it is
+
+   --check       writes nothing, and fails naming every stale file
+
+   --iterations  expands the named files <n> times instead of once
+
+   <path>…       the files to expand, relative to the current directory; with none, every tracked
+                 file and every untracked file git does not ignore, repeated until a pass changes
+                 nothing
+
+
+ kit generate

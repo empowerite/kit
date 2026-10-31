@@ -1,0 +1,7 @@
+ places what the active packages deliver under .kit/, from the declaration alone
+
+   --quick  for a shell hook, such as mise's enter hook: starts nothing and says nothing when
+            everything is in place, or outside a repository that declares a kit version
+
+
+ kit hydrate

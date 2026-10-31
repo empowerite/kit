@@ -1,0 +1,17 @@
+ makes a new file from the template of the rule that governs it
+
+   file <path>       the new file, relative to the repository root wherever the command runs. An
+                     absolute path inside the repository is accepted. A path outside it is refused.
+
+   --rule            the rule whose template to use. Default: the most specific rule that governs
+                     the path and has templates. A script with no extension needs this flag.
+
+   --variant         the template to use. Default: the first variant the rule lists that the path
+                     allows.
+
+   --<hole>=<value>  the value of a hole («name») within a line of the template. The holes path,
+                     name, and stem default to values taken from the path. Every other hole needs
+                     its flag.
+
+
+ kit new file

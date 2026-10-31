@@ -431,6 +431,20 @@ syntax:extend() {
   "${verb}:extend" "$@"
 }
 
+# syntax:judge <verb> <argument>… prints the match of the arguments against the verb's syntax as JSON, as syntax.jq's
+# match gives it: status, refusal or missing, literals, operands, options, and values. kit syntax --match prints it, so
+# a form can fill its fields from a command line without a matcher of its own. It returns 1 when the usage does not
+# parse.
+syntax:judge() {
+  local verb=$1 syntax
+  local -a usage
+  shift
+  readarray -t usage < <(help:usage "${verb}")
+  syntax=$(syntax:parse "${verb}" "${usage[@]}") || return 1
+  jq --null-input -L "${kit_jq}" --arg verb "${verb}" --argjson syntax "${syntax}" \
+    'import "syntax" as syntax; {verb: $verb, syntax: $syntax} | syntax::match($ARGS.positional)' --args -- "$@"
+}
+
 # syntax:kinds <verb> <arguments-json> prints {"<key>": "closed" | "open"} for every key of the arguments object the
 # verb's module answers choices for, and {} when it answers none.
 syntax:kinds() {

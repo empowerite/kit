@@ -1,0 +1,12 @@
+ installs, reports, and updates the tools the repository's gate runs, whatever manages them
+
+   list      prints each declared toolchain and the file it reads
+   install   installs every toolchain's pinned tools
+   outdated  prints one line per tool behind its latest version
+   update    updates every toolchain to its latest versions, and rewrites its pins and lock
+   path      prints the directories that put the tools first on PATH, one per line, for a runner
+   run       runs the command with the tools: inside the container for docker, else with the
+             toolchains' directories first on PATH
+
+
+ kit toolchain

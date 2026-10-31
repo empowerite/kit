@@ -8,6 +8,8 @@
 #
 # kit syntax <verb> --extend [<answer>…]
 #
+# kit syntax <verb> --match [<word>…]
+#
 # Prints the grammar of a verb's command line as JSON, read from the usage lines in the verb's header. The JSON is
 # the contract between the verbs and whatever needs to know what they take, kit tui first: verb, purpose, usage (the
 # lines as written), syntax (an array of alternatives, each a sequence of nodes of kind literal, operand, flag,
@@ -26,6 +28,10 @@
 #   --extend               prints instead the arguments the verb learns from the answers, as an object of arguments
 #                          entries marked extended, for a form to add as fields; kit new answers with the holes of the
 #                          template the answers name, and {} before it knows
+#   --match                prints instead the judgment of the words as the verb's command line, as the guard judges
+#                          them: status 0, 1 with missing (what could come next), or 2 with refusal (the line the verb
+#                          would print), and the literals, operands, options, and values sorted; for a form to fill
+#   <word>…                the words of the command line to judge, after kit <verb>; they follow a --
 #   <verb>…   the verbs to print; one prints its object, several print an array, and none prints every verb
 #
 # Exits 0 when every usage line parses (and, with --check, every argument is described), 1 when one does not (its
@@ -47,7 +53,7 @@ guard:require tool:jq
 # shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
 verbs=("${syntax_operands[@]}")
 (( ${#verbs[@]} )) || readarray -t verbs < <(help:verbs)
-[[ -z "${syntax_options[--choices]+x}${syntax_options[--extend]+x}" ]] || verbs=("${verbs[0]}")
+[[ -z "${syntax_options[--choices]+x}${syntax_options[--extend]+x}${syntax_options[--match]+x}" ]] || verbs=("${verbs[0]}")
 for verb in "${verbs[@]}"
 do
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
@@ -73,6 +79,11 @@ then
     error "kit ${verbs[0]} does not extend its arguments; run: kit help syntax"
     exit 1
   fi
+  exit 0
+fi
+if [[ -n "${syntax_options[--match]+x}" ]]
+then
+  syntax:judge "${verbs[0]}" "${syntax_operands[@]:1}"
   exit 0
 fi
 

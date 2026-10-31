@@ -1,0 +1,19 @@
+ lists, activates, or deactivates the packages this repository takes
+
+   list    prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
+           excluded ones, its origin (release or repository), and its description. This is the
+           default.
+   select  makes exactly the named packages, with the packages they depend on and the members they
+           include, the active set: it removes what the set omits, adds what it lacks, and says
+           which active package it kept for another's sake; with nothing to change it says the set
+   add     activates the packages, the packages they depend on, and the members they include, places
+           the files they deliver, and rewrites the manifests. When a different file is already at a
+           delivered path, it is named and left alone, and no manifest is written. A package named
+           here is no longer excluded.
+   remove  takes out what the packages delivered (files, the kit's JSON entries, and the kit's
+           regions) and rewrites the manifests. A package that an active package depends on is
+           refused. A member of a bundle that stays active is recorded as excluded, so that kit
+           update does not bring it back.
+
+
+ kit package

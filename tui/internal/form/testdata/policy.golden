@@ -1,0 +1,6 @@
+ refuses a branch, a commit subject, or a change title the repository's policy does not allow
+
+   --input  prints the facts as JSON instead of judging them: the document a rule is written against
+
+
+ kit policy
