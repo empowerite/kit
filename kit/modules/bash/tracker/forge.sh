@@ -6,14 +6,17 @@
 # except url passes straight to the matching issue call of the forge seam, modules/bash/forge.sh, so the forge's
 # provider does the work. url builds the issue's address from the repository's URL.
 
-use forge
+tracker/forge:assign()    { forge:issue-assign "$1" "$2"; }
+
+tracker/forge:assignees() { forge:issue-assignees "$1"; }
+
+tracker/forge:create()    { forge:issue-create "$1"; }
+
+tracker/forge:me()        { forge:me; }
+
+tracker/forge:state()     { forge:issue-state "$1"; }
 
 tracker/forge:title()     { forge:issue-title "$1"; }
-tracker/forge:state()     { forge:issue-state "$1"; }
-tracker/forge:assignees() { forge:issue-assignees "$1"; }
-tracker/forge:assign()    { forge:issue-assign "$1" "$2"; }
-tracker/forge:me()        { forge:me; }
-tracker/forge:create()    { forge:issue-create "$1"; }
 
 tracker/forge:url() {
   local repo_url
@@ -23,5 +26,9 @@ tracker/forge:url() {
   else printf '%s/issues/%s\n' "${repo_url}" "$1"
   fi
 }
+
+# The seam's calls end here; what follows is this provider's own.
+
+use forge
 
 # ----------------------------------------------------------------------------------------------------------------------

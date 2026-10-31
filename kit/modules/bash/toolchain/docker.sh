@@ -19,26 +19,6 @@ toolchain/docker:file() {
   printf '%s\n' "${file:-toolchain.Dockerfile}"
 }
 
-toolchain/docker:require() {
-  command -v docker >/dev/null 2>&1 && return 0
-  error "install Docker: https://docs.docker.com/get-docker/ (the docker toolchain needs it)"
-  return 1
-}
-
-# toolchain/docker:tag prints the image's tag: the image name, then the first twelve hex digits of the file's
-# digest.
-toolchain/docker:tag() {
-  local file name
-  file=$(toolchain/docker:file)
-  name=$(toolchain:field docker image)
-  if [[ ! -f "${file}" ]]
-  then
-    error "${file} is missing; the docker toolchain builds its image from it"
-    return 1
-  fi
-  printf '%s:%s\n' "${name:-kit-toolchain}" "$(release:digest < "${file}" | cut -c 1-12)"
-}
-
 toolchain/docker:install() {
   local file tag
   toolchain/docker:require || return 1
@@ -46,27 +26,6 @@ toolchain/docker:install() {
   tag=$(toolchain/docker:tag) || return 1
   docker image inspect "${tag}" >/dev/null 2>&1 && return 0
   docker build --quiet --file "${file}" --tag "${tag}" "$(dirname "${file}")" >/dev/null
-}
-
-# toolchain/docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line that names an image.
-# It skips scratch and earlier stages of the same file (named by `AS <stage>`).
-toolchain/docker:bases() {
-  awk '
-    toupper($1) == "FROM" {
-      i = 2
-      if ($i ~ /^--platform=/) i++
-      ref = $i
-      if (toupper($(i + 1)) == "AS") stage[tolower($(i + 2))] = 1
-      if (ref == "scratch" || (tolower(ref) in stage)) next
-      name = ref; digest = ""
-      if (index(ref, "@") > 0) { name = substr(ref, 1, index(ref, "@") - 1); digest = substr(ref, index(ref, "@") + 1) }
-      print name "\t" digest
-    }' "$(toolchain/docker:file)"
-}
-
-# toolchain/docker:latest <name:tag> prints the tag's current digest in the registry.
-toolchain/docker:latest() {
-  docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2>/dev/null | jq --raw-output '.digest'
 }
 
 toolchain/docker:outdated() {
@@ -78,6 +37,15 @@ toolchain/docker:outdated() {
     latest=$(toolchain/docker:latest "${base}") || { warn "${base}: the registry did not answer"; continue; }
     [[ "${latest}" == "${pinned}" ]] || printf '%s\t%s\t%s\n' "${base}" "${pinned:-unpinned}" "${latest}"
   done < <(toolchain/docker:bases)
+}
+
+# The tools are in the image, so path prints nothing. A command reaches them through run.
+toolchain/docker:path() { return 0; }
+
+toolchain/docker:require() {
+  command -v docker >/dev/null 2>&1 && return 0
+  error "install Docker: https://docs.docker.com/get-docker/ (the docker toolchain needs it)"
+  return 1
 }
 
 toolchain/docker:update() {
@@ -100,8 +68,42 @@ toolchain/docker:update() {
   toolchain/docker:install
 }
 
-# The tools are in the image, so path prints nothing. A command reaches them through run.
-toolchain/docker:path() { return 0; }
+# The seam's calls end here; what follows is this provider's own.
+
+# toolchain/docker:tag prints the image's tag: the image name, then the first twelve hex digits of the file's
+# digest.
+toolchain/docker:tag() {
+  local file name
+  file=$(toolchain/docker:file)
+  name=$(toolchain:field docker image)
+  if [[ ! -f "${file}" ]]
+  then
+    error "${file} is missing; the docker toolchain builds its image from it"
+    return 1
+  fi
+  printf '%s:%s\n' "${name:-kit-toolchain}" "$(release:digest < "${file}" | cut -c 1-12)"
+}
+
+# toolchain/docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line that names an image.
+# It skips scratch and earlier stages of the same file (named by `AS <stage>`).
+toolchain/docker:bases() {
+  awk '
+    toupper($1) == "FROM" {
+      i = 2
+      if ($i ~ /^--platform=/) i++
+      ref = $i
+      if (toupper($(i + 1)) == "AS") stage[tolower($(i + 2))] = 1
+      if (ref == "scratch" || (tolower(ref) in stage)) next
+      name = ref; digest = ""
+      if (index(ref, "@") > 0) { name = substr(ref, 1, index(ref, "@") - 1); digest = substr(ref, index(ref, "@") + 1) }
+      print name "\t" digest
+    }' "$(toolchain/docker:file)"
+}
+
+# toolchain/docker:latest <name:tag> prints the tag's current digest in the registry.
+toolchain/docker:latest() {
+  docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' 2>/dev/null | jq --raw-output '.digest'
+}
 
 toolchain/docker:run() {
   local tag

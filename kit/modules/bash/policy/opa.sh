@@ -27,4 +27,6 @@ policy/opa:deny() {
   jq --raw-output '.result[0].expressions[0].value // [] | .[]' <<<"${out}"
 }
 
+# The seam's calls end here; what follows is this provider's own.
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -13,12 +13,6 @@ toolchain/mise:file() {
   fi
 }
 
-toolchain/mise:require() {
-  command -v mise >/dev/null 2>&1 && return 0
-  error "install mise: https://mise.jdx.dev/installing-mise.html (the mise toolchain needs it)"
-  return 1
-}
-
 toolchain/mise:install() {
   toolchain/mise:require || return 1
   mise trust --quiet "$(toolchain/mise:file)" >/dev/null 2>&1 || true
@@ -34,14 +28,22 @@ toolchain/mise:outdated() {
   jq --raw-output 'to_entries[] | "\(.key)\t\(.value.current // "none")\t\(.value.latest)"' <<<"${doc:-{\}}"
 }
 
+toolchain/mise:path() {
+  toolchain/mise:require || return 1
+  mise bin-paths 2>/dev/null
+}
+
+toolchain/mise:require() {
+  command -v mise >/dev/null 2>&1 && return 0
+  error "install mise: https://mise.jdx.dev/installing-mise.html (the mise toolchain needs it)"
+  return 1
+}
+
 toolchain/mise:update() {
   toolchain/mise:require || return 1
   mise upgrade --quiet
 }
 
-toolchain/mise:path() {
-  toolchain/mise:require || return 1
-  mise bin-paths 2>/dev/null
-}
+# The seam's calls end here; what follows is this provider's own.
 
 # ----------------------------------------------------------------------------------------------------------------------

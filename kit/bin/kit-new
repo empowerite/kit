@@ -160,6 +160,11 @@ done
 mkdir -p "$(dirname "${path}")"
 template:render "${template}" "${json}" > "${path}"
 [[ "${executable}" == true ]] && chmod +x "${path}"
+# A region the template carries is filled by its command now, so the new file is as kit generate keeps it.
+if grep --quiet 'kit:generate' "${path}"
+then
+  run kit generate "${path}" >/dev/null || warn "${path}: a region could not be filled; run: kit generate ${path}"
+fi
 context:log "${path}"
 ok "made ${path} from ${template}; read the rules below before writing the rest"
 context:rules "${path}"

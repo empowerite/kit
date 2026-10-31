@@ -17,20 +17,6 @@ toolchain/brew:file() {
   printf '%s\n' "${file:-Brewfile}"
 }
 
-# toolchain/brew:brew prints the brew executable, on PATH or at one of Homebrew's prefixes.
-toolchain/brew:brew() {
-  local brew
-  for brew in "$(command -v brew 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew \
-    /home/linuxbrew/.linuxbrew/bin/brew
-  do
-    [[ -n "${brew}" && -x "${brew}" ]] && { printf '%s\n' "${brew}"; return 0; }
-  done
-  error "install Homebrew: https://brew.sh (the brew toolchain needs it)"
-  return 1
-}
-
-toolchain/brew:require() { toolchain/brew:brew >/dev/null; }
-
 toolchain/brew:install() {
   local brew
   brew=$(toolchain/brew:brew) || return 1
@@ -48,6 +34,15 @@ toolchain/brew:outdated() {
     'import "toolchain" as toolchain; toolchain::brew_outdated($names)' <<<"${doc}"
 }
 
+toolchain/brew:path() {
+  local brew prefix
+  brew=$(toolchain/brew:brew) || return 1
+  prefix=$("${brew}" --prefix)
+  printf '%s/bin\n%s/sbin\n' "${prefix}" "${prefix}"
+}
+
+toolchain/brew:require() { toolchain/brew:brew >/dev/null; }
+
 toolchain/brew:update() {
   local brew outdated
   brew=$(toolchain/brew:brew) || return 1
@@ -57,11 +52,18 @@ toolchain/brew:update() {
   "${brew}" upgrade ${outdated}
 }
 
-toolchain/brew:path() {
-  local brew prefix
-  brew=$(toolchain/brew:brew) || return 1
-  prefix=$("${brew}" --prefix)
-  printf '%s/bin\n%s/sbin\n' "${prefix}" "${prefix}"
+# The seam's calls end here; what follows is this provider's own.
+
+# toolchain/brew:brew prints the brew executable, on PATH or at one of Homebrew's prefixes.
+toolchain/brew:brew() {
+  local brew
+  for brew in "$(command -v brew 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew \
+    /home/linuxbrew/.linuxbrew/bin/brew
+  do
+    [[ -n "${brew}" && -x "${brew}" ]] && { printf '%s\n' "${brew}"; return 0; }
+  done
+  error "install Homebrew: https://brew.sh (the brew toolchain needs it)"
+  return 1
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

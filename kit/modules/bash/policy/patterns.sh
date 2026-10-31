@@ -34,4 +34,6 @@ policy/patterns:deny() {
   return 0
 }
 
+# The seam's calls end here; what follows is this provider's own.
+
 # ----------------------------------------------------------------------------------------------------------------------

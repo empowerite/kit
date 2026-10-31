@@ -1,0 +1,28 @@
+«head»
+forge/«stem»:branch-for-issue()«call_branch_for_issue…:- { error "not written yet"; return 1; }»
+forge/«stem»:issue-assign()«call_issue_assign…:- { error "not written yet"; return 1; }»
+forge/«stem»:issue-assignees()«call_issue_assignees…:- { error "not written yet"; return 1; }»
+forge/«stem»:issue-create()«call_issue_create…:- { error "not written yet"; return 1; }»
+forge/«stem»:issue-state()«call_issue_state…:- { error "not written yet"; return 1; }»
+forge/«stem»:issue-title()«call_issue_title…:- { error "not written yet"; return 1; }»
+forge/«stem»:link-branch()«call_link_branch…:- { error "not written yet"; return 1; }»
+forge/«stem»:me()«call_me…:- { error "not written yet"; return 1; }»
+forge/«stem»:noun()«call_noun…:- { error "not written yet"; return 1; }»
+forge/«stem»:open-issues()«call_open_issues…:- { error "not written yet"; return 1; }»
+forge/«stem»:open-prs()«call_open_prs…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-author()«call_pr_author…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-body()«call_pr_body…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-closing-issues()«call_pr_closing_issues…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-create()«call_pr_create…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-for-branch()«call_pr_for_branch…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-here()«call_pr_here…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-set-body()«call_pr_set_body…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-state-for-branch()«call_pr_state_for_branch…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-title()«call_pr_title…:- { error "not written yet"; return 1; }»
+forge/«stem»:pr-url()«call_pr_url…:- { error "not written yet"; return 1; }»
+forge/«stem»:releases()«call_releases…:- { error "not written yet"; return 1; }»
+forge/«stem»:repo()«call_repo…:- { error "not written yet"; return 1; }»
+forge/«stem»:repo-url()«call_repo_url…:- { error "not written yet"; return 1; }»
+forge/«stem»:require()«call_require…:- { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

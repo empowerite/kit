@@ -36,6 +36,7 @@ templates:
 | workflows | `workflow` | | |
 | gitignore | `file` | | |
 | gitignore | `region` | `.gitignore` | a file the kit made of its region alone |
+| bash (the rule) | `forge-provider`, `policy-provider`, `toolchain-provider`, `tracker-provider` | `**/<seam>/*.sh` | a seam's provider; see below |
 
 JSON style has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 
@@ -47,21 +48,38 @@ see: [packages.md](packages.md)
 
 ## Holes
 
-A hole is a name between guillemets, `«name»`. No file kind the rules govern uses guillemets. On a Mac, type `«`
-with Option-\ and `»` with Shift-Option-\.
+A hole is a name between guillemets, `«name»`, with `[a-z_]+` for the name. No file kind the rules govern uses
+guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and `…` with Option-;. Without them, type
+`<<name>>`, `<<name...>>`, or `<<name:-default>>`, and `kit template fix <path>` rewrites them.
 
 | Hole | When making a file | When checking a file |
 | --- | --- | --- |
-| Within a line | Replaced by a value. | Matches any text on that line. A hole used twice must match the same text each time. |
-| A line of its own | Replaced by the value's lines. With no value, one blank line, or nothing when it is the template's last line. | Matches any run of lines, including none. |
+| `«name»` within a line | Replaced by a value. | Matches any text on that line. |
+| `«name…»` | Replaced by a value. | Matches any text, across lines. |
+| `«name»` on a line of its own | Replaced by the value's lines. With no value, one blank line, or nothing when it is the template's last line. | Matches any run of whole lines, including none. |
+| `«name:-default»`, `«name…:-default»` | The value, else the default; `\n` in a default is a newline. | As without the default. |
 
-For example, the just module template's `«stem»_justfile` appears twice, because it is the variable its help
-recipe reads.
+- `path`, `name`, and `stem` come from the path, and are bound before a file is checked, so they are literal text
+  there: a script whose banner names another file does not match. For `bin/deploy.sh` they are `bin/deploy.sh`,
+  `deploy.sh`, and `deploy`.
+- A name that appears once takes one value. A name that appears more than once takes one value per appearance, in
+  template order: the three `«settings»` holes of the just templates are three values. Making a file with one value
+  fills every appearance.
+- Every other hole within a line, or across lines, without a default takes its value from the flag of the same name,
+  such as `--purpose=<…>` or `--title=<…>`. A missing flag is refused, and the error names it.
+  `kit tui` offers those flags as fields: `kit syntax new --extend` lists them once the rule and the variant are
+  known.
+- A region in a template, the lines between a `kit:generate` directive and its `kit:end` line, belongs to its
+  command. A file may hold anything there, and `kit new file` keeps the directive and fills the region with
+  `kit generate`.
+- Two holes with nothing between them could split a file any way at all, so `kit lint` refuses such a template,
+  naming its line.
 
-`path`, `name`, and `stem` come from the path. For `bin/deploy.sh` they are `bin/deploy.sh`, `deploy.sh`, and
-`deploy`. Every other hole within a line takes its value from the flag of the same name, such as `--purpose=<…>`
-or `--title=<…>`. A missing flag is refused, and the error names it.
-`kit tui` offers those flags as fields: `kit syntax new --extend` lists them once the rule and the variant are known.
+A template is matched in one pass, with no regular expression. Each hole extends to the first place the text after
+it appears, which leaves the most for what follows, so a file matches exactly when this pass finds the match, and
+the time is linear in the file. The same pass gives each hole's text, and `template:unapply <template> <file>`
+prints those values as JSON. Rendering a template with the values a file gives it makes that file again, and the
+suite checks this for every file in this repository that a template governs.
 
 ## Making a file
 
@@ -128,6 +146,11 @@ Three kinds of path are not checked against any template:
 ```text
 /.mise/locks/** linguist-generated
 ```
+
+A seam's provider is checked against its seam's template too, which the bash rule lists for `**/<seam>/*.sh`: the
+seam's calls first, one function each in the order of their names, then the line
+`# The seam's calls end here; what follows is this provider's own.`, then the provider's own functions. A provider
+that lacks a call, renames one, or puts one of its own among them leaves that template.
 
 A template fixes the shape a style requires: the lines a file must have, and their order. What varies line by
 line, such as the inside of a recipe or a function, is left to the linters and to the text of the rule and the

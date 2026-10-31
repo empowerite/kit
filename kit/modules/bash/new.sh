@@ -5,23 +5,9 @@
 
 use template
 
-# new:rule-file <rule> prints the file of the rule by that name, a style of the name before a rule of it, as kit new
-# reads --rule. It returns 1 when neither exists.
-new:rule-file() {
-  if [[ -f ".kit/styles/$1.md" ]]
-  then
-    printf '.kit/styles/%s.md\n' "$1"
-  elif [[ -f ".kit/rules/$1.md" ]]
-  then
-    printf '.kit/rules/%s.md\n' "$1"
-  else
-    return 1
-  fi
-}
-
 # new:choices <key> [<answer>…] answers kit syntax --choices for --rule, the rules that have templates, each with its
-# variants as the description, and for --variant, the variants of the rule the answers name with --rule=<rule>, or
-# else of the most specific rule with templates for the path they name with <path>=<path>, each with its path glob.
+# variants as the description, and for --variant, the variants of the rule and the style the answers name with
+# --rule=<rule>, or else of every rule with templates for the path they name with <path>=<path>, each with its glob.
 # Both sets are closed. With neither a rule nor a path, --variant has no list yet, and it returns 1.
 new:choices() {
   local key=$1 answer rule='' path='' file name glob variants
@@ -45,33 +31,40 @@ new:choices() {
   done
   if [[ "${key}" == --rule ]]
   then
-    for file in .kit/styles/*.md .kit/rules/*.md
+    # A rule and a style of one name share it, and their templates the directory; both lists are its templates.
+    for name in $(find .kit/styles .kit/rules -maxdepth 1 -name '*.md' 2>/dev/null | sed 's@^.*/@@; s/\.md$//' \
+      | LC_ALL=C sort -u)
     do
-      [[ -f "${file}" ]] || continue
-      name=$(template:rule-name "${file}")
-      [[ -z "${seen[${name}]+x}" ]] || continue
-      variants=$(template:variants "${file}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)
-      [[ -n "${variants}" ]] || continue
-      seen[${name}]=1
-      printf '%s\ttemplates: %s\t\t\n' "${name}" "${variants}"
+      variants=$(for file in ".kit/styles/${name}.md" ".kit/rules/${name}.md"
+        do
+          [[ -f "${file}" ]] && template:variants "${file}" | cut -d $'\x1f' -f 1
+        done | paste -s -d ' ' -)
+      [[ -n "${variants}" ]] && printf '%s\ttemplates: %s\t\t\n' "${name}" "${variants}"
     done
     return 0
   fi
+  # The variants are those of every rule and style named, or that governs the path, as kit new tries them in turn.
+  local -a files
   if [[ -n "${rule}" ]]
   then
-    file=$(new:rule-file "${rule}") || return 1
+    readarray -t files < <(for file in ".kit/styles/${rule}.md" ".kit/rules/${rule}.md"
+      do
+        [[ -f "${file}" ]] && printf '%s\n' "${file}"
+      done)
   elif [[ -n "${path}" ]]
   then
-    file=$(template:rules "${path}" | head -n 1)
-    [[ -n "${file}" ]] || return 1
-  else
-    return 1
+    readarray -t files < <(template:rules "${path}")
   fi
-  while IFS=$'\x1f' read -r name glob _
+  (( ${#files[@]} )) || return 1
+  for file in "${files[@]}"
   do
-    [[ -n "${name}" ]] || continue
-    printf '%s\t%s\t\t\n' "${name}" "${glob}"
-  done < <(template:variants "${file}")
+    while IFS=$'\x1f' read -r name glob _
+    do
+      [[ -n "${name}" && -z "${seen[${name}]+x}" ]] || continue
+      seen[${name}]=1
+      printf '%s\t%s\t\t\n' "${name}" "${glob}"
+    done < <(template:variants "${file}")
+  done
 }
 
 # new:resolve <path> <rule> <variant> prints the template kit new makes the path from, as "<rule-file>\x1f<variant>\x1f
@@ -80,43 +73,59 @@ new:choices() {
 # to the path. It prints the refusal and returns 2 when the rule or the variant does not exist, and 1 when the template
 # is missing.
 new:resolve() {
-  local path=$1 rule_name=$2 variant=$3 rule candidates chosen='' executable='' name exec_flag template
+  local path=$1 rule_name=$2 variant=$3 rule file candidates chosen='' executable='' name exec_flag template
+  local -a rules
   if [[ -n "${rule_name}" ]]
   then
-    if ! rule=$(new:rule-file "${rule_name}")
+    readarray -t rules < <(for file in ".kit/styles/${rule_name}.md" ".kit/rules/${rule_name}.md"
+      do
+        [[ -f "${file}" ]] && printf '%s\n' "${file}"
+      done)
+    if (( ${#rules[@]} == 0 ))
     then
       error "there is no rule ${rule_name}; the rules are: $(find .kit/rules .kit/styles -maxdepth 1 -name '*.md' \
         2>/dev/null | sed 's@^.*/@@; s/\.md$//' | LC_ALL=C sort -u | paste -s -d ' ' -)"
       return 2
     fi
   else
-    rule=$(template:rules "${path}" | head -n 1)
-    if [[ -z "${rule}" ]]
+    readarray -t rules < <(template:rules "${path}")
+    if (( ${#rules[@]} == 0 ))
     then
       error "no template governs ${path}: a style package delivers them;" \
         "name one with --rule=<rule>, or write the file by hand"
       return 2
     fi
   fi
-  if [[ -n "${variant}" ]]
-  then
-    candidates=$(template:variants "${rule}")
-  else
-    candidates=$(template:applies "${rule}" "${path}")
-  fi
-  while IFS=$'\x1f' read -r name _ exec_flag
+  # The first rule, most specific first, with a template the path allows, or with the variant named, gives it.
+  for rule in "${rules[@]}"
   do
-    [[ -n "${name}" ]] || continue
-    if [[ -z "${variant}" || "${name}" == "${variant}" ]]
+    if [[ -n "${variant}" ]]
     then
-      chosen=${name} executable=${exec_flag:-false}
-      break
+      candidates=$(template:variants "${rule}")
+    else
+      candidates=$(template:applies "${rule}" "${path}")
     fi
-  done <<<"${candidates}"
+    while IFS=$'\x1f' read -r name _ exec_flag
+    do
+      [[ -n "${name}" ]] || continue
+      if [[ -z "${variant}" || "${name}" == "${variant}" ]]
+      then
+        chosen=${name} executable=${exec_flag:-false}
+        break 2
+      fi
+    done <<<"${candidates}"
+  done
+  if [[ -z "${chosen}" && -z "${rule_name}" && -z "${variant}" ]]
+  then
+    error "no template governs ${path}: a style package delivers them;" \
+      "name one with --rule=<rule>, or write the file by hand"
+    return 2
+  fi
   if [[ -z "${chosen}" ]]
   then
+    rule=${rules[0]}
     error "the $(template:rule-name "${rule}") rule has no template ${variant:-for ${path}}; its templates are:" \
-      "$(template:variants "${rule}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)"
+      "$(for file in "${rules[@]}"; do template:variants "${file}" | cut -d $'\x1f' -f 1; done | paste -s -d ' ' -)"
     return 2
   fi
   template=$(template:file "${rule}" "${chosen}")
@@ -551,8 +560,9 @@ new:provider() {
     body+="# ${module}:${call} answers ${seam}:${call}. It refuses until it is written."$'\n'
     body+="${module}:${call}() {"$'\n'"  error \"${module}: ${call} is not written yet\""$'\n'"  return 1"$'\n'"}"$'\n\n'
   done
+  body+="# The seam's calls end here; what follows is this provider's own."
   new:bash-file "$(new:module-dir)/${module}.sh" module "the ${name} provider of the ${seam} seam (sourced module)" \
-    "${body%$'\n\n'}"
+    "${body}"
 }
 
 # new:verb <name> --purpose=<text> --group=<group> writes a verb into the kit's own source: kit/bin/kit-<name>, with

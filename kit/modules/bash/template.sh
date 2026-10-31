@@ -12,15 +12,17 @@
 #       path: justfile
 #     - variant: module
 #
-# A template is the file itself, with holes written «name». There are two kinds of hole:
+# A template is the file itself, with holes written «name», in the language modules/jq/template.jq describes:
 #
-#   a hole within a line      making a file fills it with a value. Checking a file matches it against any text on
-#                             that line. A hole used twice must match the same text each time.
-#   a hole that is a line     making a file fills it with the value's lines, else one blank line. Checking a file
-#                             matches it against any run of lines, including none.
+#   «name»                 within a line: making a file fills it with a value; checking one matches any text there
+#   «name…»                the same, across lines
+#   «name» on its own line making a file fills it with the value's lines, else one blank line; checking one matches
+#                          any run of whole lines
+#   «name:-default»        any of these, with the text it makes when no value is given
 #
-# The values of path, name, and stem come from the path. The caller gives the value of every other hole within a
-# line.
+# path, name, and stem are bound to the file's path, so a file whose banner names another file does not match. A
+# name that appears more than once takes one value per appearance. A region in a template, between a kit:generate
+# directive and its kit:end line, matches whatever its command wrote. Two holes with nothing between them are refused.
 #
 # The same template both makes a file (kit new file) and checks one (kit lint). A file passes when it matches any
 # variant its path allows. To change a template, a repository adds a package of its own that places the same path.
@@ -74,52 +76,34 @@ template:applies() {
   done < <(template:variants "$1")
 }
 
-# template:regex reads a template on stdin and prints the regular expression that matches a file with its shape,
-# in Oniguruma syntax, which jq uses.
-template:regex() {
-  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::regex'
+# template:unapply <template> <file> prints, as one JSON object, the values the file gives the template's holes, path,
+# name, and stem bound to the file's path. It returns 1 when the file does not have the template's shape.
+template:unapply() {
+  local name=${2##*/}
+  jq -L "${kit_jq}" --null-input --exit-status --rawfile template "$1" --rawfile text "$2" \
+    --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" \
+    'import "template" as template; $template | template::unapply({path: $path, name: $name, stem: $stem}; $text)'
 }
 
-# template:test <regex> <file> is true when the file matches template:regex's expression.
-template:test() {
-  [[ "$(jq --raw-input --slurp --arg re "$1" 'test($re)' < "$2")" == true ]]
+# template:ambiguous <template> prints the line of each hole that follows another hole with nothing between them.
+template:ambiguous() {
+  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::parts | template::ambiguous' \
+    < "$1"
 }
 
-# template:matches <template> <file> is true when the file matches the template.
-template:matches() {
-  template:test "$(template:regex < "$1")" "$2"
-}
-
-# template:diverges <template> <file> prints "<line>\t<text>" for the first template line the file does not match.
-# It finds the longest run of the template's first lines that the file still starts with.
-template:diverges() {
-  local total n
-  total=$(wc -l < "$1")
-  for (( n = 1; n <= total; n++ ))
-  do
-    if ! template:test "$({ head -n "${n}" "$1"; printf '«rest»\n'; } | template:regex)" "$2"
-    then
-      printf '%s\t%s\n' "${n}" "$(sed -n "${n}p" "$1")"
-      return 0
-    fi
-  done
-}
-
-# template:holes <template> prints the holes within a line (the ones a value must fill), once each, in order.
+# template:holes <template> prints the holes a caller must fill to make a file, once each, in order: those within a
+# line, or across lines, that have no default.
 template:holes() {
-  grep --invert-match --extended-regexp '^«[a-z_]+»$' "$1" | grep --only-matching --extended-regexp '«[a-z_]+»' \
-    | tr -d '«»' | awk '!seen[$0]++'
-  return 0
+  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::parts | template::holes[]' \
+    < "$1"
 }
 
-# template:render <template> <values-json> prints the template with every hole filled from the values object:
-#
-#   - a hole within a line gets its value
-#   - a hole that is a line gets its value's lines, else one blank line. When it is the template's last line and
-#     has no value, it gets nothing, so the file never ends in a blank line.
+# template:render <template> <values-json> prints the file the template makes with the values object: each hole takes
+# its value, else its default; else a hole within a line stays a hole, and a hole that is a line gives one blank line,
+# or nothing as the template's last line. A region gives the template's own lines, for kit generate to fill.
 template:render() {
   jq -L "${kit_jq}" --raw-input --slurp --join-output --argjson v "$2" \
-    'import "template" as template; template::render($v)' < "$1"
+    'import "template" as template; template::parts | template::render($v)' < "$1"
 }
 
 # template:rules <path> prints the rules of the path's own kinds that have templates, most specific first. The most
@@ -148,14 +132,14 @@ template:rules() {
 }
 
 # template:check <rule-file> <path>… is true when every file matches a variant the rule allows at its path. For
-# each file that matches none, it prints an error naming the variants it was checked against, and the line where
-# the file stops matching the variant it follows furthest. A rule with no templates passes every file. Each
-# template is compiled once, and all the files are read and tested in one pass, so checking every tracked file
-# stays fast.
+# each file that matches none, it prints an error naming the variants it was checked against, and the line where the
+# file leaves the variant it follows furthest. A rule with no templates passes every file, and a template with two
+# holes and nothing between them is refused. Every file, and the variants its path allows, are judged in one jq pass.
 template:check() {
-  local rule=$1 path variant glob executable file line text best where failed=0
+  local rule=$1 variant glob executable file line failed=0 path variants where verdicts
   shift
-  local -A regex=() allowed=()
+  local -A files=()
+  local -a globs=()
   while IFS=$'\x1f' read -r variant glob executable
   do
     [[ -n "${variant}" ]] || continue
@@ -165,43 +149,49 @@ template:check() {
       error "${rule} lists the template ${variant}, and ${file} is not here; run: kit update"
       return 1
     fi
-    regex[${variant}]=$(template:regex < "${file}")
+    line=$(template:ambiguous "${file}" | head -n 1)
+    if [[ -n "${line}" ]]
+    then
+      error "${file}:${line}: two holes with nothing between them; no file could be split between them"
+      return 1
+    fi
+    files[${variant}]=${file}
+    globs+=("${variant}" "$(if [[ -n "${glob}" ]]; then context:glob-ere "${glob}"; fi)")
   done < <(template:variants "${rule}")
-  (( ${#regex[@]} > 0 )) || return 0
-  for path in "$@"
-  do
-    allowed[${path}]=$(template:applies "${rule}" "${path}" | cut -d $'\x1f' -f 1 | paste -s -d ' ' -)
-  done
-  while IFS=$'\t' read -r path variants
+  (( ${#files[@]} > 0 )) || return 0
+  verdicts=$(jq -L "${kit_jq}" --null-input --raw-output \
+      --rawfile templates <(for variant in "${!files[@]}"
+                            do
+                              printf '%s\x1f' "${variant}"
+                              cat "${files[${variant}]}"
+                              printf '\x1e'
+                            done) \
+      --rawfile contents <(for path in "$@"; do printf '%s\x1f' "${path}"; cat "${path}"; printf '\x1e'; done) \
+      --args '
+    import "template" as template;
+    ($templates | split("\u001e") | map(select(. != "") | split("\u001f") | {(.[0]): .[1]}) | add) as $templates
+    | [range(0; $ARGS.positional | length; 2) as $i | {variant: $ARGS.positional[$i], glob: $ARGS.positional[$i + 1]}]
+        as $globs
+    | [$contents | split("\u001e")[] | select(. != "") | split("\u001f") | .[0] as $path
+        | {path: $path, text: (.[1:] | join("\u001f")),
+           variants: [$globs[] | select(.glob as $g | $g == "" or ($path | test($g))) | .variant]}] as $files
+    | template::check($templates; $files)
+    | "\(.path)\t\(.variants | join(" "))\t\(.line // "")\t\(.variant // "")"' "${globs[@]}") || {
+    error "the $(template:rule-name "${rule}") templates could not be checked; see above"
+    return 1
+  }
+  while IFS=$'\t' read -r path variants line variant
   do
     [[ -n "${path}" ]] || continue
     failed=$(( failed + 1 ))
-    best=0
     where='the template at its end'
-    for variant in ${variants}
-    do
-      file=$(template:file "${rule}" "${variant}")
-      IFS=$'\t' read -r line text < <(template:diverges "${file}" "${path}")
-      if [[ -n "${line}" ]] && (( line > best ))
-      then
-        best=${line}
-        where="${file} line ${line}: ${text}"
-      fi
-    done
+    if [[ -n "${line}" ]]
+    then
+      where="${files[${variant}]} line ${line}: $(sed -n "${line}p" "${files[${variant}]}")"
+    fi
     error "${path} does not have the shape of the $(template:rule-name "${rule}") template (${variants// /, });" \
       "it leaves ${where}"
-  done < <(jq -L "${kit_jq}" --null-input --raw-output \
-      --rawfile files <(for path in "$@"; do printf '%s\t%s\n' "${path}" "${allowed[${path}]}"; done) \
-      --rawfile regexes <(for variant in "${!regex[@]}"
-                          do
-                            printf '%s\x1f%s\x1e' "${variant}" "${regex[${variant}]}"
-                          done) \
-      --rawfile contents <(for path in "$@"; do cat "${path}"; printf '\x1e'; done) '
-    import "template" as template;
-    ($regexes | split("\u001e") | map(select(. != "") | split("\u001f") | {(.[0]): .[1]}) | add) as $regex
-    | ($files | split("\n") | map(select(. != "") | split("\t") | {path: .[0], variants: (.[1] | split(" "))}))
-    | template::unmatched($regex; $contents | split("\u001e"))
-    | "\(.path)\t\(.variants | join(" "))"')
+  done <<<"${verdicts}"
   (( failed == 0 ))
 }
 

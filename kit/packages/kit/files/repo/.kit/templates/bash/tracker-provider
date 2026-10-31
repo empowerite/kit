@@ -1,0 +1,10 @@
+«head»
+tracker/«stem»:assign()«call_assign…:- { error "not written yet"; return 1; }»
+tracker/«stem»:assignees()«call_assignees…:- { error "not written yet"; return 1; }»
+tracker/«stem»:create()«call_create…:- { error "not written yet"; return 1; }»
+tracker/«stem»:me()«call_me…:- { error "not written yet"; return 1; }»
+tracker/«stem»:state()«call_state…:- { error "not written yet"; return 1; }»
+tracker/«stem»:title()«call_title…:- { error "not written yet"; return 1; }»
+tracker/«stem»:url()«call_url…:- { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

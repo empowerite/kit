@@ -4,6 +4,15 @@
 kind:
   - bash
 lint: shellcheck --shell=bash --external-sources
+templates:
+  - variant: forge-provider
+    path: "**/forge/*.sh"
+  - variant: policy-provider
+    path: "**/policy/*.sh"
+  - variant: toolchain-provider
+    path: "**/toolchain/*.sh"
+  - variant: tracker-provider
+    path: "**/tracker/*.sh"
 ---
 # Bash
 
@@ -36,3 +45,8 @@ Applies to files of kind `bash`, and to the bodies of every kind that embeds it:
 A module, a file that `use` loads from the kit's bash module path, is a sourced file. Name each function in it
 `<module>:<name>`, where `<module>` is the module's name, its path from the module directory without `.sh`, so every
 function says where it is defined: `forge:repo` in `forge.sh`, and `toolchain/brew:install` in `toolchain/brew.sh`.
+
+A seam's provider, `<seam>/<name>.sh`, defines the seam's calls first, one function each, in the order of their
+names, then the line `# The seam's calls end here; what follows is this provider's own.`, then any functions of its
+own. The seam's template, `.kit/templates/bash/<seam>-provider`, holds that shape, so `kit lint` refuses a provider
+that lacks a call, renames one, or puts one of its own among them. `kit new provider <seam> <name>` makes one.

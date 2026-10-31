@@ -134,17 +134,60 @@ shape() {
   [ "$status" -ne 0 ]
 }
 
-@test "a hole that is a line matches any run of lines, none included, and one within a line any text on it" {
+@test "a hole that is a line matches any run of lines, none included, one within a line any text on it, and unapply gives the values" {
   printf 'head «title» tail\n«body»\nend\n' > "${BATS_TEST_TMPDIR}/t"
   printf 'head anything at all tail\nend\n' > none
   printf 'head x tail\none\ntwo\nend\n' > two
   printf 'head x tail\nend\nmore\n' > after
-  in_template template:matches "${BATS_TEST_TMPDIR}/t" none
-  in_template template:matches "${BATS_TEST_TMPDIR}/t" two
-  run ! in_template template:matches "${BATS_TEST_TMPDIR}/t" after
+  [ "$(in_template template:unapply "${BATS_TEST_TMPDIR}/t" none | jq -c .)" = '{"title":"anything at all","body":""}' ]
+  [ "$(in_template template:unapply "${BATS_TEST_TMPDIR}/t" two | jq -c .)" = '{"title":"x","body":"one\ntwo\n"}' ]
+  run ! in_template template:unapply "${BATS_TEST_TMPDIR}/t" after
   printf 'a.b «x»\n' > "${BATS_TEST_TMPDIR}/dot"
   printf 'aXb y\n' > dot
-  run ! in_template template:matches "${BATS_TEST_TMPDIR}/dot" dot
+  run ! in_template template:unapply "${BATS_TEST_TMPDIR}/dot" dot
+}
+
+@test "every governed file in this repository renders back from what it gives its template" {
+  local root path rule variant values file bound name failed=0 checked=0
+  root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  cd "${root}"
+  while IFS= read -r path
+  do
+    [[ -f "${path}" ]] || continue
+    while IFS= read -r rule
+    do
+      while IFS=$'\x1f' read -r variant _ _
+      do
+        [[ -n "${variant}" ]] || continue
+        file=.kit/templates/${rule}/${variant}
+        values=$(in_template template:unapply "${file}" "${path}") || continue
+        checked=$(( checked + 1 ))
+        name=${path##*/}
+        bound=$(jq -nc --arg p "${path}" --arg n "${name}" --arg s "${name%.*}" '{path: $p, name: $n, stem: $s}')
+        if ! cmp --silent "${path}" <(in_template template:render "${file}" "$(jq -c --argjson b "${bound}" '. + $b' <<<"${values}")")
+        then
+          echo "does not render back: ${path} from ${file}"
+          failed=$(( failed + 1 ))
+        fi
+      done < <(in_template template:applies ".kit/styles/${rule}.md" "${path}")
+    done < <(in_template template:rules "${path}" | sed 's|.*/||; s|\.md$||' | sort -u)
+  done < <(git ls-files | grep -vE '(^|/)\.kit/templates/|/regions/')
+  echo "checked ${checked}"
+  [ "${checked}" -ge 50 ]
+  [ "${failed}" -eq 0 ]
+}
+
+@test "kit lint refuses a template with two holes and nothing between them" {
+  mkdir -p .kit/packages/odd/files/repo/.kit/templates/notes .kit/packages/odd/files/repo/.kit/styles
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/odd/package.yml
+  printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: twin\n    path: "**/*.notes.md"\n---\n# Notes\n' \
+    > .kit/packages/odd/files/repo/.kit/styles/notes.md
+  printf '# «title»\n«a»«b»\n' > .kit/packages/odd/files/repo/.kit/templates/notes/twin
+  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  printf '# x\nyz\n' > a.notes.md
+  run "${kit_root}/bin/kit" lint a.notes.md
+  [ "$status" -ne 0 ]
+  [[ "$output" == *".kit/templates/notes/twin:2: two holes with nothing between them"* ]]
 }
 
 @test "kit lint holds a governed file to its shape, and skips templates, regions, and generated paths" {
@@ -164,6 +207,35 @@ shape() {
   [ "$status" -eq 0 ]
   [ -f bash/up.sh ]
   [ ! -e ./--Odd=y ]
+}
+
+@test "a seam's provider defines the seam's calls first, in name order, and kit lint refuses one that lacks a call" {
+  local root
+  root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  mkdir -p bash/toolchain
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> .kit/settings.yml
+  "${kit_root}/bin/kit" new provider toolchain nix >/dev/null 2>&1
+  run "${kit_root}/bin/kit" lint bash/toolchain/nix.sh
+  [ "$status" -eq 0 ]
+  sed -i.bak '/^toolchain\/nix:outdated() {$/,/^}$/d' bash/toolchain/nix.sh && rm bash/toolchain/nix.sh.bak
+  run "${kit_root}/bin/kit" lint bash/toolchain/nix.sh
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"bash/toolchain/nix.sh does not have the shape of the bash template (toolchain-provider)"* ]]
+  [[ "$output" == *"toolchain-provider line 4: toolchain/«stem»:outdated()"* ]]
+}
+
+@test "each seam's header lists the calls its providers' template holds, beside any one provider alone implements" {
+  local root seam header template
+  root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
+  for seam in forge policy toolchain tracker
+  do
+    header=$(awk '/Every provider implements/ { on = 1; next } on && /^#$/ && n > 0 { exit }
+      on && /^#   [a-z]/ && !/only .* implements it/ { sub(/^#   /, ""); print $1; n++ }' \
+      "${root}/kit/modules/bash/${seam}.sh" | sort | paste -s -d ' ' -)
+    template=$(sed -n -E "s|^${seam}/«stem»:([a-z-]+)\(\).*|\1|p" \
+      "${root}/kit/packages/kit/files/repo/.kit/templates/bash/${seam}-provider" | sort | paste -s -d ' ' -)
+    [ "${header}" = "${template}" ] || { echo "${seam}: header ${header} / template ${template}"; return 1; }
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
