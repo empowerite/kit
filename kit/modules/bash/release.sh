@@ -39,7 +39,7 @@
 #
 # see: docs/packages.md
 
-use yaml
+use yaml sources
 
 # release:unreleased prints `unreleased`, the version of a kit checkout. The release workflow
 # (.github/workflows/release.yml) writes a version file into each release; a checkout has none. kit update never
@@ -94,13 +94,14 @@ release:settings() { printf '.kit/settings.yml\n'; }
 # release:setting <key> prints the value of one top-level setting, or nothing.
 release:setting() { yaml:value "$(release:settings)" "$1"; }
 
-# release:packages [<root>] prints the packages in reach, in the release at <root> and in the repository's
-# .kit/packages/. A package is a directory that contains a package.yml: packages/<name>/, or
+# release:packages [<root>] prints the packages in reach, in the release at <root>, in the sources .kit/settings.yml
+# names, and in the repository's .kit/packages/. A package is a directory that contains a package.yml: packages/<name>/, or
 # packages/<namespace>/<name>/ under a namespace, a directory with no package.yml of its own. Its name is its path:
 # kit, or style/bash. A package's own subdirectories are never packages.
 release:packages() {
   local root=${1:-${kit_root}} dir
-  for dir in "${root}" "${release_local}"
+  release:source-roots
+  for dir in "${root}" "${release_source_dirs[@]}" "${release_local}"
   do
     [[ -d "${dir}/packages" ]] || continue
     (cd "${dir}/packages" && find . -mindepth 2 -maxdepth 3 -name package.yml | sed 's@^\./@@; s@/package.yml$@@')
@@ -142,18 +143,61 @@ release:expand() {
   done
 }
 
-# release:home <root> <package> prints the directory that contains the package: <root> when the release has the
-# package, otherwise the repository's .kit. The package's files are under <home>/packages/<package>/.
+# release_source_names and release_source_dirs hold the sources .kit/settings.yml names that are in the cache, in
+# order, each source's name beside the directory that holds its packages/; release:source-roots fills them once.
+declare -ga release_source_names=() release_source_dirs=()
+declare -g release_sources_read=false
+
+# release:source-roots reads the sources' roots once per process, fetching first any source the cache lacks, so a
+# source's digest is checked before anything of it is read. A source that cannot be fetched is named, and left out.
+release:source-roots() {
+  [[ "${release_sources_read}" == false ]] || return 0
+  local name dir
+  sources:fetch-all || true
+  while IFS=$'\t' read -r name dir
+  do
+    [[ -n "${name}" ]] || continue
+    release_source_names+=("${name}")
+    release_source_dirs+=("${dir}")
+  done < <(sources:roots)
+  release_sources_read=true
+}
+
+# release:home <root> <package> prints the directory that contains the package: the last source that has it, else
+# <root> when the release has it, else the repository's .kit. The package's files are under
+# <home>/packages/<package>/.
 release:home() {
+  local i
+  release:source-roots
+  for (( i = ${#release_source_dirs[@]} - 1; i >= 0; i-- ))
+  do
+    if [[ -f "${release_source_dirs[i]}/packages/$2/package.yml" ]]
+    then
+      printf '%s\n' "${release_source_dirs[i]}"
+      return 0
+    fi
+  done
   if [[ -f "$1/packages/$2/package.yml" || ! -f "${release_local}/packages/$2/package.yml" ]]
   then printf '%s\n' "$1"
   else printf '%s\n' "${release_local}"
   fi
 }
 
-# release:origin <root> <package> prints where the package comes from: "release" or "repository".
+# release:origin <root> <package> prints where the package comes from: "release", "repository", or the name of the
+# source it comes from.
 release:origin() {
-  if [[ "$(release:home "$1" "$2")" == "$1" ]]
+  local home i
+  release:source-roots
+  home=$(release:home "$1" "$2")
+  for i in "${!release_source_dirs[@]}"
+  do
+    if [[ "${home}" == "${release_source_dirs[i]}" ]]
+    then
+      printf '%s\n' "${release_source_names[i]}"
+      return 0
+    fi
+  done
+  if [[ "${home}" == "$1" ]]
   then printf 'release\n'
   else printf 'repository\n'
   fi
@@ -386,7 +430,7 @@ release:validate-settings() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
-      (linked_exempt) ;;
+      (linked_exempt | sources) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
         return 1
@@ -534,6 +578,8 @@ release:render-all() {
   # generate:region does inside kit check, finds it done.
   [[ "${release_rendered_all}" == "${memo}" ]] && return 0
   release:validate-settings || return 1
+  # Every source must be fetched, its digest checked, before the packages are rendered.
+  sources:fetch-all || return 1
   release:require-packages "${root}" "$@" || return 2
   for package in $(release:packages "${root}")
   do

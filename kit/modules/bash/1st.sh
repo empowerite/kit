@@ -53,12 +53,12 @@ kit:enter() {
 
 # use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the bash_path
 # setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir> (in
-# the home directory), or a directory relative to the repository root. A directory that does not exist is skipped, as
-# PATH skips one. Away from the root, it reads the root's settings. It returns 2 on a path that does not start with
-# kit:modules/bash/, or a root other than kit:.
+# the home directory), <source>:<dir> (in a source the settings name), or a directory relative to the repository root.
+# A directory that does not exist is skipped, as PATH skips one. Away from the root, it reads the root's settings. It
+# returns 2 on a path that does not start with kit:modules/bash/, or a root other than kit: and the sources.
 use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
-  local entry dir root
+  local entry dir root digest
   local -a entries
   # A verb runs at the repository root, where .kit/settings.yml is. A just recipe, or any script that sources this
   # file, may run in a directory below it, so the settings and the relative entries are read from the root then.
@@ -83,9 +83,16 @@ use:load-path() {
       (/*) dir=${entry} ;;
       (\~ | \~/*) dir=${HOME}${entry#\~} ;;
       ([A-Za-z0-9_-]*:*)
-        error "bash_path entry '${entry}' names a root the kit does not know; the root is kit:" \
-          "(bash_path in .kit/settings.yml)"
-        return 2
+        # <source>:<dir> is a directory in a source .kit/settings.yml names, in the cache under its digest.
+        digest=$(source "${kit_root}/modules/bash/yaml.sh" && yaml:records "${root}/.kit/settings.yml" sources name digest \
+          | awk -F '\037' -v n="${entry%%:*}" '$1 == n { print $2; exit }')
+        if [[ -z "${digest}" ]]
+        then
+          error "bash_path entry '${entry}' names a root the kit does not know; the roots are kit: and the sources" \
+            "(bash_path and sources in .kit/settings.yml)"
+          return 2
+        fi
+        dir=${XDG_CACHE_HOME:-${HOME}/.cache}/kit/sources/${digest#sha256:}/${entry#*:}
         ;;
       (*) dir=${root}/${entry}
     esac

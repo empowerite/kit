@@ -275,6 +275,36 @@ A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or 
 providers, or one the repository adds on its bash module path: `forge: bitbucket` with a
 `modules/bash/forge-bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
+## Sources
+
+A repository takes packages from the kit's release, from its own `.kit/packages/`, and from the sources it names
+under `sources:` in `.kit/settings.yml`: an organization's rules, such as its own bundle, published once and taken by
+every repository, the base always a release and never a copy.
+
+```yaml
+sources:
+  - name: team
+    url: git:empowerite/kit-team@v1.2.0
+    digest: sha256:3b1f…
+```
+
+- A `url` is `git:<owner>/<repo>@<tag>`, the forge's tarball of that tag, on GitHub, or on another host named first,
+  as `git:gitlab.com/<owner>/<repo>@<tag>`; or any URL `curl` fetches, such as `https://…/team-1.2.0.tar.gz`.
+- A source is pinned by the `sha256` digest of the tarball's bytes. It is fetched once into the kit's cache, under its
+  digest, and refused when its bytes have any other digest, before anything of it is read. Moving a source to a new
+  tag means pinning its new digest.
+- A source's packages are under `packages/` in the tarball, or `kit/packages/` for a repository laid out as the kit's
+  own is.
+- A package name is looked up in the sources, the last first, then in the release, then in `.kit/packages/`, so a
+  later source's package replaces one of the same name. `kit packages` shows where each comes from.
+- A `bash_path` entry `<source>:<dir>` names a directory in a source, so a source can carry bash modules as well.
+- A meta-package, one with only `depends` and `includes`, publishes a bundle: a source can carry a repository's
+  `empowerite` as the release carries the kit's.
+
+A file a source delivers is held to the source by `kit check`, like any other. `kit update` takes the source as the
+pin names it; a file outside `.kit/` that came from a source and was edited keeps the edit, since the kit keeps no
+earlier copy of a source to merge against.
+
 ## Packages a repository defines
 
 A directory `.kit/packages/<name>/` in the repository is a package in every respect. It has the same parts:

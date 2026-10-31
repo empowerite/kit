@@ -201,6 +201,36 @@
       "items": {
         "type": "string"
       }
+    },
+    "sources": {
+      "type": "array",
+      "description": "Sources of packages beyond the kit's release, in order; a later one's package replaces a package of the same name. Each is a tarball pinned by the sha256 digest of its bytes. See docs/packages.md.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "url",
+          "digest"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "The source's name, which kit packages shows and a bash_path entry <name>:<dir> uses."
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^(git:[^@]+@.+|[a-z]+://.+)$",
+            "description": "git:<owner>/<repo>@<tag>, the forge's tarball of that tag, or a URL curl fetches."
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "The sha256 digest of the tarball's bytes; a source with any other is refused."
+          }
+        }
+      }
     }
   }
 }
