@@ -149,6 +149,16 @@ func TestOneOfArrows(t *testing.T) {
 	if m.fields[0].Chosen != 1 || len(m.fields) != 2 {
 		t.Errorf("backspace: %+v", m.fields)
 	}
+	// kit status's owner row is optional, so backspace clears it.
+	m = newForm(t, "status", Answers{}, false)
+	m, _ = drive(t, m, keys("down", "right")...)
+	if m.fields[1].Chosen != 0 {
+		t.Fatalf("right on the owner row: %+v", m.fields[1])
+	}
+	m, _ = drive(t, m, keys("backspace")...)
+	if m.fields[1].Chosen != -1 {
+		t.Errorf("backspace on an optional row: %+v", m.fields[1])
+	}
 }
 
 func TestAnyOfSpace(t *testing.T) {
