@@ -168,6 +168,7 @@ from arguments, stays inline where it is used.
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
 | `status.jq` | a checkout's document, and what of it fits on the screen |
 | `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
+| `syntax.jq` | the usage text of a syntax node, and the key an argument is known by |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:
