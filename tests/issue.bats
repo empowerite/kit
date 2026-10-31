@@ -78,6 +78,8 @@ world() {
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit issue needs <reference> or --title; run: kit help issue"* ]]
   [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
+  # the module takes the title as an argument, and reads nothing the argument check left behind
+  [ "$(grep -c syntax_ "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   run "${kit_checkout}/bin/kit" issue 7 --title 'Fix the thing'
   [ "$status" -eq 2 ]
   [[ "$output" == *"<reference> cannot be combined with --title; run: kit help issue"* ]]

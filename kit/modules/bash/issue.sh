@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # issue.sh - start an issue: a linked branch, a worktree, a start commit, and a draft pull request (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # syntax_options is set by guard:arguments in 1st.sh
 #
 # issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
 # modules/bash/tracker.sh describes:
@@ -21,7 +20,7 @@
 # there. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch, worktree, or pull
 # request is reused, so running it again fills in whatever is missing.
 #
-# With --title and no reference, it creates the issue first, as issue:start reads from the guard's sorting; it never asks.
+# Given --title <title> instead of a reference, it creates the issue first; it never asks.
 #
 # Uncommitted work is handled by where it is:
 #
@@ -232,12 +231,17 @@ issue:link-in-body() {
   fi
 }
 
-# issue:start [<reference>…] does what the file header describes; with no reference, it creates the issue titled by
-# --title, which guard:arguments sorted into syntax_options. When the require_signing setting is true, it fails before
-# writing anything if git has no signing key configured.
+# issue:start (<reference>… | --title <title>) does what the file header describes; with --title, it creates the
+# issue first. When the require_signing setting is true, it fails before writing anything if git has no signing key
+# configured.
 issue:start() {
-  local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
+  local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun new_title=''
   local -a refs=() in_body=()
+  if [[ "${1:-}" == --title ]]
+  then
+    new_title=${2:-}
+    shift 2 || shift
+  fi
   forge:require || return 1
   if [[ "$(release:setting require_signing)" == true ]]
   then
@@ -245,7 +249,7 @@ issue:start() {
   fi
   if (( $# == 0 ))
   then
-    created=$(issue:create "${syntax_options[--title]:-}") || return
+    created=$(issue:create "${new_title}") || return
     set -- "${created}"
   fi
   for n in "$@"
