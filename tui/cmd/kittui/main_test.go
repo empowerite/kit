@@ -85,6 +85,7 @@ func TestEscIsSilent(t *testing.T) {
 }
 
 func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	m, _ := app.Open(runner(t), "commit", []string{"--message", "hi"})
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
 	var stderr bytes.Buffer
@@ -96,7 +97,7 @@ func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
 	if code != 0 || len(ran) == 0 || ran[0] != "commit" {
 		t.Fatalf("exit %d, ran %q", code, ran)
 	}
-	if !strings.Contains(stderr.String(), "✓ --all") || !strings.Contains(stderr.String(), "  kit commit ") {
+	if !strings.HasPrefix(stderr.String(), "🏃") || !strings.Contains(stderr.String(), " kit commit ") || strings.Contains(stderr.String(), "✓") {
 		t.Errorf("transcript %q", stderr.String())
 	}
 }

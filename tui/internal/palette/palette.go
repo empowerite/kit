@@ -1,5 +1,6 @@
-// Package palette is what bare kit opens: every verb but tui with its purpose on the left, filtered as it is typed,
-// and the highlighted verb's page on the right. Enter opens the verb's form; esc quits.
+// Package palette is what bare kit opens: every verb but tui with its whole purpose, filtered as it is typed, under
+// the keys. The right arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow
+// brings them back. Enter opens the verb's form; esc quits.
 package palette
 
 import (
@@ -28,6 +29,7 @@ type Model struct {
 	filter        string
 	cursor        int
 	pages         map[string]string
+	showPages     bool
 	width, height int
 	cancelled     bool
 	interrupted   bool
@@ -44,8 +46,8 @@ func New(verbs []kit.Verb, r kit.Runner) Model {
 	return m
 }
 
-// Init fetches the first verb's page.
-func (m Model) Init() tea.Cmd { return m.page() }
+// Init starts nothing: the list needs no page until the right arrow asks for one.
+func (m Model) Init() tea.Cmd { return nil }
 
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -89,6 +91,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				verb := visible[m.cursor].Name
 				return m, func() tea.Msg { return OpenMsg{Verb: verb} }
 			}
+		case "right":
+			m.showPages = true
+		case "left":
+			m.showPages = false
 		case "up":
 			if m.cursor > 0 {
 				m.cursor--
@@ -113,10 +119,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// page fetches the highlighted verb's page, once per verb.
+// page fetches the highlighted verb's page, once per verb, when the pages are shown.
 func (m Model) page() tea.Cmd {
 	visible := m.Visible()
-	if m.cursor >= len(visible) {
+	if !m.showPages || m.cursor >= len(visible) {
 		return nil
 	}
 	verb := visible[m.cursor].Name
@@ -130,53 +136,69 @@ func (m Model) page() tea.Cmd {
 	}
 }
 
-// View draws the two panes and the keys, on the alternate screen.
+// View draws the keys on top, so filtering never moves them, then the filter and the verbs: each with its whole
+// purpose, clipped at the screen's edge, or, after the right arrow, the names beside the highlighted verb's page.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	leftWidth := m.width * 2 / 5
-	if leftWidth > 48 {
-		leftWidth = 48
+	keys := "↑↓ move · type to filter · → pages · ⏎ open · esc quit"
+	if m.showPages {
+		keys = "↑↓ move · type to filter · ← purposes · ⏎ open · esc quit"
 	}
-	var left strings.Builder
-	left.WriteString(" " + style.Filter + " " + m.filter + "▏\n\n")
-	if len(visible) == 0 {
-		left.WriteString("   " + style.Off("no verb matches") + "\n")
+	var top strings.Builder
+	for _, line := range page(keys, m.width-2) {
+		top.WriteString(" " + style.Off(line) + "\n")
 	}
+	top.WriteString("\n " + style.Filter + " " + m.filter + "▏\n\n")
 	widest := 0
 	for _, v := range m.verbs {
 		if len(v.Name) > widest {
 			widest = len(v.Name)
 		}
 	}
-	rows := m.height - 6
+	used := strings.Count(top.String(), "\n")
+	rows := m.height - used - 1
+	if rows < 1 {
+		rows = 1
+	}
 	start := 0
-	if m.cursor >= rows && rows > 0 {
+	if m.cursor >= rows {
 		start = m.cursor - rows + 1
+	}
+	var list strings.Builder
+	if len(visible) == 0 {
+		list.WriteString("   " + style.Off("no verb matches") + "\n")
 	}
 	for i := start; i < len(visible) && i-start < rows; i++ {
 		v := visible[i]
-		name := v.Name + strings.Repeat(" ", widest-len(v.Name))
-		lead := "   "
+		lead, name := "   ", v.Name
 		if i == m.cursor {
-			lead, name = " "+style.Focus+" ", style.Chosen(v.Name)+strings.Repeat(" ", widest-len(v.Name))
+			lead, name = " "+style.Focus+" ", style.Chosen(v.Name)
 		}
-		left.WriteString(lead + name + "  " + style.Off(clip(v.Purpose, leftWidth-widest-6)) + "\n")
+		line := lead + name + strings.Repeat(" ", widest-len(v.Name))
+		if !m.showPages {
+			line += "  " + style.Off(clip(v.Purpose, m.width-3-widest-2))
+		}
+		list.WriteString(line + "\n")
 	}
-	right := ""
-	if m.cursor < len(visible) {
-		right = m.pages[visible[m.cursor].Name]
+	content := top.String() + list.String()
+	if m.showPages {
+		right := ""
+		if m.cursor < len(visible) {
+			right = m.pages[visible[m.cursor].Name]
+		}
+		leftWidth := 3 + widest + 2
+		rightWidth := m.width - leftWidth
+		content = top.String() + lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Width(leftWidth).Render(strings.TrimSuffix(list.String(), "\n")),
+			lipgloss.NewStyle().Width(rightWidth).MaxHeight(rows).Render(strings.Join(page(right, rightWidth-1), "\n")))
 	}
-	rightWidth := m.width - leftWidth - 2
-	panes := lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(leftWidth).Render(left.String()),
-		lipgloss.NewStyle().Width(rightWidth).MaxHeight(m.height-2).PaddingLeft(2).Render(page(right, rightWidth-2)))
-	v := tea.NewView(panes + "\n " + style.Off("↑↓ move · type to filter · ⏎ open · esc quit"))
+	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
 }
 
-// page wraps a help page to the width, keeping each line's indent.
-func page(text string, width int) string {
+// page wraps a text to the width, keeping each line's indent, and gives its lines.
+func page(text string, width int) []string {
 	var out []string
 	for _, line := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
 		indent := line[:len(line)-len(strings.TrimLeft(line, " "))]
@@ -196,7 +218,7 @@ func page(text string, width int) string {
 		}
 		out = append(out, current)
 	}
-	return strings.Join(out, "\n")
+	return out
 }
 
 // clip shortens a text to n runes, with … at the cut.

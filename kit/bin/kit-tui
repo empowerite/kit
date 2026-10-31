@@ -5,7 +5,7 @@
 # kit tui [<verb> [<argument>…]]
 #
 # Opens the palette of verbs, or with a verb that verb's form, filled from the arguments given, asking only for the
-# rest. The form shows the command line it builds, and Enter on it runs the verb, after a transcript of the answers.
+# rest. The form shows the command line it builds, and Enter on it runs the verb, leaving that line in the scrollback.
 # kit tui is the kit CLI's default verb: kit with no verb runs it. A verb short of a required argument, run with a
 # terminal on stdin, stdout, and stderr, hands off to it as kit tui -- <verb> <argument>…: the words follow a --, so
 # kit reads none of them as its own.

@@ -66,9 +66,6 @@ func (m Model) Result() (bool, string, []string) {
 	return run, m.verb, args
 }
 
-// Fields gives the form's fields as they stood at the end, for the transcript.
-func (m Model) Fields() []form.Field { return m.form.Fields() }
-
 // Interrupted says whether ctrl-c ended the program.
 func (m Model) Interrupted() bool {
 	if m.inForm {

@@ -106,12 +106,14 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 ## The terminal UI
 
-`kit` typed with no verb opens a palette of every verb, filtered as you type, with the highlighted verb's help page
-beside it; Enter opens that verb's form. A verb run at a terminal without an argument it needs opens the same form
+`kit` typed with no verb opens a palette of every verb with its one-line purpose, filtered as you type; the right
+arrow shows the highlighted verb's help page beside the names instead, and the left arrow the purposes again. Enter
+opens that verb's form. A verb run at a terminal without an argument it needs opens the same form
 instead of refusing, filled with what was given, as `kit commit` with no message does. The form has one field per
 part of the verb's usage line, offers the values the repository has (changed paths, packages, templates), shows the
-command line it builds, and runs it from Enter on that line, after leaving a transcript of the answers in the
-scrollback. `kit package select` shows the whole set of packages, each marked by what will happen to it.
+command line it builds, and runs it from Enter on that line, leaving that command line in the scrollback behind a
+runner, 🏃‍♂️ or 🏃‍♀️, above the verb's own output. `kit package select` shows the whole set of
+packages, each marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
 verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
