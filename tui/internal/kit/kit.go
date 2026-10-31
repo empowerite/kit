@@ -87,10 +87,28 @@ func (r Runner) Spec(verb string) (syntax.Spec, error) {
 	return syntax.Decode(bytes.NewReader(out))
 }
 
-// Help gives the verb's help page, as kit help <verb> prints it with color off.
+// Help gives the verb's help page as kit help <verb> draws it at a terminal, its headings bold, or plain when the
+// user sets NO_COLOR. kit help reads CLICOLOR_FORCE as a terminal, since the page reaches it through a pipe.
 func (r Runner) Help(verb string) (string, error) {
-	out, err := r.run("help", verb)
+	env := withoutColor(os.Environ())
+	if os.Getenv("NO_COLOR") == "" {
+		env = append(env, "CLICOLOR_FORCE=1")
+	} else {
+		env = append(env, "NO_COLOR=1")
+	}
+	out, err := r.runIn(env, "help", verb)
 	return string(out), err
+}
+
+// withoutColor gives the environment without NO_COLOR and CLICOLOR_FORCE, so one choice of color can be added.
+func withoutColor(env []string) []string {
+	var kept []string
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, "NO_COLOR=") && !strings.HasPrefix(kv, "CLICOLOR_FORCE=") {
+			kept = append(kept, kv)
+		}
+	}
+	return kept
 }
 
 // Choices gives the rows of kit syntax <verb> --choices <key>, given the answers so far, each <key>=<value>; they
@@ -189,9 +207,14 @@ func withAnswers(args, answers []string) []string {
 // run runs kit with the arguments, in Dir and with color off, and gives its stdout. A non-zero exit is an ExitError
 // carrying kit's stderr; a kit that cannot run at all is a plain error.
 func (r Runner) run(args ...string) ([]byte, error) {
+	return r.runIn(append(os.Environ(), "NO_COLOR=1"), args...)
+}
+
+// runIn runs kit as run does, in the environment env.
+func (r Runner) runIn(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command(r.Kit, args...)
 	cmd.Dir = r.Dir
-	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	cmd.Env = env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

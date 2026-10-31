@@ -4,6 +4,7 @@
 package palette
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -197,7 +198,8 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// page wraps a text to the width, keeping each line's indent, and gives its lines.
+// page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the
+// escapes that make a heading bold take none.
 func page(text string, width int) []string {
 	var out []string
 	for _, line := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
@@ -209,7 +211,7 @@ func page(text string, width int) []string {
 		}
 		current := indent + words[0]
 		for _, word := range words[1:] {
-			if len([]rune(current))+1+len([]rune(word)) > width {
+			if ansi.StringWidth(current)+1+ansi.StringWidth(word) > width {
 				out = append(out, current)
 				current = indent + word
 				continue

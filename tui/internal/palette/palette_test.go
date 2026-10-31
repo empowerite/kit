@@ -168,3 +168,10 @@ func TestEscQuits(t *testing.T) {
 		t.Errorf("esc: %v", produced)
 	}
 }
+
+func TestAPageWrapsByWhatShowsNotByItsEscapes(t *testing.T) {
+	lines := page("\x1b[1mab\x1b[0m cd", 5)
+	if len(lines) != 1 || lines[0] != "\x1b[1mab\x1b[0m cd" {
+		t.Fatalf("page: %q", lines)
+	}
+}

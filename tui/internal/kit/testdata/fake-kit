@@ -78,7 +78,14 @@ case "${1:-}" in
     fi
     ;;
   (help)
-    printf 'kit %s - a purpose for the test\n\nUsage\n  kit %s\n\nDescription\n  Does it.\n' "$2" "$2"
+    # bold headings as help.sh gives them: under CLICOLOR_FORCE, unless NO_COLOR is set
+    bold='' plain=''
+    if [[ -z "${NO_COLOR:-}" && -n "${CLICOLOR_FORCE:-}" && "${CLICOLOR_FORCE}" != 0 ]]
+    then
+      bold=$'\x1b[1m' plain=$'\x1b[0m'
+    fi
+    printf 'kit %s - a purpose for the test\n\n%sUsage%s\n  kit %s\n\nDescription\n  Does it.\n' "$2" "${bold}" \
+      "${plain}" "$2"
     ;;
   (*)
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"

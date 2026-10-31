@@ -38,9 +38,19 @@ func TestVerbsAndSpec(t *testing.T) {
 	}
 }
 
-func TestHelpIsTheVerbsPage(t *testing.T) {
+func TestHelpIsTheVerbsPageWithItsHeadingsBold(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
 	page, err := fake(t, "").Help("commit")
-	if err != nil || !strings.HasPrefix(page, "kit commit - a purpose for the test\n") || !strings.Contains(page, "Usage\n") {
+	if err != nil || !strings.HasPrefix(page, "kit commit - a purpose for the test\n") ||
+		!strings.Contains(page, "\x1b[1mUsage\x1b[0m\n") {
+		t.Fatalf("Help: %v, %q", err, page)
+	}
+}
+
+func TestHelpIsPlainWhenTheUserSetsNoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	page, err := fake(t, "").Help("commit")
+	if err != nil || !strings.Contains(page, "\nUsage\n") {
 		t.Fatalf("Help: %v, %q", err, page)
 	}
 }
