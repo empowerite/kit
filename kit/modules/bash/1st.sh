@@ -51,18 +51,25 @@ kit:enter() {
   fi
 }
 
-# use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the
-# bash_path setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory,
-# ~/<dir> (in the home directory), or a directory relative to the repository root. A directory that does not exist
-# is skipped, as PATH skips one. It returns 2 on a path that does not start with kit:modules/bash/, or a root other
-# than kit:.
+# use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the bash_path
+# setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir> (in
+# the home directory), or a directory relative to the repository root. A directory that does not exist is skipped, as
+# PATH skips one. Away from the root, it reads the root's settings. It returns 2 on a path that does not start with
+# kit:modules/bash/, or a root other than kit:.
 use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
-  local entry dir
+  local entry dir root
   local -a entries
+  # A verb runs at the repository root, where .kit/settings.yml is. A just recipe, or any script that sources this
+  # file, may run in a directory below it, so the settings and the relative entries are read from the root then.
+  root=$(pwd -P)
+  if [[ ! -f .kit/settings.yml ]]
+  then
+    root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
+  fi
   # yaml.sh is read in a subshell, so this does not count as loading it.
   # shellcheck source=SCRIPTDIR/yaml.sh
-  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list .kit/settings.yml bash_path)
+  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list "${root}/.kit/settings.yml" bash_path)
   (( ${#entries[@]} )) || entries=(kit:modules/bash/)
   if [[ "${entries[0]}" != kit:modules/bash/ ]]
   then
@@ -80,7 +87,7 @@ use:load-path() {
           "(bash_path in .kit/settings.yml)"
         return 2
         ;;
-      (*) dir=$(pwd -P)/${entry}
+      (*) dir=${root}/${entry}
     esac
     [[ -d "${dir}" ]] && kit_bash_path+=("$(cd "${dir}" && pwd -P)")
   done
