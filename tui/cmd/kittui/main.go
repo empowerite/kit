@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
@@ -57,16 +56,6 @@ func parse(args []string) (string, []string) {
 	return args[0], args[1:]
 }
 
-// runnerState is the file that remembers which runner the last transcript showed: in kit's cache.
-func runnerState() string {
-	cache := os.Getenv("XDG_CACHE_HOME")
-	if cache == "" {
-		home, _ := os.UserHomeDir()
-		cache = filepath.Join(home, ".cache")
-	}
-	return filepath.Join(cache, "kit", "runner")
-}
-
 // finish ends as the form ended: 130 and nothing printed on ctrl-c, 1 and nothing printed on esc, and on run the
 // command line, behind a runner, to stderr, and the verb exec'd in its place, where the command was typed.
 func finish(m app.Model, stderr io.Writer, exec func(verb string, args []string) error) int {
@@ -77,7 +66,7 @@ func finish(m app.Model, stderr io.Writer, exec func(verb string, args []string)
 	if !ran {
 		return 1
 	}
-	fmt.Fprint(stderr, transcript.Render(verb, args, transcript.Runner(runnerState())))
+	fmt.Fprint(stderr, transcript.Render(verb, args))
 	if err := exec(verb, args); err != nil {
 		fmt.Fprintf(stderr, "❌ kittui could not run kit %s: %v\n", verb, err)
 		return 1

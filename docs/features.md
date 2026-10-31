@@ -112,8 +112,8 @@ opens that verb's form. A verb run at a terminal without an argument it needs op
 instead of refusing, filled with what was given, as `kit commit` with no message does. The form has one field per
 part of the verb's usage line, offers the values the repository has (changed paths, packages, templates), shows the
 command line it builds, and runs it from Enter on that line, leaving that command line in the scrollback behind a
-runner, 🏃‍♂️ or 🏃‍♀️, above the verb's own output. `kit package select` shows the whole set of
-packages, each marked by what will happen to it.
+runner, 🏃, above the verb's own output. `kit package select` shows the whole set of packages, each
+marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
 verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin

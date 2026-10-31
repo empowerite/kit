@@ -85,7 +85,6 @@ func TestEscIsSilent(t *testing.T) {
 }
 
 func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	m, _ := app.Open(runner(t), "commit", []string{"--message", "hi"})
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
 	var stderr bytes.Buffer
