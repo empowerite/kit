@@ -9,6 +9,10 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   depend on, and the members they include. It declares the set under `packages:` in `.kit/settings.yml`.
 - `kit package list` shows every package the release has, which are active, and which are excluded.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
+- `kit package select <package>…` names the active set itself: the named packages, the packages they depend on, and
+  the members they include become the set, and nothing else stays. It removes what the set omits, adds what it lacks,
+  says which active package it kept for another's sake, and changes nothing when the set is already so. kit tui's
+  package view runs it.
 - A glob names every package it matches, in `kit install`, `kit package add`, and `kit package remove`:
   `kit package add 'style/*'`. A glob that matches nothing is refused.
 - `kit package remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,

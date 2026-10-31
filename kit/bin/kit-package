@@ -2,10 +2,13 @@
 # kit-package - lists, activates, or deactivates the packages this repository takes (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit package [list | add <package>… | remove <package>…]
+# kit package [list | select <package>… | add <package>… | remove <package>…]
 #
 #   list                 prints every package in reach, with a ✅ beside the active ones and a ❌ beside the
 #                        excluded ones, its origin (release or repository), and its description. This is the default.
+#   select <package>…    makes exactly the named packages, with the packages they depend on and the members they
+#                        include, the active set: it removes what the set omits, adds what it lacks, and says which
+#                        active package it kept for another's sake; with nothing to change it says the set
 #   add <package>…       activates the packages, the packages they depend on, and the members they include, places
 #                        the files they deliver, and rewrites the manifests. When a different file is already at a
 #                        delivered path, it is named and left alone, and no manifest is written. A package named
@@ -20,23 +23,23 @@
 # Exits 0 on success, 2 on a usage error or a package that is neither in the release nor under .kit/packages/, and
 # 1 for any other failure.
 #
-# see: modules/bash/release.sh, docs/packages.md
+# see: modules/bash/package.sh, modules/bash/release.sh, docs/packages.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release
+use release package
 guard:arguments package "$@" || exit $?
 
 verb=${1:-list}
 shift || true
 release:require-declaration
-readarray -t active < <(release:declared-packages)
-readarray -t excluded < <(release:declared-excludes)
 
 case "${verb}" in
   (list)
+    readarray -t active < <(release:declared-packages)
+    readarray -t excluded < <(release:declared-excludes)
     width=$(release:packages | awk 'length > w { w = length } END { print w }')
     for package in $(release:packages)
     do
@@ -50,90 +53,9 @@ case "${verb}" in
         "$(release:description "${kit_root}" "${package}")"
     done
     ;;
-  (add)
-    guard:require tool:jq
-    # A glob such as style/* stands for every package it matches.
-    expanded=$(release:expand "${kit_root}" "$@") || exit 2
-    readarray -t named < <(awk 'NF' <<<"${expanded}")
-    set -- "${named[@]}"
-    release:require-packages "${kit_root}" "$@"
-    # A package named here is wanted, whatever was recorded about it.
-    for package in "$@"
-    do
-      readarray -t excluded < <(release:without "${package}" "${excluded[@]}")
-    done
-    readarray -t wanted < <(release:resolve "${kit_root}" "${excluded[*]}" "${active[@]}" "$@")
-    release:render-all "${kit_root}" "${wanted[@]}"
-    section "kit package add $*"
-    refused=0
-    for base in $(release:bases)
-    do
-      while IFS= read -r path
-      do
-        [[ -n "${path}" ]] || continue
-        release:place-new "$(release:source-of "${kit_root}" "${base}" "${path}" "${wanted[@]}")" \
-          "$(release:dest "${base}" "${path}")" "placed" || refused=$(( refused + 1 ))
-      done < <(release:paths-beyond "${kit_root}" "${base}" "${active[*]}" "${wanted[*]}")
-    done
-    if (( refused > 0 ))
-    then
-      error "${refused} path(s) already hold a different file; move each aside, then run: kit package add $*"
-      exit 1
-    fi
-    readarray -t excluded < <(release:exclusions "${excluded[*]}" "${wanted[@]}")
-    release:write-manifests "${excluded[*]}" "${wanted[@]}"
-    release:materialize "${wanted[@]}"
-    ok "packages: ${wanted[*]}"
-    release:say-unmet "${wanted[@]}"
-    ;;
-  (remove)
-    guard:require tool:jq
-    # A glob such as style/* stands for every package it matches.
-    expanded=$(release:expand "${kit_root}" "$@") || exit 2
-    readarray -t named < <(awk 'NF' <<<"${expanded}")
-    set -- "${named[@]}"
-    release:require-packages "${kit_root}" "$@"
-    remaining=("${active[@]}")
-    for package in "$@"
-    do
-      release:among "${package}" "${active[@]}" || step "${package}: not active"
-      readarray -t remaining < <(release:without "${package}" "${remaining[@]}")
-    done
-    # Dependents are checked against the packages that remain, so the order of the named packages does not matter.
-    for package in "$@"
-    do
-      readarray -t dependents < <(release:dependents "${kit_root}" "${package}" "${remaining[@]}")
-      if (( ${#dependents[@]} > 0 ))
-      then
-        error "${package} cannot be removed while ${dependents[*]} depend(s) on it"
-        exit 1
-      fi
-    done
-    release:render-all "${kit_root}" "${active[@]}"
-    section "kit package remove $*"
-    newly=''
-    for package in "$@"
-    do
-      readarray -t includers < <(release:includers "${kit_root}" "${package}" "${remaining[@]}")
-      if (( ${#includers[@]} > 0 ))
-      then
-        newly+=" ${package}"
-        step "${package}: excluded, so an update does not bring it back as a member of ${includers[*]}"
-      fi
-    done
-    readarray -t excluded < <(release:exclusions "${excluded[*]}${newly}" "${remaining[@]}")
-    for base in $(release:bases)
-    do
-      while IFS= read -r path
-      do
-        [[ -n "${path}" ]] || continue
-        release:unplace "$(release:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" \
-          "$(release:dest "${base}" "${path}")"
-      done < <(release:paths-beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
-    done
-    release:write-manifests "${excluded[*]}" "${remaining[@]}"
-    release:materialize "${remaining[@]}"
-    ok "packages: ${remaining[*]:-none}"
+  (select) package:select "$@" ;;
+  (add) package:add "$@" ;;
+  (remove) package:remove "$@"
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------
