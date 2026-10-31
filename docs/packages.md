@@ -326,6 +326,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
 | [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/kit.schema.json`; a region in `.gitignore` |
+| [`workflow`](packages/workflow.md) | no | `kit` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |
@@ -342,6 +343,6 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, an instruction file per kind applied to the kit rule's paths, pointing at the rule; `.vscode/mcp.json`, merged: the kit's MCP server |
 | [`agents/gemini`](packages/agents/gemini.md) | no | `kit`, `agents/generic` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, the deny list as `run_shell_command` exclusions, and the kit's MCP server |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
-| [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, and `hooks/lefthook` | nothing of its own: it is the bundle Empowerite's repositories take |
+| [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` | nothing of its own: it is the bundle Empowerite's repositories take |
 
 No package in this release delivers to `home`. Each package's page, linked above, describes what it places and why.

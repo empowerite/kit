@@ -9,6 +9,7 @@ members, and that is all it does.
 | `github/ci` | the GitHub Actions job that runs `kit ci` |
 | `agents/claude` | Claude Code's deny list, and the hook that runs `kit context` before every write |
 | `hooks/lefthook` | the pre-commit hook that runs `kit lint` and `kit generate --check` |
+| `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract; see [workflow.md](workflow.md) |
 
 `kit install empowerite` takes all of them. A member a repository disagrees with leaves on its own:
 `kit package remove style/just` records it as excluded, so `kit update` does not bring it back as a member, and

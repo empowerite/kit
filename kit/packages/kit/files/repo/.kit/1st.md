@@ -24,25 +24,13 @@ The desk is the root checkout on the human's machine, on whatever branch it curr
 They type, review, and leave work in progress there. It usually has `main` checked out, and may have any branch that
 no worktree has checked out.
 
-An agent never checks out, resets, rebases, or otherwise changes the desk in place. An agent works in a worktree
-under `worktrees/`, one per issue. Work reaches `main` only through a merged pull request.
+An agent never checks out, resets, rebases, or otherwise changes the desk in place. An agent works in a worktree,
+which `kit issue` makes. Work reaches the default branch only through a merged change.
 
 ## The workflow
 
-1. Start from an issue. A change without an issue has not started.
-2. `kit issue <N>` creates the following, and never switches the checkout you run it from:
-   - the worktree `worktrees/<N>-<slug>`, hydrated: what the kit delivers under `.kit/` is in place before your
-     first command there
-   - a branch, linked to the issue under Development
-   - a draft pull request
-3. Work in that worktree. Commit with `kit commit`, with the subject `#<N> <area>: <subject>`; it supplies `#<N>`
-   from the branch when the subject lacks it. Sign every commit. Push with `kit submit`. Run `kit rebase` to bring
-   the branch up to date with the default branch and push it.
-4. Run `gh pr ready` when the work is done. The pull request body is the report. It states:
-   - what changed
-   - what was checked, and how
-   - what was left out, and why
-5. A human merges. Nothing reaches `main` any other way. Do not call anything merged until you see the merge.
+How work moves from an issue to a merged change is the repository's to say. With the `workflow` package active,
+`.kit/workflow.md` says it, and an agent follows it as it follows this file. Without it, `AGENTS.md` says it.
 
 ## Kit commands instead of git commands
 
@@ -61,28 +49,6 @@ command. A harness with a deny list refuses the raw git command.
   `git push --force` are refused as well.
 
 These limits do not apply to the human at the desk.
-
-## Plans are prose
-
-Write a design, a spec, or a plan as prose in the body of an issue. Never commit it as a file. When the design is
-written, the issue is the deliverable, and the workflow above starts from it.
-
-## The worker contract
-
-A worker is whoever implements one issue, in the worktree named for that issue.
-
-1. `cd` into the worktree named in the task. Confirm that `git rev-parse --abbrev-ref HEAD` prints a branch name
-   that begins with `<N>-`.
-2. Run every command from there. Never touch the root checkout.
-3. Never run `kit issue`, create a branch, or create a worktree. These were done before the handoff.
-4. Implement what the issue asks and nothing else.
-5. Push as you go.
-6. Before you call anything done, run `kit gate`: the repository's gate (its own CI command, such as `just ci`)
-   through the pinned toolchain.
-7. Finish with `gh pr ready`, with the report in the pull request body.
-8. If the gate fails or the work is partial, leave the pull request as a draft and say why.
-9. Never merge.
-10. Report what ran and what it printed. Nothing more.
 
 ## Rules by file type
 
@@ -178,6 +144,8 @@ The packages:
 
 - `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/kit.schema.json`,
   and a region that `kit region` fills: the `/worktrees/` entry in the repository's `.gitignore`.
+- `workflow`: `.kit/workflow.md`, the workflow from an issue to a merged change: a worktree per issue, a draft pull
+  request, the report in its body, plans as prose, and the worker contract. "The workflow" above points to it.
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
   `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
@@ -208,7 +176,7 @@ The packages:
 - `agents/gemini`: support for Gemini CLI, which reads `GEMINI.md` unless told otherwise. It merges `AGENTS.md` into
   the context files and the deny list above into `.gemini/settings.json`.
 - `empowerite`: a bundle, with no file of its own. It includes every style package, `github/ci`,
-  `agents/claude`, and `hooks/lefthook`, which is what Empowerite's repositories take.
+  `agents/claude`, `hooks/lefthook`, and `workflow`, which is what Empowerite's repositories take.
 
 Any file may also contain a `kit:generate` directive of the repository's own, naming any command. `kit check` fails
 when any region differs from what its command produces.

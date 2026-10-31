@@ -260,7 +260,9 @@ serve:is-tool() {
 serve:resources() {
   local file kind directory
   [[ -f .kit/1st.md ]] &&
-    printf 'kit://1st.md\t.kit/1st.md\ttext/markdown\tthe entry every agent reads first: the workflow and the rules\n'
+    printf 'kit://1st.md\t.kit/1st.md\ttext/markdown\tthe entry every agent reads first: integrity, the desk, and the rules\n'
+  [[ -f .kit/workflow.md ]] &&
+    printf 'kit://workflow.md\t.kit/workflow.md\ttext/markdown\tthe workflow from an issue to a merged change, and the worker contract\n'
   for directory in rules styles
   do
     for file in .kit/"${directory}"/*.md

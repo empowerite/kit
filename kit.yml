@@ -24,5 +24,6 @@ packages:
   - style/prose
   - style/workflows
   - style/yaml
+  - workflow
   - empowerite
   - house

@@ -123,6 +123,7 @@ lines')" "$(call 3 version)"
     "$(modern 3 resources/read '{"uri":"kit://rules/../../etc/passwd"}')" "$(modern 4 resources/read '{"uri":"kit://1st.md"}')"
   local expected
   expected=$( { printf 'kit://1st.md\n'
+    [[ ! -f .kit/workflow.md ]] || printf 'kit://workflow.md\n'
     for file in .kit/rules/*.md; do printf 'kit://rules/%s\n' "$(basename "${file}" .md)"; done
     for file in .kit/kinds/*.yml; do printf 'kit://kinds/%s\n' "$(basename "${file}" .yml)"; done; } )
   [ "$(answer 1 | jq --raw-output '.result.resources[].uri')" = "${expected}" ]
@@ -130,6 +131,15 @@ lines')" "$(call 3 version)"
   answer 2 | jq --exit-status '.result.contents[0].mimeType == "text/markdown"'
   answer 3 | jq --exit-status '.error.code == -32602'
   answer 4 | jq --exit-status '.result.contents[0].text | startswith("<!--")'
+}
+
+@test "the workflow package's file is a resource beside the entry file when the package is active, and not before" {
+  serve "$(modern 1 resources/list)"
+  run ! grep --quiet 'kit://workflow.md' "${BATS_TEST_TMPDIR}/out"
+  "${kit_checkout}/bin/kit" package add workflow >/dev/null 2>&1
+  serve "$(modern 1 resources/list)" "$(modern 2 resources/read '{"uri":"kit://workflow.md"}')"
+  [ "$(answer 1 | jq --raw-output '.result.resources[1].uri')" = "kit://workflow.md" ]
+  [ "$(answer 2 | jq --raw-output '.result.contents[0].text')" = "$(cat .kit/workflow.md)" ]
 }
 
 @test "kit serve takes no arguments" {

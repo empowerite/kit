@@ -647,7 +647,7 @@ later-release() {
   [ -f .kit/styles/just.md ]
   [ -f .github/workflows/kit-ci.yml ]
   members='agents/generic agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
-  members+=' style/prose style/workflows style/yaml'
+  members+=' style/prose style/workflows style/yaml workflow'
   [ "$(declared packages)" = "kit ${members} empowerite" ]
   run "${kit_checkout}/bin/kit" package remove style/just
   [ "$status" -eq 0 ]

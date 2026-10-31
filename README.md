@@ -91,6 +91,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 
    | Package | Delivers |
    | --- | --- |
+   | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract |
    | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
    | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
    | `agents/generic` | for any agent that reads `AGENTS.md`: a sentence there that sends it to `.kit/1st.md` |
@@ -101,7 +102,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
    | `style/prose` | the style of prose in every text file, documents and comments alike |
-   | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, and `hooks/lefthook` |
+   | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` |
 
    `kit install github/ci hooks/lefthook agents/claude` takes three of them, and a team on Cursor would name
    `agents/cursor` beside them. `kit package add` adds one later.
@@ -161,6 +162,9 @@ Bump the pin or reinstall, then run `kit update`:
 - A delivered file you edited is merged three ways, with the previous release as the base. `kit update` downloads
   the previous release from GitHub when it is not on the machine. Where it cannot, set `KIT_BASE` to a copy of it.
 - Your own deny list entries and settings keys are kept.
+
+`kit uninstall` takes everything the kit placed out again, with `--dry-run` to see what would go first. Your own files,
+your own packages under `.kit/packages/`, and any delivered copy you edited stay.
 
 ## Setup
 

@@ -128,8 +128,13 @@ Work starts from an issue:
    - `kit lint` to run the pre-commit linters by hand,
    - `kit commit` to commit, with the checks its rule requires, and `kit submit` to commit and push,
    - `kit rebase` to rebase the branch onto the default branch at origin and push it.
-3. `gh pr ready` once the pull request body holds the report.
+3. Mark the pull request ready for review once its body holds the report: `gh pr ready` on GitHub,
+   `glab mr update --ready` on GitLab.
 4. A human merges, and `kit tidy` removes the worktree and the branch.
+
+The `workflow` package delivers these steps to agents as `.kit/workflow.md`, with the worker contract. The `kit`
+package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
+commands that replace raw git commands.
 
 `kit changes` lists the open changes with the issues each closes, and `kit backlog` the open issues no change
 closes, with the branch that claims one, so the next `kit issue <N>` is a pick, not a search.

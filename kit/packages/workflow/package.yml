@@ -1,0 +1,7 @@
+# packages/workflow/package.yml - the workflow package: from an issue to a merged change, apart from the rules
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/workflow.md
+
+description: "The workflow from an issue to a merged change: a worktree per issue, a draft pull request, and the worker contract"
+depends:
+  - kit

@@ -42,6 +42,7 @@ The resources are the kit's files under `.kit/`, each as the repository has it:
 | Resource | File | Type |
 | --- | --- | --- |
 | `kit://1st.md` | `.kit/1st.md` | `text/markdown` |
+| `kit://workflow.md` | `.kit/workflow.md`, when the `workflow` package is active | `text/markdown` |
 | `kit://rules/<kind>` | `.kit/rules/<kind>.md` | `text/markdown` |
 | `kit://styles/<kind>` | `.kit/styles/<kind>.md` | `text/markdown` |
 | `kit://kinds/<file>` | `.kit/kinds/<file>.yml`, which defines one kind or several | `application/yaml` |

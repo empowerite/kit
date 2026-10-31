@@ -5,8 +5,9 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 
 ## Rules where agents look
 
-- `.kit/1st.md` is the file every agent reads first. It sets the integrity rules for reporting, the workflow, the
-  worker contract, and the kit commands that replace raw git commands.
+- `.kit/1st.md` is the file every agent reads first. It sets the integrity rules for reporting, the desk that no
+  agent changes, the kit commands that replace raw git commands, and the rules by kind of file. The `workflow`
+  package adds `.kit/workflow.md` beside it: the workflow, plans as prose, and the worker contract.
 - The `agents/generic` package writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`, and
   every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own only when the project
   has no `CLAUDE.md`, so the `agents/claude` package imports `AGENTS.md` from `.claude/CLAUDE.md`.
@@ -70,7 +71,8 @@ see: [templates.md](templates.md)
 ## The workflow
 
 An agent works from an issue to a merged pull request, in a worktree of its own. It never changes the desk, the
-root checkout on the human's machine. The human at the desk is not bound by these limits.
+root checkout on the human's machine. The human at the desk is not bound by these limits. The `workflow` package
+delivers these steps to agents as `.kit/workflow.md`; a repository that leaves it out writes its own in `AGENTS.md`.
 
 1. `kit issue <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
@@ -148,8 +150,8 @@ see: [toolchains.md](toolchains.md)
 ## Packages
 
 Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is always active;
-the others are optional, such as one style package per kind of file, the CI job, the pre-commit hook, and an
-adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
+the others are optional, such as the `workflow` package, one style package per kind of file, the CI job, the
+pre-commit hook, and an adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 
 - `kit install` and `kit package add` activate packages, with the packages they depend on. `kit package remove`
   deactivates one and takes out everything it placed. `kit packages` lists them, the active set
