@@ -9,8 +9,8 @@
 #   - gitlab.com, detected from origin's host
 #   - a self-hosted GitLab, set with `forge: gitlab` in .kit/settings.yml; glab finds the host from origin
 #
-# It implements the calls listed in the header of modules/bash/forge.sh, with the same output as the GitHub provider. The
-# GitLab equivalents:
+# It implements the calls listed in the header of modules/bash/forge.sh, with the same output as the GitHub
+# provider. The GitLab equivalents:
 #
 #   pull request    a merge request
 #   number          the merge request's iid
@@ -208,7 +208,8 @@ forge/gitlab:releases() {
   list=$(forge/gitlab:api "releases?per_page=100" 2>/dev/null) \
     || { error "run: glab auth status (the releases could not be read)"; return 1; }
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::gitlab_releases($now)' \
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::gitlab_releases($now)' \
     <<<"${list}"
 }
 

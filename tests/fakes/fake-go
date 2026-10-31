@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fake-go - stands in for go build: writes, at its -o path, a script that names the platform it was built for (test helper)
+# fake-go - stands in for go build: writes, at its -o path, a script naming the platform it was built for (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Linked as go on PATH. Each call is appended to ${FAKES}/go.calls with GOOS, GOARCH, and CGO_ENABLED first. The

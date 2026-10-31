@@ -38,7 +38,8 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   [ "$status" -eq 0 ]
   [ "$(on-origin release/0.1.0)" = "$(git rev-parse HEAD)" ]
   [ "$(git cat-file -t release/0.1.0)" = tag ]
-  [[ "$output" == *"pushed release/0.1.0, at $(git rev-parse --short HEAD) one"* ]]
+  [[ "${lines[0]}" == *"tagging $(git rev-parse --short HEAD) one as release/0.1.0"* ]]
+  [[ "${lines[${#lines[@]} - 1]}" == *"pushed release/0.1.0"* ]]
   git switch --quiet --create topic && commit two && commit three
   run "${kit_root}/bin/kit" release 0.2.0-rc.1
   [ "$status" -eq 0 ]
@@ -104,6 +105,14 @@ JSON
   [[ "${lines[0]}" == "0.1.0-rc.7  📝 draft "* ]]
   [[ "${lines[1]}" == "0.1.0-rc.6  🧪 pre-release "* ]]
   [[ "${lines[2]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
+  # the ages end in one column
+  local line widths=()
+  for line in "${lines[@]}"
+  do
+    line=${line%  ⭐ latest}
+    widths+=("${#line}")
+  done
+  [ "${widths[0]}" -eq "${widths[1]}" ] && [ "${widths[1]}" -eq "${widths[2]}" ]
   run "${kit_root}/bin/kit" releases --json
   [ "$(jq -r 'map("\(.version) \(.kind) \(.latest)") | join(", ")' <<<"$output")" \
     = "0.1.0-rc.7 draft false, 0.1.0-rc.6 pre-release false, 0.0.9 release true" ]
