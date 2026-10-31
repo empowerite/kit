@@ -421,7 +421,6 @@ release:validate-settings() {
 #   1. the package's defaults under answers: in package.yml, as <key> and as answers.<key>
 #   2. .kit/settings.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
-#   3. kit_version: the version of the release at <root>, the one being rendered, unreleased for a checkout
 #
 # A later source overrides an earlier one, so the repository's answer wins over the package's default.
 release:context() {
@@ -444,8 +443,6 @@ release:context() {
         [[ "${key}" == answers ]] && printf '%s\t%s\n' "${name}" "${value}"
       done < <(yaml:map "${settings}" "${key}")
     done
-  # kit_version is the version of the release being rendered, so a pin moves with kit update
-  printf 'kit_version\t%s\n' "$(cat "$1/version" 2>/dev/null || release:unreleased)"
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
 

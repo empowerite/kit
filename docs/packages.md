@@ -258,8 +258,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| [`kit`](packages/kit.md) | yes | includes `kittui` | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; a region in `.gitignore` |
-| [`kittui`](packages/kittui.md) | no | | `.config/mise/conf.d/kittui.toml`, from a template: `kittui`, the binary `kit tui` runs, pinned in mise at the kit's version |
+| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; a region in `.gitignore` |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |
