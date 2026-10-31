@@ -25,6 +25,33 @@ git:main-root() {
   dirname "$(git -C "${1:-.}" rev-parse --path-format=absolute --git-common-dir)"
 }
 
+# git:linked-worktrees [<path>] prints "<path>\t<detached>\t<branch>" for every linked worktree of the repository at
+# <path>, or of the current one, wherever it lies: every one git worktree list names but the main checkout, which it
+# names first. <detached> is true or false, and <branch> is empty for a detached checkout.
+git:linked-worktrees() {
+  local path="" branch="" detached=false line first=true
+  while IFS= read -r line
+  do
+    case "${line}" in
+      (worktree\ *)
+        path=${line#worktree }
+        branch=""
+        detached=false
+        ;;
+      (branch\ refs/heads/*)
+        branch=${line#branch refs/heads/}
+        ;;
+      (detached)
+        detached=true
+        ;;
+      ("")
+        [[ -n "${path}" && "${first}" == false ]] && printf '%s\t%s\t%s\n' "${path}" "${detached}" "${branch}"
+        [[ -n "${path}" ]] && first=false
+        path=""
+    esac
+  done < <(git -C "${1:-.}" worktree list --porcelain; printf '\n')
+}
+
 # git:worktrees prints "<path>\t<detached>\t<branch>" for every linked worktree under worktrees/. <detached> is
 # true or false. <branch> is empty for a detached checkout. The empty field comes last so a tab-separated read
 # keeps it.

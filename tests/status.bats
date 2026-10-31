@@ -135,6 +135,40 @@ commits-in() {
   [[ "${lines[3]}" == *"forge"* ]]
 }
 
+@test "in a worktree, kit status draws that worktree alone; at the desk, every linked worktree, wherever it lies" {
+  git worktree add --quiet -b 7-topic worktrees/7-topic main
+  git worktree add --quiet -b elsewhere ../elsewhere main
+  cd worktrees/7-topic
+  run "${kit_root}/bin/kit" status --no-fetch
+  [ "${lines[0]}" = "🌿 7-topic · ↑0 ↓0 · +0 -0" ]
+  [[ "$output" != *"🏠"* && "$output" != *"elsewhere"* ]]
+  output=$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null)
+  [ "$(jq -c '{branch: .worktree.branch, pr: .pullRequest}' <<<"$output")" = '{"branch":"7-topic","pr":null}' ]
+  cd ../..
+  output=$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null)
+  [ "$(jq -c '[.worktrees[].branch]' <<<"$output")" = '["elsewhere","7-topic"]' ]
+}
+
+@test "above desks, kit status finds each desk below, stops at it, skips hidden directories, and draws each under its path" {
+  cd "${work}"
+  mkdir -p group/.hidden group/deep
+  git init --quiet --initial-branch=main group/.hidden/secret
+  git clone --quiet origin.git group/deep/two 2>/dev/null
+  git -C group/deep/two remote set-head origin main
+  git init --quiet --initial-branch=main desk/nested
+  run "${kit_root}/bin/kit" status --no-fetch
+  [[ "$output" == *"📂 desk"$'\n'"🏠 main"* ]]
+  [[ "$output" == *"📂 group/deep/two"$'\n'"🏠 main"* ]]
+  [[ "$output" != *"📂 group/.hidden"* && "$output" != *"📂 desk/nested"* ]]
+  output=$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null)
+  [ "$(jq -c 'map(.path)' <<<"$output")" = '["desk","group/deep/two"]' ]
+  [ "$(jq -r '.[0].status.desk.branch' <<<"$output")" = main ]
+  cd "$(mktemp -d)"
+  run "${kit_root}/bin/kit" status --no-fetch
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no repository at or below"* ]]
+}
+
 @test "a detached checkout is marked and lists no commits" {
   git worktree add --quiet --detach worktrees/loose main
   doc=$(in_status status:checkout "${PWD}/worktrees/loose" '' main)

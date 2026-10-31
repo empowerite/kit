@@ -10,11 +10,21 @@
 # threads, and the checks on its head commit. Everything else is read from local git. The forge call starts
 # first, in the background, so it runs while the fetch runs and the checkouts are drawn.
 #
-# The output, in order:
+# Where it runs decides what it draws:
+#
+#   - At a desk, the root checkout: the whole picture below.
+#   - In a linked worktree: the fetch, this worktree's block, and the pull request its branch holds, whoever opened
+#     it; the owner flags never hide it.
+#   - Above desks, in a directory inside no repository: it walks down, and every directory that holds a .git
+#     directory is a desk. The walk stops there, and draws that desk's whole picture under the desk's path, subject
+#     to the same flags, then goes on beside it. It skips hidden directories and symbolic links, and goes no deeper
+#     than status_walk_depth. The desks are drawn in path order, each with a fetch of its own.
+#
+# The output at a desk, in order:
 #
 #   1. what the fetch brought in, unless --no-fetch
 #   2. the root checkout (the desk)
-#   3. each worktree under worktrees/, with its uncommitted paths and then its commits
+#   3. each linked worktree, wherever git worktree list finds it, with its uncommitted paths and then its commits
 #   4. each open pull request, with its author, state, age, checks, and the worktree that has its branch checked
 #      out, and under it the issues it closes, one row each as kit backlog draws an issue, in flight
 #   5. the branches whose upstream is gone
@@ -44,9 +54,13 @@
 #   ready              🛬      green
 #
 # --json prints the same data as one JSON document, {desk, worktrees, pullRequests, goneBranches}, with the pull
-# requests chosen the same way.
+# requests chosen the same way. In a worktree the document is {worktree, pullRequest}, the pull request null when
+# its branch holds none; above desks it is an array of {path, status}, one per desk, status the desk's document.
 
 use git
+
+# status_walk_depth is how many directories below the one it runs in kit status looks for desks, above desks.
+status_walk_depth=4
 
 # status_commit_cap is how many uncommitted paths or commits a checkout block lists before it counts the rest.
 status_commit_cap=10
@@ -628,6 +642,16 @@ status:render() {
   local no_fetch=false json=false mine=false others=false choice arg main_root default_branch desk_branch path branch
   local doc gone filter
   local -a owners=() selection=()
+  if ! git rev-parse --git-dir >/dev/null 2>&1
+  then
+    status:above "$@"
+    return
+  fi
+  if [[ "$(git rev-parse --path-format=absolute --git-dir)" != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
+  then
+    status:worktree "$@"
+    return
+  fi
   for arg in "$@"
   do
     case "${arg}" in
@@ -676,7 +700,7 @@ status:render() {
   do
     [[ -n "${path}" ]] || continue
     worktrees+=("$(status:checkout "${path}" "${branch}" "${default_branch}")")
-  done < <(git:worktrees | status:by-number)
+  done < <(git:linked-worktrees | status:by-number)
 
   if [[ "${json}" == true ]]
   then
@@ -729,6 +753,127 @@ status:render() {
         "$(status:paint 90 "upstream gone${status_sep}kit tidy removes it")" >&2
     done <<<"${gone}"
   fi
+}
+
+# status:worktree [--no-fetch] [--json] [<owner flag>…] draws a linked worktree: the fetch, its block, and the pull
+# request its branch holds, whoever opened it. The owner flags are accepted and change nothing here.
+status:worktree() {
+  local no_fetch=false json=false arg default_branch here branch doc prs pr
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--no-fetch) no_fetch=true ;;
+      (--json) json=true
+    esac
+  done
+  here=$(git rev-parse --show-toplevel)
+  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  local scratch prs_job prs_failed=false
+  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
+  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
+  trap "rm -rf '${scratch}'" EXIT
+  ( [[ -n "${branch}" ]] && status:collect | jq --compact-output --arg branch "${branch}" 'select(.branch == $branch)' ) \
+    > "${scratch}/prs" 2> "${scratch}/prs.err" &
+  prs_job=$!
+  default_branch=$(git:default-branch)
+  if [[ "${no_fetch}" == false ]]
+  then
+    if [[ "${json}" == true ]]
+    then
+      status:fetch "${default_branch}" 2>/dev/null
+    else
+      status:fetch "${default_branch}"
+    fi
+  fi
+  doc=$(status:checkout "${here}" "${branch}" "${default_branch}")
+  wait "${prs_job}" || prs_failed=true
+  prs=$(<"${scratch}/prs")
+  pr=$(jq --slurp --compact-output 'first // null' <<<"${prs}")
+  if [[ "${json}" == true ]]
+  then
+    cat "${scratch}/prs.err" >&2
+    jq --null-input --argjson worktree "${doc}" --argjson pullRequest "${pr}" \
+      '{worktree: $worktree, pullRequest: $pullRequest}'
+    return 0
+  fi
+  local relative width
+  relative=$(jq --raw-output '.relative' <<<"${doc}")
+  IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
+  status_worktree_on=()
+  [[ -n "${branch}" ]] && status_worktree_on[${branch}]=${relative}
+  status:checkout-block '🌿' "${doc}" "${width}" "$(status:count-widths "${doc}")"
+  if [[ -s "${scratch}/prs.err" ]]
+  then
+    printf '\n' >&2
+    cat "${scratch}/prs.err" >&2
+  fi
+  [[ -n "${prs}" ]] && status:pr-table all "${prs}" worktrees gap
+  return 0
+}
+
+# status:desks <dir> <depth> prints every desk at or below <dir>, at most <depth> levels down, in path order: a
+# directory that holds a .git directory. The walk stops at a desk, so a worktree or a nested repository inside one
+# is the desk's own, and it skips hidden directories and symbolic links.
+status:desks() {
+  local dir=$1 depth=$2 sub
+  if [[ -d "${dir}/.git" ]]
+  then
+    printf '%s\n' "${dir}"
+    return 0
+  fi
+  (( depth > 0 )) || return 0
+  for sub in "${dir}"/*/
+  do
+    sub=${sub%/}
+    [[ -d "${sub}" && ! -L "${sub}" ]] || continue
+    status:desks "${sub}" $(( depth - 1 ))
+  done
+}
+
+# status:above <flag>… draws every desk below the current directory, each under its path, as kit status draws it at
+# that desk, with the same flags. The desks run at once, each fetching on its own, and are drawn in path order.
+status:above() {
+  local json=false arg desk index=0 color=''
+  local -a desks
+  for arg in "$@"
+  do
+    [[ "${arg}" == --json ]] && json=true
+  done
+  readarray -t desks < <(status:desks "$(pwd -P)" "${status_walk_depth}")
+  if (( ${#desks[@]} == 0 ))
+  then
+    error "no repository at or below $(pwd -P), ${status_walk_depth} levels down; run kit status in one"
+    return 1
+  fi
+  local scratch
+  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
+  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
+  trap "rm -rf '${scratch}'" EXIT
+  [[ "${out_color}" == 1 ]] && color=1
+  for desk in "${desks[@]}"
+  do
+    ( cd "${desk}" && COLUMNS=$(status:width) CLICOLOR_FORCE=${color} run kit status "$@" ) \
+      > "${scratch}/${index}.out" 2> "${scratch}/${index}.err" &
+    index=$(( index + 1 ))
+  done
+  wait || true
+  if [[ "${json}" == true ]]
+  then
+    for index in "${!desks[@]}"
+    do
+      jq --compact-output --arg path "$(status:relative "${desks[${index}]}")" '{path: $path, status: .}' \
+        "${scratch}/${index}.out" 2>/dev/null || jq --null-input --compact-output \
+        --arg path "$(status:relative "${desks[${index}]}")" '{path: $path, status: null}'
+      cat "${scratch}/${index}.err" >&2
+    done | jq --slurp .
+    return 0
+  fi
+  for index in "${!desks[@]}"
+  do
+    (( index == 0 )) || printf '\n' >&2
+    printf '%s\n' "$(status:paint 1 "📂 $(status:relative "${desks[${index}]}")")" >&2
+    cat "${scratch}/${index}.err" "${scratch}/${index}.out" >&2
+  done
 }
 
 # status:by-number sorts git:worktrees lines by the issue number their directory name starts with. A directory
