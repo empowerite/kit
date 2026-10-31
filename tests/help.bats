@@ -7,6 +7,14 @@ setup() {
   kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
 }
 
+# group-has <GROUP> <verb> <purpose> passes when kit help's output lists <verb> with a purpose that starts with
+# <purpose> under <GROUP>, whatever the padding and the verbs beside it.
+group-has() {
+  local group=${output#*$'\n'"$1"$'\n'} line=$'\n'"  $2: +$3"
+  group=${group%%$'\n\n'*}
+  [[ $'\n'"${group}" =~ ${line} ]] || { echo "$2 is not under $1"; return 1; }
+}
+
 @test "kit help lists every verb beside bin/kit with its purpose, under its group; -h and --help are unknown verbs that point to it" {
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
@@ -17,8 +25,8 @@ setup() {
     verb=${verb##*/kit-}
     [[ "$output" == *$'\n'"  ${verb}: "* ]] || { echo "missing: ${verb}"; return 1; }
   done
-  [[ "$output" == *$'WORKFLOW\n'*"  tidy:        removes merged worktrees and gone branches"$'\n\nFILES\n'* ]]
-  [[ "$output" == *$'INSTALLATION\n'*"  install:     mirrors the release"* ]]
+  group-has WORKFLOW tidy 'removes merged worktrees and gone branches'
+  group-has INSTALLATION install 'mirrors the release'
   [[ "$output" == *$'USAGE\n  kit <verb> [<argument>…]\n'* ]]
   [[ "$output" == *$'\nEXAMPLES\n'* && "$output" == *$'\nLEARN MORE\n'* ]]
   [[ "$output" != *$'\nOTHER\n'* ]]

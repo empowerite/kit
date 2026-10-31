@@ -86,6 +86,8 @@ root checkout on the human's machine. The human at the desk is not bound by thes
 
 `kit status` shows everything in flight: what the last fetch brought in, the desk and every worktree with its
 uncommitted paths and commits, every open pull request with its state, age, and checks, and the gone branches.
+`kit incoming` prints its first part alone, the fetch's line, and `kit worktrees` its middle, the desk and every
+worktree, with `--json` for a program.
 
 `kit changes` lists the open changes, oldest first, each drawn as `kit status` draws a pull request, and under each
 the issues it closes, one row each: the number, the assignees, the state with the issue's age, and the title.

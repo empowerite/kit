@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# kit-worktrees - shows the desk and every worktree, each with its branch, commits, and changes (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit worktrees [--json | --jq]
+#
+# Draws the desk, the root checkout, and every linked worktree as kit status draws them between its fetch and its
+# changes: each branch with how far it is ahead of and behind origin's default branch, its newest commits, and its
+# uncommitted paths. It fetches nothing and asks the forge nothing, and draws the same wherever in the repository it
+# runs.
+#
+#   --json   prints the same facts as one JSON document: desk, and worktrees in issue-number order
+#   --jq     prints the same JSON as --json, formatted by jq for a person to read
+#
+# see: modules/bash/status.sh, kit-status
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use status
+guard:arguments worktrees "$@" || exit $?
+
+guard:require tool:git tool:jq
+status:worktrees "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

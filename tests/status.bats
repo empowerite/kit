@@ -269,4 +269,40 @@ commits-in() {
   [[ "$output" == *"--all cannot be combined with --mine; run: kit help status"* ]]
 }
 
+@test "kit incoming prints the line kit status opens with, and nothing else" {
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  git -C ../other config user.name t && git -C ../other config user.email t@example.com
+  git -C ../other config commit.gpgsign false
+  commits-in ../other 2 && git -C ../other push --quiet origin main
+  cp -R . ../twin
+  run "${kit_root}/bin/kit" incoming
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 1 ]
+  incoming=${output}
+  cd ../twin
+  run "${kit_root}/bin/kit" status
+  [ "${lines[0]}" = "${incoming}" ]
+  run "${kit_root}/bin/kit" incoming --json
+  [ "$status" -eq 2 ]
+}
+
+@test "kit worktrees draws what kit status draws between the fetch and the changes, from anywhere in the repository" {
+  git worktree add --quiet -b 7-topic worktrees/7-topic main
+  commits-in worktrees/7-topic 1
+  printf 'x\n' > c
+  run "${kit_root}/bin/kit" worktrees
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"7-topic"* ]]
+  checkouts=${output}
+  run "${kit_root}/bin/kit" status --no-fetch
+  [[ "$output" == "${checkouts}"$'\n\n'* ]]
+  picked='{desk, worktrees} | tojson'
+  [ "$("${kit_root}/bin/kit" worktrees --json | jq -r "${picked}")" \
+    = "$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null | jq -r "${picked}")" ]
+  branches='[.desk.branch, [.worktrees[].branch]] | tojson'
+  from_desk=$("${kit_root}/bin/kit" worktrees --json | jq -r "${branches}")
+  cd worktrees/7-topic
+  [ "$("${kit_root}/bin/kit" worktrees --json | jq -r "${branches}")" = "${from_desk}" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

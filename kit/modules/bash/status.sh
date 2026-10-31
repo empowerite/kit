@@ -212,17 +212,23 @@ status:fetch-summary() {
   printf '📥 origin: fetched %s\n' "${line}"
 }
 
-# status:fetch <default-branch> fetches origin with --prune, then prints status:fetch-summary's line and a blank
-# line. When the fetch fails, it prints a warning instead of the summary.
-status:fetch() {
+# status:fetch-line <default-branch> fetches origin with --prune, then prints status:fetch-summary's line, as kit
+# incoming does. When the fetch fails, it prints a warning instead, and returns 1.
+status:fetch-line() {
   local before
   before=$(status:refs)
-  if git fetch --quiet --prune origin
+  if ! git fetch --quiet --prune origin
   then
-    status:fetch-summary "${before}" "$(status:refs)" "$1" >&2
-  else
     warn "git fetch --prune failed; ahead and behind counts may be stale"
+    return 1
   fi
+  status:fetch-summary "${before}" "$(status:refs)" "$1" >&2
+}
+
+# status:fetch <default-branch> prints status:fetch-line's line, or its warning, and a blank line, as kit status
+# opens.
+status:fetch() {
+  status:fetch-line "$1" || true
   printf '\n' >&2
 }
 
@@ -636,6 +642,67 @@ status:pr-table() {
   done <<<"${prs}"
 }
 
+# status_desk and status_worktrees hold the documents status:checkouts measured: the desk, and each linked worktree in
+# issue-number order, each one status:checkout's JSON.
+declare -g status_desk=''
+declare -ga status_worktrees=()
+
+# status:checkouts <default-branch> measures the desk and every linked worktree, from origin's default branch, into
+# status_desk and status_worktrees.
+status:checkouts() {
+  local main_root desk_branch path branch
+  main_root=$(git:main-root)
+  desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  status_desk=$(status:checkout "${main_root}" "${desk_branch}" "$1")
+  status_worktrees=()
+  while IFS=$'\t' read -r path _ branch
+  do
+    [[ -n "${path}" ]] || continue
+    status_worktrees+=("$(status:checkout "${path}" "${branch}" "$1")")
+  done < <(git:linked-worktrees | status:by-number)
+}
+
+# status:draw-checkouts draws what status:checkouts measured: the desk's block, then each worktree's, the labels and
+# the counts in columns. It records which worktree has each branch in status_worktree_on, for the pull requests' rows.
+status:draw-checkouts() {
+  local label_w=0 width relative branch widths doc
+  status_worktree_on=()
+  for doc in "${status_desk}" "${status_worktrees[@]}"
+  do
+    IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
+    IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
+    (( width > label_w )) && label_w=${width}
+    [[ -n "${branch}" && "${doc}" != "${status_desk}" ]] && status_worktree_on[${branch}]=${relative}
+  done
+  widths=$(status:count-widths "${status_desk}" "${status_worktrees[@]}")
+  status:checkout-block '🏠' "${status_desk}" "${label_w}" "${widths}"
+  for doc in "${status_worktrees[@]}"
+  do
+    printf '\n' >&2
+    status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
+  done
+}
+
+# status:worktrees [--json] draws the desk and every linked worktree, as kit status draws them between the fetch and
+# the changes, wherever in the repository it runs; with --json it prints {desk, worktrees} instead.
+status:worktrees() {
+  status:checkouts "$(git:default-branch)"
+  if [[ " $* " == *" --json "* ]]
+  then
+    jq --null-input --argjson desk "${status_desk}" \
+      --argjson worktrees "$(printf '%s\n' "${status_worktrees[@]}" | jq --slurp .)" \
+      '{desk: $desk, worktrees: $worktrees}'
+    return 0
+  fi
+  status:draw-checkouts
+}
+
+# status:incoming fetches origin and prints the fetch's line, as kit status prints it first. It returns 1 when the
+# fetch fails.
+status:incoming() {
+  status:fetch-line "$(git:default-branch)"
+}
+
 # status:render [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the output the file
 # header describes, or the same data as one JSON document. The owner flags combine as status:filter says.
 status:render() {
@@ -692,15 +759,11 @@ status:render() {
   desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   gone=$(git:gone-branches)
 
-  # Measure the desk, then the worktrees in issue-number order, each as JSON.
-  local desk prs
+  local prs desk
   local -a worktrees=()
-  desk=$(status:checkout "${main_root}" "${desk_branch}" "${default_branch}")
-  while IFS=$'\t' read -r path _ branch
-  do
-    [[ -n "${path}" ]] || continue
-    worktrees+=("$(status:checkout "${path}" "${branch}" "${default_branch}")")
-  done < <(git:linked-worktrees | status:by-number)
+  status:checkouts "${default_branch}"
+  desk=${status_desk}
+  worktrees=("${status_worktrees[@]}")
 
   if [[ "${json}" == true ]]
   then
@@ -717,22 +780,7 @@ status:render() {
   fi
 
   # Draw the checkouts while the forge call may still be running.
-  local label_w=0 width relative widths
-  status_worktree_on=()
-  for doc in "${desk}" "${worktrees[@]}"
-  do
-    IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
-    IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
-    (( width > label_w )) && label_w=${width}
-    [[ -n "${branch}" && "${doc}" != "${desk}" ]] && status_worktree_on[${branch}]=${relative}
-  done
-  widths=$(status:count-widths "${desk}" "${worktrees[@]}")
-  status:checkout-block '🏠' "${desk}" "${label_w}" "${widths}"
-  for doc in "${worktrees[@]}"
-  do
-    printf '\n' >&2
-    status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
-  done
+  status:draw-checkouts
 
   wait "${prs_job}" || prs_failed=true
   if [[ -s "${scratch}/prs.err" ]]
