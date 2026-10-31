@@ -1,0 +1,33 @@
+# syntax.test - the syntax jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# The key of each kind of node, as the arguments object is keyed: a wildcard option keeps its angle brackets.
+import "syntax" as syntax; map(syntax::key)
+[{"kind":"flag","name":"all"},{"kind":"option","name":"message","value":"text","inline":false,"repeat":true},{"kind":"option","name":"hole","value":"value","inline":true,"wildcard":true},{"kind":"operand","name":"path","repeat":true},{"kind":"literal","name":"list","repeat":false}]
+["--all","--message","--<hole>","<path>","list"]
+
+# A sequence renders as the usage line it was read from: brackets, alternatives, values inline or apart, and ….
+import "syntax" as syntax; syntax::render
+[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","name":"message","value":"text","inline":false,"repeat":true}],[{"kind":"option","name":"file","value":"path","inline":false,"repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]
+"[--all] (--message <text>… | --file <path>) [<path>…]"
+
+# A literal, an inline option, and a wildcard in a group that repeats.
+import "syntax" as syntax; syntax::render
+[{"kind":"literal","name":"file","repeat":false},{"kind":"option","name":"rule","value":"rule","inline":true,"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"hole","value":"value","inline":true,"wildcard":true,"repeat":false}]],"repeat":true}]
+"file --rule=<rule> [--<hole>=<value>]…"
+
+# One node renders alone too.
+import "syntax" as syntax; syntax::render
+{"kind":"operand","name":"path","repeat":true}
+"<path>…"
+
+# undescribed lists the keys the syntax names and the arguments object lacks, once each, in order of appearance.
+import "syntax" as syntax; syntax::undescribed
+{"syntax":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"add","repeat":false},{"kind":"operand","name":"package","repeat":true}],[{"kind":"literal","name":"remove","repeat":false},{"kind":"operand","name":"package","repeat":true}]],"arguments":{"list":{"description":"x"}}}
+["add","<package>","remove"]
+
+# A verb that takes nothing has nothing undescribed.
+import "syntax" as syntax; syntax::undescribed
+{"syntax":[[]],"arguments":{}}
+[]

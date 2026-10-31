@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # syntax.sh - parses a verb's usage lines into its syntax, as JSON, and matches a command line against it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # A verb's header holds its usage lines, and help.sh reads them. This module reads what the lines say: after
 # kit <verb>, a usage line is written in this grammar:
@@ -26,8 +27,9 @@ use help
 declare -ag syntax_tokens=()
 declare -g syntax_pos=0 syntax_json='' syntax_error=''
 
-# syntax:spec <verb> prints the verb's syntax as the kit syntax JSON: verb, purpose, usage, syntax, and arguments.
-# When a usage line does not parse, the JSON carries error instead of syntax, and it returns 1.
+# syntax:spec <verb> prints the verb's syntax as the kit syntax JSON: verb, purpose, usage, syntax, and arguments, the
+# descriptions in the header's argument block. When a usage line does not parse, the JSON carries error instead of
+# syntax, and it returns 1.
 syntax:spec() {
   local verb=$1 syntax
   local -a usage
@@ -39,7 +41,8 @@ syntax:spec() {
     return 1
   fi
   jq --null-input --arg verb "${verb}" --arg purpose "$(help:purpose "${verb}")" --argjson syntax "${syntax}" \
-    '{verb: $verb, purpose: $purpose, usage: $ARGS.positional, syntax: $syntax, arguments: {}}' --args "${usage[@]}"
+    --argjson arguments "$(syntax:arguments "${verb}")" \
+    '{verb: $verb, purpose: $purpose, usage: $ARGS.positional, syntax: $syntax, arguments: $arguments}' --args "${usage[@]}"
 }
 
 # syntax:parse <verb> <usage-line>… prints the syntax JSON of the usage lines: the alternatives of every line, in
@@ -212,10 +215,52 @@ syntax:emit-string() {
   syntax_json+="\"${text}\""
 }
 
+# syntax:arguments <verb> prints the arguments object the header's indented block describes: {"<key>": {"description":
+# "<text>"}}. A block line starts with two spaces, the argument as the header writes it, two or more spaces, and the
+# text; a line indented four or more spaces continues the text; a blank line, or any other line, ends the block. The
+# key is the argument without its value and repeat mark: --name, <name>, word, or --<hole>, as syntax.jq's key gives it.
+syntax:arguments() {
+  help:description "$1" | awk '
+    function flush() { if (key != "") printf "%s\t%s\n", key, text; key = "" }
+    /^  (--|<|[a-z])[^ ]*( [^ ]+)*  +[^ ]/ {
+      flush()
+      line = $0
+      sub(/^  /, "", line)
+      text = line
+      sub(/^[^ ]+( [^ ]+)*  +/, "", text)
+      key = line
+      sub(/ .*$/, "", key)
+      if (key ~ /^--/) sub(/=.*$/, "", key)
+      sub(/(…|\.\.\.)$/, "", key)
+      next
+    }
+    /^    / && key != "" { line = $0; sub(/^ +/, "", line); text = text " " line; next }
+    { flush() }
+    END { flush() }' |
+    jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\t") | {key: .[0], value: {description: .[1]}})
+      | from_entries'
+}
+
+# syntax:check <verb> judges the header's discipline: it warns once for a usage line that does not parse, and once
+# for each argument the usage names that the block does not describe, and returns 1 when there is any finding.
+syntax:check() {
+  local verb=$1 spec key found=0
+  if ! spec=$(syntax:spec "${verb}")
+  then
+    warn "kit ${verb}: usage does not parse: $(jq --raw-output .error <<<"${spec}")"
+    return 1
+  fi
+  while IFS= read -r key
+  do
+    warn "kit ${verb}: ${key} has no description in the header"
+    found=1
+  done < <(jq --raw-output -L "${kit_jq}" 'import "syntax" as syntax; syntax::undescribed[]' <<<"${spec}")
+  (( found == 0 ))
+}
+
 # syntax:render <json> prints a node, or a sequence of nodes, as usage text: --message <text>…, [--all],
 # (--message <text>… | --file <path>), list, <path>….
 syntax:render() {
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   jq --raw-output -L "${kit_jq}" 'import "syntax" as syntax; syntax::render' <<<"$1"
 }
 

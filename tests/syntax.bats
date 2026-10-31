@@ -12,7 +12,7 @@ setup() {
   mkdir -p "${root}"
   cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
   printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb written for the tests (kit verb)' '#' \
-    '# kit plain <a>... [--<hole>=<value>]' '#' '# kit plain --b <v>' '#' 'Does it.' '#' \
+    '# kit plain <a>... [--<hole>=<value>]' '#' '# kit plain --b <v>' '#' '# Does it.' '#' \
     '#   <a>…      first line' '#       second line' '#   --b=<v>   bee' > "${root}/bin/kit-plain"
   printf '%s\n' '#!/usr/bin/env bash' '# kit-broken - a verb whose usage line does not parse (kit verb)' '#' \
     '# kit broken [<a>' > "${root}/bin/kit-broken"
@@ -66,6 +66,30 @@ setup() {
   run "${kit_root}/bin/kit" syntax nonesuch
   [ "$status" -eq 2 ]
   [[ "$output" == *"no kit verb 'nonesuch'; run: kit help"* ]]
+}
+
+@test "kit syntax --check is clean for every verb" {
+  run "${kit_root}/bin/kit" syntax --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"every verb's usage parses, and every argument is described"* ]]
+}
+
+@test "the argument block is read by key, in either spelling, with continuation lines joined" {
+  run "${kit_root}/bin/kit" syntax commit
+  [ "$(jq -r '.arguments["--message"].description' <<<"$output")" = "the message; given twice or more, the first is the subject and the rest are paragraphs" ]
+  jq -e '.arguments | has("--all") and has("--file") and has("<path>")' <<<"$output"
+  run "${root}/bin/kit" syntax plain
+  [ "$(jq -r '.arguments["--b"].description' <<<"$output")" = "bee" ]
+  [ "$(jq -r '.arguments["<a>"].description' <<<"$output")" = "first line second line" ]
+  jq -e '.arguments | has("--<hole>") | not' <<<"$output"
+}
+
+@test "--check names each undescribed argument and each unparsable line, and fails" {
+  run "${root}/bin/kit" syntax --check plain broken
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit plain: --<hole> has no description in the header"* ]]
+  [[ "$output" == *"kit broken: usage does not parse: '[' is not closed"* ]]
+  [[ "$output" != *"kit plain: --b"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

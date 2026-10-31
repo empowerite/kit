@@ -15,5 +15,10 @@ pre-commit:
     refresh:
       glob: "{kit/**,.kit/packages/**,.kit/settings.yml}"
       run: bin/refresh
+    # A verb's header is its only help, and kit syntax --check holds it to the discipline: every usage line parses,
+    # and every argument it names has its description line. It runs over the staged verbs, by name.
+    kit-syntax:
+      glob: "kit/bin/kit-*"
+      run: kit syntax --check $(printf '%s\n' {staged_files} | sed 's@.*/kit-@@')
 
 # ----------------------------------------------------------------------------------------------------------------------

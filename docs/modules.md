@@ -148,6 +148,10 @@ use <module>
 - The banner's purpose is what `kit help` lists beside the verb.
 - A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several. A verb with none
   takes no arguments.
+- Every argument a usage line names has a line in the header's argument block: two spaces, the argument as the usage
+  writes it, two or more spaces, and one sentence that says what it does, continued on lines indented further.
+  `kit syntax <verb>` prints the usage and the block as JSON, and `kit syntax --check`, which the gate and the
+  pre-commit hook run, reports an argument that has no line.
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.

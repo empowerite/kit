@@ -2,18 +2,20 @@
 # kit-syntax - prints a verb's syntax as JSON, and judges its header's discipline (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit syntax [<verb>…]
+# kit syntax [--check] [<verb>…]
 #
 # Prints the grammar of a verb's command line as JSON, read from the usage lines in the verb's header. The JSON is
 # the contract between the verbs and whatever needs to know what they take, kit tui first: verb, purpose, usage (the
 # lines as written), syntax (an array of alternatives, each a sequence of nodes of kind literal, operand, flag,
-# option, or group), and arguments (each argument's description, keyed as the header's argument block writes it).
-# modules/bash/syntax.sh describes the grammar and the nodes.
+# option, or group), and arguments (each argument's description, keyed as the header's argument block writes it:
+# --name, <name>, word, or --<hole>). modules/bash/syntax.sh describes the grammar and the nodes.
 #
+#   --check   prints no JSON; reports each usage line that does not parse and each argument the header does not
+#             describe, and fails when there is any
 #   <verb>…   the verbs to print; one prints its object, several print an array, and none prints every verb
 #
-# Exits 0 when every usage line parses, 1 when one does not (its object carries error), and 2 when a name is not a
-# verb.
+# Exits 0 when every usage line parses (and, with --check, every argument is described), 1 when one does not (its
+# object carries error), and 2 when a name is not a verb.
 #
 # see: modules/bash/syntax.sh, modules/jq/syntax.jq
 
@@ -23,15 +25,22 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use help syntax
 
-guard:no-flags syntax "$@" || exit 2
 guard:require tool:jq
 
-if (( $# == 0 ))
-then
-  readarray -t verbs < <(help:verbs)
-else
-  verbs=("$@")
-fi
+check=0
+verbs=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--check) check=1 ;;
+    (-*)
+      error "unknown flag '${arg}'; run: kit help syntax"
+      exit 2
+      ;;
+    (*) verbs+=("${arg}")
+  esac
+done
+(( ${#verbs[@]} )) || readarray -t verbs < <(help:verbs)
 for verb in "${verbs[@]}"
 do
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
@@ -41,7 +50,18 @@ do
   fi
 done
 
-status=0 json=''
+status=0
+if (( check ))
+then
+  for verb in "${verbs[@]}"
+  do
+    syntax:check "${verb}" || status=1
+  done
+  (( status )) || ok "every verb's usage parses, and every argument is described"
+  exit "${status}"
+fi
+
+json=''
 for verb in "${verbs[@]}"
 do
   spec=$(syntax:spec "${verb}") || status=1

@@ -29,4 +29,12 @@ def render:
   elif .inline then "--\(.name)=<\(.value)>" + mark
   else "--\(.name) <\(.value)>" + mark end;
 
+# undescribed gives the keys a spec's syntax names, in order of first appearance, that its arguments object does not
+# describe.
+def undescribed:
+  (.arguments | keys) as $described
+  | [.syntax | .. | objects | select(has("kind") and .kind != "group") | key]
+  | reduce .[] as $key ([]; if index($key) then . else . + [$key] end)
+  | map(select(. as $key | $described | index($key) | not));
+
 # ----------------------------------------------------------------------------------------------------------------------
