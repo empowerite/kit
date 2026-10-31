@@ -266,7 +266,7 @@ JSON
   git remote set-url origin https://git.example.com/empowerite/example.git
   run provider
   [ "$status" -eq 1 ]
-  mkdir .kit && printf 'forge: gitlab\n' > .kit/settings.yml
+  mkdir .kit && printf 'forge: gitlab\n' > kit.yml
   run provider
   [ "$output" = "gitlab" ]
   run call repo-url
@@ -291,13 +291,13 @@ JSON
   for forge in github gitlab
   do
     GITHUB_CLOSING=closing-none.json GITLAB_CLOSES=none.json world "${forge}"
-    mkdir -p .kit && printf 'linked_exempt:\n  - ada\n' > .kit/settings.yml
+    mkdir -p .kit && printf 'linked_exempt:\n  - ada\n' > kit.yml
     : > "${GITHUB_STEP_SUMMARY}"
     run "${kit_root}/bin/kit" linked 3
     [ "$status" -eq 0 ]
-    [[ "$output" == *"3 is ada's, exempt from the linked-issue check by .kit/settings.yml"* ]]
+    [[ "$output" == *"3 is ada's, exempt from the linked-issue check by kit.yml"* ]]
     grep --quiet "✅ .*3 is ada's, exempt" "${GITHUB_STEP_SUMMARY}"
-    printf 'linked_exempt:\n  - bob\n' > .kit/settings.yml
+    printf 'linked_exempt:\n  - bob\n' > kit.yml
     run "${kit_root}/bin/kit" linked 3
     [ "$status" -eq 1 ]
     [[ "$output" == *"3 is not linked to any issue"* ]]

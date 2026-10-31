@@ -24,7 +24,7 @@ setup() {
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
   git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
-  mkdir .kit && printf 'forge: github\n' > .kit/settings.yml
+  mkdir .kit && printf 'forge: github\n' > kit.yml
   git add --all && git commit --quiet --message '#1 start: the first'
   git push --quiet origin main main:7-fix-the-thing main:9-other
   git remote set-head origin main

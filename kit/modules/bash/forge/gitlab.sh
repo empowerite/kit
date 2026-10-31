@@ -7,7 +7,7 @@
 # modules/bash/forge.sh loads this provider when the repository's forge is gitlab:
 #
 #   - gitlab.com, detected from origin's host
-#   - a self-hosted GitLab, set with `forge: gitlab` in .kit/settings.yml; glab finds the host from origin
+#   - a self-hosted GitLab, set with `forge: gitlab` in kit.yml; glab finds the host from origin
 #
 # It implements the calls listed in the header of modules/bash/forge.sh, with the same output as the GitHub
 # provider. The GitLab equivalents:

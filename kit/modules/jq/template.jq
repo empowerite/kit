@@ -8,7 +8,7 @@
 #   «name» on its own line any run of whole lines, including none
 #   «name=default»        any of the above, with the text it makes when no value is given; \n in it is a newline
 #
-# A name is [a-z_]+, or a dotted path in .kit/settings.yml, such as answers.ci_runner, whose value fills it. path,
+# A name is [a-z_]+, or a dotted path in kit.yml, such as answers.ci_runner, whose value fills it. path,
 # name, and stem, and a dotted name the settings set, are bound before anything else, so they are literal text. A name that appears once takes a string, and one that appears more than once takes an array, one element per
 # appearance in template order. The lines between a kit:generate directive and its kit:end line are a region: a
 # command owns them, so a file may hold anything there, and the template makes them as it has them.
@@ -147,7 +147,7 @@ def holes:
     if index($h) then . else . + [$h] end);
 
 # check($templates; $files; $settings) reads nothing and judges each file: $templates maps a variant to its template's
-# text, $files is [{path, text, variants}], and $settings the values .kit/settings.yml gives dotted names, bound with
+# text, $files is [{path, text, variants}], and $settings the values kit.yml gives dotted names, bound with
 # path, name, and stem. It gives one {path, variants, line} per file that matches none of the variants
 # its path allows: line is the furthest template line any of them reached, and variant the one that reached it, both
 # null when every one ran to its end.

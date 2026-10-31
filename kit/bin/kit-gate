@@ -5,7 +5,7 @@
 # kit gate takes no arguments. It runs the repository's gate, the repository's own CI command. The gate is the
 # first of:
 #
-#   1. the `gate` setting in .kit/settings.yml
+#   1. the `gate` setting in kit.yml
 #   2. `just ci`, when the root justfile has a ci recipe
 #   3. `make ci`, when the Makefile has a ci target
 #   4. `npm run ci`, when package.json has a ci script
@@ -57,10 +57,10 @@ gate=$(release:setting gate)
 [[ -n "${gate}" ]] || gate=$(detect-gate) || exit 1
 if [[ -z "${gate}" ]]
 then
-  error "set gate in .kit/settings.yml, or give the root justfile a ci recipe; there is no gate to run"
+  error "set gate in kit.yml, or give the root justfile a ci recipe; there is no gate to run"
   # shellcheck disable=SC2016  # markdown code spans, not expansions
   summary "### ❌ The gate cannot run: the repository has none" "" \
-    'Set `gate` in `.kit/settings.yml`, or give the root justfile a `ci` recipe.'
+    'Set `gate` in `kit.yml`, or give the root justfile a `ci` recipe.'
   exit 1
 fi
 step "the gate: ${gate}"

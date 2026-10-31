@@ -10,7 +10,7 @@ The core package. It is active in every repository that uses the kit. It deliver
   file of that kind, and the kinds found inside its files, such as the bash in a justfile.
 - `.kit/rules/<kind>.md`, one rule file per kind of file. A rule says what the work must do to be trusted. Each
   rule file's frontmatter names the kind it governs, and the linter and checks `kit lint` runs over its files.
-- `.kit/settings.schema.json`, the schema of the repository's `.kit/settings.yml`.
+- `.kit/kit.schema.json`, the schema of the repository's `kit.yml`.
 - A region in `.gitignore`: the `/worktrees/` entry the workflow needs.
 
 The region starts at a `kit:generate` directive, and `kit generate` fills it through `kit region`. The rest of

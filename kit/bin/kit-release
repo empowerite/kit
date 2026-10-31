@@ -4,7 +4,7 @@
 #
 # kit release <version> [--lower]
 #
-# Tags HEAD as release/<version>, annotated, and signed when require_signing is true in .kit/settings.yml, and pushes
+# Tags HEAD as release/<version>, annotated, and signed when require_signing is true in kit.yml, and pushes
 # that tag, and only that tag, to origin. That is how a release starts; the repository's release workflow, where it
 # has one, publishes it. No branch is pushed. Before tagging, kit release refuses:
 #

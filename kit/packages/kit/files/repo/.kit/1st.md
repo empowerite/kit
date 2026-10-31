@@ -144,7 +144,7 @@ a rule, a style, a template, a package, a bash module, and a seam's provider. `k
 
 The repository commits the declaration, and every worktree holds the text:
 
-- `.kit/settings.yml`, whose `version:` and `packages:` declare the release and the active packages, committed
+- `kit.yml`, whose `version:` and `packages:` declare the release and the active packages, committed
 - `.kit/packages/`, the repository's own packages, committed
 - this file, the kinds under `.kit/kinds/`, the rules under `.kit/rules/`, the style under `.kit/styles/` from
   the style packages the repository takes, and the rest of what the packages deliver under `.kit/`, placed by
@@ -176,7 +176,7 @@ How a delivered file is placed depends on its destination:
 
 The packages:
 
-- `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/settings.schema.json`,
+- `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/kit.schema.json`,
   and a region that `kit region` fills: the `/worktrees/` entry in the repository's `.gitignore`.
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
   `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
@@ -228,6 +228,6 @@ link leads to its source, a copy has no write bit, and git never sees either, so
   depends on the package that adds the file, and it places the replacement at the same path under `files/repo/`.
   Activate it with `kit package add <name>`. The later package in dependency order wins, so the repository's file
   is used, and `kit update` still brings everything else from the next release.
-- To fill in a value that a template asks for, set it under `answers:` in `.kit/settings.yml`.
+- To fill in a value that a template asks for, set it under `answers:` in `kit.yml`.
 - In a file kit shares with the repository, such as `AGENTS.md`, `.gitignore`, or `.claude/settings.json`, only
   the kit's region or the kit's entries are kit's. The rest of the file is the repository's to edit.

@@ -2,10 +2,10 @@
 # kit-check - fails when a delivered file differs from the pinned release (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit check takes no arguments. It compares the repository with the release pinned in .kit/settings.yml, and reports
+# kit check takes no arguments. It compares the repository with the release pinned in kit.yml, and reports
 # a finding when:
 #
-#   - .kit/settings.yml declares a kit version other than the pinned release
+#   - kit.yml declares a kit version other than the pinned release
 #   - a delivered file is missing, or differs from the release's copy
 #   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
 #   - a path under .kit/ is not the link or the readonly copy kit keeps there, .kit/.gitignore is not what kit
@@ -36,7 +36,7 @@ release:render-all "${kit_root}" "${packages[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
-  error ".kit/settings.yml declares kit ${version}, and the pinned release is $(release:version); run: kit update"
+  error "kit.yml declares kit ${version}, and the pinned release is $(release:version); run: kit update"
   findings=$(( findings + 1 ))
 fi
 for base in $(release:bases)

@@ -34,7 +34,7 @@ tracker/ado:create() {
   type=$(tracker:field "${TRACKER_PREFIX}" type)
   if [[ -z "${project}" ]]
   then
-    error "add project: <name> to the ${TRACKER_PREFIX} tracker in .kit/settings.yml"
+    error "add project: <name> to the ${TRACKER_PREFIX} tracker in kit.yml"
     return 1
   fi
   item=$(az boards work-item create --title "$1" --type "${type:-Task}" --project "${project}" --org "${org}" \
@@ -69,7 +69,7 @@ tracker/ado:organization() {
   org=$(tracker:field "${TRACKER_PREFIX}" organization)
   if [[ -z "${org}" ]]
   then
-    error "add organization: <https://dev.azure.com/name> to the ${TRACKER_PREFIX} tracker in .kit/settings.yml"
+    error "add organization: <https://dev.azure.com/name> to the ${TRACKER_PREFIX} tracker in kit.yml"
     return 1
   fi
   printf '%s\n' "${org%/}"

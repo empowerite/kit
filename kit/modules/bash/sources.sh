@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A repository takes packages from the kit's release and from its own .kit/packages/. It can name more sources, in
-# order, under sources: in .kit/settings.yml, each a tarball pinned by the sha256 digest of its bytes:
+# order, under sources: in kit.yml, each a tarball pinned by the sha256 digest of its bytes:
 #
 #   sources:
 #     - name: team
@@ -24,10 +24,10 @@
 
 use yaml
 
-# sources:list prints "<name>\x1f<url>\x1f<digest>" for each source in .kit/settings.yml, in order.
+# sources:list prints "<name>\x1f<url>\x1f<digest>" for each source in kit.yml, in order.
 sources:list() {
-  [[ -f .kit/settings.yml ]] || return 0
-  yaml:records .kit/settings.yml sources name url digest
+  [[ -f kit.yml ]] || return 0
+  yaml:records kit.yml sources name url digest
 }
 
 # sources:cache <digest> prints the directory a source with that digest is unpacked into.
@@ -72,7 +72,7 @@ sources:fetch() {
   local name=$1 url=$2 digest=$3 cache fresh have
   if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
   then
-    error "the source ${name} has no digest: pin it as digest: sha256:<hex> under sources: in .kit/settings.yml"
+    error "the source ${name} has no digest: pin it as digest: sha256:<hex> under sources: in kit.yml"
     return 1
   fi
   cache=$(sources:cache "${digest}")
@@ -93,7 +93,7 @@ sources:fetch() {
   if [[ "${have}" != "${digest}" ]]
   then
     rm -rf "${fresh}"
-    error "the source ${name} has digest ${have}, not the ${digest} .kit/settings.yml pins; check it, then pin it"
+    error "the source ${name} has digest ${have}, not the ${digest} kit.yml pins; check it, then pin it"
     return 1
   fi
   mkdir -p "${fresh}/tree"

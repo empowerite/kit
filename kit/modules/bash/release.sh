@@ -21,7 +21,7 @@
 #
 # The bases a package delivers to:
 #
-#   repo    the repository root, declared in .kit/settings.yml and recorded in .kit/manifest
+#   repo    the repository root, declared in kit.yml and recorded in .kit/manifest
 #   home    the user's home directory, recorded in ~/.kit/manifest, which every repository on the machine shares
 #
 # How a delivered file is placed:
@@ -31,7 +31,7 @@
 #   - a region is regenerated, never merged
 #   - every other file is copied
 #
-# The repository's choices are in .kit/settings.yml. The kit reads that file and never writes it.
+# The repository's choices are in kit.yml. The kit reads that file and never writes it.
 #
 # Every function reads a release from a root directory: kit_root by default, which modules/bash/1st.sh exports. kit:enter
 # changes to the repository root, so .kit/manifest and every repo path here are relative to it. Every sort and
@@ -89,12 +89,12 @@ declare -gA release_rendered=() release_root_digest=()
 declare -g release_rendered_all=''
 
 # release:settings prints the path of the repository's settings file.
-release:settings() { printf '.kit/settings.yml\n'; }
+release:settings() { printf 'kit.yml\n'; }
 
 # release:setting <key> prints the value of one top-level setting, or nothing.
 release:setting() { yaml:value "$(release:settings)" "$1"; }
 
-# release:packages [<root>] prints the packages in reach, in the release at <root>, in the sources .kit/settings.yml
+# release:packages [<root>] prints the packages in reach, in the release at <root>, in the sources kit.yml
 # names, and in the repository's .kit/packages/. A package is a directory that contains a package.yml: packages/<name>/, or
 # packages/<namespace>/<name>/ under a namespace, a directory with no package.yml of its own. Its name is its path:
 # kit, or style/bash. A package's own subdirectories are never packages.
@@ -143,7 +143,7 @@ release:expand() {
   done
 }
 
-# release_source_names and release_source_dirs hold the sources .kit/settings.yml names that are in the cache, in
+# release_source_names and release_source_dirs hold the sources kit.yml names that are in the cache, in
 # order, each source's name beside the directory that holds its packages/; release:source-roots fills them once.
 declare -ga release_source_names=() release_source_dirs=()
 declare -g release_sources_read=false
@@ -419,7 +419,7 @@ release:unmet() {
 #   - an answer key with characters outside [a-z_]
 #   - a tracker without a prefix (letters and an optional #) or without a provider
 #
-# The gate validates this repository's settings against .kit/settings.schema.json in full. The kit delivers the
+# The gate validates this repository's settings against .kit/kit.schema.json in full. The kit delivers the
 # schema so an editor can validate against it anywhere.
 release:validate-settings() {
   local settings key value
@@ -432,7 +432,7 @@ release:validate-settings() {
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
       (linked_exempt | sources) ;;
       (*)
-        error "${settings} has a key the kit does not know: ${key} (see .kit/settings.schema.json)"
+        error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"
         return 1
     esac
   done
@@ -469,7 +469,7 @@ release:validate-settings() {
 # use. The keys come from:
 #
 #   1. the package's defaults under answers: in package.yml, as <key> and as answers.<key>
-#   2. .kit/settings.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
+#   2. kit.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
 #
 # A later source overrides an earlier one, so the repository's answer wins over the package's default.
@@ -551,7 +551,7 @@ release:render() {
         then
           map=answers
           [[ "${key}" == *.* ]] && map=${key%.*}
-          error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in .kit/settings.yml" \
+          error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in kit.yml" \
             "(package ${package})"
           return 1
         fi
@@ -1159,7 +1159,7 @@ release:place-all() {
 # release:owned <base> <path> succeeds for a path the kit materializes: one under .kit/ in the repository, other than
 # the repository's own packages. Such a path is a link to its source when the source is inside the worktree, and
 # otherwise a copy without the write bit. .kit/.gitignore names every one, so git never sees them: the repository
-# commits the declaration in .kit/settings.yml and its own packages under .kit/packages/, and nothing kit places.
+# commits the declaration in kit.yml and its own packages under .kit/packages/, and nothing kit places.
 release:owned() { [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* ]]; }
 
 # release:within <real-path> succeeds when an absolute real path is inside the worktree: under the directory the verb
@@ -1403,7 +1403,7 @@ release:materialize() {
     mv -f .kit/.gitignore.kit-new .kit/.gitignore
     step ".kit/.gitignore: written"
   else
-    # Newer than .kit/settings.yml again: release:hydrated reads that as the declaration having been seen.
+    # Newer than kit.yml again: release:hydrated reads that as the declaration having been seen.
     touch .kit/.gitignore
   fi
 }
@@ -1414,14 +1414,14 @@ release:materialize() {
 # link. It starts one process, to resolve the release's root, so a reading verb asks on every run. A fresh clone, a
 # `git clean -fdx`, a
 # link an editor's save replaced, and a copy with its write bit back all fail it, and the full release:materialize
-# follows, as it does when .kit/settings.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled
+# follows, as it does when kit.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled
 # since the last full run, whose packages may have come or gone. A copy changed and put back without the write bit
 # passes it: kit check judges that. A template rendered under .kit/ is a copy even inside, so a release that delivers
 # one there takes the full run every time; none does.
 release:hydrated() {
   local line path inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
-  [[ ! .kit/settings.yml -nt .kit/.gitignore ]] || return 1
+  [[ ! kit.yml -nt .kit/.gitignore ]] || return 1
   # Both are kit's to write, so both are without the write bit, except as root, where the bit says nothing.
   [[ ! -w .kit/.gitignore && ! -w .kit/manifest ]] || (( EUID == 0 )) || return 1
   ! release:within "$(readlink -f "${kit_root}")" || inside=true
@@ -1447,7 +1447,7 @@ release:hydrated() {
 # with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It warns when this
 # release is not the declared one, since what it places is this release's. It rewrites .kit/manifest, so what the
 # declaration added is recorded, and a later release's change to it is kit's to replace. Where the declaration still
-# sits on the manifest's lines, from a release before it, it moves into .kit/settings.yml first.
+# sits on the manifest's lines, from a release before it, it moves into kit.yml first.
 release:hydrate() {
   local declared
   local -a packages
@@ -1455,11 +1455,11 @@ release:hydrate() {
   [[ -n "${declared}" ]] || return 0
   if [[ -z "$(release:setting version)" ]]
   then
-    # A manifest from a release before the declaration still carries it. It moves into .kit/settings.yml now, before
+    # A manifest from a release before the declaration still carries it. It moves into kit.yml now, before
     # anything rewrites the manifest, which would drop its only copy.
     readarray -t packages < <(release:declared-packages)
     release:declare "${declared}" "$(release:declared-excludes | paste -s -d ' ' -)" "${packages[@]}"
-    step ".kit/settings.yml: the declaration moved here from .kit/manifest"
+    step "kit.yml: the declaration moved here from .kit/manifest"
   fi
   if [[ "${1:-}" != --full ]] && release:hydrated
   then
@@ -1467,7 +1467,7 @@ release:hydrate() {
   fi
   if [[ "${declared}" != "$(release:version)" ]]
   then
-    warn ".kit/settings.yml declares kit ${declared}, and this is kit $(release:version); what is placed is this" \
+    warn "kit.yml declares kit ${declared}, and this is kit $(release:version); what is placed is this" \
       "kit's; run: kit update"
   fi
   readarray -t packages < <(release:declared-packages)
@@ -1612,7 +1612,7 @@ release:write-manifest() {
 }
 
 # release:write-manifests <excluded> <package>… writes every base's manifest, then the repository's declaration in
-# .kit/settings.yml. <excluded> is the excluded packages as a space-separated list, empty when there are none.
+# kit.yml. <excluded> is the excluded packages as a space-separated list, empty when there are none.
 release:write-manifests() {
   local excluded=$1 base
   shift
@@ -1623,7 +1623,7 @@ release:write-manifests() {
   release:declare "$(release:version)" "${excluded}" "$@"
 }
 
-# release:declare <version> <excluded> <package>… writes the repository's declaration into .kit/settings.yml: the
+# release:declare <version> <excluded> <package>… writes the repository's declaration into kit.yml: the
 # top-level keys version, packages, and excludes, the last left out when nothing is excluded. Every other line of
 # the file stays as it is, and in its place: the three keys' blocks are dropped and the declaration is written
 # where the first of them stood, or appended after one blank line when the file had none. A missing file is created
@@ -1643,7 +1643,7 @@ release:declare() {
       skip && /^  / { next }
       { skip = 0; print }' "${settings}")
   else
-    kept='# yaml-language-server: $schema=settings.schema.json'
+    kept='# yaml-language-server: $schema=.kit/kit.schema.json'
   fi
   [[ -z "${excluded}" ]] || read -r -a excludes <<<"${excluded}"
   declaration=$(
@@ -1680,7 +1680,7 @@ release:declare() {
   mv "${settings}.kit-new" "${settings}"
 }
 
-# release:declared-version prints the kit version the repository declares in .kit/settings.yml. A manifest that
+# release:declared-version prints the kit version the repository declares in kit.yml. A manifest that
 # still carries a version line, from a release before the declaration, is read as the declaration until kit update
 # moves it, and so are its packages and excludes lines below.
 release:declared-version() {
@@ -1690,14 +1690,14 @@ release:declared-version() {
   printf '%s\n' "${version}"
 }
 
-# release:declared-line <key> prints the items of an old manifest's <key> line, one per line, where .kit/settings.yml
+# release:declared-line <key> prints the items of an old manifest's <key> line, one per line, where kit.yml
 # declares no version.
 release:declared-line() {
   [[ -z "$(release:setting version)" ]] || return 0
   sed -n "s/^$1 *//p" .kit/manifest 2>/dev/null | tr ' ' '\n' | awk 'NF'
 }
 
-# release:declared-packages prints the active packages the repository declares in .kit/settings.yml, one per line.
+# release:declared-packages prints the active packages the repository declares in kit.yml, one per line.
 release:declared-packages() {
   if [[ -n "$(release:setting version)" ]]
   then yaml:list "$(release:settings)" packages
@@ -1705,7 +1705,7 @@ release:declared-packages() {
   fi
 }
 
-# release:declared-excludes prints the packages the repository declares as excluded in .kit/settings.yml, one per
+# release:declared-excludes prints the packages the repository declares as excluded in kit.yml, one per
 # line: members of an active bundle that were removed, which kit update leaves out.
 release:declared-excludes() {
   if [[ -n "$(release:setting version)" ]]
@@ -1731,22 +1731,22 @@ release:recorded() {
   awk -v p="$2" 'length($1) == 64 && substr($0, 67) == p { print $1 }' "${manifest}"
 }
 
-# release:require-declaration fails in a repository where the kit was never installed: its .kit/settings.yml
+# release:require-declaration fails in a repository where the kit was never installed: its kit.yml
 # declares no kit version.
 release:require-declaration() {
   if [[ -z "$(release:declared-version)" ]]
   then
-    error "run: kit install (.kit/settings.yml declares no kit version in this repository)"
+    error "run: kit install (kit.yml declares no kit version in this repository)"
     return 1
   fi
 }
 
 # release:finish <package>… reports a finished install or update.
 release:finish() {
-  ok "kit $(release:version) is installed, packages: ${*:-none}; .kit/settings.yml declares them."
+  ok "kit $(release:version) is installed, packages: ${*:-none}; kit.yml declares them."
   release:say-unmet "$@"
   release:say-notices "$@"
-  step "Commit .kit/settings.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored. The" \
+  step "Commit kit.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored. The" \
     "workflow is in .kit/1st.md."
 }
 

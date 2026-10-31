@@ -5,14 +5,14 @@
 #
 #   1. puts mise on the runner, when the repository has a mise.toml (brew and docker are already on GitHub's
 #      runners)
-#   2. puts kit on PATH: the release .kit/settings.yml declares, downloaded from its GitHub release, or the
+#   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release, or the
 #      checkout's own kit/bin/ when it declares unreleased
 #   3. installs the gate's tools with `kit toolchain install`, whichever of mise, brew, or docker manages them
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
 # Added by kit's github/ci package. To remove it, run kit package remove github/ci.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-# runs-on is the ci_runner value under answers: in .kit/settings.yml.
+# runs-on is the ci_runner value under answers: in kit.yml.
 #
 # see: .kit/1st.md
 
@@ -50,10 +50,10 @@ jobs:
       - name: kit-on-path
         run: |
           set -o errexit -o nounset -o pipefail
-          version=$(sed -n 's/^version: *//p' .kit/settings.yml 2>/dev/null | sed "s/[[:space:]]*#.*//; s/^[\"']//; s/[\"']$//")
+          version=$(sed -n 's/^version: *//p' kit.yml 2>/dev/null | sed "s/[[:space:]]*#.*//; s/^[\"']//; s/[\"']$//")
           if [[ -z "${version}" ]]
           then
-            echo '::error::run kit install and commit what it writes; .kit/settings.yml declares no kit version'
+            echo '::error::run kit install and commit what it writes; kit.yml declares no kit version'
             exit 1
           fi
           if [[ "${version}" == unreleased && -x kit/bin/kit ]]
@@ -61,7 +61,7 @@ jobs:
             printf '%s/kit/bin\n' "${PWD}" >> "${GITHUB_PATH}"
           elif [[ "${version}" == unreleased ]]
           then
-            echo '::error::.kit/settings.yml declares unreleased and there is no kit/bin/kit; pin a release and run kit update'
+            echo '::error::kit.yml declares unreleased and there is no kit/bin/kit; pin a release and run kit update'
             exit 1
           elif ! command -v kit >/dev/null
           then

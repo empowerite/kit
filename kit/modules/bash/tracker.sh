@@ -20,7 +20,7 @@
 #
 #   1. a bare number is read as `#<number>`
 #   2. the longest prefix that the reference starts with, followed only by digits, picks a record: one in the
-#      `trackers` list in .kit/settings.yml, or the built-in `#` record for the forge's own tracker
+#      `trackers` list in kit.yml, or the built-in `#` record for the forge's own tracker
 #   3. that record's `provider` field names the provider
 #
 # A record in `trackers` declares a prefix, a provider, and the provider's own fields. A record with the prefix
@@ -89,7 +89,7 @@ tracker:parse() {
   if [[ -z "${best}" ]]
   then
     error "'$1' is not an issue reference here; the trackers answer $(tracker:records | cut -d $'\x1f' -f 1 \
-      | sed 's/$/<number>/' | paste -s -d ' ' -) (trackers in .kit/settings.yml)"
+      | sed 's/$/<number>/' | paste -s -d ' ' -) (trackers in kit.yml)"
     return 2
   fi
   printf '%s\t%s\n' "${best}" "${ref#"${best}"}"

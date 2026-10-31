@@ -37,19 +37,19 @@ teardown() {
 
 @test "select of the current set changes nothing and exits 0" {
   "${kit_checkout}/bin/kit" install agents/claude
-  before=$(cat .kit/settings.yml .kit/manifest)
+  before=$(cat kit.yml .kit/manifest)
   run "${kit_checkout}/bin/kit" package select kit agents/claude
   [ "$status" -eq 0 ]
   [[ "$output" == *"packages: kit agents/generic agents/claude"* ]]
-  [ "$(cat .kit/settings.yml .kit/manifest)" = "${before}" ]
+  [ "$(cat kit.yml .kit/manifest)" = "${before}" ]
 }
 
 @test "select refuses a package that is not in reach before it changes anything, and a glob names its matches" {
   "${kit_checkout}/bin/kit" install
-  before=$(cat .kit/settings.yml)
+  before=$(cat kit.yml)
   run "${kit_checkout}/bin/kit" package select 'style/*' nonesuch
   [ "$status" -eq 2 ]
-  [ "$(cat .kit/settings.yml)" = "${before}" ]
+  [ "$(cat kit.yml)" = "${before}" ]
   run "${kit_checkout}/bin/kit" package select 'style/*'
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" packages
@@ -73,7 +73,7 @@ teardown() {
   run "${kit_checkout}/bin/kit" package select empowerite agents/cursor
   [ "$status" -eq 0 ]
   [ ! -e .kit/lefthook.yml ]
-  grep -q 'hooks/lefthook' .kit/settings.yml
+  grep -q 'hooks/lefthook' kit.yml
   run "${kit_checkout}/bin/kit" package select empowerite hooks/lefthook
   [ "$status" -eq 0 ]
   [ -e .kit/lefthook.yml ]

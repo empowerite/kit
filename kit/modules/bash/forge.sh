@@ -9,7 +9,7 @@
 #
 # The provider is chosen by:
 #
-#   1. the `forge` setting in .kit/settings.yml, if set
+#   1. the `forge` setting in kit.yml, if set
 #   2. otherwise origin's host: github.com is github, gitlab.com is gitlab
 #
 # kit install, update, check, context, and lint never call the forge, so they work in a repository that has no
@@ -64,13 +64,13 @@ forge:provider() {
   fi
   if [[ -z "${provider}" ]]
   then
-    error "set forge in .kit/settings.yml; origin's host '${host:-none}' names no forge the kit knows" \
+    error "set forge in kit.yml; origin's host '${host:-none}' names no forge the kit knows" \
       "($(forge:providers))"
     return 1
   fi
   if [[ -z "$(use:modules "forge/${provider}")" ]]
   then
-    error "'${provider}' is not a forge the kit knows; the forges are: $(forge:providers) (forge in .kit/settings.yml)"
+    error "'${provider}' is not a forge the kit knows; the forges are: $(forge:providers) (forge in kit.yml)"
     return 1
   fi
   printf '%s\n' "${provider}"

@@ -8,14 +8,14 @@
 #
 #   1. Activates the default packages, the named packages, and the packages they depend on and include.
 #   2. Places the files those packages deliver, in the repository and in the home directory.
-#   3. Declares the version and the packages in .kit/settings.yml, and writes .kit/manifest, and ~/.kit/manifest
+#   3. Declares the version and the packages in kit.yml, and writes .kit/manifest, and ~/.kit/manifest
 #      when the packages deliver files to the home directory.
 #
 #   <package>…   packages to activate beside the default ones, by name or by a glob such as 'style/*'; each must
 #                be in the release or under .kit/packages/
 #
 # When a different file is already at a delivered path, kit install names it and leaves it alone. It writes no
-# manifest until every path is clear. A repository whose .kit/settings.yml already declares a kit version is
+# manifest until every path is clear. A repository whose kit.yml already declares a kit version is
 # refused: run kit update.
 #
 # Exits 0 on success, 2 for a package that is neither in the release nor under .kit/packages/, and 1 for any

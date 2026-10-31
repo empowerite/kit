@@ -37,7 +37,7 @@ source-tarball() {
 @test "a source's package installs, comes from its source, and its bash directory joins the module path" {
   IFS=$'\t' read -r file digest < <(source-tarball team guides first)
   printf 'sources:\n  - name: team\n    url: file://%s\n    digest: %s\nbash_path:\n  - kit:modules/bash/\n  - team:bash\n' \
-    "${file}" "${digest}" >> .kit/settings.yml
+    "${file}" "${digest}" >> kit.yml
   run kit package add guides
   [ "$status" -eq 0 ]
   [ -f .kit/notes/first.md ]
@@ -51,13 +51,13 @@ source-tarball() {
 
 @test "a source whose bytes have another digest is refused before anything of it is read" {
   IFS=$'\t' read -r file _ < <(source-tarball team guides first)
-  printf 'sources:\n  - name: team\n    url: file://%s\n    digest: sha256:%064d\n' "${file}" 0 >> .kit/settings.yml
+  printf 'sources:\n  - name: team\n    url: file://%s\n    digest: sha256:%064d\n' "${file}" 0 >> kit.yml
   run kit package add guides
   [ "$status" -ne 0 ]
   [[ "$output" == *"the source team has digest sha256:"*", not the sha256:0000"* ]]
   [ ! -e "${XDG_CACHE_HOME}/kit/sources" ] || [ -z "$(ls "${XDG_CACHE_HOME}/kit/sources")" ]
-  printf 'sources:\n  - name: bare\n    url: file://%s\n' "${file}" > .kit/settings.yml.extra
-  sed -i.bak '/^sources:/,$d' .kit/settings.yml && rm .kit/settings.yml.bak && cat .kit/settings.yml.extra >> .kit/settings.yml
+  printf 'sources:\n  - name: bare\n    url: file://%s\n' "${file}" > kit.yml.extra
+  sed -i.bak '/^sources:/,$d' kit.yml && rm kit.yml.bak && cat kit.yml.extra >> kit.yml
   run kit packages
   [[ "$output" == *"the source bare has no digest"* ]]
 }
@@ -66,7 +66,7 @@ source-tarball() {
   IFS=$'\t' read -r one one_digest < <(source-tarball one guides first)
   IFS=$'\t' read -r two two_digest < <(source-tarball two guides second)
   printf 'sources:\n  - name: one\n    url: file://%s\n    digest: %s\n  - name: two\n    url: file://%s\n    digest: %s\n' \
-    "${one}" "${one_digest}" "${two}" "${two_digest}" >> .kit/settings.yml
+    "${one}" "${one_digest}" "${two}" "${two_digest}" >> kit.yml
   run kit package add guides
   [ "$status" -eq 0 ]
   [ -f .kit/notes/second.md ]

@@ -10,7 +10,7 @@
 #
 # A repository can use more than one provider. They are chosen by:
 #
-#   1. the `toolchains` list in .kit/settings.yml, in the order listed
+#   1. the `toolchains` list in kit.yml, in the order listed
 #   2. otherwise every provider whose file is at the repository root, in this order:
 #        - mise: mise.toml or .mise.toml
 #        - brew: Brewfile
@@ -61,7 +61,7 @@ toolchain:declared() {
       if [[ -z "$(use:modules "toolchain/${provider}")" ]]
       then
         error "'${provider}' is not a toolchain the kit knows; the toolchains are: $(toolchain:providers)" \
-          "(toolchains in .kit/settings.yml)"
+          "(toolchains in kit.yml)"
         return 1
       fi
     done

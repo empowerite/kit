@@ -32,14 +32,14 @@ shims() {
   printf '%s:%s\n' "${repo}.shims" "${PATH}"
 }
 
-# declared <key> prints a top-level key of .kit/settings.yml: a scalar's value, or a list's items on one line.
+# declared <key> prints a top-level key of kit.yml: a scalar's value, or a list's items on one line.
 declared() {
   awk -v key="$1" '
     $0 ~ "^" key ": " { v = $0; sub("^" key ": *", "", v); print v; exit }
     $0 == key ":" { on = 1; next }
     /^[A-Za-z]/ { on = 0 }
     on && /^  - / { sub(/^  - /, ""); printf "%s%s", (n++ ? " " : ""), $0 }
-    END { if (n) print "" }' .kit/settings.yml 2>/dev/null
+    END { if (n) print "" }' kit.yml 2>/dev/null
 }
 
 # later-release <dir> [<version>] copies this checkout's release to <dir> as <version>, 9.9.9 unless given, with one
@@ -68,7 +68,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
-  grep --quiet "sed -n 's/^version: \*//p' .kit/settings.yml" .github/workflows/kit-ci.yml
+  grep --quiet "sed -n 's/^version: \*//p' kit.yml" .github/workflows/kit-ci.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   # a stray file under a package not active is nobody's business
@@ -173,7 +173,7 @@ later-release() {
 }
 
 @test "a template takes the repository's answer over the package's default, and refuses a key with neither" {
-  mkdir .kit && printf 'answers:\n  ci_runner: blacksmith-2vcpu\n' > .kit/settings.yml
+  mkdir .kit && printf 'answers:\n  ci_runner: blacksmith-2vcpu\n' > kit.yml
   run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "blacksmith-2vcpu"$' .github/workflows/kit-ci.yml
@@ -269,7 +269,7 @@ later-release() {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   # the file now carries the declaration, so the repository's own keys are added to it
-  printf 'answers:\n  python: "3.14"\n' >> .kit/settings.yml
+  printf 'answers:\n  python: "3.14"\n' >> kit.yml
   run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(cat .python-version)" = "python 3.14" ]
@@ -282,22 +282,22 @@ later-release() {
 }
 
 @test "the settings file is held to its schema: an unknown key and a non-boolean require_signing are refused" {
-  mkdir .kit && printf 'forgery: github\n' > .kit/settings.yml
+  mkdir .kit && printf 'forgery: github\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
-  [[ "$output" == *".kit/settings.yml has a key the kit does not know: forgery (see .kit/settings.schema.json)"* ]]
-  printf 'require_signing: yes\n' > .kit/settings.yml
+  [[ "$output" == *"kit.yml has a key the kit does not know: forgery (see .kit/kit.schema.json)"* ]]
+  printf 'require_signing: yes\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
   [[ "$output" == *"require_signing must be true or false"* ]]
-  printf 'linked_exempt: dependabot[bot]\n' > .kit/settings.yml
+  printf 'linked_exempt: dependabot[bot]\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
   [[ "$output" == *"linked_exempt must be a list of logins, one per line under it"* ]]
-  printf 'require_signing: false\nanswers:\n  ci_runner: x\nlinked_exempt:\n  - dependabot[bot]\n' > .kit/settings.yml
+  printf 'require_signing: false\nanswers:\n  ci_runner: x\nlinked_exempt:\n  - dependabot[bot]\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
-  [ -f .kit/settings.schema.json ]
+  [ -f .kit/kit.schema.json ]
 }
 
 @test "a package the repository defines is validated like a delivered one" {
@@ -469,19 +469,19 @@ later-release() {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: kit install"* ]]
-  [[ "$output" == *".kit/settings.yml"* ]]
+  [[ "$output" == *"kit.yml"* ]]
 }
 
-@test "install writes the declaration into settings.yml, keeps the repository's own lines, and the manifest records digests only" {
+@test "install writes the declaration into kit.yml, keeps the repository's own lines, and the manifest records digests only" {
   mkdir .kit
-  printf '# yaml-language-server: $schema=settings.schema.json\nrequire_signing: true\n' > .kit/settings.yml
+  printf '# yaml-language-server: $schema=.kit/kit.schema.json\nrequire_signing: true\n' > kit.yml
   run "${kit_checkout}/bin/kit" install agents/claude
   [ "$status" -eq 0 ]
-  [ "$(sed -n '1p' .kit/settings.yml)" = '# yaml-language-server: $schema=settings.schema.json' ]
-  grep --quiet '^require_signing: true$' .kit/settings.yml
+  [ "$(sed -n '1p' kit.yml)" = '# yaml-language-server: $schema=.kit/kit.schema.json' ]
+  grep --quiet '^require_signing: true$' kit.yml
   [ "$(declared version)" = unreleased ]
   [ "$(declared packages)" = "kit agents/generic agents/claude" ]
-  run ! grep --quiet '^excludes' .kit/settings.yml
+  run ! grep --quiet '^excludes' kit.yml
   run ! grep --quiet '^version' .kit/manifest
   run ! grep --quiet '^packages' .kit/manifest
   grep --quiet '  .kit/1st.md$' .kit/manifest
@@ -489,8 +489,8 @@ later-release() {
   run "${kit_checkout}/bin/kit" package add hooks/lefthook
   [ "$status" -eq 0 ]
   [ "$(declared packages)" = "kit agents/generic agents/claude hooks/lefthook" ]
-  [ "$(grep -c '^version:' .kit/settings.yml)" -eq 1 ]
-  [ "$(grep -c '^require_signing: true$' .kit/settings.yml)" -eq 1 ]
+  [ "$(grep -c '^version:' kit.yml)" -eq 1 ]
+  [ "$(grep -c '^require_signing: true$' kit.yml)" -eq 1 ]
 }
 
 @test "update replaces an edited copy under .kit/, merges an edited file outside it, and records the release's digests" {
@@ -532,10 +532,10 @@ later-release() {
   [ -f .kit/manifest ]
 }
 
-@test "a repository from a release whose manifest still declared the version and packages is taken as declared, and update moves the declaration into settings.yml" {
+@test "a repository from a release whose manifest still declared the version and packages is taken as declared, and update moves the declaration into kit.yml" {
   "${kit_checkout}/bin/kit" install agents/claude
-  # the shape rc.3 to rc.6 left behind: no declaration in settings.yml, the manifest's version and packages lines
-  sed -i.bak -e '/^version:/d' -e '/^packages:/d' -e '/^  - /d' .kit/settings.yml && rm .kit/settings.yml.bak
+  # the shape rc.3 to rc.6 left behind: no declaration in kit.yml, the manifest's version and packages lines
+  sed -i.bak -e '/^version:/d' -e '/^packages:/d' -e '/^  - /d' kit.yml && rm kit.yml.bak
   { printf '# .kit/manifest - written by kit, not by hand\nversion unreleased\npackages kit agents/generic agents/claude\n'
     grep '  ' .kit/manifest; } > m && mv m .kit/manifest
   run "${kit_checkout}/bin/kit" install
@@ -554,19 +554,40 @@ later-release() {
   [[ "$output" == *".kit/manifest is tracked by git"* ]]
 }
 
+@test "a repository whose settings are still in .kit/settings.yml has them moved to kit.yml by the next verb" {
+  "${kit_checkout}/bin/kit" install agents/claude
+  # the shape a release before kit.yml left behind: the settings under .kit/, with the modeline beside the schema
+  sed 's#\$schema=\.kit/kit\.schema\.json#$schema=settings.schema.json#' kit.yml > .kit/settings.yml && rm kit.yml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"kit.yml: the settings moved here from .kit/settings.yml"* ]]
+  [ ! -e .kit/settings.yml ]
+  [ "$(sed -n '1p' kit.yml)" = '# yaml-language-server: $schema=.kit/kit.schema.json' ]
+  [ "$(declared packages)" = "kit agents/generic agents/claude" ]
+}
+
+@test "a kit.yml already there is kept, and .kit/settings.yml beside it is left alone" {
+  "${kit_checkout}/bin/kit" install
+  printf 'version: 0.0.1\n' > .kit/settings.yml
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+  [ -f .kit/settings.yml ]
+  [ "$(declared version)" = unreleased ]
+}
+
 @test "the declaration is rewritten where it stands, so the repository's own keys and comments keep their places" {
   mkdir .kit
-  printf 'require_signing: true\n\n# the kit\nversion: unreleased\npackages:\n  - kit\n\ngate: bin/ci\n' > .kit/settings.yml
+  printf 'require_signing: true\n\n# the kit\nversion: unreleased\npackages:\n  - kit\n\ngate: bin/ci\n' > kit.yml
   run "${kit_checkout}/bin/kit" package add hooks/lefthook
   [ "$status" -eq 0 ]
   expected='require_signing: true||# the kit|version: unreleased|packages:|  - kit|  - hooks/lefthook||gate: bin/ci'
-  [ "$(paste -s -d '|' - < .kit/settings.yml)" = "${expected}" ]
+  [ "$(paste -s -d '|' - < kit.yml)" = "${expected}" ]
 }
 
 @test "the delivered workflow's version read strips quotes and a trailing comment" {
   "${kit_checkout}/bin/kit" install github/ci
   printf 'version: "9.9.9"  # pinned\n' > s.yml
-  line=$(grep 'version=\$(sed' .github/workflows/kit-ci.yml | sed 's/^ *//; s#\.kit/settings\.yml#s.yml#')
+  line=$(grep 'version=\$(sed' .github/workflows/kit-ci.yml | sed 's/^ *//; s#kit\.yml#s.yml#')
   eval "${line}"
   [ "${version}" = "9.9.9" ]
 }
@@ -813,7 +834,7 @@ later-release() {
   printf 'description: "x"\ndepends:\n  - kit\nanswers:\n  ci_runner: ours\n' > .kit/packages/extra/package.yml
   printf 'runner = "@ci_runner@"\nsigning = @require_signing@\nagain = "@answers.ci_runner@"\n' \
     > .kit/packages/extra/regions/repo/config.toml
-  printf 'require_signing: false\n' > .kit/settings.yml
+  printf 'require_signing: false\n' > kit.yml
   run "${kit_checkout}/bin/kit" install extra
   [ "$status" -eq 0 ]
   rendered='runner = "ours"|signing = false|again = "ours"'
@@ -821,7 +842,7 @@ later-release() {
   [ "$("${kit_checkout}/bin/kit" region config.toml | paste -s -d '|' -)" = "${rendered}" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'answers:\n  ci_runner: theirs\n' >> .kit/settings.yml
+  printf 'answers:\n  ci_runner: theirs\n' >> kit.yml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"config.toml: stale"* ]]
@@ -832,7 +853,7 @@ later-release() {
   printf 'x = @missing@\n' > .kit/packages/extra/regions/repo/other.toml
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  remedy="other.toml needs an answer for 'missing'; add 'missing: <value>' under answers: in .kit/settings.yml"
+  remedy="other.toml needs an answer for 'missing'; add 'missing: <value>' under answers: in kit.yml"
   [[ "$output" == *"${remedy} (package extra)"* ]]
 }
 

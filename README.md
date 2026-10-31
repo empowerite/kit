@@ -114,7 +114,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    date. Your own files can contain regions too; see [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
-   - any command, set as `gate` in `.kit/settings.yml`
+   - any command, set as `gate` in `kit.yml`
    - a `ci` recipe in the root justfile
    - a `ci` target in a Makefile
    - a `ci` script in `package.json`
@@ -229,7 +229,7 @@ written by `bin/refresh`, which runs `kit update` from the index. Do not edit th
 
 | Installed copy | Written from |
 | --- | --- |
-| `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/`, `.kit/rules/`, `.kit/settings.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
+| `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/`, `.kit/rules/`, `.kit/kit.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
 | `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | links into `kit/packages/style/<kind>/files/repo/.kit/` |
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | links into `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
 | `.kit/lefthook.yml` | a link into `kit/packages/hooks/lefthook/files/repo/.kit/` |
@@ -238,13 +238,13 @@ written by `bin/refresh`, which runs `kit update` from the index. Do not edit th
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `AGENTS.md` | `kit/packages/agents/generic/regions/repo/AGENTS.md`, a region; the rest of the file belongs to this repository |
 | `.gitignore` | `kit/packages/kit/regions/repo/.gitignore`, a region; the rest of the file belongs to this repository |
-| `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `.kit/settings.yml` |
+| `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `kit.yml` |
 
-`.kit/settings.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
+`kit.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
 `excludes` keys there. A fresh clone or worktree holds nothing else under `.kit/` until a kit verb runs, or `cd`
 hydrates it through the mise hook in `mise.toml`.
 
-When a commit changes a file under `kit/` or `.kit/packages/`, or `.kit/settings.yml`, the installed copies must change
+When a commit changes a file under `kit/` or `.kit/packages/`, or `kit.yml`, the installed copies must change
 in the same commit:
 
 - With the pre-commit hook installed, this happens automatically: the hook runs `bin/refresh`, which regenerates

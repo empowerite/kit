@@ -153,7 +153,7 @@ forge-world() {
   mkdir -p "${FAKE_DIR}/bin"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
   export PATH="${FAKE_DIR}/bin:${PATH}"
-  printf 'forge: github\n' >> .kit/settings.yml
+  printf 'forge: github\n' >> kit.yml
   printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
   printf '[{"number": 3}]\n' > "${FAKE_DIR}/pr-open.json"
   printf '{"body": "Closes #7"}\n' > "${FAKE_DIR}/pr.json"

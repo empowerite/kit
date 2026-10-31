@@ -128,7 +128,7 @@ generate:region() {
   if [[ -z "${generate_regions[$1]+x}" ]]
   then
     readarray -t packages < <(release:declared-packages)
-    error "no active package delivers a region at $1 (packages: ${packages[*]}); see .kit/settings.yml"
+    error "no active package delivers a region at $1 (packages: ${packages[*]}); see kit.yml"
     return 1
   fi
   cat "${generate_regions[$1]}"

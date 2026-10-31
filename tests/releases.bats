@@ -87,7 +87,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
 }
 
 @test "kit releases lists the forge's releases newest first: version, kind, age, and the latest" {
-  printf 'forge: github\n' > .kit-settings && mkdir -p .kit && mv .kit-settings .kit/settings.yml
+  printf 'forge: github\n' > .kit-settings && mkdir -p .kit && mv .kit-settings kit.yml
   : > "${FAKE_DIR}/gh.routes"
   cat > "${FAKE_DIR}/releases.json" <<'JSON'
 [{"tagName": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "isPrerelease": true, "isDraft": false, "isLatest": false,

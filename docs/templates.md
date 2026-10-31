@@ -58,7 +58,7 @@ guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and 
 | `«name»` on a line of its own | Replaced by the value's lines. With no value, one blank line, or nothing when it is the template's last line. | Matches any run of whole lines, including none. |
 | `«name=default»`, `«name…=default»` | The value, else the default; `\n` in a default is a newline. | As without the default. |
 
-- A name may be a dotted path in `.kit/settings.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
+- A name may be a dotted path in `kit.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
   `answers:`. Making a file fills it with that setting's value, and `kit new file` refuses when the settings leave it
   unset and it has no default. Checking a file binds it as it binds `path`: the setting's value is literal text.
 - `path`, `name`, and `stem` come from the path, and are bound before a file is checked, so they are literal text

@@ -9,7 +9,7 @@
 #   - A module is a sourced <module>.sh in a directory on the module path, or below one: toolchain/brew is
 #     toolchain/brew.sh. The verb or module that needs it loads it with `use <module>`, which sources every
 #     <module>.sh on the path, in order, once per process.
-#   - The module path is the bash_path setting in .kit/settings.yml. Its first entry is kit:modules/bash/, this
+#   - The module path is the bash_path setting in kit.yml. Its first entry is kit:modules/bash/, this
 #     file's directory. A later file can replace a function an earlier one defined; super.sh lets it call the one
 #     it replaced.
 #   - Within the modules, work is a function call. Across a process boundary it is `run kit <verb>`, which runs
@@ -40,7 +40,8 @@ declare -ag kit_bash_path=()
 
 # kit:enter starts a verb's process: it exports the directory the command was typed in as kit_invoked_in, for verbs
 # that take relative paths, and changes to the repository root, so every verb reads and writes the same paths
-# wherever it was typed.
+# wherever it was typed. A repository from a release that kept its settings in .kit/settings.yml has them moved to
+# kit.yml first, before anything reads them.
 kit:enter() {
   kit_invoked_in=$(pwd -P)
   export kit_invoked_in
@@ -49,6 +50,17 @@ kit:enter() {
   then
     cd "${repository}" || return 1
   fi
+  kit:move-settings
+}
+
+# kit:move-settings moves .kit/settings.yml to kit.yml at the root, where a release before kit.yml left it, and
+# points its schema modeline at .kit/kit.schema.json. Where kit.yml is there already, it leaves both alone.
+kit:move-settings() {
+  [[ -f .kit/settings.yml && ! -e kit.yml ]] || return 0
+  # shellcheck disable=SC2016  # $schema is the modeline's own text, not the shell's
+  sed 's#\$schema=settings\.schema\.json#$schema=.kit/kit.schema.json#' .kit/settings.yml > kit.yml || return 1
+  rm -f .kit/settings.yml
+  step "kit.yml: the settings moved here from .kit/settings.yml; commit both paths"
 }
 
 # use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the bash_path
@@ -60,20 +72,20 @@ use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
   local entry dir root digest
   local -a entries
-  # A verb runs at the repository root, where .kit/settings.yml is. A just recipe, or any script that sources this
+  # A verb runs at the repository root, where kit.yml is. A just recipe, or any script that sources this
   # file, may run in a directory below it, so the settings and the relative entries are read from the root then.
   root=$(pwd -P)
-  if [[ ! -f .kit/settings.yml ]]
+  if [[ ! -f kit.yml ]]
   then
     root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
   fi
   # yaml.sh is read in a subshell, so this does not count as loading it.
   # shellcheck source=SCRIPTDIR/yaml.sh
-  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list "${root}/.kit/settings.yml" bash_path)
+  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list "${root}/kit.yml" bash_path)
   (( ${#entries[@]} )) || entries=(kit:modules/bash/)
   if [[ "${entries[0]}" != kit:modules/bash/ ]]
   then
-    error "bash_path must start with kit:modules/bash/, the kit's own modules (bash_path in .kit/settings.yml)"
+    error "bash_path must start with kit:modules/bash/, the kit's own modules (bash_path in kit.yml)"
     return 2
   fi
   for entry in "${entries[@]}"
@@ -83,13 +95,13 @@ use:load-path() {
       (/*) dir=${entry} ;;
       (\~ | \~/*) dir=${HOME}${entry#\~} ;;
       ([A-Za-z0-9_-]*:*)
-        # <source>:<dir> is a directory in a source .kit/settings.yml names, in the cache under its digest.
-        digest=$(source "${kit_root}/modules/bash/yaml.sh" && yaml:records "${root}/.kit/settings.yml" sources name digest \
+        # <source>:<dir> is a directory in a source kit.yml names, in the cache under its digest.
+        digest=$(source "${kit_root}/modules/bash/yaml.sh" && yaml:records "${root}/kit.yml" sources name digest \
           | awk -F '\037' -v n="${entry%%:*}" '$1 == n { print $2; exit }')
         if [[ -z "${digest}" ]]
         then
           error "bash_path entry '${entry}' names a root the kit does not know; the roots are kit: and the sources" \
-            "(bash_path and sources in .kit/settings.yml)"
+            "(bash_path and sources in kit.yml)"
           return 2
         fi
         dir=${XDG_CACHE_HOME:-${HOME}/.cache}/kit/sources/${digest#sha256:}/${entry#*:}

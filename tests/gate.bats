@@ -18,7 +18,7 @@ teardown() {
 @test "no gate is refused, naming the remedy" {
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 1 ]
-  [[ "$output" == *"set gate in .kit/settings.yml, or give the root justfile a ci recipe"* ]]
+  [[ "$output" == *"set gate in kit.yml, or give the root justfile a ci recipe"* ]]
   grep --quiet 'cannot run' summary.md
 }
 
@@ -30,12 +30,12 @@ teardown() {
 }
 
 @test "the gate setting wins, else a Makefile or a package.json is detected" {
-  mkdir .kit && printf 'gate: echo from the setting\n' > .kit/settings.yml
+  mkdir .kit && printf 'gate: echo from the setting\n' > kit.yml
   printf 'ci:\n  echo from just\n' > justfile
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 0 ]
   [[ "$output" == *"from the setting"* ]]
-  rm -r .kit justfile
+  rm -r .kit kit.yml justfile
   printf 'ci:\n\t@echo from make\n' > Makefile
   run "${kit_checkout}/bin/kit" gate
   [ "$status" -eq 0 ]

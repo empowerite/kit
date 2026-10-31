@@ -21,7 +21,7 @@ A reference names its tracker in its syntax, the way the trackers already write 
 | `7` or `#7` | the forge's own issues, GitHub's or GitLab's |
 | `AB#4521` | an Azure DevOps work item, under a prefix the repository declares |
 
-`.kit/settings.yml` declares every tracker except the forge's own. Each record has:
+`kit.yml` declares every tracker except the forge's own. Each record has:
 
 - `prefix`, the text a reference starts with
 - `provider`, the provider that handles the reference
@@ -51,7 +51,7 @@ and the error lists the known prefixes.
 - `kit linked` passes when the forge reports that the change closes an open issue of the repository. It also
   passes when the change's body names an open issue of a declared tracker with a closing keyword:
   `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`. A change by a login under `linked_exempt` in
-  `.kit/settings.yml` passes without an issue, and the output says so.
+  `kit.yml` passes without an issue, and the output says so.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
 

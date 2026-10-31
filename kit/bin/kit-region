@@ -48,7 +48,7 @@ release:render-all "${kit_root}" "${packages[@]}"
 src=$(release:source-of "${kit_root}" "${base}" "${path}" "${packages[@]}")
 if [[ -z "${src}" ]] || [[ "$(release:kind "${src}" "${path}")" != region ]]
 then
-  error "no active package delivers a region at ${path} (packages: ${packages[*]}); see .kit/settings.yml"
+  error "no active package delivers a region at ${path} (packages: ${packages[*]}); see kit.yml"
   exit 1
 fi
 cat "${src}"

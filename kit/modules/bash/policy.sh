@@ -16,7 +16,7 @@
 #   - the open change on the branch, with its title, body, and author
 #   - the policy settings, with the kit's defaults filled in
 #
-# The rules are the `policy:` map in .kit/settings.yml, one extended regular expression per subject. A subject
+# The rules are the `policy:` map in kit.yml, one extended regular expression per subject. A subject
 # that is not set uses the kit's default below. An empty pattern turns that rule off.
 #
 #   branch            the branch's name
@@ -25,7 +25,7 @@
 #
 # The provider is chosen by:
 #
-#   1. the `policy_engine` setting in .kit/settings.yml, if set
+#   1. the `policy_engine` setting in kit.yml, if set
 #   2. otherwise opa, if .kit/policy/ contains a .rego file
 #   3. otherwise patterns
 #
@@ -141,7 +141,7 @@ policy:engine() {
   if [[ -z "$(use:modules "policy/${engine}")" ]]
   then
     error "'${engine}' is not a policy engine the kit knows; the engines are: patterns opa (policy_engine in" \
-      ".kit/settings.yml)"
+      "kit.yml)"
     return 1
   fi
   printf '%s\n' "${engine}"

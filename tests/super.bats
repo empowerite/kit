@@ -9,7 +9,7 @@ setup() {
   cd "${repo}"
   git init --quiet --initial-branch=main
   mkdir -p .kit a b c
-  printf 'bash_path:\n  - kit:modules/bash/\n  - a/\n  - b/\n  - c/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - a/\n  - b/\n  - c/\n' > kit.yml
   printf 'foo:bar() { echo "A($*)"; }\nfoo:baz() { echo "baz $(foo:bar x)"; }\n' > a/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "B[$(super "$@")]"; }\n' > b/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "C{$(super "$@")}"; }\n' > c/foo.sh

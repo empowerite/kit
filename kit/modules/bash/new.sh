@@ -440,7 +440,7 @@ new:module-dir() {
       return 0
     fi
   done
-  error "the module path has no directory of this repository's own; add one under bash_path in .kit/settings.yml," \
+  error "the module path has no directory of this repository's own; add one under bash_path in kit.yml," \
     "such as bash/"
   return 1
 }

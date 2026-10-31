@@ -40,10 +40,10 @@ route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
   run "${kit_root}/bin/kit" toolchains
   detected=$(awk '{ print $1 "=" $2 }' <<<"$output" | paste -s -d ' ' -)
   [ "${detected}" = "mise=mise.toml brew=Brewfile docker=toolchain.Dockerfile" ]
-  mkdir .kit && printf 'toolchains:\n  - provider: brew\n    file: tools/Brewfile\n' > .kit/settings.yml
+  mkdir .kit && printf 'toolchains:\n  - provider: brew\n    file: tools/Brewfile\n' > kit.yml
   run "${kit_root}/bin/kit" toolchains
   [ "$output" = "brew     tools/Brewfile" ]
-  printf 'toolchains:\n  - provider: nix\n' > .kit/settings.yml
+  printf 'toolchains:\n  - provider: nix\n' > kit.yml
   run "${kit_root}/bin/kit" toolchains
   [ "$status" -ne 0 ]
   [[ "$output" == *"'nix' is not a toolchain the kit knows; the toolchains are: brew docker mise"* ]]
@@ -130,14 +130,14 @@ JSON
 }
 
 @test "the gate runs inside the docker toolchain, and with mise's path first otherwise" {
-  mkdir .kit && printf 'gate: echo gated\ntoolchains:\n  - provider: docker\n' > .kit/settings.yml
+  mkdir .kit && printf 'gate: echo gated\ntoolchains:\n  - provider: docker\n' > kit.yml
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
   route docker 'image inspect *' '!0'
   route docker 'run --rm *' '!0'
   run "${kit_root}/bin/kit" gate
   [ "$status" -eq 0 ]
   grep --quiet -- ' bash -c echo gated$' "${FAKE_DIR}/docker.calls"
-  printf 'gate: echo "${PATH%%%%:*}"\n' > .kit/settings.yml
+  printf 'gate: echo "${PATH%%%%:*}"\n' > kit.yml
   mv toolchain.Dockerfile elsewhere.Dockerfile
   touch mise.toml
   fixture paths.txt <<<'/m/tools/bin'

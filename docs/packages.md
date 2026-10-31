@@ -6,7 +6,7 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 ## Activation
 
 - `kit install [<package>…]` activates `kit`, the one default package, plus the named packages, the packages they
-  depend on, and the members they include. It declares the set under `packages:` in `.kit/settings.yml`.
+  depend on, and the members they include. It declares the set under `packages:` in `kit.yml`.
 - `kit packages` lists every package in reach, which are active, and which are excluded, filtered by state with
   `--active` or `--inactive`, by name or glob, and as JSON with `--json`.
 - `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
@@ -20,7 +20,7 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   and takes the kit's entries back out of any merged `.json` file. A package that an active package depends on is
   refused.
 - A bundle is a package that includes others, such as `empowerite`. Adding it activates its members, and a member
-  can be removed on its own: `kit package remove` lists it under `excludes:` in `.kit/settings.yml`, and
+  can be removed on its own: `kit package remove` lists it under `excludes:` in `kit.yml`, and
   `kit update` leaves it out. Naming it in `kit package add` ends the exclusion.
 - `kit update` resolves the active set again from the new release, so a new member of a bundle, a new dependency,
   or a new default package arrives with the release. An excluded member stays out, unless a package depends on it,
@@ -42,7 +42,7 @@ else in the package's directory. The base sets where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
-| `repo` | the repository root | the declaration in `.kit/settings.yml`, committed; `.kit/manifest`, written beside what kit placed under `.kit/` and ignored like it |
+| `repo` | the repository root | the declaration in `kit.yml`, committed; `.kit/manifest`, written beside what kit placed under `.kit/` and ignored like it |
 | `home` | the user's home directory, `~` | `~/.kit/manifest`, on the user's machine; a CI runner has none |
 
 - `files/home/.kit/<name>` is a user-level setting. Each machine has one copy, from whichever repository installed
@@ -67,7 +67,7 @@ delivered file without them.
 
 ## Metadata
 
-`package.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that
+`package.yml`, a rule's frontmatter, and `kit.yml` all use the small subset of YAML that
 `kit/modules/bash/yaml.sh` reads: scalars, lists of `- item`, one level of map, and lists of records. A line
 starting with `#` is a comment.
 
@@ -86,7 +86,7 @@ answers:
 | `default` | `true` makes the package active unless removed. In this release only `kit` sets it. |
 | `depends` | Packages activated with this one. `kit package remove` refuses a package another active package depends on. |
 | `includes` | The members of a bundle: packages activated with this one, each of which `kit package remove` can take out on its own. |
-| `answers` | The default value of each template key. A repository overrides one under `answers:` in `.kit/settings.yml`. |
+| `answers` | The default value of each template key. A repository overrides one under `answers:` in `kit.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 | `notices` | What happens next, told when the kit places a path afresh or merges a new entry into it, each a `path` and a `text`; see below. |
 
@@ -230,23 +230,23 @@ Files under `templates/<base>/` and `regions/<base>/` are rendered before they a
 like a `files/` file. Bash's `${var}` and GitHub's `${{ }}` cannot be mistaken for `@key@`, so a template can
 contain both unchanged.
 
-The values come from the whole of `.kit/settings.yml`:
+The values come from the whole of `kit.yml`:
 
 - `@require_signing@` is a top-level setting.
 - `@answers.ci_runner@` is an entry in a map.
 - `@ci_runner@` is the entry under `answers:`.
 
-A key with no value in `.kit/settings.yml` takes the package's default from its own `answers`. A key with neither
+A key with no value in `kit.yml` takes the package's default from its own `answers`. A key with neither
 fails the install, and the error names the key and the package.
 
 ## Settings
 
-`.kit/settings.yml` belongs to the repository. The kit writes three keys in it, `version`, `packages`, and `excludes`,
+`kit.yml` belongs to the repository. The kit writes three keys in it, `version`, `packages`, and `excludes`,
 which declare the pinned release and the active packages, and reads the rest.
 
-- Its schema is [settings.schema.json](../kit/packages/kit/files/repo/.kit/settings.schema.json), delivered beside it as
-  `.kit/settings.schema.json`.
-- An editor validates the file through the modeline `# yaml-language-server: $schema=settings.schema.json`.
+- Its schema is [kit.schema.json](../kit/packages/kit/files/repo/.kit/kit.schema.json), which the kit package
+  delivers as `.kit/kit.schema.json`.
+- An editor validates the file through the modeline `# yaml-language-server: $schema=.kit/kit.schema.json`.
 - Before every install, update, and check, the kit checks the file against the schema's main points, and
   names any unknown key.
 
@@ -278,7 +278,7 @@ providers, or one the repository adds on its bash module path: `forge: bitbucket
 ## Sources
 
 A repository takes packages from the kit's release, from its own `.kit/packages/`, and from the sources it names
-under `sources:` in `.kit/settings.yml`: an organization's rules, such as its own bundle, published once and taken by
+under `sources:` in `kit.yml`: an organization's rules, such as its own bundle, published once and taken by
 every repository, the base always a release and never a copy.
 
 ```yaml
@@ -325,7 +325,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
-| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/settings.schema.json`; a region in `.gitignore` |
+| [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/kit.schema.json`; a region in `.gitignore` |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |

@@ -46,7 +46,7 @@ The four checks are fixed. What each one runs is found at run time, from the rep
 | the linters | the `lint:` command in the frontmatter of each rule and style that governs a file |
 | the kit's own checks | the names under `checks:` in that frontmatter; the workflows rule names `pinned`, which refuses an action not pinned to a full commit SHA |
 | the templates | the `templates:` list in that frontmatter |
-| the policy engine | Open Policy Agent when `.kit/policy/` holds a `.rego` file, else the patterns in `.kit/settings.yml` |
+| the policy engine | Open Policy Agent when `.kit/policy/` holds a `.rego` file, else the patterns in `kit.yml` |
 | the toolchains | the `toolchains` setting, else the files present, such as `mise.toml` or a `Brewfile` |
 
 A repository that adds a rule or a style adds its linter, its checks, and its templates with it.
@@ -160,7 +160,7 @@ adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 - To replace a delivered file, a repository's package depends on the package that delivers it and places its own
   file at the same path. Where two active packages deliver the same path, the later in dependency order wins, so
   the repository's file is used and every other file still comes from the release.
-- A value a delivered template asks for, such as the CI runner, is set under `answers:` in `.kit/settings.yml`.
+- A value a delivered template asks for, such as the CI runner, is set under `answers:` in `kit.yml`.
 
 A file kit shares with the repository is changed in the least intrusive way its format allows:
 
@@ -180,7 +180,7 @@ see: [packages.md](packages.md), the "Changing what kit adds" section of `.kit/1
 - `kit update` moves a repository to the release it pins. It replaces a delivered file left as placed, merges an
   edited one three ways against the previous release, and keeps the repository's own deny list entries and settings
   keys. When it lacks the previous release for a file it must merge, it refuses before writing anything.
-- What kit places under `.kit/` is ignored by git, and the active packages are declared in `.kit/settings.yml`.
+- What kit places under `.kit/` is ignored by git, and the active packages are declared in `kit.yml`.
   `kit hydrate` places the files from that declaration in a fresh clone or worktree, and every verb that reads a
   delivered file hydrates first. With mise, a hook can hydrate as a shell enters the checkout.
 

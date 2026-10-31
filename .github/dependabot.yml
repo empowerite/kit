@@ -7,7 +7,7 @@
 # review and one CI run.
 #
 # The commit subject is `actions: <what moved>`: the loop's `<area>: <subject>` without the `#<N>`, since a bot has no
-# issue to name. `linked_exempt` in .kit/settings.yml names dependabot[bot], so kit linked and kit policy pass its
+# issue to name. `linked_exempt` in kit.yml names dependabot[bot], so kit linked and kit policy pass its
 # pull request by name.
 #
 # This is the one ecosystem Dependabot reads here. The tools come from mise.toml, which Dependabot does not read;

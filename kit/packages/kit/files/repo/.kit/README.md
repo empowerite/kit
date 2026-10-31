@@ -3,18 +3,17 @@
 # This directory
 
 `.kit/` is where [empowerite/kit](https://github.com/empowerite/kit) keeps what it brings to this repository: the
-declaration of which release and which packages the repository takes, the rules and styles that agents and linters
-hold files to, the templates new files are made from, and the repository's own packages. This page is for the
-person at the desk. Agents read [1st.md](1st.md) instead, and `AGENTS.md` at the root sends them there.
+rules and styles that agents and linters hold files to, the templates new files are made from, and the repository's
+own packages. Which release and which packages the repository takes is declared in `kit.yml` at the root. This page
+is for the person at the desk. Agents read [1st.md](1st.md) instead, and `AGENTS.md` at the root sends them there.
 
 ## What git tracks here
 
-Two things are committed, and only these:
+One thing is committed here, and only this: `packages/`, packages of the repository's own, in the release's shape.
 
-- `settings.yml`, the declaration. `version:` names the kit release, `packages:` the active packages, and
-  `excludes:` the members of a bundle the repository leaves out. `answers:` fills in the values templates ask for.
-  Every other key is a setting of the repository's own. `settings.schema.json` is the schema.
-- `packages/`, packages of the repository's own, in the release's shape.
+The declaration, `kit.yml`, is committed at the root. `version:` names the kit release, `packages:` the active
+packages, and `excludes:` the members of a bundle the repository leaves out. `answers:` fills in the values templates
+ask for. Every other key is a setting of the repository's own. `kit.schema.json`, placed here, is its schema.
 
 ## What kit places here
 
@@ -50,7 +49,7 @@ same way.
 A placed file cannot be edited where it lies, and `kit check` fails when one differs from the release. To stop
 taking a file, remove its package. To replace one, write a package under `packages/` that depends on the package
 adding the file and places a file at the same path: the later package wins. To fill in a value a template asks for,
-set it under `answers:` in `settings.yml`. The steps are in [1st.md](1st.md), under "Changing what kit adds".
+set it under `answers:` in `kit.yml` at the root. The steps are in [1st.md](1st.md), under "Changing what kit adds".
 
 ## Rules, styles, and templates
 

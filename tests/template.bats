@@ -213,7 +213,7 @@ shape() {
   local root
   root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   mkdir -p bash/toolchain
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   "${kit_root}/bin/kit" new provider toolchain nix >/dev/null 2>&1
   run "${kit_root}/bin/kit" lint bash/toolchain/nix.sh
   [ "$status" -eq 0 ]
@@ -238,7 +238,7 @@ shape() {
   done
 }
 
-@test "a hole named by a dotted path takes its value from .kit/settings.yml, and its default is written with =" {
+@test "a hole named by a dotted path takes its value from kit.yml, and its default is written with =" {
   mkdir -p .kit/packages/team/files/repo/.kit/templates/notes .kit/packages/team/files/repo/.kit/styles
   printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/team/package.yml
   printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: page\n    path: "**/*.notes.md"\n---\n# Notes\n' \
@@ -248,8 +248,8 @@ shape() {
   "${kit_root}/bin/kit" package add team >/dev/null 2>&1
   run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
   [ "$status" -eq 2 ]
-  [[ "$output" == *"reads answers.team from .kit/settings.yml, which does not set it"* ]]
-  printf 'answers:\n  team: core\n' >> .kit/settings.yml
+  [[ "$output" == *"reads answers.team from kit.yml, which does not set it"* ]]
+  printf 'answers:\n  team: core\n' >> kit.yml
   run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
   [ "$status" -eq 0 ]
   [ "$(sed -n 3p a.notes.md)" = "Owned by core, reviewed weekly." ]

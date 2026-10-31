@@ -38,7 +38,7 @@ provider() {
   git remote add origin https://codeberg.org/empowerite/kit.git
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"set forge in .kit/settings.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
+  [[ "$output" == *"set forge in kit.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
   [[ "$output" == *"(github gitlab)"* ]]
   git remote remove origin
   run provider
@@ -48,11 +48,11 @@ provider() {
 
 @test "the forge setting wins, and an unknown one is refused by name" {
   git remote add origin https://codeberg.org/empowerite/kit.git
-  mkdir .kit && printf 'forge: github\n' > .kit/settings.yml
+  mkdir .kit && printf 'forge: github\n' > kit.yml
   run provider
   [ "$status" -eq 0 ]
   [ "$output" = "github" ]
-  printf 'forge: sourcehut\n' > .kit/settings.yml
+  printf 'forge: sourcehut\n' > kit.yml
   run provider
   [ "$status" -eq 1 ]
   [[ "$output" == *"'sourcehut' is not a forge the kit knows; the forges are: github gitlab"* ]]
@@ -68,7 +68,7 @@ provider() {
   run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" context justfile
   [ "$status" -eq 0 ]
   run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" status --no-fetch
-  [[ "$output" == *"set forge in .kit/settings.yml"* ]]
+  [[ "$output" == *"set forge in kit.yml"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

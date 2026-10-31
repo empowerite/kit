@@ -13,7 +13,7 @@ pre-commit:
     # When a commit changes what the installed copies are rendered from (the packages, the kit that renders them, or
     # the settings that fill their templates), rebuild the copies in the same commit. The script stages them.
     refresh:
-      glob: "{kit/**,.kit/packages/**,.kit/settings.yml}"
+      glob: "{kit/**,.kit/packages/**,kit.yml}"
       run: bin/refresh
     # A verb's header is its only help, and kit syntax --check holds it to the discipline: every usage line parses,
     # and every argument it names has its description line. It runs over the staged verbs, by name.

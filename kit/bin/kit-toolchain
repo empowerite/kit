@@ -6,7 +6,7 @@
 #
 # Manages the tools the gate runs, through each declared toolchain: mise, brew, or docker. The same subcommands run
 # on a developer's machine and in the delivered CI job. The toolchains are the `toolchains` setting in
-# .kit/settings.yml, or else the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile. kit
+# kit.yml, or else the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile. kit
 # toolchains lists them.
 #
 #   install                 installs every toolchain's pinned tools

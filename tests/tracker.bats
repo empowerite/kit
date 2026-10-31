@@ -21,7 +21,7 @@ setup() {
   git init --quiet --initial-branch=main
   git remote add origin https://github.com/empowerite/example.git
   mkdir .kit
-  cat > .kit/settings.yml <<'YAML'
+  cat > kit.yml <<'YAML'
 trackers:
   - prefix: "AB#"
     provider: ado
@@ -110,10 +110,10 @@ JSON
 }
 
 @test "a tracker record without its organization is refused with the setting to add" {
-  printf 'trackers:\n  - prefix: "AB#"\n    provider: ado\n' > .kit/settings.yml
+  printf 'trackers:\n  - prefix: "AB#"\n    provider: ado\n' > kit.yml
   run in_tracker tracker:of 'AB#4521' title
   [ "$status" -ne 0 ]
-  [[ "$output" == *"add organization: <https://dev.azure.com/name> to the AB# tracker in .kit/settings.yml"* ]]
+  [[ "$output" == *"add organization: <https://dev.azure.com/name> to the AB# tracker in kit.yml"* ]]
 }
 
 @test "kit linked takes a work item a closing keyword names in the body, as it takes the forge's own issues" {
@@ -140,7 +140,7 @@ JSON
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   run "${kit_root}/bin/kit" check
   [ "$status" -eq 0 ]
-  printf 'trackers:\n  - prefix: "A B#"\n    provider: ado\n' >> .kit/settings.yml
+  printf 'trackers:\n  - prefix: "A B#"\n    provider: ado\n' >> kit.yml
   run "${kit_root}/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"a tracker needs a prefix, letters and an optional #, and a provider (prefix 'A B#')"* ]]

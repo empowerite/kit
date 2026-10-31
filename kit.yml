@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=settings.schema.json
+# yaml-language-server: $schema=.kit/kit.schema.json
 require_signing: true
 gate: bin/ci
 # Dependabot's pull requests have no issue and never will; kit linked and kit policy pass them by this name.

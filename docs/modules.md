@@ -33,7 +33,7 @@ rule is [.kit/rules/bash.md](../.kit/rules/bash.md), the style [.kit/styles/bash
 ### The module path
 
 `use <module>` sources every `<module>.sh` on the module path, in order, once per process. The path is the
-`bash_path` setting in `.kit/settings.yml`:
+`bash_path` setting in `kit.yml`:
 
 ```yaml
 bash_path:

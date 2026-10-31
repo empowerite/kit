@@ -76,7 +76,7 @@ teardown() {
   run "${work}/unpacked/kit-${version}/bin/kit" check
   [ "$status" -eq 0 ]
   [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
-  grep --quiet "^version: ${version}$" .kit/settings.yml
+  grep --quiet "^version: ${version}$" kit.yml
 }
 
 @test "publish uploads the tarball, kittui inside it, and its digest, and nothing beside them" {

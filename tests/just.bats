@@ -19,7 +19,7 @@ setup() {
   git init --quiet --initial-branch=main "${repo}"
   cd "${repo}"
   kit install style/just >/dev/null 2>&1
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   mkdir bash
   printf 'local:greet() { info "hello from $1"; }\n' > bash/local.sh
 }

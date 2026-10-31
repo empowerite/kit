@@ -43,7 +43,7 @@ branch() {
 # change <title> makes the forge, GitHub by the setting since origin is a local path, answer a change on the
 # branch with that title.
 change() {
-  grep --quiet '^forge:' .kit/settings.yml 2>/dev/null || printf 'forge: github\n' >> .kit/settings.yml
+  grep --quiet '^forge:' kit.yml 2>/dev/null || printf 'forge: github\n' >> kit.yml
   fixture pr.json <<<"{\"number\": 3, \"title\": \"$1\", \"body\": \"Closes #7\"}"
   fixture repo.json <<<'{"nameWithOwner": "empowerite/example"}'
   fixture pull.json <<<"{\"user\": {\"login\": \"${2:-ada}\"}}"
@@ -82,10 +82,10 @@ change() {
 
 @test "a repository's patterns replace the defaults, an empty one turns a rule off, and an unknown subject is refused" {
   branch feature/login "wip"
-  printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  commit_subject: ''\n" > .kit/settings.yml
+  printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  commit_subject: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
-  printf "policy:\n  branche: '^x\$'\n" > .kit/settings.yml
+  printf "policy:\n  branche: '^x\$'\n" > kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -ne 0 ]
   [[ "$output" == *"policy has a subject the kit does not know: branche"* ]]
@@ -94,11 +94,11 @@ change() {
 @test "a change by a login in linked_exempt passes the policy by name, since its branch and subjects are the bot's" {
   branch dependabot/github-actions/actions-1a2b3c "actions: bump actions/checkout from 4 to 5"
   change "actions: bump actions/checkout from 4 to 5" 'dependabot[bot]'
-  printf 'linked_exempt:\n  - dependabot[bot]\n' >> .kit/settings.yml
+  printf 'linked_exempt:\n  - dependabot[bot]\n' >> kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
-  [[ "$output" == *"pull request #3 is dependabot[bot]'s, exempt from the policy by .kit/settings.yml"* ]]
-  printf 'forge: github\n' > .kit/settings.yml
+  [[ "$output" == *"pull request #3 is dependabot[bot]'s, exempt from the policy by kit.yml"* ]]
+  printf 'forge: github\n' > kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"branch 'dependabot/github-actions/actions-1a2b3c' does not match policy.branch"* ]]
@@ -124,7 +124,7 @@ change() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"by the opa policy"* ]]
   by_opa=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
-  printf 'forge: github\npolicy_engine: patterns\n' > .kit/settings.yml
+  printf 'forge: github\npolicy_engine: patterns\n' > kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   by_patterns=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
@@ -149,7 +149,7 @@ REGO
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"3 commits; split the change"* ]]
-  printf 'policy_engine: cue\n' > .kit/settings.yml
+  printf 'policy_engine: cue\n' > kit.yml
   run "${kit_root}/bin/kit" policy
   [ "$status" -ne 0 ]
   [[ "$output" == *"'cue' is not a policy engine the kit knows"* ]]

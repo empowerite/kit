@@ -2,10 +2,10 @@
 # kit-update - moves the repository, and the home directory, to the pinned release (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit update takes no arguments. It moves the repository and the home directory from the release .kit/settings.yml
+# kit update takes no arguments. It moves the repository and the home directory from the release kit.yml
 # declares (the previous release) to the pinned release. The active packages are resolved again from the pinned
 # release: a package that an active one now depends on or includes comes in, and so does a new default package. A
-# package .kit/settings.yml declares as excluded stays out, unless a package depends on it. For each delivered file:
+# package kit.yml declares as excluded stays out, unless a package depends on it. For each delivered file:
 #
 #   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
 #   - a merged JSON file is merged by key

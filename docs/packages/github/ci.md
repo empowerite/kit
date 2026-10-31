@@ -16,4 +16,4 @@ with its own install turned off, puts `mise` on the runner when the repository h
 A repository on another CI system calls `kit toolchain install` and `kit ci` from its own pipeline.
 
 The workflow is a template with one key, `ci_runner`: the label of the runner the job runs on. The default is
-`ubuntu-latest`. A repository with its own runners sets `ci_runner` under `answers:` in `.kit/settings.yml`.
+`ubuntu-latest`. A repository with its own runners sets `ci_runner` under `answers:` in `kit.yml`.

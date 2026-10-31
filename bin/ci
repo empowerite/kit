@@ -2,12 +2,12 @@
 # ci - this repository's gate: kit lint, the schemas, the links, bats, kit check
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# The gate setting in .kit/settings.yml names this script, so kit gate runs it, with the toolchain's tools on PATH,
+# The gate setting in kit.yml names this script, so kit gate runs it, with the toolchain's tools on PATH,
 # and kit ci runs it in CI. It runs, in order:
 #
 #   - kit lint over every tracked path
 #   - kit syntax --check: every verb's usage line parses, and every argument has its description
-#   - ajv: every package.yml, .kit/settings.yml, every kind, and the frontmatter of every rule and style against
+#   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
 #     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
 #   - the bats suite
@@ -25,7 +25,7 @@ kit/bin/kit lint --all-files
 kit/bin/kit syntax --check
 ajv validate --spec=draft2020 -s kit/packages/package.schema.json \
   -d 'kit/packages/*/package.yml' -d 'kit/packages/*/*/package.yml'
-ajv validate --spec=draft2020 -s .kit/settings.schema.json -d .kit/settings.yml
+ajv validate --spec=draft2020 -s .kit/kit.schema.json -d kit.yml
 # A rule's frontmatter is YAML between the two --- lines; ajv reads it from a copy of just those lines.
 frontmatter=$(mktemp -d)
 trap 'rm -rf "${frontmatter}"' EXIT

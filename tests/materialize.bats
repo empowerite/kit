@@ -46,7 +46,8 @@ later-release() {
   [ ! -w .kit/manifest ]
   [ -f .kit/README.md ]
   [ ! -w .kit/README.md ]
-  [ "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" = "?? .kit/settings.yml" ]
+  [ -z "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" ]
+  [ "$(git status --porcelain kit.yml)" = "?? kit.yml" ]
   run bash -c 'echo edited > .kit/rules/bash.md'
   [ "$status" -ne 0 ]
   [ "$(head -n 1 .kit/rules/bash.md)" != "edited" ]
@@ -185,31 +186,32 @@ later-release() {
   "${kit_checkout}/bin/kit" install
   [ ! -e .kit/lefthook.yml ]
   touch -t 202001010000 .kit/.gitignore
-  printf '  - hooks/lefthook\n' >> .kit/settings.yml
+  printf '  - hooks/lefthook\n' >> kit.yml
   printf 'x\n' > x.md
   run "${kit_checkout}/bin/kit" context x.md
   [ "$status" -eq 0 ]
   [ -f .kit/lefthook.yml ]
   grep --quiet --line-regexp '/lefthook.yml' .kit/.gitignore
-  [ .kit/.gitignore -nt .kit/settings.yml ]
+  [ .kit/.gitignore -nt kit.yml ]
 }
 
 @test "kit hydrate removes what the declaration dropped and records what it added, so a pulled declaration is enough" {
   "${kit_checkout}/bin/kit" install style/yaml
   [ -f .kit/styles/yaml.md ]
-  sed -i.bak '/^  - style\/yaml$/d' .kit/settings.yml && rm .kit/settings.yml.bak
+  sed -i.bak '/^  - style\/yaml$/d' kit.yml && rm kit.yml.bak
   run "${kit_checkout}/bin/kit" hydrate
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/yaml.md ]
   [ ! -e .kit/templates/yaml ]
   run ! grep --quiet 'styles/yaml.md' .kit/.gitignore
   run ! grep --quiet 'styles/yaml.md' .kit/manifest
-  printf '  - style/json\n' >> .kit/settings.yml
+  printf '  - style/json\n' >> kit.yml
   run "${kit_checkout}/bin/kit" hydrate
   [ "$status" -eq 0 ]
   [ -f .kit/styles/json.md ]
   grep --quiet '  .kit/styles/json.md$' .kit/manifest
-  [ "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" = "?? .kit/settings.yml" ]
+  [ -z "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" ]
+  [ "$(git status --porcelain kit.yml)" = "?? kit.yml" ]
 }
 
 @test "a readonly .kit-new left by an interrupted run does not block the next hydrate" {
@@ -246,7 +248,7 @@ later-release() {
   "${kit_checkout}/bin/kit" install
   git add --all && git commit --quiet --message init
   git worktree add --quiet wt -b wt
-  sed -i.bak 's/^version: unreleased$/version: 9.9.9/' wt/.kit/settings.yml && rm wt/.kit/settings.yml.bak
+  sed -i.bak 's/^version: unreleased$/version: 9.9.9/' wt/kit.yml && rm wt/kit.yml.bak
   mkdir -p wt/kit/bin && printf '#!/usr/bin/env bash\nexit 7\n' > wt/kit/bin/kit && chmod +x wt/kit/bin/kit
   run bash -c 'source "$0/modules/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt
   [ "$status" -eq 0 ]

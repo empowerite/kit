@@ -148,7 +148,7 @@ do
   [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] || continue
   if [[ "${hole}" == *.* ]]
   then
-    # A dotted hole is a path in .kit/settings.yml, which fills it when it is set.
+    # A dotted hole is a path in kit.yml, which fills it when it is set.
     [[ "$(jq --arg k "${hole}" 'has($k)' <<<"${settings}")" == true ]] || unset+=("${hole}")
   else
     missing+=("--${hole}=<…>")
@@ -161,7 +161,7 @@ then
 fi
 if (( ${#unset[@]} > 0 ))
 then
-  error "the ${chosen} template of the $(template:rule-name "${rule}") rule reads ${unset[*]} from .kit/settings.yml," \
+  error "the ${chosen} template of the $(template:rule-name "${rule}") rule reads ${unset[*]} from kit.yml," \
     "which does not set it"
   exit 2
 fi

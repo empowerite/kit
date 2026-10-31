@@ -58,7 +58,7 @@ world() {
 
 @test "kit issue makes the worktree, hydrates it, and the start commit carries nothing kit placed" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
-  printf 'forge: github\n' >> .kit/settings.yml
+  printf 'forge: github\n' >> kit.yml
   git add --all && git commit --quiet --message init
   world
   run "${kit_checkout}/bin/kit" issue 7
@@ -87,7 +87,7 @@ world() {
 
 @test "kit issue --title creates the issue and starts it in one step" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
-  printf 'forge: github\n' >> .kit/settings.yml
+  printf 'forge: github\n' >> kit.yml
   git add --all && git commit --quiet --message init
   world
   fixture created.txt <<<'https://github.com/empowerite/example/issues/7'

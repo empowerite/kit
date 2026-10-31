@@ -63,8 +63,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "a module and a seam's provider go into the repository's own directory on the module path, the provider with every call" {
   run kit new module notes --purpose='notes on the work'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"add one under bash_path in .kit/settings.yml"* ]]
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> .kit/settings.yml
+  [[ "$output" == *"add one under bash_path in kit.yml"* ]]
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   mkdir bash
   run kit new module notes --purpose='notes on the work'
   [ "$status" -eq 0 ]

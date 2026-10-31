@@ -15,7 +15,7 @@ report the same results.
 
 ## Declaring
 
-A repository declares its toolchains in `.kit/settings.yml`, in order:
+A repository declares its toolchains in `kit.yml`, in order:
 
 ```yaml
 toolchains:
@@ -58,7 +58,7 @@ toolchains:
 ## Hydrating on cd
 
 What kit delivers under `.kit/` is not committed. `kit hydrate` places it from the declaration in
-`.kit/settings.yml`, and every verb that reads a delivered file does the same first. A repository that uses mise
+`kit.yml`, and every verb that reads a delivered file does the same first. A repository that uses mise
 can hydrate when a shell enters it, so a fresh worktree is complete before its first command:
 
 ```toml

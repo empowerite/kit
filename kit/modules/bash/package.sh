@@ -5,7 +5,7 @@
 #
 # kit package add and kit package remove move the active set one way each; kit package select names the set itself,
 # and reaches it by removing what the set omits and then adding what it lacks. Each function reads the declaration in
-# .kit/settings.yml afresh, so one may follow another in a process. Each returns 2 on a usage error and 1 on a
+# kit.yml afresh, so one may follow another in a process. Each returns 2 on a usage error and 1 on a
 # refusal, and lets the verb exit.
 
 use release

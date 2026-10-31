@@ -29,14 +29,14 @@ kit-bash() {
 @test "an entry is kit:, absolute, under ~/, or relative to the root; a missing one is skipped, as PATH skips it" {
   mkdir -p home/lib/bash abs
   printf 'bash_path:\n  - kit:modules/bash/   # the kit\x27s own\n  - nowhere/\n  - ~/lib/bash/\n  - %s/abs\n  - bash/\n' \
-    "$(pwd -P)" > .kit/settings.yml
+    "$(pwd -P)" > kit.yml
   run env HOME="$(pwd -P)/home" bash -c 'source "${kit_root}/modules/bash/1st.sh" && use:path'
   [ "$status" -eq 0 ]
   [ "$output" = "${kit_root}/modules/bash"$'\n'"$(pwd -P)/home/lib/bash"$'\n'"$(pwd -P)/abs"$'\n'"$(pwd -P)/bash" ]
 }
 
 @test "use sources the module from every directory on the path, in order, so a later file overrides" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   printf 'yaml:keys() { echo overridden; }\nyaml:extra() { echo extra; }\n' > bash/yaml.sh
   printf 'answer: 42\n' > in.yml
   run kit-bash 'use yaml && yaml:value in.yml answer && yaml:keys in.yml && yaml:extra'
@@ -45,7 +45,7 @@ kit-bash() {
 }
 
 @test "use loads a module only the repository has, and only once" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - %s/bash\n' "${repo}" > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - %s/bash\n' "${repo}" > kit.yml
   printf 'count=$(( ${count:-0} + 1 ))\n' > bash/local.sh
   run kit-bash 'use local && use local yaml && echo "${count}"'
   [ "$status" -eq 0 ]
@@ -59,21 +59,21 @@ kit-bash() {
 }
 
 @test "a bash_path that does not start with kit:modules/bash/ is refused" {
-  printf 'bash_path:\n  - bash/\n  - kit:modules/bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - bash/\n  - kit:modules/bash/\n' > kit.yml
   run kit-bash 'use yaml'
   [ "$status" -eq 2 ]
   [[ "$output" == *"bash_path must start with kit:modules/bash/"* ]]
 }
 
 @test "a bash_path entry with a root other than kit: is refused by name" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - other:bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - other:bash/\n' > kit.yml
   run kit-bash 'use yaml'
   [ "$status" -eq 2 ]
   [[ "$output" == *"bash_path entry 'other:bash/' names a root the kit does not know"* ]]
 }
 
 @test "use:modules lists the modules on the whole path that match a pattern, once each, named from their directory" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   mkdir -p bash/forge
   : > bash/forge/local.sh
   : > bash/forge/github.sh
@@ -83,7 +83,7 @@ kit-bash() {
 }
 
 @test "a module in a subdirectory loads by its path, every copy on the path in order, and names its functions so" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   mkdir -p bash/toolchain
   printf 'toolchain/local:hello() { printf "hello %%s\\n" "$1"; }\n' > bash/toolchain/local.sh
   printf 'toolchain/brew:file() { printf "ours\\n"; }\n' > bash/toolchain/brew.sh
@@ -117,7 +117,7 @@ kit-bash() {
 }
 
 @test "sourcing the loader again is a no-op: it keeps the loaded modules and does not fail under errexit" {
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > .kit/settings.yml
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   printf 'count=$(( ${count:-0} + 1 ))\n' > bash/local.sh
   run bash -c 'set -o errexit; source "${kit_root}/modules/bash/1st.sh"; use local
     source "${kit_root}/modules/bash/1st.sh"; use local; echo "${count}"'

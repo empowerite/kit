@@ -13,7 +13,7 @@
 #
 #   <reference>…   the issues, each named with its tracker: 7 or #7 for an issue on the forge (the service that
 #                  hosts the repository, GitHub or GitLab), AB#4521 for an Azure DevOps work item, when that tracker
-#                  is declared in .kit/settings.yml
+#                  is declared in kit.yml
 #   --title <text>   creates an issue with that title in the forge's tracker, then starts it, in one step
 #
 # kit issue asks nothing itself: with --title it creates the issue and starts it; kit tui asks for the title when

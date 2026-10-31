@@ -37,12 +37,12 @@ kit policy
 
 ## The rules
 
-`policy:` in `.kit/settings.yml` holds one extended regular expression per subject.
+`policy:` in `kit.yml` holds one extended regular expression per subject.
 
 - A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`.
 - An empty pattern turns that rule off.
 - A subject the kit does not know is refused.
-- A change whose author is a login under `linked_exempt` in `.kit/settings.yml` passes with no rule checked, and
+- A change whose author is a login under `linked_exempt` in `kit.yml` passes with no rule checked, and
   `kit policy` says so by name. Its branch, its commits, and its title are a bot's, such as `dependabot[bot]`'s,
   and the same setting passes the change through `kit linked`; see [packages.md](packages.md#settings).
 
