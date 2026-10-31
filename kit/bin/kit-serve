@@ -8,8 +8,8 @@
 # in, until stdin ends. It opens no network port. Stdout carries only the protocol's messages, one JSON object per
 # line, and every log line goes to stderr.
 #
-# Its tools are the verbs that read and report, and change nothing: backlog, changes, check, context, help, lint,
-# package-list (kit package list), status, syntax, and version. A tool's description is the verb's help, and the
+# Its tools are the verbs that read and report, and change nothing: backlog, changes, check, context, help, kind,
+# lint, package-list (kit package list), status, syntax, and version. A tool's description is the verb's help, and the
 # tool takes args, the verb's arguments as an array of strings. Its resources are the kit's files: kit://1st.md,
 # kit://rules/<kind> and kit://styles/<kind> for each rule and style, and kit://kinds/<file> for each kinds file.
 #

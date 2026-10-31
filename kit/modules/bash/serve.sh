@@ -28,7 +28,7 @@ use context help release syntax
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
 # The tools, each a verb that changes nothing. package-list runs kit package list.
-declare -gra serve_tools=(backlog changes check context help lint package-list status syntax version)
+declare -gra serve_tools=(backlog changes check context help kind lint package-list status syntax version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(backlog changes status)

@@ -98,9 +98,9 @@ files have the same frontmatter, with these keys:
 | `checks:` | The kit's own checks that `kit lint` runs over the files it governs, by name. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
-A rule or style governs every file of a kind it names. `kit context` also prints the rules of the kinds a file's
-kind embeds, so a justfile brings the bash rule with it; `kit lint` does not follow them, so no linter runs over a
-file it cannot parse.
+A rule or style governs every file of a kind it names, and `kit kind <path>` prints the kinds a file is of.
+`kit context` also prints the rules of the kinds a file's kind embeds, so a justfile brings the bash rule with it;
+`kit lint` does not follow them, so no linter runs over a file it cannot parse.
 
 Before you change a file:
 

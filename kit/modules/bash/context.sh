@@ -146,56 +146,140 @@ context:read-kinds() {
   done
 }
 
-# context:kinds <path> prints the kinds <path> is of, one per line in name order: every kind with a glob that
-# matches the path, or a pattern that matches its first line when the file exists, and then every kind made of one
-# of those under kinds:, and of those in turn.
-context:kinds() {
-  local path=$1 kind glob pattern member first='' grew=true
-  local -A is=()
-  context:load
-  [[ -f "${path}" ]] && first=$(head -n 1 "${path}" 2>/dev/null || true)
-  for kind in "${!context_kind_paths[@]}"
+# context:glob-ere <glob> prints the extended regular expression that matches what context:glob-matches matches,
+# anchored at both ends: **/ is any run of directories, * and ** any text, slashes included, and ? one character. A
+# bracket expression is kept as it is; every other metacharacter is escaped.
+context:glob-ere() {
+  local glob=$1 out='' c
+  local -i i=0
+  while (( i < ${#glob} ))
   do
-    # Read each glob with read, not word splitting: an unquoted glob would expand against the working tree first.
-    while IFS= read -r glob
-    do
-      [[ -n "${glob}" ]] || continue
-      if context:glob-matches "${path}" "${glob}"
-      then
-        is[${kind}]=1
-        continue 2
-      fi
-    done <<<"${context_kind_paths[${kind}]}"
-    [[ -n "${first}" ]] || continue
-    while IFS= read -r pattern
-    do
-      [[ -n "${pattern}" ]] || continue
-      if [[ "${first}" =~ ${pattern} ]]
-      then
-        is[${kind}]=1
-        continue 2
-      fi
-    done <<<"${context_kind_content[${kind}]}"
+    c=${glob:i:1}
+    if [[ "${glob:i:3}" == '**/' ]]
+    then
+      out+='(.*/)?'
+      i+=3
+      continue
+    fi
+    case "${c}" in
+      ('*') out+='.*' ;;
+      ('?') out+='.' ;;
+      ('[')
+        out+=${glob:i:$(( $(expr "${glob:i}" : '\[[^]]*\]') ))}
+        i+=$(( $(expr "${glob:i}" : '\[[^]]*\]') - 1 ))
+        ;;
+      ('.' | '+' | '(' | ')' | '{' | '}' | '|' | '^' | '$' | "\\") out+="\\${c}" ;;
+      (*) out+=${c}
+    esac
+    i+=1
   done
-  while [[ "${grew}" == true ]]
+  printf '^%s$\n' "${out}"
+}
+
+# context:awk-string <text> prints the text as an awk string literal, quoted, with its backslashes and quotes escaped.
+context:awk-string() {
+  local text=${1//\\/\\\\}
+  printf '"%s"' "${text//\"/\\\"}"
+}
+
+# context:compile prints an awk program that classifies paths by every kind context:load read. Its input is one
+# "<path>\t<1 when the path is a regular file, else 0>" line per path, and for each it prints "<path>\t<kinds>", the
+# kinds space-separated in name order. Each kind is one test of the path against its globs, joined into one regular
+# expression, then of the file's first line against its patterns; the kinds made of others follow until none grows.
+# shellcheck disable=SC2016  # the $1 and $2 it prints are awk's fields, not the shell's
+context:compile() {
+  local kind glob pattern member ere test member_test
+  local -a kinds globs patterns
+  context:load || return 1
+  readarray -t kinds < <(printf '%s\n' "${!context_kind_paths[@]}" | LC_ALL=C sort)
+  printf 'BEGIN { FS = "\\t" }\n{\n  path = $1; split("", is); first = ""; has = 0\n'
+  printf '  if ($2 == 1 && (getline first < path) > 0) has = 1\n  if ($2 == 1) close(path)\n'
+  for kind in "${kinds[@]}"
   do
-    grew=false
-    for kind in "${!context_kind_members[@]}"
-    do
-      [[ -z "${is[${kind}]:-}" ]] || continue
-      while IFS= read -r member
+    readarray -t globs < <(awk 'NF' <<<"${context_kind_paths[${kind}]}")
+    readarray -t patterns < <(awk 'NF' <<<"${context_kind_content[${kind}]}")
+    test=''
+    if (( ${#globs[@]} ))
+    then
+      ere=''
+      for glob in "${globs[@]}"
       do
-        if [[ -n "${member}" && -n "${is[${member}]:-}" ]]
-        then
-          is[${kind}]=1
-          grew=true
-          break
-        fi
-      done <<<"${context_kind_members[${kind}]}"
-    done
+        ere+="${ere:+|}($(context:glob-ere "${glob}"))"
+      done
+      test="path ~ $(context:awk-string "${ere}")"
+    fi
+    if (( ${#patterns[@]} ))
+    then
+      ere=''
+      for pattern in "${patterns[@]}"
+      do
+        ere+="${ere:+|}(${pattern})"
+      done
+      test+="${test:+ || }(has && first ~ $(context:awk-string "${ere}"))"
+    fi
+    [[ -n "${test}" ]] && printf '  if (%s) is[%s] = 1\n' "${test}" "$(context:awk-string "${kind}")"
   done
-  (( ${#is[@]} )) || return 0
-  printf '%s\n' "${!is[@]}" | LC_ALL=C sort
+  printf '  do {\n    grew = 0\n'
+  for kind in "${kinds[@]}"
+  do
+    member_test=''
+    while IFS= read -r member
+    do
+      [[ -n "${member}" ]] && member_test+="${member_test:+ || }($(context:awk-string "${member}") in is)"
+    done <<<"${context_kind_members[${kind}]}"
+    [[ -n "${member_test}" ]] || continue
+    printf '    if (!(%s in is) && (%s)) { is[%s] = 1; grew = 1 }\n' "$(context:awk-string "${kind}")" \
+      "${member_test}" "$(context:awk-string "${kind}")"
+  done
+  printf '  } while (grew)\n  out = ""\n'
+  for kind in "${kinds[@]}"
+  do
+    printf '  if (%s in is) out = out (out == "" ? "" : " ") %s\n' "$(context:awk-string "${kind}")" \
+      "$(context:awk-string "${kind}")"
+  done
+  printf '  print path "\\t" out\n}\n'
+}
+
+# context:matcher prints the path of the compiled classifier for the kinds under .kit/kinds/, compiling it first when
+# the kinds have changed. It is kept in the repository's common git directory, named by a checksum of the kinds
+# files' names and text, so every worktree shares it and an edit to a kind compiles afresh.
+context:matcher() {
+  local dir key file
+  dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+  key=$( { printf '%s\n' .kit/kinds/*.yml; cat .kit/kinds/*.yml 2>/dev/null; } | cksum | cut -d ' ' -f 1)
+  file="${dir}/kinds-${key}.awk"
+  if [[ ! -f "${file}" ]]
+  then
+    # Two processes may compile at once, so each writes a file of its own, by BASHPID, which a subshell does not
+    # share, and moves it into place whole; a matcher of other kinds is removed, never the one being placed.
+    mkdir -p "${dir}"
+    context:compile > "${file}.${BASHPID}" || { rm -f "${file}.${BASHPID}"; return 1; }
+    find "${dir}" -name 'kinds-*.awk' ! -name "kinds-${key}.awk" -delete
+    mv "${file}.${BASHPID}" "${file}"
+  fi
+  printf '%s\n' "${file}"
+}
+
+# context:classify reads repository-relative paths on stdin, one per line, and prints "<path>\t<kinds>" for each, in
+# one process however many there are: every kind with a glob that matches the path, or a pattern that matches the
+# first line of a file that exists, and every kind made of one of those under kinds:, space-separated in name order.
+context:classify() {
+  local matcher path
+  matcher=$(context:matcher) || return 1
+  while IFS= read -r path
+  do
+    if [[ -f "${path}" ]]
+    then
+      printf '%s\t1\n' "${path}"
+    else
+      printf '%s\t0\n' "${path}"
+    fi
+  done | awk -f "${matcher}"
+}
+
+# context:kinds <path> prints the kinds <path> is of, one per line in name order, as context:classify finds them.
+context:kinds() {
+  printf '%s\n' "$1" | context:classify | cut -f 2 | tr ' ' '\n' | awk 'NF'
 }
 
 # context:embedded <kind>… prints the kinds the given kinds embed, and what those embed in turn, leaving out the

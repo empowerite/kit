@@ -39,6 +39,12 @@ embeds:
 | `embeds:` | Kinds whose text appears inside this kind's files: a justfile's recipe bodies and a workflow's `run:` blocks are bash. |
 | `kinds:` | Kinds this kind is made of: a path of any of them is of this kind too. |
 
+`kit kind <path>…` prints the kinds each path is of, and `--json` prints them as one object per path. The kinds
+are compiled into one awk program the first time they are asked about after a change, kept in the repository's git
+directory under `kit/`, and every path is classified in one process: `kit kind` over every tracked file of this
+repository takes a fraction of a second. `kit context`, `kit lint`, and `kit new` classify through the same
+program, so they cannot disagree about a file.
+
 A kinds file holds one kind, or several as a YAML stream: one document per kind, separated by `---` lines. Two
 kinds with the same name, in one file or in two, are refused, and so is a document without a name.
 

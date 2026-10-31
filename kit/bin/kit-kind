@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# kit-kind - prints the kinds a file is of (kit verb)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit kind <path>… [--json]
+#
+# Prints the kinds each path is of, as kit context finds them: every kind under .kit/kinds/ with a glob that matches
+# the path, or a pattern that matches the first line of a file that exists, and every kind made of one of those under
+# kinds:. With one path, it prints one kind per line. With several, it prints one line per path: the path, a tab, and
+# its kinds, space-separated. The kinds are compiled into one matcher the first time they are asked about after a
+# change, and every path is classified in one process, so a long list of paths costs little more than one.
+#
+#   <path>…   the files to classify, relative to the current directory; a path need not exist, and is then matched
+#             by its name alone
+#   --json    prints one JSON object per path instead, with the path and its kinds
+#
+# Exits 0 on success, and 2 on a usage error.
+#
+# see: modules/bash/context.sh, docs/context.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=SCRIPTDIR/../modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context release
+guard:arguments kind "$@" || exit $?
+release:hydrate
+
+json=false
+paths=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--json) json=true ;;
+    (*) paths+=("${arg}")
+  esac
+done
+
+root=$(pwd -P)
+for index in "${!paths[@]}"
+do
+  path=${paths[${index}]}
+  # A path typed at the root needs no resolving; any other goes through context:relative, which forks git.
+  if [[ "${path}" == /* || "${kit_invoked_in}" != "${root}" || "${path}" == *..* ]]
+  then
+    paths[index]=$(context:relative "${path}")
+  else
+    paths[index]=${path#./}
+  fi
+done
+
+if [[ "${json}" == true ]]
+then
+  printf '%s\n' "${paths[@]}" | context:classify \
+    | jq --raw-input --compact-output 'split("\t") | {path: .[0], kinds: (.[1] | split(" ") | map(select(. != "")))}'
+elif (( ${#paths[@]} == 1 ))
+then
+  printf '%s\n' "${paths[0]}" | context:classify | cut -f 2 | tr ' ' '\n' | awk 'NF'
+else
+  printf '%s\n' "${paths[@]}" | context:classify
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -16,6 +16,7 @@ The tools are the verbs that read and report, and change nothing:
 | `check` | `kit check` |
 | `context` | `kit context` |
 | `help` | `kit help` |
+| `kind` | `kit kind` |
 | `lint` | `kit lint` |
 | `package-list` | `kit package list` |
 | `status` | `kit status` |
