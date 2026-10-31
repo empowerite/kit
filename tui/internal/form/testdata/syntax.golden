@@ -1,4 +1,4 @@
- prints a verb's syntax as JSON, and judges its header's discipline
+ kit syntax - prints a verb's syntax as JSON, and judges its header's discipline
 
    [--check | --list] <verb>
    <verb> --choices <answer>

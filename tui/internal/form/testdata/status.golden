@@ -1,4 +1,4 @@
- shows every worktree with its branch, pull request, and state
+ kit status - shows every worktree with its branch, pull request, and state
 
    --no-fetch   --json      skips the git fetch
 

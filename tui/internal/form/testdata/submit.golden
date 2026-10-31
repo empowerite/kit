@@ -1,4 +1,4 @@
- commits what is staged, as kit commit does, then pushes the branch
+ kit submit - commits what is staged, as kit commit does, then pushes the branch
 
    --all      stages every change to a tracked file first, as git commit --all does
 

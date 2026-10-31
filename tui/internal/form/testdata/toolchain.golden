@@ -1,4 +1,4 @@
- installs, reports, and updates the tools the gate runs, whatever manages them
+ kit toolchain - installs, reports, and updates the tools the gate runs, whatever manages them
 
    install   installs every toolchain's pinned tools
    outdated  prints one line per tool behind its latest version

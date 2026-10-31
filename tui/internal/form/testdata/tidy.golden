@@ -1,4 +1,4 @@
- removes merged worktrees and gone branches
+ kit tidy - removes merged worktrees and gone branches
 
    --dry-run  prints what kit tidy would do, and changes nothing
 

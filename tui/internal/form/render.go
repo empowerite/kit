@@ -33,7 +33,8 @@ const (
 // Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
 // cursor in a focused row (-1 for none); the styles; Expand, which may draw a field's answer live in place of its
 // values (the focused text with its caret, a list with its filter); whether the command line has the keyboard, and
-// the refusal under it; and whether the form shows the way back to the palette.
+// the refusal under it; whether the form shows the way back to the palette; and the keys it takes, drawn at the top,
+// after the way back, so they never move.
 type Options struct {
 	Width, Focus, Cursor int
 	Styles               Styles
@@ -41,6 +42,7 @@ type Options struct {
 	CommandFocus         bool
 	CommandRefusal       string
 	Back                 bool
+	Keys                 string
 }
 
 // RenderStatic draws the form with no focus and plain styles, for golden tests.
@@ -48,15 +50,22 @@ func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
 	return Render(spec, fields, Options{Width: width, Focus: -1, Cursor: -1, Styles: Plain})
 }
 
-// Render draws the form: the way back when there is one, the purpose, each field's block, and the command line.
+// Render draws the form: the way back when there is one, the keys, the verb and its purpose, each field's block, and
+// the command line.
 func Render(spec syntax.Spec, fields []Field, o Options) string {
 	d := drawer{spec: spec, fields: fields, width: o.Width, focus: o.Focus, cursor: o.Cursor, st: o.Styles, o: o,
 		column: labelColumn(fields)}
 	if o.Back {
-		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n\n")
+		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n")
 	}
 	width := o.Width
-	for _, line := range wrap(spec.Purpose, width-1) {
+	for _, line := range wrap(o.Keys, width-1) {
+		d.b.WriteString(" " + o.Styles.Off(line) + "\n")
+	}
+	if o.Back || o.Keys != "" {
+		d.b.WriteString("\n")
+	}
+	for _, line := range wrap("kit "+spec.Verb+" - "+spec.Purpose, width-1) {
 		d.b.WriteString(" " + line + "\n")
 	}
 	d.b.WriteString("\n")

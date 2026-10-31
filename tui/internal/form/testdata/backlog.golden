@@ -1,4 +1,4 @@
- lists the open issues nothing is in flight for, oldest first
+ kit backlog - lists the open issues nothing is in flight for, oldest first
 
    --json   --today         prints the same facts as one JSON array; each issue carries branch, a
                             name or null

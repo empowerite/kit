@@ -1,4 +1,4 @@
- expands every kit:generate region to what its command makes, or checks that it is
+ kit generate - expands every kit:generate region to what its command makes, or checks that it is
 
    --check       writes nothing, and fails naming every stale file
 

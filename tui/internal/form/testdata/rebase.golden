@@ -1,4 +1,4 @@
- rebases a worktree's branch onto the default branch and pushes it
+ kit rebase - rebases a worktree's branch onto the default branch and pushes it
 
    <path>  the checkout whose branch to rebase; default: the current checkout
 

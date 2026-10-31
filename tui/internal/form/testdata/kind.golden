@@ -1,4 +1,4 @@
- prints the kinds a file is of
+ kit kind - prints the kinds a file is of
 
    <path>…  the files to classify, relative to the current directory; a path need not exist, and is
             then matched by its name alone

@@ -1,4 +1,4 @@
- prints the content the active packages deliver as the region at a path
+ kit region - prints the content the active packages deliver as the region at a path
 
    --home  makes the path relative to the home directory instead.
 

@@ -1,4 +1,4 @@
- prints the rules that govern a file, and logs the request
+ kit context - prints the rules that govern a file, and logs the request
 
    <path>    the files whose rules to print, relative to the current directory; a path need not
              exist yet

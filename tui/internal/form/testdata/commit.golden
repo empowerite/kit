@@ -1,4 +1,4 @@
- commits what is staged, after the checks a commit's rule requires
+ kit commit - commits what is staged, after the checks a commit's rule requires
 
    --all      stages every change to a tracked file first, as git commit --all does
 

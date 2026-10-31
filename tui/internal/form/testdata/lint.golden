@@ -1,4 +1,4 @@
- runs each rule's linter over the paths it governs
+ kit lint - runs each rule's linter over the paths it governs
 
    --all-files  with no paths, every tracked file instead of the staged ones
 

@@ -1,4 +1,4 @@
- refuses a change not linked to an open issue of this repository
+ kit linked - refuses a change not linked to an open issue of this repository
 
    <number>  the pull request to check; default: the one this checkout is working on
 

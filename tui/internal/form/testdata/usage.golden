@@ -1,4 +1,4 @@
- prints the usage lines of the verbs, and nothing else
+ kit usage - prints the usage lines of the verbs, and nothing else
 
    <verb>…  the verbs whose usage to print, by their whole names; with none, every verb, in name
             order

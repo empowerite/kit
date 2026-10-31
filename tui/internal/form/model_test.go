@@ -329,3 +329,19 @@ func TestAFailedChoicesCallIsShown(t *testing.T) {
 		t.Errorf("the error is not shown:\n%s", stripANSI(m.View().Content))
 	}
 }
+
+func TestTheKeysFollowTheWayBackAndThePurposeNamesTheCommand(t *testing.T) {
+	m := newForm(t, "status", Answers{}, true)
+	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ field") {
+		t.Errorf("with the way back, the first lines: %q", lines[:3])
+	}
+	if !strings.Contains(stripANSI(m.View().Content), "kit status - shows every worktree with its branch") {
+		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
+	}
+	m = newForm(t, "status", Answers{}, false)
+	lines = strings.Split(stripANSI(m.View().Content), "\n")
+	if !strings.Contains(lines[0], "↑↓ field") || strings.Contains(lines[len(lines)-1], "↑↓ field") {
+		t.Errorf("without the way back, the keys are not first: %q", lines[0])
+	}
+}

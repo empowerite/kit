@@ -114,16 +114,13 @@ func (m Model) View() tea.View {
 	if focus >= len(m.fields) {
 		focus = -1
 	}
-	content := Render(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus, Cursor: m.cursor, Styles: live,
-		Expand: m.expand, CommandFocus: m.focus >= len(m.fields), CommandRefusal: m.refusal, Back: m.back})
 	end := "esc cancel"
 	if m.back {
 		end = "esc back"
 	}
-	hints := strings.Join([]string{"↑↓ field", "←→ along a row", "␣ toggle", "⏎ next", "⇧⏎ run", end}, " · ")
-	for _, line := range wrap(hints, m.width-1) {
-		content += "\n " + style.Off(line)
-	}
+	keys := strings.Join([]string{"↑↓ field", "←→ along a row", "␣ toggle", "⏎ next", "⇧⏎ run", end}, " · ")
+	content := Render(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus, Cursor: m.cursor, Styles: live,
+		Expand: m.expand, CommandFocus: m.focus >= len(m.fields), CommandRefusal: m.refusal, Back: m.back, Keys: keys})
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
