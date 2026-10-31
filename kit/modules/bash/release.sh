@@ -82,6 +82,12 @@ release:manifest() { release:dest "$1" .kit/manifest; }
 # release_local is the root of the repository's own packages, .kit/packages/<name>/, laid out like the release's.
 declare -gr release_local=.kit
 
+# release_rendered maps "<root>|<package>|<kind>|<base>" to the directory release:render rendered it into, or to
+# nothing when the package has no such kind; release_root_digest caches a release root's digest; and
+# release_rendered_all names the root and packages release:render-all last rendered whole, in this process.
+declare -gA release_rendered=() release_root_digest=()
+declare -g release_rendered_all=''
+
 # release:settings prints the path of the repository's settings file.
 release:settings() { printf '.kit/settings.yml\n'; }
 
@@ -465,11 +471,24 @@ release:tmp() {
 # A placeholder is written @key@ (autoconf's form), which cannot be confused with bash's ${var} or GitHub's
 # ${{ }}. A key can be dotted: @answers.key@. A key with no value fails, and the error names the key.
 release:render() {
-  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map
+  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map memo="$1|$2|$3|$4"
   local -A answer=()
+  # A render already done in this process, or in the parent of this subshell, answers from release_rendered, with
+  # no fork: release:layers asks for every package's layers each time a path is resolved.
+  if [[ -n "${release_rendered[${memo}]+x}" ]]
+  then
+    [[ -z "${release_rendered[${memo}]}" ]] || printf '%s\n' "${release_rendered[${memo}]}"
+    return 0
+  fi
   source="$(release:home "${root}" "${package}")/packages/${package}/${kind}/${base}"
-  [[ -d "${source}" ]] || return 0
-  out="$(release:tmp)/$(printf '%s' "${root}" | release:digest)/packages/${package}/${kind}/${base}"
+  if [[ ! -d "${source}" ]]
+  then
+    release_rendered[${memo}]=''
+    return 0
+  fi
+  [[ -n "${release_root_digest[${root}]+x}" ]] \
+    || release_root_digest[${root}]=$(printf '%s' "${root}" | release:digest)
+  out="$(release:tmp)/${release_root_digest[${root}]}/packages/${package}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
     # Made before the loop, so a kind with a directory and no file left in it is still a layer that exists.
@@ -498,6 +517,7 @@ release:render() {
       printf '%s\n' "${text}" > "${out}/${rel}"
     done < <(find "${source}" -type f)
   fi
+  release_rendered[${memo}]=${out}
   printf '%s\n' "${out}"
 }
 
@@ -508,15 +528,19 @@ release:render() {
 #   3. validates every package in reach
 #   4. renders the named packages, as release:render-packages does
 release:render-all() {
-  local root=$1 package
+  local root=$1 package memo="$*"
   shift
+  # Every verb renders once, and a module that renders again for the same packages in the same process, as
+  # generate:region does inside kit check, finds it done.
+  [[ "${release_rendered_all}" == "${memo}" ]] && return 0
   release:validate-settings || return 1
   release:require-packages "${root}" "$@" || return 2
   for package in $(release:packages "${root}")
   do
     release:validate "${root}" "${package}" || return 1
   done
-  release:render-packages "${root}" "$@"
+  release:render-packages "${root}" "$@" || return $?
+  release_rendered_all=${memo}
 }
 
 # release:render-packages <root> <package>… renders the named packages' templates and regions. It fails on a base

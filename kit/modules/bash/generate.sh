@@ -99,10 +99,53 @@ generate:target() {
   fi
 }
 
+# generate_regions maps the path of every repository region the active packages deliver to its rendered source, as
+# generate:region reads them once per process; generate_regions_read says whether it has.
+declare -gA generate_regions=()
+declare -g generate_regions_read=false
+
+# generate:region <name> prints the content the active packages deliver as the repository region at <name>, as kit
+# region prints it, but in this process: it renders the packages once, on its first call, where a kit region process
+# per region would render them again for each. It prints the same refusal as kit region, and returns 1, when no
+# active package delivers a region there.
+generate:region() {
+  local path src
+  local -a packages
+  if [[ "${generate_regions_read}" == false ]]
+  then
+    use release
+    release:require-declaration || return 1
+    readarray -t packages < <(release:declared-packages)
+    release:render-all "${kit_root}" "${packages[@]}" || return 1
+    while IFS=$'\t' read -r path src
+    do
+      [[ -n "${path}" && "$(release:kind "${src}" "${path}")" == region ]] && generate_regions[${path}]=${src}
+    done < <(release:delivered "${kit_root}" repo "${packages[@]}")
+    generate_regions_read=true
+  fi
+  if [[ -z "${generate_regions[$1]+x}" ]]
+  then
+    readarray -t packages < <(release:declared-packages)
+    error "no active package delivers a region at $1 (packages: ${packages[*]}); see .kit/settings.yml"
+    return 1
+  fi
+  cat "${generate_regions[$1]}"
+}
+
 # generate:command <file> <where> <line> <name> <command> <out> runs one region's command and writes its stdout
-# to <out>. On failure it prints an error naming <where> and <line> (the unit and line of the directive).
+# to <out>. On failure it prints an error naming <where> and <line> (the unit and line of the directive). The bare
+# command, kit region, runs in this process through generate:region.
 generate:command() {
   local file=$1 where=$2 number=$3 name=$4 command=$5 out=$6
+  if [[ "${command}" == 'kit region' ]]
+  then
+    if ! generate:region "${name}" >"${out}"
+    then
+      error "${where}:${number}: the command failed: ${command}"
+      return 2
+    fi
+    return 0
+  fi
   if ! KIT_GENERATE_FILE="${file}" KIT_GENERATE_REGION="${name}" PATH="${kit_root}/bin:${PATH}" \
     bash -o errexit -o pipefail -c "${command}" </dev/null >"${out}"
   then
