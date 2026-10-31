@@ -92,7 +92,7 @@ call() {
   for verb in backlog changes check context help kind lint status syntax version
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
-      sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb)$//; p;}' "bin/kit-${verb}")" \
+      sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
       '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose))
         and (.inputSchema.properties | keys == ["args"]) and .annotations.readOnlyHint'
   done

@@ -40,7 +40,7 @@ teardown() {
   before=$(cat .kit/settings.yml .kit/manifest)
   run "${kit_checkout}/bin/kit" package select kit agents/claude
   [ "$status" -eq 0 ]
-  [[ "$output" == *"packages: kit agents/claude"* ]]
+  [[ "$output" == *"packages: kit agents/generic agents/claude"* ]]
   [ "$(cat .kit/settings.yml .kit/manifest)" = "${before}" ]
 }
 
