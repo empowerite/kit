@@ -13,7 +13,14 @@ fixtures=${here}/../../syntax/testdata
 case "${1:-}" in
   (syntax)
     shift
-    if (( $# == 0 ))
+    if [[ "${1:-}" == --list ]]
+    then
+      printf 'check\tcompares the repository with the release\n'
+      printf 'commit\tcommits what is staged, after the checks a commit'"'"'s rule requires\n'
+      printf 'context\tprints the rules that govern a file\n'
+      printf 'tui\truns the interactive terminal UI\n'
+      printf 'version\tprints this release'"'"'s version\n'
+    elif (( $# == 0 ))
     then
       printf '['
       cat "${fixtures}/commit.json"

@@ -57,6 +57,27 @@ func (r Runner) Verbs() ([]syntax.Spec, error) {
 	return syntax.DecodeAll(bytes.NewReader(out))
 }
 
+// Verb is a verb's name and purpose, as kit syntax --list prints them.
+type Verb struct {
+	Name, Purpose string
+}
+
+// List gives every verb's name and purpose, from kit syntax --list, which answers at once where Verbs reads every
+// verb's grammar.
+func (r Runner) List() ([]Verb, error) {
+	out, err := r.run("syntax", "--list")
+	if err != nil {
+		return nil, err
+	}
+	var verbs []Verb
+	for _, line := range strings.Split(string(out), "\n") {
+		if name, purpose, ok := strings.Cut(line, "\t"); ok {
+			verbs = append(verbs, Verb{Name: name, Purpose: purpose})
+		}
+	}
+	return verbs, nil
+}
+
 // Spec gives one verb's spec; a name that is no verb is kit's refusal, an ExitError with code 2.
 func (r Runner) Spec(verb string) (syntax.Spec, error) {
 	out, err := r.run("syntax", verb)

@@ -189,4 +189,14 @@ setup() {
   [ "$(jq -c '[.status, .literals]' <<<"$output")" = '[0,[]]' ]
 }
 
+@test "kit syntax --list prints each verb and its purpose, one per line, for a palette to open on" {
+  run "${kit_root}/bin/kit" syntax --list
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq "$(compgen -G "${kit_root}/bin/kit-*" | wc -l | tr -d ' ')" ]
+  grep -q $'^tidy\tremoves merged worktrees and gone branches$' <<<"$output"
+  run "${kit_root}/bin/kit" syntax --list --check
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--check cannot be combined with --list; run: kit help syntax"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

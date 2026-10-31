@@ -2,7 +2,7 @@
   "verb": "syntax",
   "purpose": "prints a verb's syntax as JSON, and judges its header's discipline",
   "usage": [
-    "kit syntax [--check] [<verb>…]",
+    "kit syntax [--check | --list] [<verb>…]",
     "kit syntax <verb> --choices <argument> [<answer>…]",
     "kit syntax <verb> --extend [<answer>…]",
     "kit syntax <verb> --match [<word>…]"
@@ -17,6 +17,13 @@
             {
               "kind": "flag",
               "name": "check",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "list",
               "repeat": false
             }
           ]
@@ -122,6 +129,9 @@
   "arguments": {
     "--check": {
       "description": "prints no JSON; reports each usage line that does not parse and each argument the header does not describe, and fails when there is any"
+    },
+    "--list": {
+      "description": "prints no JSON; prints each verb and its purpose, tab-separated, one per line, which a palette opens on at once"
     },
     "--choices": {
       "description": "prints the choices of that argument instead, one per line, tab-separated: the value, its description, its state (active, excluded, or none), and the line the verb would print about it given the answers; closed when they are the only values the verb accepts, open when they are suggestions and any value is still allowed"

@@ -2,7 +2,7 @@
 # kit-syntax - prints a verb's syntax as JSON, and judges its header's discipline (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit syntax [--check] [<verb>…]
+# kit syntax [--check | --list] [<verb>…]
 #
 # kit syntax <verb> --choices <argument> [<answer>…]
 #
@@ -19,6 +19,8 @@
 #
 #   --check   prints no JSON; reports each usage line that does not parse and each argument the header does not
 #             describe, and fails when there is any
+#   --list    prints no JSON; prints each verb and its purpose, tab-separated, one per line, which a palette opens on
+#             at once
 #   --choices <argument>   prints the choices of that argument instead, one per line, tab-separated: the value, its
 #                          description, its state (active, excluded, or none), and the line the verb would print about
 #                          it given the answers; closed when they are the only values the verb accepts, open when they
@@ -84,6 +86,15 @@ fi
 if [[ -n "${syntax_options[--match]+x}" ]]
 then
   syntax:judge "${verbs[0]}" "${syntax_operands[@]:1}"
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--list]+x}" ]]
+then
+  for verb in "${verbs[@]}"
+  do
+    printf '%s\t%s\n' "${verb}" "$(help:purpose "${verb}")"
+  done
   exit 0
 fi
 

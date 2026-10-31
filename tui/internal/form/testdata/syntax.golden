@@ -1,6 +1,6 @@
  prints a verb's syntax as JSON, and judges its header's discipline
 
-   --check <verb>
+   [--check | --list] <verb>
    <verb> --choices <answer>
    <verb> --extend <answer>
    <verb> --match <word>
