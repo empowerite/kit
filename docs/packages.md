@@ -50,6 +50,19 @@ else in the package's directory. The base sets where a file lands:
 - A package that names any other base is refused at install, and the error lists the known bases.
 - `KIT_HOME` replaces the home directory. The tests use it to stay out of the real one.
 
+Every file a package delivers under `.kit/` opens with two lines in its own comment syntax, after a frontmatter's
+opening `---` where it has one: what the file is and which package it comes from, then how to stop using it or
+replace it.
+
+```yaml
+# kit:generated -- the bash kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+```
+
+A JSON file, which has no comments, carries both in a `"$comment"` key. A template is the one exception: its text is
+the shape of the files `kit new file` makes from it, and the lines would pass into each of them. The gate fails a
+delivered file without them.
+
 ## Metadata
 
 `package.yml`, a rule's frontmatter, and `.kit/settings.yml` all use the small subset of YAML that

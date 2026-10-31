@@ -1,7 +1,5 @@
-# kit.rego - the kit's naming policy in Rego: the same rules as the patterns engine
-# ----------------------------------------------------------------------------------------------------------------------
-# Added by kit's policy/opa package. To remove it, run kit package remove policy/opa.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the naming policy in Rego, which kit policy runs on Open Policy Agent, from the policy/opa package
+# see: kit package remove policy/opa, or "Changing what kit adds" in .kit/1st.md
 # Put the repository's own rules in a file beside this one, in the same Rego package, kit.policy, adding to deny.
 # `kit policy --input` prints the input.
 

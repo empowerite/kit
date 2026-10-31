@@ -1,6 +1,6 @@
 ---
-# Added by kit's style/bash package. To remove it, run kit package remove style/bash.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the bash style, from the style/bash package
+# see: kit package remove style/bash, or "Changing what kit adds" in .kit/1st.md
 kind:
   - bash
 templates:

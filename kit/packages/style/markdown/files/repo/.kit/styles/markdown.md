@@ -1,6 +1,6 @@
 ---
-# Added by kit's style/markdown package. To remove it, run kit package remove style/markdown.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the markdown style, from the style/markdown package
+# see: kit package remove style/markdown, or "Changing what kit adds" in .kit/1st.md
 kind:
   - markdown
 lint: markdownlint-cli2 --config .kit/markdownlint.jsonc

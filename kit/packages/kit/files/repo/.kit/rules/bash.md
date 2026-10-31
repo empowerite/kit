@@ -1,6 +1,6 @@
 ---
-# Added by the kit package, which kit always installs.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the bash rule, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
 kind:
   - bash
 lint: shellcheck --shell=bash --external-sources

@@ -1,4 +1,5 @@
-<!-- Added by the kit package. Do not edit it here; to change it, see "Changing what kit adds" in 1st.md. -->
+<!-- kit:generated -- this directory, explained to the person at the desk, from the kit package -->
+<!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # This directory
 
 `.kit/` is where [empowerite/kit](https://github.com/empowerite/kit) keeps what it brings to this repository: the

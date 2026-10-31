@@ -1,6 +1,6 @@
 ---
-# Added by kit's style/json package. To remove it, run kit package remove style/json.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the json style, from the style/json package
+# see: kit package remove style/json, or "Changing what kit adds" in .kit/1st.md
 kind:
   - json
 ---

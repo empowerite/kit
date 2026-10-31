@@ -1,6 +1,6 @@
 ---
-# Added by kit's style/workflows package. To remove it, run kit package remove style/workflows.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the workflows style, from the style/workflows package
+# see: kit package remove style/workflows, or "Changing what kit adds" in .kit/1st.md
 kind:
   - workflows
 templates:

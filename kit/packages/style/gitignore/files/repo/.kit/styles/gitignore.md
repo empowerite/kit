@@ -1,6 +1,6 @@
 ---
-# Added by kit's style/gitignore package. To remove it, run kit package remove style/gitignore.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the gitignore style, from the style/gitignore package
+# see: kit package remove style/gitignore, or "Changing what kit adds" in .kit/1st.md
 kind:
   - gitignore
 templates:

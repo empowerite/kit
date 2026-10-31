@@ -1,5 +1,5 @@
-# Added by kit's hooks/lefthook package. To remove it, run kit package remove hooks/lefthook.
-# To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
+# kit:generated -- the pre-commit hook a repository's lefthook.yml extends, from the hooks/lefthook package
+# see: kit package remove hooks/lefthook, or "Changing what kit adds" in .kit/1st.md
 #
 # The pre-commit hook runs two commands over the staged files:
 #

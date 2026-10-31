@@ -1,4 +1,5 @@
 {
+  "$comment": "kit:generated -- the schema of .kit/settings.yml, from the kit package; see: \"Changing what kit adds\" in .kit/1st.md, to replace it",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/empowerite/kit/.kit/settings.schema.json",
   "title": ".kit/settings.yml",

@@ -1,4 +1,5 @@
-<!-- Added by the kit package. Do not edit it here; to change it, see "Changing what kit adds" below. -->
+<!-- kit:generated -- the entry every agent reads first, from the kit package -->
+<!-- see: "Changing what kit adds" below, to replace it -->
 # Read this first
 
 This file is the kit's entry point. Every agent follows it in every session, in any repository that has a `.kit/`
@@ -211,9 +212,10 @@ when any region differs from what its command produces.
 
 ## Changing what kit adds
 
-Every file kit adds belongs to a package, and the file's first lines name it. A file under `.kit/` cannot be edited
-where it lies: a link leads to its source, a copy has no write bit, and git never sees either, so an edit there
-never reaches a commit. `kit check` fails when any delivered file differs from the pinned release. Instead:
+Every file kit adds belongs to a package. A file under `.kit/` opens with a `kit:generated` line that names what it is
+and its package, and a `see:` line that says how to stop using it or replace it. It cannot be edited where it lies: a
+link leads to its source, a copy has no write bit, and git never sees either, so an edit there never reaches a commit.
+`kit check` fails when any delivered file differs from the pinned release. Instead:
 
 - To stop using a file, remove its package: `kit package remove <package>`. It takes out everything the package
   added. A package that another active package depends on is refused until that one is removed. A member of a
