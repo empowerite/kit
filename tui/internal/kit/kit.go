@@ -111,6 +111,13 @@ func (r Runner) Choices(verb, key string, answers []string) ([]Choice, error) {
 	return rows, nil
 }
 
+// Kind asks whether a key's choices, given the answers so far, are closed, open, or a set: closed choices that name the
+// whole of something, as kit package select does, so the form starts from the active rows and marks each by plan.
+func (r Runner) Kind(verb, key string, answers []string) (string, error) {
+	out, err := r.run(append([]string{"syntax", verb, "--choices", key, "--", "--kind"}, answers...)...)
+	return strings.TrimSpace(string(out)), err
+}
+
 // Extend gives the arguments the verb learns from the answers so far, as kit syntax <verb> --extend prints them, with
 // their keys in the order kit printed them (a template's holes in the template's order): none before the verb knows.
 func (r Runner) Extend(verb string, answers []string) ([]string, map[string]syntax.Argument, error) {

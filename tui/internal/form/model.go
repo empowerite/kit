@@ -22,6 +22,7 @@ type BackMsg struct{}
 type choicesMsg struct {
 	key     string
 	rows    []kit.Choice
+	set     bool
 	err     error
 	flipped string
 }
@@ -44,6 +45,7 @@ type Model struct {
 	width   int
 
 	lists  map[string][]kit.Choice
+	sets   map[string]bool
 	stale  map[string]bool
 	seeded map[string]bool
 
@@ -58,7 +60,7 @@ type Model struct {
 
 // New opens the form over the fields; back is true when esc returns to the palette, false when it cancels.
 func New(spec syntax.Spec, fields []Field, r kit.Runner, back bool) Model {
-	m := Model{spec: spec, runner: r, back: back, fields: fields, width: 80, lists: map[string][]kit.Choice{},
+	m := Model{spec: spec, runner: r, back: back, fields: fields, width: 80, lists: map[string][]kit.Choice{}, sets: map[string]bool{},
 		stale: map[string]bool{}, seeded: map[string]bool{}, extSeen: map[string]bool{}}
 	if spec.Extends {
 		m.refreshExtension()
@@ -394,11 +396,12 @@ func (m *Model) flip(value string) tea.Cmd {
 	return nil
 }
 
-// choices takes a list's rows. A list of closed choices with state, empty, starts from the values active now, so the
-// command line is the whole set; a row the verb has a line about, flipped off, is flipped back on with that line
+// choices takes a list's rows. A list kit calls a set, empty, starts from the values active now, so the command line
+// is the whole set; a row the verb has a line about, flipped off, is flipped back on with that line
 // shown, since the verb keeps it anyway.
 func (m *Model) choices(msg choicesMsg) {
 	m.lists[msg.key] = msg.rows
+	m.sets[msg.key] = msg.set
 	m.stale[msg.key] = false
 	if msg.err != nil {
 		m.note = msg.err.Error()
@@ -409,7 +412,7 @@ func (m *Model) choices(msg choicesMsg) {
 		return
 	}
 	f := &m.fields[i]
-	if f.Kind == PickMany && f.Choices == "closed" && len(f.Values) == 0 && !m.seeded[msg.key] {
+	if f.Kind == PickMany && msg.set && len(f.Values) == 0 && !m.seeded[msg.key] {
 		for _, row := range msg.rows {
 			if row.State == "active" {
 				f.Values = append(f.Values, row.Value)
@@ -432,13 +435,37 @@ func (m *Model) choices(msg choicesMsg) {
 	}
 }
 
-// fetch asks kit for a list's rows, with the answers as they stand.
+// fetch asks kit for a list's rows, with the answers as they stand, and, for closed choices, whether they are a set.
 func (m *Model) fetch(key, flipped string) tea.Cmd {
-	r, verb, answers := m.runner, m.spec.Verb, answerList(Collect(m.viewFields()))
+	r, verb, answers := m.runner, m.spec.Verb, m.answers()
+	closed := false
+	if i := m.fieldOf(key); i >= 0 {
+		closed = m.fields[i].Choices == "closed"
+	}
 	return func() tea.Msg {
 		rows, err := r.Choices(verb, key, answers)
-		return choicesMsg{key: key, rows: rows, err: err, flipped: flipped}
+		set := false
+		if err == nil && closed {
+			kind, kindErr := r.Kind(verb, key, answers)
+			set = kindErr == nil && kind == "set"
+		}
+		return choicesMsg{key: key, rows: rows, set: set, err: err, flipped: flipped}
 	}
+}
+
+// answers gives the answers kit syntax takes after a --: each <key>=<value>, and the subcommand words chosen, which a
+// verb's choices may depend on, as kit package select's list does.
+func (m Model) answers() []string {
+	fields := m.viewFields()
+	out := answerList(Collect(fields))
+	for _, f := range fields {
+		if f.Kind == OneOf && f.Chosen >= 0 {
+			if word := f.Options[f.Chosen]; !strings.ContainsAny(word[:1], "-<") && !strings.Contains(word, " ") {
+				out = append(out, word)
+			}
+		}
+	}
+	return out
 }
 
 // tryRun asks kit whether the command line is complete, and runs it when it is; otherwise it shows kit's line under
@@ -514,7 +541,7 @@ func (m *Model) rebuild(a Answers) {
 
 // refreshExtension asks kit for the arguments the answers add, once per set of answers.
 func (m *Model) refreshExtension() {
-	answers := answerList(Collect(m.fields))
+	answers := m.answers()
 	seen := strings.Join(answers, "\x00")
 	if m.extSeen[seen] {
 		return
@@ -585,7 +612,7 @@ func (m Model) expand(i int, indent string) string {
 			b.WriteString(indent + v + "\n")
 		}
 		b.WriteString(indent + m.input + "▏\n")
-		b.WriteString(indent + style.Off("⏎ another line · an empty line ends the list") + "\n")
+		m.hint(&b, indent, "⏎ another line · an empty line ends the list")
 	case Pick, PickMany:
 		m.drawList(&b, f, indent)
 	default:
@@ -600,7 +627,13 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 	all := m.lists[f.Key]
 	rows := m.filtered()
 	if all == nil {
-		b.WriteString(indent + style.Off("…") + "\n")
+		if m.note != "" {
+			for _, line := range wrap(style.Excluded+" "+m.note, m.width-len(indent)) {
+				b.WriteString(indent + style.Refusal(line) + "\n")
+			}
+		} else {
+			b.WriteString(indent + style.Off("…") + "\n")
+		}
 		return
 	}
 	if len(rows) == 0 {
@@ -620,7 +653,8 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 			widest = n
 		}
 	}
-	planned := stateful(all)
+	planned := m.sets[f.Key]
+	states := stateful(all)
 	room := m.width - len(indent) - widest - 8
 	for k := start; k < end; k++ {
 		row := rows[k]
@@ -634,6 +668,9 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 		case f.Kind == PickMany:
 			mark = style.Unpicked + " "
 		}
+		if states && !planned {
+			mark += state(row) + " "
+		}
 		lead := "  "
 		value := row.Value + strings.Repeat(" ", widest-len([]rune(row.Value)))
 		if k == m.cursor {
@@ -642,7 +679,9 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
 	}
 	if m.note != "" {
-		b.WriteString(indent + style.Refusal(style.Excluded+" "+m.note) + "\n")
+		for _, line := range wrap(style.Excluded+" "+m.note, m.width-len(indent)) {
+			b.WriteString(indent + style.Refusal(line) + "\n")
+		}
 	}
 	switch {
 	case f.Kind == PickMany && planned:
@@ -655,17 +694,35 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 				remove++
 			}
 		}
-		b.WriteString(indent + style.Off(fmt.Sprintf("%d to add · %d to remove · ␣ flips · type to filter", add, remove)) + "\n")
+		m.hint(b, indent, fmt.Sprintf("%d to add · %d to remove · ␣ flips · type to filter", add, remove))
 	case f.Kind == PickMany:
-		b.WriteString(indent + style.Off(fmt.Sprintf("%d of %d picked · ␣ pick · type to filter", len(f.Values), len(all))) + "\n")
+		m.hint(b, indent, fmt.Sprintf("%d of %d picked · ␣ pick · type to filter", len(f.Values), len(all)))
 	case f.Choices == "open":
-		b.WriteString(indent + style.Off("⏎ takes it · ctrl-n takes what is typed · type to filter") + "\n")
+		m.hint(b, indent, "⏎ takes it · ctrl-n takes what is typed · type to filter")
 	default:
-		b.WriteString(indent + style.Off("⏎ takes it · type to filter") + "\n")
+		m.hint(b, indent, "⏎ takes it · type to filter")
 	}
 }
 
-// plan gives a row's mark in a list whose rows carry state: what it is now against what the command line will make it.
+// hint writes a line of keys under a field, dim, wrapped to the width left beside the indent.
+func (m Model) hint(b *strings.Builder, indent, text string) {
+	for _, line := range wrap(text, m.width-len(indent)) {
+		b.WriteString(indent + style.Off(line) + "\n")
+	}
+}
+
+// state gives a row's state as kit package list draws it: ✅ active, ❌ excluded, or blank.
+func state(row kit.Choice) string {
+	switch row.State {
+	case "active":
+		return style.Active
+	case "excluded":
+		return style.Excluded
+	}
+	return "  "
+}
+
+// plan gives a row's mark in a list kit calls a set: what it is now against what the command line will make it.
 func plan(row kit.Choice, picked bool) string {
 	switch {
 	case picked && row.State == "active":

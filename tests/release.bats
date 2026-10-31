@@ -34,6 +34,9 @@ teardown() {
   [ "$status" -eq 0 ]
   run "${repo_bin}/release" verify release/1.2.3-rc.1
   [ "$status" -eq 0 ]
+  git tag release/1.2.3-rc-2 main
+  run "${repo_bin}/release" verify release/1.2.3-rc-2
+  [ "$status" -eq 0 ]
   run "${repo_bin}/release" verify release/1.2.4
   [ "$status" -eq 1 ]
   [[ "$output" == *"is not on main"* ]]

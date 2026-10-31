@@ -278,6 +278,9 @@ func (d *drawer) row(i int, lead string) {
 		}
 		for _, j := range nested {
 			g := d.fields[j]
+			if g.Key == option && g.Kind == Toggle {
+				continue // the name itself says it: a required flag has no value to show
+			}
 			if g.Key == option && g.Kind != AnyOf && g.Kind != OneOf {
 				d.values(j, g, strings.Repeat(" ", d.column)) // the option's own value: no second label
 				continue

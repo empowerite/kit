@@ -32,7 +32,7 @@ self=$(readlink -f "${BASH_SOURCE[0]}")
 # shellcheck source=SCRIPTDIR/../kit/modules/bash/1st.sh
 source "$(dirname "${self}")/../kit/modules/bash/1st.sh"
 kit:enter
-use git release
+use git release releases
 
 usage() { echo "usage: bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
@@ -63,7 +63,7 @@ refuse-tag() {
 # tag-version <tag> prints the tag's version, the part after release/. It refuses a tag that is not a release tag.
 tag-version() {
   local version=${1#release/}
-  if [[ "$1" != release/* || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+  if [[ "$1" != release/* ]] || ! releases:valid "${version}"
   then
     refuse-tag "$1 is not a release tag: release/<major>.<minor>.<patch>, with -<suffix> for a pre-release"
   fi

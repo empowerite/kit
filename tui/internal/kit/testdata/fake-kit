@@ -32,6 +32,15 @@ case "${1:-}" in
       verb=$1 key=$3
       shift 3
       [[ "${1:-}" != -- ]] || shift
+      if [[ "${1:-}" == --kind ]]
+      then
+        shift
+        case " $* " in
+          (*" select "*) printf 'set\n' ;;
+          (*) printf 'closed\n'
+        esac
+        exit 0
+      fi
       [[ -z "${FAKE_KIT_CALLS:-}" ]] || printf 'choices %s %s %s\n' "${verb}" "${key}" "$*" >> "${FAKE_KIT_CALLS}"
       if [[ -n "${FAKE_KIT_ROWS:-}" ]]
       then

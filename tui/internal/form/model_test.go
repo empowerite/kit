@@ -2,6 +2,7 @@
 package form
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -275,4 +276,45 @@ func stripANSI(s string) string {
 		}
 	}
 	return b.String()
+}
+
+func TestAddStartsEmptyAndDrawsEachRowsStateBesideItsBox(t *testing.T) {
+	m := newForm(t, "package", FromMatch(syntax.Match{Literals: []string{"add"}}), false)
+	m, _ = drive(t, m)
+	if len(m.fields[1].Values) != 0 || strings.Join(m.CommandLine(), " ") != "add" {
+		t.Fatalf("add was seeded: %+v, %q", m.fields[1], m.CommandLine())
+	}
+	view := stripANSI(m.View().Content)
+	if !strings.Contains(view, "◻ ✅ a") || strings.Contains(view, "➖") || !strings.Contains(view, "0 of 3 picked") {
+		t.Errorf("add's list:\n%s", view)
+	}
+}
+
+func TestHintsWrapAtFiftyColumns(t *testing.T) {
+	for _, c := range []struct {
+		verb string
+		a    Answers
+		keys []string
+	}{
+		{"lint", Answers{}, []string{"down"}},
+		{"commit", Answers{}, []string{"right", "down"}},
+		{"package", FromMatch(syntax.Match{Literals: []string{"select"}}), nil},
+	} {
+		m := newForm(t, c.verb, c.a, false)
+		m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: 40})
+		m, _ = drive(t, m, keys(c.keys...)...)
+		for _, line := range strings.Split(stripANSI(m.View().Content), "\n") {
+			if n := len([]rune(line)); n > 50 {
+				t.Errorf("%s: a line of %d columns: %q", c.verb, n, line)
+			}
+		}
+	}
+}
+
+func TestAFailedChoicesCallIsShown(t *testing.T) {
+	m := newForm(t, "lint", Answers{}, false)
+	m, _ = drive(t, m, key("down"), choicesMsg{key: "<path>", err: errors.New("kit lint has no choices for '<path>'")})
+	if !strings.Contains(stripANSI(m.View().Content), "kit lint has no choices for '<path>'") {
+		t.Errorf("the error is not shown:\n%s", stripANSI(m.View().Content))
+	}
 }

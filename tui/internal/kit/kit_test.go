@@ -133,3 +133,13 @@ func TestMatchJudgesTheWordsAfterADoubleDash(t *testing.T) {
 		t.Fatalf("Match: %v, %+v", err, m)
 	}
 }
+
+func TestKindAsksWithTheAnswers(t *testing.T) {
+	r := fake(t, "")
+	if kind, err := r.Kind("package", "<package>", []string{"select", "<package>=a"}); err != nil || kind != "set" {
+		t.Errorf("Kind(select) = %q, %v", kind, err)
+	}
+	if kind, err := r.Kind("package", "<package>", []string{"add"}); err != nil || kind != "closed" {
+		t.Errorf("Kind(add) = %q, %v", kind, err)
+	}
+}

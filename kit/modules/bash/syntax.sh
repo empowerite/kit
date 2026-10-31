@@ -362,7 +362,7 @@ syntax:closed() {
   for key in "${!syntax_values[@]}"
   do
     kind=$(syntax:kind "${verb}" "${key}") || continue
-    [[ "${kind}" == closed ]] || continue
+    [[ "${kind}" == closed || "${kind}" == set ]] || continue
     choices=$(syntax:choices "${verb}" "${key}" "${answers[@]}") || continue
     choices=$(cut -f 1 <<<"${choices}")
     while IFS= read -r value

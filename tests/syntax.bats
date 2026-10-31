@@ -199,4 +199,23 @@ setup() {
   [[ "$output" == *"--check cannot be combined with --list; run: kit help syntax"* ]]
 }
 
+@test "a list of choices says it is a set only when the answers name the declarative subcommand" {
+  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind select
+  [ "$output" = set ]
+  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind add
+  [ "$output" = closed ]
+  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind
+  [ "$output" = closed ]
+  run "${kit_root}/bin/kit" package add nonesuch
+  [[ "$output" == *"<package> 'nonesuch' is not one of the choices"* ]]
+}
+
+@test "the tracked files a path is picked from are relative to where the command was typed" {
+  cd "${kit_root}/../docs"
+  run "${kit_root}/bin/kit" syntax lint --choices '<path>'
+  [ "$status" -eq 0 ]
+  grep -q $'^features.md\t' <<<"$output"
+  ! grep -q $'^docs/features.md\t' <<<"$output"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

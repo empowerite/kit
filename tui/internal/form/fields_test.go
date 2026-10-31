@@ -212,3 +212,16 @@ func TestGoldenRenders(t *testing.T) {
 		}
 	}
 }
+
+func TestAChosenRequiredFlagDrawsNoValueUnderItsName(t *testing.T) {
+	spec := specs(t)["context"]
+	fields, err := Fields(spec, Answers{Chosen: map[int]int{0: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(RenderStatic(spec, fields, 100), "\n") {
+		if strings.TrimSpace(line) == "1" {
+			t.Fatalf("a 1 under --claude:\n%s", RenderStatic(spec, fields, 100))
+		}
+	}
+}

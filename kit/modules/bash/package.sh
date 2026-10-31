@@ -169,18 +169,26 @@ package:select() {
   fi
 }
 
-# package:choices <key> [<answer>…] answers kit syntax --choices for <package>: a closed set, every package in reach
-# with its description and its state (active, excluded, or none). When the answers name packages, as <package>=house,
-# a package they omit but kit package select would keep or bring, a dependency or a member of a named bundle, carries
-# the line select prints about it.
+# package:choices <key> [<answer>…] answers kit syntax --choices for <package>: every package in reach with its
+# description and its state (active, excluded, or none); closed choices, and a set when the answers name select. When
+# the answers name packages, as <package>=house, a package they omit but kit package select would keep or bring, a
+# dependency or a member of a named bundle, carries the line select prints about it.
 package:choices() {
   local key=$1 answer package expanded state note word
   local -a active excluded named=() known=() wanted=() dependents includers
   shift
   [[ "${key}" == '<package>' ]] || return 1
+  # kit package select names the whole set, so its list is a set: the form starts from the active packages and marks
+  # each row by what select will do; under add and remove the same packages are closed choices, picked one by one.
   if [[ "${1:-}" == --kind ]]
   then
-    printf 'closed\n'
+    shift
+    if release:among select "$@"
+    then
+      printf 'set\n'
+    else
+      printf 'closed\n'
+    fi
     return 0
   fi
   for answer in "$@"

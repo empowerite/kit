@@ -420,8 +420,8 @@ context:claude() {
     '{ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: $text } }'
 }
 
-# context:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every tracked file, since a
-# path kit context takes need not be among them.
+# context:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every tracked file, named from
+# where the command was typed, as kit context resolves a path; a path it takes need not be among them.
 context:choices() {
   [[ "$1" == '<path>' ]] || return 1
   if [[ "${2:-}" == --kind ]]
@@ -429,7 +429,7 @@ context:choices() {
     printf 'open\n'
     return 0
   fi
-  git ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
+  git -C "${kit_invoked_in:-.}" ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
