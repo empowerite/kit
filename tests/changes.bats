@@ -116,4 +116,25 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" == *"--all cannot be combined with --owner; run: kit help changes"* ]]
 }
 
+@test "kit changes <issue>… lists only the changes that close one of the issues, with or without the #" {
+  run kit changes 7
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
+  [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
+  run kit changes '#7' 11 --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
+  run kit changes 007 --json
+  [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
+  run kit changes 11
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no open change closes #11"* ]]
+  run kit changes 9 --mine
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no open change by ada closes #9"* ]]
+  run kit changes x7
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'x7' is not an issue number: 7 or #7; run: kit help changes"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

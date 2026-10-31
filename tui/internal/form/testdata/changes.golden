@@ -6,5 +6,8 @@
    --all                    every open change (the default); it stands alone
    --mine --others --owner
 
+   <issue>…                 only the changes that close one of these issues, each a number, with or
+                            without its #: 7 or #7, since # starts a comment in many shells
+
 
  kit changes

@@ -2,7 +2,7 @@
   "verb": "changes",
   "purpose": "lists the open changes, each with the issues it closes, as kit status draws them",
   "usage": [
-    "kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]]"
+    "kit changes [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…]"
   ],
   "syntax": [
     [
@@ -79,6 +79,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "issue",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
       }
     ]
   ],
@@ -97,6 +111,9 @@
     },
     "--owner": {
       "description": "the changes the named author opened; give it once or more. The three filters combine: --mine --owner=bob shows the caller's and bob's"
+    },
+    "<issue>": {
+      "description": "only the changes that close one of these issues, each a number, with or without its #: 7 or #7, since # starts a comment in many shells"
     }
   }
 }

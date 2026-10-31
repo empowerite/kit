@@ -12,12 +12,13 @@
 
 use forge status
 
-# changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the changes, one block each, to
-# stderr. With --json it prints the change documents as one array to stdout. The owner flags combine as status:filter
-# says.
+# changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<issue>…] prints the changes, one block
+# each, to stderr. With --json it prints the change documents as one array to stdout. The owner flags combine as
+# status:filter says; issues given keep only the changes that close one of them. It returns 2 on a word that is not an
+# issue number.
 changes:render() {
-  local json=false mine=false others=false choice arg prs filter by=''
-  local -a owners=() selection=()
+  local json=false mine=false others=false choice arg prs filter by='' closing=''
+  local -a owners=() selection=() issues=()
   for arg in "$@"
   do
     case "${arg}" in
@@ -25,7 +26,15 @@ changes:render() {
       (--mine) mine=true ;;
       (--others) others=true ;;
       (--all) ;;
-      (--owner=?*) owners+=("${arg#--owner=}")
+      (--owner=?*) owners+=("${arg#--owner=}") ;;
+      (--) ;;
+      (*)
+        if [[ ! "${arg}" =~ ^#?[0-9]+$ ]]
+        then
+          error "'${arg}' is not an issue number: 7 or #7; run: kit help changes"
+          return 2
+        fi
+        issues+=("${arg#\#}")
     esac
   done
   choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
@@ -33,6 +42,12 @@ changes:render() {
   read -r -a selection <<<"${filter}"
   prs=$(forge:open-prs) || return 1
   prs=$(status:select "${selection[@]}" <<<"${prs}")
+  if (( ${#issues[@]} > 0 ))
+  then
+    prs=$(jq --compact-output --argjson issues "[$(IFS=,; printf '%s' "${issues[*]}")]" \
+      'select(.closes // [] | any(.number as $n | $issues | index($n)))' <<<"${prs}")
+    closing=" closes $(printf '#%s\n' "${issues[@]}" | paste -s -d ' ' - | sed 's/ / or /g')"
+  fi
   if [[ "${json}" == true ]]
   then
     jq --slurp --compact-output . <<<"${prs}"
@@ -45,7 +60,7 @@ changes:render() {
       (--except) by=" by anyone but ${selection[*]:1}" ;;
       (*) by=" by ${selection[*]}"
     esac
-    step "no open change${by}"
+    step "no open change${by}${closing}"
     return 0
   fi
   status:pr-table "${choice}" "${prs}" always between
