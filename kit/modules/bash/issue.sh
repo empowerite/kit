@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # issue.sh - start an issue: a linked branch, a worktree, a start commit, and a draft pull request (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments in 1st.sh
 #
 # issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
 # modules/bash/tracker.sh describes:
@@ -20,8 +21,7 @@
 # there. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch, worktree, or pull
 # request is reused, so running it again fills in whatever is missing.
 #
-# With no argument and a terminal on stdin, it asks for a title and creates the issue. Without a terminal it fails
-# with a usage error, so an agent never waits on a prompt.
+# With --title and no reference, it creates the issue first, as issue:start reads from the guard's sorting; it never asks.
 #
 # Uncommitted work is handled by where it is:
 #
@@ -35,10 +35,9 @@
 
 use git forge tracker
 
-# issue:create asks for a title at the terminal, creates the issue in the forge's tracker, and prints its reference.
+# issue:create <title> creates an issue with the title in the forge's tracker, and prints its reference.
 issue:create() {
-  local title number
-  read -r -p "Issue title: " title
+  local title=$1 number
   if [[ -z "${title}" ]]
   then
     error "an issue title is required"
@@ -233,8 +232,9 @@ issue:link-in-body() {
   fi
 }
 
-# issue:start [<reference>…] does what the file header describes. When the require_signing setting is true, it
-# fails before writing anything if git has no signing key configured.
+# issue:start [<reference>…] does what the file header describes; with no reference, it creates the issue titled by
+# --title, which guard:arguments sorted into syntax_options. When the require_signing setting is true, it fails before
+# writing anything if git has no signing key configured.
 issue:start() {
   local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun
   local -a refs=() in_body=()
@@ -245,12 +245,7 @@ issue:start() {
   fi
   if (( $# == 0 ))
   then
-    if [[ ! -t 0 ]]
-    then
-      error "kit issue needs a reference, or a terminal to ask for a title; run: kit help issue"
-      return 2
-    fi
-    created=$(issue:create) || return
+    created=$(issue:create "${syntax_options[--title]:-}") || return
     set -- "${created}"
   fi
   for n in "$@"

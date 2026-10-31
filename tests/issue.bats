@@ -73,4 +73,28 @@ world() {
   run ! git -C worktrees/7-fix-the-thing ls-files --error-unmatch .kit/1st.md
 }
 
+@test "kit issue with nothing is refused: a reference or a title, and no prompt remains" {
+  run "${kit_checkout}/bin/kit" issue </dev/null
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit issue needs <reference> or --title; run: kit help issue"* ]]
+  [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
+  run "${kit_checkout}/bin/kit" issue 7 --title 'Fix the thing'
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"<reference> cannot be combined with --title; run: kit help issue"* ]]
+}
+
+@test "kit issue --title creates the issue and starts it in one step" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\n' >> .kit/settings.yml
+  git add --all && git commit --quiet --message init
+  world
+  fixture created.txt <<<'https://github.com/empowerite/example/issues/7'
+  route 'issue create --title Fix the thing *' created.txt
+  run "${kit_checkout}/bin/kit" issue --title 'Fix the thing'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Created #7: Fix the thing"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  [ "$(git -C worktrees/7-fix-the-thing log --format=%s -1)" = "#7 start: Fix the thing" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

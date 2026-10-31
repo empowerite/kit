@@ -2,7 +2,7 @@
 # kit-issue - starts or resumes an issue (kit verb)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit issue [<reference>…]
+# kit issue (<reference>… | --title <text>)
 #
 # Starts work on an issue, or resumes it. kit issue makes each of these, and reuses any that already exists:
 #
@@ -14,8 +14,10 @@
 #   <reference>…   the issues, each named with its tracker: 7 or #7 for an issue on the forge (the service that
 #                  hosts the repository, GitHub or GitLab), AB#4521 for an Azure DevOps work item, when that tracker
 #                  is declared in .kit/settings.yml
+#   --title <text>   creates an issue with that title in the forge's tracker, then starts it, in one step
 #
-# With no reference, at a terminal, kit issue asks for a title and creates the issue.
+# kit issue asks nothing itself: with --title it creates the issue and starts it; kit tui asks for the title when
+# kit issue is given neither.
 #
 # see: modules/bash/issue.sh, modules/bash/forge.sh, modules/bash/tracker.sh
 
@@ -26,7 +28,8 @@ kit:enter
 use issue
 
 guard:arguments issue "$@" || exit $?
+# shellcheck disable=SC2154  # syntax_operands is set by guard:arguments
 
-issue:start "$@"
+issue:start "${syntax_operands[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

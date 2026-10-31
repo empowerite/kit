@@ -58,3 +58,8 @@ import "syntax" as syntax; syntax::match(["--message","a b","--message=c","--all
 import "syntax" as syntax; [syntax::match(["--json"]), ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose=x"]))]
 {"verb":"version","syntax":[[]]}
 [{"status":2,"refusal":"kit version takes no arguments; run: kit help version"},{"status":0,"literals":["file"],"operands":["p"],"options":{"--purpose":["x"]},"values":{"--purpose":["x"],"<path>":["p"]}}]
+
+# A word for an operand that opens one alternative cannot go with a flag that selects another.
+import "syntax" as syntax; [syntax::match(["7","--title","x"]), syntax::match(["--title","x"]), syntax::match(["7"])] | map(.refusal // .status)
+{"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","inline":false,"name":"title","value":"text","repeat":false}]],"repeat":false}]]}
+["<reference> cannot be combined with --title; run: kit help issue",0,0]
