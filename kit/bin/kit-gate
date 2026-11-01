@@ -23,9 +23,9 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release toolchain
+use toolchain settings materialize
 guard:arguments gate "$@" || exit $?
-release:hydrate
+materialize:hydrate
 
 # detect-gate prints the command of the first gate found, or nothing. It fails when the root justfile cannot be read.
 detect-gate() {
@@ -53,7 +53,7 @@ detect-gate() {
   return 0
 }
 
-gate=$(release:setting gate)
+gate=$(settings:value gate)
 [[ -n "${gate}" ]] || gate=$(detect-gate) || exit 1
 if [[ -z "${gate}" ]]
 then

@@ -19,20 +19,20 @@
 #
 # Exits 0 when there are no findings, and 1 otherwise.
 #
-# see: modules/bash/release.sh
+# see: modules/bash/place.sh, modules/bash/materialize.sh, modules/bash/region.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release generate template
+use release generate template settings resolve render region place materialize manifest
 
 guard:arguments check "$@" || exit $?
 
-release:require-declaration
-readarray -t packages < <(release:declared-packages)
-version=$(release:declared-version)
-release:render-all "${kit_root}" "${packages[@]}"
+settings:require
+readarray -t packages < <(settings:packages)
+version=$(settings:version)
+render:all "${kit_root}" "${packages[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
@@ -41,9 +41,9 @@ then
 fi
 for base in $(release:bases)
 do
-  delivered=$(release:delivered "${kit_root}" "${base}" "${packages[@]}")
+  delivered=$(place:delivered "${kit_root}" "${base}" "${packages[@]}")
   [[ -n "${delivered}" ]] || continue
-  if [[ "${base}" != repo && ! -f "$(release:manifest "${base}")" ]]
+  if [[ "${base}" != repo && ! -f "$(manifest:path "${base}")" ]]
   then
     info "${base}: nothing is installed under $(release:base-root "${base}") on this machine; not checked"
     continue
@@ -51,10 +51,10 @@ do
   while IFS=$'\t' read -r path src
   do
     dest=$(release:dest "${base}" "${path}")
-    kind=$(release:kind "${src}" "${dest}")
-    if release:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
+    kind=$(place:kind "${src}" "${dest}")
+    if materialize:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
     then
-      # A materialized path is judged below, by release:materialize --check.
+      # A materialized path is judged below, by materialize:all --check.
       continue
     fi
     if [[ ! -f "${dest}" ]]
@@ -69,11 +69,11 @@ do
     then
       # The directive, and the host file's shape when the package states one, are checked here. The region's
       # content is checked below, with every other generated region.
-      if ! release:installed "${src}" "${dest}" >/dev/null
+      if ! place:installed "${src}" "${dest}" >/dev/null
       then
         error "${dest} has no kit region; run: kit update"
         findings=$(( findings + 1 ))
-      elif host=$(release:host "${src}") && [[ -n "${host}" ]] && line=$(template:leaves "${host}" "${dest}") \
+      elif host=$(region:host "${src}") && [[ -n "${host}" ]] && line=$(template:leaves "${host}" "${dest}") \
         && [[ -n "${line}" ]]
       then
         rest=${host##*/packages/}
@@ -82,7 +82,7 @@ do
           "$(sed -n "${line}p" "${host}")")"
         findings=$(( findings + 1 ))
       fi
-    elif ! release:holds "${src}" "${dest}"
+    elif ! place:holds "${src}" "${dest}"
     then
       case "${kind}" in
         (merge) error "${dest} is missing an entry the kit writes; run: kit update" ;;
@@ -93,14 +93,14 @@ do
   done <<<"${delivered}"
 done
 # Every materialized path, .kit/.gitignore, a stray file under a delivered directory, and a tracked delivered path.
-findings=$(( findings + $(release:materialize --check "${packages[@]}") ))
+findings=$(( findings + $(materialize:all --check "${packages[@]}") ))
 # The kit never writes a line a package expects in a file the repository owns; it only reports one that is missing.
 while IFS= read -r unmet
 do
   [[ -n "${unmet}" ]] || continue
   error "${unmet}"
   findings=$(( findings + 1 ))
-done < <(release:unmet "${kit_root}" "${packages[@]}")
+done < <(resolve:unmet "${kit_root}" "${packages[@]}")
 # Every generated region, the kit's and the repository's own.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))

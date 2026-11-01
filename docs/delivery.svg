@@ -26,9 +26,9 @@
   <text class="m" x="52" y="126">bin/</text>
   <text class="m" x="68" y="148">kit</text>
   <text class="d" x="200" y="148">the command</text>
-  <text class="m" x="68" y="170">kit-&lt;verb&gt;.sh</text>
+  <text class="m" x="68" y="170">kit-&lt;verb&gt;</text>
   <text class="d" x="200" y="170">one per verb</text>
-  <text class="m" x="68" y="192">release.sh context.sh …</text>
+  <text class="m" x="68" y="192">place.sh region.sh context.sh …</text>
   <text class="d" x="258" y="212">sourced modules</text>
 
   <rect class="box" x="40" y="236" width="268" height="268" fill="#ffffff"/>

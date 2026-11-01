@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root, kit_bash_path, and help_groups are set by modules/bash/1st.sh and help.sh
 
-use template file
+use template file settings
 
 # new:choices <key> [<answer>…] answers kit syntax --choices for --rule, the rules that have templates, each with its
 # variants as the description, and for --variant, the variants of the rule and the style the answers name with
@@ -285,8 +285,8 @@ new:ensure-package() {
 # active, which kit hydrate then places, or the command that activates it.
 new:offer() {
   local -a packages
-  readarray -t packages < <(release:declared-packages)
-  if release:among "$1" "${packages[@]}"
+  readarray -t packages < <(settings:packages)
+  if list:among "$1" "${packages[@]}"
   then
     run kit hydrate >/dev/null
     step "$2 is in place; run: $3"

@@ -4,7 +4,7 @@
 # import "merge" as merge; with jq -L "${kit_jq}". The parameters are values ($name), not filters, so each is
 # evaluated once, at the right level.
 #
-# see: modules/bash/release.sh, docs/packages.md
+# see: modules/bash/place.sh, docs/packages.md
 
 # apply($cur; $base; $new) applies the release's $new over the current $cur, key by key. For an array, it keeps the
 # current entries that were not in the previous release's $base, then adds $new's.

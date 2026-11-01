@@ -32,7 +32,7 @@
 # Every forge call goes through modules/bash/forge.sh, and every issue call through modules/bash/tracker.sh. Each helper below
 # prints its one result on stdout and its messages on stderr, so issue:start can capture the results in order.
 
-use git forge tracker
+use git forge tracker settings
 
 # issue:create <title> creates an issue with the title in the forge's tracker, and prints its reference.
 issue:create() {
@@ -243,7 +243,7 @@ issue:start() {
     shift 2 || shift
   fi
   forge:require || return 1
-  if [[ "$(release:setting require_signing)" == true ]]
+  if [[ "$(settings:value require_signing)" == true ]]
   then
     guard:require signing-key || return 1
   fi

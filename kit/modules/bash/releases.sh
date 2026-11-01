@@ -9,7 +9,7 @@
 #
 # see: modules/jq/version.jq, docs/features.md
 
-use git release forge status
+use git forge status settings
 
 # releases:valid <version> says whether the version has the shape a release tag needs.
 releases:valid() {
@@ -70,7 +70,7 @@ releases:release() {
   fi
   subject=$(git log -1 --format=%s HEAD)
   step "tagging $(git rev-parse --short HEAD) ${subject} as ${tag}"
-  [[ "$(release:setting require_signing)" == true ]] && sign=(--sign)
+  [[ "$(settings:value require_signing)" == true ]] && sign=(--sign)
   git tag --annotate "${sign[@]}" --message "release ${version}" "${tag}" || return 1
   sends=$(git rev-list --count HEAD --not --remotes=origin)
   (( sends == 0 )) || step "the push sends ${sends} commit(s) no branch on origin has, reachable from ${tag} alone"

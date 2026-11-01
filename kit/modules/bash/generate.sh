@@ -47,7 +47,7 @@
 #
 # see: bin/kit-generate, bin/kit-region, docs/generate.md
 
-use file
+use file settings render place
 
 # The directive patterns. The name is any run of characters without whitespace or a backtick. The command is
 # everything between the first backtick after the name and the last backtick on the line.
@@ -118,18 +118,18 @@ generate:region() {
   if [[ "${generate_regions_read}" == false ]]
   then
     use release
-    release:require-declaration || return 1
-    readarray -t packages < <(release:declared-packages)
-    release:render-all "${kit_root}" "${packages[@]}" || return 1
+    settings:require || return 1
+    readarray -t packages < <(settings:packages)
+    render:all "${kit_root}" "${packages[@]}" || return 1
     while IFS=$'\t' read -r path src
     do
-      [[ -n "${path}" && "$(release:kind "${src}" "${path}")" == region ]] && generate_regions[${path}]=${src}
-    done < <(release:delivered "${kit_root}" repo "${packages[@]}")
+      [[ -n "${path}" && "$(place:kind "${src}" "${path}")" == region ]] && generate_regions[${path}]=${src}
+    done < <(place:delivered "${kit_root}" repo "${packages[@]}")
     generate_regions_read=true
   fi
   if [[ -z "${generate_regions[$1]+x}" ]]
   then
-    readarray -t packages < <(release:declared-packages)
+    readarray -t packages < <(settings:packages)
     error "no active package delivers a region at $1 (packages: ${packages[*]}); see kit.yml"
     return 1
   fi

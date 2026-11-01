@@ -20,9 +20,9 @@
 # .kit/packages/, so a later source replaces a package of the same name. A bash_path entry <name>:<dir> names a
 # directory in a source.
 #
-# see: modules/bash/release.sh, docs/packages.md
+# see: modules/bash/resolve.sh, docs/packages.md
 
-use yaml
+use yaml file
 
 # sources:list prints "<name>\x1f<url>\x1f<digest>" for each source in kit.yml, in order.
 sources:list() {
@@ -55,16 +55,6 @@ sources:tarball() {
   esac
 }
 
-# sources:digest <file> prints the file's sha256 digest as sha256:<hex>.
-sources:digest() {
-  local hex
-  if command -v sha256sum >/dev/null 2>&1
-  then hex=$(sha256sum "$1" | cut -d ' ' -f 1)
-  else hex=$(shasum -a 256 "$1" | cut -d ' ' -f 1)
-  fi
-  printf 'sha256:%s\n' "${hex}"
-}
-
 # sources:fetch <name> <url> <digest> unpacks the source into its cache directory, unless it is there already, and
 # prints the directory. It refuses a source whose bytes have another digest, naming the digest they have, and a
 # record without a sha256 digest.
@@ -89,7 +79,7 @@ sources:fetch() {
     error "the source ${name} could not be fetched from ${url}"
     return 1
   fi
-  have=$(sources:digest "${fresh}/source.tar.gz")
+  have="sha256:$(file:digest "${fresh}/source.tar.gz")"
   if [[ "${have}" != "${digest}" ]]
   then
     rm -rf "${fresh}"

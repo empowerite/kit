@@ -28,9 +28,9 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use policy release
+use policy settings materialize yaml
 guard:arguments policy "$@" || exit $?
-release:hydrate
+materialize:hydrate
 
 if [[ "${1:-}" == --input ]]
 then
@@ -53,7 +53,7 @@ then
     ok "${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml"
     summary "✅ The ${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml."
     exit 0
-  done < <(yaml:list "$(release:settings)" linked_exempt)
+  done < <(yaml:list "$(settings:file)" linked_exempt)
 fi
 engine=$(policy:engine)
 refusals=$(policy:deny "${input}") || exit 1

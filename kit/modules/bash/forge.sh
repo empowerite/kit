@@ -46,14 +46,14 @@
 #
 # see: docs/architecture.md
 
-use release
+use settings
 
 # forge:provider prints the provider's name, chosen as the file header describes. A self-hosted forge, or a
 # repository on two forges, needs the setting. It fails with a remedy when neither the setting nor origin's host
 # names a provider the kit has.
 forge:provider() {
   local provider host=''
-  provider=$(release:setting forge)
+  provider=$(settings:value forge)
   if [[ -z "${provider}" ]]
   then
     host=$(git remote get-url origin 2>/dev/null | sed -E 's#^([a-z]+://)?([^@/]+@)?([^/:]+).*#\3#')

@@ -38,7 +38,7 @@
 #
 # see: docs/toolchains.md
 
-use release yaml
+use yaml settings
 
 # toolchain:providers prints the providers on the module path, space-separated.
 toolchain:providers() {
@@ -53,7 +53,7 @@ toolchain:declared() {
   while IFS=$'\x1f' read -r provider
   do
     [[ -n "${provider}" ]] && declared+=("${provider}")
-  done < <(yaml:records "$(release:settings)" toolchains provider)
+  done < <(yaml:records "$(settings:file)" toolchains provider)
   if (( ${#declared[@]} > 0 ))
   then
     for provider in "${declared[@]}"
@@ -81,7 +81,7 @@ toolchain:field() {
   while IFS=$'\x1f' read -r provider value
   do
     [[ -z "${found}" && "${provider}" == "$1" ]] && found=${value}
-  done < <(yaml:records "$(release:settings)" toolchains provider "$2")
+  done < <(yaml:records "$(settings:file)" toolchains provider "$2")
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 

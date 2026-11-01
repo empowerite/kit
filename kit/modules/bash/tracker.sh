@@ -46,7 +46,7 @@
 #
 # see: docs/trackers.md
 
-use release yaml
+use yaml settings
 
 # tracker:records prints "<prefix>\x1f<provider>" for every declared tracker, then "#\x1fforge" for the forge's
 # own tracker, unless a record declares the prefix `#`.
@@ -57,7 +57,7 @@ tracker:records() {
     [[ -n "${prefix}" ]] || continue
     [[ "${prefix}" == '#' ]] && forge_claimed=true
     printf '%s\x1f%s\n' "${prefix}" "${provider}"
-  done < <(yaml:records "$(release:settings)" trackers prefix provider)
+  done < <(yaml:records "$(settings:file)" trackers prefix provider)
   [[ "${forge_claimed}" == true ]] || printf '#\x1fforge\n'
 }
 
@@ -69,7 +69,7 @@ tracker:field() {
   while IFS=$'\x1f' read -r prefix value
   do
     [[ -z "${found}" && "${prefix}" == "$1" ]] && found=${value}
-  done < <(yaml:records "$(release:settings)" trackers prefix "$2")
+  done < <(yaml:records "$(settings:file)" trackers prefix "$2")
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 

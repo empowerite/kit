@@ -7,7 +7,7 @@
 # jq that refuses a file, or an awk that stops, never leaves an empty file where the repository's was. The move is a
 # rename, so a reader sees the old file or the new one, never a partial one.
 #
-# see: modules/bash/release.sh
+# see: modules/bash/place.sh, modules/bash/manifest.sh
 
 # file:replace [--read-only] <path> <command> [<argument>…] runs the command with its stdout to <path>.kit-new, and
 # moves that over <path> when the command succeeds, making the directory when it is missing. The new file keeps the
@@ -57,6 +57,15 @@ file:copy() {
   fi
   [[ "${strip_write}" == false ]] || chmod a-w "${path}.kit-new"
   mv -f "${path}.kit-new" "${path}"
+}
+
+# file:digest [<path>] prints the sha256 of the file, or of stdin without a path, as 64 hex characters, using
+# sha256sum or shasum, whichever the machine has.
+file:digest() {
+  if command -v sha256sum >/dev/null 2>&1
+  then sha256sum "$@" | cut -d ' ' -f 1
+  else shasum -a 256 "$@" | cut -d ' ' -f 1
+  fi
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

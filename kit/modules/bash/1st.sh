@@ -204,6 +204,27 @@ else
   declare -gr out_color=0
 fi
 
+# list:among <name> <name>… succeeds when the first name is one of the rest.
+list:among() {
+  local needle=$1 item
+  shift
+  for item in "$@"
+  do
+    [[ "${item}" == "${needle}" ]] && return 0
+  done
+  return 1
+}
+
+# list:without <name> <name>… prints the rest without the first name, one per line.
+list:without() {
+  local needle=$1 item
+  shift
+  for item in "$@"
+  do
+    [[ "${item}" == "${needle}" ]] || printf '%s\n' "${item}"
+  done
+}
+
 # ere:quote <text> prints the text with every extended-regular-expression metacharacter escaped, so it matches
 # literally in a pattern. It is pure bash, so BSD and GNU sed differences in bracket expressions do not matter.
 ere:quote() {

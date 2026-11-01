@@ -4,13 +4,13 @@
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
 # kit uninstall is kit package remove over every active package, the kit package included, followed by the manifests
-# and the declaration. Each delivered path is taken out as release:unplace takes it out for a removed package: a copy
+# and the declaration. Each delivered path is taken out as place:remove takes it out for a removed package: a copy
 # is removed, a merged .json file keeps everything but the kit's entries, a region file keeps everything but the
 # region. A copy the repository edited is the one path left alone, and named, as kit update leaves one.
 #
-# see: bin/kit-uninstall, modules/bash/release.sh
+# see: bin/kit-uninstall, modules/bash/place.sh, modules/bash/settings.sh
 
-use release file
+use release file settings render place materialize manifest
 
 # uninstall:run [--dry-run] takes out what every active package delivered, under the repository and under home, then
 # the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing.
@@ -18,8 +18,8 @@ uninstall:run() {
   local dry=false base path src
   local -a packages
   [[ "${1:-}" != --dry-run ]] || dry=true
-  readarray -t packages < <(release:declared-packages)
-  release:render-all "${kit_root}" "${packages[@]}"
+  readarray -t packages < <(settings:packages)
+  render:all "${kit_root}" "${packages[@]}"
   if [[ "${dry}" == true ]]
   then section "kit uninstall --dry-run: what would be taken out"
   else section "kit uninstall, packages: ${packages[*]}"
@@ -30,7 +30,7 @@ uninstall:run() {
     do
       [[ -n "${path}" ]] || continue
       uninstall:path "${dry}" "${base}" "${path}" "${src}"
-    done < <(release:delivered "${kit_root}" "${base}" "${packages[@]}")
+    done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
   done
   uninstall:manifests "${dry}"
   uninstall:declaration "${dry}"
@@ -43,15 +43,15 @@ uninstall:path() {
   local dry=$1 base=$2 path=$3 src=$4 dest kind
   dest=$(release:dest "${base}" "${path}")
   [[ -e "${dest}" || -L "${dest}" ]] || return 0
-  kind=$(release:kind "${src}" "${dest}")
-  if [[ "${kind}" == copy ]] && ! release:owned "${base}" "${path}" && ! cmp --silent "${src}" "${dest}"
+  kind=$(place:kind "${src}" "${dest}")
+  if [[ "${kind}" == copy ]] && ! materialize:owned "${base}" "${path}" && ! cmp --silent "${src}" "${dest}"
   then
     warn "${dest}: edited since the kit placed it; it is left as it is"
     return 0
   fi
   if [[ "${dry}" == false ]]
   then
-    release:unplace "${src}" "${dest}"
+    place:remove "${src}" "${dest}"
     [[ "${kind}" != copy ]] || uninstall:prune "${dest}"
     return 0
   fi
@@ -92,17 +92,17 @@ uninstall:manifests() {
   then
     step ".kit/: kept, with the repository's own $(find .kit -mindepth 1 -maxdepth 1 | sed 's@^\.kit/@@' | paste -s -d ' ' -)"
   fi
-  release:write-manifest home ''
+  manifest:write home ''
 }
 
 # uninstall:declaration <dry> drops version, packages, and excludes from kit.yml, and removes the file when nothing
 # but the schema modeline is left.
 uninstall:declaration() {
   local dry=$1 settings kept
-  settings=$(release:settings)
+  settings=$(settings:file)
   [[ -f "${settings}" ]] || return 0
   # Runs of blank lines where the blocks stood become one, and none opens or closes the file.
-  kept=$(release:declaration-kept "${settings}" '' | awk 'NF { if (held && printed) print ""; held = 0; print; printed = 1; next } { held = 1 }')
+  kept=$(settings:declaration-kept "${settings}" '' | awk 'NF { if (held && printed) print ""; held = 0; print; printed = 1; next } { held = 1 }')
   if ! grep --quiet --invert-match '^# yaml-language-server:' <<<"${kept}"
   then
     if [[ "${dry}" == true ]]

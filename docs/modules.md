@@ -75,9 +75,27 @@ jq module directory, and defines:
 | `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner |
 | `summary <line>…` | appends lines to the GitHub step summary, when there is one |
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
+| `list:among <name> <name>…` | succeeds when the first name is one of the rest |
+| `list:without <name> <name>…` | prints the rest without the first name, one per line |
 | `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`: an unknown flag or argument, a missing value, two alternatives together, or a required argument missing; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
+
+### The modules behind install and update
+
+What a release delivers, and how, is split by concern into one module each, and a verb loads the ones it calls:
+
+| Module | Functions | Decides |
+| --- | --- | --- |
+| `release.sh` | `release:` | a release: its version, where `kit update` fetches the previous one, and the bases it delivers to |
+| `settings.sh` | `settings:` | `kit.yml`: every key read and validated, and the declaration written into it |
+| `resolve.sh` | `resolve:` | the packages in reach, their metadata, and the active set from names, dependencies, and bundles |
+| `render.sh` | `render:` | a package's templates and regions, rendered once per process with the repository's answers |
+| `region.sh` | `region:` | the kit's region inside a file the repository owns: its markers, its host, written and removed |
+| `place.sh` | `place:` | a delivered path: written, merged by key, compared with the release, and taken out again |
+| `materialize.sh` | `materialize:` | what kit keeps under `.kit/`: a link or a read-only copy per path, and `.kit/.gitignore` |
+| `manifest.sh` | `manifest:` | `.kit/manifest` and `~/.kit/manifest`: the digest of every delivered path |
+| `file.sh` | `file:` | a file written whole or not at all, and a file's digest |
 
 ### Writing a bash module
 

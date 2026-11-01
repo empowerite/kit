@@ -7,7 +7,7 @@
 # the kit installs kittui at the same version. A checkout of the kit has tui/ beside kit/ instead, and kittui is
 # built from it, once per change to its sources or to go, into the cache; a kittui on PATH is the last resort.
 
-use release
+use file
 
 # tui:platform prints this machine's platform as Go names it: linux-amd64, darwin-arm64. It returns 1 on an
 # operating system or architecture no release builds for.
@@ -39,7 +39,7 @@ tui:checkout() {
 tui:cached() {
   local digest
   digest=$( { find "$1" -type f \( -name '*.go' -o -name go.mod -o -name go.sum \) | LC_ALL=C sort | xargs cat
-    go version; } | release:digest)
+    go version; } | file:digest)
   printf '%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}/kit/kittui-${digest:0:16}"
 }
 

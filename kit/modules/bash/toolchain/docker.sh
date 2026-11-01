@@ -13,6 +13,8 @@
 # current digest and lists every base that has no pin or is pinned to an older digest. update rewrites the pins.
 # The provider needs docker with buildx.
 
+use file
+
 toolchain/docker:file() {
   local file
   file=$(toolchain:field docker file)
@@ -81,7 +83,7 @@ toolchain/docker:tag() {
     error "${file} is missing; the docker toolchain builds its image from it"
     return 1
   fi
-  printf '%s:%s\n' "${name:-kit-toolchain}" "$(release:digest < "${file}" | cut -c 1-12)"
+  printf '%s:%s\n' "${name:-kit-toolchain}" "$(file:digest < "${file}" | cut -c 1-12)"
 }
 
 # toolchain/docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line that names an image.

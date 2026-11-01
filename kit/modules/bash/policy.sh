@@ -46,7 +46,7 @@
 #
 # see: docs/policy.md
 
-use release yaml git
+use yaml git settings
 
 # The kit's defaults follow the workflow in .kit/1st.md:
 #
@@ -65,7 +65,7 @@ policy:rules() {
     [commit_subject]=${policy_default_commit_subject}
     [change_title]=${policy_default_change_title}
   )
-  settings=$(release:settings)
+  settings=$(settings:file)
   while IFS=$'\t' read -r key value
   do
     [[ -n "${key}" ]] || continue
@@ -132,7 +132,7 @@ policy:input() {
 # when the kit has no provider by that name.
 policy:engine() {
   local engine
-  engine=$(release:setting policy_engine)
+  engine=$(settings:value policy_engine)
   if [[ -z "${engine}" ]]
   then
     engine=patterns

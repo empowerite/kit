@@ -16,15 +16,15 @@
 #
 # Exits 0 when it prints the region, 1 when no active package delivers a region at <path>, and 2 on a usage error.
 #
-# see: modules/bash/generate.sh, modules/bash/release.sh
+# see: modules/bash/generate.sh, modules/bash/render.sh, modules/bash/place.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release
+use settings render place materialize
 guard:arguments region "$@" || exit $?
-release:hydrate
+materialize:hydrate
 
 base=repo
 path=''
@@ -42,11 +42,11 @@ then
   error "kit region needs a path, or KIT_GENERATE_REGION; run: kit help region"
   exit 2
 fi
-release:require-declaration
-readarray -t packages < <(release:declared-packages)
-release:render-all "${kit_root}" "${packages[@]}"
-src=$(release:source-of "${kit_root}" "${base}" "${path}" "${packages[@]}")
-if [[ -z "${src}" ]] || [[ "$(release:kind "${src}" "${path}")" != region ]]
+settings:require
+readarray -t packages < <(settings:packages)
+render:all "${kit_root}" "${packages[@]}"
+src=$(place:source-of "${kit_root}" "${base}" "${path}" "${packages[@]}")
+if [[ -z "${src}" ]] || [[ "$(place:kind "${src}" "${path}")" != region ]]
 then
   error "no active package delivers a region at ${path} (packages: ${packages[*]}); see kit.yml"
   exit 1

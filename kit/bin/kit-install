@@ -21,43 +21,43 @@
 # Exits 0 on success, 2 for a package that is neither in the release nor under .kit/packages/, and 1 for any
 # other failure.
 #
-# see: modules/bash/release.sh
+# see: modules/bash/resolve.sh, modules/bash/place.sh, modules/bash/settings.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use release
+use release settings resolve render place materialize manifest
 
 guard:arguments install "$@" || exit $?
 
 guard:require tool:jq
 # A glob such as style/* stands for every package it matches.
-expanded=$(release:expand "${kit_root}" "$@") || exit 2
+expanded=$(resolve:expand "${kit_root}" "$@") || exit 2
 readarray -t named < <(awk 'NF' <<<"${expanded}")
 set -- "${named[@]}"
-release:require-packages "${kit_root}" "$@"
-if [[ -n "$(release:declared-version)" ]]
+resolve:require "${kit_root}" "$@"
+if [[ -n "$(settings:version)" ]]
 then
-  error "run: kit update (this repository already declares kit $(release:declared-version))"
+  error "run: kit update (this repository already declares kit $(settings:version))"
   exit 1
 fi
-readarray -t defaults < <(release:default-packages "${kit_root}")
-readarray -t packages < <(release:resolve "${kit_root}" '' "${defaults[@]}" "$@")
-release:render-all "${kit_root}" "${packages[@]}"
+readarray -t defaults < <(resolve:defaults "${kit_root}")
+readarray -t packages < <(resolve:active "${kit_root}" '' "${defaults[@]}" "$@")
+render:all "${kit_root}" "${packages[@]}"
 section "kit install $(release:version), packages: ${packages[*]}"
 refused=0
 for base in $(release:bases)
 do
-  release:place-all "${kit_root}" "${base}" "${packages[@]}" || refused=$(( refused + $? ))
+  place:all "${kit_root}" "${base}" "${packages[@]}" || refused=$(( refused + $? ))
 done
 if (( refused > 0 ))
 then
   error "${refused} path(s) could not be placed, each named above; settle each, then run: kit install"
   exit 1
 fi
-release:write-manifests '' "${packages[@]}"
-release:materialize "${packages[@]}"
+manifest:write-all '' "${packages[@]}"
+materialize:all "${packages[@]}"
 release:finish "${packages[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------
