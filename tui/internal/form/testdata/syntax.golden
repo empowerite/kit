@@ -1,5 +1,6 @@
  kit syntax - prints a verb's syntax as JSON, and judges its header's discipline
 
+   required
    [--check | --list] <verb>
    <verb> --choices <answer>
    <verb> --extend <answer>

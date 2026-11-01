@@ -272,6 +272,43 @@ func stripANSI(s string) string {
 	return b.String()
 }
 
+func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *testing.T) {
+	line := "kit commit refuses for the test; run: kit help commit"
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30})
+	m = m.Refuse(line)
+	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	at := -1
+	for i, l := range lines {
+		if strings.Contains(l, style.Filter) {
+			at = i
+		}
+	}
+	if at < 0 || strings.TrimSpace(lines[at+1]) != "❌ "+line {
+		t.Fatalf("no refusal under the filter:\n%s", m.View().Content)
+	}
+	if !strings.Contains(m.View().Content, style.Refusal("❌ "+line)) {
+		t.Errorf("the refusal is not red:\n%s", m.View().Content)
+	}
+	// moving keeps it; typing, erasing, or opening a verb clears it
+	if m, _ = drive(m, down); !strings.Contains(m.View().Content, line) {
+		t.Errorf("down cleared the refusal")
+	}
+	if m, _ = drive(m, typed("c")...); strings.Contains(m.View().Content, line) {
+		t.Errorf("typing left the refusal")
+	}
+	m = m.Refuse(line)
+	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyBackspace}); strings.Contains(m.View().Content, line) {
+		t.Errorf("backspace left the refusal")
+	}
+	m = m.Refuse(line)
+	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter}); strings.Contains(m.View().Content, line) {
+		t.Errorf("enter left the refusal")
+	}
+	if drawn(m) != "WORKFLOW ▸commit submit FILES context CHECKS check INSTALLATION version" {
+		t.Errorf("the tree under a refusal: %q", drawn(m))
+	}
+}
+
 func TestEscQuits(t *testing.T) {
 	m, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyEscape})
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() {

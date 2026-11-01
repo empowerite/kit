@@ -1,5 +1,6 @@
  kit completion - prints the shell completion for kit, and the words it offers
 
+   required
    zsh         prints the zsh completion script
    candidates  prints the candidates for the last of the words
 

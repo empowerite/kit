@@ -3,6 +3,7 @@
 package form
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/empowerite/kit/tui/internal/syntax"
@@ -25,20 +26,23 @@ var Plain = Styles{
 }
 
 const (
-	gutter = 3     // the left margin before a field's label; the focus marker sits in it
-	gap    = 2     // between the label column and the content
-	sep    = "   " // between the names of a row
+	gutter   = 3          // the left margin before a field's label; the focus marker sits in it
+	gap      = 2          // between the label column and the content
+	sep      = "   "      // between the names of a row
+	required = "required" // the dim tag after a required field's label until the field has an answer
 )
 
 // Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
 // cursor in a focused row (-1 for none); the styles; Expand, which may draw a field's answer live in place of its
-// values (the focused text with its caret, a list with its filter); whether the command line has the keyboard, and
-// the refusal under it; whether the form shows the way back to the palette; and the keys it takes, drawn at the top,
-// after the way back, so they never move.
+// values (the focused text with its caret, a list with its filter); the note under the focused field (a list's line
+// about a row, or what kit refused); whether the command line has the keyboard, and the refusal under it; whether the
+// form shows the way back to the palette; and the keys it takes, drawn at the top, after the way back, so they never
+// move.
 type Options struct {
 	Width, Focus, Cursor int
 	Styles               Styles
 	Expand               func(field int, indent string) string
+	Note                 string
 	CommandFocus         bool
 	CommandRefusal       string
 	Back                 bool
@@ -100,24 +104,34 @@ type drawer struct {
 }
 
 // labelColumn is where content starts: after the longest label, or the longest name of a row that may go vertical,
-// within bounds.
+// each at its own margin (a field under a row's name sits two columns in), with room kept for the required tag after
+// every label that may carry one, so nothing moves when the tag goes. A label counts for 24 columns at most.
 func labelColumn(fields []Field) int {
-	widest := 0
+	column := gutter + gap
 	for _, f := range fields {
-		names := []string{f.Label}
+		if unlabeled(fields, f) {
+			continue
+		}
+		margin, names, reserve := gutter, []string{f.Label}, 0
+		if f.Group >= 0 {
+			margin += 2
+		}
 		if f.Kind == AnyOf || f.Kind == OneOf {
 			names = f.Options
+		} else if f.Required && f.Kind != Toggle {
+			reserve = 1 + len(required)
 		}
 		for _, name := range names {
-			if n := len([]rune(name)); n > widest {
-				widest = n
-			}
+			column = max(column, margin+min(len([]rune(name))+reserve, 24)+gap)
 		}
 	}
-	if widest > 24 {
-		widest = 24
-	}
-	return gutter + widest + gap
+	return column
+}
+
+// unlabeled says whether a field draws no label of its own: the value of a row's option, which the name in the row
+// already says, drawn under that name, as --message's lines are under --message.
+func unlabeled(fields []Field, f Field) bool {
+	return f.Group >= 0 && f.Kind != AnyOf && f.Kind != OneOf && slices.Contains(fields[f.Group].Options, f.Key)
 }
 
 // nested gives the fields that belong to a one-of row's chosen alternative.
@@ -188,7 +202,8 @@ func (d *drawer) alternatives(row int) [][]syntax.Node {
 	return found
 }
 
-// block draws one field at the margin.
+// block draws one field at the margin: its label, tagged while a required field wants an answer, its description
+// beside, its answer, and the note under it when it has the keyboard.
 func (d *drawer) block(i, margin int) {
 	f := d.fields[i]
 	lead := strings.Repeat(" ", margin)
@@ -203,10 +218,16 @@ func (d *drawer) block(i, margin int) {
 			name = d.st.Chosen(f.Label)
 		}
 		d.beside(lead, name, len([]rune(f.Label)), d.column, f.Description)
+		d.note(i, indent)
 	case AnyOf, OneOf:
 		d.row(i, lead)
+		d.note(i, indent)
 	default:
-		d.beside(lead, d.st.Label(f.Label), len([]rune(f.Label)), d.column, f.Description)
+		name, width := d.st.Label(f.Label), len([]rune(f.Label))
+		if unanswered(f) {
+			name, width = name+" "+d.st.Dim(required), width+1+len(required)
+		}
+		d.beside(lead, name, width, d.column, f.Description)
 		d.values(i, f, indent)
 	}
 	if f.Refusal != "" {
@@ -215,26 +236,44 @@ func (d *drawer) block(i, margin int) {
 	d.b.WriteString("\n")
 }
 
-// values writes a field's answers, one per line, a pick of many with its boxes, or what Expand draws in their place.
+// values writes a field's answers, one per line, a pick of many with its boxes, or what Expand draws in their place,
+// then the note under the field when it has the keyboard.
 func (d *drawer) values(i int, f Field, indent string) {
+	drawn := ""
 	if d.o.Expand != nil {
-		if s := d.o.Expand(i, indent); s != "" {
-			d.b.WriteString(s)
-			return
-		}
+		drawn = d.o.Expand(i, indent)
+	}
+	if drawn != "" {
+		d.b.WriteString(drawn)
 	}
 	for _, value := range f.Values {
+		if drawn != "" {
+			break
+		}
 		mark := ""
 		if f.Kind == PickMany {
 			mark = "◼ "
 		}
 		d.b.WriteString(indent + mark + value + "\n")
 	}
+	d.note(i, indent)
+}
+
+// note writes the line under the field that has the keyboard, when there is one: red, with the glyph a refusal
+// carries, wrapped to the width left beside the indent.
+func (d *drawer) note(i int, indent string) {
+	if i != d.focus || d.o.Note == "" {
+		return
+	}
+	for _, line := range wrap("❌ "+d.o.Note, d.width-len([]rune(indent))) {
+		d.b.WriteString(indent + d.st.Refusal(line) + "\n")
+	}
 }
 
 // row draws an any-of or one-of row. Horizontal: the names, the chosen marked, with the description of the chosen (or
 // the cursor's) beside. Vertical: one name per line with its description, and the chosen alternative's own fields
-// under its name.
+// under its name. A required one-of row with nothing chosen carries the tag: after its names on one line, or heading
+// the names one per line, where no one name may carry it.
 func (d *drawer) row(i int, lead string) {
 	f := d.fields[i]
 	on := func(k int) bool {
@@ -271,14 +310,21 @@ func (d *drawer) row(i int, lead string) {
 			names[k] = name(k)
 		}
 		plain := strings.Join(f.Options, sep)
-		column := d.column
-		if gutter+len([]rune(plain))+gap > column {
-			column = gutter + len([]rune(plain)) + gap
+		row, width, reserve := strings.Join(names, sep), len([]rune(plain)), 0
+		if f.Required {
+			reserve = 1 + len(required) // the room is kept once one is chosen, so the description never moves
 		}
-		d.beside(lead, strings.Join(names, sep), len([]rune(plain)), column, d.optionDescription(f.Options[shown]))
+		if unanswered(f) {
+			row, width = row+" "+d.st.Dim(required), width+reserve
+		}
+		column := max(d.column, gutter+len([]rune(plain))+reserve+gap)
+		d.beside(lead, row, width, column, d.optionDescription(f.Options[shown]))
 		return
 	}
 	nested := d.nested(i)
+	if unanswered(f) {
+		d.b.WriteString(strings.Repeat(" ", len([]rune(lead))) + d.st.Dim(required) + "\n")
+	}
 	for k, option := range f.Options {
 		d.beside(lead, name(k), len([]rune(option)), d.column, d.optionDescription(option))
 		lead = strings.Repeat(" ", len([]rune(lead)))

@@ -118,8 +118,9 @@ highlighted verb's help page beside the names instead, and the left arrow the pu
 verb's form. A verb run at a terminal without an argument it needs opens the same form instead of refusing, filled
 with what was given, as `kit commit` with no message does. The form has one field per part of the verb's usage
 line, offers the values the repository has (changed paths, packages, templates), shows the command line it builds,
-and runs it from Enter on that line, leaving that command line in the scrollback above the verb's own output.
-`kit package select` shows the whole set of packages, each marked by what will happen to it.
+and runs it from Enter on that line, leaving that command line in the scrollback above the verb's own output. A
+field the command line needs carries a dim `required` tag until it has an answer. `kit package select` shows the
+whole set of packages, each marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
 verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin

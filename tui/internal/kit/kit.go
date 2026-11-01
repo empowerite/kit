@@ -18,7 +18,7 @@ import (
 
 // Runner names the kit to run and the directory the command was typed in, which every call runs from.
 type Runner struct {
-	Kit string // the kit executable: $KIT, else kit on PATH
+	Kit string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
 	Dir string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
 }
 
@@ -40,7 +40,8 @@ type ExitError struct {
 	Stderr string
 }
 
-func (e *ExitError) Error() string { return strings.TrimSpace(e.Stderr) }
+// Error gives kit's line without the ❌ kit prints before it, so whatever shows the line adds the glyph once.
+func (e *ExitError) Error() string { return strings.TrimPrefix(strings.TrimSpace(e.Stderr), "❌ ") }
 
 // Choice is one row of kit syntax --choices: the value, its description, its state (active, excluded, or empty), and
 // the line the verb would print about it given the answers so far, empty when there is none.

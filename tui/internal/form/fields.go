@@ -90,9 +90,9 @@ func Fields(spec syntax.Spec, a Answers) ([]Field, error) {
 	}
 	w := &walker{spec: spec, answers: a}
 	if len(spec.Syntax) == 1 {
-		w.sequence(spec.Syntax[0], -1)
+		w.sequence(spec.Syntax[0], -1, true)
 	} else {
-		w.group(syntax.Node{Kind: "group", Alternatives: spec.Syntax}, -1)
+		w.group(syntax.Node{Kind: "group", Alternatives: spec.Syntax}, -1, true)
 	}
 	return w.fields, nil
 }
@@ -103,8 +103,9 @@ func (w *walker) describe(key string) (string, string) {
 	return a.Description, a.Choices
 }
 
-// sequence walks one sequence, folding runs of optional lone flags into one any-of row.
-func (w *walker) sequence(nodes []syntax.Node, group int) {
+// sequence walks one sequence, folding runs of optional lone flags into one any-of row. Its nodes are required when
+// the command line needs the sequence: at the top, or in an alternative chosen, but not inside [ ].
+func (w *walker) sequence(nodes []syntax.Node, group int, required bool) {
 	for i := 0; i < len(nodes); i++ {
 		n := nodes[i]
 		if flag, ok := loneFlag(n); ok {
@@ -127,7 +128,7 @@ func (w *walker) sequence(nodes []syntax.Node, group int) {
 		}
 		switch n.Kind {
 		case "group":
-			w.group(n, group)
+			w.group(n, group, required)
 		case "literal":
 			// a literal is fixed by its alternative; at the top it names the operand that follows it, as kit new's file
 			// <path>, and in a row's alternative the row already shows it
@@ -136,13 +137,13 @@ func (w *walker) sequence(nodes []syntax.Node, group int) {
 				if group >= 0 && i == 0 {
 					prefix = ""
 				}
-				w.value(nodes[i+1], prefix, true, group)
+				w.value(nodes[i+1], prefix, required, group)
 				i++
 			}
 		case "flag":
-			w.toggle(n, true, group)
+			w.toggle(n, required, group)
 		default:
-			w.value(n, "", true, group)
+			w.value(n, "", required, group)
 		}
 	}
 }
@@ -223,9 +224,10 @@ func (w *walker) wildcardValues() []string {
 	return out
 }
 
-// group adds a one-of row for a group of alternatives, and walks the chosen alternative after it. A group of one
-// alternative has no row: its nodes stand on their own, required or not.
-func (w *walker) group(n syntax.Node, parent int) {
+// group adds a one-of row for a group of alternatives, and walks the chosen alternative after it, whose nodes the
+// command line then needs. A group of one alternative has no row: its nodes stand on their own, optional inside [ ].
+func (w *walker) group(n syntax.Node, parent int, required bool) {
+	required = required && !n.Optional
 	if len(n.Alternatives) == 1 {
 		if n.Optional {
 			// an optional alternative of one value, [<path>…]: the field is optional
@@ -234,12 +236,12 @@ func (w *walker) group(n syntax.Node, parent int) {
 				return
 			}
 		}
-		w.sequence(n.Alternatives[0], parent)
+		w.sequence(n.Alternatives[0], parent, required)
 		return
 	}
 	ordinal := w.groups
 	w.groups++
-	f := Field{Kind: OneOf, Required: !n.Optional, Chosen: -1, Group: parent}
+	f := Field{Kind: OneOf, Required: required, Chosen: -1, Group: parent}
 	f.Options = labels(n.Alternatives)
 	f.Key = strings.Join(f.Options, " | ")
 	f.Label = f.Key
@@ -251,7 +253,7 @@ func (w *walker) group(n syntax.Node, parent int) {
 	index := len(w.fields)
 	w.fields = append(w.fields, f)
 	if f.Chosen >= 0 {
-		w.sequence(n.Alternatives[f.Chosen], index)
+		w.sequence(n.Alternatives[f.Chosen], index, true)
 	}
 }
 
@@ -346,23 +348,26 @@ func label(alternative []syntax.Node) string {
 	return strings.Join(parts, " ")
 }
 
+// unanswered says whether a required field still wants an answer: a one-of row with nothing chosen, or a value with
+// none. A toggle or an any-of row never does: a required flag is on, and flags side by side are each optional.
+func unanswered(f Field) bool {
+	if !f.Required {
+		return false
+	}
+	switch f.Kind {
+	case OneOf:
+		return f.Chosen < 0
+	case Toggle, AnyOf:
+		return false
+	}
+	return len(f.Values) == 0
+}
+
 // FirstEmptyRequired gives the index of the first required field with no answer, or -1 when every one has one.
 func FirstEmptyRequired(fields []Field) int {
 	for i, f := range fields {
-		if !f.Required {
-			continue
-		}
-		switch f.Kind {
-		case OneOf:
-			if f.Chosen < 0 {
-				return i
-			}
-		case Toggle, AnyOf:
-			continue
-		default:
-			if len(f.Values) == 0 {
-				return i
-			}
+		if unanswered(f) {
+			return i
 		}
 	}
 	return -1

@@ -40,7 +40,7 @@ type Model struct {
 	focus   int    // the field with the keyboard; len(fields) is the command line
 	cursor  int    // the option in a row, or the row in a list
 	input   string // the text being typed: a value, a line, or a list's filter
-	note    string // the line under the focused list
+	note    string // the line under the focused field: a list's line about a row, or what kit refused
 	refusal string // the line under the command line
 	width   int
 
@@ -48,6 +48,7 @@ type Model struct {
 	sets   map[string]bool
 	stale  map[string]bool
 	seeded map[string]bool
+	failed map[string]bool // the lists kit refused, which take what is typed instead
 
 	extOrder []string
 	ext      map[string]syntax.Argument
@@ -61,7 +62,7 @@ type Model struct {
 // New opens the form over the fields; back is true when esc returns to the palette, false when it cancels.
 func New(spec syntax.Spec, fields []Field, r kit.Runner, back bool) Model {
 	m := Model{spec: spec, runner: r, back: back, fields: fields, width: 80, lists: map[string][]kit.Choice{}, sets: map[string]bool{},
-		stale: map[string]bool{}, seeded: map[string]bool{}, extSeen: map[string]bool{}}
+		stale: map[string]bool{}, seeded: map[string]bool{}, failed: map[string]bool{}, extSeen: map[string]bool{}}
 	if spec.Extends {
 		m.refreshExtension()
 		m.rebuild(Collect(m.fields))
@@ -120,7 +121,8 @@ func (m Model) View() tea.View {
 	}
 	keys := strings.Join([]string{"↑↓ field", "←→ along a row", "␣ toggle", "⏎ next", "⇧⏎ run", end}, " · ")
 	content := Render(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus, Cursor: m.cursor, Styles: live,
-		Expand: m.expand, CommandFocus: m.focus >= len(m.fields), CommandRefusal: m.refusal, Back: m.back, Keys: keys})
+		Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields), CommandRefusal: m.refusal, Back: m.back,
+		Keys: keys})
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -354,25 +356,36 @@ func (m *Model) list(k tea.KeyPressMsg, s string) tea.Cmd {
 		if f.Kind == Pick && m.cursor < len(rows) {
 			f.Values = []string{rows[m.cursor].Value}
 			m.changed(f.Key)
+		} else if m.failed[f.Key] && m.input != "" {
+			return m.take()
 		}
 		return m.move(1)
 	case "ctrl+n":
-		if f.Choices == "open" && m.input != "" {
-			if f.Kind == Pick {
-				f.Values = []string{m.input}
-			} else {
-				f.Values = append(append([]string{}, f.Values...), m.input)
-			}
-			m.input = ""
-			m.changed(f.Key)
-			if f.Kind == Pick {
-				return m.move(1)
-			}
+		if (f.Choices == "open" || m.failed[f.Key]) && m.input != "" {
+			return m.take()
 		}
 	case "tab":
 		return m.move(1)
 	case "shift+tab":
 		return m.move(-1)
+	}
+	return nil
+}
+
+// take makes what is typed the answer, as an open list does on ctrl-n and a list kit refused on Enter too: a pick's
+// one value, and the keyboard moves on; one more value of a pick of many, and the keyboard stays.
+func (m *Model) take() tea.Cmd {
+	f := &m.fields[m.focus]
+	kind := f.Kind
+	if kind == Pick {
+		f.Values = []string{m.input}
+	} else {
+		f.Values = append(append([]string{}, f.Values...), m.input)
+	}
+	m.input = ""
+	m.changed(f.Key)
+	if kind == Pick {
+		return m.move(1)
 	}
 	return nil
 }
@@ -395,11 +408,12 @@ func (m *Model) flip(value string) tea.Cmd {
 
 // choices takes a list's rows. A list kit calls a set, empty, starts from the values active now, so the command line
 // is the whole set; a row the verb has a line about, flipped off, is flipped back on with that line
-// shown, since the verb keeps it anyway.
+// shown, since the verb keeps it anyway. A list kit refused shows kit's line as the note, and takes what is typed.
 func (m *Model) choices(msg choicesMsg) {
 	m.lists[msg.key] = msg.rows
 	m.sets[msg.key] = msg.set
 	m.stale[msg.key] = false
+	m.failed[msg.key] = msg.err != nil
 	if msg.err != nil {
 		m.note = msg.err.Error()
 		return
@@ -510,10 +524,12 @@ func (m *Model) markStale(changed string) {
 	}
 }
 
-// rebuild lays the fields out again from the answers, with the extension in place of the wildcard.
+// rebuild lays the fields out again from the answers, with the extension in place of the wildcard; a grammar that
+// no longer lays out leaves the fields as they stand, with why as the note.
 func (m *Model) rebuild(a Answers) {
 	fields, err := Fields(m.spec, a)
 	if err != nil {
+		m.note = err.Error()
 		return
 	}
 	if len(m.extOrder) > 0 {
@@ -536,18 +552,20 @@ func (m *Model) rebuild(a Answers) {
 	}
 }
 
-// refreshExtension asks kit for the arguments the answers add, once per set of answers.
+// refreshExtension asks kit for the arguments the answers add, once per set of answers kit answered; kit's refusal is
+// the focused field's note, and the next field asks again.
 func (m *Model) refreshExtension() {
 	answers := m.answers()
 	seen := strings.Join(answers, "\x00")
 	if m.extSeen[seen] {
 		return
 	}
-	m.extSeen[seen] = true
 	order, args, err := m.runner.Extend(m.spec.Verb, answers)
 	if err != nil {
+		m.note = err.Error()
 		return
 	}
+	m.extSeen[seen] = true
 	m.extOrder, m.ext = order, args
 }
 
@@ -618,17 +636,25 @@ func (m Model) expand(i int, indent string) string {
 	return b.String()
 }
 
-// drawList draws a list: the filter, a window of rows around the cursor with their marks, the note, and the count.
+// drawList draws a list: the filter, a window of rows around the cursor with their marks, and the count; the note
+// follows, drawn under the field. A list kit refused draws the values taken so far and says it takes what is typed.
 func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 	b.WriteString(indent + style.Filter + " " + m.input + "▏\n")
 	all := m.lists[f.Key]
 	rows := m.filtered()
 	if all == nil {
-		if m.note != "" {
-			for _, line := range wrap(style.Excluded+" "+m.note, m.width-len(indent)) {
-				b.WriteString(indent + style.Refusal(line) + "\n")
+		switch {
+		case m.failed[f.Key] && f.Kind == PickMany:
+			for _, v := range f.Values {
+				b.WriteString(indent + style.Picked + " " + v + "\n")
 			}
-		} else {
+			m.hint(b, indent, "⏎ takes what is typed · an empty line ends the list")
+		case m.failed[f.Key]:
+			for _, v := range f.Values {
+				b.WriteString(indent + v + "\n")
+			}
+			m.hint(b, indent, "⏎ takes what is typed")
+		default:
 			b.WriteString(indent + style.Off("…") + "\n")
 		}
 		return
@@ -674,11 +700,6 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 			lead, value = style.Focus+" ", style.Chosen(row.Value)+strings.Repeat(" ", widest-len([]rune(row.Value)))
 		}
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
-	}
-	if m.note != "" {
-		for _, line := range wrap(style.Excluded+" "+m.note, m.width-len(indent)) {
-			b.WriteString(indent + style.Refusal(line) + "\n")
-		}
 	}
 	switch {
 	case f.Kind == PickMany && planned:

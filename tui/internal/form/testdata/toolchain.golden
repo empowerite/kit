@@ -1,5 +1,6 @@
  kit toolchain - installs, reports, and updates the tools the gate runs, whatever manages them
 
+   required
    install   installs every toolchain's pinned tools
    outdated  prints one line per tool behind its latest version
    update    updates every toolchain to its latest versions, and rewrites its pins and lock

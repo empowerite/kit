@@ -4,7 +4,8 @@
 #
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; any other verb's arguments and working directory are written to
-# the file FAKE_KIT_RECORD names, for the exec test to read.
+# the file FAKE_KIT_RECORD names, for the exec test to read. Every syntax answer about the verb FAKE_KIT_REFUSE names
+# (its grammar, choices, extension, and match) is a refusal instead, as the kit prints one, with exit 2.
 
 set -o errexit -o nounset -o pipefail
 
@@ -14,6 +15,11 @@ fixtures=${here}/../../syntax/testdata
 case "${1:-}" in
   (syntax)
     shift
+    if [[ -n "${FAKE_KIT_REFUSE:-}" && "${1:-}" == "${FAKE_KIT_REFUSE}" ]]
+    then
+      echo "❌ kit $1 refuses for the test; run: kit help $1" >&2
+      exit 2
+    fi
     if [[ "${1:-}" == --list ]]
     then
       printf 'check\tcompares the repository with the release\tchecks\n'

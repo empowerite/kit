@@ -36,6 +36,10 @@ func TestVerbsAndSpec(t *testing.T) {
 	if !errors.As(err, &refusal) || refusal.Code != 2 || !strings.Contains(refusal.Stderr, "no kit verb 'nonesuch'") {
 		t.Fatalf("Spec(nonesuch): %v", err)
 	}
+	// the line is kit's without its glyph, which what shows the line adds; stderr stays as kit printed it
+	if refusal.Error() != "no kit verb 'nonesuch'; run: kit help" || !strings.HasPrefix(refusal.Stderr, "❌ ") {
+		t.Errorf("Error() = %q, Stderr = %q", refusal.Error(), refusal.Stderr)
+	}
 }
 
 func TestHelpIsTheVerbsPageWithItsHeadingsBold(t *testing.T) {

@@ -105,15 +105,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// open slides the palette away for the verb's form, empty, with the way back.
+// open slides the palette away for the verb's form, empty, with the way back; a form that cannot open leaves the
+// palette, with kit's line under its filter.
 func (m Model) open(verb string) (tea.Model, tea.Cmd) {
 	spec, err := m.runner.Spec(verb)
 	if err != nil {
-		return m, nil
+		return m.refuse(err)
 	}
 	fields, err := form.Fields(spec, form.Answers{})
 	if err != nil {
-		return m, nil
+		return m.refuse(err)
 	}
 	m.form, m.inForm, m.verb = form.New(spec, fields, m.runner, true), true, verb
 	init := m.form.Init()
@@ -122,6 +123,12 @@ func (m Model) open(verb string) (tea.Model, tea.Cmd) {
 		m.form = next.(form.Model)
 	}
 	return m, init
+}
+
+// refuse keeps the palette on the screen, with kit's line about the verb that did not open under its filter.
+func (m Model) refuse(err error) (tea.Model, tea.Cmd) {
+	m.palette = m.palette.Refuse(err.Error())
+	return m, nil
 }
 
 // View draws what is on the screen.

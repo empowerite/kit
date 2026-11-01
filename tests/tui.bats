@@ -133,4 +133,23 @@ platform() {
   [ "$output" = "kittui -- version" ]
 }
 
+@test "kittui runs the kit that ran it, named in KIT, not another kit first on PATH" {
+  # another kit is first on PATH; the fake kittui, alone on PATH with no go, prints the KIT it was handed
+  mkdir -p "${BATS_TEST_TMPDIR}/other" "${BATS_TEST_TMPDIR}/kittui"
+  printf '#!/usr/bin/env bash\necho another kit\n' > "${BATS_TEST_TMPDIR}/other/kit"
+  chmod +x "${BATS_TEST_TMPDIR}/other/kit"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/kittui/kittui"
+  export FAKE_KITTUI_PRINT_KIT=1
+  run env PATH="${BATS_TEST_TMPDIR}/other:${BATS_TEST_TMPDIR}/kittui:$(without-kittui)" "${kit_root}/bin/kit" tui -- version
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "kittui -- version" ]
+  [ "${lines[1]}" = "$(cd "${kit_root}" && pwd -P)/bin/kit" ]
+  # a copy of the kit elsewhere names its own bin/kit
+  mkdir -p "${BATS_TEST_TMPDIR}/copy"
+  cp -R "${kit_root}/bin" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
+  run env PATH="${BATS_TEST_TMPDIR}/other:${PATH}" "${BATS_TEST_TMPDIR}/copy/bin/kit" tui -- version
+  [ "$status" -eq 0 ]
+  [ "${lines[1]}" = "$(cd "${BATS_TEST_TMPDIR}/copy" && pwd -P)/bin/kit" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -339,6 +339,43 @@ func TestAFailedChoicesCallIsShown(t *testing.T) {
 	}
 }
 
+func TestAListKitCannotGiveShowsItsLineAndTakesWhatIsTyped(t *testing.T) {
+	t.Setenv("FAKE_KIT_REFUSE", "lint")
+	m := newForm(t, "lint", Answers{}, false)
+	m, _ = drive(t, m, key("down"))
+	view := stripANSI(m.View().Content)
+	if !strings.Contains(view, "❌ kit lint refuses for the test; run: kit help lint") || strings.Contains(view, "❌ ❌") {
+		t.Fatalf("kit's line is not the note, once:\n%s", view)
+	}
+	if !strings.Contains(view, "⏎ takes what is typed") {
+		t.Errorf("the field does not say it takes free text:\n%s", view)
+	}
+	m, _ = drive(t, m, typed("docs/x.md")...)
+	m, _ = drive(t, m, key("enter"))
+	if got := strings.Join(m.CommandLine(), " "); got != "docs/x.md" {
+		t.Errorf("the command line: %q", got)
+	}
+	if view = stripANSI(m.View().Content); !strings.Contains(view, "◼ docs/x.md") || m.focus != 1 {
+		t.Errorf("the value taken is not shown under the field, with the keyboard still on it:\n%s", view)
+	}
+}
+
+func TestAFailedExtensionIsTheFocusedFieldsNote(t *testing.T) {
+	t.Setenv("FAKE_KIT_REFUSE", "new")
+	m := newForm(t, "new", FromMatch(syntax.Match{Literals: []string{"file"}}), false)
+	m, _ = drive(t, m)
+	line := "❌ kit new refuses for the test; run: kit help new"
+	view := stripANSI(m.View().Content)
+	path, note, rule := strings.Index(view, "<path>"), strings.Index(view, line), strings.Index(view, "--rule")
+	if m.focus != 1 || path < 0 || note < path || rule < note {
+		t.Fatalf("the line is not under <path>, the focused field:\n%s", view)
+	}
+	m, _ = drive(t, m, key("down"))
+	if !strings.Contains(stripANSI(m.View().Content), line) {
+		t.Errorf("the next field, asked again, shows no line:\n%s", stripANSI(m.View().Content))
+	}
+}
+
 func TestTheKeysFollowTheWayBackAndThePurposeNamesTheCommand(t *testing.T) {
 	m := newForm(t, "status", Answers{}, true)
 	lines := strings.Split(stripANSI(m.View().Content), "\n")

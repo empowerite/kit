@@ -2,7 +2,7 @@
 // verb with its whole purpose, filtered as it is typed, under the keys. The up and down arrows move over the verbs,
 // never onto a heading, and shift with either jumps to the first verb of the previous or the next group. The right
 // arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them back.
-// Enter opens the verb's form; esc quits.
+// Enter opens the verb's form, and a form that cannot open leaves kit's line under the filter; esc quits.
 package palette
 
 import (
@@ -38,6 +38,7 @@ type Model struct {
 	cursor        int
 	pages         map[string]string
 	showPages     bool
+	refusal       string // kit's line about the verb that did not open, under the filter
 	width, height int
 	cancelled     bool
 	interrupted   bool
@@ -85,6 +86,13 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Cancelled says whether esc ended the palette.
 func (m Model) Cancelled() bool { return m.cancelled }
 
+// Refuse shows kit's line, why the verb opened did not open, in red under the filter, until the filter changes or
+// another verb is opened.
+func (m Model) Refuse(line string) Model {
+	m.refusal = line
+	return m
+}
+
 // Visible gives the verbs the filter leaves, those whose name holds the text typed, in the order the tree draws them,
 // which the cursor counts along.
 func (m Model) Visible() []kit.Verb {
@@ -104,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 	case pageMsg:
 		if msg.err != nil {
-			m.pages[msg.verb] = msg.err.Error()
+			m.pages[msg.verb] = style.Excluded + " " + msg.err.Error()
 		} else {
 			m.pages[msg.verb] = msg.page
 		}
@@ -120,6 +128,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.cursor < len(visible) {
 				verb := visible[m.cursor].Name
+				m.refusal = ""
 				return m, func() tea.Msg { return OpenMsg{Verb: verb} }
 			}
 		case "right":
@@ -150,12 +159,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "backspace":
 			if r := []rune(m.filter); len(r) > 0 {
 				m.filter = string(r[:len(r)-1])
-				m.cursor = 0
+				m.cursor, m.refusal = 0, ""
 			}
 		default:
 			if msg.Text != "" && msg.Mod&(tea.ModCtrl|tea.ModAlt) == 0 {
 				m.filter += msg.Text
-				m.cursor = 0
+				m.cursor, m.refusal = 0, ""
 			}
 		}
 		return m, m.page()
@@ -228,9 +237,10 @@ func (m Model) widest() int {
 	return widest
 }
 
-// View draws the keys on top, so filtering never moves them, then the filter and the tree: each group's heading,
-// dimmed, over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the
-// names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row.
+// View draws the keys on top, so filtering never moves them, then the filter, kit's line under it when a verb did not
+// open, and the tree: each group's heading, dimmed, over its verbs, each with its whole purpose, clipped at the
+// screen's edge, or, after the right arrow, the names beside the highlighted verb's page. The rows shown are the
+// window that holds the cursor's row.
 func (m Model) View() tea.View {
 	visible := m.Visible()
 	keys := "↑↓ move · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
@@ -241,7 +251,13 @@ func (m Model) View() tea.View {
 	for _, line := range page(keys, m.width-2) {
 		top.WriteString(" " + style.Off(line) + "\n")
 	}
-	top.WriteString("\n " + style.Filter + " " + m.filter + "▏\n\n")
+	top.WriteString("\n " + style.Filter + " " + m.filter + "▏\n")
+	if m.refusal != "" {
+		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
+			top.WriteString(" " + style.Refusal(line) + "\n")
+		}
+	}
+	top.WriteString("\n")
 	widest := m.widest()
 	used := strings.Count(top.String(), "\n")
 	rows := m.height - used - 1

@@ -31,7 +31,7 @@ func run(args []string) int {
 	m, err := app.Open(r, verb, words)
 	if err != nil {
 		if line, code, ok := app.Refusal(err); ok {
-			fmt.Fprintln(os.Stderr, line)
+			fmt.Fprintln(os.Stderr, "❌ "+line)
 			return code
 		}
 		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)

@@ -77,6 +77,28 @@ func TestAHandOffOpensTheFormAloneFilledFromTheWords(t *testing.T) {
 	}
 }
 
+func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
+	t.Setenv("FAKE_KIT_REFUSE", "submit")
+	m, err := Open(runner(t), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, press(tea.KeyDown), press(tea.KeyEnter))
+	view := m.View().Content
+	if m.InForm() || !strings.Contains(view, "❌ kit submit refuses for the test; run: kit help submit") {
+		t.Fatalf("the palette does not show why submit did not open:\n%s", view)
+	}
+	// another verb opens as ever, and takes the line with it
+	m = drive(m, press(tea.KeyUp), press(tea.KeyEnter))
+	if !m.InForm() {
+		t.Fatalf("commit did not open after the refusal:\n%s", m.View().Content)
+	}
+	m = drive(m, press(tea.KeyEscape))
+	if strings.Contains(m.View().Content, "refuses for the test") {
+		t.Errorf("the line outlived the verb that caused it:\n%s", m.View().Content)
+	}
+}
+
 func TestAnUnknownVerbIsKitsRefusal(t *testing.T) {
 	_, err := Open(runner(t), "nonesuch", nil)
 	var refusal *kit.ExitError

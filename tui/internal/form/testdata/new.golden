@@ -1,5 +1,6 @@
  kit new - makes a new file, or a kind, rule, style, package, template, module, provider, or verb
 
+   required
    file      makes a file from a template
    kind      makes a kind of file
    rule      makes a rule for a kind

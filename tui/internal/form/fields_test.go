@@ -219,6 +219,67 @@ func TestGoldenRenders(t *testing.T) {
 	}
 }
 
+func TestNodesInsideBracketsAreOptionalEvenSeveralTogether(t *testing.T) {
+	// kit tui [<verb> [<argument>…]]: neither is needed for the command line to be complete
+	fields, err := Fields(specs(t)["tui"], Answers{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kinds(fields) != "Text Lines" || fields[0].Required || fields[1].Required || FirstEmptyRequired(fields) != -1 {
+		t.Errorf("tui: %s %+v", kinds(fields), fields)
+	}
+	// kit new module <name> --purpose=<text> [--jq]: the flag is optional, the operand and the option are not
+	fields, _ = Fields(specs(t)["new"], FromMatch(syntax.Match{Literals: []string{"module"}}))
+	if kinds(fields) != "OneOf Text Text Toggle" || !fields[1].Required || !fields[2].Required || fields[3].Required {
+		t.Errorf("new module: %s %+v", kinds(fields), fields)
+	}
+}
+
+func TestARequiredFieldIsTaggedUntilItHasAnAnswer(t *testing.T) {
+	spec := specs(t)["new"]
+	fields, err := Fields(spec, FromMatch(syntax.Match{Literals: []string{"file"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := RenderStatic(spec, fields, 100)
+	if !strings.Contains(view, "\n     <path> required   the new file") || strings.Contains(view, "--rule required") {
+		t.Errorf("new file: <path> is tagged, --rule is not:\n%s", view)
+	}
+	fields, _ = Fields(spec, FromMatch(syntax.Match{Literals: []string{"file"}, Operands: []string{"a.md"},
+		Values: map[string][]string{"<path>": {"a.md"}}}))
+	if view = RenderStatic(spec, fields, 100); strings.Contains(view, "required") {
+		t.Errorf("new file a.md: a tag with the answer given:\n%s", view)
+	}
+	// the tag's room is kept once the answer is in, so nothing moves
+	release := specs(t)["release"]
+	fields, _ = Fields(release, FromMatch(syntax.Match{Operands: []string{"1.0.0"}, Values: map[string][]string{"<version>": {"1.0.0"}}}))
+	if view = RenderStatic(release, fields, 100); !strings.Contains(view, "\n   <version>           the version") {
+		t.Errorf("release 1.0.0: the description moved:\n%s", view)
+	}
+	// a one-of row drawn one name per line is headed by the tag until one is chosen
+	commit := specs(t)["commit"]
+	fields, _ = Fields(commit, Answers{})
+	if view = RenderStatic(commit, fields, 100); !strings.Contains(view, "\n   required\n   --message  the message") {
+		t.Errorf("commit: the row is not headed by the tag:\n%s", view)
+	}
+	fields, _ = Fields(commit, Answers{Chosen: map[int]int{0: 0}})
+	if view = RenderStatic(commit, fields, 100); strings.Contains(view, "required") {
+		t.Errorf("commit --message: a tag with the alternative chosen:\n%s", view)
+	}
+	// a one-of row of names on one line carries the tag after its names, with its description after the tag
+	flags := syntax.Spec{Verb: "x", Syntax: [][]syntax.Node{{{Kind: "group", Alternatives: [][]syntax.Node{
+		{{Kind: "flag", Name: "up"}}, {{Kind: "flag", Name: "down"}}}}}},
+		Arguments: map[string]syntax.Argument{"--up": {Description: "goes up"}, "--down": {Description: "goes down"}}}
+	fields, _ = Fields(flags, Answers{})
+	if view = RenderStatic(flags, fields, 100); !strings.Contains(view, "\n   --up   --down required  goes up") {
+		t.Errorf("a row of flags:\n%s", view)
+	}
+	fields, _ = Fields(flags, Answers{Chosen: map[int]int{0: 1}})
+	if view = RenderStatic(flags, fields, 100); !strings.Contains(view, "\n   --up   *--down*           goes down") {
+		t.Errorf("a row of flags, one chosen, keeps its column:\n%s", view)
+	}
+}
+
 func TestAChosenRequiredFlagDrawsNoValueUnderItsName(t *testing.T) {
 	spec := specs(t)["context"]
 	fields, err := Fields(spec, Answers{Chosen: map[int]int{0: 1}})

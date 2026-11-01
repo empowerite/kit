@@ -1,5 +1,6 @@
  kit package - activates or deactivates the packages this repository takes
 
+   required
    select  makes exactly the named packages, with the packages they depend on and the members they
            include, the active set: it removes what the set omits, adds what it lacks, and says
            which active package it kept for another's sake; with nothing to change it says the set
