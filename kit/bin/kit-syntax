@@ -59,6 +59,16 @@ verbs=("${syntax_operands[@]}")
 [[ -z "${syntax_options[--choices]+x}${syntax_options[--extend]+x}${syntax_options[--match]+x}" ]] || verbs=("${verbs[0]}")
 for verb in "${verbs[@]}"
 do
+  # <verb>… is open, so a word that starts with - lands here; it is refused as the guard refuses an unknown option
+  case "${verb}" in
+    (--json | --jq)
+      error "kit syntax: unknown option '${verb}' (its output is JSON already); run: kit help syntax"
+      exit 2
+      ;;
+    (-*)
+      error "kit syntax: unknown option '${verb}'; run: kit help syntax"
+      exit 2
+  esac
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
   then
     error "unknown verb '${verb}'; run: kit help"
@@ -99,9 +109,15 @@ fi
 
 if [[ -n "${syntax_options[--list]+x}" ]]
 then
+  # the banners are read once, and the verbs print in the order named
+  declare -A banner=()
+  while IFS=$'\t' read -r verb group purpose
+  do
+    banner[${verb}]="${purpose}"$'\t'"${group}"
+  done < <(help:banners)
   for verb in "${verbs[@]}"
   do
-    printf '%s\t%s\t%s\n' "${verb}" "$(help:purpose "${verb}")" "$(help:group "${verb}")"
+    printf '%s\t%s\n' "${verb}" "${banner[${verb}]}"
   done
   exit 0
 fi

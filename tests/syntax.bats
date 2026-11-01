@@ -68,6 +68,26 @@ setup() {
   [[ "$output" == *"unknown verb 'nonesuch'; run: kit help"* ]]
 }
 
+@test "a word that starts with - is no verb: kit syntax refuses it as the guard refuses an unknown flag, and says its output is JSON already" {
+  run "${kit_root}/bin/kit" syntax commit --json
+  [ "$status" -eq 2 ]
+  [ "$output" = "❌ kit syntax: unknown option '--json' (its output is JSON already); run: kit help syntax" ]
+  run "${kit_root}/bin/kit" syntax commit --jq
+  [ "$status" -eq 2 ]
+  [ "$output" = "❌ kit syntax: unknown option '--jq' (its output is JSON already); run: kit help syntax" ]
+  run "${kit_root}/bin/kit" syntax commit --nope
+  [ "$status" -eq 2 ]
+  [ "$output" = "❌ kit syntax: unknown option '--nope'; run: kit help syntax" ]
+  # before any verb, the guard refuses the word itself, in the same words
+  run "${kit_root}/bin/kit" syntax --jq
+  [ "$status" -eq 2 ]
+  [ "$output" = "❌ unknown flag '--jq'; run: kit help syntax" ]
+  # after a --, a dash word is an answer or a word to judge, which the usage lines name
+  run "${kit_root}/bin/kit" syntax commit --match -- --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--json'; run: kit help commit" ]
+}
+
 @test "kit syntax --check is clean for every verb" {
   run "${kit_root}/bin/kit" syntax --check
   [ "$status" -eq 0 ]

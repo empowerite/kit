@@ -199,6 +199,40 @@ group-has() {
   [[ "$output" == *$'Usage\n  kit plain <thing>\n\nDescription\n  Does it.'* ]]
 }
 
+@test "kit help <verb> rewraps the description's prose to 80 columns, counted in characters, and keeps an indented block as written" {
+  local root="${BATS_TEST_TMPDIR}/kit" prose block line joined=''
+  mkdir -p "${root}"
+  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
+  # a paragraph at the header's full width, written twice, with multibyte characters a byte count would wrap early
+  prose='Does the thing… and says so in a paragraph → written out to the header'"'"'s full width, one hundred and eighteen columns…'
+  block='  --wide=<value>   an argument whose line is left exactly as the header writes it, however wide, since it is a block'
+  [ "${#prose}" -eq 118 ]
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-wide - a verb written wide (kit verb: help)' '#' '# kit wide [--wide=<value>]' '#' \
+    "# ${prose}" "# ${prose}" '#' "# ${block}" '#' '# A second paragraph, short.' > "${root}/bin/kit-wide"
+  chmod +x "${root}/bin/kit-wide"
+  run "${root}/bin/kit" help wide
+  [ "$status" -eq 0 ]
+  # the first line is filled to 77 characters, which a byte count would have broken before "full"
+  [[ "$output" == *$'\nDescription\n  Does the thing… and says so in a paragraph → written out to the header\'s full\n'* ]]
+  # every prose line fits 80 columns, and the paragraph's words are all there, in order
+  while IFS= read -r line
+  do
+    [[ "${line}" == '  '[!' ']* ]] || continue
+    [ "${#line}" -le 80 ] || { echo "over 80: ${line}"; return 1; }
+    joined+="${joined:+ }${line#  }"
+  done < <(sed -n '/^Description$/,/^$/p' <<<"$output")
+  [ "${joined}" = "${prose} ${prose}" ]
+  # the block is there exactly as written, under the page's indent, and the second paragraph after it
+  [[ "$output" == *$'\n\n  '"${block}"$'\n\n  A second paragraph, short.\n'* ]]
+  [ "$(grep -c '^    --wide=<value>   an argument whose line' <<<"$output")" -eq 1 ]
+  # the overview's LEARN MORE bullets fit 80 columns too
+  run "${kit_root}/bin/kit" help
+  while IFS= read -r line
+  do
+    [ "${#line}" -le 80 ] || { echo "over 80: ${line}"; return 1; }
+  done < <(sed -n '/^LEARN MORE$/,$p' <<<"$output")
+}
+
 @test "kit help prints a page for each verb named, in order, and refuses a name no verb starts with before printing any" {
   run "${kit_root}/bin/kit" help nonesuch
   [ "$status" -eq 2 ]

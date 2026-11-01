@@ -63,14 +63,14 @@ ZSH
 # word is kit itself, so a word that starts with a dash is never the first.
 completion:candidates() {
   shift
-  local verb current spec next mode key value prefix operand
+  local verb purpose current spec next mode key value prefix operand
   local -a typed operands
   if (( $# <= 1 ))
   then
-    for verb in $(help:verbs)
+    while IFS=$'\t' read -r verb _ purpose
     do
-      printf '%s\t%s\n' "${verb}" "$(help:purpose "${verb}")"
-    done
+      printf '%s\t%s\n' "${verb}" "${purpose}"
+    done < <(help:banners)
     return 0
   fi
   verb=$1
