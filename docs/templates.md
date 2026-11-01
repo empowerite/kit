@@ -1,9 +1,10 @@
 # Templates
 
-A template is a file of one kind with holes in it, attached to the style for that kind. `kit new file` fills the
-holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of its
-templates. A style package delivers the templates for its kind, so a repository that takes no style package for a
-kind has no templates for it.
+A template is a file of one kind with holes in it, attached to the rule or the style for that kind. `kit new file`
+fills the holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of
+its templates. A style package delivers the templates for its kind, so a repository that takes no style package for
+a kind has no style templates for it. The kit package delivers four of its own, the provider templates the bash
+rule lists, `.kit/templates/bash/<seam>-provider`, which hold a seam's providers to its calls in every repository.
 
 ```sh
 kit new file "${path}" --purpose="${purpose}"
@@ -11,9 +12,10 @@ kit new file "${path}" --purpose="${purpose}"
 
 ## Where a template lives
 
-A style file, `.kit/styles/<kind>.md`, lists its templates in its frontmatter, in the order they are tried. Each
-template is a variant of the file, stored at `.kit/templates/<kind>/<variant>`. A variant can be limited to one
-path glob (`path:`) or marked executable (`executable: true`):
+A style file, `.kit/styles/<kind>.md`, or a rule file, `.kit/rules/<kind>.md`, lists its templates in its
+frontmatter, in the order they are tried. Each template is a variant of the file, stored at
+`.kit/templates/<kind>/<variant>`. A variant can be limited to one path glob (`path:`) or marked executable
+(`executable: true`):
 
 ```yaml
 templates:
@@ -91,9 +93,9 @@ kit new file "${path}" [--rule="${rule}"] [--variant="${variant}"] [--"${hole}"=
 
 - The path is relative to the repository root, wherever you type the command. A path outside the repository, or
   one that already exists, is refused. Nothing is overwritten.
-- The template comes from the most specific style that governs the path and has templates: the one whose matching
-  glob has the most characters other than wildcards. So `.github/workflows/check.yml` gets the workflows style,
-  not the YAML style. Use `--rule` when the path alone cannot select one, such as a script with no extension.
+- The template comes from the most specific rule or style that governs the path and has templates: the one whose
+  matching glob has the most characters other than wildcards. So `.github/workflows/check.yml` gets the workflows
+  style, not the YAML style. Use `--rule` when the path alone cannot select one, such as a script with no extension.
 - The variant is the first one the style lists that the path allows. Use `--variant` to pick another.
 - An executable variant is made executable.
 - The command then prints the rules to read before you write the rest, as `kit context` does, and records the call
@@ -128,9 +130,9 @@ overwrites anything:
 
 ## Checking a file
 
-For each path governed by a style with templates, `kit lint` checks that the file has the shape of one variant its
-path allows. It does this in addition to running the linters of the rule and the style. When a file matches no
-variant, `kit lint` reports:
+For each path governed by a rule or a style with templates, `kit lint` checks that the file has the shape of one
+variant its path allows. It does this in addition to running the linters of the rule and the style. When a file
+matches no variant, `kit lint` reports:
 
 - the variants it was checked against
 - the variant it follows furthest, and the line of that variant where the file stops matching

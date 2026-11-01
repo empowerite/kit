@@ -49,7 +49,7 @@
   <text class="d" x="560" y="212">the hook by hand</text>
   <text class="m" x="396" y="234">kit rebase</text>
   <text class="d" x="560" y="234">onto main, pushed</text>
-  <text class="m" x="396" y="256">gh pr ready</text>
+  <text class="m" x="396" y="256">mark ready</text>
   <text class="d" x="560" y="256">the body is the report</text>
   <text class="d" x="396" y="280">Signed commits, subject #&lt;N&gt; &lt;area&gt;: &lt;subject&gt;.</text>
 

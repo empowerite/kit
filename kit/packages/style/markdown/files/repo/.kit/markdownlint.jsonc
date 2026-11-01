@@ -9,7 +9,7 @@
   // MD013 line-length: prose wraps at 118, 120 being the ceiling; code and tables do not wrap (§Layout 1 and 3).
   "MD013": { "line_length": 120, "code_blocks": false, "tables": false },
 
-  // MD041 first-line-heading: a delivered file opens with its notice, and AGENTS.md with the sentence a harness
+  // MD041 first-line-heading: a delivered file opens with its notice, and AGENTS.md with the region a harness
   // reads first, as the markdown rule says.
   "MD041": false,
 

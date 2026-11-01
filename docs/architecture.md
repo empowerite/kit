@@ -42,6 +42,7 @@ A package is a directory under `packages/`, named after the package. It contains
 | `files/<base>/` | files copied as they are to the same path under the base |
 | `templates/<base>/` | files copied after each `@key@` is replaced by a setting |
 | `regions/<base>/` | content kit owns inside a file the repository owns, rendered like a template |
+| `hosts/<base>/` | for a region, the template of the file that holds it, at the region's path; `kit check` holds the file to it |
 
 There are two bases: `repo` is the repository root, and `home` is the user's home directory.
 
@@ -192,6 +193,9 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
 - `kit policy` fails when a branch name, commit subject, or pull request title breaks the repository's policy. The
   policy is a set of patterns or an Open Policy Agent policy; see [policy.md](policy.md).
 
+On a desk, `kit ci` passes only once the branch has a pull request. Before one exists, `kit linked` fails, and the
+other three, `kit gate`, `kit check`, and `kit policy`, run without one.
+
 `kit status` shows everything in flight:
 
 - what the last fetch brought in,
@@ -205,17 +209,17 @@ It queries the forge in the background and draws the local checkouts while it wa
 
 | Claim | Verified by |
 | --- | --- |
-| A delivered file matches the release | `kit check`, in the gate and locally, against the release's files and the manifest's version |
-| A change has an issue | `kit linked` in the gate; `kit issue` creates the link when it starts the work |
+| A delivered file matches the release | `kit check`, in `kit ci` beside the gate and locally, against the release's files and the version `kit.yml` declares |
+| A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit issue` creates the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
 | Branch names, commit subjects, and titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
 | The gate ran with the pinned tools | `kit toolchain install`, then the gate run through the toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
-| An agent was shown a file's rules | the Claude Code hook; a rule file per kind, attached by path, in Cursor and Copilot; `kit context` elsewhere |
+| An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
 | A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
-| The forbidden git commands were not used | the harness's deny list, delivered by its adapter package |
+| The forbidden git commands were not used | no check; the deny list prevents them where the harness has one (Claude Code, Gemini CLI), and elsewhere this rests on the report in the pull request body, which `kit ci` does not verify |
 | The desk was not changed | `kit rebase` refusing the root checkout; `kit issue` never switching its branch |
 
 No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds

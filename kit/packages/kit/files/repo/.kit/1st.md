@@ -53,10 +53,10 @@ These limits do not apply to the human at the desk.
 ## Rules by file type
 
 Each kind of file is defined under `.kit/kinds/`, by its `name:`: the path globs and first-line patterns that make a
-file of that kind, and the kinds found inside its files, such as the bash in a justfile's recipes. Each kind has a
-rule file under `.kit/rules/`. A rule says what the work must do to be trusted. A repository that takes a style
-package also has a style file for that kind under `.kit/styles/`, which says how the file looks. Rule files and style
-files have the same frontmatter, with these keys:
+file of that kind, and the kinds found inside its files, such as the bash in a justfile's recipes. A kind may have a
+rule file under `.kit/rules/`; `any`, `text`, and `yaml` have none of their own. A rule says what the work must do to
+be trusted. A repository that takes a style package also has a style file for that kind under `.kit/styles/`, which
+says how the file looks. Rule files and style files have the same frontmatter, with these keys:
 
 | Key | Contains |
 | --- | --- |
@@ -66,8 +66,8 @@ files have the same frontmatter, with these keys:
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
 A rule or style governs every file of a kind it names, and `kit kind <path>` prints the kinds a file is of.
-`kit context` also prints the rules of the kinds a file's kind embeds, so a justfile brings the bash rule with it;
-`kit lint` does not follow them, so no linter runs over a file it cannot parse.
+`kit context` prints the rules of every kind a file is of, then the rules of the kinds those kinds embed, so a
+justfile brings the bash rule with it; `kit lint` does not follow them, so no linter runs over a file it cannot parse.
 
 Before you change a file:
 
@@ -157,7 +157,8 @@ The packages:
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
 - `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
-  `kit toolchain install`, then runs `kit ci`. `kit ci` runs four checks, and runs the same four on any machine:
+  `kit toolchain install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine where the
+  branch has a pull request; before one exists, `kit linked` fails and the other three run without one:
   - the repository's gate
   - `kit check`
   - `kit linked`, which refuses a change that is not linked to an open issue
@@ -171,9 +172,9 @@ The packages:
   - the deny list above, merged into `.claude/settings.json`
   - a hook that runs `kit context` before every write, so the agent is told the file's rules without asking
 - `agents/cursor`: support for Cursor, which reads `AGENTS.md` on its own. It delivers a rule under `.cursor/rules/`
-  for each kind of file, attached by the rule's paths, whose body sends the agent to `.kit/rules/<kind>.md`.
+  for each kit rule, attached by the rule's paths, whose body sends the agent to `.kit/rules/<kind>.md`.
 - `agents/copilot`: support for GitHub Copilot, which reads `AGENTS.md` on its own. It delivers an instruction file
-  under `.github/instructions/` for each kind, applied to the rule's paths, whose body sends the agent to the rule.
+  under `.github/instructions/` for each kit rule, applied to the rule's paths, whose body sends the agent to the rule.
 - `agents/gemini`: support for Gemini CLI, which reads `GEMINI.md` unless told otherwise. It merges `AGENTS.md` into
   the context files and the deny list above into `.gemini/settings.json`.
 - `empowerite`: a bundle, with no file of its own. It includes every style package, `github/ci`,

@@ -2,8 +2,9 @@
 
 `kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's read-only verbs to an agent as
 tools, and the kit's files as resources, so an agent whose harness speaks MCP reaches the kit through one entry
-point without knowing the verbs or parsing their text. It reads requests on stdin and answers on stdout, in the
-repository it starts in, and opens no network port.
+point. Each tool takes its verb's arguments as the command line does, in `args`, and its description, the verb's
+help page, says what they may be. It reads requests on stdin and answers on stdout, in the repository it starts
+in, and opens no network port.
 
 ## What it offers
 

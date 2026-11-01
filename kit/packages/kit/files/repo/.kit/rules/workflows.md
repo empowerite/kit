@@ -18,5 +18,5 @@ Applies to GitHub Actions workflows under `.github/workflows/`.
 5. A later step that must run after an earlier refusal has `if: ${{ !cancelled() }}`, so one failure does not
    hide the others.
 6. A tool gets on `PATH` because the repository pins it and a step installs it, never through `curl` in a step.
-   The one exception is the kit itself. The delivered job downloads the release that `.kit/manifest` names,
-   because nothing else can install the kit first.
+   The one exception is the kit itself. The delivered job downloads the release that `version:` in `kit.yml`
+   declares, because nothing else can install the kit first.

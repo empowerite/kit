@@ -276,7 +276,7 @@ answers:
 
 A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or a toolchain, takes one of the kit's
 providers, or one the repository adds on its bash module path: `forge: bitbucket` with a
-`modules/bash/forge-bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
+`modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Sources
 
@@ -311,7 +311,7 @@ earlier copy of a source to merge against.
 ## Packages a repository defines
 
 A directory `.kit/packages/<name>/` in the repository is a package in every respect. It has the same parts:
-`package.yml`, `files/<base>/`, `templates/<base>/`, and `regions/<base>/`.
+`package.yml`, `files/<base>/`, `templates/<base>/`, `regions/<base>/`, and `hosts/<base>/`.
 
 - The kit looks up a package name in the release first, then in `.kit/packages/`.
 - It is validated like a delivered package, and it may depend on delivered packages.
@@ -342,8 +342,8 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answer `ci_runner` |
 | [`agents/generic`](packages/agents/generic.md) | no | `kit` | a region in `AGENTS.md` that sends any agent to `.kit/1st.md` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit`, `agents/generic` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook; `.mcp.json`, merged: the kit's MCP server |
-| [`agents/cursor`](packages/agents/cursor.md) | no | `kit`, `agents/generic` | `.cursor/rules/kit-<kind>.mdc`, a rule per kind attached by its kind's paths, pointing at `.kit/rules/<kind>.md`; `.cursor/mcp.json`, merged: the kit's MCP server |
-| [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, an instruction file per kind applied to the kit rule's paths, pointing at the rule; `.vscode/mcp.json`, merged: the kit's MCP server |
+| [`agents/cursor`](packages/agents/cursor.md) | no | `kit`, `agents/generic` | `.cursor/rules/kit-<kind>.mdc`, one per kit rule, attached by its kind's paths, pointing at `.kit/rules/<kind>.md`; `.cursor/mcp.json`, merged: the kit's MCP server |
+| [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, one per kit rule, applied to the rule's paths, pointing at the rule; `.vscode/mcp.json`, merged: the kit's MCP server |
 | [`agents/gemini`](packages/agents/gemini.md) | no | `kit`, `agents/generic` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, the deny list as `run_shell_command` exclusions, and the kit's MCP server |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
 | [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` | nothing of its own: it is the bundle Empowerite's repositories take |

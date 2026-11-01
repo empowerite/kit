@@ -8,26 +8,29 @@ agents to them, as a versioned release any repository can take and keep taking.
 
 What kit checks:
 
-- `kit ci` refuses a pull request when:
-  - it is not linked to an open issue,
-  - its branch name, commit subjects, or title break the repository's naming policy, or
-  - the repository's gate fails, or it has none.
+- `kit ci` runs four checks, the gate, `kit check`, `kit linked`, and `kit policy`, and refuses a pull request when:
+  - the repository's gate fails, or it has none,
+  - a delivered file differs from the release, or a generated region from the output of its command,
+  - it is not linked to an open issue, or
+  - its branch name, commit subjects, or title break the repository's naming policy.
 
   It runs in the delivered GitHub Actions job or in any other pipeline.
 - `kit check` fails when a delivered file differs from the release, or a generated region differs from the output
   of its command.
 - `kit lint` runs each rule's linter, and the kit's own checks, over the files the rule governs, before a commit or
   at any time. One check refuses a workflow action that is not pinned to a full commit SHA.
-- A deny list blocks the raw git commands the rules forbid, such as `git rebase`.
 
 What else kit provides:
 
-- `.kit/1st.md`, the file every agent reads first, and one rule file per kind of file. Style, how a file looks, is
-  optional: a style package per kind of file.
+- `.kit/1st.md`, the file every agent reads first, and the rules, one file for each kind of file that has one.
+  Style, how a file looks, is optional: a style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
-- `kit toolchain`, which installs, lists, and updates the gate's tools (mise, Homebrew, or a container image) and
-  runs the gate with them.
+- `kit toolchain`, which installs and updates the gate's tools (mise, Homebrew, or a container image) and runs the
+  gate with them; `kit toolchains` lists the toolchains.
 - `kit status`, which shows every open pull request and the result of its checks.
+- Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks;
+  the Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
+  such as `git rebase`.
 - A rule that agents never change the desk: the root checkout on your machine, on whatever branch it currently has.
 
 A repository keeps its own rules next to the delivered ones. The design is in
@@ -47,8 +50,8 @@ how, under "Changing what kit adds".
 
 ## Install
 
-A release is a tarball containing `bin/`, `modules/`, `packages/`, and a `version` file. Install it the same way the
-repository installs its other tools.
+A release is a tarball containing `bin/`, `modules/`, `packages/`, `libexec/`, which holds the `kittui` binaries
+`kit tui` runs, and a `version` file. Install it the same way the repository installs its other tools.
 
 With mise, pin it in `mise.toml`:
 
@@ -96,10 +99,10 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract |
    | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
    | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
-   | `agents/generic` | for any agent that reads `AGENTS.md`: a sentence there that sends it to `.kit/1st.md` |
+   | `agents/generic` | for any agent that reads `AGENTS.md`: a region there, a heading and two sentences, that sends it to `.kit/1st.md` |
    | `agents/claude` | the Claude Code adapter |
-   | `agents/cursor` | the Cursor adapter: a rule per kind under `.cursor/rules/`, attached by the kit rule's paths |
-   | `agents/copilot` | the GitHub Copilot adapter: an instruction file per kind under `.github/instructions/`, applied to the same paths |
+   | `agents/cursor` | the Cursor adapter: one rule under `.cursor/rules/` per kit rule, attached by that rule's paths |
+   | `agents/copilot` | the GitHub Copilot adapter: one instruction file under `.github/instructions/` per kit rule, applied to the same paths |
    | `agents/gemini` | the Gemini CLI adapter: `AGENTS.md` among its context files, and the deny list, in `.gemini/settings.json` |
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
@@ -111,10 +114,11 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
    `install` adds `/worktrees/` to `.gitignore`, and every `agents/<harness>` package, through `agents/generic`,
-   writes a sentence into `AGENTS.md` telling every agent to read `.kit/1st.md`. Each sits in a region that runs
-   from a `kit:generate` line to a `kit:end` line. The rest of each file is yours, and you can move the region
-   anywhere in it. `kit generate` rewrites a region from its command, and `kit check` fails when a region is out of
-   date. Your own files can contain regions too; see [docs/generate.md](docs/generate.md).
+   writes a heading and two sentences into `AGENTS.md` telling every agent to read `.kit/1st.md`. Each sits in a
+   region that runs from a `kit:generate` line to a `kit:end` line. The rest of each file is yours. The
+   `.gitignore` region can sit anywhere in its file; the `AGENTS.md` and `.claude/CLAUDE.md` regions sit where the
+   package's host template puts them, which `kit check` holds them to. `kit generate` rewrites a region from its
+   command, and `kit check` fails when a region is out of date. Your own files can contain regions too; see [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
    - any command, set as `gate` in `kit.yml`
@@ -202,7 +206,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    a draft pull request. It never switches the branch of the checkout you run it from. For an issue in another
    tracker, use that tracker's reference, such as `kit issue AB#4521` for an Azure DevOps work item; see
    [docs/trackers.md](docs/trackers.md).
-3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`.
+3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`: the policy requires the
+   issue reference first, and `<area>:` is this repository's convention.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
    - `kit status` shows every open pull request and the worktree it lives in; `kit changes` the open pull requests
@@ -210,7 +215,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick; a verb you run without an
      argument it needs opens the same form, so the arguments need not be remembered.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
-5. Run `gh pr ready` when the work is done. The pull request body is the report.
+5. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
+   on GitLab. The pull request body is the report.
 6. A human merges. Then `kit tidy` removes the worktree and its branch.
 
 ## Maintaining

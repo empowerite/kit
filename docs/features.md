@@ -8,12 +8,13 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 - `.kit/1st.md` is the file every agent reads first. It sets the integrity rules for reporting, the desk that no
   agent changes, the kit commands that replace raw git commands, and the rules by kind of file. The `workflow`
   package adds `.kit/workflow.md` beside it: the workflow, plans as prose, and the worker contract.
-- The `agents/generic` package writes a sentence into `AGENTS.md` that sends every agent to `.kit/1st.md`, and
-  every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own only when the project
-  has no `CLAUDE.md`, so the `agents/claude` package imports `AGENTS.md` from `.claude/CLAUDE.md`.
+- The `agents/generic` package writes a region into `AGENTS.md`, a heading and two sentences that send every agent
+  to `.kit/1st.md`, and every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own
+  only when the project has no `CLAUDE.md`, so the `agents/claude` package imports it from `.claude/CLAUDE.md`.
 - Each kind of file is defined once, by its `name:`, in a kinds file under `.kit/kinds/`, which may define several:
-  the paths and first lines that make a file of that kind, and the kinds found inside its files. Each kind has one
-  rule, `.kit/rules/<kind>.md`, that names the kind and the linter it runs. A style package adds
+  the paths and first lines that make a file of that kind, and the kinds found inside its files. A kind may have a
+  rule, `.kit/rules/<kind>.md`, that names the kind and the linter it runs; `any`, `text`, and `yaml` have none of
+  their own, and `kit context` prints the rules of every kind a file is of. A style package adds
   `.kit/styles/<kind>.md`, how a file of that kind looks, with the same frontmatter.
 - `kit context` takes one or more paths and prints the rules that govern them, each rule once. `--json` prints the
   rules per path. Every call appends the paths to `.git/kit/context.log`.
@@ -27,7 +28,8 @@ see: [context.md](context.md)
 ## Checks
 
 `kit ci` runs four checks and reports each one. The `github/ci` package delivers a GitHub Actions job that runs it on
-every pull request, and any other pipeline can run it too.
+every pull request, and any other pipeline can run it too. On a desk it passes only once the branch has a pull
+request: before one exists, `kit linked` fails, and the other three run without one.
 
 | Check | Fails when |
 | --- | --- |
@@ -104,8 +106,8 @@ release workflow. It refuses a version of the wrong shape, a tag that exists, a 
 not on the default branch at origin, and a version not higher than every release on origin unless `--lower`
 confirms it. `kit releases` lists the releases on the forge, newest first, with each one's kind and age.
 
-The `agents/claude` package delivers a deny list that refuses the raw git commands these verbs replace, such as
-`git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
+The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
+verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
 
 see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
@@ -142,8 +144,8 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-
 
 ## Toolchains
 
-- `kit toolchain` installs, lists, and updates the tools the gate runs, whether mise, Homebrew, or a container image
-  manages them.
+- `kit toolchain` installs and updates the tools the gate runs, whether mise, Homebrew, or a container image
+  manages them; `kit toolchains` lists the toolchains and the file each reads.
 - The gate runs with those tools on the desk, in a worktree, and on a CI runner alike.
 
 see: [toolchains.md](toolchains.md)
@@ -195,8 +197,8 @@ see: [packages.md](packages.md), the Release section of [README.md](../README.md
 - A region is a part of a file that a command writes, between a `kit:generate` line and a `kit:end` line. The rest
   of the file stays the repository's own.
 - `kit generate` rewrites every region from its command. `kit check` fails on a stale one.
-- The kit's sentence in `AGENTS.md` and its `/worktrees/` line in `.gitignore` are regions, and a repository can
-  add regions of its own, such as a table built from its manifests.
+- The kit's block in `AGENTS.md`, a heading and two sentences, and its `/worktrees/` line in `.gitignore` are
+  regions, and a repository can add regions of its own, such as a table built from its manifests.
 
 see: [generate.md](generate.md)
 

@@ -9,7 +9,8 @@ kit context "${path}"
 
 - The output is the rule files to read, one per line. Given several paths, it prints each rule once.
 - `--json` prints one object per path, with that path's rules.
-- Every call appends one line to `.git/kit/context.log`: the epoch time and the path.
+- Every call appends one line to `kit/context.log` in git's common directory, `.git/kit/context.log` at the desk and
+  the desk's `.git/kit/context.log` from a worktree: the epoch time and the path.
 
 Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A style package adds
 `.kit/styles/<kind>.md` for its kind, with the same frontmatter, and `kit context` prints it after the rule.
@@ -60,7 +61,7 @@ them: `text` lists every kind the kit defines that holds prose, plus `**/*.txt`,
 - A file that does not exist yet is matched by its path alone.
 
 A rule file, or a style file, opens with a frontmatter block that names the kinds it governs and carries no glob of
-its own. The templates belong to the style; the other keys appear in rules and styles alike:
+its own. The keys appear in rules and styles alike; templates are mostly a style's, though the bash rule lists four:
 
 ```yaml
 ---
@@ -130,7 +131,7 @@ A harness that speaks the Model Context Protocol also has `context` as a tool of
 lists it as the step before creating or changing any file.
 
 Cursor and GitHub Copilot have no hook, but a rule file loaded by path. The `agents/cursor` and `agents/copilot`
-packages deliver one per kind, attached by the kind's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
+packages deliver one per kit rule, attached by its kind's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
 so the agent reads the rule itself there too. A rule file says less than `kit context`, which also matches a file by
 its content, such as a bash script with no suffix, and follows what a kind embeds; the body names
 `kit context <path>` for those.
