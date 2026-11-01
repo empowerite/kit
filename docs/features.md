@@ -89,22 +89,24 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit status` shows everything in flight: what the last fetch brought in, the desk and every worktree with its
-uncommitted paths and commits, every open pull request with its state, age, and checks, and the gone branches.
-`kit incoming` prints its first part alone, the fetch's line, and `kit worktrees` its middle, the desk and every
-worktree, with `--json` for a program.
+`kit status` shows where the work stands. Work moves left to right through five stages:
 
-`kit changes` lists the open changes, oldest first, each drawn as `kit status` draws a pull request, and under each
-the issues it closes, one row each: the number, the assignees, the state with the issue's age, and the title.
-`kit backlog` lists the open issues no change closes, oldest first, each with its assignees, its age, and the branch
-for it on origin when one is started: the next issue to take up is one with no branch. Both draw as `kit status`
-does, in the same colors, clipped to the terminal's width; `kit backlog --today` keeps the issues opened in the
-last 24 hours.
+- `backlog`: the open issues no change closes, oldest first, each with its assignees, its age, and the branch
+  started for it on origin, if any
+- `incoming`: what the fetch brought: commits on the default branch, branches new and gone
+- `worktrees`: the desk and every worktree, each with its commits and its uncommitted paths
+- `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
+- `releases`: the releases on the forge, newest first
+
+On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a dim heading with
+its count. `kit status <stage>` prints one stage, with that stage's flags: `kit status backlog --today` keeps the
+issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
+document. The `status` setting in `kit.yml` names the stages drawn, in order.
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
 release workflow. It refuses a version of the wrong shape, a tag that exists, a release (no suffix) whose commit is
 not on the default branch at origin, and a version not higher than every release on origin unless `--lower`
-confirms it. `kit releases` lists the releases on the forge, newest first, with each one's kind and age.
+confirms it. `kit status releases` lists the releases on the forge, newest first, with each one's kind and age.
 
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.

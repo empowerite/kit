@@ -60,7 +60,8 @@ provider() {
   run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" context justfile
   [ "$status" -eq 0 ]
   run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_root}/bin/kit" status --no-fetch
-  [[ "$output" == *"set forge in kit.yml"* ]]
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no origin: nothing fetched, no pull request shown"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

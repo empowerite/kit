@@ -66,22 +66,30 @@ def unknown_word($alts; $st):
 # repeats is walked again for as long as a walk takes a word.
 #
 # choose($alts; $s) picks the alternative the words select: the one a literal opens when the next word is that
-# literal; else the one that holds a given flag or option, two holding different ones being a refusal, as is a word left for an operand
+# literal, itself or through a required group it opens with; else the one that holds a given flag or option, two holding different ones and neither all being a refusal, as is a word left for an operand
 # that opens another alternative; else the first whose walk completes, the one that takes the most words winning a tie. It gives {index}, {refusal}, or {} when nothing selects.
 def walk_sequence($nodes; $st):
+  # opens($alt; $next) says whether the alternative opens with the literal $next: as its first node, or as a word of
+  # a required group it opens with, so (select | add | remove) <package>… opens with each of its three words.
+  def opens($alt; $next):
+    ($alt | length) > 0
+    and (($alt[0].kind == "literal" and $alt[0].name == $next)
+         or ($alt[0].kind == "group" and ($alt[0].optional | not) and any($alt[0].alternatives[]; opens(.; $next))));
   def choose($alts; $s):
     ($s.pos[0].word) as $next
-    | [range($alts | length)
-        | select(($alts[.] | length) > 0 and $alts[.][0].kind == "literal" and $alts[.][0].name == $next)] as $by_literal
+    | [range($alts | length) | select(opens($alts[.]; $next))] as $by_literal
     | if ($by_literal | length) > 0 then {index: $by_literal[0]}
-      else [range($alts | length) | {index: ., keys: held($alts[.]; $s)} | select(.keys | length > 0)] as $by_given
-      | if ($by_given | length) > 1 and ($by_given | map(.keys) | unique | length) == 1 then
+      else [range($alts | length) | {index: ., keys: held($alts[.]; $s)} | select(.keys | length > 0)] as $held
+      # the alternatives that hold every given key any of them holds: one that holds them all combines nothing
+      | ([$held[].keys[]] | unique) as $given
+      | [$held[] | select((.keys | unique) == $given)] as $by_given
+      | if ($by_given | length) > 1 then
           # the same flags in several alternatives decide nothing: the one whose walk completes is chosen
           [$by_given[].index as $i
             | walk_sequence($alts[$i]; $s) | select(.refusal == null and .missing == null) | {index: $i, left: (.pos | length)}]
           | sort_by(.left) | first // {index: $by_given[0].index}
-        elif ($by_given | length) > 1 then
-          {refusal: "\($by_given[0].keys[0]) cannot be combined with \($by_given[1].keys[0])"}
+        elif ($by_given | length) == 0 and ($held | length) > 1 then
+          {refusal: "\($held[0].keys[0]) cannot be combined with \($held[1].keys[0])"}
         elif ($by_given | length) == 1 then
           # a word the chosen alternative leaves over, for an operand that opens another, cannot go with the flag
           $by_given[0].index as $i

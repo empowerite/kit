@@ -5,9 +5,9 @@
 #
 # A release is a tag, release/<version>, where <version> is <major>.<minor>.<patch>, with -<suffix> for a
 # pre-release. kit release makes one and pushes it, which is how a release starts: the repository's release
-# workflow, if it has one, does the rest. kit releases lists what the forge made of them.
+# workflow, if it has one, does the rest. The releases stage of kit status lists what the forge made of them.
 #
-# see: modules/jq/version.jq, docs/features.md
+# see: kit/bin/kit-release, kit/bin/kit-status, modules/jq/version.jq, docs/features.md
 
 use git forge status settings
 
@@ -83,26 +83,27 @@ releases:release() {
   ok "pushed ${tag}"
 }
 
-# releases:render [--json] prints the forge's releases, newest first, one row each: the version, the kind with its
-# glyph and the age, and the latest marked. With --json it prints the documents as one JSON array.
-releases:render() {
-  local json=false arg docs width kind_width age_width version kind latest age glyph
-  for arg in "$@"
-  do
-    [[ "${arg}" == --json ]] && json=true
-  done
+# releases:documents prints the forge's releases, newest first, as one JSON array: version, tag, name, kind, latest,
+# at, and age in seconds, each.
+releases:documents() {
+  local docs
   forge:require || return 1
   docs=$(forge:releases) || return 1
-  if [[ "${json}" == true ]]
+  jq --slurp --compact-output . <<<"${docs}"
+}
+
+# releases:draw <releases-json> prints the releases, one row each, to stderr: the version, the kind with its glyph
+# and the age, and the latest marked. With none it says so in one dim line.
+releases:draw() {
+  local doc=$1 width kind_width age_width version kind latest age glyph
+  if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    jq --slurp --compact-output . <<<"${docs}"
+    status:none 'no release yet'
     return 0
   fi
-  # No release prints nothing, so a script reads an empty answer as none.
-  [[ -n "${docs}" ]] || return 0
-  width=$(jq --slurp '[.[].version | length] | max' <<<"${docs}")
-  kind_width=$(jq --slurp '[.[].kind | length] | max' <<<"${docs}")
-  age_width=$(while read -r age; do status:age "${age}"; echo; done < <(jq --raw-output '.age' <<<"${docs}") \
+  width=$(jq '[.[].version | length] | max' <<<"${doc}")
+  kind_width=$(jq '[.[].kind | length] | max' <<<"${doc}")
+  age_width=$(while read -r age; do status:age "${age}"; echo; done < <(jq --raw-output '.[].age' <<<"${doc}") \
     | awk 'length > w { w = length } END { print w + 0 }')
   while IFS=$'\t' read -r version kind latest age
   do
@@ -116,7 +117,20 @@ releases:render() {
       "$(status:cell "${kind}" "${kind_width}")" \
       "$(status:paint 2 "$(status:cell "$(status:age "${age}")" "${age_width}" right)")" \
       "$([[ "${latest}" == true ]] && printf '  ⭐ latest')" >&2
-  done < <(jq --raw-output '[.version, .kind, .latest, .age] | @tsv' <<<"${docs}")
+  done < <(jq --raw-output '.[] | [.version, .kind, .latest, .age] | @tsv' <<<"${doc}")
+}
+
+# releases:render [--json] prints the releases as releases:draw does, or with --json as releases:documents does, to
+# stdout.
+releases:render() {
+  local doc
+  doc=$(releases:documents) || return 1
+  if [[ " $* " == *" --json "* ]]
+  then
+    printf '%s\n' "${doc}"
+    return 0
+  fi
+  releases:draw "${doc}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -49,7 +49,7 @@ call() {
   answer 1 | jq --exit-status '.result | .protocolVersion == "2025-06-18" and .serverInfo.name == "kit"
     and .capabilities == {tools: {}, resources: {}} and (.instructions | contains("kit://1st.md"))'
   answer 2 | jq --exit-status '.result == {}'
-  answer 3 | jq --exit-status '.result.tools | length == 12'
+  answer 3 | jq --exit-status '.result.tools | length == 10'
   serve '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1999-01-01","capabilities":{}}}'
   answer 1 | jq --exit-status '.result.protocolVersion == "2025-11-25"'
 }
@@ -83,16 +83,16 @@ call() {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'
   [ "$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')" = \
-    "backlog changes check context help kinds lint packages status syntax toolchains version" ]
+    "check context help kinds lint packages status syntax toolchains version" ]
   local verb
-  for verb in backlog changes check context help kinds lint packages status syntax toolchains version
+  for verb in check context help kinds lint packages status syntax toolchains version
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
       sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
       '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose))
         and (.inputSchema.properties | keys == ["args"]) and .annotations.readOnlyHint'
   done
-  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["backlog", "changes", "status"]'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["status"]'
 }
 
 @test "a tool runs its verb: context names a bash file's rule, and lint's finding comes back as an error" {

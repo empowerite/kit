@@ -139,8 +139,8 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit changes` lists the open changes with the issues each closes, and `kit backlog` the open issues no change
-closes, with the branch that claims one, so the next `kit issue <N>` is a pick, not a search.
+`kit status changes` lists the open changes with the issues each closes, and `kit status backlog` the open issues
+no change closes, with the branch that claims one, so the next `kit issue <N>` is a pick, not a search.
 
 ### Forges, seams, and providers
 

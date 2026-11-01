@@ -10,7 +10,7 @@
 #   checks      {state, passed, total, failing, took}
 #   unresolved  the number of unresolved review threads
 #   closes      [{number, title, assignees, age}] of the issues it closes, the assignees as logins, so a change's
-#               issues are drawn as kit backlog draws an issue without a second call to the forge
+#               issues are drawn as the backlog stage draws an issue without a second call to the forge
 #
 # see: modules/bash/forge.sh, modules/bash/forge/github.sh, modules/bash/forge/gitlab.sh
 
@@ -116,7 +116,7 @@ def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
   | issue($now);
 
-# release($now) shapes a release found on either forge into the document kit releases draws: version (the tag without
+# release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without
 # release/), tag, name, kind (release, pre-release, or draft), latest, at (when it was published, or made, for a
 # draft), and age in seconds. It is given an object with tag, name, kind, latest, and at.
 def release($now):

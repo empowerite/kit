@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# releases.bats - kit release tags HEAD and pushes the tag after the release rules; kit releases lists the forge's
+# releases.bats - kit release tags HEAD and pushes the tag after the release rules; kit status releases lists the forge's
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # origin is a bare repository beside the test's, so the tags and pushes are real git; gh is tests/fakes/fake-tool, so
@@ -77,7 +77,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   [ "$status" -eq 0 ]
 }
 
-@test "kit releases lists the forge's releases newest first: version, kind, age, and the latest" {
+@test "kit status releases lists the forge's releases newest first: version, kind, age, and the latest" {
   printf 'forge: github\n' > .kit-settings && mkdir -p .kit && mv .kit-settings kit.yml
   : > "${FAKE_DIR}/gh.routes"
   cat > "${FAKE_DIR}/releases.json" <<'JSON'
@@ -91,7 +91,7 @@ JSON
   printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
   printf '%s\t%s\n' 'api user*' user.json >> "${FAKE_DIR}/gh.routes"
   printf '%s\t%s\n' 'release list --limit 1000 --json *' releases.json >> "${FAKE_DIR}/gh.routes"
-  run "${kit_root}/bin/kit" releases
+  run "${kit_root}/bin/kit" status releases
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "0.1.0-rc.7  📝 draft "* ]]
   [[ "${lines[1]}" == "0.1.0-rc.6  🧪 pre-release "* ]]
@@ -104,7 +104,7 @@ JSON
     widths+=("${#line}")
   done
   [ "${widths[0]}" -eq "${widths[1]}" ] && [ "${widths[1]}" -eq "${widths[2]}" ]
-  run "${kit_root}/bin/kit" releases --json
+  run "${kit_root}/bin/kit" status releases --json
   [ "$(jq -r 'map("\(.version) \(.kind) \(.latest)") | join(", ")' <<<"$output")" \
     = "0.1.0-rc.7 draft false, 0.1.0-rc.6 pre-release false, 0.0.9 release true" ]
 }

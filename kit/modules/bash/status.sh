@@ -1,42 +1,39 @@
 # shellcheck shell=bash
-# status.sh - shows the checkouts and the open pull requests in progress (sourced module)
+# status.sh - the picture of the work: five stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# status:render [--no-fetch] [--json] [--mine | --others | --all | --owner=<login>…] prints the checkouts and the
-# open pull requests. It changes nothing.
+# kit status draws the picture. Work moves left to right through five stages:
 #
-# It calls the forge (GitHub or GitLab) once, for every open pull request with the issues it closes, its review
-# threads, and the checks on its head commit. Everything else is read from local git. The forge call starts
-# first, in the background, so it runs while the fetch runs and the checkouts are drawn.
+#   backlog → incoming → worktrees → changes → releases
 #
-# Where it runs decides what it draws:
+# The status setting in kit.yml names the stages the picture draws, in order. status:render draws one stage, or
+# the picture: every stage under a dim heading with its count. The rows of backlog, changes, and releases live in
+# the modules named after them. The incoming and worktrees stages, and the cells every table shares, are here.
 #
-#   - At a desk, the root checkout: the whole picture below.
-#   - In a linked worktree: the fetch, this worktree's block, and the pull request its branch holds, whoever opened
-#     it; the owner flags never hide it.
-#   - Above desks, in a directory inside no repository: it walks down, and every directory that holds a .git
-#     directory is a desk. The walk stops there, and draws that desk's whole picture under the desk's path, subject
-#     to the same flags, then goes on beside it. It skips hidden directories and symbolic links, and goes no deeper
-#     than status_walk_depth. The desks are drawn in path order, each with a fetch of its own.
+# Where it runs decides what worktrees and changes draw:
 #
-# The output at a desk, in order:
+#   - At a desk, the root checkout: the desk, every linked worktree, the branches whose upstream is gone, and every
+#     open pull request.
+#   - In a linked worktree: that worktree, and the pull request its branch holds, whoever opened it. The owner flags
+#     never hide it.
+#   - Above desks, in a directory inside no repository: it walks down. Every directory that holds a .git directory
+#     is a desk. The walk stops there, and draws that desk's picture under its path, with the same arguments. It
+#     skips hidden directories and symbolic links, and goes no deeper than status_walk_depth. The desks are drawn in
+#     path order, each with a fetch of its own.
 #
-#   1. what the fetch brought in, unless --no-fetch
-#   2. the root checkout (the desk)
-#   3. each linked worktree, wherever git worktree list finds it, with its uncommitted paths and then its commits
-#   4. each open pull request, with its author, state, age, checks, and the worktree that has its branch checked
-#      out, and under it the issues it closes, one row each as kit backlog draws an issue, in flight
-#   5. the branches whose upstream is gone
+# backlog, incoming, and releases draw the same anywhere in a repository.
 #
-# Which pull requests are shown:
+# The picture collects first and draws after. The forge stages run in the background while origin is fetched. Then
+# the checkouts are measured, and every stage is drawn in order. A repository with no origin draws its checkouts
+# alone, and says so once.
 #
-#   --all              every open pull request (the default)
-#   --mine             the pull requests the caller opened, without the author column
-#   --others           the pull requests anyone but the caller opened
-#   --owner=<login>    the pull requests the named author opened; repeat the flag for more authors
+# Which pull requests and issues are shown:
 #
-# Every choice except --mine shows the author before the state.
+#   --all              every one (the default)
+#   --mine             the pull requests the caller opened, and the issues assigned to the caller; no owner column
+#   --others           anyone else's; unassigned issues included
+#   --owner=<login>    the named login's; repeat the flag for more
 #
 # A pull request's state is the first of these that applies. Its color shows the state's family, never the
 # single state: green when nothing is left to decide, yellow when a human owes a decision, and blue when the next
@@ -53,11 +50,12 @@
 #   blocked:approval   👀      blue
 #   ready              🛬      green
 #
-# --json prints the same data as one JSON document, {desk, worktrees, pullRequests, goneBranches}, with the pull
-# requests chosen the same way. In a worktree the document is {worktree, pullRequest}, the pull request null when
-# its branch holds none; above desks it is an array of {path, status}, one per desk, status the desk's document.
+# --json prints the picture as one object: stages, the names in order, and under each name what kit status <stage>
+# --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
+#
+# see: kit/bin/kit-status, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/releases.sh
 
-use git
+use file git settings backlog changes releases
 
 # status_walk_depth is how many directories below the one it runs in kit status looks for desks, above desks.
 status_walk_depth=4
@@ -74,9 +72,32 @@ status_gap='  '
 status_issue_sgr=36
 status_change_sgr=35
 
-# status_worktree_on maps a branch to the worktree that has it checked out, relative to the current directory.
-# status:render fills it; status:pr-table reads it to end a pull request's row with its branch.
-declare -gA status_worktree_on=()
+# status:stage-purpose <stage> prints what a stage lists, in a few words.
+status:stage-purpose() {
+  case "$1" in
+    (backlog) printf 'the open issues no pull request closes, oldest first\n' ;;
+    (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
+    (worktrees) printf 'the desk and every worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
+    (changes) printf 'the open pull requests, each with the issues it closes\n' ;;
+    (releases) printf 'the releases on the forge, newest first\n' ;;
+  esac
+}
+
+# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the five stages, a closed set, each with
+# what it lists.
+status:choices() {
+  local stage
+  [[ "$1" == '<stage>' ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'closed\n'
+    return 0
+  fi
+  for stage in "${settings_stages[@]}"
+  do
+    printf '%s\t%s\t\t\n' "${stage}" "$(status:stage-purpose "${stage}")"
+  done
+}
 
 # status:width prints the terminal's width in columns: COLUMNS, else the width of the terminal on stderr, else
 # 100. A width under 60 also gives 100.
@@ -115,6 +136,18 @@ status:cell() {
 # status:paint <sgr> <text> prints <text> in the color when stderr is a terminal.
 status:paint() {
   printf '%s%s%s' "$(out:sgr "$1")" "$2" "$(out:sgr 0)"
+}
+
+# status:heading <stage> [<count>] prints a stage's heading to stderr: its name in capitals, then its count, dim.
+status:heading() {
+  local text=${1^^}
+  [[ -z "${2:-}" ]] || text+=" $2"
+  printf '%s\n' "$(status:paint 90 "${text}")" >&2
+}
+
+# status:none <text> prints one dim line to stderr, what an empty stage says instead of nothing.
+status:none() {
+  printf '%s\n' "$(status:paint 90 "$1")" >&2
 }
 
 # status:state-sgr <state> prints the color code of a state's family.
@@ -173,35 +206,69 @@ status:plural() {
   fi
 }
 
-# status:fetch-summary <before> <after> <default-branch> prints one line listing what changed between two
-# status:refs snapshots: new commits on origin's default branch, then branches updated, new, and pruned, then new
-# tags, after "origin: fetched". It prints "origin: unchanged" when nothing changed.
-status:fetch-summary() {
-  local default_ref="refs/remotes/origin/$3" kind ref old new commits=0 updated=0 added=0 pruned=0 tags=0 line part
-  local -a parts=()
+# status:json-list <item>… prints the items as one JSON array of strings.
+status:json-list() {
+  jq --null-input --compact-output '$ARGS.positional' --args "$@"
+}
+
+# status:fetch-diff <before> <after> prints what changed between two status:refs snapshots, one line each: new,
+# moved, or gone; the ref; the old sha, or -; and the new sha, or -.
+status:fetch-diff() {
+  awk 'NR == FNR { old[$1] = $2; next }
+       !($1 in old) { print "new", $1, "-", $2; next }
+       old[$1] != $2 { print "moved", $1, old[$1], $2 }
+       { delete old[$1] }
+       END { for (ref in old) print "gone", ref, old[ref], "-" }' \
+    <(printf '%s\n' "$1" | grep .) <(printf '%s\n' "$2" | grep .)
+}
+
+# status:fetch-json <before> <after> <default-branch> prints what a fetch brought, between two status:refs snapshots,
+# as one object: fetched, true; default, the default branch; commits, the ones new on it at origin, newest first,
+# each {sha, subject}; branches, the names new, updated, and gone on origin; and tags, the names new.
+status:fetch-json() {
+  local default_ref="refs/remotes/origin/$3" kind ref old new commits=''
+  local -a added=() updated=() gone=() tags=()
   while IFS=' ' read -r kind ref old new
   do
     case "${kind}:${ref}" in
-      (moved:"${default_ref}") commits=$(git rev-list --count "${old}..${new}" 2>/dev/null || printf 0) ;;
-      (moved:refs/remotes/*) updated=$(( updated + 1 )) ;;
-      (new:refs/remotes/*) added=$(( added + 1 )) ;;
-      (gone:refs/remotes/*) pruned=$(( pruned + 1 )) ;;
-      (new:refs/tags/*) tags=$(( tags + 1 )) ;;
+      (moved:"${default_ref}") commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null || true) ;;
+      (moved:refs/remotes/origin/*) updated+=("${ref#refs/remotes/origin/}") ;;
+      (new:refs/remotes/origin/*) added+=("${ref#refs/remotes/origin/}") ;;
+      (gone:refs/remotes/origin/*) gone+=("${ref#refs/remotes/origin/}") ;;
+      (new:refs/tags/*) tags+=("${ref#refs/tags/}") ;;
     esac
-  done < <(awk 'NR == FNR { old[$1] = $2; next }
-                !($1 in old) { print "new", $1, "-", $2; next }
-                old[$1] != $2 { print "moved", $1, old[$1], $2 }
-                { delete old[$1] }
-                END { for (ref in old) print "gone", ref, old[ref], "-" }' \
-             <(printf '%s\n' "$1" | grep .) <(printf '%s\n' "$2" | grep .))
-  (( commits > 0 )) && parts+=("$(status:plural "${commits}" 'new commit' 'new commits') on $3")
+  done < <(status:fetch-diff "$1" "$2")
+  jq --null-input --compact-output --arg default "$3" --arg commits "${commits}" \
+    --argjson new "$(status:json-list "${added[@]}")" --argjson updated "$(status:json-list "${updated[@]}")" \
+    --argjson gone "$(status:json-list "${gone[@]}")" --argjson tags "$(status:json-list "${tags[@]}")" \
+    '{fetched: true, default: $default,
+      commits: ($commits | split("\n") | map(select(. != "") | split("\t")
+                | {sha: .[0], subject: (.[1:] | join("\t"))})),
+      branches: {new: $new, updated: $updated, gone: $gone}, tags: $tags}'
+}
+
+# status:incoming-text <incoming-json> prints the fetch's line, from status:incoming's object, to stderr. Nothing
+# fetched says 📥 origin: not fetched, dim. Else it is 📥 origin: unchanged, or what the fetch brought, counted: new
+# commits on the default branch, then branches updated, new, and pruned, then new tags.
+status:incoming-text() {
+  local default commits updated added pruned tags line part
+  local -a parts=()
+  if [[ "$(jq '.fetched' <<<"$1")" != true ]]
+  then
+    status:none '📥 origin: not fetched'
+    return 0
+  fi
+  IFS=$'\t' read -r default commits updated added pruned tags < <(jq --raw-output \
+    '[.default, (.commits | length), (.branches.updated | length), (.branches.new | length),
+      (.branches.gone | length), (.tags | length)] | @tsv' <<<"$1")
+  (( commits > 0 )) && parts+=("$(status:plural "${commits}" 'new commit' 'new commits') on ${default}")
   (( updated > 0 )) && parts+=("$(status:plural "${updated}" 'branch updated' 'branches updated')")
   (( added > 0 )) && parts+=("$(status:plural "${added}" 'new branch' 'new branches')")
   (( pruned > 0 )) && parts+=("$(status:plural "${pruned}" 'branch pruned' 'branches pruned')")
   (( tags > 0 )) && parts+=("$(status:plural "${tags}" 'new tag' 'new tags')")
   if (( ${#parts[@]} == 0 ))
   then
-    printf '📥 origin: unchanged\n'
+    printf '📥 origin: unchanged\n' >&2
     return 0
   fi
   line=${parts[0]}
@@ -209,34 +276,40 @@ status:fetch-summary() {
   do
     line+="${status_sep}${part}"
   done
-  printf '📥 origin: fetched %s\n' "${line}"
+  printf '📥 origin: fetched %s\n' "${line}" >&2
 }
 
-# status:fetch-line <default-branch> fetches origin with --prune, then prints status:fetch-summary's line, as kit
-# incoming does. When the fetch fails, it prints a warning instead, and returns 1.
-status:fetch-line() {
-  local before
-  before=$(status:refs)
-  if ! git fetch --quiet --prune origin
+# status:incoming [--no-fetch] [--json] is the incoming stage. It fetches origin, pruning the branches gone from it,
+# and prints the fetch's line, as status:incoming-text draws it. With --json it prints status:fetch-json's object
+# instead. With --no-fetch it fetches nothing: the line says so, and the object is {"fetched": false}. It returns 1
+# when the fetch fails, with a warning.
+status:incoming() {
+  local json=false no_fetch=false arg before doc
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--json) json=true ;;
+      (--no-fetch) no_fetch=true ;;
+    esac
+  done
+  if [[ "${no_fetch}" == true ]]
   then
-    warn "git fetch --prune failed; ahead and behind counts may be stale"
-    return 1
+    doc='{"fetched":false}'
+  else
+    before=$(status:refs)
+    if ! git fetch --quiet --prune origin
+    then
+      warn "git fetch --prune failed; ahead and behind counts may be stale"
+      return 1
+    fi
+    doc=$(status:fetch-json "${before}" "$(status:refs)" "$(git:default-branch)")
   fi
-  status:fetch-summary "${before}" "$(status:refs)" "$1" >&2
-}
-
-# status:fetch <default-branch> prints status:fetch-line's line, or its warning, and a blank line, as kit status
-# opens.
-status:fetch() {
-  status:fetch-line "$1" || true
-  printf '\n' >&2
-}
-
-# status:collect prints one JSON object per open pull request, as the forge provider builds them. When the forge
-# cannot be reached, it prints nothing and a warning.
-status:collect() {
-  use forge
-  forge:open-prs || warn "no pull request is shown; see above"
+  if [[ "${json}" == true ]]
+  then
+    printf '%s\n' "${doc}"
+  else
+    status:incoming-text "${doc}"
+  fi
 }
 
 # status:choice <mine> <others> <owners> names what the owner flags chose, for the wording and the owner column: mine when
@@ -258,6 +331,37 @@ status:choice() {
   else
     printf 'all\n'
   fi
+}
+
+# status:owner-flags <argument>… reads the owner flags among the arguments into mine, others, and owners, variables
+# the caller declares.
+status:owner-flags() {
+  local arg
+  mine=false others=false owners=()
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--mine) mine=true ;;
+      (--others) others=true ;;
+      (--owner=?*) owners+=("${arg#--owner=}") ;;
+    esac
+  done
+}
+
+# status:choice-of <argument>… prints status:choice's answer for the owner flags among the arguments.
+status:choice-of() {
+  local mine others
+  local -a owners
+  status:owner-flags "$@"
+  status:choice "${mine}" "${others}" "${#owners[@]}"
+}
+
+# status:filter-of <argument>… prints status:filter's line for the owner flags among the arguments.
+status:filter-of() {
+  local mine others
+  local -a owners
+  status:owner-flags "$@"
+  status:filter "${mine}" "${others}" "${owners[@]}"
 }
 
 # status:filter <mine> <others> <login>… prints, on one line, the arguments status:select and backlog:collect take to
@@ -522,9 +626,9 @@ status:issue-widths() {
   printf '%s %s %s %s\n' "${ref_w}" "${owner_w}" "${age_w}" "${branch_w}"
 }
 
-# status:issue-row <issue-json> <widths> <state> <indent> prints one issue as kit backlog and kit changes draw it:
-# <indent>, the number right-aligned, the assignees when any issue in the table has one, then <state> with the age
-# when <state> is given, as under a change, else the age alone, then the branch when any issue has one, and last
+# status:issue-row <issue-json> <widths> <state> <indent> prints one issue as the backlog and changes stages draw
+# it: <indent>, the number right-aligned, the assignees when any issue in the table has one, then <state> with the
+# age when <state> is given, as under a change, else the age alone, then the branch when any issue has one, and last
 # the title, clipped to what the terminal's width leaves. <widths> is status:issue-widths' line. Every cell after
 # the number opens with a glyph, so status_gap separates them, and a cell with nothing is blank, glyph included, so
 # every title starts at the same column. The number is cyan; the state is blue, the family of a move that is
@@ -575,8 +679,8 @@ status:issue-row() {
 # status:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <with-branch> <issue-widths>
 # prints a pull request: its row, then the issues it closes, one row each, in flight, indented under it. The state
 # and its age share a cell. The row shows the author before the state when <owner-width> is above zero, and ends
-# with the branch when <with-branch> is not empty: kit status gives the worktree that has it checked out, kit
-# changes gives it always. <issue-widths> is status:issue-widths' line over every issue in the table.
+# with the branch when <with-branch> is not empty. <issue-widths> is status:issue-widths' line over every issue in
+# the table.
 status:pr-block() {
   local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6 issue_widths=$7
   local number ref title author branch state age unresolved row issue checks
@@ -602,13 +706,11 @@ status:pr-block() {
   return 0
 }
 
-# status:pr-table <choice> <prs> <branches> <lead> draws the pull requests in <prs>, one JSON document per line,
-# one block each, their cells sized across the rows: the row's title, author, state, and age, and the issue rows'
-# number, assignees, and age. <choice> mine leaves the author column out. <branches> is worktrees, when a row ends
-# with its branch only while a worktree here has it checked out, as status_worktree_on records, or always. <lead>
-# is gap, a blank line before every block, or between, a blank line between blocks only.
+# status:pr-table <choice> <prs> draws the pull requests in <prs>, one JSON document per line, one block each, a
+# blank line between blocks, their cells sized across the rows: the row's title, author, state, and age, and the
+# issue rows' number, assignees, and age. Every row ends with its branch. <choice> mine leaves the author column out.
 status:pr-table() {
-  local choice=$1 prs=$2 branches=$3 lead=$4 doc branch with_branch issue_widths first=true
+  local choice=$1 prs=$2 doc issue_widths first=true
   local title_w=0 owner_w=0 state_w=0 age_w=0 width text author state_text age_secs
   [[ -n "${prs}" ]] || return 0
   while IFS=$'\x1f' read -r text author state_text age_secs
@@ -629,22 +731,18 @@ status:pr-table() {
   while IFS= read -r doc
   do
     [[ -n "${doc}" ]] || continue
-    if [[ "${first}" == true && "${lead}" == between ]]
+    if [[ "${first}" == true ]]
     then first=false
     else printf '\n' >&2
     fi
-    branch=$(jq --raw-output .branch <<<"${doc}")
-    case "${branches}" in
-      (always) with_branch=yes ;;
-      (*) with_branch=${status_worktree_on[${branch}]:-}
-    esac
-    status:pr-block "${doc}" "${title_w}" "${owner_w}" "${state_w}" "${age_w}" "${with_branch}" "${issue_widths}"
+    status:pr-block "${doc}" "${title_w}" "${owner_w}" "${state_w}" "${age_w}" yes "${issue_widths}"
   done <<<"${prs}"
 }
 
-# status_desk and status_worktrees hold the documents status:checkouts measured: the desk, and each linked worktree in
-# issue-number order, each one status:checkout's JSON.
-declare -g status_desk=''
+# status_desk, status_worktrees, and status_gone hold what status:worktrees measured: the desk's document, empty in
+# a worktree; each linked worktree's in issue-number order, or the one worktree's, each status:checkout's JSON; and
+# the branches whose upstream is gone, one per line, none in a worktree.
+declare -g status_desk='' status_gone=''
 declare -ga status_worktrees=()
 
 # status:checkouts <default-branch> measures the desk and every linked worktree, from origin's default branch, into
@@ -662,201 +760,277 @@ status:checkouts() {
   done < <(git:linked-worktrees | status:by-number)
 }
 
-# status:draw-checkouts draws what status:checkouts measured: the desk's block, then each worktree's, the labels and
-# the counts in columns. It records which worktree has each branch in status_worktree_on, for the pull requests' rows.
+# status:draw-checkouts draws what status:worktrees measured: the desk's block, when there is one, then each
+# worktree's, the labels and the counts in columns.
 status:draw-checkouts() {
-  local label_w=0 width relative branch widths doc
-  status_worktree_on=()
-  for doc in "${status_desk}" "${status_worktrees[@]}"
+  local label_w=0 width relative branch widths doc first=true
+  local -a docs=()
+  [[ -z "${status_desk}" ]] || docs+=("${status_desk}")
+  docs+=("${status_worktrees[@]}")
+  for doc in "${docs[@]}"
   do
     IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
     IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
     (( width > label_w )) && label_w=${width}
-    [[ -n "${branch}" && "${doc}" != "${status_desk}" ]] && status_worktree_on[${branch}]=${relative}
   done
-  widths=$(status:count-widths "${status_desk}" "${status_worktrees[@]}")
-  status:checkout-block '🏠' "${status_desk}" "${label_w}" "${widths}"
+  widths=$(status:count-widths "${docs[@]}")
+  if [[ -n "${status_desk}" ]]
+  then
+    status:checkout-block '🏠' "${status_desk}" "${label_w}" "${widths}"
+    first=false
+  fi
   for doc in "${status_worktrees[@]}"
   do
-    printf '\n' >&2
+    if [[ "${first}" == true ]]
+    then first=false
+    else printf '\n' >&2
+    fi
     status:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
   done
 }
 
-# status:worktrees [--json] draws the desk and every linked worktree, as kit status draws them between the fetch and
-# the changes, wherever in the repository it runs; with --json it prints {desk, worktrees} instead.
+# status:in-worktree succeeds in a linked worktree, whose git directory is not the repository's common one.
+status:in-worktree() {
+  [[ "$(git rev-parse --path-format=absolute --git-dir)" \
+    != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
+}
+
+# status:worktrees [--json] is the worktrees stage. It measures the checkouts and draws them: at a desk, the desk,
+# every linked worktree in issue-number order, and the branches whose upstream is gone; in a worktree, that worktree
+# alone. With --json it prints status:worktrees-json's object instead.
 status:worktrees() {
-  status:checkouts "$(git:default-branch)"
+  local default_branch here branch
+  default_branch=$(git:default-branch)
+  status_desk='' status_gone='' status_worktrees=()
+  if status:in-worktree
+  then
+    here=$(git rev-parse --show-toplevel)
+    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+    status_worktrees=("$(status:checkout "${here}" "${branch}" "${default_branch}")")
+  else
+    status:checkouts "${default_branch}"
+    status_gone=$(git:gone-branches)
+  fi
   if [[ " $* " == *" --json "* ]]
   then
-    jq --null-input --argjson desk "${status_desk}" \
-      --argjson worktrees "$(printf '%s\n' "${status_worktrees[@]}" | jq --slurp .)" \
-      '{desk: $desk, worktrees: $worktrees}'
+    status:worktrees-json
+  else
+    status:draw-worktrees
+  fi
+}
+
+# status:worktrees-json prints what status:worktrees measured as one object: desk, null in a worktree; worktrees,
+# the checkouts' documents; and goneBranches, the names.
+status:worktrees-json() {
+  local gone
+  gone=$(printf '%s\n' "${status_gone}" | jq --raw-input . | jq --slurp --compact-output 'map(select(. != ""))')
+  jq --null-input --compact-output --argjson desk "${status_desk:-null}" \
+    --argjson worktrees "$(printf '%s\n' "${status_worktrees[@]}" | jq --slurp --compact-output .)" \
+    --argjson goneBranches "${gone}" '{desk: $desk, worktrees: $worktrees, goneBranches: $goneBranches}'
+}
+
+# status:draw-worktrees draws what status:worktrees measured: the checkout blocks, then, after a blank line, each
+# gone branch as 🔖 <branch> · upstream gone · kit tidy removes it. With nothing measured it says no worktree.
+status:draw-worktrees() {
+  local branch
+  if [[ -z "${status_desk}" ]] && (( ${#status_worktrees[@]} == 0 ))
+  then
+    status:none 'no worktree'
     return 0
   fi
   status:draw-checkouts
+  [[ -n "${status_gone}" ]] || return 0
+  printf '\n' >&2
+  while IFS= read -r branch
+  do
+    printf '🔖 %s%s%s\n' "${branch}" "${status_sep}" \
+      "$(status:paint 90 "upstream gone${status_sep}kit tidy removes it")" >&2
+  done <<<"${status_gone}"
 }
 
-# status:incoming fetches origin and prints the fetch's line, as kit status prints it first. It returns 1 when the
-# fetch fails.
-status:incoming() {
-  status:fetch-line "$(git:default-branch)"
+# status:stage <stage> [<argument>…] prints one stage, without its heading, with the arguments the stage takes.
+status:stage() {
+  local stage=$1
+  shift
+  case "${stage}" in
+    (backlog) backlog:render "$@" ;;
+    (incoming) status:incoming "$@" ;;
+    (worktrees) status:worktrees "$@" ;;
+    (changes) changes:render "$@" ;;
+    (releases) releases:render "$@" ;;
+  esac
 }
 
-# status:render [--no-fetch] [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the output the file
-# header describes, or the same data as one JSON document. The owner flags combine as status:filter says.
+# status:stage-args <stage> <argument>… prints, one per line, the arguments among those given that the stage takes:
+# --json for every stage, --no-fetch for incoming, and the owner flags for backlog and changes.
+status:stage-args() {
+  local stage=$1 arg
+  shift
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--json) printf '%s\n' "${arg}" ;;
+      (--no-fetch) [[ "${stage}" != incoming ]] || printf '%s\n' "${arg}" ;;
+      (--all | --mine | --others | --owner=?*)
+        [[ "${stage}" != backlog && "${stage}" != changes ]] || printf '%s\n' "${arg}"
+    esac
+  done
+  return 0
+}
+
+# status:picture-document <scratch> <stage> <origin> prints the document a stage collected under <scratch>, for the
+# picture's JSON: null for a stage that failed or, with no origin, could not run; {"fetched": false} for incoming
+# with no origin.
+status:picture-document() {
+  local scratch=$1 stage=$2 origin=$3
+  if [[ "${origin}" == false && "${stage}" == incoming ]]
+  then
+    printf '{"fetched":false}\n'
+  elif [[ -f "${scratch}/${stage}.status" && "$(<"${scratch}/${stage}.status")" == 0 ]]
+  then
+    cat "${scratch}/${stage}.json"
+  else
+    printf 'null\n'
+  fi
+}
+
+# status:picture [--no-fetch] [--json] [<owner flag>…] draws every stage the status setting names, in its order, or
+# prints the picture as one JSON object. It collects first and draws after: the forge stages run in the background
+# while origin is fetched; then the checkouts are measured; then each stage is drawn in order, under its heading. A
+# stage that failed is drawn as its refusal, and the picture returns 1 at the end. With no origin it fetches
+# nothing and asks the forge nothing: it draws the checkouts, says so once, and returns 0. It returns 2 when the
+# status setting names no stage.
+status:picture() {
+  local json=false no_fetch=false origin=true failed=false first=true stage doc code choice scratch text
+  local -a stages=() args=() named=()
+  text=$(settings:stages) || return 2
+  readarray -t stages <<<"${text}"
+  [[ " $* " == *" --json "* ]] && json=true
+  [[ " $* " == *" --no-fetch "* ]] && no_fetch=true
+  git remote get-url origin >/dev/null 2>&1 || origin=false
+  choice=$(status:choice-of "$@")
+  file:scratch scratch
+  # The forge stages need nothing local and the forge is the slow call, so they start first, in the background.
+  for stage in "${stages[@]}"
+  do
+    case "${stage}" in
+      (backlog | changes | releases)
+        [[ "${origin}" == true ]] || continue
+        readarray -t args < <(status:stage-args "${stage}" --json "$@")
+        (
+          status:stage "${stage}" "${args[@]}" && code=0 || code=$?
+          printf '%s\n' "${code}" > "${scratch}/${stage}.status"
+        ) > "${scratch}/${stage}.json" 2> "${scratch}/${stage}.err" &
+    esac
+  done
+  # The fetch comes before the checkouts are measured, so ahead and behind count against origin as it is now.
+  if [[ "${origin}" == false ]]
+  then
+    true
+  elif list:among incoming "${stages[@]}"
+  then
+    readarray -t args < <(status:stage-args incoming --json "$@")
+    status:incoming "${args[@]}" > "${scratch}/incoming.json" 2> "${scratch}/incoming.err" && code=0 || code=$?
+    printf '%s\n' "${code}" > "${scratch}/incoming.status"
+  elif [[ "${no_fetch}" == false ]]
+  then
+    git fetch --quiet --prune origin 2>/dev/null || true
+  fi
+  if list:among worktrees "${stages[@]}"
+  then
+    status:worktrees --json > "${scratch}/worktrees.json" 2> "${scratch}/worktrees.err" && code=0 || code=$?
+    printf '%s\n' "${code}" > "${scratch}/worktrees.status"
+  fi
+  wait
+  if [[ "${json}" == true ]]
+  then
+    for stage in "${stages[@]}"
+    do
+      doc=$(status:picture-document "${scratch}" "${stage}" "${origin}")
+      named+=(--argjson "${stage}" "${doc}")
+      [[ ! -s "${scratch}/${stage}.err" ]] || cat "${scratch}/${stage}.err" >&2
+      [[ "${doc}" != null ]] || failed=true
+    done
+    [[ "${origin}" == true ]] || warn "no origin: nothing fetched, no pull request shown"
+    jq --null-input --compact-output --argjson stages "$(status:json-list "${stages[@]}")" "${named[@]}" \
+      '{stages: $stages} + $ARGS.named'
+    [[ "${origin}" == false || "${failed}" == false ]]
+    return
+  fi
+  if [[ "${origin}" == false ]]
+  then
+    warn "no origin: nothing fetched, no pull request shown"
+    first=false
+  fi
+  for stage in "${stages[@]}"
+  do
+    [[ "${origin}" == true || "${stage}" == worktrees ]] || continue
+    if [[ "${first}" == true ]]
+    then first=false
+    else printf '\n' >&2
+    fi
+    code=$(<"${scratch}/${stage}.status")
+    if (( code != 0 ))
+    then
+      failed=true
+      status:heading "${stage}"
+      cat "${scratch}/${stage}.err" >&2
+      continue
+    fi
+    doc=$(<"${scratch}/${stage}.json")
+    case "${stage}" in
+      (backlog)
+        status:heading backlog "$(jq 'length' <<<"${doc}")"
+        backlog:draw "${doc}" "${choice}"
+        ;;
+      (incoming)
+        status:heading incoming
+        status:incoming-text "${doc}"
+        ;;
+      (worktrees)
+        status:heading worktrees "$(jq '(if .desk then 1 else 0 end) + (.worktrees | length)' <<<"${doc}")"
+        status:draw-worktrees
+        ;;
+      (changes)
+        status:heading changes "$(jq 'length' <<<"${doc}")"
+        changes:draw "${doc}" "${choice}"
+        ;;
+      (releases)
+        status:heading releases "$(jq 'length' <<<"${doc}")"
+        releases:draw "${doc}"
+        ;;
+    esac
+    [[ ! -s "${scratch}/${stage}.err" ]] || cat "${scratch}/${stage}.err" >&2
+  done
+  [[ "${failed}" == false ]]
+}
+
+# status:render [<stage>] [<argument>…] draws one stage, or the picture, as kit status's page says. Above desks it
+# draws each desk's under its path. --text, which kit status takes to stay in text on a terminal, changes nothing
+# here.
 status:render() {
-  local no_fetch=false json=false mine=false others=false choice arg main_root default_branch desk_branch path branch
-  local doc gone filter
-  local -a owners=() selection=()
+  local stage='' arg
+  local -a args=()
   if ! git rev-parse --git-dir >/dev/null 2>&1
   then
     status:above "$@"
     return
   fi
-  if [[ "$(git rev-parse --path-format=absolute --git-dir)" != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
-  then
-    status:worktree "$@"
-    return
-  fi
+  case "${1:-}" in
+    (backlog | incoming | worktrees | changes | releases)
+      stage=$1
+      shift
+  esac
   for arg in "$@"
   do
-    case "${arg}" in
-      (--no-fetch) no_fetch=true ;;
-      (--json) json=true ;;
-      (--mine) mine=true ;;
-      (--others) others=true ;;
-      (--all) ;;
-      (--owner=?*) owners+=("${arg#--owner=}")
-    esac
+    [[ "${arg}" == --text ]] || args+=("${arg}")
   done
-  choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
-  # The forge call is the slow one and needs nothing local, so it starts first and runs during the fetch and the
-  # local reads. Its warnings are saved and printed where the pull requests appear, so they do not land among the
-  # checkouts. With --mine or --others, the same background job also asks the forge for the caller's login.
-  local scratch prs_job prs_failed=false
-  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
-  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
-  trap "rm -rf '${scratch}'" EXIT
-  (
-    filter=$(status:filter "${mine}" "${others}" "${owners[@]}") || exit 1
-    read -r -a selection <<<"${filter}"
-    status:collect | status:select "${selection[@]}"
-  ) > "${scratch}/prs" 2> "${scratch}/prs.err" &
-  prs_job=$!
-
-  main_root=$(git:main-root)
-  default_branch=$(git:default-branch)
-  if [[ "${no_fetch}" == true ]]
+  if [[ -n "${stage}" ]]
   then
-    true
-  elif [[ "${json}" == true ]]
-  then
-    status:fetch "${default_branch}" 2>/dev/null
+    status:stage "${stage}" "${args[@]}"
   else
-    status:fetch "${default_branch}"
+    status:picture "${args[@]}"
   fi
-  desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-  gone=$(git:gone-branches)
-
-  local prs desk
-  local -a worktrees=()
-  status:checkouts "${default_branch}"
-  desk=${status_desk}
-  worktrees=("${status_worktrees[@]}")
-
-  if [[ "${json}" == true ]]
-  then
-    wait "${prs_job}" || prs_failed=true
-    cat "${scratch}/prs.err" >&2
-    [[ "${prs_failed}" == false ]] || return 1
-    prs=$(<"${scratch}/prs")
-    jq --null-input --argjson desk "${desk}" \
-      --argjson worktrees "$(printf '%s\n' "${worktrees[@]}" | jq --slurp .)" \
-      --argjson pullRequests "$(jq --slurp . <<<"${prs}")" \
-      --argjson goneBranches "$(jq --raw-input . <<<"${gone}" | jq --slurp 'map(select(. != ""))')" \
-      '{ desk: $desk, worktrees: $worktrees, pullRequests: $pullRequests, goneBranches: $goneBranches }'
-    return 0
-  fi
-
-  # Draw the checkouts while the forge call may still be running.
-  status:draw-checkouts
-
-  wait "${prs_job}" || prs_failed=true
-  if [[ -s "${scratch}/prs.err" ]]
-  then
-    printf '\n' >&2
-    cat "${scratch}/prs.err" >&2
-  fi
-  [[ "${prs_failed}" == false ]] || return 1
-  prs=$(<"${scratch}/prs")
-
-  status:pr-table "${choice}" "${prs}" worktrees gap
-  if [[ -n "${gone}" ]]
-  then
-    printf '\n' >&2
-    while IFS= read -r branch
-    do
-      printf '🔖 %s%s%s\n' "${branch}" "${status_sep}" \
-        "$(status:paint 90 "upstream gone${status_sep}kit tidy removes it")" >&2
-    done <<<"${gone}"
-  fi
-}
-
-# status:worktree [--no-fetch] [--json] [<owner flag>…] draws a linked worktree: the fetch, its block, and the pull
-# request its branch holds, whoever opened it. The owner flags are accepted and change nothing here.
-status:worktree() {
-  local no_fetch=false json=false arg default_branch here branch doc prs pr
-  for arg in "$@"
-  do
-    case "${arg}" in
-      (--no-fetch) no_fetch=true ;;
-      (--json) json=true
-    esac
-  done
-  here=$(git rev-parse --show-toplevel)
-  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-  local scratch prs_job prs_failed=false
-  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
-  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
-  trap "rm -rf '${scratch}'" EXIT
-  ( [[ -n "${branch}" ]] && status:collect | jq --compact-output --arg branch "${branch}" 'select(.branch == $branch)' ) \
-    > "${scratch}/prs" 2> "${scratch}/prs.err" &
-  prs_job=$!
-  default_branch=$(git:default-branch)
-  if [[ "${no_fetch}" == false ]]
-  then
-    if [[ "${json}" == true ]]
-    then
-      status:fetch "${default_branch}" 2>/dev/null
-    else
-      status:fetch "${default_branch}"
-    fi
-  fi
-  doc=$(status:checkout "${here}" "${branch}" "${default_branch}")
-  wait "${prs_job}" || prs_failed=true
-  prs=$(<"${scratch}/prs")
-  pr=$(jq --slurp --compact-output 'first // null' <<<"${prs}")
-  if [[ "${json}" == true ]]
-  then
-    cat "${scratch}/prs.err" >&2
-    jq --null-input --argjson worktree "${doc}" --argjson pullRequest "${pr}" \
-      '{worktree: $worktree, pullRequest: $pullRequest}'
-    return 0
-  fi
-  local relative width
-  relative=$(jq --raw-output '.relative' <<<"${doc}")
-  IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
-  status_worktree_on=()
-  [[ -n "${branch}" ]] && status_worktree_on[${branch}]=${relative}
-  status:checkout-block '🌿' "${doc}" "${width}" "$(status:count-widths "${doc}")"
-  if [[ -s "${scratch}/prs.err" ]]
-  then
-    printf '\n' >&2
-    cat "${scratch}/prs.err" >&2
-  fi
-  [[ -n "${prs}" ]] && status:pr-table all "${prs}" worktrees gap
-  return 0
 }
 
 # status:desks <dir> <depth> prints every desk at or below <dir>, at most <depth> levels down, in path order: a
@@ -878,8 +1052,9 @@ status:desks() {
   done
 }
 
-# status:above <flag>… draws every desk below the current directory, each under its path, as kit status draws it at
-# that desk, with the same flags. The desks run at once, each fetching on its own, and are drawn in path order.
+# status:above <argument>… draws every desk below the current directory, each under its path, as kit status draws it
+# at that desk, with the same arguments. The desks run at once, each fetching on its own, and are drawn in path
+# order.
 status:above() {
   local json=false arg desk index=0 color=''
   local -a desks
@@ -894,9 +1069,7 @@ status:above() {
     return 1
   fi
   local scratch
-  scratch=$(mktemp -d "${TMPDIR:-/tmp}/kit-status.XXXXXX")
-  # shellcheck disable=SC2064  # the path is fixed now; the trap outlives this function's locals
-  trap "rm -rf '${scratch}'" EXIT
+  file:scratch scratch
   [[ "${out_color}" == 1 ]] && color=1
   for desk in "${desks[@]}"
   do

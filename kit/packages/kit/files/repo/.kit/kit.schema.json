@@ -184,6 +184,20 @@
         "const": "kit:modules/bash/"
       }
     },
+    "status": {
+      "type": "array",
+      "description": "The stages kit status draws, in order: backlog, incoming, worktrees, changes, releases. A stage left out is not drawn, but kit status <stage> still prints it. Default: all five, in that order.",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "backlog",
+          "incoming",
+          "worktrees",
+          "changes",
+          "releases"
+        ]
+      }
+    },
     "version": {
       "type": "string",
       "description": "The kit release the repository is pinned to, written by kit install and kit update. A checkout of the kit itself declares unreleased."

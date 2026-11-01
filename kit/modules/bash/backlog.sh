@@ -3,18 +3,18 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit backlog is the pick: the open issues of the repository on its forge, as forge:open-issues folds them, less the
-# ones an open change closes, which are kit changes's. An issue with a branch for it on origin is claimed, and its
-# row says so; one with neither is for the next kit issue <N>. The flags are kit status's: --mine is the issues
-# assigned to the caller, --others the rest, unassigned ones included, --owner=<login> the named assignees', --all
-# every one; --today keeps only the issues opened in the last 24 hours, whichever of those is chosen.
+# The backlog stage of kit status is the pick: the open issues of the repository on its forge, as forge:open-issues
+# folds them, less the ones an open change closes, which the changes stage draws. An issue with a branch for it on
+# origin is claimed, and its row says so; one with neither is for the next kit issue <N>. The flags are kit status's:
+# --mine is the issues assigned to the caller, --others the rest, unassigned ones included, --owner=<login> the named
+# assignees', --all every one; --today keeps only the issues opened in the last 24 hours, whichever of those is chosen.
 #
-# A row is drawn by status:issue-row, as the issues under a change in kit changes are, without the state cell:
+# A row is drawn by status:issue-row, as the issues under a change are, without the state cell:
 #
 #    #7  👤 bob  40d  🌿 7-fix-the-thing  🎫 Fix the thing
 #   #11  👤 ada  30d                      🎫 Third thing
 #
-# see: kit/bin/kit-backlog, modules/bash/status.sh, modules/bash/forge.sh, modules/jq/forge.jq
+# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/forge.sh, modules/jq/forge.jq
 
 use forge status
 
@@ -34,36 +34,27 @@ backlog:collect() {
       $logins | split(" ") | map(select(. != "")); $except)' <<<"${issues}"
 }
 
-# backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues, one row each,
-# to stderr. With --json it prints backlog:collect's array to stdout. The owner flags combine as status:filter says.
-backlog:render() {
-  local json=false today=false mine=false others=false choice arg doc filter widths ref_w owner_w
-  local age_w branch_w issue
-  local -a owners=() selection=()
-  for arg in "$@"
-  do
-    case "${arg}" in
-      (--json) json=true ;;
-      (--today) today=true ;;
-      (--mine) mine=true ;;
-      (--others) others=true ;;
-      (--all) ;;
-      (--owner=?*) owners+=("${arg#--owner=}")
-    esac
-  done
-  choice=$(status:choice "${mine}" "${others}" "${#owners[@]}")
-  filter=$(status:filter "${mine}" "${others}" "${owners[@]}") || return 1
+# backlog:documents [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues the flags choose as
+# one JSON array, oldest first. The owner flags combine as status:filter says.
+backlog:documents() {
+  local filter doc
+  local -a selection=()
+  filter=$(status:filter-of "$@") || return 1
   read -r -a selection <<<"${filter}"
   doc=$(backlog:collect "${selection[@]}") || return 1
-  [[ "${today}" == false ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
-  if [[ "${json}" == true ]]
+  [[ " $* " != *" --today "* ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
+  printf '%s\n' "${doc}"
+}
+
+# backlog:draw <issues-json> <choice> prints the issues, one row each, to stderr. With none it says so in one dim
+# line. <choice> mine leaves the assignee column out, as a change's row drops the author column under --mine.
+backlog:draw() {
+  local doc=$1 choice=$2 widths ref_w owner_w age_w branch_w issue
+  if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    printf '%s\n' "${doc}"
+    status:none 'no open issue without a pull request'
     return 0
   fi
-  # Nothing to list prints nothing, so a script reads an empty answer as none.
-  [[ "$(jq 'length' <<<"${doc}")" != 0 ]] || return 0
-  # The assignee column goes under --mine, as the author column goes under kit status --mine.
   read -r ref_w owner_w age_w branch_w <<<"$(status:issue-widths "${doc}")"
   [[ "${choice}" != mine ]] || owner_w=0
   widths="${ref_w} ${owner_w} ${age_w} ${branch_w}"
@@ -72,6 +63,19 @@ backlog:render() {
     [[ -n "${issue}" ]] || continue
     status:issue-row "${issue}" "${widths}" '' ''
   done < <(jq --compact-output '.[]' <<<"${doc}")
+}
+
+# backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues as
+# backlog:draw does, or with --json as backlog:documents does, to stdout.
+backlog:render() {
+  local doc
+  doc=$(backlog:documents "$@") || return 1
+  if [[ " $* " == *" --json "* ]]
+  then
+    printf '%s\n' "${doc}"
+    return 0
+  fi
+  backlog:draw "${doc}" "$(status:choice-of "$@")"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -90,17 +90,13 @@ group-has() {
   [[ "$output" == *$'\n  usage        prints the usage lines'*$'\n\nkit tidy - removes merged worktrees and gone branches\n'* ]]
 }
 
-@test "kit help status holds the legend of the glyphs the status family draws, and kit changes and kit backlog point to it" {
+@test "kit help status holds the legend of the glyphs every stage draws" {
   run "${kit_root}/bin/kit" help status
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  Legend\n'* ]]
   [[ "$output" == *$'\n    🔀  a pull request'* ]]
   [[ "$output" == *$'\n    🛬  ready'* ]]
   [[ "$output" == *"NO_COLOR removes the colors"* ]]
-  run "${kit_root}/bin/kit" help changes
-  [[ "$output" == *"kit help status holds the legend of the glyphs"* ]]
-  run "${kit_root}/bin/kit" help backlog
-  [[ "$output" == *"kit help status holds the legend of the glyphs"* ]]
 }
 
 @test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {
@@ -171,9 +167,8 @@ group-has() {
   run "${kit_root}/bin/kit" help re
   [ "$status" -eq 0 ]
   [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
-  [[ "$output" == *"  release <version> [--lower]"* && "$output" == *"  releases [--json | --jq]"* ]]
+  [[ "$output" == *"  release <version> [--lower]"* ]]
   [[ "$output" != *"  status"* ]]
-  # release is a prefix of releases, and its own name wins
   run "${kit_root}/bin/kit" help release
   [ "${lines[0]}" = "kit release - tags HEAD as a release and pushes the tag, after the rules a release keeps" ]
   # and with a copy of the kit that has kit-gates beside kit-gate

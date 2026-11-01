@@ -35,7 +35,7 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources) ;;
+      (linked_exempt | sources | status) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"
         return 1
@@ -214,6 +214,28 @@ settings:require() {
     error "run: kit install (kit.yml declares no kit version in this repository)"
     return 1
   fi
+}
+
+# settings_stages names the stages of kit status, in the order work moves: the values the status setting takes.
+declare -gra settings_stages=(backlog incoming worktrees changes releases)
+
+# settings:stages prints the stages the status setting names, one per line, in its order: what kit status draws.
+# Without the setting, it prints every stage. A name that is no stage is refused, with the valid names, and it
+# returns 2.
+settings:stages() {
+  local stage
+  local -a stages=()
+  readarray -t stages < <(yaml:list "$(settings:file)" status)
+  (( ${#stages[@]} > 0 )) || stages=("${settings_stages[@]}")
+  for stage in "${stages[@]}"
+  do
+    if ! list:among "${stage}" "${settings_stages[@]}"
+    then
+      error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (status in kit.yml)"
+      return 2
+    fi
+  done
+  printf '%s\n' "${stages[@]}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

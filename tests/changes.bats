@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# changes.bats - kit changes lists the open changes, each as kit status draws it, with the issues it closes under it
+# changes.bats - kit status changes lists the open changes, each with the issues it closes under it
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3, a draft by ada on branch 7-fix-the-thing, closing it. Issues 9 and 11 are in no change, so they are
-# kit backlog's and not drawn here.
+# the backlog stage's and not drawn here.
 
 bats_require_minimum_version 1.5.0
 
@@ -51,8 +51,8 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-@test "kit changes draws each open change as kit status does, and under it the issues it closes as kit backlog draws one, in flight" {
-  run kit changes
+@test "kit status changes draws each open change as kit status does, and under it the issues it closes as the backlog stage draws one, in flight" {
+  run kit status changes
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
@@ -60,21 +60,21 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" != *"closes"* ]]
 }
 
-@test "kit changes --mine, --others, and --owner choose by the change's author, as kit status does" {
-  run kit changes --mine
+@test "kit status changes --mine, --others, and --owner choose by the change's author, as kit status does" {
+  run kit status changes --mine
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
-  run kit changes --others
+  run kit status changes --others
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
-  run kit changes --owner=bob
+  [ "$output" = "no open pull request" ]
+  run kit status changes --owner=bob
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  [ "$output" = "no open pull request" ]
 }
 
-@test "kit changes --json prints the change documents, each issue with its assignees and age" {
-  run kit changes --json
+@test "kit status changes --json prints the change documents, each issue with its assignees and age" {
+  run kit status changes --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "3" ]
   [ "$(jq --compact-output '.[0].closes[0] | {number, title, assignees}' <<<"$output")" \
@@ -82,49 +82,49 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq --raw-output '.[0].closes[0].age > 0' <<<"$output")" = "true" ]
 }
 
-@test "kit changes refuses an unknown flag with a pointer to its page" {
-  run kit changes --bogus
+@test "kit status changes refuses an unknown flag with a pointer to its page" {
+  run kit status changes --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help changes"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
 }
 
-@test "kit changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
-  run kit changes --mine --owner=bob
+@test "kit status changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
+  run kit status changes --mine --owner=bob
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit changes --others --owner=bob
+  run kit status changes --others --owner=bob
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
-  run kit changes --mine --others
+  [ "$output" = "no open pull request" ]
+  run kit status changes --mine --others
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit changes --all --owner=bob
+  run kit status changes --all --owner=bob
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --owner; run: kit help changes"* ]]
+  [[ "$output" == *"--all cannot be combined with --owner; run: kit help status"* ]]
 }
 
-@test "kit changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
-  run kit changes 3
+@test "kit status changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
+  run kit status changes 3
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit changes 7
+  run kit status changes 7
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
-  run kit changes '#7' 11 --json
+  run kit status changes '#7' 11 --json
   [ "$status" -eq 0 ]
   [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
-  run kit changes 007 --json
+  run kit status changes 007 --json
   [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
-  run kit changes 11
+  run kit status changes 11
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
-  run kit changes 9 --mine
+  [ "$output" = "no open pull request" ]
+  run kit status changes 9 --mine
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
-  run kit changes x7
+  [ "$output" = "no open pull request" ]
+  run kit status changes x7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help changes"* ]]
+  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help status"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

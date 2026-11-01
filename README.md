@@ -210,8 +210,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    issue reference first, and `<area>:` is this repository's convention.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
-   - `kit status` shows every open pull request and the worktree it lives in; `kit changes` the open pull requests
-     with the issues each closes; `kit backlog` the open issues no pull request closes, the next ones to pick up.
+   - `kit status` shows where the work stands, in five stages: the backlog, what the fetch brought, the worktrees,
+     the open pull requests with the issues each closes, and the releases. `kit status <stage>` prints one stage.
    - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick; a verb you run without an
      argument it needs opens the same form, so the arguments need not be remembered.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
@@ -277,7 +277,7 @@ serves as the notice for `settings.json`.
 - Published releases are immutable, so a tag is never reused.
 
 `kit release <version>` makes the tag and pushes it alone, after these rules and one more: a version not higher
-than every release on origin needs `--lower`. `kit releases` lists what the forge published.
+than every release on origin needs `--lower`. `kit status releases` lists what the forge published.
 
 The release workflow runs two commands:
 

@@ -28,10 +28,10 @@ use context help release syntax
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
 # The tools, each a verb that changes nothing.
-declare -gra serve_tools=(backlog changes check context help kinds lint packages status syntax toolchains version)
+declare -gra serve_tools=(check context help kinds lint packages status syntax toolchains version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
-declare -gra serve_open_world=(backlog changes status)
+declare -gra serve_open_world=(status)
 
 # serve_era is legacy once a client opens with initialize, and empty until then. serve_tool_list holds the tools/list
 # result's tools array once it is built.

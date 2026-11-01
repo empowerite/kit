@@ -1,27 +1,61 @@
 #!/usr/bin/env bash
-# kit-status - shows every worktree with its branch, pull request, and state (kit verb: workflow)
+# kit-status - shows where the work stands: backlog, incoming, worktrees, changes, releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit status [--no-fetch] [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Shows every worktree with its branch, pull request, and state. It changes nothing. Where it runs decides what it
-# draws: at a desk, the root checkout, every linked worktree and the open pull requests; in a worktree, that worktree
-# and the pull request its branch holds; and in a directory inside no repository, every desk below it, each under its
-# path, four levels down at most.
+# Draws the picture of the work. It changes nothing. Work moves left to right through five stages:
 #
-#   --no-fetch          skips the git fetch
-#   --json              prints the same facts as one JSON document
+#   backlog → incoming → worktrees → changes → releases
+#
+# The status setting in kit.yml names the stages drawn, in order. On a terminal, kit status opens the picture in
+# kittui. Without one, or with --text, it prints the stages as text. Each stage opens with a dim heading and its
+# count. Where it runs decides what worktrees and changes draw:
+#
+#   - at a desk: the desk, every linked worktree, and every open pull request
+#   - in a worktree: that worktree, and the pull request its branch holds
+#   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
+#
+# backlog, incoming, and releases draw the same anywhere. A repository with no origin draws its checkouts, fetches
+# nothing, and says so once.
+#
+#   --no-fetch          skips the git fetch; incoming says so
+#   --text              prints the picture as text, even on a terminal
+#   --json              prints the picture as one JSON object: stages, their order, and each stage under its name
 #   --jq                prints the same JSON as --json, formatted by jq for a person to read
-#   --mine              the pull requests the caller opened; alone, without the author column
-#   --others            the pull requests anyone but the caller opened
-#   --all               every open pull request (the default); it stands alone
-#   --owner=<login>     the pull requests the named author opened; give it once or more. The three filters combine:
-#                       --mine --owner=bob shows the caller's and bob's
+#   --mine              the caller's: the issues assigned to the caller, the pull requests the caller opened; alone,
+#                       without the owner column
+#   --others            everyone else's; unassigned issues included
+#   --all               every issue and pull request (the default); it stands alone
+#   --owner=<login>     the named login's; give it once or more. The filters combine: --mine --owner=bob
+#   --stages            prints the stages the picture draws, one per line, in order
+#   --today             only the issues opened in the last 24 hours
+#   <number>…           only the pull requests numbered so, or closing an issue numbered so: 7 or #7
+#   backlog             the open issues no pull request closes, oldest first
+#   incoming            what the fetch brought: commits on the default branch, branches new and gone
+#   worktrees           the desk and every worktree: branch, ahead and behind, commits, uncommitted paths
+#   changes             the open pull requests, each with the issues it closes
+#   releases            the releases on the forge, newest first
+#
+# kit status --stages
+#
+# kit status backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# kit status incoming [--no-fetch] [--json | --jq]
+#
+# kit status worktrees [--json | --jq]
+#
+# kit status changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+#
+# kit status releases [--json | --jq]
+#
+# One stage prints without its heading. An empty stage says so in one dim line. With --json, a stage prints what
+# the picture holds under its name: an array for backlog, changes, and releases; an object for incoming and
+# worktrees. incoming's object is {fetched, default, commits, branches, tags}, or {"fetched": false} with --no-fetch.
 #
 # Legend
 #
-# The glyphs kit status draws, and kit changes, kit backlog, and kit releases with it. NO_COLOR removes the colors and
-# keeps the glyphs.
+# The glyphs every stage draws. NO_COLOR removes the colors and keeps the glyphs.
 #
 #   🏠  the desk, the root checkout
 #   🌿  a linked worktree, or a branch: a pull request's checked-out one, or the one started for an issue
@@ -35,7 +69,7 @@
 #   ❗  a checkout on no branch, a detached HEAD
 #   🏃  checks still running, ✅ every check passed, ❌ a check failed, each with passed / total
 #   💬  unresolved review threads
-#   📦  a release, 🧪 a pre-release, 📝 a draft, and ⭐ the latest, in kit releases
+#   📦  a release, 🧪 a pre-release, 📝 a draft, and ⭐ the latest, in the releases stage
 #
 # A pull request's state is one glyph, the first of these that holds:
 #
@@ -49,16 +83,34 @@
 #   🛬  ready: nothing is left to decide
 #   🔳  any other state
 #
-# Exits 0 when the picture is drawn, 1 when the forge cannot be read, and 2 on a usage error.
+# Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
+# status setting that names no stage.
 #
-# see: modules/bash/status.sh
+# see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/releases.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use status
+use status tui
 guard:arguments status "$@" || exit $?
+guard:require tool:git
+
+if [[ -n "${syntax_options[--stages]+x}" ]]
+then
+  settings:stages
+  exit 0
+fi
+
+# On a terminal, with no stage asked for and no form chosen, the picture is kittui's, which runs this kit. Without
+# a kittui the text picture prints, as it does without a terminal.
+if [[ -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
+  && tui:binary --probe >/dev/null 2>&1
+then
+  binary=$(tui:binary) || exit 1
+  export KIT="${kit_root}/bin/kit"
+  exec "${binary}" status "$@"
+fi
 
 status:render "$@"
 

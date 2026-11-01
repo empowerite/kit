@@ -12,8 +12,6 @@ The tools are the verbs that read and report, and change nothing:
 
 | Tool | Runs |
 | --- | --- |
-| `backlog` | `kit backlog` |
-| `changes` | `kit changes` |
 | `check` | `kit check` |
 | `context` | `kit context` |
 | `help` | `kit help` |
@@ -32,7 +30,7 @@ The tools are the verbs that read and report, and change nothing:
 - A call runs the verb in a new process with stdin at end of file, so the verb cannot read the protocol stream.
   The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
   names its exit status.
-- `backlog`, `changes`, and `status` ask the forge over the network, and say so in their `openWorldHint`.
+- `status` asks the forge over the network, and says so in its `openWorldHint`.
 
 The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
 already editing, which the agent can do by itself.
