@@ -1,11 +1,11 @@
 # shellcheck shell=bash
-# package.sh - the active set of packages: add to it, remove from it, or select it whole, as kit package does (sourced module)
+# package.sh - the active set of packages: add, remove, or select it whole, as kit packages does (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit package add and kit package remove move the active set one way each; kit package select names the set itself,
-# and reaches it by removing what the set omits and then adding what it lacks. Each function reads the declaration in
-# kit.yml afresh, so one may follow another in a process. Each returns 2 on a usage error and 1 on a
+# kit packages add and kit packages remove move the active set one way each; kit packages select names the set
+# itself, and reaches it by removing what the set omits and then adding what it lacks. Each function reads the
+# declaration in kit.yml afresh, so one may follow another in a process. Each returns 2 on a usage error and 1 on a
 # refusal, and lets the verb exit.
 
 use release settings resolve render place materialize manifest
@@ -77,7 +77,7 @@ package:list() {
 }
 
 # package:matches <package> <pattern>… is true when the package's name is one of the patterns, or matches one as a
-# glob, as kit package add expands 'style/*'.
+# glob, as kit packages add expands 'style/*'.
 package:matches() {
   local package=$1 pattern
   shift
@@ -107,7 +107,7 @@ package:add() {
   done
   readarray -t wanted < <(resolve:active "${kit_root}" "${excluded[*]}" "${active[@]}" "${named[@]}")
   render:all "${kit_root}" "${wanted[@]}"
-  section "kit package add ${named[*]}"
+  section "kit packages add ${named[*]}"
   for base in $(release:bases)
   do
     while IFS= read -r path
@@ -119,7 +119,8 @@ package:add() {
   done
   if (( refused > 0 ))
   then
-    error "${refused} path(s) could not be placed, each named above; settle each, then run: kit package add ${named[*]}"
+    error "${refused} path(s) could not be placed, each named above; settle each, then run:" \
+      "kit packages add ${named[*]}"
     return 1
   fi
   readarray -t excluded < <(resolve:exclusions "${excluded[*]}" "${wanted[@]}")
@@ -158,7 +159,7 @@ package:remove() {
     fi
   done
   render:all "${kit_root}" "${active[@]}"
-  section "kit package remove ${named[*]}"
+  section "kit packages remove ${named[*]}"
   for package in "${named[@]}"
   do
     readarray -t includers < <(resolve:includers "${kit_root}" "${package}" "${remaining[@]}")
@@ -194,7 +195,7 @@ package:select() {
   readarray -t named <<<"${names}"
   readarray -t active < <(settings:packages)
   readarray -t excluded < <(settings:excludes)
-  # A member removed earlier stays out of its bundle unless it is named here, as kit package add keeps it out.
+  # A member removed earlier stays out of its bundle unless it is named here, as kit packages add keeps it out.
   for package in "${named[@]}"
   do
     readarray -t excluded < <(list:without "${package}" "${excluded[@]}")
@@ -239,14 +240,14 @@ package:select() {
 
 # package:choices <key> [<answer>…] answers kit syntax --choices for <package>: every package in reach with its
 # description and its state (active, excluded, or none); closed choices, and a set when the answers name select. When
-# the answers name packages, as <package>=house, a package they omit but kit package select would keep or bring, a
+# the answers name packages, as <package>=house, a package they omit but kit packages select would keep or bring, a
 # dependency or a member of a named bundle, carries the line select prints about it.
 package:choices() {
   local key=$1 answer package expanded state note word
   local -a active excluded named=() known=() wanted=() dependents includers
   shift
   [[ "${key}" == '<package>' ]] || return 1
-  # kit package select names the whole set, so its list is a set: the form starts from the active packages and marks
+  # kit packages select names the whole set, so its list is a set: the form starts from the active packages and marks
   # each row by what select will do; under add and remove the same packages are closed choices, picked one by one.
   if [[ "${1:-}" == --kind ]]
   then

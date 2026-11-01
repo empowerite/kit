@@ -39,7 +39,7 @@ same way.
 | `kit hydrate` | Places what the declaration names, and says what it changed. |
 | `kit check` | Reports every placed file that differs from the pinned release. It heals nothing. |
 | `kit update` | Brings the repository to the release on `PATH`, after the pin in `mise.toml` changes. |
-| `kit package add <package>…` | Takes a package; `kit package remove` gives one up; `kit packages` lists them. |
+| `kit packages add <package>…` | Takes a package; `kit packages remove` gives one up; `kit packages` lists them. |
 | `kit context <path>` | Prints the rules and the style that govern a file. |
 | `kit lint [<path>…]` | Runs each rule's linter over the staged files, or over the files named. |
 | `kit help` | Lists every command, and `kit help <verb>` prints one command's page. |

@@ -1,8 +1,9 @@
 {
   "verb": "toolchains",
-  "purpose": "lists the toolchains that manage the gate's tools, and the file each reads",
+  "purpose": "lists, installs, and updates the toolchains that manage the gate's tools",
   "usage": [
-    "kit toolchains [--json | --jq]"
+    "kit toolchains [--json | --jq]",
+    "kit toolchains (install | outdated [--check] | update | path | run <command>…)"
   ],
   "syntax": [
     [
@@ -27,14 +28,98 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "install",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "outdated",
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "check",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "update",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "path",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "run",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "command",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
     "--json": {
-      "description": "prints one JSON object per toolchain instead: provider and file"
+      "description": "one JSON object per toolchain: provider and file"
     },
     "--jq": {
-      "description": "prints the same JSON as --json, formatted by jq for a person to read"
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "install": {
+      "description": "installs every toolchain's pinned tools"
+    },
+    "outdated": {
+      "description": "prints one line per tool behind its latest version"
+    },
+    "--check": {
+      "description": "with outdated: fails when any tool is behind"
+    },
+    "update": {
+      "description": "updates every tool, and rewrites the pins and the lock"
+    },
+    "path": {
+      "description": "prints the directories that put the tools first on PATH"
+    },
+    "run": {
+      "description": "runs the command with the tools on PATH, or inside docker's container"
+    },
+    "<command>": {
+      "description": "the command and its arguments, as typed, dash-words included"
     }
   }
 }

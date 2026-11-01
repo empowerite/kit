@@ -1,6 +1,6 @@
 ---
 # kit:generated -- the prose style, from the style/prose package
-# see: kit package remove style/prose, or "Changing what kit adds" in .kit/1st.md
+# see: kit packages remove style/prose, or "Changing what kit adds" in .kit/1st.md
 kind:
   - text
 ---

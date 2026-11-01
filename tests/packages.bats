@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# package.bats - kit package select makes exactly the named packages, and what they need, the active set
+# packages.bats - kit packages lists the packages, and select, add, and remove change which are active
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against it.
@@ -15,7 +15,7 @@ setup() {
 @test "select adds and removes to reach exactly the named set, keeps what the set needs, and says so" {
   "${kit_checkout}/bin/kit" install agents/claude agents/copilot
   [ -f .github/instructions/kit-bash.instructions.md ]
-  run "${kit_checkout}/bin/kit" package select agents/cursor empowerite
+  run "${kit_checkout}/bin/kit" packages select agents/cursor empowerite
   [ "$status" -eq 0 ]
   [ -f .cursor/rules/kit-bash.mdc ]
   [ ! -e .github/instructions/kit-bash.instructions.md ]
@@ -30,7 +30,7 @@ setup() {
 @test "select of the current set changes nothing and exits 0" {
   "${kit_checkout}/bin/kit" install agents/claude
   before=$(cat kit.yml .kit/manifest)
-  run "${kit_checkout}/bin/kit" package select kit agents/claude
+  run "${kit_checkout}/bin/kit" packages select kit agents/claude
   [ "$status" -eq 0 ]
   [[ "$output" == *"packages: kit agents/generic agents/claude"* ]]
   [ "$(cat kit.yml .kit/manifest)" = "${before}" ]
@@ -39,10 +39,10 @@ setup() {
 @test "select refuses a package that is not in reach before it changes anything, and a glob names its matches" {
   "${kit_checkout}/bin/kit" install
   before=$(cat kit.yml)
-  run "${kit_checkout}/bin/kit" package select 'style/*' nonesuch
+  run "${kit_checkout}/bin/kit" packages select 'style/*' nonesuch
   [ "$status" -eq 2 ]
   [ "$(cat kit.yml)" = "${before}" ]
-  run "${kit_checkout}/bin/kit" package select 'style/*'
+  run "${kit_checkout}/bin/kit" packages select 'style/*'
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" packages
   [[ "$output" == *"✅ style/bash"* && "$output" == *"✅ style/yaml"* ]]
@@ -50,28 +50,28 @@ setup() {
 
 @test "add and remove still work, from the module" {
   "${kit_checkout}/bin/kit" install
-  run "${kit_checkout}/bin/kit" package add agents/cursor
+  run "${kit_checkout}/bin/kit" packages add agents/cursor
   [ "$status" -eq 0 ]
   [ -f .cursor/rules/kit-bash.mdc ]
-  run "${kit_checkout}/bin/kit" package remove agents/cursor
+  run "${kit_checkout}/bin/kit" packages remove agents/cursor
   [ "$status" -eq 0 ]
   [ ! -e .cursor/rules/kit-bash.mdc ]
 }
 
 @test "select keeps a member removed earlier out of its bundle unless the member is named" {
   "${kit_checkout}/bin/kit" install empowerite
-  "${kit_checkout}/bin/kit" package remove hooks/lefthook
+  "${kit_checkout}/bin/kit" packages remove hooks/lefthook
   [ ! -e .kit/lefthook.yml ]
-  run "${kit_checkout}/bin/kit" package select empowerite agents/cursor
+  run "${kit_checkout}/bin/kit" packages select empowerite agents/cursor
   [ "$status" -eq 0 ]
   [ ! -e .kit/lefthook.yml ]
   grep -q 'hooks/lefthook' kit.yml
-  run "${kit_checkout}/bin/kit" package select empowerite hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages select empowerite hooks/lefthook
   [ "$status" -eq 0 ]
   [ -e .kit/lefthook.yml ]
 }
 
-@test "kit packages lists the packages, filtered by state and by name or glob, or as JSON, and kit package wants a change" {
+@test "kit packages lists the packages, filtered by state and by name or glob, or as JSON, and a verb wants a package" {
   "${kit_checkout}/bin/kit" install agents/claude >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" packages --active
   [ "$(awk '{ print $2 }' <<<"$output" | paste -s -d ' ' -)" = "agents/claude agents/generic kit" ]
@@ -80,28 +80,31 @@ setup() {
   run "${kit_checkout}/bin/kit" packages --json kit style/bash
   [ "$(jq -sc 'map({name, state, origin})' <<<"$output")" = \
     '[{"name":"kit","state":"active","origin":"release"},{"name":"style/bash","state":"inactive","origin":"release"}]' ]
-  run "${kit_checkout}/bin/kit" package
+  run "${kit_checkout}/bin/kit" packages add
   [ "$status" -eq 2 ]
-  run "${kit_checkout}/bin/kit" package list
+  [[ "$output" == *"kit packages add needs <package>; run: kit help packages"* ]]
+  # a word that is no verb of kit packages is a package name, and one the kit does not know is refused
+  run "${kit_checkout}/bin/kit" packages list
   [ "$status" -eq 2 ]
+  [[ "$output" == *"<package> 'list' is not one of the choices; run: kit help packages"* ]]
 }
 
-@test "kit new kind writes a kind into the repository's own package, which kit kinds then lists and kit kind applies" {
+@test "kit new kind writes a kind into the repository's own package, which kit kinds then lists and applies to a path" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" new kind toml --path='**/*.toml' --embeds=bash
   [ "$status" -eq 0 ]
-  [[ "$output" == *"run: kit package add local"* ]]
+  [[ "$output" == *"run: kit packages add local"* ]]
   [ -f .kit/packages/local/package.yml ]
   [ "$(sed -n 3p .kit/packages/local/files/repo/.kit/kinds/toml.yml)" = "name: toml" ]
-  "${kit_checkout}/bin/kit" package add local >/dev/null 2>&1
-  run "${kit_checkout}/bin/kit" kind Cargo.toml
+  "${kit_checkout}/bin/kit" packages add local >/dev/null 2>&1
+  run "${kit_checkout}/bin/kit" kinds Cargo.toml
   [ "$output" = $'any\ntoml' ]
   run "${kit_checkout}/bin/kit" new kind conf --kinds=toml --kinds=json
   [ "$status" -eq 0 ]
   [[ "$output" == *"the conf kind is in place"* ]]
   run "${kit_checkout}/bin/kit" kinds --json conf
   [ "$(jq -c '{file, kinds}' <<<"$output")" = '{"file":".kit/kinds/conf.yml","kinds":["toml","json"]}' ]
-  run "${kit_checkout}/bin/kit" kind Cargo.toml
+  run "${kit_checkout}/bin/kit" kinds Cargo.toml
   [ "$output" = $'any\nconf\ntoml' ]
   run "${kit_checkout}/bin/kit" new kind toml --path='*.tml'
   [ "$status" -eq 1 ]

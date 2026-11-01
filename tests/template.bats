@@ -45,7 +45,7 @@ shape() {
 }
 
 @test "without a style package no template governs a file, and kit new file says where templates come from" {
-  "${kit_root}/bin/kit" package remove style/bash >/dev/null 2>&1
+  "${kit_root}/bin/kit" packages remove style/bash >/dev/null 2>&1
   run "${kit_root}/bin/kit" new file bash/deploy.sh --purpose=x
   [ "$status" -eq 2 ]
   [[ "$output" == *"no template governs bash/deploy.sh: a style package delivers them"* ]]
@@ -174,7 +174,7 @@ shape() {
   printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: twin\n    path: "**/*.notes.md"\n---\n# Notes\n' \
     > .kit/packages/odd/files/repo/.kit/styles/notes.md
   printf '# «title»\n«a»«b»\n' > .kit/packages/odd/files/repo/.kit/templates/notes/twin
-  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  "${kit_root}/bin/kit" packages add odd >/dev/null 2>&1
   printf '# x\nyz\n' > a.notes.md
   run "${kit_root}/bin/kit" lint a.notes.md
   [ "$status" -ne 0 ]
@@ -187,7 +187,7 @@ shape() {
   printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: open\n    path: "**/*.notes.md"\n---\n# Notes\n' \
     > .kit/packages/odd/files/repo/.kit/styles/notes.md
   printf '# «title»\n# kit:generate x\nstub\n' > .kit/packages/odd/files/repo/.kit/templates/notes/open
-  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  "${kit_root}/bin/kit" packages add odd >/dev/null 2>&1
   run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/templates/notes/open: the region opened at line 2 never closes: no kit:end line follows"* ]]
@@ -253,7 +253,7 @@ shape() {
     > .kit/packages/team/files/repo/.kit/styles/notes.md
   printf '# «title»\n\nOwned by «answers.team», reviewed «cadence=weekly».\n' \
     > .kit/packages/team/files/repo/.kit/templates/notes/page
-  "${kit_root}/bin/kit" package add team >/dev/null 2>&1
+  "${kit_root}/bin/kit" packages add team >/dev/null 2>&1
   run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
   [ "$status" -eq 2 ]
   [[ "$output" == *"reads answers.team from kit.yml, which does not set it"* ]]
@@ -277,7 +277,7 @@ shape() {
   printf 'Read the notes.\n' > .kit/packages/odd/regions/repo/NOTES.md
   printf '# «title=Notes»\n\n<!-- kit:generate NOTES.md -->\n<!-- kit:end NOTES.md -->\n«rest»\n' \
     > .kit/packages/odd/hosts/repo/NOTES.md
-  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  "${kit_root}/bin/kit" packages add odd >/dev/null 2>&1
   grep --quiet 'Read the notes.' NOTES.md
   run "${kit_root}/bin/kit" check
   [ "$status" -eq 0 ]

@@ -1,6 +1,6 @@
 ---
 # kit:generated -- the yaml style, from the style/yaml package
-# see: kit package remove style/yaml, or "Changing what kit adds" in .kit/1st.md
+# see: kit packages remove style/yaml, or "Changing what kit adds" in .kit/1st.md
 kind:
   - yaml
 templates:

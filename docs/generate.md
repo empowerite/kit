@@ -136,7 +136,7 @@ A file under a package's `regions/<base>/<path>` is a template for a region's co
 rendered from `kit.yml` and the package's defaults. `kit install` writes the region into the file at
 `<path>`: the bare directive naming the path, the rendered content, and the end marker, in the file's comment
 syntax. [packages.md](packages.md#regions) says where the block goes, and what `kit update` and
-`kit package remove` do with it. In addition:
+`kit packages remove` do with it. In addition:
 
 - A directive with no end marker is refused, by name.
 - A region under `home` must spell out its command, `kit region --home <path>`, because the bare directive cannot

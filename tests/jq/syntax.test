@@ -73,8 +73,8 @@ import "syntax" as syntax; [syntax::match(["7","--title","x"]), syntax::match(["
 # A verb's own flag after a repeated operand's first word belongs to the command that operand is; one before it does
 # not, and one the walk used stays a flag.
 import "syntax" as syntax; [syntax::match(["run","kit","generate","--check"]), syntax::match(["run","--check","kit"]), syntax::match(["outdated","--check"])] | map(.refusal // [.operands, .options])
-{"verb":"toolchain","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
-[[["kit","generate","--check"],{}],"--check cannot be combined with run; run: kit help toolchain",[[],{"--check":["1"]}]]
+{"verb":"toolchains","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+[[["kit","generate","--check"],{}],"--check cannot be combined with run; run: kit help toolchains",[[],{"--check":["1"]}]]
 
 # An option written once is refused twice; a repeated one keeps both values; a wildcard option may be empty.
 import "syntax" as syntax; [syntax::match(["--title","a","--title","b"]) | .refusal, ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose="]) | .options)]
@@ -103,3 +103,10 @@ import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--pu
 import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--purpose="]) | .refusal // .options), ($s | syntax::match(["module", "m", "--purpose="]) | .refusal)]
 {"verb":"new","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}],[{"kind":"literal","name":"module","repeat":false},{"kind":"operand","name":"name","repeat":false},{"kind":"option","inline":true,"name":"purpose","value":"text","repeat":false}]],"repeat":false}]]}
 [{"--purpose":[""]},"--purpose needs a value; run: kit help new"]
+
+# A literal inside the required group an alternative opens with opens that alternative, over an earlier line whose
+# operand would take the word: kit packages add x is the acting line, a bare add is short of its package, a name alone
+# is the listing's, and a flag of the listing cannot go with add.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["add", "x"]) | [.literals, .operands]), ($s | syntax::match(["add"]) | [.status, .missing]), ($s | syntax::match(["x"]) | [.literals, .operands]), ($s | syntax::match(["add", "--json", "x"]) | .refusal)]
+{"verb":"packages","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"package","repeat":true}]],"repeat":false}],[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"select","repeat":false}],[{"kind":"literal","name":"add","repeat":false}],[{"kind":"literal","name":"remove","repeat":false}]],"repeat":false},{"kind":"operand","name":"package","repeat":true}]]}
+[[["add"],["x"]],[1,"<package>"],[[],["x"]],"--json cannot be combined with add; run: kit help packages"]

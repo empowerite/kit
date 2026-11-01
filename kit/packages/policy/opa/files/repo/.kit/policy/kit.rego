@@ -1,5 +1,5 @@
 # kit:generated -- the naming policy in Rego, which kit policy runs on Open Policy Agent, from the policy/opa package
-# see: kit package remove policy/opa, or "Changing what kit adds" in .kit/1st.md
+# see: kit packages remove policy/opa, or "Changing what kit adds" in .kit/1st.md
 # Put the repository's own rules in a file beside this one, in the same Rego package, kit.policy, adding to deny.
 # `kit policy --input` prints the input.
 

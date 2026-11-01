@@ -25,7 +25,7 @@
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
-        "description": "The name of another package in the release, activated with this one. kit package remove refuses it while this one is active."
+        "description": "The name of another package in the release, activated with this one. kit packages remove refuses it while this one is active."
       }
     },
     "includes": {
@@ -34,7 +34,7 @@
       "items": {
         "type": "string",
         "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
-        "description": "The name of a member of this bundle: another package in the release, activated with this one. Unlike a dependency, a member can be removed on its own; kit package remove records it as excluded, and kit update leaves it out."
+        "description": "The name of a member of this bundle: another package in the release, activated with this one. Unlike a dependency, a member can be removed on its own; kit packages remove records it as excluded, and kit update leaves it out."
       }
     },
     "answers": {
@@ -79,7 +79,7 @@
     },
     "notices": {
       "type": "array",
-      "description": "What happens next, told to the person when the kit places a path afresh, or merges an entry into it that was not there: on kit install, kit package add, and kit update.",
+      "description": "What happens next, told to the person when the kit places a path afresh, or merges an entry into it that was not there: on kit install, kit packages add, and kit update.",
       "items": {
         "type": "object",
         "additionalProperties": false,

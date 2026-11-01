@@ -183,12 +183,14 @@ context:awk-string() {
 # "<path>\t<1 when the path is a regular file, else 0>" line per path, and for each it prints "<path>\t<kinds>", the
 # kinds space-separated in name order. Each kind is one test of the path against its globs, joined into one regular
 # expression, then of the file's first line against its patterns; the kinds made of others follow until none grows.
+# A repository with no kinds at all gets a program of no tests, so every path is of no kind.
 # shellcheck disable=SC2016  # the $1 and $2 it prints are awk's fields, not the shell's
 context:compile() {
   local kind glob pattern member ere test member_test
-  local -a kinds globs patterns
+  local -a kinds=() globs patterns
   context:load || return 1
-  readarray -t kinds < <(printf '%s\n' "${!context_kind_paths[@]}" | LC_ALL=C sort)
+  # printf prints one empty line for no names at all, which is no kind
+  readarray -t kinds < <(printf '%s\n' "${!context_kind_paths[@]}" | awk 'NF' | LC_ALL=C sort)
   printf 'BEGIN { FS = "\\t" }\n{\n  path = $1; split("", is); first = ""; has = 0\n'
   printf '  if ($2 == 1 && (getline first < path) > 0) has = 1\n  if ($2 == 1) close(path)\n'
   for kind in "${kinds[@]}"

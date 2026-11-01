@@ -20,7 +20,7 @@ The package also merges `servers.kit` into `.vscode/mcp.json`, with `type: stdio
 workspace.
 
 `.github/instructions/` otherwise belongs to the repository. The package places only its seven files, `kit check`
-holds them to the release, and `kit package remove agents/copilot` takes them out.
+holds them to the release, and `kit packages remove agents/copilot` takes them out.
 
 Verified on 2026-10-30 against GitHub's [repository custom instructions page][copilot-github] and VS Code's
 [custom instructions page][copilot-vscode]; neither shows a version.

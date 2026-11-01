@@ -1,6 +1,6 @@
 ---
 # kit:generated -- the bash style, from the style/bash package
-# see: kit package remove style/bash, or "Changing what kit adds" in .kit/1st.md
+# see: kit packages remove style/bash, or "Changing what kit adds" in .kit/1st.md
 kind:
   - bash
 templates:

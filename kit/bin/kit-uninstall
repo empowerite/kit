@@ -4,7 +4,7 @@
 #
 # kit uninstall [--dry-run]
 #
-# Undoes kit install, and every kit package add since. For every path the active packages deliver:
+# Undoes kit install, and every kit packages add since. For every path the active packages deliver:
 #
 #   - a file copied outside .kit/ is removed when it is still as the kit placed it; one the repository edited is
 #     named and left as it is

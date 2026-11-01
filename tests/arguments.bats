@@ -19,12 +19,12 @@ setup() {
   run "${kit_root}/bin/kit" version --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit version takes no arguments; run: kit help version"* ]]
-  run "${kit_root}/bin/kit" package nonesuch
+  run "${kit_root}/bin/kit" new nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'nonesuch'; run: kit help package"* ]]
-  run "${kit_root}/bin/kit" toolchain nope
+  [[ "$output" == *"unknown argument 'nonesuch'; run: kit help new"* ]]
+  run "${kit_root}/bin/kit" toolchains nope
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'nope'; run: kit help toolchain"* ]]
+  [[ "$output" == *"unknown argument 'nope'; run: kit help toolchains"* ]]
   run "${kit_root}/bin/kit" hydrate --quick=1
   [ "$status" -eq 2 ]
   [[ "$output" == *"unknown flag '--quick=1'; run: kit help hydrate"* ]]
@@ -40,9 +40,9 @@ setup() {
   run "${kit_root}/bin/kit" new file
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit new file needs <path>; run: kit help new"* ]]
-  run "${kit_root}/bin/kit" package add
+  run "${kit_root}/bin/kit" packages add
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit package add needs <package>; run: kit help package"* ]]
+  [[ "$output" == *"kit packages add needs <package>; run: kit help packages"* ]]
   run "${kit_root}/bin/kit" context
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit context needs <path> or --claude; run: kit help context"* ]]
@@ -58,7 +58,7 @@ setup() {
 }
 
 @test "syntax:match sorts what is given: a trailing operand takes the dash-words, -- ends the flags, a value with spaces is whole" {
-  run kit-bash 'syntax:match toolchain run bash -c "echo hi"; echo "$? ${syntax_literals[*]} | ${#syntax_operands[@]} | ${syntax_operands[*]}"'
+  run kit-bash 'syntax:match toolchains run bash -c "echo hi"; echo "$? ${syntax_literals[*]} | ${#syntax_operands[@]} | ${syntax_operands[*]}"'
   [ "$output" = "0 run | 3 | bash -c echo hi" ]
   run kit-bash 'syntax:match commit --message "a b" -- --weird; echo "$? ${syntax_options[--message]} | ${syntax_operands[*]}"'
   [ "$output" = "0 a b | --weird" ]
@@ -91,13 +91,13 @@ setup() {
 }
 
 @test "a value off a closed set is refused in one line by the verb itself, a glob that matches is not, and an open set never refuses" {
-  run "${kit_root}/bin/kit" package add nonesuch
+  run "${kit_root}/bin/kit" packages add nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'nonesuch' is not one of the choices; run: kit help package"* ]]
-  run kit-bash 'syntax:match package select "style/*" kit; echo "$?"'
+  [[ "$output" == *"<package> 'nonesuch' is not one of the choices; run: kit help packages"* ]]
+  run kit-bash 'syntax:match packages select "style/*" kit; echo "$?"'
   [ "$output" = 0 ]
-  run kit-bash 'syntax:match package select "nonesuch/*"; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 <package> 'nonesuch/*' is not one of the choices; run: kit help package" ]
+  run kit-bash 'syntax:match packages select "nonesuch/*"; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 <package> 'nonesuch/*' is not one of the choices; run: kit help packages" ]
   # a rule's variants are its templates in this repository
   "${kit_root}/bin/kit" install style/markdown >/dev/null 2>&1
   run kit-bash 'syntax:match new file x --rule=markdown --variant=document; echo "$?"'
@@ -109,10 +109,10 @@ setup() {
 }
 
 @test "a verb's own flag after a trailing operand's first word belongs to the command, and an option meant once is refused twice" {
-  run kit-bash 'syntax:match toolchain run kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
+  run kit-bash 'syntax:match toolchains run kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
   [ "$output" = "0 kit generate --check | none" ]
-  run kit-bash 'syntax:match toolchain run --check kit generate; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 --check cannot be combined with run; run: kit help toolchain" ]
+  run kit-bash 'syntax:match toolchains run --check kit generate; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --check cannot be combined with run; run: kit help toolchains" ]
   run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
   [ "$output" = "1  | 1" ]
   run kit-bash 'syntax:match commit --message m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'

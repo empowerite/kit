@@ -167,7 +167,7 @@ def lex($words; $i; $st; $by_key; $wild):
   end;
 
 # reclaim($words) hands the flags and options the walk did not use to the repeated operand that took every word left,
-# when each of them stands after that operand's first word: a command kit toolchain run runs owns its own --check. The
+# when each of them stands after that operand's first word: a command kit toolchains run runs owns its own --check. The
 # operand's words become every word from its first one on, less the ones a used flag or option took and the --.
 def reclaim($words):
   . as $st

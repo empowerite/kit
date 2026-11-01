@@ -12,8 +12,8 @@ members, and that is all it does.
 | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract; see [workflow.md](workflow.md) |
 
 `kit install empowerite` takes all of them. A member a repository disagrees with leaves on its own:
-`kit package remove style/just` records it as excluded, so `kit update` does not bring it back as a member, and
-`kit package add style/just` ends the exclusion. Removing the bundle itself leaves its members active.
+`kit packages remove style/just` records it as excluded, so `kit update` does not bring it back as a member, and
+`kit packages add style/just` ends the exclusion. Removing the bundle itself leaves its members active.
 
 The bundle is in the release until a package can come from a source of its own, such as a repository of
 Empowerite's; see [#20](https://github.com/empowerite/kit/issues/20). This repository's `house` package depends on

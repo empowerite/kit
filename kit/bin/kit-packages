@@ -1,22 +1,34 @@
 #!/usr/bin/env bash
-# kit-packages - lists the packages in reach, and which are active (kit verb: installation)
+# kit-packages - lists the packages in reach, and changes which are active (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit packages [--active | --inactive] [--json | --jq] [<package>…]
 #
-# Lists every package in reach, from the release and from .kit/packages/, one row each: a ✅ beside an active one and
-# a ❌ beside one the repository excludes, its name, its origin (release or repository), and its description. kit
-# package changes which are active.
+# kit packages (select | add | remove) <package>…
 #
-#   --active       only the active packages
-#   --inactive     only the packages that are not active, the excluded ones among them
-#   --json         prints one JSON object per package instead: name, origin, state, and description
-#   --jq           prints the same JSON as --json, formatted by jq for a person to read
-#   <package>…     only the packages with these names, or that match these globs, such as 'style/*'
+# Alone, it lists every package in reach, one row each: a mark, its name, its origin, and its description. ✅ marks
+# an active package, ❌ one the repository excludes. The packages come from the release and from .kit/packages/.
+# With a verb, it changes which are active:
 #
-# Exits 0 on success, and 2 on a usage error.
+#   - add places the files the new packages deliver and rewrites the manifests. A different file already at a
+#     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
+#   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A member
+#     of a bundle that stays active is recorded as excluded, so kit update does not bring it back.
+#   - select is remove, then add, to reach the named set. With nothing to change it says the set.
 #
-# see: modules/bash/package.sh, docs/packages.md
+#   --active            only the active packages
+#   --inactive          the packages that are not active, excluded ones among them
+#   --json              one JSON object per package: name, origin, state, and description
+#   --jq                the same JSON, formatted by jq for a person
+#   select <package>…   makes exactly these packages, plus what they depend on and include, the active set:
+#                       adds what is missing, removes the rest, and says what it kept for another package's sake
+#   add <package>…      activates the packages and what they depend on and include
+#   remove <package>…   deactivates the packages; refuses one an active package depends on
+#   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
+#
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error or a package name the kit does not know.
+#
+# see: modules/bash/package.sh, modules/bash/settings.sh, docs/packages.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -26,6 +38,11 @@ use package settings
 guard:arguments packages "$@" || exit $?
 settings:require
 
-package:list "$@"
+case "${1:-}" in
+  (select) shift; package:select "$@" ;;
+  (add) shift; package:add "$@" ;;
+  (remove) shift; package:remove "$@" ;;
+  (*) package:list "$@"
+esac
 
 # ----------------------------------------------------------------------------------------------------------------------

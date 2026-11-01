@@ -9,19 +9,19 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   depend on, and the members they include. It declares the set under `packages:` in `kit.yml`.
 - `kit packages` lists every package in reach, which are active, and which are excluded, filtered by state with
   `--active` or `--inactive`, by name or glob, and as JSON with `--json`.
-- `kit package add <package>…` activates more packages, placing only the paths the new set adds to the old one.
-- `kit package select <package>…` names the active set itself: the named packages, the packages they depend on, and
-  the members they include become the set, and nothing else stays. It removes what the set omits, adds what it lacks,
-  says which active package it kept for another's sake, and changes nothing when the set is already so. kit tui's
-  package view runs it.
-- A glob names every package it matches, in `kit install`, `kit package add`, and `kit package remove`:
-  `kit package add 'style/*'`. A glob that matches nothing is refused.
-- `kit package remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,
+- `kit packages add <package>…` activates more packages, placing only the paths the new set adds to the old one.
+- `kit packages select <package>…` names the active set itself: the named packages, the packages they depend on,
+  and the members they include become the set, and nothing else stays. It removes what the set omits, adds what it
+  lacks, says which active package it kept for another's sake, and changes nothing when the set is already so. kit
+  tui's package view runs it.
+- A glob names every package it matches, in `kit install`, `kit packages add`, and `kit packages remove`:
+  `kit packages add 'style/*'`. A glob that matches nothing is refused.
+- `kit packages remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,
   and takes the kit's entries back out of any merged `.json` file. A package that an active package depends on is
   refused.
 - A bundle is a package that includes others, such as `empowerite`. Adding it activates its members, and a member
-  can be removed on its own: `kit package remove` lists it under `excludes:` in `kit.yml`, and
-  `kit update` leaves it out. Naming it in `kit package add` ends the exclusion.
+  can be removed on its own: `kit packages remove` lists it under `excludes:` in `kit.yml`, and
+  `kit update` leaves it out. Naming it in `kit packages add` ends the exclusion.
 - `kit update` resolves the active set again from the new release, so a new member of a bundle, a new dependency,
   or a new default package arrives with the release. An excluded member stays out, unless a package depends on it,
   which the update says.
@@ -87,8 +87,8 @@ answers:
 | --- | --- |
 | `description` | Required. One line, shown by `kit packages`. |
 | `default` | `true` makes the package active unless removed. In this release only `kit` sets it. |
-| `depends` | Packages activated with this one. `kit package remove` refuses a package another active package depends on. |
-| `includes` | The members of a bundle: packages activated with this one, each of which `kit package remove` can take out on its own. |
+| `depends` | Packages activated with this one. `kit packages remove` refuses a package another active package depends on. |
+| `includes` | The members of a bundle: packages activated with this one, each of which `kit packages remove` can take out on its own. |
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `kit.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 | `notices` | What happens next, told when the kit places a path afresh or merges a new entry into it, each a `path` and a `text`; see below. |
@@ -145,7 +145,7 @@ expects:
     remedy: "put extends: [.kit/lefthook.yml] in lefthook.yml, so the kit's pre-commit commands run"
 ```
 
-- `kit install` and `kit package add` list each unmet expectation as left to do.
+- `kit install` and `kit packages add` list each unmet expectation as left to do.
 - `kit check` fails until every expectation is met.
 - The kit writes nothing into the file. It belongs entirely to the repository.
 
@@ -163,7 +163,7 @@ notices:
     text: "Claude Code asks once, at the start of the next session, whether to use the kit server this file names"
 ```
 
-`kit install`, `kit package add`, and `kit update` print a notice when they place its path afresh, or merge into it
+`kit install`, `kit packages add`, and `kit update` print a notice when they place its path afresh, or merge into it
 an entry that was not there. A path the repository already holds as the release has it prints nothing.
 
 The kit changes a file it touches in one of four ways:
@@ -261,8 +261,8 @@ answers:
 | Key | Meaning |
 | --- | --- |
 | `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until `kit update` moves it here. |
-| `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and `kit package`. |
-| `excludes` | Members of an active bundle removed with `kit package remove`, which `kit update` leaves out. Written by `kit package` and `kit update`. |
+| `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and the `kit packages` verbs select, add, and remove. |
+| `excludes` | Members of an active bundle removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
 | `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
@@ -315,7 +315,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 
 - The kit looks up a package name in the release first, then in `.kit/packages/`.
 - It is validated like a delivered package, and it may depend on delivered packages.
-- Activate it with `kit install <name>` or `kit package add <name>`.
+- Activate it with `kit install <name>` or `kit packages add <name>`.
 - `kit packages` shows it with its origin.
 - Its paths are recorded in the manifest with their digests, so `kit check` can tell an edited installed copy
   from its source.

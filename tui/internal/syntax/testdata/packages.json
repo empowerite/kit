@@ -1,8 +1,9 @@
 {
   "verb": "packages",
-  "purpose": "lists the packages in reach, and which are active",
+  "purpose": "lists the packages in reach, and changes which are active",
   "usage": [
-    "kit packages [--active | --inactive] [--json | --jq] [<package>…]"
+    "kit packages [--active | --inactive] [--json | --jq] [<package>…]",
+    "kit packages (select | add | remove) <package>…"
   ],
   "syntax": [
     [
@@ -62,6 +63,41 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "select",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "add",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "remove",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "package",
+        "repeat": true
+      }
     ]
   ],
   "arguments": {
@@ -69,16 +105,26 @@
       "description": "only the active packages"
     },
     "--inactive": {
-      "description": "only the packages that are not active, the excluded ones among them"
+      "description": "the packages that are not active, excluded ones among them"
     },
     "--json": {
-      "description": "prints one JSON object per package instead: name, origin, state, and description"
+      "description": "one JSON object per package: name, origin, state, and description"
     },
     "--jq": {
-      "description": "prints the same JSON as --json, formatted by jq for a person to read"
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "select": {
+      "description": "makes exactly these packages, plus what they depend on and include, the active set: adds what is missing, removes the rest, and says what it kept for another package's sake"
+    },
+    "add": {
+      "description": "activates the packages and what they depend on and include"
+    },
+    "remove": {
+      "description": "deactivates the packages; refuses one an active package depends on"
     },
     "<package>": {
-      "description": "only the packages with these names, or that match these globs, such as 'style/*'"
+      "description": "a name, such as style/bash, or a glob, such as 'style/*'",
+      "choices": "closed"
     }
   }
 }

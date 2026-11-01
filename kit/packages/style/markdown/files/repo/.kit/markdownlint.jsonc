@@ -1,5 +1,5 @@
 // kit:generated -- the settings the markdown style's linter reads, from the style/markdown package
-// see: kit package remove style/markdown, or "Changing what kit adds" in .kit/1st.md
+// see: kit packages remove style/markdown, or "Changing what kit adds" in .kit/1st.md
 // Each setting here holds the linter to one item of the markdown style, .kit/styles/markdown.md.
 
 {

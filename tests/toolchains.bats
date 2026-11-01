@@ -4,7 +4,7 @@
 #
 # Each provider is driven by tests/fakes/fake-tool standing in for its tool, so what is proven is how the provider
 # reads its tool's answers and what it asks of it. What only the real tool can prove, that it answers as the
-# fixtures do, is proven by running kit toolchain on a desk that has it.
+# fixtures do, is proven by running kit toolchains on a desk that has it.
 
 load helper
 
@@ -16,7 +16,7 @@ setup() {
 @test "the toolchains are detected from their files, in order, and a declared one wins" {
   run "${kit_root}/bin/kit" toolchains
   [ -z "$output" ]
-  run "${kit_root}/bin/kit" toolchain install
+  run "${kit_root}/bin/kit" toolchains install
   [ "$status" -eq 0 ]
   [[ "$output" == *"no toolchain is declared or detected"* ]]
   touch mise.toml Brewfile toolchain.Dockerfile
@@ -41,20 +41,20 @@ setup() {
   route mise 'outdated --json' outdated.json
   route mise 'upgrade --quiet' '!0'
   route mise 'bin-paths' paths.txt
-  run "${kit_root}/bin/kit" toolchain install
+  run "${kit_root}/bin/kit" toolchains install
   [ "$status" -eq 0 ]
   [[ "$output" == *"mise: installing from mise.toml"* ]]
-  run "${kit_root}/bin/kit" toolchain outdated
+  run "${kit_root}/bin/kit" toolchains outdated
   [ "$status" -eq 0 ]
   [[ "$output" == *"mise     jq                               1.8.0            → 1.8.1"* ]]
-  run "${kit_root}/bin/kit" toolchain outdated --check
+  run "${kit_root}/bin/kit" toolchains outdated --check
   [ "$status" -eq 1 ]
-  run "${kit_root}/bin/kit" toolchain update
+  run "${kit_root}/bin/kit" toolchains update
   [ "$status" -eq 0 ]
   grep --quiet --line-regexp 'upgrade --quiet' "${FAKE_DIR}/mise.calls"
-  run "${kit_root}/bin/kit" toolchain path
+  run "${kit_root}/bin/kit" toolchains path
   [ "$output" = $'/m/jq/bin\n/m/just/bin' ]
-  run "${kit_root}/bin/kit" toolchain run bash -c 'printf "%s" "${PATH%%:*}"'
+  run "${kit_root}/bin/kit" toolchains run bash -c 'printf "%s" "${PATH%%:*}"'
   [ "$output" = "/m/jq/bin" ]
 }
 
@@ -72,15 +72,15 @@ JSON
   route brew 'outdated --json=v2' outdated.json
   route brew 'upgrade jq' '!0'
   route brew '--prefix' prefix.txt
-  run "${kit_root}/bin/kit" toolchain install
+  run "${kit_root}/bin/kit" toolchains install
   [ "$status" -eq 0 ]
-  run "${kit_root}/bin/kit" toolchain outdated
+  run "${kit_root}/bin/kit" toolchains outdated
   [[ "$output" == *"brew     jq                               1.7.1            → 1.8.1"* ]]
   [[ "$output" != *"wget"* ]]
-  run "${kit_root}/bin/kit" toolchain update
+  run "${kit_root}/bin/kit" toolchains update
   [ "$status" -eq 0 ]
   grep --quiet --line-regexp 'upgrade jq' "${FAKE_DIR}/brew.calls"
-  run "${kit_root}/bin/kit" toolchain path
+  run "${kit_root}/bin/kit" toolchains path
   [ "$output" = $'/opt/brew/bin\n/opt/brew/sbin' ]
 }
 
@@ -93,20 +93,20 @@ JSON
   route docker 'run --rm *' '!0'
   route docker 'buildx imagetools inspect alpine:3.20 *' alpine.json
   route docker 'buildx imagetools inspect debian:12 *' debian.json
-  run "${kit_root}/bin/kit" toolchain install
+  run "${kit_root}/bin/kit" toolchains install
   [ "$status" -eq 0 ]
   tag=$(sed -n 's/^build --quiet --file toolchain.Dockerfile --tag \(kit-toolchain:[0-9a-f]*\) \.$/\1/p' \
     "${FAKE_DIR}/docker.calls")
   [ "${#tag}" -eq 26 ]
-  run "${kit_root}/bin/kit" toolchain run just ci
+  run "${kit_root}/bin/kit" toolchains run just ci
   [ "$status" -eq 0 ]
   call="run --rm --volume $(pwd -P):/work --workdir /work --user $(id -u):$(id -g) --env HOME=/tmp ${tag} just ci"
   grep --quiet -- "${call}" "${FAKE_DIR}/docker.calls"
-  run "${kit_root}/bin/kit" toolchain outdated
+  run "${kit_root}/bin/kit" toolchains outdated
   [[ "$output" == *"alpine:3.20"*"sha256:old"*"→ sha256:new"* ]]
   [[ "$output" == *"debian:12"*"unpinned"*"→ sha256:deb"* ]]
   [[ "$output" != *"tools"*"→"* ]]
-  run "${kit_root}/bin/kit" toolchain update
+  run "${kit_root}/bin/kit" toolchains update
   [ "$status" -eq 0 ]
   pinned=$'FROM alpine:3.20@sha256:new AS tools\nRUN true\nFROM tools\nFROM debian:12@sha256:deb'
   [ "$(cat toolchain.Dockerfile)" = "${pinned}" ]

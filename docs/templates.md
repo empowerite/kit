@@ -124,7 +124,7 @@ overwrites anything:
 - A kind, a rule, a style, and a template go into a package of the repository's own: the one named with
   `--package`, else the repository's one package under `.kit/packages/`, else `local`, which is made when there is
   none.
-- When that package is active, the new file is placed at once. Otherwise the command names `kit package add`.
+- When that package is active, the new file is placed at once. Otherwise the command names `kit packages add`.
 - A module and a provider go into the first directory of the repository's own on the module path, the `bash_path`
   setting, and are made from the bash style's `module` template where the repository has one.
 

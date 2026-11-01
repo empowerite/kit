@@ -25,8 +25,8 @@ What else kit provides:
 - `.kit/1st.md`, the file every agent reads first, and the rules, one file for each kind of file that has one.
   Style, how a file looks, is optional: a style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
-- `kit toolchain`, which installs and updates the gate's tools (mise, Homebrew, or a container image) and runs the
-  gate with them; `kit toolchains` lists the toolchains.
+- `kit toolchains`, which lists the toolchains, installs and updates the gate's tools (mise, Homebrew, or a container
+  image), and runs the gate with them.
 - `kit status`, which shows every open pull request and the result of its checks.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks;
   the Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
@@ -110,7 +110,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` |
 
    `kit install github/ci hooks/lefthook agents/claude` takes three of them, and a team on Cursor would name
-   `agents/cursor` beside them. `kit package add` adds one later.
+   `agents/cursor` beside them. `kit packages add` adds one later.
    `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
 
    `install` adds `/worktrees/` to `.gitignore`, and every `agents/<harness>` package, through `agents/generic`,
@@ -144,8 +144,8 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `agents/cla
 rest of `.claude/CLAUDE.md` is yours. Without it, `agents/generic` alone still gives any agent that reads
 `AGENTS.md` the rules.
 
-`kit packages` lists the packages, and `kit package add` and `kit package remove` change which are installed. The
-package format is in [docs/packages.md](docs/packages.md).
+`kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are installed.
+The package format is in [docs/packages.md](docs/packages.md).
 
 `kit completion zsh` prints the zsh completion, which completes the verbs, their flags, and the values they take,
 read from the verbs themselves; see [docs/completion.md](docs/completion.md).

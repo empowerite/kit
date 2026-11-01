@@ -197,7 +197,7 @@
     },
     "excludes": {
       "type": "array",
-      "description": "Members of an active bundle removed with kit package remove, which kit update leaves out.",
+      "description": "Members of an active bundle removed with kit packages remove, which kit update leaves out.",
       "items": {
         "type": "string"
       }

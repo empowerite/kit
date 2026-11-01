@@ -219,7 +219,7 @@ new:kind() {
   mkdir -p "$(dirname "${file}")"
   {
     printf '# kit:generated -- the %s kind, from the %s package\n' "${name}" "${package}"
-    printf '# see: kit package remove %s, or "Changing what kit adds" in .kit/1st.md\n' "${package}"
+    printf '# see: kit packages remove %s, or "Changing what kit adds" in .kit/1st.md\n' "${package}"
     printf 'name: %s\n' "${name}"
     for key in paths content kinds embeds
     do
@@ -291,7 +291,7 @@ new:offer() {
     run kit hydrate >/dev/null
     step "$2 is in place; run: $3"
   else
-    step "the $1 package is not active; run: kit package add $1"
+    step "the $1 package is not active; run: kit packages add $1"
   fi
 }
 
@@ -299,7 +299,7 @@ new:offer() {
 # governs <kind>: the kit:generated and see: lines, kind:, and lint: when there is a linter.
 new:frontmatter() {
   printf -- '---\n# kit:generated -- %s, from the %s package\n' "$2" "$1"
-  printf '# see: kit package remove %s, or "Changing what kit adds" in .kit/1st.md\n' "$1"
+  printf '# see: kit packages remove %s, or "Changing what kit adds" in .kit/1st.md\n' "$1"
   printf 'kind:\n  - %s\n' "$3"
   [[ -z "${4:-}" ]] || printf 'lint: %s\n' "$4"
   printf -- '---\n'
@@ -370,7 +370,7 @@ new:package() {
     printf '  - %s\n' "${depends[@]}"
   } > "${file}"
   ok "made ${file}; put what it delivers under .kit/packages/${name}/files/repo/"
-  step "run: kit package add ${name}"
+  step "run: kit packages add ${name}"
 }
 
 # new:template <rule> <variant> [--from=<path>] [--package=<name>] writes a template, the file at <path> or a single

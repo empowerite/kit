@@ -22,7 +22,7 @@ The package also merges `mcpServers.kit` into `.cursor/mcp.json`, with `type: st
 person allows it.
 
 `.cursor/rules/` otherwise belongs to the repository. The package places only its seven files, `kit check` holds
-them to the release, and `kit package remove agents/cursor` takes them out. Cursor offers no deny list a repository
+them to the release, and `kit packages remove agents/cursor` takes them out. Cursor offers no deny list a repository
 can commit, so the git commands `.kit/1st.md` forbids are refused by the hooks and the ruleset alone.
 
 Verified on 2026-10-30 against [Cursor's rules page][cursor-rules], which shows no version, and a Cursor staff

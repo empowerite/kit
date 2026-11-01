@@ -6,7 +6,7 @@
 #
 # Prints the zsh completion for kit. Put it on zsh's fpath as _kit, or evaluate it from .zshrc:
 # eval "$(kit completion zsh)". It completes the verbs, each with its purpose, and each verb's flags, literal words,
-# and the values a verb lists for an argument, such as the packages for kit package add, from the verbs themselves.
+# and the values a verb lists for an argument, such as the packages for kit packages add, from the verbs themselves.
 # A kit-<verb> command called directly completes the same way.
 #
 # kit completion candidates <word>…

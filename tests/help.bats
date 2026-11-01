@@ -52,8 +52,8 @@ group-has() {
     [[ " workflow files checks installation interfaces help plumbing " == *" ${group} "* && -n "${group}" ]] \
       || { echo "no known group: ${verb##*/}"; return 1; }
   done
-  run "${kit_root}/bin/kit" help kind
-  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit kinds, kit new'* ]]
+  run "${kit_root}/bin/kit" help kinds
+  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit new'* ]]
   [[ "$output" != *"kit region"* ]]
 }
 

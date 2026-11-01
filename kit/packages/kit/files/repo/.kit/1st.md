@@ -65,7 +65,7 @@ says how the file looks. Rule files and style files have the same frontmatter, w
 | `checks:` | The kit's own checks that `kit lint` runs over the files it governs, by name. |
 | `templates:` | The shapes a file of this kind can take. The templates are under `.kit/templates/`. |
 
-A rule or style governs every file of a kind it names, and `kit kind <path>` prints the kinds a file is of.
+A rule or style governs every file of a kind it names, and `kit kinds <path>` prints the kinds a file is of.
 `kit context` prints the rules of every kind a file is of, then the rules of the kinds those kinds embed, so a
 justfile brings the bash rule with it; `kit lint` does not follow them, so no linter runs over a file it cannot parse.
 
@@ -127,8 +127,8 @@ no other way.
 Everything the release delivers belongs to a package. A repository activates the packages it wants:
 
 - `kit install github/ci hooks/lefthook agents/claude` activates packages when the kit is installed.
-- `kit package add agents/claude` activates a package later.
-- `kit package remove` deactivates a package.
+- `kit packages add agents/claude` activates a package later.
+- `kit packages remove` deactivates a package.
 - `kit uninstall` takes everything the kit placed out of the repository.
 
 A package of the repository's own lives under `.kit/packages/` and is activated the same way.
@@ -157,7 +157,7 @@ The packages:
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
 - `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
-  `kit toolchain install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine where the
+  `kit toolchains install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine where the
   branch has a pull request; before one exists, `kit linked` fails and the other three run without one:
   - the repository's gate
   - `kit check`
@@ -190,13 +190,13 @@ and its package, and a `see:` line that says how to stop using it or replace it.
 link leads to its source, a copy has no write bit, and git never sees either, so an edit there never reaches a commit.
 `kit check` fails when any delivered file differs from the pinned release. Instead:
 
-- To stop using a file, remove its package: `kit package remove <package>`. It takes out everything the package
+- To stop using a file, remove its package: `kit packages remove <package>`. It takes out everything the package
   added. A package that another active package depends on is refused until that one is removed. A member of a
   bundle such as `empowerite` can be removed on its own: kit records it as excluded, and `kit update` leaves it
   out.
 - To replace a file, write a package of the repository's own under `.kit/packages/<name>/`. Its `package.yml`
   depends on the package that adds the file, and it places the replacement at the same path under `files/repo/`.
-  Activate it with `kit package add <name>`. The later package in dependency order wins, so the repository's file
+  Activate it with `kit packages add <name>`. The later package in dependency order wins, so the repository's file
   is used, and `kit update` still brings everything else from the next release.
 - To fill in a value that a template asks for, set it under `answers:` in `kit.yml`.
 - In a file kit shares with the repository, such as `AGENTS.md`, `.gitignore`, or `.claude/settings.json`, only

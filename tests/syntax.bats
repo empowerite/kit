@@ -154,16 +154,16 @@ setup() {
   [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help help" ]
 }
 
-@test "kit syntax package --choices lists every package with its state, closed, and a planned set says what it keeps" {
+@test "kit syntax packages --choices lists every package with its state, closed, and a planned set says what it keeps" {
   checkout-copy
-  run "${kit_root}/bin/kit" syntax package --choices '<package>'
+  run "${kit_root}/bin/kit" syntax packages --choices '<package>'
   [ "$status" -eq 0 ]
   grep -q $'^agents/claude\t.*\tactive\t$' <<<"$output"
   grep -q $'^agents/copilot\t.*\t\t$' <<<"$output"
-  run "${kit_root}/bin/kit" syntax package
+  run "${kit_root}/bin/kit" syntax packages
   [ "$(jq -r '.arguments["<package>"].choices' <<<"$output")" = closed ]
   [ "$(jq -r '.arguments["list"].choices' <<<"$output")" = null ]
-  run "${kit_root}/bin/kit" syntax package --choices '<package>' '<package>=empowerite' '<package>=agents/claude'
+  run "${kit_root}/bin/kit" syntax packages --choices '<package>' '<package>=empowerite' '<package>=agents/claude'
   [ "$status" -eq 0 ]
   grep -q $'^hooks/lefthook\t.*\tactive\thooks/lefthook: kept, a member of empowerite$' <<<"$output"
   grep -q $'^kit\t.*\tactive\tkit: kept, .* depend(s) on it$' <<<"$output"
@@ -250,8 +250,13 @@ setup() {
   run "${kit_root}/bin/kit" syntax commit --match -- --bogus
   [ "$status" -eq 0 ]
   [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help commit" ]
-  run "${kit_root}/bin/kit" syntax package --match -- add
+  # a word of the group the acting line opens with opens that line, over the listing line's operand
+  run "${kit_root}/bin/kit" syntax packages --match -- add
   [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["add"],"<package>"]' ]
+  run "${kit_root}/bin/kit" syntax packages --match -- add style/bash
+  [ "$(jq -c '[.status, .literals, .operands]' <<<"$output")" = '[0,["add"],["style/bash"]]' ]
+  run "${kit_root}/bin/kit" syntax packages --match -- style/bash
+  [ "$(jq -c '[.status, .literals, .operands]' <<<"$output")" = '[0,[],["style/bash"]]' ]
 }
 
 @test "kit syntax --list prints each verb, its purpose, and its group, one per line, for a palette to open on" {
@@ -267,13 +272,13 @@ setup() {
 }
 
 @test "a list of choices says it is a set only when the answers name the declarative subcommand" {
-  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind select
+  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind select
   [ "$output" = set ]
-  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind add
+  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind add
   [ "$output" = closed ]
-  run "${kit_root}/bin/kit" syntax package --choices '<package>' -- --kind
+  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind
   [ "$output" = closed ]
-  run "${kit_root}/bin/kit" package add nonesuch
+  run "${kit_root}/bin/kit" packages add nonesuch
   [[ "$output" == *"<package> 'nonesuch' is not one of the choices"* ]]
 }
 

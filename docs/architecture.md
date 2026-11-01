@@ -55,7 +55,7 @@ Content reaches a repository only through these verbs:
 - `kit update` moves to a newly pinned release. It replaces each file the repository never edited and merges each
   edited file three ways, with the previous release as the base.
 - `kit check` fails when a delivered file differs from the release.
-- `kit package` changes the set of active packages.
+- `kit packages select`, `add`, and `remove` change the set of active packages.
 - `kit hydrate` brings every path under `.kit/` to its state from the declaration, choosing nothing. Every verb that
   reads a delivered file does the same first.
 - `kit uninstall` takes it all out again: every path the active packages deliver, the manifests, and the
@@ -213,7 +213,7 @@ It queries the forge in the background and draws the local checkouts while it wa
 | A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit issue` creates the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
 | Branch names, commit subjects, and titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
-| The gate ran with the pinned tools | `kit toolchain install`, then the gate run through the toolchain, locally and in CI |
+| The gate ran with the pinned tools | `kit toolchains install`, then the gate run through the toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
 | An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |

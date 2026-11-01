@@ -38,7 +38,7 @@ setup() {
   grep --quiet '^## Plans are prose$' .kit/workflow.md
   grep --quiet 'what was left out, and why' .kit/workflow.md
   grep --quiet 'glab mr update --ready' .kit/workflow.md
-  run "${kit_checkout}/bin/kit" package remove workflow
+  run "${kit_checkout}/bin/kit" packages remove workflow
   [ "$status" -eq 0 ]
   [ ! -e .kit/workflow.md ]
   [ -f .kit/1st.md ]

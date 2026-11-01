@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
-# kit-toolchains - lists the toolchains that manage the gate's tools, and the file each reads (kit verb: installation)
+# kit-toolchains - lists, installs, and updates the toolchains that manage the gate's tools (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit toolchains [--json | --jq]
 #
-# Lists each declared toolchain, mise, brew, or docker, and the file it reads, one per line: the toolchains setting
-# in kit.yml, or else the ones whose file is present. kit toolchain installs and updates their tools.
+# kit toolchains (install | outdated [--check] | update | path | run <command>…)
 #
-#   --json   prints one JSON object per toolchain instead: provider and file
-#   --jq     prints the same JSON as --json, formatted by jq for a person to read
+# Alone, it lists each declared toolchain and the file it reads, one per line. A toolchain is mise, brew, or
+# docker. The toolchains are the toolchains setting in kit.yml. Without the setting, they are the ones whose file is
+# present: mise.toml, Brewfile, or toolchain.Dockerfile. With a verb, it acts on every toolchain, in order. The same
+# verbs run at the desk and in the delivered CI job.
 #
-# Exits 0 on success, 1 when the declaration names a toolchain the kit does not know, and 2 on a usage error.
+#   --json              one JSON object per toolchain: provider and file
+#   --jq                the same JSON, formatted by jq for a person
+#   install             installs every toolchain's pinned tools
+#   outdated [--check]  prints one line per tool behind its latest version
+#   --check             with outdated: fails when any tool is behind
+#   update              updates every tool, and rewrites the pins and the lock
+#   path                prints the directories that put the tools first on PATH
+#   run <command>…      runs the command with the tools on PATH, or inside docker's container
+#   <command>…          the command and its arguments, as typed, dash-words included
+#
+# Exits 0 when it did it, 1 when a verb fails or a declared toolchain is unknown, and 2 on a usage error; run exits
+# with the command's status.
 #
 # see: modules/bash/toolchain.sh, docs/toolchains.md
 
@@ -21,17 +33,76 @@ kit:enter
 use toolchain
 guard:arguments toolchains "$@" || exit $?
 
+# Every verb reads the declared toolchains once, here, so an invalid declaration stops the listing and every verb.
 providers=$(toolchain:declared) || exit 1
-for provider in ${providers}
-do
-  file=$(toolchain:call "${provider}" file)
-  if [[ "${1:-}" == --json ]]
-  then
-    jq --null-input --compact-output --arg provider "${provider}" --arg file "${file}" \
-      '{provider: $provider, file: $file}'
-  else
-    printf '%-8s %s\n' "${provider}" "${file}"
-  fi
-done
+
+verb=${1:-}
+[[ -n "${verb}" ]] && shift
+case "${verb}" in
+  (install)
+    if [[ -z "${providers}" ]]
+    then
+      ok "no toolchain is declared or detected; the gate runs with the tools already on PATH"
+      exit 0
+    fi
+    for provider in ${providers}
+    do
+      step "${provider}: installing from $(toolchain:call "${provider}" file)"
+      if ! toolchain:call "${provider}" install
+      then
+        error "${provider}: the tools could not be installed; see above"
+        exit 1
+      fi
+    done
+    ok "toolchains installed: ${providers//$'\n'/ }"
+    summary "✅ Toolchains installed: ${providers//$'\n'/ }."
+    ;;
+  (outdated)
+    check=false
+    [[ "${1:-}" == --check ]] && check=true
+    behind=0
+    for provider in ${providers}
+    do
+      while IFS=$'\t' read -r name installed latest
+      do
+        [[ -n "${name}" ]] || continue
+        printf '%-8s %-32s %-16s → %s\n' "${provider}" "${name}" "${installed}" "${latest}"
+        behind=$(( behind + 1 ))
+      done < <(toolchain:call "${provider}" outdated)
+    done
+    if (( behind == 0 ))
+    then
+      ok "every tool is at its latest"
+    elif [[ "${check}" == true ]]
+    then
+      error "${behind} tool(s) are behind; run: kit toolchains update"
+      exit 1
+    else
+      warn "${behind} tool(s) are behind; run: kit toolchains update"
+    fi
+    ;;
+  (update)
+    toolchain:each update
+    ok "every toolchain is updated; commit the pins and the locks it rewrote"
+    ;;
+  (path)
+    toolchain:path
+    ;;
+  (run)
+    toolchain:run "$@"
+    ;;
+  (*)
+    for provider in ${providers}
+    do
+      file=$(toolchain:call "${provider}" file)
+      if [[ "${verb}" == --json ]]
+      then
+        jq --null-input --compact-output --arg provider "${provider}" --arg file "${file}" \
+          '{provider: $provider, file: $file}'
+      else
+        printf '%-8s %s\n' "${provider}" "${file}"
+      fi
+    done
+esac
 
 # ----------------------------------------------------------------------------------------------------------------------

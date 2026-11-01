@@ -26,7 +26,7 @@ setup() {
   run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: kit update"* ]]
-  run "${kit_checkout}/bin/kit" package add github/ci
+  run "${kit_checkout}/bin/kit" packages add github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
   grep --quiet "sed -n 's/^version: \*//p' kit.yml" .github/workflows/kit-ci.yml
@@ -47,10 +47,10 @@ setup() {
   do
     grep --quiet --line-regexp '  - agents/generic' "${kit_checkout}/packages/agents/${package}/package.yml"
   done
-  run "${kit_checkout}/bin/kit" package add agents/generic
+  run "${kit_checkout}/bin/kit" packages add agents/generic
   [ "$status" -eq 0 ]
   grep --quiet 'Read .kit/1st.md at the start of every session' AGENTS.md
-  run "${kit_checkout}/bin/kit" package remove agents/generic
+  run "${kit_checkout}/bin/kit" packages remove agents/generic
   [ "$status" -eq 0 ]
   [ ! -e AGENTS.md ]
 }
@@ -104,13 +104,13 @@ setup() {
   run "${kit_checkout}/bin/kit" packages
   [[ "$output" == *"✅ kit "* ]]
   [[ "$output" =~ "   agents/claude " ]]
-  run "${kit_checkout}/bin/kit" package add agents/claude
+  run "${kit_checkout}/bin/kit" packages add agents/claude
   [ "$status" -eq 0 ]
   jq --exit-status '.permissions.deny | index("Bash(git switch main *)")' .claude/settings.json >/dev/null
   [ "$(declared packages)" = "kit agents/generic agents/claude" ]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package remove agents/claude
+  run "${kit_checkout}/bin/kit" packages remove agents/claude
   [ "$status" -eq 0 ]
   [ ! -e .claude/CLAUDE.md ]
   [ "$(jq --raw-output .model .claude/settings.json)" = "x" ]
@@ -123,11 +123,11 @@ setup() {
 
 @test "package remove refuses a package another active package depends on, and removes a leaf" {
   "${kit_checkout}/bin/kit" install agents/claude github/ci
-  run "${kit_checkout}/bin/kit" package remove kit
+  run "${kit_checkout}/bin/kit" packages remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]
   [ -f .kit/1st.md ]
-  run "${kit_checkout}/bin/kit" package remove github/ci
+  run "${kit_checkout}/bin/kit" packages remove github/ci
   [ "$status" -eq 0 ]
   [ ! -e .github/workflows/kit-ci.yml ]
   [ "$(declared packages)" = "kit agents/generic agents/claude" ]
@@ -187,7 +187,7 @@ setup() {
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"/.kit/claude differs"* ]]
-  run "${repo}.later/bin/kit" package remove agents/claude
+  run "${repo}.later/bin/kit" packages remove agents/claude
   [ "$status" -eq 0 ]
   [ ! -e "${KIT_HOME}/.kit/claude" ]
   [ ! -e "${KIT_HOME}/.kit/manifest" ]
@@ -235,7 +235,7 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(cat .python-version)" = "python 3.14" ]
   grep --quiet '^edited$' .kit/rules/python.md
-  run "${kit_checkout}/bin/kit" package remove python
+  run "${kit_checkout}/bin/kit" packages remove python
   [ "$status" -eq 0 ]
   [ ! -e .python-version ]
   [ ! -e .kit/rules/python.md ]
@@ -302,7 +302,7 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: the region regenerated"* ]]
   grep --quiet 'Read .kit/1st.md' AGENTS.md
-  run "${kit_checkout}/bin/kit" package remove kit agents/generic
+  run "${kit_checkout}/bin/kit" packages remove kit agents/generic
   [ "$status" -eq 0 ]
   [ "$(paste -s -d '|' - < AGENTS.md)" = "# Ours||Our own instructions.|## More of ours" ]
   [ "$(cat .gitignore)" = "build/" ]
@@ -316,10 +316,10 @@ setup() {
   grep --quiet --line-regexp '<!-- kit:generate AGENTS.md -->' docs/AGENTS.md
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package remove kit agents/generic
+  run "${kit_checkout}/bin/kit" packages remove kit agents/generic
   [ "$status" -eq 0 ]
   mkdir -p .kit/1st.md
-  run "${kit_checkout}/bin/kit" package add kit
+  run "${kit_checkout}/bin/kit" packages add kit
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/1st.md: a directory, or something that is not a file, is there"* ]]
 }
@@ -365,11 +365,11 @@ setup() {
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
   [ "$(sed -n '1,3p' AGENTS.md | paste -s -d '|' -)" = '# AGENTS.md||<!-- kit:generate AGENTS.md -->' ]
-  run "${kit_checkout}/bin/kit" package remove kit agents/generic
+  run "${kit_checkout}/bin/kit" packages remove kit agents/generic
   [ ! -e AGENTS.md ]
   [ ! -e .gitignore ]
   printf '# Ours\n\n<!-- kit:generate AGENTS.md -->\nsomething else\n<!-- kit:end AGENTS.md -->\n' > AGENTS.md
-  run "${kit_checkout}/bin/kit" package add agents/generic
+  run "${kit_checkout}/bin/kit" packages add agents/generic
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: placed, the region regenerated"* ]]
   [ "$(sed -n '1p' AGENTS.md)" = "# Ours" ]
@@ -447,7 +447,7 @@ setup() {
   run ! grep --quiet '^packages' .kit/manifest
   grep --quiet '  .kit/1st.md$' .kit/manifest
   # a later write replaces the declaration in place, once
-  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages add hooks/lefthook
   [ "$status" -eq 0 ]
   [ "$(declared packages)" = "kit agents/generic agents/claude hooks/lefthook" ]
   [ "$(grep -c '^version:' kit.yml)" -eq 1 ]
@@ -539,7 +539,7 @@ setup() {
 @test "the declaration is rewritten where it stands, so the repository's own keys and comments keep their places" {
   mkdir .kit
   printf 'require_signing: true\n\n# the kit\nversion: unreleased\npackages:\n  - kit\n\ngate: bin/ci\n' > kit.yml
-  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages add hooks/lefthook
   [ "$status" -eq 0 ]
   expected='require_signing: true||# the kit|version: unreleased|packages:|  - kit|  - hooks/lefthook||gate: bin/ci'
   [ "$(paste -s -d '|' - < kit.yml)" = "${expected}" ]
@@ -587,19 +587,19 @@ setup() {
 
 @test "a glob names every package it matches, and a glob that matches nothing is refused" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
-  run "${kit_checkout}/bin/kit" package add 'style/*'
+  run "${kit_checkout}/bin/kit" packages add 'style/*'
   [ "$status" -eq 0 ]
   styles='style/bash style/gitignore style/json style/just style/markdown style/prose style/workflows style/yaml'
   [ "$(declared packages)" = "kit ${styles}" ]
   [ -f .kit/styles/bash.md ]
-  run "${kit_checkout}/bin/kit" package remove 'style/j*'
+  run "${kit_checkout}/bin/kit" packages remove 'style/j*'
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/json.md ]
   [ ! -e .kit/styles/just.md ]
   [ -f .kit/styles/yaml.md ]
-  run "${kit_checkout}/bin/kit" package add 'nothing/*'
+  run "${kit_checkout}/bin/kit" packages add 'nothing/*'
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'nothing/*' is not one of the choices; run: kit help package"* ]]
+  [[ "$output" == *"<package> 'nothing/*' is not one of the choices; run: kit help packages"* ]]
 }
 
 @test "a bundle brings its members in, a member leaves on its own, and the exclusion holds through update" {
@@ -610,7 +610,7 @@ setup() {
   members='agents/generic agents/claude github/ci hooks/lefthook style/bash style/gitignore style/json style/just style/markdown'
   members+=' style/prose style/workflows style/yaml workflow'
   [ "$(declared packages)" = "kit ${members} empowerite" ]
-  run "${kit_checkout}/bin/kit" package remove style/just
+  run "${kit_checkout}/bin/kit" packages remove style/just
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/just.md ]
   [ "$(declared excludes)" = "style/just" ]
@@ -621,26 +621,26 @@ setup() {
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/just.md ]
   [ "$(declared excludes)" = "style/just" ]
-  run "${kit_checkout}/bin/kit" package add style/just
+  run "${kit_checkout}/bin/kit" packages add style/just
   [ "$status" -eq 0 ]
   [ -f .kit/styles/just.md ]
   [ -z "$(declared excludes)" ]
   # a package the bundle depends on is still refused; the bundle itself leaves without its members
-  run "${kit_checkout}/bin/kit" package remove kit
+  run "${kit_checkout}/bin/kit" packages remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]
-  run "${kit_checkout}/bin/kit" package remove empowerite
+  run "${kit_checkout}/bin/kit" packages remove empowerite
   [ "$status" -eq 0 ]
   [ -f .kit/styles/just.md ]
   # with no active package including it, a removed package is not an exclusion
-  run "${kit_checkout}/bin/kit" package remove style/just
+  run "${kit_checkout}/bin/kit" packages remove style/just
   [ "$status" -eq 0 ]
   [ -z "$(declared excludes)" ]
 }
 
 @test "update resolves the active set from the new release: a new member arrives, and a new dependency brings an excluded package back, saying so" {
   "${kit_checkout}/bin/kit" install empowerite >/dev/null 2>&1
-  "${kit_checkout}/bin/kit" package remove style/json style/yaml >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages remove style/json style/yaml >/dev/null 2>&1
   [ "$(declared excludes)" = "style/json style/yaml" ]
   later-release "${repo}.later"
   mkdir -p "${repo}.later/packages/extra/files/repo/.kit"
@@ -676,7 +676,7 @@ setup() {
   mkdir -p "${repo}.later/packages/extra/files/repo/.kit"
   printf 'description: "A package new in 9.9.9"\ndepends:\n  - kit\n' > "${repo}.later/packages/extra/package.yml"
   printf 'extra\n' > "${repo}.later/packages/extra/files/repo/.kit/extra"
-  "${repo}.later/bin/kit" package add extra >/dev/null 2>&1
+  "${repo}.later/bin/kit" packages add extra >/dev/null 2>&1
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   [ "$(cat .kit/extra)" = "extra" ]
@@ -744,7 +744,7 @@ setup() {
   mkdir -p docs/deep && cd docs/deep
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
-  run "${kit_checkout}/bin/kit" package add agents/claude
+  run "${kit_checkout}/bin/kit" packages add agents/claude
   [ "$status" -eq 0 ]
   [ -f "${repo}/.claude/settings.json" ]
   [ ! -e .claude ]
@@ -760,13 +760,13 @@ setup() {
   rm .kit/1st.md
   "${kit_checkout}/bin/kit" install
   printf 'theirs\n' > .kit/lefthook.yml
-  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages add hooks/lefthook
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/lefthook.yml: a different file is there already"* ]]
   [ "$(declared packages)" = "kit" ]
   rm .kit/lefthook.yml
   mkdir .claude && printf '# Ours\n' > .claude/CLAUDE.md
-  run "${kit_checkout}/bin/kit" package add agents/claude hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages add agents/claude hooks/lefthook
   [ "$status" -eq 0 ]
   [ "$(sed -n '1p' .claude/CLAUDE.md)" = "# Ours" ]
   grep --quiet --line-regexp '@../AGENTS.md' .claude/CLAUDE.md
@@ -774,7 +774,7 @@ setup() {
 
 @test "package remove judges dependents against what stays, in any order" {
   "${kit_checkout}/bin/kit" install agents/claude
-  run "${kit_checkout}/bin/kit" package remove kit hooks/lefthook agents/claude agents/generic
+  run "${kit_checkout}/bin/kit" packages remove kit hooks/lefthook agents/claude agents/generic
   [ "$status" -eq 0 ]
   [ "$(declared packages)" = "" ]
   [ ! -e .kit/1st.md ]

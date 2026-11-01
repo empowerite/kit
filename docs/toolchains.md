@@ -1,11 +1,11 @@
 # Toolchains
 
 A toolchain is the tool manager that installs the tools the gate (the repository's own CI command) runs: mise,
-Homebrew, or a Docker container image. `kit toolchain` installs, reports on, and updates those tools the same way
+Homebrew, or a Docker container image. `kit toolchains` installs, reports on, and updates those tools the same way
 whichever manager the repository uses.
 
 ```sh
-kit toolchain install
+kit toolchains install
 ```
 
 `kit/modules/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#forges-seams-and-providers)
@@ -43,11 +43,11 @@ toolchains:
 | Command | What it does |
 | --- | --- |
 | `kit toolchains` | Lists each declared toolchain and the file it reads; `--json` prints them as JSON. |
-| `kit toolchain install` | Installs every toolchain's pinned tools: `mise install`, `brew bundle install --no-upgrade`, or a `docker build` of the image. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
-| `kit toolchain outdated` | Prints one line per tool that is behind its source. With `--check`, fails when there is one. |
-| `kit toolchain update` | Moves every tool to its latest version and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, or new `FROM` digests in the Dockerfile. Commit the files it rewrote. |
-| `kit toolchain path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
-| `kit toolchain run <command>…` | Runs a command with the tools. |
+| `kit toolchains install` | Installs every toolchain's pinned tools: `mise install`, `brew bundle install --no-upgrade`, or a `docker build` of the image. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
+| `kit toolchains outdated` | Prints one line per tool that is behind its source. With `--check`, fails when there is one. |
+| `kit toolchains update` | Moves every tool to its latest version and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, or new `FROM` digests in the Dockerfile. Commit the files it rewrote. |
+| `kit toolchains path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
+| `kit toolchains run <command>…` | Runs a command with the tools. |
 
 `kit gate` runs the gate the same way:
 
@@ -74,7 +74,7 @@ hooks experimental.
 
 ## On a runner
 
-The delivered workflow runs `kit toolchain install`, then appends the output of `kit toolchain path` to the
+The delivered workflow runs `kit toolchains install`, then appends the output of `kit toolchains path` to the
 runner's `PATH`; [packages/github/ci.md](packages/github/ci.md) says what else the job sets up. The brew provider
 finds Homebrew at its own prefix when the runner leaves it off `PATH`.
 

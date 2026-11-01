@@ -56,7 +56,7 @@
   <text class="m" x="396" y="204">kit install [&lt;package&gt;…]</text>
   <text class="m" x="396" y="226">kit update</text>
   <text class="m" x="396" y="248">kit check</text>
-  <text class="m" x="396" y="270">kit packages · package add|remove</text>
+  <text class="m" x="396" y="270">kit packages · packages add|remove</text>
   <line x1="396" y1="286" x2="644" y2="286" stroke="#a78bfa" stroke-width="1"/>
   <text class="d" x="396" y="308">resolve the active set and its depends</text>
   <text class="d" x="396" y="326">render @key@ from kit.yml</text>

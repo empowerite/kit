@@ -1,8 +1,8 @@
 # Completion
 
 `kit completion zsh` prints the zsh completion for kit. It completes the verbs, each with its purpose, and then each
-verb's flags and options, its literal words, such as `add` after `kit package`, and the values a verb lists for an
-argument, such as the packages in reach for `kit package add` or the rules for `kit new file --rule=`. A path offers
+verb's flags and options, its literal words, such as `add` after `kit packages`, and the values a verb lists for an
+argument, such as the packages in reach for `kit packages add` or the rules for `kit new file --rule=`. A path offers
 the files. A `kit-<verb>` command called directly completes the same way.
 
 ## Install it

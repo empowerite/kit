@@ -26,7 +26,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   grep --quiet --line-regexp 'lint: taplo lint' "${file}"
   run kit new style toml
   [ "$status" -eq 0 ]
-  kit package add local >/dev/null 2>&1
+  kit packages add local >/dev/null 2>&1
   run kit context Cargo.toml
   [ "$output" = $'.kit/rules/toml.md\n.kit/styles/toml.md' ]
   run kit lint .kit/packages/local/files/repo/.kit/rules/toml.md .kit/packages/local/files/repo/.kit/styles/toml.md
@@ -41,10 +41,10 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "a package depends on kit and the packages named, and a template is listed in its package's style" {
   run kit new package team --description='The team rules' --depends=style/bash
   [ "$status" -eq 0 ]
-  [[ "$output" == *"run: kit package add team"* ]]
+  [[ "$output" == *"run: kit packages add team"* ]]
   [ "$(grep -v '^#' .kit/packages/team/package.yml | awk 'NF' | paste -s -d '|' -)" = \
     'description: "The team rules"|depends:|  - kit|  - style/bash' ]
-  run kit package add team
+  run kit packages add team
   [ "$status" -eq 0 ]
   kit new style notes --package=team >/dev/null 2>&1
   printf '# «title»\n\n«body»\n' > page.md

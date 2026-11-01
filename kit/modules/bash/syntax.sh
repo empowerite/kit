@@ -404,7 +404,7 @@ syntax:closed() {
 }
 
 # syntax:offered <value> <choices> succeeds when the value is one of the choices, one per line, or is a glob that
-# matches one of them, as kit package expands a glob.
+# matches one of them, as kit packages add expands a glob.
 syntax:offered() {
   local choice
   while IFS= read -r choice

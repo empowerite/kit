@@ -17,7 +17,6 @@ The tools are the verbs that read and report, and change nothing:
 | `check` | `kit check` |
 | `context` | `kit context` |
 | `help` | `kit help` |
-| `kind` | `kit kind` |
 | `kinds` | `kit kinds` |
 | `lint` | `kit lint` |
 | `packages` | `kit packages` |
@@ -74,7 +73,7 @@ Either way:
 ## How an agent finds it
 
 Each `agents/<harness>` package merges the server into its harness's MCP configuration, by key, and owns only that
-entry. `kit package remove` takes the entry out and leaves the repository's own servers.
+entry. `kit packages remove` takes the entry out and leaves the repository's own servers.
 
 | Package | File | Entry |
 | --- | --- | --- |
@@ -84,7 +83,7 @@ entry. `kit package remove` takes the entry out and leaves the repository's own 
 | [`agents/gemini`](packages/agents/gemini.md) | `.gemini/settings.json` | `mcpServers.kit` |
 
 The command is `kit serve`, with `kit` found on `PATH`, as the hook in `.claude/settings.json` already assumes.
-When the kit places an entry, `kit install`, `kit package add`, and `kit update` say what the harness does next:
+When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next:
 Claude Code, for one, asks once, at the start of the next session, whether to use a project's servers.
 
 ## Try it by hand

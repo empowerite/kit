@@ -121,7 +121,7 @@ verb's form. A verb run at a terminal without an argument it needs opens the sam
 with what was given, as `kit commit` with no message does. The form has one field per part of the verb's usage
 line, offers the values the repository has (changed paths, packages, templates), shows the command line it builds,
 and runs it from Enter on that line, leaving that command line in the scrollback above the verb's own output. A
-field the command line needs carries a dim `required` tag until it has an answer. `kit package select` shows the
+field the command line needs carries a dim `required` tag until it has an answer. `kit packages select` shows the
 whole set of packages, each marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
@@ -144,8 +144,8 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-
 
 ## Toolchains
 
-- `kit toolchain` installs and updates the tools the gate runs, whether mise, Homebrew, or a container image
-  manages them; `kit toolchains` lists the toolchains and the file each reads.
+- `kit toolchains` lists the toolchains and the file each reads, and installs and updates the tools the gate runs,
+  whether mise, Homebrew, or a container image manages them.
 - The gate runs with those tools on the desk, in a worktree, and on a CI runner alike.
 
 see: [toolchains.md](toolchains.md)
@@ -156,7 +156,7 @@ Everything kit delivers comes from a package. The `kit` package, the entry file 
 the others are optional, such as the `workflow` package, one style package per kind of file, the CI job, the
 pre-commit hook, and an adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 
-- `kit install` and `kit package add` activate packages, with the packages they depend on. `kit package remove`
+- `kit install` and `kit packages add` activate packages, with the packages they depend on. `kit packages remove`
   deactivates one and takes out everything it placed. `kit packages` lists them, the active set
   among them.
 - A bundle, such as `empowerite`, activates its members. Any member can be removed on its own, and stays out

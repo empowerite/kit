@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit uninstall is kit package remove over every active package, the kit package included, followed by the manifests
+# kit uninstall is kit packages remove over every active package, the kit package included, followed by the manifests
 # and the declaration. Each delivered path is taken out as place:remove takes it out for a removed package: a copy
 # is removed, a merged .json file keeps everything but the kit's entries, a region file keeps everything but the
 # region. A copy the repository edited is the one path left alone, and named, as kit update leaves one.

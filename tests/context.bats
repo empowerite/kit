@@ -33,7 +33,7 @@ setup() {
 }
 
 @test "the prose style governs every text file, the kind made of the kit's kinds, after the rule and the style for its kind" {
-  "${kit_checkout}/bin/kit" package add style/bash style/prose >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages add style/bash style/prose >/dev/null 2>&1
   mkdir bin && printf '#!/usr/bin/env bash\necho\n' > bin/tool
   run "${kit_checkout}/bin/kit" context bin/tool
   [ "${lines[0]}" = ".kit/rules/bash.md" ]
@@ -67,7 +67,7 @@ setup() {
 }
 
 @test "a kind is defined once under .kit/kinds/, and the rule and the style of a kind name it, so neither carries a glob" {
-  "${kit_checkout}/bin/kit" package add style/bash >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages add style/bash >/dev/null 2>&1
   [ -f .kit/kinds/bash.yml ]
   grep --quiet --line-regexp '  - "\*\*/\*.sh"' .kit/kinds/bash.yml
   for file in .kit/rules/*.md .kit/styles/*.md
@@ -89,14 +89,14 @@ setup() {
   printf 'description: "The TOML kind and its rule"\ndepends:\n  - kit\n' > .kit/packages/toml/package.yml
   printf '# The TOML kind\nname: toml\npaths:\n  - "**/*.toml"\n' > .kit/packages/toml/files/repo/.kit/kinds/toml.yml
   printf -- '---\nkind:\n  - toml\n---\n# TOML\n\nQuote every key.\n' > .kit/packages/toml/files/repo/.kit/rules/toml.md
-  run "${kit_checkout}/bin/kit" package add toml
+  run "${kit_checkout}/bin/kit" packages add toml
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" context Cargo.toml
   [ "$output" = ".kit/rules/toml.md" ]
   mkdir -p .kit/packages/mdx/files/repo/.kit/kinds
   printf 'description: "Markdown with components counts as markdown"\ndepends:\n  - kit\n' > .kit/packages/mdx/package.yml
   printf '# The markdown kind, with .mdx\nname: markdown\npaths:\n  - "**/*.md"\n  - "**/*.mdx"\n' > .kit/packages/mdx/files/repo/.kit/kinds/markdown.yml
-  run "${kit_checkout}/bin/kit" package add mdx
+  run "${kit_checkout}/bin/kit" packages add mdx
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" context docs/page.mdx
   [ "$output" = ".kit/rules/markdown.md" ]
@@ -111,7 +111,7 @@ setup() {
     > .kit/packages/conf/files/repo/.kit/kinds/config.yml
   printf -- '---\nkind:\n  - toml\n---\n# TOML\n' > .kit/packages/conf/files/repo/.kit/rules/toml.md
   printf -- '---\nkind:\n  - ini\n---\n# INI\n' > .kit/packages/conf/files/repo/.kit/rules/ini.md
-  run "${kit_checkout}/bin/kit" package add conf
+  run "${kit_checkout}/bin/kit" packages add conf
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" context --json Cargo.toml setup.ini
   [ "$(jq -sc 'map(.kinds)' <<<"$output")" = '[["any","toml"],["any","ini"]]' ]
@@ -132,7 +132,7 @@ setup() {
 }
 
 @test "a style the repository takes is printed after the rule, and the hook asks for each to be read" {
-  "${kit_checkout}/bin/kit" package add style/bash >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages add style/bash >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" context lib/run.sh
   [ "${lines[0]}" = ".kit/rules/bash.md" ]
   [ "${lines[1]}" = ".kit/styles/bash.md" ]
@@ -163,7 +163,7 @@ setup() {
   printf -- '---\r\n# configuration\r\nname: "toml"\r\npaths: ["**/*.toml", "**/*.tml"] # both spellings\r\n---\r\nname: ini\r\npaths:\r\n  - "**/*.ini" # windows\r\n---\r\n' \
     > .kit/packages/conf/files/repo/.kit/kinds/config.yml
   printf -- '---\r\nkind: [toml, ini]\r\n---\r\n# Configuration\r\n' > .kit/packages/conf/files/repo/.kit/rules/config.md
-  run "${kit_checkout}/bin/kit" package add conf
+  run "${kit_checkout}/bin/kit" packages add conf
   [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" context --json Cargo.toml build.tml setup.ini
   [ "$status" -eq 0 ]
@@ -172,6 +172,20 @@ setup() {
   run "${kit_checkout}/bin/kit" kinds --json toml ini
   [ "$status" -eq 0 ]
   [ "$(jq -sc 'map([.name, .paths])' <<<"$output")" = '[["ini",["**/*.ini"]],["toml",["**/*.toml","**/*.tml"]]]' ]
+}
+
+@test "a repository with no kinds at all governs nothing: kit context prints nothing and exits 0, as does the hook" {
+  fresh-repo bare >/dev/null
+  run "${kit_checkout}/bin/kit" context foo.sh
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run "${kit_checkout}/bin/kit" context --json foo.sh
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.kinds, .rules]' <<<"$output")" = '[[],[]]' ]
+  input='{"session_id":"s1","tool_name":"Write","tool_input":{"file_path":"foo.sh"}}'
+  run "${kit_checkout}/bin/kit" context --claude <<<"${input}"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

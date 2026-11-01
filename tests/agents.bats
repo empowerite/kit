@@ -88,7 +88,7 @@ claude-prefixes() {
   [ "$(jq --raw-output '.ui.theme' .gemini/settings.json)" = 'Dark' ]
   run kit check
   [ "$status" -eq 0 ]
-  run kit package remove agents/gemini
+  run kit packages remove agents/gemini
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output '.context.fileName' .gemini/settings.json)" = '["TEAM.md"]' ]
   [ "$(jq --compact-output '.tools.exclude' .gemini/settings.json)" = '["run_shell_command(rm -rf)"]' ]
@@ -109,7 +109,7 @@ claude-prefixes() {
   jq --exit-status '.mcpServers == {ours: {command: "ours"}, kit: {command: "kit", args: ["serve"]}}' .mcp.json
   run kit check
   [ "$status" -eq 0 ]
-  run kit package add agents/cursor agents/copilot agents/gemini
+  run kit packages add agents/cursor agents/copilot agents/gemini
   [ "$status" -eq 0 ]
   [[ "$output" != *".mcp.json: Claude Code asks"* ]]
   [[ "$output" == *".cursor/mcp.json: Cursor starts the kit server"* ]]
@@ -118,7 +118,7 @@ claude-prefixes() {
   jq --exit-status '.mcpServers.kit == {type: "stdio", command: "kit", args: ["serve"]}' .cursor/mcp.json
   jq --exit-status '.servers.kit == {type: "stdio", command: "kit", args: ["serve"]}' .vscode/mcp.json
   jq --exit-status '.mcpServers.kit == {command: "kit", args: ["serve"]}' .gemini/settings.json
-  run kit package remove agents/claude
+  run kit packages remove agents/claude
   [ "$status" -eq 0 ]
   jq --exit-status '.mcpServers == {ours: {command: "ours"}}' .mcp.json
 }

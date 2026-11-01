@@ -1,6 +1,6 @@
 ---
 # kit:generated -- the just style, from the style/just package
-# see: kit package remove style/just, or "Changing what kit adds" in .kit/1st.md
+# see: kit packages remove style/just, or "Changing what kit adds" in .kit/1st.md
 kind:
   - just
 templates:

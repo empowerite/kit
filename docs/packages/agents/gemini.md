@@ -19,7 +19,7 @@ uses it. Rules are not mirrored: Gemini reaches the rules table in `.kit/1st.md`
 
 It also merges `mcpServers.kit`, the kit's MCP server, `kit serve`; see [docs/serve.md](../../serve.md).
 
-`kit check` holds the entries to the release, and `kit package remove agents/gemini` takes them out,
+`kit check` holds the entries to the release, and `kit packages remove agents/gemini` takes them out,
 leaving the repository's own.
 
 Verified on 2026-10-30 against Gemini CLI's [settings schema][gemini-schema], its

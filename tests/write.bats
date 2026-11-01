@@ -31,7 +31,7 @@ setup() {
   mkdir -p .gemini
   printf '{"ui": {"theme": "Dark"},}\n' > .gemini/settings.json
   before=$(cat .gemini/settings.json)
-  run "${kit_checkout}/bin/kit" package add agents/gemini
+  run "${kit_checkout}/bin/kit" packages add agents/gemini
   [ "$status" -eq 1 ]
   [[ "$output" == *".gemini/settings.json: not JSON jq can read"* ]]
   [ "$(cat .gemini/settings.json)" = "${before}" ]
@@ -42,7 +42,7 @@ setup() {
 @test "the declaration keeps every item after a comment or a blank line inside its block, and the repository's comments after it" {
   mkdir .kit
   printf 'version: unreleased\npackages:\n  - kit\n  - style/bash\n# markdown is next\n  - style/markdown\n\n  - style/json\nexcludes:\n  - style/yaml\n\n# the gate\ngate: bin/ci\n' > kit.yml
-  run "${kit_checkout}/bin/kit" package add hooks/lefthook
+  run "${kit_checkout}/bin/kit" packages add hooks/lefthook
   [ "$status" -eq 0 ]
   expected='version: unreleased|packages:|  - kit|  - hooks/lefthook|  - style/bash|  - style/json|  - style/markdown|excludes:|  - style/yaml||# the gate|gate: bin/ci'
   [ "$(paste -s -d '|' - < kit.yml)" = "${expected}" ]

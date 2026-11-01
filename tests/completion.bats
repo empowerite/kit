@@ -31,14 +31,14 @@ candidates() {
 }
 
 @test "the literal words come first, then the values a verb lists for its operand" {
-  [ "$(candidates package '')" = $'add\nremove\nselect' ]
-  run candidates package add ''
+  [ "$(candidates packages '')" = $'add\nremove\nselect' ]
+  run candidates packages add ''
   [[ "$output" == *"agents/claude"* && "$output" == *"style/bash"* ]]
-  [ "$(candidates help '' | head -n 1)" = backlog ]
+  [ "$(candidates help '' | head -n 1)" = check ]
 }
 
 @test "an option's value comes from its choices, after --name= or apart, and a path asks for the files" {
-  "${kit_checkout}/bin/kit" package add style/bash style/markdown >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages add style/bash style/markdown >/dev/null 2>&1
   run candidates new file x --rule=
   [[ "$output" == *"--rule=bash"* && "$output" == *"--rule=markdown"* ]]
   [ "$(candidates commit --file '')" = ':files' ]

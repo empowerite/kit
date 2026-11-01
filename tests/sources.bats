@@ -22,7 +22,7 @@ source-tarball() {
   local dir="${BATS_TEST_TMPDIR}/src-$1" digest
   mkdir -p "${dir}/top/packages/$2/files/repo/.kit/notes" "${dir}/top/bash"
   printf 'description: "the %s package from %s"\ndepends:\n  - kit\n' "$2" "$1" > "${dir}/top/packages/$2/package.yml"
-  printf '%s\n' "# kit:generated -- a note, from the $2 package" "# see: kit package remove $2" '' "$3" \
+  printf '%s\n' "# kit:generated -- a note, from the $2 package" "# see: kit packages remove $2" '' "$3" \
     > "${dir}/top/packages/$2/files/repo/.kit/notes/$3.md"
   printf '%s:hello() { printf "hello from %s\\n"; }\n' "$1" "$1" > "${dir}/top/bash/$1.sh"
   tar --create --gzip --file "${dir}/source.tar.gz" --directory "${dir}" top
@@ -34,7 +34,7 @@ source-tarball() {
   IFS=$'\t' read -r file digest < <(source-tarball team guides first)
   printf 'sources:\n  - name: team\n    url: file://%s\n    digest: %s\nbash_path:\n  - kit:modules/bash/\n  - team:bash\n' \
     "${file}" "${digest}" >> kit.yml
-  run kit package add guides
+  run kit packages add guides
   [ "$status" -eq 0 ]
   [ -f .kit/notes/first.md ]
   run kit packages guides
@@ -48,7 +48,7 @@ source-tarball() {
 @test "a source whose bytes have another digest is refused before anything of it is read" {
   IFS=$'\t' read -r file _ < <(source-tarball team guides first)
   printf 'sources:\n  - name: team\n    url: file://%s\n    digest: sha256:%064d\n' "${file}" 0 >> kit.yml
-  run kit package add guides
+  run kit packages add guides
   [ "$status" -ne 0 ]
   [[ "$output" == *"the source team has digest sha256:"*", not the sha256:0000"* ]]
   [ ! -e "${XDG_CACHE_HOME}/kit/sources" ] || [ -z "$(ls "${XDG_CACHE_HOME}/kit/sources")" ]
@@ -63,7 +63,7 @@ source-tarball() {
   IFS=$'\t' read -r two two_digest < <(source-tarball two guides second)
   printf 'sources:\n  - name: one\n    url: file://%s\n    digest: %s\n  - name: two\n    url: file://%s\n    digest: %s\n' \
     "${one}" "${one_digest}" "${two}" "${two_digest}" >> kit.yml
-  run kit package add guides
+  run kit packages add guides
   [ "$status" -eq 0 ]
   [ -f .kit/notes/second.md ]
   [ ! -e .kit/notes/first.md ]
