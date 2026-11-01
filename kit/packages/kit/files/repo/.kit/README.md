@@ -4,8 +4,8 @@
 
 `.kit/` is where [empowerite/kit](https://github.com/empowerite/kit) keeps what it brings to this repository: the
 rules and styles that agents and linters hold files to, the templates new files are made from, and the repository's
-own packages. Which release and which packages the repository takes is declared in `kit.yml` at the root. This page
-is for the person at the desk. Agents read [1st.md](1st.md) instead, and `AGENTS.md` at the root sends them there.
+own packages. `kit.yml` at the root declares which release and which packages the repository takes. This page is
+for the person at the desk. Agents read [1st.md](1st.md) instead, and `AGENTS.md` at the root sends them there.
 
 ## What git tracks here
 
@@ -28,7 +28,7 @@ names every placed file, so git never sees one. Each placed file is one of:
 edited. It and `.gitignore` are kit's too, and have no write bit either.
 
 A fresh clone or worktree has none of these until something runs `kit hydrate`. Every kit command that reads a
-rule runs it first, `kit issue` runs it in the worktree it makes, and a `mise.toml` with the kit's `enter` hook runs
+rule runs it first. `kit issue` runs it in the worktree it makes, and a `mise.toml` with the kit's `enter` hook runs
 it on `cd`. A file deleted, a link an editor's save replaced, or a copy given its write bit back is set right the
 same way.
 
@@ -57,7 +57,7 @@ set it under `answers:` in `kit.yml` at the root. The steps are in [1st.md](1st.
 inside its files, such as the bash in a justfile. `rules/` holds one rule per kind: what the kit holds a file of
 that kind to, and the linter that checks it. `styles/` holds the styles the repository takes, one per kind, and
 `templates/` the shapes `kit new file` makes a file from. A rule or a style names the kinds it governs in its
-frontmatter, and `kit context <path>` prints the ones that match, which is how an agent, a hook, and `kit lint`
-all find the same rules for the same file.
+frontmatter, and `kit context <path>` prints the ones that match. That is how an agent, a hook, and `kit lint` all
+find the same rules for the same file.
 
 How the kit works, and how to install it, is in the kit's own README, at the link above.

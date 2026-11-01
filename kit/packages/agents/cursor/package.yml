@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md, docs/packages/agents/cursor.md
 
-description: "Cursor: a rule per kind under .cursor/rules/, attached by the kit rule's paths, and the kit's MCP server"
+description: "Cursor: a rule under .cursor/rules/ per kit rule, and the kit's MCP server"
 depends:
   - kit
   - agents/generic

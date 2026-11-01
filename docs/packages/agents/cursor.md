@@ -12,10 +12,10 @@ Each `.cursor/rules/kit-<kind>.mdc` is a short rule with the frontmatter Cursor 
   attach.
 - `alwaysApply: false`, so the rule attaches by its globs
 
-The body does not repeat the rule. It tells the agent to read `@.kit/rules/<kind>.md` and follow it, which is what
-`kit context` tells Claude Code, so one rule text under `.kit/rules/` governs every harness and a mirror cannot drift
-from it. A mirror says less than `kit context`: a rule that governs a file by its content, such as a bash script
-with no suffix, cannot be a glob, so the body names `kit context <path>` for those.
+The body does not repeat the rule. It tells the agent to read `@.kit/rules/<kind>.md` and follow it, as
+`kit context` tells Claude Code. So one rule text under `.kit/rules/` governs every harness, and a mirror cannot
+drift from it. A mirror says less than `kit context`: a rule that governs a file by its content, such as a bash
+script with no suffix, cannot be a glob. The body names `kit context <path>` for those.
 
 The package also merges `mcpServers.kit` into `.cursor/mcp.json`, with `type: stdio`: the kit's MCP server,
 `kit serve`; see [docs/serve.md](../../serve.md). Cursor asks before it runs each of the server's tools unless the

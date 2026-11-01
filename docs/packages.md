@@ -10,10 +10,9 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 - `kit packages` lists every package in reach, which are active, and which are excluded, filtered by state with
   `--active` or `--inactive`, by name or glob, and as JSON with `--json`.
 - `kit packages add <package>…` activates more packages, placing only the paths the new set adds to the old one.
-- `kit packages select <package>…` names the active set itself: the named packages, the packages they depend on,
-  and the members they include become the set, and nothing else stays. It removes what the set omits, adds what it
-  lacks, says which active package it kept for another's sake, and changes nothing when the set is already so. kit
-  tui's package view runs it.
+- `kit packages select <package>…` makes exactly these packages, plus what they depend on and include, the active
+  set. It adds what is missing, removes the rest, and says what it kept for another package's sake. kit tui's
+  package view runs it.
 - A glob names every package it matches, in `kit install`, `kit packages add`, and `kit packages remove`:
   `kit packages add 'style/*'`. A glob that matches nothing is refused.
 - `kit packages remove <package>…` deactivates packages. It removes the paths only the removed packages delivered,
@@ -56,8 +55,8 @@ else in the package's directory. The base sets where a file lands:
 - `KIT_HOME` replaces the home directory. The tests use it to stay out of the real one.
 
 Every file a package delivers under `.kit/` opens with two lines in its own comment syntax, after a frontmatter's
-opening `---` where it has one: what the file is and which package it comes from, then how to stop using it or
-replace it.
+opening `---` where it has one. The first says what the file is and which package it comes from. The second says
+how to stop using it or replace it.
 
 ```yaml
 # kit:generated -- the bash kind, from the kit package
@@ -70,9 +69,8 @@ delivered file without them.
 
 ## Metadata
 
-`package.yml`, a rule's frontmatter, and `kit.yml` all use the small subset of YAML that
-`kit/modules/bash/yaml.sh` reads: scalars, lists of `- item`, one level of map, and lists of records. A line
-starting with `#` is a comment.
+`package.yml`, a rule's frontmatter, and `kit.yml` are YAML, read through `yq` 4 by `kit/modules/bash/yaml.sh`;
+see [modules.md](modules.md#yaml).
 
 ```yaml
 description: "One GitHub Actions job that runs kit ci"
@@ -117,11 +115,10 @@ Each kind of source file is placed differently:
 - A destination ending in `.json` is merged by key, except a schema (`*.schema.json`). The kit sets its keys and
   adds its array entries. On update or removal it takes out only the previous release's entries, so the
   repository's own keys and entries stay.
-- Every other destination under `.kit/` is materialized: a link to its source when the source is inside the
-  worktree, as the repository's own packages and this repository's own release are, and otherwise a copy without
-  the write bit. `.kit/.gitignore`, which kit writes, names each one, so git never sees them; it and `.kit/manifest`
-  have no write bit either. `kit hydrate` brings them to that state from the declaration, and every verb that reads a
-  delivered file does the same first.
+- Every other destination under `.kit/` is a link to its source when the source is inside the worktree, as the
+  repository's own packages are, and otherwise a copy without the write bit. `.kit/.gitignore`, which kit writes,
+  names each one, so git never sees them; it and `.kit/manifest` have no write bit either. `kit hydrate` brings them
+  to that state from the declaration, and every verb that reads a delivered file does the same first.
 - Every other destination outside `.kit/` is a copy.
 - Where two active packages deliver the same path, the later package in dependency order wins.
 
@@ -211,9 +208,10 @@ gives `AGENTS.md` its title, a blank line, the region, then the repository's own
 With a host template, the block is placed like this instead:
 
 - The file does not exist: the host template is made, each hole at its default, and the region is filled.
-- The file exists without the directive: the block goes where the host template puts it, after the fewest of the
-  file's first lines that match the template's part before the region, with a blank line on either side. When no
-  run of first lines matches, the kit refuses, names the package, and asks for the directive where it belongs.
+- The file exists without the directive: the block goes where the host template puts it, with a blank line on
+  either side. That is after the fewest of the file's first lines that match the template's part before the
+  region. When no run of first lines matches, the kit refuses, names the package, and asks for the directive where
+  it belongs.
 - `kit check` also holds the file to the host template, and names the line where it leaves it.
 
 After that:
@@ -266,7 +264,7 @@ answers:
 | `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
-| `linked_exempt` | Logins whose changes `kit linked` passes without a linked issue, and `kit policy` passes without checking the branch, the commits, or the title, each saying so by name: a bot such as `dependabot[bot]`, whose changes have no issue and never will. One login per line under the key. |
+| `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `toolchains` | The tool managers that put the gate's tools on `PATH`: `mise`, `brew`, or `docker`; see [toolchains.md](toolchains.md). |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
@@ -276,14 +274,14 @@ answers:
 | `status` | The stages `kit status` draws, in order: `backlog`, `incoming`, `worktrees`, `changes`, `releases`. A stage left out is not drawn; `kit status <stage>` still prints it. Default: all five, in that order. |
 
 A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or a toolchain, takes one of the kit's
-providers, or one the repository adds on its bash module path: `forge: bitbucket` with a
+providers. It also takes one the repository adds on its bash module path: `forge: bitbucket` with a
 `modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Sources
 
 A repository takes packages from the kit's release, from its own `.kit/packages/`, and from the sources it names
-under `sources:` in `kit.yml`: an organization's rules, such as its own bundle, published once and taken by
-every repository, the base always a release and never a copy.
+under `sources:` in `kit.yml`. A source is an organization's rules, such as its own bundle: published once, taken by
+every repository, always a release and never a copy.
 
 ```yaml
 sources:
@@ -306,7 +304,7 @@ sources:
   `empowerite` as the release carries the kit's.
 
 A file a source delivers is held to the source by `kit check`, like any other. `kit update` takes the source as the
-pin names it; a file outside `.kit/` that came from a source and was edited keeps the edit, since the kit keeps no
+pin names it. A file outside `.kit/` that came from a source and was edited keeps the edit, since the kit keeps no
 earlier copy of a source to merge against.
 
 ## Packages a repository defines
@@ -330,7 +328,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | Package | Default | Depends on | Delivers |
 | --- | --- | --- | --- |
 | [`kit`](packages/kit.md) | yes | | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/<kind>.yml`, `.kit/rules/<kind>.md`, `.kit/kit.schema.json`; a region in `.gitignore` |
-| [`workflow`](packages/workflow.md) | no | `kit` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract |
+| [`workflow`](packages/workflow.md) | no | `kit` | `.kit/workflow.md`: the workflow from an issue to a merged pull request, plans as prose, and the worker contract |
 | [`style/bash`](packages/style.md) | no | `kit` | `.kit/styles/bash.md` and the `script` and `module` templates |
 | [`style/markdown`](packages/style.md) | no | `kit` | `.kit/styles/markdown.md`, its four templates, and `.kit/markdownlint.jsonc`, the settings of its linter |
 | [`style/just`](packages/style.md) | no | `kit` | `.kit/styles/just.md` and the `root` and `module` templates |

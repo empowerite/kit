@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/workflow.md
 
-description: "The workflow from an issue to a merged change: a worktree per issue, a draft pull request, and the worker contract"
+description: "The workflow from an issue to a merged pull request, and the worker contract"
 depends:
   - kit

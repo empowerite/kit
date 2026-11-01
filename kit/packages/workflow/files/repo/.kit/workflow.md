@@ -1,12 +1,12 @@
-<!-- kit:generated -- the workflow from an issue to a merged change, from the workflow package -->
+<!-- kit:generated -- the workflow from an issue to a merged pull request, from the workflow package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # The workflow
 
-This file is the kit's workflow: how work moves from an issue to a merged change. Every agent follows it in every
-session, in any repository whose `.kit/` directory holds it, after [1st.md](1st.md), the entry file. The repository's
-own rules in `AGENTS.md` apply as well. Where the two differ, `AGENTS.md` wins.
+This file is the kit's workflow: how work moves from an issue to a merged pull request. Every agent follows it in
+every session, in any repository whose `.kit/` directory holds it, after [1st.md](1st.md), the entry file. The
+repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGENTS.md` wins.
 
-## From an issue to a merged change
+## From an issue to a merged pull request
 
 1. Start from an issue. A change without an issue has not started.
 2. `kit issue <N>` creates the following, and never switches the checkout you run it from:
@@ -16,8 +16,8 @@ own rules in `AGENTS.md` apply as well. Where the two differ, `AGENTS.md` wins.
    - a draft pull request
 3. Work in that worktree. Commit with `kit commit`, with the subject `#<N> <area>: <subject>`; it supplies `#<N>`
    from the branch when the subject lacks it. The policy holds the reference; the `<area>:` is the convention.
-   `kit commit` warns when a commit is unsigned and `kit.yml` sets `require_signing`. Push with `kit submit`. Run
-   `kit rebase` to bring the branch up to date with the default branch and push it.
+   `kit commit` warns when commits here are not signed. Push with `kit submit`. Run `kit rebase` to bring the
+   branch up to date with the default branch and push it.
 4. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
    on GitLab. The pull request body is the report. It states:
    - what changed

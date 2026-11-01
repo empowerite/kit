@@ -25,8 +25,8 @@ alone:
 
 The package merges one more entry, `mcpServers.kit`, into `.mcp.json`: the kit's MCP server, `kit serve`, which
 offers the read-only verbs as tools and the rules as resources; see [docs/serve.md](../../serve.md). Claude Code
-asks once, at the start of the next session, whether to use a project's servers, and the kit says so when it places
-the entry. The hook stays: it fires before every edit, while a tool fires only when the agent calls it.
+asks once, at the start of the next session, whether to use a project's servers. The kit says so when it places the
+entry. The hook stays: it fires before every edit, while a tool fires only when the agent calls it.
 
 `.claude/rules/` belongs to the repository. `AGENTS.md` contains no `@` import for Claude Code, because every
 harness reads `AGENTS.md`.

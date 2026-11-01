@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "Claude Code: denies the git commands .kit/1st.md forbids, names a file's rules, and registers the kit's MCP server"
+description: "Claude Code: the deny list, a hook that names a file's rules, and the kit's MCP server"
 depends:
   - kit
   - agents/generic

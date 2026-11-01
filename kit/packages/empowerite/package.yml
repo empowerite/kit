@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/empowerite.md
 
-description: "What Empowerite's repositories take: every style package, GitHub Actions CI, Claude Code, lefthook, and the workflow"
+description: "Empowerite's bundle: the styles, the CI job, Claude Code, lefthook, and the workflow"
 depends:
   - kit
 includes:

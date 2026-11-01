@@ -2,5 +2,5 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "The entry every agent reads, the rules by file kind, and the context call that names them"
+description: "The entry every agent reads, the kinds of file, and the rules by kind"
 default: true

@@ -33,7 +33,7 @@ setup() {
   run "${kit_checkout}/bin/kit" install workflow
   [ "$status" -eq 0 ]
   [ -f .kit/workflow.md ]
-  [ "$(head -n 1 .kit/workflow.md)" = '<!-- kit:generated -- the workflow from an issue to a merged change, from the workflow package -->' ]
+  [ "$(head -n 1 .kit/workflow.md)" = '<!-- kit:generated -- the workflow from an issue to a merged pull request, from the workflow package -->' ]
   grep --quiet '^## The worker contract$' .kit/workflow.md
   grep --quiet '^## Plans are prose$' .kit/workflow.md
   grep --quiet 'what was left out, and why' .kit/workflow.md

@@ -4,12 +4,12 @@ Adapts the kit for Gemini CLI. Gemini CLI reads `GEMINI.md`, not `AGENTS.md`, un
 and it has no rule file loaded by path. So the package merges two entries into `.gemini/settings.json`, by key, and
 leaves the repository's own entries alone:
 
-- `context.fileName`: `GEMINI.md` and `AGENTS.md`, added to whatever list the repository has, so Gemini reads what
-  every other agent reads and still reads a `GEMINI.md` the repository may keep.
+- `context.fileName`: `GEMINI.md` and `AGENTS.md`, added to whatever list the repository has. So Gemini reads what
+  every other agent reads, and still reads a `GEMINI.md` the repository may keep.
 - `tools.exclude`: the git commands `.kit/1st.md` forbids an agent, as `run_shell_command(<command>)` entries, the
   same commands as the `agents/claude` deny list. Gemini matches a shell command by prefix and checks the exclusions
-  first, so `run_shell_command(git push)` refuses `git push --force` as well, and a chained command is split and
-  each part checked.
+  first, so `run_shell_command(git push)` refuses `git push --force` as well. A chained command is split and each
+  part checked.
 
 Gemini's documentation marks `tools.exclude` as deprecated in favor of its policy engine, whose rules are TOML files.
 Only that engine's user tier works today: its workspace tier, which would let a repository commit policies, is

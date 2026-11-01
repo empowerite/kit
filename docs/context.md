@@ -41,17 +41,16 @@ embeds:
 | `kinds:` | Kinds this kind is made of: a path of any of them is of this kind too. |
 
 `kit kinds <path>…` prints the kinds each path is of, and `--json` prints them as one object per path. The kinds
-are compiled into one awk program the first time they are asked about after a change, kept in the repository's git
-directory under `kit/`, and every path is classified in one process: `kit kinds` over every tracked file of this
-repository takes a fraction of a second. `kit context`, `kit lint`, and `kit new` classify through the same
-program, so they cannot disagree about a file.
+are compiled into one awk program, once per change, kept in the repository's git directory under `kit/`. Every path
+is classified in one process: `kit kinds` over every tracked file of this repository takes a fraction of a second.
+`kit context`, `kit lint`, and `kit new` classify through the same program, so they cannot disagree about a file.
 
 A kinds file holds one kind, or several as a YAML stream: one document per kind, separated by `---` lines. Two
 kinds with the same name, in one file or in two, are refused, and so is a document without a name.
 
 A path is of every kind whose glob or pattern matches it. A workflow is of kind `yaml` and of kind `workflows`,
 and every path is of kind `any`, whose one glob matches everything. A kind made of others under `kinds:` gathers
-them: `text` lists every kind the kit defines that holds prose, plus `**/*.txt`, so the prose style, which governs
+them. `text` lists every kind the kit defines that holds prose, plus `**/*.txt`, so the prose style, which governs
 `text`, applies to each of them and to no binary file.
 
 - In a glob, `**` matches any depth, and a lone `*` also crosses directories. So `**/*.sh` and `*.sh` both match
@@ -95,9 +94,9 @@ the same classification.
 The kit package delivers the kinds its rules and styles name, one file each, named for its kind. `kit kinds` lists
 every kind with the file that defines it and what makes a path of it. A repository adds a kind by delivering a kinds
 file from a package of its own, with a rule that names it. `kit new kind <name> --path=<glob>` writes one into the
-repository's own package, makes the package when there is none, and places the kind when the package is active. It
-widens a delivered kind, say with one more suffix under `markdown`, by delivering a file at the same path from a
-package that depends on `kit`: the later package in dependency order wins, as it does for any delivered file.
+repository's own package, makes the package when there is none, and places the kind when the package is active. To
+widen a delivered kind, say with one more suffix under `markdown`, deliver a file at the same path from a package
+that depends on `kit`. The later package in dependency order wins, as it does for any delivered file.
 
 [templates.md](templates.md) describes templates, `kit new file` (which makes a file from one), and the shape check
 `kit lint` runs against them.
@@ -131,7 +130,7 @@ A harness that speaks the Model Context Protocol also has `context` as a tool of
 lists it as the step before creating or changing any file.
 
 Cursor and GitHub Copilot have no hook, but a rule file loaded by path. The `agents/cursor` and `agents/copilot`
-packages deliver one per kit rule, attached by its kind's `paths`, whose body sends the agent to `.kit/rules/<kind>.md`,
-so the agent reads the rule itself there too. A rule file says less than `kit context`, which also matches a file by
-its content, such as a bash script with no suffix, and follows what a kind embeds; the body names
-`kit context <path>` for those.
+packages deliver one per kit rule, attached by its kind's `paths`. Its body sends the agent to `.kit/rules/<kind>.md`,
+so the agent reads the rule itself there too. A rule file says less than `kit context`: it cannot match a file by its
+content, such as a bash script with no suffix, or follow what a kind embeds. The body names `kit context <path>` for
+those.

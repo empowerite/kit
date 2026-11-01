@@ -8,30 +8,31 @@ agents to them, as a versioned release any repository can take and keep taking.
 
 What kit checks:
 
-- `kit ci` runs four checks, the gate, `kit check`, `kit linked`, and `kit policy`, and refuses a pull request when:
-  - the repository's gate fails, or it has none,
-  - a delivered file differs from the release, or a generated region from the output of its command,
-  - it is not linked to an open issue, or
-  - its branch name, commit subjects, or title break the repository's naming policy.
+- `kit ci` runs four checks and refuses a pull request when any fails:
+  - `kit gate`: the repository's own gate fails, or it has none
+  - `kit check`: a delivered file differs from the release, or a generated region from its command's output
+  - `kit linked`: the pull request is not linked to an open issue
+  - `kit policy`: the branch name, a commit subject, or the title breaks the naming policy
 
-  It runs in the delivered GitHub Actions job or in any other pipeline.
-- `kit check` fails when a delivered file differs from the release, or a generated region differs from the output
-  of its command.
-- `kit lint` runs each rule's linter, and the kit's own checks, over the files the rule governs, before a commit or
-  at any time. One check refuses a workflow action that is not pinned to a full commit SHA.
+  The delivered GitHub Actions job runs it. Any other pipeline can.
+- `kit lint` runs each rule's linter, and the kit's own checks, over the files the rule governs. One of those checks
+  refuses a workflow action not pinned to a full commit SHA.
 
 What else kit provides:
 
-- `.kit/1st.md`, the file every agent reads first, and the rules, one file for each kind of file that has one.
-  Style, how a file looks, is optional: a style package per kind of file.
+- `.kit/1st.md`, the file every agent reads first, and a rule file for each kind of file that has one. Style, how a
+  file looks, is optional: one style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
-- `kit toolchains`, which lists the toolchains, installs and updates the gate's tools (mise, Homebrew, or a container
-  image), and runs the gate with them.
-- `kit status`, which shows every open pull request and the result of its checks.
-- Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks;
-  the Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
+- `kit toolchains`, which installs and updates the gate's tools, whether mise, Homebrew, or a container image
+  manages them, and runs commands with them.
+- `kit status`, which draws where the work stands in five stages: backlog, incoming, worktrees, changes, releases.
+- Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.
+  The Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
   such as `git rebase`.
-- A rule that agents never change the desk: the root checkout on your machine, on whatever branch it currently has.
+- A rule that agents never change the desk: the root checkout on your machine, on whatever branch it has.
+
+CI, through `kit ci`, is the only enforcement every harness feels. An adapter's deny list and hooks stop an agent
+only in that harness.
 
 A repository keeps its own rules next to the delivered ones. The design is in
 [#1](https://github.com/empowerite/kit/issues/1) and [#4](https://github.com/empowerite/kit/issues/4).
@@ -44,14 +45,14 @@ A copied file drifts. A release does not:
 - It is updated by a pull request that bumps the version, so every repository gets the change the same way.
 - It is checked: `kit check` fails the build when someone edits a delivered file in place.
 
-A repository's own rules live in its own files, and updates leave them alone. To change a file the kit adds, a
-repository removes the package that adds it, or replaces the file through a package of its own; `.kit/1st.md` says
-how, under "Changing what kit adds".
+A repository's own rules live in its own files, and updates leave them alone. To change a file the kit adds, remove
+the package that adds it, or replace the file through a package of your own. `.kit/1st.md` says how, under
+"Changing what kit adds".
 
 ## Install
 
-A release is a tarball containing `bin/`, `modules/`, `packages/`, `libexec/`, which holds the `kittui` binaries
-`kit tui` runs, and a `version` file. Install it the same way the repository installs its other tools.
+A release is a tarball: `bin/`, `modules/`, `packages/`, `libexec/` with the `kittui` binaries `kit tui` runs, and a
+`version` file. Install it the way the repository installs its other tools.
 
 With mise, pin it in `mise.toml`:
 
@@ -66,7 +67,7 @@ With Homebrew:
 brew install empowerite/tap/kit
 ```
 
-By hand, with `gh`. This downloads the latest release, never a pre-release. For a specific version, run
+By hand, with `gh`. This downloads the latest release, never a pre-release; for one version, run
 `gh release download "release/${version}" ...` instead. Unpack it and put its `bin/` on `PATH`:
 
 ```sh
@@ -78,57 +79,70 @@ export PATH="${PWD}/kit/bin:${PATH}"
 Requirements:
 
 - bash 4.4 or later. macOS ships bash 3.2; run `brew install bash`.
-- git; `jq` 1.7 or later, which every verb reads its arguments through; `yq` 4 by mikefarah, which reads
-  `kit.yml` and every other YAML file, and which GitHub's hosted runners have preinstalled, as they have `jq`;
-  and `curl`, which `kit update` uses to fetch the release it updates from, checked against the `.sha256`
-  published beside it before anything in it is read.
-- For `kit issue`, `kit status`, `kit tidy`, and `kit linked`: the command-line tool of the forge, the service that
-  hosts the repository. That is `gh` for GitHub or `glab` for GitLab.
+- git.
+- `jq` 1.7 or later: every verb reads its arguments through it.
+- `yq` 4, mikefarah's: it reads `kit.yml` and every other YAML file. GitHub's hosted runners have `jq` and `yq`
+  preinstalled.
+- `curl`: `kit update` fetches the release through it, and checks the bytes against the `.sha256` published beside
+  it before reading anything in it.
+- The linters the delivered rules and styles run. `kit lint` fails, not skips, when a linter it needs is missing,
+  so a team's first commit needs them:
+  - `shellcheck`, which the bash rule runs
+  - `actionlint`, which the workflows rule runs
+  - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
+- For `kit issue`, `kit status`, `kit tidy`, and `kit linked`: the forge's command-line tool, `gh` for GitHub or
+  `glab` for GitLab. The forge is the service that hosts the repository.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
+
+kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
 
 With mise, an exact version pin installs as soon as a release exists. A range pin waits one day after a release
 unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite/kit"]`.
 
+Then check the install: `kit version` prints the release, and `kit help` lists the verbs. Once a repository has
+taken the kit, `kit check` says every delivered file matches the release.
+
 ## Take the kit
 
-1. Run `kit install` with the packages you want. The `kit` package (the entry file and the rules) is always
-   installed. The optional packages are:
+1. Run `kit install` with the packages you want. The `kit` package, the entry file and the rules, is the default:
+   `kit install` with no names brings it, and `kit packages remove kit` takes it out. The optional packages are:
 
    | Package | Delivers |
    | --- | --- |
-   | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract |
+   | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged pull request, plans as prose, and the worker contract |
    | `github/ci` | the GitHub Actions workflow that runs `kit ci` |
    | `hooks/lefthook` | a pre-commit hook that runs `kit lint` and `kit generate --check` |
-   | `agents/generic` | for any agent that reads `AGENTS.md`: a region there, a heading and two sentences, that sends it to `.kit/1st.md` |
+   | `agents/generic` | for any agent that reads `AGENTS.md`: a region there that sends it to `.kit/1st.md` |
    | `agents/claude` | the Claude Code adapter |
    | `agents/cursor` | the Cursor adapter: one rule under `.cursor/rules/` per kit rule, attached by that rule's paths |
-   | `agents/copilot` | the GitHub Copilot adapter: one instruction file under `.github/instructions/` per kit rule, applied to the same paths |
+   | `agents/copilot` | the GitHub Copilot adapter: one instruction file under `.github/instructions/` per kit rule |
    | `agents/gemini` | the Gemini CLI adapter: `AGENTS.md` among its context files, and the deny list, in `.gemini/settings.json` |
    | `policy/opa` | the naming policy as Open Policy Agent rules |
    | `style/<kind>` | the style for one kind of file, with its templates: `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, `style/gitignore` |
    | `style/prose` | the style of prose in every text file, documents and comments alike |
    | `empowerite` | the bundle Empowerite's repositories take: every `style/<kind>`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` |
 
-   `kit install github/ci hooks/lefthook agents/claude` takes three of them, and a team on Cursor would name
-   `agents/cursor` beside them. `kit packages add` adds one later.
-   `kit install empowerite` takes the bundle, and a member of it can be removed on its own.
+   `kit install github/ci hooks/lefthook agents/claude` takes three of them; a team on Cursor adds `agents/cursor`.
+   `kit packages add` adds one later. `kit install empowerite` takes the bundle, and a member of it can be removed
+   on its own.
 
-   `install` adds `/worktrees/` to `.gitignore`, and every `agents/<harness>` package, through `agents/generic`,
-   writes a heading and two sentences into `AGENTS.md` telling every agent to read `.kit/1st.md`. Each sits in a
-   region that runs from a `kit:generate` line to a `kit:end` line. The rest of each file is yours. The
-   `.gitignore` region can sit anywhere in its file; the `AGENTS.md` and `.claude/CLAUDE.md` regions sit where the
-   package's host template puts them, which `kit check` holds them to. `kit generate` rewrites a region from its
-   command, and `kit check` fails when a region is out of date. Your own files can contain regions too; see [docs/generate.md](docs/generate.md).
-2. Commit what `install` wrote.
+   `kit install` adds `/worktrees/` to `.gitignore`. Every `agents/<harness>` package, through `agents/generic`,
+   writes a heading and two sentences into `AGENTS.md` that send every agent to `.kit/1st.md`. Each is a region: it
+   runs from a `kit:generate` line to a `kit:end` line, and the rest of the file is yours. The `.gitignore` region
+   can sit anywhere; the `AGENTS.md` and `.claude/CLAUDE.md` regions sit where their host template puts them.
+   `kit generate` rewrites a region from its command, and `kit check` fails when one is stale. Your own files can
+   hold regions too; see [docs/generate.md](docs/generate.md).
+2. Commit what `install` wrote. A person makes this commit by hand: `kit commit` refuses to run at the desk, and
+   the Claude Code and Gemini CLI adapters deny an agent `git commit`. Or start an issue with `kit issue`, which
+   sweeps the uncommitted work into the new worktree, and run `kit commit` there.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
    - any command, set as `gate` in `kit.yml`
    - a `ci` recipe in the root justfile
    - a `ci` target in a Makefile
    - a `ci` script in `package.json`
 
-   `kit ci` runs the gate together with `kit check`, `kit linked`, and `kit policy`, and fails when there is no gate.
-   The gate runs with the tools your toolchain manages; see [docs/toolchains.md](docs/toolchains.md). The naming
-   policy is described in [docs/policy.md](docs/policy.md).
+   `kit ci` fails when there is no gate. The gate runs with the tools your toolchain manages; see
+   [docs/toolchains.md](docs/toolchains.md). The naming policy is in [docs/policy.md](docs/policy.md).
 4. Run the linters before each commit. `kit lint` lints the staged files and needs no hook manager. To run it from
    lefthook instead:
    - pin `lefthook`,
@@ -139,13 +153,18 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
    With the `hooks/lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit
    never writes it for you.
 
-Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. The `agents/claude` package adds a region to
-`.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude always reads the same instructions as every other agent. The
-rest of `.claude/CLAUDE.md` is yours. Without it, `agents/generic` alone still gives any agent that reads
-`AGENTS.md` the rules.
+Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. So the `agents/claude` package adds a region to
+`.claude/CLAUDE.md` that imports `AGENTS.md`, and Claude reads what every other agent reads. The rest of
+`.claude/CLAUDE.md` is yours.
 
-`kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are installed.
-The package format is in [docs/packages.md](docs/packages.md).
+`kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are active. The
+package format is in [docs/packages.md](docs/packages.md).
+
+kit works with no package at all. The workflow verbs (`kit status`, `kit issue`, `kit commit`, `kit submit`,
+`kit rebase`, `kit tidy`, `kit release`) and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`)
+run in a repository that has none. What needs the `kit` package is its kinds, rules, and templates: without them,
+`kit context` names no rule, `kit kinds` lists none, `kit lint` governs no file, and `kit new file` refuses for want
+of a template.
 
 `kit completion zsh` prints the zsh completion, which completes the verbs, their flags, and the values they take,
 read from the verbs themselves; see [docs/completion.md](docs/completion.md).
@@ -154,9 +173,8 @@ read from the verbs themselves; see [docs/completion.md](docs/completion.md).
 
 - Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`
   package makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
-- `kit serve` offers the same verbs that change nothing, and the rules, to any agent over the Model Context
-  Protocol. Each `agents/<harness>` package registers it in its harness's MCP configuration; see
-  [docs/serve.md](docs/serve.md).
+- `kit serve` offers the same read-only verbs, and the rules, to any agent over the Model Context Protocol. Each
+  `agents/<harness>` package registers it with its harness; see [docs/serve.md](docs/serve.md).
 - `kit new file "${path}"` creates a file from its style's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
 
@@ -210,10 +228,10 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    issue reference first, and `<area>:` is this repository's convention.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
-   - `kit status` shows where the work stands, in five stages: the backlog, what the fetch brought, the worktrees,
-     the open pull requests with the issues each closes, and the releases. `kit status <stage>` prints one stage.
-   - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick; a verb you run without an
-     argument it needs opens the same form, so the arguments need not be remembered.
+   - `kit status` draws where the work stands in five stages: backlog, incoming, worktrees, changes, releases.
+     `kit status <stage>` prints one.
+   - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick. A verb run without an
+     argument it needs opens the same form.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
 5. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
    on GitLab. The pull request body is the report.
@@ -236,8 +254,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
 repository extends them.
 
 This repository installs its own kit. What kit places under `.kit/` is a link into the package that delivers it,
-live and ignored by git, so an edit through it is an edit of the source. The installed copies outside `.kit/` are
-written by `bin/refresh`, which runs `kit update` from the index. Do not edit those by hand:
+live and ignored by git: an edit through the link is an edit of the source. The installed copies outside `.kit/`
+are written by `bin/refresh`, which runs `kit update` from the index. Do not edit those by hand:
 
 | Installed copy | Written from |
 | --- | --- |

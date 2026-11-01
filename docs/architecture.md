@@ -16,9 +16,9 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
 - `modules/` holds the modules the verbs share, one directory per language: `modules/bash/`, loaded with `use`, and
   `modules/jq/`, imported by the jq programs they run; see [Bash modules](#bash-modules).
 - `packages/` holds everything a release delivers.
-- `libexec/` holds `kittui-<os>-<arch>`, the binary `kit tui` runs, built from this checkout's `tui/` for linux and
-  darwin on amd64 and arm64, so whatever installs the kit installs `kittui` at the same version. A checkout has no
-  `libexec/`; there `kit tui` builds `kittui` from `tui/` with Go, once for each change to its sources.
+- `libexec/` holds `kittui-<os>-<arch>`, the binary `kit tui` runs, for linux and darwin on amd64 and arm64. It is
+  built from this checkout's `tui/`, so whatever installs the kit installs `kittui` at the same version. A checkout
+  has no `libexec/`; there `kit tui` builds `kittui` from `tui/` with Go, once for each change to its sources.
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
 
@@ -139,25 +139,26 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit status changes` lists the open changes with the issues each closes, and `kit status backlog` the open issues
-no change closes, with the branch that claims one, so the next `kit issue <N>` is a pick, not a search.
+`kit status` draws where the work stands in five stages: backlog, incoming, worktrees, changes, releases. On a
+terminal the picture is interactive; without one, or with `--text`, it prints. `kit status <stage>` prints one
+stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick, not a search.
 
 ### Forges, seams, and providers
 
 A forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab. The word
-comes from SourceForge, which in 1999 became the first widely used site of this kind; GitLab, Gitea, and Forgejo still
-use it for the category. kit says forge rather than GitHub because the workflow runs on more than one.
+comes from SourceForge, the first widely used site of this kind, in 1999. GitLab, Gitea, and Forgejo still use it for
+the category. kit says forge rather than GitHub because the workflow runs on more than one.
 
-Four files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004), and
-he took it from tailoring: a seam is where two pieces of cloth are joined, and where a garment can be let out or taken
-in without recutting either piece. In code, a seam is a place where behavior can change without editing the code at
-that place. Every seam has an enabling point, the spot that decides which behavior runs.
+Four files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004). He
+took it from tailoring: a seam is where two pieces of cloth join, and where a garment is let out or taken in without
+recutting either piece. In code, a seam is a place where behavior can change without editing the code at that place.
+Every seam has an enabling point, the spot that decides which behavior runs.
 
 kit says seam rather than interface because seam is the more precise word for these files. An interface is only a
 contract: the calls a provider must answer. It says nothing about who picks the provider, or when. A seam is the
-contract plus its enabling point, and each of these files holds both. Its header lists the calls, and its code picks
-the provider at run time, from a setting or origin's host, by building the provider's function name from a string.
-Shell has no types, so there is no separate interface declaration to point at; the seam is the whole of what exists.
+contract plus its enabling point, and each of these files holds both. Its header lists the calls. Its code picks the
+provider at run time, from a setting or origin's host, by building the provider's function name from a string. Shell
+has no types, so there is no separate interface declaration to point at; the seam is the whole of what exists.
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
@@ -195,15 +196,6 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
 
 On a desk, `kit ci` passes only once the branch has a pull request. Before one exists, `kit linked` fails, and the
 other three, `kit gate`, `kit check`, and `kit policy`, run without one.
-
-`kit status` shows everything in flight:
-
-- what the last fetch brought in,
-- the desk and every worktree, with its uncommitted paths and its commits since the branch point,
-- every open pull request, with its state, age, and checks, and
-- the branches whose upstream is gone.
-
-It queries the forge in the background and draws the local checkouts while it waits.
 
 ## What verifies what
 

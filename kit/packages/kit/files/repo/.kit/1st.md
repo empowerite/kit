@@ -25,11 +25,11 @@ They type, review, and leave work in progress there. It usually has `main` check
 no worktree has checked out.
 
 An agent never checks out, resets, rebases, or otherwise changes the desk in place. An agent works in a worktree,
-which `kit issue` makes. Work reaches the default branch only through a merged change.
+which `kit issue` makes. Work reaches the default branch only through a merged pull request.
 
 ## The workflow
 
-How work moves from an issue to a merged change is the repository's to say. With the `workflow` package active,
+How work moves from an issue to a merged pull request is the repository's to say. With the `workflow` package active,
 `.kit/workflow.md` says it, and an agent follows it as it follows this file. Without it, `AGENTS.md` says it.
 
 ## Kit commands instead of git commands
@@ -53,10 +53,10 @@ These limits do not apply to the human at the desk.
 ## Rules by file type
 
 Each kind of file is defined under `.kit/kinds/`, by its `name:`: the path globs and first-line patterns that make a
-file of that kind, and the kinds found inside its files, such as the bash in a justfile's recipes. A kind may have a
-rule file under `.kit/rules/`; `any`, `text`, and `yaml` have none of their own. A rule says what the work must do to
-be trusted. A repository that takes a style package also has a style file for that kind under `.kit/styles/`, which
-says how the file looks. Rule files and style files have the same frontmatter, with these keys:
+file of that kind, and the kinds found inside its files, such as the bash in a justfile. A kind may have a rule file
+under `.kit/rules/`; `any`, `text`, and `yaml` have none of their own. A rule says what the work must do to be
+trusted. A style file under `.kit/styles/`, from a style package, says how the file looks. Rule files and style
+files have the same frontmatter, with these keys:
 
 | Key | Contains |
 | --- | --- |
@@ -67,16 +67,17 @@ says how the file looks. Rule files and style files have the same frontmatter, w
 
 A rule or style governs every file of a kind it names, and `kit kinds <path>` prints the kinds a file is of.
 `kit context` prints the rules of every kind a file is of, then the rules of the kinds those kinds embed, so a
-justfile brings the bash rule with it; `kit lint` does not follow them, so no linter runs over a file it cannot parse.
+justfile brings the bash rule with it. `kit lint` does not follow embeds, so no linter runs over a file it cannot
+parse.
 
 Before you change a file:
 
 1. Run `kit context <path>`. It prints the rules, then the style, that govern the file, and records that you asked.
 2. Read every file it prints.
 
-No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them. Where
-the harness has the kit's MCP server, `kit serve`, the same verbs are tools: `context`, `lint`, `check`, `status`,
-and the other verbs that change nothing, and the rules are resources, starting at `kit://1st.md`.
+No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them. Where the
+harness has the kit's MCP server, `kit serve`, the read-only verbs are tools, `context` and `lint` among them, and
+the rules are resources, starting at `kit://1st.md`.
 
 Where a template governs a new file, create it with `kit new file <path>`, giving the path from the repository
 root, and never write it from nothing. `kit new file`:
@@ -93,8 +94,8 @@ Two flags choose the template:
 
 `kit lint` fails any file, including one written by hand, whose shape matches none of its templates.
 
-`kit new` also makes what a repository extends the kit with, in a package or module directory of its own: a kind,
-a rule, a style, a template, a package, a bash module, and a seam's provider. `kit help new` lists them.
+`kit new` also makes a kind, a rule, a style, a template, a package, a bash module, or a seam's provider, in a
+package or module directory of the repository's own. `kit help new` lists them.
 
 | Kind | Rule |
 | --- | --- |
@@ -110,14 +111,14 @@ a rule, a style, a template, a package, a bash module, and a seam's provider. `k
 
 The repository commits the declaration, and every worktree holds the text:
 
-- `kit.yml`, whose `version:` and `packages:` declare the release and the active packages, committed
-- `.kit/packages/`, the repository's own packages, committed
-- this file, the kinds under `.kit/kinds/`, the rules under `.kit/rules/`, the style under `.kit/styles/` from
-  the style packages the repository takes, and the rest of what the packages deliver under `.kit/`, placed by
-  `kit hydrate`: each a link to its source when the source is inside the worktree, and otherwise a copy without
-  the write bit. `.kit/.gitignore` names every one, so git never sees them.
-- `.kit/manifest`, which records the digest of each delivered file, and `.kit/.gitignore` itself: written by kit,
-  ignored like them, and without the write bit like them
+- `kit.yml`, committed: its `version:` and `packages:` declare the release and the active packages.
+- `.kit/packages/`, committed: the repository's own packages.
+- Everything else under `.kit/`, placed by `kit hydrate`: this file, the kinds, the rules, the styles from the
+  style packages the repository takes, and the rest of what the packages deliver. Each is a link to its source
+  when the source is inside the worktree, and otherwise a copy without the write bit. `.kit/.gitignore` names every
+  one, so git never sees them.
+- `.kit/manifest`, the digest of each delivered file, and `.kit/.gitignore` itself: written by kit, and ignored
+  and without the write bit like the rest.
 
 The installed release contains the code. You run it through the kit CLI, `kit` on `PATH`. The workflow commands
 are `kit issue`, `kit commit`, `kit submit`, `kit rebase`, `kit tidy`, `kit status`,
@@ -145,8 +146,9 @@ The packages:
 
 - `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/kit.schema.json`,
   and a region that `kit region` fills: the `/worktrees/` entry in the repository's `.gitignore`.
-- `workflow`: `.kit/workflow.md`, the workflow from an issue to a merged change: a worktree per issue, a draft pull
-  request, the report in its body, plans as prose, and the worker contract. "The workflow" above points to it.
+- `workflow`: `.kit/workflow.md`, the workflow from an issue to a merged pull request: a worktree per issue, a
+  draft pull request, the report in its body, plans as prose, and the worker contract. "The workflow" above points
+  to it.
 - `style/bash`, `style/markdown`, `style/just`, `style/workflows`, `style/yaml`, `style/json`, and
   `style/gitignore`: the style for one kind of file each, under `.kit/styles/`, and the kind's templates (JSON has
   none). `style/markdown` also delivers `.kit/markdownlint.jsonc`, the settings its linter reads. A repository takes
@@ -157,11 +159,11 @@ The packages:
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
 - `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
-  `kit toolchains install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine where the
-  branch has a pull request; before one exists, `kit linked` fails and the other three run without one:
+  `kit toolchains install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine; before
+  the branch has a pull request, `kit linked` fails and the other three run without one:
   - the repository's gate
   - `kit check`
-  - `kit linked`, which refuses a change that is not linked to an open issue
+  - `kit linked`, which refuses a pull request not linked to an open issue
   - `kit policy`, which refuses a branch name, commit subject, or title that breaks the repository's policy
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
@@ -186,9 +188,9 @@ when any region differs from what its command produces.
 ## Changing what kit adds
 
 Every file kit adds belongs to a package. A file under `.kit/` opens with a `kit:generated` line that names what it is
-and its package, and a `see:` line that says how to stop using it or replace it. It cannot be edited where it lies: a
-link leads to its source, a copy has no write bit, and git never sees either, so an edit there never reaches a commit.
-`kit check` fails when any delivered file differs from the pinned release. Instead:
+and its package, and a `see:` line that says how to stop using it or replace it. It cannot be edited where it lies:
+a link leads to its source, a copy has no write bit, and git never sees either. `kit check` fails when any
+delivered file differs from the pinned release. Instead:
 
 - To stop using a file, remove its package: `kit packages remove <package>`. It takes out everything the package
   added. A package that another active package depends on is refused until that one is removed. A member of a

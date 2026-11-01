@@ -4,16 +4,17 @@ Adapts the kit for GitHub Copilot. Copilot reads `AGENTS.md` on its own, in the 
 the neutral tree already reaches it. What the package adds is Copilot's native delivery of the rules: one instruction
 file per kind under `.github/instructions/`, applied when a file it names is changed.
 
-Each `.github/instructions/kit-<kind>.instructions.md` has the one frontmatter key Copilot reads, `applyTo`, set to
-the `paths` of the kind in `.kit/kinds/`, comma-separated in one quoted string, which is the documented
-form. The body tells the agent to read `.kit/rules/<kind>.md` and follow it, as the `agents/cursor` rules do, so the
-rule text is in one place. A rule that governs a file by its content, such as a bash script with no suffix, is
-beyond a glob, so the body names `kit context <path>` for those.
+Each `.github/instructions/kit-<kind>.instructions.md` has the one frontmatter key Copilot reads, `applyTo`. It is
+set to the `paths` of the kind in `.kit/kinds/`, comma-separated in one quoted string, the documented form. The
+body tells the agent to read `.kit/rules/<kind>.md` and follow it, as the `agents/cursor` rules do, so the rule
+text is in one place. A rule that governs a file by its content, such as a bash script with no suffix, is beyond a
+glob; the body names `kit context <path>` for those.
 
 On GitHub.com the files apply to the Copilot coding agent and to Copilot code review. VS Code attaches them in chat
 and agent mode. Copilot offers no deny list a repository can commit, and the package delivers no hook, so nothing on
-Copilot's side refuses the git commands `.kit/1st.md` forbids: that file, which `AGENTS.md` and the instruction files
-point to, tells the agent to use the kit commands instead, and the report in the pull request body says what ran.
+Copilot's side refuses the git commands `.kit/1st.md` forbids. That file, which `AGENTS.md` and the instruction
+files point to, tells the agent to use the kit commands instead, and the report in the pull request body says what
+ran.
 
 The package also merges `servers.kit` into `.vscode/mcp.json`, with `type: stdio`: the kit's MCP server,
 `kit serve`; see [docs/serve.md](../../serve.md). VS Code starts a workspace's servers once the person trusts the

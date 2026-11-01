@@ -1,10 +1,12 @@
 # Serve
 
 `kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's read-only verbs to an agent as
-tools, and the kit's files as resources, so an agent whose harness speaks MCP reaches the kit through one entry
-point. Each tool takes its verb's arguments as the command line does, in `args`, and its description, the verb's
-help page, says what they may be. It reads requests on stdin and answers on stdout, in the repository it starts
-in, and opens no network port.
+tools, and the kit's files as resources. It reads requests on stdin and answers on stdout, in the repository it
+starts in, and opens no network port.
+
+A tool is its verb, no more. It takes one argument, `args`: the strings that would follow `kit <verb>` on a command
+line. Its description is the verb's help page, and the usage line there is what says what `args` may be. So an
+agent still needs the verb's grammar; the server parses nothing for it.
 
 ## What it offers
 
@@ -23,13 +25,14 @@ The tools are the verbs that read and report, and change nothing:
 | `toolchains` | `kit toolchains` |
 | `version` | `kit version` |
 
-- A tool's description is its verb's help, read from the verb's header by the functions `kit help` uses, so the
-  help and the server cannot drift apart.
-- A tool takes one argument, `args`, an array of strings passed to the verb. The usage lines in the description
-  say what they may be.
+- A tool's description is read from the verb's header by the functions `kit help` uses, so the help and the server
+  cannot drift apart.
 - A call runs the verb in a new process with stdin at end of file, so the verb cannot read the protocol stream.
   The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
   names its exit status.
+- Every tool carries `readOnlyHint`: none changes a file the repository tracks. The kit's own bookkeeping still
+  happens: `kit serve` hydrates `.kit/` when it starts, `context`, `kinds`, and `lint` hydrate before they read,
+  and `context` appends to the context log.
 - `status` asks the forge over the network, and says so in its `openWorldHint`.
 
 The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
@@ -81,7 +84,7 @@ entry. `kit packages remove` takes the entry out and leaves the repository's own
 | [`agents/gemini`](packages/agents/gemini.md) | `.gemini/settings.json` | `mcpServers.kit` |
 
 The command is `kit serve`, with `kit` found on `PATH`, as the hook in `.claude/settings.json` already assumes.
-When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next:
+When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next.
 Claude Code, for one, asks once, at the start of the next session, whether to use a project's servers.
 
 ## Try it by hand

@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/style.md
 
-description: "Bash style: a banner, then and do on their own lines, braced variables, and the script and module templates"
+description: "Bash style: the banner, then and do on their own lines, braced variables, two templates"
 depends:
   - kit

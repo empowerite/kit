@@ -9,10 +9,10 @@ members, and that is all it does.
 | `github/ci` | the GitHub Actions job that runs `kit ci` |
 | `agents/claude` | Claude Code's deny list, and the hook that runs `kit context` before every write |
 | `hooks/lefthook` | the pre-commit hook that runs `kit lint` and `kit generate --check` |
-| `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged change, plans as prose, and the worker contract; see [workflow.md](workflow.md) |
+| `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged pull request, plans as prose, and the worker contract; see [workflow.md](workflow.md) |
 
 `kit install empowerite` takes all of them. A member a repository disagrees with leaves on its own:
-`kit packages remove style/just` records it as excluded, so `kit update` does not bring it back as a member, and
+`kit packages remove style/just` records it as excluded, so `kit update` does not bring it back.
 `kit packages add style/just` ends the exclusion. Removing the bundle itself leaves its members active.
 
 The bundle is in the release until a package can come from a source of its own, such as a repository of

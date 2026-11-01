@@ -25,6 +25,6 @@ Each depends only on `kit`. The `empowerite` bundle includes all eight.
 `style/markdown` is the one that brings a linter: `markdownlint-cli2`, configured by `.kit/markdownlint.jsonc`. The
 repository pins `markdownlint-cli2` like any other tool its gate runs.
 
-A repository changes a style without editing the delivered file: a package of its own under `.kit/packages/`
-depends on the style package and places its own file at the same path. The later package in dependency order wins.
+A repository changes a style without editing the delivered file. A package of its own under `.kit/packages/`
+depends on the style package and places its own file at the same path; the later package in dependency order wins.
 See [templates.md](../templates.md) for an example.

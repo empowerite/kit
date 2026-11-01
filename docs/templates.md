@@ -2,9 +2,9 @@
 
 A template is a file of one kind with holes in it, attached to the rule or the style for that kind. `kit new file`
 fills the holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of
-its templates. A style package delivers the templates for its kind, so a repository that takes no style package for
-a kind has no style templates for it. The kit package delivers four of its own, the provider templates the bash
-rule lists, `.kit/templates/bash/<seam>-provider`, which hold a seam's providers to its calls in every repository.
+its templates. A style package delivers the templates for its kind; without that package, a kind has no style
+templates. The kit package delivers four of its own, `.kit/templates/bash/<seam>-provider`, which the bash rule
+lists: they hold a seam's providers to its calls in every repository.
 
 ```sh
 kit new file "${path}" --purpose="${purpose}"
@@ -43,9 +43,9 @@ JSON style has no template. A JSON file has no comments and no fixed opening, so
 
 To change a template, write a package of your own under `.kit/packages/` that depends on the style package that
 delivers it, and place a file at the same path. The later package in dependency order wins. This repository does
-that with its `house` package, `.kit/packages/house/`, whose bash, gitignore, and just templates add a line of
-dashes under the banner and at the end of the file. The templates the kit delivers have none.
-see: [packages.md](packages.md)
+that with its `house` package, `.kit/packages/house/`: its bash, gitignore, and just templates add a line of dashes
+under the banner and at the end of the file. The templates the kit delivers have none; see
+[packages.md](packages.md).
 
 ## Holes
 
@@ -63,9 +63,9 @@ guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and 
 - A name may be a dotted path in `kit.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
   `answers:`. Making a file fills it with that setting's value, and `kit new file` refuses when the settings leave it
   unset and it has no default. Checking a file binds it as it binds `path`: the setting's value is literal text.
-- `path`, `name`, and `stem` come from the path, and are bound before a file is checked, so they are literal text
-  there: a script whose banner names another file does not match. For `bin/deploy.sh` they are `bin/deploy.sh`,
-  `deploy.sh`, and `deploy`.
+- `path`, `name`, and `stem` come from the path. For `bin/deploy.sh` they are `bin/deploy.sh`, `deploy.sh`, and
+  `deploy`. They are bound before a file is checked, so they are literal text there: a script whose banner names
+  another file does not match.
 - A name that appears once takes one value. A name that appears more than once takes one value per appearance, in
   template order: the three `«settings»` holes of the just templates are three values. Making a file with one value
   fills every appearance.
@@ -80,10 +80,10 @@ guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and 
   naming its line.
 
 A template is matched in one pass, with no regular expression. Each hole extends to the first place the text after
-it appears, which leaves the most for what follows, so a file matches exactly when this pass finds the match, and
+it appears, which leaves the most for what follows. So a file matches exactly when this pass finds the match, and
 the time is linear in the file. The same pass gives each hole's text, and `template:unapply <template> <file>`
-prints those values as JSON. Rendering a template with the values a file gives it makes that file again, and the
-suite checks this for every file in this repository that a template governs.
+prints those values as JSON. Rendering a template with the values a file gives it makes that file again; the suite
+checks this for every file in this repository that a template governs.
 
 ## Making a file
 
@@ -122,11 +122,10 @@ overwrites anything:
 | `kit new module "${name}" --jq --purpose="${purpose}"` | a jq module and its tests, in the kit's own source alone |
 
 - A kind, a rule, a style, and a template go into a package of the repository's own: the one named with
-  `--package`, else the repository's one package under `.kit/packages/`, else `local`, which is made when there is
-  none.
+  `--package`, else the repository's one package under `.kit/packages/`, else `local`, made when there is none.
 - When that package is active, the new file is placed at once. Otherwise the command names `kit packages add`.
-- A module and a provider go into the first directory of the repository's own on the module path, the `bash_path`
-  setting, and are made from the bash style's `module` template where the repository has one.
+- A module and a provider go into the repository's first directory on the module path, the `bash_path` setting.
+  They are made from the bash style's `module` template where the repository has one.
 
 ## Checking a file
 
@@ -151,9 +150,9 @@ Three kinds of path are not checked against any template:
 /.mise/locks/** linguist-generated
 ```
 
-A seam's provider is checked against its seam's template too, which the bash rule lists for `**/<seam>/*.sh`: the
-seam's calls first, one function each in the order of their names, then the line
-`# The seam's calls end here; what follows is this provider's own.`, then the provider's own functions. A provider
+A seam's provider is checked against its seam's template too, which the bash rule lists for `**/<seam>/*.sh`. The
+shape is the seam's calls first, one function each in the order of their names; then the line
+`# The seam's calls end here; what follows is this provider's own.`; then the provider's own functions. A provider
 that lacks a call, renames one, or puts one of its own among them leaves that template.
 
 A template fixes the shape a style requires: the lines a file must have, and their order. What varies line by

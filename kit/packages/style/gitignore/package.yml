@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/style.md
 
-description: "Ignore list style: a header, grouped entries of what the repository produces, and the templates"
+description: "Ignore list style: a header, entries grouped by what produces them, and the templates"
 depends:
   - kit

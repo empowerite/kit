@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages/style.md
 
-description: "Prose style, for every file: plain sentences, the indicative to describe and the imperative to instruct"
+description: "Prose style for every text file: the indicative to describe, the imperative to instruct"
 depends:
   - kit

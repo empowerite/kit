@@ -11,11 +11,11 @@ page lists what it does, grouped by purpose, with a pointer to the page that des
 - The `agents/generic` package writes a region into `AGENTS.md`, a heading and two sentences that send every agent
   to `.kit/1st.md`, and every `agents/<harness>` package depends on it. Claude Code reads `AGENTS.md` on its own
   only when the project has no `CLAUDE.md`, so the `agents/claude` package imports it from `.claude/CLAUDE.md`.
-- Each kind of file is defined once, by its `name:`, in a kinds file under `.kit/kinds/`, which may define several:
-  the paths and first lines that make a file of that kind, and the kinds found inside its files. A kind may have a
-  rule, `.kit/rules/<kind>.md`, that names the kind and the linter it runs; `any`, `text`, and `yaml` have none of
-  their own, and `kit context` prints the rules of every kind a file is of. A style package adds
-  `.kit/styles/<kind>.md`, how a file of that kind looks, with the same frontmatter.
+- Each kind of file is defined once, by its `name:`, in a kinds file under `.kit/kinds/`: the paths and first lines
+  that make a file of that kind, and the kinds found inside its files. A kind may have a rule,
+  `.kit/rules/<kind>.md`, that names the kind and the linter it runs. `any`, `text`, and `yaml` have none of their
+  own; `kit context` prints the rules of every kind a file is of. A style package adds `.kit/styles/<kind>.md`, how
+  a file of that kind looks, with the same frontmatter.
 - `kit context` takes one or more paths and prints the rules that govern them, each rule once. `--json` prints the
   rules per path. Every call appends the paths to `.git/kit/context.log`.
 - The `agents/claude` package calls `kit context` through a hook before each edit, so the agent is shown the rules
@@ -79,9 +79,9 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 1. `kit issue <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
 2. `kit commit` commits what is staged, after the checks a commit's rule requires: the linters over the staged paths,
-   no path the kit placed, and a subject the policy allows, with the issue's reference supplied from the branch. It
-   refuses the desk and the default branch. A subject that names another issue adds that issue to the issues the
-   change closes, and assigns it to the caller when no one is assigned.
+   no path the kit placed, and a subject the policy allows. It supplies the issue's reference from the branch, and
+   refuses the desk and the default branch. A subject that names another issue adds that issue to the ones the pull
+   request closes, and assigns it to the caller when no one is assigned.
 3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
    first time. It never forces: when origin has moved, the remedy is `kit rebase`.
 4. `kit rebase` rebases the worktree's branch onto the default branch at origin and pushes it. It refuses the desk,
@@ -89,10 +89,10 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit status` shows where the work stands. Work moves left to right through five stages:
+`kit status` draws where the work stands. Work moves left to right through five stages:
 
-- `backlog`: the open issues no change closes, oldest first, each with its assignees, its age, and the branch
-  started for it on origin, if any
+- `backlog`: the open issues no pull request closes, oldest first, each with its assignees, its age, and the branch
+  started for it on origin
 - `incoming`: what the fetch brought: commits on the default branch, branches new and gone
 - `worktrees`: the desk and every worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
@@ -104,9 +104,14 @@ issues opened in the last 24 hours. `--json` prints the picture as one object ke
 document. The `status` setting in `kit.yml` names the stages drawn, in order.
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
-release workflow. It refuses a version of the wrong shape, a tag that exists, a release (no suffix) whose commit is
-not on the default branch at origin, and a version not higher than every release on origin unless `--lower`
-confirms it. `kit status releases` lists the releases on the forge, newest first, with each one's kind and age.
+release workflow. It refuses:
+
+- a version of the wrong shape
+- a tag that exists
+- a release, one with no suffix, whose commit is not on the default branch at origin
+- a version not higher than every release on origin, unless `--lower` confirms it
+
+`kit status releases` lists the releases on the forge, newest first, with each one's kind and age.
 
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
@@ -115,16 +120,19 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 ## The terminal UI
 
-`kit` typed with no verb opens a palette of every verb with its one-line purpose, as a tree under the groups that
-`kit help` lists them in, filtered as you type. The up and down arrows move over the verbs, never onto a heading,
-and shift with either jumps to the first verb of the previous or the next group; the right arrow shows the
-highlighted verb's help page beside the names instead, and the left arrow the purposes again. Enter opens that
-verb's form. A verb run at a terminal without an argument it needs opens the same form instead of refusing, filled
-with what was given, as `kit commit` with no message does. The form has one field per part of the verb's usage
-line, offers the values the repository has (changed paths, packages, templates), shows the command line it builds,
-and runs it from Enter on that line, leaving that command line in the scrollback above the verb's own output. A
-field the command line needs carries a dim `required` tag until it has an answer. `kit packages select` shows the
-whole set of packages, each marked by what will happen to it.
+`kit` typed with no verb opens a palette of every verb with its one-line purpose, as a tree under the groups
+`kit help` lists them in, filtered as you type.
+
+- The up and down arrows move over the verbs, never onto a heading. Shift with either jumps to the first verb of
+  the previous or the next group.
+- The right arrow shows the highlighted verb's help page beside the names; the left arrow shows the purposes again.
+- Enter opens that verb's form. A verb run at a terminal without an argument it needs opens the same form instead
+  of refusing, filled with what was given, as `kit commit` with no message does.
+- The form has one field per part of the verb's usage line, and offers the values the repository has: changed
+  paths, packages, templates. It shows the command line it builds, and runs it from Enter on that line, leaving
+  that command line in the scrollback above the verb's output. A field the command line needs carries a dim
+  `required` tag until it has an answer.
+- `kit packages select` shows the whole set of packages, each marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
 verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
@@ -154,9 +162,10 @@ see: [toolchains.md](toolchains.md)
 
 ## Packages
 
-Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is always active;
-the others are optional, such as the `workflow` package, one style package per kind of file, the CI job, the
-pre-commit hook, and an adapter for each of Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
+Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is the default:
+`kit install` with no names brings it, and `kit packages remove kit` takes it out. The others are optional: the
+`workflow` package, one style package per kind of file, the CI job, the pre-commit hook, and an adapter for each of
+Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 
 - `kit install` and `kit packages add` activate packages, with the packages they depend on. `kit packages remove`
   deactivates one and takes out everything it placed. `kit packages` lists them, the active set
@@ -199,8 +208,8 @@ see: [packages.md](packages.md), the Release section of [README.md](../README.md
 - A region is a part of a file that a command writes, between a `kit:generate` line and a `kit:end` line. The rest
   of the file stays the repository's own.
 - `kit generate` rewrites every region from its command. `kit check` fails on a stale one.
-- The kit's block in `AGENTS.md`, a heading and two sentences, and its `/worktrees/` line in `.gitignore` are
-  regions, and a repository can add regions of its own, such as a table built from its manifests.
+- The kit's block in `AGENTS.md`, a heading and two sentences, is a region, and so is its `/worktrees/` line in
+  `.gitignore`. A repository can add regions of its own, such as a table built from its manifests.
 
 see: [generate.md](generate.md)
 

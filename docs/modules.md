@@ -77,7 +77,7 @@ jq module directory, and defines:
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
 | `list:among <name> <name>…` | succeeds when the first name is one of the rest |
 | `list:without <name> <name>…` | prints the rest without the first name, one per line |
-| `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`: an unknown flag or argument, a missing value, two alternatives together, or a required argument missing; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
+| `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
 
@@ -166,43 +166,54 @@ kit:enter
 use <module>
 ```
 
-- The banner's purpose is what `kit help` lists beside the verb, and its group is the heading it lists the verb
-  under: one of `workflow`, `files`, `checks`, `installation`, `interfaces`, `help`, and `plumbing`, in that
-  order, as `help_groups` in `modules/bash/help.sh` names them. `plumbing` holds the verbs that scripts, the
-  hooks, and the TUI call rather than a person: `kit help` sums them up in one line, and `kit help plumbing`, as
-  `kit help <group>` for any group, lists them. A verb's page names its group and the verbs beside it.
+- The banner's purpose is what `kit help` lists beside the verb. Its group is the heading the verb is listed under:
+  `workflow`, `files`, `checks`, `installation`, `interfaces`, `help`, or `plumbing`, in that order, as
+  `help_groups` in `modules/bash/help.sh` names them. `plumbing` holds the verbs that scripts, the hooks, and the
+  TUI call rather than a person; `kit help` sums them up in one line, and `kit help plumbing` lists them. A verb's
+  page names its group and the verbs beside it.
 - `kit usage <verb>` prints the usage lines alone, `kit help <verb>` the whole page, and `kit syntax <verb>` the
   grammar as JSON.
-- A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several. A verb with none
-  takes no arguments. After `kit <verb>`, every word is a flag, `--name`; an option, `--name=<value>` or
-  `--name <value>`; an operand, `<name>`; or a lowercase literal, grouped by `[ ]`, `( )`, and `|`, with `…` after
-  what repeats. `kit syntax --check` refuses any other word, one with a dot or a capital, or `<a|b>`, naming the
-  verb, the line, and the word, so a one-line sentence that starts with `kit <verb>` is never read as grammar.
+- A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several; a verb with none
+  takes no arguments. After `kit <verb>`, every word is one of:
+  - a flag, `--name`
+  - an option, `--name=<value>` or `--name <value>`
+  - an operand, `<name>`
+  - a lowercase literal
+
+  They are grouped by `[ ]`, `( )`, and `|`, with `…` after what repeats. `kit syntax --check` refuses any other
+  word, one with a dot or a capital, or `<a|b>`, naming the verb, the line, and the word. So a one-line sentence
+  that starts with `kit <verb>` is never read as grammar.
 - Every argument a usage line names has a line in the header's argument block: two spaces, the argument as the usage
-  writes it, two or more spaces, and one sentence that says what it does, continued on lines indented further.
-  `kit syntax <verb>` prints the usage and the block as JSON, and `kit syntax --check`, which the gate and the
+  writes it, two or more spaces, and a fragment that says what it does, continued on lines indented further.
+  `kit syntax <verb>` prints the usage and the block as JSON. `kit syntax --check`, which the gate and the
   pre-commit hook run, reports an argument that has no line.
-- Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
-  are left out.
-- A verb exits 0 when it did what was asked; 1 when it could not, or when what it checks does not hold; and 2 when
-  the arguments are wrong, which `guard:arguments` decides, or a name given is not a verb, package, or path kit
-  knows. A verb that runs another command may pass that command's status through, and says so. Every verb's header
-  ends its description with one `Exits …` line stating its codes in those terms.
+- Every other paragraph is the description, which `kit help <verb>` prints, reflowed to 80 columns. `see:` lines
+  point into the source, and are left out.
+- A verb exits:
+  - 0 when it did what was asked
+  - 1 when it could not, or when what it checks does not hold
+  - 2 when the arguments are wrong, or a name given is not a verb, package, or path kit knows
+
+  A verb that runs another command may pass that command's status through, and says so. Every verb's header ends
+  its description with one `Exits …` line stating its codes in those terms.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
-- A verb has no `--help` of its own: `kit help <verb>` prints its header, and so does `kit <verb> --help` or `-h`,
-  which `guard:arguments` answers before it judges anything. Every verb calls `guard:arguments <verb> "$@"` first,
-  which judges the arguments against the usage line and refuses in one line that points to that page: an unknown
-  flag or argument, a missing value, two alternatives together, or a required argument missing. The verb parses what
-  the guard let through, and never restates the usage.
+- A verb has no `--help` of its own: `kit help <verb>` prints its header, and so does `kit <verb> --help` or `-h`.
+  Every verb calls `guard:arguments <verb> "$@"` first. It judges the arguments against the usage line and refuses
+  in one line that points to that page: an unknown flag or argument, a missing value, two alternatives together, or
+  a required argument missing. The verb parses what the guard let through, and never restates the usage.
 - A verb whose arguments have choices answers `kit syntax <verb> --choices` from a module named after it. The module
-  defines `<verb>:choices <key> --kind`, which prints `closed` or `open`, and `<verb>:choices <key> [<answer>…]`, which
-  prints one row per value, tab-separated: the value, its description, its state (`active`, `excluded`, or none), and
-  the line the verb would print about it given the answers so far, each `<key>=<value>`. It returns 1 for a key it
-  does not answer. A closed set holds the only values the verb accepts, and `guard:arguments` refuses any other in the
-  words the form uses; an open set only suggests, and a value off it is never refused.
-- A verb whose arguments grow with the answers, as `kit new` learns its template's holes, defines `<verb>:extend
-  [<answer>…]`, which prints the arguments to add as an object of entries marked `extended`, and `kit syntax <verb>`
-  then carries `extends: true`; `kit syntax <verb> --extend` prints them.
+  defines two functions:
+  - `<verb>:choices <key> --kind` prints `closed` or `open`.
+  - `<verb>:choices <key> [<answer>…]` prints one row per value, tab-separated: the value, its description, its
+    state (`active`, `excluded`, or none), and the line the verb would print about it given the answers so far,
+    each `<key>=<value>`.
+
+  It returns 1 for a key it does not answer. A closed set holds the only values the verb accepts, and
+  `guard:arguments` refuses any other in the words the form uses. An open set only suggests; a value off it is
+  never refused.
+- A verb whose arguments grow with the answers, as `kit new` learns its template's holes, defines
+  `<verb>:extend [<answer>…]`. It prints the arguments to add as an object of entries marked `extended`.
+  `kit syntax <verb>` then carries `extends: true`, and `kit syntax <verb> --extend` prints them.
 
 ## jq modules
 
@@ -234,16 +245,16 @@ template:regex() {
 - A jq module opens with the banner, and a comment over each `def` says what it reads and what it gives.
 - Its tests are `tests/jq/<module>.test`, in the format of `jq --run-tests`: a program, an input, and the outputs it
   gives. `tests/jq.bats` runs every module's tests, and fails a module that has none.
-- jq compiles a program each time it starts, and has no compiled form to keep. Starting jq takes about 20 ms, and
-  importing a module adds no measurable time to that, so speed comes from starting jq fewer times: one jq process
-  for all the files a verb reads, not one per file.
+- jq compiles a program each time it starts, and has no compiled form to keep. Starting jq takes about 20 ms;
+  importing a module adds nothing measurable. So speed comes from starting jq fewer times: one process for all the
+  files a verb reads, not one per file.
 - The jq modules come from the release alone. A repository has no jq module path of its own.
 
 ## YAML
 
 The kit's files that are not JSON are YAML: `kit.yml`, each `package.yml`, the kinds files under `.kit/kinds/`, and
 the frontmatter of a rule or style. `modules/bash/yaml.sh` reads them through `yq` 4, mikefarah's, one yq process
-per read, with an expression in yq's own language, so a block scalar, a flow list, an anchor, or a CRLF line ending
+per read, with an expression in yq's own language. So a block scalar, a flow list, an anchor, or a CRLF line ending
 reads as YAML says. `yaml:json` prints a file as JSON where the data enters a jq program. No awk or sed parses YAML.
-Each read's result is kept under `${XDG_CACHE_HOME:-${HOME}/.cache}/kit/yaml/` beside the file's text as it was read,
-and replayed without a process while the text is unchanged, since a command reads the same file many times over.
+A command reads the same file many times over, so each read's result is kept under
+`${XDG_CACHE_HOME:-${HOME}/.cache}/kit/yaml/` beside the file's text, and replayed while the text is unchanged.

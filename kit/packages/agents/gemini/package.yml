@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md, docs/packages/agents/gemini.md
 
-description: "Gemini CLI: AGENTS.md among its context files, the deny list, and the kit's MCP server, in .gemini/settings.json"
+description: "Gemini CLI: AGENTS.md as a context file, the deny list, and the kit's MCP server"
 depends:
   - kit
   - agents/generic

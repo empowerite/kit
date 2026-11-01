@@ -1,9 +1,15 @@
 # Completion
 
-`kit completion zsh` prints the zsh completion for kit. It completes the verbs, each with its purpose, and then each
-verb's flags and options, its literal words, such as `add` after `kit packages`, and the values a verb lists for an
-argument, such as the packages in reach for `kit packages add` or the rules for `kit new file --rule=`. A path offers
-the files. A `kit-<verb>` command called directly completes the same way.
+`kit completion zsh` prints the zsh completion for kit. It completes:
+
+- the verbs, each with its purpose
+- a verb's flags and options
+- its literal words, such as `add` after `kit packages`
+- the values a verb lists for an argument, such as the packages in reach for `kit packages add` or the rules for
+  `kit new file --rule=`
+- the files, for a path
+
+A `kit-<verb>` command called directly completes the same way.
 
 ## Install it
 
@@ -22,8 +28,8 @@ eval "$(kit completion zsh)"
 ## How it works
 
 The script knows no verb. On every completion it runs `kit completion candidates` with the words typed so far, and
-offers what comes back, one candidate per line: the word, a tab, and its description, and `:files` when files fit as
-well. The candidates come from the verbs themselves:
+offers what comes back. A candidate is one line: the word, a tab, and its description, with `:files` when files fit
+as well. The candidates come from the verbs themselves:
 
 - the verbs and their purposes from their headers, as `kit help` reads them
 - a verb's flags, options, literal words, and operands from `kit syntax`, the grammar of its usage lines
