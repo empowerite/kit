@@ -89,3 +89,29 @@ setup() {
   run grep -l '\.kit-new' "${kit_root}"/bin/kit-* "${kit_root}"/modules/bash/*.sh "${kit_root}"/modules/bash/*/*.sh
   [ "$output" = "${kit_root}/modules/bash/file.sh" ]
 }
+
+@test "a scratch made in a subshell is swept when the subshell ends, and the parent's stays until the parent exits" {
+  run kit-bash 'file:scratch p && ( file:scratch s && printf "%s\n" "${s}" > sub && [[ -d "${s}" && -d "${p}" ]] ) &&
+    [[ ! -e "$(cat sub)" && -d "${p}" ]] && printf "%s\n" "${p}"'
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == "${TMPDIR}/kit."* && "$(cat sub)" == "${TMPDIR}/kit."* && "${lines[0]}" != "$(cat sub)" ]]
+  [ ! -e "${lines[0]}" ]
+  [ ! -e "$(cat sub)" ]
+}
+
+@test "an EXIT trap a verb set before the first scratch still runs at the sweep, and file:sweep is the one trap" {
+  run kit-bash 'trap "touch ${PWD}/own" EXIT; file:scratch a && trap -p EXIT && printf "%s\n" "${a}"'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "trap -- 'file:sweep' EXIT" ]
+  [ ! -e "${lines[1]}" ]
+  [ -f own ]
+}
+
+@test "a command at exit that exits stops neither the sweep nor the others, and leaves the exit status as it was" {
+  run kit-bash 'file:at-exit exit 9; file:scratch a && file:at-exit touch "${PWD}/after" && printf "%s\n" "${a}"'
+  [ "$status" -eq 0 ]
+  [ ! -e "${lines[0]}" ]
+  [ -f after ]
+  run kit-bash 'file:at-exit exit 9; file:scratch a; exit 3'
+  [ "$status" -eq 3 ]
+}
