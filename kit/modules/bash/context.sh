@@ -29,7 +29,7 @@
 #
 # see: docs/context.md
 
-use yaml
+use yaml syntax
 shopt -s extglob
 
 # The kinds and the frontmatter, read once per process by context:load: each kind's globs, patterns, and embedded
@@ -420,13 +420,7 @@ context:claude() {
 # context:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every tracked file, named from
 # where the command was typed, as kit context resolves a path; a path it takes need not be among them.
 context:choices() {
-  [[ "$1" == '<path>' ]] || return 1
-  if [[ "${2:-}" == --kind ]]
-  then
-    printf 'open\n'
-    return 0
-  fi
-  git -C "${kit_invoked_in:-.}" ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
+  syntax:tracked "$@"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

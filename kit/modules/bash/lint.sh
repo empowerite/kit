@@ -9,6 +9,8 @@
 # see: bin/kit-lint
 
 # lint:names prints the name of every check, one per line.
+use syntax
+
 lint:names() {
   declare -F | sed -n 's/^declare -f lint://p' | grep -v '^names$' | LC_ALL=C sort
 }
@@ -75,13 +77,7 @@ lint:jq-compiles() {
 # lint:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every tracked file, named from
 # where the command was typed, as kit lint resolves a path; a path it takes need not be among them.
 lint:choices() {
-  [[ "$1" == '<path>' ]] || return 1
-  if [[ "${2:-}" == --kind ]]
-  then
-    printf 'open\n'
-    return 0
-  fi
-  git -C "${kit_invoked_in:-.}" ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
+  syntax:tracked "$@"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

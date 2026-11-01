@@ -449,6 +449,18 @@ syntax:choices() {
   "${verb}:choices" "$@"
 }
 
+# syntax:tracked <key> [<answer>…] answers a verb's --choices for <path>: the files tracked in the repository the
+# command was typed in, an open set, one path per line. A verb whose only pick is a path points its choices here.
+syntax:tracked() {
+  [[ "$1" == '<path>' ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'open\n'
+    return 0
+  fi
+  git -C "${kit_invoked_in:-.}" ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
+}
+
 # syntax:extend <verb> [<answer>…] prints the arguments the verb learns from the answers so far, each <key>=<value>,
 # as an object of arguments entries marked extended, for a form to add as fields; kit new answers with its
 # template's holes. It returns 1 when the verb's module has no <verb>:extend.

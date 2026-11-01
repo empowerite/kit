@@ -47,7 +47,7 @@
 #
 # see: bin/kit-generate, bin/kit-region, docs/generate.md
 
-use file settings render place
+use file settings render place syntax
 
 # The directive patterns. The name is any run of characters without whitespace or a backtick. The command is
 # everything between the first backtick after the name and the last backtick on the line.
@@ -447,13 +447,7 @@ generate:run() {
 # generate:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every tracked file, named from
 # where the command was typed, as kit generate resolves a path; a path it takes need not be among them.
 generate:choices() {
-  [[ "$1" == '<path>' ]] || return 1
-  if [[ "${2:-}" == --kind ]]
-  then
-    printf 'open\n'
-    return 0
-  fi
-  git -C "${kit_invoked_in:-.}" ls-files | awk '{ printf "%s\t\t\t\n", $0 }'
+  syntax:tracked "$@"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
