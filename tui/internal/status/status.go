@@ -72,6 +72,8 @@ type Model struct {
 	legend        bool // whether the legend shows in place of the pane
 	legendOffset  int  // the legend's first line shown
 	started       bool // whether the stages after incoming have been started
+	moving        bool // whether the dot is on its way along the line
+	dot           dot  // where the dot is, and how far it has to go
 	width, height int
 	interrupted   bool
 }
@@ -126,7 +128,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.moving = false
 		m.fit()
+	case frameMsg:
+		return m, m.step()
 	case loadedMsg:
 		m.take(msg)
 		if msg.stage == "incoming" && !m.started {
@@ -160,9 +165,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "?":
 		m.legend, m.legendOffset = true, 0
 	case "left":
-		m.move(-1)
+		return m, m.move(-1)
 	case "right":
-		m.move(1)
+		return m, m.move(1)
 	case "up":
 		m.up(1)
 	case "down":
@@ -194,7 +199,7 @@ func (m *Model) legendKey(key string) {
 	case "pgdown":
 		m.legendOffset += max(1, h-1)
 	}
-	m.legendOffset = min(max(m.legendOffset, 0), max(0, len(m.legendLines())-h))
+	m.legendOffset, _, _, _ = window(len(m.legendLines()), h, m.legendOffset)
 }
 
 // quit ends the screen, and the stages' commands still running with it.
@@ -371,13 +376,67 @@ func (m *Model) clamp(i int) {
 	}
 }
 
-// move selects the stage d along the line, staying in the rows or on the line as before.
-func (m *Model) move(d int) {
-	if len(m.stages) == 0 {
-		return
+// move selects the stage d along the line, round its ends, staying in the rows or on the line as before, and sends
+// the dot there the way the arrow points.
+func (m *Model) move(d int) tea.Cmd {
+	n, w := len(m.stages), m.width-1
+	if n == 0 {
+		return nil
 	}
-	m.stage = min(max(m.stage+d, 0), len(m.stages)-1)
+	from := m.center(m.stage)
+	if m.moving {
+		from = m.dot.at
+	}
+	m.stage = (m.stage + d + n) % n
 	m.fit()
+	// the cells to go, always the way the arrow points, round the end of the line when it must
+	far := ((m.center(m.stage)-from)*d%w + w) % w
+	if w < 3*n || far == 0 {
+		m.moving = false
+		return nil
+	}
+	already := m.moving
+	m.dot, m.moving = dot{at: from, left: far, dir: d, step: max(1, (far+frames-1)/frames)}, true
+	if already {
+		return nil
+	}
+	return frame()
+}
+
+// dot is the selected stage's marker on its way along the line: the cell it is at, the cells it has left to go, the
+// way it goes, and how far it goes each frame.
+type dot struct {
+	at, left, dir, step int
+}
+
+// frames is how many frames the dot takes to reach its stage, however far.
+const frames = 8
+
+// frameEvery is how long a frame lasts; the tests shorten it.
+var frameEvery = 16 * time.Millisecond
+
+// frameMsg asks the dot to take its next step.
+type frameMsg struct{}
+
+// frame asks for the next step after a frame.
+func frame() tea.Cmd {
+	return tea.Tick(frameEvery, func(time.Time) tea.Msg { return frameMsg{} })
+}
+
+// step moves the dot one frame along, round the end of the line, and stops it on its stage.
+func (m *Model) step() tea.Cmd {
+	if !m.moving {
+		return nil
+	}
+	w := m.width - 1
+	stride := min(m.dot.step, m.dot.left)
+	m.dot.at = ((m.dot.at+m.dot.dir*stride)%w + w) % w
+	m.dot.left -= stride
+	if m.dot.left == 0 {
+		m.moving = false
+		return nil
+	}
+	return frame()
 }
 
 // up moves the cursor n rows up; past the first row, it returns to the line, and the pane to its top.
@@ -436,7 +495,7 @@ func (m *Model) fit() {
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
 	h := m.paneHeight()
-	s.offset = min(max(s.offset, 0), max(0, len(lines)-h))
+	s.offset, _, _, _ = window(len(lines), h, s.offset)
 	if !m.inRows {
 		return
 	}
@@ -452,11 +511,17 @@ func (m *Model) fit() {
 	if first < 0 {
 		return
 	}
-	last = min(last, first+h-1)
-	if last >= s.offset+h {
-		s.offset = last - h + 1
-	}
-	if first < s.offset {
-		s.offset = first
+	// Scroll until the cursor's row shows whole, or its first line and as much as the pane holds; a … line takes the
+	// place of a row at either edge, so the window is asked rather than counted.
+	for {
+		start, end, _, _ := window(len(lines), h, s.offset)
+		switch {
+		case first < start:
+			s.offset = first
+		case last >= end && first > start:
+			s.offset++
+		default:
+			return
+		}
 	}
 }

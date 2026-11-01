@@ -55,24 +55,36 @@
 #
 # Legend
 #
-# The glyphs every stage draws. NO_COLOR removes the colors and keeps the glyphs.
+# One glyph per line, by where it is drawn. NO_COLOR removes the colors and keeps the glyphs.
+#
+# Every stage:
+#
+#   🌿  a branch, or a linked worktree
+#   👤  an author, or an issue's assignees
+#   🎫  an issue
+#   🔀  a pull request, or a merge request on GitLab
+#   🔖  a branch gone from origin
+#   ❌  a check failed, or a stage kit could not read
+#
+# incoming:
+#
+#   📥  what the fetch brought from origin
+#   📌  a new tag
+#
+# worktrees:
 #
 #   🏠  the desk, the root checkout
-#   🌿  a linked worktree, or a branch: a pull request's checked-out one, or the one started for an issue
-#   📂  a desk's path, above desks
-#   📥  what the fetch brought from origin
-#   🔀  a pull request, or a merge request on GitLab
-#   👤  its author, or an issue's assignees
-#   🎫  an issue
-#   🛫  an issue in flight: the pull request above it closes it
-#   🔖  a branch whose upstream is gone
-#   📌  a new tag the fetch brought, in the incoming stage
 #   ❗  a checkout on no branch, a detached HEAD
-#   🏃  checks still running, ✅ every check passed, ❌ a check failed, each with passed / total
-#   💬  unresolved review threads
-#   📦  a release, 🧪 a pre-release, 📝 a draft, and ⭐ the latest, in the releases stage
+#   📂  a desk's path, above desks
 #
-# A pull request's state is one glyph, the first of these that holds:
+# changes:
+#
+#   💬  unresolved review threads
+#   🛫  an issue the pull request closes
+#   🏃  checks still running, with passed / total
+#   ✅  every check passed
+#
+# changes: a pull request's state, the first of these that holds:
 #
 #   🔨  draft
 #   🚦  queued: a check is still running
@@ -83,6 +95,13 @@
 #   👀  blocked:approval: a review blocks the merge
 #   🛬  ready: nothing is left to decide
 #   🔳  any other state
+#
+# releases:
+#
+#   📦  a release
+#   🧪  a pre-release
+#   📝  a draft
+#   ⭐  the latest
 #
 # Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
 # status setting that is not a list of distinct stages.

@@ -80,9 +80,9 @@ func (m Model) count(i int) string {
 	return strconv.Itoa(len(m.rows(i)))
 }
 
-// timeline draws the line and the labels under it: a marker per stage, evenly spaced across the width, the selected
-// one ● and bold, the others ○, and each stage's name and count centered under its marker, clipped to its share of
-// the width.
+// timeline draws the line and the labels under it: a marker ○ per stage, evenly spaced across the width, the dot ● in
+// the accent color on the selected one, or on its way there, and each stage's name and count centered under its
+// marker, clipped to its share of the width.
 func (m Model) timeline() (string, string) {
 	n, w := len(m.stages), m.width-1
 	if n == 0 || w < 3*n {
@@ -91,28 +91,56 @@ func (m Model) timeline() (string, string) {
 	var line, labels strings.Builder
 	line.WriteString(" ")
 	labels.WriteString(" ")
-	at, labelAt := 0, 0
-	for i, s := range m.stages {
-		center := (w * (2*i + 1)) / (2 * n)
-		line.WriteString(strings.Repeat("─", center-at))
-		at = center + 1
-		marker := "○"
-		if i == m.stage {
-			marker = style.Label("●")
-		}
-		line.WriteString(marker)
-		label := clip(strings.TrimSpace(s.name+" "+m.count(i)), w/n)
-		width := ansi.StringWidth(label)
+	labelAt := 0
+	cells := make([]string, w)
+	for k := range cells {
+		cells[k] = "─"
+	}
+	for i := range m.stages {
+		cells[m.center(i)] = "○"
+	}
+	dot := m.center(m.stage)
+	if m.moving {
+		dot = m.dot.at
+	}
+	cells[dot] = style.Mark("●")
+	line.WriteString(strings.Join(cells, ""))
+	for i := range m.stages {
+		center := m.center(i)
+		label, width := m.label(i, w/n)
 		start := min(max(center-width/2, labelAt), w-width)
 		labels.WriteString(strings.Repeat(" ", max(0, start-labelAt)))
-		if i == m.stage {
-			label = style.Label(label)
-		}
 		labels.WriteString(label)
 		labelAt = start + width
 	}
-	line.WriteString(strings.Repeat("─", w-at))
 	return line.String(), labels.String()
+}
+
+// center gives the cell of a stage's marker on the line.
+func (m Model) center(i int) int {
+	n, w := len(m.stages), m.width-1
+	return (w * (2*i + 1)) / (2 * n)
+}
+
+// label gives a stage's label under its marker, and its width in cells: its glyph, its name, bold when selected, and
+// its count, dim. A label wider than its share is clipped, plain.
+func (m Model) label(i, share int) (string, int) {
+	s := m.stages[i]
+	glyph, count := stageGlyphs[s.name], m.count(i)
+	plain := strings.TrimSpace(strings.TrimSpace(glyph+" "+s.name) + " " + count)
+	if ansi.StringWidth(plain) > share {
+		plain = clip(plain, share)
+		return plain, ansi.StringWidth(plain)
+	}
+	name := s.name
+	if i == m.stage {
+		name = style.Mark(name)
+	}
+	label := strings.TrimSpace(glyph + " " + name)
+	if count != "" {
+		label += " " + style.Off(count)
+	}
+	return label, ansi.StringWidth(plain)
 }
 
 // pane gives the pane's lines, as many as it has: the legend's from its offset on when it shows, else the selected
@@ -122,18 +150,16 @@ func (m Model) pane() []string {
 	var out []string
 	switch {
 	case m.legend:
-		all := m.legendLines()
-		start := min(max(m.legendOffset, 0), max(0, len(all)-h))
-		out = all[start:min(len(all), start+h)]
+		out = windowed(m.legendLines(), m.legendOffset, h)
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
 	default:
 		lines := m.lines(m.stage)
-		s := m.stages[m.stage]
-		start := min(max(s.offset, 0), max(0, len(lines)-h))
-		for i := start; i < len(lines) && i-start < h; i++ {
-			out = append(out, lines[i].text)
+		texts := make([]string, len(lines))
+		for i, l := range lines {
+			texts[i] = l.text
 		}
+		out = windowed(texts, m.stages[m.stage].offset, h)
 	}
 	for len(out) < h {
 		out = append(out, "")
@@ -141,43 +167,186 @@ func (m Model) pane() []string {
 	return out
 }
 
-// legendLines draws the legend: each group's name, dim, in a column of its own, and beside it the group's glyphs, each
-// with its meaning, joined by · and wrapped to the width; an entry wider than the room wraps on its own lines.
-func (m Model) legendLines() []string {
-	column := 0
-	for _, e := range legend {
-		column = max(column, ansi.StringWidth(e.group)+2)
+// window says which of n lines a pane of h lines shows from offset o: the offset, clamped, the end, and whether a
+// line says how many are hidden above, and how many below. Each such line takes the place of a shown one.
+func window(n, h, o int) (start, end int, above, below bool) {
+	if n <= h {
+		return 0, n, false, false
 	}
-	room := max(m.width-3-column, 10)
-	var out []string
-	for i := 0; i < len(legend); {
-		group := legend[i].group
-		var wrapped []string
-		current := ""
-		for ; i < len(legend) && legend[i].group == group; i++ {
-			e := legend[i].glyph + " " + legend[i].meaning
-			switch {
-			case current != "" && ansi.StringWidth(current)+3+ansi.StringWidth(e) <= room:
-				current += " · " + e
-			default:
-				if current != "" {
-					wrapped = append(wrapped, current)
-				}
-				parts := wrap(e, room)
-				wrapped = append(wrapped, parts[:len(parts)-1]...)
-				current = parts[len(parts)-1]
-			}
-		}
-		wrapped = append(wrapped, current)
-		for k, l := range wrapped {
-			name := ""
-			if k == 0 {
-				name = group
-			}
-			out = append(out, "   "+style.Off(pad(name, column, false))+l)
-		}
+	start = min(max(o, 0), n-h+1)
+	above = start > 0
+	end = start + h
+	if above {
+		end--
+	}
+	if end < n {
+		below = true
+		end--
+	}
+	return start, min(end, n), above, below
+}
+
+// windowed gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more where lines are
+// hidden.
+func windowed(all []string, o, h int) []string {
+	start, end, above, below := window(len(all), h, o)
+	out := make([]string, 0, h)
+	if above {
+		out = append(out, "   "+style.Off("… "+strconv.Itoa(start)+" above"))
+	}
+	out = append(out, all[start:end]...)
+	if below {
+		out = append(out, "   "+style.Off("… "+strconv.Itoa(len(all)-end)+" more"))
 	}
 	return out
+}
+
+// legendLines gives the legend: each group's name, dim, over its glyphs, one per line, every glyph in a column the eye
+// can run down. When every stage's own glyphs fit the width the line of stages gives it, the glyphs every stage
+// draws come first, and each stage's own sit under its name on the line; otherwise the groups flow into as many
+// columns as the width holds, a group never split.
+func (m Model) legendLines() []string {
+	var names []string
+	blocks := map[string][]string{}
+	for _, e := range legend {
+		if _, ok := blocks[e.group]; !ok {
+			names = append(names, e.group)
+			heading := e.group
+			if g := stageGlyphs[strings.SplitN(e.group, ":", 2)[0]]; g != "" {
+				heading = g + " " + e.group
+			}
+			blocks[e.group] = []string{style.Off(heading)}
+		}
+		blocks[e.group] = append(blocks[e.group], "  "+pad(e.glyph, 2, false)+"  "+e.meaning)
+	}
+	if out, ok := m.legendUnderStages(names, blocks); ok {
+		return out
+	}
+	groups := make([][]string, 0, len(names))
+	for _, name := range names {
+		groups = append(groups, blocks[name])
+	}
+	return flow(groups, max(m.width-3, 10))
+}
+
+// legendUnderStages lays the legend out under the line of stages: the groups every stage draws, then a row of
+// columns, each stage's groups starting where the stage's share of the line starts. It says no when a group belongs
+// to no stage on the line, or a stage's glyphs are wider than its share.
+func (m Model) legendUnderStages(names []string, blocks map[string][]string) ([]string, bool) {
+	n, w := len(m.stages), m.width-1
+	if n == 0 || w < 3*n {
+		return nil, false
+	}
+	share := w / n
+	columns := make([][]string, n)
+	var shared []string
+	for _, name := range names {
+		if name == groupEvery {
+			shared = blocks[name]
+			continue
+		}
+		at := -1
+		for i, s := range m.stages {
+			if name == s.name || strings.HasPrefix(name, s.name+":") {
+				at = i
+			}
+		}
+		if at < 0 || width(blocks[name]) > share-1 {
+			return nil, false
+		}
+		block := blocks[name]
+		if name == m.stages[at].name {
+			block = block[1:]
+		} else {
+			block = append([]string{style.Off(strings.TrimPrefix(name, m.stages[at].name+": "))}, block[1:]...)
+		}
+		if len(columns[at]) > 0 {
+			columns[at] = append(columns[at], "")
+		}
+		columns[at] = append(columns[at], block...)
+	}
+	out := make([]string, 0, len(shared)+16)
+	for _, l := range shared {
+		out = append(out, "   "+l)
+	}
+	out = append(out, "")
+	height := 0
+	for _, c := range columns {
+		height = max(height, len(c))
+	}
+	for row := 0; row < height; row++ {
+		var b strings.Builder
+		b.WriteString(" ")
+		at := 1
+		for i, c := range columns {
+			if row >= len(c) {
+				continue
+			}
+			center := (w * (2*i + 1)) / (2 * n)
+			start := 1 + max(i*w/n, center-width(c)/2)
+			b.WriteString(strings.Repeat(" ", max(0, start-at)))
+			b.WriteString(c[row])
+			at = start + ansi.StringWidth(c[row])
+		}
+		out = append(out, strings.TrimRight(b.String(), " "))
+	}
+	return out, true
+}
+
+// flow lays groups out in as many columns as the room holds, each as wide as the widest line, filled top to bottom
+// and a group never split across two.
+func flow(groups [][]string, room int) []string {
+	widest := 0
+	total := 0
+	for _, g := range groups {
+		widest = max(widest, width(g))
+		total += len(g) + 1
+	}
+	cell := min(widest+4, room)
+	columns := max(1, min(len(groups), room/cell))
+	target := (total + columns - 1) / columns
+	var cols [][]string
+	var current []string
+	for _, g := range groups {
+		if len(current) > 0 && len(current)+len(g) > target && len(cols) < columns-1 {
+			cols = append(cols, current)
+			current = nil
+		}
+		if len(current) > 0 {
+			current = append(current, "")
+		}
+		current = append(current, g...)
+	}
+	cols = append(cols, current)
+	height := 0
+	for _, c := range cols {
+		height = max(height, len(c))
+	}
+	out := make([]string, 0, height)
+	for row := 0; row < height; row++ {
+		var b strings.Builder
+		for n, c := range cols {
+			text := ""
+			if row < len(c) {
+				text = clip(c[row], cell)
+			}
+			if n < len(cols)-1 {
+				text = pad(text, cell, false)
+			}
+			b.WriteString(text)
+		}
+		out = append(out, "   "+strings.TrimRight(b.String(), " "))
+	}
+	return out
+}
+
+// width gives the widest of some lines, in cells.
+func width(lines []string) int {
+	widest := 0
+	for _, l := range lines {
+		widest = max(widest, ansi.StringWidth(l))
+	}
+	return widest
 }
 
 // lines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or its rows, the

@@ -251,22 +251,22 @@ without-kittui() {
   printf 'x\n' > c
   run --keep-empty-lines "${kit_root}/bin/kit" status
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "WORKTREES 2" ]
+  [ "${lines[0]}" = "🌿 WORKTREES 2" ]
   [ "${lines[1]}" = "🏠 main              · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
   [ "${lines[2]}" = "   ?? c" ]
   [ "${lines[3]}" = "" ]
   [ "${lines[4]}" = "🌿 worktrees/7-topic · ↑0 ↓0 · +0 -0" ]
   [ "${lines[5]}" = "" ]
-  [ "${lines[6]}" = "INCOMING" ]
+  [ "${lines[6]}" = "📥 INCOMING" ]
   [ "${lines[7]}" = "📥 origin: unchanged" ]
   [ "${#lines[@]}" -eq 8 ]
   # the heading is dim only when effects are on; --text prints the same picture
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status --text --no-fetch
-  [[ "${lines[0]}" == "${esc}[90mWORKTREES 2${esc}[0m" ]]
-  [[ "$output" == *"${esc}[90mINCOMING${esc}[0m"$'\n'"${esc}[90m📥 origin: not fetched${esc}[0m"* ]]
+  [[ "${lines[0]}" == "🌿 ${esc}[1mWORKTREES${esc}[0m ${esc}[90m2${esc}[0m" ]]
+  [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"${esc}[90m📥 origin: not fetched${esc}[0m"* ]]
   run --keep-empty-lines "${kit_root}/bin/kit" status --text --no-fetch
   [[ "$output" != *"${esc}["* ]]
-  [ "${lines[6]}" = "INCOMING" ]
+  [ "${lines[6]}" = "📥 INCOMING" ]
   [ "${lines[7]}" = "📥 origin: not fetched" ]
 }
 
@@ -292,21 +292,21 @@ without-kittui() {
   forge-world
   run --keep-empty-lines "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "BACKLOG 2" ]
+  [ "${lines[0]}" = "🎫 BACKLOG 2" ]
   [[ "${lines[1]}" == " #9        "*"d  🌿 9-other  🎫 Other thing" ]]
   [[ "${lines[2]}" == "#11  👤 ada  "*"d              🎫 Third thing" ]]
   [ "${lines[3]}" = "" ]
-  [ "${lines[4]}" = "INCOMING" ]
+  [ "${lines[4]}" = "📥 INCOMING" ]
   [ "${lines[5]}" = "📥 origin: not fetched" ]
   [ "${lines[6]}" = "" ]
-  [ "${lines[7]}" = "WORKTREES 1" ]
+  [ "${lines[7]}" = "🌿 WORKTREES 1" ]
   [ "${lines[8]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
   [ "${lines[9]}" = "" ]
-  [ "${lines[10]}" = "CHANGES 1" ]
+  [ "${lines[10]}" = "🔀 CHANGES 1" ]
   [[ "${lines[11]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[12]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
   [ "${lines[13]}" = "" ]
-  [ "${lines[14]}" = "RELEASES 3" ]
+  [ "${lines[14]}" = "📦 RELEASES 3" ]
   [[ "${lines[15]}" == "0.1.0-rc.7  📝 draft "* ]]
   [[ "${lines[17]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
   [ "${#lines[@]}" -eq 18 ]
@@ -329,11 +329,11 @@ without-kittui() {
   empty-forge
   run --keep-empty-lines "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "BACKLOG 0" ]
+  [ "${lines[0]}" = "🎫 BACKLOG 0" ]
   [ "${lines[1]}" = "no open issue without a pull request" ]
-  [ "${lines[9]}" = "CHANGES 0" ]
+  [ "${lines[9]}" = "🔀 CHANGES 0" ]
   [ "${lines[10]}" = "no open pull request" ]
-  [ "${lines[12]}" = "RELEASES 0" ]
+  [ "${lines[12]}" = "📦 RELEASES 0" ]
   [ "${lines[13]}" = "no release yet" ]
   [ "${#lines[@]}" -eq 14 ]
   run "${kit_root}/bin/kit" status backlog
@@ -353,9 +353,9 @@ without-kittui() {
 @test "a stage the forge cannot answer is drawn as its refusal under its heading, and the picture exits 1" {
   run "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "BACKLOG" ]
+  [ "${lines[0]}" = "🎫 BACKLOG" ]
   [[ "${lines[1]}" == *"set forge in kit.yml"* ]]
-  [[ "$output" == *$'\nWORKTREES 1\n🏠 main'* ]]
+  [[ "$output" == *$'\n🌿 WORKTREES 1\n🏠 main'* ]]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"set forge in kit.yml"* ]]
@@ -373,7 +373,7 @@ without-kittui() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
   [ "${lines[1]}" = "" ]
-  [ "${lines[2]}" = "WORKTREES 1" ]
+  [ "${lines[2]}" = "🌿 WORKTREES 1" ]
   [ "${lines[3]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
   [ "${#lines[@]}" -eq 4 ]
   run "${kit_root}/bin/kit" status --json
@@ -401,7 +401,7 @@ without-kittui() {
   [[ "$output" == *"🏠 main"* && "$output" != *"kittui"* && "$output" != *"WORKTREES"* ]]
   run "${kit_root}/bin/kit" status --no-fetch </dev/null
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "WORKTREES 1" ]
+  [ "${lines[0]}" = "🌿 WORKTREES 1" ]
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' status --bogus"
   [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* && "$output" != *"kittui"* ]]
@@ -438,8 +438,8 @@ without-kittui() {
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   run "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\nWORKTREES 1\n🌿 7-fix-the-thing · '* ]]
-  [[ "$output" == *$'\nCHANGES 1\n🔀 #3 Fix the thing'* ]]
+  [[ "$output" == *$'\n🌿 WORKTREES 1\n🌿 7-fix-the-thing · '* ]]
+  [[ "$output" == *$'\n🔀 CHANGES 1\n🔀 #3 Fix the thing'* ]]
   cd ../../../elsewhere
   run "${kit_root}/bin/kit" status changes
   [ "$output" = "no open pull request" ]
@@ -475,8 +475,8 @@ without-kittui() {
   git -C group/deep/two remote set-head origin main
   git init --quiet --initial-branch=main desk/nested
   run "${kit_root}/bin/kit" status --no-fetch
-  [[ "$output" == *"📂 desk"$'\n'"WORKTREES 1"$'\n'"🏠 main"* ]]
-  [[ "$output" == *"📂 group/deep/two"$'\n'"WORKTREES 1"$'\n'"🏠 main"* ]]
+  [[ "$output" == *"📂 desk"$'\n'"🌿 WORKTREES 1"$'\n'"🏠 main"* ]]
+  [[ "$output" == *"📂 group/deep/two"$'\n'"🌿 WORKTREES 1"$'\n'"🏠 main"* ]]
   [[ "$output" != *"📂 group/.hidden"* && "$output" != *"📂 desk/nested"* ]]
   output=$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null)
   [ "$(jq -c 'map(.path)' <<<"$output")" = '["desk","group/deep/two"]' ]
@@ -615,7 +615,7 @@ without-kittui() {
   cd "${work}"
   run pty "'${kit_root}/bin/kit' status --no-fetch"
   # the pseudo-terminal ends every line with CR LF
-  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"WORKTREES 1"$'\n'"🏠 main"* ]]
+  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"🌿 WORKTREES 1"$'\n'"🏠 main"* ]]
   [[ "$output" != *"kittui"* ]]
 }
 
@@ -654,7 +654,7 @@ without-kittui() {
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"git fetch --prune failed; ahead and behind counts may be stale" ]]
   [ "$(grep -c 'fetch --prune failed' <<<"$output")" -eq 1 ]
-  [[ "$output" == *$'WORKTREES 1\n🏠 main'* ]]
+  [[ "$output" == *$'🌿 WORKTREES 1\n🏠 main'* ]]
   run "${kit_root}/bin/kit" status --json
   [ "$status" -eq 1 ]
   [[ "$output" == *"git fetch --prune failed"* ]]

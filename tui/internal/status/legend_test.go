@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -53,21 +55,45 @@ func TestEveryGlyphIsInTheLegend(t *testing.T) {
 }
 
 func TestTheDrawnLegendListsEveryGlyphOfTheTable(t *testing.T) {
-	for _, width := range []int{80, 50} {
+	for _, width := range []int{80, 50, 200} {
 		m := New(runner(t), options())
 		m = drive(m, tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
 		v := view(m)
-		// at 50 columns a long meaning wraps under itself, so its words are no longer on one line
 		for _, e := range legend {
-			if !strings.Contains(v, e.glyph+" "+e.meaning) && (width == 80 || !strings.Contains(v, e.glyph+" ")) {
+			if !strings.Contains(v, e.glyph+"  "+e.meaning) {
 				t.Errorf("at %d the drawn legend lacks %s %s:\n%s", width, e.glyph, e.meaning, v)
 			}
 		}
-		for _, group := range []string{"places", "incoming", "pull requests", "their states", "checks", "issues",
-			"releases"} {
-			if !strings.Contains(v, "   "+group+" ") {
+		// at 200 each stage's own glyphs sit under its name on the line, and the states under "state"
+		groups := []string{groupEvery, groupIncoming, groupWorktrees, groupChanges, groupStates, groupReleases}
+		if width == 200 {
+			groups = []string{groupEvery, "state"}
+		}
+		for _, group := range groups {
+			if !strings.Contains(v, group) {
 				t.Errorf("at %d the drawn legend lacks the group %s:\n%s", width, group, v)
 			}
 		}
+	}
+}
+
+func TestEveryGlyphOfTheLegendStartsInOneColumn(t *testing.T) {
+	m := New(runner(t), options())
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 60}, press('?'))
+	column := -1
+	for _, line := range m.legendLines() {
+		plain := ansi.Strip(line)
+		for _, e := range legend {
+			if at := strings.Index(plain, e.glyph+"  "+e.meaning); at >= 0 {
+				cells := ansi.StringWidth(plain[:at])
+				if column >= 0 && cells != column {
+					t.Errorf("%s starts at cell %d, the others at %d", e.glyph, cells, column)
+				}
+				column = cells
+			}
+		}
+	}
+	if column < 0 {
+		t.Fatal("no glyph found")
 	}
 }

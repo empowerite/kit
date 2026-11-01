@@ -30,7 +30,15 @@ var (
 	label   = lipgloss.NewStyle().Bold(true)
 	cursor  = lipgloss.NewStyle().Reverse(true)
 	refusal = lipgloss.NewStyle().Foreground(red)
+	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
+	warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 )
+
+// Mark draws what is selected on a line of stages: bold, in the accent color.
+func Mark(s string) string { return mark.Render(s) }
+
+// Warn draws what wants attention but is not wrong, such as uncommitted paths: yellow, as git status draws them.
+func Warn(s string) string { return warn.Render(s) }
 
 // Chosen draws a chosen name: bold, underlined, and in the accent color, so a terminal without underline still shows it.
 func Chosen(s string) string { return chosen.Render(s) }

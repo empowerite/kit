@@ -98,9 +98,9 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
 - `releases`: the releases on the forge, newest first
 
-On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a dim heading with
-its count. `kit status <stage>` prints one stage, with that stage's flags: `kit status backlog --today` keeps the
-issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
+On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
+glyph and its count. `kit status <stage>` prints one stage, with that stage's flags: `kit status backlog --today`
+keeps the issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
 document. The `status` setting in `kit.yml` names the stages drawn, in order.
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's

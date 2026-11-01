@@ -1,7 +1,7 @@
  kit status · empowerite/kit
 
  ───────○───────────────●───────────────○───────────────○───────────────○───────
-    backlog 3      incoming 6      worktrees 5      changes 3      releases 3
+  🎫 backlog 3    📥 incoming 6  🌿 worktrees 5   🔀 changes 3    📦 releases 3
 
  ▸ [2ma1b2c3d[m  #1 docs: the docs say what the code does
    e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and…

@@ -141,15 +141,20 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 
 func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 	m := loaded(t, options())
-	if m.stage != 0 || !strings.Contains(m.View().Content, style.Label("●")) {
+	if m.stage != 0 || !strings.Contains(m.View().Content, style.Mark("●")) {
 		t.Fatalf("the first stage is not selected:\n%s", view(m))
 	}
+	// left at the first stage goes round to the last, and right there back to the first
 	m = drive(m, left)
+	if m.stage != 4 || m.moving {
+		t.Errorf("left at the first stage: stage %d, moving %v", m.stage, m.moving)
+	}
+	m = drive(m, right)
 	if m.stage != 0 {
-		t.Errorf("left at the first stage moved")
+		t.Errorf("right at the last stage: stage %d", m.stage)
 	}
 	m = drive(m, right, right)
-	if m.stage != 2 || !strings.Contains(m.View().Content, style.Label("worktrees 5")) {
+	if m.stage != 2 || !strings.Contains(m.View().Content, Branch+" "+style.Mark("worktrees")+" "+style.Off("5")) {
 		t.Errorf("right twice: stage %d\n%s", m.stage, view(m))
 	}
 	m = drive(m, down, right)
@@ -159,9 +164,10 @@ func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 	if !strings.Contains(view(m), style.Focus+" "+Change+" #2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
+	// from changes, three to the right goes round the end: releases, backlog, incoming
 	m = drive(m, right, right, right)
-	if m.stage != 4 {
-		t.Errorf("right past the last stage: %d", m.stage)
+	if m.stage != 1 {
+		t.Errorf("right round the end of the line: %d", m.stage)
 	}
 }
 
@@ -253,7 +259,7 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	}
 	// with no pull requests known, the worktrees show none
 	m = drive(m, left)
-	if v := view(m); strings.Contains(v, "no pull request yet") || strings.Contains(v, Change) {
+	if v := strings.Join(lines(m)[5:], "\n"); strings.Contains(v, "no pull request yet") || strings.Contains(v, Change) {
 		t.Errorf("the worktrees claim pull requests after changes failed:\n%s", v)
 	}
 	t.Setenv("FAKE_STATUS_REFUSE", "")
@@ -335,7 +341,7 @@ func TestQuitCodes(t *testing.T) {
 
 func TestEscWalksBackFromTheLegendToTheRowsToTheLineAndQuits(t *testing.T) {
 	m := loaded(t, options(), right, right, down, down, press('?'))
-	if !m.legend || !strings.Contains(view(m), "their states") {
+	if !m.legend || !strings.Contains(view(m), groupEvery) {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
@@ -363,13 +369,13 @@ func TestQuestionMarkShowsTheLegendInPlaceOfThePaneAndAgainHidesIt(t *testing.T)
 	if len(got) != 24 || got[0] != before[0] || got[2] != before[2] || got[3] != before[3] {
 		t.Errorf("the title or the line moved under the legend:\n%s", view(m))
 	}
-	if strings.Contains(view(m), Desk+" main") || !strings.Contains(view(m), "places") ||
+	if strings.Contains(view(m), Desk+" main") || !strings.Contains(view(m), groupEvery) ||
 		got[23] != " "+legendKeys {
 		t.Errorf("the legend is not in place of the pane, with its keys:\n%s", view(m))
 	}
 	// the arrows scroll the legend, not the line, on a screen too short for all of it
 	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 12}, right, down)
-	if m.stage != 2 || m.legendOffset != 1 || m.inRows || strings.Contains(view(m), "   places ") {
+	if m.stage != 2 || m.legendOffset != 1 || m.inRows || strings.Contains(view(m), "   "+groupEvery) {
 		t.Errorf("keys over the legend: stage %d, offset %d, in rows %v\n%s", m.stage, m.legendOffset, m.inRows, view(m))
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 24}, press('?'))
@@ -583,13 +589,17 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[3], "worktrees 5") || got[9] != " "+rowKeys {
 		t.Errorf("the title, the line, or the keys moved:\n%s", view(m))
 	}
-	if !strings.Contains(got[7], style.Focus+" "+Branch+" worktrees/spike") || strings.Contains(view(m), Desk+" main") {
+	// three lines of pane: … 3 above, the cursor's row, and the last row, which needs no … line
+	if !strings.Contains(got[5], "… 3 above") || !strings.Contains(got[6], style.Focus+" "+Branch+" worktrees/spike") ||
+		!strings.Contains(got[7], Gone+" gone:") || strings.Contains(view(m), Desk+" main") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
 	}
-	m = drive(m, enter)
+	// a pane of three lines holds the … lines and the row; one more line shows what the row opens to
+	m = drive(m, enter, tea.WindowSizeMsg{Width: 80, Height: 11})
 	if !strings.Contains(view(m), "?? notes.md") || !strings.Contains(view(m), style.Focus) {
 		t.Errorf("the open row's detail is not shown with its row:\n%s", view(m))
 	}
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 10})
 	// a page is the pane less one row: two rows here
 	m = drive(m, press(tea.KeyPgUp))
 	if !m.inRows || m.stages[2].cursor != 1 {
@@ -685,5 +695,83 @@ func TestAgeIsKitStatuss(t *testing.T) {
 		if got := age(secs); got != want {
 			t.Errorf("age(%d) = %q, want %q", secs, got, want)
 		}
+	}
+}
+
+func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 11}, right, right, down, down, press(tea.KeyEnter))
+	got := lines(m)
+	if len(got) != 11 || got[10] != " "+rowKeys {
+		t.Fatalf("the screen is not 11 lines with the keys last:\n%s", view(m))
+	}
+	v := view(m)
+	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 9 more") ||
+		!strings.Contains(v, style.Focus+" "+Branch+" 1-the-first-release") {
+		t.Errorf("the open row is not shown between its … lines:\n%s", v)
+	}
+	// a pane that holds every line says nothing of the kind
+	m = loaded(t, options(), right, right)
+	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
+		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
+	}
+}
+
+func TestTheWindowCountsWhatItHides(t *testing.T) {
+	for _, c := range []struct {
+		n, h, o, start, end int
+		above, below        bool
+	}{
+		{5, 10, 3, 0, 5, false, false},
+		{20, 10, 0, 0, 9, false, true},
+		{20, 10, 5, 5, 13, true, true},
+		{20, 10, 50, 11, 20, true, false},
+	} {
+		start, end, above, below := window(c.n, c.h, c.o)
+		if start != c.start || end != c.end || above != c.above || below != c.below {
+			t.Errorf("window(%d, %d, %d) = %d %d %v %v", c.n, c.h, c.o, start, end, above, below)
+		}
+	}
+}
+
+func TestTheDotTravelsTheWayTheArrowPointsAndStopsOnItsStage(t *testing.T) {
+	m := loaded(t, options())
+	// the line holds one-cell runes only, after one space, so a rune's index is its cell
+	at := func(m Model) int {
+		for k, r := range []rune(ansi.Strip(lines(m)[2])) {
+			if r == '●' {
+				return k
+			}
+		}
+		return -1
+	}
+	// one key, no frames yet: the stage is chosen, and the dot has left the first marker but not reached the next
+	next, cmd := m.Update(press(tea.KeyRight))
+	m = next.(Model)
+	if m.stage != 1 || !m.moving || cmd == nil {
+		t.Fatalf("right: stage %d, moving %v", m.stage, m.moving)
+	}
+	start := at(m)
+	trail := []int{start}
+	for m.moving {
+		next, _ = m.Update(frameMsg{})
+		m = next.(Model)
+		trail = append(trail, at(m))
+	}
+	for k := 1; k < len(trail); k++ {
+		if trail[k] <= trail[k-1] {
+			t.Fatalf("the dot did not go right every frame: %v", trail)
+		}
+	}
+	if len(trail) > frames+1 || trail[len(trail)-1] != m.center(1)+1 {
+		t.Errorf("the dot did not stop on incoming in %d frames: %v", frames, trail)
+	}
+	// left from the first stage goes left, off the start of the line and in from its end
+	m = loaded(t, options())
+	next, _ = m.Update(press(tea.KeyLeft))
+	m = next.(Model)
+	next, _ = m.Update(frameMsg{})
+	m = next.(Model)
+	if m.stage != 4 || at(m) >= m.center(0)+1 && at(m) < m.center(4) {
+		t.Errorf("left at the first stage did not go round the start: dot at %d", at(m))
 	}
 }

@@ -276,8 +276,8 @@ func incomingRows(s stage) []row {
 const commitsShown = 10
 
 // worktreeRows draws the desk, then each worktree: glyph and branch, ahead and behind, its pull request's number and
-// state, and its uncommitted count; open, the commits ahead, ten at most, then the uncommitted paths with their
-// status. Last, dim, the branches whose upstream is gone, when there are any; open, one row per branch.
+// state, and its uncommitted count; open, the uncommitted paths with their status in yellow, then the commits ahead,
+// ten at most, as kit status --text draws them. Last, dim, the branches whose upstream is gone, when there are any; open, one row per branch.
 func (m Model) worktreeRows(s stage) []row {
 	if s.trees == nil {
 		return nil
@@ -311,6 +311,9 @@ func (m Model) worktreeRows(s stage) []row {
 		}
 		r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(m.pullOf(c.Branch, desk)),
 			uncommitted(c.Uncommitted)}}
+		for _, change := range c.Changes {
+			r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
+		}
 		for i, commit := range c.Commits {
 			if i == commitsShown {
 				break
@@ -319,9 +322,6 @@ func (m Model) worktreeRows(s stage) []row {
 		}
 		if more := c.Ahead - min(len(c.Commits), commitsShown); more > 0 {
 			r.detail = append(r.detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
-		}
-		for _, change := range c.Changes {
-			r.detail = append(r.detail, span(fmt.Sprintf("%-2s %s", change.Status, change.Path)))
 		}
 		rows = append(rows, r)
 	}
@@ -355,7 +355,7 @@ func uncommitted(n int) cell {
 	if n == 0 {
 		return dim("clean")
 	}
-	return text(fmt.Sprintf("%d uncommitted", n))
+	return text(style.Warn(fmt.Sprintf("%d uncommitted", n)))
 }
 
 // pullOf gives the pull request cell of a checkout on the branch: its number and state when changes has loaded and

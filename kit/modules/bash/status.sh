@@ -8,7 +8,7 @@
 #   backlog → incoming → worktrees → changes → releases
 #
 # The status setting in kit.yml names the stages the picture draws, in order. status:render draws one stage, or
-# the picture: every stage under a dim heading with its count. The rows of backlog, changes, and releases live in
+# the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog, changes, and releases live in
 # the modules named after them. The incoming and worktrees stages, and the cells every table shares, are here.
 #
 # Where it runs decides what worktrees and changes draw:
@@ -138,11 +138,20 @@ status:paint() {
   printf '%s%s%s' "$(out:sgr "$1")" "$2" "$(out:sgr 0)"
 }
 
-# status:heading <stage> [<count>] prints a stage's heading to stderr: its name in capitals, then its count, dim.
+# status:heading <stage> [<count>] prints a stage's heading to stderr: its glyph, its name in capitals and bold, then
+# its count, dim, as kittui labels the stages on its line.
 status:heading() {
-  local text=${1^^}
-  [[ -z "${2:-}" ]] || text+=" $2"
-  printf '%s\n' "$(status:paint 90 "${text}")" >&2
+  local glyph line
+  case "$1" in
+    (backlog)   glyph=🎫 ;;
+    (incoming)  glyph=📥 ;;
+    (worktrees) glyph=🌿 ;;
+    (changes)   glyph=🔀 ;;
+    (releases)  glyph=📦 ;;
+  esac
+  line="${glyph:+${glyph} }$(status:paint 1 "${1^^}")"
+  [[ -z "${2:-}" ]] || line+=" $(status:paint 90 "$2")"
+  printf '%s\n' "${line}" >&2
 }
 
 # status:none <text> prints one dim line to stderr, what an empty stage says instead of nothing.

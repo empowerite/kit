@@ -24,15 +24,15 @@ const (
 	Other    = "🔳" // a pull request in any other state
 )
 
-// The legend's groups, in the order it draws them.
+// The legend's groups, in the order it draws them: the glyphs more than one stage draws, then each stage's own, in
+// the order of the line of stages.
 const (
-	groupPlaces   = "places"
-	groupIncoming = "incoming"
-	groupPulls    = "pull requests"
-	groupStates   = "their states"
-	groupChecks   = "checks"
-	groupIssues   = "issues"
-	groupReleases = "releases"
+	groupEvery     = "every stage"
+	groupIncoming  = "incoming"
+	groupWorktrees = "worktrees"
+	groupChanges   = "changes"
+	groupStates    = "changes: state"
+	groupReleases  = "releases"
 )
 
 // entry is one line of the legend: a glyph, what it means, and the group it is drawn under. A state's meaning is the
@@ -43,16 +43,19 @@ type entry struct {
 
 // legend lists every glyph the picture draws, group by group; ? draws it, and stateGlyph reads the states from it.
 var legend = []entry{
-	{Desk, "the desk, the root checkout", groupPlaces},
-	{Branch, "a linked worktree", groupPlaces},
-	{Detached, "a checkout on no branch", groupPlaces},
-	{Gone, "a branch whose upstream is gone", groupPlaces},
-	{Branch, "a branch updated, or new, on origin", groupIncoming},
-	{Gone, "a branch gone from origin", groupIncoming},
+	{Branch, "a branch, or a linked worktree", groupEvery},
+	{Owner, "an author, or an issue's assignees", groupEvery},
+	{Issue, "an issue", groupEvery},
+	{Change, "a pull request", groupEvery},
+	{Gone, "a branch gone from origin", groupEvery},
+	{Failed, "a check failed, or a stage kit refused", groupEvery},
 	{Tag, "a new tag", groupIncoming},
-	{Change, "a pull request", groupPulls},
-	{Owner, "its author", groupPulls},
-	{Threads, "unresolved review threads", groupPulls},
+	{Desk, "the desk, the root checkout", groupWorktrees},
+	{Detached, "a checkout on no branch", groupWorktrees},
+	{Threads, "unresolved review threads", groupChanges},
+	{InFlight, "an issue the pull request closes", groupChanges},
+	{Running, "checks still running", groupChanges},
+	{Passed, "every check passed", groupChanges},
 	{"🔨", "draft", groupStates},
 	{"🚦", "queued", groupStates},
 	{"💥", "conflicted", groupStates},
@@ -62,16 +65,19 @@ var legend = []entry{
 	{"👀", "blocked:approval", groupStates},
 	{"🛬", "ready", groupStates},
 	{Other, "any other state", groupStates},
-	{Running, "checks still running", groupChecks},
-	{Passed, "every check passed", groupChecks},
-	{Failed, "a check failed, or a stage kit refused", groupChecks},
-	{Issue, "an issue", groupIssues},
-	{Owner, "its assignees", groupIssues},
-	{InFlight, "in flight: a pull request closes it", groupIssues},
 	{Release, "a release", groupReleases},
 	{Pre, "a pre-release", groupReleases},
 	{Draft, "a draft", groupReleases},
 	{Latest, "the latest", groupReleases},
+}
+
+// stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.
+var stageGlyphs = map[string]string{
+	"backlog":   Issue,
+	"incoming":  "📥",
+	"worktrees": Branch,
+	"changes":   Change,
+	"releases":  Release,
 }
 
 // stateGlyphs gives a pull request's glyph by its state word, read from the legend's states but the last, any other.
