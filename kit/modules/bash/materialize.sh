@@ -13,11 +13,14 @@
 
 use release place manifest settings render file
 
-# materialize:owned <base> <path> succeeds for a path the kit materializes: one under .kit/ in the repository, other than
+# materialize:owned <base> <path> succeeds for a path the kit materializes: one under .kit/ in the repository, with no
+# . or .. segment, other than
 # the repository's own packages. Such a path is a link to its source when the source is inside the worktree, and
 # otherwise a copy without the write bit. .kit/.gitignore names every one, so git never sees them: the repository
 # commits the declaration in kit.yml and its own packages under .kit/packages/, and nothing kit places.
-materialize:owned() { [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* ]]; }
+materialize:owned() {
+  [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* && "/$2/" != */../* && "/$2/" != */./* ]]
+}
 
 # materialize:within <real-path> succeeds when an absolute real path is inside the worktree: under the directory the verb
 # runs in, the repository root, and not under a nested checkout such as a worktree under worktrees/, which has a .git

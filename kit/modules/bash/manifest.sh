@@ -90,12 +90,22 @@ manifest:write-all() {
 }
 
 # manifest:paths <base> prints every path the base's manifest records. A record line is a 64-character
-# hex digest, two spaces, and the path, which can contain spaces.
+# hex digest, two spaces, and the path, which can contain spaces. A record whose path climbs out of the base's root,
+# by a leading /, or a . or .. segment, is skipped and named: a manifest a clone carries is not kit's to trust, and
+# every path read here is one a verb may remove.
 manifest:paths() {
-  local manifest
+  local manifest path
   manifest=$(manifest:path "$1")
   [[ -f "${manifest}" ]] || return 0
-  awk 'length($1) == 64 && $0 ~ /^[0-9a-f]+  / { print substr($0, 67) }' "${manifest}"
+  while IFS= read -r path
+  do
+    if [[ "${path}" == /* || "/${path}/" == */../* || "/${path}/" == */./* ]]
+    then
+      warn "${manifest}: the record for '${path}' climbs out of its root; skipped"
+      continue
+    fi
+    printf '%s\n' "${path}"
+  done < <(awk 'length($1) == 64 && $0 ~ /^[0-9a-f]+  / { print substr($0, 67) }' "${manifest}")
 }
 
 # manifest:recorded <base> <path> prints the digest the base's manifest records for <path>, or nothing.

@@ -254,3 +254,24 @@ setup() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "a manifest record whose path climbs out of its root is skipped and named, and nothing outside .kit/ is removed" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'mine\n' > victim.txt
+  mkdir -p .kit/deep && printf 'mine too\n' > .kit/deep/kept.txt
+  # a manifest a hostile clone could carry: records that name paths outside .kit/ by a .. segment or an absolute path
+  chmod u+w .kit/manifest
+  digest=$(printf 'mine\n' | shasum -a 256 | cut -d ' ' -f 1)
+  printf '%s  .kit/../victim.txt\n%s  .kit/./deep/../../victim.txt\n%s  /etc/passwd\n' "${digest}" "${digest}" "${digest}" \
+    >> .kit/manifest
+  chmod a-w .kit/manifest
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  [ -f victim.txt ]
+  [ "$(cat victim.txt)" = "mine" ]
+  [[ "$output" == *".kit/manifest: the record for '.kit/../victim.txt' climbs out of its root; skipped"* ]]
+  [[ "$output" == *"'.kit/./deep/../../victim.txt' climbs out of its root; skipped"* ]]
+  [[ "$output" == *"'/etc/passwd' climbs out of its root; skipped"* ]]
+  run "${kit_checkout}/bin/kit" check
+  [[ "$output" != *"victim"* ]]
+}
