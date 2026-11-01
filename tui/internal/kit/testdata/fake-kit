@@ -4,9 +4,10 @@
 #
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; status --stages names two stages and a stage echoes its words
-# as JSON; any other verb's arguments and working directory are written to the file FAKE_KIT_RECORD names, for the
-# exec test to read. Every syntax answer about the verb FAKE_KIT_REFUSE names
-# (its grammar, choices, extension, and match) is a refusal instead, as the kit prints one, with exit 2.
+# as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the file
+# FAKE_KIT_RECORD names; any other verb's arguments and working directory are written to that file, for the exec test
+# to read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
+# refusal instead, as the kit prints one, with exit 2.
 
 set -o errexit -o nounset -o pipefail
 
@@ -107,6 +108,12 @@ case "${1:-}" in
       echo "❌ kit status: no stage 'nonesuch'; run: kit help status" >&2
       exit 2
     else
+      if [[ -n "${FAKE_KIT_SLEEP:-}" ]]
+      then
+        sleep "${FAKE_KIT_SLEEP}" &
+        printf '%s\n' "$!" > "${FAKE_KIT_RECORD:?}"
+        wait
+      fi
       printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
     fi
     ;;

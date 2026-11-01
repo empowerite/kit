@@ -231,4 +231,15 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "yaml:type prints the tag of a key's value: a list, a map, a scalar, and null for a key that is missing or empty" {
+  printf 'list: [a]\nmap:\n  k: v\ntext: hello\nempty:\n' > in.yml
+  run kit-bash 'yaml:type in.yml list; yaml:type in.yml map; yaml:type in.yml text; yaml:type in.yml empty
+    yaml:type in.yml none'
+  [ "$status" -eq 0 ]
+  [ "$output" = $'!!seq\n!!map\n!!str\n!!null\n!!null' ]
+  run kit-bash 'yaml:type absent.yml list'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

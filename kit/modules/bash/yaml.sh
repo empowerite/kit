@@ -13,6 +13,8 @@
 #
 #   yaml:value <file> <key>             the scalar under <key>, unquoted; nothing for a key that is missing or empty,
 #                                       or that holds a list or a map
+#   yaml:type <file> <key>              the tag of the value under <key>, as yq names it: !!seq, !!map, !!str, and
+#                                       so on, or !!null for a key that is missing or empty
 #   yaml:list <file> <key>              the scalar items of the list under <key>, unquoted, one per line
 #   yaml:map <file> <key>               "<name>\t<value>" for every scalar entry of the map under <key>, the value
 #                                       unquoted, and empty when the entry is empty
@@ -183,6 +185,13 @@ yaml:eval() {
 yaml:value() {
   kit_yaml_key=$2 yaml:eval "$1" "value $2" 'explode(.) | (if kind == "map" then [.[strenv(kit_yaml_key)]] else [] end)
     | map(select(kind == "scalar" and tag != "!!null")) | .[]'
+}
+
+# yaml:type <file> <key> prints the tag of the value under <key>: !!seq, !!map, !!str, !!int, !!bool, and !!null for
+# a key that is missing or empty.
+yaml:type() {
+  kit_yaml_key=$2 yaml:eval "$1" "type $2" 'explode(.) | (if kind == "map" then .[strenv(kit_yaml_key)] else null end)
+    | [type] | .[]'
 }
 
 # yaml:list <file> <key> prints the scalar items of the list under <key>, unquoted, one per line.

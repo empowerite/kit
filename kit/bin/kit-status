@@ -84,7 +84,7 @@
 #   🔳  any other state
 #
 # Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
-# status setting that names no stage.
+# status setting that is not a list of distinct stages.
 #
 # see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/releases.sh
 
@@ -102,10 +102,10 @@ then
   exit 0
 fi
 
-# On a terminal, with no stage asked for and no form chosen, the picture is kittui's, which runs this kit. Without
-# a kittui the text picture prints, as it does without a terminal.
+# On a terminal inside a repository, with no stage asked for and no form chosen, the picture is kittui's, which
+# runs this kit. Without a kittui, or above desks, the text picture prints, as it does without a terminal.
 if [[ -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
-  && tui:binary --probe >/dev/null 2>&1
+  && git rev-parse --git-dir >/dev/null 2>&1 && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"

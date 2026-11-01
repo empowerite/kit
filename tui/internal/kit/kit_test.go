@@ -3,12 +3,16 @@
 package kit
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // fake gives a Runner over testdata/fake-kit in the directory dir.
@@ -165,18 +169,47 @@ func TestStagesAndStatusRunKitStatus(t *testing.T) {
 		t.Fatalf("Stages: %v, %q", err, stages)
 	}
 	// the stage's words are kit status <stage> --json <args>…, --json first
-	out, err := r.Status("incoming", []string{"--no-fetch"})
+	ctx := context.Background()
+	out, err := r.Status(ctx, "incoming", []string{"--no-fetch"})
 	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "incoming", "args": "--json --no-fetch"}` {
 		t.Errorf("Status(incoming): %v, %q", err, out)
 	}
-	out, err = r.Status("worktrees", nil)
+	out, err = r.Status(ctx, "worktrees", nil)
 	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "worktrees", "args": "--json"}` {
 		t.Errorf("Status(worktrees): %v, %q", err, out)
 	}
-	_, err = r.Status("nonesuch", nil)
+	_, err = r.Status(ctx, "nonesuch", nil)
 	var refusal *ExitError
 	if !errors.As(err, &refusal) || refusal.Code != 2 || !strings.Contains(refusal.Stderr, "no stage 'nonesuch'") {
 		t.Errorf("Status(nonesuch): %v", err)
+	}
+}
+
+func TestStatusEndsWithItsContextAndKitsChildrenDieWithIt(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("FAKE_KIT_SLEEP", "5")
+	t.Setenv("FAKE_KIT_RECORD", record)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := fake(t, "").Status(ctx, "incoming", nil)
+	// the sleep holds kit's pipes: Status returns at the deadline only when the sleep is killed with kit
+	if took := time.Since(start); !errors.Is(err, context.DeadlineExceeded) || took > time.Second {
+		t.Fatalf("Status past its deadline: %v after %s", err, took)
+	}
+	got, err := os.ReadFile(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(got)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for syscall.Kill(pid, 0) == nil {
+		if time.Since(start) > 2*time.Second {
+			t.Fatalf("the sleep %d outlived kit", pid)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

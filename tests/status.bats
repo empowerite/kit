@@ -609,4 +609,59 @@ without-kittui() {
   done
 }
 
+@test "above desks, kit status on a terminal prints the text picture and never hands off to kittui" {
+  fake-tui
+  stages 'worktrees'
+  cd "${work}"
+  run pty "'${kit_root}/bin/kit' status --no-fetch"
+  # the pseudo-terminal ends every line with CR LF
+  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"WORKTREES 1"$'\n'"🏠 main"* ]]
+  [[ "$output" != *"kittui"* ]]
+}
+
+@test "status in kit.yml must be a list of stages: a scalar, an empty list, and a repeated name are refused, and null means every stage" {
+  printf 'status: backlog\n' > kit.yml
+  run "${kit_root}/bin/kit" status --stages
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"status in kit.yml must be a list of stages, not 'backlog'"* ]]
+  run "${kit_root}/bin/kit" status --no-fetch
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"must be a list of stages, not 'backlog'"* && "$output" != *"WORKTREES"* ]]
+  printf 'status: []\n' > kit.yml
+  run "${kit_root}/bin/kit" status --stages
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"status in kit.yml names no stage; the stages are: backlog incoming worktrees changes releases"* ]]
+  run "${kit_root}/bin/kit" status --no-fetch --json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
+  printf 'status: [worktrees, worktrees]\n' > kit.yml
+  run "${kit_root}/bin/kit" status --stages
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'worktrees' is named twice in status in kit.yml"* ]]
+  run "${kit_root}/bin/kit" status --no-fetch
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"WORKTREES"* ]]
+  printf 'status:\n' > kit.yml
+  run "${kit_root}/bin/kit" status --stages
+  [ "$status" -eq 0 ]
+  [ "$output" = $'backlog\nincoming\nworktrees\nchanges\nreleases' ]
+}
+
+@test "a fetch that fails warns once and the picture exits 1, without incoming in the picture, in text and as JSON" {
+  stages 'worktrees'
+  git remote set-url origin "${work}/nowhere.git"
+  run "${kit_root}/bin/kit" status
+  [ "$status" -eq 1 ]
+  [[ "${lines[0]}" == *"git fetch --prune failed; ahead and behind counts may be stale" ]]
+  [ "$(grep -c 'fetch --prune failed' <<<"$output")" -eq 1 ]
+  [[ "$output" == *$'WORKTREES 1\n🏠 main'* ]]
+  run "${kit_root}/bin/kit" status --json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"git fetch --prune failed"* ]]
+  [ "$(jq -r '[.stages[], .worktrees.desk.branch] | join(" ")' <<<"${lines[${#lines[@]} - 1]}")" = "worktrees main" ]
+  run "${kit_root}/bin/kit" status --no-fetch
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"fetch --prune failed"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

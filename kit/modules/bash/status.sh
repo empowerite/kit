@@ -897,9 +897,9 @@ status:picture-document() {
 # status:picture [--no-fetch] [--json] [<owner flag>…] draws every stage the status setting names, in its order, or
 # prints the picture as one JSON object. It collects first and draws after: the forge stages run in the background
 # while origin is fetched; then the checkouts are measured; then each stage is drawn in order, under its heading. A
-# stage that failed is drawn as its refusal, and the picture returns 1 at the end. With no origin it fetches
-# nothing and asks the forge nothing: it draws the checkouts, says so once, and returns 0. It returns 2 when the
-# status setting names no stage.
+# stage that failed is drawn as its refusal, and the picture returns 1 at the end, in either form; so does a fetch
+# that failed, after one warning, whether or not incoming is drawn. With no origin it fetches nothing and asks the
+# forge nothing: it draws the checkouts, says so once, and returns 0. It returns 2 when the status setting is wrong.
 status:picture() {
   local json=false no_fetch=false origin=true failed=false first=true stage doc code choice scratch text
   local -a stages=() args=() named=()
@@ -932,9 +932,10 @@ status:picture() {
     readarray -t args < <(status:stage-args incoming --json "$@")
     status:incoming "${args[@]}" > "${scratch}/incoming.json" 2> "${scratch}/incoming.err" && code=0 || code=$?
     printf '%s\n' "${code}" > "${scratch}/incoming.status"
-  elif [[ "${no_fetch}" == false ]]
+  elif [[ "${no_fetch}" == false ]] && ! git fetch --quiet --prune origin 2>/dev/null
   then
-    git fetch --quiet --prune origin 2>/dev/null || true
+    warn "git fetch --prune failed; ahead and behind counts may be stale"
+    failed=true
   fi
   if list:among worktrees "${stages[@]}"
   then
@@ -942,6 +943,12 @@ status:picture() {
     printf '%s\n' "${code}" > "${scratch}/worktrees.status"
   fi
   wait
+  # One rule for both forms: a stage that ran and failed makes the picture return 1, as a fetch that failed does. A
+  # stage that did not run, with no origin, is no failure.
+  for stage in "${stages[@]}"
+  do
+    [[ ! -f "${scratch}/${stage}.status" || "$(<"${scratch}/${stage}.status")" == 0 ]] || failed=true
+  done
   if [[ "${json}" == true ]]
   then
     for stage in "${stages[@]}"
@@ -949,12 +956,11 @@ status:picture() {
       doc=$(status:picture-document "${scratch}" "${stage}" "${origin}")
       named+=(--argjson "${stage}" "${doc}")
       [[ ! -s "${scratch}/${stage}.err" ]] || cat "${scratch}/${stage}.err" >&2
-      [[ "${doc}" != null ]] || failed=true
     done
     [[ "${origin}" == true ]] || warn "no origin: nothing fetched, no pull request shown"
     jq --null-input --compact-output --argjson stages "$(status:json-list "${stages[@]}")" "${named[@]}" \
       '{stages: $stages} + $ARGS.named'
-    [[ "${origin}" == false || "${failed}" == false ]]
+    [[ "${failed}" == false ]]
     return
   fi
   if [[ "${origin}" == false ]]
@@ -972,7 +978,6 @@ status:picture() {
     code=$(<"${scratch}/${stage}.status")
     if (( code != 0 ))
     then
-      failed=true
       status:heading "${stage}"
       cat "${scratch}/${stage}.err" >&2
       continue

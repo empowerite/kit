@@ -5,6 +5,7 @@ package kit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/empowerite/kit/tui/internal/syntax"
 )
@@ -213,10 +215,24 @@ func (r Runner) Stages() ([]string, error) {
 	return stages, nil
 }
 
+// waitDelay is how long Status waits, once ctx has ended, for kit to die and its pipes to close before the pipes
+// are closed for it.
+const waitDelay = 2 * time.Second
+
 // Status gives one stage's JSON, as kit status <stage> --json <args>… prints it; the args are the stage's own flags.
-// A stage kit cannot draw is kit's refusal, an ExitError.
-func (r Runner) Status(stage string, args []string) ([]byte, error) {
-	return r.run(append([]string{"status", stage, "--json"}, args...)...)
+// A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
+// the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
+func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, r.Kit, append([]string{"status", stage, "--json"}, args...)...)
+	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
+	cmd.WaitDelay = waitDelay
+	out, err := r.output(cmd)
+	if err != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return out, err
 }
 
 // Exec replaces this process with kit <verb> <args>…, run where the command was typed. It returns only on failure.
@@ -248,8 +264,13 @@ func (r Runner) run(args ...string) ([]byte, error) {
 // runIn runs kit as run does, in the environment env.
 func (r Runner) runIn(env []string, args ...string) ([]byte, error) {
 	cmd := exec.Command(r.Kit, args...)
-	cmd.Dir = r.Dir
 	cmd.Env = env
+	return r.output(cmd)
+}
+
+// output runs the command in Dir and gives its stdout, as run says.
+func (r Runner) output(cmd *exec.Cmd) ([]byte, error) {
+	cmd.Dir = r.Dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

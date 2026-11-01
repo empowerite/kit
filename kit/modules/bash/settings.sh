@@ -220,20 +220,41 @@ settings:require() {
 declare -gra settings_stages=(backlog incoming worktrees changes releases)
 
 # settings:stages prints the stages the status setting names, one per line, in its order: what kit status draws.
-# Without the setting, it prints every stage. A name that is no stage is refused, with the valid names, and it
-# returns 2.
+# Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 2: a
+# setting that is not a list, a list that names no stage, a name that is no stage, and a name given twice.
 settings:stages() {
-  local stage
-  local -a stages=()
-  readarray -t stages < <(yaml:list "$(settings:file)" status)
-  (( ${#stages[@]} > 0 )) || stages=("${settings_stages[@]}")
+  local settings type value stage
+  local -a stages=() seen=()
+  settings=$(settings:file)
+  type=$(yaml:type "${settings}" status) || return 2
+  case "${type}" in
+    ('' | '!!null') stages=("${settings_stages[@]}") ;;
+    ('!!seq')
+      readarray -t stages < <(yaml:list "${settings}" status)
+      if (( ${#stages[@]} == 0 ))
+      then
+        error "status in ${settings} names no stage; the stages are: ${settings_stages[*]}"
+        return 2
+      fi
+      ;;
+    (*)
+      value=$(yaml:value "${settings}" status)
+      error "status in ${settings} must be a list of stages, not '${value:-${type#!!}}'"
+      return 2
+  esac
   for stage in "${stages[@]}"
   do
     if ! list:among "${stage}" "${settings_stages[@]}"
     then
-      error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (status in kit.yml)"
+      error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (status in ${settings})"
       return 2
     fi
+    if list:among "${stage}" "${seen[@]}"
+    then
+      error "'${stage}' is named twice in status in ${settings}; name each stage once"
+      return 2
+    fi
+    seen+=("${stage}")
   done
   printf '%s\n' "${stages[@]}"
 }

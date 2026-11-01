@@ -28,5 +28,6 @@
       "branch": "", "detached": true, "ahead": 0, "behind": 0, "added": 0, "removed": 0,
       "commits": [], "uncommitted": 1, "changes": [{"status": "??", "path": "notes.md"}]
     }
-  ]
+  ],
+  "goneBranches": ["old-experiment", "44-a-spike"]
 }

@@ -27,21 +27,25 @@ type commit struct {
 	Subject string `json:"subject"`
 }
 
-// incoming is what the fetch brought: with --no-fetch, Fetched alone, false.
+// incoming is what the fetch brought: the commits new on the default branch, the branches new, updated, and gone on
+// origin, and the tags new; with --no-fetch, Fetched alone, false.
 type incoming struct {
 	Fetched  bool     `json:"fetched"`
 	Default  string   `json:"default"`
 	Commits  []commit `json:"commits"`
 	Branches struct {
-		New  []string `json:"new"`
-		Gone []string `json:"gone"`
+		New     []string `json:"new"`
+		Updated []string `json:"updated"`
+		Gone    []string `json:"gone"`
 	} `json:"branches"`
+	Tags []string `json:"tags"`
 }
 
-// worktrees is the desk and every linked worktree.
+// worktrees is the desk, every linked worktree, and the branches whose upstream is gone.
 type worktrees struct {
-	Desk      *checkout  `json:"desk"`
-	Worktrees []checkout `json:"worktrees"`
+	Desk         *checkout  `json:"desk"`
+	Worktrees    []checkout `json:"worktrees"`
+	GoneBranches []string   `json:"goneBranches"`
 }
 
 // checkout is one checkout: its branch, its lines against the default branch, the commits ahead of it, newest first,
@@ -191,7 +195,8 @@ func branchOf(branch string) string {
 	return Branch + " " + branch
 }
 
-// summary gives incoming's text line: what the fetch brought, unchanged, or not fetched.
+// summary gives incoming's text line: what the fetch brought, counted in kit status's order, unchanged, or not
+// fetched.
 func (in incoming) summary() string {
 	if !in.Fetched {
 		return "not fetched"
@@ -200,11 +205,17 @@ func (in incoming) summary() string {
 	if n := len(in.Commits); n > 0 {
 		parts = append(parts, plural(n, "new commit", "new commits")+" on "+in.Default)
 	}
+	if n := len(in.Branches.Updated); n > 0 {
+		parts = append(parts, plural(n, "branch updated", "branches updated"))
+	}
 	if n := len(in.Branches.New); n > 0 {
 		parts = append(parts, plural(n, "new branch", "new branches"))
 	}
 	if n := len(in.Branches.Gone); n > 0 {
 		parts = append(parts, plural(n, "branch gone", "branches gone"))
+	}
+	if n := len(in.Tags); n > 0 {
+		parts = append(parts, plural(n, "new tag", "new tags"))
 	}
 	if len(parts) == 0 {
 		return "unchanged"
@@ -273,8 +284,8 @@ func (m Model) backlogRows(s stage) []row {
 	return rows
 }
 
-// incomingRows draws what the fetch brought: each commit on the default branch, then each branch new or gone. Every
-// row is a leaf.
+// incomingRows draws what the fetch brought, in kit status's order: each commit on the default branch, then each
+// branch updated, new, or gone, then each new tag. Every row is a leaf.
 func incomingRows(s stage) []row {
 	if s.in == nil || !s.in.Fetched {
 		return nil
@@ -283,11 +294,17 @@ func incomingRows(s stage) []row {
 	for _, c := range s.in.Commits {
 		rows = append(rows, row{key: c.SHA, cells: []cell{dim(c.SHA), fill(c.Subject)}})
 	}
+	for _, b := range s.in.Branches.Updated {
+		rows = append(rows, row{key: "updated " + b, cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
+	}
 	for _, b := range s.in.Branches.New {
 		rows = append(rows, row{key: "new " + b, cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
 	}
 	for _, b := range s.in.Branches.Gone {
 		rows = append(rows, row{key: "gone " + b, cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
+	}
+	for _, t := range s.in.Tags {
+		rows = append(rows, row{key: "tag " + t, cells: []cell{text(Gone), fill(t + " " + style.Off("new tag"))}})
 	}
 	return rows
 }
@@ -297,7 +314,7 @@ const commitsShown = 10
 
 // worktreeRows draws the desk, then each worktree: glyph and branch, ahead and behind, its pull request's number and
 // state, and its uncommitted count; open, the commits ahead, ten at most, then the uncommitted paths with their
-// status.
+// status. Last, dim, the branches whose upstream is gone, when there are any; open, one row per branch.
 func (m Model) worktreeRows(s stage) []row {
 	if s.trees == nil {
 		return nil
@@ -342,6 +359,13 @@ func (m Model) worktreeRows(s stage) []row {
 		}
 		for _, change := range c.Changes {
 			r.detail = append(r.detail, span(fmt.Sprintf("%-2s %s", change.Status, change.Path)))
+		}
+		rows = append(rows, r)
+	}
+	if gone := s.trees.GoneBranches; len(gone) > 0 {
+		r := row{key: "gone", cells: span(style.Off(Gone + " gone: " + strings.Join(gone, ", ")))}
+		for _, b := range gone {
+			r.detail = append(r.detail, span(Gone+" "+b+" "+style.Off("upstream gone · kit tidy removes it")))
 		}
 		rows = append(rows, r)
 	}
