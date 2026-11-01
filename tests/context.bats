@@ -164,4 +164,21 @@ teardown() {
   [ -z "$output" ]
 }
 
+@test "a kinds file is YAML: CRLF endings, a flow list, a quoted name, a comment after an item, and a leading --- all read" {
+  mkdir -p .kit/packages/conf/files/repo/.kit/kinds .kit/packages/conf/files/repo/.kit/rules
+  printf 'description: "Two configuration kinds in one file"\ndepends:\n  - kit\n' > .kit/packages/conf/package.yml
+  printf -- '---\r\n# configuration\r\nname: "toml"\r\npaths: ["**/*.toml", "**/*.tml"] # both spellings\r\n---\r\nname: ini\r\npaths:\r\n  - "**/*.ini" # windows\r\n---\r\n' \
+    > .kit/packages/conf/files/repo/.kit/kinds/config.yml
+  printf -- '---\r\nkind: [toml, ini]\r\n---\r\n# Configuration\r\n' > .kit/packages/conf/files/repo/.kit/rules/config.md
+  run "${kit_checkout}/bin/kit" package add conf
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" context --json Cargo.toml build.tml setup.ini
+  [ "$status" -eq 0 ]
+  [ "$(jq -sc 'map(.kinds)' <<<"$output")" = '[["any","toml"],["any","toml"],["any","ini"]]' ]
+  [ "$(jq -sc 'map(.rules)' <<<"$output")" = '[[".kit/rules/config.md"],[".kit/rules/config.md"],[".kit/rules/config.md"]]' ]
+  run "${kit_checkout}/bin/kit" kinds --json toml ini
+  [ "$status" -eq 0 ]
+  [ "$(jq -sc 'map([.name, .paths])' <<<"$output")" = '[["ini",["**/*.ini"]],["toml",["**/*.toml","**/*.tml"]]]' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

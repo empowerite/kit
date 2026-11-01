@@ -125,8 +125,8 @@ YAML
 
 @test "a linter a rule names that is not on PATH is a refusal, named" {
   mkdir -p "${BATS_TEST_TMPDIR}/path" && ln -s "$(command -v git)" "${BATS_TEST_TMPDIR}/path/git"
-  for tool in bash jq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env uname \
-    readlink comm
+  for tool in bash jq yq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date env \
+    uname readlink comm cksum
   do
     p=$(command -v "${tool}") && ln -s "${p}" "${BATS_TEST_TMPDIR}/path/${tool}" || true
   done

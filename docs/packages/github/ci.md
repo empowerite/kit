@@ -13,6 +13,7 @@ default branch. The job:
 
 GitHub's hosted runners already have Homebrew and Docker. The workflow's one setup action, `jdx/mise-action`
 with its own install turned off, puts `mise` on the runner when the repository has a `mise.toml` or `.mise.toml`.
+The job needs `jq` and `yq` on the runner, which the hosted runners have; a runner of the repository's own needs both.
 
 A repository on another CI system calls `kit toolchain install` and `kit ci` from its own pipeline.
 

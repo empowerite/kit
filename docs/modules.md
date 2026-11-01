@@ -229,3 +229,12 @@ template:regex() {
   importing a module adds no measurable time to that, so speed comes from starting jq fewer times: one jq process
   for all the files a verb reads, not one per file.
 - The jq modules come from the release alone. A repository has no jq module path of its own.
+
+## YAML
+
+The kit's files that are not JSON are YAML: `kit.yml`, each `package.yml`, the kinds files under `.kit/kinds/`, and
+the frontmatter of a rule or style. `modules/bash/yaml.sh` reads them through `yq` 4, mikefarah's, one yq process
+per read, with an expression in yq's own language, so a block scalar, a flow list, an anchor, or a CRLF line ending
+reads as YAML says. `yaml:json` prints a file as JSON where the data enters a jq program. No awk or sed parses YAML.
+Each read's result is kept under `${XDG_CACHE_HOME:-${HOME}/.cache}/kit/yaml/` beside the file's text as it was read,
+and replayed without a process while the text is unchanged, since a command reads the same file many times over.

@@ -75,8 +75,10 @@ export PATH="${PWD}/kit/bin:${PATH}"
 Requirements:
 
 - bash 4.4 or later. macOS ships bash 3.2; run `brew install bash`.
-- git; `jq` 1.7 or later, which every verb reads its arguments through; and `curl`, which `kit update` uses to fetch
-  the release it updates from, checked against the `.sha256` published beside it before anything in it is read.
+- git; `jq` 1.7 or later, which every verb reads its arguments through; `yq` 4 by mikefarah, which reads
+  `kit.yml` and every other YAML file, and which GitHub's hosted runners have preinstalled, as they have `jq`;
+  and `curl`, which `kit update` uses to fetch the release it updates from, checked against the `.sha256`
+  published beside it before anything in it is read.
 - For `kit issue`, `kit status`, `kit tidy`, and `kit linked`: the command-line tool of the forge, the service that
   hosts the repository. That is `gh` for GitHub or `glab` for GitLab.
 - For an Azure DevOps tracker: `az`, the Azure CLI.

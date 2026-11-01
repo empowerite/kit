@@ -115,34 +115,31 @@ context:load() {
 
 # context:read-kinds <file>… prints every kind the kinds files define, one field to a line: "<file>", "<kind>",
 # "<field>", and "<value>", joined by the unit separator \x1f. A name line opens each kind, then one line follows per
-# item of its paths, content, embeds, and kinds lists, unquoted as yaml:list unquotes. A document without a name prints an
-# error line instead, with an empty kind and the field error. The separator is not a tab, because read collapses
-# consecutive tabs and the empty kind would vanish.
+# item of its paths, content, embeds, and kinds lists, in that order, unquoted as yaml:list unquotes. A document
+# without a name prints an error line instead, with an empty kind and the field error, and so does a file yq cannot
+# read, after yaml:yq has said why. An empty document, such as a trailing ---, is nothing. The separator is not a
+# tab, because read collapses consecutive tabs and the empty kind would vanish.
 context:read-kinds() {
   local file
   for file in "$@"
   do
     [[ -f "${file}" ]] || continue
-    awk -v file="${file}" '
-      function close_doc() {
-        if (lines && name == "") print file "\037\037error\037a kind has no name: (see packages/kind.schema.json)"
-        else for (i = 1; i <= n; i++) print file "\037" name "\037" out[i]
-        name = ""; n = 0; lines = 0; key = ""
-      }
-      /^---[ \t]*$/ { close_doc(); next }
-      /^#/ || /^[ \t]*$/ { next }
-      /^name: / {
-        v = $0; sub(/^name: */, "", v)
-        if (v ~ /^".*"$/ || v ~ /^\x27.*\x27$/) v = substr(v, 2, length(v) - 2)
-        name = v; out[++n] = "name\037" v; lines++; next
-      }
-      /^[A-Za-z0-9_-]+:/ { key = $0; sub(/:.*$/, "", key); lines++; next }
-      /^  - / && (key == "paths" || key == "content" || key == "embeds" || key == "kinds") {
-        v = $0; sub(/^  - /, "", v)
-        if (v ~ /^"/) gsub(/^"|"$/, "", v); else sub(/[ \t]+#.*$/, "", v)
-        out[++n] = key "\037" v; lines++
-      }
-      END { close_doc() }' "${file}"
+    kit_yaml_file=${file} kit_yaml_us=$'\x1f' yaml:yq "${file}" kinds "
+      explode(.)
+      | if tag == \"!!null\" then []
+      elif kind != \"map\" or (.name | kind) != \"scalar\" or (.name | tag) == \"!!null\" then
+        [[strenv(kit_yaml_file), \"\", \"error\", \"a kind has no name: (see packages/kind.schema.json)\"]]
+      else
+        .name as \$name | . as \$kind
+        | [[strenv(kit_yaml_file), \$name, \"name\", \$name]]
+          + ([\"paths\", \"content\", \"embeds\", \"kinds\"]
+             | map(. as \$key | \$kind[\$key] | (if kind == \"seq\" then . else [] end)
+                   | map(select(kind == \"scalar\" and tag != \"!!null\"))
+                   | map([strenv(kit_yaml_file), \$name, \$key, .]))
+             | flatten(1))
+      end
+      | .[] | join(strenv(kit_yaml_us))" \
+      || printf '%s\x1f\x1ferror\x1fthe kinds in it cannot be read\n' "${file}"
   done
 }
 
