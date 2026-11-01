@@ -17,16 +17,11 @@ use release resolve settings sources place region file
 declare -gA render_rendered=() render_root_digest=()
 declare -g render_rendered_all=''
 
-# render:tmp prints a directory for this process's rendered templates. It is created on first use and removed
-# at exit. render:all does the rendering; every verb runs it before reading a release.
+# render:tmp sets render_tmp, the directory for this process's rendered templates, on first use; file:sweep removes it
+# at exit. It prints nothing, and a caller reads render_tmp, so the directory is made in this shell, where a subshell's
+# exit cannot remove it. render:all does the rendering; every verb runs it before reading a release.
 render:tmp() {
-  if [[ -z "${render_tmp:-}" ]]
-  then
-    render_tmp=$(mktemp -d)
-    # shellcheck disable=SC2064  # expanded now on purpose: the path is fixed from here on
-    trap "rm -rf '${render_tmp}'" EXIT
-  fi
-  printf '%s\n' "${render_tmp}"
+  [[ -n "${render_tmp:-}" ]] || file:scratch render_tmp
 }
 
 # render:package <root> <package> <kind> <base> renders the package's <kind> (templates or regions) for <base>, once
@@ -53,7 +48,8 @@ render:package() {
   fi
   [[ -n "${render_root_digest[${root}]+x}" ]] \
     || render_root_digest[${root}]=$(printf '%s' "${root}" | file:digest)
-  out="$(render:tmp)/${render_root_digest[${root}]}/packages/${package}/${kind}/${base}"
+  render:tmp || return 1
+  out="${render_tmp}/${render_root_digest[${root}]}/packages/${package}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
     # Made before the loop, so a kind with a directory and no file left in it is still a layer that exists.

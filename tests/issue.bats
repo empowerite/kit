@@ -53,6 +53,32 @@ world() {
   run ! git -C worktrees/7-fix-the-thing ls-files --error-unmatch .kit/1st.md
 }
 
+@test "a worktree that declares unreleased is hydrated by its own kit, the version read as YAML: spaces and a comment beside it do not matter" {
+  # the worktree is the kit: kit/bin/kit, a stand-in that records what it was asked, and 1st.sh beside it
+  mkdir -p wt/kit/bin wt/kit/modules/bash
+  printf 'version:   unreleased   # built from this checkout\n' > wt/kit.yml
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" > "$(dirname "$0")/../../called"\n' > wt/kit/bin/kit
+  chmod +x wt/kit/bin/kit
+  : > wt/kit/modules/bash/1st.sh
+  run kit-bash "use issue && issue:hydrate '${PWD}/wt'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Hydrating ${PWD}/wt"* ]]
+  [ "$(cat wt/called)" = hydrate ]
+  # a kit.yml that declares no version, or no kit.yml at all, leaves the worktree alone
+  rm wt/called
+  printf 'forge: github\n' > wt/kit.yml
+  run kit-bash "use issue && issue:hydrate '${PWD}/wt'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -e wt/called ]
+  rm wt/kit.yml
+  run kit-bash "use issue && issue:hydrate '${PWD}/wt'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  # the module reads kit.yml as YAML, never with grep
+  [ "$(grep -c 'grep.*kit\.yml' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
+}
+
 @test "kit issue with nothing is refused: a reference or a title, and no prompt remains" {
   run "${kit_checkout}/bin/kit" issue </dev/null
   [ "$status" -eq 2 ]

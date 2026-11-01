@@ -95,7 +95,7 @@ What a release delivers, and how, is split by concern into one module each, and 
 | `place.sh` | `place:` | a delivered path: written, merged by key, compared with the release, and taken out again |
 | `materialize.sh` | `materialize:` | what kit keeps under `.kit/`: a link or a read-only copy per path, and `.kit/.gitignore` |
 | `manifest.sh` | `manifest:` | `.kit/manifest` and `~/.kit/manifest`: the digest of every delivered path |
-| `file.sh` | `file:` | a file written whole or not at all, and a file's digest |
+| `file.sh` | `file:` | a file written whole or not at all, a file's digest, and the scratch space one EXIT trap sweeps |
 
 ### Writing a bash module
 

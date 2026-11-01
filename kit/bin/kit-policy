@@ -28,7 +28,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use policy settings materialize yaml
+use policy settings materialize yaml file
 guard:arguments policy "$@" || exit $?
 materialize:hydrate
 
@@ -38,8 +38,9 @@ then
   exit 0
 fi
 
-input=$(mktemp)
-trap 'rm -f "${input}"' EXIT
+file:scratch scratch
+# shellcheck disable=SC2154  # scratch is set by file:scratch
+input=${scratch}/input
 policy:input > "${input}"
 author=$(jq --raw-output '.change.author // empty' "${input}")
 if [[ -n "${author}" ]]

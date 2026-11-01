@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# file.bats - file:replace and file:copy write a file whole or not at all: a failed producer leaves the file as it was
+# file.bats - file:replace and file:copy write a file whole or not at all, and one EXIT trap sweeps the scratch space
 # ----------------------------------------------------------------------------------------------------------------------
 
 load helper
@@ -54,6 +54,34 @@ setup() {
   [ "$status" -ne 0 ]
   [ "$(cat bin/copy.sh)" = "#!/usr/bin/env bash" ]
   [ ! -e bin/copy.sh.kit-new ]
+}
+
+@test "file:scratch makes directories under TMPDIR that the one EXIT trap removes, and file:at-exit's command runs" {
+  run kit-bash 'file:scratch a && file:scratch b && file:at-exit touch "${PWD}/ran" && trap -p EXIT && printf "%s\n" "${a}" "${b}"'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "trap -- 'file:sweep' EXIT" ]
+  [[ "${lines[1]}" == "${TMPDIR}/kit."* && "${lines[2]}" == "${TMPDIR}/kit."* && "${lines[1]}" != "${lines[2]}" ]]
+  [ ! -e "${lines[1]}" ]
+  [ ! -e "${lines[2]}" ]
+  [ -f ran ]
+  # the directories are there while the process runs, and a command's words are expanded when it is given
+  run kit-bash 'file:scratch a && file:at-exit cp "${a}/in" "${PWD}/out" && printf "kept\n" > "${a}/in" && [[ -d "${a}" ]]'
+  [ "$status" -eq 0 ]
+  [ "$(cat out)" = kept ]
+}
+
+@test "the trap survives a module that asks for scratch space after another did, and the exit status survives the sweep" {
+  run kit-bash 'use render && file:scratch a && render:tmp && trap -p EXIT && printf "%s\n" "${a}" "${render_tmp}" && exit 3'
+  [ "$status" -eq 3 ]
+  [ "${lines[0]}" = "trap -- 'file:sweep' EXIT" ]
+  [[ "${lines[1]}" == "${TMPDIR}/kit."* && "${lines[2]}" == "${TMPDIR}/kit."* ]]
+  [ ! -e "${lines[1]}" ]
+  [ ! -e "${lines[2]}" ]
+  # a command that fails at exit changes nothing: the sweep goes on, and the status stays
+  run kit-bash 'file:at-exit false && file:scratch a && file:at-exit touch "${PWD}/after" && printf "%s\n" "${a}"'
+  [ "$status" -eq 0 ]
+  [ ! -e "${lines[0]}" ]
+  [ -f after ]
 }
 
 @test "no writer in the modules or the verbs moves a .kit-new over a path on its own" {

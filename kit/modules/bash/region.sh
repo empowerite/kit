@@ -111,8 +111,7 @@ region:host() {
 # names the host and the line the file leaves it at, when no run of first lines matches.
 region:host-insert() {
   local dest=$1 host=$2 begin=$3 end=$4 prefix lines k rest
-  # render:tmp makes its directory in this shell, so that a subshell's exit does not remove it.
-  render:tmp >/dev/null
+  render:tmp || return 1
   prefix=${render_tmp}/host-prefix
   awk 'index($0, "kit:generate") { exit } { print }' "${host}" \
     | awk '{ line[NR] = $0 } END { n = NR; while (n > 0 && line[n] == "") n--; for (i = 1; i <= n; i++) print line[i] }' \

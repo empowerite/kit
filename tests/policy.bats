@@ -53,6 +53,8 @@ change() {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
   [[ "$output" == *"the patterns policy allows the branch, 2 commit(s), the change title"* ]]
+  # the facts were written to scratch space, swept at exit
+  [ -z "$(find "${TMPDIR}" -mindepth 1 -maxdepth 1 -name 'kit.*')" ]
 }
 
 @test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {
