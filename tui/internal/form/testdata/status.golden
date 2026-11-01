@@ -1,11 +1,15 @@
- kit status - shows every worktree with its branch, pull request, and state
+ kit status - shows where the work stands: backlog, incoming, worktrees, changes, releases
 
-   --no-fetch               skips the git fetch
-
-   --json   --jq            prints the same facts as one JSON document
-
-   --all                    every open pull request (the default); it stands alone
-   --mine --others --owner
+   required
+   --no-fetch [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+   --stages                  prints the stages the picture draws, one per line, in order
+   backlog                   the open issues no pull request closes, oldest first
+   incoming                  what the fetch brought: commits on the default branch, branches new and
+                             gone
+   worktrees                 the desk and every worktree: branch, ahead and behind, commits,
+                             uncommitted paths
+   changes                   the open pull requests, each with the issues it closes
+   releases                  the releases on the forge, newest first
 
 
  kit status

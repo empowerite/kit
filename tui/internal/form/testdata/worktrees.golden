@@ -1,7 +1,0 @@
- kit worktrees - shows the desk and every worktree, each with its branch, commits, and changes
-
-   --json   --jq  prints the same facts as one JSON document: desk, and worktrees in issue-number
-                  order
-
-
- kit worktrees

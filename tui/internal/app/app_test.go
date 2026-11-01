@@ -2,48 +2,25 @@
 package app
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/kit"
+	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
-func runner(t *testing.T) kit.Runner {
-	t.Helper()
-	path, err := filepath.Abs(filepath.Join("..", "kit", "testdata", "fake-kit"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return kit.Runner{Kit: path, Dir: t.TempDir()}
-}
-
+// drive sends the messages to the root model from its start, as the program would.
 func drive(m Model, msgs ...tea.Msg) Model {
-	queue := append([]tea.Msg{}, msgs...)
-	if cmd := m.Init(); cmd != nil {
-		queue = append([]tea.Msg{cmd()}, queue...)
-	}
-	for len(queue) > 0 {
-		next, cmd := m.Update(queue[0])
-		queue = queue[1:]
-		m = next.(Model)
-		if cmd != nil {
-			if out := cmd(); out != nil {
-				if _, quit := out.(tea.QuitMsg); !quit {
-					queue = append([]tea.Msg{out}, queue...)
-				}
-			}
-		}
-	}
+	m, _ = testkit.Drive(m, nil, testkit.Start(m, msgs...)...)
 	return m
 }
 
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
 func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
-	m, err := Open(runner(t), "", nil)
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +39,7 @@ func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
 }
 
 func TestAHandOffOpensTheFormAloneFilledFromTheWords(t *testing.T) {
-	m, err := Open(runner(t), "commit", []string{"--message", "hi"})
+	m, err := Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +56,7 @@ func TestAHandOffOpensTheFormAloneFilledFromTheWords(t *testing.T) {
 
 func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 	t.Setenv("FAKE_KIT_REFUSE", "submit")
-	m, err := Open(runner(t), "", nil)
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +77,7 @@ func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 }
 
 func TestAnUnknownVerbIsKitsRefusal(t *testing.T) {
-	_, err := Open(runner(t), "nonesuch", nil)
+	_, err := Open(testkit.Runner(t, "kit"), "nonesuch", nil)
 	var refusal *kit.ExitError
 	if err == nil || !strings.Contains(err.Error(), "no kit verb 'nonesuch'") {
 		t.Fatalf("err = %v", err)

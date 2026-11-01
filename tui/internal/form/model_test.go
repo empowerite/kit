@@ -10,19 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/syntax"
+	"github.com/empowerite/kit/tui/internal/testkit"
 )
-
-// runner is a kit.Runner over the runner package's fake kit.
-func runner(t *testing.T) kit.Runner {
-	t.Helper()
-	path, err := filepath.Abs(filepath.Join("..", "kit", "testdata", "fake-kit"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return kit.Runner{Kit: path, Dir: t.TempDir()}
-}
 
 // key gives the key press a name stands for, as Bubble Tea names them.
 func key(name string) tea.KeyPressMsg {
@@ -53,40 +43,12 @@ func key(name string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{}
 }
 
-// typed gives the key presses of a text.
-func typed(text string) []tea.Msg {
-	var msgs []tea.Msg
-	for _, r := range text {
-		msgs = append(msgs, tea.KeyPressMsg{Code: r, Text: string(r)})
-	}
-	return msgs
-}
-
-// drive sends the messages to the model, running every command each update returns and feeding its message back,
-// as the program would; it gives the model and every message the commands produced.
+// drive sends the messages to the form from its start, as the program would, and gives the model and every message
+// the commands produced; a BackMsg ends the form, so it is produced and not fed back.
 func drive(t *testing.T, m Model, msgs ...tea.Msg) (Model, []tea.Msg) {
 	t.Helper()
-	var produced []tea.Msg
-	queue := append([]tea.Msg{}, msgs...)
-	if cmd := m.Init(); cmd != nil {
-		queue = append([]tea.Msg{cmd()}, queue...)
-	}
-	for len(queue) > 0 {
-		msg := queue[0]
-		queue = queue[1:]
-		next, cmd := m.Update(msg)
-		m = next.(Model)
-		if cmd != nil {
-			out := cmd()
-			produced = append(produced, out)
-			if _, quit := out.(tea.QuitMsg); !quit {
-				if _, back := out.(BackMsg); !back {
-					queue = append([]tea.Msg{out}, queue...)
-				}
-			}
-		}
-	}
-	return m, produced
+	back := func(msg tea.Msg) bool { _, ok := msg.(BackMsg); return ok }
+	return testkit.Drive(m, back, testkit.Start(m, msgs...)...)
 }
 
 // keys turns names into key presses.
@@ -105,7 +67,7 @@ func newForm(t *testing.T, verb string, a Answers, back bool) Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(spec, fields, runner(t), back)
+	return New(spec, fields, testkit.Runner(t, "kit"), back)
 }
 
 func TestEnterWalksToCommandLineAndRuns(t *testing.T) {
@@ -132,39 +94,40 @@ func TestKeyboardLandsOnTheFirstEmptyRequiredField(t *testing.T) {
 	}
 	m, _ = drive(t, m, keys("right")...)
 	m, _ = drive(t, m, keys("down")...)
-	m, _ = drive(t, m, typed("#1 tui: x")...)
+	m, _ = drive(t, m, testkit.Typed("#1 tui: x")...)
 	if got := strings.Join(m.CommandLine(), "\x00"); got != "--message\x00#1 tui: x" {
 		t.Errorf("a line being typed counts: %q", got)
 	}
 }
 
 func TestOneOfArrows(t *testing.T) {
-	m := newForm(t, "package", Answers{}, false)
+	m := newForm(t, "packages", Answers{}, false)
 	m, _ = drive(t, m, keys("right", "right")...)
-	if m.fields[0].Chosen != 1 || len(m.fields) != 2 || m.fields[1].Key != "<package>" {
+	if m.fields[0].Chosen != 1 || len(m.fields) != 3 || m.fields[1].Key != "select | add | remove" || m.fields[2].Key != "<package>" {
 		t.Fatalf("right twice: %+v", m.fields)
 	}
-	// kit package needs one of its words, so backspace leaves the choice where it is.
+	// kit packages needs one of its lines, so backspace leaves the choice where it is.
 	m, _ = drive(t, m, keys("backspace")...)
-	if m.fields[0].Chosen != 1 || len(m.fields) != 2 {
+	if m.fields[0].Chosen != 1 || len(m.fields) != 3 {
 		t.Errorf("backspace: %+v", m.fields)
 	}
-	// kit status's owner row is optional, so backspace clears it.
-	m = newForm(t, "status", Answers{}, false)
-	m, _ = drive(t, m, keys("down", "right")...)
-	if m.fields[1].Chosen != 0 {
-		t.Fatalf("right on the owner row: %+v", m.fields[1])
+	// kit status's owner row, under the picture's line, is optional, so backspace clears it.
+	m = newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m, _ = drive(t, m, keys("down", "down", "down", "right")...)
+	if m.fields[3].Chosen != 0 {
+		t.Fatalf("right on the owner row: %+v", m.fields[3])
 	}
 	m, _ = drive(t, m, keys("backspace")...)
-	if m.fields[1].Chosen != -1 {
-		t.Errorf("backspace on an optional row: %+v", m.fields[1])
+	if m.fields[3].Chosen != -1 {
+		t.Errorf("backspace on an optional row: %+v", m.fields[3])
 	}
 }
 
 func TestAnyOfSpace(t *testing.T) {
-	// status's owner row, its second alternative chosen, opens an any-of row of --mine and --others
-	m := newForm(t, "status", Answers{}, false)
-	m, _ = drive(t, m, keys("down", "down", "right", "right", "down", "space", "right", "space")...)
+	// status's owner row, under the picture's line, its second alternative chosen, opens an any-of row of --mine and
+	// --others
+	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m, _ = drive(t, m, keys("down", "down", "down", "right", "right", "down", "space", "right", "space")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--mine --others" {
 		t.Errorf("toggled: %q", got)
 	}
@@ -175,10 +138,15 @@ func TestAnyOfSpace(t *testing.T) {
 }
 
 func TestJSONAndJQAreOneOrTheOther(t *testing.T) {
-	m := newForm(t, "status", Answers{}, false)
-	m, _ = drive(t, m, keys("down", "right", "right")...)
+	// the picture's output row is --text | --json | --jq: right moves the choice along it, so one flag stands at a time
+	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m, _ = drive(t, m, keys("down", "down", "right", "right")...)
+	if got := strings.Join(m.CommandLine(), " "); got != "--json" {
+		t.Errorf("the output row on --json: %q", got)
+	}
+	m, _ = drive(t, m, keys("right")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--jq" {
-		t.Errorf("the output row: %q", got)
+		t.Errorf("the output row on --jq: %q", got)
 	}
 }
 
@@ -188,7 +156,7 @@ func TestPickManyFilterAndCount(t *testing.T) {
 	t.Setenv("FAKE_KIT_ROWS", "3000")
 	m := newForm(t, "lint", Answers{}, false)
 	m, _ = drive(t, m, keys("down")...)
-	m, _ = drive(t, m, typed("docs/")...)
+	m, _ = drive(t, m, testkit.Typed("docs/")...)
 	m, _ = drive(t, m, keys("space")...)
 	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "1 of 3000 picked") || strings.Contains(view, "src/file-1.go") {
@@ -204,20 +172,20 @@ func TestPickManyFilterAndCount(t *testing.T) {
 }
 
 func TestStatefulPickIsSeededAndANoteUndoesTheFlip(t *testing.T) {
-	m := newForm(t, "package", FromMatch(syntax.Match{Literals: []string{"select"}}), false)
+	m := newForm(t, "packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, false)
 	m, _ = drive(t, m)
-	if m.focus != 1 || strings.Join(m.fields[1].Values, " ") != "a b" {
-		t.Fatalf("seeded with the active rows: focus %d, %+v", m.focus, m.fields[1])
+	if m.focus != 2 || strings.Join(m.fields[2].Values, " ") != "a b" {
+		t.Fatalf("seeded with the active rows: focus %d, %+v", m.focus, m.fields[2])
 	}
 	m, _ = drive(t, m, keys("down", "space")...)
-	if strings.Join(m.fields[1].Values, " ") != "a b" {
-		t.Errorf("the flip stood: %+v", m.fields[1])
+	if strings.Join(m.fields[2].Values, " ") != "a b" {
+		t.Errorf("the flip stood: %+v", m.fields[2])
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "b: kept, c depend(s) on it") {
 		t.Errorf("no note:\n%s", stripANSI(m.View().Content))
 	}
 	m, _ = drive(t, m, keys("up", "space")...)
-	if strings.Join(m.fields[1].Values, " ") != "b" || !strings.Contains(stripANSI(m.View().Content), "➖") {
+	if strings.Join(m.fields[2].Values, " ") != "b" || !strings.Contains(stripANSI(m.View().Content), "➖") {
 		t.Errorf("a flipped off:\n%s", stripANSI(m.View().Content))
 	}
 }
@@ -241,14 +209,21 @@ func TestEscCancelsOrGoesBack(t *testing.T) {
 }
 
 func TestNarrowWidthGoesVertical(t *testing.T) {
-	m := newForm(t, "status", Answers{}, false)
-	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 40, Height: 30})
+	// the picture's output row draws its names side by side at 80 columns, and one per line at 40, where its names
+	// would not fit; the line's own name, the usage line whole, is the one line that may still say --json and --jq
+	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	if view := stripANSI(m.View().Content); !strings.Contains(view, "--text   --json   --jq") {
+		t.Fatalf("not one row at 80 columns:\n%s", view)
+	}
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 40, Height: 0})
 	view := stripANSI(m.View().Content)
+	if strings.Contains(view, "--text   --json") {
+		t.Errorf("one row at 40 columns:\n%s", view)
+	}
 	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(line, "--no-fetch") && strings.Contains(line, "--json") {
-			t.Errorf("one row at 40 columns:\n%s", view)
-		}
-		if n := len([]rune(stripANSI(line))); n > 40 {
+		// wrap keeps a word wider than the room beside the column whole, alone on its line, as the status package's
+		// wrap does: the one line that may pass the edge, here "uncommitted" beside a column of 30
+		if n := len([]rune(line)); n > 40 && strings.Contains(strings.TrimSpace(line), " ") {
 			t.Errorf("a line of %d columns: %q", n, line)
 		}
 	}
@@ -267,7 +242,7 @@ func TestExtendedFieldsReplaceTheWildcard(t *testing.T) {
 	}
 	m.focus = 4
 	m.enter()
-	m, _ = drive(t, m, typed("kit tui")...)
+	m, _ = drive(t, m, testkit.Typed("kit tui")...)
 	if got := Quote(m.CommandLine()); got != "file docs/x.md --rule=markdown --title='kit tui'" {
 		t.Errorf("the command line: %q", got)
 	}
@@ -299,10 +274,10 @@ func stripANSI(s string) string {
 }
 
 func TestAddStartsEmptyAndDrawsEachRowsStateBesideItsBox(t *testing.T) {
-	m := newForm(t, "package", FromMatch(syntax.Match{Literals: []string{"add"}}), false)
+	m := newForm(t, "packages", Answers{Literals: []string{"add"}, Chosen: map[int]int{0: 1}}, false)
 	m, _ = drive(t, m)
-	if len(m.fields[1].Values) != 0 || strings.Join(m.CommandLine(), " ") != "add" {
-		t.Fatalf("add was seeded: %+v, %q", m.fields[1], m.CommandLine())
+	if len(m.fields[2].Values) != 0 || strings.Join(m.CommandLine(), " ") != "add" {
+		t.Fatalf("add was seeded: %+v, %q", m.fields[2], m.CommandLine())
 	}
 	view := stripANSI(m.View().Content)
 	if !strings.Contains(view, "◻ ✅ a") || strings.Contains(view, "➖") || !strings.Contains(view, "0 of 3 picked") {
@@ -318,7 +293,7 @@ func TestHintsWrapAtFiftyColumns(t *testing.T) {
 	}{
 		{"lint", Answers{}, []string{"down"}},
 		{"commit", Answers{}, []string{"right", "down"}},
-		{"package", FromMatch(syntax.Match{Literals: []string{"select"}}), nil},
+		{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil},
 	} {
 		m := newForm(t, c.verb, c.a, false)
 		m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: 40})
@@ -350,7 +325,7 @@ func TestAListKitCannotGiveShowsItsLineAndTakesWhatIsTyped(t *testing.T) {
 	if !strings.Contains(view, "⏎ takes what is typed") {
 		t.Errorf("the field does not say it takes free text:\n%s", view)
 	}
-	m, _ = drive(t, m, typed("docs/x.md")...)
+	m, _ = drive(t, m, testkit.Typed("docs/x.md")...)
 	m, _ = drive(t, m, key("enter"))
 	if got := strings.Join(m.CommandLine(), " "); got != "docs/x.md" {
 		t.Errorf("the command line: %q", got)
@@ -379,15 +354,53 @@ func TestAFailedExtensionIsTheFocusedFieldsNote(t *testing.T) {
 func TestTheKeysFollowTheWayBackAndThePurposeNamesTheCommand(t *testing.T) {
 	m := newForm(t, "status", Answers{}, true)
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ field") {
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ ⇥ field") {
 		t.Errorf("with the way back, the first lines: %q", lines[:3])
 	}
-	if !strings.Contains(stripANSI(m.View().Content), "kit status - shows every worktree with its branch") {
+	for _, key := range []string{"←→ row or toggle", "⌫ erase", "esc back"} {
+		if !strings.Contains(lines[1], key) {
+			t.Errorf("the keys do not mention %q: %q", key, lines[1])
+		}
+	}
+	if !strings.Contains(stripANSI(m.View().Content), "\n kit status - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
 	}
 	m = newForm(t, "status", Answers{}, false)
 	lines = strings.Split(stripANSI(m.View().Content), "\n")
-	if !strings.Contains(lines[0], "↑↓ field") || strings.Contains(lines[len(lines)-1], "↑↓ field") {
+	if !strings.Contains(lines[0], "↑↓ ⇥ field") || strings.Contains(lines[len(lines)-1], "↑↓ ⇥ field") {
 		t.Errorf("without the way back, the keys are not first: %q", lines[0])
+	}
+}
+
+func TestAShortTerminalKeepsTheKeysAndTheFocusedField(t *testing.T) {
+	m := newForm(t, "new", FromMatch(syntax.Match{Literals: []string{"file"}}), true)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 9})
+	whole := strings.Count(strings.TrimRight(stripANSI(m.View().Content), "\n"), "\n") + 1
+	if whole != 9 {
+		t.Fatalf("%d lines on a screen of 9:\n%s", whole, stripANSI(m.View().Content))
+	}
+	for _, msgs := range [][]tea.Msg{nil, keys("down"), keys("down"), keys("down", "down", "down")} {
+		m, _ = drive(t, m, msgs...)
+		lines := strings.Split(strings.TrimRight(stripANSI(m.View().Content), "\n"), "\n")
+		if len(lines) > 9 {
+			t.Errorf("focus %d: %d lines on a screen of 9", m.focus, len(lines))
+		}
+		if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ ⇥ field") {
+			t.Errorf("focus %d: the top moved: %q", m.focus, lines[:2])
+		}
+		focused := m.focus >= len(m.fields) && strings.Contains(lines[len(lines)-1], "kit new")
+		for _, line := range lines {
+			if strings.Contains(line, "▸") {
+				focused = true
+			}
+		}
+		if !focused {
+			t.Errorf("focus %d: the focused field is off the screen:\n%s", m.focus, strings.Join(lines, "\n"))
+		}
+	}
+	// a tall terminal clips nothing
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 60})
+	if n := strings.Count(stripANSI(m.View().Content), "\n"); n <= 9 {
+		t.Errorf("a tall terminal shows %d lines", n)
 	}
 }

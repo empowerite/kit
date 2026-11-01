@@ -1,9 +1,9 @@
- kit kinds - lists the kinds of file the repository defines, and what makes a path of each
+ kit kinds - lists the kinds of file the repository defines, or the kinds a path is of
 
-   --json   --jq  prints one JSON object per kind instead: name, file, paths, content, kinds, and
-                  embeds
+   --json   --jq  one JSON object per kind, or per path with its kinds
 
-   <kind>…  only the kinds with these names
+   <kind>  the name of a defined kind; only these kinds are listed
+   <path>  a file to classify, relative to the current directory
 
 
  kit kinds

@@ -1,10 +1,8 @@
- kit packages - lists the packages in reach, and which are active
+ kit packages - lists the packages in reach, and changes which are active
 
-   --active   --inactive  only the active packages
-
-   --json   --jq  prints one JSON object per package instead: name, origin, state, and description
-
-   <package>…  only the packages with these names, or that match these globs, such as 'style/*'
+   required
+   [--active | --inactive] [--json | --jq] <package>
+   (select | add | remove) <package>
 
 
  kit packages

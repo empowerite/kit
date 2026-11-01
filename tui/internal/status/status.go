@@ -1,0 +1,342 @@
+// Package status is kit status on a terminal: the stages along one line, the selected stage's rows under it, and a
+// row opened in place. It draws from kit status <stage> --json and never parses kit's text. Left and right move
+// along the line, even inside the rows; down enters a stage's rows and up on the first row leaves them; Enter opens
+// or closes a row; r runs the stage's command again; q or esc quits, and ctrl-c quits with 130.
+package status
+
+import (
+	"encoding/json"
+	"fmt"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/empowerite/kit/tui/internal/kit"
+)
+
+// Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
+// whether the fetch is skipped, and the filters backlog and changes take.
+type Options struct {
+	Stages  []string
+	Origin  Origin
+	NoFetch bool
+	Filters []string
+}
+
+// loadedMsg brings a stage's JSON, or why kit did not print it.
+type loadedMsg struct {
+	stage string
+	data  []byte
+	err   error
+}
+
+// stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
+type stage struct {
+	name    string
+	loading bool
+	refusal string // kit's line, when the command failed
+	issues  []issue
+	in      *incoming
+	trees   *worktrees
+	pulls   []pull
+	rels    []release
+	cursor  int             // the row under the cursor, kept while another stage is shown
+	offset  int             // the first line of the pane
+	open    map[string]bool // the rows opened, by key
+}
+
+// known names the stages kittui draws.
+var known = map[string]bool{"backlog": true, "incoming": true, "worktrees": true, "changes": true, "releases": true}
+
+// Model is the picture on the screen.
+type Model struct {
+	runner        kit.Runner
+	origin        Origin
+	noFetch       bool
+	filters       []string
+	stages        []stage
+	stage         int  // the selected stage
+	inRows        bool // whether the cursor is on a row, not on the line
+	started       bool // whether the stages after incoming have been started
+	width, height int
+	interrupted   bool
+}
+
+// Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit status's own:
+// --no-fetch, and the filters backlog and changes take. Kit's refusal of --stages is the error.
+func Open(r kit.Runner, words []string) (Model, error) {
+	stages, err := r.Stages()
+	if err != nil {
+		return Model{}, err
+	}
+	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir)}
+	for _, word := range words {
+		if word == "--no-fetch" {
+			o.NoFetch = true
+		} else {
+			o.Filters = append(o.Filters, word)
+		}
+	}
+	return New(r, o), nil
+}
+
+// New opens the screen on the options; every stage loads once Init starts it. A stage kittui does not know shows a
+// line saying so, and runs nothing.
+func New(r kit.Runner, o Options) Model {
+	m := Model{runner: r, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24}
+	for _, name := range o.Stages {
+		s := stage{name: name, loading: true, open: map[string]bool{}}
+		if !known[name] {
+			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
+		}
+		m.stages = append(m.stages, s)
+	}
+	return m
+}
+
+// Init starts the loading: incoming first, since it fetches, and the rest once it has answered; without incoming
+// in the picture, every stage at once.
+func (m Model) Init() tea.Cmd {
+	if m.find("incoming") != nil {
+		return m.load("incoming")
+	}
+	return m.others()
+}
+
+// Interrupted says whether ctrl-c ended the screen.
+func (m Model) Interrupted() bool { return m.interrupted }
+
+// Update takes a message.
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		m.fit()
+	case loadedMsg:
+		m.take(msg)
+		if msg.stage == "incoming" && !m.started {
+			m.started = true
+			return m, m.others()
+		}
+	case tea.KeyPressMsg:
+		return m.key(msg)
+	}
+	return m, nil
+}
+
+// key takes a key press.
+func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "ctrl+c":
+		m.interrupted = true
+		return m, tea.Quit
+	case "q", "esc":
+		return m, tea.Quit
+	case "left":
+		m.move(-1)
+	case "right":
+		m.move(1)
+	case "up":
+		m.up(1)
+	case "down":
+		m.down(1)
+	case "pgup":
+		m.up(max(1, m.paneHeight()-1))
+	case "pgdown":
+		m.down(max(1, m.paneHeight()-1))
+	case "enter":
+		m.toggle()
+	case "r":
+		return m, m.refresh()
+	}
+	return m, nil
+}
+
+// find gives the stage by name, or nil when it is not in the picture.
+func (m Model) find(name string) *stage {
+	for i := range m.stages {
+		if m.stages[i].name == name {
+			return &m.stages[i]
+		}
+	}
+	return nil
+}
+
+// args gives the words a stage's command takes after --json: --no-fetch for incoming, the filters for backlog and
+// changes, nothing for the rest.
+func (m Model) args(name string) []string {
+	switch name {
+	case "incoming":
+		if m.noFetch {
+			return []string{"--no-fetch"}
+		}
+	case "backlog", "changes":
+		return m.filters
+	}
+	return nil
+}
+
+// load runs a stage's command: kit status <stage> --json, with the stage's words.
+func (m Model) load(name string) tea.Cmd {
+	r, args := m.runner, m.args(name)
+	return func() tea.Msg {
+		data, err := r.Status(name, args)
+		return loadedMsg{stage: name, data: data, err: err}
+	}
+}
+
+// others runs every stage but incoming, at once.
+func (m Model) others() tea.Cmd {
+	var cmds []tea.Cmd
+	for _, s := range m.stages {
+		if s.name != "incoming" && known[s.name] {
+			cmds = append(cmds, m.load(s.name))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+// refresh runs the selected stage's command again, and shows it loading until it answers.
+func (m *Model) refresh() tea.Cmd {
+	if len(m.stages) == 0 || !known[m.stages[m.stage].name] {
+		return nil
+	}
+	s := &m.stages[m.stage]
+	s.loading, s.refusal = true, ""
+	s.issues, s.in, s.trees, s.pulls, s.rels = nil, nil, nil, nil, nil
+	return m.load(s.name)
+}
+
+// take keeps what a stage's command printed, decoded by the stage, or kit's line when it failed; JSON that does not
+// decode is a refusal too. The cursor stays within the rows that came.
+func (m *Model) take(msg loadedMsg) {
+	s := m.find(msg.stage)
+	if s == nil {
+		return
+	}
+	s.loading = false
+	err := msg.err
+	if err == nil {
+		switch s.name {
+		case "backlog":
+			err = json.Unmarshal(msg.data, &s.issues)
+		case "incoming":
+			s.in = &incoming{}
+			err = json.Unmarshal(msg.data, s.in)
+		case "worktrees":
+			s.trees = &worktrees{}
+			err = json.Unmarshal(msg.data, s.trees)
+		case "changes":
+			err = json.Unmarshal(msg.data, &s.pulls)
+		case "releases":
+			err = json.Unmarshal(msg.data, &s.rels)
+		}
+		if err != nil {
+			err = fmt.Errorf("kit status %s --json: %v", s.name, err)
+		}
+	}
+	if err != nil {
+		s.refusal = err.Error()
+	}
+	for i := range m.stages {
+		m.clamp(i)
+	}
+	m.fit()
+}
+
+// clamp keeps a stage's cursor within its rows.
+func (m *Model) clamp(i int) {
+	s := &m.stages[i]
+	if n := len(m.rows(i)); s.cursor >= n {
+		s.cursor = max(0, n-1)
+	}
+}
+
+// move selects the stage d along the line, staying in the rows or on the line as before.
+func (m *Model) move(d int) {
+	if len(m.stages) == 0 {
+		return
+	}
+	m.stage = min(max(m.stage+d, 0), len(m.stages)-1)
+	m.fit()
+}
+
+// up moves the cursor n rows up; past the first row, it returns to the line, and the pane to its top.
+func (m *Model) up(n int) {
+	if !m.inRows || len(m.stages) == 0 {
+		return
+	}
+	s := &m.stages[m.stage]
+	if s.cursor-n < 0 {
+		s.cursor, s.offset, m.inRows = 0, 0, false
+	} else {
+		s.cursor -= n
+	}
+	m.fit()
+}
+
+// down moves the cursor n rows down; from the line, it enters the rows, when the stage has any.
+func (m *Model) down(n int) {
+	if len(m.stages) == 0 {
+		return
+	}
+	s := &m.stages[m.stage]
+	rows := len(m.rows(m.stage))
+	if rows == 0 {
+		return
+	}
+	if !m.inRows {
+		m.inRows = true
+		n--
+	}
+	s.cursor = min(s.cursor+n, rows-1)
+	m.fit()
+}
+
+// toggle opens the row under the cursor, or closes it; a leaf stays as it is.
+func (m *Model) toggle() {
+	if !m.inRows || len(m.stages) == 0 {
+		return
+	}
+	s := &m.stages[m.stage]
+	rows := m.rows(m.stage)
+	if s.cursor >= len(rows) || len(rows[s.cursor].detail) == 0 {
+		return
+	}
+	key := rows[s.cursor].key
+	s.open[key] = !s.open[key]
+	m.fit()
+}
+
+// fit scrolls the selected stage's pane so the row under the cursor shows, with what it opens to when that fits,
+// and never past the last line.
+func (m *Model) fit() {
+	if len(m.stages) == 0 {
+		return
+	}
+	s := &m.stages[m.stage]
+	lines := m.lines(m.stage)
+	h := m.paneHeight()
+	s.offset = min(max(s.offset, 0), max(0, len(lines)-h))
+	if !m.inRows {
+		return
+	}
+	first, last := -1, -1
+	for k, l := range lines {
+		if l.row == s.cursor {
+			if first < 0 {
+				first = k
+			}
+			last = k
+		}
+	}
+	if first < 0 {
+		return
+	}
+	last = min(last, first+h-1)
+	if last >= s.offset+h {
+		s.offset = last - h + 1
+	}
+	if first < s.offset {
+		s.offset = first
+	}
+}

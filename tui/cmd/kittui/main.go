@@ -1,5 +1,6 @@
-// kittui is kit's interactive terminal UI: the palette of verbs that bare kit opens, and the form that finishes a
-// verb's command line when the verb is short of its arguments. kit tui execs it; it runs kit for everything it knows.
+// kittui is kit's interactive terminal UI: the palette of verbs that bare kit opens, the form that finishes a verb's
+// command line when the verb is short of its arguments, and kit status's picture. kit tui and kit status exec it; it
+// runs kit for everything it knows.
 package main
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/tui/internal/app"
 	"github.com/empowerite/kit/tui/internal/kit"
+	"github.com/empowerite/kit/tui/internal/status"
 	"github.com/empowerite/kit/tui/internal/transcript"
 )
 
@@ -20,22 +22,21 @@ var version = "unreleased"
 
 func main() { os.Exit(run(os.Args[1:])) }
 
-// run opens the palette, or the form of the verb named after --, and ends as the person ended it.
+// run opens the palette, the form of the verb named after --, or the picture for status, and ends as the person
+// ended it.
 func run(args []string) int {
+	verb, words := parse(args)
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stderr.Fd())) {
-		fmt.Fprintln(os.Stderr, "❌ kit tui needs an interactive terminal; run: kit help tui")
+		fmt.Fprintln(os.Stderr, "❌ "+needsTerminal(verb))
 		return 2
 	}
 	r := kit.New()
-	verb, words := parse(args)
+	if verb == "status" {
+		return runStatus(r, words)
+	}
 	m, err := app.Open(r, verb, words)
 	if err != nil {
-		if line, code, ok := app.Refusal(err); ok {
-			fmt.Fprintln(os.Stderr, "❌ "+line)
-			return code
-		}
-		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
-		return 1
+		return refuse(err, os.Stderr)
 	}
 	final, err := tea.NewProgram(m).Run()
 	if err != nil {
@@ -43,6 +44,14 @@ func run(args []string) int {
 		return 1
 	}
 	return finish(final.(app.Model), os.Stderr, r.Exec)
+}
+
+// needsTerminal gives the line kittui prints without a terminal: the picture has a text form, the rest a help page.
+func needsTerminal(verb string) string {
+	if verb == "status" {
+		return "kit status needs an interactive terminal for its picture; run: kit status --text"
+	}
+	return "kit tui needs an interactive terminal; run: kit help tui"
 }
 
 // parse takes the verb and its words from [--] <verb> [<word>…]; no verb opens the palette.
@@ -54,6 +63,39 @@ func parse(args []string) (string, []string) {
 		return "", nil
 	}
 	return args[0], args[1:]
+}
+
+// refuse prints why kittui did not open: kit's line, ending with kit's code, or kittui's own, ending with 1.
+func refuse(err error, stderr io.Writer) int {
+	if line, code, ok := app.Refusal(err); ok {
+		fmt.Fprintln(stderr, "❌ "+line)
+		return code
+	}
+	fmt.Fprintf(stderr, "❌ kittui %s: %v\n", version, err)
+	return 1
+}
+
+// runStatus opens the picture on kit status's stages, with the words kit status was given, and ends as the person
+// ended it.
+func runStatus(r kit.Runner, words []string) int {
+	m, err := status.Open(r, words)
+	if err != nil {
+		return refuse(err, os.Stderr)
+	}
+	final, err := tea.NewProgram(m).Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
+		return 1
+	}
+	return finishStatus(final.(status.Model))
+}
+
+// finishStatus ends as the picture ended: 130 on ctrl-c, 0 on q or esc; nothing is printed either way.
+func finishStatus(m status.Model) int {
+	if m.Interrupted() {
+		return 130
+	}
+	return 0
 }
 
 // finish ends as the form ended: 130 and nothing printed on ctrl-c, 1 and nothing printed on esc, and on run the

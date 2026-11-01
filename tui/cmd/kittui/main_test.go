@@ -1,9 +1,10 @@
 // The binary refuses without a terminal, and ends as the form ended: silent on esc and ctrl-c, with the transcript
-// before the verb on run.
+// before the verb on run; the picture ends silent too, 0 on q and 130 on ctrl-c.
 package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,35 +14,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/app"
-	"github.com/empowerite/kit/tui/internal/kit"
+	"github.com/empowerite/kit/tui/internal/status"
+	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
-func runner(t *testing.T) kit.Runner {
-	t.Helper()
-	path, err := filepath.Abs(filepath.Join("..", "..", "internal", "kit", "testdata", "fake-kit"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return kit.Runner{Kit: path, Dir: t.TempDir()}
-}
-
+// drive sends the messages to the root model from its start, as the program would. The fake kit is the kit package's
+// for the palette and the form, the status package's for the picture.
 func drive(m app.Model, msgs ...tea.Msg) app.Model {
-	queue := append([]tea.Msg{}, msgs...)
-	if cmd := m.Init(); cmd != nil {
-		queue = append([]tea.Msg{cmd()}, queue...)
-	}
-	for len(queue) > 0 {
-		next, cmd := m.Update(queue[0])
-		queue = queue[1:]
-		m = next.(app.Model)
-		if cmd != nil {
-			if out := cmd(); out != nil {
-				if _, quit := out.(tea.QuitMsg); !quit {
-					queue = append([]tea.Msg{out}, queue...)
-				}
-			}
-		}
-	}
+	m, _ = testkit.Drive(m, nil, testkit.Start(m, msgs...)...)
 	return m
 }
 
@@ -50,20 +30,62 @@ func TestNoTerminalRefuses(t *testing.T) {
 	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
-	cmd := exec.Command(binary, "--", "commit")
-	cmd.Stdin = nil
+	for args, want := range map[string]string{
+		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
+		"status":    "❌ kit status needs an interactive terminal for its picture; run: kit status --text\n",
+	} {
+		cmd := exec.Command(binary, strings.Fields(args)...)
+		cmd.Stdin = nil
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		exit, ok := err.(*exec.ExitError)
+		if !ok || exit.ExitCode() != 2 || stderr.String() != want {
+			t.Errorf("%s: err %v, stderr %q", args, err, stderr.String())
+		}
+	}
+}
+
+func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
+	for _, c := range []struct {
+		key  tea.KeyPressMsg
+		code int
+	}{
+		{tea.KeyPressMsg{Code: 'q'}, 0},
+		{tea.KeyPressMsg{Code: tea.KeyEscape}, 0},
+		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
+	} {
+		m, err := status.Open(testkit.Runner(t, "status"), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next, cmd := m.Update(c.key)
+		if cmd == nil || cmd() != tea.Quit() {
+			t.Errorf("%s did not quit", c.key)
+		}
+		if code := finishStatus(next.(status.Model)); code != c.code {
+			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
+		}
+	}
+}
+
+func TestARefusalOfTheStagesPrintsKitsLineWithItsCode(t *testing.T) {
+	t.Setenv("FAKE_STATUS_REFUSE", "stages")
+	_, err := status.Open(testkit.Runner(t, "status"), nil)
 	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	exit, ok := err.(*exec.ExitError)
-	if !ok || exit.ExitCode() != 2 || stderr.String() != "❌ kit tui needs an interactive terminal; run: kit help tui\n" {
-		t.Fatalf("err %v, stderr %q", err, stderr.String())
+	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit status refuses for the test; run: kit help status\n" {
+		t.Errorf("exit %d, stderr %q", code, stderr.String())
+	}
+	// an error that is not kit's is kittui's own, ending with 1
+	stderr.Reset()
+	if code := refuse(errors.New("boom"), &stderr); code != 1 || stderr.String() != "❌ kittui unreleased: boom\n" {
+		t.Errorf("exit %d, stderr %q", code, stderr.String())
 	}
 }
 
 func TestCtrlCIsSilent(t *testing.T) {
 	for _, verb := range []string{"", "commit"} {
-		m, err := app.Open(runner(t), verb, nil)
+		m, err := app.Open(testkit.Runner(t, "kit"), verb, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +98,7 @@ func TestCtrlCIsSilent(t *testing.T) {
 }
 
 func TestEscIsSilent(t *testing.T) {
-	m, _ := app.Open(runner(t), "commit", nil)
+	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", nil)
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	var stderr bytes.Buffer
 	if code := finish(m, &stderr, nil); code != 1 || stderr.Len() != 0 {
@@ -85,7 +107,7 @@ func TestEscIsSilent(t *testing.T) {
 }
 
 func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
-	m, _ := app.Open(runner(t), "commit", []string{"--message", "hi"})
+	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
 	var stderr bytes.Buffer
 	var ran []string
@@ -109,6 +131,12 @@ func TestWordsAfterADoubleDash(t *testing.T) {
 	verb, words = parse(nil)
 	if verb != "" || words != nil {
 		t.Errorf("parse(nil) = %q %q", verb, words)
+	}
+	// status takes its words with or without the double dash
+	for _, args := range [][]string{{"status", "--no-fetch", "--mine"}, {"--", "status", "--no-fetch", "--mine"}} {
+		if verb, words = parse(args); verb != "status" || strings.Join(words, " ") != "--no-fetch --mine" {
+			t.Errorf("parse(%q) = %q %q", args, verb, words)
+		}
 	}
 	_ = os.Stdin
 }

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the status tests: answers status --stages and status <stage> --json (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_STATUS_CALLS names a file every call's words
+# are appended to, one line each, so a test reads the order the stages ran in. FAKE_STATUS_STAGES is what --stages
+# prints, space-separated; unset, it prints the five. FAKE_STATUS_REFUSE names a stage whose --json answer is a
+# refusal, exit 1, or stages to refuse --stages with exit 2. With --no-fetch, incoming answers {"fetched": false}.
+
+set -o errexit -o nounset -o pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+[[ -z "${FAKE_STATUS_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_STATUS_CALLS}"
+
+if [[ "${1:-}" != status ]]
+then
+  echo "❌ no kit verb '${1:-}'; run: kit help" >&2
+  exit 2
+fi
+shift
+
+case "${1:-}" in
+  (--stages)
+    if [[ "${FAKE_STATUS_REFUSE:-}" == stages ]]
+    then
+      echo "❌ kit status refuses for the test; run: kit help status" >&2
+      exit 2
+    fi
+    for stage in ${FAKE_STATUS_STAGES-backlog incoming worktrees changes releases}
+    do
+      printf '%s\n' "${stage}"
+    done
+    ;;
+  (backlog | incoming | worktrees | changes | releases)
+    stage=$1
+    shift
+    if [[ "${1:-}" != --json ]]
+    then
+      echo "❌ kit status ${stage} takes --json in the test; run: kit help status" >&2
+      exit 2
+    fi
+    shift
+    if [[ "${FAKE_STATUS_REFUSE:-}" == "${stage}" ]]
+    then
+      echo "❌ kit status ${stage}: the forge cannot be read; run: kit help status" >&2
+      exit 1
+    fi
+    if [[ "${stage}" == incoming && " $* " == *" --no-fetch "* ]]
+    then
+      printf '{"fetched": false}\n'
+    else
+      cat "${here}/${stage}.json"
+    fi
+    ;;
+  (*)
+    echo "❌ kit status: no stage '${1:-}'; run: kit help status" >&2
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

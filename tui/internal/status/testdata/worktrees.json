@@ -1,0 +1,32 @@
+{
+  "desk": {"path": "/home/kit", "relative": ".", "branch": "main", "detached": false, "ahead": 0, "behind": 0, "added": 0, "removed": 0, "commits": [], "uncommitted": 0, "changes": []},
+  "worktrees": [
+    {
+      "path": "/home/kit/worktrees/1-the-first-release-v0-1-0", "relative": "worktrees/1-the-first-release-v0-1-0",
+      "branch": "1-the-first-release-v0-1-0", "detached": false, "ahead": 266, "behind": 0, "added": 34690, "removed": 18,
+      "commits": [
+        {"sha": "f6f51bc", "subject": "#1 materialize: the ownership comment reads as one paragraph"},
+        {"sha": "04f0802", "subject": "#1 materialize: a manifest record that climbs out of its root is skipped and named, and never removed"},
+        {"sha": "3c247a8", "subject": "#1 tests: every suite loads one helper that isolates HOME, git config, locale, and the cache"}
+      ],
+      "uncommitted": 3,
+      "changes": [{"status": " M", "path": "kit/bin/kit-status"}, {"status": " M", "path": "kit/modules/bash/status.sh"}, {"status": "??", "path": "docs/status.md"}]
+    },
+    {
+      "path": "/home/kit/worktrees/42-settings", "relative": "worktrees/42-settings",
+      "branch": "42-settings", "detached": false, "ahead": 3, "behind": 1, "added": 120, "removed": 4,
+      "commits": [
+        {"sha": "9a8b7c6", "subject": "#42 settings: the status setting names the stages"},
+        {"sha": "5d4e3f2", "subject": "#42 settings: kit.yml is read once"},
+        {"sha": "1c2b3a4", "subject": "#42 settings: a test for the default"}
+      ],
+      "uncommitted": 0,
+      "changes": []
+    },
+    {
+      "path": "/home/kit/worktrees/spike", "relative": "worktrees/spike",
+      "branch": "", "detached": true, "ahead": 0, "behind": 0, "added": 0, "removed": 0,
+      "commits": [], "uncommitted": 1, "changes": [{"status": "??", "path": "notes.md"}]
+    }
+  ]
+}

@@ -2,7 +2,8 @@
 // verb with its whole purpose, filtered as it is typed, under the keys. The up and down arrows move over the verbs,
 // never onto a heading, and shift with either jumps to the first verb of the previous or the next group. The right
 // arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them back.
-// Enter opens the verb's form, and a form that cannot open leaves kit's line under the filter; esc quits.
+// Backspace erases the filter. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
+// filter; esc quits. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -227,12 +228,12 @@ func tree(visible []kit.Verb) []row {
 	return rows
 }
 
-// widest gives the width of the names' column: the widest name, or more when a heading, which starts two columns
-// before the names, would run past it.
+// widest gives the width of the names' column, in cells: the widest name, or more when a heading, which starts two
+// columns before the names, would run past it.
 func (m Model) widest() int {
 	widest := 0
 	for _, v := range m.verbs {
-		widest = max(widest, len(v.Name), len(heading(v.Group))-2)
+		widest = max(widest, ansi.StringWidth(v.Name), ansi.StringWidth(heading(v.Group))-2)
 	}
 	return widest
 }
@@ -243,9 +244,9 @@ func (m Model) widest() int {
 // window that holds the cursor's row.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	keys := "↑↓ move · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
+	keys := "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · → pages · ⏎ open · esc quit"
 	if m.showPages {
-		keys = "↑↓ move · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · esc quit"
+		keys = "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · ← purposes · ⏎ open · esc quit"
 	}
 	var top strings.Builder
 	for _, line := range page(keys, m.width-2) {
@@ -290,7 +291,7 @@ func (m Model) View() tea.View {
 		if r.index == m.cursor {
 			lead, name = " "+style.Focus+" ", style.Chosen(v.Name)
 		}
-		line := lead + name + strings.Repeat(" ", widest-len(v.Name))
+		line := lead + name + strings.Repeat(" ", widest-ansi.StringWidth(v.Name))
 		if !m.showPages {
 			line += "  " + style.Off(clip(v.Purpose, m.width-3-widest-2))
 		}
@@ -338,14 +339,10 @@ func page(text string, width int) []string {
 	return out
 }
 
-// clip shortens a text to n runes, with … at the cut.
+// clip shortens a text to n cells, with … at the cut.
 func clip(s string, n int) string {
-	r := []rune(s)
 	if n < 1 {
 		return ""
 	}
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
+	return ansi.Truncate(s, n, "…")
 }

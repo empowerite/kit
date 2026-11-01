@@ -60,7 +60,7 @@ func TestHelpIsPlainWhenTheUserSetsNoColor(t *testing.T) {
 }
 
 func TestChoicesColumnsAndAnswers(t *testing.T) {
-	rows, err := fake(t, "").Choices("package", "<package>", []string{"<package>=house", "--x=y"})
+	rows, err := fake(t, "").Choices("packages", "<package>", []string{"<package>=house", "--x=y"})
 	if err != nil || len(rows) != 3 {
 		t.Fatalf("Choices: %v, %+v", err, rows)
 	}
@@ -71,7 +71,7 @@ func TestChoicesColumnsAndAnswers(t *testing.T) {
 		t.Errorf("row 1: %+v", rows[1])
 	}
 	// the answers reach kit after a --, so one that starts with - is never read as kit's own
-	if rows[2].Description != "package <package> <package>=house --x=y" {
+	if rows[2].Description != "packages <package> <package>=house --x=y" {
 		t.Errorf("answers: %q", rows[2].Description)
 	}
 }
@@ -150,11 +150,33 @@ func TestMatchJudgesTheWordsAfterADoubleDash(t *testing.T) {
 
 func TestKindAsksWithTheAnswers(t *testing.T) {
 	r := fake(t, "")
-	if kind, err := r.Kind("package", "<package>", []string{"select", "<package>=a"}); err != nil || kind != "set" {
+	if kind, err := r.Kind("packages", "<package>", []string{"select", "<package>=a"}); err != nil || kind != "set" {
 		t.Errorf("Kind(select) = %q, %v", kind, err)
 	}
-	if kind, err := r.Kind("package", "<package>", []string{"add"}); err != nil || kind != "closed" {
+	if kind, err := r.Kind("packages", "<package>", []string{"add"}); err != nil || kind != "closed" {
 		t.Errorf("Kind(add) = %q, %v", kind, err)
+	}
+}
+
+func TestStagesAndStatusRunKitStatus(t *testing.T) {
+	r := fake(t, "")
+	stages, err := r.Stages()
+	if err != nil || strings.Join(stages, " ") != "backlog incoming" {
+		t.Fatalf("Stages: %v, %q", err, stages)
+	}
+	// the stage's words are kit status <stage> --json <args>…, --json first
+	out, err := r.Status("incoming", []string{"--no-fetch"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "incoming", "args": "--json --no-fetch"}` {
+		t.Errorf("Status(incoming): %v, %q", err, out)
+	}
+	out, err = r.Status("worktrees", nil)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "worktrees", "args": "--json"}` {
+		t.Errorf("Status(worktrees): %v, %q", err, out)
+	}
+	_, err = r.Status("nonesuch", nil)
+	var refusal *ExitError
+	if !errors.As(err, &refusal) || refusal.Code != 2 || !strings.Contains(refusal.Stderr, "no stage 'nonesuch'") {
+		t.Errorf("Status(nonesuch): %v", err)
 	}
 }
 

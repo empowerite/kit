@@ -258,7 +258,8 @@ func (w *walker) group(n syntax.Node, parent int, required bool) {
 }
 
 // choose picks the alternative the answers select: the one chosen by hand for this row, else the one the next
-// literal given opens, else the one that holds an answered key, else -1.
+// literal given opens, else the one that holds an answered key, else -1. A literal that opens the alternative itself
+// is consumed here; one that opens it through a group it starts with is left for that group's row to consume.
 func (w *walker) choose(alternatives [][]syntax.Node, ordinal int) int {
 	if chosen, ok := w.answers.Chosen[ordinal]; ok {
 		if chosen >= 0 && chosen < len(alternatives) && len(alternatives[chosen]) > 0 && alternatives[chosen][0].Kind == "literal" {
@@ -269,8 +270,10 @@ func (w *walker) choose(alternatives [][]syntax.Node, ordinal int) int {
 	if w.literals < len(w.answers.Literals) {
 		next := w.answers.Literals[w.literals]
 		for i, alternative := range alternatives {
-			if len(alternative) > 0 && alternative[0].Kind == "literal" && alternative[0].Name == next {
-				w.literals++
+			if opens(alternative, next) {
+				if alternative[0].Kind == "literal" {
+					w.literals++
+				}
 				return i
 			}
 		}
@@ -281,6 +284,28 @@ func (w *walker) choose(alternatives [][]syntax.Node, ordinal int) int {
 		}
 	}
 	return -1
+}
+
+// opens says whether a literal opens the alternative, as the matcher judges it: it is the alternative's first node,
+// or it opens an alternative of the required group the alternative starts with, as add opens
+// kit packages (select | add | remove) <package>….
+func opens(alternative []syntax.Node, literal string) bool {
+	if len(alternative) == 0 {
+		return false
+	}
+	first := alternative[0]
+	if first.Kind == "literal" {
+		return first.Name == literal
+	}
+	if first.Kind != "group" || first.Optional {
+		return false
+	}
+	for _, inner := range first.Alternatives {
+		if opens(inner, literal) {
+			return true
+		}
+	}
+	return false
 }
 
 // holds says whether any key in the alternative, groups included, was answered.

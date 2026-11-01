@@ -1,0 +1,9 @@
+{
+  "fetched": true,
+  "default": "main",
+  "commits": [
+    {"sha": "a1b2c3d", "subject": "#1 docs: the docs say what the code does"},
+    {"sha": "e4f5a6b", "subject": "#1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one"}
+  ],
+  "branches": {"new": ["42-settings"], "gone": ["old-experiment"]}
+}

@@ -3,8 +3,9 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
-# groups as the kit prints them; help is a fixed page; any other verb's arguments and working directory are written to
-# the file FAKE_KIT_RECORD names, for the exec test to read. Every syntax answer about the verb FAKE_KIT_REFUSE names
+# groups as the kit prints them; help is a fixed page; status --stages names two stages and a stage echoes its words
+# as JSON; any other verb's arguments and working directory are written to the file FAKE_KIT_RECORD names, for the
+# exec test to read. Every syntax answer about the verb FAKE_KIT_REFUSE names
 # (its grammar, choices, extension, and match) is a refusal instead, as the kit prints one, with exit 2.
 
 set -o errexit -o nounset -o pipefail
@@ -94,6 +95,20 @@ case "${1:-}" in
     fi
     printf 'kit %s - a purpose for the test\n\n%sUsage%s\n  kit %s\n\nDescription\n  Does it.\n' "$2" "${bold}" \
       "${plain}" "$2"
+    ;;
+  (status)
+    # --stages names two stages; a stage answers with the words after its name, so a test reads them back
+    shift
+    if [[ "${1:-}" == --stages ]]
+    then
+      printf 'backlog\nincoming\n'
+    elif [[ "${1:-}" == nonesuch ]]
+    then
+      echo "❌ kit status: no stage 'nonesuch'; run: kit help status" >&2
+      exit 2
+    else
+      printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
+    fi
     ;;
   (*)
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"

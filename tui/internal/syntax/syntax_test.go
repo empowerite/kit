@@ -117,7 +117,7 @@ func TestNewExtendsAndItsChoicesAreClosed(t *testing.T) {
 			t.Errorf("%s extends", verb)
 		}
 	}
-	if specs["new"].Arguments["--rule"].Choices != "closed" || specs["package"].Arguments["<package>"].Choices != "closed" {
+	if specs["new"].Arguments["--rule"].Choices != "closed" || specs["packages"].Arguments["<package>"].Choices != "closed" {
 		t.Error("closed choices missing")
 	}
 }

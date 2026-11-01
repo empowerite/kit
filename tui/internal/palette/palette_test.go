@@ -3,23 +3,19 @@
 package palette
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
+	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
+// open gives the palette over the kit package's fake kit, with the verbs it lists.
 func open(t *testing.T) Model {
 	t.Helper()
-	path, err := filepath.Abs(filepath.Join("..", "kit", "testdata", "fake-kit"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := kit.Runner{Kit: path, Dir: t.TempDir()}
+	r := testkit.Runner(t, "kit")
 	verbs, err := r.List()
 	if err != nil {
 		t.Fatal(err)
@@ -27,36 +23,11 @@ func open(t *testing.T) Model {
 	return New(verbs, r)
 }
 
-// drive sends the messages, running each command and feeding its message back unless it is the palette's answer.
+// drive sends the messages to the palette from its start, as the program would, and gives the model and every
+// message the commands produced; an OpenMsg is the palette's answer, so it is produced and not fed back.
 func drive(m Model, msgs ...tea.Msg) (Model, []tea.Msg) {
-	var produced []tea.Msg
-	queue := append([]tea.Msg{}, msgs...)
-	if cmd := m.Init(); cmd != nil {
-		queue = append([]tea.Msg{cmd()}, queue...)
-	}
-	for len(queue) > 0 {
-		next, cmd := m.Update(queue[0])
-		queue = queue[1:]
-		m = next.(Model)
-		if cmd != nil {
-			out := cmd()
-			produced = append(produced, out)
-			switch out.(type) {
-			case OpenMsg, tea.QuitMsg:
-			default:
-				queue = append([]tea.Msg{out}, queue...)
-			}
-		}
-	}
-	return m, produced
-}
-
-func typed(text string) []tea.Msg {
-	var msgs []tea.Msg
-	for _, r := range text {
-		msgs = append(msgs, tea.KeyPressMsg{Code: r, Text: string(r)})
-	}
-	return msgs
+	open := func(msg tea.Msg) bool { _, ok := msg.(OpenMsg); return ok }
+	return testkit.Drive(m, open, testkit.Start(m, msgs...)...)
 }
 
 var (
@@ -159,11 +130,11 @@ func TestShiftDownAndShiftUpMoveToTheFirstVerbOfTheNextAndPreviousGroup(t *testi
 }
 
 func TestAFilterThatEmptiesAGroupHidesItsHeading(t *testing.T) {
-	m, _ := drive(open(t), typed("co")...)
+	m, _ := drive(open(t), testkit.Typed("co")...)
 	if drawn(m) != "WORKFLOW ▸commit FILES context" {
 		t.Errorf("co: %q", drawn(m))
 	}
-	m, _ = drive(open(t), typed("zz")...)
+	m, _ = drive(open(t), testkit.Typed("zz")...)
 	if drawn(m) != "no" || !strings.Contains(m.View().Content, "no verb matches") {
 		t.Errorf("zz: %q", drawn(m))
 	}
@@ -180,15 +151,15 @@ func TestTheWindowCountsTheHeadingsSoTheCursorStaysOnScreen(t *testing.T) {
 }
 
 func TestFilterNarrows(t *testing.T) {
-	m, _ := drive(open(t), typed("co")...)
+	m, _ := drive(open(t), testkit.Typed("co")...)
 	if names(m) != "commit context" {
 		t.Errorf("co: %q", names(m))
 	}
-	m, _ = drive(m, typed("m")...)
+	m, _ = drive(m, testkit.Typed("m")...)
 	if names(m) != "commit" {
 		t.Errorf("com: %q", names(m))
 	}
-	m, _ = drive(open(t), typed("tui")...)
+	m, _ = drive(open(t), testkit.Typed("tui")...)
 	if names(m) != "" || !strings.Contains(m.View().Content, "no verb matches") {
 		t.Errorf("tui: %q", names(m))
 	}
@@ -249,7 +220,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysStayOnTopWhileFiltering(t *testing.T) {
-	m, _ := drive(open(t), typed("zz")...)
+	m, _ := drive(open(t), testkit.Typed("zz")...)
 	if first := strings.SplitN(m.View().Content, "\n", 2)[0]; !strings.Contains(first, "↑↓ move") {
 		t.Errorf("the keys moved: %q", first)
 	}
@@ -293,7 +264,7 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	if m, _ = drive(m, down); !strings.Contains(m.View().Content, line) {
 		t.Errorf("down cleared the refusal")
 	}
-	if m, _ = drive(m, typed("c")...); strings.Contains(m.View().Content, line) {
+	if m, _ = drive(m, testkit.Typed("c")...); strings.Contains(m.View().Content, line) {
 		t.Errorf("typing left the refusal")
 	}
 	m = m.Refuse(line)

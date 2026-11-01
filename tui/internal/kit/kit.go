@@ -144,7 +144,7 @@ func (r Runner) Choices(verb, key string, answers []string) ([]Choice, error) {
 }
 
 // Kind asks whether a key's choices, given the answers so far, are closed, open, or a set: closed choices that name the
-// whole of something, as kit package select does, so the form starts from the active rows and marks each by plan.
+// whole of something, as kit packages select does, so the form starts from the active rows and marks each by plan.
 func (r Runner) Kind(verb, key string, answers []string) (string, error) {
 	out, err := r.run(append([]string{"syntax", verb, "--choices", key, "--", "--kind"}, answers...)...)
 	return strings.TrimSpace(string(out)), err
@@ -196,6 +196,27 @@ func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
 		return syntax.Match{}, err
 	}
 	return syntax.DecodeMatch(bytes.NewReader(out))
+}
+
+// Stages gives the stages kit status draws, in the picture's order, as kit status --stages prints them, one per line.
+func (r Runner) Stages() ([]string, error) {
+	out, err := r.run("status", "--stages")
+	if err != nil {
+		return nil, err
+	}
+	var stages []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			stages = append(stages, line)
+		}
+	}
+	return stages, nil
+}
+
+// Status gives one stage's JSON, as kit status <stage> --json <args>… prints it; the args are the stage's own flags.
+// A stage kit cannot draw is kit's refusal, an ExitError.
+func (r Runner) Status(stage string, args []string) ([]byte, error) {
+	return r.run(append([]string{"status", stage, "--json"}, args...)...)
 }
 
 // Exec replaces this process with kit <verb> <args>…, run where the command was typed. It returns only on failure.

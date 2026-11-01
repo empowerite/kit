@@ -1,6 +1,7 @@
-// The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up and down move between fields,
-// left and right along a row, space toggles or picks, Enter takes the next field or line and, on the command line,
-// runs; shift-Enter runs from anywhere a terminal reports it; esc goes back to the palette or cancels.
+// The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up, down, and tab move between
+// fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
+// field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it; esc goes back
+// to the palette or cancels.
 package form
 
 import (
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
@@ -43,6 +45,7 @@ type Model struct {
 	note    string // the line under the focused field: a list's line about a row, or what kit refused
 	refusal string // the line under the command line
 	width   int
+	height  int // the terminal's lines; zero before it says, and nothing is clipped
 
 	lists  map[string][]kit.Choice
 	sets   map[string]bool
@@ -99,7 +102,7 @@ func (m Model) CommandLine() []string { return CommandLine(m.spec, m.viewFields(
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.width, m.height = msg.Width, msg.Height
 	case choicesMsg:
 		m.choices(msg)
 	case tea.KeyPressMsg:
@@ -109,7 +112,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View draws the form, the keys it takes, on the alternate screen.
+// View draws the form, the keys it takes, on the alternate screen, clipped to the terminal's lines so the keys and
+// the focused field stay in sight.
 func (m Model) View() tea.View {
 	focus := m.focus
 	if focus >= len(m.fields) {
@@ -119,11 +123,12 @@ func (m Model) View() tea.View {
 	if m.back {
 		end = "esc back"
 	}
-	keys := strings.Join([]string{"↑↓ field", "←→ along a row", "␣ toggle", "⏎ next", "⇧⏎ run", end}, " · ")
-	content := Render(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus, Cursor: m.cursor, Styles: live,
-		Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields), CommandRefusal: m.refusal, Back: m.back,
-		Keys: keys})
-	v := tea.NewView(content)
+	keys := strings.Join([]string{"↑↓ ⇥ field", "←→ row or toggle", "␣ toggle", "⌫ erase", "⏎ next", "⇧⏎ run", end},
+		" · ")
+	content, header, first, last := Layout(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus,
+		Cursor: m.cursor, Styles: live, Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields),
+		CommandRefusal: m.refusal, Back: m.back, Keys: keys})
+	v := tea.NewView(window(content, m.height, header, first, last))
 	v.AltScreen = true
 	return v
 }
@@ -465,7 +470,7 @@ func (m *Model) fetch(key, flipped string) tea.Cmd {
 }
 
 // answers gives the answers kit syntax takes after a --: each <key>=<value>, and the subcommand words chosen, which a
-// verb's choices may depend on, as kit package select's list does.
+// verb's choices may depend on, as kit packages select's list does.
 func (m Model) answers() []string {
 	fields := m.viewFields()
 	out := answerList(Collect(fields))
@@ -672,7 +677,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 	}
 	widest := 0
 	for _, row := range rows[start:end] {
-		if n := len([]rune(row.Value)); n > widest {
+		if n := ansi.StringWidth(row.Value); n > widest {
 			widest = n
 		}
 	}
@@ -695,9 +700,9 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 			mark += state(row) + " "
 		}
 		lead := "  "
-		value := row.Value + strings.Repeat(" ", widest-len([]rune(row.Value)))
+		value := row.Value + strings.Repeat(" ", widest-ansi.StringWidth(row.Value))
 		if k == m.cursor {
-			lead, value = style.Focus+" ", style.Chosen(row.Value)+strings.Repeat(" ", widest-len([]rune(row.Value)))
+			lead, value = style.Focus+" ", style.Chosen(row.Value)+strings.Repeat(" ", widest-ansi.StringWidth(row.Value))
 		}
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
 	}
@@ -729,7 +734,7 @@ func (m Model) hint(b *strings.Builder, indent, text string) {
 	}
 }
 
-// state gives a row's state as kit package list draws it: ✅ active, ❌ excluded, or blank.
+// state gives a row's state as kit packages draws it: ✅ active, ❌ excluded, or blank.
 func state(row kit.Choice) string {
 	switch row.State {
 	case "active":
@@ -783,16 +788,12 @@ func answerList(a Answers) []string {
 	return out
 }
 
-// clip shortens a text to n runes, with … at the cut.
+// clip shortens a text to n cells, with … at the cut.
 func clip(s string, n int) string {
-	r := []rune(s)
 	if n < 1 {
 		return ""
 	}
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n-1]) + "…"
+	return ansi.Truncate(s, n, "…")
 }
 
 // index gives the position of a value among values, or -1.

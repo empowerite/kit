@@ -1,10 +1,13 @@
 // The form drawn as text: the purpose, one block per field with its label, description, and answer, and the command
-// line last. The live model draws with the same layout, adding focus and color; RenderStatic draws it plain.
+// line last. The live model draws with the same layout, adding focus and color; RenderStatic draws it plain. Widths
+// are terminal cells, so a two-cell glyph never pushes a line past the edge.
 package form
 
 import (
 	"slices"
 	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/tui/internal/syntax"
 )
@@ -57,8 +60,16 @@ func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
 // Render draws the form: the way back when there is one, the keys, the verb and its purpose, each field's block, and
 // the command line.
 func Render(spec syntax.Spec, fields []Field, o Options) string {
+	content, _, _, _ := Layout(spec, fields, o)
+	return content
+}
+
+// Layout draws the form as Render does, and says where the keyboard is on it: how many lines on top stay in place,
+// the way back and the keys, and the first and last line of the field that has the keyboard, or of the command line,
+// -1 for none. A short terminal shows the top and those lines.
+func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header, first, last int) {
 	d := drawer{spec: spec, fields: fields, width: o.Width, focus: o.Focus, cursor: o.Cursor, st: o.Styles, o: o,
-		column: labelColumn(fields)}
+		column: labelColumn(fields), first: -1, last: -1}
 	if o.Back {
 		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n")
 	}
@@ -69,6 +80,7 @@ func Render(spec syntax.Spec, fields []Field, o Options) string {
 	if o.Back || o.Keys != "" {
 		d.b.WriteString("\n")
 	}
+	header = d.count()
 	for _, line := range wrap("kit "+spec.Verb+" - "+spec.Purpose, width-1) {
 		d.b.WriteString(" " + line + "\n")
 	}
@@ -80,6 +92,7 @@ func Render(spec syntax.Spec, fields []Field, o Options) string {
 		d.block(i, gutter)
 	}
 	d.b.WriteString("\n")
+	before := d.count()
 	for _, line := range wrap(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
 		if o.CommandFocus {
 			line = o.Styles.Label(line)
@@ -89,18 +102,63 @@ func Render(spec syntax.Spec, fields []Field, o Options) string {
 	if o.CommandRefusal != "" {
 		d.b.WriteString(" " + o.Styles.Refusal("❌ "+o.CommandRefusal) + "\n")
 	}
-	return d.b.String()
+	if o.CommandFocus {
+		d.first, d.last = before, d.count()-1
+	}
+	return d.b.String(), header, d.first, d.last
 }
 
-// drawer holds what every block shares while the form is drawn.
+// window clips a form to the height: the header stays, and the lines under it are the window that shows the focused
+// lines, from their first when they all fit, else from their first still. A height of zero clips nothing.
+func window(content string, height, header, first, last int) string {
+	if height <= 0 {
+		return content
+	}
+	lines := strings.Split(strings.TrimSuffix(content, "\n"), "\n")
+	if len(lines) <= height {
+		return content
+	}
+	header = min(header, height-1)
+	body, room := lines[header:], height-header
+	offset := 0
+	if last >= 0 {
+		first, last = first-header, last-header
+		if last >= room {
+			offset = last - room + 1
+		}
+		if first >= 0 && first < offset {
+			offset = first
+		}
+	}
+	offset = min(offset, max(0, len(body)-room))
+	shown := append(lines[:header:header], body[offset:min(len(body), offset+room)]...)
+	return strings.Join(shown, "\n") + "\n"
+}
+
+// drawer holds what every block shares while the form is drawn, and the first and last line of the focused field.
 type drawer struct {
 	spec          syntax.Spec
 	fields        []Field
 	width, column int
 	focus, cursor int
+	first, last   int
 	st            Styles
 	o             Options
 	b             strings.Builder
+}
+
+// count gives the lines drawn so far.
+func (d *drawer) count() int { return strings.Count(d.b.String(), "\n") }
+
+// mark notes the lines drawn since before as the focused field's, when i is that field.
+func (d *drawer) mark(i, before int) {
+	if i != d.focus {
+		return
+	}
+	if d.first < 0 || before < d.first {
+		d.first = before
+	}
+	d.last = max(d.last, d.count()-1)
 }
 
 // labelColumn is where content starts: after the longest label, or the longest name of a row that may go vertical,
@@ -122,7 +180,7 @@ func labelColumn(fields []Field) int {
 			reserve = 1 + len(required)
 		}
 		for _, name := range names {
-			column = max(column, margin+min(len([]rune(name))+reserve, 24)+gap)
+			column = max(column, margin+min(ansi.StringWidth(name)+reserve, 24)+gap)
 		}
 	}
 	return column
@@ -159,7 +217,7 @@ func (d *drawer) vertical(row int) bool {
 			}
 		}
 	}
-	return gutter+len([]rune(strings.Join(f.Options, sep)))+gap > d.width-20
+	return gutter+ansi.StringWidth(strings.Join(f.Options, sep))+gap > d.width-20
 }
 
 // alternatives finds the group node a one-of row came from, by walking the grammar in the same order Fields did.
@@ -206,6 +264,7 @@ func (d *drawer) alternatives(row int) [][]syntax.Node {
 // beside, its answer, and the note under it when it has the keyboard.
 func (d *drawer) block(i, margin int) {
 	f := d.fields[i]
+	before := d.count()
 	lead := strings.Repeat(" ", margin)
 	if i == d.focus {
 		lead = lead[:margin-2] + "▸ "
@@ -217,13 +276,13 @@ func (d *drawer) block(i, margin int) {
 		if len(f.Values) > 0 {
 			name = d.st.Chosen(f.Label)
 		}
-		d.beside(lead, name, len([]rune(f.Label)), d.column, f.Description)
+		d.beside(lead, name, ansi.StringWidth(f.Label), d.column, f.Description)
 		d.note(i, indent)
 	case AnyOf, OneOf:
 		d.row(i, lead)
 		d.note(i, indent)
 	default:
-		name, width := d.st.Label(f.Label), len([]rune(f.Label))
+		name, width := d.st.Label(f.Label), ansi.StringWidth(f.Label)
 		if unanswered(f) {
 			name, width = name+" "+d.st.Dim(required), width+1+len(required)
 		}
@@ -233,12 +292,14 @@ func (d *drawer) block(i, margin int) {
 	if f.Refusal != "" {
 		d.b.WriteString(indent + d.st.Refusal("❌ "+f.Refusal) + "\n")
 	}
+	d.mark(i, before)
 	d.b.WriteString("\n")
 }
 
 // values writes a field's answers, one per line, a pick of many with its boxes, or what Expand draws in their place,
 // then the note under the field when it has the keyboard.
 func (d *drawer) values(i int, f Field, indent string) {
+	before := d.count()
 	drawn := ""
 	if d.o.Expand != nil {
 		drawn = d.o.Expand(i, indent)
@@ -257,6 +318,7 @@ func (d *drawer) values(i int, f Field, indent string) {
 		d.b.WriteString(indent + mark + value + "\n")
 	}
 	d.note(i, indent)
+	d.mark(i, before)
 }
 
 // note writes the line under the field that has the keyboard, when there is one: red, with the glyph a refusal
@@ -265,7 +327,7 @@ func (d *drawer) note(i int, indent string) {
 	if i != d.focus || d.o.Note == "" {
 		return
 	}
-	for _, line := range wrap("❌ "+d.o.Note, d.width-len([]rune(indent))) {
+	for _, line := range wrap("❌ "+d.o.Note, d.width-ansi.StringWidth(indent)) {
 		d.b.WriteString(indent + d.st.Refusal(line) + "\n")
 	}
 }
@@ -310,24 +372,25 @@ func (d *drawer) row(i int, lead string) {
 			names[k] = name(k)
 		}
 		plain := strings.Join(f.Options, sep)
-		row, width, reserve := strings.Join(names, sep), len([]rune(plain)), 0
+		row, width, reserve := strings.Join(names, sep), ansi.StringWidth(plain), 0
 		if f.Required {
 			reserve = 1 + len(required) // the room is kept once one is chosen, so the description never moves
 		}
 		if unanswered(f) {
 			row, width = row+" "+d.st.Dim(required), width+reserve
 		}
-		column := max(d.column, gutter+len([]rune(plain))+reserve+gap)
+		column := max(d.column, gutter+ansi.StringWidth(plain)+reserve+gap)
 		d.beside(lead, row, width, column, d.optionDescription(f.Options[shown]))
 		return
 	}
 	nested := d.nested(i)
 	if unanswered(f) {
-		d.b.WriteString(strings.Repeat(" ", len([]rune(lead))) + d.st.Dim(required) + "\n")
+		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + d.st.Dim(required) + "\n")
 	}
+	room := d.width - ansi.StringWidth(lead) // a name wider than the screen, a whole usage line, is clipped
 	for k, option := range f.Options {
-		d.beside(lead, name(k), len([]rune(option)), d.column, d.optionDescription(option))
-		lead = strings.Repeat(" ", len([]rune(lead)))
+		d.beside(lead, clip(name(k), room), min(ansi.StringWidth(option), room), d.column, d.optionDescription(option))
+		lead = strings.Repeat(" ", ansi.StringWidth(lead))
 		if !on(k) || f.Kind != OneOf {
 			continue
 		}
@@ -361,17 +424,17 @@ func (d *drawer) beside(lead, name string, nameWidth, column int, description st
 		d.b.WriteString("\n")
 		return
 	}
-	if len([]rune(lead))+nameWidth+gap > column {
+	if ansi.StringWidth(lead)+nameWidth+gap > column {
 		d.b.WriteString("\n" + indent + lines[0] + "\n")
 	} else {
-		d.b.WriteString(strings.Repeat(" ", column-len([]rune(lead))-nameWidth) + lines[0] + "\n")
+		d.b.WriteString(strings.Repeat(" ", column-ansi.StringWidth(lead)-nameWidth) + lines[0] + "\n")
 	}
 	for _, line := range lines[1:] {
 		d.b.WriteString(indent + line + "\n")
 	}
 }
 
-// wrap breaks text at spaces into lines no wider than width, in runes; a word wider than the width stands alone.
+// wrap breaks text at spaces into lines no wider than width, in cells; a word wider than the width stands alone.
 func wrap(text string, width int) []string {
 	if text == "" {
 		return nil
@@ -385,7 +448,7 @@ func wrap(text string, width int) []string {
 		switch {
 		case line == "":
 			line = word
-		case len([]rune(line))+1+len([]rune(word)) <= width:
+		case ansi.StringWidth(line)+1+ansi.StringWidth(word) <= width:
 			line += " " + word
 		default:
 			lines = append(lines, line)

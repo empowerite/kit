@@ -3,16 +3,14 @@
 package form
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/empowerite/kit/tui/internal/syntax"
+	"github.com/empowerite/kit/tui/internal/testkit"
 )
-
-var update = flag.Bool("update", false, "rewrite the golden renders")
 
 // specs decodes the syntax package's fixtures, keyed by verb.
 func specs(t *testing.T) map[string]syntax.Spec {
@@ -93,46 +91,66 @@ func TestCommitEmptyAndPrefilled(t *testing.T) {
 	}
 }
 
-func TestPackageLiteralChoosesItsAlternative(t *testing.T) {
-	fields, err := Fields(specs(t)["package"], FromMatch(syntax.Match{Literals: []string{"add"}}))
+func TestPackagesLiteralChoosesItsAlternative(t *testing.T) {
+	// kit packages opens with a one-of row over its two usage lines; with the acting line chosen, the literal add
+	// opens its word in the row that follows, and the packages come after it
+	fields, err := Fields(specs(t)["packages"], Answers{Literals: []string{"add"}, Chosen: map[int]int{0: 1}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "OneOf PickMany" || fields[0].Options[1] != "add" || fields[0].Chosen != 1 || !fields[0].Required {
-		t.Fatalf("package add: %s %+v", kinds(fields), fields[0])
+	if kinds(fields) != "OneOf OneOf PickMany" || fields[1].Options[1] != "add" || fields[1].Chosen != 1 || !fields[1].Required {
+		t.Fatalf("packages add: %s %+v", kinds(fields), fields)
 	}
-	if fields[1].Key != "<package>" || fields[1].Choices != "closed" || !fields[1].Required {
-		t.Errorf("the packages: %+v", fields[1])
+	if fields[2].Key != "<package>" || fields[2].Choices != "closed" || !fields[2].Required {
+		t.Errorf("the packages: %+v", fields[2])
 	}
-	fields, _ = Fields(specs(t)["package"], Answers{})
+	fields, _ = Fields(specs(t)["packages"], Answers{})
 	if kinds(fields) != "OneOf" || fields[0].Chosen != -1 {
-		t.Errorf("bare package: %s %+v", kinds(fields), fields[0])
+		t.Errorf("bare packages: %s %+v", kinds(fields), fields[0])
+	}
+	// a judged kit packages add style/bash chooses the acting line by its word alone: add opens the line through the
+	// group it starts with, as the matcher reads it, and the row under the line then takes the word
+	judged := FromMatch(syntax.Match{Literals: []string{"add"}, Operands: []string{"style/bash"},
+		Values: map[string][]string{"<package>": {"style/bash"}}})
+	fields, _ = Fields(specs(t)["packages"], judged)
+	if kinds(fields) != "OneOf OneOf PickMany" || fields[0].Chosen != 1 || fields[1].Chosen != 1 ||
+		strings.Join(fields[2].Values, " ") != "style/bash" {
+		t.Errorf("packages add style/bash: %s %+v", kinds(fields), fields)
+	}
+	// the word alone, as kit tui -- packages add hands it over, opens the acting line with add and no package yet
+	fields, _ = Fields(specs(t)["packages"], FromMatch(syntax.Match{Literals: []string{"add"}}))
+	if kinds(fields) != "OneOf OneOf PickMany" || fields[0].Chosen != 1 || fields[1].Chosen != 1 ||
+		len(fields[2].Values) != 0 {
+		t.Errorf("packages add: %s %+v", kinds(fields), fields)
 	}
 }
 
 func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
-	fields, err := Fields(specs(t)["status"], Answers{})
+	// kit status opens with a one-of row over its seven usage lines; the picture's line, chosen, brings its rows
+	fields, err := Fields(specs(t)["status"], Answers{Chosen: map[int]int{0: 0}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "Toggle OneOf OneOf" {
-		t.Fatalf("status: %s", kinds(fields))
+	if kinds(fields) != "OneOf Toggle OneOf OneOf" || fields[0].Chosen != 0 {
+		t.Fatalf("status: %s %+v", kinds(fields), fields[0])
 	}
-	if strings.Join(fields[1].Options, "|") != "--json|--jq" || fields[1].Required {
-		t.Errorf("the output row, one or the other or neither: %+v", fields[1])
+	if strings.Join(fields[2].Options, "|") != "--text|--json|--jq" || fields[2].Required {
+		t.Errorf("the output row, one or the other or neither: %+v", fields[2])
 	}
-	if strings.Join(fields[2].Options, "|") != "--all|--mine --others --owner" {
-		t.Errorf("the owner group: %+v", fields[2])
+	if strings.Join(fields[3].Options, "|") != "--all|--mine --others --owner" {
+		t.Errorf("the owner group: %+v", fields[3])
 	}
+	// the flags given choose the picture's line without a word: it is the first line that holds them
 	chosen := FromMatch(syntax.Match{Options: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}},
 		Values: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}}})
 	fields, _ = Fields(specs(t)["status"], chosen)
 	// the chosen --json brings its required flag as a field of its own, as every chosen flag alternative does
-	if kinds(fields) != "Toggle OneOf Toggle OneOf AnyOf Lines" || fields[1].Chosen != 0 || fields[3].Chosen != 1 || fields[5].Values[1] != "bob" {
+	if kinds(fields) != "OneOf Toggle OneOf Toggle OneOf AnyOf Lines" || fields[0].Chosen != 0 || fields[2].Chosen != 1 ||
+		fields[4].Chosen != 1 || fields[6].Values[1] != "bob" {
 		t.Errorf("status --json --mine --owner: %s %+v", kinds(fields), fields)
 	}
-	if strings.Join(fields[4].Options, " ") != "--mine --others" || strings.Join(fields[4].Values, " ") != "--mine" {
-		t.Errorf("the any-of row of owner flags: %+v", fields[4])
+	if strings.Join(fields[5].Options, " ") != "--mine --others" || strings.Join(fields[5].Values, " ") != "--mine" {
+		t.Errorf("the any-of row of owner flags: %+v", fields[5])
 	}
 }
 
@@ -201,21 +219,7 @@ func TestGoldenRenders(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := RenderStatic(spec, fields, 100)
-		golden := filepath.Join("testdata", verb+".golden")
-		if *update {
-			if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			continue
-		}
-		want, err := os.ReadFile(golden)
-		if err != nil {
-			t.Fatalf("%s: %v (run with -update)", verb, err)
-		}
-		if got != string(want) {
-			t.Errorf("%s renders differently from %s:\n%s", verb, golden, got)
-		}
+		testkit.Golden(t, filepath.Join("testdata", verb+".golden"), RenderStatic(spec, fields, 100))
 	}
 }
 
