@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
-# kit-context - prints the rules that govern a file, and logs the request (kit verb: files)
+# kit-context - prints the rules that govern a file (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit context <path>… [--json | --jq]
 #
-# Prints the path of each rule that governs the given paths, once each: the rules, then the styles, of the kinds
-# the path is of, and then the rules of the kinds those kinds embed, so a justfile brings the bash rule. With
-# --json, it prints one JSON object per path with that path's kinds and rules. Each request is logged to
-# kit/context.log in git's common directory.
+# Prints the path of each rule that governs the given paths, once each. The rules come first, then the styles, of
+# the path's kinds. Then come the rules of the kinds those kinds embed, so a justfile brings the bash rule. Each
+# request is logged to kit/context.log in git's common directory.
 #
-#   <path>…    the files whose rules to print, relative to the current directory; a path need not exist yet
-#   --json     prints one JSON object per path, with the path, its kinds, and its rules
-#   --jq       prints the same JSON as --json, formatted by jq for a person to read
-#   --claude   runs as Claude Code's PreToolUse hook: reads the hook's input on stdin, and answers with the rules that
-#              govern the file the tool is about to write
+#   <path>…    the files, relative to the current directory; need not exist
+#   --json     one JSON object per path: path, kinds, and rules
+#   --jq       the same JSON, formatted by jq for a person
+#   --claude   runs as Claude Code's PreToolUse hook
 #
 # kit context --claude
 #
-# Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and returns the rules that govern the
-# file the tool is about to write, as additional context.
+# Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and answers with the rules that govern
+# the file the tool is about to write, as additional context.
 #
 # Exits 0 when the rules are printed, and 2 on a usage error.
 #

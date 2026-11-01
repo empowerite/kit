@@ -2,20 +2,22 @@
 # kit-check - fails when a delivered file differs from the pinned release (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit check takes no arguments. It compares the repository with the release pinned in kit.yml, and reports
-# a finding when:
+# kit check takes no arguments. It compares the repository with the release pinned in kit.yml, and reports a finding
+# when:
 #
 #   - kit.yml declares a kit version other than the pinned release
 #   - a delivered file is missing, or differs from the release's copy
-#   - a merged JSON file is missing an entry the kit writes, or jq is not on PATH to read it
-#   - a path under .kit/ is not the link or the readonly copy kit keeps there, .kit/.gitignore is not what kit
-#     writes, a file under a delivered directory comes from no active package, or a delivered path is tracked by git
-#   - a file that should contain a kit region has none
-#   - a file the repository owns is missing a line a package expects in it
+#   - a merged JSON file lacks an entry the kit writes, or jq is not on PATH to read it
+#   - a path under .kit/ is not the link or the readonly copy kit keeps there
+#   - .kit/.gitignore is not what kit writes
+#   - a file under a delivered directory comes from no active package
+#   - a delivered path is tracked by git
+#   - a file that should hold a kit region has none
+#   - a file the repository owns lacks a line a package expects in it
 #   - a generated region differs from what its command makes
 #
-# Files delivered to the home directory are checked only when ~/.kit/manifest exists, that is, on a machine where
-# kit install ran. On a machine without it, such as a CI runner, kit check prints a note and skips them.
+# Files delivered to the home directory are checked only where kit install ran, that is, where ~/.kit/manifest
+# exists. Elsewhere, such as on a CI runner, kit check says so and skips them.
 #
 # Exits 0 when there are no findings, and 1 otherwise.
 #

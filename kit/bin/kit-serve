@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# kit-serve - serves the kit to an agent over the Model Context Protocol, on stdio (kit verb: interfaces)
+# kit-serve - serves the kit to an agent over the Model Context Protocol (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit serve
 #
-# Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, in the repository it starts
-# in, until stdin ends. It opens no network port. Stdout carries only the protocol's messages, one JSON object per
-# line, and every log line goes to stderr.
+# Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, until stdin ends. It runs in
+# the repository it starts in, and opens no network port. Stdout carries only the protocol's messages, one JSON
+# object per line; every log line goes to stderr.
 #
-# Its tools are the verbs that read and report, and change nothing: check, context, help, kind,
-# kinds, lint, packages, status, syntax, toolchains, and version. A tool's description is the verb's help, and the
-# tool takes args, the verb's arguments as an array of strings. Its resources are the kit's files: kit://1st.md,
-# kit://rules/<kind> and kit://styles/<kind> for each rule and style, and kit://kinds/<file> for each kinds file.
+# Its tools are the verbs that read and report, and change nothing: check, context, help, kinds, lint, packages,
+# status, syntax, toolchains, and version. A tool's description is the verb's help, and the tool takes args, the
+# verb's arguments as an array of strings. Its resources are the kit's files:
 #
-# An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration, such
-# as mcpServers.kit in .mcp.json for Claude Code. It answers the 2026-07-28 revision of the protocol, and the ones
+#   - kit://1st.md
+#   - kit://rules/<kind> and kit://styles/<kind>, for each rule and style
+#   - kit://kinds/<file>, for each kinds file
+#
+# An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration. For
+# Claude Code, that is mcpServers.kit in .mcp.json. It answers the 2026-07-28 revision of the protocol, and the ones
 # before it to a client that opens with initialize.
 #
 # Exits 0 when stdin ends, and 2 on a usage error.

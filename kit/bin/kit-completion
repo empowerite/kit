@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# kit-completion - prints the shell completion for kit, and the words it offers (kit verb: plumbing)
+# kit-completion - prints shell completion for kit (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit completion zsh
 #
 # Prints the zsh completion for kit. Put it on zsh's fpath as _kit, or evaluate it from .zshrc:
-# eval "$(kit completion zsh)". It completes the verbs, each with its purpose, and each verb's flags, literal words,
-# and the values a verb lists for an argument, such as the packages for kit packages add, from the verbs themselves.
-# A kit-<verb> command called directly completes the same way.
+# eval "$(kit completion zsh)". It completes the verbs, each with its purpose, then each verb's flags and words. It
+# also completes the values a verb lists for an argument, such as the packages for kit packages add. A kit-<verb>
+# command called directly completes the same way.
 #
 # kit completion candidates <word>…
 #
-# Prints what the last word may be, after the words before it, for the completion script: one candidate per line,
-# the word, a tab, and its description, and :files when files fit as well.
+# Prints what the last word may be, for the completion script: one candidate per line, the word, a tab, and its
+# description, and :files when files fit as well.
 #
 #   zsh          prints the zsh completion script
-#   candidates   prints the candidates for the last of the words
-#   <word>…      the words typed so far, the first of them kit itself and the last the one being completed
+#   candidates   prints the candidates for the last word
+#   <word>…      the words typed so far, kit first, the last being completed
 #
 # Exits 0, and 2 on a usage error.
 #

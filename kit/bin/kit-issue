@@ -9,15 +9,14 @@
 #   - a branch linked to the issue
 #   - a worktree for the branch, hydrated: what the kit delivers under .kit/ is in place
 #   - a start commit
-#   - a draft pull request (a merge request on GitLab)
+#   - a draft pull request
 #
-#   <reference>…   the issues, each named with its tracker: 7 or #7 for an issue on the forge (the service that
-#                  hosts the repository, GitHub or GitLab), AB#4521 for an Azure DevOps work item, when that tracker
-#                  is declared in kit.yml
-#   --title <text>   creates an issue with that title in the forge's tracker, then starts it, in one step
+#   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521
+#   --title <text>   creates an issue with that title, then starts it
 #
-# kit issue asks nothing itself: with --title it creates the issue and starts it; kit tui asks for the title when
-# kit issue is given neither.
+# 7 and #7 name an issue on the forge, the service that hosts the repository: GitHub or GitLab. AB#4521 names an
+# Azure DevOps work item, when kit.yml declares that tracker. kit issue asks nothing itself; kit tui asks for the
+# title when kit issue is given neither.
 #
 # Exits 0 when the work is started or resumed, 1 on a refusal, and 2 on a usage error or a reference no declared
 # tracker reads.

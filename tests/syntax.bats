@@ -35,7 +35,7 @@ setup() {
   run "${kit_root}/bin/kit" syntax commit
   [ "$status" -eq 0 ]
   jq -e '.verb == "commit" and (.usage | length == 1) and (.syntax | length == 1) and (.syntax[0] | length == 3)' <<<"$output"
-  jq -e '.purpose == "commits what is staged, after the checks a commit'"'"'s rule requires"' <<<"$output"
+  jq -e '.purpose == "commits what is staged, after the kit'"'"'s checks"' <<<"$output"
   jq -e '.syntax[0][0] | .kind == "group" and .optional and (.alternatives[0][0] | .kind == "flag" and .name == "all")' <<<"$output"
   jq -e '.syntax[0][1] | .kind == "group" and (.optional | not) and (.alternatives | length == 2)' <<<"$output"
   jq -e '.syntax[0][1].alternatives[0][0] | .kind == "option" and .name == "message" and .value == "text" and .repeat and (.inline | not)' <<<"$output"
@@ -96,7 +96,7 @@ setup() {
 
 @test "the argument block is read by key, in either spelling, with continuation lines joined" {
   run "${kit_root}/bin/kit" syntax commit
-  [ "$(jq -r '.arguments["--message"].description' <<<"$output")" = "the message; given twice or more, the first is the subject and the rest are paragraphs" ]
+  [ "$(jq -r '.arguments["--message"].description' <<<"$output")" = "the message; the first is the subject, the rest are paragraphs" ]
   jq -e '.arguments | has("--all") and has("--file") and has("<path>")' <<<"$output"
   run "${root}/bin/kit" syntax plain
   [ "$(jq -r '.arguments["--b"].description' <<<"$output")" = "bee" ]

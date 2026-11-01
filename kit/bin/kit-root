@@ -2,8 +2,8 @@
 # kit-root - prints the directory of the release that runs (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit root takes no arguments. It prints the release's directory, the one that holds bin/ and modules/, so a
-# script outside the kit can load its modules without being a verb: source "$(kit root)/modules/bash/1st.sh", or
+# kit root takes no arguments. It prints the release's directory, the one that holds bin/ and modules/. A script
+# outside the kit can load its modules that way, without being a verb: source "$(kit root)/modules/bash/1st.sh", or
 # in a justfile, export BASH_ENV := `kit root` / "modules/bash/1st.sh". It reads nothing from the repository, so it
 # runs outside one.
 #

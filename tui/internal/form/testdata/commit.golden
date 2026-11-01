@@ -1,12 +1,12 @@
- kit commit - commits what is staged, after the checks a commit's rule requires
+ kit commit - commits what is staged, after the kit's checks
 
-   --all      stages every change to a tracked file first, as git commit --all does
+   --all      stages every tracked change first, as git commit --all does
 
    required
-   --message  the message; given twice or more, the first is the subject and the rest are paragraphs
-   --file     reads the message from a file, whose first line is the subject
+   --message  the message; the first is the subject, the rest are paragraphs
+   --file     the message from a file; its first line is the subject
 
-   <path>…    commits those paths alone, as git commit -- <path>… does; each must be known to git
+   <path>…    commits these paths alone; each must be known to git
 
 
  kit commit

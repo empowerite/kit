@@ -1,6 +1,6 @@
 {
   "verb": "submit",
-  "purpose": "commits what is staged, as kit commit does, then pushes the branch",
+  "purpose": "commits what is staged, then pushes the branch",
   "usage": [
     "kit submit [--all] [--message <text>… | --file <path>] [<path>…]"
   ],
@@ -63,16 +63,16 @@
   ],
   "arguments": {
     "--all": {
-      "description": "stages every change to a tracked file first, as git commit --all does"
+      "description": "stages every tracked change first, as git commit --all does"
     },
     "--message": {
-      "description": "the message; given twice or more, the first is the subject and the rest are paragraphs"
+      "description": "the message; the first is the subject, the rest are paragraphs"
     },
     "--file": {
-      "description": "reads the message from a file, whose first line is the subject"
+      "description": "the message from a file; its first line is the subject"
     },
     "<path>": {
-      "description": "commits those paths alone, as git commit -- <path>… does; each must be known to git",
+      "description": "commits these paths alone; each must be known to git",
       "choices": "open"
     }
   }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# kit-usage - prints the usage lines of the verbs, and nothing else (kit verb: plumbing)
+# kit-usage - prints the usage lines of the verbs (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit usage [<verb>…]
 #
-# Prints each verb's usage lines, as its header writes them, one per line and nothing else: kit help prints a verb's
-# whole page, and kit syntax its grammar as JSON. A verb that takes no arguments prints kit <verb>.
+# Prints each verb's usage lines, as its header writes them, one per line and nothing else. A verb that takes no
+# arguments prints kit <verb>. kit help prints a verb's whole page, and kit syntax its grammar as JSON.
 #
-#   <verb>…   the verbs whose usage to print, by their whole names; with none, every verb, in name order
+#   <verb>…   the verbs, by whole name; default: every verb, in name order
 #
 # Exits 0 on success, and 2 when a name is not a verb.
 #

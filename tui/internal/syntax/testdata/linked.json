@@ -1,6 +1,6 @@
 {
   "verb": "linked",
-  "purpose": "refuses a change not linked to an open issue of this repository",
+  "purpose": "refuses a pull request not linked to an open issue",
   "usage": [
     "kit linked [<number>]"
   ],
@@ -24,7 +24,7 @@
   ],
   "arguments": {
     "<number>": {
-      "description": "the pull request to check; default: the one this checkout is working on"
+      "description": "the pull request to check; default: this checkout's"
     }
   }
 }

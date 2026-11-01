@@ -1,6 +1,6 @@
- kit policy - refuses a branch, commit subject, or change title the repository's policy forbids
+ kit policy - refuses a branch, subject, or title the policy forbids
 
-   --input  prints the facts as JSON instead of judging them: the document a rule is written against
+   --input  prints the facts as JSON instead of judging them
 
 
  kit policy

@@ -6,24 +6,26 @@
 #
 # Runs each rule's checks over the files the rule governs.
 #
-#   <path>…       the files to check, relative to the current directory; a directory stands for the tracked files
-#                 under it; with none, the staged files
+#   <path>…       the files to check; default: the staged files
 #   --all-files   with no paths, every tracked file instead of the staged ones
 #
-# Each file is matched to the rules of its kinds, as kit context matches, without the rules of the kinds a kind
-# embeds, so no linter runs over a file it cannot parse. Then, for each rule:
+# A path is relative to the current directory; a directory stands for the tracked files under it. Each file is
+# matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left out, so
+# no linter runs over a file it cannot parse. Then, for each rule:
 #
-#   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
-#     that is not on PATH is a failure, not a skip.
-#   - When the rule's frontmatter lists names under `checks:`, kit lint runs each of the kit's own checks so named
-#     over the rule's files. This release has two: `pinned`, every `uses:` in a workflow names a local action, a
-#     docker image, or an action pinned to a full commit SHA with the version as a trailing comment; and
-#     `jq-compiles`, every function a jq module defines compiles and calls only names that are defined.
-#   - When the rule has templates, each of its files must have the shape of one of them.
+#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is not on PATH
+#     is a failure, not a skip
+#   - each name under `checks:` in the frontmatter runs one of the kit's own checks over the rule's files
+#   - when the rule has templates, each file must have the shape of one of them
 #
-# Files under .kit/templates/ are templates, not files of their kind, and are not linted.
+# The kit's own checks are:
 #
-# kit lint needs no hook manager. The hooks/lefthook package runs it from a pre-commit hook.
+#   - `pinned`: every `uses:` in a workflow names a local action, a docker image, or an action pinned to a full
+#     commit SHA. The version follows as a trailing comment.
+#   - `jq-compiles`: every function a jq module defines compiles, and calls only names that are defined
+#
+# Files under .kit/templates/ are templates, not files of their kind, and are not linted. kit lint needs no hook
+# manager; the hooks/lefthook package runs it from a pre-commit hook.
 #
 # Exits 0 when every rule passes, 1 when any rule refuses, and 2 on a usage error.
 #

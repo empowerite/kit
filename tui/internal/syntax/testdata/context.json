@@ -1,6 +1,6 @@
 {
   "verb": "context",
-  "purpose": "prints the rules that govern a file, and logs the request",
+  "purpose": "prints the rules that govern a file",
   "usage": [
     "kit context <path>… [--json | --jq]",
     "kit context --claude"
@@ -44,17 +44,17 @@
   ],
   "arguments": {
     "<path>": {
-      "description": "the files whose rules to print, relative to the current directory; a path need not exist yet",
+      "description": "the files, relative to the current directory; need not exist",
       "choices": "open"
     },
     "--json": {
-      "description": "prints one JSON object per path, with the path, its kinds, and its rules"
+      "description": "one JSON object per path: path, kinds, and rules"
     },
     "--jq": {
-      "description": "prints the same JSON as --json, formatted by jq for a person to read"
+      "description": "the same JSON, formatted by jq for a person"
     },
     "--claude": {
-      "description": "runs as Claude Code's PreToolUse hook: reads the hook's input on stdin, and answers with the rules that govern the file the tool is about to write"
+      "description": "runs as Claude Code's PreToolUse hook"
     }
   }
 }

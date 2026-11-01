@@ -1,6 +1,6 @@
 {
   "verb": "completion",
-  "purpose": "prints the shell completion for kit, and the words it offers",
+  "purpose": "prints shell completion for kit",
   "usage": [
     "kit completion zsh",
     "kit completion candidates <word>…"
@@ -31,10 +31,10 @@
       "description": "prints the zsh completion script"
     },
     "candidates": {
-      "description": "prints the candidates for the last of the words"
+      "description": "prints the candidates for the last word"
     },
     "<word>": {
-      "description": "the words typed so far, the first of them kit itself and the last the one being completed"
+      "description": "the words typed so far, kit first, the last being completed"
     }
   }
 }

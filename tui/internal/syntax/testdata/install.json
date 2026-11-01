@@ -1,6 +1,6 @@
 {
   "verb": "install",
-  "purpose": "mirrors the release into the repository, and into the home directory",
+  "purpose": "mirrors the release into the repository and the home directory",
   "usage": [
     "kit install [<package>…]"
   ],
@@ -24,7 +24,7 @@
   ],
   "arguments": {
     "<package>": {
-      "description": "packages to activate beside the default ones, by name or by a glob such as 'style/*'; each must be in the release or under .kit/packages/",
+      "description": "more packages to activate, by name or glob such as 'style/*'",
       "choices": "closed"
     }
   }

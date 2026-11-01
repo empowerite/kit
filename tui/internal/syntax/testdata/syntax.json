@@ -1,6 +1,6 @@
 {
   "verb": "syntax",
-  "purpose": "prints a verb's syntax as JSON, and judges its header's discipline",
+  "purpose": "prints a verb's grammar as JSON, and checks its header",
   "usage": [
     "kit syntax [--check | --list] [<verb>…]",
     "kit syntax <verb> --choices <argument> [<answer>…]",
@@ -128,28 +128,28 @@
   ],
   "arguments": {
     "--check": {
-      "description": "prints no JSON; reports each usage line that does not parse and each argument the header does not describe, and fails when there is any"
+      "description": "prints no JSON; names each fault in the header, and fails"
     },
     "--list": {
-      "description": "prints no JSON; prints each verb, its purpose, and its group, tab-separated, one per line, which a palette opens on at once"
+      "description": "prints no JSON; one line per verb: verb, purpose, group, tab-separated"
     },
     "--choices": {
-      "description": "prints the choices of that argument instead, one per line, tab-separated: the value, its description, its state (active, excluded, or none), and the line the verb would print about it given the answers; closed when they are the only values the verb accepts, open when they are suggestions and any value is still allowed"
+      "description": "prints that argument's choices instead, one per line"
     },
     "<answer>": {
-      "description": "an argument answered already, as <package>=house or --rule=markdown, or a subcommand word chosen, as select, since a list may depend on them; an answer that starts with - follows a --"
+      "description": "an argument answered already, or a subcommand word chosen"
     },
     "--extend": {
-      "description": "prints instead the arguments the verb learns from the answers, as an object of arguments entries marked extended, for a form to add as fields; kit new answers with the holes of the template the answers name, and {} before it knows"
+      "description": "prints the arguments the verb learns from the answers"
     },
     "--match": {
-      "description": "prints instead the judgment of the words as the verb's command line, as the guard judges them: status 0, 1 with missing (what could come next), or 2 with refusal (the line the verb would print), and the literals, operands, options, and values sorted; for a form to fill"
+      "description": "judges the words as the guard judges a command line"
     },
     "<word>": {
-      "description": "the words of the command line to judge, after kit <verb>; they follow a --"
+      "description": "the words of the command line to judge, after kit <verb>"
     },
     "<verb>": {
-      "description": "the verbs to print; one prints its object, several print an array, and none prints every verb"
+      "description": "the verbs to print; none prints every verb"
     }
   }
 }

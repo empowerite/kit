@@ -1,4 +1,4 @@
- kit template - rewrites a template's holes typed in ASCII into the language's guillemets
+ kit template - rewrites a template's ASCII holes into guillemets
 
    fix <path>… required  the template files to rewrite
 

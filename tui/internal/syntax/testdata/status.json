@@ -1,6 +1,6 @@
 {
   "verb": "status",
-  "purpose": "shows where the work stands: backlog, incoming, worktrees, changes, releases",
+  "purpose": "shows where the work stands, from backlog to releases",
   "usage": [
     "kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit status --stages",
@@ -433,13 +433,13 @@
       "description": "prints the picture as text, even on a terminal"
     },
     "--json": {
-      "description": "prints the picture as one JSON object: stages, their order, and each stage under its name"
+      "description": "the picture as one JSON object, each stage under its name"
     },
     "--jq": {
-      "description": "prints the same JSON as --json, formatted by jq for a person to read"
+      "description": "the same JSON, formatted by jq for a person"
     },
     "--mine": {
-      "description": "the caller's: the issues assigned to the caller, the pull requests the caller opened; alone, without the owner column"
+      "description": "only the caller's: assigned issues, and opened pull requests"
     },
     "--others": {
       "description": "everyone else's; unassigned issues included"
@@ -448,7 +448,7 @@
       "description": "every issue and pull request (the default); it stands alone"
     },
     "--owner": {
-      "description": "the named login's; give it once or more. The filters combine: --mine --owner=bob"
+      "description": "only the named login's; give it once or more"
     },
     "--stages": {
       "description": "prints the stages the picture draws, one per line, in order"
@@ -457,16 +457,16 @@
       "description": "only the issues opened in the last 24 hours"
     },
     "<number>": {
-      "description": "only the pull requests numbered so, or closing an issue numbered so: 7 or #7"
+      "description": "only these pull requests, by number or issue closed: #7"
     },
     "backlog": {
       "description": "the open issues no pull request closes, oldest first"
     },
     "incoming": {
-      "description": "what the fetch brought: commits on the default branch, branches new and gone"
+      "description": "what the fetch brought: default-branch commits, branches new and gone"
     },
     "worktrees": {
-      "description": "the desk and every worktree: branch, ahead and behind, commits, uncommitted paths"
+      "description": "the desk and every worktree: branch, ahead and behind, uncommitted paths"
     },
     "changes": {
       "description": "the open pull requests, each with the issues it closes"

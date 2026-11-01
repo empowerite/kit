@@ -1,4 +1,4 @@
- kit gate - runs the repository's gate, and refuses when there is none
+ kit gate - runs the repository's gate
 
 
  kit gate

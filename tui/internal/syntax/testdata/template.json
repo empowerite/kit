@@ -1,6 +1,6 @@
 {
   "verb": "template",
-  "purpose": "rewrites a template's holes typed in ASCII into the language's guillemets",
+  "purpose": "rewrites a template's ASCII holes into guillemets",
   "usage": [
     "kit template fix <path>…"
   ],

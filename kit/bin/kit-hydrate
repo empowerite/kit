@@ -1,23 +1,26 @@
 #!/usr/bin/env bash
-# kit-hydrate - places what the active packages deliver under .kit/, from the declaration alone (kit verb: installation)
+# kit-hydrate - places what the active packages deliver under .kit/ (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit hydrate [--quick]
 #
-# Reads the packages kit.yml declares and brings every path they deliver under .kit/ to its state: a link to
-# its source when the source is inside the worktree, and otherwise a copy without the write bit. It writes
-# .kit/.gitignore, which names those paths and itself, and .kit/manifest when it is missing. It chooses nothing; kit
-# install chooses. It prints one line per path it placed or replaced, and says nothing about a path already in its
-# state. It warns about a delivered path git still tracks, and about a file under a delivered directory that no active
-# package delivers, both of which a person settles.
+# Reads the packages kit.yml declares, and brings every path they deliver under .kit/ to its state:
 #
-# Every verb that reads a delivered file hydrates first, so this verb is for a fresh clone or worktree before any
-# other command. With --quick, for a shell hook such as mise's [hooks] enter = "kit hydrate --quick", it starts
-# nothing and says nothing when everything is in place, or outside a repository that declares a kit version, and does
-# the whole job otherwise.
+#   - a link to its source, when the source is inside the worktree
+#   - otherwise a copy without the write bit
 #
-#   --quick   for a shell hook, such as mise's enter hook: starts nothing and says nothing when everything is in place,
-#             or outside a repository that declares a kit version
+# It also writes .kit/.gitignore, which names those paths and itself, and .kit/manifest when it is missing. It
+# chooses nothing; kit install chooses. It prints one line per path it placed or replaced. It warns about a
+# delivered path git still tracks, and about a file under a delivered directory that no active package delivers.
+#
+# Every verb that reads a delivered file hydrates first. This verb is for a fresh clone or worktree, before any other
+# command.
+#
+#   --quick   for a shell hook: silent when everything is in place
+#
+# --quick is for a shell hook, as in mise's [hooks] enter = "kit hydrate --quick". It then starts nothing and says
+# nothing when everything is in place, or outside a repository that declares a kit version. Otherwise it does the
+# whole job.
 #
 # Exits 0 on success, and 1 in a repository that declares no kit version, unless --quick.
 #

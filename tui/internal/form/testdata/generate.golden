@@ -1,12 +1,10 @@
- kit generate - expands every kit:generate region to what its command makes, or checks that it is
+ kit generate - expands each kit:generate region, or checks that it is current
 
    --check       writes nothing, and fails naming every stale file
 
    --iterations  expands the named files <n> times instead of once
 
-   <path>…       the files to expand, relative to the current directory; with none, every tracked
-                 file and every untracked file git does not ignore, repeated until a pass changes
-                 nothing
+   <path>…       the files to expand, relative to the current directory
 
 
  kit generate

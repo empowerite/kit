@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-new - makes a new file, or a kind, rule, style, package, template, module, provider, or verb (kit verb: files)
+# kit-new - makes a new file, or a new kind, rule, package, template, or verb (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
@@ -23,51 +23,60 @@
 # Makes one new thing, in its place and its house shape, and never overwrites anything:
 #
 #   - file: a file from a rule's template, then the rules to read before writing the rest, as kit context prints
-#   - kind, rule, style, and template: a file in a package of the repository's own, under
-#     .kit/packages/<package>/files/repo/.kit/, with the package when there is none; when the package is active it
-#     places the file, and otherwise it names the command that activates the package
+#   - kind, rule, style, template: a file in a package of the repository's own, under
+#     .kit/packages/<package>/files/repo/.kit/; the package is made when there is none
 #   - package: .kit/packages/<name>/package.yml, depending on kit
-#   - module and provider: a bash module in the repository's own directory on the module path, from the bash style's
-#     template; a provider has one function for each call its seam makes, each refusing until it is written
-#   - verb, and a module with --jq: in the kit's own source alone, a verb with the header kit help reads, and a jq
-#     module with its tests
+#   - module, provider: a bash module in the repository's own directory on the module path, from the bash style's
+#     template
+#   - verb, or a module with --jq: in the kit's own source alone
+#
+# When the package is active, the new file is placed; otherwise kit new names the command that activates the
+# package. A provider has one function for each call its seam makes, each refusing until it is written. A verb gets
+# the header kit help reads; a jq module gets its tests.
 #
 #   file                    makes a file from a template
 #   kind                    makes a kind of file
 #   rule                    makes a rule for a kind
 #   style                   makes a style for a kind
 #   package                 makes a package of the repository's own
-#   template                makes a template, and lists it in its package's rule or style
+#   template                makes a template, listed in its package's rule or style
 #   module                  makes a bash module, or a jq module with --jq
-#   provider                makes a provider of a seam: forge, policy, toolchain, or tracker
+#   provider                makes a provider of a seam
 #   verb                    makes a verb of the kit
-#   <path>                  the new file, relative to the repository root wherever the command runs. An absolute
-#                           path inside the repository is accepted. A path outside it is refused.
-#   --rule=<rule>           the rule whose template to use. Default: the most specific rule that governs the path
-#                           and has templates. A script with no extension needs this flag.
-#   --variant=<variant>     the template to use. Default: the first variant the rule lists that the path allows.
-#   --<hole>=<value>        the value of a hole («name») within a line of the template. The holes path, name, and
-#                           stem default to values taken from the path. Every other hole needs its flag.
-#   <name>                  the name of the kind, package, module, provider, or verb: lowercase letters, digits, and
-#                           dashes, a package's or a module's with / between its parts
+#   <path>                  the new file, relative to the repository root
+#   --rule=<rule>           the rule whose template to use
+#   --variant=<variant>     the template to use
+#   --<hole>=<value>        the value of a hole, «name», in the template
+#   <name>                  the name: lowercase letters, digits, and dashes
 #   <kind>                  the kind a rule or a style governs
-#   <rule>                  the rule or style whose template it is, which names the directory under .kit/templates/
+#   <rule>                  the rule or style whose template it is
 #   <variant>               the template's name, which kit new file --variant= takes
 #   <seam>                  the seam the provider answers: forge, policy, toolchain, or tracker
-#   --package=<name>        the package to put it in. Default: the repository's one package under .kit/packages/,
-#                           or else local
-#   --path=<glob>           a glob a path of the kind matches; ** matches any depth
-#   --content=<regex>       an extended regular expression the first line of a file of the kind matches
+#   --package=<name>        the package to put it in
+#   --path=<glob>           a glob the kind's paths match; ** matches any depth
+#   --content=<regex>       an extended regular expression the first line matches
 #   --kinds=<kind>          a kind this kind is made of
 #   --embeds=<kind>         a kind whose text appears inside this kind's files
-#   --lint=<command>        the linter kit lint runs over the files the rule or style governs
+#   --lint=<command>        the linter kit lint runs over the files
 #   --description=<text>    the package's one line, which kit packages shows
 #   --depends=<package>     a package this one depends on, beside kit
-#   --from=<path>           a file to start the template from; without it the template is one body hole
-#   --purpose=<text>        what the module or verb does, in the indicative, for its banner
-#   --jq                    makes a jq module, with its tests, in place of a bash module
-#   --group=<group>         the heading kit help lists the verb under: workflow, files, checks, installation,
-#                           interfaces, or help
+#   --from=<path>           a file to start the template from
+#   --purpose=<text>        what the module or verb does, for its banner
+#   --jq                    makes a jq module, with its tests
+#   --group=<group>         the heading kit help lists the verb under
+#
+# The defaults, and the limits:
+#
+#   - <path> may be absolute inside the repository; a path outside it is refused
+#   - --rule defaults to the most specific rule that governs the path and has templates; a script with no extension
+#     needs the flag
+#   - --variant defaults to the first variant the rule lists that the path allows
+#   - the holes path, name, and stem take their values from the path; every other hole needs its flag
+#   - <rule> names the directory under .kit/templates/
+#   - a package's or a module's <name> has / between its parts
+#   - --package defaults to the repository's one package under .kit/packages/, or else local
+#   - --from: without it, the template is one body hole
+#   - --group is workflow, files, checks, installation, interfaces, or help
 #
 # A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
 # already defined.

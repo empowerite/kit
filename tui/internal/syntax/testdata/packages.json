@@ -114,13 +114,13 @@
       "description": "the same JSON, formatted by jq for a person"
     },
     "select": {
-      "description": "makes exactly these packages, plus what they depend on and include, the active set: adds what is missing, removes the rest, and says what it kept for another package's sake"
+      "description": "makes exactly these, and what they need, the active set"
     },
     "add": {
-      "description": "activates the packages and what they depend on and include"
+      "description": "activates the packages, and what they depend on and include"
     },
     "remove": {
-      "description": "deactivates the packages; refuses one an active package depends on"
+      "description": "deactivates the packages; refuses one an active package needs"
     },
     "<package>": {
       "description": "a name, such as style/bash, or a glob, such as 'style/*'",

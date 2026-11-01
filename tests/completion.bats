@@ -19,7 +19,7 @@ candidates() {
 @test "the first word is a verb, each with its purpose, and every verb is offered" {
   run "${kit_checkout}/bin/kit" completion candidates kit ''
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'commit\tcommits what is staged, after the checks a commit\'s rule requires'* ]]
+  [[ "$output" == *$'commit\tcommits what is staged, after the kit\'s checks'* ]]
   [ "$(cut -f 1 <<<"$output" | wc -l)" -eq "$(find "${kit_checkout}/bin" -name 'kit-*' -perm -u+x | wc -l)" ]
 }
 

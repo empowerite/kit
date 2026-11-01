@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-status - shows where the work stands: backlog, incoming, worktrees, changes, releases (kit verb: workflow)
+# kit-status - shows where the work stands, from backlog to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
@@ -9,8 +9,8 @@
 #   backlog → incoming → worktrees → changes → releases
 #
 # The status setting in kit.yml names the stages drawn, in order. On a terminal, kit status opens the picture in
-# kittui. Without one, or with --text, it prints the stages as text. Each stage opens with a dim heading and its
-# count. Where it runs decides what worktrees and changes draw:
+# kittui. Without one, or with --text, it prints the stages as text. Where it runs decides what worktrees and
+# changes draw:
 #
 #   - at a desk: the desk, every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
@@ -21,21 +21,22 @@
 #
 #   --no-fetch          skips the git fetch; incoming says so
 #   --text              prints the picture as text, even on a terminal
-#   --json              prints the picture as one JSON object: stages, their order, and each stage under its name
-#   --jq                prints the same JSON as --json, formatted by jq for a person to read
-#   --mine              the caller's: the issues assigned to the caller, the pull requests the caller opened; alone,
-#                       without the owner column
+#   --json              the picture as one JSON object, each stage under its name
+#   --jq                the same JSON, formatted by jq for a person
+#   --mine              only the caller's: assigned issues, and opened pull requests
 #   --others            everyone else's; unassigned issues included
 #   --all               every issue and pull request (the default); it stands alone
-#   --owner=<login>     the named login's; give it once or more. The filters combine: --mine --owner=bob
+#   --owner=<login>     only the named login's; give it once or more
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --today             only the issues opened in the last 24 hours
-#   <number>…           only the pull requests numbered so, or closing an issue numbered so: 7 or #7
+#   <number>…           only these pull requests, by number or issue closed: #7
 #   backlog             the open issues no pull request closes, oldest first
-#   incoming            what the fetch brought: commits on the default branch, branches new and gone
-#   worktrees           the desk and every worktree: branch, ahead and behind, commits, uncommitted paths
+#   incoming            what the fetch brought: default-branch commits, branches new and gone
+#   worktrees           the desk and every worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
 #   releases            the releases on the forge, newest first
+#
+# The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
 # kit status --stages
 #
@@ -49,9 +50,8 @@
 #
 # kit status releases [--json | --jq]
 #
-# One stage prints without its heading. An empty stage says so in one dim line. With --json, a stage prints what
-# the picture holds under its name: an array for backlog, changes, and releases; an object for incoming and
-# worktrees. incoming's object is {fetched, default, commits, branches, tags}, or {"fetched": false} with --no-fetch.
+# One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
+# for backlog, changes, and releases; an object for incoming and worktrees.
 #
 # Legend
 #

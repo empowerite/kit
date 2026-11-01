@@ -66,13 +66,13 @@ group-has() {
   [ "${count}" -ge 6 ]
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\nPLUMBING\n  '"${count}"$' verbs that scripts, the hooks, and the TUI call; kit help plumbing lists them\n\nEXAMPLES\n'* ]]
+  [[ "$output" == *$'\nPLUMBING\n  '"${count}"$' verbs that scripts, hooks, and the TUI call; kit help plumbing lists them\n\nEXAMPLES\n'* ]]
   [[ "$output" != *$'\n  region '* && "$output" != *$'\n  usage '* ]]
   run "${kit_root}/bin/kit" help plumbing
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = PLUMBING ]
   [ "${#lines[@]}" -eq $(( count + 1 )) ]
-  [[ "$output" == *$'\n  region       prints the content the active packages deliver'* ]]
+  [[ "$output" == *$'\n  region       prints the region an active package delivers'* ]]
   [[ "$output" == *$'\n  root         prints the directory of the release that runs'* ]]
   [[ "$output" != *"  tidy "* ]]
   run "${kit_root}/bin/kit" help workflow
@@ -170,7 +170,7 @@ group-has() {
   [[ "$output" == *"  release <version> [--lower]"* ]]
   [[ "$output" != *"  status"* ]]
   run "${kit_root}/bin/kit" help release
-  [ "${lines[0]}" = "kit release - tags HEAD as a release and pushes the tag, after the rules a release keeps" ]
+  [ "${lines[0]}" = "kit release - tags HEAD as a release and pushes the tag" ]
   # and with a copy of the kit that has kit-gates beside kit-gate
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
@@ -179,7 +179,7 @@ group-has() {
   run "${root}/bin/kit" help gat
   [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
   run "${root}/bin/kit" help gate
-  [ "${lines[0]}" = "kit gate - runs the repository's gate, and refuses when there is none" ]
+  [ "${lines[0]}" = "kit gate - runs the repository's gate" ]
 }
 
 @test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
@@ -194,32 +194,49 @@ group-has() {
   [[ "$output" == *$'Usage\n  kit plain <thing>\n\nDescription\n  Does it.'* ]]
 }
 
-@test "kit help <verb> rewraps the description's prose to 80 columns, counted in characters, and keeps an indented block as written" {
-  local root="${BATS_TEST_TMPDIR}/kit" prose block line joined=''
+@test "kit help <verb> rewraps the prose, the argument block, and the bullets to 80 columns, counted in characters" {
+  local root="${BATS_TEST_TMPDIR}/kit" prose block bullet first line joined=''
   mkdir -p "${root}"
   cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
-  # a paragraph at the header's full width, written twice, with multibyte characters a byte count would wrap early
+  # a paragraph at the header's full width, written twice, with multibyte characters a byte count would wrap early;
+  # then an argument line and a bullet, each wider than 80
   prose='Does the thing… and says so in a paragraph → written out to the header'"'"'s full width, one hundred and eighteen columns…'
-  block='  --wide=<value>   an argument whose line is left exactly as the header writes it, however wide, since it is a block'
+  block='  --wide=<value>   an argument whose description is longer than the room, so it wraps under its own first word, however wide'
+  bullet='  - a bullet whose text is longer than the room, so it wraps under its own first word, with the mark kept on the first line'
+  first='- the first thing, whose text is longer than the room, so it wraps under its own first word, however long'
   [ "${#prose}" -eq 118 ]
   printf '%s\n' '#!/usr/bin/env bash' '# kit-wide - a verb written wide (kit verb: help)' '#' '# kit wide [--wide=<value>]' '#' \
-    "# ${prose}" "# ${prose}" '#' "# ${block}" '#' '# A second paragraph, short.' > "${root}/bin/kit-wide"
+    "# ${prose}" "# ${prose}" '#' "# ${block}" '#' "# ${bullet}" '#' '# A second paragraph, short.' '#' \
+    '# The verb does three things:' "# ${first}" '# and goes on in the line after it' '# - the second thing' \
+    > "${root}/bin/kit-wide"
   chmod +x "${root}/bin/kit-wide"
   run "${root}/bin/kit" help wide
   [ "$status" -eq 0 ]
   # the first line is filled to 77 characters, which a byte count would have broken before "full"
   [[ "$output" == *$'\nDescription\n  Does the thing… and says so in a paragraph → written out to the header\'s full\n'* ]]
-  # every prose line fits 80 columns, and the paragraph's words are all there, in order
+  # every line of the page fits 80 columns, and the paragraph's words are all there, in order
   while IFS= read -r line
   do
-    [[ "${line}" == '  '[!' ']* ]] || continue
     [ "${#line}" -le 80 ] || { echo "over 80: ${line}"; return 1; }
-    joined+="${joined:+ }${line#  }"
+    [[ "${line}" == '  '[!' ']* ]] && joined+="${joined:+ }${line#  }"
   done < <(sed -n '/^Description$/,/^$/p' <<<"$output")
   [ "${joined}" = "${prose} ${prose}" ]
-  # the block is there exactly as written, under the page's indent, and the second paragraph after it
-  [[ "$output" == *$'\n\n  '"${block}"$'\n\n  A second paragraph, short.\n'* ]]
-  [ "$(grep -c '^    --wide=<value>   an argument whose line' <<<"$output")" -eq 1 ]
+  # the argument's description hangs at its own column, the bullet's text after its mark, and the second paragraph
+  # follows them
+  [[ "$output" == *$'\n\n    --wide=<value>   an argument whose description is longer than the room, so\n                     it wraps under its own first word, however wide\n\n    - a bullet whose text is longer than the room, so it wraps under its own\n      first word, with the mark kept on the first line\n\n  A second paragraph, short.\n'* ]]
+  # a bullet at column 0 starts its own paragraph, never joined to the line before it, hanging after its mark; the
+  # line after it that is no bullet continues it, and the next bullet starts the next
+  [[ "$output" == *$'\n\n  The verb does three things:\n  - the first thing, whose text is longer than the room, so it wraps under its\n    own first word, however long and goes on in the line after it\n  - the second thing\n\nGroup\n'* ]]
+  # a verb's own page, with the widest block, fits too, but for a usage line
+  run "${kit_root}/bin/kit" help new
+  while IFS= read -r line
+  do
+    [[ "${line}" == '  kit new '* ]] && continue
+    [ "${#line}" -le 80 ] || { echo "over 80: ${line}"; return 1; }
+  done <<<"$output"
+  # and the Group line wraps between verbs, never inside one
+  run "${kit_root}/bin/kit" help install
+  [[ "$output" == *$'\nGroup\n  installation: also kit hydrate, kit packages, kit toolchains, kit uninstall,\n                     kit update, kit version'* ]]
   # the overview's LEARN MORE bullets fit 80 columns too
   run "${kit_root}/bin/kit" help
   while IFS= read -r line

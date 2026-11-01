@@ -38,7 +38,7 @@
   ],
   "arguments": {
     "<path>": {
-      "description": "the files to check, relative to the current directory; a directory stands for the tracked files under it; with none, the staged files",
+      "description": "the files to check; default: the staged files",
       "choices": "open"
     },
     "--all-files": {

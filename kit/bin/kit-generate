@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# kit-generate - expands every kit:generate region to what its command makes, or checks that it is (kit verb: files)
+# kit-generate - expands each kit:generate region, or checks that it is current (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit generate [--check] [--iterations=<n>] [<path>…]
 #
 # Expands each kit:generate region in the given files to what its command makes, and writes the result in place.
+# With no path, it takes every tracked file and every untracked file git does not ignore, and repeats until a pass
+# changes nothing.
 #
 #   --check             writes nothing, and fails naming every stale file
 #   --iterations=<n>    expands the named files <n> times instead of once
-#   <path>…             the files to expand, relative to the current directory; with none, every tracked file and
-#                       every untracked file git does not ignore, repeated until a pass changes nothing
+#   <path>…             the files to expand, relative to the current directory
 #
 # kit check makes the same check, and the lefthook pre-commit hook runs kit generate --check over the staged paths.
 #

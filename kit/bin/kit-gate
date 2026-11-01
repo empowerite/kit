@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# kit-gate - runs the repository's gate, and refuses when there is none (kit verb: checks)
+# kit-gate - runs the repository's gate (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit gate takes no arguments. It runs the repository's gate, the repository's own CI command. The gate is the
-# first of:
+# kit gate takes no arguments. The gate is the repository's own CI command, the first of:
 #
 #   1. the `gate` setting in kit.yml
 #   2. `just ci`, when the root justfile has a ci recipe
@@ -12,8 +11,8 @@
 #
 # The gate runs with the declared toolchains' tools, inside the container when the toolchain is docker.
 #
-# kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A
-# gate that cannot run never counts as a pass. On a CI runner, each outcome is also written to the step summary.
+# kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A gate
+# that cannot run never counts as a pass. On a CI runner, each outcome is also written to the step summary.
 #
 # Exits 0 when the gate passes, and 1 otherwise.
 #

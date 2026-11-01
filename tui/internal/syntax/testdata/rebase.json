@@ -1,6 +1,6 @@
 {
   "verb": "rebase",
-  "purpose": "rebases a worktree's branch onto the default branch and pushes it",
+  "purpose": "rebases a branch onto the default branch and pushes it",
   "usage": [
     "kit rebase [<path>]"
   ],
@@ -24,7 +24,7 @@
   ],
   "arguments": {
     "<path>": {
-      "description": "the checkout whose branch to rebase; default: the current checkout"
+      "description": "the checkout whose branch to rebase; default: the current one"
     }
   }
 }

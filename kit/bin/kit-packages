@@ -14,16 +14,16 @@
 #     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
 #   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A member
 #     of a bundle that stays active is recorded as excluded, so kit update does not bring it back.
-#   - select is remove, then add, to reach the named set. With nothing to change it says the set.
+#   - select is remove, then add, to reach the named set. It says what it kept for another package's sake. With
+#     nothing to change, it says the set.
 #
 #   --active            only the active packages
 #   --inactive          the packages that are not active, excluded ones among them
 #   --json              one JSON object per package: name, origin, state, and description
 #   --jq                the same JSON, formatted by jq for a person
-#   select <package>…   makes exactly these packages, plus what they depend on and include, the active set:
-#                       adds what is missing, removes the rest, and says what it kept for another package's sake
-#   add <package>…      activates the packages and what they depend on and include
-#   remove <package>…   deactivates the packages; refuses one an active package depends on
+#   select <package>…   makes exactly these, and what they need, the active set
+#   add <package>…      activates the packages, and what they depend on and include
+#   remove <package>…   deactivates the packages; refuses one an active package needs
 #   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
 #
 # Exits 0 when it did it, 1 when it could not, and 2 on a usage error or a package name the kit does not know.

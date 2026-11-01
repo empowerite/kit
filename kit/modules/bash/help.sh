@@ -152,29 +152,57 @@ help:summary() {
   done
 }
 
-# help:reflow prints stdin as a page's description, indented two spaces, with its prose rewrapped to 80 columns: a
-# paragraph is consecutive lines that start at column 0, whose words are joined and laid out again, up to 80 columns
-# with the indent; a line that starts with a space, the argument block or the legend, is kept exactly as written; and
-# a blank line separates paragraphs. Width is counted in characters: awk runs in the C locale, where a byte that
-# continues a multibyte character is told by its value, and those are left out of the count.
+# help:reflow prints stdin as a page's description, indented two spaces, with every line rewrapped to 80 columns. A
+# paragraph is consecutive lines that start at column 0, whose words are joined and laid out again. A bullet at
+# column 0, `- …`, `• …`, or `1. …`, starts its own paragraph, hanging after its mark, and the lines after it that are
+# not bullets continue it. An indented line starts an entry, and the lines indented deeper than it continue it: an
+# argument, `  <token>   description`, whose description hangs at its own column; a bullet, `  - …` or `  1. …`, whose
+# text hangs after the mark; and any other indented line, hanging at its indent. A blank line separates them. Nothing
+# printed exceeds 80 columns but a word wider than its room. Width is counted in characters: awk runs in the C
+# locale, where a byte that continues a multibyte character is told by its value, and those are left out of the
+# count.
 help:reflow() {
   LC_ALL=C awk '
     function width(s) { gsub(/[\200-\277]/, "", s); return length(s) }
-    function flush(   i, n, word, line) {
-      if (para == "") return
-      n = split(para, word, " ")
+    function emit(prefix, hang, text,   i, n, word, line, room) {
+      room = 78 - hang
+      n = split(text, word, " ")
       line = ""
       for (i = 1; i <= n; i++) {
         if (line == "") line = word[i]
-        else if (width(line) + 1 + width(word[i]) <= 78) line = line " " word[i]
-        else { print "  " line; line = word[i] }
+        else if (width(line) + 1 + width(word[i]) <= room) line = line " " word[i]
+        else { print "  " prefix line; line = word[i]; prefix = sprintf("%" hang "s", "") }
       }
-      print "  " line
-      para = ""
+      print "  " prefix line
     }
-    /^ / { flush(); print "  " $0; next }
+    function flush() {
+      if (text == "") return
+      emit(prefix, hang, text)
+      text = ""; prefix = ""; hang = 0; indent = -1
+    }
+    BEGIN { indent = -1 }
     /^$/ { flush(); print ""; next }
-    { para = para (para == "" ? "" : " ") $0 }
+    /^ / {
+      match($0, /^ +/)
+      if (indent >= 0 && RLENGTH > indent) { line = $0; sub(/^ +/, "", line); text = text " " line; next }
+      flush()
+      indent = RLENGTH
+      if (match($0, /^ +(- |[0-9]+\. )/) || match($0, /^ +[^ ]+( [^ ]+)*  +/)) prefix = substr($0, 1, RLENGTH)
+      else prefix = substr($0, 1, indent)
+      hang = width(prefix)
+      text = substr($0, length(prefix) + 1)
+      next
+    }
+    /^(- |\342\200\242 |[0-9]+\. )/ {
+      flush()
+      match($0, /^(- |\342\200\242 |[0-9]+\. )/)
+      indent = 0
+      prefix = substr($0, 1, RLENGTH)
+      hang = width(prefix)
+      text = substr($0, RLENGTH + 1)
+      next
+    }
+    { if (indent > 0) flush(); text = text (text == "" ? "" : " ") $0 }
     END { flush() }'
 }
 
@@ -230,7 +258,7 @@ help:overview() {
     [[ " ${help_groups[*]} " == *" ${group} "* ]] || group=other
     members_of[${group}]+="${verb} "
   done < <(help:banners)
-  printf 'kit keeps the rules a repository asks its agents to follow, and the checks that hold the work to them.\n\n'
+  printf 'kit keeps the rules a repository asks its agents to follow, and the checks that\nhold the work to them.\n\n'
   printf '%sUSAGE%s\n  kit <verb> [<argument>…]\n' "${bold}" "${plain}"
   for group in "${help_groups[@]}" other
   do
@@ -239,7 +267,7 @@ help:overview() {
     printf '\n'
     if [[ "${group}" == plumbing ]]
     then
-      printf '%sPLUMBING%s\n  %d verbs that scripts, the hooks, and the TUI call; kit help plumbing lists them\n' \
+      printf '%sPLUMBING%s\n  %d verbs that scripts, hooks, and the TUI call; kit help plumbing lists them\n' \
         "${bold}" "${plain}" "${#members[@]}"
       continue
     fi
@@ -260,11 +288,12 @@ help:overview() {
   printf '    workflow package is active, is the workflow\n'
 }
 
-# help:page <verb> prints the verb's help page: its name and purpose, its usage, its description with its prose
-# rewrapped to 80 columns, and the other verbs of its group. Headings are bold as help:styled says.
+# help:page <verb> prints the verb's help page: its name and purpose, its usage, its description rewrapped to 80
+# columns, and the other verbs of its group, wrapped at 80 columns between verbs. Headings are bold as help:styled
+# says.
 help:page() {
-  local bold='' plain='' line verb group named own='' purpose='' others=''
-  local -a banners
+  local bold='' plain='' line verb group named own='' purpose='' other
+  local -a banners others=()
   if help:styled
   then
     bold=$'\x1b[1m' plain=$'\x1b[0m'
@@ -286,9 +315,26 @@ help:page() {
   for line in "${banners[@]}"
   do
     IFS=$'\t' read -r verb group named <<<"${line}"
-    [[ "${verb}" != "$1" && "${group}" == "${own}" ]] && others+="${others:+, }kit ${verb}"
+    [[ "${verb}" != "$1" && "${group}" == "${own}" ]] && others+=("kit ${verb}")
   done
-  printf '\n%sGroup%s\n  %s%s\n' "${bold}" "${plain}" "${own}" "${others:+: also ${others}}"
+  printf '\n%sGroup%s\n' "${bold}" "${plain}"
+  if (( ${#others[@]} == 0 ))
+  then
+    printf '  %s\n' "${own}"
+    return 0
+  fi
+  line="  ${own}: also ${others[0]}"
+  for other in "${others[@]:1}"
+  do
+    if (( ${#line} + 2 + ${#other} <= 80 ))
+    then
+      line+=", ${other}"
+    else
+      printf '%s,\n' "${line}"
+      printf -v line '%*s%s' $(( ${#own} + 9 )) '' "${other}"
+    fi
+  done
+  printf '%s\n' "${line}"
 }
 
 # help:choices <key> [<answer>…] answers kit syntax --choices for <verb>: an open set, every verb with its purpose, since

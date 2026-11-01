@@ -1,6 +1,6 @@
 {
   "verb": "toolchains",
-  "purpose": "lists, installs, and updates the toolchains that manage the gate's tools",
+  "purpose": "lists, installs, and updates the toolchains",
   "usage": [
     "kit toolchains [--json | --jq]",
     "kit toolchains (install | outdated [--check] | update | path | run <command>…)"
@@ -116,7 +116,7 @@
       "description": "prints the directories that put the tools first on PATH"
     },
     "run": {
-      "description": "runs the command with the tools on PATH, or inside docker's container"
+      "description": "runs the command with the tools on PATH, or in docker"
     },
     "<command>": {
       "description": "the command and its arguments, as typed, dash-words included"

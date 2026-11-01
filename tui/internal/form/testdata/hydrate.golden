@@ -1,7 +1,6 @@
- kit hydrate - places what the active packages deliver under .kit/, from the declaration alone
+ kit hydrate - places what the active packages deliver under .kit/
 
-   --quick  for a shell hook, such as mise's enter hook: starts nothing and says nothing when
-            everything is in place, or outside a repository that declares a kit version
+   --quick  for a shell hook: silent when everything is in place
 
 
  kit hydrate

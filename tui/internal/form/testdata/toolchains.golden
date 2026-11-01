@@ -1,4 +1,4 @@
- kit toolchains - lists, installs, and updates the toolchains that manage the gate's tools
+ kit toolchains - lists, installs, and updates the toolchains
 
    required
    [--json | --jq]

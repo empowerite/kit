@@ -1,6 +1,6 @@
 {
   "verb": "kinds",
-  "purpose": "lists the kinds of file the repository defines, or the kinds a path is of",
+  "purpose": "lists the kinds of file, or the kinds a path is of",
   "usage": [
     "kit kinds [--json | --jq] [<kind> | <path>]…"
   ],

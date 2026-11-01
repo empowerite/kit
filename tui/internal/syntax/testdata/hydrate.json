@@ -1,6 +1,6 @@
 {
   "verb": "hydrate",
-  "purpose": "places what the active packages deliver under .kit/, from the declaration alone",
+  "purpose": "places what the active packages deliver under .kit/",
   "usage": [
     "kit hydrate [--quick]"
   ],
@@ -24,7 +24,7 @@
   ],
   "arguments": {
     "--quick": {
-      "description": "for a shell hook, such as mise's enter hook: starts nothing and says nothing when everything is in place, or outside a repository that declares a kit version"
+      "description": "for a shell hook: silent when everything is in place"
     }
   }
 }

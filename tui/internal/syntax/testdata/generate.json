@@ -1,6 +1,6 @@
 {
   "verb": "generate",
-  "purpose": "expands every kit:generate region to what its command makes, or checks that it is",
+  "purpose": "expands each kit:generate region, or checks that it is current",
   "usage": [
     "kit generate [--check] [--iterations=<n>] [<path>…]"
   ],
@@ -60,7 +60,7 @@
       "description": "expands the named files <n> times instead of once"
     },
     "<path>": {
-      "description": "the files to expand, relative to the current directory; with none, every tracked file and every untracked file git does not ignore, repeated until a pass changes nothing",
+      "description": "the files to expand, relative to the current directory",
       "choices": "open"
     }
   }

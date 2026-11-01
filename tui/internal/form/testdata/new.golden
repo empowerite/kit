@@ -1,4 +1,4 @@
- kit new - makes a new file, or a kind, rule, style, package, template, module, provider, or verb
+ kit new - makes a new file, or a new kind, rule, package, template, or verb
 
    required
    file      makes a file from a template
@@ -6,9 +6,9 @@
    rule      makes a rule for a kind
    style     makes a style for a kind
    package   makes a package of the repository's own
-   template  makes a template, and lists it in its package's rule or style
+   template  makes a template, listed in its package's rule or style
    module    makes a bash module, or a jq module with --jq
-   provider  makes a provider of a seam: forge, policy, toolchain, or tracker
+   provider  makes a provider of a seam
    verb      makes a verb of the kit
 
 
