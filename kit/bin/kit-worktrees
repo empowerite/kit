@@ -12,6 +12,8 @@
 #   --json   prints the same facts as one JSON document: desk, and worktrees in issue-number order
 #   --jq     prints the same JSON as --json, formatted by jq for a person to read
 #
+# Exits 0 when the checkouts are drawn, and 2 on a usage error.
+#
 # see: modules/bash/status.sh, kit-status
 
 set -o errexit -o nounset -o pipefail

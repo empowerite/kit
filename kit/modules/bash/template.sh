@@ -2,6 +2,7 @@
 # template.sh - a rule's templates: make a new file from one, and check a file still matches one (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+# shellcheck disable=SC2016  # a jq program reads $template and the arguments beside it; nothing is meant to expand
 #
 # A rule can have templates, one per variant of the file it governs, at .kit/templates/<rule>/<variant>. The rule's
 # frontmatter lists them in the order they are tried. Each entry can limit its template to a path glob, and can
@@ -23,7 +24,8 @@
 #
 # path, name, and stem are bound to the file's path, so a file whose banner names another file does not match. A
 # name that appears more than once takes one value per appearance. A region in a template, between a kit:generate
-# directive and its kit:end line, matches whatever its command wrote. Two holes with nothing between them are refused.
+# directive and its kit:end line, matches whatever its command wrote. Two holes with nothing between them are
+# refused, and so is a region that never closes.
 #
 # The same template both makes a file (kit new file) and checks one (kit lint). A file passes when it matches any
 # variant its path allows. To change a template, a repository adds a package of its own that places the same path.
@@ -92,12 +94,28 @@ template:settings() {
   printf '%s\n' "${json}"
 }
 
+# template:jq <template> <jq-argument>… runs a jq program with the template's text bound to $template, and prints what
+# it gives. When jq refuses the template, as it does one whose region never closes, the refusal is one error line
+# naming the template, and the call returns 1; any other failure returns jq's own status.
+template:jq() {
+  local template=$1 status=0 message
+  shift
+  # jq's stdout stays the caller's; its stderr is read here, so the message can name the template it is about.
+  { message=$(jq -L "${kit_jq}" --rawfile template "${template}" "$@" 2>&1 1>&3); } 3>&1 || status=$?
+  if [[ -n "${message}" ]]
+  then
+    error "${template}: ${message#jq: error (at *): }"
+    return 1
+  fi
+  return "${status}"
+}
+
 # template:unapply <template> <file> prints, as one JSON object, the values the file gives the template's holes, path,
 # name, and stem bound to the file's path, and the settings' values to the holes that name them. It returns 1 when the
 # file does not have the template's shape.
 template:unapply() {
   local name=${2##*/}
-  jq -L "${kit_jq}" --null-input --exit-status --rawfile template "$1" --rawfile text "$2" \
+  template:jq "$1" --null-input --exit-status --rawfile text "$2" \
     --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" --argjson settings "$(template:settings "$1")" \
     'import "template" as template;
      $template | template::unapply({path: $path, name: $name, stem: $stem} + $settings; $text)'
@@ -107,7 +125,7 @@ template:unapply() {
 # more than the template does, and nothing when the file has the template's shape. path, name, and stem are bound.
 template:leaves() {
   local name=${2##*/}
-  jq -L "${kit_jq}" --null-input --raw-output --rawfile template "$1" --rawfile text "$2" \
+  template:jq "$1" --null-input --raw-output --rawfile text "$2" \
     --arg path "$2" --arg name "${name}" --arg stem "${name%.*}" --argjson settings "$(template:settings "$1")" '
     import "template" as template;
     $template | template::bind({path: $path, name: $name, stem: $stem} + $settings) | template::parts | template::match($text)
@@ -116,15 +134,15 @@ template:leaves() {
 
 # template:ambiguous <template> prints the line of each hole that follows another hole with nothing between them.
 template:ambiguous() {
-  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::parts | template::ambiguous' \
-    < "$1"
+  template:jq "$1" --null-input --raw-output \
+    'import "template" as template; $template | template::parts | template::ambiguous'
 }
 
 # template:holes <template> prints the holes a caller must fill to make a file, once each, in order: those within a
 # line, or across lines, that have no default.
 template:holes() {
-  jq -L "${kit_jq}" --raw-input --slurp --raw-output 'import "template" as template; template::parts | template::holes[]' \
-    < "$1"
+  template:jq "$1" --null-input --raw-output \
+    'import "template" as template; $template | template::parts | template::holes[]'
 }
 
 # template:render <template> <values-json> prints the file the template makes with the values object, over the values
@@ -134,8 +152,8 @@ template:holes() {
 template:render() {
   local settings
   settings=$(template:settings "$1")
-  jq -L "${kit_jq}" --raw-input --slurp --join-output --argjson v "$2" --argjson settings "${settings}" \
-    'import "template" as template; template::parts | template::render($settings + $v)' < "$1"
+  template:jq "$1" --null-input --join-output --argjson v "$2" --argjson settings "${settings}" \
+    'import "template" as template; $template | template::parts | template::render($settings + $v)'
 }
 
 # template:rules <path> prints the rules of the path's own kinds that have templates, most specific first. The most
@@ -166,7 +184,8 @@ template:rules() {
 # template:check <rule-file> <path>… is true when every file matches a variant the rule allows at its path. For
 # each file that matches none, it prints an error naming the variants it was checked against, and the line where the
 # file leaves the variant it follows furthest. A rule with no templates passes every file, and a template with two
-# holes and nothing between them is refused. Every file, and the variants its path allows, are judged in one jq pass.
+# holes and nothing between them, or a region that never closes, is refused. Every file, and the variants its path
+# allows, are judged in one jq pass.
 template:check() {
   local rule=$1 variant glob executable file line failed=0 path variants where verdicts
   shift
@@ -181,7 +200,8 @@ template:check() {
       error "${rule} lists the template ${variant}, and ${file} is not here; run: kit update"
       return 1
     fi
-    line=$(template:ambiguous "${file}" | head -n 1)
+    line=$(template:ambiguous "${file}") || return 1
+    line=${line%%$'\n'*}
     if [[ -n "${line}" ]]
     then
       error "${file}:${line}: two holes with nothing between them; no file could be split between them"

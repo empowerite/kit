@@ -16,16 +16,16 @@
 #   - When the rule's frontmatter has a `lint:` command, kit lint runs it once over all the rule's files. A linter
 #     that is not on PATH is a failure, not a skip.
 #   - When the rule's frontmatter lists names under `checks:`, kit lint runs each of the kit's own checks so named
-#     over the rule's files. This release has one, `pinned`: every `uses:` in a workflow names a local action, a
-#     docker image, or an action pinned to a full commit SHA with the version as a trailing comment.
+#     over the rule's files. This release has two: `pinned`, every `uses:` in a workflow names a local action, a
+#     docker image, or an action pinned to a full commit SHA with the version as a trailing comment; and
+#     `jq-compiles`, every function a jq module defines compiles and calls only names that are defined.
 #   - When the rule has templates, each of its files must have the shape of one of them.
 #
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted.
 #
 # kit lint needs no hook manager. The hooks/lefthook package runs it from a pre-commit hook.
 #
-# Exits 0 when every rule passes, and 2 on an unknown flag. Otherwise the exit status is the number of rules that
-# failed.
+# Exits 0 when every rule passes, 1 when any rule refuses, and 2 on a usage error.
 #
 # see: modules/bash/context.sh, modules/bash/lint.sh, modules/bash/template.sh, docs/context.md, docs/templates.md
 
@@ -133,7 +133,7 @@ done
 if (( refused > 0 ))
 then
   error "${refused} rule(s) refused; see above"
-  exit "${refused}"
+  exit 1
 fi
 ok "every governed path passes its rule's linter"
 

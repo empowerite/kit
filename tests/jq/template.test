@@ -74,3 +74,8 @@ import "template" as template; [(template::bind({"answers.who": "ada"}) | templa
 "by «answers.who»\n"
 [true,"by bob\n"]
 
+# A region that never closes is refused, by the line it opened on, so no template is read with its tail dropped.
+import "template" as template; try template::parts catch .
+"# «title»\n# kit:generate x\nstub\n"
+"the region opened at line 2 never closes: no kit:end line follows"
+

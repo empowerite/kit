@@ -21,7 +21,7 @@ teardown() {
 
 @test "linked names the pull request it needs when none can be found" {
   run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" linked
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"kit linked <number>"* ]]
 }
 

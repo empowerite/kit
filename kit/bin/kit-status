@@ -18,6 +18,8 @@
 #   --owner=<login>     the pull requests the named author opened; give it once or more. The three filters combine:
 #                       --mine --owner=bob shows the caller's and bob's
 #
+# Exits 0 when the picture is drawn, 1 when the forge cannot be read, and 2 on a usage error.
+#
 # see: modules/bash/status.sh
 
 set -o errexit -o nounset -o pipefail

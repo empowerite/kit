@@ -30,7 +30,8 @@ def lines_of: [match("[^\n]*\n|[^\n]+$"; "g").string];
 
 # parts reads a template's text, its bound names already bound, and gives its parts in order, each with the template
 # line it starts on: {literal, line}, or {hole: name, kind: "inline" | "span" | "lines", default, line}. A region's
-# lines are one lines hole, region: true, that keeps the template's text. Two literals in a row are joined.
+# lines are one lines hole, region: true, that keeps the template's text. Two literals in a row are joined. A region
+# that never closes is an error naming the line it opened on, since the text after it would otherwise be dropped.
 def parts:
   lines_of as $lines
   | reduce range(0; $lines | length) as $i ({parts: [], region: null};
@@ -56,7 +57,8 @@ def parts:
                 else . end)
           | if ($line | test("kit:generate\\b")) then .region = {at: ($i + 1), text: ""} else . end
         end)
-  | .parts
+  | if .region != null then error("the region opened at line \(.region.at) never closes: no kit:end line follows")
+    else .parts end
   | reduce .[] as $p ([]; if ($p.literal != null) and (.[-1].literal != null) then .[-1].literal += $p.literal
                           else . + [$p] end);
 

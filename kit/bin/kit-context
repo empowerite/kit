@@ -20,7 +20,7 @@
 # Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and returns the rules that govern the
 # file the tool is about to write, as additional context.
 #
-# Exits 2 on a usage error.
+# Exits 0 when the rules are printed, and 2 on a usage error.
 #
 # see: modules/bash/context.sh, docs/context.md
 

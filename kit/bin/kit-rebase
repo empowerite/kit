@@ -16,6 +16,8 @@
 #
 # On a conflict, kit rebase aborts and leaves the worktree as it was.
 #
+# Exits 0 when the branch is rebased and pushed, 1 on a refusal or a conflict, and 2 on a usage error.
+#
 # see: modules/bash/git.sh
 
 set -o errexit -o nounset -o pipefail

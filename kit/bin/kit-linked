@@ -16,8 +16,8 @@
 # and the output names the exemption. That is for a bot such as dependabot[bot], whose pull requests have no issue
 # and never will. The repository says which logins it trusts that way; the kit decides nothing for it.
 #
-# Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, and 2 when there is
-# no pull request to check.
+# Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds or there is no pull
+# request to check, and 2 on a usage error.
 #
 # see: modules/bash/forge.sh
 
@@ -39,7 +39,7 @@ number=${1:-}
 if [[ ! "${number}" =~ ^[0-9]+$ ]]
 then
   error "name the change: kit linked <number> (none was given, and this checkout is working on none)"
-  exit 2
+  exit 1
 fi
 IFS=$'\t' read -r sigil noun < <(forge:noun) || exit 1
 change="${noun} ${sigil}${number}"

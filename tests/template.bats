@@ -190,6 +190,23 @@ shape() {
   [[ "$output" == *".kit/templates/notes/twin:2: two holes with nothing between them"* ]]
 }
 
+@test "a template whose region never closes is refused by kit new file and kit lint, naming the template and the line" {
+  mkdir -p .kit/packages/odd/files/repo/.kit/templates/notes .kit/packages/odd/files/repo/.kit/styles
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/odd/package.yml
+  printf -- '---\nkind:\n  - markdown\ntemplates:\n  - variant: open\n    path: "**/*.notes.md"\n---\n# Notes\n' \
+    > .kit/packages/odd/files/repo/.kit/styles/notes.md
+  printf '# «title»\n# kit:generate x\nstub\n' > .kit/packages/odd/files/repo/.kit/templates/notes/open
+  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  run "${kit_root}/bin/kit" new file a.notes.md --rule=notes --title=A
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/templates/notes/open: the region opened at line 2 never closes: no kit:end line follows"* ]]
+  [ ! -e a.notes.md ]
+  printf '# x\n' > b.notes.md
+  run "${kit_root}/bin/kit" lint b.notes.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/templates/notes/open: the region opened at line 2 never closes: no kit:end line follows"* ]]
+}
+
 @test "kit lint holds a governed file to its shape, and skips templates, regions, and generated paths" {
   printf '#!/usr/bin/env bash\necho hi\n' > loose.sh
   mkdir -p locks
@@ -262,3 +279,21 @@ shape() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "kit check counts a host template whose region never closes as a finding, naming the template" {
+  mkdir -p .kit/packages/odd/regions/repo .kit/packages/odd/hosts/repo
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/odd/package.yml
+  printf 'Read the notes.\n' > .kit/packages/odd/regions/repo/NOTES.md
+  printf '# «title=Notes»\n\n<!-- kit:generate NOTES.md -->\n<!-- kit:end NOTES.md -->\n«rest»\n' \
+    > .kit/packages/odd/hosts/repo/NOTES.md
+  "${kit_root}/bin/kit" package add odd >/dev/null 2>&1
+  grep --quiet 'Read the notes.' NOTES.md
+  run "${kit_root}/bin/kit" check
+  [ "$status" -eq 0 ]
+  # the host loses its end line: the template is malformed, and kit check must say so rather than pass
+  printf '# «title=Notes»\n\n<!-- kit:generate NOTES.md -->\n«rest»\n' > .kit/packages/odd/hosts/repo/NOTES.md
+  run "${kit_root}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"hosts/repo/NOTES.md: the region opened at line 3 never closes"* ]]
+  [[ "$output" == *"NOTES.md: the odd package's host template could not be read"* ]]
+}

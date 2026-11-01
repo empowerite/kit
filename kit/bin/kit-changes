@@ -21,6 +21,9 @@
 #   <number>…         only the changes numbered so, or that close an issue numbered so, each with or without its #:
 #                     7 or #7, since # starts a comment in many shells
 #
+# Exits 0 when the changes are listed, even none, 1 when the forge cannot be read, and 2 on a usage error or a word
+# that is not a number.
+#
 # see: modules/bash/changes.sh, modules/bash/status.sh, modules/bash/forge.sh
 
 set -o errexit -o nounset -o pipefail

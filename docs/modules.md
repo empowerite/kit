@@ -179,6 +179,10 @@ use <module>
   pre-commit hook run, reports an argument that has no line.
 - Every other paragraph is the description, which `kit help <verb>` prints. `see:` lines point into the source, and
   are left out.
+- A verb exits 0 when it did what was asked; 1 when it could not, or when what it checks does not hold; and 2 when
+  the arguments are wrong, which `guard:arguments` decides, or a name given is not a verb, package, or path kit
+  knows. A verb that runs another command may pass that command's status through, and says so. Every verb's header
+  ends its description with one `Exits …` line stating its codes in those terms.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.
 - A verb has no `--help` of its own: `kit help <verb>` prints its header, and so does `kit <verb> --help` or `-h`,
   which `guard:arguments` answers before it judges anything. Every verb calls `guard:arguments <verb> "$@"` first,

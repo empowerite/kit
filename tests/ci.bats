@@ -33,7 +33,7 @@ teardown() {
   printf 'rogue\n' > .kit/rules/rogue.md
   rm justfile
   run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
-  [ "$status" -eq 3 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"3 of 4 checks refused"* ]]
 }
 

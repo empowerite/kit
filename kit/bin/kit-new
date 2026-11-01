@@ -72,7 +72,7 @@
 # A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
 # already defined.
 #
-# Exits 0 when it is made, 1 when the path exists or a template is missing, and 2 on a usage error.
+# Exits 0 when it is made, 1 when the path exists or a template is missing or malformed, and 2 on a usage error.
 #
 # see: modules/bash/new.sh, modules/bash/template.sh, docs/templates.md
 
@@ -143,6 +143,7 @@ values[name]=${values[name]:-${name}}
 values[stem]=${values[stem]:-${name%.*}}
 missing=() unset=()
 settings=$(template:settings "${template}")
+holes=$(template:holes "${template}") || exit 1
 while IFS= read -r hole
 do
   [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] || continue
@@ -153,7 +154,7 @@ do
   else
     missing+=("--${hole}=<…>")
   fi
-done < <(template:holes "${template}")
+done <<<"${holes}"
 if (( ${#missing[@]} > 0 ))
 then
   error "the ${chosen} template of the $(template:rule-name "${rule}") rule needs ${missing[*]}"

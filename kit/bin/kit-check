@@ -73,14 +73,22 @@ do
       then
         error "${dest} has no kit region; run: kit update"
         findings=$(( findings + 1 ))
-      elif host=$(region:host "${src}") && [[ -n "${host}" ]] && line=$(template:leaves "${host}" "${dest}") \
-        && [[ -n "${line}" ]]
+      elif host=$(region:host "${src}") && [[ -n "${host}" ]]
       then
         rest=${host##*/packages/}
-        error "${dest} does not have the shape of the ${rest%%/hosts/*} package's host template; it leaves" \
-          "${rest#*/hosts/repo/} at $( [[ "${line}" == end ]] && printf 'its end' || printf 'line %s: %s' "${line}" \
-          "$(sed -n "${line}p" "${host}")")"
-        findings=$(( findings + 1 ))
+        if ! line=$(template:leaves "${host}" "${dest}")
+        then
+          # template:leaves named what is wrong with the template itself, above.
+          error "${dest}: the ${rest%%/hosts/*} package's host template could not be read, so the file's shape is" \
+            "unchecked; see above"
+          findings=$(( findings + 1 ))
+        elif [[ -n "${line}" ]]
+        then
+          error "${dest} does not have the shape of the ${rest%%/hosts/*} package's host template; it leaves" \
+            "${rest#*/hosts/repo/} at $( [[ "${line}" == end ]] && printf 'its end' || printf 'line %s: %s' "${line}" \
+            "$(sed -n "${line}p" "${host}")")"
+          findings=$(( findings + 1 ))
+        fi
       fi
     elif ! place:holds "${src}" "${dest}"
     then

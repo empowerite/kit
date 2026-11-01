@@ -11,7 +11,7 @@
 #
 # Every check runs even when an earlier one fails, so one run reports every finding.
 #
-# Exits 0 when all four pass. Otherwise the exit status is the number of checks that failed.
+# Exits 0 when all four pass, 1 when any fails, and 2 on a usage error.
 #
 # see: bin/kit-gate, bin/kit-check, bin/kit-linked, bin/kit-policy
 
@@ -32,7 +32,7 @@ done
 if (( refused > 0 ))
 then
   error "${refused} of 4 checks refused; see above"
-  exit "${refused}"
+  exit 1
 fi
 ok "kit ci: the gate, the kit's check, the issue link, and the policy all passed."
 

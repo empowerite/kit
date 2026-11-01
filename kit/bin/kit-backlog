@@ -19,6 +19,8 @@
 #   --owner=<login>   the issues assigned to the named login; give it once or more. The three filters combine: --mine
 #                     --owner=bob lists the caller's and bob's
 #
+# Exits 0 when the issues are listed, even none, 1 when the forge cannot be read, and 2 on a usage error.
+#
 # see: modules/bash/backlog.sh, modules/bash/forge.sh
 
 set -o errexit -o nounset -o pipefail
