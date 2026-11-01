@@ -1,7 +1,9 @@
 // The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up, down, and tab move between
 // fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
 // field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it; esc goes back
-// to the palette or cancels, and ctrl-c quits as interrupted. The keys bar is the last line.
+// to the palette or cancels, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
+// and home and end to the first and last row. Where a window hides rows, a dim line says how many. The keys bar is
+// the last line.
 package form
 
 import (
@@ -28,6 +30,9 @@ type choicesMsg struct {
 	err     error
 	flipped string
 }
+
+// listWindow is the lines a list's window takes: its rows, and the lines that say how many it hides.
+const listWindow = 10
 
 // live is how the form draws on a terminal.
 var live = Styles{Chosen: style.Chosen, Off: style.Off, Label: style.Label, Dim: style.Off, Refusal: style.Refusal,
@@ -119,21 +124,22 @@ func (m Model) View() tea.View {
 	if focus >= len(m.fields) {
 		focus = -1
 	}
-	content, header, first, last := Layout(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus,
+	content, header, first, last, at := Layout(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus,
 		Cursor: m.cursor, Styles: live, Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields),
 		CommandRefusal: m.refusal, Back: m.back})
 	room := 0
 	if m.height > 0 {
 		room = max(1, m.height-2) // the gap and the keys bar under the form
 	}
-	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last), "\n"), "\n")
+	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at, live.Dim), "\n"), "\n")
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
 	v.AltScreen = true
 	return v
 }
 
 // keys gives the keys bar, which fits 80 columns: Enter takes the next field, or runs on the command line, and esc
-// goes back to the palette or cancels. Tab, which moves as down and up do, is left out for the room.
+// goes back to the palette or cancels. Tab, which moves as down and up do, is left out for the room. While a list has
+// the keyboard, the page keys take the place of left and right, which a list does not use.
 func (m Model) keys() string {
 	enter := []string{"⏎ next", "⇧⏎ run"}
 	if m.focus >= len(m.fields) {
@@ -143,7 +149,11 @@ func (m Model) keys() string {
 	if m.back {
 		end = "esc back"
 	}
-	keys := append([]string{"↑↓ move", "←→ row or toggle", "␣ toggle", "⌫ erase"}, enter...)
+	keys := []string{"↑↓ move", "←→ row or toggle", "␣ toggle", "⌫ erase"}
+	if m.focus < len(m.fields) && (m.fields[m.focus].Kind == Pick || m.fields[m.focus].Kind == PickMany) {
+		keys = []string{"↑↓ move", "⇞⇟ page", "␣ toggle", "⌫ erase"}
+	}
+	keys = append(keys, enter...)
 	return strings.Join(append(keys, end), " · ")
 }
 
@@ -371,6 +381,8 @@ func (m *Model) list(k tea.KeyPressMsg, s string) tea.Cmd {
 			return nil
 		}
 		return m.move(1)
+	case "pgup", "pgdown", "home", "end":
+		m.cursor = paged(s, m.cursor, len(rows), listWindow-1)
 	case "enter":
 		if f.Kind == Pick && m.cursor < len(rows) {
 			f.Values = []string{rows[m.cursor].Value}
@@ -389,6 +401,22 @@ func (m *Model) list(k tea.KeyPressMsg, s string) tea.Cmd {
 		return m.move(-1)
 	}
 	return nil
+}
+
+// paged gives where a page key takes a cursor among n rows: page down and page up a page on, home and end to the first
+// and the last row, never past either.
+func paged(key string, cursor, n, page int) int {
+	switch key {
+	case "pgdown":
+		cursor += page
+	case "pgup":
+		cursor -= page
+	case "home":
+		cursor = 0
+	case "end":
+		cursor = n - 1
+	}
+	return max(0, min(cursor, n-1))
 }
 
 // take makes what is typed the answer, as an open list does on ctrl-n and a list kit refused on Enter too: a pick's
@@ -631,12 +659,14 @@ func (m Model) filtered() []kit.Choice {
 	return out
 }
 
-// expand draws the focused field live: the text with its caret, the lines with the one being typed, or the list.
-func (m Model) expand(i int, indent string) string {
+// expand draws the focused field live: the text with its caret, the lines with the one being typed, or the list, and
+// gives the line of the list's cursor, -1 for none.
+func (m Model) expand(i int, indent string) (string, int) {
 	if i != m.focus || i >= len(m.fields) {
-		return ""
+		return "", -1
 	}
 	f := m.fields[i]
+	at := -1
 	var b strings.Builder
 	switch f.Kind {
 	case Text:
@@ -648,16 +678,17 @@ func (m Model) expand(i int, indent string) string {
 		b.WriteString(indent + m.input + "▏\n")
 		m.hint(&b, indent, "⏎ another line · an empty line ends the list")
 	case Pick, PickMany:
-		m.drawList(&b, f, indent)
+		at = m.drawList(&b, f, indent)
 	default:
-		return ""
+		return "", -1
 	}
-	return b.String()
+	return b.String(), at
 }
 
-// drawList draws a list: the filter, a window of rows around the cursor with their marks, and the count; the note
-// follows, drawn under the field. A list kit refused draws the values taken so far and says it takes what is typed.
-func (m Model) drawList(b *strings.Builder, f Field, indent string) {
+// drawList draws a list: the filter, a window of rows around the cursor with their marks, a dim line for the rows it
+// hides above and one for those below, and the count; the note follows, drawn under the field. A list kit refused
+// draws the values taken so far and says it takes what is typed. It gives the line of the cursor's row, -1 for none.
+func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 	b.WriteString(indent + style.Filter + " " + m.input + "▏\n")
 	all := m.lists[f.Key]
 	rows := m.filtered()
@@ -676,18 +707,15 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 		default:
 			b.WriteString(indent + style.Off("…") + "\n")
 		}
-		return
+		return -1
 	}
 	if len(rows) == 0 {
 		b.WriteString(indent + style.Off("nothing matches") + "\n")
 	}
-	start := m.cursor - 4
-	if start < 0 {
-		start = 0
-	}
-	end := start + 10
-	if end > len(rows) {
-		end = len(rows)
+	span := Frame(len(rows), listWindow, m.cursor-4, m.cursor, m.cursor)
+	start, end, at := span.Start, span.End, -1
+	if span.Above {
+		b.WriteString(indent + style.Off(Above(start)) + "\n")
 	}
 	widest := 0
 	for _, row := range rows[start:end] {
@@ -717,8 +745,12 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 		value := row.Value + strings.Repeat(" ", widest-ansi.StringWidth(row.Value))
 		if k == m.cursor {
 			lead, value = style.Focus+" ", style.Chosen(row.Value)+strings.Repeat(" ", widest-ansi.StringWidth(row.Value))
+			at = strings.Count(b.String(), "\n")
 		}
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
+	}
+	if span.Below {
+		b.WriteString(indent + style.Off(More(len(rows)-end)) + "\n")
 	}
 	glyphs := ""
 	if named := legend(all, f.Values, planned); states && named != "" {
@@ -744,6 +776,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 	default:
 		m.hint(b, indent, glyphs+"⏎ takes it · type to filter")
 	}
+	return at
 }
 
 // legend names, once, each state glyph the list's rows draw, active then excluded: in a list kit calls a set, among

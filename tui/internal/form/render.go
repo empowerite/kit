@@ -4,6 +4,7 @@
 package form
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -37,13 +38,14 @@ const (
 
 // Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
 // cursor in a focused row (-1 for none); the styles; Expand, which may draw a field's answer live in place of its
-// values (the focused text with its caret, a list with its filter); the note under the focused field (a list's line
-// about a row, or what kit refused); whether the command line has the keyboard, and the refusal under it; and whether
-// the form shows the way back to the palette, drawn at the top so it never moves.
+// values (the focused text with its caret, a list with its filter), and gives the line of what it drew that holds a
+// list's cursor, -1 for none; the note under the focused field (a list's line about a row, or what kit refused);
+// whether the command line has the keyboard, and the refusal under it; and whether the form shows the way back to the
+// palette, drawn at the top so it never moves.
 type Options struct {
 	Width, Focus, Cursor int
 	Styles               Styles
-	Expand               func(field int, indent string) string
+	Expand               func(field int, indent string) (string, int)
 	Note                 string
 	CommandFocus         bool
 	CommandRefusal       string
@@ -58,16 +60,16 @@ func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
 // Render draws the form: the way back when there is one, the verb and its purpose, each field's block, and the command
 // line.
 func Render(spec syntax.Spec, fields []Field, o Options) string {
-	content, _, _, _ := Layout(spec, fields, o)
+	content, _, _, _, _ := Layout(spec, fields, o)
 	return content
 }
 
 // Layout draws the form as Render does, and says where the keyboard is on it: how many lines on top stay in place,
-// the way back, and the first and last line of the field that has the keyboard, or of the command line, -1 for none.
-// A short terminal shows the top and those lines.
-func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header, first, last int) {
+// the way back, the first and last line of the field that has the keyboard, or of the command line, and the line of
+// a list's cursor, each -1 for none. A short terminal shows the top and those lines.
+func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header, first, last, at int) {
 	d := drawer{spec: spec, fields: fields, width: o.Width, focus: o.Focus, cursor: o.Cursor, st: o.Styles, o: o,
-		column: labelColumn(fields), first: -1, last: -1}
+		column: labelColumn(fields), first: -1, last: -1, at: -1}
 	if o.Back {
 		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n\n")
 	}
@@ -97,12 +99,14 @@ func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header
 	if o.CommandFocus {
 		d.first, d.last = before, d.count()-1
 	}
-	return d.b.String(), header, d.first, d.last
+	return d.b.String(), header, d.first, d.last, d.at
 }
 
 // window clips a form to the height: the header stays, and the lines under it are the window that shows the focused
-// lines, from their first when they all fit, else from their first still. A height of zero clips nothing.
-func window(content string, height, header, first, last int) string {
+// lines, from their first when they all fit, else from their first still, and the line at, a list's cursor, always.
+// A line in dim says how many lines the window hides above it, and one how many it hides below, each in a line's
+// place. A height of zero clips nothing.
+func window(content string, height, header, first, last, at int, dim func(string) string) string {
 	if height <= 0 {
 		return content
 	}
@@ -112,28 +116,85 @@ func window(content string, height, header, first, last int) string {
 	}
 	header = min(header, height-1)
 	body, room := lines[header:], height-header
-	offset := 0
-	if last >= 0 {
-		first, last = first-header, last-header
-		if last >= room {
-			offset = last - room + 1
-		}
-		if first >= 0 && first < offset {
-			offset = first
-		}
+	first, last, at = max(first-header, 0), last-header, at-header
+	if last < 0 {
+		first = 0
 	}
-	offset = min(offset, max(0, len(body)-room))
-	shown := append(lines[:header:header], body[offset:min(len(body), offset+room)]...)
+	s := Frame(len(body), room, 0, first, max(first, last))
+	if at >= 0 && (at < s.Start || at >= s.End) {
+		s = Frame(len(body), room, 0, at, at)
+	}
+	shown := lines[:header:header]
+	if s.Above {
+		shown = append(shown, strings.Repeat(" ", gutter)+dim(Above(s.Start)))
+	}
+	shown = append(shown, body[s.Start:s.End]...)
+	if s.Below {
+		shown = append(shown, strings.Repeat(" ", gutter)+dim(More(len(body)-s.End)))
+	}
 	return strings.Join(shown, "\n") + "\n"
 }
 
-// drawer holds what every block shares while the form is drawn, and the first and last line of the focused field.
+// A Span is the rows a window shows out of all of them: from Start to End, under a line that says how many rows it
+// hides above when Above, and over one that says how many it hides below when Below.
+type Span struct {
+	Start, End   int
+	Above, Below bool
+}
+
+// Frame gives the rows a window of room lines shows out of n. A line that says how many rows the window hides takes
+// a row's place, above it or below it, so the window never grows, and it hides two rows at least, never one it could
+// show instead. The window starts at want, or as near it as holds the rows from first to last; a range longer than the
+// window shows from first. A window that reaches the last row starts where it shows the most. A room under three
+// lines has no place for those lines, and shows the rows from first. A room of zero or less shows every row.
+func Frame(n, room, want, first, last int) Span {
+	if room <= 0 || n <= room {
+		return Span{End: n}
+	}
+	if room < 3 {
+		start := min(max(first, 0), n-room)
+		return Span{Start: start, End: start + room}
+	}
+	end := func(start int) int { // the end of the rows shown from start, less the lines that say what is hidden
+		shown := room
+		if start > 0 {
+			shown--
+		}
+		if start+shown >= n {
+			return n
+		}
+		return start + shown - 1
+	}
+	first, last = min(max(first, 0), n-1), min(max(last, first), n-1)
+	start := min(max(want, 0), n-1)
+	if end(start) <= last {
+		start = max(start, min(last-room+3, n-room+1))
+	}
+	start = min(start, first)
+	if start == 1 {
+		start = 0 // the line above would hide one row, which it could show; from 0 the window ends at the same row
+	}
+	if end(start) == n {
+		start = min(start, n-room+1)
+	}
+	return Span{Start: start, End: end(start), Above: start > 0, Below: end(start) < n}
+}
+
+// Above says how many rows a window hides above it.
+func Above(n int) string { return fmt.Sprintf("… %d above", n) }
+
+// More says how many rows a window hides below it.
+func More(n int) string { return fmt.Sprintf("… %d more", n) }
+
+// drawer holds what every block shares while the form is drawn, the first and last line of the focused field, and the
+// line of a list's cursor.
 type drawer struct {
 	spec          syntax.Spec
 	fields        []Field
 	width, column int
 	focus, cursor int
 	first, last   int
+	at            int
 	st            Styles
 	o             Options
 	b             strings.Builder
@@ -292,13 +353,14 @@ func (d *drawer) block(i, margin int) {
 // then the note under the field when it has the keyboard.
 func (d *drawer) values(i int, f Field, indent string) {
 	before := d.count()
-	drawn := ""
+	drawn, at := "", -1
 	if d.o.Expand != nil {
-		drawn = d.o.Expand(i, indent)
+		drawn, at = d.o.Expand(i, indent)
 	}
-	if drawn != "" {
-		d.b.WriteString(drawn)
+	if at >= 0 {
+		d.at = before + at
 	}
+	d.b.WriteString(drawn)
 	for _, value := range f.Values {
 		if drawn != "" {
 			break

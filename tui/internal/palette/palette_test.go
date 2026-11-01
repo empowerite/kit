@@ -3,11 +3,14 @@
 package palette
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
 	"github.com/empowerite/kit/tui/internal/testkit"
 )
@@ -95,7 +98,7 @@ func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
 	if !strings.Contains(view, " "+style.Off("WORKFLOW")+"\n") {
 		t.Errorf("the heading is not dimmed on a line of its own:\n%s", view)
 	}
-	if bar := last(m); !strings.Contains(bar, "↑↓ move · ⇧↑↓ group") {
+	if bar := last(m); !strings.Contains(bar, "↑↓ move · ⇞⇟ page · ⇧↑↓ group") {
 		t.Errorf("the keys do not say what shift does: %q", bar)
 	}
 }
@@ -227,7 +230,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	const bar = " ↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · → pages · ⏎ open · esc quit"
+	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -339,5 +342,124 @@ func TestAPageWrapsByWhatShowsNotByItsEscapes(t *testing.T) {
 	lines := page("\x1b[1mab\x1b[0m cd", 5)
 	if len(lines) != 1 || lines[0] != "\x1b[1mab\x1b[0m cd" {
 		t.Fatalf("page: %q", lines)
+	}
+}
+
+// forty gives the palette over 40 verbs, v00 to v39, in three groups: v00 to v13 under WORKFLOW, v14 to v26 under
+// FILES, and v27 to v39 under CHECKS, 43 rows in all, at 100 columns and the height. Its window takes the height less
+// the filter, the gap under it, the gap over the bar, and the bar.
+func forty(height int) Model {
+	var verbs []kit.Verb
+	for i := range 40 {
+		group := "workflow"
+		if i >= 27 {
+			group = "checks"
+		} else if i >= 14 {
+			group = "files"
+		}
+		verbs = append(verbs, kit.Verb{Name: fmt.Sprintf("v%02d", i), Purpose: "a purpose", Group: group})
+	}
+	m, _ := drive(New(verbs, kit.Runner{}), tea.WindowSizeMsg{Width: 100, Height: height})
+	return m
+}
+
+var (
+	pgDown = tea.KeyPressMsg{Code: tea.KeyPgDown}
+	pgUp   = tea.KeyPressMsg{Code: tea.KeyPgUp}
+	home   = tea.KeyPressMsg{Code: tea.KeyHome}
+	end    = tea.KeyPressMsg{Code: tea.KeyEnd}
+)
+
+func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
+	m := forty(12) // a window of 8 lines, so a page of 7 verbs
+	for _, c := range []struct {
+		key    tea.KeyPressMsg
+		cursor int
+	}{
+		{pgDown, 7}, {pgDown, 14}, {pgDown, 21}, {pgDown, 28}, {pgDown, 35}, {pgDown, 39}, {pgDown, 39},
+		{pgUp, 32}, {pgUp, 25}, {pgUp, 18}, {pgUp, 11}, {pgUp, 4}, {pgUp, 0}, {pgUp, 0},
+		{end, 39}, {end, 39}, {home, 0}, {home, 0},
+	} {
+		m, _ = drive(m, c.key)
+		want := fmt.Sprintf("v%02d", c.cursor)
+		if m.cursor != c.cursor || !strings.Contains(drawn(m), style.Focus+want) {
+			t.Fatalf("%s: the cursor on %d, want %d; drawn %q", c.key, m.cursor, c.cursor, drawn(m))
+		}
+		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
+			!strings.HasPrefix(lines[11], " ↑↓ move · ⇞⇟ page") {
+			t.Errorf("%s: %d lines, the last %q", c.key, len(lines), lines[len(lines)-1])
+		}
+	}
+	// a filter narrows the page keys to the verbs it leaves: v03, then v30 to v39
+	m, _ = drive(m, append(testkit.Typed("v3"), end)...)
+	if highlighted(m) != "v39" {
+		t.Errorf("end under the filter v3: %q", highlighted(m))
+	}
+	m, _ = drive(m, pgUp)
+	if highlighted(m) != "v32" {
+		t.Errorf("page up under the filter v3: %q", highlighted(m))
+	}
+}
+
+// said gives the tree's lines that say how many verbs the window hides, as they read.
+func said(m Model) []string {
+	var out []string
+	for _, line := range strings.Split(stripANSI(m.View().Content), "\n") {
+		if t := strings.TrimSpace(line); strings.HasPrefix(t, "… ") {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func TestTheWindowSaysHowManyVerbsItHides(t *testing.T) {
+	for _, c := range []struct {
+		keys  []tea.Msg
+		said  string
+		drawn string
+	}{
+		{nil, "… 34 more", "WORKFLOW ▸v00 v01 v02 v03 v04 v05 …"},
+		{[]tea.Msg{pgDown}, "… 2 above|… 32 more", "… v02 v03 v04 v05 v06 ▸v07 …"},
+		{[]tea.Msg{end}, "… 33 above", "… v33 v34 v35 v36 v37 v38 ▸v39"},
+		// the rows hidden above are a heading and a verb; the count is of verbs
+		{[]tea.Msg{pgDown, pgDown}, "… 10 above|… 25 more", "… v10 v11 v12 v13 FILES ▸v14 …"},
+	} {
+		m, _ := drive(forty(12), c.keys...)
+		if got := strings.Join(said(m), "|"); got != c.said {
+			t.Errorf("%v: %q, want %q", c.keys, got, c.said)
+		}
+		if drawn(m) != c.drawn {
+			t.Errorf("%v: drawn %q, want %q", c.keys, drawn(m), c.drawn)
+		}
+	}
+	// a tree that fits shows neither line, and nor does a height not yet known
+	for _, height := range []int{30, 0} {
+		m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: height})
+		if got := said(m); len(got) != 0 {
+			t.Errorf("at %d: %q", height, got)
+		}
+	}
+	if m := forty(60); len(said(m)) != 0 {
+		t.Errorf("43 rows at 60: %q", said(m))
+	}
+}
+
+func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 8}, tea.KeyPressMsg{Code: tea.KeyRight})
+	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	whole := page(m.pages["commit"], 100-(3+m.widest()+2)-1)
+	shown := 0
+	for _, line := range lines[2:6] {
+		if right := string([]rune(line)[3+m.widest()+2:]); strings.Contains(right, "… ") { // the page's column
+			var n int
+			fmt.Sscanf(strings.TrimSpace(right), "… %d more", &n)
+			shown += n
+			continue
+		}
+		shown++
+	}
+	if len(lines) != 8 || len(whole) <= 4 || shown != len(whole) ||
+		!strings.Contains(ansi.Strip(lines[5]), fmt.Sprintf("… %d more", len(whole)-3)) {
+		t.Errorf("a page of %d lines in 4: %d said\n%s", len(whole), shown, strings.Join(lines, "\n"))
 	}
 }

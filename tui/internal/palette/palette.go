@@ -1,10 +1,11 @@
 // Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
 // verb with its whole purpose, filtered as it is typed, over the keys bar. The up and down arrows move over the verbs,
-// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. The right
-// arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them back.
-// Backspace erases the filter. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
-// filter; esc quits, and ctrl-c quits as interrupted. The keys bar is the last line. Widths are terminal cells, so a
-// two-cell glyph never pushes a row past the edge.
+// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. Page down
+// and page up move a page, and home and end to the first and the last verb. The right arrow trades the purposes for
+// the highlighted verb's page beside the names, and the left arrow brings them back. Backspace erases the filter.
+// Enter opens the verb's form, and a form that cannot open leaves kit's line under the filter; esc quits, and ctrl-c
+// quits as interrupted. Where the tree or the page is cut, a dim line says how many verbs or lines are hidden. The
+// keys bar is the last line. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -16,6 +17,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/tui/internal/form"
 	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
 )
@@ -158,6 +160,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if n := next(visible, m.cursor); n < len(visible) {
 				m.cursor = n
 			}
+		case "pgdown", "pgup", "home", "end":
+			page := len(visible)
+			if rows := m.rows(); rows > 0 {
+				page = max(1, rows-1)
+			}
+			switch msg.String() {
+			case "pgdown":
+				m.cursor += page
+			case "pgup":
+				m.cursor -= page
+			case "home":
+				m.cursor = 0
+			case "end":
+				m.cursor = len(visible) - 1
+			}
+			m.cursor = max(0, min(m.cursor, len(visible)-1))
 		case "backspace":
 			if r := []rune(m.filter); len(r) > 0 {
 				m.filter = string(r[:len(r)-1])
@@ -239,28 +257,52 @@ func (m Model) widest() int {
 	return widest
 }
 
-// View draws the filter, kit's line under it when a verb did not open, and the tree: each group's heading, dimmed,
-// over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the names
-// beside the highlighted verb's page. The rows shown are the window that holds the cursor's row. The keys bar is the
-// last line, one line clipped to the width, so neither filtering nor a refusal moves it.
-func (m Model) View() tea.View {
-	visible := m.Visible()
-	keys := "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · → pages · ⏎ open · esc quit"
-	if m.showPages {
-		keys = "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · ← purposes · ⏎ open · esc quit"
-	}
+// top gives the lines over the tree: the filter, kit's line under it when a verb did not open, and a gap.
+func (m Model) top() []string {
 	top := []string{" " + style.Filter + " " + m.filter + "▏"}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
 			top = append(top, " "+style.Refusal(line))
 		}
 	}
-	top = append(top, "")
-	widest := m.widest()
-	rows := 1
-	if m.height > 0 {
-		rows = max(1, m.height-len(top)-2) // the gap and the keys bar under the tree
+	return append(top, "")
+}
+
+// rows gives the lines the tree's window takes, between the top and the gap over the keys bar, or 0 before the
+// terminal says its height, when nothing is cut. A page key moves a page of that, less one.
+func (m Model) rows() int {
+	if m.height <= 0 {
+		return 0
 	}
+	return max(1, m.height-len(m.top())-2)
+}
+
+// verbs counts the verbs among the tree's rows.
+func verbs(rows []row) int {
+	n := 0
+	for _, r := range rows {
+		if r.index >= 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// View draws the filter, kit's line under it when a verb did not open, and the tree: each group's heading, dimmed,
+// over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the names
+// beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, with a dim line for
+// the verbs it hides above and one for those below, each in a row's place; a page cut short says how many lines it
+// hides. The keys bar is the last line, one line clipped to the width, so neither filtering nor a refusal moves it.
+// It leaves out backspace, which erases as the filter is typed, so the page keys fit 80 columns.
+func (m Model) View() tea.View {
+	visible := m.Visible()
+	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
+	if m.showPages {
+		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · esc quit"
+	}
+	top := m.top()
+	widest := m.widest()
+	rows := m.rows()
 	lines := tree(visible)
 	at := 0
 	for i, r := range lines {
@@ -268,15 +310,15 @@ func (m Model) View() tea.View {
 			at = i
 		}
 	}
-	start := 0
-	if m.height > 0 && at >= rows {
-		start = at - rows + 1
-	}
+	span := form.Frame(len(lines), rows, 0, at, at)
 	var list []string
 	if len(visible) == 0 {
 		list = append(list, "   "+style.Off("no verb matches"))
 	}
-	for i := start; i < len(lines) && (m.height <= 0 || i-start < rows); i++ {
+	if span.Above {
+		list = append(list, "   "+style.Off(form.Above(verbs(lines[:span.Start]))))
+	}
+	for i := span.Start; i < span.End; i++ {
 		r := lines[i]
 		if r.index < 0 {
 			list = append(list, " "+style.Off(r.heading))
@@ -293,6 +335,9 @@ func (m Model) View() tea.View {
 		}
 		list = append(list, line)
 	}
+	if span.Below {
+		list = append(list, "   "+style.Off(form.More(verbs(lines[span.End:]))))
+	}
 	if m.showPages {
 		right := ""
 		if m.cursor < len(visible) {
@@ -301,8 +346,10 @@ func (m Model) View() tea.View {
 		leftWidth := 3 + widest + 2
 		rightWidth := m.width - leftWidth
 		pageLines := page(right, rightWidth-1)
-		if m.height > 0 {
-			pageLines = pageLines[:min(len(pageLines), rows)]
+		if cut := form.Frame(len(pageLines), rows, 0, 0, 0); cut.Below {
+			pageLines = append(pageLines[:cut.End], style.Off(form.More(len(pageLines)-cut.End)))
+		} else {
+			pageLines = pageLines[:cut.End]
 		}
 		list = strings.Split(lipgloss.JoinHorizontal(lipgloss.Top,
 			lipgloss.NewStyle().Width(leftWidth).Render(strings.Join(list, "\n")),

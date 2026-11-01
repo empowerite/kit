@@ -3,8 +3,10 @@ package form
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -383,6 +385,7 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 
 func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 	const fields = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
+	const list = " ↑↓ move · ⇞⇟ page · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
 	const command = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ run · esc back"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
 	for _, height := range []int{40, 12, 7} {
@@ -391,12 +394,13 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			a       Answers
 			keys    []string
 			command bool // the keyboard on the command line, with a long refusal under it
+			list    bool // the keyboard on a list, whose bar names the page keys
 		}{
-			{"commit", Answers{}, nil, false},
-			{"commit", Answers{}, []string{"right", "down"}, false}, // --message's lines, with their hint
-			{"lint", Answers{}, []string{"down"}, false},            // a list of 3000 rows, with its count
-			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false},
-			{"status", Answers{}, nil, true},
+			{"commit", Answers{}, nil, false, false},
+			{"commit", Answers{}, []string{"right", "down"}, false, false}, // --message's lines, with their hint
+			{"lint", Answers{}, []string{"down"}, false, true},             // a list of 3000 rows, with its count
+			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false, true},
+			{"status", Answers{}, nil, true, false},
 		} {
 			t.Setenv("FAKE_KIT_ROWS", "")
 			if c.verb == "lint" {
@@ -406,6 +410,9 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: height})
 			m, _ = drive(t, m, keys(c.keys...)...)
 			want := fields
+			if c.list {
+				want = list
+			}
 			if c.command {
 				m.focus, m.refusal, want = len(m.fields), long, command
 				m.enter()
@@ -468,5 +475,188 @@ func TestAShortTerminalKeepsTheKeysAndTheFocusedField(t *testing.T) {
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 60})
 	if n := strings.Count(stripANSI(m.View().Content), "\n"); n <= 9 {
 		t.Errorf("a tall terminal shows %d lines", n)
+	}
+}
+
+// rows40 opens kit lint's form on a list of 40 paths, docs/guide.md then src/file-1.go to src/file-39.go, with the
+// keyboard on the list, at 80 columns and the height.
+func rows40(t *testing.T, height int) Model {
+	t.Helper()
+	t.Setenv("FAKE_KIT_ROWS", "40")
+	m := newForm(t, "lint", Answers{}, true)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: height})
+	m, _ = drive(t, m, key("down"))
+	if n := len(m.filtered()); n != 40 {
+		t.Fatalf("%d rows", n)
+	}
+	return m
+}
+
+// path gives the value of the list's row i.
+func path(i int) string {
+	if i == 0 {
+		return "docs/guide.md"
+	}
+	return fmt.Sprintf("src/file-%d.go", i)
+}
+
+// hidden gives the lines that say how many rows a window hides, as they read.
+func hidden(lines []string) []string {
+	var out []string
+	for _, line := range lines {
+		if marker.MatchString(line) {
+			out = append(out, strings.TrimSpace(line))
+		}
+	}
+	return out
+}
+
+var marker = regexp.MustCompile(`^ *… \d+ (above|more)$`)
+
+func TestPageKeysMoveTheListsCursorAPageAndTheWindowFollows(t *testing.T) {
+	m := rows40(t, 40)
+	for _, c := range []struct {
+		key    string
+		cursor int
+	}{
+		{"pgdown", 9}, {"pgdown", 18}, {"pgdown", 27}, {"pgdown", 36}, {"pgdown", 39}, {"pgdown", 39},
+		{"pgup", 30}, {"pgup", 21}, {"pgup", 12}, {"pgup", 3}, {"pgup", 0}, {"pgup", 0},
+		{"end", 39}, {"end", 39}, {"home", 0}, {"home", 0},
+	} {
+		m, _ = drive(t, m, tea.KeyPressMsg{Code: map[string]rune{"pgdown": tea.KeyPgDown, "pgup": tea.KeyPgUp,
+			"home": tea.KeyHome, "end": tea.KeyEnd}[c.key]})
+		if m.cursor != c.cursor || m.focus != 1 {
+			t.Fatalf("%s: the cursor on %d, the focus on %d; want %d on 1", c.key, m.cursor, m.focus, c.cursor)
+		}
+		if view := stripANSI(m.View().Content); !strings.Contains(view, "▸ ◻ "+path(c.cursor)) {
+			t.Errorf("%s: the cursor's row, %s, is not drawn under ▸:\n%s", c.key, path(c.cursor), view)
+		}
+	}
+}
+
+func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
+	for _, c := range []struct {
+		keys   []string
+		hidden string
+		first  int // the first row shown
+		shown  int
+	}{
+		{nil, "… 31 more", 0, 9},
+		{[]string{"pgdown", "pgdown"}, "… 14 above|… 18 more", 14, 8},
+		{[]string{"end"}, "… 31 above", 31, 9},
+	} {
+		m := rows40(t, 40)
+		for _, k := range c.keys {
+			m, _ = drive(t, m, tea.KeyPressMsg{Code: map[string]rune{"pgdown": tea.KeyPgDown, "end": tea.KeyEnd}[k]})
+		}
+		lines := screen(m)
+		if got := strings.Join(hidden(lines), "|"); got != c.hidden {
+			t.Errorf("%v: the lines about hidden rows %q, want %q", c.keys, got, c.hidden)
+		}
+		var drawn []string
+		for _, line := range lines {
+			if f := strings.Fields(line); len(f) > 0 && (strings.HasPrefix(f[len(f)-1], "src/") ||
+				strings.HasPrefix(f[len(f)-1], "docs/")) {
+				drawn = append(drawn, f[len(f)-1])
+			}
+		}
+		if len(drawn) != c.shown || drawn[0] != path(c.first) {
+			t.Errorf("%v: rows %q, want %d from %s", c.keys, drawn, c.shown, path(c.first))
+		}
+		// the window takes ten lines whatever it shows, so the screen keeps its height and the bar its line
+		if len(lines) != 40 || !strings.HasPrefix(lines[39], " ↑↓ move · ⇞⇟ page") {
+			t.Errorf("%v: %d lines, the last %q", c.keys, len(lines), lines[len(lines)-1])
+		}
+	}
+	// a list that fits shows neither line
+	t.Setenv("FAKE_KIT_ROWS", "")
+	m := newForm(t, "packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, false)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 40})
+	if got := hidden(screen(m)); len(got) != 0 || m.focus != 2 {
+		t.Errorf("a list of 3 rows: %q", got)
+	}
+}
+
+func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T) {
+	m := rows40(t, 0)
+	m, _ = drive(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
+	whole := screen(m)
+	whole = whole[:len(whole)-2] // the gap and the bar under a form drawn whole
+	for _, height := range []int{24, 16, 12, 9} {
+		m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: height})
+		for _, k := range []rune{0, tea.KeyPgDown, tea.KeyEnd, tea.KeyHome} {
+			if k != 0 {
+				m, _ = drive(t, m, tea.KeyPressMsg{Code: k})
+			}
+			lines := screen(m)
+			if len(lines) != height || !strings.HasPrefix(lines[height-1], " ↑↓ move · ⇞⇟ page") ||
+				strings.TrimSpace(lines[0]) != "‹ verbs" {
+				t.Fatalf("at %d: %d lines, the first %q, the last %q", height, len(lines), lines[0],
+					lines[len(lines)-1])
+			}
+			cursor := false
+			for _, line := range lines {
+				cursor = cursor || strings.Contains(line, "▸ ◻ "+path(m.cursor))
+			}
+			if !cursor {
+				t.Errorf("at %d, the cursor on %d: its row is off the screen:\n%s", height, m.cursor,
+					strings.Join(lines, "\n"))
+			}
+		}
+	}
+	// the counts are lines of the form: the lines shown and the lines said hidden make the form drawn whole
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, tea.KeyPressMsg{Code: tea.KeyHome})
+	whole = screen(m)
+	whole = whole[:len(whole)-2]
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 12})
+	lines := screen(m)
+	lines = lines[:len(lines)-2] // the gap and the bar
+	counted := 0
+	for _, line := range lines {
+		if marker.MatchString(line) && !strings.HasPrefix(line, "     ") {
+			var n int
+			fmt.Sscanf(strings.TrimSpace(line), "… %d", &n)
+			counted += n
+		} else {
+			counted++
+		}
+	}
+	if got := hidden(lines); counted != len(whole) || len(got) == 0 {
+		t.Errorf("%d lines shown and said hidden, %d drawn whole; the lines about them %q:\n%s", counted, len(whole),
+			got, strings.Join(lines, "\n"))
+	}
+}
+
+func TestAFrameHoldsTheRowAndItsLinesNeverGrowTheWindow(t *testing.T) {
+	for n := 0; n <= 30; n++ {
+		for room := 1; room <= 12; room++ {
+			for at := 0; at < max(n, 1); at++ {
+				for _, want := range []int{0, at - 4, at} {
+					s := Frame(n, room, want, at, at)
+					lines := s.End - s.Start
+					if s.Above {
+						lines++
+					}
+					if s.Below {
+						lines++
+					}
+					switch {
+					case n <= room && (s.Start != 0 || s.End != n || s.Above || s.Below):
+						t.Errorf("n %d room %d: a list that fits is cut: %+v", n, room, s)
+					case n > 0 && (at < s.Start || at >= s.End):
+						t.Errorf("n %d room %d at %d want %d: the row is not shown: %+v", n, room, at, want, s)
+					case lines > room:
+						t.Errorf("n %d room %d at %d want %d: %d lines: %+v", n, room, at, want, lines, s)
+					case room >= 3 && n > room && lines != room:
+						t.Errorf("n %d room %d at %d want %d: %d lines, the window not full: %+v", n, room, at, want,
+							lines, s)
+					case s.Above != (s.Start > 0 && room >= 3) || s.Below != (s.End < n && room >= 3):
+						t.Errorf("n %d room %d at %d want %d: rows hidden and not said: %+v", n, room, at, want, s)
+					case s.Above && s.Start < 2 || s.Below && n-s.End < 2:
+						t.Errorf("n %d room %d at %d want %d: a line hides one row: %+v", n, room, at, want, s)
+					}
+				}
+			}
+		}
 	}
 }
