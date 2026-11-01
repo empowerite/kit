@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-usage - prints the usage lines of the verbs, and nothing else (kit verb: help)
+# kit-usage - prints the usage lines of the verbs, and nothing else (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit usage [<verb>…]

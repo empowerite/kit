@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-template - rewrites a template's holes typed in ASCII into the language's guillemets (kit verb: files)
+# kit-template - rewrites a template's holes typed in ASCII into the language's guillemets (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit template fix <path>…

@@ -8,7 +8,7 @@
 # up with kit issue <N>. Each row is the issue's number, its assignees, its age, the branch for it on origin when one
 # has been started and nothing pushed as a change yet, and last its title, clipped to the terminal's width. The
 # issues an open change closes are kit changes's. With no issue to list, it prints nothing. NO_COLOR turns the color
-# off; CLICOLOR_FORCE turns it on without a terminal.
+# off; CLICOLOR_FORCE turns it on without a terminal. kit help status holds the legend of the glyphs it draws.
 #
 #   --json            prints the same facts as one JSON array; each issue carries branch, a name or null
 #   --jq              prints the same JSON as --json, formatted by jq for a person to read

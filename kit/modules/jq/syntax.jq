@@ -62,7 +62,8 @@ def unknown_word($alts; $st):
 
 # walk_sequence($nodes; $st) matches the sorted words against one sequence, node by node: a literal must be the next
 # word, an operand takes the next word (a repeated one every word left), a flag or option must have been given, and
-# a group walks the alternative the words select, or is skipped when optional and nothing selects it.
+# a group walks the alternative the words select, or is skipped when optional and nothing selects it; a group that
+# repeats is walked again for as long as a walk takes a word.
 #
 # choose($alts; $s) picks the alternative the words select: the one a literal opens when the next word is that
 # literal; else the one that holds a given flag or option, two holding different ones being a refusal, as is a word left for an operand
@@ -105,6 +106,10 @@ def walk_sequence($nodes; $st):
       elif $node.optional then $s
       else $s | .missing = [$node.alternatives[] | firsts(.)[]] end
     end;
+  def walk_repeat($node; $s):
+    walk_group($node; $s) as $w
+    | if $w.refusal != null or $w.missing != null or ($w.pos | length) == 0 or ($w.pos | length) == ($s.pos | length)
+      then $w else walk_repeat($node; $w) end;
   reduce $nodes[] as $node ($st;
     # a wildcard here, or in an optional group of its own, is open to the inline options nothing else takes
     (if $node.wildcard or ($node.kind == "group" and ($node.alternatives | length) == 1
@@ -121,6 +126,7 @@ def walk_sequence($nodes; $st):
         (.pos | map(.word)) as $w | .trailing = {key: "<\($node.name)>", at: .pos[0].at}
         | .operands += $w | .values["<\($node.name)>"] += $w | .pos = []
       else .pos[0].word as $w | .operands += [$w] | .values["<\($node.name)>"] += [$w] | .pos |= .[1:] end
+    elif $node.kind == "group" and $node.repeat then walk_repeat($node; .)
     elif $node.kind == "group" then walk_group($node; .)
     else given_keys($node; .) as $keys
       | if ($keys | length) > 0 then .used += $keys else .missing = [$node | key] end

@@ -18,6 +18,37 @@
 #   --owner=<login>     the pull requests the named author opened; give it once or more. The three filters combine:
 #                       --mine --owner=bob shows the caller's and bob's
 #
+# Legend
+#
+# The glyphs kit status draws, and kit changes, kit backlog, and kit releases with it. NO_COLOR removes the colors and
+# keeps the glyphs.
+#
+#   🏠  the desk, the root checkout
+#   🌿  a linked worktree, or a branch: a pull request's checked-out one, or the one started for an issue
+#   📂  a desk's path, above desks
+#   📥  what the fetch brought from origin
+#   🔀  a pull request, or a merge request on GitLab
+#   👤  its author, or an issue's assignees
+#   🎫  an issue
+#   🛫  an issue in flight: the pull request above it closes it
+#   🔖  a branch whose upstream is gone
+#   ❗  a checkout on no branch, a detached HEAD
+#   🏃  checks still running, ✅ every check passed, ❌ a check failed, each with passed / total
+#   💬  unresolved review threads
+#   📦  a release, 🧪 a pre-release, 📝 a draft, and ⭐ the latest, in kit releases
+#
+# A pull request's state is one glyph, the first of these that holds:
+#
+#   🔨  draft
+#   🚦  queued: a check is still running
+#   💥  conflicted with its base
+#   🔥  failing:gate: a check failed
+#   📭  no-check: no check has reported
+#   💬  comments:open: a review thread is unresolved
+#   👀  blocked:approval: a review blocks the merge
+#   🛬  ready: nothing is left to decide
+#   🔳  any other state
+#
 # Exits 0 when the picture is drawn, 1 when the forge cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/status.sh

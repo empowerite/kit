@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-completion - prints the shell completion for kit, and the words it offers (kit verb: help)
+# kit-completion - prints the shell completion for kit, and the words it offers (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit completion zsh

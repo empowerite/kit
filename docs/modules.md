@@ -167,12 +167,17 @@ use <module>
 ```
 
 - The banner's purpose is what `kit help` lists beside the verb, and its group is the heading it lists the verb
-  under: one of `workflow`, `files`, `checks`, `installation`, `interfaces`, and `help`, in that order, as
-  `help_groups` in `modules/bash/help.sh` names them. A verb's page names its group and the verbs beside it.
+  under: one of `workflow`, `files`, `checks`, `installation`, `interfaces`, `help`, and `plumbing`, in that
+  order, as `help_groups` in `modules/bash/help.sh` names them. `plumbing` holds the verbs that scripts, the
+  hooks, and the TUI call rather than a person: `kit help` sums them up in one line, and `kit help plumbing`, as
+  `kit help <group>` for any group, lists them. A verb's page names its group and the verbs beside it.
 - `kit usage <verb>` prints the usage lines alone, `kit help <verb>` the whole page, and `kit syntax <verb>` the
   grammar as JSON.
 - A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several. A verb with none
-  takes no arguments.
+  takes no arguments. After `kit <verb>`, every word is a flag, `--name`; an option, `--name=<value>` or
+  `--name <value>`; an operand, `<name>`; or a lowercase literal, grouped by `[ ]`, `( )`, and `|`, with `…` after
+  what repeats. `kit syntax --check` refuses any other word, one with a dot or a capital, or `<a|b>`, naming the
+  verb, the line, and the word, so a one-line sentence that starts with `kit <verb>` is never read as grammar.
 - Every argument a usage line names has a line in the header's argument block: two spaces, the argument as the usage
   writes it, two or more spaces, and one sentence that says what it does, continued on lines indented further.
   `kit syntax <verb>` prints the usage and the block as JSON, and `kit syntax --check`, which the gate and the

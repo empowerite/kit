@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# kit-help - prints what kit is and its verbs by group, or one verb's help page (kit verb: help)
+# kit-help - prints what kit is and its verbs by group, one verb's page, or one group's verbs (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit help [<verb>…]
+# kit help [<verb> | <group>]…
 #
 # Prints the help each verb's header holds. kit <verb> --help, or -h, prints the same page as kit help <verb>, and
 # kit --help the same as kit help.
 #
-#   <verb>…   verbs' names, or the starts of them: kit help re matches rebase and region
+#   <verb>    a verb's name, or the start of one: kit help re matches rebase and region
+#   <group>   a group's name, as kit help heads them: kit help plumbing lists the verbs that scripts, the hooks, and
+#             the TUI call, which kit help sums up in one line
 #
-#   - With no <verb>, it prints what kit is, and every verb's name and purpose under the verb's group, as gh help
-#     lays itself out; kit usage prints the usage lines.
+#   - With no argument, it prints what kit is, and every verb's name and purpose under the verb's group, as gh help
+#     lays itself out, the plumbing summed up in one line; kit usage prints the usage lines.
 #   - For each <verb> that matches one verb, it prints that verb's page: its usage, its description, and the other
-#     verbs of its group. For each that matches several, it prints each one's usage and purpose. The answers follow
-#     one another in the order the verbs are named, a blank line between them.
+#     verbs of its group. For each that matches several, it prints each one's usage and purpose. For each <group>,
+#     when no verb's name starts so, it prints the group's verbs with their purposes, as kit help lists them. The
+#     answers follow one another in the order they are named, a blank line between them.
 #
-# Exits 0 on success, and 2 when a name matches no verb; it prints nothing then.
+# Exits 0 on success, and 2 when a name matches no verb and no group; it prints nothing then.
 #
 # see: modules/bash/help.sh
 
@@ -31,10 +34,12 @@ then
   exit 0
 fi
 
-# Every name is judged first, so a name that matches nothing is refused before anything is printed.
+# Every name is judged first, so a name that matches nothing is refused before anything is printed. A name is a verb's,
+# the start of one, or a group's, in that order, so a verb named as a group is, as help, wins.
 for word in "$@"
 do
-  if [[ -z "$(help:verbs "${word}")" ]]
+  # shellcheck disable=SC2154  # help_groups is set by modules/bash/help.sh
+  if [[ -z "$(help:verbs "${word}")" && " ${help_groups[*]} " != *" ${word} "* ]]
   then
     error "unknown verb '${word}'; run: kit help"
     exit 2
@@ -49,10 +54,14 @@ do
   if (( ${#verbs[@]} == 1 ))
   then
     help:page "${verbs[0]}"
-  else
+  elif (( ${#verbs[@]} > 1 ))
+  then
     printf 'usage: kit <verb> [<argument>…]\n\n'
     help:summary "${verbs[@]}"
     printf '\nRun kit help <verb> for a verb'"'"'s page.\n'
+  else
+    readarray -t verbs < <(help:members "${word}")
+    help:listing "${word}" "${verbs[@]}"
   fi
 done
 

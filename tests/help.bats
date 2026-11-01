@@ -18,11 +18,17 @@ group-has() {
 @test "kit help lists every verb beside bin/kit with its purpose, under its group; kit --help and kit -h print the same page" {
   run "${kit_root}/bin/kit" help
   [ "$status" -eq 0 ]
-  local verb
+  local verb group
   for verb in "${kit_root}"/bin/kit-*
   do
     [[ -x "${verb}" ]] || continue
+    group=$(sed -n '2s/^.* (kit verb: \([a-z]*\))$/\1/p' "${verb}")
     verb=${verb##*/kit-}
+    if [[ "${group}" == plumbing ]]
+    then
+      [[ "$output" != *$'\n'"  ${verb} "* ]] || { echo "listed, though plumbing: ${verb}"; return 1; }
+      continue
+    fi
     [[ "$output" == *$'\n'"  ${verb} "* ]] || { echo "missing: ${verb}"; return 1; }
   done
   group-has WORKFLOW tidy 'removes merged worktrees and gone branches'
@@ -46,11 +52,58 @@ group-has() {
   do
     [[ -x "${verb}" ]] || continue
     group=$(sed -n '2s/^.* (kit verb: \([a-z]*\))$/\1/p' "${verb}")
-    [[ " workflow files checks installation interfaces help " == *" ${group} "* && -n "${group}" ]] \
+    [[ " workflow files checks installation interfaces help plumbing " == *" ${group} "* && -n "${group}" ]] \
       || { echo "no known group: ${verb##*/}"; return 1; }
   done
   run "${kit_root}/bin/kit" help kind
-  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit kinds, kit new, kit region'* ]]
+  [[ "$output" == *$'\nGroup\n  files: also kit context, kit generate, kit kinds, kit new'* ]]
+  [[ "$output" != *"kit region"* ]]
+}
+
+@test "kit help sums the plumbing up in one line with its count, and kit help <group> lists a group's verbs as the overview does" {
+  local verb count=0
+  for verb in "${kit_root}"/bin/kit-*
+  do
+    [[ -x "${verb}" && "$(sed -n '2p' "${verb}")" == *'(kit verb: plumbing)' ]] && count=$(( count + 1 ))
+  done
+  [ "${count}" -ge 6 ]
+  run "${kit_root}/bin/kit" help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\nPLUMBING\n  '"${count}"$' verbs that scripts, the hooks, and the TUI call; kit help plumbing lists them\n\nEXAMPLES\n'* ]]
+  [[ "$output" != *$'\n  region '* && "$output" != *$'\n  usage '* ]]
+  run "${kit_root}/bin/kit" help plumbing
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = PLUMBING ]
+  [ "${#lines[@]}" -eq $(( count + 1 )) ]
+  [[ "$output" == *$'\n  region       prints the content the active packages deliver'* ]]
+  [[ "$output" == *$'\n  root         prints the directory of the release that runs'* ]]
+  [[ "$output" != *"  tidy "* ]]
+  run "${kit_root}/bin/kit" help workflow
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = WORKFLOW ]
+  [[ "$output" == *$'\n  tidy         removes merged worktrees and gone branches'* ]]
+  [[ "$output" != *"  region "* ]]
+  # a verb's name wins over a group's, the start of a name still lists the verbs, and the answers follow in order
+  run "${kit_root}/bin/kit" help help
+  [[ "${lines[0]}" == "kit help - "* ]]
+  run "${kit_root}/bin/kit" help re
+  [[ "$output" == *"  rebase [<path>]"* && "$output" == *"  region [--home]"* ]]
+  run "${kit_root}/bin/kit" help plumbing tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\n  usage        prints the usage lines'*$'\n\nkit tidy - removes merged worktrees and gone branches\n'* ]]
+}
+
+@test "kit help status holds the legend of the glyphs the status family draws, and kit changes and kit backlog point to it" {
+  run "${kit_root}/bin/kit" help status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\n  Legend\n'* ]]
+  [[ "$output" == *$'\n    🔀  a pull request'* ]]
+  [[ "$output" == *$'\n    🛬  ready'* ]]
+  [[ "$output" == *"NO_COLOR removes the colors"* ]]
+  run "${kit_root}/bin/kit" help changes
+  [[ "$output" == *"kit help status holds the legend of the glyphs"* ]]
+  run "${kit_root}/bin/kit" help backlog
+  [[ "$output" == *"kit help status holds the legend of the glyphs"* ]]
 }
 
 @test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {

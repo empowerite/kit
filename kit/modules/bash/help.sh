@@ -15,8 +15,10 @@
 # source, and is left out of the help. The group in the banner is one of help_groups, and kit help lists the verbs
 # under it.
 
-# The groups kit help lists the verbs under, in the order it lists them.
-declare -gra help_groups=(workflow files checks installation interfaces help)
+# The groups kit help lists the verbs under, in the order it lists them. The last, plumbing, holds the verbs that
+# scripts, the hooks, and the TUI call rather than a person: kit help sums them up in one line, and kit help plumbing
+# lists them.
+declare -gra help_groups=(workflow files checks installation interfaces help plumbing)
 
 # help:verbs [<pattern>] prints the name of every verb that matches, sorted: <pattern> itself when it names a verb,
 # otherwise every verb whose name starts with <pattern>. With no pattern, it prints every verb.
@@ -42,6 +44,20 @@ help:purpose() {
 # help:group <verb> prints the group in the verb's banner, or nothing when it names none.
 help:group() {
   sed -n '2{s/^.* (kit verb: \([a-z]*\))$/\1/p;}' "${kit_root}/bin/kit-$1"
+}
+
+# help:members <group> prints the name of every verb whose banner names the group, sorted, and for other, every verb
+# whose banner names no group of help_groups.
+help:members() {
+  local verb group
+  for verb in $(help:verbs)
+  do
+    group=$(help:group "${verb}")
+    if [[ "${group}" == "$1" ]] || [[ "$1" == other && " ${help_groups[*]} " != *" ${group} "* ]]
+    then
+      printf '%s\n' "${verb}"
+    fi
+  done
 }
 
 # help:header <verb> prints the verb's header text below the banner, without the comment marks, and without a line of
@@ -117,43 +133,54 @@ help:styled() {
   [[ -t 1 ]] || [[ -n "${CLICOLOR_FORCE:-}" && "${CLICOLOR_FORCE}" != 0 ]]
 }
 
-# help:overview prints kit help's page: what kit is, its usage, each verb's name and purpose under its group, a few
-# examples, and where to learn more, as gh help lays itself out. Headings are bold as help:styled says.
-help:overview() {
-  local bold='' plain='' group verb
-  local -a verbs members
+# help:listing <group> <verb>… prints the group's heading and each verb named with its purpose, one per line, as kit
+# help lists a group. The heading is bold as help:styled says.
+help:listing() {
+  local bold='' plain='' group=$1 verb
+  shift
   if help:styled
   then
     bold=$'\x1b[1m' plain=$'\x1b[0m'
   fi
-  readarray -t verbs < <(help:verbs)
+  printf '%s%s%s\n' "${bold}" "${group^^}" "${plain}"
+  for verb in "$@"
+  do
+    printf '  %-12s %s\n' "${verb}" "$(help:purpose "${verb}")"
+  done
+}
+
+# help:overview prints kit help's page: what kit is, its usage, each verb's name and purpose under its group, the
+# plumbing summed up in one line, a few examples, and where to learn more, as gh help lays itself out. Headings are
+# bold as help:styled says.
+help:overview() {
+  local bold='' plain='' group
+  local -a members
+  if help:styled
+  then
+    bold=$'\x1b[1m' plain=$'\x1b[0m'
+  fi
   printf 'kit keeps the rules a repository asks its agents to follow, and the checks that hold the work to them.\n\n'
   printf '%sUSAGE%s\n  kit <verb> [<argument>…]\n' "${bold}" "${plain}"
   for group in "${help_groups[@]}" other
   do
-    members=()
-    for verb in "${verbs[@]}"
-    do
-      if [[ "$(help:group "${verb}")" == "${group}" ]] \
-        || [[ "${group}" == other && " ${help_groups[*]} " != *" $(help:group "${verb}") "* ]]
-      then
-        members+=("${verb}")
-      fi
-    done
+    readarray -t members < <(help:members "${group}")
     (( ${#members[@]} )) || continue
-    printf '\n%s%s%s\n' "${bold}" "${group^^}" "${plain}"
-    for verb in "${members[@]}"
-    do
-      printf '  %-12s %s\n' "${verb}" "$(help:purpose "${verb}")"
-    done
+    printf '\n'
+    if [[ "${group}" == plumbing ]]
+    then
+      printf '%sPLUMBING%s\n  %d verbs that scripts, the hooks, and the TUI call; kit help plumbing lists them\n' \
+        "${bold}" "${plain}" "${#members[@]}"
+      continue
+    fi
+    help:listing "${group}" "${members[@]}"
   done
   printf '\n%sEXAMPLES%s\n' "${bold}" "${plain}"
   printf '  kit issue 42\n  kit context src/main.sh\n  kit commit --message %s\n' "'#42 area: subject'"
   printf '\n%sLEARN MORE%s\n' "${bold}" "${plain}"
   printf '  • kit help <verb>… prints more about each verb, as kit <verb> --help does: its usage, what it does, and the verbs beside it\n'
-  printf '  • kit usage <verb>… prints each verb'"'"'s usage lines\n'
-  printf '  • kit syntax <verb>… prints each verb'"'"'s grammar as JSON\n'
-  printf '  • .kit/1st.md describes the workflow\n'
+  printf '  • kit help <group> lists one group'"'"'s verbs; kit help plumbing the verbs scripts and the TUI call\n'
+  printf '  • .kit/1st.md is what every agent reads first; .kit/workflow.md, when the workflow package is active,\n'
+  printf '    is the workflow\n'
 }
 
 # help:page <verb> prints the verb's help page: its name and purpose, its usage, its description, and the other verbs

@@ -9,7 +9,7 @@
 # checks, its unresolved review threads, and its branch. Under each change, the issues it closes, one row each as
 # kit backlog draws an issue, in flight: the number, the assignees, the state with the issue's age, and the title.
 # kit backlog lists the issues no change closes. With no change to list, it prints nothing. NO_COLOR turns the color
-# off; CLICOLOR_FORCE turns it on without a terminal.
+# off; CLICOLOR_FORCE turns it on without a terminal. kit help status holds the legend of the glyphs it draws.
 #
 #   --json            prints the same facts as one JSON array, one document per change with its issues under closes
 #   --jq              prints the same JSON as --json, formatted by jq for a person to read

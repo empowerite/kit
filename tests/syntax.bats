@@ -53,7 +53,7 @@ setup() {
   jq -e '.syntax[1][0] | .kind == "option" and .name == "b" and .value == "v" and (.inline | not)' <<<"$output"
   run "${root}/bin/kit" syntax broken
   [ "$status" -eq 1 ]
-  [ "$(jq -r .error <<<"$output")" = "'[' is not closed" ]
+  [ "$(jq -r .error <<<"$output")" = "'[' is not closed in: kit broken [<a>" ]
   run "${root}/bin/kit" syntax
   [ "$status" -eq 1 ]
   [ "$(jq -r 'map(select(.error)) | .[0].verb' <<<"$output")" = broken ]
@@ -88,8 +88,50 @@ setup() {
   run "${root}/bin/kit" syntax --check plain broken
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit plain: --<hole> has no description in the header"* ]]
-  [[ "$output" == *"kit broken: usage does not parse: '[' is not closed"* ]]
+  [[ "$output" == *"kit broken: usage does not parse: '[' is not closed in: kit broken [<a>"* ]]
   [[ "$output" != *"kit plain: --b"* ]]
+}
+
+@test "a usage line is made of flags, options, operands, and lowercase words; any other word is refused by name with its line" {
+  # three verbs whose one-line paragraphs start with kit <verb> but are not usage: a sentence with a dot, alternatives
+  # inside angle brackets, and a capital
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-prose - a verb whose description reads as a usage line (kit verb: help)' '#' \
+    '# kit prose never touches kit.yml' > "${root}/bin/kit-prose"
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-pick - a verb with alternatives inside angle brackets (kit verb: help)' '#' \
+    '# kit pick [--format=<json|text>] [<path>]' > "${root}/bin/kit-pick"
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-caps - a verb with a capital in an operand (kit verb: help)' '#' \
+    '# kit caps <Path>…' > "${root}/bin/kit-caps"
+  chmod +x "${root}/bin/kit-prose" "${root}/bin/kit-pick" "${root}/bin/kit-caps"
+  local word="is not --name, --name=<value>, <name>, or a lowercase word"
+  run "${root}/bin/kit" syntax prose
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .error <<<"$output")" = "'kit.yml' ${word} in: kit prose never touches kit.yml" ]
+  jq -e '.verb == "prose" and (has("syntax") | not)' <<<"$output"
+  run "${root}/bin/kit" syntax pick
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .error <<<"$output")" = "'--format=<json|text>' ${word} in: kit pick [--format=<json|text>] [<path>]" ]
+  run "${root}/bin/kit" syntax caps
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .error <<<"$output")" = "'<Path>' ${word} in: kit caps <Path>…" ]
+  run "${root}/bin/kit" syntax --check prose pick caps
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit prose: usage does not parse: 'kit.yml' ${word} in: kit prose never touches kit.yml"* ]]
+  [[ "$output" == *"kit pick: usage does not parse: '--format=<json|text>' ${word} in: kit pick"* ]]
+  [[ "$output" == *"kit caps: usage does not parse: '<Path>' ${word} in: kit caps <Path>…"* ]]
+  # and every real verb's lines are made of those words alone
+  run "${kit_root}/bin/kit" syntax --check
+  [ "$status" -eq 0 ]
+}
+
+@test "a group that repeats takes a word for each turn: kit help names verbs and groups in any order" {
+  run "${kit_root}/bin/kit" syntax help
+  [ "$status" -eq 0 ]
+  jq -e '.usage == ["kit help [<verb> | <group>]…"] and (.syntax[0][0] | .kind == "group" and .optional and .repeat and (.alternatives | length == 2))' <<<"$output"
+  run "${kit_root}/bin/kit" syntax help --match -- tidy gate
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.status, .operands]' <<<"$output")" = '[0,["tidy","gate"]]' ]
+  run "${kit_root}/bin/kit" syntax help --match -- plumbing --bogus
+  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help help" ]
 }
 
 @test "kit syntax package --choices lists every package with its state, closed, and a planned set says what it keeps" {
@@ -227,7 +269,7 @@ setup() {
   chmod +x "${root}/bin/kit-askew"
   run "${root}/bin/kit" askew x
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit askew: usage does not parse: '[' is not closed; run: kit syntax --check askew"* ]]
+  [[ "$output" == *"kit askew: usage does not parse: '[' is not closed in: kit askew [<a>; run: kit syntax --check askew"* ]]
 }
 
 @test "--choices tells a verb with no choices for an argument from one that cannot list them for these answers" {

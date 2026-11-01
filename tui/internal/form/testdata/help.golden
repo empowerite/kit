@@ -1,6 +1,8 @@
- kit help - prints what kit is and its verbs by group, or one verb's help page
+ kit help - prints what kit is and its verbs by group, one verb's page, or one group's verbs
 
-   <verb>…  verbs' names, or the starts of them: kit help re matches rebase and region
+   <verb>   a verb's name, or the start of one: kit help re matches rebase and region
+   <group>  a group's name, as kit help heads them: kit help plumbing lists the verbs that scripts,
+            the hooks, and the TUI call, which kit help sums up in one line
 
 
  kit help

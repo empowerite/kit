@@ -1,8 +1,8 @@
 {
   "verb": "help",
-  "purpose": "prints what kit is and its verbs by group, or one verb's help page",
+  "purpose": "prints what kit is and its verbs by group, one verb's page, or one group's verbs",
   "usage": [
-    "kit help [<verb>…]"
+    "kit help [<verb> | <group>]…"
   ],
   "syntax": [
     [
@@ -14,18 +14,28 @@
             {
               "kind": "operand",
               "name": "verb",
-              "repeat": true
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "operand",
+              "name": "group",
+              "repeat": false
             }
           ]
         ],
-        "repeat": false
+        "repeat": true
       }
     ]
   ],
   "arguments": {
     "<verb>": {
-      "description": "verbs' names, or the starts of them: kit help re matches rebase and region",
+      "description": "a verb's name, or the start of one: kit help re matches rebase and region",
       "choices": "open"
+    },
+    "<group>": {
+      "description": "a group's name, as kit help heads them: kit help plumbing lists the verbs that scripts, the hooks, and the TUI call, which kit help sums up in one line"
     }
   }
 }

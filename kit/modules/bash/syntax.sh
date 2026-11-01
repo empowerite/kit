@@ -16,6 +16,10 @@
 #   [ … ]               optional; ( … ) a required group
 #   …                   after a word or a group: it may repeat; ... is read as …
 #
+# A name is lowercase, [a-z][a-z0-9-]*, so a word is --name, --name=<value>, --<hole>=<value>, <name>, or a lowercase
+# literal. Any other word, one with a dot or a capital, or <a|b>, does not parse, and the error names the word and its
+# line: a one-line paragraph that starts with kit <verb> but reads as prose is refused, never read as grammar.
+#
 # The syntax is JSON: an array of alternatives, each a sequence of nodes. A node's kind is literal, operand, flag,
 # option, or group; every node carries repeat, a group carries optional and its alternatives, an option its value
 # and inline, and a wildcard option wildcard. The jq module syntax.jq renders a node back as usage text and gives
@@ -27,6 +31,12 @@ use help
 # that stopped it.
 declare -ag syntax_tokens=()
 declare -g syntax_pos=0 syntax_json='' syntax_error=''
+
+# The shape of a name, of the words a usage line is made of (a flag, an inline option, a wildcard option, an operand,
+# or a literal), and of a value, the word after an option that takes its value apart.
+declare -gr syntax_name='[a-z][a-z0-9-]*'
+declare -gr syntax_word="^(--${syntax_name}(=<${syntax_name}>)?|--<${syntax_name}>=<${syntax_name}>|<${syntax_name}>|${syntax_name})$"
+declare -gr syntax_value="^<${syntax_name}>$"
 
 # What syntax:match sorted from the last command line it judged.
 declare -g syntax_refusal='' syntax_missing=''
@@ -59,7 +69,7 @@ syntax:spec() {
 }
 
 # syntax:parse <verb> <usage-line>… prints the syntax JSON of the usage lines: the alternatives of every line, in
-# order. When a line does not parse, it prints the error instead and returns 1.
+# order. When a line does not parse, it prints the error instead, naming the line, and returns 1.
 syntax:parse() {
   local verb=$1 line alternatives=''
   shift
@@ -69,12 +79,12 @@ syntax:parse() {
     syntax_pos=0 syntax_json='' syntax_error=''
     if ! syntax:parse-alternatives
     then
-      printf '%s\n' "${syntax_error}"
+      printf '%s in: %s\n' "${syntax_error}" "${line}"
       return 1
     fi
     if (( syntax_pos < ${#syntax_tokens[@]} ))
     then
-      printf "stray '%s'\n" "${syntax_tokens[syntax_pos]}"
+      printf "stray '%s' in: %s\n" "${syntax_tokens[syntax_pos]}" "${line}"
       return 1
     fi
     # each line's alternatives, without the brackets around them, join one array
@@ -83,19 +93,31 @@ syntax:parse() {
   printf '[%s]\n' "${alternatives}"
 }
 
-# syntax:tokens <verb> <usage-line> fills syntax_tokens with the words of the line after kit <verb>: ... is …, and
-# each of [ ] ( ) | … is a word of its own.
+# syntax:tokens <verb> <usage-line> fills syntax_tokens with the words of the line after kit <verb>: ... is …, each of
+# [ ] ( ) | … is a word of its own, and a | inside <…> stays in its word, so <a|b> is refused whole, by name.
 syntax:tokens() {
-  local text=$2
+  local text=$2 word='^(([^][()|<> ]|<[^<> ]*>|[<>])+)' mark='^[][()|]'
   text=${text#kit "$1"}
   text=${text//.../…}
-  text=${text//\[/ [ }
-  text=${text//\]/ ] }
-  text=${text//\(/ ( }
-  text=${text//\)/ ) }
-  text=${text//|/ | }
   text=${text//…/ … }
-  read -r -a syntax_tokens <<<"${text}"
+  syntax_tokens=()
+  while [[ -n "${text// /}" ]]
+  do
+    text=${text#"${text%%[! ]*}"}
+    if [[ "${text}" =~ ${word} ]]
+    then
+      syntax_tokens+=("${BASH_REMATCH[1]}")
+      text=${text:${#BASH_REMATCH[1]}}
+    elif [[ "${text}" =~ ${mark} ]]
+    then
+      syntax_tokens+=("${text:0:1}")
+      text=${text:1}
+    else
+      # every character is a space, a mark, or part of a word, so this never runs; it keeps the loop finite anyway
+      syntax_tokens+=("${text}")
+      text=''
+    fi
+  done
 }
 
 # syntax:parse-alternatives appends the alternatives up to a closing bracket or the end, as an array of sequences.
@@ -154,7 +176,7 @@ syntax:parse-item() {
       ;;
     (*)
       syntax_pos=$(( syntax_pos + 1 ))
-      syntax:parse-word "${token}"
+      syntax:parse-word "${token}" || return 1
   esac
   if (( syntax_pos < ${#syntax_tokens[@]} )) && [[ "${syntax_tokens[syntax_pos]}" == '…' ]]
   then
@@ -165,9 +187,15 @@ syntax:parse-item() {
 }
 
 # syntax:parse-word <word> appends the node of one word by its shape, left open for the repeat mark: a wildcard
-# option, an inline option, a flag or an option whose value is the next word, an operand, or a literal.
+# option, an inline option, a flag or an option whose value is the next word, an operand, or a literal. A word of no
+# such shape is refused: it sets syntax_error, naming the word, and returns 1.
 syntax:parse-word() {
   local word=$1 name value
+  if [[ ! "${word}" =~ ${syntax_word} ]]
+  then
+    syntax_error="'${word}' is not --name, --name=<value>, <name>, or a lowercase word"
+    return 1
+  fi
   case "${word}" in
     (--\<*\>=*)
       name=${word#--<}
@@ -189,7 +217,7 @@ syntax:parse-word() {
       ;;
     (--?*)
       name=${word#--}
-      if (( syntax_pos < ${#syntax_tokens[@]} )) && [[ "${syntax_tokens[syntax_pos]}" == \<*\> ]]
+      if (( syntax_pos < ${#syntax_tokens[@]} )) && [[ "${syntax_tokens[syntax_pos]}" =~ ${syntax_value} ]]
       then
         value=${syntax_tokens[syntax_pos]}
         syntax_pos=$(( syntax_pos + 1 ))
