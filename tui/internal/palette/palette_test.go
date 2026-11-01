@@ -45,14 +45,21 @@ func names(m Model) string {
 	return strings.Join(out, " ")
 }
 
+// last gives the screen's last line, without its escapes: the keys bar.
+func last(m Model) string {
+	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	return lines[len(lines)-1]
+}
+
 // highlighted gives the name of the verb under the cursor.
 func highlighted(m Model) string { return m.Visible()[m.cursor].Name }
 
 // drawn gives the rows of the list as the view draws them, one word each: a heading as itself, a verb as its name,
-// and the highlighted verb as ▸ and its name.
+// and the highlighted verb as ▸ and its name. The keys bar, the last line, is no row.
 func drawn(m Model) string {
 	var out []string
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
+	lines = lines[:len(lines)-1]
 	for i, line := range lines {
 		if strings.Contains(line, style.Filter) {
 			lines = lines[i+1:]
@@ -88,8 +95,8 @@ func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
 	if !strings.Contains(view, " "+style.Off("WORKFLOW")+"\n") {
 		t.Errorf("the heading is not dimmed on a line of its own:\n%s", view)
 	}
-	if first := strings.SplitN(view, "\n", 2)[0]; !strings.Contains(first, "↑↓ move · ⇧↑↓ group") {
-		t.Errorf("the keys do not say what shift does: %q", first)
+	if bar := last(m); !strings.Contains(bar, "↑↓ move · ⇧↑↓ group") {
+		t.Errorf("the keys do not say what shift does: %q", bar)
 	}
 }
 
@@ -145,8 +152,8 @@ func TestTheWindowCountsTheHeadingsSoTheCursorStaysOnScreen(t *testing.T) {
 	if highlighted(m) != "version" || !strings.HasSuffix(drawn(m), "▸version") {
 		t.Errorf("the cursor's row is off the screen: %q", drawn(m))
 	}
-	if n := strings.Count(strings.TrimRight(m.View().Content, "\n"), "\n") + 1; n > 8 {
-		t.Errorf("%d lines on a screen of 8:\n%s", n, m.View().Content)
+	if n := strings.Count(m.View().Content, "\n") + 1; n != 8 || !strings.Contains(last(m), "↑↓ move") {
+		t.Errorf("%d lines on a screen of 8, the keys not last:\n%s", n, m.View().Content)
 	}
 }
 
@@ -181,8 +188,8 @@ func TestTheListShowsWholePurposesAndNoPage(t *testing.T) {
 	if strings.Contains(view, "kit commit - a purpose for the test") {
 		t.Errorf("a page in the list view:\n%s", view)
 	}
-	if first := strings.SplitN(view, "\n", 2)[0]; !strings.Contains(first, "↑↓ move") {
-		t.Errorf("the keys are not on the first line: %q", first)
+	if bar := last(m); !strings.Contains(bar, "↑↓ move") {
+		t.Errorf("the keys are not on the last line: %q", bar)
 	}
 }
 
@@ -219,10 +226,43 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 	}
 }
 
-func TestTheKeysStayOnTopWhileFiltering(t *testing.T) {
-	m, _ := drive(open(t), testkit.Typed("zz")...)
-	if first := strings.SplitN(m.View().Content, "\n", 2)[0]; !strings.Contains(first, "↑↓ move") {
-		t.Errorf("the keys moved: %q", first)
+func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
+	const bar = " ↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · → pages · ⏎ open · esc quit"
+	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
+	for _, height := range []int{30, 12, 6} {
+		for name, msgs := range map[string][]tea.Msg{
+			"open":     nil,
+			"filtered": testkit.Typed("co"),
+			"empty":    testkit.Typed("zz"),
+			"moved":    {down, down, down, down},
+		} {
+			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, msgs...)...)
+			for _, refused := range []bool{false, true} {
+				if refused {
+					m = m.Refuse(long)
+				}
+				lines := strings.Split(stripANSI(m.View().Content), "\n")
+				if len(lines) != height || lines[height-1] != bar {
+					t.Errorf("%s at %d, refused %v: %d lines, the last %q", name, height, refused, len(lines),
+						lines[len(lines)-1])
+				}
+			}
+		}
+	}
+	// the pages' bar names the way back, on the same line; at a narrow width the bar is clipped, never wrapped
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
+		!strings.Contains(lines[11], "← purposes") {
+		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
+	}
+	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 40, Height: 12})
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || !strings.HasSuffix(lines[11], "…") {
+		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
+	}
+	// a height not yet known draws everything, then the bar
+	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 0})
+	if last(m) != bar || drawn(m) != "WORKFLOW ▸commit submit FILES context CHECKS check INSTALLATION version" {
+		t.Errorf("with no height: %q, %q", drawn(m), last(m))
 	}
 }
 
@@ -280,10 +320,18 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	}
 }
 
-func TestEscQuits(t *testing.T) {
+func TestEscQuitsCtrlCInterruptsAndQIsTyped(t *testing.T) {
 	m, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyEscape})
-	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() {
+	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
 		t.Errorf("esc: %v", produced)
+	}
+	m, produced = drive(open(t), tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Interrupted() {
+		t.Errorf("ctrl-c: %v", produced)
+	}
+	m, produced = drive(open(t), testkit.Typed("q")...)
+	if len(produced) != 0 || m.filter != "q" {
+		t.Errorf("q: %v, filter %q", produced, m.filter)
 	}
 }
 

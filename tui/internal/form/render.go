@@ -38,9 +38,8 @@ const (
 // Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
 // cursor in a focused row (-1 for none); the styles; Expand, which may draw a field's answer live in place of its
 // values (the focused text with its caret, a list with its filter); the note under the focused field (a list's line
-// about a row, or what kit refused); whether the command line has the keyboard, and the refusal under it; whether the
-// form shows the way back to the palette; and the keys it takes, drawn at the top, after the way back, so they never
-// move.
+// about a row, or what kit refused); whether the command line has the keyboard, and the refusal under it; and whether
+// the form shows the way back to the palette, drawn at the top so it never moves.
 type Options struct {
 	Width, Focus, Cursor int
 	Styles               Styles
@@ -49,7 +48,6 @@ type Options struct {
 	CommandFocus         bool
 	CommandRefusal       string
 	Back                 bool
-	Keys                 string
 }
 
 // RenderStatic draws the form with no focus and plain styles, for golden tests.
@@ -57,29 +55,23 @@ func RenderStatic(spec syntax.Spec, fields []Field, width int) string {
 	return Render(spec, fields, Options{Width: width, Focus: -1, Cursor: -1, Styles: Plain})
 }
 
-// Render draws the form: the way back when there is one, the keys, the verb and its purpose, each field's block, and
-// the command line.
+// Render draws the form: the way back when there is one, the verb and its purpose, each field's block, and the command
+// line.
 func Render(spec syntax.Spec, fields []Field, o Options) string {
 	content, _, _, _ := Layout(spec, fields, o)
 	return content
 }
 
 // Layout draws the form as Render does, and says where the keyboard is on it: how many lines on top stay in place,
-// the way back and the keys, and the first and last line of the field that has the keyboard, or of the command line,
-// -1 for none. A short terminal shows the top and those lines.
+// the way back, and the first and last line of the field that has the keyboard, or of the command line, -1 for none.
+// A short terminal shows the top and those lines.
 func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header, first, last int) {
 	d := drawer{spec: spec, fields: fields, width: o.Width, focus: o.Focus, cursor: o.Cursor, st: o.Styles, o: o,
 		column: labelColumn(fields), first: -1, last: -1}
 	if o.Back {
-		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n")
+		d.b.WriteString(" " + o.Styles.Off("‹ verbs") + "\n\n")
 	}
 	width := o.Width
-	for _, line := range wrap(o.Keys, width-1) {
-		d.b.WriteString(" " + o.Styles.Off(line) + "\n")
-	}
-	if o.Back || o.Keys != "" {
-		d.b.WriteString("\n")
-	}
 	header = d.count()
 	for _, line := range wrap("kit "+spec.Verb+" - "+spec.Purpose, width-1) {
 		d.b.WriteString(" " + line + "\n")

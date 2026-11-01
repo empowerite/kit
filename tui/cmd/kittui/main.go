@@ -90,7 +90,7 @@ func runStatus(r kit.Runner, words []string) int {
 	return finishStatus(final.(status.Model))
 }
 
-// finishStatus ends as the picture ended: 130 on ctrl-c, 0 on q or esc; nothing is printed either way.
+// finishStatus ends as the picture ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
 func finishStatus(m status.Model) int {
 	if m.Interrupted() {
 		return 130

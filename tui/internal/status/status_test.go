@@ -130,8 +130,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "status changes --json\nstatus worktrees --json" {
 		t.Errorf("the calls: %q", got)
 	}
-	first := lines(m)[0]
-	if strings.Contains(first, Fetch) || !strings.HasPrefix(first, " kit status") {
+	if first := lines(m)[0]; first != " kit status" {
 		t.Errorf("the title without incoming: %q", first)
 	}
 	if labels := lines(m)[3]; !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 5") ||
@@ -287,7 +286,7 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	v := view(m)
 	// the line wraps at the pane's width, as every refusal does
 	want := "kit status incoming --json printed an array where an object was expected; run kit status inside a repository"
-	if m.stages[1].refusal != want || !strings.Contains(v, "incoming !") || !strings.Contains(v, "origin: failed") ||
+	if m.stages[1].refusal != want || !strings.Contains(v, "incoming !") ||
 		!strings.Contains(v, Failed+" kit status incoming --json printed an array where an object was expected;") {
 		t.Errorf("an array for incoming: %q\n%s", m.stages[1].refusal, v)
 	}
@@ -314,17 +313,99 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 }
 
 func TestQuitCodes(t *testing.T) {
-	for _, k := range []tea.KeyPressMsg{press('q'), press(tea.KeyEscape)} {
-		m := loaded(t, options())
-		next, cmd := m.Update(k)
-		if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
-			t.Errorf("%s: cmd %v, interrupted %v, context %v", k, cmd, m.Interrupted(), m.ctx.Err())
+	m := loaded(t, options())
+	next, cmd := m.Update(press(tea.KeyEscape))
+	if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
+		t.Errorf("esc on the line: cmd %v, interrupted %v, context %v", cmd, m.Interrupted(), m.ctx.Err())
+	}
+	// q is no key of the screen's
+	m = loaded(t, options())
+	if next, cmd = m.Update(press('q')); cmd != nil || next.(Model).ctx.Err() != nil {
+		t.Errorf("q quit the screen")
+	}
+	// ctrl-c quits from anywhere: the rows, and over the legend
+	for _, at := range [][]tea.Msg{nil, {down}, {down, press('?')}} {
+		m = loaded(t, options(), at...)
+		next, cmd = m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+		if m = next.(Model); cmd == nil || cmd() != tea.Quit() || !m.Interrupted() || m.ctx.Err() == nil {
+			t.Errorf("ctrl-c after %v: cmd %v, interrupted %v, context %v", at, cmd, m.Interrupted(), m.ctx.Err())
 		}
 	}
-	m := loaded(t, options())
-	next, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	if m = next.(Model); cmd == nil || cmd() != tea.Quit() || !m.Interrupted() || m.ctx.Err() == nil {
-		t.Errorf("ctrl-c: cmd %v, interrupted %v, context %v", cmd, m.Interrupted(), m.ctx.Err())
+}
+
+func TestEscWalksBackFromTheLegendToTheRowsToTheLineAndQuits(t *testing.T) {
+	m := loaded(t, options(), right, right, down, down, press('?'))
+	if !m.legend || !strings.Contains(view(m), "their states") {
+		t.Fatalf("? did not show the legend:\n%s", view(m))
+	}
+	next, cmd := m.Update(press(tea.KeyEscape))
+	if m = next.(Model); cmd != nil || m.legend || !m.inRows || m.stages[2].cursor != 1 {
+		t.Fatalf("esc over the legend: legend %v, in rows %v, cursor %d", m.legend, m.inRows, m.stages[2].cursor)
+	}
+	if !strings.Contains(view(m), style.Focus+" "+Branch+" 1-the-first-release") {
+		t.Errorf("esc over the legend did not bring the rows back as they were:\n%s", view(m))
+	}
+	next, cmd = m.Update(press(tea.KeyEscape))
+	if m = next.(Model); cmd != nil || m.inRows || m.stage != 2 || strings.Contains(view(m), style.Focus) {
+		t.Fatalf("esc in the rows: in rows %v, stage %d\n%s", m.inRows, m.stage, view(m))
+	}
+	next, cmd = m.Update(press(tea.KeyEscape))
+	if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
+		t.Errorf("esc on the line did not quit: cmd %v", cmd)
+	}
+}
+
+func TestQuestionMarkShowsTheLegendInPlaceOfThePaneAndAgainHidesIt(t *testing.T) {
+	m := loaded(t, options(), right, right)
+	before := lines(m)
+	m = drive(m, press('?'))
+	got := lines(m)
+	if len(got) != 24 || got[0] != before[0] || got[2] != before[2] || got[3] != before[3] {
+		t.Errorf("the title or the line moved under the legend:\n%s", view(m))
+	}
+	if strings.Contains(view(m), Desk+" main") || !strings.Contains(view(m), "places") ||
+		got[23] != " "+legendKeys {
+		t.Errorf("the legend is not in place of the pane, with its keys:\n%s", view(m))
+	}
+	// the arrows scroll the legend, not the line, on a screen too short for all of it
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 12}, right, down)
+	if m.stage != 2 || m.legendOffset != 1 || m.inRows || strings.Contains(view(m), "   places ") {
+		t.Errorf("keys over the legend: stage %d, offset %d, in rows %v\n%s", m.stage, m.legendOffset, m.inRows, view(m))
+	}
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 24}, press('?'))
+	if m.legend || !strings.Contains(view(m), Desk+" main") || lines(m)[23] != " "+lineKeys {
+		t.Errorf("? again did not hide the legend:\n%s", view(m))
+	}
+	// shift-/ comes as ? with its text
+	m = drive(m, tea.KeyPressMsg{Code: '/', Mod: tea.ModShift, Text: "?"})
+	if !m.legend {
+		t.Errorf("shift-/ did not show the legend")
+	}
+}
+
+func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
+	for _, c := range []struct {
+		msgs []tea.Msg
+		keys string
+	}{
+		{nil, lineKeys},
+		{[]tea.Msg{down}, rowKeys},
+		{[]tea.Msg{right, right, down, enter}, rowKeys},
+		{[]tea.Msg{press('?')}, legendKeys},
+		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, legendKeys},
+	} {
+		for _, height := range []int{24, 12} {
+			m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: 80, Height: height}}, c.msgs...)...)
+			got := lines(m)
+			if len(got) != height || got[height-1] != " "+c.keys {
+				t.Errorf("after %v at %d: %d lines, the last %q", c.msgs, height, len(got), got[len(got)-1])
+			}
+		}
+	}
+	// at a width too narrow for it, the bar is clipped, never wrapped
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
+	if got := lines(m); len(got) != 12 || !strings.HasSuffix(got[11], "…") || ansi.StringWidth(got[11]) != 30 {
+		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
 }
 
@@ -360,13 +441,13 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 	answers := make(chan tea.Msg, 1)
 	load := m.load("releases")
 	go func() { answers <- load() }()
-	// the fake records its call before it sleeps: q comes once it runs
+	// the fake records its call before it sleeps: esc comes once it runs
 	for start := time.Now(); calls(t, record) == nil; time.Sleep(10 * time.Millisecond) {
 		if time.Since(start) > 2*time.Second {
 			t.Fatal("the stage did not start")
 		}
 	}
-	m = drive(m, press('q'))
+	m = drive(m, press(tea.KeyEscape))
 	select {
 	case msg := <-answers:
 		if err := msg.(loadedMsg).err; !errors.Is(err, context.Canceled) {
@@ -377,28 +458,28 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 	}
 }
 
-func TestTheTitleCarriesOriginAndTheFetch(t *testing.T) {
-	wide := tea.WindowSizeMsg{Width: 160, Height: 24}
-	m := loaded(t, options(), wide)
-	if first := lines(m)[0]; first != " kit status · empowerite/kit · "+Fetch+
-		" origin: 2 new commits on main · 1 branch updated · 1 new branch · 1 branch gone · 1 new tag" {
+func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
+	m := loaded(t, options())
+	if first := lines(m)[0]; first != " kit status · empowerite/kit" {
 		t.Errorf("the title: %q", first)
 	}
 	if !strings.Contains(lines(m)[3], "incoming 6") {
 		t.Errorf("incoming's count: %q", lines(m)[3])
 	}
-	// at 80 columns the title is clipped at the edge
-	m = loaded(t, options())
-	if first := lines(m)[0]; ansi.StringWidth(first) != 80 || !strings.HasSuffix(first, "…") {
-		t.Errorf("the title at 80 columns: %q", first)
+	// while incoming loads, its label says so
+	m = New(runner(t), options())
+	if labels := lines(m)[3]; !strings.Contains(labels, "incoming …") {
+		t.Errorf("incoming loading: %q", labels)
 	}
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
 	m = loaded(t, o, right)
-	if first := lines(m)[0]; first != " kit status · "+Fetch+" origin: not fetched" {
+	if first := lines(m)[0]; first != " kit status" {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
-	if v := view(m); !strings.Contains(v, "   not fetched") || strings.Contains(v, "incoming 0") {
+	v := view(m)
+	if !strings.Contains(v, "   not fetched: kit status --no-fetch skips the fetch") ||
+		strings.Contains(v, "incoming 0") || !strings.Contains(lines(m)[3], "incoming ") {
 		t.Errorf("the incoming pane with --no-fetch:\n%s", v)
 	}
 	m = loaded(t, Options{Stages: []string{"releases"}})
@@ -412,7 +493,7 @@ func TestTheFetchsUpdatedBranchesAndNewTagsAreRowsAndTheGoneBranchesOneRow(t *te
 	rows := lines(m)[5:11]
 	for i, want := range []string{"a1b2c3d", "e4f5a6b", Branch + "       46-a-noun-lists updated",
 		Branch + "       42-settings new branch", Gone + "       old-experiment upstream gone",
-		Gone + "       release/0.2.0 new tag"} {
+		Tag + "       release/0.2.0 new tag"} {
 		if !strings.Contains(rows[i], want) {
 			t.Errorf("row %d lacks %q: %q", i, want, rows[i])
 		}
@@ -499,7 +580,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 10 {
 		t.Fatalf("%d lines on a screen of 10:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[3], "worktrees 5") || got[9] != " "+keys {
+	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[3], "worktrees 5") || got[9] != " "+rowKeys {
 		t.Errorf("the title, the line, or the keys moved:\n%s", view(m))
 	}
 	if !strings.Contains(got[7], style.Focus+" "+Branch+" worktrees/spike") || strings.Contains(view(m), Desk+" main") {

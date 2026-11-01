@@ -1,8 +1,12 @@
-// Package style is kit tui's look: one accent color, the chosen and dim styles, and the glyphs the spec fixes. NO_COLOR
+// Package style is kit tui's look: one accent color, the chosen and dim styles, the glyphs the spec fixes, and the keys
+// bar every screen ends with. NO_COLOR
 // strips the colors where the program writes, and bold and underline stay, so a chosen name still stands out.
 package style
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+)
 
 // The glyphs, as the spec draws them.
 const (
@@ -42,3 +46,24 @@ func Cursor(s string) string { return cursor.Render(s) }
 
 // Refusal draws the line a verb would print about an answer.
 func Refusal(s string) string { return refusal.Render(s) }
+
+// Bar draws the keys bar every screen ends with: one dim line, clipped to the width with …, never wrapped.
+func Bar(keys string, width int) string {
+	if width < 2 {
+		return ""
+	}
+	return " " + Off(ansi.Truncate(keys, width-1, "…"))
+}
+
+// Bottom puts the bar on the screen's last line: the lines above it cut or padded to the height less the bar. A
+// height of zero, not yet known, draws the lines, a gap, and the bar.
+func Bottom(lines []string, height int, bar string) []string {
+	if height <= 0 {
+		return append(lines, "", bar)
+	}
+	lines = lines[:min(len(lines), height-1)]
+	for len(lines) < height-1 {
+		lines = append(lines, "")
+	}
+	return append(lines, bar)
+}

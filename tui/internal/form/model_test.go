@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/tui/internal/syntax"
 	"github.com/empowerite/kit/tui/internal/testkit"
@@ -188,6 +189,9 @@ func TestStatefulPickIsSeededAndANoteUndoesTheFlip(t *testing.T) {
 	if strings.Join(m.fields[2].Values, " ") != "b" || !strings.Contains(stripANSI(m.View().Content), "➖") {
 		t.Errorf("a flipped off:\n%s", stripANSI(m.View().Content))
 	}
+	if !strings.Contains(stripANSI(m.View().Content), "➕ 0 to add · ➖ 1 to remove · ✅ active · ␣ flips") {
+		t.Errorf("the hint does not name the marks drawn:\n%s", stripANSI(m.View().Content))
+	}
 }
 
 func TestEscCancelsOrGoesBack(t *testing.T) {
@@ -280,7 +284,8 @@ func TestAddStartsEmptyAndDrawsEachRowsStateBesideItsBox(t *testing.T) {
 		t.Fatalf("add was seeded: %+v, %q", m.fields[2], m.CommandLine())
 	}
 	view := stripANSI(m.View().Content)
-	if !strings.Contains(view, "◻ ✅ a") || strings.Contains(view, "➖") || !strings.Contains(view, "0 of 3 picked") {
+	if !strings.Contains(view, "◻ ✅ a") || strings.Contains(view, "➖") ||
+		!strings.Contains(view, "0 of 3 picked · ✅ active · ␣ pick") {
 		t.Errorf("add's list:\n%s", view)
 	}
 }
@@ -351,24 +356,85 @@ func TestAFailedExtensionIsTheFocusedFieldsNote(t *testing.T) {
 	}
 }
 
-func TestTheKeysFollowTheWayBackAndThePurposeNamesTheCommand(t *testing.T) {
+// screen gives the form's lines without their escapes.
+func screen(m Model) []string { return strings.Split(stripANSI(m.View().Content), "\n") }
+
+func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) {
 	m := newForm(t, "status", Answers{}, true)
-	lines := strings.Split(stripANSI(m.View().Content), "\n")
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ ⇥ field") {
-		t.Errorf("with the way back, the first lines: %q", lines[:3])
+	lines := screen(m)
+	bar := lines[len(lines)-1]
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " ↑↓ move · ←→ row or toggle") {
+		t.Errorf("with the way back, the first line %q, the last %q", lines[0], bar)
 	}
-	for _, key := range []string{"←→ row or toggle", "⌫ erase", "esc back"} {
-		if !strings.Contains(lines[1], key) {
-			t.Errorf("the keys do not mention %q: %q", key, lines[1])
+	for _, key := range []string{"←→ row or toggle", "⌫ erase", "⏎ next · ⇧⏎ run · esc back"} {
+		if !strings.Contains(bar, key) {
+			t.Errorf("the keys do not mention %q: %q", key, bar)
 		}
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit status - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
 	}
 	m = newForm(t, "status", Answers{}, false)
-	lines = strings.Split(stripANSI(m.View().Content), "\n")
-	if !strings.Contains(lines[0], "↑↓ ⇥ field") || strings.Contains(lines[len(lines)-1], "↑↓ ⇥ field") {
-		t.Errorf("without the way back, the keys are not first: %q", lines[0])
+	lines = screen(m)
+	if !strings.HasPrefix(lines[0], " kit status - ") || !strings.HasSuffix(lines[len(lines)-1], "esc cancel") {
+		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
+	}
+}
+
+func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
+	const fields = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
+	const command = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ run · esc back"
+	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
+	for _, height := range []int{40, 12, 7} {
+		for _, c := range []struct {
+			verb    string
+			a       Answers
+			keys    []string
+			command bool // the keyboard on the command line, with a long refusal under it
+		}{
+			{"commit", Answers{}, nil, false},
+			{"commit", Answers{}, []string{"right", "down"}, false}, // --message's lines, with their hint
+			{"lint", Answers{}, []string{"down"}, false},            // a list of 3000 rows, with its count
+			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false},
+			{"status", Answers{}, nil, true},
+		} {
+			t.Setenv("FAKE_KIT_ROWS", "")
+			if c.verb == "lint" {
+				t.Setenv("FAKE_KIT_ROWS", "3000")
+			}
+			m := newForm(t, c.verb, c.a, true)
+			m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: height})
+			m, _ = drive(t, m, keys(c.keys...)...)
+			want := fields
+			if c.command {
+				m.focus, m.refusal, want = len(m.fields), long, command
+				m.enter()
+			}
+			want = " " + ansi.Truncate(want[1:], 49, "…")
+			if lines := screen(m); len(lines) != height || lines[height-1] != want {
+				t.Errorf("%s %v at %d: %d lines, the last %q", c.verb, c.keys, height, len(lines), lines[len(lines)-1])
+			}
+		}
+	}
+	// at 80 columns the bar is whole; a height not yet known draws the form, a gap, and the bar
+	m := newForm(t, "status", Answers{}, true)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0})
+	lines := screen(m)
+	if lines[len(lines)-1] != fields || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit status") {
+		t.Errorf("with no height, the last lines: %q", lines[len(lines)-3:])
+	}
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
+	if lines = screen(m); len(lines) != 30 || lines[29] != fields {
+		t.Errorf("at 80×30: %d lines, the last %q", len(lines), lines[len(lines)-1])
+	}
+}
+
+func TestQIsTypedNotAQuit(t *testing.T) {
+	m := newForm(t, "commit", Answers{}, true)
+	m, _ = drive(t, m, keys("right", "down")...)
+	m, produced := drive(t, m, testkit.Typed("q")...)
+	if len(produced) != 0 || m.input != "q" {
+		t.Errorf("q: %v, input %q", produced, m.input)
 	}
 }
 
@@ -381,14 +447,14 @@ func TestAShortTerminalKeepsTheKeysAndTheFocusedField(t *testing.T) {
 	}
 	for _, msgs := range [][]tea.Msg{nil, keys("down"), keys("down"), keys("down", "down", "down")} {
 		m, _ = drive(t, m, msgs...)
-		lines := strings.Split(strings.TrimRight(stripANSI(m.View().Content), "\n"), "\n")
-		if len(lines) > 9 {
+		lines := screen(m)
+		if len(lines) != 9 {
 			t.Errorf("focus %d: %d lines on a screen of 9", m.focus, len(lines))
 		}
-		if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[1], "↑↓ ⇥ field") {
-			t.Errorf("focus %d: the top moved: %q", m.focus, lines[:2])
+		if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[8], "↑↓ move") {
+			t.Errorf("focus %d: the way back or the keys moved: %q, %q", m.focus, lines[0], lines[8])
 		}
-		focused := m.focus >= len(m.fields) && strings.Contains(lines[len(lines)-1], "kit new")
+		focused := m.focus >= len(m.fields) && strings.Contains(lines[len(lines)-3], "kit new")
 		for _, line := range lines {
 			if strings.Contains(line, "▸") {
 				focused = true

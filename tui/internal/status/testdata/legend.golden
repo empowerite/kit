@@ -1,0 +1,24 @@
+ kit status · empowerite/kit
+
+ ───────●───────────────○───────────────○───────────────○───────────────○───────
+    backlog 3      incoming 6      worktrees 5      changes 3      releases 3
+
+   places         🏠 the desk, the root checkout · 🌿 a linked worktree
+                  ❗ a checkout on no branch
+                  🔖 a branch whose upstream is gone
+   incoming       🌿 a branch updated, or new, on origin
+                  🔖 a branch gone from origin · 📌 a new tag
+   pull requests  🔀 a pull request · 👤 its author
+                  💬 unresolved review threads
+   their states   🔨 draft · 🚦 queued · 💥 conflicted · 🔥 failing:gate
+                  📭 no-check · 💬 comments:open · 👀 blocked:approval
+                  🛬 ready · 🔳 any other state
+   checks         🏃 checks still running · ✅ every check passed
+                  ❌ a check failed, or a stage kit refused
+   issues         🎫 an issue · 👤 its assignees
+                  🛫 in flight: a pull request closes it
+   releases       📦 a release · 🧪 a pre-release · 📝 a draft · ⭐ the latest
+
+
+
+ ↑↓ move · ? legend · esc back

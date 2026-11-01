@@ -1,7 +1,7 @@
 // The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up, down, and tab move between
 // fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
 // field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it; esc goes back
-// to the palette or cancels.
+// to the palette or cancels, and ctrl-c quits as interrupted. The keys bar is the last line.
 package form
 
 import (
@@ -112,25 +112,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View draws the form, the keys it takes, on the alternate screen, clipped to the terminal's lines so the keys and
-// the focused field stay in sight.
+// View draws the form on the alternate screen, clipped to the terminal's lines so the way back and the focused field
+// stay in sight, with the keys bar on the last line, which nothing above it moves.
 func (m Model) View() tea.View {
 	focus := m.focus
 	if focus >= len(m.fields) {
 		focus = -1
 	}
+	content, header, first, last := Layout(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus,
+		Cursor: m.cursor, Styles: live, Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields),
+		CommandRefusal: m.refusal, Back: m.back})
+	room := 0
+	if m.height > 0 {
+		room = max(1, m.height-2) // the gap and the keys bar under the form
+	}
+	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last), "\n"), "\n")
+	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
+	v.AltScreen = true
+	return v
+}
+
+// keys gives the keys bar, which fits 80 columns: Enter takes the next field, or runs on the command line, and esc
+// goes back to the palette or cancels. Tab, which moves as down and up do, is left out for the room.
+func (m Model) keys() string {
+	enter := []string{"⏎ next", "⇧⏎ run"}
+	if m.focus >= len(m.fields) {
+		enter = []string{"⏎ run"}
+	}
 	end := "esc cancel"
 	if m.back {
 		end = "esc back"
 	}
-	keys := strings.Join([]string{"↑↓ ⇥ field", "←→ row or toggle", "␣ toggle", "⌫ erase", "⏎ next", "⇧⏎ run", end},
-		" · ")
-	content, header, first, last := Layout(m.spec, m.viewFields(), Options{Width: m.width, Focus: focus,
-		Cursor: m.cursor, Styles: live, Expand: m.expand, Note: m.note, CommandFocus: m.focus >= len(m.fields),
-		CommandRefusal: m.refusal, Back: m.back, Keys: keys})
-	v := tea.NewView(window(content, m.height, header, first, last))
-	v.AltScreen = true
-	return v
+	keys := append([]string{"↑↓ move", "←→ row or toggle", "␣ toggle", "⌫ erase"}, enter...)
+	return strings.Join(append(keys, end), " · ")
 }
 
 // key takes a key press.
@@ -706,6 +720,10 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 		}
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
 	}
+	glyphs := ""
+	if named := legend(all, f.Values, planned); states && named != "" {
+		glyphs = named + " · "
+	}
 	switch {
 	case f.Kind == PickMany && planned:
 		add, remove := 0, 0
@@ -717,14 +735,35 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) {
 				remove++
 			}
 		}
-		m.hint(b, indent, fmt.Sprintf("%d to add · %d to remove · ␣ flips · type to filter", add, remove))
+		m.hint(b, indent, fmt.Sprintf("%s %d to add · %s %d to remove · %s␣ flips · type to filter", style.Add, add,
+			style.Remove, remove, glyphs))
 	case f.Kind == PickMany:
-		m.hint(b, indent, fmt.Sprintf("%d of %d picked · ␣ pick · type to filter", len(f.Values), len(all)))
+		m.hint(b, indent, fmt.Sprintf("%d of %d picked · %s␣ pick · type to filter", len(f.Values), len(all), glyphs))
 	case f.Choices == "open":
-		m.hint(b, indent, "⏎ takes it · ctrl-n takes what is typed · type to filter")
+		m.hint(b, indent, glyphs+"⏎ takes it · ctrl-n takes what is typed · type to filter")
 	default:
-		m.hint(b, indent, "⏎ takes it · type to filter")
+		m.hint(b, indent, glyphs+"⏎ takes it · type to filter")
 	}
+}
+
+// legend names, once, each state glyph the list's rows draw, active then excluded: in a list kit calls a set, among
+// the marks plan gives, whose ➕ and ➖ the counts name; else among the states state gives.
+func legend(all []kit.Choice, values []string, planned bool) string {
+	drawn := map[string]bool{}
+	for _, row := range all {
+		if planned {
+			drawn[plan(row, index(values, row.Value) >= 0)] = true
+		} else {
+			drawn[state(row)] = true
+		}
+	}
+	var out []string
+	for _, g := range []struct{ glyph, meaning string }{{style.Active, "active"}, {style.Excluded, "excluded"}} {
+		if drawn[g.glyph] {
+			out = append(out, g.glyph+" "+g.meaning)
+		}
+	}
+	return strings.Join(out, " · ")
 }
 
 // hint writes a line of keys under a field, dim, wrapped to the width left beside the indent.

@@ -12,8 +12,12 @@ import (
 	"github.com/empowerite/kit/tui/internal/style"
 )
 
-// keys is the footer: every key the screen takes.
-const keys = "←→ stage · ↑↓ row · ⏎ open · r refresh · q quit"
+// The keys bar, the screen's last line, in each state: on the line, in the rows, and over the legend.
+const (
+	lineKeys   = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc quit"
+	rowKeys    = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back"
+	legendKeys = "↑↓ move · ? legend · esc back"
+)
 
 // fixed is how many lines the title, the line, the gaps, and the keys take; the pane has the rest.
 const fixed = 7
@@ -27,12 +31,13 @@ type line struct {
 	text string
 }
 
-// View draws the title, the line with its labels, the selected stage's pane, and the keys, on the alternate screen.
+// View draws the title, the line with its labels, the selected stage's pane or the legend, and the keys bar on the
+// last line, on the alternate screen.
 func (m Model) View() tea.View {
 	timeline, labels := m.timeline()
 	lines := []string{" " + clip(m.title(), m.width-1), "", timeline, labels, ""}
 	lines = append(lines, m.pane()...)
-	lines = append(lines, "", " "+style.Off(clip(keys, m.width-1)))
+	lines = append(lines, "", style.Bar(m.keys(), m.width))
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
 	return v
@@ -41,30 +46,23 @@ func (m Model) View() tea.View {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// title gives the title line: kit status, origin's owner/repo when known, and what the fetch brought when incoming
-// is in the picture.
-func (m Model) title() string {
-	parts := []string{style.Label("kit status")}
-	if m.origin.Repo != "" {
-		parts = append(parts, m.origin.Repo)
+// keys gives the keys bar for the state the screen is in: the legend's, the rows', or the line's.
+func (m Model) keys() string {
+	switch {
+	case m.legend:
+		return legendKeys
+	case m.inRows:
+		return rowKeys
 	}
-	if s := m.find("incoming"); s != nil {
-		parts = append(parts, Fetch+" origin: "+fetchText(*s))
-	}
-	return strings.Join(parts, " · ")
+	return lineKeys
 }
 
-// fetchText gives incoming's word for the title: … while it loads, failed after a refusal, else its summary.
-func fetchText(s stage) string {
-	switch {
-	case s.loading:
-		return "…"
-	case s.refusal != "":
-		return "failed"
-	case s.in == nil:
-		return "…"
+// title gives the title line: kit status, and origin's owner/repo when known.
+func (m Model) title() string {
+	if m.origin.Repo == "" {
+		return style.Label("kit status")
 	}
-	return s.in.summary()
+	return style.Label("kit status") + " · " + m.origin.Repo
 }
 
 // count gives a stage's count for its label: … while it loads, ! when its command failed, nothing for an incoming
@@ -117,13 +115,19 @@ func (m Model) timeline() (string, string) {
 	return line.String(), labels.String()
 }
 
-// pane gives the pane's lines, as many as it has, from the selected stage's offset on.
+// pane gives the pane's lines, as many as it has: the legend's from its offset on when it shows, else the selected
+// stage's from its offset on.
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
-	if len(m.stages) == 0 {
+	switch {
+	case m.legend:
+		all := m.legendLines()
+		start := min(max(m.legendOffset, 0), max(0, len(all)-h))
+		out = all[start:min(len(all), start+h)]
+	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
-	} else {
+	default:
 		lines := m.lines(m.stage)
 		s := m.stages[m.stage]
 		start := min(max(s.offset, 0), max(0, len(lines)-h))
@@ -133,6 +137,45 @@ func (m Model) pane() []string {
 	}
 	for len(out) < h {
 		out = append(out, "")
+	}
+	return out
+}
+
+// legendLines draws the legend: each group's name, dim, in a column of its own, and beside it the group's glyphs, each
+// with its meaning, joined by · and wrapped to the width; an entry wider than the room wraps on its own lines.
+func (m Model) legendLines() []string {
+	column := 0
+	for _, e := range legend {
+		column = max(column, ansi.StringWidth(e.group)+2)
+	}
+	room := max(m.width-3-column, 10)
+	var out []string
+	for i := 0; i < len(legend); {
+		group := legend[i].group
+		var wrapped []string
+		current := ""
+		for ; i < len(legend) && legend[i].group == group; i++ {
+			e := legend[i].glyph + " " + legend[i].meaning
+			switch {
+			case current != "" && ansi.StringWidth(current)+3+ansi.StringWidth(e) <= room:
+				current += " · " + e
+			default:
+				if current != "" {
+					wrapped = append(wrapped, current)
+				}
+				parts := wrap(e, room)
+				wrapped = append(wrapped, parts[:len(parts)-1]...)
+				current = parts[len(parts)-1]
+			}
+		}
+		wrapped = append(wrapped, current)
+		for k, l := range wrapped {
+			name := ""
+			if k == 0 {
+				name = group
+			}
+			out = append(out, "   "+style.Off(pad(name, column, false))+l)
+		}
 	}
 	return out
 }

@@ -31,7 +31,6 @@ type commit struct {
 // origin, and the tags new; with --no-fetch, Fetched alone, false.
 type incoming struct {
 	Fetched  bool     `json:"fetched"`
-	Default  string   `json:"default"`
 	Commits  []commit `json:"commits"`
 	Branches struct {
 		New     []string `json:"new"`
@@ -171,14 +170,6 @@ func ageOf(secs *int64) string {
 	return age(*secs)
 }
 
-// plural gives "1 <one>" or "<n> <many>".
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return "1 " + one
-	}
-	return strconv.Itoa(n) + " " + many
-}
-
 // owners gives the assignees after their glyph, or nothing.
 func owners(logins []string) string {
 	if len(logins) == 0 {
@@ -193,34 +184,6 @@ func branchOf(branch string) string {
 		return ""
 	}
 	return Branch + " " + branch
-}
-
-// summary gives incoming's text line: what the fetch brought, counted in kit status's order, unchanged, or not
-// fetched.
-func (in incoming) summary() string {
-	if !in.Fetched {
-		return "not fetched"
-	}
-	var parts []string
-	if n := len(in.Commits); n > 0 {
-		parts = append(parts, plural(n, "new commit", "new commits")+" on "+in.Default)
-	}
-	if n := len(in.Branches.Updated); n > 0 {
-		parts = append(parts, plural(n, "branch updated", "branches updated"))
-	}
-	if n := len(in.Branches.New); n > 0 {
-		parts = append(parts, plural(n, "new branch", "new branches"))
-	}
-	if n := len(in.Branches.Gone); n > 0 {
-		parts = append(parts, plural(n, "branch gone", "branches gone"))
-	}
-	if n := len(in.Tags); n > 0 {
-		parts = append(parts, plural(n, "new tag", "new tags"))
-	}
-	if len(parts) == 0 {
-		return "unchanged"
-	}
-	return strings.Join(parts, " · ")
 }
 
 // cell gives the checks cell, as kit status draws it: the glyph, the counts, and how long the slowest took, dim; or
@@ -304,7 +267,7 @@ func incomingRows(s stage) []row {
 		rows = append(rows, row{key: "gone " + b, cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
 	}
 	for _, t := range s.in.Tags {
-		rows = append(rows, row{key: "tag " + t, cells: []cell{text(Gone), fill(t + " " + style.Off("new tag"))}})
+		rows = append(rows, row{key: "tag " + t, cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
 	}
 	return rows
 }
@@ -479,7 +442,7 @@ func empty(s stage) string {
 		return "no open issue without a pull request"
 	case "incoming":
 		if s.in != nil && !s.in.Fetched {
-			return "not fetched"
+			return "not fetched: kit status --no-fetch skips the fetch"
 		}
 		return "nothing new on origin"
 	case "worktrees":

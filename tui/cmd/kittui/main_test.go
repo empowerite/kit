@@ -1,5 +1,5 @@
 // The binary refuses without a terminal, and ends as the form ended: silent on esc and ctrl-c, with the transcript
-// before the verb on run; the picture ends silent too, 0 on q and 130 on ctrl-c.
+// before the verb on run; the picture ends silent too, 0 on esc and 130 on ctrl-c.
 package main
 
 import (
@@ -51,7 +51,6 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		key  tea.KeyPressMsg
 		code int
 	}{
-		{tea.KeyPressMsg{Code: 'q'}, 0},
 		{tea.KeyPressMsg{Code: tea.KeyEscape}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {

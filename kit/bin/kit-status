@@ -66,6 +66,7 @@
 #   🎫  an issue
 #   🛫  an issue in flight: the pull request above it closes it
 #   🔖  a branch whose upstream is gone
+#   📌  a new tag the fetch brought, in the incoming stage
 #   ❗  a checkout on no branch, a detached HEAD
 #   🏃  checks still running, ✅ every check passed, ❌ a check failed, each with passed / total
 #   💬  unresolved review threads

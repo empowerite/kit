@@ -1,4 +1,4 @@
- kit status · empowerite/kit · 📥 origin: 2 new commits on main · 1 branch upda…
+ kit status · empowerite/kit
 
  ───────○───────────────●───────────────○───────────────○───────────────○───────
     backlog 3      incoming 6      worktrees 5      changes 3      releases 3
@@ -8,7 +8,7 @@
    🌿       46-a-noun-lists updated
    🌿       42-settings new branch
    🔖       old-experiment upstream gone
-   🔖       release/0.2.0 new tag
+   📌       release/0.2.0 new tag
 
 
 
@@ -21,4 +21,4 @@
 
 
 
- ←→ stage · ↑↓ row · ⏎ open · r refresh · q quit
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

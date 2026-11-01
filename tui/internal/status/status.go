@@ -1,8 +1,10 @@
 // Package status is kit status on a terminal: the stages along one line, the selected stage's rows under it, and a
 // row opened in place. It draws from kit status <stage> --json and never parses kit's text. Left and right move
 // along the line, even inside the rows; down enters a stage's rows and up on the first row leaves them; Enter opens
-// or closes a row; r runs the stage's command again; q or esc quits, and ctrl-c quits with 130. A stage's command has
-// two minutes; past them it is a refusal, and quitting kills the commands still running.
+// or closes a row; r runs the stage's command again; ? shows the legend in place of the rows, and again hides it.
+// Esc goes back one level: from the legend, from the rows to the line, and from the line it quits; ctrl-c quits
+// with 130 from anywhere. A stage's command has two minutes; past them it is a refusal, and quitting kills the
+// commands still running.
 package status
 
 import (
@@ -67,6 +69,8 @@ type Model struct {
 	stages        []stage
 	stage         int  // the selected stage
 	inRows        bool // whether the cursor is on a row, not on the line
+	legend        bool // whether the legend shows in place of the pane
+	legendOffset  int  // the legend's first line shown
 	started       bool // whether the stages after incoming have been started
 	width, height int
 	interrupted   bool
@@ -135,14 +139,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// key takes a key press.
+// key takes a key press: ctrl-c anywhere; the legend's own keys while it shows; else the line's and the rows'.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch k.String() {
-	case "ctrl+c":
+	if k.String() == "ctrl+c" {
 		m.interrupted = true
 		return m, m.quit()
-	case "q", "esc":
-		return m, m.quit()
+	}
+	if m.legend {
+		m.legendKey(k.String())
+		return m, nil
+	}
+	switch k.String() {
+	case "esc":
+		if !m.inRows {
+			return m, m.quit()
+		}
+		s := &m.stages[m.stage]
+		s.cursor, s.offset, m.inRows = 0, 0, false
+		m.fit()
+	case "?":
+		m.legend, m.legendOffset = true, 0
 	case "left":
 		m.move(-1)
 	case "right":
@@ -161,6 +177,24 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.refresh()
 	}
 	return m, nil
+}
+
+// legendKey takes a key while the legend shows: ? or esc hides it, and the arrows and the pages scroll it.
+func (m *Model) legendKey(key string) {
+	h := m.paneHeight()
+	switch key {
+	case "?", "esc":
+		m.legend = false
+	case "up":
+		m.legendOffset--
+	case "down":
+		m.legendOffset++
+	case "pgup":
+		m.legendOffset -= max(1, h-1)
+	case "pgdown":
+		m.legendOffset += max(1, h-1)
+	}
+	m.legendOffset = min(max(m.legendOffset, 0), max(0, len(m.legendLines())-h))
 }
 
 // quit ends the screen, and the stages' commands still running with it.

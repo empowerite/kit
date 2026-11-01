@@ -1,9 +1,10 @@
 // Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
-// verb with its whole purpose, filtered as it is typed, under the keys. The up and down arrows move over the verbs,
+// verb with its whole purpose, filtered as it is typed, over the keys bar. The up and down arrows move over the verbs,
 // never onto a heading, and shift with either jumps to the first verb of the previous or the next group. The right
 // arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them back.
 // Backspace erases the filter. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
-// filter; esc quits. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
+// filter; esc quits, and ctrl-c quits as interrupted. The keys bar is the last line. Widths are terminal cells, so a
+// two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -238,32 +239,27 @@ func (m Model) widest() int {
 	return widest
 }
 
-// View draws the keys on top, so filtering never moves them, then the filter, kit's line under it when a verb did not
-// open, and the tree: each group's heading, dimmed, over its verbs, each with its whole purpose, clipped at the
-// screen's edge, or, after the right arrow, the names beside the highlighted verb's page. The rows shown are the
-// window that holds the cursor's row.
+// View draws the filter, kit's line under it when a verb did not open, and the tree: each group's heading, dimmed,
+// over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the names
+// beside the highlighted verb's page. The rows shown are the window that holds the cursor's row. The keys bar is the
+// last line, one line clipped to the width, so neither filtering nor a refusal moves it.
 func (m Model) View() tea.View {
 	visible := m.Visible()
 	keys := "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · → pages · ⏎ open · esc quit"
 	if m.showPages {
 		keys = "↑↓ move · ⇧↑↓ group · type to filter · ⌫ erase · ← purposes · ⏎ open · esc quit"
 	}
-	var top strings.Builder
-	for _, line := range page(keys, m.width-2) {
-		top.WriteString(" " + style.Off(line) + "\n")
-	}
-	top.WriteString("\n " + style.Filter + " " + m.filter + "▏\n")
+	top := []string{" " + style.Filter + " " + m.filter + "▏"}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
-			top.WriteString(" " + style.Refusal(line) + "\n")
+			top = append(top, " "+style.Refusal(line))
 		}
 	}
-	top.WriteString("\n")
+	top = append(top, "")
 	widest := m.widest()
-	used := strings.Count(top.String(), "\n")
-	rows := m.height - used - 1
-	if rows < 1 {
-		rows = 1
+	rows := 1
+	if m.height > 0 {
+		rows = max(1, m.height-len(top)-2) // the gap and the keys bar under the tree
 	}
 	lines := tree(visible)
 	at := 0
@@ -273,17 +269,17 @@ func (m Model) View() tea.View {
 		}
 	}
 	start := 0
-	if at >= rows {
+	if m.height > 0 && at >= rows {
 		start = at - rows + 1
 	}
-	var list strings.Builder
+	var list []string
 	if len(visible) == 0 {
-		list.WriteString("   " + style.Off("no verb matches") + "\n")
+		list = append(list, "   "+style.Off("no verb matches"))
 	}
-	for i := start; i < len(lines) && i-start < rows; i++ {
+	for i := start; i < len(lines) && (m.height <= 0 || i-start < rows); i++ {
 		r := lines[i]
 		if r.index < 0 {
-			list.WriteString(" " + style.Off(r.heading) + "\n")
+			list = append(list, " "+style.Off(r.heading))
 			continue
 		}
 		v := visible[r.index]
@@ -295,9 +291,8 @@ func (m Model) View() tea.View {
 		if !m.showPages {
 			line += "  " + style.Off(clip(v.Purpose, m.width-3-widest-2))
 		}
-		list.WriteString(line + "\n")
+		list = append(list, line)
 	}
-	content := top.String() + list.String()
 	if m.showPages {
 		right := ""
 		if m.cursor < len(visible) {
@@ -305,11 +300,15 @@ func (m Model) View() tea.View {
 		}
 		leftWidth := 3 + widest + 2
 		rightWidth := m.width - leftWidth
-		content = top.String() + lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Width(leftWidth).Render(strings.TrimSuffix(list.String(), "\n")),
-			lipgloss.NewStyle().Width(rightWidth).MaxHeight(rows).Render(strings.Join(page(right, rightWidth-1), "\n")))
+		pageLines := page(right, rightWidth-1)
+		if m.height > 0 {
+			pageLines = pageLines[:min(len(pageLines), rows)]
+		}
+		list = strings.Split(lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Width(leftWidth).Render(strings.Join(list, "\n")),
+			lipgloss.NewStyle().Width(rightWidth).Render(strings.Join(pageLines, "\n"))), "\n")
 	}
-	v := tea.NewView(content)
+	v := tea.NewView(strings.Join(style.Bottom(append(top, list...), m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
 	return v
 }
