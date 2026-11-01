@@ -2,10 +2,7 @@
 # jq.bats - every jq module passes its own tests, tests/jq/<module>.test, run by jq --run-tests
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  export kit_root
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-}
+load helper
 
 @test "every jq module has a test file, and passes it" {
   local module name status=0

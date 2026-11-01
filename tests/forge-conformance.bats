@@ -9,23 +9,11 @@
 # standing in for its tool, so what is proven is the provider's own folding of its forge's answers into the seam's
 # shape. What only a real forge can prove, that the API answers as the fixtures do, is not proven here.
 
-setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/glab"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-  unset GITHUB_EVENT_PATH CI_MERGE_REQUEST_IID
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}"
+setup() {
+  fake-tools gh glab
+  fresh-repo
 }
 
 # call <call> <argument>… runs one call of the seam, as a verb would.
@@ -37,12 +25,6 @@ call() {
 provider() {
   bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge:provider'
 }
-
-# fixture <name> writes stdin to a response file the routes name.
-fixture() { cat > "${FAKE_DIR}/$1"; }
-
-# route <tool> <glob> <response> adds a route, the more particular before the more general.
-route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
 
 # world <forge> makes this repository's origin the forge's, and its tool's routes the world above.
 world() {

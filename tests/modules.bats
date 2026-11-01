@@ -2,20 +2,10 @@
 # modules.bats - every function says where it is defined, and a release is split by concern into modules of its own
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-}
-
-teardown() {
-  rm -rf "${repo}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && eval "$1"' kit-bash "$1"
+  fresh-repo
 }
 
 @test "every function in a module is named <module>:<name>, so that each says where it is defined" {

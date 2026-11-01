@@ -9,34 +9,21 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export NO_COLOR=1
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
-  unset GITHUB_EVENT_PATH CI_MERGE_REQUEST_IID
+  fake-tools gh
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   mkdir .kit && printf 'forge: github\n' > kit.yml
   git add --all && git commit --quiet --message '#1 start: the first'
   git push --quiet origin main main:7-fix-the-thing main:9-other
   git remote set-head origin main
   world
 }
-
-teardown() {
-  rm -rf "${work}"
-}
-
-fixture() { cat > "${FAKE_DIR}/$1"; }
-route() { printf '%s\t%s\n' "$1" "$2" >> "${FAKE_DIR}/gh.routes"; }
 
 world() {
   : > "${FAKE_DIR}/gh.routes"

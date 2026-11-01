@@ -4,24 +4,11 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  # a home directory of the test's own, so no test ever writes under the real one
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-}
-
-teardown() {
-  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader and the yaml module.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use yaml && eval "$1"' kit-bash "$1"
+  kit_bash_modules=yaml
+  fresh-repo
 }
 
 @test "a block scalar is read whole" {

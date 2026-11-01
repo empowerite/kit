@@ -2,22 +2,11 @@
 # use.bats - the module path: every <module>.sh on it is sourced in order, and a verb runs with or without bin/kit
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
+  fresh-repo
   mkdir .kit bash
-}
-
-teardown() {
-  rm -rf "${repo}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && eval "$1"' kit-bash "$1"
 }
 
 @test "with no bash_path setting, the path is the kit's own bash directory" {

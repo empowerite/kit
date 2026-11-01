@@ -8,16 +8,12 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
   command -v just >/dev/null || skip "just is not on PATH"
-  export kit_checkout NO_COLOR=1
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
   export PATH="${kit_checkout}/bin:${PATH}"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo="${BATS_TEST_TMPDIR}/repo"
-  git init --quiet --initial-branch=main "${repo}"
-  cd "${repo}"
+  fresh-repo
   kit install style/just >/dev/null 2>&1
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   mkdir bash

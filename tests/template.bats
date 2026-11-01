@@ -4,19 +4,11 @@
 
 bats_require_minimum_version 1.5.0
 
-setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-  "${kit_root}/bin/kit" install 'style/*' >/dev/null 2>&1
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}"
+setup() {
+  fresh-repo
+  "${kit_root}/bin/kit" install 'style/*' >/dev/null 2>&1
 }
 
 # in_template <command>… runs a command with the template module loaded, from the repository, as a verb would.
@@ -148,9 +140,8 @@ shape() {
 }
 
 @test "every governed file in this repository renders back from what it gives its template" {
-  local root path rule variant values file bound name failed=0 checked=0
-  root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
-  cd "${root}"
+  local path rule variant values file bound name failed=0 checked=0
+  checkout-copy
   while IFS= read -r path
   do
     [[ -f "${path}" ]] || continue

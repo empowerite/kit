@@ -2,18 +2,11 @@
 # context.bats - kit context classifies a file into its kinds, names the rules by kind and by what a kind embeds, logs the ask, and answers Claude's hook
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  cd "${repo}"
-  "${kit_checkout}/bin/kit" install >/dev/null
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}"
+setup() {
+  fresh-repo
+  "${kit_checkout}/bin/kit" install >/dev/null
 }
 
 @test "a file is governed by its path, by its first line, or by nothing" {

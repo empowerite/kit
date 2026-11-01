@@ -4,21 +4,11 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"
-  for tool in gh az
-  do
-    ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/${tool}"
-    : > "${FAKE_DIR}/${tool}.routes"
-  done
-  export PATH="${FAKE_DIR}/bin:${PATH}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
+  fake-tools gh az
+  fresh-repo
   git remote add origin https://github.com/empowerite/example.git
   mkdir .kit
   cat > kit.yml <<'YAML'
@@ -28,20 +18,12 @@ trackers:
     organization: https://dev.azure.com/example
     project: Claims Team
 YAML
-  unset GITHUB_EVENT_PATH
-}
-
-teardown() {
-  rm -rf "${repo}"
 }
 
 # in_tracker <command>… runs a command with the tracker seam loaded, as a verb would.
 in_tracker() {
   bash -c 'source "${kit_root}/modules/bash/1st.sh" && use tracker && "$@"' _ "$@"
 }
-
-fixture() { cat > "${FAKE_DIR}/$1"; }
-route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
 
 @test "a reference names its tracker by its prefix, a bare number is the forge's own, and an unknown one is refused" {
   run in_tracker tracker:parse 7

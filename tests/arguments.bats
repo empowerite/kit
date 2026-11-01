@@ -2,21 +2,11 @@
 # arguments.bats - guard:arguments judges every verb's arguments from its syntax, and refuses in one generic place
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-}
-
-teardown() {
-  rm -rf "${repo}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader and the syntax module, as a verb does.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use syntax && eval "$1"' kit-bash "$1"
+  kit_bash_modules=syntax
+  fresh-repo
 }
 
 @test "an unknown flag, an unknown argument, and an argument to a verb that takes none are each refused in one line, exit 2" {
@@ -108,9 +98,11 @@ kit-bash() {
   [ "$output" = 0 ]
   run kit-bash 'syntax:match package select "nonesuch/*"; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 <package> 'nonesuch/*' is not one of the choices; run: kit help package" ]
-  run kit-bash 'cd "${kit_root}/.." && syntax:match new file x --rule=markdown --variant=document; echo "$?"'
+  # a rule's variants are its templates in this repository
+  "${kit_root}/bin/kit" install style/markdown >/dev/null 2>&1
+  run kit-bash 'syntax:match new file x --rule=markdown --variant=document; echo "$?"'
   [ "$output" = 0 ]
-  run kit-bash 'cd "${kit_root}/.." && syntax:match new file x --rule=markdown --variant=nonesuch; echo "$? ${syntax_refusal}"'
+  run kit-bash 'syntax:match new file x --rule=markdown --variant=nonesuch; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 --variant 'nonesuch' is not one of the choices; run: kit help new" ]
   run kit-bash 'syntax:match context nonesuch.md; echo "$?"'
   [ "$output" = 0 ]
@@ -136,7 +128,8 @@ kit-bash() {
   [ "$output" = "0 []" ]
   run kit-bash 'syntax:match new file x --rule=; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 --rule needs a value; run: kit help new" ]
-  cd "${kit_root}/.."
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  printf '# Mine\n' > README.md && git add README.md
   run "${kit_root}/bin/kit" context README.md
   local plain=$output
   run "${kit_root}/bin/kit" context -- README.md
@@ -165,7 +158,9 @@ kit-bash() {
 }
 
 @test "--jq prints what --json prints, formatted by jq, from where the command was typed, with the verb's status" {
-  cd "${kit_root}/../docs"
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  mkdir docs && cp "${kit_root}/../docs/features.md" docs/ && git add docs/features.md
+  cd docs
   local json
   json=$("${kit_root}/bin/kit" context features.md --json | jq .)
   run "${kit_root}/bin/kit" context features.md --jq

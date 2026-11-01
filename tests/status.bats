@@ -3,24 +3,17 @@
 # and its path from the current directory
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
   git remote set-head origin main
   mkdir worktrees
-}
-
-teardown() {
-  rm -rf "${work}"
 }
 
 # in_status <command>… runs a command with the status module loaded, from this directory, as a verb would.
@@ -112,7 +105,6 @@ commits-in() {
   git clone --quiet ../origin.git ../other 2>/dev/null
   (
     cd ../other
-    git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
     printf 'b\n' > b && git add b && git commit --quiet --message b
     printf 'c\n' > c && git add c && git commit --quiet --message c
     git push --quiet origin main main:fresh main:stays HEAD:refs/tags/v1
@@ -163,7 +155,7 @@ commits-in() {
   output=$("${kit_root}/bin/kit" status --no-fetch --json 2>/dev/null)
   [ "$(jq -c 'map(.path)' <<<"$output")" = '["desk","group/deep/two"]' ]
   [ "$(jq -r '.[0].status.desk.branch' <<<"$output")" = main ]
-  cd "$(mktemp -d)"
+  mkdir "${BATS_TEST_TMPDIR}/nowhere" && cd "${BATS_TEST_TMPDIR}/nowhere"
   run "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 1 ]
   [[ "$output" == *"no repository at or below"* ]]
@@ -271,8 +263,6 @@ commits-in() {
 
 @test "kit incoming prints the line kit status opens with, and nothing else" {
   git clone --quiet ../origin.git ../other 2>/dev/null
-  git -C ../other config user.name t && git -C ../other config user.email t@example.com
-  git -C ../other config commit.gpgsign false
   commits-in ../other 2 && git -C ../other push --quiet origin main
   cp -R . ../twin
   run "${kit_root}/bin/kit" incoming

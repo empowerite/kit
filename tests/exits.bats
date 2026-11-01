@@ -2,10 +2,7 @@
 # exits.bats - every verb's header ends its description with one Exits line, stating its codes as docs/modules.md has them
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-}
+load helper
 
 @test "every verb's header has exactly one line that starts with Exits, and kit help prints it in the description" {
   local verb name count

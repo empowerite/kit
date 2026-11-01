@@ -2,15 +2,11 @@
 # lint.bats - kit lint runs each rule's linter over the paths it governs, staged, named, or every tracked one
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
   shellcheck --version >/dev/null 2>&1 || skip "shellcheck is the bash rule's linter, and it is not on PATH"
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
+  fresh-repo
   "${kit_checkout}/bin/kit" install >/dev/null
   script bad.sh 'echo $x'
   script good.sh 'echo "${x:-}"'
@@ -24,10 +20,6 @@ script() {
   printf -v rule '# %s' "$(printf '%.0s-' $(seq 1 118))"
   printf '#!/usr/bin/env bash\n# %s - a fixture\n%s\n\nset -o errexit -o nounset -o pipefail\n\n%s\n\n%s\n' \
     "$1" "${rule}" "$2" "${rule}" > "$1"
-}
-
-teardown() {
-  rm -rf "${repo}"
 }
 
 @test "lint refuses a staged bash file shellcheck faults, and passes a clean one" {

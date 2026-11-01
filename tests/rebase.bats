@@ -2,29 +2,21 @@
 # rebase.bats - kit rebase refuses the desk and the default branch, and brings a worktree's branch up to date
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
   git remote set-head origin main
-}
-
-teardown() {
-  rm -rf "${work}"
 }
 
 # worktree makes a worktree on branch 1-x beside the desk, configured to commit.
 worktree() {
   git worktree add --quiet ../wt -b 1-x
-  git -C ../wt config user.name t
-  git -C ../wt config user.email t@example.com
   git -C ../wt config commit.gpgsign false
 }
 

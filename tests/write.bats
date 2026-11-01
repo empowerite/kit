@@ -6,18 +6,10 @@
 
 bats_require_minimum_version 1.5.0
 
-setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  # a home directory of the test's own, so no test ever writes under the real one
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache" NO_COLOR=1
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
+setup() {
+  fresh-repo
 }
 
 @test "install refuses a settings file jq cannot read, names it, and leaves it byte for byte as it was" {

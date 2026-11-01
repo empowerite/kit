@@ -2,12 +2,10 @@
 # tui.bats - kit with no verb runs kit tui, which execs kittui; a verb short of its arguments hands off to it at a terminal
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
+  fresh-repo
   : > .gitignore
   git add .gitignore
   # go and a kittui are fakes, first on PATH; in this checkout kit tui builds kittui from tui/ with the fake go, which
@@ -15,12 +13,7 @@ setup() {
   mkdir -p "${BATS_TEST_TMPDIR}/fake"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
-  export FAKES="${BATS_TEST_TMPDIR}/fake" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
-}
-
-teardown() {
-  rm -rf "${repo}"
+  export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
 }
 
 # without-kittui prints a PATH with bash, git, and jq, the system's tools, and no kittui.

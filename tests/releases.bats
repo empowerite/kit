@@ -7,24 +7,15 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export NO_COLOR=1 kit_root
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
+  fake-tools gh
   repo=$(mktemp -d)
   git init --quiet --bare --initial-branch=main "${repo}/origin.git"
   git clone --quiet "${repo}/origin.git" "${repo}/desk" 2>/dev/null
   cd "${repo}/desk"
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
-  git config tag.gpgsign false
   commit one && git push --quiet origin main && git remote set-head origin main
-}
-
-teardown() {
-  rm -rf "${repo}"
 }
 
 # commit <name> makes a commit that adds a file of that name.

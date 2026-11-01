@@ -8,32 +8,12 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export NO_COLOR=1
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
-  unset GITHUB_EVENT_PATH CI_MERGE_REQUEST_IID
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-  git config user.name t
-  git config user.email t@example.com
-  git config commit.gpgsign false
+  fake-tools gh
+  fresh-repo
 }
-
-teardown() {
-  rm -rf "${repo}" "${repo}.origin.git"
-}
-
-# fixture <name> writes stdin to a response file the routes name.
-fixture() { cat > "${FAKE_DIR}/$1"; }
-
-# route <glob> <response> adds a gh route, the more particular before the more general.
-route() { printf '%s\t%s\n' "$1" "$2" >> "${FAKE_DIR}/gh.routes"; }
 
 # world makes origin a bare repository holding main and the branch the forge made for issue 7, and routes gh.
 world() {
@@ -97,6 +77,47 @@ world() {
   [[ "$output" == *"Created #7: Fix the thing"* ]]
   [ -d worktrees/7-fix-the-thing ]
   [ "$(git -C worktrees/7-fix-the-thing log --format=%s -1)" = "#7 start: Fix the thing" ]
+}
+
+@test "kit issue sweeps the desk's uncommitted work into the worktree, and leaves the desk and the stash clean" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\n' >> kit.yml
+  printf 'notes\n' > notes.txt
+  git add --all && git commit --quiet --message init
+  world
+  printf 'mine\n' > notes.txt
+  printf 'scratch\n' > scratch.txt
+  run "${kit_checkout}/bin/kit" issue 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Sweeping the uncommitted work on main into the worktree"* ]]
+  [[ "$output" == *"Swept the work into "*"worktrees/7-fix-the-thing, uncommitted"* ]]
+  [ "$(cat worktrees/7-fix-the-thing/notes.txt)" = mine ]
+  [ "$(cat worktrees/7-fix-the-thing/scratch.txt)" = scratch ]
+  [ "$(git -C worktrees/7-fix-the-thing status --porcelain | sort)" = "$(printf ' M notes.txt\n?? scratch.txt')" ]
+  [ "$(cat notes.txt)" = notes ]
+  [ -z "$(git status --porcelain)" ]
+  [ -z "$(git stash list)" ]
+}
+
+@test "a sweep that conflicts in the worktree keeps the stash, names the command that applies it, and stops" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\n' >> kit.yml
+  printf 'notes\n' > notes.txt
+  git add --all && git commit --quiet --message init
+  world
+  # the branch on origin changes notes.txt one way, and the desk another
+  git switch --quiet --create theirs && printf 'theirs\n' > notes.txt && git commit --quiet --all --message theirs
+  git push --quiet --force origin theirs:7-fix-the-thing
+  git switch --quiet main && git branch --quiet --delete --force theirs
+  printf 'mine\n' > notes.txt
+  run "${kit_checkout}/bin/kit" issue 7
+  [ "$status" -eq 1 ]
+  stash=$(git rev-parse 'stash@{0}')
+  [[ "$output" == *"the swept work conflicts in "*"worktrees/7-fix-the-thing. It is kept in the stash: "* ]]
+  [[ "$output" == *"It is kept in the stash: git stash apply ${stash}"* ]]
+  [ "$(git stash list | wc -l | tr -d ' ')" -eq 1 ]
+  [ "$(cat notes.txt)" = notes ]
+  [ -z "$(git status --porcelain)" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

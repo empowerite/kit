@@ -2,18 +2,10 @@
 # forge.bats - the forge is the setting, else the one origin's host names, and an unknown one is refused by name
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}"
+setup() {
+  fresh-repo
 }
 
 # provider prints the provider the seam picks here.

@@ -2,17 +2,11 @@
 # gate.bats - kit gate runs the root justfile's ci recipe, and refuses a missing one and an unreadable one alike
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  export GITHUB_STEP_SUMMARY="${repo}/summary.md"
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}"
+setup() {
+  repo=$(mktemp -d) && cd "${repo}"
+  export GITHUB_STEP_SUMMARY="${repo}/summary.md"
 }
 
 @test "no gate is refused, naming the remedy" {

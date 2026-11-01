@@ -2,26 +2,15 @@
 # super.bats - a module overrides a function another defined, and calls the one it replaced
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
+  fresh-repo
   mkdir -p .kit a b c
   printf 'bash_path:\n  - kit:modules/bash/\n  - a/\n  - b/\n  - c/\n' > kit.yml
   printf 'foo:bar() { echo "A($*)"; }\nfoo:baz() { echo "baz $(foo:bar x)"; }\n' > a/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "B[$(super "$@")]"; }\n' > b/foo.sh
   printf 'use super\nsuper:override foo:bar\nfoo:bar() { echo "C{$(super "$@")}"; }\n' > c/foo.sh
-}
-
-teardown() {
-  rm -rf "${repo}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && eval "$1"' kit-bash "$1"
 }
 
 @test "each override reaches the one it replaced, and every caller gets the last" {

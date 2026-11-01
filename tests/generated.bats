@@ -6,6 +6,8 @@
 # file, which has no comments, carries both in a "$comment" key. A template is the named exception: its text is the
 # shape of the files kit new makes from it, and the lines would pass into each of them.
 
+load helper
+
 @test "every file a package delivers under .kit/, but a template, says it is generated, by what, and how to stop or replace it" {
   local root file package first second missing=0
   root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)

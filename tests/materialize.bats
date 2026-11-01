@@ -8,28 +8,10 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  git -C "${repo}" config user.name t
-  git -C "${repo}" config user.email t@example.com
-  git -C "${repo}" config commit.gpgsign false
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
-}
-
-teardown() {
-  rm -rf "${repo}" "${repo}.later" "${repo}.clone" "${repo}.home" "${repo}.cache"
-}
-
-# later-release <dir> copies this checkout's release to <dir> as 9.9.9, without the just rule.
-later-release() {
-  mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
-  printf '9.9.9\n' > "$1/version"
-  rm "$1/packages/kit/files/repo/.kit/rules/just.md"
+  fresh-repo
 }
 
 @test "in a consumer a delivered file is a copy without the write bit, named in .kit/.gitignore, and git sees only the declaration" {
@@ -143,6 +125,8 @@ later-release() {
   "${kit_checkout}/bin/kit" install
   grep --quiet --line-regexp '/rules/just.md' .kit/.gitignore
   later-release "${repo}.later"
+  # the later release retires the just rule
+  rm "${repo}.later/packages/kit/files/repo/.kit/rules/just.md"
   run env KIT_BASE="${kit_checkout}" "${repo}.later/bin/kit" update
   [ "$status" -eq 0 ]
   [ ! -e .kit/rules/just.md ]

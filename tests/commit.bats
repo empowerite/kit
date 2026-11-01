@@ -8,27 +8,20 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export NO_COLOR=1
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   printf 'notes\n' > notes.txt
   git add --all && git commit --quiet --message '#1 start: the first' && git push --quiet origin main
   git remote set-head origin main
   git worktree add --quiet -b 7-fix-the-thing worktrees/7-fix-the-thing main
   cd worktrees/7-fix-the-thing
-}
-
-teardown() {
-  rm -rf "${work}"
 }
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
@@ -149,10 +142,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 # forge-world routes a fake gh for change 3, open on this branch with the body "Closes #7", and issue 9 with the
 # assignees given, if any; ada is the caller. Every gh call lands in ${FAKE_DIR}/gh.calls.
 forge-world() {
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
+  fake-tools gh
   printf 'forge: github\n' >> kit.yml
   printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
   printf '[{"number": 3}]\n' > "${FAKE_DIR}/pr-open.json"

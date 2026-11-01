@@ -8,20 +8,10 @@
 
 bats_require_minimum_version 1.5.0
 
-setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  git -C "${repo}" config user.name t
-  git -C "${repo}" config user.email t@example.com
-  git -C "${repo}" config commit.gpgsign false
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
-}
+load helper
 
-teardown() {
-  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
+setup() {
+  fresh-repo
 }
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }

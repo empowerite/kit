@@ -2,9 +2,9 @@
 # syntax.bats - kit syntax prints a verb's grammar as JSON, parsed from its header, and judges the header's discipline
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   # a copy of the kit with two verbs whose headers are written for the tests, as help.bats makes one: plain has two
   # usage lines, three dots, a wildcard, and a block that describes --b in the other spelling and <a> over two lines
   # but says nothing of --<hole>; broken has a usage line that does not parse
@@ -135,6 +135,7 @@ setup() {
 }
 
 @test "kit syntax package --choices lists every package with its state, closed, and a planned set says what it keeps" {
+  checkout-copy
   run "${kit_root}/bin/kit" syntax package --choices '<package>'
   [ "$status" -eq 0 ]
   grep -q $'^agents/claude\t.*\tactive\t$' <<<"$output"
@@ -150,6 +151,7 @@ setup() {
 }
 
 @test "kit syntax new --choices --variant lists the rule's variants, and --rule the rules with templates; both closed" {
+  checkout-copy
   run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=markdown
   [ "$status" -eq 0 ]
   [ "$(cut -f1 <<<"$output" | paste -sd' ' -)" = "document notice frontmatter" ]
@@ -180,6 +182,7 @@ setup() {
 }
 
 @test "kit syntax new --extend lists the template's holes as options once the rule and variant are known, and new's syntax says it extends" {
+  checkout-copy
   run "${kit_root}/bin/kit" syntax new
   jq -e '.extends == true' <<<"$output"
   run "${kit_root}/bin/kit" syntax commit
@@ -255,7 +258,9 @@ setup() {
 }
 
 @test "the tracked files a path is picked from are relative to where the command was typed" {
-  cd "${kit_root}/../docs"
+  fresh-repo >/dev/null
+  mkdir docs && printf '# Features\n' > docs/features.md && git add docs/features.md
+  cd docs
   run "${kit_root}/bin/kit" syntax lint --choices '<path>'
   [ "$status" -eq 0 ]
   grep -q $'^features.md\t' <<<"$output"

@@ -2,20 +2,11 @@
 # file.bats - file:replace and file:copy write a file whole or not at all: a failed producer leaves the file as it was
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  cd "${repo}"
-}
-
-teardown() {
-  rm -rf "${repo}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader and the file module.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use file && eval "$1"' kit-bash "$1"
+  kit_bash_modules=file
+  fresh-repo
 }
 
 @test "file:replace writes the producer's output over the path, whole, keeping its mode, and makes the directory it needs" {

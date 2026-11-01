@@ -7,49 +7,10 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  # a home directory of the test's own, so no test ever writes under the real one
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache"
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
-}
-
-teardown() {
-  rm -rf "${repo}" "${repo}.later" "${repo}.newer" "${repo}.home" "${repo}.cache" "${repo}.shims"
-}
-
-# shims <tool>… puts a failing stand-in for each tool first on PATH, so a test proves a path is not taken.
-shims() {
-  local tool
-  mkdir -p "${repo}.shims"
-  for tool in "$@"
-  do
-    printf '#!/usr/bin/env bash\nexit 1\n' > "${repo}.shims/${tool}" && chmod +x "${repo}.shims/${tool}"
-  done
-  printf '%s:%s\n' "${repo}.shims" "${PATH}"
-}
-
-# declared <key> prints a top-level key of kit.yml: a scalar's value, or a list's items on one line.
-declared() {
-  awk -v key="$1" '
-    $0 ~ "^" key ": " { v = $0; sub("^" key ": *", "", v); print v; exit }
-    $0 == key ":" { on = 1; next }
-    /^[A-Za-z]/ { on = 0 }
-    on && /^  - / { sub(/^  - /, ""); printf "%s%s", (n++ ? " " : ""), $0 }
-    END { if (n) print "" }' kit.yml 2>/dev/null
-}
-
-# later-release <dir> [<version>] copies this checkout's release to <dir> as <version>, 9.9.9 unless given, with one
-# rule line added in that version.
-later-release() {
-  local version=${2:-9.9.9}
-  mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
-  printf '%s\n' "${version}" > "$1/version"
-  printf '\n## Added in %s\n\nA new rule.\n' "${version}" >> "$1/packages/kit/files/repo/.kit/rules/json.md"
+  fresh-repo
 }
 
 @test "install with no package writes the kit package and nothing else" {

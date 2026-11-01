@@ -8,23 +8,18 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  export FAKE_RELEASES="${repo}.releases" XDG_CACHE_HOME="${repo}.cache"
-  mkdir -p "${FAKE_RELEASES}" "${XDG_CACHE_HOME}" "${repo}.bin"
+  kit_bash_modules=release
+  fresh-repo
+  export FAKE_RELEASES="${repo}.releases"
+  mkdir -p "${FAKE_RELEASES}" "${repo}.bin"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-curl" "${repo}.bin/curl"
   # a failing mise, so the release is the only source; the fake curl first, so no real one answers
   printf '#!/usr/bin/env bash\nexit 1\n' > "${repo}.bin/mise" && chmod +x "${repo}.bin/mise"
   export PATH="${repo}.bin:${PATH}"
-  cd "${repo}"
-  git init --quiet --initial-branch=main
   publish 9.9.9
-}
-
-teardown() {
-  rm -rf "${repo}" "${repo}.releases" "${repo}.cache" "${repo}.bin"
 }
 
 # publish <version> puts kit-<version>.tar.gz, one directory kit-<version>/ holding this checkout's bin/, and its
@@ -39,11 +34,6 @@ publish() {
   printf '%s  kit-%s.tar.gz\n' "$(shasum -a 256 "${FAKE_RELEASES}/kit-$1.tar.gz" | cut -d ' ' -f 1)" "$1" \
     > "${FAKE_RELEASES}/kit-$1.tar.gz.sha256"
   rm -rf "${stage}"
-}
-
-# kit-bash <code> runs <code> in a fresh bash that has sourced the loader and the release module.
-kit-bash() {
-  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use release && eval "$1"' kit-bash "$1"
 }
 
 # ci-step prints the kit-on-path step of the delivered CI job, as bash.

@@ -2,22 +2,14 @@
 # ci.bats - kit ci runs the gate, kit check, kit linked, and kit policy, and reports every one
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${BATS_TEST_TMPDIR}/shims"
-  printf '#!/usr/bin/env bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/shims/gh" && chmod +x "${BATS_TEST_TMPDIR}/shims/gh"
-  export PATH="${BATS_TEST_TMPDIR}/shims:${PATH}"
-  repo=$(mktemp -d)
-  cd "${repo}"
-  git init --quiet --initial-branch=main
+  PATH=$(shims gh)
+  fresh-repo
   git remote add origin https://github.com/empowerite/example.git
   export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
   "${kit_checkout}/bin/kit" install >/dev/null
-}
-
-teardown() {
-  rm -rf "${repo}"
 }
 
 @test "every check runs and the refusals are counted" {

@@ -2,11 +2,10 @@
 # release.bats - bin/release verifies a tag and packs a checkout as a release that installs from its unpacked directory
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
   repo_bin=$(cd "${BATS_TEST_DIRNAME}/../bin" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
   # go is a fake: each build writes, at its -o path, a script that names the platform it was built for
   fakes="${BATS_TEST_TMPDIR}/fakes"
   mkdir -p "${fakes}"
@@ -16,13 +15,8 @@ setup() {
   cd "${work}"
 }
 
-teardown() {
-  rm -rf "${work}"
-}
-
 @test "verify holds a tag to its shape, and a release tag to the default branch" {
   git init --quiet --bare --initial-branch=main origin.git && git clone --quiet origin.git desk 2>/dev/null && cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
   git remote set-head origin main
   git tag release/1.2.3 && git tag release/1.2.3-rc.1 && git tag release/nope && git tag v1.2.3

@@ -2,33 +2,19 @@
 # policy.bats - the facts, the patterns and their defaults, and two engines that refuse the same things the same way
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export FAKE_DIR="${BATS_TEST_TMPDIR}/fake"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}" "${FAKE_DIR}/bin"
-  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/bin/gh"
-  : > "${FAKE_DIR}/gh.routes"
-  export PATH="${FAKE_DIR}/bin:${PATH}"
-  unset GITHUB_HEAD_REF CI_MERGE_REQUEST_SOURCE_BRANCH_NAME GITHUB_EVENT_PATH
+  fake-tools gh
   work=$(mktemp -d)
   cd "${work}"
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
   cd desk
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
   git commit --quiet --allow-empty --message "#1 start: the first" && git push --quiet origin main
   git remote set-head origin main
   mkdir .kit
 }
-
-teardown() {
-  rm -rf "${work}"
-}
-
-fixture() { cat > "${FAKE_DIR}/$1"; }
-route() { printf '%s\t%s\n' "$2" "$3" >> "${FAKE_DIR}/$1.routes"; }
 
 # branch <name> <subject>… makes a branch past main with one empty commit per subject.
 branch() {

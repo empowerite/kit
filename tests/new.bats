@@ -7,14 +7,10 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  export kit_checkout NO_COLOR=1
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  repo="${BATS_TEST_TMPDIR}/repo"
-  git init --quiet --initial-branch=main "${repo}"
-  cd "${repo}"
+  fresh-repo
   "${kit_checkout}/bin/kit" install style/bash style/markdown >/dev/null 2>&1
 }
 

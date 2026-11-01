@@ -2,20 +2,12 @@
 # generate.bats - a kit:generate directive opens a named region its command fills, nested and balanced, held by --check
 # ----------------------------------------------------------------------------------------------------------------------
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  export KIT_HOME="${BATS_TEST_TMPDIR}/home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  mkdir -p "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  work=$(mktemp -d)
-  cd "${work}"
-  git init --quiet --initial-branch=main
-  git config user.name t && git config user.email t@example.com && git config commit.gpgsign false
+  fresh-repo
   # A generator in the tree: a script that prints its arguments, one per line, so a region's content is visible.
   printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@"\n' > lines.sh && chmod +x lines.sh
-}
-
-teardown() {
-  rm -rf "${work}"
 }
 
 # joined <file> prints the file's lines joined by |, so a whole file is one assertion.

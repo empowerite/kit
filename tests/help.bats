@@ -2,10 +2,7 @@
 # help.bats - kit help reads every verb's usage from its header: one verb gets its page, several get their usage
 # ----------------------------------------------------------------------------------------------------------------------
 
-setup() {
-  export kit_root NO_COLOR=1
-  kit_root=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-}
+load helper
 
 # group-has <GROUP> <verb> <purpose> passes when kit help's output lists <verb> with a purpose that starts with
 # <purpose> under <GROUP>, whatever the padding and the verbs beside it.

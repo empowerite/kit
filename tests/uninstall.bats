@@ -7,22 +7,14 @@
 
 bats_require_minimum_version 1.5.0
 
+load helper
+
 setup() {
-  kit_checkout=$(cd "${BATS_TEST_DIRNAME}/../kit" && pwd)
-  repo=$(mktemp -d)
-  git -C "${repo}" init --quiet --initial-branch=main
-  # a home directory of the test's own, so no test ever writes under the real one
-  export KIT_HOME="${repo}.home" XDG_CACHE_HOME="${repo}.cache" NO_COLOR=1
-  mkdir "${KIT_HOME}" "${XDG_CACHE_HOME}"
-  cd "${repo}"
+  fresh-repo
   mkdir .claude
   printf '{"model":"x"}\n' > .claude/settings.json
   printf '# Mine\n\nText of my own.\n' > AGENTS.md
   printf 'gate: just ci\n' > kit.yml
-}
-
-teardown() {
-  rm -rf "${repo}" "${repo}.home" "${repo}.cache"
 }
 
 # tree prints every path under the repository but .git, one per line, sorted.
