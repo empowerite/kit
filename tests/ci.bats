@@ -53,6 +53,19 @@ setup() {
 @test "the CI workflow installs with kit tools" {
   fresh-repo other >/dev/null
   "${kit_checkout}/bin/kit" install github/ci >/dev/null
-  grep --quiet 'run: kit tools install && kit tools path >> "${GITHUB_PATH}"$' .github/workflows/kit-ci.yml
+  grep --quiet '^          kit tools install && kit tools path >> "${GITHUB_PATH}"$' .github/workflows/kit-ci.yml
   ! grep --quiet "hashFiles" .github/workflows/kit-ci.yml
+}
+
+@test "ambient, the toolchain step fails naming a tool the rules need and the runner lacks" {
+  fresh-repo other >/dev/null
+  "${kit_checkout}/bin/kit" install github/ci >/dev/null
+  printf -- '---\nlint: kit-test-absent-linter --strict\n---\n# Absent\n' > .kit/rules/absent.md
+  # the step's own command lines, as the workflow runs them
+  step=$(sed -n '/- name: toolchain$/,/- name: kit-ci$/p' .github/workflows/kit-ci.yml)
+  step=$(sed -n '/run: |$/,$p' <<<"${step}" | sed '1d;$d')
+  export GITHUB_PATH="${BATS_TEST_TMPDIR}/github-path"
+  run env PATH="${kit_checkout}/bin:${PATH}" KIT_TOOLCHAIN=ambient bash -c "${step}"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit-test-absent-linter"* ]]
 }

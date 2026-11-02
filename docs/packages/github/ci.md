@@ -20,7 +20,7 @@ toolchain named, and none for the others:
 | --- | --- | --- |
 | `mise` | `mise-on-path` | `jdx/mise-action`, pinned by commit, with its own install turned off |
 | `nix` | `nix-on-path` | `DeterminateSystems/nix-installer-action`, pinned by commit |
-| `devcontainer` | `devcontainer-on-path` | `npm install --global @devcontainers/cli` at an exact version |
+| `devcontainer` | `devcontainer-on-path` | `npm install --global @devcontainers/cli`, exact version; needs npm |
 | `brew`, `docker`, `ambient` | none | the runner already has them, or the tools are on `PATH` |
 
 The job needs `jq` and `yq` on the runner, which the hosted runners have; a runner of the repository's own needs both.
@@ -31,5 +31,7 @@ The workflow is a template with two keys, both under `answers:` in `kit.yml`:
 
 - `ci_runner` is the label of the runner the job runs on. The default is `ubuntu-latest`. A repository with its own
   runners sets it.
-- `ci_toolchain` is the toolchain the job installs with. The default is `ambient`: kit installs nothing and the tools
-  are already on `PATH`. This repository sets `mise`.
+- `ci_toolchain` is the toolchain the job installs with. The default is `ambient`: kit installs nothing. The job
+  fails at the `toolchain` step, naming each tool the rules need that is missing, unless the runner already has them.
+  To have CI install the tools, name a toolchain, such as `ci_toolchain: mise` or `nix`. This repository sets `mise`.
+  `ci_toolchain: devcontainer` needs Node and npm on the runner; GitHub's hosted runners have both.

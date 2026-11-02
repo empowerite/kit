@@ -55,7 +55,9 @@ jobs:
 
       - name: devcontainer-on-path
         if: ${{ env.KIT_TOOLCHAIN == 'devcontainer' }}
-        run: npm install --global @devcontainers/cli@0.90.0
+        run: |
+          set -o errexit -o nounset -o pipefail
+          npm install --global @devcontainers/cli@0.90.0
 
       - name: kit-on-path
         run: |
@@ -91,7 +93,9 @@ jobs:
           fi
 
       - name: toolchain
-        run: kit tools install && kit tools path >> "${GITHUB_PATH}"
+        run: |
+          set -o errexit -o nounset -o pipefail
+          kit tools install && kit tools path >> "${GITHUB_PATH}"
 
       - name: kit-ci
         env:
