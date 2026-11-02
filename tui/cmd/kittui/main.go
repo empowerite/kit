@@ -1,6 +1,6 @@
 // kittui is kit's interactive terminal UI: the palette of verbs that bare kit opens, the form that finishes a verb's
-// command line when the verb is short of its arguments, and kit status's picture. kit tui and kit status exec it; it
-// runs kit for everything it knows.
+// command line when the verb is short of its arguments, kit status's picture, and kit welcome's guide. kit tui, kit
+// status, and kit welcome exec it; it runs kit for everything it knows.
 package main
 
 import (
@@ -15,6 +15,7 @@ import (
 	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/status"
 	"github.com/empowerite/kit/tui/internal/transcript"
+	"github.com/empowerite/kit/tui/internal/welcome"
 )
 
 // version is the release's, written by the release build.
@@ -22,8 +23,8 @@ var version = "unreleased"
 
 func main() { os.Exit(run(os.Args[1:])) }
 
-// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, or the picture
-// for status, and ends as the person ended it.
+// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
+// status, or the guide for welcome, and ends as the person ended it.
 func run(args []string) int {
 	verb, words := parse(args)
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stderr.Fd())) {
@@ -33,6 +34,9 @@ func run(args []string) int {
 	r := kit.New()
 	if verb == "status" {
 		return runStatus(r, words)
+	}
+	if verb == "welcome" {
+		return runWelcome(r)
 	}
 	var m app.Model
 	var err error
@@ -56,10 +60,14 @@ func run(args []string) int {
 	return finish(final.(app.Model), os.Stderr, r.Exec)
 }
 
-// needsTerminal gives the line kittui prints without a terminal: the picture has a text form, the rest a help page.
+// needsTerminal gives the line kittui prints without a terminal: the picture and the guide have a text form, the rest
+// a help page.
 func needsTerminal(verb string) string {
 	if verb == "status" {
 		return "kit status needs an interactive terminal for its picture; run: kit status --text"
+	}
+	if verb == "welcome" {
+		return "kit welcome needs an interactive terminal; run: kit welcome --text"
 	}
 	if verb == "help" {
 		return "kit help needs an interactive terminal for its palette; run: kit help --text"
@@ -101,6 +109,24 @@ func runStatus(r kit.Runner, words []string) int {
 		return 1
 	}
 	return finishStatus(final.(status.Model))
+}
+
+// runWelcome opens the guide where the command was typed, and ends as the person ended it.
+func runWelcome(r kit.Runner) int {
+	final, err := tea.NewProgram(welcome.Open(r)).Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
+		return 1
+	}
+	return finishWelcome(final.(welcome.Model))
+}
+
+// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
+func finishWelcome(m welcome.Model) int {
+	if m.Interrupted() {
+		return 130
+	}
+	return 0
 }
 
 // finishStatus ends as the picture ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.

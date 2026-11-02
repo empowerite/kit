@@ -228,3 +228,43 @@ func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
 		t.Errorf("two columns: %+v", got)
 	}
 }
+
+func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
+	checks, err := fake(t, "").WelcomeChecks()
+	if err != nil || len(checks) != 5 {
+		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
+	}
+	want := Check{ID: "gh-auth", Step: "setup", Line: "gh is not logged in to github.com",
+		Fix: "gh auth login --hostname github.com", Interactive: true}
+	if checks[3] != want {
+		t.Errorf("check 3: %+v", checks[3])
+	}
+	// a null fix and a null more are empty
+	if checks[4].Fix != "" || checks[4].More == "" || !checks[0].OK {
+		t.Errorf("checks 0 and 4: %+v %+v", checks[0], checks[4])
+	}
+}
+
+func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("FAKE_KIT_RECORD", record)
+	dir := t.TempDir()
+	cmd := fake(t, dir).WelcomeFix("jq")
+	if cmd.Process != nil || strings.Join(cmd.Args[1:], " ") != "welcome --fix jq" || cmd.Dir != dir {
+		t.Fatalf("WelcomeFix: %q in %q", cmd.Args, cmd.Dir)
+	}
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(record)
+	want, _ := filepath.EvalSymlinks(dir)
+	if string(got) != "welcome --fix jq\n"+want+"\n" {
+		t.Errorf("the fix ran as %q", got)
+	}
+}
+
+func TestRootIsKitRoot(t *testing.T) {
+	if root, err := fake(t, "").Root(); err != nil || root != "/the/release" {
+		t.Errorf("Root: %q, %v", root, err)
+	}
+}

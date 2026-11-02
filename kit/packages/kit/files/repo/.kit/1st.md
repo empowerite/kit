@@ -144,8 +144,9 @@ How a delivered file is placed depends on its destination:
 
 The packages:
 
-- `kit`: this file, `.kit/README.md` for the person at the desk, the kinds, the rules, `.kit/kit.schema.json`,
-  and a region that `kit region` fills: the `/worktrees/` entry in the repository's `.gitignore`.
+- `kit`: this file, `.kit/README.md` for the person at the desk, the pages of `kit welcome`, the kinds, the rules,
+  `.kit/kit.schema.json`, and a region that `kit region` fills: the `/worktrees/` entry in the repository's
+  `.gitignore`.
 - `workflow`: `.kit/workflow.md`, the workflow from an issue to a merged pull request: a worktree per issue, a
   draft pull request, the report in its body, plans as prose, and the worker contract. "The workflow" above points
   to it.

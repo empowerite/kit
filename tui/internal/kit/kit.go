@@ -1,6 +1,6 @@
 // Package kit runs the kit CLI for the binary: the grammar and the help it reads, the choices and the extension it
-// asks for as a form fills, and the exec that finishes a verb. The binary knows no verb by name; every word it shows
-// comes through here.
+// asks for as a form fills, the exec that finishes a verb, and kit welcome's checks and fixes. The binary knows no
+// verb by name; every word it shows comes through here.
 package kit
 
 import (
@@ -233,6 +233,50 @@ func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte
 		return nil, ctx.Err()
 	}
 	return out, err
+}
+
+// Check is one of kit welcome's checks, as kit welcome --checks --json prints it. Fix is the command that fixes it,
+// empty when kit knows none. Interactive says the fix needs the person, as gh auth login does. More says where to read
+// more, empty when there is nothing to read.
+type Check struct {
+	ID          string `json:"id"`
+	Step        string `json:"step"`
+	OK          bool   `json:"ok"`
+	Line        string `json:"line"`
+	Fix         string `json:"fix"`
+	Interactive bool   `json:"interactive"`
+	More        string `json:"more"`
+}
+
+// WelcomeChecks gives kit welcome's checks, in the order kit ran them.
+func (r Runner) WelcomeChecks() ([]Check, error) {
+	out, err := r.run("welcome", "--checks", "--json")
+	if err != nil {
+		return nil, err
+	}
+	var checks []Check
+	if err := json.Unmarshal(out, &checks); err != nil {
+		return nil, fmt.Errorf("kit welcome --checks --json: %v", err)
+	}
+	return checks, nil
+}
+
+// WelcomeFix gives the command that runs a check's fix, kit welcome --fix <id>, where the command was typed. It is not
+// started: the caller hands it the terminal, since a fix may print and ask. It exits 0 when the check now holds, 1
+// when it still fails, and 2 when kit refuses.
+func (r Runner) WelcomeFix(id string) *exec.Cmd {
+	cmd := exec.Command(r.Kit, "welcome", "--fix", id)
+	cmd.Dir = r.Dir
+	return cmd
+}
+
+// Root gives the directory of the release that runs, as kit root prints it.
+func (r Runner) Root() (string, error) {
+	out, err := r.run("root")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // Exec replaces this process with kit <verb> <args>…, run where the command was typed. It returns only on failure.

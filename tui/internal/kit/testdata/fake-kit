@@ -5,8 +5,9 @@
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; status --stages names two stages and a stage echoes its words
 # as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the file
-# FAKE_KIT_RECORD names; any other verb's arguments and working directory are written to that file, for the exec test
-# to read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
+# FAKE_KIT_RECORD names; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any other
+# verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to read.
+# Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
 # refusal instead, as the kit prints one, with exit 2.
 
 set -o errexit -o nounset -o pipefail
@@ -116,6 +117,19 @@ case "${1:-}" in
       fi
       printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
     fi
+    ;;
+  (root)
+    printf '/the/release\n'
+    ;;
+  (welcome)
+    # --checks prints the welcome screen's fixture; --fix falls through to the record below
+    if [[ "${2:-}" == --checks ]]
+    then
+      cat "${here}/../../welcome/testdata/checks.json"
+      exit 0
+    fi
+    printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
+    pwd -P >> "${FAKE_KIT_RECORD}"
     ;;
   (*)
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"

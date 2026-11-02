@@ -1,5 +1,5 @@
 // The binary refuses without a terminal, and ends as the form ended: silent on esc and ctrl-c, with the transcript
-// before the verb on run; the picture ends silent too, 0 on esc and 130 on ctrl-c.
+// before the verb on run; the picture and the guide end silent too, 0 on esc and 130 on ctrl-c.
 package main
 
 import (
@@ -16,6 +16,7 @@ import (
 	"github.com/empowerite/kit/tui/internal/app"
 	"github.com/empowerite/kit/tui/internal/status"
 	"github.com/empowerite/kit/tui/internal/testkit"
+	"github.com/empowerite/kit/tui/internal/welcome"
 )
 
 // drive sends the messages to the root model from its start, as the program would. The fake kit is the kit package's
@@ -33,6 +34,7 @@ func TestNoTerminalRefuses(t *testing.T) {
 	for args, want := range map[string]string{
 		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
 		"status":    "❌ kit status needs an interactive terminal for its picture; run: kit status --text\n",
+		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
 	} {
 		cmd := exec.Command(binary, strings.Fields(args)...)
 		cmd.Stdin = nil
@@ -63,6 +65,24 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 			t.Errorf("%s did not quit", c.key)
 		}
 		if code := finishStatus(next.(status.Model)); code != c.code {
+			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
+		}
+	}
+}
+
+func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
+	for _, c := range []struct {
+		key  tea.KeyPressMsg
+		code int
+	}{
+		{tea.KeyPressMsg{Code: tea.KeyEscape}, 0},
+		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
+	} {
+		next, cmd := welcome.Open(testkit.Runner(t, "welcome")).Update(c.key)
+		if cmd == nil || cmd() != tea.Quit() {
+			t.Errorf("%s did not quit", c.key)
+		}
+		if code := finishWelcome(next.(welcome.Model)); code != c.code {
 			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
 		}
 	}

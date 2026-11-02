@@ -103,6 +103,9 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 Then check the install: `kit version` prints the release, and `kit help` lists the verbs. Once a repository has
 taken the kit, `kit check` says every delivered file matches the release.
 
+New to a repository that uses kit? Run `kit welcome`. It checks your tools, your forge logins, and the repository,
+and shows the fix for each problem. Then it walks you through how work flows, the terms, and what a team can change.
+
 ## Take the kit
 
 1. Run `kit install` with the packages you want. The `kit` package, the entry file and the rules, is the default:
@@ -210,6 +213,7 @@ git config commit.gpgsign true
 export MISE_ENV=desk
 mise install
 kit hydrate && lefthook install
+kit welcome
 ```
 
 Put `export MISE_ENV=desk` in your shell profile. It makes mise read `mise.desk.toml`, the tools only a developer

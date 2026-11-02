@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# kit-welcome - walks a newcomer through setup, the workflow, the terms, and what to change (kit verb: help)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit welcome [--text]
+#
+# kit welcome --checks [--json | --jq]
+#
+# kit welcome --fix <check>
+#
+# A guide for your first hour with kit, in four steps:
+#
+#   1. Setup: checks your tools, your forge logins, and this repository, one line each.
+#   2. The lay of the land: how work moves, from an issue to a release.
+#   3. Terms: the words kit uses, one or two sentences each.
+#   4. Make it yours: the settings teams change first, packages, and the docs.
+#
+# On a terminal, it opens kittui's welcome screen. Each failed check there offers its fix: now runs it, later moves
+# on. Without a terminal, or with --text, it prints the four steps and runs nothing. Each failed check shows its fix,
+# and a list of what is left follows the checks.
+#
+#   --text            prints the guide, even on a terminal
+#   --checks          prints the setup checks alone, one line each
+#   --json            the checks as a JSON array
+#   --jq              the same JSON, formatted by jq for a person
+#   --fix <check>     runs one check's fix, then checks again
+#   <check>           a check's id, as --checks --json names it: tool-yq, forge-login-github.com
+#
+# A check in the JSON is {id, step, ok, line, fix, interactive, more}:
+#
+#   - fix is the command that fixes it, or null when it holds or kit knows none.
+#   - interactive is true when the fix needs you at the terminal, as gh auth login does.
+#   - more is where to read when kit knows no fix, or null.
+#
+# Nothing runs a fix but --fix, and it runs only the one named. The pages of steps 2 to 4 are under .kit/welcome/,
+# from the kit package. A house package replaces a page by placing one of the same name, or adds one.
+#
+# Exits 0 when every check holds, and after --checks prints them; 1 when a check fails, or a fix leaves its check
+# failing; and 2 on a usage error, or a --fix for a check that is unknown, holds already, or has no fix.
+#
+# see: modules/bash/welcome.sh, modules/bash/tui.sh, issue #51
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use welcome tui
+guard:arguments welcome "$@" || exit $?
+
+if [[ -n "${syntax_options[--fix]+x}" ]]
+then
+  welcome:fix "${syntax_options[--fix]}" && status=0 || status=$?
+  exit "${status}"
+fi
+
+if [[ -n "${syntax_options[--checks]+x}" ]]
+then
+  readarray -t checks < <(welcome:checks)
+  if [[ -n "${syntax_options[--json]+x}" ]]
+  then
+    printf '%s\n' "${checks[@]}" | jq --slurp --compact-output .
+  else
+    welcome:show "${checks[@]}"
+  fi
+  exit 0
+fi
+
+# On a terminal, with no form chosen, the guide is kittui's, which runs this kit. Without a kittui, the guide prints,
+# as it does without a terminal.
+if [[ -z "${syntax_options[--text]+x}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
+then
+  binary=$(tui:binary) || exit 1
+  export KIT="${kit_root}/bin/kit"
+  exec "${binary}" welcome
+fi
+
+readarray -t pages < <(welcome:pages)
+readarray -t checks < <(welcome:checks)
+# The first page introduces the setup step, so the checks and what is left follow it; the other pages come after.
+if (( ${#pages[@]} ))
+then
+  welcome:page "${pages[0]}"
+  printf '\n'
+fi
+welcome:show "${checks[@]}"
+printf '\n'
+welcome:left "${checks[@]}"
+for page in "${pages[@]:1}"
+do
+  printf '\n'
+  welcome:page "${page}"
+done
+printf '%s\n' "${checks[@]}" | jq --slurp --exit-status 'all(.ok)' >/dev/null
+
+# ----------------------------------------------------------------------------------------------------------------------

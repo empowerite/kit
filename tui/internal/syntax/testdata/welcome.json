@@ -1,0 +1,84 @@
+{
+  "verb": "welcome",
+  "purpose": "walks a newcomer through setup, the workflow, the terms, and what to change",
+  "usage": [
+    "kit welcome [--text]",
+    "kit welcome --checks [--json | --jq]",
+    "kit welcome --fix <check>"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "checks",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "inline": false,
+        "name": "fix",
+        "value": "check",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the guide, even on a terminal"
+    },
+    "--checks": {
+      "description": "prints the setup checks alone, one line each"
+    },
+    "--json": {
+      "description": "the checks as a JSON array"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--fix": {
+      "description": "runs one check's fix, then checks again"
+    },
+    "<check>": {
+      "description": "a check's id, as --checks --json names it: tool-yq, forge-login-github.com"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# Make it yours
+
+The settings in `kit.yml` that teams change first:
+
+1. `packages`: the packages the repository takes. Add and remove them with `kit packages add` and
+   `kit packages remove`.
+2. `policy`: what a commit must pass.
+3. `status.stages`: the stages `kit status` draws, in order.
+4. `primary` and `forges`: where issues and pull requests live.
+
+A house package holds the team's own rules. Read more in [the docs](https://github.com/empowerite/kit/tree/main/docs).

@@ -1,0 +1,7 @@
+[
+{"id": "bash", "step": "setup", "ok": true, "line": "bash 5.2 is installed", "fix": null, "interactive": false, "more": null},
+{"id": "git", "step": "setup", "ok": true, "line": "git 2.47 is installed", "fix": null, "interactive": false, "more": null},
+{"id": "jq", "step": "setup", "ok": false, "line": "jq is not installed", "fix": "brew install jq", "interactive": false, "more": null},
+{"id": "gh-auth", "step": "setup", "ok": false, "line": "gh is not logged in to github.com", "fix": "gh auth login --hostname github.com", "interactive": true, "more": null},
+{"id": "kit-check", "step": "setup", "ok": false, "line": "kit check finds 2 differences from the release", "fix": null, "interactive": false, "more": "read: kit help check"}
+]

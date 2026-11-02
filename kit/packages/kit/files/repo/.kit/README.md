@@ -43,6 +43,7 @@ same way.
 | `kit context <path>` | Prints the rules and the style that govern a file. |
 | `kit lint [<path>…]` | Runs each rule's linter over the staged files, or over the files named. |
 | `kit help` | Lists every command, and `kit help <verb>` prints one command's page. |
+| `kit welcome` | Checks your setup, and walks you through how work flows and what you can change. |
 
 ## Changing what kit adds
 

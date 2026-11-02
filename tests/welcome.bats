@@ -1,0 +1,238 @@
+#!/usr/bin/env bats
+# welcome.bats - kit welcome: the setup checks as JSON, their fixes, --fix, the text guide, and the hand-off to kittui
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# Each test runs in a fresh repository, with no toolchain file unless the test writes one: its tools are ambient. The
+# tools a check looks for are fakes in a directory first on PATH: a failing stand-in hides a real tool, and uname says
+# which system kit thinks it is on, so the brew fix is tested anywhere.
+
+bats_require_minimum_version 1.5.0
+
+load helper
+
+setup() {
+  fresh-repo >/dev/null
+  fakes="${BATS_TEST_TMPDIR}/fakes"
+  mkdir -p "${fakes}"
+  # brew is hidden unless a test stands one in; uname says Linux unless FAKE_UNAME says otherwise
+  fake-script brew 'exit 1'
+  # shellcheck disable=SC2016  # a fake's body expands when it runs
+  fake-script uname '[[ "${1:-}" == -s ]] && { echo "${FAKE_UNAME:-Linux}"; exit 0; }; exec /usr/bin/uname "$@"'
+  export PATH="${fakes}:${PATH}"
+}
+
+# fake-script <tool> <body> writes a bash script named <tool> into the fakes directory, first on PATH.
+fake-script() {
+  printf '#!/usr/bin/env bash\n%s\n' "$2" > "${fakes}/$1"
+  chmod +x "${fakes}/$1"
+}
+
+# checks prints the checks as JSON, from kit welcome --checks --json.
+checks() {
+  "${kit_root}/bin/kit" welcome --checks --json
+}
+
+# check <id> prints one check of kit welcome --checks --json.
+check() {
+  checks | jq --compact-output --arg id "$1" '.[] | select(.id == $id)'
+}
+
+# pty <command> runs the command in a pseudo-terminal, so its stdin, stdout, and stderr are terminals, as at a desk.
+pty() {
+  if script --version >/dev/null 2>&1
+  then
+    script --quiet --return --command "$1" /dev/null </dev/null
+  else
+    script -q /dev/null bash -c "$1" </dev/null
+  fi
+}
+
+# fake-gh writes a gh that runs, and is logged in to github.com once its login has run: auth login touches a file,
+# and auth status succeeds while the file is there. Every call is recorded in gh.calls. With LOGIN_FAILS set, the
+# login changes nothing.
+fake-gh() {
+  # shellcheck disable=SC2016  # a fake's body expands when it runs
+  fake-script gh '
+printf "%s\n" "$*" >> "${BATS_TEST_TMPDIR}/gh.calls"
+case "$*" in
+  ("--version") echo "gh version 2.103.2" ;;
+  ("auth status --hostname github.com") [[ -f "${BATS_TEST_TMPDIR}/logged-in" ]] ;;
+  ("auth login --hostname github.com") [[ -n "${LOGIN_FAILS:-}" ]] || touch "${BATS_TEST_TMPDIR}/logged-in" ;;
+  (*) exit 1
+esac'
+}
+
+@test "the checks are a JSON array of {id, step, ok, line, fix, interactive, more}, in order, each id once" {
+  run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "step"]] | all' \
+    <<<"$output")" = true ]
+  [ "$(jq --raw-output 'map(.step) | unique | join(" ")' <<<"$output")" = setup ]
+  [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
+  [ "$(jq --raw-output '.[0].id, .[-1].id' <<<"$output" | paste -s -d ' ' -)" = "tool-bash where" ]
+  # tools, then the repository, then where you are; no kit.yml here, so no check of what kit installs
+  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
+    "tool-bash tool-git tool-jq tool-yq repo-git kit-installed where" ]
+  [ "$(jq --raw-output '.[] | select(.id == "kit-installed") | [.ok, .fix] | @tsv' <<<"$output")" = \
+    $'false\tkit install' ]
+  [ "$(jq --raw-output '.[] | select(.id == "where") | .line' <<<"$output")" = \
+    "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
+}
+
+@test "a missing tool's fix is kit toolchains install where kit detects a toolchain, else brew on macOS, else none" {
+  fake-script yq 'exit 1'
+  # ambient, with no package manager: no fix, and the tool's site to read
+  run --separate-stderr check tool-yq
+  [ "$(jq --raw-output '[.ok, .fix, .more] | @tsv' <<<"$output")" = \
+    $'false\t\thttps://github.com/mikefarah/yq#install' ]
+  [ "$(jq --raw-output .line <<<"$output")" = "yq is not installed; kit reads its YAML through it" ]
+  # ambient on macOS with Homebrew
+  fake-script brew 'exit 0'
+  run --separate-stderr env FAKE_UNAME=Darwin "${kit_root}/bin/kit" welcome --checks --json
+  [ "$(jq --raw-output '.[] | select(.id == "tool-yq") | .fix' <<<"$output")" = "brew install yq" ]
+  # ambient on Linux: brew is not offered
+  run --separate-stderr check tool-yq
+  [ "$(jq --raw-output .fix <<<"$output")" = null ]
+  # a detected toolchain wins, even on macOS: its install, and the file that pins the tools
+  printf 'brew "yq"\n' > Brewfile
+  # shellcheck disable=SC2016  # a fake's body expands when it runs
+  fake-script brew '[[ "$*" != --prefix ]] || echo "${BATS_TEST_TMPDIR}/prefix"'
+  run --separate-stderr env FAKE_UNAME=Darwin "${kit_root}/bin/kit" welcome --checks --json
+  [ "$(jq --raw-output '.[] | select(.id == "tool-yq") | [.ok, .fix, .more] | @tsv' <<<"$output")" = \
+    $'false\tkit toolchains install\tBrewfile' ]
+  # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
+  mkdir -p "${BATS_TEST_TMPDIR}/prefix/bin"
+  printf '#!/usr/bin/env bash\necho "yq (https://github.com/mikefarah/yq/) version v4.54.1"\n' \
+    > "${BATS_TEST_TMPDIR}/prefix/bin/yq"
+  chmod +x "${BATS_TEST_TMPDIR}/prefix/bin/yq"
+  run --separate-stderr check tool-yq
+  [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
+    $'false\tyq is installed, but not on PATH; kit toolchains path names its directory\t' ]
+}
+
+@test "a forge host among the remotes gets two checks: its tool installed, and logged in, the login's fix interactive" {
+  git remote add origin https://github.com/acme/widget.git
+  git remote add mirror git@github.com:acme/widget-mirror.git
+  # gh missing: the login cannot be checked, and has no fix
+  fake-script gh 'exit 1'
+  run --separate-stderr checks
+  [ "$(jq --raw-output '[.[] | .id | select(startswith("forge-"))] | join(" ")' <<<"$output")" = \
+    "forge-cli-github.com forge-login-github.com" ]
+  [ "$(jq --raw-output '.[] | select(.id == "forge-cli-github.com") | [.ok, .line] | @tsv' <<<"$output")" = \
+    $'false\tgh is not installed; kit reaches github.com through it' ]
+  [ "$(jq --raw-output '.[] | select(.id == "forge-login-github.com") | [.ok, .fix, .more] | @tsv' \
+    <<<"$output")" = $'false\t\thttps://cli.github.com' ]
+  # gh installed, not logged in
+  fake-gh
+  run --separate-stderr check forge-login-github.com
+  [ "$(jq --raw-output '[.ok, .line, .fix, .interactive] | @tsv' <<<"$output")" = \
+    $'false\tgh is not logged in to github.com\tgh auth login --hostname github.com\ttrue' ]
+  # logged in
+  touch "${BATS_TEST_TMPDIR}/logged-in"
+  run --separate-stderr checks
+  [ "$(jq --raw-output '[.[] | select(.id | startswith("forge-")) | .ok] | all' <<<"$output")" = true ]
+  [ "$(jq --raw-output '.[] | select(.id == "forge-login-github.com") | .line' <<<"$output")" = \
+    "gh is logged in to github.com" ]
+}
+
+@test "--fix runs the check's fix, checks again, and exits 0 when it now holds and 1 when it does not" {
+  git remote add origin https://github.com/acme/widget.git
+  fake-gh
+  run --separate-stderr env LOGIN_FAILS=1 "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  [ "$status" -eq 1 ]
+  [ "$output" = $'❌ gh is not logged in to github.com\n   gh auth login --hostname github.com' ]
+  grep --quiet --line-regexp 'auth login --hostname github.com' "${BATS_TEST_TMPDIR}/gh.calls"
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  [ "$status" -eq 0 ]
+  [ "$output" = "✅ gh is logged in to github.com" ]
+  [[ "$stderr" == *"→ gh auth login --hostname github.com"* ]]
+}
+
+@test "--fix refuses with 2 an unknown check, one that holds, and one kit knows no fix for, and runs nothing" {
+  fake-gh
+  touch "${BATS_TEST_TMPDIR}/logged-in"
+  git remote add origin https://github.com/acme/widget.git
+  run "${kit_root}/bin/kit" welcome --fix tool-nothing
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"no check is named 'tool-nothing'; the checks are: tool-bash "* ]]
+  run "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"forge-login-github.com holds already, so there is nothing to fix"* ]]
+  run grep --quiet 'auth login' "${BATS_TEST_TMPDIR}/gh.calls"
+  [ "$status" -eq 1 ]
+  fake-script yq 'exit 1'
+  run "${kit_root}/bin/kit" welcome --fix tool-yq
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit knows no fix for tool-yq; read: https://github.com/mikefarah/yq#install"* ]]
+  run "${kit_root}/bin/kit" welcome --fix
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--fix needs a value; run: kit help welcome"* ]]
+}
+
+@test "the text guide prints the setup page, the checks, what is left, then the other pages, and exits 1 on a failure" {
+  fake-script yq 'exit 1'
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "# Setup" ]
+  [[ "$output" == *$'\n❌ yq is not installed; kit reads its YAML through it\n   read: https://github.com/mikefarah/yq#install\n'* ]]
+  [[ "$output" == *$'## What is left\n\n- tool-yq: read https://github.com/mikefarah/yq#install\n'* ]]
+  [[ "$output" != *"kit:generated"* ]]
+  # the pages follow in order, after what is left
+  [ "$(grep --line-number --extended-regexp '^(# |## What is left)' <<<"$output" | cut -d : -f 2- | paste -s -d '|' -)" \
+    = "# Setup|## What is left|# The lay of the land|# Terms|# Make it yours" ]
+  # nothing ran: the guide prints the fixes and runs none
+  run --separate-stderr "${kit_root}/bin/kit" welcome
+  [ "$status" -eq 1 ]
+}
+
+@test "with kit installed and every check holding, the text guide says nothing is left and exits 0" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  # the kit package's rules run these linters, so a check stands for each; fakes that run stand in
+  fake-script shellcheck 'exit 0'
+  fake-script actionlint 'exit 0'
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
+    "tool-bash tool-git tool-jq tool-yq linter-shellcheck linter-actionlint repo-git kit-installed kit-hydrated kit-check where" ]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'## What is left\n\nNothing is left: every check holds.\n'* ]]
+  # a placed file gone: hydrate is the fix
+  rm .kit/1st.md
+  run --separate-stderr check kit-hydrated
+  [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit hydrate' ]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  [ "$status" -eq 0 ]
+  [ "$output" = "✅ .kit/ is in place: every file kit placed there is present" ]
+}
+
+@test "a house package that places a page of the same name replaces the kit's, and a new name adds a page" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  mkdir -p .kit/packages/house/files/repo/.kit/welcome
+  printf 'description: "our own"\ndepends:\n  - kit\n' > .kit/packages/house/package.yml
+  printf '# Our terms\n\nWe say "desk".\n' > .kit/packages/house/files/repo/.kit/welcome/3-terms.md
+  printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/5-our-team.md
+  "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = \
+    "# Setup|# The lay of the land|# Our terms|# Make it yours|# Our team" ]
+  [ "$(readlink .kit/welcome/3-terms.md)" = ../packages/house/files/repo/.kit/welcome/3-terms.md ]
+}
+
+@test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {
+  mkdir -p "${BATS_TEST_TMPDIR}/fake"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
+  export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
+  run pty "'${kit_root}/bin/kit' welcome"
+  [[ "$output" == *"kittui native-native welcome"* ]]
+  [[ "$output" != *"# Setup"* ]]
+  run pty "'${kit_root}/bin/kit' welcome --text"
+  [[ "$output" == *"# Setup"* && "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' welcome --checks"
+  [[ "$output" == *"✅ bash "* && "$output" != *"kittui"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" welcome </dev/null
+  [ "${lines[0]}" = "# Setup" ]
+  [[ "$output" != *"kittui"* ]]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------
