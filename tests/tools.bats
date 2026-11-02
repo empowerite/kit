@@ -82,8 +82,14 @@ JSON
   [ "$(jq --compact-output --slurp 'map(keys_unsorted) | unique' <<<"$output")" = '[["name","path"]]' ]
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit-test-absent-linter"* ]]
-  [[ "$output" != *"install by hand: shellcheck"* ]]
+  # each missing tool comes with the system toolchain's command that installs it, or else its name alone
+  grep --quiet --line-regexp '    brew install kit-test-absent-linter' <<<"$output"
+  [[ "$output" != *"shellcheck"* ]]
+  "${kit_root}/bin/kit" toolchains choose ambient --system
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 1 ]
+  grep --quiet --line-regexp '    kit-test-absent-linter' <<<"$output"
+  [[ "$output" != *"brew install"* ]]
   # ambient, the path is empty and a command runs as is
   run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]

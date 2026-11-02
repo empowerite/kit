@@ -114,11 +114,7 @@ welcome:chosen() {
 # welcome:remedy <tool> prints the system toolchain's command that installs the tool, and fails where there is no
 # system toolchain, or it names no command.
 welcome:remedy() {
-  local system
-  system=$(welcome:chosen system)
-  [[ -n "${system}" && "${system}" != ambient ]] || return 1
-  use "toolchain/${system}" 2>/dev/null && declare -F "toolchain/${system}:remedy" >/dev/null || return 1
-  toolchain:call "${system}" remedy "$1"
+  toolchain:remedy "$(welcome:chosen system)" "$1"
 }
 
 # welcome:toolchain-has <tool> succeeds when the project toolchain has installed the tool: it is in a directory the

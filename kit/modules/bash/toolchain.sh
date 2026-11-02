@@ -125,6 +125,16 @@ toolchain:call() {
   "toolchain/${provider}:${call}" "$@"
 }
 
+# toolchain:remedy <provider> <tool> prints the provider's command that installs the tool. It fails for ambient, and
+# for a provider that implements no remedy or names no command.
+toolchain:remedy() {
+  local provider=$1 fix
+  [[ -n "${provider}" && "${provider}" != ambient ]] || return 1
+  use "toolchain/${provider}" 2>/dev/null && declare -F "toolchain/${provider}:remedy" >/dev/null || return 1
+  fix=$(toolchain:call "${provider}" remedy "$2") && [[ -n "${fix}" ]] || return 1
+  printf '%s\n' "${fix}"
+}
+
 # toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, nix,
 # brew, docker, then any other, as devcontainer, in toolchain:providers order. The order is how candidates are
 # offered; a run uses one.

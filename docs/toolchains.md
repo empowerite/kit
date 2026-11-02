@@ -112,7 +112,7 @@ Ambient, no toolchain pins anything. Then `kit tools` lists the tools the rules'
 found on `PATH`, or `missing`.
 
 - `kit tools install` installs nothing. With every tool on `PATH`, it says so and exits 0. Otherwise it fails,
-  naming each missing tool, and the brew command when brew is the system toolchain.
+  naming each missing tool, with the system toolchain's command that installs it.
 - `kit tools update` refuses: there is nothing pinned to update. `kit tools --outdated` finds none behind.
 - `kit tools path` prints nothing, and `kit tools run` runs the command as is.
 

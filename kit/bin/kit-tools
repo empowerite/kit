@@ -130,7 +130,7 @@ join() {
 # ambient handles every verb when no toolchain is chosen: the rules' tools stand in for the pins.
 # shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
 ambient() {
-  local tool path found missing=() rows=''
+  local tool path found system missing=() rows=''
   case "${verb}" in
     (path) return 0 ;;
     (run) "${syntax_operands[@]}"; return ;;
@@ -166,8 +166,13 @@ ambient() {
       ok "no toolchain pins the tools here, and every tool the rules need is on PATH"
       return 0
     fi
-    error "no toolchain pins the tools here, so kit installs none; install by hand: ${missing[*]}"
-    [[ "$(toolchain:chosen system list 2>/dev/null)" != brew ]] || info "with brew: brew install ${missing[*]}"
+    error "no toolchain pins the tools here, so kit installs none; install each by hand:"
+    # the system toolchain's command for each, or else the tool's name alone
+    system=$(toolchain:chosen system list 2>/dev/null) || system=''
+    for tool in "${missing[@]}"
+    do
+      printf '    %s\n' "$(toolchain:remedy "${system}" "${tool}" || printf '%s' "${tool}")" >&2
+    done
     return 1
   fi
   [[ "${json}" == true ]] || printf '%s' "${rows}" | draw $'name\tfound'
