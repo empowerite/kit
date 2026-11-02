@@ -51,6 +51,18 @@ tree() {
   [ ! -e .kit ]
 }
 
+@test "uninstall at the desk takes out the project toolchain choice kept in the git directory" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  kit-bash 'use toolchain && toolchain:choose project ambient'
+  [ "$(cat .git/kit/toolchain)" = ambient ]
+  run "${kit_checkout}/bin/kit" uninstall --dry-run
+  [[ "$output" == *".git/kit/toolchain: would be removed"* ]]
+  [ -f .git/kit/toolchain ]
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  [ ! -e .git/kit/toolchain ]
+}
+
 @test "uninstall leaves a copied file the repository edited, names it, and takes out the rest" {
   "${kit_checkout}/bin/kit" install github/ci >/dev/null 2>&1
   printf '# edited\n' >> .github/workflows/kit-ci.yml

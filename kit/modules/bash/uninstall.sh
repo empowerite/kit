@@ -75,18 +75,26 @@ uninstall:prune() {
 }
 
 # uninstall:manifests <dry> removes the repository's manifest, .kit/.gitignore, and what kit cached in .kit/cache/.
-# It removes .kit/ itself when nothing is left in it. It writes home's manifest without this repository's paths,
-# which removes it when no line is left.
+# At the desk, it also removes the project toolchain choice kept in the git directory. It removes .kit/ itself when
+# nothing is left in it. It writes home's manifest without this repository's paths, which removes it when no line is
+# left.
 uninstall:manifests() {
-  local dry=$1
+  local dry=$1 choice
+  choice=$(uninstall:choice)
   if [[ "${dry}" == true ]]
   then
     [[ ! -e .kit/manifest ]] || step ".kit/manifest and .kit/.gitignore: would be removed"
     [[ ! -e .kit/cache ]] || step ".kit/cache/: would be removed"
+    [[ -z "${choice}" ]] || step "${choice#"${PWD}/"}: would be removed"
     return 0
   fi
   rm -f .kit/manifest .kit/.gitignore
   rm -rf .kit/cache
+  if [[ -n "${choice}" ]]
+  then
+    rm -f "${choice}"
+    rmdir "$(dirname "${choice}")" 2>/dev/null || true
+  fi
   if [[ -d .kit && -z "$(find .kit -mindepth 1 -maxdepth 1 | head -n 1)" ]]
   then
     rmdir .kit
@@ -96,6 +104,17 @@ uninstall:manifests() {
     step ".kit/: kept, with the repository's own $(find .kit -mindepth 1 -maxdepth 1 | sed 's@^\.kit/@@' | paste -s -d ' ' -)"
   fi
   manifest:write home ''
+}
+
+# uninstall:choice prints the file that keeps the project toolchain choice in the git directory, when this is the
+# desk and the file is there, and nothing otherwise. A linked worktree's choice is in .kit/cache/, removed with it;
+# the clone's choice stays for the desk to remove.
+uninstall:choice() {
+  local kept
+  use toolchain || return 0
+  kept=$(toolchain:kept 2>/dev/null) || return 0
+  [[ "${kept}" != */.kit/cache/toolchain && -f "${kept}" ]] || return 0
+  printf '%s\n' "${kept}"
 }
 
 # uninstall:declaration <dry> drops version, packages, and excludes from kit.yml, and removes the file when nothing
