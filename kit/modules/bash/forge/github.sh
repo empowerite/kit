@@ -203,9 +203,10 @@ forge/github:require() {
 # them; a run whose jobs cannot be read keeps none.
 forge/github:runs() {
   local answer runs id jobs index=0
-  answer=$(gh run list --limit 50 \
-    --json databaseId,workflowName,headBranch,event,status,conclusion,createdAt,startedAt,updatedAt,url \
-    2>/dev/null) || { error "run: gh auth status (the runs could not be read)"; return 1; }
+  local fields=databaseId,number,attempt,workflowName,headBranch,headSha,displayTitle,event,status,conclusion
+  fields+=,createdAt,startedAt,updatedAt,url
+  answer=$(gh run list --limit 50 --json "${fields}" 2>/dev/null) \
+    || { error "run: gh auth status (the runs could not be read)"; return 1; }
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   runs=$(jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
     --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::github_builds($now; $default; $tags)' \

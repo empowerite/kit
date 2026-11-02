@@ -1148,7 +1148,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	}
 }
 
-func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testing.T) {
+func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between changes and releases
 	m := loaded(t, options(), right, right, right, right, right, right)
 	if m.stages[m.stage].name != "builds" || !strings.Contains(lines(m)[2], Build+" builds 4") {
@@ -1156,10 +1156,10 @@ func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testi
 	}
 	rows := lines(m)[4:8]
 	for i, want := range [][]string{
-		{Running + "  release  release/0.1.0", "5m", "…"},
-		{Failed + "  kit      main", "2h", "4m 02s"},
-		{Passed + "  kit      main", "24h", "3m 36s"},
-		{Cancelled + "  nightly  main", "2d", "12s"},
+		{Running + "  release    #7  tag       release/0.1.0  1a2b3c4", "5m", "…"},
+		{Failed + "  kit      #160  push      main           8e817bf  #45 status: the builds", "2h", "4m 02s"},
+		{Passed + "  kit      #159  push      main           5d376dd  #49 status: an underway stage", "24h", "3m 36s"},
+		{Cancelled + "  nightly   #12  schedule  main           5d376dd", "2d", "12s"},
 	} {
 		for _, text := range want {
 			if !strings.Contains(rows[i], text) {
@@ -1177,11 +1177,23 @@ func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testi
 	if !strings.Contains(m.View().Content, style.Off("…")) {
 		t.Errorf("a running build's … is not dim")
 	}
-	// the failed build opens to its jobs, the failed first, then its URL, dim
+	// a title that only repeats the workflow is left out, and the number, how it began, and the commit are dim
+	if strings.Contains(rows[0], "1a2b3c4  release") || strings.Contains(rows[3], "5d376dd  nightly") {
+		t.Errorf("a title that repeats the workflow is drawn:\n%s", strings.Join(rows, "\n"))
+	}
+	for _, text := range []string{"#160", "schedule", "8e817bf"} {
+		if !strings.Contains(m.View().Content, style.Off(text)) {
+			t.Errorf("%q is not dim", text)
+		}
+	}
+	// the failed build opens to its commit and title in full, its attempt, its jobs, the failed first with the step
+	// that failed under it, then its URL, dim
 	m = drive(m, down, down, enter)
 	v := view(m)
-	order := []string{style.Focus + " " + Failed + "  kit", Failed + "  test", Passed + "  gate", Passed + "  lint",
-		Cancelled + "  docs", "https://github.com/empowerite/kit/actions/runs/41309409467", Passed + "  kit"}
+	order := []string{style.Focus + " " + Failed + "  kit",
+		"8e817bf #45 status: the builds stage tells which commit each run built", "attempt 2", Failed + "  test",
+		"failed at bats tests/status.bats", Passed + "  gate", Passed + "  lint", Cancelled + "  docs",
+		"https://github.com/empowerite/kit/actions/runs/41309409467", Passed + "  kit"}
 	at := -1
 	for _, want := range order {
 		k := strings.Index(v, want)
@@ -1196,8 +1208,12 @@ func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testi
 	if !strings.Contains(m.View().Content, style.Off("https://github.com/empowerite/kit/actions/runs/41309409467")) {
 		t.Errorf("the URL is not dim")
 	}
-	// a build without jobs opens to its URL alone
-	m = drive(m, enter, down, down, enter)
+	// a first attempt says nothing of it
+	if m = drive(m, enter, down, enter); strings.Contains(view(m), "attempt") {
+		t.Errorf("a first attempt is drawn:\n%s", view(m))
+	}
+	// a build without jobs, whose title repeats its workflow, opens to its URL alone
+	m = drive(m, enter, down, enter)
 	got := lines(m)
 	k := slices.IndexFunc(got, func(l string) bool { return strings.Contains(l, style.Focus+" "+Cancelled) })
 	if k < 0 || strings.TrimSpace(got[k+1]) != "https://github.com/empowerite/kit/actions/runs/41309409322" ||

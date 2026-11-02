@@ -80,8 +80,11 @@
 # git's line, and the stage exits 1. With --no-fetch, fetched is false and each remote is {name, forge, host}.
 #
 # builds lists the 20 newest runs no pull request owns: pushes to the default branch or a tag, and scheduled or
-# manual runs. A run's JSON is {id, workflow, branch, event, state, age, took, url, jobs}. state is running, passed,
-# failed, or cancelled. took is null while the run runs. jobs is empty when the forge does not report them cheaply.
+# manual runs. A run's JSON is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age, took, url,
+# jobs}. number is the forge's count of the workflow's runs, or null; attempt is 1 for a first run. tag is true for a
+# run on a tag. sha is the commit's short hash and title the forge's headline for the run, each empty when the forge
+# gives none. state is running, passed, failed, or cancelled. took is null while the run runs. jobs is empty when the
+# forge does not report them cheaply; each is {name, state, took, step}, step the failed step's name, or null.
 #
 # Legend
 #

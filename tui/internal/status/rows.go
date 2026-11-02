@@ -126,13 +126,20 @@ type checks struct {
 }
 
 // run is one build: a workflow run no open pull request owns, on the default branch, on a tag, or started by a
-// schedule or by hand. State is running, passed, failed, or cancelled; Age and Took are seconds, Took nil while it
+// schedule or by hand. Number is the forge's count of the workflow's runs, nil when unknown, and Attempt 1 for a
+// first run; Tag says the branch is a tag; SHA and Title are the commit's short hash and the forge's headline, empty
+// when it gives none. State is running, passed, failed, or cancelled; Age and Took are seconds, Took nil while it
 // runs. Jobs may be empty when the forge does not report them cheaply.
 type run struct {
 	ID       int64  `json:"id"`
+	Number   *int64 `json:"number"`
+	Attempt  int    `json:"attempt"`
 	Workflow string `json:"workflow"`
 	Branch   string `json:"branch"`
+	Tag      bool   `json:"tag"`
 	Event    string `json:"event"`
+	SHA      string `json:"sha"`
+	Title    string `json:"title"`
 	State    string `json:"state"`
 	Age      int64  `json:"age"`
 	Took     *int64 `json:"took"`
@@ -140,11 +147,13 @@ type run struct {
 	Jobs     []job  `json:"jobs"`
 }
 
-// job is one job of a build: its name, its state as a build's, and how long it took, nil while it runs.
+// job is one job of a build: its name, its state as a build's, how long it took, nil while it runs, and the step that
+// failed, when one did.
 type job struct {
 	Name  string `json:"name"`
 	State string `json:"state"`
 	Took  *int64 `json:"took"`
+	Step  string `json:"step"`
 }
 
 // release is one release on the forge.
@@ -304,7 +313,7 @@ func (m Model) rows(i int) []row {
 	case "changes":
 		return changeRows(s)
 	case "builds":
-		return buildRows(s)
+		return m.buildRows(s)
 	case "releases":
 		return m.releaseRows(s)
 	}
@@ -596,17 +605,45 @@ func changeRows(s stage) []row {
 	return rows
 }
 
-// buildRows draws each build, newest first as kit prints them: its state's glyph, workflow, branch or tag, age, and
-// how long it took; open, its jobs, the failed first, each with its glyph and how long it took, then its URL, dim.
-func buildRows(s stage) []row {
+// buildRows draws each build, newest first as kit prints them: its state's glyph, workflow, number, how it began,
+// branch or tag, commit, title, age, and how long it took; the number, how it began, and the commit dim, and a title
+// that only repeats the workflow left out. Open, the commit and its title in full, the attempt past the first, its
+// jobs, the failed first, each with its glyph and how long it took and, under a failed one, the step that failed,
+// then its URL, dim.
+func (m Model) buildRows(s stage) []row {
 	var rows []row
 	for _, b := range s.runs {
+		number, title := "", b.Title
+		if b.Number != nil {
+			number = "#" + strconv.FormatInt(*b.Number, 10)
+		}
+		if title == b.Workflow {
+			title = ""
+		}
 		r := row{key: strconv.FormatInt(b.ID, 10), cells: []cell{text(runGlyph(b.State)), text(b.Workflow),
-			text(b.Branch), dimNumber(age(b.Age)), tookCell(b.Took)}}
+			dimNumber(number), dim(eventOf(b)), text(b.Branch), dim(b.SHA), fill(title), dimNumber(age(b.Age)),
+			tookCell(b.Took)}}
+		if title != "" {
+			// the commit leads the title's first line, and the lines after it start under the title
+			lead, indent := "", ""
+			if b.SHA != "" {
+				lead, indent = style.Off(b.SHA)+" ", strings.Repeat(" ", len(b.SHA)+1)
+			}
+			for _, line := range wrap(title, m.width-6-len(indent)) {
+				r.detail = append(r.detail, span(lead+line))
+				lead = indent
+			}
+		}
+		if b.Attempt > 1 {
+			r.detail = append(r.detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
+		}
 		jobs := slices.Clone(b.Jobs)
 		slices.SortStableFunc(jobs, func(x, y job) int { return failedFirst(x) - failedFirst(y) })
 		for _, j := range jobs {
 			r.detail = append(r.detail, []cell{text(runGlyph(j.State)), text(j.Name), tookCell(j.Took)})
+			if j.Step != "" {
+				r.detail = append(r.detail, span("    "+style.Off("failed at")+" "+j.Step))
+			}
 		}
 		if b.URL != "" {
 			r.detail = append(r.detail, span(style.Off(b.URL)))
@@ -614,6 +651,18 @@ func buildRows(s stage) []row {
 		rows = append(rows, r)
 	}
 	return rows
+}
+
+// eventOf says how a build began, in a word, as kit status --text does: tag for a push to a tag, push, schedule, or
+// manual.
+func eventOf(b run) string {
+	switch {
+	case b.Tag:
+		return "tag"
+	case b.Event == "workflow_dispatch":
+		return "manual"
+	}
+	return b.Event
 }
 
 // failedFirst sorts a failed job before the rest.

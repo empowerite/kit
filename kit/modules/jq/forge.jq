@@ -137,21 +137,25 @@ def gitlab_releases($now):
   | (map(select(.kind == "release")) | first | .tag) as $latest
   | .[] | . + {latest: (.tag == $latest)} | release($now);
 
-# build($now) shapes a run found on either forge into the document the builds stage draws. It is given id, workflow,
-# branch, event, state, createdAt, and ended, when the run finished, or null while it runs; and started, when it
-# began. It gives id, workflow, branch, event, state, age and took in seconds, took null while it runs, url, and
-# jobs, empty here.
+# build($now) shapes a run found on either forge into the document the builds stage draws. It is given id, number,
+# attempt, workflow, branch, tag, event, sha, title, state, createdAt, and ended, when the run finished, or null while
+# it runs; and started, when it began. It gives id; number, the forge's count of the workflow's runs, or null; attempt,
+# 1 for a first run; workflow; branch; tag, true when the branch is a tag; event; sha, the commit's short hash, and
+# title, the forge's headline for the run, each empty when unknown; state; age and took in seconds, took null while
+# it runs; url; and jobs, empty here.
 def build($now):
-  { id, workflow, branch, event, state, age: ($now - (.createdAt | epoch)),
+  { id, number, attempt: (.attempt // 1), workflow, branch, tag, event, sha: ((.sha // "")[:7]),
+    title: (.title // ""), state, age: ($now - (.createdAt | epoch)),
     took: (if .state == "running" or .ended == null then null
            else (.ended | epoch) - ((.started // .createdAt) | epoch) end),
     url, jobs: [] };
 
 # builds($default; $tags) keeps the runs no pull request owns, newest first, the 20 newest at most: a push to the
-# default branch or to a tag, and a scheduled or manually started run on any branch.
+# default branch or to a tag, and a scheduled or manually started run on any branch. Each is marked as on a tag or not.
 def builds($default; $tags):
-  map(select((.event == "push" and (.branch == $default or (.branch | IN($tags[]))))
-             or (.event | IN("schedule", "workflow_dispatch"))))
+  map(.tag = (.tag == true or (.branch | IN($tags[]))))
+  | map(select((.event == "push" and (.branch == $default or .tag))
+               or (.event | IN("schedule", "workflow_dispatch"))))
   | sort_by(.createdAt) | reverse | .[:20];
 
 # github_build_state reads a GitHub run or job, its status and conclusion, and gives running, passed, failed, or
@@ -164,15 +168,17 @@ def github_build_state:
 
 # github_builds($now; $default; $tags) reads gh run list's answer and gives the builds stage's runs, as one array.
 def github_builds($now; $default; $tags):
-  map({ id: .databaseId, workflow: .workflowName, branch: .headBranch, event, state: github_build_state,
-        createdAt, started: .startedAt, ended: .updatedAt, url })
+  map({ id: .databaseId, number, attempt, workflow: .workflowName, branch: .headBranch, event, sha: .headSha,
+        title: .displayTitle, state: github_build_state, createdAt, started: .startedAt, ended: .updatedAt, url })
   | builds($default; $tags) | map(build($now));
 
-# github_jobs reads gh run view's jobs and gives each as {name, state, took}, took null while it runs.
+# github_jobs reads gh run view's jobs and gives each as {name, state, took, step}: took null while it runs, and step
+# the name of the first step that failed, or null.
 def github_jobs:
   [.jobs[]? | { name, state: github_build_state,
                 took: (if .status == "completed" and .startedAt != null and .completedAt != null
-                       then (.completedAt | epoch) - (.startedAt | epoch) else null end) }];
+                       then (.completedAt | epoch) - (.startedAt | epoch) else null end),
+                step: ([.steps[]? | select(.conclusion == "failure") | .name] | first) }];
 
 # gitlab_build_state reads a GitLab pipeline's status and gives running, passed, failed, or cancelled. A pipeline
 # that waits for a person, manual, is cancelled: it does not run on its own.
@@ -185,9 +191,10 @@ def gitlab_build_state:
 # gitlab_builds($now; $default; $tags) reads GitLab's pipelines and gives the same runs. GitLab names the event the
 # source, and a pipeline started from the web page is workflow_dispatch here; a pipeline has a name only when the
 # project gives one. A pipeline marked as a tag's counts as one, as does a ref named as a local tag. The list gives no
-# start, so took counts from creation to the end, or the last update.
+# start, so took counts from creation to the end, or the last update; nor a title, so a pipeline has none; its number
+# is the project's, iid.
 def gitlab_builds($now; $default; $tags):
-  map({ id, workflow: (.name // "pipeline"), branch: .ref,
+  map({ id, number: .iid, workflow: (.name // "pipeline"), branch: .ref, sha,
         event: ({push: "push", schedule: "schedule", web: "workflow_dispatch"}[.source] // .source),
         state: gitlab_build_state, createdAt: .created_at, started: .started_at,
         ended: (.finished_at // .updated_at), url: .web_url,

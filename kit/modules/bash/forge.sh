@@ -55,8 +55,8 @@
 #   releases                      one JSON object per release, newest first, the documents the releases stage draws
 #   runs                          one JSON array of the runs no pull request owns, newest first, the 20 newest at
 #                                 most: pushes to the default branch or a tag, scheduled and manual runs; each is
-#                                 {id, workflow, branch, event, state, age, took, url, jobs}, what the builds stage
-#                                 draws
+#                                 {id, number, attempt, workflow, branch, tag, event, sha, title, state, age, took,
+#                                 url, jobs}, what the builds stage draws; each job is {name, state, took, step}
 #
 # see: docs/architecture.md
 

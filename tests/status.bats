@@ -333,7 +333,7 @@ without-kittui() {
   [[ "${lines[19]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
   [ "${lines[20]}" = "" ]
   [ "${lines[21]}" = "🏭 BUILDS 1" ]
-  [[ "${lines[22]}" == "✅  kit  main  "*"d  3m 36s" ]]
+  [[ "${lines[22]}" == "✅  kit  push  main  "*"d  3m 36s" ]]
   [ "${lines[23]}" = "" ]
   [ "${lines[24]}" = "📦 RELEASES 3" ]
   [[ "${lines[25]}" == "0.1.0-rc.7  📝 draft "* ]]

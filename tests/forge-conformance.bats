@@ -349,70 +349,88 @@ runs-world() {
 @test "every provider lists the runs no pull request owns in one shape, newest first, the newest with its jobs" {
   git commit --quiet --allow-empty --message one && git tag release/0.1.0
   fixture gh-runs.json <<'JSON'
-[{"databaseId": 104, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
+[{"databaseId": 104, "number": 50, "headSha": "aaaaaaa0000000000", "displayTitle": "title 104",
+  "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
   "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
   "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/104"},
- {"databaseId": 99, "workflowName": "kit", "headBranch": "9-other", "event": "workflow_dispatch",
+ {"databaseId": 99, "number": 45, "headSha": "5d376dd0000000000", "displayTitle": "title 99",
+  "workflowName": "kit", "headBranch": "9-other", "event": "workflow_dispatch",
   "status": "completed", "conclusion": "cancelled", "createdAt": "2026-10-01T06:00:00Z",
   "startedAt": "2026-10-01T06:00:00Z", "updatedAt": "2026-10-01T06:00:42Z", "url": "https://github.com/r/99"},
- {"databaseId": 103, "workflowName": "kit", "headBranch": "main", "event": "push",
+ {"databaseId": 103, "number": 49, "headSha": "8e817bf0000000000", "displayTitle": "title 103",
+  "workflowName": "kit", "headBranch": "main", "event": "push",
   "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
   "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/103"},
- {"databaseId": 102, "workflowName": "kit", "headBranch": "release/0.1.0", "event": "push",
+ {"databaseId": 102, "number": 48, "headSha": "1a2b3c40000000000", "displayTitle": "title 102",
+  "workflowName": "kit", "headBranch": "release/0.1.0", "event": "push",
   "status": "completed", "conclusion": "failure", "createdAt": "2026-10-01T09:00:00Z",
   "startedAt": "2026-10-01T09:00:00Z", "updatedAt": "2026-10-01T09:04:02Z", "url": "https://github.com/r/102"},
- {"databaseId": 101, "workflowName": "kit", "headBranch": "main", "event": "schedule",
+ {"databaseId": 101, "number": 47, "headSha": "8e817bf0000000000", "displayTitle": "title 101",
+  "workflowName": "kit", "headBranch": "main", "event": "schedule",
   "status": "in_progress", "conclusion": "", "createdAt": "2026-10-01T08:00:00Z",
   "startedAt": "2026-10-01T08:00:00Z", "updatedAt": "2026-10-01T08:01:00Z", "url": "https://github.com/r/101"},
- {"databaseId": 100, "workflowName": "kit", "headBranch": "9-other", "event": "push",
+ {"databaseId": 100, "number": 46, "headSha": "bbbbbbb0000000000", "displayTitle": "title 100",
+  "workflowName": "kit", "headBranch": "9-other", "event": "push",
   "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T07:00:00Z",
   "startedAt": "2026-10-01T07:00:00Z", "updatedAt": "2026-10-01T07:01:00Z", "url": "https://github.com/r/100"}]
 JSON
   fixture gh-jobs.json <<'JSON'
 {"jobs": [{"name": "ci", "status": "completed", "conclusion": "success",
-           "startedAt": "2026-10-01T10:00:03Z", "completedAt": "2026-10-01T10:03:33Z"},
+           "startedAt": "2026-10-01T10:00:03Z", "completedAt": "2026-10-01T10:03:33Z", "steps": []},
           {"name": "lint", "status": "in_progress", "conclusion": "",
            "startedAt": "2026-10-01T10:00:03Z", "completedAt": "0001-01-01T00:00:00Z"}]}
 JSON
   fixture gl-pipelines.json <<'JSON'
-[{"id": 104, "name": "kit", "ref": "7-fix-the-thing", "source": "merge_request_event", "status": "success",
+[{"id": 104, "iid": 50, "sha": "aaaaaaa0000000000",
+  "name": "kit", "ref": "7-fix-the-thing", "source": "merge_request_event", "status": "success",
   "created_at": "2026-10-01T11:00:00.000Z", "updated_at": "2026-10-01T11:03:00.000Z",
   "web_url": "https://gl.com/p/104"},
- {"id": 103, "name": "kit", "ref": "main", "source": "push", "status": "success",
+ {"id": 103, "iid": 49, "sha": "8e817bf0000000000",
+  "name": "kit", "ref": "main", "source": "push", "status": "success",
   "created_at": "2026-10-01T10:00:00.000Z", "updated_at": "2026-10-01T10:03:36.000Z",
   "web_url": "https://gl.com/p/103"},
- {"id": 102, "name": "kit", "ref": "release/0.1.0", "source": "push", "status": "failed", "tag": true,
+ {"id": 102, "iid": 48, "sha": "1a2b3c40000000000",
+  "name": "kit", "ref": "release/0.1.0", "source": "push", "status": "failed", "tag": true,
   "created_at": "2026-10-01T09:00:00.000Z", "updated_at": "2026-10-01T09:04:02.000Z",
   "web_url": "https://gl.com/p/102"},
- {"id": 101, "name": "kit", "ref": "main", "source": "schedule", "status": "running",
+ {"id": 101, "iid": 47, "sha": "8e817bf0000000000",
+  "name": "kit", "ref": "main", "source": "schedule", "status": "running",
   "created_at": "2026-10-01T08:00:00.000Z", "updated_at": "2026-10-01T08:01:00.000Z",
   "web_url": "https://gl.com/p/101"},
- {"id": 100, "name": "kit", "ref": "9-other", "source": "push", "status": "success",
+ {"id": 100, "iid": 46, "sha": "bbbbbbb0000000000",
+  "name": "kit", "ref": "9-other", "source": "push", "status": "success",
   "created_at": "2026-10-01T07:00:00.000Z", "updated_at": "2026-10-01T07:01:00.000Z",
   "web_url": "https://gl.com/p/100"},
- {"id": 99, "name": "kit", "ref": "9-other", "source": "web", "status": "canceled",
+ {"id": 99, "iid": 45, "sha": "5d376dd0000000000",
+  "name": "kit", "ref": "9-other", "source": "web", "status": "canceled",
   "created_at": "2026-10-01T06:00:00.000Z", "updated_at": "2026-10-01T06:00:42.000Z",
   "web_url": "https://gl.com/p/99"}]
 JSON
-  expected='[{"id":103,"workflow":"kit","branch":"main","event":"push","state":"passed","took":216},'
-  expected+='{"id":102,"workflow":"kit","branch":"release/0.1.0","event":"push","state":"failed","took":242},'
-  expected+='{"id":101,"workflow":"kit","branch":"main","event":"schedule","state":"running","took":null},'
-  expected+='{"id":99,"workflow":"kit","branch":"9-other","event":"workflow_dispatch","state":"cancelled","took":42}]'
+  expected='[{"id":103,"number":49,"attempt":1,"workflow":"kit","branch":"main","tag":false,"event":"push",'
+  expected+='"sha":"8e817bf","state":"passed","took":216},'
+  expected+='{"id":102,"number":48,"attempt":1,"workflow":"kit","branch":"release/0.1.0","tag":true,"event":"push",'
+  expected+='"sha":"1a2b3c4","state":"failed","took":242},'
+  expected+='{"id":101,"number":47,"attempt":1,"workflow":"kit","branch":"main","tag":false,"event":"schedule",'
+  expected+='"sha":"8e817bf","state":"running","took":null},'
+  expected+='{"id":99,"number":45,"attempt":1,"workflow":"kit","branch":"9-other","tag":false,'
+  expected+='"event":"workflow_dispatch","sha":"5d376dd","state":"cancelled","took":42}]'
   for forge in github gitlab
   do
     runs-world "${forge}"
     run call runs
     [ "$status" -eq 0 ]
-    [ "$(jq --compact-output --sort-keys 'map(del(.age, .url, .jobs))' <<<"$output")" \
+    [ "$(jq --compact-output --sort-keys 'map(del(.age, .url, .jobs, .title))' <<<"$output")" \
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ] || { echo "${forge}: ${output}"; return 1; }
     [ "$(jq 'map(.age > 0 and (.url | startswith("https://"))) | all' <<<"$output")" = true ]
   done
-  # GitHub's newest runs carry their jobs, a call each; GitLab's carry none
-  [ "$(call runs | jq --compact-output 'map(.jobs)')" = '[[],[],[],[]]' ]
+  # GitLab's list gives no title, nor jobs; GitHub's runs carry their title, and the newest their jobs, a call each
+  [ "$(call runs | jq --compact-output 'map([.title, .jobs])')" = '[["",[]],["",[]],["",[]],["",[]]]' ]
   runs-world github
+  [ "$(call runs | jq --compact-output 'map(.title)')" = '["title 103","title 102","title 101","title 99"]' ]
   : > "${FAKE_DIR}/gh.calls"
   [ "$(call runs | jq --compact-output '.[0].jobs')" \
-    = '[{"name":"ci","state":"passed","took":210},{"name":"lint","state":"running","took":null}]' ]
+    = '[{"name":"ci","state":"passed","took":210,"step":null},'"\
+"'{"name":"lint","state":"running","took":null,"step":null}]' ]
   [ "$(grep -c '^run view ' "${FAKE_DIR}/gh.calls")" -eq 4 ]
 }
 

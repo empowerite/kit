@@ -101,7 +101,8 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
 - `builds`: the runs no pull request owns, newest first: pushes to the default branch or a tag, and scheduled or
-  manual runs, each with its state, age, and duration
+  manual runs. Each shows its state, number, commit, and title, with its age and duration; a failed job names the
+  step that failed
 - `releases`: the releases on the forge, newest first
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
