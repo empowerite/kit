@@ -177,6 +177,27 @@ forge/github:releases() {
     <<<"${answer}"
 }
 
+forge/github:repo() {
+  gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null \
+    || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }
+}
+
+forge/github:repo-url() {
+  gh repo view --json url --jq .url 2>/dev/null \
+    || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }
+}
+
+# forge/github:require fails when gh is missing or not authenticated. It makes a real API call, because
+# `gh auth status` passes with a revoked token.
+forge/github:require() {
+  guard:require tool:gh || return 1
+  if ! gh api user --jq '.login' >/dev/null 2>&1
+  then
+    error "run: gh auth login (the GitHub CLI is not authenticated)"
+    return 1
+  fi
+}
+
 # forge/github:runs prints the builds stage's runs as one JSON array, as the seam's header says. It reads the 50
 # newest runs and keeps those forge.jq's builds keeps. A run's jobs cost a call each, so only the 5 newest runs carry
 # them; a run whose jobs cannot be read keeps none.
@@ -198,27 +219,6 @@ forge/github:runs() {
     index=$(( index + 1 ))
   done < <(jq --raw-output '.[:5][].id' <<<"${runs}")
   printf '%s\n' "${runs}"
-}
-
-forge/github:repo() {
-  gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null \
-    || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }
-}
-
-forge/github:repo-url() {
-  gh repo view --json url --jq .url 2>/dev/null \
-    || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }
-}
-
-# forge/github:require fails when gh is missing or not authenticated. It makes a real API call, because
-# `gh auth status` passes with a revoked token.
-forge/github:require() {
-  guard:require tool:gh || return 1
-  if ! gh api user --jq '.login' >/dev/null 2>&1
-  then
-    error "run: gh auth login (the GitHub CLI is not authenticated)"
-    return 1
-  fi
 }
 
 # The seam's calls end here; what follows is this provider's own.

@@ -180,17 +180,6 @@ forge/gitlab:releases() {
     <<<"${list}"
 }
 
-# forge/gitlab:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest
-# pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
-forge/gitlab:runs() {
-  local list
-  list=$(forge/gitlab:api "pipelines?per_page=50" 2>/dev/null) \
-    || { error "run: glab auth status (the pipelines could not be read)"; return 1; }
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
-    --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)' \
-    <<<"${list}"
-}
-
 forge/gitlab:repo() { forge/gitlab:project; }
 
 forge/gitlab:repo-url() {
@@ -206,6 +195,17 @@ forge/gitlab:require() {
     error "run: glab auth login (the GitLab CLI is not authenticated)"
     return 1
   fi
+}
+
+# forge/gitlab:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest
+# pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
+forge/gitlab:runs() {
+  local list
+  list=$(forge/gitlab:api "pipelines?per_page=50" 2>/dev/null) \
+    || { error "run: glab auth status (the pipelines could not be read)"; return 1; }
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
+    --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)' \
+    <<<"${list}"
 }
 
 # The seam's calls end here; what follows is this provider's own.
