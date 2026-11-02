@@ -130,10 +130,21 @@ toolchain/docker:bases() {
     }' "$(toolchain/docker:file)"
 }
 
-# toolchain/docker:local succeeds when the daemon docker talks to is on this machine: DOCKER_HOST is unset, empty,
-# or a unix socket, and DOCKER_CONTEXT names no context but the default.
+# toolchain/docker:local succeeds when the daemon docker talks to is on this machine. DOCKER_HOST must be unset,
+# empty, or a unix socket. The context in use is DOCKER_CONTEXT, or else the one docker context use saved in
+# config.json. It must be the default, or one whose saved endpoint is a unix socket, as Docker Desktop's is.
 toolchain/docker:local() {
-  [[ -z "${DOCKER_HOST:-}" || "${DOCKER_HOST}" == unix://* ]] && [[ "${DOCKER_CONTEXT:-default}" == default ]]
+  local config=${DOCKER_CONFIG:-${HOME}/.docker} context=${DOCKER_CONTEXT:-} host
+  [[ -z "${DOCKER_HOST:-}" || "${DOCKER_HOST}" == unix://* ]] || return 1
+  if [[ -z "${context}" && -f "${config}/config.json" ]]
+  then
+    context=$(jq --raw-output '.currentContext // empty' "${config}/config.json") || return 1
+  fi
+  [[ -n "${context}" && "${context}" != default ]] || return 0
+  # docker keeps a context's endpoint under the digest of its name; a context it cannot read is not local.
+  host=$(jq --raw-output '.Endpoints.docker.Host // empty' \
+    "${config}/contexts/meta/$(printf '%s' "${context}" | file:digest)/meta.json" 2>/dev/null) || return 1
+  [[ "${host}" == unix://* ]]
 }
 
 # toolchain/docker:latest <name:tag> prints the tag's current digest in the registry.

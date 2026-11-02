@@ -336,6 +336,41 @@ JSON
   if grep --quiet 'image inspect' "${FAKE_DIR}/docker.calls"; then false; fi
 }
 
+# docker-context <name> <host> saves a context the way docker context create does, under DOCKER_CONFIG.
+docker-context() {
+  local meta
+  meta="${DOCKER_CONFIG}/contexts/meta/$(printf '%s' "$1" | shasum -a 256 | cut -d ' ' -f 1)"
+  mkdir -p "${meta}"
+  jq --null-input --arg name "$1" --arg host "$2" '{Name: $name, Endpoints: {docker: {Host: $host}}}' \
+    > "${meta}/meta.json"
+}
+
+@test "docker's daemon is local only when the context in use, named or saved by docker context use, is" {
+  printf 'FROM alpine:3.20@sha256:old\n' > toolchain.Dockerfile
+  route docker 'image inspect *' '!0'
+  export DOCKER_CONFIG="${BATS_TEST_TMPDIR}/docker"
+  docker-context remote tcp://build.example.com:2376
+  docker-context desktop "unix://${BATS_TEST_TMPDIR}/docker.sock"
+  DOCKER_CONTEXT=remote run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^❌ alpine:3\.20 +· sha256:old$' <<<"$output"
+  printf '{"currentContext": "remote"}\n' > "${DOCKER_CONFIG}/config.json"
+  run "${kit_root}/bin/kit" tools
+  grep --quiet -E '^❌ alpine:3\.20 +· sha256:old$' <<<"$output"
+  if grep --quiet 'image inspect' "${FAKE_DIR}/docker.calls"; then false; fi
+  for context in default desktop
+  do
+    printf '{"currentContext": "%s"}\n' "${context}" > "${DOCKER_CONFIG}/config.json"
+    run "${kit_root}/bin/kit" tools
+    grep --quiet -E '^✅ alpine:3\.20 +· sha256:old +· sha256:old$' <<<"$output"
+  done
+  DOCKER_CONTEXT=default run "${kit_root}/bin/kit" tools
+  grep --quiet -E '^✅ alpine:3\.20 +· sha256:old +· sha256:old$' <<<"$output"
+  printf '{"currentContext": "default"}\n' > "${DOCKER_CONFIG}/config.json"
+  DOCKER_CONTEXT=remote run "${kit_root}/bin/kit" tools
+  grep --quiet -E '^❌ alpine:3\.20 +· sha256:old$' <<<"$output"
+}
+
 @test "kit gate runs through the chosen toolchain, inside docker when docker is chosen" {
   mkdir .kit && printf 'gate: echo "${PATH%%%%:*}"\n' > kit.yml
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
