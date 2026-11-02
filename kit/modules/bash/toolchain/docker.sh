@@ -79,9 +79,16 @@ toolchain/docker:require() {
 
 toolchain/docker:roles() { printf 'project\n'; }
 
+# toolchain/docker:update rewrites each outdated base's pin, then builds the image. When the registry does not
+# answer for a base, it fails and changes no pin: a partial answer would leave the file half moved.
 toolchain/docker:update() {
-  local file base pinned latest quoted from
+  local file outdated base pinned latest quoted from
   file=$(toolchain/docker:file)
+  if ! outdated=$(toolchain/docker:outdated)
+  then
+    error "no pin was changed; run kit tools update again once the registry answers"
+    return 1
+  fi
   while IFS=$'\t' read -r base pinned latest
   do
     [[ -n "${base}" ]] || continue
@@ -95,7 +102,7 @@ toolchain/docker:update() {
       sed -i.kit-old "s,${quoted}@${pinned},${base}@${latest}," "${file}"
     fi
     rm -f "${file}.kit-old"
-  done < <(toolchain/docker:outdated)
+  done <<<"${outdated}"
   toolchain/docker:install
 }
 

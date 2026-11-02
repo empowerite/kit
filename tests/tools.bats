@@ -342,6 +342,21 @@ JSON
   [ "$(cat toolchain.Dockerfile)" = "${pinned}" ]
 }
 
+@test "docker update fails and changes no pin when the registry does not answer for a base" {
+  printf 'FROM alpine:3.20@sha256:old\nFROM debian:12\n' > toolchain.Dockerfile
+  fixture alpine.json <<<'{"digest": "sha256:new"}'
+  route docker 'buildx imagetools inspect alpine:3.20 *' alpine.json
+  route docker 'buildx imagetools inspect debian:12 *' '!1'
+  route docker 'image inspect *' '!1'
+  route docker 'build *' '!0'
+  run "${kit_root}/bin/kit" tools update
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"debian:12: the registry did not answer"* ]]
+  [[ "$output" == *"no pin was changed"* ]]
+  [ "$(cat toolchain.Dockerfile)" = $'FROM alpine:3.20@sha256:old\nFROM debian:12' ]
+  if grep --quiet '^build ' "${FAKE_DIR}/docker.calls"; then false; fi
+}
+
 @test "docker reports its bases installed only when its daemon is local, so the listing never reaches the network" {
   printf 'FROM alpine:3.20@sha256:old\n' > toolchain.Dockerfile
   route docker 'image inspect *' '!0'
