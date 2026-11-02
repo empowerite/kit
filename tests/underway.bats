@@ -55,7 +55,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit flow underway
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 3 ]
-  [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  💻 here  🎫 Fix the thing" ]]
   [[ "${lines[1]}" == " #7  👤 bob  🛫 "*"d  🔀 #5 🛬 ready  👤 cy    🎫 Fix the thing" ]]
   [[ "${lines[2]}" == "#11  👤 ada  🛫 "*"d  🔀 #5 🛬 ready  👤 cy    🎫 Third thing" ]]
   # the cells sit in columns, so every title starts at the same column
@@ -103,7 +103,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq 'length' <<<"$output")" -eq 3 ]
   # --mine alone leaves the assignee column out, as the backlog does
   run kit flow underway --mine
-  [[ "${lines[0]}" == " #7  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == " #7  🛫 "*"d  🔀 #3 🔨 draft  💻 here  🎫 Fix the thing" ]]
   run kit flow underway --mine --all
   [ "$status" -eq 2 ]
 }
@@ -123,7 +123,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "a narrow terminal clips the title and keeps every other cell whole" {
   COLUMNS=60 run kit flow underway
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  💻 here  🎫 Fix the thing" ]]
   jq '.data.repository.pullRequests.nodes[1].closingIssuesReferences.nodes[0].title
       = "a title long enough to run past the edge of any terminal this narrow"' "${FAKE_DIR}/open-prs.json" \
     > "${FAKE_DIR}/long.json"
@@ -143,7 +143,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  underway:\n\n    🎫  an issue, and its title\n'* ]]
-  [[ "$output" == *$'\n    🏠  here: a checkout on this desk has the pull request\'s branch\n'* ]]
+  [[ "$output" == *$'\n    💻  here: a checkout on this desk has the pull request\'s branch\n'* ]]
   [[ "$output" == *"    backlog             the open issues no open pull request closes, oldest"$'\n'*"; underway has the rest"* ]]
 }
 

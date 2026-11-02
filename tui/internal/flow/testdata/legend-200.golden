@@ -1,11 +1,11 @@
  kit flow · 📚 empowerite/kit
  ──●──────────────────────○─────────────────────────────────────○─────────────────────────○─────────────────────────○───────────────────────────○───────────────────────○────────────────────────────┄┄┄
-   ├ 🎫 backlog 3         ├ 🛫 underway 4                       ├ 🏠 desk 1               ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 📥 incoming 6         ├ 🏭 builds 4                 ├ 
+   ├ 🎫 backlog 3         ├ 🛫 underway 4                       ├ 💻 desk 1               ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 📥 incoming 6         ├ 🏭 builds 4                 ├ 
    └ legend               └ legend                              └ legend                  └ legend                  └ legend                    └ legend                └ legend                      └ 
-     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 🏠  the desk            ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 📥  the fetch         ├ 🏭  a build
+     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 💻  the desk            ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 📥  the fetch         ├ 🏭  a build
      ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ ❗  on no branch        ├ ❗  on no branch        ├ 👤  its author            ├ 📡  a remote          ├ 🏃  running or queued
      └ 🌿  its branch       ├ 🔀  the pull request                └ 🔀  its pull request    ├ 🔀  its pull request    ├ 🌿  its branch            ├ 🌿  a branch          ├ ✅  passed
-                            ├ 🏠  here, in a worktree                                       └ 🔖  a branch gone       ├ 🏃  checks running        ├ 🔖  a branch gone     ├ ❌  failed
+                            ├ 💻  here, in a worktree                                       └ 🔖  a branch gone       ├ 🏃  checks running        ├ 🔖  a branch gone     ├ ❌  failed
                             └ 🎫  the issue's title                                                                   ├ ✅  checks passed         ├ 📌  a new tag         └ 🛑  cancelled or skipped
                                                                                                                       ├ ❌  a check failed        └ ❌  a fetch failed
                                                                                                                       ├ 💬  threads unresolved

@@ -11,10 +11,10 @@
 # The rows come from forge:open-prs, the call the changes stage makes, so the stage asks the forge nothing new. One
 # row per issue and pull request, the oldest issue first:
 #
-#    #7  👤 bob  🛫 40d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing
+#    #7  👤 bob  🛫 40d  🔀 #3 🔨 draft  💻 here  🎫 Fix the thing
 #   #11  👤 ada  🛫 30d  🔀 #5 🛬 ready  👤 cy    🎫 Third thing
 #
-# 🏠 here means a checkout on this desk has the pull request's branch: the desk or a linked worktree. Otherwise the
+# 💻 here means a checkout on this desk has the pull request's branch: the desk or a linked worktree. Otherwise the
 # cell names the pull request's author, whose desk the work is on. The owner flags are kit flow's, and match the
 # pull request's author or the issue's assignees.
 #
@@ -59,7 +59,7 @@ underway:documents() {
 #   2. 👤 and its assignees, dim
 #   3. 🛫 and its age, dim and right-aligned
 #   4. 🔀, the pull request's number, magenta and right-aligned, then its state glyph and state, as changes draws it
-#   5. 🏠 here, or 👤 and the pull request's author, dim
+#   5. 💻 here, or 👤 and the pull request's author, dim
 #   6. 🎫 and the issue's title, clipped to what the terminal's width leaves
 underway:draw() {
   local doc=$1 choice=$2 sigil row ref assignees age number state here author title width glyph
@@ -107,7 +107,7 @@ underway:draw() {
     row+=" $(flow:state-emoji "${state}") $(flow:paint "$(flow:state-sgr "${state}")" \
       "$(flow:cell "${state}" "${state_w}")")"
     if [[ "${here}" == true ]]
-    then row+="${flow_gap}🏠 $(flow:cell here "${where_w}")"
+    then row+="${flow_gap}💻 $(flow:cell here "${where_w}")"
     else row+="${flow_gap}👤 $(flow:paint 90 "$(flow:cell "${author}" "${where_w}")")"
     fi
     (( ${#title} > width )) && title="${title:0:width-1}…"

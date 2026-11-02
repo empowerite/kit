@@ -7,7 +7,7 @@ const (
 	Repository = "📚" // the repository, owner/name, in the title
 	Fetched    = "📥" // what the fetch brought from the remotes
 	Remote     = "📡" // a remote, its forge, and its host
-	Desk       = "🏠" // the desk, the root checkout
+	Desk       = "💻" // the desk, the root checkout
 	Branch     = "🌿" // a linked worktree, or a branch
 	Change     = "🔀" // a pull request
 	Owner      = "👤" // an author, or an issue's assignees

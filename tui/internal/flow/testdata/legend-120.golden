@@ -1,11 +1,11 @@
  kit flow · 📚 empowerite/kit
  ──●──────────────────────○─────────────────────────────────────○─────────────────────────○─────────────────────────○┄┄┄
-   ├ 🎫 backlog 3         ├ 🛫 4                                ├ 🏠 1                    ├ 🌿 4                    ├ 🔀
+   ├ 🎫 backlog 3         ├ 🛫 4                                ├ 💻 1                    ├ 🌿 4                    ├ 🔀
    └ legend               └ legend                              └ legend                  └ legend                  └ le
-     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 🏠  the desk            ├ 🌿  a worktree          ├
+     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 💻  the desk            ├ 🌿  a worktree          ├
      ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ ❗  on no branch        ├ ❗  on no branch        ├
      └ 🌿  its branch       ├ 🔀  the pull request                └ 🔀  its pull request    ├ 🔀  its pull request    ├
-                            ├ 🏠  here, in a worktree                                       └ 🔖  a branch gone       ├
+                            ├ 💻  here, in a worktree                                       └ 🔖  a branch gone       ├
                             └ 🎫  the issue's title                                                                   ├
                                                                                                                       ├
                                                                                                                       ├

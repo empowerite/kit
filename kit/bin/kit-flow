@@ -106,7 +106,7 @@
 #   👤  its assignees, or the pull request's author, whose desk the work is on
 #   🛫  in flight, with the issue's age
 #   🔀  the pull request that closes it, with its state glyph as changes draws it
-#   🏠  here: a checkout on this desk has the pull request's branch
+#   💻  here: a checkout on this desk has the pull request's branch
 #   ❌  a refusal: kit could not read the forge
 #
 # incoming:
@@ -120,7 +120,7 @@
 #
 # desk:
 #
-#   🏠  the desk, the root checkout
+#   💻  the desk, the root checkout
 #   ❗  on no branch: a detached HEAD
 #   📂  a desk's path, above desks
 #

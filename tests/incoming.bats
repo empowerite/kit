@@ -117,7 +117,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit flow
   [ "$status" -eq 1 ]
   [[ "$output" == *$'📥 INCOMING\n📡 origin · github · '*$'\n📡 gone · no forge · '*$'\n❌ fatal: '* ]]
-  [[ "$output" == *$'\n🏠 DESK 1\n'* ]]
+  [[ "$output" == *$'\n💻 DESK 1\n'* ]]
   run kit flow --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.incoming.remotes[].name]' <<<"$output")" = '["origin","gone","upstream"]' ]

@@ -181,9 +181,9 @@ without-kittui() {
   printf 'two\n' > b && git add b && git commit --quiet --message two
   printf 'x\n' > c
   doc=$(in_flow flow:checkout "${PWD}" main main)
-  run in_flow flow:checkout-block 🏠 "${doc}" 4
+  run in_flow flow:checkout-block 💻 "${doc}" 4
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🏠 main · ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
+  [ "${lines[0]}" = "💻 main · ↑1 ↓0 · +1 -0 · 1 uncommitted" ]
   [ "${lines[1]}" = "   ?? c" ]
   [[ "${lines[2]}" == *" two" ]]
   [ "${#lines[@]}" -eq 3 ]
@@ -196,8 +196,8 @@ without-kittui() {
     printf '%s\n' "${i}" > "n${i}"
   done
   doc=$(in_flow flow:checkout "${PWD}" main main)
-  run in_flow flow:checkout-block 🏠 "${doc}" 4
-  [ "${lines[0]}" = "🏠 main · ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
+  run in_flow flow:checkout-block 💻 "${doc}" 4
+  [ "${lines[0]}" = "💻 main · ↑0 ↓0 · +1 -1 · 13 uncommitted" ]
   [ "${lines[1]}" = "    M a" ]
   [ "${lines[2]}" = "   ?? n1" ]
   [ "${lines[11]}" = "   … and 3 more" ]
@@ -267,8 +267,8 @@ without-kittui() {
   [ "${lines[0]}" = "🌿 WORKTREES 1" ]
   [ "${lines[1]}" = "🌿 worktrees/7-topic · ↑0 ↓0 · +0 -0" ]
   [ "${lines[2]}" = "" ]
-  [ "${lines[3]}" = "🏠 DESK 1" ]
-  [ "${lines[4]}" = "🏠 main · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
+  [ "${lines[3]}" = "💻 DESK 1" ]
+  [ "${lines[4]}" = "💻 main · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
   [ "${lines[5]}" = "   ?? c" ]
   [ "${lines[6]}" = "" ]
   [ "${lines[7]}" = "📥 INCOMING" ]
@@ -278,7 +278,7 @@ without-kittui() {
   # the heading is dim only when effects are on; --text prints the same picture
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "${lines[0]}" == "🌿 ${esc}[1mWORKTREES${esc}[0m ${esc}[90m1${esc}[0m" ]]
-  [[ "$output" == *"🏠 ${esc}[1mDESK${esc}[0m ${esc}[90m1${esc}[0m"* ]]
+  [[ "$output" == *"💻 ${esc}[1mDESK${esc}[0m ${esc}[90m1${esc}[0m"* ]]
   [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"📡 origin${esc}[90m · no forge · ${work}/origin.git${esc}[0m"$'\n'"${esc}[90m📥 not fetched${esc}[0m"* ]]
   run --keep-empty-lines "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "$output" != *"${esc}["* ]]
@@ -318,8 +318,8 @@ without-kittui() {
   [ "${lines[4]}" = "🛫 UNDERWAY 1" ]
   [[ "${lines[5]}" == "#7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  👤 ada   🎫 Fix the thing" ]]
   [ "${lines[6]}" = "" ]
-  [ "${lines[7]}" = "🏠 DESK 1" ]
-  [ "${lines[8]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
+  [ "${lines[7]}" = "💻 DESK 1" ]
+  [ "${lines[8]}" = "💻 main · ↑0 ↓0 · +0 -0" ]
   [ "${lines[9]}" = "" ]
   [ "${lines[10]}" = "🌿 WORKTREES 0" ]
   [ "${lines[11]}" = "no worktree" ]
@@ -401,7 +401,7 @@ without-kittui() {
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "🎫 BACKLOG" ]
   [[ "${lines[1]}" == *"set forge in kit.yml"* ]]
-  [[ "$output" == *$'\n🏠 DESK 1\n🏠 main'* ]]
+  [[ "$output" == *$'\n💻 DESK 1\n💻 main'* ]]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"set forge in kit.yml"* ]]
@@ -419,8 +419,8 @@ without-kittui() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
   [ "${lines[1]}" = "" ]
-  [ "${lines[2]}" = "🏠 DESK 1" ]
-  [ "${lines[3]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
+  [ "${lines[2]}" = "💻 DESK 1" ]
+  [ "${lines[3]}" = "💻 main · ↑0 ↓0 · +0 -0" ]
   [ "${lines[4]}" = "" ]
   [ "${lines[5]}" = "🌿 WORKTREES 0" ]
   [ "${lines[6]}" = "no worktree" ]
@@ -450,10 +450,10 @@ without-kittui() {
   run pty "'${kit_root}/bin/kit' flow --json --no-fetch"
   [[ "$output" == *'"stages":["desk"]'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow desk"
-  [[ "$output" == *"🏠 main"* && "$output" != *"kittui"* && "$output" != *"DESK"* ]]
+  [[ "$output" == *"💻 main"* && "$output" != *"kittui"* && "$output" != *"DESK"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch </dev/null
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🏠 DESK 1" ]
+  [ "${lines[0]}" = "💻 DESK 1" ]
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --bogus"
   [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* && "$output" != *"kittui"* ]]
@@ -490,7 +490,7 @@ without-kittui() {
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n🏠 DESK 1\n🏠 main on ../.. · '*$'\n🌿 WORKTREES 1\n🌿 7-fix-the-thing · '* ]]
+  [[ "$output" == *$'\n💻 DESK 1\n💻 main on ../.. · '*$'\n🌿 WORKTREES 1\n🌿 7-fix-the-thing · '* ]]
   [[ "$output" == *$'\n🔀 CHANGES 1\n🔀 #3 Fix the thing'* ]]
   cd ../../../elsewhere
   run "${kit_root}/bin/kit" flow changes
@@ -500,7 +500,7 @@ without-kittui() {
   [ "$(jq -c '[has("desk"), [.worktrees[].branch]]' <<<"$output")" = '[false,["elsewhere","7-fix-the-thing"]]' ]
   run "${kit_root}/bin/kit" flow worktrees
   [[ "${lines[0]}" == "🌿 ../elsewhere "* ]]
-  [[ "$output" == *$'\n\n🌿 worktrees/7-fix-the-thing'* && "$output" != *"🏠"* ]]
+  [[ "$output" == *$'\n\n🌿 worktrees/7-fix-the-thing'* && "$output" != *"💻"* ]]
 }
 
 @test "kit flow desk is the root checkout, at the desk and from a linked worktree, in text and as its object" {
@@ -509,7 +509,7 @@ without-kittui() {
   printf 'x\n' > c
   run "${kit_root}/bin/kit" flow desk
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🏠 main · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
+  [ "${lines[0]}" = "💻 main · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
   [[ "$output" == *"?? c"* && "$output" == *" two" && "$output" != *"7-topic"* ]]
   run "${kit_root}/bin/kit" flow desk --json
   [ "$status" -eq 0 ]
@@ -521,7 +521,7 @@ without-kittui() {
   cd worktrees/7-topic
   run "${kit_root}/bin/kit" flow desk
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🏠 main on ../.. · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
+  [ "${lines[0]}" = "💻 main on ../.. · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
   run "${kit_root}/bin/kit" flow desk --json
   [ "$(jq -c '[.path, .relative, .branch, .uncommitted]' <<<"$output")" \
     = "$(jq -nc --arg path "${desk}" '[$path, "../..", "main", 2]')" ]
@@ -551,14 +551,14 @@ without-kittui() {
   git -C group/deep/two remote set-head origin main
   git init --quiet --initial-branch=main desk/nested
   run "${kit_root}/bin/kit" flow --no-fetch
-  [[ "$output" == *"📂 desk"$'\n'"🏠 DESK 1"$'\n'"🏠 main"* ]]
-  [[ "$output" == *"📂 group/deep/two"$'\n'"🏠 DESK 1"$'\n'"🏠 main"* ]]
+  [[ "$output" == *"📂 desk"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
+  [[ "$output" == *"📂 group/deep/two"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
   [[ "$output" != *"📂 group/.hidden"* && "$output" != *"📂 desk/nested"* ]]
   output=$("${kit_root}/bin/kit" flow --no-fetch --json 2>/dev/null)
   [ "$(jq -c 'map(.path)' <<<"$output")" = '["desk","group/deep/two"]' ]
   [ "$(jq -r '.[0].status.desk.branch' <<<"$output")" = main ]
   run "${kit_root}/bin/kit" flow desk
-  [[ "$output" == *"📂 desk"$'\n'"🏠 main"* ]]
+  [[ "$output" == *"📂 desk"$'\n'"💻 main"* ]]
   output=$("${kit_root}/bin/kit" flow desk --json 2>/dev/null)
   [ "$(jq -c 'map([.path, .status.branch])' <<<"$output")" = '[["desk","main"],["group/deep/two","main"]]' ]
   mkdir "${BATS_TEST_TMPDIR}/nowhere" && cd "${BATS_TEST_TMPDIR}/nowhere"
@@ -695,7 +695,7 @@ without-kittui() {
   cd "${work}"
   run pty "'${kit_root}/bin/kit' flow --no-fetch"
   # the pseudo-terminal ends every line with CR LF
-  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"🏠 DESK 1"$'\n'"🏠 main"* ]]
+  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
   [[ "$output" != *"kittui"* ]]
 }
 
@@ -764,7 +764,7 @@ without-kittui() {
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"git fetch --prune failed; ahead and behind counts may be stale" ]]
   [ "$(grep -c 'fetch --prune failed' <<<"$output")" -eq 1 ]
-  [[ "$output" == *$'🏠 DESK 1\n🏠 main'* ]]
+  [[ "$output" == *$'💻 DESK 1\n💻 main'* ]]
   run "${kit_root}/bin/kit" flow --json
   [ "$status" -eq 1 ]
   [[ "$output" == *"git fetch --prune failed"* ]]

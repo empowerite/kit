@@ -155,7 +155,7 @@ flow:heading() {
     (backlog)   glyph=🎫 ;;
     (underway)  glyph=🛫 ;;
     (incoming)  glyph=📥 ;;
-    (desk)      glyph=🏠 ;;
+    (desk)      glyph=💻 ;;
     (worktrees) glyph=🌿 ;;
     (changes)   glyph=🔀 ;;
     (builds)    glyph=🏭 ;;
@@ -866,7 +866,7 @@ flow:draw-desk() {
   local relative branch width
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"$1")
   IFS=$'\t' read -r _ width < <(flow:label "${relative}" "${branch}")
-  flow:checkout-block '🏠' "$1" "${width}"
+  flow:checkout-block '💻' "$1" "${width}"
 }
 
 # flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
