@@ -1,27 +1,28 @@
 #!/usr/bin/env bash
-# kit-toolchains - lists, installs, and updates the toolchains (kit verb: installation)
+# kit-toolchains - lists the toolchains kit found here, and records which one to use (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit toolchains [--json | --jq]
 #
-# kit toolchains (install | outdated [--check] | update | path | run <command>…)
+# kit toolchains choose <name> [--system]
 #
-# Alone, it lists each toolchain usable for the project and the file it reads, one per line. A toolchain is mise,
-# brew, or docker, and it manages the tools the gate runs with. It is usable where its tool is on PATH and its file
-# is here: mise.toml, Brewfile, or toolchain.Dockerfile. With a verb, it acts on every usable toolchain, in order.
-# The same verbs run at the desk and in the delivered CI job.
+# Alone, it lists each toolchain kit can use, one row for each role it fills. A toolchain is a tool manager: mise,
+# nix, brew, docker, or devcontainer. kit finds them where it runs, and never asks. The columns:
 #
-#   --json              one JSON object per toolchain: provider and file
+#   - ✅ marks a toolchain usable here: its tool is installed and its file is here.
+#   - ⚡ marks one the run is already inside.
+#   - 📌 marks the one kit uses for the role. With several usable and none chosen, no row has it.
+#
+# With choose, it records the choice. The project choice is kept for this repository, and the system choice for the
+# person. A toolchain that is not usable here is refused, and the usable ones are named.
+#
+#   --json              one JSON object per row: provider, role, usable, active, and chosen
 #   --jq                the same JSON, formatted by jq for a person
-#   install             installs every toolchain's pinned tools
-#   outdated [--check]  prints one line per tool behind its latest version
-#   --check             with outdated: fails when any tool is behind
-#   update              updates every tool, and rewrites the pins and the lock
-#   path                prints the directories that put the tools first on PATH
-#   run <command>…      runs the command with the tools on PATH, or in docker
-#   <command>…          the command and its arguments, as typed, dash-words included
+#   choose <name>       records the toolchain for the project; ambient chooses none
+#   <name>              mise, nix, brew, docker, devcontainer, or ambient
+#   --system            records it for the system role, which supplies bash, git, jq, and yq
 #
-# Exits 0 when it did it, 1 when a verb fails, and 2 on a usage error; run exits with the command's status.
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error.
 #
 # see: modules/bash/toolchain.sh, docs/toolchains.md
 
@@ -29,84 +30,69 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain settings
+use toolchain settings status
 guard:arguments toolchains "$@" || exit $?
 # kit.yml selects no toolchain, and a key it does not know, as toolchains now is, is refused.
 settings:validate || exit 1
 
-# Every verb reads the toolchains usable for the project once, here.
-providers=$(toolchain:usable project) || exit 1
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+if [[ "${syntax_literals[0]:-}" == choose ]]
+then
+  role=project
+  [[ -z "${syntax_options[--system]:-}" ]] || role=system
+  toolchain:choose "${role}" "${syntax_operands[0]}" || exit 1
+  ok "kit uses ${syntax_operands[0]} for the ${role}"
+  exit 0
+fi
 
-verb=${1:-}
-[[ -n "${verb}" ]] && shift
-case "${verb}" in
-  (install)
-    if [[ -z "${providers}" ]]
-    then
-      ok "no toolchain is usable here; the gate runs with the tools already on PATH"
-      exit 0
+# The rows come cached from toolchain:detect, and the chosen one for each role from toolchain:chosen, which here
+# only reports.
+declare -A chosen=()
+for role in project system
+do
+  chosen[${role}]=$(toolchain:chosen "${role}" list) || exit 1
+done
+
+json=false
+[[ -z "${syntax_options[--json]:-}" ]] || json=true
+rows=$(toolchain:detect) || exit 1
+
+if [[ "${json}" == true ]]
+then
+  while IFS=$'\t' read -r provider role usable active
+  do
+    jq --null-input --compact-output --arg provider "${provider}" --arg role "${role}" \
+      --argjson usable "$([[ "${usable}" == yes ]] && echo true || echo false)" \
+      --argjson active "$([[ "${active}" == yes ]] && echo true || echo false)" \
+      --argjson chosen "$([[ "${chosen[${role}]}" == "${provider}" ]] && echo true || echo false)" \
+      '{provider: $provider, role: $role, usable: $usable, active: $active, chosen: $chosen}'
+  done <<<"${rows}"
+  exit 0
+fi
+
+# A glyph is two columns wide and counts as one character, so a cell of six takes the glyph and four spaces.
+mark() {
+  if [[ "$1" == yes ]]
+  then printf '%s    ' "$2"
+  else printf '      '
+  fi
+}
+width=$(status:width)
+{
+  printf '%s\n' "$(status:paint 90 "$(printf '%-14s %-8s %s %s %s' provider role usable active chosen)")"
+  while IFS=$'\t' read -r provider role usable active
+  do
+    picked=no
+    [[ "${chosen[${role}]}" != "${provider}" ]] || picked=yes
+    line=$(printf '%-14s %-8s %s %s %s' "${provider}" "${role}" "$(mark "${usable}" ✅)" "$(mark "${active}" ⚡)" \
+      "$(mark "${picked}" 📌)")
+    line=${line%"${line##*[![:space:]]}"}
+    # the row is far narrower than the least width, so it is clipped only on a terminal that cannot hold it
+    if (( ${#line} > width ))
+    then status:cell "${line}" "${width}"; printf '\n'
+    else printf '%s\n' "${line}"
     fi
-    for provider in ${providers}
-    do
-      step "${provider}: installing from $(toolchain:call "${provider}" file)"
-      if ! toolchain:call "${provider}" install
-      then
-        error "${provider}: the tools could not be installed; see above"
-        exit 1
-      fi
-    done
-    ok "toolchains installed: ${providers//$'\n'/ }"
-    summary "✅ Toolchains installed: ${providers//$'\n'/ }."
-    ;;
-  (outdated)
-    check=false
-    [[ "${1:-}" == --check ]] && check=true
-    behind=0
-    for provider in ${providers}
-    do
-      while IFS=$'\t' read -r name installed latest
-      do
-        [[ -n "${name}" ]] || continue
-        printf '%-8s %-32s %-16s → %s\n' "${provider}" "${name}" "${installed}" "${latest}"
-        behind=$(( behind + 1 ))
-      done < <(toolchain:call "${provider}" outdated)
-    done
-    if (( behind == 0 ))
-    then
-      ok "every tool is at its latest"
-    elif [[ "${check}" == true ]]
-    then
-      error "${behind} tool(s) are behind; run: kit toolchains update"
-      exit 1
-    else
-      warn "${behind} tool(s) are behind; run: kit toolchains update"
-    fi
-    ;;
-  (update)
-    for provider in ${providers}
-    do
-      toolchain:call "${provider}" update || exit 1
-    done
-    ok "every toolchain is updated; commit the pins and the locks it rewrote"
-    ;;
-  (path)
-    toolchain:path
-    ;;
-  (run)
-    toolchain:run "$@"
-    ;;
-  (*)
-    for provider in ${providers}
-    do
-      file=$(toolchain:call "${provider}" file)
-      if [[ "${verb}" == --json ]]
-      then
-        jq --null-input --compact-output --arg provider "${provider}" --arg file "${file}" \
-          '{provider: $provider, file: $file}'
-      else
-        printf '%-8s %s\n' "${provider}" "${file}"
-      fi
-    done
-esac
+  done <<<"${rows}"
+}
 
 # ----------------------------------------------------------------------------------------------------------------------

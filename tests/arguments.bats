@@ -58,8 +58,8 @@ setup() {
 }
 
 @test "syntax:match sorts what is given: a trailing operand takes the dash-words, -- ends the flags, a value with spaces is whole" {
-  run kit-bash 'syntax:match toolchains run bash -c "echo hi"; echo "$? ${syntax_literals[*]} | ${#syntax_operands[@]} | ${syntax_operands[*]}"'
-  [ "$output" = "0 run | 3 | bash -c echo hi" ]
+  run kit-bash 'syntax:match tui run bash -c "echo hi"; echo "$? ${syntax_literals[*]} | ${#syntax_operands[@]} | ${syntax_operands[*]}"'
+  [ "$output" = "0  | 4 | run bash -c echo hi" ]
   run kit-bash 'syntax:match commit --message "a b" -- --weird; echo "$? ${syntax_options[--message]} | ${syntax_operands[*]}"'
   [ "$output" = "0 a b | --weird" ]
   run kit-bash 'syntax:match status --owner=ada --owner=bob; echo "$? ${syntax_options[--owner]}"'
@@ -109,10 +109,10 @@ setup() {
 }
 
 @test "a verb's own flag after a trailing operand's first word belongs to the command, and an option meant once is refused twice" {
-  run kit-bash 'syntax:match toolchains run kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
-  [ "$output" = "0 kit generate --check | none" ]
-  run kit-bash 'syntax:match toolchains run --check kit generate; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 --check cannot be combined with run; run: kit help toolchains" ]
+  run kit-bash 'syntax:match tui status kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
+  [ "$output" = "0 status kit generate --check | none" ]
+  run kit-bash 'syntax:match tui status --check kit generate; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 unknown flag '--check'; run: kit help tui" ]
   run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
   [ "$output" = "1  | 1" ]
   run kit-bash 'syntax:match commit --message m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'

@@ -1,9 +1,9 @@
 {
   "verb": "toolchains",
-  "purpose": "lists, installs, and updates the toolchains",
+  "purpose": "lists the toolchains kit found here, and records which one to use",
   "usage": [
     "kit toolchains [--json | --jq]",
-    "kit toolchains (install | outdated [--check] | update | path | run <command>…)"
+    "kit toolchains choose <name> [--system]"
   ],
   "syntax": [
     [
@@ -31,61 +31,24 @@
     ],
     [
       {
+        "kind": "literal",
+        "name": "choose",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
         "kind": "group",
-        "optional": false,
+        "optional": true,
         "alternatives": [
           [
             {
-              "kind": "literal",
-              "name": "install",
+              "kind": "flag",
+              "name": "system",
               "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "literal",
-              "name": "outdated",
-              "repeat": false
-            },
-            {
-              "kind": "group",
-              "optional": true,
-              "alternatives": [
-                [
-                  {
-                    "kind": "flag",
-                    "name": "check",
-                    "repeat": false
-                  }
-                ]
-              ],
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "literal",
-              "name": "update",
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "literal",
-              "name": "path",
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "literal",
-              "name": "run",
-              "repeat": false
-            },
-            {
-              "kind": "operand",
-              "name": "command",
-              "repeat": true
             }
           ]
         ],
@@ -95,31 +58,19 @@
   ],
   "arguments": {
     "--json": {
-      "description": "one JSON object per toolchain: provider and file"
+      "description": "one JSON object per row: provider, role, usable, active, and chosen"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
     },
-    "install": {
-      "description": "installs every toolchain's pinned tools"
+    "choose": {
+      "description": "records the toolchain for the project; ambient chooses none"
     },
-    "outdated": {
-      "description": "prints one line per tool behind its latest version"
+    "<name>": {
+      "description": "mise, nix, brew, docker, devcontainer, or ambient"
     },
-    "--check": {
-      "description": "with outdated: fails when any tool is behind"
-    },
-    "update": {
-      "description": "updates every tool, and rewrites the pins and the lock"
-    },
-    "path": {
-      "description": "prints the directories that put the tools first on PATH"
-    },
-    "run": {
-      "description": "runs the command with the tools on PATH, or in docker"
-    },
-    "<command>": {
-      "description": "the command and its arguments, as typed, dash-words included"
+    "--system": {
+      "description": "records it for the system role, which supplies bash, git, jq, and yq"
     }
   }
 }

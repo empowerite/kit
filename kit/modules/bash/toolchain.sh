@@ -149,8 +149,11 @@ toolchain:ranked() {
 #
 # Otherwise, with several usable and no terminal to ask, it refuses. The refusal lists each candidate with the
 # command that picks it. Every refusal returns 1.
+#
+# With list as the second word, it only reports, for kit toolchains to draw. It never asks, never refuses, and
+# never records. Where nothing is chosen, as with several usable, it prints nothing and returns 0.
 toolchain:chosen() {
-  local role=$1 named='' found active recorded choice answer
+  local role=$1 mode=${2:-} named='' found active recorded choice answer
   local -a usable
   toolchain:role "${role}" || return 1
   # The run names one toolchain, the project's: CI names its own, and the system one is found or chosen.
@@ -160,7 +163,7 @@ toolchain:chosen() {
   readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
   if [[ -n "${active}" ]]
   then
-    if [[ -n "${named}" && "${named}" != "${active}" ]]
+    if [[ -n "${named}" && "${named}" != "${active}" && "${mode}" != list ]]
     then
       error "${active} is active here, so this run cannot use ${named}; leave ${active}'s shell, or name ${active}"
       return 1
@@ -175,6 +178,7 @@ toolchain:chosen() {
       printf '%s\n' "${named}"
       return 0
     fi
+    [[ "${mode}" != list ]] || return 0
     error "the toolchain named for this run, ${named}, is not usable for the ${role} here;" \
       "usable: ${usable[*]:-none, so name ambient}"
     return 1
@@ -194,6 +198,7 @@ toolchain:chosen() {
     (1) printf '%s\n' "${usable[0]}"; return 0 ;;
     (*) ;;
   esac
+  [[ "${mode}" != list ]] || return 0
   if [[ -t 0 && -t 2 ]]
   then
     answer=$(toolchain:ask "${role}" "${usable[@]}") || return 1

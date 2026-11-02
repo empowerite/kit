@@ -159,6 +159,8 @@ group-has() {
 @test "a verb with two usage lines shows both, and one that takes no arguments shows kit <verb>" {
   run "${kit_root}/bin/kit" help context
   [[ "$output" == *$'Usage\n  kit context <path>… [--json | --jq]\n  kit context --claude\n'* ]]
+  run "${kit_root}/bin/kit" help toolchains
+  [[ "$output" == *$'Usage\n  kit toolchains [--json | --jq]\n  kit toolchains choose <name> [--system]\n'* ]]
   run "${kit_root}/bin/kit" help check
   [[ "$output" == *$'Usage\n  kit check\n\nDescription\n  kit check takes no arguments.'* ]]
 }

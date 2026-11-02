@@ -1,8 +1,8 @@
- kit toolchains - lists, installs, and updates the toolchains
+ kit toolchains - lists the toolchains kit found here, and records which one to use
 
    required
    [--json | --jq]
-   (install | outdated [--check] | update | path | run <command>…)
+   choose           records the toolchain for the project; ambient chooses none
 
 
  kit toolchains
