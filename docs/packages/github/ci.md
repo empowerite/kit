@@ -7,15 +7,29 @@ default branch. The job:
 2. Puts `kit` on `PATH`. Where `kit.yml` declares `unreleased`, it uses the kit's own checkout. Otherwise it
    downloads the release `kit.yml` declares with the `.sha256` published beside it, and unpacks the tarball only when
    its bytes have that digest.
-3. Installs the gate's tools with `kit tools install`, through the toolchain kit finds on the runner: mise,
-   Homebrew, or a container image. The gate is the repository's own CI command, such as `just ci`.
+3. Installs the gate's tools with `kit tools install`, through the toolchain `ci_toolchain` names: mise, nix,
+   Homebrew, a dev container, or the tools already on the runner. The gate is the repository's own CI command, such
+   as `just ci`.
 4. Runs `kit ci`, which runs the gate, `kit check`, `kit linked`, and `kit policy`, and reports each one.
 
-GitHub's hosted runners already have Homebrew and Docker. The workflow's one setup action, `jdx/mise-action`
-with its own install turned off, puts `mise` on the runner when the repository has a `mise.toml` or `.mise.toml`.
+GitHub's hosted runners already have Homebrew and Docker. The job sets `KIT_TOOLCHAIN` to the `ci_toolchain` answer, so
+kit uses that toolchain and refuses, never replaces, one the runner cannot use. One bootstrap step runs for the
+toolchain named, and none for the others:
+
+| `ci_toolchain` | Step | What it does |
+| --- | --- | --- |
+| `mise` | `mise-on-path` | `jdx/mise-action`, pinned by commit, with its own install turned off |
+| `nix` | `nix-on-path` | `DeterminateSystems/nix-installer-action`, pinned by commit |
+| `devcontainer` | `devcontainer-on-path` | `npm install --global @devcontainers/cli` at an exact version |
+| `brew`, `docker`, `ambient` | none | the runner already has them, or the tools are on `PATH` |
+
 The job needs `jq` and `yq` on the runner, which the hosted runners have; a runner of the repository's own needs both.
 
 A repository on another CI system calls `kit tools install` and `kit ci` from its own pipeline.
 
-The workflow is a template with one key, `ci_runner`: the label of the runner the job runs on. The default is
-`ubuntu-latest`. A repository with its own runners sets `ci_runner` under `answers:` in `kit.yml`.
+The workflow is a template with two keys, both under `answers:` in `kit.yml`:
+
+- `ci_runner` is the label of the runner the job runs on. The default is `ubuntu-latest`. A repository with its own
+  runners sets it.
+- `ci_toolchain` is the toolchain the job installs with. The default is `ambient`: kit installs nothing and the tools
+  are already on `PATH`. This repository sets `mise`.

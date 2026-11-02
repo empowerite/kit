@@ -7,3 +7,4 @@ depends:
   - kit
 answers:
   ci_runner: ubuntu-latest
+  ci_toolchain: ambient
