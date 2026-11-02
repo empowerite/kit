@@ -8,7 +8,7 @@
 load helper
 
 setup() {
-  fake-tools mise nix brew docker
+  fake-tools mise nix brew docker devcontainer
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
@@ -397,4 +397,60 @@ choose() {
   [ ! -e .git/kit/toolchain ]
   run "${kit_root}/bin/kit" toolchains choose
   [ "$status" -eq 2 ]
+}
+
+# a devcontainer configuration, and the devcontainer CLI (the fake) on PATH
+devcontainer-file() {
+  mkdir -p .devcontainer
+  printf '{ // a comment\n  "image": "debian",\n}\n' > .devcontainer/devcontainer.json
+}
+
+@test "a devcontainer is usable from outside with its CLI and file, and active inside with its file" {
+  run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tno\tno' <<<"$output"
+  devcontainer-file
+  run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tyes\tno' <<<"$output"
+  [[ "$output" != *$'devcontainer\tsystem'* ]]
+  # the other spelling of the file counts
+  rm -r .devcontainer
+  printf '{}\n' > .devcontainer.json
+  run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tyes\tno' <<<"$output"
+  # without its CLI it is not usable from outside
+  rm "${FAKE_DIR}/bin/devcontainer"
+  run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tno\tno' <<<"$output"
+  # inside, the file alone is enough, and it fills the system role too
+  for marker in REMOTE_CONTAINERS CODESPACES DEVCONTAINER
+  do
+    export "${marker}=true"
+    run detect
+    grep --quiet --line-regexp $'devcontainer\tproject\tyes\tyes' <<<"$output"
+    grep --quiet --line-regexp $'devcontainer\tsystem\tyes\tyes' <<<"$output"
+    unset "${marker}"
+  done
+  # a marker left over from another project, where this one has no file, is not active
+  rm .devcontainer.json
+  REMOTE_CONTAINERS=true run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tno\tno' <<<"$output"
+  [[ "$output" != *$'devcontainer\tsystem'* ]]
+}
+
+@test "a devcontainer's answers follow its markers through the cache, and it is offered last" {
+  devcontainer-file
+  touch mise.toml Brewfile toolchain.Dockerfile
+  nix-flake
+  run kit-bash 'use toolchain && toolchain:usable project'
+  [ "$output" = $'mise\nnix\nbrew\ndocker\ndevcontainer' ]
+  mkdir -p .kit
+  printf '/cache/\n' > .kit/.gitignore
+  run detect
+  grep --quiet --line-regexp $'devcontainer\tproject\tyes\tno' <<<"$output"
+  [ -s .kit/cache/toolchains.tsv ]
+  CODESPACES=true run detect
+  grep --quiet --line-regexp $'devcontainer\tsystem\tyes\tyes' <<<"$output"
+  # inside, it is the one chosen for both roles, ahead of every other
+  CODESPACES=true run kit-bash 'use toolchain && toolchain:chosen system && toolchain:chosen project'
+  [ "$output" = $'devcontainer\ndevcontainer' ]
 }

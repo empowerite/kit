@@ -36,3 +36,18 @@ import "toolchain" as toolchain; [toolchain::nix_refs]
 import "toolchain" as toolchain; [toolchain::nix_refs]
 {"root": "root", "nodes": {"root": {"inputs": {"a": "a", "b": "b", "c": "c", "d": "d"}}, "a": {"flake": false, "locked": {"rev": "r1"}, "original": {"type": "github", "owner": "o", "repo": "src"}}, "b": {"locked": {"rev": "r2"}, "original": {"type": "github", "owner": "o", "repo": "mono", "dir": "sub", "host": "git.example.com"}}, "c": {"locked": {"rev": "r3"}, "original": {"type": "git", "url": "https://h/c.git", "ref": "main", "dir": "x", "submodules": true}}, "d": {"locked": {"rev": "r4"}, "original": {"type": "tarball", "url": "https://h/d.tgz", "dir": "x"}}}}
 ["b\tgithub:o/mono?dir=sub&host=git.example.com\tr2","c\tgit+https://h/c.git?ref=main&dir=x&submodules=1\tr3"]
+
+# devcontainer-lock.json gives each locked feature, by id, with its locked version as pinned and installed.
+import "toolchain" as toolchain; [toolchain::devcontainer_pins]
+{"features": {"ghcr.io/a/jq:1": {"version": "1.2.3", "resolved": "r", "integrity": "i"}, "ghcr.io/a/go:1": {"version": "1.0.0"}}}
+["ghcr.io/a/jq:1\t1.2.3\t1.2.3","ghcr.io/a/go:1\t1.0.0\t1.0.0"]
+
+# A lock with no features gives nothing.
+import "toolchain" as toolchain; [toolchain::devcontainer_pins]
+{}
+[]
+
+# devcontainer outdated lists a feature whose current version is behind the latest, and nothing for one up to date.
+import "toolchain" as toolchain; [toolchain::devcontainer_outdated]
+{"features": {"ghcr.io/a/jq:1": {"current": "1.2.3", "wanted": "1.2.4", "latest": "2.0.0"}, "ghcr.io/a/go:1": {"current": "1.0.0", "wanted": "1.0.0", "latest": "1.0.0"}, "ghcr.io/a/x:1": {"current": null, "wanted": null, "latest": null}}}
+["ghcr.io/a/jq:1\t1.2.3\t2.0.0"]

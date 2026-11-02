@@ -9,7 +9,7 @@
 load helper
 
 setup() {
-  fake-tools mise nix brew docker
+  fake-tools mise nix brew docker devcontainer
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
@@ -379,3 +379,54 @@ JSON
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "outside, kit tools run runs inside the devcontainer; inside, it runs as is" {
+  mkdir .devcontainer && printf '{}\n' > .devcontainer/devcontainer.json
+  route devcontainer 'up --workspace-folder .' '!0'
+  route devcontainer 'exec --workspace-folder . *' '!0'
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'up --workspace-folder \.' "${FAKE_DIR}/devcontainer.calls"
+  run "${kit_root}/bin/kit" tools run just ci
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'exec --workspace-folder \. just ci' "${FAKE_DIR}/devcontainer.calls"
+  run "${kit_root}/bin/kit" tools path
+  [ -z "$output" ]
+  # inside, the provider has a run and is active, so the command runs here, as is
+  : > "${FAKE_DIR}/devcontainer.calls"
+  REMOTE_CONTAINERS=true run "${kit_root}/bin/kit" tools run bash -c 'printf "%s" "${PATH}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = "${PATH}" ]
+  [ ! -s "${FAKE_DIR}/devcontainer.calls" ]
+  REMOTE_CONTAINERS=true run "${kit_root}/bin/kit" tools run bash -c 'echo ran inside'
+  [ "$output" = "ran inside" ]
+}
+
+@test "devcontainer lists its features with their locked versions, and outdated asks its CLI" {
+  mkdir .devcontainer && printf '{ // features\n "features": {"ghcr.io/a/jq:1": {},},\n}\n' > .devcontainer/devcontainer.json
+  cat > .devcontainer/devcontainer-lock.json <<'JSON'
+{"features": {
+  "ghcr.io/a/jq:1": {"version": "1.2.3", "resolved": "ghcr.io/a/jq@sha256:aa", "integrity": "sha256:aa"},
+  "ghcr.io/a/go:1": {"version": "1.0.0", "resolved": "ghcr.io/a/go@sha256:bb", "integrity": "sha256:bb"}}}
+JSON
+  fixture outdated.json <<'JSON'
+{"features": {
+  "ghcr.io/a/jq:1": {"current": "1.2.3", "wanted": "1.2.4", "latest": "2.0.0"},
+  "ghcr.io/a/go:1": {"current": "1.0.0", "wanted": "1.0.0", "latest": "1.0.0"}}}
+JSON
+  route devcontainer 'outdated --output-format json *' outdated.json
+  route devcontainer 'upgrade *' '!0'
+  run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^✅ ghcr.io/a/jq:1 +· 1\.2\.3 +· 1\.2\.3$' <<<"$output"
+  grep --quiet -E '^✅ ghcr.io/a/go:1 +· 1\.0\.0 +· 1\.0\.0$' <<<"$output"
+  [ ! -s "${FAKE_DIR}/devcontainer.calls" ]
+  run "${kit_root}/bin/kit" tools --outdated
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^🔺 ghcr.io/a/jq:1 +· 1\.2\.3 +· +1\.2\.3 +· 2\.0\.0$' <<<"$output"
+  [[ "$output" != *ghcr.io/a/go* ]]
+  grep --quiet --line-regexp 'outdated --output-format json --workspace-folder .' "${FAKE_DIR}/devcontainer.calls"
+  run "${kit_root}/bin/kit" tools update
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'upgrade --workspace-folder .' "${FAKE_DIR}/devcontainer.calls"
+}

@@ -41,7 +41,8 @@
 #   roles                   the roles it can fill, one per line: project, system, or both
 #   update                  moves every tool to its latest version, and rewrites the pins and the lock
 #   usable <role>           succeeds when its tool is installed and on PATH, and it is configured for the role
-#   run <command>…          runs the command with its tools; only a provider that isolates, as docker, implements it
+#   run <command>…          runs the command with its tools; only a provider that isolates, as docker, implements it,
+#                           and toolchain:run takes it only while the provider is not active
 #
 # see: docs/toolchains.md
 
@@ -122,7 +123,8 @@ toolchain:call() {
 }
 
 # toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, nix,
-# brew, docker, then any other in toolchain:providers order. The order is how candidates are offered; a run uses one.
+# brew, docker, then any other, as devcontainer, in toolchain:providers order. The order is how candidates are
+# offered; a run uses one.
 toolchain:usable() {
   toolchain:detect | toolchain:ranked "$1" usable
 }
@@ -366,7 +368,8 @@ toolchain:path() {
 
 # toolchain:run <command>… runs the command with the chosen project toolchain's tools:
 #
-#   - through the provider's run, where it has one, as docker does to run in its container
+#   - through the provider's run, where it has one and is not active, as docker does to run in its container; a
+#     provider that is active is already inside its container, so the command runs there as is
 #   - otherwise, with the provider's path first on PATH
 #   - ambient, as is
 toolchain:run() {
@@ -378,7 +381,7 @@ toolchain:run() {
     return
   fi
   use "toolchain/${chosen}" || return 1
-  if declare -F "toolchain/${chosen}:run" >/dev/null
+  if declare -F "toolchain/${chosen}:run" >/dev/null && ! toolchain:call "${chosen}" active
   then
     toolchain:call "${chosen}" run "$@"
     return

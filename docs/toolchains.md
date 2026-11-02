@@ -1,7 +1,7 @@
 # Toolchains
 
-A toolchain is a tool manager: mise, Homebrew, or a Docker container image. It pins the tools the gate runs, the
-gate being the repository's own CI command.
+A toolchain is a tool manager: mise, Nix, Homebrew, a Docker image, or a dev container. It pins the tools the gate
+runs, the gate being the repository's own CI command.
 
 - kit finds the toolchains where it runs. `kit.yml` never names one, because it is shared by everyone who clones.
 - `kit toolchains` lists what kit found, and records which one to use.
@@ -43,6 +43,15 @@ network, and never calls git.
 | `nix` | project | `nix` is on `PATH` with flakes on, and `flake.nix` names `devShells` or `devShell` | `IN_NIX_SHELL` is set, and `flake.nix` is here | each flake input by its locked revision in `flake.lock` |
 | `brew` | system; project with a `Brewfile` | `brew` is on `PATH` or at one of Homebrew's prefixes | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
+| `devcontainer` | project; system too while active | From outside, the `devcontainer` CLI is on `PATH`, and `.devcontainer/devcontainer.json` or `.devcontainer.json` is here. Inside, the file alone. | `REMOTE_CONTAINERS`, `CODESPACES`, or `DEVCONTAINER` is set, and the file is here | each feature in `devcontainer-lock.json` by its locked version |
+
+devcontainer:
+
+- It is offered last, after docker.
+- Inside the container it is active, so it is the one chosen for both roles.
+- From outside, it runs commands in the container, as docker does. Inside, a command runs as is.
+- The file allows comments, which kit does not parse. The pins come from the lock, so a feature not yet locked is
+  not listed.
 
 ## Choosing
 
@@ -92,10 +101,10 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | --- | --- |
 | `kit tools` | Lists each pinned tool, and whether it is installed. `--json` prints one object per tool. |
 | `kit tools --outdated` | Lists only the tools behind their latest version, with that version. This asks the network. `--check` fails when one is behind. |
-| `kit tools install` | Installs the pinned tools: `mise install`, `brew bundle install --no-upgrade`, or a `docker build` of the image. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
-| `kit tools update` | Moves every tool to its latest version, and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, or new `FROM` digests. Commit the files it rewrote. |
+| `kit tools install` | Installs the pinned tools: `mise install`, `brew bundle install --no-upgrade`, a `docker build` of the image, or `devcontainer up`. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
+| `kit tools update` | Moves every tool to its latest version, and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, new `FROM` digests, or `devcontainer upgrade`. Commit the files it rewrote. |
 | `kit tools path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
-| `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, otherwise with the tools first on `PATH`. |
+| `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, and for devcontainer from outside; otherwise with the tools first on `PATH`. |
 
 Each takes `--toolchain <name>` to name the toolchain for that run.
 
@@ -112,6 +121,8 @@ found on `PATH`, or `missing`.
 `kit gate` runs the gate as `kit tools run` runs a command:
 
 - Normally, with the chosen toolchain's directories first on `PATH`.
+- With devcontainer chosen from outside, in the container, through `devcontainer exec`. Run `kit tools install` first,
+  which brings the container up. Inside the container, the gate runs as is.
 - With docker chosen, inside its image, with the checkout mounted at `/work`. It runs as the caller's user, so the
   files the gate writes belong to the caller. The image needs `bash`, because the gate runs as `bash -c`.
 

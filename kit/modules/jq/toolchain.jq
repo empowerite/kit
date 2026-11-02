@@ -3,7 +3,7 @@
 #
 # import "toolchain" as toolchain; with jq -L "${kit_jq}".
 #
-# see: modules/bash/toolchain.sh, modules/bash/toolchain/brew.sh
+# see: modules/bash/toolchain.sh, modules/bash/toolchain/brew.sh, modules/bash/toolchain/devcontainer.sh
 
 # brew_outdated($names) reads brew outdated --json=v2 and gives, for each formula or cask named in $names, one name
 # per line, "<name>\t<installed>\t<current>". Brew reports every outdated package on the machine; only the
@@ -71,3 +71,16 @@ def nix_refs:
      else null end) as $ref
   | select($ref != null)
   | "\(.name)\t\($ref)\t\(.node.locked.rev)";
+
+# devcontainer_pins reads devcontainer-lock.json and gives one line per locked feature, "<id>\t<pinned>\t<installed>".
+# The lock records the version each feature resolved to, and nothing of what was built, so the two columns agree.
+def devcontainer_pins:
+  (.features // {}) | to_entries[]
+  | "\(.key)\t\(.value.version // "")\t\(.value.version // "")";
+
+# devcontainer_outdated reads devcontainer outdated --output-format json and gives, for each feature whose current
+# version differs from the latest, "<id>\t<current>\t<latest>". A feature with no latest is not reported.
+def devcontainer_outdated:
+  (.features // {}) | to_entries[]
+  | select(.value.latest != null and .value.current != .value.latest)
+  | "\(.key)\t\(.value.current // "")\t\(.value.latest)";

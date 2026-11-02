@@ -166,7 +166,7 @@ exists.
 | --- | --- | --- |
 | `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else the primary remote's host |
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/brew.sh`, `toolchain/docker.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
 Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
