@@ -47,7 +47,7 @@ call() {
     '{"jsonrpc":"2.0","id":3,"method":"tools/list"}'
   [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 3 ]
   answer 1 | jq --exit-status '.result | .protocolVersion == "2025-06-18" and .serverInfo.name == "kit"
-    and .capabilities == {tools: {}, resources: {}} and (.instructions | contains("kit://1st.md"))'
+    and .capabilities == {tools: {listChanged: true}, resources: {listChanged: true}} and (.instructions | contains("kit://1st.md"))'
   answer 2 | jq --exit-status '.result == {}'
   answer 3 | jq --exit-status '.result.tools | length == 11'
   serve '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1999-01-01","capabilities":{}}}'
@@ -189,6 +189,65 @@ lines')" "$(call 3 version)"
   run "${kit_checkout}/bin/kit" serve --stdio
   [ "$status" -eq 2 ]
   [[ "$output" == *"run: kit help serve"* ]]
+}
+
+# await <id> waits up to ten seconds for the answer to request <id> in ${BATS_TEST_TMPDIR}/out.
+await() {
+  local tries=100
+  until [[ -n "$(answer "$1" 2>/dev/null)" ]]
+  do
+    (( tries-- > 0 )) || return 1
+    sleep 0.1
+  done
+}
+
+@test "in a checkout of the kit, the checkout's own kit serves it, whichever kit started the server" {
+  checkout-copy
+  sed -i.bak "s/^serve_instructions='kit holds/serve_instructions='own: kit holds/" kit/modules/bash/serve.sh
+  serve "$(modern 1 server/discover)"
+  answer 1 | jq --exit-status '.result.instructions | startswith("own: ")'
+  grep --quiet "this checkout's own kit serves it" "${BATS_TEST_TMPDIR}/err"
+}
+
+@test "between messages, a changed module starts the server again from it, which says the lists changed; one that does not parse is kept out" {
+  checkout-copy
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  kit/bin/kit serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 server/discover >&7
+  await 1
+  sed -i.bak "s/^serve_instructions='kit holds/serve_instructions='edited: kit holds/" kit/modules/bash/serve.sh
+  modern 2 server/discover >&7
+  await 2
+  answer 2 | jq --exit-status '.result.instructions | startswith("edited: ")'
+  [ "$(grep --count '"method":"notifications/tools/list_changed"' "${BATS_TEST_TMPDIR}/out")" -eq 1 ]
+  [ "$(grep --count '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out")" -eq 1 ]
+  printf 'serve:broken() {\n' >> kit/modules/bash/serve.sh
+  modern 3 server/discover >&7
+  await 3
+  answer 3 | jq --exit-status '.result.instructions | startswith("edited: ")'
+  grep --quiet 'does not parse; the server keeps the code it runs until the next change' "${BATS_TEST_TMPDIR}/err"
+  exec 7>&-
+  wait "${server}"
+  grep --quiet ' event=reload$' .kit/logs/mcp-*.log
+  grep --quiet ' event=reload-refused .*/kit/modules/bash/serve.sh$' .kit/logs/mcp-*.log
+}
+
+@test "a .kit/.gitignore that changed between messages tells the client the resources changed" {
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  "${kit_checkout}/bin/kit" serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 server/discover >&7
+  await 1
+  touch .kit/.gitignore
+  modern 2 server/discover >&7
+  await 2
+  exec 7>&-
+  wait "${server}"
+  grep --quiet '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out"
+  run ! grep --quiet 'notifications/tools/list_changed' "${BATS_TEST_TMPDIR}/out"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

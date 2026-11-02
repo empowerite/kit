@@ -5,8 +5,13 @@
 # makes, and kit lint requires, a line of dashes to column 120 under the banner and at the end of the file. A
 # repository that installs the kit never sees this package.
 #
-# see: docs/packages.md
+# It also has Claude Code run this checkout's own kit as its MCP server, by path from the project directory Claude
+# Code names, rather than whichever kit is on the PATH the harness started with: kit/bin is on PATH only where mise
+# has activated the worktree. Coming after agents/claude, its entry wins.
+#
+# see: docs/packages.md, docs/serve.md
 
-description: "This repository's own style: the empowerite bundle, and templates with a line of dashes under the banner"
+description: "This repository's own style and templates, and Claude Code serving this checkout's own kit"
 depends:
   - empowerite
+  - agents/claude

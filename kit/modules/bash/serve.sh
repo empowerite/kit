@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # serve.sh - the Model Context Protocol server that kit serve runs on stdio (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_root is exported, and kit_bash_path set, by modules/bash/1st.sh
 #
 # serve:main reads one JSON-RPC message per line on stdin and answers each in order, one line on stdout per answer.
 # Nothing else reaches stdout: a verb a tool runs has its stdout and stderr captured, and every log line goes to
@@ -17,6 +18,14 @@
 # functions kit help uses, and its one argument is args, the verb's arguments as an array of strings. A call runs
 # kit <verb> <args>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
 #
+# Before each message, the server looks for a file in its release's bin/ and modules/, or in a module directory of
+# the repository's own, changed since it started. When one has, it starts itself again over the same stdin, from the
+# changed code, and that process answers the message: an edit to a verb, a module, or the server itself takes effect
+# on the next message, with no reconnect. A changed bash file that does not parse keeps the running code, and says
+# so on stderr, until the next change. The new process tells the client that the tools and the resources may have
+# changed, with notifications/tools/list_changed and notifications/resources/list_changed, so it asks for them again.
+# A .kit/.gitignore changed since, which kit hydrate rewrites when what it places changes, sends the second alone.
+#
 # A resource is one of the kit's files under .kit/: kit://1st.md, kit://rules/<kind> and kit://styles/<kind> for each
 # rule and style, and kit://kinds/<file> for each kinds file, which may define several kinds.
 #
@@ -27,7 +36,7 @@
 #
 # see: kit/bin/kit-serve, docs/serve.md, https://modelcontextprotocol.io/specification/2026-07-28
 
-use context help release syntax log
+use context help release syntax log file
 
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
@@ -70,16 +79,114 @@ serve_instructions+=' first. Before you change a file, call the context tool wit
 
 # serve:main answers each message on stdin, in order, until stdin ends, and logs each one.
 serve:main() {
-  local line started
+  local line
+  serve:watch
+  serve:resume
   while IFS= read -r line || [[ -n "${line}" ]]
   do
     [[ -n "${line//[[:space:]]/}" ]] || continue
-    log:now started
-    serve_log_fields=() serve_outcome='' serve_log_last=''
-    serve:handle "${line}"
-    log:call mcp "${started}" "pid=$$" "${serve_log_fields[@]}" "outcome=${serve_outcome:-none}" \
-      ${serve_log_last:+"${serve_log_last}"}
+    serve:reload "${line}"
+    serve:answer "${line}"
   done
+}
+
+# serve:answer <line> answers one message, and logs it.
+serve:answer() {
+  local started
+  log:now started
+  serve_log_fields=() serve_outcome='' serve_log_last=''
+  serve:handle "$1"
+  log:call mcp "${started}" "pid=$$" "${serve_log_fields[@]}" "outcome=${serve_outcome:-none}" \
+    ${serve_log_last:+"${serve_log_last}"}
+}
+
+# serve_marker is a file whose modification time is when the server started, or last looked for a change and found
+# one it would not take; serve_scratch is the directory that holds it.
+serve_marker='' serve_scratch=''
+
+# serve:watch makes the marker the server compares the files it runs with against.
+serve:watch() {
+  file:scratch serve_scratch
+  serve_marker=${serve_scratch}/started
+  : > "${serve_marker}"
+}
+
+# serve:watched prints the directories whose files the server runs: its release's bin/ and modules/, and each
+# directory of the module path outside the release, which holds the repository's own modules.
+serve:watched() {
+  local dir release
+  release=$(cd "${kit_root}" && pwd -P)
+  printf '%s\n' "${release}/bin" "${release}/modules"
+  for dir in "${kit_bash_path[@]}"
+  do
+    [[ "${dir}" == "${release}" || "${dir}" == "${release}"/* ]] || printf '%s\n' "${dir}"
+  done
+}
+
+# serve:changed prints each file in the watched directories changed since the marker, one per line.
+serve:changed() {
+  local -a dirs
+  readarray -t dirs < <(serve:watched)
+  find "${dirs[@]}" -type f -newer "${serve_marker}" 2>/dev/null || true
+}
+
+# serve:reload <line> starts the server again from the changed code, to answer <line>, when a file it runs has
+# changed and every changed bash file parses. It passes the era a client chose with initialize, and the line, in
+# kit_serve_era and kit_serve_pending. Otherwise it returns, and the running server answers <line>: after it sends
+# notifications/resources/list_changed when .kit/.gitignore changed, and says so on stderr when a file did not parse.
+serve:reload() {
+  local file now
+  local -a changed broken=()
+  readarray -t changed < <(serve:changed)
+  if (( ${#changed[@]} == 0 ))
+  then
+    if [[ .kit/.gitignore -nt "${serve_marker}" ]]
+    then
+      : > "${serve_marker}"
+      serve:notify notifications/resources/list_changed
+    fi
+    return 0
+  fi
+  for file in "${changed[@]}"
+  do
+    case "${file}" in
+      (*.sh | */bin/kit | */bin/kit-*) bash -n "${file}" 2>/dev/null || broken+=("${file}")
+    esac
+  done
+  if (( ${#broken[@]} > 0 ))
+  then
+    : > "${serve_marker}"
+    warn "kit serve: ${broken[*]} does not parse; the server keeps the code it runs until the next change"
+    log:now now
+    log:call mcp "${now}" "pid=$$" event=reload-refused "${broken[@]}"
+    return 0
+  fi
+  log:now now
+  log:call mcp "${now}" "pid=$$" event=reload
+  rm -rf "${serve_scratch}"
+  export kit_serve_era=${serve_era} kit_serve_pending=$1
+  exec "${kit_root}/bin/kit-serve"
+}
+
+# serve:resume picks up where the server it replaced left off, when kit_serve_pending holds the line that one read:
+# it takes the era, tells the client the tools and the resources may have changed, and answers the line. A client
+# that opens with initialize hears nothing before its answer, as the earlier revisions require.
+serve:resume() {
+  local pending=${kit_serve_pending:-}
+  [[ -n "${pending}" ]] || return 0
+  serve_era=${kit_serve_era:-}
+  unset kit_serve_era kit_serve_pending
+  if [[ "${pending}" != *'"initialize"'* ]]
+  then
+    serve:notify notifications/tools/list_changed
+    serve:notify notifications/resources/list_changed
+  fi
+  serve:answer "${pending}"
+}
+
+# serve:notify <method> sends a notification, a message the client does not answer.
+serve:notify() {
+  printf '{"jsonrpc":"2.0","method":"%s"}\n' "$1"
 }
 
 # serve:handle <line> answers one message.
@@ -186,7 +293,7 @@ serve:initialize() {
   serve:reply "$1" "$(jq --null-input --compact-output --arg version "${version}" --arg kit "$(release:version)" \
     --arg instructions "${serve_instructions}" '{
       protocolVersion: $version,
-      capabilities: {tools: {}, resources: {}},
+      capabilities: {tools: {listChanged: true}, resources: {listChanged: true}},
       serverInfo: {name: "kit", version: $kit},
       instructions: $instructions
     }')"
@@ -197,7 +304,7 @@ serve:discover() {
   serve:complete "$1" "$(jq --null-input --compact-output --arg kit "$(release:version)" \
     --arg instructions "${serve_instructions}" '{
       supportedVersions: $ARGS.positional,
-      capabilities: {tools: {}, resources: {}},
+      capabilities: {tools: {listChanged: true}, resources: {listChanged: true}},
       instructions: $instructions,
       _meta: {"io.modelcontextprotocol/serverInfo": {name: "kit", version: $kit}}
     }' --args "${serve_versions[@]}")" cacheable

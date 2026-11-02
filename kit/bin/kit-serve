@@ -9,6 +9,11 @@
 # object per line; every message for a person goes to stderr. Each message it answers is a line in
 # .kit/logs/mcp-YYYY-MMDD.log, beside a line when it starts and one when stdin ends, whose seconds are how long it ran.
 #
+# In a checkout of the kit, whose kit.yml declares version: unreleased, the checkout's own kit/bin/kit-serve serves
+# it, whichever kit started: a worktree that changes the kit is served by its own code. Between messages, the server
+# starts itself again from any file of its release that changed, and tells the client to list the tools and the
+# resources again; modules/bash/serve.sh says how.
+#
 # Its tools are the verbs that read and report, and change nothing: check, context, help, kinds, lint, packages,
 # status, syntax, toolchains, and version. A tool's description is the verb's help, and the tool takes args, the
 # verb's arguments as an array of strings. Its resources are the kit's files:
@@ -32,6 +37,15 @@ kit:enter
 use materialize
 
 guard:arguments serve "$@" || exit $?
+# A checkout of the kit, which declares no release, is served by the kit it holds, which may be ahead of this one.
+use settings
+own=$(pwd -P)/kit/bin/kit-serve
+if [[ -x "${own}" && "$(readlink -f "${own}")" != "$(readlink -f "${BASH_SOURCE[0]}")" ]] \
+  && [[ "$(settings:value version)" == unreleased ]]
+then
+  step "kit serve: this checkout's own kit serves it, ${own}"
+  exec "${own}"
+fi
 guard:require tool:jq || exit 1
 # Hydrating writes its steps to stderr, and places the files the resources name before the first request.
 materialize:hydrate >&2
