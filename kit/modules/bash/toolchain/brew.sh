@@ -2,8 +2,8 @@
 # brew.sh - the Homebrew toolchain provider: a Brewfile lists the formulae and casks (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# modules/bash/toolchain.sh loads this provider for `provider: brew`, or when a Brewfile is at the repository root. The
-# `file:` field names a different file.
+# brew fills the system role wherever brew is installed. It is usable for the project role too, where a Brewfile
+# is at the repository root. brew is never active: it is not a shell one enters.
 #
 # A Brewfile pins a formula by name only, so its version moves with Homebrew unless the name includes it
 # (node@22). The kit can only report which formulae are behind and upgrade them.
@@ -11,10 +11,14 @@
 # The provider needs brew, on PATH or at one of Homebrew's own prefixes. That covers a Linux runner where brew is
 # installed but not on PATH.
 
-toolchain/brew:file() {
-  local file
-  file=$(toolchain:field brew file)
-  printf '%s\n' "${file:-Brewfile}"
+toolchain/brew:active() { return 1; }
+
+toolchain/brew:file() { printf 'Brewfile\n'; }
+
+# Besides PATH, brew can be at one of Homebrew's own prefixes, so each prefix's brew is an input too.
+toolchain/brew:inputs() {
+  printf 'tool\tbrew\nfile\tBrewfile\n'
+  printf 'file\t%s\n' "${toolchain_brew_prefixes[@]}"
 }
 
 toolchain/brew:install() {
@@ -43,6 +47,8 @@ toolchain/brew:path() {
 
 toolchain/brew:require() { toolchain/brew:brew >/dev/null; }
 
+toolchain/brew:roles() { printf 'system\nproject\n'; }
+
 toolchain/brew:update() {
   local brew outdated
   brew=$(toolchain/brew:brew) || return 1
@@ -52,13 +58,24 @@ toolchain/brew:update() {
   "${brew}" upgrade ${outdated}
 }
 
+# toolchain/brew:usable runs brew for its version, so a brew that cannot run is not usable. The project role
+# needs a Brewfile as well.
+toolchain/brew:usable() {
+  local brew
+  [[ "$1" == system || "$1" == project ]] || return 1
+  brew=$(toolchain/brew:brew 2>/dev/null) && "${brew}" --version >/dev/null 2>&1 || return 1
+  [[ "$1" == system || -f Brewfile ]]
+}
+
 # The seam's calls end here; what follows is this provider's own.
+
+# toolchain_brew_prefixes holds where Homebrew installs brew itself, which a runner may leave off PATH.
+declare -gra toolchain_brew_prefixes=(/opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew)
 
 # toolchain/brew:brew prints the brew executable, on PATH or at one of Homebrew's prefixes.
 toolchain/brew:brew() {
   local brew
-  for brew in "$(command -v brew 2>/dev/null)" /opt/homebrew/bin/brew /usr/local/bin/brew \
-    /home/linuxbrew/.linuxbrew/bin/brew
+  for brew in "$(command -v brew 2>/dev/null)" "${toolchain_brew_prefixes[@]}"
   do
     [[ -n "${brew}" && -x "${brew}" ]] && { printf '%s\n' "${brew}"; return 0; }
   done

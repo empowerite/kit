@@ -6,10 +6,10 @@
 #
 # kit toolchains (install | outdated [--check] | update | path | run <command>…)
 #
-# Alone, it lists each declared toolchain and the file it reads, one per line. A toolchain is mise, brew, or docker,
-# and it manages the tools the gate runs with. The toolchains are the toolchains setting in kit.yml. Without the
-# setting, they are the ones whose file is present: mise.toml, Brewfile, or toolchain.Dockerfile. With a verb, it
-# acts on every toolchain, in order. The same verbs run at the desk and in the delivered CI job.
+# Alone, it lists each toolchain usable for the project and the file it reads, one per line. A toolchain is mise,
+# brew, or docker, and it manages the tools the gate runs with. It is usable where its tool is on PATH and its file
+# is here: mise.toml, Brewfile, or toolchain.Dockerfile. With a verb, it acts on every usable toolchain, in order.
+# The same verbs run at the desk and in the delivered CI job.
 #
 #   --json              one JSON object per toolchain: provider and file
 #   --jq                the same JSON, formatted by jq for a person
@@ -21,8 +21,7 @@
 #   run <command>…      runs the command with the tools on PATH, or in docker
 #   <command>…          the command and its arguments, as typed, dash-words included
 #
-# Exits 0 when it did it, 1 when a verb fails or a declared toolchain is unknown, and 2 on a usage error; run exits
-# with the command's status.
+# Exits 0 when it did it, 1 when a verb fails, and 2 on a usage error; run exits with the command's status.
 #
 # see: modules/bash/toolchain.sh, docs/toolchains.md
 
@@ -30,11 +29,13 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain
+use toolchain settings
 guard:arguments toolchains "$@" || exit $?
+# kit.yml selects no toolchain, and a key it does not know, as toolchains now is, is refused.
+settings:validate || exit 1
 
-# Every verb reads the declared toolchains once, here, so an invalid declaration stops the listing and every verb.
-providers=$(toolchain:declared) || exit 1
+# Every verb reads the toolchains usable for the project once, here.
+providers=$(toolchain:detect | awk -F '\t' '$2 == "project" && $3 == "yes" { print $1 }') || exit 1
 
 verb=${1:-}
 [[ -n "${verb}" ]] && shift
@@ -42,7 +43,7 @@ case "${verb}" in
   (install)
     if [[ -z "${providers}" ]]
     then
-      ok "no toolchain is declared or detected; the gate runs with the tools already on PATH"
+      ok "no toolchain is usable here; the gate runs with the tools already on PATH"
       exit 0
     fi
     for provider in ${providers}
@@ -82,7 +83,10 @@ case "${verb}" in
     fi
     ;;
   (update)
-    toolchain:each update
+    for provider in ${providers}
+    do
+      toolchain:call "${provider}" update || exit 1
+    done
     ok "every toolchain is updated; commit the pins and the locks it rewrote"
     ;;
   (path)

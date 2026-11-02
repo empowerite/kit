@@ -56,6 +56,8 @@ helper:isolate() {
   unset GITHUB_EVENT_PATH GITHUB_HEAD_REF CI_MERGE_REQUEST_IID CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
   # the forge tools' login files, which name the hosts each forge serves: a test writes its own, under the new HOME
   unset GH_CONFIG_DIR GLAB_CONFIG_DIR
+  # the marker of a toolchain the desk's shell activated, which would make that toolchain active in every test
+  unset MISE_SHELL
   # a file whose setup() goes nowhere runs its verbs here, outside the checkout, rather than where bats was started
   cd "${BATS_TEST_TMPDIR}" || return 1
 }

@@ -10,26 +10,97 @@ load helper
 
 setup() {
   fake-tools mise brew docker
+  # each probe runs its tool once, to know it is installed
+  route mise '--version' '!0'
+  route brew '--version' '!0'
+  route docker '--version' '!0'
   fresh-repo
 }
 
-@test "the toolchains are detected from their files, in order, and a declared one wins" {
-  run "${kit_root}/bin/kit" toolchains
-  [ -z "$output" ]
-  run "${kit_root}/bin/kit" toolchains install
+# detect prints what toolchain:detect finds here.
+detect() {
+  kit-bash 'use toolchain && toolchain:detect'
+}
+
+# probes prints how many times the fake mise has run.
+probes() {
+  if [[ -f "${FAKE_DIR}/mise.calls" ]]
+  then wc -l < "${FAKE_DIR}/mise.calls" | tr -d ' '
+  else echo 0
+  fi
+}
+
+@test "a toolchain is usable when its tool is on PATH and its file is here" {
+  run detect
   [ "$status" -eq 0 ]
-  [[ "$output" == *"no toolchain is declared or detected"* ]]
-  touch mise.toml Brewfile toolchain.Dockerfile
+  grep --quiet --line-regexp $'mise\tproject\tno\tno' <<<"$output"
+  touch mise.toml
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
+  fresh-repo local
+  touch mise.local.toml
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
+}
+
+@test "brew is a system toolchain anywhere it is installed, and a project one with a Brewfile" {
+  run detect
+  [ "$status" -eq 0 ]
+  [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tno\tno' ]
+  touch Brewfile
+  run detect
+  [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
+}
+
+@test "mise is active only when activated and configured here" {
+  export MISE_SHELL=zsh
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tno\tno' <<<"$output"
+  touch mise.toml
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
+}
+
+@test "the cache answers until PATH, a tool, a file, or a marker changes" {
+  # with nowhere git ignores, nothing is cached, and each run probes
+  mkdir .kit
+  run detect
+  run detect
+  [ "$(probes)" -eq 2 ]
+  [ ! -e .kit/cache ]
+  printf '/cache/\n' > .kit/.gitignore
+  run detect
+  [ "$(probes)" -eq 3 ]
+  found=$output
+  run detect
+  [ "$(probes)" -eq 3 ]
+  [ "$output" = "${found}" ]
+  [ "$(cat .kit/cache/toolchains.tsv)" = "${found}" ]
+  [ -s .kit/cache/toolchains.key ]
+  mkdir "${BATS_TEST_TMPDIR}/elsewhere"
+  export PATH="${BATS_TEST_TMPDIR}/elsewhere:${PATH}"
+  run detect
+  [ "$(probes)" -eq 4 ]
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${BATS_TEST_TMPDIR}/elsewhere/mise"
+  run detect
+  [ "$(probes)" -eq 5 ]
+  touch mise.toml
+  run detect
+  [ "$(probes)" -eq 6 ]
+  grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
+  export MISE_SHELL=zsh
+  run detect
+  [ "$(probes)" -eq 7 ]
+  grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
+  run detect
+  [ "$(probes)" -eq 7 ]
+}
+
+@test "a toolchains key in kit.yml is refused" {
+  printf 'toolchains:\n  - provider: mise\n' > kit.yml
   run "${kit_root}/bin/kit" toolchains
-  detected=$(awk '{ print $1 "=" $2 }' <<<"$output" | paste -s -d ' ' -)
-  [ "${detected}" = "mise=mise.toml brew=Brewfile docker=toolchain.Dockerfile" ]
-  mkdir .kit && printf 'toolchains:\n  - provider: brew\n    file: tools/Brewfile\n' > kit.yml
-  run "${kit_root}/bin/kit" toolchains
-  [ "$output" = "brew     tools/Brewfile" ]
-  printf 'toolchains:\n  - provider: nix\n' > kit.yml
-  run "${kit_root}/bin/kit" toolchains
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"'nix' is not a toolchain the kit knows; the toolchains are: brew docker mise"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a key the kit does not know: toolchains"* ]]
 }
 
 @test "mise installs, reports, updates, and puts its bin paths first" {
@@ -113,7 +184,7 @@ JSON
 }
 
 @test "the gate runs inside the docker toolchain, and with mise's path first otherwise" {
-  mkdir .kit && printf 'gate: echo gated\ntoolchains:\n  - provider: docker\n' > kit.yml
+  mkdir .kit && printf 'gate: echo gated\n' > kit.yml
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
   route docker 'image inspect *' '!0'
   route docker 'run --rm *' '!0'

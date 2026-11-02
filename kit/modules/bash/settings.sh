@@ -34,7 +34,7 @@ settings:validate() {
   do
     case "${key}" in
       (version | packages | excludes) ;;
-      (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
+      (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
       (linked_exempt | sources | status | primary | forges) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"

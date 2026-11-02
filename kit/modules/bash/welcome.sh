@@ -68,10 +68,10 @@ welcome:site() {
   esac
 }
 
-# welcome:toolchains prints the toolchains kit detects here, one per line, as kit toolchains lists them. Nothing
-# means the tools are ambient: whatever is on PATH.
+# welcome:toolchains prints the toolchains usable for the project here, one per line, as kit toolchains lists them.
+# Nothing means the tools are ambient: whatever is on PATH.
 welcome:toolchains() {
-  toolchain:declared 2>/dev/null || true
+  toolchain:detect 2>/dev/null | awk -F '\t' '$2 == "project" && $3 == "yes" { print $1 }' || true
 }
 
 # welcome:toolchain-files prints the files the detected toolchains read, comma-separated: where a tool is pinned.

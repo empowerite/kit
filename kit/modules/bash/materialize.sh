@@ -112,13 +112,13 @@ materialize:prune() {
   done
 }
 
-# materialize:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, and the file
-# itself, so git never sees them.
+# materialize:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, the file
+# itself, and cache/, where kit keeps what it found in this checkout. git never sees any of them.
 materialize:ignore-text() {
   local path
   printf '# .kit/.gitignore - what kit placed here, which git never sees (written by kit, not by hand)\n'
   {
-    printf '/.gitignore\n/manifest\n'
+    printf '/.gitignore\n/manifest\n/cache/\n'
     for path in "$@"
     do
       printf '/%s\n' "${path#.kit/}"
@@ -262,7 +262,7 @@ materialize:all() {
 }
 
 # materialize:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
-# write bit, and .kit/manifest exists. Where this release is itself inside the worktree, as the kit's own kit/ is,
+# write bit, and .kit/manifest exists. cache/ is named but never placed, so it is skipped. Where this release is itself inside the worktree, as the kit's own kit/ is,
 # every path must be a link: a copy there came from a kit outside the worktree, and the full run turns it into a
 # link. It starts one process, to resolve the release's root, so a reading verb asks on every run. A fresh clone, a
 # `git clean -fdx`, a
@@ -280,7 +280,8 @@ materialize:hydrated() {
   ! materialize:within "$(readlink -f "${kit_root}")" || inside=true
   while IFS= read -r line
   do
-    [[ "${line}" == /* && "${line}" != /.gitignore && "${line}" != /manifest ]] || continue
+    [[ "${line}" == /* ]] || continue
+    [[ "${line}" != /.gitignore && "${line}" != /manifest && "${line}" != /cache/ ]] || continue
     path=.kit${line}
     if [[ "${inside}" == true ]]
     then

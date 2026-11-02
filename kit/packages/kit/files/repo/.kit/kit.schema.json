@@ -122,44 +122,6 @@
         }
       }
     },
-    "toolchains": {
-      "type": "array",
-      "description": "The toolchains that put the gate's tools on PATH, in order. When absent, they are detected from mise.toml, Brewfile, and toolchain.Dockerfile.",
-      "items": {
-        "type": "object",
-        "required": [
-          "provider"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "provider": {
-            "type": "string",
-            "description": "The tool manager: mise, brew, or docker.",
-            "anyOf": [
-              {
-                "enum": [
-                  "mise",
-                  "brew",
-                  "docker"
-                ]
-              },
-              {
-                "pattern": "^[a-z][a-z0-9-]*$",
-                "description": "a provider the repository adds on its module path, bash_path"
-              }
-            ]
-          },
-          "file": {
-            "type": "string",
-            "description": "brew and docker: the file the tool manager reads. Default: Brewfile or toolchain.Dockerfile."
-          },
-          "image": {
-            "type": "string",
-            "description": "docker: the name of the built image. Default: kit-toolchain."
-          }
-        }
-      }
-    },
     "policy": {
       "type": "object",
       "additionalProperties": false,

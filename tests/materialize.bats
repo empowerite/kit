@@ -253,6 +253,18 @@ setup() {
   [ -f .kit/rules/bash.md ]
 }
 
+@test ".kit/.gitignore lists /cache/, and a quick hydrate passes without it" {
+  "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp '/cache/' .kit/.gitignore
+  [ ! -e .kit/cache ]
+  run "${kit_checkout}/bin/kit" hydrate --quick
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -e .kit/cache ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 @test "a manifest record whose path climbs out of its root is skipped and named, and nothing outside .kit/ is removed" {

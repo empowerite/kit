@@ -2,8 +2,8 @@
 # docker.sh - the container image toolchain provider: a Dockerfile installs the tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# modules/bash/toolchain.sh loads this provider for `provider: docker`, or when toolchain.Dockerfile is at the repository
-# root. The `file:` field names a different file. The `image:` field names the image (default: kit-toolchain).
+# docker fills the project role. It is configured here by toolchain.Dockerfile at the repository root. It is never
+# active: it runs a command in its container instead. The image is named kit-toolchain.
 #
 # The image is built from the file and tagged with the file's digest. A changed file builds a new image; an
 # unchanged file is never rebuilt. A command runs in the container with the checkout mounted at /work, as the
@@ -15,11 +15,11 @@
 
 use file
 
-toolchain/docker:file() {
-  local file
-  file=$(toolchain:field docker file)
-  printf '%s\n' "${file:-toolchain.Dockerfile}"
-}
+toolchain/docker:active() { return 1; }
+
+toolchain/docker:file() { printf 'toolchain.Dockerfile\n'; }
+
+toolchain/docker:inputs() { printf 'tool\tdocker\nfile\ttoolchain.Dockerfile\n'; }
 
 toolchain/docker:install() {
   local file tag
@@ -50,6 +50,8 @@ toolchain/docker:require() {
   return 1
 }
 
+toolchain/docker:roles() { printf 'project\n'; }
+
 toolchain/docker:update() {
   local file base pinned latest quoted from
   file=$(toolchain/docker:file)
@@ -70,20 +72,25 @@ toolchain/docker:update() {
   toolchain/docker:install
 }
 
+# toolchain/docker:usable runs the docker client for its version, which asks nothing of the daemon.
+toolchain/docker:usable() {
+  [[ "$1" == project ]] || return 1
+  command -v docker >/dev/null 2>&1 && docker --version >/dev/null 2>&1 && [[ -f toolchain.Dockerfile ]]
+}
+
 # The seam's calls end here; what follows is this provider's own.
 
 # toolchain/docker:tag prints the image's tag: the image name, then the first twelve hex digits of the file's
 # digest.
 toolchain/docker:tag() {
-  local file name
+  local file
   file=$(toolchain/docker:file)
-  name=$(toolchain:field docker image)
   if [[ ! -f "${file}" ]]
   then
     error "${file} is missing; the docker toolchain builds its image from it"
     return 1
   fi
-  printf '%s:%s\n' "${name:-kit-toolchain}" "$(file:digest < "${file}" | cut -c 1-12)"
+  printf 'kit-toolchain:%s\n' "$(file:digest < "${file}" | cut -c 1-12)"
 }
 
 # toolchain/docker:bases prints "<name:tag>\t<pinned digest or nothing>" for every FROM line that names an image.

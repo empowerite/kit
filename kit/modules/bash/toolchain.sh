@@ -4,85 +4,106 @@
 #
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
-# Each repository picks the tool managers that install the tools its gate runs, on the root checkout (the desk)
-# and on a CI runner. Each tool manager is a provider: toolchain/<name>.sh beside it, whose functions are
-# named toolchain/<name>:<call>. A provider reads the fields of its settings record with toolchain:field.
+# kit finds the toolchains where it runs, never in kit.yml. Each tool manager is a provider: toolchain/<name>.sh
+# beside it, whose functions are named toolchain/<name>:<call>.
 #
-# A repository can use more than one provider. They are chosen by:
+# A toolchain fills one role or both:
 #
-#   1. the `toolchains` list in kit.yml, in the order listed
-#   2. otherwise every provider whose file is at the repository root, in this order:
-#        - mise: mise.toml or .mise.toml
-#        - brew: Brewfile
-#        - docker: toolchain.Dockerfile
+#   - project: it pins the repository's tools
+#   - system: it supplies what kit itself stands on, such as bash, git, jq, and yq
 #
-# A `toolchains` setting looks like this:
+# toolchain:detect asks every provider about each role it can fill:
 #
-#   toolchains:
-#     - provider: mise
-#     - provider: brew
-#       file: Brewfile
-#     - provider: docker
-#       file: toolchain.Dockerfile
-#       image: example/toolchain
+#   - usable: its tool is installed and on PATH, and its file is on disk here, committed or not
+#   - active: the run is already inside it, and its file is here
+#
+# A probe stats files and runs a tool for its version. It never touches the network, and never calls git.
+# The answers are cached per checkout in .kit/cache/toolchains.tsv. The cache holds while its key, in
+# .kit/cache/toolchains.key, still matches: PATH, where each tool resolves, each file's modification time, and
+# each activation marker.
 #
 # Every provider implements the calls below, except where noted.
 #
+#   active                  succeeds when the run is inside the toolchain, and its file is here
 #   file                    the file it reads, relative to the repository root
-#   require                 succeeds when its own tool is present; otherwise fails with a remedy
+#   inputs                  what its answers depend on, one per line: file, env, or tool, a tab, then the name
 #   install                 installs every pinned tool, from the file and its lock
 #   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"
-#   update                  moves every tool to its latest version, and rewrites the pins and the lock
 #   path                    the directories to put first on PATH for its tools, one per line
+#   require                 succeeds when its own tool is present; otherwise fails with a remedy
+#   roles                   the roles it can fill, one per line: project, system, or both
+#   update                  moves every tool to its latest version, and rewrites the pins and the lock
+#   usable <role>           succeeds when its tool is installed and on PATH, and it is configured for the role
 #   run <command>…          runs the command with its tools; only docker implements it, because it isolates
 #
 # see: docs/toolchains.md
 
-use yaml settings
+use file
 
 # toolchain:providers prints the providers on the module path, space-separated.
 toolchain:providers() {
   use:modules 'toolchain/*' | sed 's|^toolchain/||' | paste -s -d ' ' -
 }
 
-# toolchain:declared prints the chosen providers, one per line, as the file header describes. It fails, naming
-# the provider, when a declared provider is not one the kit has.
-toolchain:declared() {
-  local provider found=''
-  local -a declared=()
-  while IFS=$'\x1f' read -r provider
-  do
-    [[ -n "${provider}" ]] && declared+=("${provider}")
-  done < <(yaml:records "$(settings:file)" toolchains provider)
-  if (( ${#declared[@]} > 0 ))
+# toolchain:detect prints one line per provider and role it can fill: "<provider>\t<role>\t<usable>\t<active>",
+# each flag yes or no, providers in toolchain:providers order. It answers from the cache while the key matches.
+# Otherwise it probes, and rewrites the cache where .kit/.gitignore lists /cache/, so git never sees it.
+toolchain:detect() {
+  local key found provider role usable active
+  key=$(toolchain:key) || return 1
+  if [[ -f .kit/cache/toolchains.tsv && "$(cat .kit/cache/toolchains.key 2>/dev/null)" == "${key}" ]]
   then
-    for provider in "${declared[@]}"
-    do
-      if [[ -z "$(use:modules "toolchain/${provider}")" ]]
-      then
-        error "'${provider}' is not a toolchain the kit knows; the toolchains are: $(toolchain:providers)" \
-          "(toolchains in kit.yml)"
-        return 1
-      fi
-    done
-    printf '%s\n' "${declared[@]}"
+    cat .kit/cache/toolchains.tsv
     return 0
   fi
-  [[ -f mise.toml || -f .mise.toml ]] && found+=$'mise\n'
-  [[ -f Brewfile ]] && found+=$'brew\n'
-  [[ -f toolchain.Dockerfile ]] && found+=$'docker\n'
-  printf '%s' "${found}"
+  found=$(
+    for provider in $(toolchain:providers)
+    do
+      active=no
+      toolchain:call "${provider}" active && active=yes
+      while IFS= read -r role
+      do
+        usable=no
+        toolchain:call "${provider}" usable "${role}" && usable=yes
+        printf '%s\t%s\t%s\t%s\n' "${provider}" "${role}" "${usable}" "${active}"
+      done < <(toolchain:call "${provider}" roles)
+    done
+  ) || return 1
+  printf '%s\n' "${found}"
+  grep --quiet --line-regexp /cache/ .kit/.gitignore 2>/dev/null || return 0
+  # The key goes first and comes back last, so a cache half written never matches. Where the cache cannot be
+  # written, detection still answers, and probes again next time.
+  { rm -f .kit/cache/toolchains.key \
+    && file:replace .kit/cache/toolchains.tsv printf '%s\n' "${found}" \
+    && file:replace .kit/cache/toolchains.key printf '%s\n' "${key}"; } 2>/dev/null || true
 }
 
-# toolchain:field <provider> <field> prints a field of the provider's record, or nothing. The while loop reads
-# every record, even after a match, so yaml:records never writes into a pipe that nobody reads.
-toolchain:field() {
-  local provider value found=''
-  while IFS=$'\x1f' read -r provider value
-  do
-    [[ -z "${found}" && "${provider}" == "$1" ]] && found=${value}
-  done < <(yaml:records "$(settings:file)" toolchains provider "$2")
-  [[ -z "${found}" ]] || printf '%s\n' "${found}"
+# toolchain:key prints the cache key: a digest of PATH, and of every provider's inputs. A tool counts by where it
+# resolves on PATH, a file by its modification time or absent, and a variable by its value.
+toolchain:key() {
+  local provider kind name
+  {
+    printf 'PATH\t%s\n' "${PATH}"
+    for provider in $(toolchain:providers)
+    do
+      while IFS=$'\t' read -r kind name
+      do
+        case "${kind}" in
+          (tool) printf 'tool\t%s\t%s\n' "${name}" "$(command -v "${name}" 2>/dev/null)" ;;
+          (env) printf 'env\t%s\t%s\n' "${name}" "${!name:-}" ;;
+          (file) printf 'file\t%s\t%s\n' "${name}" "$(toolchain:modified "${name}")" ;;
+          (*) ;;
+        esac
+      done < <(toolchain:call "${provider}" inputs)
+    done
+  } | file:digest
+}
+
+# toolchain:modified <path> prints the path's modification time, to the fraction of a second where stat gives it,
+# or absent. GNU stat takes -c; BSD stat refuses it and takes -f.
+toolchain:modified() {
+  [[ -e "$1" || -L "$1" ]] || { printf 'absent\n'; return 0; }
+  stat -c %y -- "$1" 2>/dev/null || stat -f %Fm -- "$1"
 }
 
 # toolchain:call <provider> <call> <argument>… runs the provider's function for the call.
@@ -93,37 +114,23 @@ toolchain:call() {
   "toolchain/${provider}:${call}" "$@"
 }
 
-# toolchain:each <call> runs the call on every declared toolchain in order, stopping at the first that fails.
-toolchain:each() {
-  local provider providers
-  providers=$(toolchain:declared) || return 1
-  for provider in ${providers}
+# toolchain:path prints the directories that every toolchain usable for the project puts first on PATH, in order,
+# one per line.
+toolchain:path() {
+  local provider
+  for provider in $(toolchain:detect | awk -F '\t' '$2 == "project" && $3 == "yes" { print $1 }')
   do
-    toolchain:call "${provider}" "$@" || return 1
+    toolchain:call "${provider}" path || return 1
   done
 }
 
-# toolchain:path prints the directories every declared toolchain puts first on PATH, in order, one per line.
-toolchain:path() {
-  toolchain:each path
-}
-
-# toolchain:isolating prints docker when docker is declared, otherwise nothing. docker is the only provider that
-# runs a command in its own container.
-toolchain:isolating() {
-  local providers
-  providers=$(toolchain:declared) || return 1
-  grep --line-regexp docker <<<"${providers}" || true
-}
-
-# toolchain:run <command>… runs the command with the declared toolchains' tools: inside the container when docker
-# is declared, otherwise with every toolchain's path first on PATH. With no toolchain, the command runs as is.
+# toolchain:run <command>… runs the command with the project's tools: inside the container when docker is usable
+# for the project, otherwise with every usable toolchain's path first on PATH. With none, the command runs as is.
 toolchain:run() {
-  local isolating dirs
-  isolating=$(toolchain:isolating) || return 1
-  if [[ -n "${isolating}" ]]
+  local dirs
+  if toolchain:detect | awk -F '\t' '$1 == "docker" && $2 == "project" && $3 == "yes" { found = 1 } END { exit !found }'
   then
-    toolchain:call "${isolating}" run "$@"
+    toolchain:call docker run "$@"
     return
   fi
   dirs=$(toolchain:path | paste -s -d ':' -) || return 1

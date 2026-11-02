@@ -229,7 +229,7 @@ shape() {
   run "${kit_root}/bin/kit" lint bash/toolchain/nix.sh
   [ "$status" -ne 0 ]
   [[ "$output" == *"bash/toolchain/nix.sh does not have the shape of the bash template (toolchain-provider)"* ]]
-  [[ "$output" == *"toolchain-provider line 4: toolchain/«stem»:outdated()"* ]]
+  [[ "$output" == *"toolchain-provider line 6: toolchain/«stem»:outdated()"* ]]
 }
 
 @test "each seam's header lists the calls its providers' template holds, beside any one provider alone implements" {
