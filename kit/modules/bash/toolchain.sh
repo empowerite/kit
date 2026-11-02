@@ -150,7 +150,7 @@ toolchain:ranked() {
 # Otherwise, with several usable and no terminal to ask, it refuses. The refusal lists each candidate with the
 # command that picks it. Every refusal returns 1.
 toolchain:chosen() {
-  local role=$1 named='' found active recorded answer
+  local role=$1 named='' found active recorded choice answer
   local -a usable
   toolchain:role "${role}" || return 1
   # The run names one toolchain, the project's: CI names its own, and the system one is found or chosen.
@@ -179,12 +179,16 @@ toolchain:chosen() {
       "usable: ${usable[*]:-none, so name ambient}"
     return 1
   fi
+  # A worktree's own choice comes first, then the clone's; each holds only while it is usable here.
   recorded=$(toolchain:recorded "${role}") || return 1
-  if [[ "${recorded}" == ambient ]] || { [[ -n "${recorded}" ]] && toolchain:among "${recorded}" "${usable[@]}"; }
-  then
-    printf '%s\n' "${recorded}"
-    return 0
-  fi
+  while IFS= read -r choice
+  do
+    if [[ "${choice}" == ambient ]] || { [[ -n "${choice}" ]] && toolchain:among "${choice}" "${usable[@]}"; }
+    then
+      printf '%s\n' "${choice}"
+      return 0
+    fi
+  done <<<"${recorded}"
   case "${#usable[@]}" in
     (0) printf 'ambient\n'; return 0 ;;
     (1) printf '%s\n' "${usable[0]}"; return 0 ;;
@@ -250,7 +254,8 @@ toolchain:refuse() {
   do
     printf '    with %s: kit toolchains choose %s%s\n' "${candidate}" "${candidate}" "$(toolchain:flag "${role}")" >&2
   done
-  printf '  or name one for a single run: KIT_TOOLCHAIN=<name>\n' >&2
+  # The run names only the project toolchain; the system one is chosen and kept.
+  [[ "${role}" != project ]] || printf '  or name one for a single run: KIT_TOOLCHAIN=<name>\n' >&2
 }
 
 # toolchain:choose <role> <provider> records the provider as the role's choice, or ambient for none. It fails,
@@ -260,10 +265,11 @@ toolchain:refuse() {
 #   - project, at the desk: <git common dir>/kit/toolchain, which every worktree of the clone reads
 #   - project, in a linked worktree: .kit/cache/toolchain, which only that worktree reads
 toolchain:choose() {
-  local role=$1 provider=$2 settings
+  local role=$1 provider=$2 settings found
   local -a usable
   toolchain:role "${role}" || return 1
-  readarray -t usable < <(toolchain:usable "${role}")
+  found=$(toolchain:detect) || return 1
+  readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
   if [[ "${provider}" != ambient ]] && ! toolchain:among "${provider}" "${usable[@]}"
   then
     error "${provider} is not usable for the ${role} here; usable: ${usable[*]:-none, so choose ambient}"
@@ -285,8 +291,8 @@ toolchain:choose() {
   esac
 }
 
-# toolchain:recorded <role> prints the choice recorded for the role, or nothing. A linked worktree reads its own
-# choice first, then the clone's.
+# toolchain:recorded <role> prints the choices recorded for the role, one per line, or nothing. A linked worktree
+# prints its own choice first, then the clone's; toolchain:chosen takes the first that is usable.
 toolchain:recorded() {
   local role=$1 kept common
   toolchain:role "${role}" || return 1
@@ -298,7 +304,7 @@ toolchain:recorded() {
   fi
   common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
   kept=$(toolchain:kept) || return 1
-  [[ "${kept}" == "${common}/kit/toolchain" || ! -s "${kept}" ]] || { head -n 1 "${kept}"; return 0; }
+  [[ "${kept}" == "${common}/kit/toolchain" || ! -s "${kept}" ]] || head -n 1 "${kept}"
   [[ ! -s "${common}/kit/toolchain" ]] || head -n 1 "${common}/kit/toolchain"
 }
 

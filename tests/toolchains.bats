@@ -187,6 +187,27 @@ choose() {
   [ "$output" = mise ]
 }
 
+@test "in a worktree, its own choice that is no longer usable gives way to the clone's that is" {
+  touch mise.toml Brewfile
+  printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
+  git add mise.toml Brewfile toolchain.Dockerfile && git commit --quiet --message 'toolchains'
+  run choose mise
+  [ "$status" -eq 0 ]
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
+  cd "${BATS_TEST_TMPDIR}/feature"
+  rm mise.toml
+  run choose brew
+  [ "$status" -eq 0 ]
+  [ "$(cat .kit/cache/toolchain)" = brew ]
+  # the branch gains mise.toml and drops the Brewfile; mise and docker are usable, brew is not
+  touch mise.toml
+  rm Brewfile
+  run chosen </dev/null
+  [ "$status" -eq 0 ]
+  [ "$output" = mise ]
+  cd "${repo}"
+}
+
 @test "a recorded toolchain that is no longer usable is not used" {
   touch mise.toml Brewfile
   run choose mise
@@ -202,6 +223,11 @@ choose() {
   run choose mise
   [ "$status" -eq 1 ]
   [[ "$output" == *"mise"*"brew"* ]]
+  [ "$(cat .git/kit/toolchain)" = mise ]
+  # a detection that fails is that failure, not a toolchain that is not usable
+  run kit-bash 'use toolchain && toolchain:detect() { return 1; } && toolchain:choose project brew'
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"not usable"* ]]
   [ "$(cat .git/kit/toolchain)" = mise ]
 }
 
@@ -221,6 +247,11 @@ choose() {
   # a toolchain named for the run is the project's, and leaves the system one as it is
   KIT_TOOLCHAIN=ambient run chosen system
   [ "$output" = brew ]
+  # brew alone fills the system role today, so the refusal for several is asked for directly
+  run kit-bash 'use toolchain && toolchain:refuse system brew nix'
+  [[ "$output" == *"with brew: kit toolchains choose brew --system"* ]]
+  [[ "$output" == *"with nix: kit toolchains choose nix --system"* ]]
+  [[ "$output" != *KIT_TOOLCHAIN* ]]
   run choose mise system
   [ "$status" -eq 1 ]
   [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
