@@ -236,7 +236,7 @@ commit:checks() {
 # git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
 commit:commit() {
   local branch subject path rest message
-  local -a staged=()
+  local -a staged=() known=()
   commit:parse "$@" || return 2
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
   then
@@ -255,10 +255,12 @@ commit:commit() {
   branch=$(commit:branch) || return 1
   if (( ${#commit_paths[@]} > 0 ))
   then
+    # A path git mv or git rm took away is in HEAD alone, which git commit takes; a first commit has no HEAD.
+    git rev-parse --verify --quiet HEAD >/dev/null && known=(--with-tree=HEAD)
     for path in "${commit_paths[@]}"
     do
       path=$(context:relative "${path}")
-      if ! git ls-files --error-unmatch -- "${path}" >/dev/null 2>&1
+      if ! git ls-files --error-unmatch "${known[@]}" -- "${path}" >/dev/null 2>&1
       then
         error "${path} is not known to git; run: git add '${path}'"
         return 1

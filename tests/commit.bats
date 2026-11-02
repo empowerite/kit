@@ -205,6 +205,28 @@ opa-rule() {
   printf 'package kit.policy\n\nimport rego.v1\n\n%s\n' "$1" > .kit/policy/test.rego
 }
 
+@test "kit commit takes a path git mv, git rm, or rm took away, commits it alone, and still refuses one git never knew" {
+  printf 'old\n' > old.txt && git add old.txt && git commit --quiet --message '#7 files: an old file'
+  git mv old.txt new.txt
+  printf 'other\n' > other.txt && git add other.txt
+  run kit commit --message '#7 files: old is new' old.txt new.txt
+  [ "$status" -eq 0 ]
+  [ "$(git show --no-renames --name-status --format= HEAD | sort)" = $'A\tnew.txt\nD\told.txt' ]
+  [ "$(git diff --cached --name-only)" = other.txt ]
+  git rm --quiet new.txt
+  run kit commit --message '#7 files: new is gone' new.txt
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-status --format= HEAD)" = $'D\tnew.txt' ]
+  rm notes.txt
+  run kit commit --message '#7 files: the notes are gone' notes.txt
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-status --format= HEAD)" = $'D\tnotes.txt' ]
+  [ "$(git diff --cached --name-only)" = other.txt ]
+  run kit commit --message '#7 files: nothing' nowhere.txt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nowhere.txt is not known to git; run: git add 'nowhere.txt'"* ]]
+}
+
 @test "the tree kit commit judges is HEAD and the named paths, never another session's staging" {
   opa-rule 'deny contains "theirs.md is in the tree" if input.tree["theirs.md"]
 
