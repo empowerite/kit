@@ -81,8 +81,26 @@ func heading(group string) string {
 	return strings.ToUpper(group)
 }
 
-// Init starts nothing: the list needs no page until the right arrow asks for one.
-func (m Model) Init() tea.Cmd { return nil }
+// Init starts nothing, unless the palette was opened on a verb's page: then it fetches that page.
+func (m Model) Init() tea.Cmd { return m.page() }
+
+// At puts the cursor on a verb and shows its page, as kit help <verb> opens the palette; or on a group's first verb,
+// with the purposes shown, as kit help <group> does. A name that is neither leaves the palette as it was.
+func (m Model) At(name string) Model {
+	for i, v := range m.verbs {
+		if v.Name == name {
+			m.cursor, m.showPages = i, true
+			return m
+		}
+	}
+	for i, v := range m.verbs {
+		if v.Group == name {
+			m.cursor = i
+			return m
+		}
+	}
+	return m
+}
 
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }

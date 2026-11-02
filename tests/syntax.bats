@@ -146,7 +146,7 @@ setup() {
 @test "a group that repeats takes a word for each turn: kit help names verbs and groups in any order" {
   run "${kit_root}/bin/kit" syntax help
   [ "$status" -eq 0 ]
-  jq -e '.usage == ["kit help [<verb> | <group>]…"] and (.syntax[0][0] | .kind == "group" and .optional and .repeat and (.alternatives | length == 2))' <<<"$output"
+  jq -e '.usage == ["kit help [--text] [<verb> | <group>]…"] and (.syntax[0][1] | .kind == "group" and .optional and .repeat and (.alternatives | length == 2))' <<<"$output"
   run "${kit_root}/bin/kit" syntax help --match -- tidy gate
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.status, .operands]' <<<"$output")" = '[0,["tidy","gate"]]' ]

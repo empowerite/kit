@@ -2,10 +2,24 @@
   "verb": "help",
   "purpose": "prints kit's overview, a verb's page, or a group's verbs",
   "usage": [
-    "kit help [<verb> | <group>]…"
+    "kit help [--text] [<verb> | <group>]…"
   ],
   "syntax": [
     [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
       {
         "kind": "group",
         "optional": true,
@@ -30,6 +44,9 @@
     ]
   ],
   "arguments": {
+    "--text": {
+      "description": "prints the help, even on a terminal"
+    },
     "<verb>": {
       "description": "a verb's name, or its start: re matches rebase and region",
       "choices": "open"

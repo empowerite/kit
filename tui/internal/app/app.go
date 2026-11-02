@@ -54,6 +54,17 @@ func Open(r kit.Runner, verb string, words []string) (Model, error) {
 	return m, nil
 }
 
+// OpenHelp opens the palette as kit help does: on the named verb's page, or on a group's first verb, or, with no
+// name, at the top. The way into a verb's form is the same as from bare kit.
+func OpenHelp(r kit.Runner, name string) (Model, error) {
+	m, err := Open(r, "", nil)
+	if err != nil || name == "" {
+		return m, err
+	}
+	m.palette = m.palette.At(name)
+	return m, nil
+}
+
 // InForm says whether a form is on the screen.
 func (m Model) InForm() bool { return m.inForm }
 

@@ -22,8 +22,8 @@ var version = "unreleased"
 
 func main() { os.Exit(run(os.Args[1:])) }
 
-// run opens the palette, the form of the verb named after --, or the picture for status, and ends as the person
-// ended it.
+// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, or the picture
+// for status, and ends as the person ended it.
 func run(args []string) int {
 	verb, words := parse(args)
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stderr.Fd())) {
@@ -34,7 +34,17 @@ func run(args []string) int {
 	if verb == "status" {
 		return runStatus(r, words)
 	}
-	m, err := app.Open(r, verb, words)
+	var m app.Model
+	var err error
+	if verb == "help" {
+		name := ""
+		if len(words) > 0 {
+			name = words[0]
+		}
+		m, err = app.OpenHelp(r, name)
+	} else {
+		m, err = app.Open(r, verb, words)
+	}
 	if err != nil {
 		return refuse(err, os.Stderr)
 	}
@@ -50,6 +60,9 @@ func run(args []string) int {
 func needsTerminal(verb string) string {
 	if verb == "status" {
 		return "kit status needs an interactive terminal for its picture; run: kit status --text"
+	}
+	if verb == "help" {
+		return "kit help needs an interactive terminal for its palette; run: kit help --text"
 	}
 	return "kit tui needs an interactive terminal; run: kit help tui"
 }

@@ -463,3 +463,24 @@ func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
 		t.Errorf("a page of %d lines in 4: %d said\n%s", len(whole), shown, strings.Join(lines, "\n"))
 	}
 }
+
+func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
+	m := open(t)
+	verb := m.verbs[len(m.verbs)-1]
+	m = m.At(verb.Name)
+	if m.cursor != len(m.verbs)-1 || !m.showPages {
+		t.Fatalf("At(%s): cursor %d, pages %v", verb.Name, m.cursor, m.showPages)
+	}
+	// Init asks for that verb's page, so the palette opens with it shown
+	m, _ = drive(m)
+	if !strings.Contains(m.pages[verb.Name], "kit "+verb.Name) {
+		t.Errorf("the page of %s was not fetched at the start: %q", verb.Name, m.pages[verb.Name])
+	}
+	m = open(t).At(verb.Group)
+	if m.showPages || m.verbs[m.cursor].Group != verb.Group || m.cursor > 0 && m.verbs[m.cursor-1].Group == verb.Group {
+		t.Errorf("At(%s) is not on the group's first verb with the purposes: cursor %d", verb.Group, m.cursor)
+	}
+	if m = open(t).At("nonesuch"); m.cursor != 0 || m.showPages {
+		t.Errorf("At an unknown name moved the palette: cursor %d", m.cursor)
+	}
+}
