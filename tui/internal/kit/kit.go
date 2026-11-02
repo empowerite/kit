@@ -201,9 +201,9 @@ func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
 	return syntax.DecodeMatch(bytes.NewReader(out))
 }
 
-// Stages gives the stages kit status draws, in the picture's order, as kit status --stages prints them, one per line.
+// Stages gives the stages kit flow draws, in the picture's order, as kit flow --stages prints them, one per line.
 func (r Runner) Stages() ([]string, error) {
-	out, err := r.run("status", "--stages")
+	out, err := r.run("flow", "--stages")
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +220,11 @@ func (r Runner) Stages() ([]string, error) {
 // are closed for it.
 const waitDelay = 2 * time.Second
 
-// Status gives one stage's JSON, as kit status <stage> --json <args>… prints it; the args are the stage's own flags.
+// Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it; the args are the stage's own flags.
 // A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
 // the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, r.Kit, append([]string{"status", stage, "--json"}, args...)...)
+	cmd := exec.CommandContext(ctx, r.Kit, append([]string{"flow", stage, "--json"}, args...)...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }

@@ -1,7 +1,7 @@
 // The screen drawn: the title, the line of steps with each step's tab hanging from it, the selected step's pane, and
 // the keys bar on the last line. Widths are terminal cells, so a two-cell glyph never pushes a line past the edge. The
 // line and the tabs are one canvas: when it is wider than the screen, the view scrolls sideways to the selected step,
-// as kit status's line does.
+// as kit flow's line does.
 package welcome
 
 import (
@@ -156,10 +156,10 @@ func (m Model) label(i, form int) string {
 	return "└ " + strings.Join(parts, " ")
 }
 
-// forms gives each step's label form, as kit status gives its stages': the widest that lets every label fit the
+// forms gives each step's label form, as kit flow gives its stages': the widest that lets every label fit the
 // screen. The other steps give up their names first, then their counts; the selected step keeps its name as long as
 // any layout with it fits, and only then shortens with the rest. The floor is the selected step's name among the
-// other glyphs alone; past it the line scrolls. Unlike kit status's, the floor keeps that name: every plain page
+// other glyphs alone; past it the line scrolls. Unlike kit flow's, the floor keeps that name: every plain page
 // shares one glyph, so the glyph alone would not say which page is open.
 func (m Model) forms() []int {
 	n := len(m.tabs)

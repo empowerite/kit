@@ -168,7 +168,7 @@ func TestStagesAndStatusRunKitStatus(t *testing.T) {
 	if err != nil || strings.Join(stages, " ") != "backlog incoming" {
 		t.Fatalf("Stages: %v, %q", err, stages)
 	}
-	// the stage's words are kit status <stage> --json <args>…, --json first
+	// the stage's words are kit flow <stage> --json <args>…, --json first
 	ctx := context.Background()
 	out, err := r.Status(ctx, "incoming", []string{"--no-fetch"})
 	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "incoming", "args": "--json --no-fetch"}` {

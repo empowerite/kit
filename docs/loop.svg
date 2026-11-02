@@ -4,7 +4,7 @@
   <desc id="desc">The desk is the root checkout and stays the human's. kit issue makes a worktree per issue with a
     linked branch and a draft pull request. Work happens there under kit context, kit lint, and kit rebase. The
     delivered CI job runs the gate, kit check, kit linked, and kit policy. A human merges, and kit tidy sweeps.
-    kit status draws the whole picture.</desc>
+    kit flow draws the whole picture.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
@@ -26,7 +26,7 @@
   <text class="d" x="40" y="92">The root checkout, the human's. Usually on main,</text>
   <text class="d" x="40" y="108">sometimes on a branch no worktree holds. No agent</text>
   <text class="d" x="40" y="124">checks out, resets, or rebases it.</text>
-  <text class="m" x="40" y="152">kit status</text>
+  <text class="m" x="40" y="152">kit flow</text>
   <text class="d" x="140" y="152">draws the whole picture</text>
 
   <!-- issue -->

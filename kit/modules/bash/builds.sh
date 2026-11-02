@@ -1,9 +1,9 @@
 # shellcheck shell=bash
-# builds.sh - the forge's runs no pull request owns, drawn as kit status draws them (sourced module)
+# builds.sh - the forge's runs no pull request owns, drawn as kit flow draws them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # status_gap is set by modules/bash/status.sh
+# shellcheck disable=SC2154  # flow_gap is set by modules/bash/flow.sh
 #
-# The builds stage of kit status sits between changes and releases. It lists the recent runs that no pull request
+# The builds stage of kit flow sits between changes and releases. It lists the recent runs that no pull request
 # owns, as forge:runs keeps them:
 #
 #   - pushes to the default branch
@@ -12,9 +12,9 @@
 #
 # A run for a pull request stays under changes, so no run shows twice.
 #
-# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/forge.sh, modules/jq/forge.jq
+# see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/forge.sh, modules/jq/forge.jq
 
-use forge status
+use forge flow
 
 # builds:documents prints the forge's runs, newest first, as one JSON array: id, number, attempt, workflow, branch,
 # tag, event, sha, title, state, age, took, url, and jobs, each.
@@ -70,7 +70,7 @@ builds:draw() {
   local -a rows=()
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    status:none 'no build since the last 20 runs'
+    flow:none 'no build since the last 20 runs'
     return 0
   fi
   readarray -t rows < <(jq --raw-output '.[] | [.state, .workflow, (if .number then "#\(.number)" else "" end),
@@ -80,7 +80,7 @@ builds:draw() {
   do
     IFS=$'\x1f' read -r state workflow number event tag branch sha title age took <<<"${row}"
     event=$(builds:event "${event}" "${tag}")
-    age=$(status:age "${age}")
+    age=$(flow:age "${age}")
     took=$(builds:took "${took}")
     (( ${#workflow} > workflow_w )) && workflow_w=${#workflow}
     (( ${#number} > number_w )) && number_w=${#number}
@@ -93,7 +93,7 @@ builds:draw() {
   done
   # The glyph and its gap, and the dim and numeric columns with their gaps, are fixed; the workflow, the branch, and
   # the title share the rest.
-  room=$(( $(status:width) - 4 - (2 + event_w) - (2 + age_w) - (2 + took_w) - 2 ))
+  room=$(( $(flow:width) - 4 - (2 + event_w) - (2 + age_w) - (2 + took_w) - 2 ))
   (( number_w > 0 )) && room=$(( room - 2 - number_w ))
   (( sha_w > 0 )) && room=$(( room - 2 - sha_w ))
   (( title_w > 0 )) && room=$(( room - 2 ))
@@ -109,14 +109,14 @@ builds:draw() {
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r state workflow number event tag branch sha title age took <<<"${row}"
-    line="$(builds:glyph "${state}")  $(status:cell "${workflow}" "${workflow_w}")"
-    (( number_w > 0 )) && line+="${status_gap}$(status:paint 90 "$(status:cell "${number}" "${number_w}" right)")"
-    line+="${status_gap}$(status:paint 90 "$(status:cell "$(builds:event "${event}" "${tag}")" "${event_w}")")"
-    line+="${status_gap}$(status:cell "${branch}" "${branch_w}")"
-    (( sha_w > 0 )) && line+="${status_gap}$(status:paint 90 "$(status:cell "${sha}" "${sha_w}")")"
-    (( title_w > 0 )) && line+="${status_gap}$(status:cell "${title}" "${title_w}")"
-    line+="${status_gap}$(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
-    line+="${status_gap}$(status:paint 90 "$(status:cell "$(builds:took "${took}")" "${took_w}" right)")"
+    line="$(builds:glyph "${state}")  $(flow:cell "${workflow}" "${workflow_w}")"
+    (( number_w > 0 )) && line+="${flow_gap}$(flow:paint 90 "$(flow:cell "${number}" "${number_w}" right)")"
+    line+="${flow_gap}$(flow:paint 90 "$(flow:cell "$(builds:event "${event}" "${tag}")" "${event_w}")")"
+    line+="${flow_gap}$(flow:cell "${branch}" "${branch_w}")"
+    (( sha_w > 0 )) && line+="${flow_gap}$(flow:paint 90 "$(flow:cell "${sha}" "${sha_w}")")"
+    (( title_w > 0 )) && line+="${flow_gap}$(flow:cell "${title}" "${title_w}")"
+    line+="${flow_gap}$(flow:paint 90 "$(flow:cell "$(flow:age "${age}")" "${age_w}" right)")"
+    line+="${flow_gap}$(flow:paint 90 "$(flow:cell "$(builds:took "${took}")" "${took_w}" right)")"
     printf '%s\n' "${line}" >&2
   done
 }

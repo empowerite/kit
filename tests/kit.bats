@@ -242,11 +242,15 @@ setup() {
   [ -f .kit/packages/python/package.yml ]
 }
 
-@test "the settings file is held to its schema: an unknown key and a non-boolean require_signing are refused" {
+@test "the settings file is held to its schema: an unknown key, status for flow, and a non-boolean require_signing are refused" {
   mkdir .kit && printf 'forgery: github\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit.yml has a key the kit does not know: forgery (see .kit/kit.schema.json)"* ]]
+  printf 'status: [desk]\n' > kit.yml
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit.yml has a key the kit does not know: status; the stages kit flow draws are named under flow:"* ]]
   printf 'require_signing: yes\n' > kit.yml
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]

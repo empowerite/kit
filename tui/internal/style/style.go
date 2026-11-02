@@ -41,10 +41,10 @@ var (
 // Mark draws what is selected on a line of stages: bold, in the accent color.
 func Mark(s string) string { return mark.Render(s) }
 
-// Gain draws a count that adds: commits ahead, lines added. Bold green, as kit status --text draws it.
+// Gain draws a count that adds: commits ahead, lines added. Bold green, as kit flow --text draws it.
 func Gain(s string) string { return gain.Render(s) }
 
-// Loss draws a count that takes away: commits behind, lines removed. Bold red, as kit status --text draws it.
+// Loss draws a count that takes away: commits behind, lines removed. Bold red, as kit flow --text draws it.
 func Loss(s string) string { return loss.Render(s) }
 
 // Warn draws what wants attention but is not wrong, such as uncommitted paths: yellow, as git status draws them.

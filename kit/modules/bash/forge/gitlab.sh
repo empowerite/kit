@@ -86,7 +86,7 @@ forge/gitlab:open-issues() {
     <<<"${list}"
 }
 
-# forge/gitlab:open-prs prints one JSON object per open merge request: the document kit status renders, which
+# forge/gitlab:open-prs prints one JSON object per open merge request: the document kit flow renders, which
 # modules/jq/forge.jq folds the answers into. Of several jobs of one name in the pipeline, as after a retry, only
 # the latest counts. GitLab's REST API needs four reads per merge request:
 #

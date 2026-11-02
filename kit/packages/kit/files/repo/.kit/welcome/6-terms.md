@@ -8,20 +8,20 @@ The words kit uses, one or two sentences each, and the command that shows each o
 
 Your root checkout, where you cloned the repository. It is yours; agents never change it.
 
-`kit status desk`
+`kit flow desk`
 
 ## worktree
 
 A checkout of its own, under `worktrees/`, on one issue's branch. `kit issue` makes one for each issue.
 
-`kit status worktrees`
+`kit flow worktrees`
 
 ## forge
 
 The service that hosts the repository, its issues, its pull requests, and its builds: GitHub or GitLab. kit talks to
 it through its command-line tool, `gh` or `glab`.
 
-`kit status incoming --no-fetch`
+`kit flow incoming --no-fetch`
 
 ## remote and primary
 
@@ -75,7 +75,7 @@ The repository's own CI command, such as `just ci`. It runs on every push, and `
 
 ## stage
 
-One part of the picture `kit status` draws, such as the backlog or the builds. The `status` setting in `kit.yml`
+One part of the picture `kit flow` draws, such as the backlog or the builds. The `flow` setting in `kit.yml`
 picks which are drawn.
 
-`kit status --stages`
+`kit flow --stages`

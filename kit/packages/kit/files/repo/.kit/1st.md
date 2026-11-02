@@ -121,7 +121,7 @@ The repository commits the declaration, and every worktree holds the text:
   and without the write bit like the rest.
 
 The installed release contains the code. You run it through the kit CLI, `kit` on `PATH`. The workflow commands
-are `kit issue`, `kit commit`, `kit submit`, `kit rebase`, `kit tidy`, `kit status`,
+are `kit issue`, `kit commit`, `kit submit`, `kit rebase`, `kit tidy`, `kit flow`,
 `kit context`, `kit new file`, `kit lint`, `kit gate`, and `kit hydrate`. Run them exactly as written here, and in
 no other way.
 

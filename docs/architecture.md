@@ -139,8 +139,8 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit status` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees, changes,
-builds, releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit status
+`kit flow` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees, changes,
+builds, releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit flow
 <stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick,
 not a search. underway shows the rest of the open issues: who works on each, and where.
 
@@ -173,7 +173,7 @@ Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/f
 branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must
 be named in the `forge` setting.
 
-- Every provider returns the same shape, so `kit status` shows the same picture on either forge.
+- Every provider returns the same shape, so `kit flow` shows the same picture on either forge.
 - Each provider uses its forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
 - A repository with one origin has one forge. A repository on two forges is a mirror or a migration, and the setting
   picks the one the workflow uses.

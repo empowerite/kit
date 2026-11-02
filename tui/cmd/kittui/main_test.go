@@ -14,13 +14,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/app"
-	"github.com/empowerite/kit/tui/internal/status"
+	"github.com/empowerite/kit/tui/internal/flow"
 	"github.com/empowerite/kit/tui/internal/testkit"
 	"github.com/empowerite/kit/tui/internal/welcome"
 )
 
 // drive sends the messages to the root model from its start, as the program would. The fake kit is the kit package's
-// for the palette and the form, the status package's for the picture.
+// for the palette and the form, the flow package's for the picture.
 func drive(m app.Model, msgs ...tea.Msg) app.Model {
 	m, _ = testkit.Drive(m, nil, testkit.Start(m, msgs...)...)
 	return m
@@ -33,7 +33,7 @@ func TestNoTerminalRefuses(t *testing.T) {
 	}
 	for args, want := range map[string]string{
 		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
-		"status":    "❌ kit status needs an interactive terminal for its picture; run: kit status --text\n",
+		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: kit flow --text\n",
 		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
 	} {
 		cmd := exec.Command(binary, strings.Fields(args)...)
@@ -56,7 +56,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		{tea.KeyPressMsg{Code: tea.KeyEscape}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
-		m, err := status.Open(testkit.Runner(t, "status"), nil)
+		m, err := flow.Open(testkit.Runner(t, "flow"), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		if cmd == nil || cmd() != tea.Quit() {
 			t.Errorf("%s did not quit", c.key)
 		}
-		if code := finishStatus(next.(status.Model)); code != c.code {
+		if code := finishFlow(next.(flow.Model)); code != c.code {
 			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
 		}
 	}
@@ -89,10 +89,10 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 }
 
 func TestARefusalOfTheStagesPrintsKitsLineWithItsCode(t *testing.T) {
-	t.Setenv("FAKE_STATUS_REFUSE", "stages")
-	_, err := status.Open(testkit.Runner(t, "status"), nil)
+	t.Setenv("FAKE_FLOW_REFUSE", "stages")
+	_, err := flow.Open(testkit.Runner(t, "flow"), nil)
 	var stderr bytes.Buffer
-	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit status refuses for the test; run: kit help status\n" {
+	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit flow refuses for the test; run: kit help flow\n" {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())
 	}
 	// an error that is not kit's is kittui's own, ending with 1
@@ -151,9 +151,9 @@ func TestWordsAfterADoubleDash(t *testing.T) {
 	if verb != "" || words != nil {
 		t.Errorf("parse(nil) = %q %q", verb, words)
 	}
-	// status takes its words with or without the double dash
-	for _, args := range [][]string{{"status", "--no-fetch", "--mine"}, {"--", "status", "--no-fetch", "--mine"}} {
-		if verb, words = parse(args); verb != "status" || strings.Join(words, " ") != "--no-fetch --mine" {
+	// flow takes its words with or without the double dash
+	for _, args := range [][]string{{"flow", "--no-fetch", "--mine"}, {"--", "flow", "--no-fetch", "--mine"}} {
+		if verb, words = parse(args); verb != "flow" || strings.Join(words, " ") != "--no-fetch --mine" {
 			t.Errorf("parse(%q) = %q %q", args, verb, words)
 		}
 	}

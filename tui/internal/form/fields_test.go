@@ -126,13 +126,13 @@ func TestPackagesLiteralChoosesItsAlternative(t *testing.T) {
 }
 
 func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
-	// kit status opens with a one-of row over its seven usage lines; the picture's line, chosen, brings its rows
-	fields, err := Fields(specs(t)["status"], Answers{Chosen: map[int]int{0: 0}})
+	// kit flow opens with a one-of row over its seven usage lines; the picture's line, chosen, brings its rows
+	fields, err := Fields(specs(t)["flow"], Answers{Chosen: map[int]int{0: 0}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if kinds(fields) != "OneOf Toggle OneOf OneOf" || fields[0].Chosen != 0 {
-		t.Fatalf("status: %s %+v", kinds(fields), fields[0])
+		t.Fatalf("flow: %s %+v", kinds(fields), fields[0])
 	}
 	if strings.Join(fields[2].Options, "|") != "--text|--json|--jq" || fields[2].Required {
 		t.Errorf("the output row, one or the other or neither: %+v", fields[2])
@@ -143,11 +143,11 @@ func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
 	// the flags given choose the picture's line without a word: it is the first line that holds them
 	chosen := FromMatch(syntax.Match{Options: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}},
 		Values: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}}})
-	fields, _ = Fields(specs(t)["status"], chosen)
+	fields, _ = Fields(specs(t)["flow"], chosen)
 	// the chosen --json brings its required flag as a field of its own, as every chosen flag alternative does
 	if kinds(fields) != "OneOf Toggle OneOf Toggle OneOf AnyOf Lines" || fields[0].Chosen != 0 || fields[2].Chosen != 1 ||
 		fields[4].Chosen != 1 || fields[6].Values[1] != "bob" {
-		t.Errorf("status --json --mine --owner: %s %+v", kinds(fields), fields)
+		t.Errorf("flow --json --mine --owner: %s %+v", kinds(fields), fields)
 	}
 	if strings.Join(fields[5].Options, " ") != "--mine --others" || strings.Join(fields[5].Values, " ") != "--mine" {
 		t.Errorf("the any-of row of owner flags: %+v", fields[5])
@@ -206,10 +206,10 @@ func TestCommandLineAndQuote(t *testing.T) {
 	if got := Quote(CommandLine(specs(t)["new"], fields)); got != "file docs/x.md --rule=markdown --title='kit tui'" {
 		t.Errorf("new's line = %q", got)
 	}
-	fields, _ = Fields(specs(t)["status"], FromMatch(syntax.Match{Options: map[string][]string{"--json": {"1"}, "--owner": {"ada"}},
+	fields, _ = Fields(specs(t)["flow"], FromMatch(syntax.Match{Options: map[string][]string{"--json": {"1"}, "--owner": {"ada"}},
 		Values: map[string][]string{"--json": {"1"}, "--owner": {"ada"}}}))
-	if got := Quote(CommandLine(specs(t)["status"], fields)); got != "--json --owner=ada" {
-		t.Errorf("status's line = %q", got)
+	if got := Quote(CommandLine(specs(t)["flow"], fields)); got != "--json --owner=ada" {
+		t.Errorf("flow's line = %q", got)
 	}
 }
 

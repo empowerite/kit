@@ -90,8 +90,8 @@ group-has() {
   [[ "$output" == *$'\n  usage        prints the usage lines'*$'\n\nkit tidy - removes merged worktrees and gone branches\n'* ]]
 }
 
-@test "kit help status holds the legend of the glyphs every stage draws" {
-  run "${kit_root}/bin/kit" help status
+@test "kit help flow holds the legend of the glyphs every stage draws" {
+  run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  Legend\n'* ]]
   [[ "$output" == *$'\n    🔀  a pull request'* ]]
@@ -124,16 +124,16 @@ group-has() {
     [ "$status" -eq 0 ] || { echo "${verb}: exit ${status}: ${output}"; return 1; }
     [ "$output" = "${page}" ] || { echo "${verb}: ${output}"; return 1; }
   done
-  run "${kit_root}/bin/kit-status" -h
+  run "${kit_root}/bin/kit-flow" -h
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "kit status - "* ]]
-  run "${kit_root}/bin/kit" status --no-fetch --help
+  [[ "${lines[0]}" == "kit flow - "* ]]
+  run "${kit_root}/bin/kit" flow --no-fetch --help
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "kit status - "* ]]
+  [[ "${lines[0]}" == "kit flow - "* ]]
   # after --, the words belong to the verb named there, so tui gets them and refuses as it does without a terminal
-  run "${kit_root}/bin/kit" tui -- status --help
+  run "${kit_root}/bin/kit" tui -- flow --help
   [ "$status" -eq 2 ]
-  [[ "$output" != "kit status - "* ]]
+  [[ "$output" != "kit flow - "* ]]
 }
 
 @test "an unknown verb is refused in the same words by kit, kit help, kit usage, and kit syntax" {

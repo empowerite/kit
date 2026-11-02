@@ -226,7 +226,7 @@ from arguments, stays inline where it is used.
 | `template.jq` | the expression that checks a file against a template, and the file a template makes |
 | `forge.jq` | a pull request's checks and state, from either forge's answers |
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
-| `status.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
+| `flow.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
 | `toolchain.jq` | what a tool manager pins and has installed, and which of its outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
 | `backlog.jq` | the issues no open change closes, with the branch on the primary remote that claims each |

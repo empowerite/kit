@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# backlog.bats - kit status backlog lists the open issues nothing is in flight for, oldest first, as every stage draws
+# backlog.bats - kit flow backlog lists the open issues nothing is in flight for, oldest first, as every stage draws
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
@@ -57,8 +57,8 @@ title-of() {
   printf '%s\n' "${1##*🎫 }"
 }
 
-@test "kit status backlog draws each issue nothing is in flight for: number, assignees, age, the branch if any, then title" {
-  run kit status backlog
+@test "kit flow backlog draws each issue nothing is in flight for: number, assignees, age, the branch if any, then title" {
+  run kit flow backlog
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == " #9        "*"d  🌿 9-other  🎫 Other thing" ]]
   [[ "${lines[1]}" == "#11  👤 ada  "*"d              🎫 Third thing" ]]
@@ -66,44 +66,44 @@ title-of() {
   [ "${#lines[@]}" -eq 2 ]
 }
 
-@test "kit status backlog right-aligns the age, a number, in its column, and leaves the branch column out when no issue has one" {
+@test "kit flow backlog right-aligns the age, a number, in its column, and leaves the branch column out when no issue has one" {
   # The dates give ages of four and three digits, widths that hold until 2028.
   fixture issues.json <<'JSON'
 [{"number": 11, "title": "Third thing", "assignees": [], "createdAt": "2025-06-01T09:00:00Z"},
  {"number": 5, "title": "Old thing", "assignees": [], "createdAt": "2020-01-01T09:00:00Z"}]
 JSON
-  run kit status backlog
+  run kit flow backlog
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == " #5  "[0-9][0-9][0-9][0-9]"d  🎫 Old thing" ]]
   [[ "${lines[1]}" == "#11   "[0-9][0-9][0-9]"d  🎫 Third thing" ]]
 }
 
-@test "kit status backlog --mine drops the assignee column, as kit status --mine drops the author; --owner keeps it" {
-  run kit status backlog --mine
+@test "kit flow backlog --mine drops the assignee column, as kit flow --mine drops the author; --owner keeps it" {
+  run kit flow backlog --mine
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#11  "*"d  🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 1 ]
   fixture issues.json <<'JSON'
 [{"number": 11, "title": "Third thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-30T09:00:00Z"}]
 JSON
-  run kit status backlog --owner=bob
+  run kit flow backlog --owner=bob
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#11  👤 bob  "*"d  🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 1 ]
 }
 
-@test "kit status backlog --others is every issue --mine leaves out, unassigned ones included, with the assignee column" {
-  run kit status backlog --others --json
+@test "kit flow backlog --others is every issue --mine leaves out, unassigned ones included, with the assignee column" {
+  run kit flow backlog --others --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "9" ]
-  run kit status backlog --others
+  run kit flow backlog --others
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#9  "*"d  🌿 9-other  🎫 Other thing" ]]
   [ "${#lines[@]}" -eq 1 ]
 }
 
-@test "kit status backlog --json says the same as data, each issue with its branch on origin or null" {
-  run kit status backlog --json
+@test "kit flow backlog --json says the same as data, each issue with its branch on origin or null" {
+  run kit flow backlog --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "9 11" ]
   [ "$(jq --raw-output '.[0].branch' <<<"$output")" = "9-other" ]
@@ -111,65 +111,65 @@ JSON
   [ "$(jq --compact-output '.[0] | has("inflight")' <<<"$output")" = 'false' ]
 }
 
-@test "kit status backlog paints the number cyan and the detail dim, and no color without a terminal" {
+@test "kit flow backlog paints the number cyan and the detail dim, and no color without a terminal" {
   local esc=$'\x1b'
-  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_checkout}/bin/kit" status backlog
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_checkout}/bin/kit" flow backlog
   [ "$status" -eq 0 ]
   [[ "$output" == *"${esc}[36m #9${esc}[0m"* ]]
   [[ "$output" == *"${esc}[90mada${esc}[0m"* ]]
   [[ "$output" == *"${esc}[90m🌿 9-other${esc}[0m"* ]]
   [[ "$output" == *"🎫 Other thing"* ]]
-  run env -u NO_COLOR "${kit_checkout}/bin/kit" status backlog
+  run env -u NO_COLOR "${kit_checkout}/bin/kit" flow backlog
   [ "$status" -eq 0 ]
   [[ "$output" != *"${esc}["* ]]
 }
 
-@test "kit status backlog clips the title to what the terminal's width leaves after the other cells" {
+@test "kit flow backlog clips the title to what the terminal's width leaves after the other cells" {
   fixture issues.json <<'JSON'
 [{"number": 11, "title": "A very long title that goes on and on, far past what a narrow terminal shows",
   "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
-  run env COLUMNS=60 "${kit_checkout}/bin/kit" status backlog
+  run env COLUMNS=60 "${kit_checkout}/bin/kit" flow backlog
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#11  👤 bob  "*"d  🎫 A very long"*"…" ]]
   narrow=$(title-of "${lines[0]}")
-  run env COLUMNS=80 "${kit_checkout}/bin/kit" status backlog
+  run env COLUMNS=80 "${kit_checkout}/bin/kit" flow backlog
   [ "$status" -eq 0 ]
   wide=$(title-of "${lines[0]}")
   [ "${#wide}" -eq $(( ${#narrow} + 20 )) ]
-  run env COLUMNS=160 "${kit_checkout}/bin/kit" status backlog
+  run env COLUMNS=160 "${kit_checkout}/bin/kit" flow backlog
   [ "$status" -eq 0 ]
   [ "$(title-of "${lines[0]}")" = "A very long title that goes on and on, far past what a narrow terminal shows" ]
 }
 
-@test "kit status backlog --today lists the issues opened in the last 24 hours, and combines with --mine and --json" {
+@test "kit flow backlog --today lists the issues opened in the last 24 hours, and combines with --mine and --json" {
   now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   fixture issues.json <<JSON
 [{"number": 13, "title": "Fresh thing", "assignees": [{"login": "ada"}], "createdAt": "${now}"},
  {"number": 14, "title": "Fresh other", "assignees": [], "createdAt": "${now}"},
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
-  run kit status backlog --today
+  run kit flow backlog --today
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#13  👤 ada  "*"  🎫 Fresh thing" ]]
   [[ "${lines[1]}" == "#14        "*"  🎫 Fresh other" ]]
   [ "${#lines[@]}" -eq 2 ]
-  run kit status backlog --today --mine
+  run kit flow backlog --today --mine
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#13  "*"  🎫 Fresh thing" ]]
   [ "${#lines[@]}" -eq 1 ]
-  run kit status backlog --today --json
+  run kit flow backlog --today --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output 'map(.number)' <<<"$output")" = "[13,14]" ]
-  run kit status backlog --today --owner=bob
+  run kit flow backlog --today --owner=bob
   [ "$status" -eq 0 ]
   [ "$output" = "no open issue without a pull request" ]
 }
 
-@test "kit status backlog refuses an unknown flag with a pointer to its page, and kit backlog and kit todo are no verbs" {
-  run kit status backlog --bogus
+@test "kit flow backlog refuses an unknown flag with a pointer to its page, and kit backlog and kit todo are no verbs" {
+  run kit flow backlog --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
   run kit backlog
   [ "$status" -ne 0 ]
   [[ "$output" == *"backlog"* ]]
@@ -178,21 +178,21 @@ JSON
   [[ "$output" == *"todo"* ]]
 }
 
-@test "kit status backlog --mine combines with --owner and --others as a union, keeping the assignee column; --all stands alone" {
+@test "kit flow backlog --mine combines with --owner and --others as a union, keeping the assignee column; --all stands alone" {
   # #7 is in flight: change #3 closes it, so the backlog never lists it
-  run kit status backlog --mine --owner=bob --json
+  run kit flow backlog --mine --owner=bob --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "11" ]
-  run kit status backlog --mine --owner=bob
+  run kit flow backlog --mine --owner=bob
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "#11  👤 ada  "*"d  🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 1 ]
-  run kit status backlog --mine --others --json
+  run kit flow backlog --mine --others --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "9 11" ]
-  run kit status backlog --all --mine
+  run kit flow backlog --all --mine
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --mine; run: kit help status"* ]]
+  [[ "$output" == *"--all cannot be combined with --mine; run: kit help flow"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

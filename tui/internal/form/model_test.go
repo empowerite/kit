@@ -114,8 +114,8 @@ func TestOneOfArrows(t *testing.T) {
 	if m.fields[0].Chosen != 1 || len(m.fields) != 3 {
 		t.Errorf("backspace: %+v", m.fields)
 	}
-	// kit status's owner row, under the picture's line, is optional, so backspace clears it.
-	m = newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	// kit flow's owner row, under the picture's line, is optional, so backspace clears it.
+	m = newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
 	m, _ = drive(t, m, keys("down", "down", "down", "right")...)
 	if m.fields[3].Chosen != 0 {
 		t.Fatalf("right on the owner row: %+v", m.fields[3])
@@ -127,9 +127,9 @@ func TestOneOfArrows(t *testing.T) {
 }
 
 func TestAnyOfSpace(t *testing.T) {
-	// status's owner row, under the picture's line, its second alternative chosen, opens an any-of row of --mine and
+	// flow's owner row, under the picture's line, its second alternative chosen, opens an any-of row of --mine and
 	// --others
-	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
 	m, _ = drive(t, m, keys("down", "down", "down", "right", "right", "down", "space", "right", "space")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--mine --others" {
 		t.Errorf("toggled: %q", got)
@@ -142,7 +142,7 @@ func TestAnyOfSpace(t *testing.T) {
 
 func TestJSONAndJQAreOneOrTheOther(t *testing.T) {
 	// the picture's output row is --text | --json | --jq: right moves the choice along it, so one flag stands at a time
-	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
 	m, _ = drive(t, m, keys("down", "down", "right", "right")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--json" {
 		t.Errorf("the output row on --json: %q", got)
@@ -197,17 +197,17 @@ func TestStatefulPickIsSeededAndANoteUndoesTheFlip(t *testing.T) {
 }
 
 func TestEscCancelsOrGoesBack(t *testing.T) {
-	m := newForm(t, "status", Answers{}, false)
+	m := newForm(t, "flow", Answers{}, false)
 	m, produced := drive(t, m, key("esc"))
 	if run, args := m.Done(); run || args != nil || len(produced) == 0 {
 		t.Errorf("esc without a way back: %v %v %v", run, args, produced)
 	}
-	m = newForm(t, "status", Answers{}, true)
+	m = newForm(t, "flow", Answers{}, true)
 	_, produced = drive(t, m, key("esc"))
 	if _, back := produced[len(produced)-1].(BackMsg); !back {
 		t.Errorf("esc with a way back: %v", produced)
 	}
-	m = newForm(t, "status", Answers{}, false)
+	m = newForm(t, "flow", Answers{}, false)
 	m, _ = drive(t, m, key("ctrl+c"))
 	if !m.Interrupted() {
 		t.Error("ctrl-c was not an interrupt")
@@ -217,7 +217,7 @@ func TestEscCancelsOrGoesBack(t *testing.T) {
 func TestNarrowWidthGoesVertical(t *testing.T) {
 	// the picture's output row draws its names side by side at 80 columns, and one per line at 40, where its names
 	// would not fit; the line's own name, the usage line whole, is the one line that may still say --json and --jq
-	m := newForm(t, "status", Answers{Chosen: map[int]int{0: 0}}, false)
+	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
 	if view := stripANSI(m.View().Content); !strings.Contains(view, "--text   --json   --jq") {
 		t.Fatalf("not one row at 80 columns:\n%s", view)
 	}
@@ -227,7 +227,7 @@ func TestNarrowWidthGoesVertical(t *testing.T) {
 		t.Errorf("one row at 40 columns:\n%s", view)
 	}
 	for _, line := range strings.Split(view, "\n") {
-		// wrap keeps a word wider than the room beside the column whole, alone on its line, as the status package's
+		// wrap keeps a word wider than the room beside the column whole, alone on its line, as the flow package's
 		// wrap does: the one line that may pass the edge, here "uncommitted" beside a column of 30
 		if n := len([]rune(line)); n > 40 && strings.Contains(strings.TrimSpace(line), " ") {
 			t.Errorf("a line of %d columns: %q", n, line)
@@ -255,7 +255,7 @@ func TestExtendedFieldsReplaceTheWildcard(t *testing.T) {
 }
 
 func TestShiftEnterRunsFromAnywhere(t *testing.T) {
-	m := newForm(t, "status", Answers{}, false)
+	m := newForm(t, "flow", Answers{}, false)
 	m, _ = drive(t, m, key("shift+enter"))
 	if run, _ := m.Done(); !run {
 		t.Error("shift-enter did not run")
@@ -263,7 +263,7 @@ func TestShiftEnterRunsFromAnywhere(t *testing.T) {
 }
 
 func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T) {
-	m := newForm(t, "status", Answers{}, true)
+	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
 	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasSuffix(bar, "⏎ next · esc back") {
 		t.Errorf("a terminal that said nothing of its keyboard, as Terminal.app: %q", bar)
@@ -381,7 +381,7 @@ func screen(m Model) []string { return strings.Split(stripANSI(m.View().Content)
 var disambiguates = tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}
 
 func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) {
-	m := newForm(t, "status", Answers{}, true)
+	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
@@ -393,12 +393,12 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 			t.Errorf("the keys do not mention %q: %q", key, bar)
 		}
 	}
-	if !strings.Contains(stripANSI(m.View().Content), "\n kit status - "+m.spec.Purpose[:20]) {
+	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
 	}
-	m = newForm(t, "status", Answers{}, false)
+	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[0], " kit status - ") || !strings.HasSuffix(lines[len(lines)-1], "esc cancel") {
+	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasSuffix(lines[len(lines)-1], "esc cancel") {
 		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
 	}
 }
@@ -420,7 +420,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			{"commit", Answers{}, []string{"right", "down"}, false, false}, // --message's lines, with their hint
 			{"lint", Answers{}, []string{"down"}, false, true},             // a list of 3000 rows, with its count
 			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false, true},
-			{"status", Answers{}, nil, true, false},
+			{"flow", Answers{}, nil, true, false},
 		} {
 			t.Setenv("FAKE_KIT_ROWS", "")
 			if c.verb == "lint" {
@@ -444,10 +444,10 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 		}
 	}
 	// at 80 columns the bar is whole; a height not yet known draws the form, a gap, and the bar
-	m := newForm(t, "status", Answers{}, true)
+	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, disambiguates)
 	lines := screen(m)
-	if lines[len(lines)-1] != fields || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit status") {
+	if lines[len(lines)-1] != fields || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit flow") {
 		t.Errorf("with no height, the last lines: %q", lines[len(lines)-3:])
 	}
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})

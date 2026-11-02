@@ -42,10 +42,10 @@ use context help release syntax log file
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
 # The tools, each a verb that changes nothing.
-declare -gra serve_tools=(check context help kinds lint packages status syntax toolchains tools version)
+declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
-declare -gra serve_open_world=(status)
+declare -gra serve_open_world=(flow)
 
 # The tools offered as a listing only. A call whose args hold one of a tool's words would act, or reach the network,
 # so it is refused before the verb runs. Each word is a literal, or a flag, also refused as --flag=<value>.

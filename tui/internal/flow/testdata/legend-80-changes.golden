@@ -1,0 +1,32 @@
+ kit flow · 📚 empowerite/kit
+ ┄┄┄──●───────────────────────────○─────────────────────────────○────────────┄┄┄
+      ├ 🔀 changes 3              ├ 🏭 4                        ├ 📦 3
+      └ legend                    └ legend                      └ legend
+        ├ 🔀  a pull request        ├ 🏭  a build                 ├ 📦  a releas
+        ├ 👤  its author            ├ 🏃  running or queued       ├ 🧪  a pre-re
+        ├ 🌿  its branch            ├ ✅  passed                  ├ 📝  a draft
+        ├ 🏃  checks running        ├ ❌  failed                  └ ⭐  the late
+        ├ ✅  checks passed         └ 🛑  cancelled or skipped
+        ├ ❌  a check failed
+        ├ 💬  threads unresolved
+        ├ 🛫  an issue it closes
+        ├ 🎫  the issue's title
+        └ state
+          ├ 🔨  draft
+          ├ 🚦  queued
+          ├ 💥  conflicted
+          ├ 🔥  failing:gate
+          ├ 📭  no-check
+          ├ 💬  comments:open
+          ├ 👀  blocked:approval
+          ├ 🛬  ready
+          └ 🔳  any other state
+
+   🔀 #2  The first r…  👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3m …
+   🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2    …
+   🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint fail…
+
+
+
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

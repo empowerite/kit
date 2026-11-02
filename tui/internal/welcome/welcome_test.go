@@ -359,7 +359,7 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 		t.Errorf("one down:\n%s", strings.Join(got, "\n"))
 	}
 	m = drive(m, pgdown, pgdown, pgdown, pgdown)
-	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit status --stages") {
+	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit flow --stages") {
 		t.Errorf("the end:\n%s", strings.Join(got, "\n"))
 	}
 	if m = drive(m, pgup, pgup, pgup, pgup, up); m.offsets[terms] != 0 {

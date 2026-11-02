@@ -1,4 +1,4 @@
-# forge.jq - a forge's answers, folded into the pull request document kit status renders (jq module)
+# forge.jq - a forge's answers, folded into the pull request document kit flow renders (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # import "forge" as forge; with jq -L "${kit_jq}". Each provider turns its forge's own fields into runs, and the

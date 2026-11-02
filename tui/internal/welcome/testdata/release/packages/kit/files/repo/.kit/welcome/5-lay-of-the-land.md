@@ -1,12 +1,12 @@
 # The lay of the land
 
-<!-- the stages of kit status, in order -->
+<!-- the stages of kit flow, in order -->
 
-Work moves through the stages that `kit status` draws. Each part ends with the command that shows it live.
+Work moves through the stages that `kit flow` draws. Each part ends with the command that shows it live.
 
 ## The backlog
 
-An issue waits in the backlog until someone takes it. `kit status backlog` lists them.
+An issue waits in the backlog until someone takes it. `kit flow backlog` lists them.
 
 ## Underway
 
@@ -14,7 +14,7 @@ An issue waits in the backlog until someone takes it. `kit status backlog` lists
 with `kit commit`, which runs the checks a commit's rule requires.
 
 - `kit submit` pushes the branch and opens the pull request.
-- The build runs the gates; `kit status builds` shows it.
+- The build runs the gates; `kit flow builds` shows it.
 - A release tags what the build passed.
 
 ## The desk
@@ -22,5 +22,5 @@ with `kit commit`, which runs the checks a commit's rule requires.
 The desk is the root checkout. People read and review there; agents never work there, so two never edit one tree.
 
 ```sh
-kit status desk
+kit flow desk
 ```

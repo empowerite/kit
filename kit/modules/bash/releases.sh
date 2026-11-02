@@ -5,11 +5,11 @@
 #
 # A release is a tag, release/<version>, where <version> is <major>.<minor>.<patch>, with -<suffix> for a
 # pre-release. kit release makes one and pushes it, which is how a release starts: the repository's release
-# workflow, if it has one, does the rest. The releases stage of kit status lists what the forge made of them.
+# workflow, if it has one, does the rest. The releases stage of kit flow lists what the forge made of them.
 #
-# see: kit/bin/kit-release, kit/bin/kit-status, modules/jq/version.jq, docs/features.md
+# see: kit/bin/kit-release, kit/bin/kit-flow, modules/jq/version.jq, docs/features.md
 
-use git forge status settings
+use git forge flow settings
 
 # releases:valid <version> says whether the version has the shape a release tag needs.
 releases:valid() {
@@ -104,12 +104,12 @@ releases:draw() {
   local doc=$1 width kind_width age_width version kind latest age glyph
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    status:none 'no release yet'
+    flow:none 'no release yet'
     return 0
   fi
   width=$(jq '[.[].version | length] | max' <<<"${doc}")
   kind_width=$(jq '[.[].kind | length] | max' <<<"${doc}")
-  age_width=$(while read -r age; do status:age "${age}"; echo; done < <(jq --raw-output '.[].age' <<<"${doc}") \
+  age_width=$(while read -r age; do flow:age "${age}"; echo; done < <(jq --raw-output '.[].age' <<<"${doc}") \
     | awk 'length > w { w = length } END { print w + 0 }')
   while IFS=$'\t' read -r version kind latest age
   do
@@ -118,10 +118,10 @@ releases:draw() {
       (pre-release) glyph='🧪' ;;
       (*) glyph='📦' ;;
     esac
-    # the age is a number, so it is right-aligned, as kit status draws one
-    printf '%s  %s %s %s%s\n' "$(status:cell "${version}" "${width}")" "${glyph}" \
-      "$(status:cell "${kind}" "${kind_width}")" \
-      "$(status:paint 2 "$(status:cell "$(status:age "${age}")" "${age_width}" right)")" \
+    # the age is a number, so it is right-aligned, as kit flow draws one
+    printf '%s  %s %s %s%s\n' "$(flow:cell "${version}" "${width}")" "${glyph}" \
+      "$(flow:cell "${kind}" "${kind_width}")" \
+      "$(flow:paint 2 "$(flow:cell "$(flow:age "${age}")" "${age_width}" right)")" \
       "$([[ "${latest}" == true ]] && printf '  ⭐ latest')" >&2
   done < <(jq --raw-output '.[] | [.version, .kind, .latest, .age] | @tsv' <<<"${doc}")
 }

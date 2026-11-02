@@ -3,22 +3,22 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# The backlog stage of kit status is the pick: the open issues of the repository on its forge, as forge:open-issues
+# The backlog stage of kit flow is the pick: the open issues of the repository on its forge, as forge:open-issues
 # folds them, less the ones an open pull request closes. The underway stage lists those. An issue with a branch for it
 # on the primary remote is claimed, and its row says so; one with neither is for the next kit issue <N>. The flags are
-# kit status's: --mine is the issues assigned to the caller, --others the rest, unassigned ones included,
+# kit flow's: --mine is the issues assigned to the caller, --others the rest, unassigned ones included,
 # --owner=<login> the named assignees', --all every one. --today keeps only the issues opened in the last 24 hours,
 # whichever of those is chosen.
 #
-# A row is drawn by status:issue-row, as the issues under a change are, without the state cell:
+# A row is drawn by flow:issue-row, as the issues under a change are, without the state cell:
 #
 #    #7  👤 bob  40d  🌿 7-fix-the-thing  🎫 Fix the thing
 #   #11  👤 ada  30d                      🎫 Third thing
 #
-# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/underway.sh, modules/bash/forge.sh,
+# see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/underway.sh, modules/bash/forge.sh,
 # modules/jq/forge.jq
 
-use forge status
+use forge flow
 
 # backlog:collect [--except] <login>… prints the open issues no open change closes, as one JSON array, oldest
 # first, each with branch: the branch on the primary remote that starts with its number, or null. With logins, only
@@ -38,11 +38,11 @@ backlog:collect() {
 }
 
 # backlog:documents [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues the flags choose as
-# one JSON array, oldest first. The owner flags combine as status:filter says.
+# one JSON array, oldest first. The owner flags combine as flow:filter says.
 backlog:documents() {
   local filter doc
   local -a selection=()
-  filter=$(status:filter-of "$@") || return 1
+  filter=$(flow:filter-of "$@") || return 1
   read -r -a selection <<<"${filter}"
   doc=$(backlog:collect "${selection[@]}") || return 1
   [[ " $* " != *" --today "* ]] || doc=$(jq --compact-output 'map(select(.age < 86400))' <<<"${doc}")
@@ -55,16 +55,16 @@ backlog:draw() {
   local doc=$1 choice=$2 widths ref_w owner_w age_w branch_w issue
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    status:none 'no open issue without a pull request'
+    flow:none 'no open issue without a pull request'
     return 0
   fi
-  read -r ref_w owner_w age_w branch_w <<<"$(status:issue-widths "${doc}")"
+  read -r ref_w owner_w age_w branch_w <<<"$(flow:issue-widths "${doc}")"
   [[ "${choice}" != mine ]] || owner_w=0
   widths="${ref_w} ${owner_w} ${age_w} ${branch_w}"
   while IFS= read -r issue
   do
     [[ -n "${issue}" ]] || continue
-    status:issue-row "${issue}" "${widths}" '' ''
+    flow:issue-row "${issue}" "${widths}" '' ''
   done < <(jq --compact-output '.[]' <<<"${doc}")
 }
 
@@ -78,7 +78,7 @@ backlog:render() {
     printf '%s\n' "${doc}"
     return 0
   fi
-  backlog:draw "${doc}" "$(status:choice-of "$@")"
+  backlog:draw "${doc}" "$(flow:choice-of "$@")"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

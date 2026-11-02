@@ -14,9 +14,9 @@
 # starts itself again from any file of its release that changed, and tells the client to list the tools and the
 # resources again; modules/bash/serve.sh says how.
 #
-# Its tools are the verbs that read and report, and change nothing: check, context, help, kinds, lint, packages,
-# status, syntax, toolchains, and version. A tool's description is the verb's help, and the tool takes args, the
-# verb's arguments as an array of strings. Its resources are the kit's files:
+# Its tools are the verbs that read and report, and change nothing: check, context, flow, help, kinds, lint,
+# packages, syntax, toolchains, tools, and version. A tool's description is the verb's help, and the tool takes
+# args, the verb's arguments as an array of strings. Its resources are the kit's files:
 #
 #   - kit://1st.md
 #   - kit://rules/<kind> and kit://styles/<kind>, for each rule and style

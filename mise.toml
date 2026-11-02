@@ -30,7 +30,7 @@ enter = "kit hydrate --quick"
 #   gh                  the GitHub provider's tool: workflow commands, kit linked, bin/release publish and retire
 #   go                  the language of kittui, the kit tui binary under tui/; go vet and go test run in the gate, and
 #                       the release builds the binary with it
-#   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit status
+#   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit flow
 #   just                tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
 #   lychee              checks every link in the markdown, offline, fragments included, in the gate
 #   ajv-cli             validates every package.yml and kit.yml against their schemas, in the gate

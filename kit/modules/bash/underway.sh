@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # underway.sh - the open issues an open pull request closes, who works on each, and where (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh; status_gap is set by modules/bash/status.sh
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh; flow_gap is set by modules/bash/flow.sh
 #
-# The underway stage of kit status sits beside the backlog. Every open issue is in one of the two:
+# The underway stage of kit flow sits beside the backlog. Every open issue is in one of the two:
 #
 #   - backlog: the open issues no open pull request closes
 #   - underway: the open issues an open pull request closes, whoever opened it
@@ -15,12 +15,12 @@
 #   #11  👤 ada  🛫 30d  🔀 #5 🛬 ready  👤 cy    🎫 Third thing
 #
 # 🏠 here means a checkout on this desk has the pull request's branch: the desk or a linked worktree. Otherwise the
-# cell names the pull request's author, whose desk the work is on. The owner flags are kit status's, and match the
+# cell names the pull request's author, whose desk the work is on. The owner flags are kit flow's, and match the
 # pull request's author or the issue's assignees.
 #
-# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/changes.sh, modules/jq/underway.jq
+# see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/changes.sh, modules/jq/underway.jq
 
-use forge status
+use forge flow
 
 # underway:checkouts prints one JSON object that maps each branch checked out on this desk to its checkout's path:
 # the desk's branch, and each linked worktree's.
@@ -34,11 +34,11 @@ underway:checkouts() {
 
 # underway:documents [--all | [--mine] [--others] [--owner=<login>…]] prints the rows the flags choose as one JSON
 # array, the oldest issue first: {number, title, assignees, age, pr, here, worktree} each. The owner flags combine as
-# status:filter says, and match the pull request's author or the issue's assignees.
+# flow:filter says, and match the pull request's author or the issue's assignees.
 underway:documents() {
   local filter prs except=false
   local -a selection=()
-  filter=$(status:filter-of "$@") || return 1
+  filter=$(flow:filter-of "$@") || return 1
   read -r -a selection <<<"${filter}"
   if [[ "${selection[0]:-}" == --except ]]
   then
@@ -67,7 +67,7 @@ underway:draw() {
   local -a rows=()
   if [[ "$(jq 'length' <<<"${doc}")" == 0 ]]
   then
-    status:none 'no issue is underway'
+    flow:none 'no issue is underway'
     return 0
   fi
   sigil=$(forge:noun 2>/dev/null | cut -f 1) || true
@@ -76,7 +76,7 @@ underway:draw() {
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r ref assignees age number state here author title <<<"${row}"
-    age=$(status:age "${age}")
+    age=$(flow:age "${age}")
     number="${sigil:-#}${number}"
     (( ${#ref} > ref_w )) && ref_w=${#ref}
     (( ${#assignees} > owner_w )) && owner_w=${#assignees}
@@ -86,32 +86,32 @@ underway:draw() {
     [[ "${here}" == true ]] || (( ${#author} <= where_w )) || where_w=${#author}
   done
   [[ "${choice}" != mine ]] || owner_w=0
-  # Each glyph is two columns and is followed by a space; status_gap, two columns, comes before every cell but the
+  # Each glyph is two columns and is followed by a space; flow_gap, two columns, comes before every cell but the
   # first. The title takes what is left, and never less than 20.
-  width=$(( $(status:width) - ref_w - (owner_w > 0 ? 5 + owner_w : 0) - 5 - age_w - 5 - pr_w - 4 - state_w \
+  width=$(( $(flow:width) - ref_w - (owner_w > 0 ? 5 + owner_w : 0) - 5 - age_w - 5 - pr_w - 4 - state_w \
     - 5 - where_w - 5 ))
   (( width < 20 )) && width=20
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r ref assignees age number state here author title <<<"${row}"
-    row=$(status:paint "${status_issue_sgr}" "$(status:cell "${ref}" "${ref_w}" right)")
+    row=$(flow:paint "${flow_issue_sgr}" "$(flow:cell "${ref}" "${ref_w}" right)")
     if (( owner_w > 0 ))
     then
       glyph='   '
       [[ -n "${assignees}" ]] && glyph='👤 '
-      row+="${status_gap}${glyph}$(status:paint 90 "$(status:cell "${assignees}" "${owner_w}")")"
+      row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "${assignees}" "${owner_w}")")"
     fi
-    row+="${status_gap}🛫 $(status:paint 90 "$(status:cell "$(status:age "${age}")" "${age_w}" right)")"
-    number=$(status:cell "${sigil:-#}${number}" "${pr_w}" right)
-    row+="${status_gap}🔀 $(status:paint "${status_change_sgr}" "${number}")"
-    row+=" $(status:state-emoji "${state}") $(status:paint "$(status:state-sgr "${state}")" \
-      "$(status:cell "${state}" "${state_w}")")"
+    row+="${flow_gap}🛫 $(flow:paint 90 "$(flow:cell "$(flow:age "${age}")" "${age_w}" right)")"
+    number=$(flow:cell "${sigil:-#}${number}" "${pr_w}" right)
+    row+="${flow_gap}🔀 $(flow:paint "${flow_change_sgr}" "${number}")"
+    row+=" $(flow:state-emoji "${state}") $(flow:paint "$(flow:state-sgr "${state}")" \
+      "$(flow:cell "${state}" "${state_w}")")"
     if [[ "${here}" == true ]]
-    then row+="${status_gap}🏠 $(status:cell here "${where_w}")"
-    else row+="${status_gap}👤 $(status:paint 90 "$(status:cell "${author}" "${where_w}")")"
+    then row+="${flow_gap}🏠 $(flow:cell here "${where_w}")"
+    else row+="${flow_gap}👤 $(flow:paint 90 "$(flow:cell "${author}" "${where_w}")")"
     fi
     (( ${#title} > width )) && title="${title:0:width-1}…"
-    printf '%s%s🎫 %s\n' "${row}" "${status_gap}" "${title}" >&2
+    printf '%s%s🎫 %s\n' "${row}" "${flow_gap}" "${title}" >&2
   done
 }
 
@@ -125,7 +125,7 @@ underway:render() {
     printf '%s\n' "${doc}"
     return 0
   fi
-  underway:draw "${doc}" "$(status:choice-of "$@")"
+  underway:draw "${doc}" "$(flow:choice-of "$@")"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

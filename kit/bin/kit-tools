@@ -37,7 +37,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain settings status materialize yaml
+use toolchain settings flow materialize yaml
 guard:arguments tools "$@" || exit $?
 settings:validate || exit 1
 
@@ -67,7 +67,7 @@ needed() {
 }
 
 # draw <header> reads tab-separated rows on stdin, a glyph first, and prints them as a table: each column sized to
-# its widest cell, the cells joined by status_sep, and the empty cells at a row's end dropped with their separators.
+# its widest cell, the cells joined by flow_sep, and the empty cells at a row's end dropped with their separators.
 draw() {
   local width row line i
   local -a header lines cells sizes=()
@@ -85,15 +85,15 @@ draw() {
       (( ${#cells[i]} <= ${sizes[i - 1]:-0} )) || sizes[i - 1]=${#cells[i]}
     done
   done
-  width=$(status:width)
-  printf '%s\n' "$(status:paint 90 "$(join '  ' "${header[@]}")")"
+  width=$(flow:width)
+  printf '%s\n' "$(flow:paint 90 "$(join '  ' "${header[@]}")")"
   for row in "${lines[@]}"
   do
     split "${row}"
     line=$(join "${cells[@]}")
     # a glyph counts as one character and is drawn two wide, so the row is clipped one short
     if (( ${#line} + 1 > width ))
-    then status:cell "${line}" $(( width - 1 )); printf '\n'
+    then flow:cell "${line}" $(( width - 1 )); printf '\n'
     else printf '%s\n' "${line}"
     fi
   done
@@ -106,7 +106,7 @@ split() {
 }
 
 # join <glyph> <cell>… prints the glyph, then each cell padded to its column's size from draw's sizes, joined by
-# status_sep. The empty cells at the end are dropped.
+# flow_sep. The empty cells at the end are dropped.
 join() {
   local glyph=$1 out='' i last=-1
   shift
@@ -117,11 +117,11 @@ join() {
   done
   for (( i = 0; i <= last; i++ ))
   do
-    # shellcheck disable=SC2154  # status_sep is set by modules/bash/status.sh
-    (( i == 0 )) || out+=${status_sep}
+    # shellcheck disable=SC2154  # flow_sep is set by modules/bash/flow.sh
+    (( i == 0 )) || out+=${flow_sep}
     if (( i == last ))
     then out+=${cells[i]}
-    else out+=$(status:cell "${cells[i]}" "${sizes[i]}")
+    else out+=$(flow:cell "${cells[i]}" "${sizes[i]}")
     fi
   done
   printf '%s %s' "${glyph}" "${out}"

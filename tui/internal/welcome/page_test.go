@@ -22,8 +22,8 @@ func TestHeadingsAreBoldAndSetApartByOneBlankLine(t *testing.T) {
 }
 
 func TestInlineCodeIsInTheAccentAndStrongIsBold(t *testing.T) {
-	lines := render("Run `kit status` **now**, then `kit issue`.", 80)
-	want := "Run " + style.Mark("kit") + " " + style.Mark("status") + " " + style.Label("now") + ", then " +
+	lines := render("Run `kit flow` **now**, then `kit issue`.", 80)
+	want := "Run " + style.Mark("kit") + " " + style.Mark("flow") + " " + style.Label("now") + ", then " +
 		style.Mark("kit") + " " + style.Mark("issue") + "."
 	if len(lines) != 1 || lines[0] != want {
 		t.Errorf("got %q\nwant %q", lines, want)
@@ -51,8 +51,8 @@ func TestListItemsKeepTheirMarkerAndHangTheirLines(t *testing.T) {
 }
 
 func TestCodeBlocksKeepTheirLinesAndCommentsAreDropped(t *testing.T) {
-	md := "<!-- a note\nfor the linter -->\ntext\n```sh\nkit status   desk\n```\n<!-- one line -->\n| a | b |\n"
-	if got := plain(md, 40); got != "text\n\n  kit status   desk\n| a | b |" {
+	md := "<!-- a note\nfor the linter -->\ntext\n```sh\nkit flow   desk\n```\n<!-- one line -->\n| a | b |\n"
+	if got := plain(md, 40); got != "text\n\n  kit flow   desk\n| a | b |" {
 		t.Errorf("got %q", got)
 	}
 }

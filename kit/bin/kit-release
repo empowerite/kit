@@ -23,7 +23,7 @@
 #
 # Exits 0 when the tag is on the primary, 1 on a refusal, and 2 on a usage error.
 #
-# see: modules/bash/releases.sh, modules/jq/version.jq, kit-status
+# see: modules/bash/releases.sh, modules/jq/version.jq, kit-flow
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh

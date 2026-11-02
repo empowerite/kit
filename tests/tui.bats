@@ -71,8 +71,8 @@ pty() {
 @test "a verb that has what it needs, or refuses a word, never hands off" {
   run pty "'${kit_root}/bin/kit' version"
   [[ "$output" != *"kittui"* ]]
-  run pty "'${kit_root}/bin/kit' status --bogus"
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
+  run pty "'${kit_root}/bin/kit' flow --bogus"
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
   [[ "$output" != *"kittui"* ]]
 }
 

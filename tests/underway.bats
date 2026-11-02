@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# underway.bats - kit status underway lists each open issue an open pull request closes: who works on it, and where
+# underway.bats - kit flow underway lists each open issue an open pull request closes: who works on it, and where
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The world, seen through a fake gh: the caller ada; issue 7, assigned to bob, closed by two pull requests, 3, a draft
@@ -51,8 +51,8 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-@test "kit status underway draws a row per issue and pull request, the oldest issue first: here, or on the author's desk" {
-  run kit status underway
+@test "kit flow underway draws a row per issue and pull request, the oldest issue first: here, or on the author's desk" {
+  run kit flow underway
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 3 ]
   [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
@@ -62,15 +62,15 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "${#lines[0]}" -eq "${#lines[1]}" ]
 }
 
-@test "kit status underway paints the issue's number cyan, the pull request's magenta, and its state in its family" {
+@test "kit flow underway paints the issue's number cyan, the pull request's magenta, and its state in its family" {
   local esc=$'\x1b'
-  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status underway
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow underway
   [[ "${lines[2]}" == "${esc}[36m#11${esc}[0m  👤 ${esc}[90mada${esc}[0m  🛫 "* ]]
   [[ "${lines[2]}" == *"🔀 ${esc}[35m#5${esc}[0m 🛬 ${esc}[32mready${esc}[0m  👤 ${esc}[90mcy  ${esc}[0m  🎫 Third thing" ]]
 }
 
-@test "kit status underway --json is one object per issue and pull request: the issue, its pull request, and where" {
-  run kit status underway --json
+@test "kit flow underway --json is one object per issue and pull request: the issue, its pull request, and where" {
+  run kit flow underway --json
   [ "$status" -eq 0 ]
   [ "$(jq -c 'map([.number, .pr.number, .here])' <<<"$output")" = '[[7,3,true],[7,5,false],[11,5,false]]' ]
   [ "$(jq -c '.[0] | keys_unsorted' <<<"$output")" \
@@ -84,63 +84,63 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "the desk's own branch is here too, and a branch no checkout has is not" {
   git -C worktrees/7-fix-the-thing checkout --quiet --detach
   git checkout --quiet -b 11-third origin/11-third
-  run kit status underway --json
+  run kit flow underway --json
   [ "$(jq -c 'map([.pr.number, .here])' <<<"$output")" = '[[3,false],[5,true],[5,true]]' ]
   [ "$(jq -r '.[1].worktree' <<<"$output")" -ef . ]
 }
 
 @test "the owner flags match the pull request's author or the issue's assignees" {
-  run kit status underway --mine --json
+  run kit flow underway --mine --json
   [ "$status" -eq 0 ]
   [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,3],[11,5]]' ]
-  run kit status underway --others --json
+  run kit flow underway --others --json
   [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,5]]' ]
-  run kit status underway --owner=bob --json
+  run kit flow underway --owner=bob --json
   [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,3],[7,5]]' ]
-  run kit status underway --owner=cy --json
+  run kit flow underway --owner=cy --json
   [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,5],[11,5]]' ]
-  run kit status underway --all --json
+  run kit flow underway --all --json
   [ "$(jq 'length' <<<"$output")" -eq 3 ]
   # --mine alone leaves the assignee column out, as the backlog does
-  run kit status underway --mine
+  run kit flow underway --mine
   [[ "${lines[0]}" == " #7  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
-  run kit status underway --mine --all
+  run kit flow underway --mine --all
   [ "$status" -eq 2 ]
 }
 
 @test "with no open pull request closing an issue, the stage says so in one dim line, and --json prints []" {
   local esc=$'\x1b'
   fixture open-prs.json <<<'{"data": {"repository": {"pullRequests": {"nodes": []}}}}'
-  run kit status underway
+  run kit flow underway
   [ "$status" -eq 0 ]
   [ "$output" = "no issue is underway" ]
-  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status underway
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow underway
   [ "$output" = "${esc}[90mno issue is underway${esc}[0m" ]
-  run kit status underway --json
+  run kit flow underway --json
   [ "$output" = "[]" ]
 }
 
 @test "a narrow terminal clips the title and keeps every other cell whole" {
-  COLUMNS=60 run kit status underway
+  COLUMNS=60 run kit flow underway
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == " #7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  🏠 here  🎫 Fix the thing" ]]
   jq '.data.repository.pullRequests.nodes[1].closingIssuesReferences.nodes[0].title
       = "a title long enough to run past the edge of any terminal this narrow"' "${FAKE_DIR}/open-prs.json" \
     > "${FAKE_DIR}/long.json"
   mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/open-prs.json"
-  COLUMNS=60 run kit status underway
+  COLUMNS=60 run kit flow underway
   [[ "${lines[2]}" == "#11  👤 ada  🛫 "*"d  🔀 #5 🛬 ready  👤 cy    🎫 a title long"*"…" ]]
 }
 
 @test "a forge that cannot be read is refused, and the stage exits 1" {
   printf 'forge: nowhere\n' > kit.yml
-  run kit status underway
+  run kit flow underway
   [ "$status" -eq 1 ]
   [[ "$output" == *"'nowhere' is not a forge the kit knows"* ]]
 }
 
-@test "kit help status holds the underway legend, and backlog points to it" {
-  run kit help status
+@test "kit help flow holds the underway legend, and backlog points to it" {
+  run kit help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  underway:\n\n    🎫  an issue, and its title\n'* ]]
   [[ "$output" == *$'\n    🏠  here: a checkout on this desk has the pull request\'s branch\n'* ]]

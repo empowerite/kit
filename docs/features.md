@@ -89,7 +89,7 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit status` draws where the work stands. Work moves left to right through eight stages:
+`kit flow` draws where the work stands. Work moves left to right through eight stages:
 
 - `backlog`: the open issues no open pull request closes, oldest first, each with its assignees, its age, and the
   branch started for it on the primary remote
@@ -106,9 +106,9 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `releases`: the releases on the forge, newest first
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
-glyph and its count. `kit status <stage>` prints one stage, with that stage's flags: `kit status backlog --today`
+glyph and its count. `kit flow <stage>` prints one stage, with that stage's flags: `kit flow backlog --today`
 keeps the issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
-document. The `status` setting in `kit.yml` names the stages drawn, in order.
+document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
 A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
 primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
@@ -127,7 +127,7 @@ release workflow. It refuses:
 - a release, one with no suffix, whose commit is not on the default branch at the primary remote
 - a version not higher than every release on the primary remote, unless `--lower` confirms it
 
-`kit status releases` lists the releases on the forge, newest first, with each one's kind and age.
+`kit flow releases` lists the releases on the forge, newest first, with each one's kind and age.
 
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
@@ -142,7 +142,7 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 2. Before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain.
 3. Toolchains: the project toolchain and the system toolchain, one check each. Several usable means you choose.
 4. Setup: one check per line for the linters, each forge's login, and the repository.
-5. The lay of the land: how work moves from an issue to a release, through the stages of `kit status`.
+5. The lay of the land: how work moves from an issue to a release, through the stages of `kit flow`.
 6. Terms: desk, worktree, forge, package, rule, and the rest, one or two sentences each.
 7. Make it yours: the settings teams change first, packages, a house package, and the docs.
 

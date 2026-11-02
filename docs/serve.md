@@ -16,11 +16,11 @@ The tools are the verbs that read and report, and change nothing:
 | --- | --- |
 | `check` | `kit check` |
 | `context` | `kit context` |
+| `flow` | `kit flow` |
 | `help` | `kit help` |
 | `kinds` | `kit kinds` |
 | `lint` | `kit lint` |
 | `packages` | `kit packages` |
-| `status` | `kit status` |
 | `syntax` | `kit syntax` |
 | `toolchains` | `kit toolchains` |
 | `tools` | `kit tools` |
@@ -35,7 +35,7 @@ The tools are the verbs that read and report, and change nothing:
   happens: `kit serve` hydrates `.kit/` when it starts, and `context`, `kinds`, and `lint` hydrate before they
   read. `tools` hydrates too when no toolchain is chosen, to read the rules' linters. `context` appends to the
   context log.
-- `status` asks the forge over the network, and says so in its `openWorldHint`.
+- `flow` asks the forge over the network, and says so in its `openWorldHint`.
 - `packages`, `toolchains`, and `tools` are offered as listings only. A call whose `args` hold an action is refused
   with status 2, and the verb never runs:
   - `packages`: `select`, `add`, `remove`

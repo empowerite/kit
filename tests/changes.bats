@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# changes.bats - kit status changes lists the open changes, each with the issues it closes under it
+# changes.bats - kit flow changes lists the open changes, each with the issues it closes under it
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
@@ -51,8 +51,8 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-@test "kit status changes draws each open change as kit status does, and under it the issues it closes as the backlog stage draws one, in flight" {
-  run kit status changes
+@test "kit flow changes draws each open change as kit flow does, and under it the issues it closes as the backlog stage draws one, in flight" {
+  run kit flow changes
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
@@ -60,21 +60,21 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" != *"closes"* ]]
 }
 
-@test "kit status changes --mine, --others, and --owner choose by the change's author, as kit status does" {
-  run kit status changes --mine
+@test "kit flow changes --mine, --others, and --owner choose by the change's author, as kit flow does" {
+  run kit flow changes --mine
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
-  run kit status changes --others
+  run kit flow changes --others
   [ "$status" -eq 0 ]
   [ "$output" = "no open pull request" ]
-  run kit status changes --owner=bob
+  run kit flow changes --owner=bob
   [ "$status" -eq 0 ]
   [ "$output" = "no open pull request" ]
 }
 
-@test "kit status changes --json prints the change documents, each issue with its assignees and age" {
-  run kit status changes --json
+@test "kit flow changes --json prints the change documents, each issue with its assignees and age" {
+  run kit flow changes --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "3" ]
   [ "$(jq --compact-output '.[0].closes[0] | {number, title, assignees}' <<<"$output")" \
@@ -82,49 +82,49 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq --raw-output '.[0].closes[0].age > 0' <<<"$output")" = "true" ]
 }
 
-@test "kit status changes refuses an unknown flag with a pointer to its page" {
-  run kit status changes --bogus
+@test "kit flow changes refuses an unknown flag with a pointer to its page" {
+  run kit flow changes --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
 }
 
-@test "kit status changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
-  run kit status changes --mine --owner=bob
+@test "kit flow changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
+  run kit flow changes --mine --owner=bob
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit status changes --others --owner=bob
+  run kit flow changes --others --owner=bob
   [ "$status" -eq 0 ]
   [ "$output" = "no open pull request" ]
-  run kit status changes --mine --others
+  run kit flow changes --mine --others
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit status changes --all --owner=bob
+  run kit flow changes --all --owner=bob
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --owner; run: kit help status"* ]]
+  [[ "$output" == *"--all cannot be combined with --owner; run: kit help flow"* ]]
 }
 
-@test "kit status changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
-  run kit status changes 3
+@test "kit flow changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
+  run kit flow changes 3
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  run kit status changes 7
+  run kit flow changes 7
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[1]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
-  run kit status changes '#7' 11 --json
+  run kit flow changes '#7' 11 --json
   [ "$status" -eq 0 ]
   [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
-  run kit status changes 007 --json
+  run kit flow changes 007 --json
   [ "$(jq -r 'map(.number) | join(" ")' <<<"$output")" = "3" ]
-  run kit status changes 11
+  run kit flow changes 11
   [ "$status" -eq 0 ]
   [ "$output" = "no open pull request" ]
-  run kit status changes 9 --mine
+  run kit flow changes 9 --mine
   [ "$status" -eq 0 ]
   [ "$output" = "no open pull request" ]
-  run kit status changes x7
+  run kit flow changes x7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help status"* ]]
+  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help flow"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

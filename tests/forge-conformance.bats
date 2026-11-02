@@ -189,7 +189,7 @@ JSON
   done
 }
 
-@test "every provider folds its open changes into the one document kit status draws" {
+@test "every provider folds its open changes into the one document kit flow draws" {
   expected='{"number":3,"branch":"7-fix-the-thing","title":"Fix the thing","author":"ada",'
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
   expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"]}]}'

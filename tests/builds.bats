@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# builds.bats - kit status builds lists the runs no pull request owns: on the default branch, on a tag, and scheduled
+# builds.bats - kit flow builds lists the runs no pull request owns: on the default branch, on a tag, and scheduled
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # origin is a bare repository beside the test's, so the tags are real git; gh is tests/fakes/fake-tool, so the stage
@@ -65,8 +65,8 @@ JSON
   route 'run view 4 --json jobs' failed-jobs.json
 }
 
-@test "kit status builds draws a row per run: glyph, workflow, number, how it began, branch, commit, title, age, took" {
-  run "${kit_root}/bin/kit" status builds
+@test "kit flow builds draws a row per run: glyph, workflow, number, how it began, branch, commit, title, age, took" {
+  run "${kit_root}/bin/kit" flow builds
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 4 ]
   [[ "${lines[0]}" == "✅  kit      #41  push      main           8e817bf  #45 status: the builds stage  "*"d  3m 36s" ]]
@@ -77,8 +77,8 @@ JSON
   [ "${#lines[0]}" -eq "${#lines[1]}" ] && [ "${#lines[2]}" -eq "${#lines[0]}" ]
 }
 
-@test "kit status builds --json keeps a push on main or a tag, a schedule, and a manual run, never a pull request's" {
-  run "${kit_root}/bin/kit" status builds --json
+@test "kit flow builds --json keeps a push on main or a tag, a schedule, and a manual run, never a pull request's" {
+  run "${kit_root}/bin/kit" flow builds --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output 'map([.id, .event, .branch, .tag, .state, .took])' <<<"$output")" \
     = '[[5,"push","main",false,"passed",216],[4,"push","release/0.1.0",true,"failed",242],'"\
@@ -98,7 +98,7 @@ JSON
 
 @test "a push is a build on the default branch or on a tag the repository has, and on no other branch" {
   git tag --delete release/0.1.0 >/dev/null
-  run "${kit_root}/bin/kit" status builds --json
+  run "${kit_root}/bin/kit" flow builds --json
   [ "$(jq --compact-output 'map(.id)' <<<"$output")" = '[5,3,1]' ]
 }
 
@@ -107,7 +107,7 @@ JSON
     "${FAKE_DIR}/runs.json" \
     > "${FAKE_DIR}/many.json"
   mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/runs.json"
-  run "${kit_root}/bin/kit" status builds --json
+  run "${kit_root}/bin/kit" flow builds --json
   [ "$(jq 'length' <<<"$output")" -eq 20 ]
   [ "$(jq '.[0].id' <<<"$output")" -eq 129 ]
   [ "$(grep -c '^run view ' "${FAKE_DIR}/gh.calls")" -eq 5 ]
@@ -118,12 +118,12 @@ JSON
   fixture runs.json <<<'[{"databaseId": 6, "workflowName": "kit", "headBranch": "7-fix-the-thing",
     "event": "pull_request", "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
     "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/6"}]'
-  run "${kit_root}/bin/kit" status builds
+  run "${kit_root}/bin/kit" flow builds
   [ "$status" -eq 0 ]
   [ "$output" = "no build since the last 20 runs" ]
-  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status builds
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow builds
   [ "$output" = "${esc}[90mno build since the last 20 runs${esc}[0m" ]
-  run "${kit_root}/bin/kit" status builds --json
+  run "${kit_root}/bin/kit" flow builds --json
   [ "$output" = "[]" ]
 }
 
@@ -135,7 +135,7 @@ JSON
   jq '.[2].headBranch = "release/a-tag-with-a-very-long-name-that-goes-on-and-on-and-on-and-on-past-the-edge"' \
     "${FAKE_DIR}/runs.json" > "${FAKE_DIR}/long.json"
   mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/runs.json"
-  COLUMNS=80 run "${kit_root}/bin/kit" status builds
+  COLUMNS=80 run "${kit_root}/bin/kit" flow builds
   [ "$status" -eq 0 ]
   local line
   for line in "${lines[@]}"
@@ -149,8 +149,8 @@ JSON
   [[ "${lines[1]}" == "❌  release           #7  tag       release/a…  1a2b3c4              "* ]]
 }
 
-@test "kit help status holds the builds legend: the stage, and each state's glyph" {
-  run "${kit_root}/bin/kit" help status
+@test "kit help flow holds the builds legend: the stage, and each state's glyph" {
+  run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  builds:\n\n    🏭  a build: a run no pull request owns\n    🏃  running or queued\n'* ]]
   [[ "$output" == *$'\n    🛑  cancelled or skipped\n'* ]]

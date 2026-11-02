@@ -1,6 +1,6 @@
 // kittui is kit's interactive terminal UI: the palette of verbs that bare kit opens, the form that finishes a verb's
-// command line when the verb is short of its arguments, kit status's picture, and kit welcome's guide. kit tui, kit
-// status, and kit welcome exec it; it runs kit for everything it knows.
+// command line when the verb is short of its arguments, kit flow's picture, and kit welcome's guide. kit tui, kit
+// flow, and kit welcome exec it; it runs kit for everything it knows.
 package main
 
 import (
@@ -12,8 +12,8 @@ import (
 	"golang.org/x/term"
 
 	"github.com/empowerite/kit/tui/internal/app"
+	"github.com/empowerite/kit/tui/internal/flow"
 	"github.com/empowerite/kit/tui/internal/kit"
-	"github.com/empowerite/kit/tui/internal/status"
 	"github.com/empowerite/kit/tui/internal/transcript"
 	"github.com/empowerite/kit/tui/internal/welcome"
 )
@@ -24,7 +24,7 @@ var version = "unreleased"
 func main() { os.Exit(run(os.Args[1:])) }
 
 // run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
-// status, or the guide for welcome, and ends as the person ended it.
+// flow, or the guide for welcome, and ends as the person ended it.
 func run(args []string) int {
 	verb, words := parse(args)
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stderr.Fd())) {
@@ -32,8 +32,8 @@ func run(args []string) int {
 		return 2
 	}
 	r := kit.New()
-	if verb == "status" {
-		return runStatus(r, words)
+	if verb == "flow" {
+		return runFlow(r, words)
 	}
 	if verb == "welcome" {
 		return runWelcome(r)
@@ -63,8 +63,8 @@ func run(args []string) int {
 // needsTerminal gives the line kittui prints without a terminal: the picture and the guide have a text form, the rest
 // a help page.
 func needsTerminal(verb string) string {
-	if verb == "status" {
-		return "kit status needs an interactive terminal for its picture; run: kit status --text"
+	if verb == "flow" {
+		return "kit flow needs an interactive terminal for its picture; run: kit flow --text"
 	}
 	if verb == "welcome" {
 		return "kit welcome needs an interactive terminal; run: kit welcome --text"
@@ -96,10 +96,10 @@ func refuse(err error, stderr io.Writer) int {
 	return 1
 }
 
-// runStatus opens the picture on kit status's stages, with the words kit status was given, and ends as the person
+// runFlow opens the picture on kit flow's stages, with the words kit flow was given, and ends as the person
 // ended it.
-func runStatus(r kit.Runner, words []string) int {
-	m, err := status.Open(r, words)
+func runFlow(r kit.Runner, words []string) int {
+	m, err := flow.Open(r, words)
 	if err != nil {
 		return refuse(err, os.Stderr)
 	}
@@ -108,7 +108,7 @@ func runStatus(r kit.Runner, words []string) int {
 		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
 		return 1
 	}
-	return finishStatus(final.(status.Model))
+	return finishFlow(final.(flow.Model))
 }
 
 // runWelcome opens the guide where the command was typed, and ends as the person ended it.
@@ -129,8 +129,8 @@ func finishWelcome(m welcome.Model) int {
 	return 0
 }
 
-// finishStatus ends as the picture ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
-func finishStatus(m status.Model) int {
+// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
+func finishFlow(m flow.Model) int {
 	if m.Interrupted() {
 		return 130
 	}

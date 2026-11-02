@@ -10,12 +10,12 @@ setup() {
 }
 
 @test "an unknown flag, an unknown argument, and an argument to a verb that takes none are each refused in one line, exit 2" {
-  run "${kit_root}/bin/kit" status --bogus
+  run "${kit_root}/bin/kit" flow --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help status"* ]]
-  run "${kit_root}/bin/kit" status foo
+  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
+  run "${kit_root}/bin/kit" flow foo
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'foo'; run: kit help status"* ]]
+  [[ "$output" == *"unknown argument 'foo'; run: kit help flow"* ]]
   run "${kit_root}/bin/kit" version --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit version takes no arguments; run: kit help version"* ]]
@@ -62,15 +62,15 @@ setup() {
   [ "$output" = "0  | 4 | run bash -c echo hi" ]
   run kit-bash 'syntax:match commit --message "a b" -- --weird; echo "$? ${syntax_options[--message]} | ${syntax_operands[*]}"'
   [ "$output" = "0 a b | --weird" ]
-  run kit-bash 'syntax:match status --owner=ada --owner=bob; echo "$? ${syntax_options[--owner]}"'
+  run kit-bash 'syntax:match flow --owner=ada --owner=bob; echo "$? ${syntax_options[--owner]}"'
   [ "$output" = $'0 ada\nbob' ]
   run kit-bash 'syntax:match context a.md --json; echo "$? ${syntax_operands[*]} ${syntax_options[--json]}"'
   [ "$output" = "0 a.md 1" ]
   run kit-bash 'syntax:match commit --all; echo "$? ${syntax_missing} | ${syntax_options[--all]}"'
   [ "$output" = "1 --message or --file | 1" ]
-  run kit-bash 'syntax:match status --bogus; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 unknown flag '--bogus'; run: kit help status" ]
-  run kit-bash 'syntax:match status; echo "$?"'
+  run kit-bash 'syntax:match flow --bogus; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 unknown flag '--bogus'; run: kit help flow" ]
+  run kit-bash 'syntax:match flow; echo "$?"'
   [ "$output" = 0 ]
 }
 
@@ -109,10 +109,10 @@ setup() {
 }
 
 @test "a verb's own flag after a trailing operand's first word belongs to the command, and an option meant once is refused twice" {
-  run kit-bash 'syntax:match tui status kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
-  [ "$output" = "0 status kit generate --check | none" ]
-  run kit-bash 'syntax:match status backlog --no-fetch; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 --no-fetch cannot be combined with backlog; run: kit help status" ]
+  run kit-bash 'syntax:match tui flow kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
+  [ "$output" = "0 flow kit generate --check | none" ]
+  run kit-bash 'syntax:match flow backlog --no-fetch; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --no-fetch cannot be combined with backlog; run: kit help flow" ]
   run kit-bash 'syntax:match packages add --json x; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 --json cannot be combined with add; run: kit help packages" ]
   run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'

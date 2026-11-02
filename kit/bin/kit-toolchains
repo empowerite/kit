@@ -30,7 +30,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain settings status
+use toolchain settings flow
 guard:arguments toolchains "$@" || exit $?
 # kit.yml selects no toolchain, and a key it does not know, as toolchains now is, is refused.
 settings:validate || exit 1
@@ -77,9 +77,9 @@ mark() {
   else printf '      '
   fi
 }
-width=$(status:width)
+width=$(flow:width)
 {
-  printf '%s\n' "$(status:paint 90 "$(printf '%-14s %-8s %s %s %s' provider role usable active chosen)")"
+  printf '%s\n' "$(flow:paint 90 "$(printf '%-14s %-8s %s %s %s' provider role usable active chosen)")"
   while IFS=$'\t' read -r provider role usable active
   do
     picked=no
@@ -89,7 +89,7 @@ width=$(status:width)
     line=${line%"${line##*[![:space:]]}"}
     # the row is far narrower than the least width, so it is clipped only on a terminal that cannot hold it
     if (( ${#line} > width ))
-    then status:cell "${line}" "${width}"; printf '\n'
+    then flow:cell "${line}" "${width}"; printf '\n'
     else printf '%s\n' "${line}"
     fi
   done <<<"${rows}"

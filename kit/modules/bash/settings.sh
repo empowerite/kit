@@ -36,7 +36,11 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources | status | primary | forges | log_days) ;;
+      (linked_exempt | sources | flow | primary | forges | log_days) ;;
+      (status)
+        error "${settings} has a key the kit does not know: status; the stages kit flow draws are named under flow:"
+        return 1
+        ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"
         return 1
@@ -223,42 +227,42 @@ settings:require() {
   fi
 }
 
-# settings_stages names the stages of kit status, in the order work moves: the values the status setting takes.
+# settings_stages names the stages of kit flow, in the order work moves: the values the flow setting takes.
 declare -gra settings_stages=(backlog underway incoming desk worktrees changes builds releases)
 
-# settings:stages prints the stages the status setting names, one per line, in its order: what kit status draws.
+# settings:stages prints the stages the flow setting names, one per line, in its order: what kit flow draws.
 # Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 2: a
 # setting that is not a list, a list that names no stage, a name that is no stage, and a name given twice.
 settings:stages() {
   local settings type value stage
   local -a stages=() seen=()
   settings=$(settings:file)
-  type=$(yaml:type "${settings}" status) || return 2
+  type=$(yaml:type "${settings}" flow) || return 2
   case "${type}" in
     ('' | '!!null') stages=("${settings_stages[@]}") ;;
     ('!!seq')
-      readarray -t stages < <(yaml:list "${settings}" status)
+      readarray -t stages < <(yaml:list "${settings}" flow)
       if (( ${#stages[@]} == 0 ))
       then
-        error "status in ${settings} names no stage; the stages are: ${settings_stages[*]}"
+        error "flow in ${settings} names no stage; the stages are: ${settings_stages[*]}"
         return 2
       fi
       ;;
     (*)
-      value=$(yaml:value "${settings}" status)
-      error "status in ${settings} must be a list of stages, not '${value:-${type#!!}}'"
+      value=$(yaml:value "${settings}" flow)
+      error "flow in ${settings} must be a list of stages, not '${value:-${type#!!}}'"
       return 2
   esac
   for stage in "${stages[@]}"
   do
     if ! list:among "${stage}" "${settings_stages[@]}"
     then
-      error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (status in ${settings})"
+      error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (flow in ${settings})"
       return 2
     fi
     if list:among "${stage}" "${seen[@]}"
     then
-      error "'${stage}' is named twice in status in ${settings}; name each stage once"
+      error "'${stage}' is named twice in flow in ${settings}; name each stage once"
       return 2
     fi
     seen+=("${stage}")

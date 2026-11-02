@@ -18,18 +18,18 @@ kit is a starting point. Each part below is something teams change first, and en
 
 `kit policy`
 
-## The stages of kit status
+## The stages of kit flow
 
-`status:` in `kit.yml` names the stages `kit status` draws, in order. Leave out the ones your team does not use.
+`flow:` in `kit.yml` names the stages `kit flow` draws, in order. Leave out the ones your team does not use.
 
-`kit status --stages`
+`kit flow --stages`
 
 ## Primary and forges
 
 `primary:` names the remote kit reads pull requests, builds, and issues from; the default is `origin`. `forges:`
 names the forge of a remote whose host does not say it, such as a GitLab you host yourself.
 
-`kit status incoming --no-fetch`
+`kit flow incoming --no-fetch`
 
 ## A house package
 

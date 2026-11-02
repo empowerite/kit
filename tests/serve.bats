@@ -83,16 +83,16 @@ call() {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'
   [ "$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')" = \
-    "check context help kinds lint packages status syntax toolchains tools version" ]
+    "check context flow help kinds lint packages syntax toolchains tools version" ]
   local verb
-  for verb in check context help kinds lint packages status syntax toolchains tools version
+  for verb in check context flow help kinds lint packages syntax toolchains tools version
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
       sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
       '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose))
         and (.inputSchema.properties | keys == ["args"]) and .annotations.readOnlyHint'
   done
-  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["status"]'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["flow"]'
 }
 
 @test "a tool runs its verb: context names a bash file's rule, and lint's finding comes back as an error" {

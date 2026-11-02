@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# incoming.bats - kit status incoming fetches every remote, the primary first, and says what came from each
+# incoming.bats - kit flow incoming fetches every remote, the primary first, and says what came from each
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Two bare repositories beside the desk are its remotes, origin and upstream, so every fetch is real git. kit.yml
@@ -45,7 +45,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "incoming fetches every remote, the primary first, and draws a block for each: its name, forge, and host" {
   push-to upstream u1 main main:feature HEAD:refs/tags/v2
   push-to origin o1 main
-  run --keep-empty-lines kit status incoming
+  run --keep-empty-lines kit flow incoming
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "📡 origin · github · ${work}/origin.git" ]
   [ "${lines[1]}" = "📥 fetched 1 new commit on main" ]
@@ -53,13 +53,13 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "${lines[3]}" = "📡 upstream · gitlab · ../upstream.git" ]
   [ "${lines[4]}" = "📥 fetched 1 new commit on main · 1 new branch · 1 new tag" ]
   [ "${#lines[@]}" -eq 5 ]
-  run kit status incoming
+  run kit flow incoming
   [ "$output" = "📡 origin · github · ${work}/origin.git"$'\n'"📥 unchanged"$'\n\n'"📡 upstream · gitlab · ../upstream.git"$'\n'"📥 unchanged" ]
 }
 
 @test "incoming --json is the primary and one object per remote, each with what came from it" {
   push-to upstream u1 main main:feature HEAD:refs/tags/v2
-  run kit status incoming --json
+  run kit flow incoming --json
   [ "$status" -eq 0 ]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" = '["fetched","primary","remotes"]' ]
   [ "$(jq -c '[.fetched, .primary, [.remotes[].name]]' <<<"$output")" = '[true,"origin",["origin","upstream"]]' ]
@@ -75,7 +75,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   push-to origin o1 main
   local before
   before=$(git rev-parse HEAD)
-  run kit status incoming
+  run kit flow incoming
   [ "$status" -eq 0 ]
   [ "$(git rev-parse HEAD)" = "${before}" ]
   [ "$(git rev-parse origin/main)" != "${before}" ]
@@ -85,40 +85,40 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   printf 'forge: gitlab\nprimary: upstream\nforges: {origin: github}\n' > kit.yml
   push-to upstream u1 main
   push-to upstream u2 main
-  run kit status incoming --json
+  run kit flow incoming --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.primary, [.remotes[] | [.name, .forge, (.commits | length)]]]' <<<"$output")" \
     = '["upstream",[["upstream","gitlab",2],["origin","github",0]]]' ]
-  run kit status incoming
+  run kit flow incoming
   [ "${lines[0]}" = "📡 upstream · gitlab · ../upstream.git" ]
-  run kit status desk --json
+  run kit flow desk --json
   [ "$(jq -c '[.ahead, .behind]' <<<"$output")" = '[0,2]' ]
-  run kit status desk
+  run kit flow desk
   [[ "${lines[0]}" == *"↑0 ↓2"* ]]
 }
 
 @test "a remote whose fetch fails shows ❌ and git's line, the others still show, and the stage exits 1" {
   git remote add gone "${work}/nowhere.git"
   push-to upstream u1 main
-  run --keep-empty-lines kit status incoming
+  run --keep-empty-lines kit flow incoming
   [ "$status" -eq 1 ]
   [ "${lines[1]}" = "📥 unchanged" ]
   [ "${lines[3]}" = "📡 gone · no forge · ${work}/nowhere.git" ]
   [[ "${lines[4]}" == "❌ fatal: "*"nowhere.git"* ]]
   [ "${lines[6]}" = "📡 upstream · gitlab · ../upstream.git" ]
   [ "${lines[7]}" = "📥 fetched 1 new commit on main" ]
-  run kit status incoming --json
+  run kit flow incoming --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.remotes[] | [.name, (.error != null)]]' <<<"$output")" \
     = '[["origin",false],["gone",true],["upstream",false]]' ]
   [ "$(jq -c '.remotes[1] | [.commits, .branches.new, .tags]' <<<"$output")" = '[[],[],[]]' ]
   # in the picture, incoming draws the failed remote beside the others, and the picture exits 1
-  printf 'forge: github\nforges: {upstream: gitlab}\nstatus: [incoming, desk]\n' > kit.yml
-  run kit status
+  printf 'forge: github\nforges: {upstream: gitlab}\nflow: [incoming, desk]\n' > kit.yml
+  run kit flow
   [ "$status" -eq 1 ]
   [[ "$output" == *$'📥 INCOMING\n📡 origin · github · '*$'\n📡 gone · no forge · '*$'\n❌ fatal: '* ]]
   [[ "$output" == *$'\n🏠 DESK 1\n'* ]]
-  run kit status --json
+  run kit flow --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.incoming.remotes[].name]' <<<"$output")" = '["origin","gone","upstream"]' ]
 }
@@ -131,20 +131,20 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   push-to origin o1 main
   local before
   before=$(git rev-parse origin/main)
-  GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit status incoming --no-fetch --json
+  GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(git rev-parse origin/main)" = "${before}" ]
   [ "$output" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":"github","host":null},'"\
 "'{"name":"mirror","forge":"github","host":"git.example.test"},{"name":"plain","forge":null,"host":"elsewhere.test"},'"\
 "'{"name":"upstream","forge":"gitlab","host":null}]}' ]
-  GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit status incoming --no-fetch
+  GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit flow incoming --no-fetch
   [ "${lines[2]}" = "📡 mirror · github · git.example.test" ]
   [ "${lines[3]}" = "📥 not fetched" ]
   [ "${lines[4]}" = "📡 plain · no forge · elsewhere.test" ]
 }
 
-@test "kit help status holds the incoming legend: the remote's glyph and a failed fetch" {
-  run kit help status
+@test "kit help flow holds the incoming legend: the remote's glyph and a failed fetch" {
+  run kit help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  incoming:\n\n    📡  a remote: its name, its forge or no forge, and its host\n'* ]]
   [[ "$output" == *$'\n    ❌  the fetch failed: git\'s line\n'* ]]

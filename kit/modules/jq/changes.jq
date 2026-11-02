@@ -1,4 +1,4 @@
-# changes.jq - which open changes the changes stage of kit status lists (jq module)
+# changes.jq - which open changes the changes stage of kit flow lists (jq module)
 #
 # import "changes" as changes; with jq -L "${kit_jq}".
 #

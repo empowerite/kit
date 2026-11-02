@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
-# groups as the kit prints them; help is a fixed page; status --stages names two stages and a stage echoes its words
+# groups as the kit prints them; help is a fixed page; flow --stages names two stages and a stage echoes its words
 # as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the file
 # FAKE_KIT_RECORD names; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any other
 # verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to read.
@@ -98,7 +98,7 @@ case "${1:-}" in
     printf 'kit %s - a purpose for the test\n\n%sUsage%s\n  kit %s\n\nDescription\n  Does it.\n' "$2" "${bold}" \
       "${plain}" "$2"
     ;;
-  (status)
+  (flow)
     # --stages names two stages; a stage answers with the words after its name, so a test reads them back
     shift
     if [[ "${1:-}" == --stages ]]
@@ -106,7 +106,7 @@ case "${1:-}" in
       printf 'backlog\nincoming\n'
     elif [[ "${1:-}" == nonesuch ]]
     then
-      echo "❌ kit status: no stage 'nonesuch'; run: kit help status" >&2
+      echo "❌ kit flow: no stage 'nonesuch'; run: kit help flow" >&2
       exit 2
     else
       if [[ -n "${FAKE_KIT_SLEEP:-}" ]]

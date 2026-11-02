@@ -1,0 +1,24 @@
+ kit flow · 📚 empowerite/kit
+ ──○────────○────────○────────●─────────────○────────○────────○────────○────────
+   └ 🎫 3   └ 🛫 4   └ 📥 6   └ 🏠 desk 1   └ 🌿 4   └ 🔀 3   └ 🏭 4   └ 📦 3
+
+ ▾ 🏠 main  ↑12 ↓1  +40 -6  2 uncommitted
+       M kit.yml
+      ?? scratch.txt
+      c0ffee1 #45 status: the desk is a stage of its own
+      c0ffee2 #45 status: worktrees lists the linked worktrees only
+      c0ffee3 #45 status: a tree hangs from each stage
+      c0ffee4 #45 status: the line scrolls sideways
+      c0ffee5 #45 status: the dot follows the view
+      c0ffee6 #45 status: the legend is grouped by stage
+      c0ffee7 #45 status: the labels shorten before the line scrolls
+      c0ffee8 #45 status: the repository has a glyph
+      c0ffee9 #45 status: the title has no blank line under it
+      c0ffeea #45 status: the goldens at 120 columns
+      c0ffeeb #45 status: the eleventh commit is listed too
+      … and 1 more
+
+
+
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

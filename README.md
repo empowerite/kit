@@ -25,7 +25,7 @@ What else kit provides:
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
 - `kit toolchains`, which lists the toolchains kit finds where it runs, and `kit tools`, which installs and
   updates the tools the chosen one pins, and runs commands with them.
-- `kit status`, which draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
+- `kit flow`, which draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
   changes, builds, releases.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.
   The Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
@@ -91,7 +91,7 @@ Requirements:
   - `shellcheck`, which the bash rule runs
   - `actionlint`, which the workflows rule runs
   - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
-- For `kit issue`, `kit status`, `kit tidy`, and `kit linked`: the forge's command-line tool, `gh` for GitHub or
+- For `kit issue`, `kit flow`, `kit tidy`, and `kit linked`: the forge's command-line tool, `gh` for GitHub or
   `glab` for GitLab. The forge is the service that hosts the repository.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
 
@@ -164,7 +164,7 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. So the `agents/
 `kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are active. The
 package format is in [docs/packages.md](docs/packages.md).
 
-kit works with no package at all. The workflow verbs (`kit status`, `kit issue`, `kit commit`, `kit submit`,
+kit works with no package at all. The workflow verbs (`kit flow`, `kit issue`, `kit commit`, `kit submit`,
 `kit rebase`, `kit tidy`, `kit release`) and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`)
 run in a repository that has none. What needs the `kit` package is its kinds, rules, and templates: without them,
 `kit context` names no rule, `kit kinds` lists none, `kit lint` governs no file, and `kit new file` refuses for want
@@ -236,8 +236,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    issue reference first, and `<area>:` is this repository's convention.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
-   - `kit status` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
-     changes, builds, releases. `kit status <stage>` prints one.
+   - `kit flow` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
+     changes, builds, releases. `kit flow <stage>` prints one.
    - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick. A verb run without an
      argument it needs opens the same form.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
@@ -303,7 +303,7 @@ serves as the notice for `settings.json`.
 - Published releases are immutable, so a tag is never reused.
 
 `kit release <version>` makes the tag and pushes it alone, after these rules and one more: a version not higher
-than every release on origin needs `--lower`. `kit status releases` lists what the forge published.
+than every release on origin needs `--lower`. `kit flow releases` lists what the forge published.
 
 The release workflow runs two commands:
 
