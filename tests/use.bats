@@ -82,7 +82,7 @@ setup() {
   run kit-bash 'use toolchain/brew && toolchain/brew:file'
   [ "$output" = "ours" ]
   run kit-bash 'use toolchain && toolchain:providers'
-  [ "$output" = "brew docker local mise" ]
+  [ "$output" = "brew devcontainer docker local mise nix" ]
 }
 
 @test "use refuses a name that could reach outside the module path" {
