@@ -1,0 +1,32 @@
+ kit status · 📚 empowerite/kit
+ ───●──────────────────────────────○──────────────────────────────○─────────────────────────────────○─────────────────────────────────○───────────────────────────────────○─────────────────────────────
+    ├ 🎫 backlog 3                 ├ 📥 incoming 6                ├ 🏠 desk 1                       ├ 🌿 worktrees 4                  ├ 🔀 changes 3                      ├ 📦 releases 3
+    └ legend                       └ legend                       └ legend                          └ legend                          └ legend                            └ legend
+      ├ 🎫  an issue                 ├ 📥  the fetch                ├ 🏠  the desk                    ├ 🌿  a worktree                  ├ 🔀  a pull request                ├ 📦  a release
+      ├ 👤  its assignees            ├ 🌿  a branch                 ├ ❗  on no branch                ├ ❗  on no branch                ├ 👤  its author                    ├ 🧪  a pre-release
+      └ 🌿  its branch               ├ 🔖  a branch gone            └ 🔀  its pull request            ├ 🔀  its pull request            ├ 🌿  its branch                    ├ 📝  a draft
+                                     └ 📌  a new tag                                                  └ 🔖  a branch gone               ├ 🏃  checks running                └ ⭐  the latest
+                                                                                                                                        ├ ✅  checks passed
+                                                                                                                                        ├ ❌  a check failed
+                                                                                                                                        ├ 💬  threads unresolved
+                                                                                                                                        ├ 🛫  an issue it closes
+                                                                                                                                        ├ 🎫  the issue's title
+                                                                                                                                        └ state
+                                                                                                                                          ├ 🔨  draft
+                                                                                                                                          ├ 🚦  queued
+                                                                                                                                          ├ 💥  conflicted
+                                                                                                                                          ├ 🔥  failing:gate
+                                                                                                                                          ├ 📭  no-check
+                                                                                                                                          ├ 💬  comments:open
+                                                                                                                                          ├ 👀  blocked:approval
+                                                                                                                                          ├ 🛬  ready
+                                                                                                                                          └ 🔳  any other state
+
+   #45                        2h                      🎫 kit status is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
+   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts
+    #7  👤 ada bob           40d                      🎫 Fix the thing
+
+
+
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

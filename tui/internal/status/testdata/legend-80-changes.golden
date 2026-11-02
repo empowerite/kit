@@ -1,0 +1,32 @@
+ kit status · 📚 empowerite/kit
+ ┄┄┄───────────────────────●────────────────────────────○───────────────────────
+                           ├ 🔀 3                       ├ 📦 3
+                           └ legend                     └ legend
+                             ├ 🔀  a pull request         ├ 📦  a release
+                             ├ 👤  its author             ├ 🧪  a pre-release
+                             ├ 🌿  its branch             ├ 📝  a draft
+                             ├ 🏃  checks running         └ ⭐  the latest
+                             ├ ✅  checks passed
+                             ├ ❌  a check failed
+                             ├ 💬  threads unresolved
+                             ├ 🛫  an issue it closes
+                             ├ 🎫  the issue's title
+                             └ state
+                               ├ 🔨  draft
+                               ├ 🚦  queued
+                               ├ 💥  conflicted
+                               ├ 🔥  failing:gate
+                               ├ 📭  no-check
+                               ├ 💬  comments:open
+                               ├ 👀  blocked:approval
+                               ├ 🛬  ready
+                               └ 🔳  any other state
+
+   🔀 #2  The first r…  👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3m …
+   🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2    …
+   🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint fail…
+
+
+
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

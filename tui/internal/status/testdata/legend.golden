@@ -1,24 +1,24 @@
- kit status · empowerite/kit
+ kit status · 📚 empowerite/kit
+ ───●───────────────────────○───────────────────────○────────────────────────┄┄┄
+    ├ 🎫 3                  ├ 📥 6                  ├ 🏠 1                     ├
+    └ legend                └ legend                └ legend                   └
+      ├ 🎫  an issue          ├ 📥  the fetch         ├ 🏠  the desk
+      ├ 👤  its assignees     ├ 🌿  a branch          ├ ❗  on no branch
+      └ 🌿  its branch        ├ 🔖  a branch gone     └ 🔀  its pull request
+                              └ 📌  a new tag
 
- ───────●───────────────○───────────────○───────────────○───────────────○───────
-  🎫 backlog 3    📥 incoming 6  🌿 worktrees 5   🔀 changes 3    📦 releases 3
 
-   every stage
-     🌿  a branch, or a linked worktree
-     👤  an author, or an issue's assignees
-     🎫  an issue
-     🔀  a pull request
-     🔖  a branch gone from origin
-     ❌  a check failed, or a stage kit refused
-   
-   📥 incoming
-     📌  a new tag
-   
-   🌿 worktrees
-     🏠  the desk, the root checkout
-     ❗  a checkout on no branch
-   
-   🔀 changes
-   … 21 more
 
- ↑↓ move · ? legend · esc back
+
+
+
+
+
+
+
+
+   #45                        2h                      🎫 kit status is the one …
+   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun w…
+    #7  👤 ada bob           40d                      🎫 Fix the thing
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

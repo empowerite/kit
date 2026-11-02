@@ -1,10 +1,10 @@
-// Package status is kit status on a terminal: the stages along one line, the selected stage's rows under it, and a
-// row opened in place. It draws from kit status <stage> --json and never parses kit's text. Left and right move
-// along the line, even inside the rows; down enters a stage's rows and up on the first row leaves them; Enter opens
-// or closes a row; r runs the stage's command again; ? shows the legend in place of the rows, and again hides it.
-// Esc goes back one level: from the legend, from the rows to the line, and from the line it quits; ctrl-c quits
-// with 130 from anywhere. A stage's command has two minutes; past them it is a refusal, and quitting kills the
-// commands still running.
+// Package status is kit status on a terminal: the stages along one line, a tree hanging from each, the selected
+// stage's rows under them, and a row opened in place. It draws from kit status <stage> --json and never parses kit's
+// text. Left and right move along the line, even inside the rows; down enters a stage's rows and up on the first row
+// leaves them; Enter opens or closes a row; r runs the stage's command again; ? hangs each stage's legend in its tree,
+// and again takes it down. Esc goes back one level: the legend off, from the rows to the line, and from the line it
+// quits; ctrl-c quits with 130 from anywhere. A stage's command has two minutes; past them it is a refusal, and
+// quitting kills the commands still running.
 package status
 
 import (
@@ -43,6 +43,7 @@ type stage struct {
 	refusal string // kit's line, when the command failed
 	issues  []issue
 	in      *incoming
+	desk    *checkout
 	trees   *worktrees
 	pulls   []pull
 	rels    []release
@@ -52,7 +53,8 @@ type stage struct {
 }
 
 // known names the stages kittui draws.
-var known = map[string]bool{"backlog": true, "incoming": true, "worktrees": true, "changes": true, "releases": true}
+var known = map[string]bool{"backlog": true, "incoming": true, "desk": true, "worktrees": true, "changes": true,
+	"releases": true}
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and r runs it again.
 const deadline = 2 * time.Minute
@@ -69,8 +71,8 @@ type Model struct {
 	stages        []stage
 	stage         int  // the selected stage
 	inRows        bool // whether the cursor is on a row, not on the line
-	legend        bool // whether the legend shows in place of the pane
-	legendOffset  int  // the legend's first line shown
+	legend        bool // whether each tree shows its stage's legend
+	scroll        int  // the first cell of the canvas shown, when the line is wider than the screen
 	started       bool // whether the stages after incoming have been started
 	moving        bool // whether the dot is on its way along the line
 	dot           dot  // where the dot is, and how far it has to go
@@ -131,7 +133,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.moving = false
 		m.fit()
 	case frameMsg:
-		return m, m.step()
+		cmd := m.step()
+		return m, cmd
 	case loadedMsg:
 		m.take(msg)
 		if msg.stage == "incoming" && !m.started {
@@ -144,30 +147,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// key takes a key press: ctrl-c anywhere; the legend's own keys while it shows; else the line's and the rows'.
+// key takes a key press: ctrl-c anywhere, and the line's and the rows' keys.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if k.String() == "ctrl+c" {
+	switch k.String() {
+	case "ctrl+c":
 		m.interrupted = true
 		return m, m.quit()
-	}
-	if m.legend {
-		m.legendKey(k.String())
-		return m, nil
-	}
-	switch k.String() {
 	case "esc":
-		if !m.inRows {
+		switch {
+		case m.legend:
+			m.legend, m.moving = false, false
+		case !m.inRows:
 			return m, m.quit()
+		default:
+			s := &m.stages[m.stage]
+			s.cursor, s.offset, m.inRows = 0, 0, false
 		}
-		s := &m.stages[m.stage]
-		s.cursor, s.offset, m.inRows = 0, 0, false
 		m.fit()
 	case "?":
-		m.legend, m.legendOffset = true, 0
+		m.legend, m.moving = !m.legend, false
+		m.fit()
 	case "left":
-		return m, m.move(-1)
+		cmd := m.move(-1)
+		return m, cmd
 	case "right":
-		return m, m.move(1)
+		cmd := m.move(1)
+		return m, cmd
 	case "up":
 		m.up(1)
 	case "down":
@@ -182,24 +187,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.refresh()
 	}
 	return m, nil
-}
-
-// legendKey takes a key while the legend shows: ? or esc hides it, and the arrows and the pages scroll it.
-func (m *Model) legendKey(key string) {
-	h := m.paneHeight()
-	switch key {
-	case "?", "esc":
-		m.legend = false
-	case "up":
-		m.legendOffset--
-	case "down":
-		m.legendOffset++
-	case "pgup":
-		m.legendOffset -= max(1, h-1)
-	case "pgdown":
-		m.legendOffset += max(1, h-1)
-	}
-	m.legendOffset, _, _, _ = window(len(m.legendLines()), h, m.legendOffset)
 }
 
 // quit ends the screen, and the stages' commands still running with it.
@@ -261,7 +248,7 @@ func (m *Model) refresh() tea.Cmd {
 	}
 	s := &m.stages[m.stage]
 	s.loading, s.refusal = true, ""
-	s.issues, s.in, s.trees, s.pulls, s.rels = nil, nil, nil, nil, nil
+	s.issues, s.in, s.desk, s.trees, s.pulls, s.rels = nil, nil, nil, nil, nil, nil
 	return m.load(s.name)
 }
 
@@ -299,6 +286,9 @@ func (s *stage) decode(data []byte) error {
 	case "incoming":
 		s.in = &incoming{}
 		err = json.Unmarshal(data, s.in)
+	case "desk":
+		s.desk = &checkout{}
+		err = json.Unmarshal(data, s.desk)
 	case "worktrees":
 		s.trees = &worktrees{}
 		err = json.Unmarshal(data, s.trees)
@@ -314,17 +304,18 @@ func (s *stage) decode(data []byte) error {
 }
 
 // expected is each stage's document, as kit status's page says: an array of objects for backlog, changes, and
-// releases, each object with the stage's key field; an object for incoming and worktrees.
+// releases, each object with the stage's key field; an object for incoming, desk, and worktrees.
 var expected = map[string]struct{ what, key string }{
 	"backlog":   {"an array of issues", "number"},
 	"changes":   {"an array of pull requests", "number"},
 	"releases":  {"an array of releases", "version"},
 	"incoming":  {"an object", ""},
+	"desk":      {"an object", ""},
 	"worktrees": {"an object", ""},
 }
 
 // shape refuses a document that is not the stage's: an array where an object is expected, an object where an array
-// is, or an array whose objects lack the stage's key field, as the array of desks kit prints above repositories.
+// is, or an array whose objects lack the stage's key field, as the array of desks kit prints above desks.
 // Anything else is left to the decoder.
 func shape(name string, data []byte) error {
 	want, printed := expected[name], ""
@@ -377,9 +368,9 @@ func (m *Model) clamp(i int) {
 }
 
 // move selects the stage d along the line, round its ends, staying in the rows or on the line as before, and sends
-// the dot there the way the arrow points.
+// the dot there over the canvas, the way the arrow points; the view follows it.
 func (m *Model) move(d int) tea.Cmd {
-	n, w := len(m.stages), m.width-1
+	n := len(m.stages)
 	if n == 0 {
 		return nil
 	}
@@ -388,16 +379,17 @@ func (m *Model) move(d int) tea.Cmd {
 		from = m.dot.at
 	}
 	m.stage = (m.stage + d + n) % n
-	m.fit()
+	l := m.layout()
+	w := l.width
 	// the cells to go, always the way the arrow points, round the end of the line when it must
-	far := ((m.center(m.stage)-from)*d%w + w) % w
-	if w < 3*n || far == 0 {
-		m.moving = false
-		return nil
-	}
+	far := ((l.at[m.stage]-from)*d%w + w) % w
 	already := m.moving
-	m.dot, m.moving = dot{at: from, left: far, dir: d, step: max(1, (far+frames-1)/frames)}, true
-	if already {
+	m.moving = far != 0
+	if m.moving {
+		m.dot = dot{at: from, left: far, dir: d, step: max(1, (far+frames-1)/frames)}
+	}
+	m.fit()
+	if !m.moving || already {
 		return nil
 	}
 	return frame()
@@ -423,17 +415,18 @@ func frame() tea.Cmd {
 	return tea.Tick(frameEvery, func(time.Time) tea.Msg { return frameMsg{} })
 }
 
-// step moves the dot one frame along, round the end of the line, and stops it on its stage.
+// step moves the dot one frame along, round the end of the canvas, and stops it on its stage; the view follows it.
 func (m *Model) step() tea.Cmd {
 	if !m.moving {
 		return nil
 	}
-	w := m.width - 1
+	w := m.layout().width
 	stride := min(m.dot.step, m.dot.left)
 	m.dot.at = ((m.dot.at+m.dot.dir*stride)%w + w) % w
 	m.dot.left -= stride
-	if m.dot.left == 0 {
-		m.moving = false
+	m.moving = m.dot.left > 0
+	m.follow()
+	if !m.moving {
 		return nil
 	}
 	return frame()
@@ -486,12 +479,13 @@ func (m *Model) toggle() {
 	m.fit()
 }
 
-// fit scrolls the selected stage's pane so the row under the cursor shows, with what it opens to when that fits,
-// and never past the last line.
+// fit scrolls the view sideways to the selected stage's tree, and its pane so the row under the cursor shows, with
+// what it opens to when that fits, and never past the last line.
 func (m *Model) fit() {
 	if len(m.stages) == 0 {
 		return
 	}
+	m.follow()
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
 	h := m.paneHeight()

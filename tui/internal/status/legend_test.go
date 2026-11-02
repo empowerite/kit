@@ -1,10 +1,11 @@
 // Every glyph the picture draws is in kit help status's legend, the header of kit/bin/kit-status, so bash and Go
-// draw the same picture; and ? draws every glyph of the table with its meaning.
+// draw the same picture; and ? hangs each stage's glyphs under its tree, the glyphs in one column.
 package status
 
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,11 +29,30 @@ func legendText(t *testing.T) string {
 	return before
 }
 
+// glyphsOf gives the glyphs in a text: the pictographs and symbols, not the arrows, the line art, or the ellipsis.
+func glyphsOf(text string) map[string]bool {
+	out := map[string]bool{}
+	for _, r := range text {
+		if r >= 0x1F000 || r >= 0x2600 && r <= 0x27BF || r >= 0x2B00 && r <= 0x2BFF {
+			out[string(r)] = true
+		}
+	}
+	return out
+}
+
 func TestEveryGlyphIsInTheLegend(t *testing.T) {
 	text := legendText(t)
-	for _, e := range legend {
+	all := []entry{title}
+	for _, entries := range legends {
+		all = append(all, entries...)
+	}
+	all = append(all, states...)
+	for _, g := range stageGlyphs {
+		all = append(all, entry{g, "a stage"})
+	}
+	for _, e := range all {
 		if !strings.Contains(text, e.glyph) {
-			t.Errorf("the legend has no %s", e.glyph)
+			t.Errorf("the legend has no %s (%s)", e.glyph, e.meaning)
 		}
 	}
 	for state, glyph := range stateGlyphs {
@@ -54,46 +74,88 @@ func TestEveryGlyphIsInTheLegend(t *testing.T) {
 	}
 }
 
-func TestTheDrawnLegendListsEveryGlyphOfTheTable(t *testing.T) {
-	for _, width := range []int{80, 50, 200} {
-		m := New(runner(t), options())
-		m = drive(m, tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
-		v := view(m)
-		for _, e := range legend {
-			if !strings.Contains(v, e.glyph+"  "+e.meaning) {
-				t.Errorf("at %d the drawn legend lacks %s %s:\n%s", width, e.glyph, e.meaning, v)
+// opened gives the screen at 200×80 on stage i, the legend on and every row open.
+func opened(t *testing.T, i int) Model {
+	t.Helper()
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 200, Height: 80}, press('?'))
+	for range i {
+		m = drive(m, right)
+	}
+	for range m.rows(i) {
+		m = drive(m, down, enter)
+	}
+	return m
+}
+
+func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
+	text := legendText(t)
+	for i, name := range six {
+		m := opened(t, i)
+		for g := range glyphsOf(view(m)) {
+			if !strings.Contains(text, g) {
+				t.Errorf("%s draws %s, which kit help status's legend lacks", name, g)
 			}
 		}
-		// at 200 each stage's own glyphs sit under its name on the line, and the states under "state"
-		groups := []string{groupEvery, groupIncoming, groupWorktrees, groupChanges, groupStates, groupReleases}
-		if width == 200 {
-			groups = []string{groupEvery, "state"}
+		// the stage's own glyphs: its rows', and the glyph beside its name
+		own := map[string]bool{}
+		for _, e := range legends[name] {
+			own[e.glyph] = true
 		}
-		for _, group := range groups {
-			if !strings.Contains(v, group) {
-				t.Errorf("at %d the drawn legend lacks the group %s:\n%s", width, group, v)
+		if name == "changes" {
+			for _, e := range states {
+				own[e.glyph] = true
+			}
+		}
+		var pane []string
+		for _, l := range m.lines(i) {
+			pane = append(pane, ansi.Strip(l.text))
+		}
+		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
+			// the desk and the worktrees draw a pull request's state as changes does, and changes' tree names it
+			if _, state := stateGlyphs[stateOf(g)]; !own[g] && !(own[Change] && state) {
+				t.Errorf("%s draws %s, which its tree's legend lacks", name, g)
 			}
 		}
 	}
 }
 
-func TestEveryGlyphOfTheLegendStartsInOneColumn(t *testing.T) {
-	m := New(runner(t), options())
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 60}, press('?'))
-	column := -1
-	for _, line := range m.legendLines() {
-		plain := ansi.Strip(line)
-		for _, e := range legend {
-			if at := strings.Index(plain, e.glyph+"  "+e.meaning); at >= 0 {
-				cells := ansi.StringWidth(plain[:at])
-				if column >= 0 && cells != column {
-					t.Errorf("%s starts at cell %d, the others at %d", e.glyph, cells, column)
-				}
-				column = cells
-			}
+// stateOf gives the state word a glyph draws, or nothing.
+func stateOf(glyph string) string {
+	for state, g := range stateGlyphs {
+		if g == glyph {
+			return state
 		}
 	}
-	if column < 0 {
-		t.Fatal("no glyph found")
+	return ""
+}
+
+func TestEachTreeHangsItsLegendWithTheGlyphsInOneColumn(t *testing.T) {
+	for _, width := range []int{80, 120, 200} {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
+		for i, name := range six {
+			if i > 0 {
+				m = drive(m, right)
+			}
+			marker := m.center(i) - m.scroll + 1
+			want := map[string]int{"legend": marker + 2}
+			for _, e := range legends[name] {
+				want[e.glyph+"  "+e.meaning] = marker + 4
+			}
+			if name == "changes" {
+				want["state"] = marker + 4
+				for _, e := range states {
+					want[e.glyph+"  "+e.meaning] = marker + 6
+				}
+			}
+			for text, column := range want {
+				found := false
+				for _, l := range lines(m) {
+					found = found || slices.Contains(cellsOf(l, text), column)
+				}
+				if !found {
+					t.Errorf("at %d, %s's tree lacks %q at cell %d:\n%s", width, name, text, column, view(m))
+				}
+			}
+		}
 	}
 }

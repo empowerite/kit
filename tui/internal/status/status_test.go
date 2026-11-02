@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -19,8 +20,8 @@ import (
 	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
-// five is the picture's default order.
-var five = []string{"backlog", "incoming", "worktrees", "changes", "releases"}
+// six is the picture's default order.
+var six = []string{"backlog", "incoming", "desk", "worktrees", "changes", "releases"}
 
 // runner gives a kit.Runner over testdata/fake-kit.
 func runner(t *testing.T) kit.Runner {
@@ -28,9 +29,9 @@ func runner(t *testing.T) kit.Runner {
 	return testkit.Runner(t, "status")
 }
 
-// options gives the five stages and origin as a test knows them.
+// options gives the six stages and origin as a test knows them.
 func options() Options {
-	return Options{Stages: five, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}}
+	return Options{Stages: six, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}}
 }
 
 // drive sends the messages, running every command each update returns and feeding its messages back, a batch's
@@ -40,11 +41,11 @@ func drive(m Model, msgs ...tea.Msg) Model {
 	return m
 }
 
-// loaded opens the screen at 80×24 and loads every stage, then sends the messages.
+// loaded opens the screen at 120×24, the common width, and loads every stage, then sends the messages.
 func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 	t.Helper()
 	m := New(runner(t), o)
-	first := []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 24}}
+	first := []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}}
 	if cmd := m.Init(); cmd != nil {
 		first = append(first, cmd())
 	}
@@ -98,12 +99,12 @@ func TestIncomingLoadsFirstAndTheRestAfterItWithTheirWords(t *testing.T) {
 	next, cmd := m.Update(msg)
 	m = next.(Model)
 	batch, ok := cmd().(tea.BatchMsg)
-	if !ok || len(batch) != 4 {
-		t.Fatalf("incoming's answer did not start the other four: %T", cmd())
+	if !ok || len(batch) != 5 {
+		t.Fatalf("incoming's answer did not start the other five: %T", cmd())
 	}
 	m = drive(m, batch)
 	want := []string{"status incoming --json --no-fetch", "status backlog --json --mine --owner=bob",
-		"status worktrees --json", "status changes --json --mine --owner=bob", "status releases --json"}
+		"status desk --json", "status worktrees --json", "status changes --json --mine --owner=bob", "status releases --json"}
 	if got := calls(t, record); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -133,7 +134,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if first := lines(m)[0]; first != " kit status" {
 		t.Errorf("the title without incoming: %q", first)
 	}
-	if labels := lines(m)[3]; !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 5") ||
+	if labels := lines(m)[2]; !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
 		strings.Index(labels, "changes") > strings.Index(labels, "worktrees") {
 		t.Errorf("the labels follow kit's order: %q", labels)
 	}
@@ -146,7 +147,7 @@ func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 	}
 	// left at the first stage goes round to the last, and right there back to the first
 	m = drive(m, left)
-	if m.stage != 4 || m.moving {
+	if m.stage != 5 || m.moving {
 		t.Errorf("left at the first stage: stage %d, moving %v", m.stage, m.moving)
 	}
 	m = drive(m, right)
@@ -154,11 +155,11 @@ func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 		t.Errorf("right at the last stage: stage %d", m.stage)
 	}
 	m = drive(m, right, right)
-	if m.stage != 2 || !strings.Contains(m.View().Content, Branch+" "+style.Mark("worktrees")+" "+style.Off("5")) {
+	if m.stage != 2 || !strings.Contains(m.View().Content, Desk+" "+style.Mark("desk")+" "+style.Off("1")) {
 		t.Errorf("right twice: stage %d\n%s", m.stage, view(m))
 	}
-	m = drive(m, down, right)
-	if m.stage != 3 || !m.inRows {
+	m = drive(m, right, down, right)
+	if m.stage != 4 || !m.inRows {
 		t.Errorf("right inside the rows: stage %d, in rows %v", m.stage, m.inRows)
 	}
 	if !strings.Contains(view(m), style.Focus+" "+Change+" #2") {
@@ -172,25 +173,25 @@ func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 }
 
 func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheLine(t *testing.T) {
-	m := loaded(t, options(), right, right)
+	m := loaded(t, options(), right, right, right)
 	if m.inRows || strings.Contains(view(m), style.Focus) {
 		t.Fatalf("on the line, a row has the focus:\n%s", view(m))
 	}
 	m = drive(m, down)
-	if !m.inRows || !strings.Contains(view(m), " "+style.Focus+" "+Desk+" main") {
+	if !m.inRows || !strings.Contains(view(m), " "+style.Focus+" "+Branch+" 1-the-first-release") {
 		t.Fatalf("down did not enter the rows:\n%s", view(m))
 	}
-	m = drive(m, down, down)
+	m = drive(m, down)
 	if !strings.Contains(view(m), style.Focus+" "+Branch+" 42-settings") {
-		t.Errorf("down twice more:\n%s", view(m))
+		t.Errorf("down once more:\n%s", view(m))
 	}
 	m = drive(m, down, down, down)
-	if m.stages[2].cursor != 4 {
-		t.Errorf("down past the last row: %d", m.stages[2].cursor)
+	if m.stages[3].cursor != 3 {
+		t.Errorf("down past the last row: %d", m.stages[3].cursor)
 	}
-	m = drive(m, up, up, up, up)
-	if !m.inRows || m.stages[2].cursor != 0 {
-		t.Errorf("up to the first row: in rows %v, cursor %d", m.inRows, m.stages[2].cursor)
+	m = drive(m, up, up, up)
+	if !m.inRows || m.stages[3].cursor != 0 {
+		t.Errorf("up to the first row: in rows %v, cursor %d", m.inRows, m.stages[3].cursor)
 	}
 	m = drive(m, up)
 	if m.inRows || strings.Contains(view(m), style.Focus) {
@@ -203,15 +204,16 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheLine(t *testing.T) {
 }
 
 func TestEnterOpensARowAndAgainClosesIt(t *testing.T) {
-	m := loaded(t, options(), right, right, down, down, enter)
+	m := loaded(t, options(), right, right, right, down, enter)
 	v := view(m)
-	for _, want := range []string{"f6f51bc #1 materialize", "… and 263 more", " M kit/bin/kit-status", "?? docs/status.md"} {
+	for _, want := range []string{"f6f51bc #1 materialize", "… and 263 more", " M kit/bin/kit-status",
+		"?? docs/status.md"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the open worktree lacks %q:\n%s", want, v)
 		}
 	}
-	if !m.stages[2].open["/home/kit/worktrees/1-the-first-release-v0-1-0"] {
-		t.Errorf("the row is not open by its key: %v", m.stages[2].open)
+	if !m.stages[3].open["/home/kit/worktrees/1-the-first-release-v0-1-0"] {
+		t.Errorf("the row is not open by its key: %v", m.stages[3].open)
 	}
 	m = drive(m, enter)
 	if v := view(m); strings.Contains(v, "f6f51bc") {
@@ -223,7 +225,7 @@ func TestEnterOpensARowAndAgainClosesIt(t *testing.T) {
 		t.Errorf("enter on the line opened a row")
 	}
 	// an incoming row is a leaf
-	m = drive(m, left, down, enter)
+	m = drive(m, left, left, down, enter)
 	if n := len(lines(m)); n != 24 || len(m.stages[1].open) != 0 {
 		t.Errorf("a leaf opened: %d lines, open %v", n, m.stages[1].open)
 	}
@@ -232,14 +234,14 @@ func TestEnterOpensARowAndAgainClosesIt(t *testing.T) {
 func TestRefreshRunsTheStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_STATUS_CALLS", record)
-	m := loaded(t, options(), right, right, right, right)
+	m := loaded(t, options(), right, right, right, right, right)
 	next, cmd := m.Update(press('r'))
 	m = next.(Model)
 	if cmd == nil || !strings.Contains(view(m), "loading") || !strings.Contains(view(m), "releases …") {
 		t.Fatalf("r did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
-	if got := calls(t, record); len(got) != 6 || got[5] != "status releases --json" {
+	if got := calls(t, record); len(got) != 7 || got[6] != "status releases --json" {
 		t.Errorf("the calls: %q", got)
 	}
 	if !strings.Contains(view(m), "releases 3") {
@@ -249,17 +251,18 @@ func TestRefreshRunsTheStageAgain(t *testing.T) {
 
 func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	t.Setenv("FAKE_STATUS_REFUSE", "changes")
-	m := loaded(t, options(), right, right, right)
+	m := loaded(t, options(), right, right, right, right)
 	v := view(m)
-	if !strings.Contains(v, "changes !") || !strings.Contains(v, Failed+" kit status changes: the forge cannot be read; run: kit help status") {
+	refusal := Failed + " kit status changes: the forge cannot be read; run: kit help status"
+	if !strings.Contains(v, "changes !") || !strings.Contains(v, refusal) {
 		t.Fatalf("the refusal is not shown:\n%s", v)
 	}
-	if !strings.Contains(m.View().Content, style.Refusal(Failed+" kit status changes: the forge cannot be read; run: kit help status")) {
+	if !strings.Contains(m.View().Content, style.Refusal(refusal)) {
 		t.Errorf("the refusal is not red")
 	}
 	// with no pull requests known, the worktrees show none
 	m = drive(m, left)
-	if v := strings.Join(lines(m)[5:], "\n"); strings.Contains(v, "no pull request yet") || strings.Contains(v, Change) {
+	if v := strings.Join(lines(m)[4:], "\n"); strings.Contains(v, "no pull request yet") || strings.Contains(v, Change) {
 		t.Errorf("the worktrees claim pull requests after changes failed:\n%s", v)
 	}
 	t.Setenv("FAKE_STATUS_REFUSE", "")
@@ -305,13 +308,20 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 		!strings.Contains(v, Failed+` kit status backlog --json printed an array of objects without "number"`) {
 		t.Errorf("desks for backlog: %q\n%s", m.stages[0].refusal, v)
 	}
-	for name, data := range map[string]string{"changes": "{}", "worktrees": "[]", "releases": `[{"version": "1"}, {}]`} {
+	t.Setenv("FAKE_STATUS_ABOVE", "desk")
+	m = loaded(t, options(), right, right)
+	want = "kit status desk --json printed an array where an object was expected; run kit status inside a repository"
+	if m.stages[2].refusal != want || !strings.Contains(view(m), "desk !") || strings.Contains(view(m), Desk+" main") {
+		t.Errorf("desks above desks: %q\n%s", m.stages[2].refusal, view(m))
+	}
+	for name, data := range map[string]string{"changes": "{}", "worktrees": "[]", "desk": "[]",
+		"releases": `[{"version": "1"}, {}]`} {
 		if shape(name, []byte(data)) == nil {
 			t.Errorf("%s took %s", name, data)
 		}
 	}
 	for name, data := range map[string]string{"backlog": "[]", "incoming": `{"fetched": false}`, "changes": "null",
-		"releases": `[{"version": "1"}]`, "worktrees": " {} "} {
+		"releases": `[{"version": "1"}]`, "worktrees": " {} ", "desk": "{}"} {
 		if err := shape(name, []byte(data)); err != nil {
 			t.Errorf("%s refused %s: %v", name, data, err)
 		}
@@ -340,52 +350,29 @@ func TestQuitCodes(t *testing.T) {
 }
 
 func TestEscWalksBackFromTheLegendToTheRowsToTheLineAndQuits(t *testing.T) {
-	m := loaded(t, options(), right, right, down, down, press('?'))
-	if !m.legend || !strings.Contains(view(m), groupEvery) {
-		t.Fatalf("? did not show the legend:\n%s", view(m))
+	m := loaded(t, options(), right, right, right, down, down, press('?'))
+	if !m.legend || !strings.Contains(view(m), "└ legend") {
+		t.Fatalf("? did not hang the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.legend || !m.inRows || m.stages[2].cursor != 1 {
-		t.Fatalf("esc over the legend: legend %v, in rows %v, cursor %d", m.legend, m.inRows, m.stages[2].cursor)
+	if m = next.(Model); cmd != nil || m.legend || !m.inRows || m.stages[3].cursor != 1 {
+		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.legend, m.inRows, m.stages[3].cursor)
 	}
-	if !strings.Contains(view(m), style.Focus+" "+Branch+" 1-the-first-release") {
-		t.Errorf("esc over the legend did not bring the rows back as they were:\n%s", view(m))
+	if v := view(m); !strings.Contains(v, style.Focus+" "+Branch+" 42-settings") || strings.Contains(v, "└ legend") {
+		t.Errorf("esc with the legend on did not take it down and keep the rows as they were:\n%s", v)
 	}
 	next, cmd = m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.inRows || m.stage != 2 || strings.Contains(view(m), style.Focus) {
+	if m = next.(Model); cmd != nil || m.inRows || m.stage != 3 || strings.Contains(view(m), style.Focus) {
 		t.Fatalf("esc in the rows: in rows %v, stage %d\n%s", m.inRows, m.stage, view(m))
 	}
 	next, cmd = m.Update(press(tea.KeyEscape))
 	if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
 		t.Errorf("esc on the line did not quit: cmd %v", cmd)
 	}
-}
-
-func TestQuestionMarkShowsTheLegendInPlaceOfThePaneAndAgainHidesIt(t *testing.T) {
-	m := loaded(t, options(), right, right)
-	before := lines(m)
-	m = drive(m, press('?'))
-	got := lines(m)
-	if len(got) != 24 || got[0] != before[0] || got[2] != before[2] || got[3] != before[3] {
-		t.Errorf("the title or the line moved under the legend:\n%s", view(m))
-	}
-	if strings.Contains(view(m), Desk+" main") || !strings.Contains(view(m), groupEvery) ||
-		got[23] != " "+legendKeys {
-		t.Errorf("the legend is not in place of the pane, with its keys:\n%s", view(m))
-	}
-	// the arrows scroll the legend, not the line, on a screen too short for all of it
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 12}, right, down)
-	if m.stage != 2 || m.legendOffset != 1 || m.inRows || strings.Contains(view(m), "   "+groupEvery) {
-		t.Errorf("keys over the legend: stage %d, offset %d, in rows %v\n%s", m.stage, m.legendOffset, m.inRows, view(m))
-	}
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 24}, press('?'))
-	if m.legend || !strings.Contains(view(m), Desk+" main") || lines(m)[23] != " "+lineKeys {
-		t.Errorf("? again did not hide the legend:\n%s", view(m))
-	}
-	// shift-/ comes as ? with its text
-	m = drive(m, tea.KeyPressMsg{Code: '/', Mod: tea.ModShift, Text: "?"})
-	if !m.legend {
-		t.Errorf("shift-/ did not show the legend")
+	// on the line, esc takes the legend down before it quits
+	m = loaded(t, options(), press('?'), press(tea.KeyEscape))
+	if m.legend || m.ctx.Err() != nil {
+		t.Errorf("esc on the line with the legend on: legend %v, context %v", m.legend, m.ctx.Err())
 	}
 }
 
@@ -395,16 +382,18 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		keys string
 	}{
 		{nil, lineKeys},
-		{[]tea.Msg{down}, rowKeys},
-		{[]tea.Msg{right, right, down, enter}, rowKeys},
-		{[]tea.Msg{press('?')}, legendKeys},
-		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, legendKeys},
+		{[]tea.Msg{down}, backKeys},
+		{[]tea.Msg{right, right, right, down, enter}, backKeys},
+		{[]tea.Msg{press('?')}, backKeys},
+		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, backKeys},
 	} {
-		for _, height := range []int{24, 12} {
-			m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: 80, Height: height}}, c.msgs...)...)
-			got := lines(m)
-			if len(got) != height || got[height-1] != " "+c.keys {
-				t.Errorf("after %v at %d: %d lines, the last %q", c.msgs, height, len(got), got[len(got)-1])
+		for _, width := range []int{80, 120, 200} {
+			for _, height := range []int{24, 12} {
+				m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, c.msgs...)...)
+				got := lines(m)
+				if len(got) != height || got[height-1] != " "+c.keys {
+					t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got), got[len(got)-1])
+				}
 			}
 		}
 	}
@@ -419,7 +408,7 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	t.Setenv("FAKE_STATUS_SLOW", "releases")
 	m := New(runner(t), options())
 	m.limit = 100 * time.Millisecond
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 24}, right, right, right, right)
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, right, right, right, right, right)
 	start := time.Now()
 	msg := m.load("releases")()
 	// the fake sleeps five seconds: the answer comes at the limit only when the sleep is killed with the kit
@@ -466,15 +455,20 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 
 func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	m := loaded(t, options())
-	if first := lines(m)[0]; first != " kit status · empowerite/kit" {
+	if first := lines(m)[0]; first != " kit status · "+Repository+" empowerite/kit" {
 		t.Errorf("the title: %q", first)
 	}
-	if !strings.Contains(lines(m)[3], "incoming 6") {
-		t.Errorf("incoming's count: %q", lines(m)[3])
+	if !strings.Contains(m.View().Content, Repository+" "+style.Repo("empowerite/kit")) {
+		t.Errorf("the repository is not in its own color: %q", lines(m)[0])
+	}
+	// the line of stages comes right under the title
+	if !strings.Contains(lines(m)[1], "●") || !strings.Contains(lines(m)[2], "incoming 6") {
+		t.Errorf("the line and the trees: %q %q", lines(m)[1], lines(m)[2])
 	}
 	// while incoming loads, its label says so
 	m = New(runner(t), options())
-	if labels := lines(m)[3]; !strings.Contains(labels, "incoming …") {
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
+	if labels := lines(m)[2]; !strings.Contains(labels, "incoming …") {
 		t.Errorf("incoming loading: %q", labels)
 	}
 	o := options()
@@ -485,7 +479,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 	v := view(m)
 	if !strings.Contains(v, "   not fetched: kit status --no-fetch skips the fetch") ||
-		strings.Contains(v, "incoming 0") || !strings.Contains(lines(m)[3], "incoming ") {
+		strings.Contains(v, "incoming 0") || !strings.Contains(lines(m)[2], "incoming ") {
 		t.Errorf("the incoming pane with --no-fetch:\n%s", v)
 	}
 	m = loaded(t, Options{Stages: []string{"releases"}})
@@ -496,7 +490,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 
 func TestTheFetchsUpdatedBranchesAndNewTagsAreRowsAndTheGoneBranchesOneRow(t *testing.T) {
 	m := loaded(t, options(), right)
-	rows := lines(m)[5:11]
+	rows := lines(m)[4:10]
 	for i, want := range []string{"a1b2c3d", "e4f5a6b", Branch + "       46-a-noun-lists updated",
 		Branch + "       42-settings new branch", Gone + "       old-experiment upstream gone",
 		Tag + "       release/0.2.0 new tag"} {
@@ -504,7 +498,7 @@ func TestTheFetchsUpdatedBranchesAndNewTagsAreRowsAndTheGoneBranchesOneRow(t *te
 			t.Errorf("row %d lacks %q: %q", i, want, rows[i])
 		}
 	}
-	m = drive(m, right, down, down, down, down, down, enter)
+	m = drive(m, right, right, down, down, down, down, enter)
 	v := view(m)
 	for _, want := range []string{style.Focus + " " + Gone + " gone: old-experiment, 44-a-spike",
 		"      " + Gone + " old-experiment upstream gone · kit tidy removes it",
@@ -518,33 +512,9 @@ func TestTheFetchsUpdatedBranchesAndNewTagsAreRowsAndTheGoneBranchesOneRow(t *te
 	}
 }
 
-func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCount(t *testing.T) {
-	m := loaded(t, options(), right, right)
-	rows := lines(m)[5:9]
-	for i, want := range [][]string{
-		{Desk + " main", "↑0 ↓0", "clean"},
-		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2 🛬 ready", "3 uncommitted"},
-		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
-		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
-	} {
-		for _, text := range want {
-			if !strings.Contains(rows[i], text) {
-				t.Errorf("row %d lacks %q: %q", i, text, rows[i])
-			}
-		}
-	}
-	if strings.Contains(rows[0], "no pull request") || strings.Contains(rows[3], "no pull request") {
-		t.Errorf("the desk or a detached checkout wants a pull request: %q", rows)
-	}
-	// the numbers line up
-	if strings.Index(rows[0], "↓") != strings.Index(rows[1], "↓") {
-		t.Errorf("the counts do not line up:\n%s", strings.Join(rows, "\n"))
-	}
-}
-
 func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, down, enter)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, enter)
 	v := view(m)
 	for _, want := range []string{Change + " #2", "👤 jeffrey-aguilera", "🛬 ready", Passed + " 1 / 1 3m",
 		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing 1 / 2 95s",
@@ -560,7 +530,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 }
 
 func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
-	m := loaded(t, options(), down, enter)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24}, down, enter)
 	v := view(m)
 	for _, want := range []string{"#45", "#46  👤 jeffrey-aguilera   2d  " + Branch + " 46-a-noun-lists  " + Issue,
 		"#7  👤 ada bob           40d", "interactive on a terminal, and\n", "the listing verbs fold into it",
@@ -569,9 +539,10 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
 	}
-	m = loaded(t, options(), right, right, right, right, down, down, enter)
+	m = loaded(t, options(), right, right, right, right, right, down, down, enter)
 	v = view(m)
-	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release", Latest + " latest",
+	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
+		Latest + " latest",
 		"0.1.0-rc.7  " + Pre + " pre-release  28h", "kit 0.1.0", "release/0.1.0", "2026-10-31T20:00:00Z",
 		"https://github.com/empowerite/kit/releases/tag/release/0.1.0"} {
 		if !strings.Contains(v, want) {
@@ -581,61 +552,67 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, down, down, down, down)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
 	got := lines(m)
-	if len(got) != 10 {
-		t.Fatalf("%d lines on a screen of 10:\n%s", len(got), view(m))
+	if len(got) != 9 {
+		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[3], "worktrees 5") || got[9] != " "+rowKeys {
+	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[2], Branch+" 4") || got[8] != " "+backKeys {
 		t.Errorf("the title, the line, or the keys moved:\n%s", view(m))
 	}
-	// three lines of pane: … 3 above, the cursor's row, and the last row, which needs no … line
-	if !strings.Contains(got[5], "… 3 above") || !strings.Contains(got[6], style.Focus+" "+Branch+" worktrees/spike") ||
-		!strings.Contains(got[7], Gone+" gone:") || strings.Contains(view(m), Desk+" main") {
+	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
+	if !strings.Contains(got[4], "… 2 above") || !strings.Contains(got[5], style.Focus+" "+Branch+" worktrees/spike") ||
+		!strings.Contains(got[6], Gone+" gone:") || strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
 	}
 	// a pane of three lines holds the … lines and the row; one more line shows what the row opens to
-	m = drive(m, enter, tea.WindowSizeMsg{Width: 80, Height: 11})
+	m = drive(m, enter, tea.WindowSizeMsg{Width: 80, Height: 10})
 	if !strings.Contains(view(m), "?? notes.md") || !strings.Contains(view(m), style.Focus) {
 		t.Errorf("the open row's detail is not shown with its row:\n%s", view(m))
 	}
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 9})
 	// a page is the pane less one row: two rows here
 	m = drive(m, press(tea.KeyPgUp))
-	if !m.inRows || m.stages[2].cursor != 1 {
-		t.Errorf("page up: in rows %v, cursor %d", m.inRows, m.stages[2].cursor)
+	if !m.inRows || m.stages[3].cursor != 0 {
+		t.Errorf("page up: in rows %v, cursor %d", m.inRows, m.stages[3].cursor)
 	}
 	m = drive(m, press(tea.KeyPgUp))
-	if m.inRows || !strings.Contains(view(m), Desk+" main") {
+	if m.inRows || !strings.Contains(view(m), Branch+" 1-the-first-release") {
 		t.Errorf("page up past the first row did not return to the line and the top:\n%s", view(m))
 	}
 	m = drive(m, press(tea.KeyPgDown))
-	if !m.inRows || m.stages[2].cursor != 1 {
-		t.Errorf("page down from the line: in rows %v, cursor %d", m.inRows, m.stages[2].cursor)
+	if !m.inRows || m.stages[3].cursor != 1 {
+		t.Errorf("page down from the line: in rows %v, cursor %d", m.inRows, m.stages[3].cursor)
 	}
 	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown))
-	if m.stages[2].cursor != 4 {
-		t.Errorf("page down past the last row: cursor %d", m.stages[2].cursor)
+	if m.stages[3].cursor != 3 {
+		t.Errorf("page down past the last row: cursor %d", m.stages[3].cursor)
 	}
 }
 
 func TestEveryLineFitsTheWidthInCells(t *testing.T) {
-	for _, width := range []int{80, 50} {
-		for i := range five {
-			m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 24})
-			for range i {
-				m = drive(m, right)
+	for _, width := range []int{40, 50, 80, 120, 200} {
+		for _, legend := range []bool{false, true} {
+			// one load for the six: each stage in turn, its first row open, then back to the line
+			m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
+			if legend {
+				m = drive(m, press('?'))
 			}
-			m = drive(m, down, enter)
-			clipped := false
-			for _, l := range strings.Split(m.View().Content, "\n") {
-				if n := ansi.StringWidth(l); n > width {
-					t.Errorf("%s at %d: a line of %d cells: %q", five[i], width, n, ansi.Strip(l))
+			for i := range six {
+				if i > 0 {
+					m = drive(m, up, right)
 				}
-				clipped = clipped || strings.HasSuffix(ansi.Strip(l), "…")
-			}
-			if (five[i] == "changes" || five[i] == "backlog") && !clipped {
-				t.Errorf("%s at %d: no long title was clipped:\n%s", five[i], width, view(m))
+				m = drive(m, down, enter)
+				clipped := false
+				for _, l := range strings.Split(m.View().Content, "\n") {
+					if n := ansi.StringWidth(l); n > width {
+						t.Errorf("%s at %d, legend %v: a line of %d cells: %q", six[i], width, legend, n, ansi.Strip(l))
+					}
+					clipped = clipped || strings.HasSuffix(ansi.Strip(l), "…")
+				}
+				if width <= 80 && (six[i] == "changes" || six[i] == "backlog") && !clipped {
+					t.Errorf("%s at %d: no long title was clipped:\n%s", six[i], width, view(m))
+				}
 			}
 		}
 	}
@@ -645,7 +622,8 @@ func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_STATUS_CALLS", record)
 	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, right)
-	if v := view(m); !strings.Contains(v, "nonesuch !") || !strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
+	if v := view(m); !strings.Contains(v, "nonesuch !") ||
+		!strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
 		t.Errorf("the unknown stage:\n%s", v)
 	}
 	if got := calls(t, record); strings.Join(got, "\n") != "status worktrees --json" {
@@ -668,7 +646,7 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if strings.Join(names, " ") != strings.Join(five, " ") || !m.noFetch || strings.Join(m.filters, " ") != "--mine" {
+	if strings.Join(names, " ") != strings.Join(six, " ") || !m.noFetch || strings.Join(m.filters, " ") != "--mine" {
 		t.Errorf("Open: %q, no fetch %v, filters %q", names, m.noFetch, m.filters)
 	}
 	if got := calls(t, record); strings.Join(got, "\n") != "status --stages" {
@@ -699,18 +677,18 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 11}, right, right, down, down, press(tea.KeyEnter))
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, enter)
 	got := lines(m)
-	if len(got) != 11 || got[10] != " "+rowKeys {
-		t.Fatalf("the screen is not 11 lines with the keys last:\n%s", view(m))
+	if len(got) != 10 || got[9] != " "+backKeys {
+		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)
-	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 9 more") ||
-		!strings.Contains(v, style.Focus+" "+Branch+" 1-the-first-release") {
+	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 4 more") ||
+		!strings.Contains(v, style.Focus+" "+Branch+" 42-settings") {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
-	m = loaded(t, options(), right, right)
+	m = loaded(t, options(), right, right, right)
 	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
@@ -735,43 +713,306 @@ func TestTheWindowCountsWhatItHides(t *testing.T) {
 
 func TestTheDotTravelsTheWayTheArrowPointsAndStopsOnItsStage(t *testing.T) {
 	m := loaded(t, options())
-	// the line holds one-cell runes only, after one space, so a rune's index is its cell
-	at := func(m Model) int {
-		for k, r := range []rune(ansi.Strip(lines(m)[2])) {
-			if r == '●' {
-				return k
-			}
-		}
-		return -1
-	}
 	// one key, no frames yet: the stage is chosen, and the dot has left the first marker but not reached the next
 	next, cmd := m.Update(press(tea.KeyRight))
-	m = next.(Model)
-	if m.stage != 1 || !m.moving || cmd == nil {
+	if m := next.(Model); m.stage != 1 || !m.moving || cmd == nil {
 		t.Fatalf("right: stage %d, moving %v", m.stage, m.moving)
 	}
-	start := at(m)
-	trail := []int{start}
-	for m.moving {
-		next, _ = m.Update(frameMsg{})
-		m = next.(Model)
-		trail = append(trail, at(m))
-	}
-	for k := 1; k < len(trail); k++ {
-		if trail[k] <= trail[k-1] {
-			t.Fatalf("the dot did not go right every frame: %v", trail)
+	m, canvas, screen := frameAll(t, m, right)
+	for k := 1; k < len(canvas); k++ {
+		if canvas[k] <= canvas[k-1] || screen[k] != canvas[k]-m.scroll+1 {
+			t.Fatalf("the dot did not go right every frame: %v on the screen at %v", canvas, screen)
 		}
 	}
-	if len(trail) > frames+1 || trail[len(trail)-1] != m.center(1)+1 {
-		t.Errorf("the dot did not stop on incoming in %d frames: %v", frames, trail)
+	if canvas[len(canvas)-1] != m.center(1) {
+		t.Errorf("the dot did not stop on incoming: %v", canvas)
 	}
 	// left from the first stage goes left, off the start of the line and in from its end
-	m = loaded(t, options())
-	next, _ = m.Update(press(tea.KeyLeft))
+	m, canvas, _ = frameAll(t, loaded(t, options()), left)
+	wrapped := 0
+	for k := 1; k < len(canvas); k++ {
+		if canvas[k] > canvas[k-1] {
+			wrapped++
+		}
+	}
+	if m.stage != 5 || wrapped != 1 || canvas[1] >= m.center(0) || canvas[len(canvas)-1] != m.center(5) {
+		t.Errorf("left at the first stage did not go left round the start to releases: %v", canvas)
+	}
+}
+
+func TestQuestionMarkHangsTheLegendInEveryTreeAndThePaneStays(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 200, Height: 24}, right, right, right)
+	before := lines(m)
+	m = drive(m, press('?'))
+	got := lines(m)
+	if len(got) != 24 || got[0] != before[0] || got[23] != " "+backKeys {
+		t.Errorf("the title or the keys moved under the legend:\n%s", view(m))
+	}
+	if n := strings.Count(view(m), "└ legend"); n != 6 {
+		t.Errorf("%d trees hang a legend, not six:\n%s", n, view(m))
+	}
+	if !strings.Contains(view(m), Branch+" 1-the-first-release") {
+		t.Errorf("the pane did not stay under the trees:\n%s", view(m))
+	}
+	// the keys move in the rows while the legend is on
+	m = drive(m, down, down)
+	if !m.inRows || m.stages[3].cursor != 1 || !strings.Contains(view(m), style.Focus+" "+Branch+" 42-settings") {
+		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.stages[3].cursor, view(m))
+	}
+	m = drive(m, up, up, press('?'))
+	if m.legend || strings.Contains(view(m), "└ legend") || lines(m)[23] != " "+lineKeys ||
+		strings.Join(lines(m), "\n") != strings.Join(before, "\n") {
+		t.Errorf("? again did not take the legend down:\n%s", view(m))
+	}
+	// shift-/ comes as ? with its text
+	m = drive(m, tea.KeyPressMsg{Code: '/', Mod: tea.ModShift, Text: "?"})
+	if !m.legend {
+		t.Errorf("shift-/ did not hang the legend")
+	}
+}
+
+func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *testing.T) {
+	m := loaded(t, options(), right, right, right)
+	rows := lines(m)[4:7]
+	for i, want := range [][]string{
+		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2 🛬 ready", "3 uncommitted"},
+		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
+		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
+	} {
+		for _, text := range want {
+			if !strings.Contains(rows[i], text) {
+				t.Errorf("row %d lacks %q: %q", i, text, rows[i])
+			}
+		}
+	}
+	if strings.Contains(rows[2], "no pull request") {
+		t.Errorf("a detached checkout wants a pull request: %q", rows)
+	}
+	if pane := strings.Join(lines(m)[4:], "\n"); strings.Contains(pane, Desk) || strings.Contains(pane, "main") {
+		t.Errorf("the worktrees draw the desk:\n%s", pane)
+	}
+	if !strings.Contains(lines(m)[2], "worktrees 4") {
+		t.Errorf("the worktrees count the desk: %q", lines(m)[2])
+	}
+	// the numbers line up
+	if strings.Index(rows[0], "↓") != strings.Index(rows[1], "↓") {
+		t.Errorf("the counts do not line up:\n%s", strings.Join(rows, "\n"))
+	}
+}
+
+func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
+	m := loaded(t, options(), right, right)
+	pane := lines(m)[4:]
+	for _, text := range []string{Desk + " main", "↑12 ↓1", "2 uncommitted"} {
+		if !strings.Contains(pane[0], text) {
+			t.Errorf("the desk's row lacks %q: %q", text, pane[0])
+		}
+	}
+	if strings.Contains(pane[0], "no pull request") || strings.TrimSpace(pane[1]) != "" ||
+		!strings.Contains(lines(m)[2], Desk+" desk 1") {
+		t.Errorf("the desk is not one row without a pull request:\n%s", view(m))
+	}
+	if !strings.Contains(m.View().Content, style.Warn("2 uncommitted")) {
+		t.Errorf("the uncommitted count is not yellow")
+	}
+	m = drive(m, down, enter)
+	v := view(m)
+	order := []string{style.Focus + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
+		"c0ffeea #45 status: the goldens", "… and 2 more"}
+	at := -1
+	for _, want := range order {
+		k := strings.Index(v, want)
+		if k <= at {
+			t.Errorf("the open desk lacks %q after the line before it:\n%s", want, v)
+		}
+		at = k
+	}
+	if strings.Contains(v, "c0ffeeb") {
+		t.Errorf("the open desk lists more than ten commits:\n%s", v)
+	}
+	if !strings.Contains(m.View().Content, style.Warn(" M")+" kit.yml") {
+		t.Errorf("an uncommitted path's status is not yellow")
+	}
+	// a desk on a branch with a pull request shows it, as a worktree does
+	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
+	if !strings.Contains(view(m), Change+" #2 🛬 ready") {
+		t.Errorf("the desk does not show its pull request:\n%s", view(m))
+	}
+	// a clean desk says so, dim
+	m.find("desk").desk.Uncommitted = 0
+	if !strings.Contains(m.View().Content, style.Off("clean")) {
+		t.Errorf("a clean desk does not say clean")
+	}
+}
+
+// cellsOf gives every cell a text starts at in a line.
+func cellsOf(line, text string) []int {
+	var out []int
+	for from := 0; ; {
+		at := strings.Index(line[from:], text)
+		if at < 0 {
+			return out
+		}
+		out = append(out, ansi.StringWidth(line[:from+at]))
+		from += at + 1
+	}
+}
+
+// dotAt gives the cell of the dot on the screen's line, or -1; the line holds one-cell runes only.
+func dotAt(m Model) int {
+	for k, r := range []rune(ansi.Strip(lines(m)[1])) {
+		if r == '●' {
+			return k
+		}
+	}
+	return -1
+}
+
+// frameAll steps the dot to its stage, frame by frame, and gives the dot's cell on the canvas and on the screen after
+// the key and after every frame.
+func frameAll(t *testing.T, m Model, key tea.Msg) (Model, []int, []int) {
+	t.Helper()
+	next, _ := m.Update(key)
 	m = next.(Model)
-	next, _ = m.Update(frameMsg{})
-	m = next.(Model)
-	if m.stage != 4 || at(m) >= m.center(0)+1 && at(m) < m.center(4) {
-		t.Errorf("left at the first stage did not go round the start: dot at %d", at(m))
+	canvas, screen := []int{m.dot.at}, []int{dotAt(m)}
+	for n := 0; m.moving; n++ {
+		if n > frames {
+			t.Fatalf("the dot took more than %d frames", frames)
+		}
+		next, _ = m.Update(frameMsg{})
+		m = next.(Model)
+		at := m.dot.at
+		if !m.moving {
+			at = m.center(m.stage)
+		}
+		canvas, screen = append(canvas, at), append(screen, dotAt(m))
+	}
+	return m, canvas, screen
+}
+
+func TestTheViewFollowsTheDotAcrossAWideLine(t *testing.T) {
+	// at 80 with the legend on, the six trees are wider than the screen
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 40}, press('?'))
+	if m.layout().width <= 79 {
+		t.Fatalf("the canvas fits 80 columns: %d", m.layout().width)
+	}
+	scroll := m.scroll
+	for stage := 1; stage < 6; stage++ {
+		var canvas, screen []int
+		m, canvas, screen = frameAll(t, m, right)
+		for k := range canvas {
+			// every frame, the dot is on the screen, clear of the dotted ends
+			if screen[k] < 4 || screen[k] > 76 {
+				t.Errorf("to %s, frame %d: the dot is at cell %d of the screen: %v", six[stage], k, screen[k], screen)
+			}
+		}
+		if m.scroll < scroll {
+			t.Errorf("to %s, the view went back: %d after %d", six[stage], m.scroll, scroll)
+		}
+		scroll = m.scroll
+	}
+	if want := m.layout().width - 79; m.scroll != want {
+		t.Errorf("at releases the view is not at the end: %d, want %d", m.scroll, want)
+	}
+	// round the end, the view follows the dot back to the start
+	m, _, screen := frameAll(t, m, right)
+	if m.stage != 0 || m.scroll != 0 || screen[len(screen)-1] != m.center(0)+1 {
+		t.Errorf("round the end: stage %d, scroll %d, the dot at %v", m.stage, m.scroll, screen)
+	}
+}
+
+func TestTheLabelsShortenBeforeTheLineScrolls(t *testing.T) {
+	// with these fixtures, the names fit from 107 columns, the counts from 58, and the glyphs alone from 46
+	for _, c := range []struct {
+		width  int
+		label  string // backlog's, the selected stage
+		other  string // incoming's
+		scroll bool
+	}{
+		{200, Issue + " backlog 3", Fetched + " incoming 6", false},
+		{120, Issue + " backlog 3", Fetched + " incoming 6", false},
+		{107, Issue + " backlog 3", Fetched + " incoming 6", false},
+		{106, Issue + " 3", Fetched + " 6", false},
+		{80, Issue + " 3", Fetched + " 6", false},
+		{58, Issue + " 3", Fetched + " 6", false},
+		{57, Issue, Fetched, false},
+		{50, Issue, Fetched, false},
+		{46, Issue, Fetched, false},
+		{40, Issue, Fetched, true},
+	} {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: c.width, Height: 24})
+		trees, line := lines(m)[2], lines(m)[1]
+		if !strings.Contains(trees, "└ "+c.label+" ") && !strings.HasSuffix(trees, "└ "+c.label) ||
+			!strings.Contains(trees, "└ "+c.other) {
+			t.Errorf("at %d the labels are not %q and %q: %q", c.width, c.label, c.other, trees)
+		}
+		// one form for every stage at once
+		if n := strings.Count(trees, "└ "); n != 6 && !c.scroll {
+			t.Errorf("at %d, %d labels show: %q", c.width, n, trees)
+		}
+		if strings.Contains(line, dotted) != c.scroll {
+			t.Errorf("at %d the line scrolls %v: %q", c.width, !c.scroll, line)
+		}
+	}
+	// in the count form, the selected stage's count is drawn as its name would be
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
+	if !strings.Contains(m.View().Content, Issue+" "+style.Mark("3")) {
+		t.Errorf("the selected count is not marked: %q", lines(m)[2])
+	}
+	// the legend nodes are not shortened, and the labels keep the form the line without them takes
+	m = drive(m, press('?'))
+	if v := view(m); !strings.Contains(v, "└ legend") || !strings.Contains(v, Owner+"  its assignees") ||
+		!strings.Contains(lines(m)[2], "├ "+Issue+" 3") {
+		t.Errorf("the legend at 80:\n%s", v)
+	}
+}
+
+func TestAWideLineScrollsWithDottedEndsAndKeepsTheSelectedTreeWhole(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 32}, press('?'))
+	for i, name := range six {
+		if i > 0 {
+			m = drive(m, right)
+		}
+		got := lines(m)
+		line := got[1]
+		hiddenStart, hiddenEnd := m.scroll > 0, m.scroll+79 < m.layout().width
+		if strings.HasPrefix(line, " "+strings.Repeat(dotted, 3)) != hiddenStart ||
+			strings.HasSuffix(line, strings.Repeat(dotted, 3)) != hiddenEnd {
+			t.Errorf("at %s, scroll %d: the dotted ends are wrong: %q", name, m.scroll, line)
+		}
+		// the selected tree shows whole, each line under the marker
+		marker := m.center(i) - m.scroll + 1
+		for k, want := range m.layout().trees[i] {
+			plain := ansi.Strip(want)
+			row := got[2+k]
+			if !slices.Contains(cellsOf(row, plain), marker) {
+				t.Errorf("at %s, the tree's line %q is not whole under the marker at %d: %q", name, plain, marker, row)
+			}
+		}
+		// at 80 the view starts at backlog, scrolls through the middle three, and ends at changes and releases
+		switch name {
+		case "backlog":
+			if hiddenStart || !hiddenEnd {
+				t.Errorf("at backlog the view is not at the start: %q", line)
+			}
+		case "incoming", "desk", "worktrees":
+			if !hiddenStart || !hiddenEnd {
+				t.Errorf("at %s the view is not in the middle: %q", name, line)
+			}
+		case "changes", "releases":
+			if !hiddenStart || hiddenEnd {
+				t.Errorf("at %s the view is not at the end: %q", name, line)
+			}
+		}
+		// no tree shows without its marker: the screen's trees start at its markers
+		markers := cellsOf(line, "○")
+		markers = append(markers, cellsOf(line, "●")...)
+		for _, row := range got[2:5] {
+			for _, at := range cellsOf(row, "└ ") {
+				if !slices.Contains(markers, at) {
+					t.Errorf("at %s a tree shows at %d without its marker: %q", name, at, row)
+				}
+			}
+		}
 	}
 }

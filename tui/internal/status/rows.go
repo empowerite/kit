@@ -40,9 +40,8 @@ type incoming struct {
 	Tags []string `json:"tags"`
 }
 
-// worktrees is the desk, every linked worktree, and the branches whose upstream is gone.
+// worktrees is every linked worktree, and the branches whose upstream is gone. The desk is a stage of its own.
 type worktrees struct {
-	Desk         *checkout  `json:"desk"`
 	Worktrees    []checkout `json:"worktrees"`
 	GoneBranches []string   `json:"goneBranches"`
 }
@@ -217,6 +216,8 @@ func (m Model) rows(i int) []row {
 		return m.backlogRows(s)
 	case "incoming":
 		return incomingRows(s)
+	case "desk":
+		return m.deskRows(s)
 	case "worktrees":
 		return m.worktreeRows(s)
 	case "changes":
@@ -272,58 +273,31 @@ func incomingRows(s stage) []row {
 	return rows
 }
 
-// commitsShown is how many commits ahead an open worktree lists before counting the rest.
+// commitsShown is how many commits ahead an open checkout lists before counting the rest.
 const commitsShown = 10
 
-// worktreeRows draws the desk, then each worktree: glyph and branch, ahead and behind, its pull request's number and
-// state, and its uncommitted count; open, the uncommitted paths with their status in yellow, then the commits ahead,
-// ten at most, as kit status --text draws them. Last, dim, the branches whose upstream is gone, when there are any; open, one row per branch.
+// deskRows draws the desk, the root checkout, in one row, as worktreeRows draws a worktree.
+func (m Model) deskRows(s stage) []row {
+	if s.desk == nil {
+		return nil
+	}
+	c := *s.desk
+	return []row{m.checkoutRow(c, Desk, len("↑"+strconv.Itoa(c.Ahead)), true)}
+}
+
+// worktreeRows draws each linked worktree, as checkoutRow does. Last, dim, the branches whose upstream is gone, when
+// there are any; open, one row per branch.
 func (m Model) worktreeRows(s stage) []row {
 	if s.trees == nil {
 		return nil
 	}
-	var all []checkout
-	if s.trees.Desk != nil {
-		all = append(all, *s.trees.Desk)
-	}
-	all = append(all, s.trees.Worktrees...)
 	aheadWidth := 0
-	for _, c := range all {
+	for _, c := range s.trees.Worktrees {
 		aheadWidth = max(aheadWidth, len("↑"+strconv.Itoa(c.Ahead)))
 	}
 	var rows []row
-	for k, c := range all {
-		desk := k == 0 && s.trees.Desk != nil
-		glyph := Branch
-		if desk {
-			glyph = Desk
-		}
-		name := c.Branch
-		if name == "" {
-			name = c.Relative
-		}
-		if name == "" {
-			name = c.Path
-		}
-		label := glyph + " " + name
-		if c.Detached {
-			label += " " + Detached + " detached"
-		}
-		r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(m.pullOf(c.Branch, desk)),
-			uncommitted(c.Uncommitted)}}
-		for _, change := range c.Changes {
-			r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
-		}
-		for i, commit := range c.Commits {
-			if i == commitsShown {
-				break
-			}
-			r.detail = append(r.detail, span(style.Off(commit.SHA)+" "+commit.Subject))
-		}
-		if more := c.Ahead - min(len(c.Commits), commitsShown); more > 0 {
-			r.detail = append(r.detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
-		}
-		rows = append(rows, r)
+	for _, c := range s.trees.Worktrees {
+		rows = append(rows, m.checkoutRow(c, Branch, aheadWidth, false))
 	}
 	if gone := s.trees.GoneBranches; len(gone) > 0 {
 		r := row{key: "gone", cells: span(style.Off(Gone + " gone: " + strings.Join(gone, ", ")))}
@@ -333,6 +307,38 @@ func (m Model) worktreeRows(s stage) []row {
 		rows = append(rows, r)
 	}
 	return rows
+}
+
+// checkoutRow draws a checkout: glyph and branch, ahead and behind, its pull request's number and state, and its
+// uncommitted count; open, the uncommitted paths with their status in yellow, then the commits ahead, ten at most,
+// as kit status --text draws them.
+func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) row {
+	name := c.Branch
+	if name == "" {
+		name = c.Relative
+	}
+	if name == "" {
+		name = c.Path
+	}
+	label := glyph + " " + name
+	if c.Detached {
+		label += " " + Detached + " detached"
+	}
+	r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(m.pullOf(c.Branch, desk)),
+		uncommitted(c.Uncommitted)}}
+	for _, change := range c.Changes {
+		r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
+	}
+	for i, commit := range c.Commits {
+		if i == commitsShown {
+			break
+		}
+		r.detail = append(r.detail, span(style.Off(commit.SHA)+" "+commit.Subject))
+	}
+	if more := c.Ahead - min(len(c.Commits), commitsShown); more > 0 {
+		r.detail = append(r.detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
+	}
+	return r
 }
 
 // counts gives "↑a ↓b", ahead right-aligned to the widest in the table, a zero dim.
@@ -445,8 +451,10 @@ func empty(s stage) string {
 			return "not fetched: kit status --no-fetch skips the fetch"
 		}
 		return "nothing new on origin"
+	case "desk":
+		return "no desk"
 	case "worktrees":
-		return "no worktree"
+		return "no linked worktree"
 	case "changes":
 		return "no open pull request"
 	case "releases":

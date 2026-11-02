@@ -6,6 +6,7 @@
     "kit status --stages",
     "kit status backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit status incoming [--no-fetch] [--json | --jq]",
+    "kit status desk [--json | --jq]",
     "kit status worktrees [--json | --jq]",
     "kit status changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
     "kit status releases [--json | --jq]"
@@ -269,6 +270,34 @@
     [
       {
         "kind": "literal",
+        "name": "desk",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
         "name": "worktrees",
         "repeat": false
       },
@@ -465,8 +494,11 @@
     "incoming": {
       "description": "what the fetch brought: default-branch commits, branches new and gone"
     },
+    "desk": {
+      "description": "the root checkout: branch, ahead and behind, uncommitted paths"
+    },
     "worktrees": {
-      "description": "the desk and every worktree: branch, ahead and behind, uncommitted paths"
+      "description": "every linked worktree: branch, ahead and behind, uncommitted paths"
     },
     "changes": {
       "description": "the open pull requests, each with the issues it closes"

@@ -4,20 +4,22 @@
 #
 # kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Draws the picture of the work. It changes nothing. Work moves left to right through five stages:
+# Draws the picture of the work. It changes nothing. Work moves left to right through six stages:
 #
-#   backlog → incoming → worktrees → changes → releases
+#   backlog → incoming → desk → worktrees → changes → releases
+#
+# The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
 #
 # The status setting in kit.yml names the stages drawn, in order. On a terminal, kit status opens the picture in
 # kittui. Without one, or with --text, it prints the stages as text. Where it runs decides what worktrees and
 # changes draw:
 #
-#   - at a desk: the desk, every linked worktree, and every open pull request
+#   - at a desk: every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
 #   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
 #
-# backlog, incoming, and releases draw the same anywhere. A repository with no origin draws its checkouts, fetches
-# nothing, and says so once.
+# backlog, incoming, desk, and releases draw the same anywhere. A repository with no origin draws its checkouts,
+# fetches nothing, and says so once.
 #
 #   --no-fetch          skips the git fetch; incoming says so
 #   --text              prints the picture as text, even on a terminal
@@ -32,7 +34,8 @@
 #   <number>…           only these pull requests, by number or issue closed: #7
 #   backlog             the open issues no pull request closes, oldest first
 #   incoming            what the fetch brought: default-branch commits, branches new and gone
-#   worktrees           the desk and every worktree: branch, ahead and behind, uncommitted paths
+#   desk                the root checkout: branch, ahead and behind, uncommitted paths
+#   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
 #   releases            the releases on the forge, newest first
 #
@@ -44,6 +47,8 @@
 #
 # kit status incoming [--no-fetch] [--json | --jq]
 #
+# kit status desk [--json | --jq]
+#
 # kit status worktrees [--json | --jq]
 #
 # kit status changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
@@ -51,38 +56,53 @@
 # kit status releases [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for backlog, changes, and releases; an object for incoming and worktrees.
+# for backlog, changes, and releases; an object for incoming, desk, and worktrees. Above desks, --json prints an
+# array with one {path, status} per desk.
 #
 # Legend
 #
-# One glyph per line, by where it is drawn. NO_COLOR removes the colors and keeps the glyphs.
+# Each stage lists the glyphs it draws, one per line. A glyph can show under more than one stage. NO_COLOR removes
+# the colors and keeps the glyphs.
 #
-# Every stage:
+#   📚  the repository, owner/name, in kittui's title
 #
-#   🌿  a branch, or a linked worktree
-#   👤  an author, or an issue's assignees
+# backlog:
+#
 #   🎫  an issue
-#   🔀  a pull request, or a merge request on GitLab
-#   🔖  a branch gone from origin
-#   ❌  a check failed, or a stage kit could not read
+#   👤  its assignees
+#   🌿  the branch started for it on origin
+#   ❌  a refusal: kit could not read the forge
 #
 # incoming:
 #
 #   📥  what the fetch brought from origin
+#   🌿  a branch new or updated on origin
+#   🔖  a branch gone from origin
 #   📌  a new tag
+#
+# desk:
+#
+#   🏠  the desk, the root checkout
+#   ❗  on no branch: a detached HEAD
+#   📂  a desk's path, above desks
 #
 # worktrees:
 #
-#   🏠  the desk, the root checkout
-#   ❗  a checkout on no branch, a detached HEAD
-#   📂  a desk's path, above desks
+#   🌿  a linked worktree
+#   ❗  on no branch: a detached HEAD
+#   🔖  a branch whose upstream is gone
 #
 # changes:
 #
+#   🔀  a pull request, or a merge request on GitLab
+#   👤  its author, or an issue's assignees
+#   🌿  its branch
+#   🎫  an issue it closes
+#   🛫  that issue, in flight
 #   💬  unresolved review threads
-#   🛫  an issue the pull request closes
 #   🏃  checks still running, with passed / total
 #   ✅  every check passed
+#   ❌  a check failed, or kit could not read the forge
 #
 # changes: a pull request's state, the first of these that holds:
 #
@@ -102,6 +122,7 @@
 #   🧪  a pre-release
 #   📝  a draft
 #   ⭐  the latest
+#   ❌  a refusal: kit could not read the forge
 #
 # Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
 # status setting that is not a list of distinct stages.

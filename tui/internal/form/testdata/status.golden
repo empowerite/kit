@@ -5,8 +5,8 @@
    --stages                  prints the stages the picture draws, one per line, in order
    backlog                   the open issues no pull request closes, oldest first
    incoming                  what the fetch brought: default-branch commits, branches new and gone
-   worktrees                 the desk and every worktree: branch, ahead and behind, uncommitted
-                             paths
+   desk                      the root checkout: branch, ahead and behind, uncommitted paths
+   worktrees                 every linked worktree: branch, ahead and behind, uncommitted paths
    changes                   the open pull requests, each with the issues it closes
    releases                  the releases on the forge, newest first
 

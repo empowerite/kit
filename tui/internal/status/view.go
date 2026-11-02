@@ -1,5 +1,6 @@
-// The picture drawn: the title, the line with a marker and a label per stage, the selected stage's rows in a pane
-// that scrolls, and the keys. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
+// The picture drawn: the title, the line with a marker and a tree per stage, the selected stage's rows in a pane that
+// scrolls, and the keys. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge. The line and
+// the trees are one canvas: when it is wider than the screen, the view scrolls sideways to the selected stage.
 package status
 
 import (
@@ -12,18 +13,37 @@ import (
 	"github.com/empowerite/kit/tui/internal/style"
 )
 
-// The keys bar, the screen's last line, in each state: on the line, in the rows, and over the legend.
+// The keys bar, the screen's last line: on the line, where esc quits, and in the rows or over the legend, where esc
+// goes back.
 const (
-	lineKeys   = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc quit"
-	rowKeys    = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back"
-	legendKeys = "↑↓ move · ? legend · esc back"
+	lineKeys = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc quit"
+	backKeys = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back"
 )
 
-// fixed is how many lines the title, the line, the gaps, and the keys take; the pane has the rest.
-const fixed = 7
+// fixed is how many lines the title, the line, the gaps, and the keys take; the trees and the pane have the rest.
+const fixed = 5
+
+// minPane is the fewest lines the pane keeps when the trees are taller than the screen holds; the trees are cut.
+const minPane = 3
+
+// gap is the cells before the first marker, and between one tree and the next marker.
+const gap = 3
+
+// room is the cells the view keeps before the selected marker when it scrolls: the dotted end and a little line.
+const room = 5
+
+// dotted is what a hidden end of the line is drawn with.
+const dotted = "┄"
 
 // minFill is the fewest cells a fill cell keeps when the other columns leave it less; the row is then clipped.
 const minFill = 12
+
+// The label forms, widest first: glyph, name, and count; glyph and count; the glyph alone.
+const (
+	fullLabel = iota
+	countLabel
+	glyphLabel
+)
 
 // line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
 type line struct {
@@ -31,12 +51,23 @@ type line struct {
 	text string
 }
 
-// View draws the title, the line with its labels, the selected stage's pane or the legend, and the keys bar on the
-// last line, on the alternate screen.
+// layout is the line of stages laid out on its canvas: each stage's marker, each stage's tree, and the canvas's
+// width, never less than the screen's.
+type layout struct {
+	at    []int
+	trees [][]string
+	width int
+}
+
+// View draws the title, the line, the trees under it, the selected stage's pane, and the keys bar on the last line,
+// on the alternate screen.
 func (m Model) View() tea.View {
-	timeline, labels := m.timeline()
-	lines := []string{" " + clip(m.title(), m.width-1), "", timeline, labels, ""}
-	lines = append(lines, m.pane()...)
+	l := m.layout()
+	rows := m.treeRows(l)
+	lines := []string{" " + clip(m.title(), m.width-1), m.line(l)}
+	lines = append(lines, m.treeLines(l, rows)...)
+	lines = append(lines, "")
+	lines = append(lines, m.pane(m.paneOf(rows))...)
 	lines = append(lines, "", style.Bar(m.keys(), m.width))
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
@@ -44,25 +75,25 @@ func (m Model) View() tea.View {
 }
 
 // paneHeight gives the lines the pane has.
-func (m Model) paneHeight() int { return max(1, m.height-fixed) }
+func (m Model) paneHeight() int { return m.paneOf(m.treeRows(m.layout())) }
 
-// keys gives the keys bar for the state the screen is in: the legend's, the rows', or the line's.
+// paneOf gives the lines the pane has under trees of so many rows.
+func (m Model) paneOf(rows int) int { return max(1, m.height-fixed-rows) }
+
+// keys gives the keys bar for the state the screen is in: esc goes back from the rows and from the legend.
 func (m Model) keys() string {
-	switch {
-	case m.legend:
-		return legendKeys
-	case m.inRows:
-		return rowKeys
+	if m.inRows || m.legend {
+		return backKeys
 	}
 	return lineKeys
 }
 
-// title gives the title line: kit status, and origin's owner/repo when known.
+// title gives the title line: kit status, and origin's owner/repo after its glyph, in its own color, when known.
 func (m Model) title() string {
 	if m.origin.Repo == "" {
 		return style.Label("kit status")
 	}
-	return style.Label("kit status") + " · " + m.origin.Repo
+	return style.Label("kit status") + " · " + Repository + " " + style.Repo(m.origin.Repo)
 }
 
 // count gives a stage's count for its label: … while it loads, ! when its command failed, nothing for an incoming
@@ -80,77 +111,226 @@ func (m Model) count(i int) string {
 	return strconv.Itoa(len(m.rows(i)))
 }
 
-// timeline draws the line and the labels under it: a marker ○ per stage, evenly spaced across the width, the dot ● in
-// the accent color on the selected one, or on its way there, and each stage's name and count centered under its
-// marker, clipped to its share of the width.
-func (m Model) timeline() (string, string) {
+// layout lays the stages out: each takes its tree's width and a gap, and when they all fit the screen, the width left
+// spreads evenly between them; when they do not, the canvas is wider than the screen.
+func (m Model) layout() layout {
 	n, w := len(m.stages), m.width-1
-	if n == 0 || w < 3*n {
-		return "", ""
+	l := layout{at: make([]int, n), trees: make([][]string, n)}
+	form := m.form()
+	total := gap
+	for i := range m.stages {
+		l.trees[i] = m.tree(i, form)
+		total += width(l.trees[i]) + gap
 	}
-	var line, labels strings.Builder
-	line.WriteString(" ")
-	labels.WriteString(" ")
-	labelAt := 0
-	cells := make([]string, w)
+	l.width = max(total, w, 1)
+	if n == 0 {
+		return l
+	}
+	spare, x := max(0, w-total), gap
+	for i := range m.stages {
+		l.at[i] = x
+		x += width(l.trees[i]) + gap + spare/n
+		if i < spare%n {
+			x++
+		}
+	}
+	return l
+}
+
+// form gives the widest label form that lets every stage's tree, without its legend, fit the screen: names go first,
+// then counts; the glyph alone is the floor, and past it the line scrolls.
+func (m Model) form() int {
+	for form := fullLabel; form < glyphLabel; form++ {
+		total := gap
+		for i := range m.stages {
+			total += ansi.StringWidth("└ "+m.label(i, form)) + gap
+		}
+		if total <= m.width-1 {
+			return form
+		}
+	}
+	return glyphLabel
+}
+
+// label gives a stage's label in a form: its glyph, its name, bold in the accent color when selected, and its count,
+// dim, or the accent's when the name is left out. A stage without a glyph keeps its name in every form.
+func (m Model) label(i, form int) string {
+	s := m.stages[i]
+	glyph, count, name := stageGlyphs[s.name], m.count(i), s.name
+	chosen := i == m.stage
+	if chosen {
+		name = style.Mark(name)
+	}
+	var parts []string
+	if glyph != "" {
+		parts = append(parts, glyph)
+	}
+	if form == fullLabel || glyph == "" {
+		parts = append(parts, name)
+	}
+	if form != glyphLabel && count != "" {
+		if chosen && form == countLabel {
+			parts = append(parts, style.Mark(count))
+		} else {
+			parts = append(parts, style.Off(count))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// node is one node of a tree: its text, and the nodes under it.
+type node struct {
+	text string
+	kids []node
+}
+
+// draw adds a node's lines, and its kids', after the prefix that carries the line art of the nodes above it.
+func (n node) draw(prefix string, last bool, out *[]string) {
+	branch, next := "├ ", prefix+"│ "
+	if last {
+		branch, next = "└ ", prefix+"  "
+	}
+	*out = append(*out, prefix+branch+n.text)
+	for k, kid := range n.kids {
+		kid.draw(next, k == len(n.kids)-1, out)
+	}
+}
+
+// tree gives the tree hanging from a stage's marker, its lines starting under it: the stage's label, and when the
+// legend is on, legend over every glyph the stage draws, changes' states under state.
+func (m Model) tree(i, form int) []string {
+	nodes := []node{{text: m.label(i, form)}}
+	if m.legend {
+		if legend := legendNode(m.stages[i].name); len(legend.kids) > 0 {
+			nodes = append(nodes, legend)
+		}
+	}
+	var out []string
+	for k, n := range nodes {
+		n.draw("", k == len(nodes)-1, &out)
+	}
+	return out
+}
+
+// legendNode gives a stage's legend as a node: each glyph, two cells wide, two spaces, and what it means.
+func legendNode(name string) node {
+	glyphs := func(entries []entry) []node {
+		var out []node
+		for _, e := range entries {
+			out = append(out, node{text: pad(e.glyph, 2, false) + "  " + e.meaning})
+		}
+		return out
+	}
+	legend := node{text: style.Off("legend"), kids: glyphs(legends[name])}
+	if name == "changes" {
+		legend.kids = append(legend.kids, node{text: style.Off("state"), kids: glyphs(states)})
+	}
+	return legend
+}
+
+// treeRows gives the rows the trees take: the tallest tree's, cut so the pane keeps a few lines.
+func (m Model) treeRows(l layout) int {
+	tallest := 0
+	for _, t := range l.trees {
+		tallest = max(tallest, len(t))
+	}
+	return max(1, min(tallest, m.height-fixed-minPane))
+}
+
+// center gives a stage's marker on the canvas.
+func (m Model) center(i int) int { return m.layout().at[i] }
+
+// follow scrolls the view sideways so the selected stage's tree starts a little room after the left edge, or as near
+// it as the end of the canvas lets; while the dot moves, so the dot does, and the view follows it. The trees before
+// the selected one are then hidden, under the dotted start.
+func (m *Model) follow() {
+	l, w := m.layout(), m.width-1
+	if len(m.stages) == 0 || l.width <= w {
+		m.scroll = 0
+		return
+	}
+	x := l.at[m.stage]
+	if m.moving {
+		x = m.dot.at
+	}
+	m.scroll = min(max(x-room, 0), l.width-w)
+}
+
+// line draws the line of stages as the view shows it: a marker ○ per stage, the dot ● in the accent color on the
+// selected one, or on its way there, and a hidden end drawn dotted.
+func (m Model) line(l layout) string {
+	w := min(m.width-1, l.width)
+	if len(m.stages) == 0 || w < 1 {
+		return ""
+	}
+	cells := make([]string, l.width)
 	for k := range cells {
 		cells[k] = "─"
 	}
-	for i := range m.stages {
-		cells[m.center(i)] = "○"
+	for _, x := range l.at {
+		cells[x] = "○"
 	}
-	dot := m.center(m.stage)
+	dot := l.at[m.stage]
 	if m.moving {
-		dot = m.dot.at
+		dot = min(max(m.dot.at, 0), l.width-1)
 	}
 	cells[dot] = style.Mark("●")
-	line.WriteString(strings.Join(cells, ""))
-	for i := range m.stages {
-		center := m.center(i)
-		label, width := m.label(i, w/n)
-		start := min(max(center-width/2, labelAt), w-width)
-		labels.WriteString(strings.Repeat(" ", max(0, start-labelAt)))
-		labels.WriteString(label)
-		labelAt = start + width
+	shown := cells[m.scroll : m.scroll+w]
+	ends := min(3, w/3)
+	if m.scroll > 0 {
+		for k := range ends {
+			shown[k] = dotted
+		}
 	}
-	return line.String(), labels.String()
+	if m.scroll+w < l.width {
+		for k := range ends {
+			shown[w-1-k] = dotted
+		}
+	}
+	return " " + strings.Join(shown, "")
 }
 
-// center gives the cell of a stage's marker on the line.
-func (m Model) center(i int) int {
-	n, w := len(m.stages), m.width-1
-	return (w * (2*i + 1)) / (2 * n)
+// treeLines draws the trees' rows as the view shows them, each tree under its marker and clipped at the right edge; a
+// tree whose marker is hidden, or under a dotted start, is hidden with it. A tree taller than the rows ends in a dim
+// … N more.
+func (m Model) treeLines(l layout, rows int) []string {
+	w := min(m.width-1, l.width)
+	edge := 0
+	if m.scroll > 0 {
+		edge = min(3, w/3)
+	}
+	out := make([]string, rows)
+	for r := range rows {
+		var b strings.Builder
+		at := 0
+		for i, t := range l.trees {
+			if r >= len(t) {
+				continue
+			}
+			text := t[r]
+			if r == rows-1 && len(t) > rows {
+				text = style.Off("… " + strconv.Itoa(len(t)-rows+1) + " more")
+			}
+			x := l.at[i] - m.scroll
+			if x < edge || x >= w {
+				continue
+			}
+			if x+ansi.StringWidth(text) > w {
+				text = ansi.Truncate(text, w-x, "")
+			}
+			b.WriteString(strings.Repeat(" ", max(0, x-at)))
+			b.WriteString(text)
+			at = x + ansi.StringWidth(text)
+		}
+		out[r] = strings.TrimRight(" "+b.String(), " ")
+	}
+	return out
 }
 
-// label gives a stage's label under its marker, and its width in cells: its glyph, its name, bold when selected, and
-// its count, dim. A label wider than its share is clipped, plain.
-func (m Model) label(i, share int) (string, int) {
-	s := m.stages[i]
-	glyph, count := stageGlyphs[s.name], m.count(i)
-	plain := strings.TrimSpace(strings.TrimSpace(glyph+" "+s.name) + " " + count)
-	if ansi.StringWidth(plain) > share {
-		plain = clip(plain, share)
-		return plain, ansi.StringWidth(plain)
-	}
-	name := s.name
-	if i == m.stage {
-		name = style.Mark(name)
-	}
-	label := strings.TrimSpace(glyph + " " + name)
-	if count != "" {
-		label += " " + style.Off(count)
-	}
-	return label, ansi.StringWidth(plain)
-}
-
-// pane gives the pane's lines, as many as it has: the legend's from its offset on when it shows, else the selected
-// stage's from its offset on.
-func (m Model) pane() []string {
-	h := m.paneHeight()
+// pane gives the pane's lines, as many as it has: the selected stage's from its offset on.
+func (m Model) pane(h int) []string {
 	var out []string
 	switch {
-	case m.legend:
-		out = windowed(m.legendLines(), m.legendOffset, h)
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
 	default:
@@ -197,145 +377,6 @@ func windowed(all []string, o, h int) []string {
 	out = append(out, all[start:end]...)
 	if below {
 		out = append(out, "   "+style.Off("… "+strconv.Itoa(len(all)-end)+" more"))
-	}
-	return out
-}
-
-// legendLines gives the legend: each group's name, dim, over its glyphs, one per line, every glyph in a column the eye
-// can run down. When every stage's own glyphs fit the width the line of stages gives it, the glyphs every stage
-// draws come first, and each stage's own sit under its name on the line; otherwise the groups flow into as many
-// columns as the width holds, a group never split.
-func (m Model) legendLines() []string {
-	var names []string
-	blocks := map[string][]string{}
-	for _, e := range legend {
-		if _, ok := blocks[e.group]; !ok {
-			names = append(names, e.group)
-			heading := e.group
-			if g := stageGlyphs[strings.SplitN(e.group, ":", 2)[0]]; g != "" {
-				heading = g + " " + e.group
-			}
-			blocks[e.group] = []string{style.Off(heading)}
-		}
-		blocks[e.group] = append(blocks[e.group], "  "+pad(e.glyph, 2, false)+"  "+e.meaning)
-	}
-	if out, ok := m.legendUnderStages(names, blocks); ok {
-		return out
-	}
-	groups := make([][]string, 0, len(names))
-	for _, name := range names {
-		groups = append(groups, blocks[name])
-	}
-	return flow(groups, max(m.width-3, 10))
-}
-
-// legendUnderStages lays the legend out under the line of stages: the groups every stage draws, then a row of
-// columns, each stage's groups starting where the stage's share of the line starts. It says no when a group belongs
-// to no stage on the line, or a stage's glyphs are wider than its share.
-func (m Model) legendUnderStages(names []string, blocks map[string][]string) ([]string, bool) {
-	n, w := len(m.stages), m.width-1
-	if n == 0 || w < 3*n {
-		return nil, false
-	}
-	share := w / n
-	columns := make([][]string, n)
-	var shared []string
-	for _, name := range names {
-		if name == groupEvery {
-			shared = blocks[name]
-			continue
-		}
-		at := -1
-		for i, s := range m.stages {
-			if name == s.name || strings.HasPrefix(name, s.name+":") {
-				at = i
-			}
-		}
-		if at < 0 || width(blocks[name]) > share-1 {
-			return nil, false
-		}
-		block := blocks[name]
-		if name == m.stages[at].name {
-			block = block[1:]
-		} else {
-			block = append([]string{style.Off(strings.TrimPrefix(name, m.stages[at].name+": "))}, block[1:]...)
-		}
-		if len(columns[at]) > 0 {
-			columns[at] = append(columns[at], "")
-		}
-		columns[at] = append(columns[at], block...)
-	}
-	out := make([]string, 0, len(shared)+16)
-	for _, l := range shared {
-		out = append(out, "   "+l)
-	}
-	out = append(out, "")
-	height := 0
-	for _, c := range columns {
-		height = max(height, len(c))
-	}
-	for row := 0; row < height; row++ {
-		var b strings.Builder
-		b.WriteString(" ")
-		at := 1
-		for i, c := range columns {
-			if row >= len(c) {
-				continue
-			}
-			center := (w * (2*i + 1)) / (2 * n)
-			start := 1 + max(i*w/n, center-width(c)/2)
-			b.WriteString(strings.Repeat(" ", max(0, start-at)))
-			b.WriteString(c[row])
-			at = start + ansi.StringWidth(c[row])
-		}
-		out = append(out, strings.TrimRight(b.String(), " "))
-	}
-	return out, true
-}
-
-// flow lays groups out in as many columns as the room holds, each as wide as the widest line, filled top to bottom
-// and a group never split across two.
-func flow(groups [][]string, room int) []string {
-	widest := 0
-	total := 0
-	for _, g := range groups {
-		widest = max(widest, width(g))
-		total += len(g) + 1
-	}
-	cell := min(widest+4, room)
-	columns := max(1, min(len(groups), room/cell))
-	target := (total + columns - 1) / columns
-	var cols [][]string
-	var current []string
-	for _, g := range groups {
-		if len(current) > 0 && len(current)+len(g) > target && len(cols) < columns-1 {
-			cols = append(cols, current)
-			current = nil
-		}
-		if len(current) > 0 {
-			current = append(current, "")
-		}
-		current = append(current, g...)
-	}
-	cols = append(cols, current)
-	height := 0
-	for _, c := range cols {
-		height = max(height, len(c))
-	}
-	out := make([]string, 0, height)
-	for row := 0; row < height; row++ {
-		var b strings.Builder
-		for n, c := range cols {
-			text := ""
-			if row < len(c) {
-				text = clip(c[row], cell)
-			}
-			if n < len(cols)-1 {
-				text = pad(text, cell, false)
-			}
-			b.WriteString(text)
-		}
-		out = append(out, "   "+strings.TrimRight(b.String(), " "))
 	}
 	return out
 }

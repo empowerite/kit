@@ -1,20 +1,22 @@
 # shellcheck shell=bash
-# status.sh - the picture of the work: five stages, drawn one at a time or all together (sourced module)
+# status.sh - the picture of the work: six stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit status draws the picture. Work moves left to right through five stages:
+# kit status draws the picture. Work moves left to right through six stages:
 #
-#   backlog → incoming → worktrees → changes → releases
+#   backlog → incoming → desk → worktrees → changes → releases
 #
 # The status setting in kit.yml names the stages the picture draws, in order. status:render draws one stage, or
-# the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog, changes, and releases live in
-# the modules named after them. The incoming and worktrees stages, and the cells every table shares, are here.
+# the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,
+# changes, and releases live in the modules named after them. The incoming, desk, and worktrees stages, and the
+# cells every table shares, are here.
 #
-# Where it runs decides what worktrees and changes draw:
+# The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
+# and changes draw:
 #
-#   - At a desk, the root checkout: the desk, every linked worktree, the branches whose upstream is gone, and every
-#     open pull request.
+#   - At a desk, the root checkout: every linked worktree, the branches whose upstream is gone, and every open pull
+#     request.
 #   - In a linked worktree: that worktree, and the pull request its branch holds, whoever opened it. The owner flags
 #     never hide it.
 #   - Above desks, in a directory inside no repository: it walks down. Every directory that holds a .git directory
@@ -22,7 +24,7 @@
 #     skips hidden directories and symbolic links, and goes no deeper than status_walk_depth. The desks are drawn in
 #     path order, each with a fetch of its own.
 #
-# backlog, incoming, and releases draw the same anywhere in a repository.
+# backlog, incoming, desk, and releases draw the same anywhere in a repository.
 #
 # The picture collects first and draws after. The forge stages run in the background while origin is fetched. Then
 # the checkouts are measured, and every stage is drawn in order. A repository with no origin draws its checkouts
@@ -77,13 +79,14 @@ status:stage-purpose() {
   case "$1" in
     (backlog) printf 'the open issues no pull request closes, oldest first\n' ;;
     (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
-    (worktrees) printf 'the desk and every worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
+    (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
+    (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (changes) printf 'the open pull requests, each with the issues it closes\n' ;;
     (releases) printf 'the releases on the forge, newest first\n' ;;
   esac
 }
 
-# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the five stages, a closed set, each with
+# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the six stages, a closed set, each with
 # what it lists.
 status:choices() {
   local stage
@@ -145,6 +148,7 @@ status:heading() {
   case "$1" in
     (backlog)   glyph=🎫 ;;
     (incoming)  glyph=📥 ;;
+    (desk)      glyph=🏠 ;;
     (worktrees) glyph=🌿 ;;
     (changes)   glyph=🔀 ;;
     (releases)  glyph=📦 ;;
@@ -748,19 +752,39 @@ status:pr-table() {
   done <<<"${prs}"
 }
 
-# status_desk, status_worktrees, and status_gone hold what status:worktrees measured: the desk's document, empty in
-# a worktree; each linked worktree's in issue-number order, or the one worktree's, each status:checkout's JSON; and
-# the branches whose upstream is gone, one per line, none in a worktree.
-declare -g status_desk='' status_gone=''
+# status_worktrees and status_gone hold what status:worktrees measured: each linked worktree's document in
+# issue-number order, or the one worktree's, each status:checkout's JSON; and the branches whose upstream is gone,
+# one per line, none in a worktree.
+declare -g status_gone=''
 declare -ga status_worktrees=()
 
-# status:checkouts <default-branch> measures the desk and every linked worktree, from origin's default branch, into
-# status_desk and status_worktrees.
-status:checkouts() {
-  local main_root desk_branch path branch
+# status:desk [--json] is the desk stage. It measures the root checkout, wherever kit runs in the repository, and
+# draws its block. With --json it prints the checkout's object instead.
+status:desk() {
+  local main_root branch doc
   main_root=$(git:main-root)
-  desk_branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-  status_desk=$(status:checkout "${main_root}" "${desk_branch}" "$1")
+  branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  doc=$(status:checkout "${main_root}" "${branch}" "$(git:default-branch)")
+  if [[ " $* " == *" --json "* ]]
+  then
+    printf '%s\n' "${doc}"
+  else
+    status:draw-desk "${doc}"
+  fi
+}
+
+# status:draw-desk <checkout-json> draws the desk's block.
+status:draw-desk() {
+  local relative branch width
+  IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"$1")
+  IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
+  status:checkout-block '🏠' "$1" "${width}"
+}
+
+# status:linked <default-branch> measures every linked worktree, from origin's default branch, into
+# status_worktrees.
+status:linked() {
+  local path branch
   status_worktrees=()
   while IFS=$'\t' read -r path _ branch
   do
@@ -769,25 +793,17 @@ status:checkouts() {
   done < <(git:linked-worktrees | status:by-number)
 }
 
-# status:draw-checkouts draws what status:worktrees measured: the desk's block, when there is one, then each
-# worktree's, the labels and the counts in columns.
+# status:draw-checkouts draws what status:worktrees measured: each worktree's block, the labels and the counts in
+# columns, a blank line between blocks.
 status:draw-checkouts() {
   local label_w=0 width relative branch widths doc first=true
-  local -a docs=()
-  [[ -z "${status_desk}" ]] || docs+=("${status_desk}")
-  docs+=("${status_worktrees[@]}")
-  for doc in "${docs[@]}"
+  for doc in "${status_worktrees[@]}"
   do
     IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
     IFS=$'\t' read -r _ width < <(status:label "${relative}" "${branch}")
     (( width > label_w )) && label_w=${width}
   done
-  widths=$(status:count-widths "${docs[@]}")
-  if [[ -n "${status_desk}" ]]
-  then
-    status:checkout-block '🏠' "${status_desk}" "${label_w}" "${widths}"
-    first=false
-  fi
+  widths=$(status:count-widths "${status_worktrees[@]}")
   for doc in "${status_worktrees[@]}"
   do
     if [[ "${first}" == true ]]
@@ -804,20 +820,20 @@ status:in-worktree() {
     != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
 }
 
-# status:worktrees [--json] is the worktrees stage. It measures the checkouts and draws them: at a desk, the desk,
-# every linked worktree in issue-number order, and the branches whose upstream is gone; in a worktree, that worktree
-# alone. With --json it prints status:worktrees-json's object instead.
+# status:worktrees [--json] is the worktrees stage. It measures the linked worktrees and draws them: at a desk,
+# every one in issue-number order, and the branches whose upstream is gone; in a worktree, that worktree alone.
+# With --json it prints status:worktrees-json's object instead.
 status:worktrees() {
   local default_branch here branch
   default_branch=$(git:default-branch)
-  status_desk='' status_gone='' status_worktrees=()
+  status_gone='' status_worktrees=()
   if status:in-worktree
   then
     here=$(git rev-parse --show-toplevel)
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
     status_worktrees=("$(status:checkout "${here}" "${branch}" "${default_branch}")")
   else
-    status:checkouts "${default_branch}"
+    status:linked "${default_branch}"
     status_gone=$(git:gone-branches)
   fi
   if [[ " $* " == *" --json "* ]]
@@ -828,26 +844,26 @@ status:worktrees() {
   fi
 }
 
-# status:worktrees-json prints what status:worktrees measured as one object: desk, null in a worktree; worktrees,
-# the checkouts' documents; and goneBranches, the names.
+# status:worktrees-json prints what status:worktrees measured as one object: worktrees, the checkouts' documents;
+# and goneBranches, the names.
 status:worktrees-json() {
   local gone
   gone=$(printf '%s\n' "${status_gone}" | jq --raw-input . | jq --slurp --compact-output 'map(select(. != ""))')
-  jq --null-input --compact-output --argjson desk "${status_desk:-null}" \
+  jq --null-input --compact-output \
     --argjson worktrees "$(printf '%s\n' "${status_worktrees[@]}" | jq --slurp --compact-output .)" \
-    --argjson goneBranches "${gone}" '{desk: $desk, worktrees: $worktrees, goneBranches: $goneBranches}'
+    --argjson goneBranches "${gone}" '{worktrees: $worktrees, goneBranches: $goneBranches}'
 }
 
-# status:draw-worktrees draws what status:worktrees measured: the checkout blocks, then, after a blank line, each
-# gone branch as 🔖 <branch> · upstream gone · kit tidy removes it. With nothing measured it says no worktree.
+# status:draw-worktrees draws what status:worktrees measured: the checkout blocks, or a dim line that says no
+# worktree; then, after a blank line, each gone branch as 🔖 <branch> · upstream gone · kit tidy removes it.
 status:draw-worktrees() {
   local branch
-  if [[ -z "${status_desk}" ]] && (( ${#status_worktrees[@]} == 0 ))
+  if (( ${#status_worktrees[@]} == 0 ))
   then
     status:none 'no worktree'
-    return 0
+  else
+    status:draw-checkouts
   fi
-  status:draw-checkouts
   [[ -n "${status_gone}" ]] || return 0
   printf '\n' >&2
   while IFS= read -r branch
@@ -864,6 +880,7 @@ status:stage() {
   case "${stage}" in
     (backlog) backlog:render "$@" ;;
     (incoming) status:incoming "$@" ;;
+    (desk) status:desk "$@" ;;
     (worktrees) status:worktrees "$@" ;;
     (changes) changes:render "$@" ;;
     (releases) releases:render "$@" ;;
@@ -946,11 +963,12 @@ status:picture() {
     warn "git fetch --prune failed; ahead and behind counts may be stale"
     failed=true
   fi
-  if list:among worktrees "${stages[@]}"
-  then
-    status:worktrees --json > "${scratch}/worktrees.json" 2> "${scratch}/worktrees.err" && code=0 || code=$?
-    printf '%s\n' "${code}" > "${scratch}/worktrees.status"
-  fi
+  for stage in desk worktrees
+  do
+    list:among "${stage}" "${stages[@]}" || continue
+    status:stage "${stage}" --json > "${scratch}/${stage}.json" 2> "${scratch}/${stage}.err" && code=0 || code=$?
+    printf '%s\n' "${code}" > "${scratch}/${stage}.status"
+  done
   wait
   # One rule for both forms: a stage that ran and failed makes the picture return 1, as a fetch that failed does. A
   # stage that did not run, with no origin, is no failure.
@@ -979,7 +997,7 @@ status:picture() {
   fi
   for stage in "${stages[@]}"
   do
-    [[ "${origin}" == true || "${stage}" == worktrees ]] || continue
+    [[ "${origin}" == true || "${stage}" == desk || "${stage}" == worktrees ]] || continue
     if [[ "${first}" == true ]]
     then first=false
     else printf '\n' >&2
@@ -1001,8 +1019,12 @@ status:picture() {
         status:heading incoming
         status:incoming-text "${doc}"
         ;;
+      (desk)
+        status:heading desk 1
+        status:draw-desk "${doc}"
+        ;;
       (worktrees)
-        status:heading worktrees "$(jq '(if .desk then 1 else 0 end) + (.worktrees | length)' <<<"${doc}")"
+        status:heading worktrees "$(jq '.worktrees | length' <<<"${doc}")"
         status:draw-worktrees
         ;;
       (changes)
@@ -1031,7 +1053,7 @@ status:render() {
     return
   fi
   case "${1:-}" in
-    (backlog | incoming | worktrees | changes | releases)
+    (backlog | incoming | desk | worktrees | changes | releases)
       stage=$1
       shift
   esac

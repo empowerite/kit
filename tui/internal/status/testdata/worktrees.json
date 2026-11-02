@@ -1,5 +1,4 @@
 {
-  "desk": {"path": "/home/kit", "relative": ".", "branch": "main", "detached": false, "ahead": 0, "behind": 0, "added": 0, "removed": 0, "commits": [], "uncommitted": 0, "changes": []},
   "worktrees": [
     {
       "path": "/home/kit/worktrees/1-the-first-release-v0-1-0", "relative": "worktrees/1-the-first-release-v0-1-0",
