@@ -4,7 +4,9 @@
 // its name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page,
 // then its checks, one row each. A failed check with a fix offers now and later on the cursor's row: now runs kit
 // welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
-// moves to the step's next failed check. The other steps are markdown pages drawn as text.
+// moves to the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is
+// drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps
+// are markdown pages drawn as text.
 //
 // Left and right move between the steps; inside a row with choices they move between now and later. Down enters a
 // step's rows and up on the first row leaves them. Up and down scroll a page. Esc goes back one level: from the rows
@@ -359,7 +361,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.now()
 		}
 	case "l":
-		if choosing {
+		if choosing || m.showOnly() {
 			m.later()
 		}
 	}
@@ -367,14 +369,23 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// choosing says whether the cursor is on a row that offers now and later: a failed check with a fix, in a step with
-// checks.
+// choosing says whether the cursor is on a row that offers now and later: a failed check with a fix kit runs, in a
+// step with checks.
 func (m Model) choosing() bool {
 	if !m.hasRows() || !m.inRows || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
-	return !c.OK && c.Fix != ""
+	return !c.OK && c.Fix != "" && c.Runs
+}
+
+// showOnly says whether the cursor is on a failed check whose fix kit shows and never runs.
+func (m Model) showOnly() bool {
+	if !m.hasRows() || !m.inRows || m.cursor >= len(m.checks) {
+		return false
+	}
+	c := m.checks[m.cursor]
+	return !c.OK && c.Fix != "" && !c.Runs
 }
 
 // cursorID gives the id of the check under the cursor, or nothing when there is none.

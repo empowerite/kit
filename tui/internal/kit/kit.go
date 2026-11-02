@@ -237,7 +237,8 @@ func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte
 
 // Check is one of kit welcome's checks, as kit welcome --checks --json prints it. Fix is the command that fixes it,
 // empty when kit knows none. Interactive says the fix needs the person, as gh auth login does. More says where to read
-// more, empty when there is nothing to read.
+// more, empty when there is nothing to read. Runs says kit runs the fix; it is false for a fix kit only shows, as one
+// that must run in the person's own shell. A check that does not say counts as runnable, so an older kit still works.
 type Check struct {
 	ID          string `json:"id"`
 	Step        string `json:"step"`
@@ -246,6 +247,18 @@ type Check struct {
 	Fix         string `json:"fix"`
 	Interactive bool   `json:"interactive"`
 	More        string `json:"more"`
+	Runs        bool   `json:"runs"`
+}
+
+// UnmarshalJSON reads a check, runnable unless it says runs is false.
+func (c *Check) UnmarshalJSON(b []byte) error {
+	type plain Check
+	p := plain{Runs: true}
+	if err := json.Unmarshal(b, &p); err != nil {
+		return err
+	}
+	*c = Check(p)
+	return nil
 }
 
 // WelcomeChecks gives kit welcome's checks, in the order kit ran them.

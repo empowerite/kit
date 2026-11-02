@@ -21,12 +21,13 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar: on the line of a step with checks, on a check's row, on a row that offers now and later, and on a
-// page.
+// The keys bar: on the line of a step with checks, on a check's row, on a row that offers now and later, on a row
+// whose fix kit only shows, and on a page.
 const (
 	stepKeys   = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc quit"
 	rowKeys    = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc back"
 	choiceKeys = "↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back"
+	showKeys   = "↑↓ move · ←→ step · esc back"
 	pageKeys   = "↑↓ scroll · ←→ step · esc quit"
 )
 
@@ -102,6 +103,8 @@ func (m Model) keys() string {
 		return pageKeys
 	case m.choosing():
 		return choiceKeys
+	case m.showOnly():
+		return showKeys
 	case m.inRows:
 		return rowKeys
 	}
@@ -344,7 +347,11 @@ func (m Model) stepLines() []line {
 	var left []line
 	for _, i := range rows {
 		if c := m.checks[i]; m.deferred[c.ID] && !c.OK {
-			left = append(left, line{-1, clip(lead+"• "+c.Line+": "+style.Mark(c.Fix), w)})
+			text := lead + "• " + c.Line + ": " + style.Mark(c.Fix)
+			if !c.Runs && c.Fix != "" {
+				text += style.Off(" · kit does not run it")
+			}
+			left = append(left, line{-1, clip(text, w)})
 			if c.More != "" {
 				left = append(left, line{-1, clip(lead+"  "+style.Mark(c.More), w)})
 			}
@@ -374,7 +381,7 @@ func (m Model) checkLines(i int, id string) []line {
 	if m.deferred[id] && !c.OK {
 		row += style.Off(" · later")
 	}
-	if focused && !c.OK && c.Fix != "" {
+	if focused && !c.OK && c.Fix != "" && c.Runs {
 		buttons := "   " + button("now", m.choice == now) + " " + button("later", m.choice == later)
 		row = clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}

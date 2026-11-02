@@ -1,7 +1,9 @@
 package welcome
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/style"
 	"github.com/empowerite/kit/tui/internal/testkit"
 )
@@ -65,7 +68,7 @@ func TestItOpensOnTheFirstStepWithAFailedCheckWithNowHighlighted(t *testing.T) {
 
 func TestItOpensOnTheIntroWhenEveryCheckPasses(t *testing.T) {
 	m, _ := fake(t)
-	state := []byte("jq\ntoolchain-project\ngh-auth\nkit-check\n")
+	state := []byte("jq\ntoolchain-project\ngh-auth\nkit-check\nbrew-path\n")
 	if err := os.WriteFile(os.Getenv("FAKE_WELCOME_STATE"), state, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -142,9 +145,9 @@ func TestLeftAndRightOnAFailedRowMoveBetweenNowAndLater(t *testing.T) {
 	if m.choice != now {
 		t.Errorf("left: choice %d", m.choice)
 	}
-	// enter on later leaves the check, as l does; it is the step's only failed check, so the cursor stays
+	// enter on later leaves the check, as l does, and moves to the step's other failed check, the show-only one
 	m = drive(m, right, enter)
-	if !m.deferred["jq"] || m.cursor != 1 || m.step != basics || len(r.calls) != 0 {
+	if !m.deferred["jq"] || m.cursor != 5 || m.step != basics || len(r.calls) != 0 {
 		t.Errorf("enter on later: deferred %v, cursor %d, ran %q", m.deferred, m.cursor, r.calls)
 	}
 }
@@ -305,10 +308,10 @@ func TestUpAndDownMoveOverTheStepsRowsAndLeaveThemAtTheTop(t *testing.T) {
 	if m = drive(m, down); !m.inRows || m.cursor != 1 {
 		t.Fatalf("down from the line: in rows %v, cursor %d", m.inRows, m.cursor)
 	}
-	if m = drive(m, down, down); m.cursor != 1 {
+	if m = drive(m, down, down, down); m.cursor != 5 {
 		t.Errorf("down past the step's last row: cursor %d", m.cursor)
 	}
-	if m = drive(m, up); m.cursor != 0 {
+	if m = drive(m, up, up); m.cursor != 0 {
 		t.Errorf("up: cursor %d", m.cursor)
 	}
 	if m = drive(m, pgup); m.inRows {
@@ -478,7 +481,7 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	// at 120 columns the eight do not fit in full: the others give up their names, the selected one keeps its own
-	if strings.Contains(labels, "└ 👋 intro") || !strings.Contains(labels, "└ 🧱 1") || strings.Contains(view(m), dotted) {
+	if strings.Contains(labels, "└ 👋 intro") || !strings.Contains(labels, "└ 🧱 2") || strings.Contains(view(m), dotted) {
 		t.Errorf("labels %q", labels)
 	}
 }
@@ -574,5 +577,63 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 	}
 	if got := view(New(testkit.Runner(t, "welcome"), "")); !strings.HasPrefix(got, " kit welcome\n") {
 		t.Errorf("title without a repository:\n%s", got)
+	}
+}
+
+// showOnly opens the screen on the basics step's show-only check, brew-path, below jq.
+func showOnly(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
+	t.Helper()
+	return loaded(t, append([]tea.Msg{down}, msgs...)...)
+}
+
+func TestAShowOnlyFixDrawsItsLinesAndNoChoices(t *testing.T) {
+	m, _ := showOnly(t)
+	if m.checks[m.cursor].ID != "brew-path" || m.choosing() || !m.showOnly() || m.keys() != showKeys {
+		t.Fatalf("cursor %d, choosing %v, keys %q", m.cursor, m.choosing(), m.keys())
+	}
+	got := view(m)
+	for _, want := range []string{"brew is installed but not on PATH", `eval "$(/opt/homebrew/bin/brew shellenv)"`,
+		"add it to your shell profile to keep it"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q:\n%s", want, got)
+		}
+	}
+	for _, no := range []string{" now ", " later ", "n now", "l later"} {
+		if strings.Contains(got, no) {
+			t.Errorf("show-only row offers %q:\n%s", no, got)
+		}
+	}
+}
+
+func TestNAndEnterRunNothingOnAShowOnlyFix(t *testing.T) {
+	m, r := showOnly(t)
+	m.exec = func(*exec.Cmd, tea.ExecCallback) tea.Cmd {
+		t.Error("a show-only fix handed the terminal over")
+		return nil
+	}
+	m = drive(m, press('n'), enter, left, right)
+	if len(r.calls) != 0 || len(m.deferred) != 0 {
+		t.Errorf("ran %q, deferred %v", r.calls, m.deferred)
+	}
+}
+
+func TestLaterLeavesAShowOnlyFixWithANote(t *testing.T) {
+	m, r := showOnly(t, press('l'))
+	if !m.deferred["brew-path"] || len(r.calls) != 0 {
+		t.Fatalf("deferred %v, ran %q", m.deferred, r.calls)
+	}
+	want := "   • brew is installed but not on PATH: eval \"$(/opt/homebrew/bin/brew shellenv)\" · kit does not run it\n"
+	if got := view(m); !strings.Contains(got, want) {
+		t.Errorf("no %q:\n%s", want, got)
+	}
+}
+
+func TestACheckWithoutRunsIsRunnable(t *testing.T) {
+	var c kit.Check
+	if err := json.Unmarshal([]byte(`{"id": "x", "fix": "do it"}`), &c); err != nil || !c.Runs {
+		t.Errorf("%+v, %v", c, err)
+	}
+	if err := json.Unmarshal([]byte(`{"id": "x", "fix": "do it", "runs": false}`), &c); err != nil || c.Runs {
+		t.Errorf("%+v, %v", c, err)
 	}
 }

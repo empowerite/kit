@@ -231,17 +231,21 @@ func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
 
 func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
 	checks, err := fake(t, "").WelcomeChecks()
-	if err != nil || len(checks) != 5 {
+	if err != nil || len(checks) != 6 {
 		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
 	}
 	want := Check{ID: "gh-auth", Step: "setup", Line: "gh is not logged in to github.com",
-		Fix: "gh auth login --hostname github.com", Interactive: true}
+		Fix: "gh auth login --hostname github.com", Interactive: true, Runs: true}
 	if checks[3] != want {
 		t.Errorf("check 3: %+v", checks[3])
 	}
 	// a null fix and a null more are empty
 	if checks[4].Fix != "" || checks[4].More == "" || !checks[0].OK {
 		t.Errorf("checks 0 and 4: %+v %+v", checks[0], checks[4])
+	}
+	// a show-only fix says so
+	if checks[5].ID != "brew-path" || checks[5].Runs {
+		t.Errorf("check 5: %+v", checks[5])
 	}
 }
 
