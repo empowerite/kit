@@ -143,6 +143,31 @@ REGO
   [[ "$output" == *"'cue' is not a policy engine the kit knows"* ]]
 }
 
+@test "a warning is printed and passes; a refusal beside it still fails" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+warn contains "consider fewer commits" if count(input.commits) > 1
+REGO
+  branch 7-many "#7 a: one" "#7 a: two"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⚠️ consider fewer commits"* ]]
+  [[ "$output" == *"allows"*"1 warning"* ]]
+  cat >> .kit/policy/ours.rego <<'REGO'
+
+deny contains "never two commits" if count(input.commits) > 1
+REGO
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"⚠️ consider fewer commits"* ]]
+  [[ "$output" == *"❌ never two commits"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 @test "kit policy --facts judges a saved document, and gathers nothing" {

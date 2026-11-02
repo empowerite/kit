@@ -286,4 +286,13 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
 }
 
+@test "kit commit prints a warning and commits" {
+  opa-rule 'warn contains "x is new" if input.tree.x'
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file' x
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⚠️ x is new"* ]]
+  [ "$(git log -1 --format=%s)" = "#7 x: a file" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

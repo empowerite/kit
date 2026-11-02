@@ -5,7 +5,7 @@
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # A policy sets what a branch name, a commit subject, or a change title may be. kit policy enforces it: it gathers
-# the facts, reads the rules, and calls a provider (the policy engine) to list every refusal. A provider is
+# the facts, reads the rules, and calls a provider (the policy engine) to list every refusal and every warning. A provider is
 # policy/<name>.sh beside it, whose functions are named policy/<name>:<call>.
 #
 # The facts are one JSON document, which modules/bash/facts.sh describes and builds. `kit facts` prints it, to write a
@@ -28,11 +28,14 @@
 # The providers:
 #
 #   patterns          the default: matches each pattern in bash, with no tool needed
-#   opa               runs Open Policy Agent over the Rego in .kit/policy/ (package kit.policy, rule deny)
+#   opa               runs Open Policy Agent over the Rego in .kit/policy/ (package kit.policy, rules deny and warn)
 #
-# Every provider implements one call:
+# Every provider implements the calls below, except where noted.
 #
 #   deny <input-file>       one refusal per line for the facts document in <input-file>
+#   warn <input-file>       one warning per line; a provider may implement it, and without it there are none
+#
+# A refusal fails the command. A warning is printed and never fails it.
 #
 # A rule that a pattern cannot express can be written in Rego alongside the patterns. The policy/opa package
 # delivers the default patterns as Rego, to start from.
@@ -118,6 +121,16 @@ policy:deny() {
   engine=$(policy:engine) || return 1
   use "policy/${engine}" || return 1
   "policy/${engine}:deny" "$1" | LC_ALL=C sort --unique
+}
+
+# policy:warn <input-file> prints every warning the provider finds in the facts, one per line, sorted and without
+# duplicates. A provider with no warn call has none. A warn call that fails fails this one, so no warning is lost.
+policy:warn() {
+  local engine
+  engine=$(policy:engine) || return 1
+  use "policy/${engine}" || return 1
+  declare -F "policy/${engine}:warn" >/dev/null || return 0
+  "policy/${engine}:warn" "$1" | LC_ALL=C sort --unique
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

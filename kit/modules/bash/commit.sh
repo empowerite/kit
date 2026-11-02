@@ -156,12 +156,13 @@ commit:attach() {
   fi
 }
 
-# commit:judge <branch> <subject> [<path>…] refuses a subject, a branch, or a tree the policy does not allow. It uses
-# the engine kit policy uses, with the facts of the commit moment: this one commit, and the tree it will make. With
+# commit:judge <branch> <subject> [<path>…] refuses a subject, a branch, or a tree the policy does not allow. It prints
+# warnings first, and they never refuse. It uses the engine kit policy uses, with the facts of the commit moment: this
+# one commit, and the tree it will make. With
 # <path>…, that tree is HEAD and those paths as the disk has them, as git commit --only makes it. It is built in an
 # index of its own, so what another session staged never shows in it. With no path, the tree is the index.
 commit:judge() {
-  local branch=$1 subject=$2 work refusals line
+  local branch=$1 subject=$2 work warnings refusals line
   shift 2
   work=$(mktemp -d) || return 1
   if (( $# > 0 ))
@@ -181,7 +182,19 @@ commit:judge() {
     error "the commit is refused: the policy could not be judged"
     return 1
   fi
+  # A warning is printed before any refusal and never fails the commit; one that cannot be judged does.
+  if ! warnings=$(policy:warn "${work}/input")
+  then
+    rm -rf "${work}"
+    error "the commit is refused: the policy could not be judged"
+    return 1
+  fi
   rm -rf "${work}"
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] || continue
+    warn "${line/#commit 0000000 /the subject }"
+  done <<<"${warnings}"
   [[ -n "${refusals}" ]] || return 0
   while IFS= read -r line
   do
