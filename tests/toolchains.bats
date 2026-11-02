@@ -242,7 +242,8 @@ choose() {
   [ "$status" -eq 0 ]
   run chosen </dev/null
   [ "$output" = brew ]
-  [ "$(cat .kit/cache/toolchain)" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ ! -e .kit/cache/toolchain ]
   [ "$(cat "${repo}/.git/kit/toolchain")" = mise ]
   cd "${repo}"
   run chosen </dev/null
@@ -260,7 +261,8 @@ choose() {
   rm mise.toml
   run choose brew
   [ "$status" -eq 0 ]
-  [ "$(cat .kit/cache/toolchain)" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ ! -e .kit/cache/toolchain ]
   # the branch gains mise.toml and drops the Brewfile; mise and docker are usable, brew is not
   touch mise.toml
   rm Brewfile
@@ -397,12 +399,13 @@ choose() {
   [ ! -e .kit ]
   run "${kit_root}/bin/kit" toolchains choose brew
   [ "$status" -eq 0 ]
-  [ "$(cat .kit/cache/toolchain)" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ ! -e .kit ]
   [ -z "$(git status --porcelain)" ]
   cd "${repo}"
 }
 
-@test "kit toolchains hydrates a kit repository's fresh worktree before it records the choice" {
+@test "a choice made in a kit repository's fresh worktree is kept in its git directory, and git sees nothing" {
   "${kit_checkout}/bin/kit" install
   touch mise.toml Brewfile
   git add --all && git commit --quiet --message init
@@ -410,7 +413,8 @@ choose() {
   cd "${BATS_TEST_TMPDIR}/feature"
   run "${kit_root}/bin/kit" toolchains choose brew
   [ "$status" -eq 0 ]
-  [ -f .kit/1st.md ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ ! -e .kit/cache/toolchain ]
   [ -z "$(git status --porcelain)" ]
   cd "${repo}"
 }

@@ -80,10 +80,12 @@ name too: it chooses none.
 | --- | --- | --- |
 | The system choice | `toolchain:` in `~/.kit/settings.yml` | every repository on the machine |
 | The project choice, at the desk | `<git common dir>/kit/toolchain` | the desk and every worktree of the clone |
-| The project choice, in a worktree | `.kit/cache/toolchain` | that worktree alone |
+| The project choice, in a worktree | `<its git dir>/kit/toolchain`, in `.git/worktrees/` | that worktree alone |
 | What detection found | `.kit/cache/toolchains.tsv`, keyed by `.kit/cache/toolchains.key` | nothing; each checkout has its own |
 
-- Nothing here is committed. `.kit/.gitignore` always lists `/cache/`.
+- Nothing here is committed. Each choice lives in the git directory, never in the working tree.
+  `.kit/.gitignore` always lists `/cache/`.
+- `git worktree remove` takes a worktree's own choice with it.
 - A worktree takes the desk's choice while that toolchain is usable there. Its branch may lack the file, though.
   Then kit asks again, and keeps the answer in the worktree alone.
 - The cache holds while `PATH`, where each tool resolves, each provider's files, and each activation marker are

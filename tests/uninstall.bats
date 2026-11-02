@@ -63,6 +63,24 @@ tree() {
   [ ! -e .git/kit/toolchain ]
 }
 
+@test "uninstall in a linked worktree takes out that worktree's own toolchain choice, and leaves the clone's" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  git add --all && git commit --quiet --message init
+  kit-bash 'use toolchain && toolchain:choose project ambient'
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
+  cd "${BATS_TEST_TMPDIR}/feature"
+  "${kit_checkout}/bin/kit" hydrate >/dev/null 2>&1
+  kit-bash 'use toolchain && toolchain:choose project ambient'
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = ambient ]
+  run "${kit_checkout}/bin/kit" uninstall --dry-run
+  [[ "$output" == *"worktrees/feature/kit/toolchain: would be removed"* ]]
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  [ ! -e "${repo}/.git/worktrees/feature/kit" ]
+  [ "$(cat "${repo}/.git/kit/toolchain")" = ambient ]
+  cd "${repo}"
+}
+
 @test "uninstall leaves a copied file the repository edited, names it, and takes out the rest" {
   "${kit_checkout}/bin/kit" install github/ci >/dev/null 2>&1
   printf '# edited\n' >> .github/workflows/kit-ci.yml

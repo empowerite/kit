@@ -26,7 +26,7 @@
 #
 #   - system: toolchain: <name> in ${KIT_HOME:-$HOME}/.kit/settings.yml
 #   - project, at the desk: <git common dir>/kit/toolchain, shared with every worktree of the clone
-#   - project, in a linked worktree: .kit/cache/toolchain, kept in that worktree alone
+#   - project, in a linked worktree: <its git dir>/kit/toolchain, kept in that worktree alone
 #
 # Every provider implements the calls below, except where noted.
 #
@@ -283,7 +283,7 @@ toolchain:refuse() {
 #
 #   - system: toolchain: <provider> in ${KIT_HOME:-$HOME}/.kit/settings.yml, written with yq
 #   - project, at the desk: <git common dir>/kit/toolchain, which every worktree of the clone reads
-#   - project, in a linked worktree: .kit/cache/toolchain, which only that worktree reads
+#   - project, in a linked worktree: <its git dir>/kit/toolchain, which only that worktree reads
 toolchain:choose() {
   local role=$1 provider=$2 settings found kept
   local -a usable
@@ -307,7 +307,6 @@ toolchain:choose() {
       ;;
     (project)
       kept=$(toolchain:kept) || return 1
-      toolchain:ignored "${kept}" || return 1
       file:replace "${kept}" printf '%s\n' "${provider}"
       ;;
   esac
@@ -331,28 +330,13 @@ toolchain:recorded() {
   [[ ! -s "${common}/kit/toolchain" ]] || head -n 1 "${common}/kit/toolchain"
 }
 
-# toolchain:kept prints the file that keeps the project choice made here: <git common dir>/kit/toolchain at the
-# desk, where git rev-parse --show-toplevel is git:main-root, and .kit/cache/toolchain in a linked worktree.
+# toolchain:kept prints the file that keeps the project choice made here: kit/toolchain in this checkout's git
+# directory. At the desk, that is the common one. A linked worktree has its own, .git/worktrees/<name>/ in the
+# clone, so its choice is never in the working tree, and git worktree remove takes it away.
 toolchain:kept() {
-  local top common
-  use git || return 1
-  top=$(git rev-parse --show-toplevel) || return 1
-  common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
-  if [[ "${top}" == "$(git:main-root)" ]]
-  then printf '%s/kit/toolchain\n' "${common}"
-  else printf '%s/.kit/cache/toolchain\n' "${top}"
-  fi
-}
-
-# toolchain:ignored <kept> makes sure git never sees a choice kept under .kit/cache/. A worktree not yet hydrated
-# has no .kit/.gitignore, so it writes one that lists /cache/, as kit hydrate would, with no delivered paths.
-toolchain:ignored() {
-  local ignore
-  [[ "$1" == */.kit/cache/toolchain ]] || return 0
-  ignore="${1%/cache/toolchain}/.gitignore"
-  ! grep --quiet --line-regexp /cache/ "${ignore}" 2>/dev/null || return 0
-  use materialize || return 1
-  file:replace "${ignore}" materialize:ignore-text
+  local dir
+  dir=$(git rev-parse --path-format=absolute --git-dir) || return 1
+  printf '%s/kit/toolchain\n' "${dir}"
 }
 
 # toolchain:settings prints the file that keeps the system choice: ~/.kit/settings.yml, under KIT_HOME when set.

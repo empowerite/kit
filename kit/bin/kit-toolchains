@@ -30,7 +30,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain settings status materialize
+use toolchain settings status
 guard:arguments toolchains "$@" || exit $?
 # kit.yml selects no toolchain, and a key it does not know, as toolchains now is, is refused.
 settings:validate || exit 1
@@ -40,8 +40,6 @@ if [[ "${syntax_literals[0]:-}" == choose ]]
 then
   role=project
   [[ -z "${syntax_options[--system]:-}" ]] || role=system
-  # A fresh worktree is hydrated first, so its .kit/.gitignore hides the choice kept under .kit/cache/.
-  materialize:hydrate >&2
   toolchain:choose "${role}" "${syntax_operands[0]}" || exit 1
   ok "kit uses ${syntax_operands[0]} for the ${role}"
   exit 0
