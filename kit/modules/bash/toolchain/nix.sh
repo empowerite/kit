@@ -32,8 +32,8 @@ toolchain/nix:install() {
 # toolchain/nix:outdated asks nix for the current revision of each input's original reference. It prints each input
 # whose locked revision differs from the current one, with the locked revision as installed. Differs is all it can
 # say: nix gives no order between revisions. An input pinned to a revision in flake.nix, or that is not a flake, is
-# not asked. An input nix cannot read is reported by name on stderr, and the others are still asked: kit tools
-# drops a failed call's whole answer, so the report would otherwise be lost to one unreachable source.
+# not asked. An input nix cannot read is reported by name on stderr, and the others are still asked. Then it fails
+# on purpose, after printing what it read: kit tools keeps those rows, and says it could not tell about the rest.
 toolchain/nix:outdated() {
   local name ref locked doc latest status=0
   toolchain/nix:require || return 1
