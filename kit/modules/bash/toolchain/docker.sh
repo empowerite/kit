@@ -44,6 +44,23 @@ toolchain/docker:outdated() {
 # The tools are in the image, so path prints nothing. A command reaches them through run.
 toolchain/docker:path() { return 0; }
 
+# toolchain/docker:pins prints each base image with its pinned digest, read from the file. Once the image built from
+# the file is present, each base is installed at its pin, or as built when it has none.
+toolchain/docker:pins() {
+  local tag present=false base pinned
+  toolchain/docker:require || return 1
+  tag=$(toolchain/docker:tag) || return 1
+  ! docker image inspect "${tag}" >/dev/null 2>&1 || present=true
+  while IFS=$'\t' read -r base pinned
+  do
+    [[ -n "${base}" ]] || continue
+    if [[ "${present}" == true ]]
+    then printf '%s\t%s\t%s\n' "${base}" "${pinned}" "${pinned:-built}"
+    else printf '%s\t%s\t\n' "${base}" "${pinned}"
+    fi
+  done < <(toolchain/docker:bases)
+}
+
 toolchain/docker:require() {
   command -v docker >/dev/null 2>&1 && return 0
   error "install Docker: https://docs.docker.com/get-docker/ (the docker toolchain needs it)"

@@ -11,3 +11,13 @@ import "toolchain" as toolchain; [toolchain::brew_outdated("jq\nfirefox\n")]
 import "toolchain" as toolchain; [toolchain::brew_outdated("jq\n")]
 {"formulae": [{"name": "wget", "installed_versions": ["1.0"], "current_version": "1.1"}], "casks": []}
 []
+
+# mise ls --json --current gives each tool its pin, as mise.toml asks for it, and the version installed, or none.
+import "toolchain" as toolchain; [toolchain::mise_pins]
+{"jq": [{"version": "1.8.0", "requested_version": "1.8", "installed": true}], "just": [{"version": "1.40.0", "requested_version": "1.40", "installed": false}], "yq": [{"version": "4.45.1", "installed": true}]}
+["jq\t1.8\t1.8.0","just\t1.40\t","yq\t4.45.1\t4.45.1"]
+
+# A brew name pins a version only where it carries one after @; brew list --versions gives the newest installed.
+import "toolchain" as toolchain; [toolchain::brew_pins("jq\nnode@22\nfirefox\n")]
+"jq 1.7 1.7.1\nnode@22 22.11.0\nwget 1.24\n"
+["jq\t\t1.7.1","node@22\t22\t22.11.0","firefox\t\t"]

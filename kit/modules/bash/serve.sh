@@ -28,7 +28,7 @@ use context help release syntax
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
 # The tools, each a verb that changes nothing.
-declare -gra serve_tools=(check context help kinds lint packages status syntax toolchains version)
+declare -gra serve_tools=(check context help kinds lint packages status syntax toolchains tools version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(status)

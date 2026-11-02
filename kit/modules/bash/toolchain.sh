@@ -36,11 +36,12 @@
 #   install                 installs every pinned tool, from the file and its lock
 #   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"
 #   path                    the directories to put first on PATH for its tools, one per line
+#   pins                    one line per pinned unit, "<name>\t<pinned>\t<installed>", from local files alone
 #   require                 succeeds when its own tool is present; otherwise fails with a remedy
 #   roles                   the roles it can fill, one per line: project, system, or both
 #   update                  moves every tool to its latest version, and rewrites the pins and the lock
 #   usable <role>           succeeds when its tool is installed and on PATH, and it is configured for the role
-#   run <command>…          runs the command with its tools; only docker implements it, because it isolates
+#   run <command>…          runs the command with its tools; only a provider that isolates, as docker, implements it
 #
 # see: docs/toolchains.md
 
@@ -121,8 +122,7 @@ toolchain:call() {
 }
 
 # toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, brew,
-# docker, then any other in toolchain:providers order. mise comes first, so its pinned tools shadow brew's unpinned
-# ones on PATH.
+# docker, then any other in toolchain:providers order. The order is how the candidates are offered; a run uses one.
 toolchain:usable() {
   toolchain:detect | toolchain:ranked "$1" usable
 }
@@ -297,7 +297,8 @@ toolchain:choose() {
 }
 
 # toolchain:recorded <role> prints the choices recorded for the role, one per line, or nothing. A linked worktree
-# prints its own choice first, then the clone's; toolchain:chosen takes the first that is usable.
+# prints its own choice first, then the clone's; toolchain:chosen takes the first that is usable. Outside a git
+# repository, nothing is recorded for the project.
 toolchain:recorded() {
   local role=$1 kept common
   toolchain:role "${role}" || return 1
@@ -307,7 +308,7 @@ toolchain:recorded() {
     yaml:value "$(toolchain:settings)" toolchain
     return
   fi
-  common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
   kept=$(toolchain:kept) || return 1
   [[ "${kept}" == "${common}/kit/toolchain" || ! -s "${kept}" ]] || head -n 1 "${kept}"
   [[ ! -s "${common}/kit/toolchain" ]] || head -n 1 "${common}/kit/toolchain"
@@ -354,27 +355,35 @@ toolchain:among() {
   return 1
 }
 
-# toolchain:path prints the directories that every toolchain usable for the project puts first on PATH, in
-# precedence order, one per line.
+# toolchain:path prints the directories the chosen project toolchain puts first on PATH, one per line. Ambient, it
+# prints nothing.
 toolchain:path() {
-  local provider
-  for provider in $(toolchain:usable project)
-  do
-    toolchain:call "${provider}" path || return 1
-  done
+  local chosen
+  chosen=$(toolchain:chosen project) || return 1
+  [[ "${chosen}" != ambient ]] || return 0
+  toolchain:call "${chosen}" path
 }
 
-# toolchain:run <command>… runs the command with the project's tools: inside the container when docker is usable
-# for the project, otherwise with every usable toolchain's path first on PATH. With none, the command runs as is.
+# toolchain:run <command>… runs the command with the chosen project toolchain's tools:
+#
+#   - through the provider's run, where it has one, as docker does to run in its container
+#   - otherwise, with the provider's path first on PATH
+#   - ambient, as is
 toolchain:run() {
-  local usable dirs
-  usable=$(toolchain:usable project) || return 1
-  if [[ $'\n'"${usable}"$'\n' == *$'\ndocker\n'* ]]
+  local chosen dirs
+  chosen=$(toolchain:chosen project) || return 1
+  if [[ "${chosen}" == ambient ]]
   then
-    toolchain:call docker run "$@"
+    "$@"
     return
   fi
-  dirs=$(toolchain:path | paste -s -d ':' -) || return 1
+  use "toolchain/${chosen}" || return 1
+  if declare -F "toolchain/${chosen}:run" >/dev/null
+  then
+    toolchain:call "${chosen}" run "$@"
+    return
+  fi
+  dirs=$(toolchain:call "${chosen}" path | paste -s -d ':' -) || return 1
   PATH="${dirs:+${dirs}:}${PATH}" "$@"
 }
 

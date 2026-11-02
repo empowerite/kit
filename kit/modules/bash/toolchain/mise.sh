@@ -42,6 +42,19 @@ toolchain/mise:path() {
   mise bin-paths 2>/dev/null
 }
 
+# toolchain/mise:pins reads mise ls offline, so the listing never reaches the network, even for a pin of latest.
+toolchain/mise:pins() {
+  local doc
+  toolchain/mise:require || return 1
+  if ! doc=$(MISE_OFFLINE=1 mise ls --json --current 2>/dev/null)
+  then
+    error "mise ls could not run; see: mise doctor"
+    return 1
+  fi
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --raw-output 'import "toolchain" as toolchain; toolchain::mise_pins' <<<"${doc:-{\}}"
+}
+
 toolchain/mise:require() {
   command -v mise >/dev/null 2>&1 && return 0
   error "install mise: https://mise.jdx.dev/installing-mise.html (the mise toolchain needs it)"

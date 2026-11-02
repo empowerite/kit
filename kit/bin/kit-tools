@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+# kit-tools - lists, installs, and updates what the chosen toolchain pins (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
+#
+# kit tools (install | update | path | run <command>…) [--toolchain <name>]
+#
+# Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
+#
+# Alone, it lists each pinned tool: its name, the version pinned, and the version installed. A row marks what is
+# installed. It reads local files only, and never reaches the network. With --outdated, it adds the latest version.
+# With no toolchain, kit runs ambient. Then it lists the tools the rules' linters need, and where each is on PATH.
+#
+#   --outdated          only the tools behind their latest version; reaches the network
+#   --check             with --outdated: fails when any tool is behind
+#   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does
+#   <name>              mise, nix, brew, docker, devcontainer, or ambient
+#   --json              one JSON object per tool: name, pinned, installed, latest with --outdated
+#   --jq                the same JSON, formatted by jq for a person
+#   install             installs every pinned tool; ambient, names what to install
+#   update              moves every tool to its latest, and rewrites the pins
+#   path                prints the directories that put the tools first on PATH
+#   run <command>…      runs the command with the tools, or in their container
+#   <command>…          the command and its arguments, as typed, dash-words included
+#
+# Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
+# has name and path.
+#
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error; run exits with the command's status.
+#
+# see: modules/bash/toolchain.sh, docs/toolchains.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use toolchain settings status materialize yaml
+guard:arguments tools "$@" || exit $?
+settings:validate || exit 1
+
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+[[ -z "${syntax_options[--toolchain]+x}" ]] || export KIT_TOOLCHAIN=${syntax_options[--toolchain]}
+verb=${syntax_literals[0]:-}
+json=false
+[[ -z "${syntax_options[--json]+x}" ]] || json=true
+
+chosen=$(toolchain:chosen project) || exit 1
+
+# needed prints "<tool>\t<path>" for each tool a rule's or a style's linter runs, once each: the first word of its
+# lint: command. The path is where it is found on PATH, or nothing.
+needed() {
+  local file tool
+  local -A seen=()
+  materialize:hydrate >&2 || return 1
+  for file in .kit/rules/*.md .kit/styles/*.md
+  do
+    [[ -f "${file}" ]] || continue
+    tool=$(yaml:value "${file}" lint 2>/dev/null) || continue
+    tool=${tool%% *}
+    [[ -n "${tool}" && -z "${seen[${tool}]+x}" ]] || continue
+    seen[${tool}]=1
+    printf '%s\t%s\n' "${tool}" "$(command -v "${tool}" 2>/dev/null || true)"
+  done
+}
+
+# draw <header> reads tab-separated rows on stdin, a glyph first, and prints them as a table: each column sized to
+# its widest cell, the cells joined by status_sep, and the empty cells at a row's end dropped with their separators.
+draw() {
+  local width row line i
+  local -a header lines cells sizes=()
+  IFS=$'\t' read -r -a header <<<"$1"
+  readarray -t lines
+  for (( i = 0; i < ${#header[@]}; i++ ))
+  do
+    sizes[i]=${#header[i]}
+  done
+  for row in "${lines[@]}"
+  do
+    split "${row}"
+    for (( i = 1; i < ${#cells[@]}; i++ ))
+    do
+      (( ${#cells[i]} <= ${sizes[i - 1]:-0} )) || sizes[i - 1]=${#cells[i]}
+    done
+  done
+  width=$(status:width)
+  printf '%s\n' "$(status:paint 90 "$(join '  ' "${header[@]}")")"
+  for row in "${lines[@]}"
+  do
+    split "${row}"
+    line=$(join "${cells[@]}")
+    # a glyph counts as one character and is drawn two wide, so the row is clipped one short
+    if (( ${#line} + 1 > width ))
+    then status:cell "${line}" $(( width - 1 )); printf '\n'
+    else printf '%s\n' "${line}"
+    fi
+  done
+}
+
+# split <row> sets draw's cells to the row's tab-separated cells. To read, a tab is whitespace, and two tabs count as
+# one, so each becomes \x1f first, which delimits every field.
+split() {
+  IFS=$'\x1f' read -r -a cells <<<"${1//$'\t'/$'\x1f'}"
+}
+
+# join <glyph> <cell>… prints the glyph, then each cell padded to its column's size from draw's sizes, joined by
+# status_sep. The empty cells at the end are dropped.
+join() {
+  local glyph=$1 out='' i last=-1
+  shift
+  local -a cells=("$@")
+  for (( i = 0; i < ${#cells[@]}; i++ ))
+  do
+    [[ -z "${cells[i]}" ]] || last=${i}
+  done
+  for (( i = 0; i <= last; i++ ))
+  do
+    # shellcheck disable=SC2154  # status_sep is set by modules/bash/status.sh
+    (( i == 0 )) || out+=${status_sep}
+    if (( i == last ))
+    then out+=${cells[i]}
+    else out+=$(status:cell "${cells[i]}" "${sizes[i]}")
+    fi
+  done
+  printf '%s %s' "${glyph}" "${out}"
+}
+
+# ambient handles every verb when no toolchain is chosen: the rules' tools stand in for the pins.
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+ambient() {
+  local tool path found missing=() rows=''
+  case "${verb}" in
+    (path) return 0 ;;
+    (run) "${syntax_operands[@]}"; return ;;
+    (update)
+      error "no toolchain pins this repository's tools, so there is nothing to update; see: kit toolchains"
+      return 1
+      ;;
+    (*) ;;
+  esac
+  if [[ -n "${syntax_options[--outdated]+x}" ]]
+  then
+    ok "no toolchain pins this repository's tools, so none is behind; see: kit toolchains"
+    return 0
+  fi
+  found=$(needed) || return 1
+  while IFS=$'\t' read -r tool path
+  do
+    [[ -n "${tool}" ]] || continue
+    [[ -n "${path}" ]] || missing+=("${tool}")
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${tool}" --arg path "${path}" \
+        '{name: $name, path: ($path | if . == "" then null else . end)}'
+    elif [[ -n "${path}" ]]
+    then rows+=$'✅\t'"${tool}"$'\t'"${path}"$'\n'
+    else rows+=$'❌\t'"${tool}"$'\tmissing\n'
+    fi
+  done <<<"${found}"
+  if [[ "${verb}" == install ]]
+  then
+    if (( ${#missing[@]} == 0 ))
+    then
+      ok "no toolchain pins the tools here, and every tool the rules need is on PATH"
+      return 0
+    fi
+    error "no toolchain pins the tools here, so kit installs none; install by hand: ${missing[*]}"
+    [[ "$(toolchain:chosen system list 2>/dev/null)" != brew ]] || info "with brew: brew install ${missing[*]}"
+    return 1
+  fi
+  [[ "${json}" == true ]] || printf '%s' "${rows}" | draw $'name\tfound'
+}
+
+if [[ "${chosen}" == ambient ]]
+then
+  ambient
+  exit $?
+fi
+
+file=$(toolchain:call "${chosen}" file)
+case "${verb}" in
+  (install)
+    step "${chosen}: installing from ${file}"
+    if ! toolchain:call "${chosen}" install
+    then
+      error "${chosen}: the tools could not be installed; see above"
+      exit 1
+    fi
+    ok "${chosen} installed the tools ${file} pins"
+    summary "✅ Tools installed with ${chosen}, from ${file}."
+    exit 0
+    ;;
+  (update)
+    toolchain:call "${chosen}" update || exit 1
+    ok "${chosen} moved every tool to its latest; commit the pins and the lock it rewrote"
+    exit 0
+    ;;
+  (path)
+    toolchain:call "${chosen}" path
+    exit
+    ;;
+  (run)
+    toolchain:run "${syntax_operands[@]}"
+    exit
+    ;;
+  (*) ;;
+esac
+
+pins=$(toolchain:call "${chosen}" pins) || { error "${chosen}: the pinned tools could not be read"; exit 1; }
+if [[ -z "${syntax_options[--outdated]+x}" ]]
+then
+  rows=''
+  # A pin or a version can be empty, so each tab becomes \x1f, which read never runs together with the next.
+  while IFS=$'\x1f' read -r name pinned installed
+  do
+    [[ -n "${name}" ]] || continue
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${name}" --arg pinned "${pinned}" --arg installed "${installed}" \
+        '{name: $name, pinned: $pinned, installed: $installed} | map_values(if . == "" then null else . end)'
+    elif [[ -n "${installed}" ]]
+    then rows+="✅"$'\t'"${name}"$'\t'"${pinned}"$'\t'"${installed}"$'\n'
+    else rows+="❌"$'\t'"${name}"$'\t'"${pinned}"$'\t\n'
+    fi
+  done <<<"${pins//$'\t'/$'\x1f'}"
+  [[ "${json}" == true ]] || printf '%s' "${rows}" | draw $'name\tpinned\tinstalled'
+  exit 0
+fi
+
+# --outdated: the provider's answer, with the pin and the installed version from pins where it names the tool.
+declare -A pinned_of=() installed_of=()
+while IFS=$'\x1f' read -r name pinned installed
+do
+  [[ -z "${name}" ]] || { pinned_of[${name}]=${pinned}; installed_of[${name}]=${installed}; }
+done <<<"${pins//$'\t'/$'\x1f'}"
+outdated=$(toolchain:call "${chosen}" outdated) || { error "${chosen}: could not tell which tools are behind"; exit 1; }
+rows='' behind=0
+while IFS=$'\x1f' read -r name installed latest
+do
+  [[ -n "${name}" ]] || continue
+  behind=$(( behind + 1 ))
+  pinned=${pinned_of[${name}]-}
+  [[ -z "${installed_of[${name}]+x}" ]] || installed=${installed_of[${name}]}
+  if [[ "${json}" == true ]]
+  then
+    jq --null-input --compact-output --arg name "${name}" --arg pinned "${pinned}" --arg installed "${installed}" \
+      --arg latest "${latest}" '{name: $name, pinned: $pinned, installed: $installed, latest: $latest}
+        | map_values(if . == "" then null else . end)'
+  else
+    rows+="🔺"$'\t'"${name}"$'\t'"${pinned}"$'\t'"${installed}"$'\t'"${latest}"$'\n'
+  fi
+done <<<"${outdated//$'\t'/$'\x1f'}"
+[[ "${json}" == true ]] || [[ -z "${rows}" ]] || printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'
+if (( behind == 0 ))
+then
+  ok "every tool ${chosen} pins is at its latest"
+elif [[ -n "${syntax_options[--check]+x}" ]]
+then
+  error "${behind} tool(s) are behind; run: kit tools update"
+  exit 1
+else
+  warn "${behind} tool(s) are behind; run: kit tools update"
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

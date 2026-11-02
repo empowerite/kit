@@ -1,0 +1,170 @@
+{
+  "verb": "tools",
+  "purpose": "lists, installs, and updates what the chosen toolchain pins",
+  "usage": [
+    "kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]",
+    "kit tools (install | update | path | run <command>…) [--toolchain <name>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "outdated",
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "check",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": false,
+              "name": "toolchain",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "install",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "update",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "path",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "run",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "command",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": false,
+              "name": "toolchain",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--outdated": {
+      "description": "only the tools behind their latest version; reaches the network"
+    },
+    "--check": {
+      "description": "with --outdated: fails when any tool is behind"
+    },
+    "--toolchain": {
+      "description": "uses this toolchain for the run, as KIT_TOOLCHAIN does"
+    },
+    "<name>": {
+      "description": "mise, nix, brew, docker, devcontainer, or ambient"
+    },
+    "--json": {
+      "description": "one JSON object per tool: name, pinned, installed, latest with --outdated"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "install": {
+      "description": "installs every pinned tool; ambient, names what to install"
+    },
+    "update": {
+      "description": "moves every tool to its latest, and rewrites the pins"
+    },
+    "path": {
+      "description": "prints the directories that put the tools first on PATH"
+    },
+    "run": {
+      "description": "runs the command with the tools, or in their container"
+    },
+    "<command>": {
+      "description": "the command and its arguments, as typed, dash-words included"
+    }
+  }
+}

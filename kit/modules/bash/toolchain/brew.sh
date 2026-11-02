@@ -45,6 +45,17 @@ toolchain/brew:path() {
   printf '%s/bin\n%s/sbin\n' "${prefix}" "${prefix}"
 }
 
+# toolchain/brew:pins reads the Brewfile's names and the versions brew has installed. Neither updates Homebrew.
+toolchain/brew:pins() {
+  local brew names versions
+  brew=$(toolchain/brew:brew) || return 1
+  names=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" bundle list --file "$(toolchain/brew:file)" --formula --cask \
+    2>/dev/null) || return 1
+  versions=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" list --versions 2>/dev/null) || return 1
+  jq -L "${kit_jq}" --raw-input --slurp --raw-output --arg names "${names}" \
+    'import "toolchain" as toolchain; toolchain::brew_pins($names)' <<<"${versions}"
+}
+
 toolchain/brew:require() { toolchain/brew:brew >/dev/null; }
 
 toolchain/brew:roles() { printf 'system\nproject\n'; }
