@@ -67,7 +67,7 @@
       "description": "records the toolchain for the project; ambient chooses none"
     },
     "<name>": {
-      "description": "mise, nix, brew, docker, devcontainer, or ambient"
+      "description": "mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient"
     },
     "--system": {
       "description": "records it for the system role, which supplies bash, git, jq, and yq"
