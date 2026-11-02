@@ -894,7 +894,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	m = drive(m, down, enter)
 	v := view(m)
 	order := []string{style.Focus + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
-		"c0ffeea #45 status: the goldens", "… and 2 more"}
+		"c0ffeea #45 status: the goldens", "c0ffeeb #45 status: the eleventh", "… and 1 more"}
 	at := -1
 	for _, want := range order {
 		k := strings.Index(v, want)
@@ -902,9 +902,6 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 			t.Errorf("the open desk lacks %q after the line before it:\n%s", want, v)
 		}
 		at = k
-	}
-	if strings.Contains(v, "c0ffeeb") {
-		t.Errorf("the open desk lists more than ten commits:\n%s", v)
 	}
 	if !strings.Contains(m.View().Content, style.Warn(" M")+" kit.yml") {
 		t.Errorf("an uncommitted path's status is not yellow")
@@ -918,6 +915,26 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	m.find("desk").desk.Uncommitted = 0
 	if !strings.Contains(m.View().Content, style.Off("clean")) {
 		t.Errorf("a clean desk does not say clean")
+	}
+}
+
+func TestAnOpenCheckoutFillsThePaneAndPagesThroughEveryCommit(t *testing.T) {
+	m := loaded(t, options(), right, right, right, down, enter, tea.WindowSizeMsg{Width: 80, Height: 12})
+	got := lines(m)
+	// the pane runs to the gap above the keys bar, its last line counting what is below
+	if len(got) != 12 || !strings.Contains(got[9], "more") || strings.TrimSpace(got[10]) != "" {
+		t.Fatalf("the open desk does not fill the pane:\n%s", view(m))
+	}
+	for range 5 {
+		if strings.Contains(view(m), "c0ffeeb") {
+			break
+		}
+		m = drive(m, press(tea.KeyPgDown))
+	}
+	v := view(m)
+	if !strings.Contains(v, "c0ffeeb #45 status: the eleventh") || !strings.Contains(v, "… and 1 more") ||
+		m.stages[3].cursor != 0 || !m.inRows {
+		t.Errorf("page down did not reach the last commit within the row:\n%s", v)
 	}
 }
 

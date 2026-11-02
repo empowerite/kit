@@ -11,7 +11,7 @@
     {"sha": "c0ffee8", "subject": "#45 status: the repository has a glyph"},
     {"sha": "c0ffee9", "subject": "#45 status: the title has no blank line under it"},
     {"sha": "c0ffeea", "subject": "#45 status: the goldens at 120 columns"},
-    {"sha": "c0ffeeb", "subject": "#45 status: the eleventh commit is counted, not listed"}
+    {"sha": "c0ffeeb", "subject": "#45 status: the eleventh commit is listed too"}
   ],
   "uncommitted": 2,
   "changes": [{"status": " M", "path": "kit.yml"}, {"status": "??", "path": "scratch.txt"}]

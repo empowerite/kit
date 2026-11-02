@@ -446,9 +446,6 @@ func heading(r remote) string {
 	return strings.Join(parts, " · ")
 }
 
-// commitsShown is how many commits ahead an open checkout lists before counting the rest.
-const commitsShown = 10
-
 // deskRows draws the desk, the root checkout, in one row, as worktreeRows draws a worktree.
 func (m Model) deskRows(s stage) []row {
 	if s.desk == nil {
@@ -483,8 +480,8 @@ func (m Model) worktreeRows(s stage) []row {
 }
 
 // checkoutRow draws a checkout: glyph and branch, ahead and behind, its pull request's number and state, and its
-// uncommitted count; open, the uncommitted paths with their status in yellow, then the commits ahead, ten at most,
-// as kit status --text draws them.
+// uncommitted count; open, the uncommitted paths with their status in yellow, then every commit ahead that kit
+// listed, which the pane pages through, and a count of any kit did not list.
 func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) row {
 	name := c.Branch
 	if name == "" {
@@ -502,13 +499,10 @@ func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) 
 	for _, change := range c.Changes {
 		r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
 	}
-	for i, commit := range c.Commits {
-		if i == commitsShown {
-			break
-		}
+	for _, commit := range c.Commits {
 		r.detail = append(r.detail, span(style.Off(commit.SHA)+" "+commit.Subject))
 	}
-	if more := c.Ahead - min(len(c.Commits), commitsShown); more > 0 {
+	if more := c.Ahead - len(c.Commits); more > 0 {
 		r.detail = append(r.detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
 	}
 	return r
