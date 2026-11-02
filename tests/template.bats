@@ -232,13 +232,13 @@ shape() {
   [[ "$output" == *"toolchain-provider line 6: toolchain/«stem»:outdated()"* ]]
 }
 
-@test "each seam's header lists the calls its providers' template holds, beside any one provider alone implements" {
+@test "each seam's header lists the calls its providers' template holds, beside any a provider may implement" {
   local root seam header template
   root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
   for seam in forge policy toolchain tracker
   do
     header=$(awk '/Every provider implements/ { on = 1; next } on && /^#$/ && n > 0 { exit }
-      on && /^#   [a-z]/ && !/only .* implements it/ { sub(/^#   /, ""); print $1; n++ }' \
+      on && /^#   [a-z]/ && !/(only .* implements|may implement) it/ { sub(/^#   /, ""); print $1; n++ }' \
       "${root}/kit/modules/bash/${seam}.sh" | sort | paste -s -d ' ' -)
     template=$(sed -n -E "s|^${seam}/«stem»:([a-z-]+)\(\).*|\1|p" \
       "${root}/kit/packages/kit/files/repo/.kit/templates/bash/${seam}-provider" | sort | paste -s -d ' ' -)
