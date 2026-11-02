@@ -1,6 +1,6 @@
 {
   "verb": "tools",
-  "purpose": "lists, installs, and updates what the chosen toolchain pins",
+  "purpose": "lists, installs, and updates what the chosen toolchain and the dependencies pin",
   "usage": [
     "kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]",
     "kit tools [--toolchain <name>] (install | update | path | run <command>…)"
@@ -146,19 +146,19 @@
       "description": "mise, nix, brew, docker, devcontainer, or ambient"
     },
     "--json": {
-      "description": "one JSON object per tool: name, pinned, installed, latest with --outdated"
+      "description": "one JSON object per tool: name, pinned, installed, latest with --outdated, and from"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
     },
     "install": {
-      "description": "installs every pinned tool; ambient, names what to install"
+      "description": "installs every pinned tool, then every package; ambient, names what else to install"
     },
     "update": {
-      "description": "moves every tool to its latest, and rewrites the pins"
+      "description": "moves every tool and package to its latest, and rewrites the pins"
     },
     "path": {
-      "description": "prints the directories that put the tools first on PATH"
+      "description": "prints the directories that put the tools first on PATH, then the packages'"
     },
     "run": {
       "description": "runs the command with the tools, or in their container"

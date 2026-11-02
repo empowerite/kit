@@ -1,4 +1,4 @@
- kit tools - lists, installs, and updates what the chosen toolchain pins
+ kit tools - lists, installs, and updates what the chosen toolchain and the dependencies pin
 
    required
    [--outdated [--check]] --toolchain [--json | --jq]
