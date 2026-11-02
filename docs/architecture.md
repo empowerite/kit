@@ -189,7 +189,7 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
 
 - `kit gate` runs the repository's own gate: the `gate` setting, or a detected justfile recipe, Makefile target, or
   `package.json` script. It fails when there is no gate, because a gate that cannot run verifies nothing. The gate
-  runs with the tools the chosen toolchain pins (mise, Homebrew, or a container image); see
+  runs with the tools the chosen toolchain pins (mise, nix, Homebrew, docker, or a dev container); see
   [toolchains.md](toolchains.md).
 - `kit check` fails when a delivered file differs from the release.
 - `kit linked` fails when a pull request is not linked to an open issue.

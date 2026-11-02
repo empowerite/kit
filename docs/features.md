@@ -192,8 +192,8 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-
 ## Toolchains
 
 - `kit toolchains` lists the toolchains kit found where it runs, and records which one to use.
-- `kit tools` lists, installs, and updates the tools that toolchain pins, whether mise, Homebrew, or a container
-  image manages them.
+- `kit tools` lists, installs, and updates the tools that toolchain pins, whether mise, nix, Homebrew, docker, or a
+  dev container manages them.
 - The gate runs with those tools on the desk, in a worktree, and on a CI runner alike.
 
 see: [toolchains.md](toolchains.md)
