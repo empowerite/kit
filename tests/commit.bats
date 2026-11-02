@@ -197,4 +197,54 @@ forge-world() {
   [[ "$output" == *"committed "* && "$output" == *"#9"*"no open change"* ]]
 }
 
+# opa-rule <rego> adds the policy/opa package and writes <rego> as a rule of package kit.policy beside its kit.rego,
+# so the opa engine judges the commit. It skips the test when opa is not on PATH.
+opa-rule() {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  kit packages add policy/opa >/dev/null 2>&1
+  printf 'package kit.policy\n\nimport rego.v1\n\n%s\n' "$1" > .kit/policy/test.rego
+}
+
+@test "the tree kit commit judges is HEAD and the named paths, never another session's staging" {
+  opa-rule 'deny contains "theirs.md is in the tree" if input.tree["theirs.md"]
+
+deny contains "mine.md is not in the tree" if not input.tree["mine.md"]'
+  printf 'mine\n' > mine.md && printf 'theirs\n' > theirs.md && git add mine.md theirs.md
+  run kit commit --message '#1 a: b' mine.md
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = mine.md ]
+  [ "$(git status --porcelain -- theirs.md)" = "A  theirs.md" ]
+}
+
+@test "the first commit is judged against the named paths alone" {
+  opa-rule 'deny contains "README.md is missing" if not input.tree["README.md"]
+
+deny contains sprintf("%s is in the tree", [path]) if {
+  some path, _ in input.tree
+  path != "README.md"
+}'
+  # the orphan branch starts with no HEAD, and its switch wants no change to a tracked file
+  git commit --quiet --message '#7 kit: the opa engine' kit.yml
+  git switch --quiet --orphan 7-the-first
+  printf '# Hello\n' > README.md && printf 'other\n' > other.md && git add README.md other.md
+  run kit commit --message '#7 readme: the first' README.md
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = README.md ]
+  [ "$(git status --porcelain -- other.md)" = "A  other.md" ]
+}
+
+@test "a file rule refuses the commit at the commit moment" {
+  opa-rule 'deny contains sprintf("%s is not executable", [path]) if {
+  input.moment == "commit"
+  some path, f in input.tree
+  startswith(path, "bin/")
+  not f.executable
+}'
+  mkdir bin && printf 'x\n' > bin/x && git add bin/x
+  run kit commit --message '#7 bin: x'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"bin/x is not executable"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

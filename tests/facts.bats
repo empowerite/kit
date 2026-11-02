@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# facts.bats - the tree fact: the files git holds, keyed by path, as the policy engines read them
+# facts.bats - the facts document: its moment, and the tree of files git holds, keyed by path, as the engines read it
 # ----------------------------------------------------------------------------------------------------------------------
 
 load helper
@@ -86,4 +86,26 @@ commit-all() {
   [ "${status}" -eq 0 ]
   jq --exit-status 'has("out/x") | not' <<<"${output}"
   jq --exit-status 'has(".gitignore")' <<<"${output}"
+}
+
+@test "kit facts prints the moment and the tree beside the naming facts" {
+  printf '# hello\n' > README.md
+  git add README.md
+  commit-all "#1 start: a readme"
+  printf 'x\n' > staged.md
+  git add staged.md
+  run "${kit_root}/bin/kit" facts
+  [ "${status}" -eq 0 ]
+  jq --exit-status '.moment == "ci" and (.tree | type == "object")' <<<"${output}"
+  jq --exit-status 'keys_unsorted == ["moment", "branch", "default_branch", "commits", "change", "tree", "policy"]' \
+    <<<"${output}"
+  # at ci, the tree is HEAD, never the index
+  jq --exit-status '(.tree | has("README.md")) and (.tree | has("staged.md") | not)' <<<"${output}"
+  [ "$("${kit_root}/bin/kit" facts)" = "$("${kit_root}/bin/kit" policy --input)" ]
+}
+
+@test "kit facts --moment=push is refused, naming the moments" {
+  run "${kit_root}/bin/kit" facts --moment=push
+  [ "${status}" -eq 2 ]
+  [[ "${output}" == *"the moments: commit, ci"* ]]
 }

@@ -11,8 +11,9 @@
 #
 #   - refuses a staged path the kit placed under .kit/, read from .kit/.gitignore, which names every one
 #   - runs kit lint and kit generate --check over the staged paths, so the pre-commit checks hold with no hook manager
-#   - supplies the issue's reference from the branch when the subject carries none, and judges the subject by the
-#     repository's policy through the policy seam, as kit policy judges it in CI
+#   - supplies the issue's reference from the branch when the subject carries none
+#   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
+#     kit policy judges them in CI
 #   - warns when commits here are not signed; it cannot make a key appear, so it does not refuse
 #
 # A commit whose subject names an issue other than the branch's own attaches that issue to the branch's change, so
@@ -25,7 +26,7 @@
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
-use git policy tracker context
+use git policy facts tracker context
 
 # commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
 # commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
@@ -155,18 +156,26 @@ commit:attach() {
   fi
 }
 
-# commit:judge <branch> <subject> refuses a subject, or a branch, the policy does not allow, with the engine kit policy
-# uses and the facts it would gather for this one commit.
+# commit:judge <branch> <subject> [<path>…] refuses a subject, a branch, or a tree the policy does not allow. It uses
+# the engine kit policy uses, with the facts of the commit moment: this one commit, and the tree it will make. With
+# <path>…, that tree is HEAD and those paths as the disk has them, as git commit --only makes it. It is built in an
+# index of its own, so what another session staged never shows in it. With no path, the tree is the index.
 commit:judge() {
-  local branch=$1 subject=$2 rules input refusals line
-  rules=$(policy:rules) || return 1
-  input=$(mktemp)
-  jq --null-input --arg branch "${branch}" --arg default_branch "$(git:default-branch)" --arg subject "${subject}" \
-    --argjson policy "${rules}" \
-    '{branch: $branch, default_branch: $default_branch, commits: [{sha: "0000000", subject: $subject}], change: null,
-      policy: $policy}' > "${input}"
-  refusals=$(policy:deny "${input}")
-  rm -f "${input}"
+  local branch=$1 subject=$2 work refusals line
+  shift 2
+  work=$(mktemp -d) || return 1
+  if (( $# > 0 ))
+  then
+    commit:index "${work}/index" "$@" || { rm -rf "${work}"; return 1; }
+    GIT_INDEX_FILE=${work}/index facts:document commit > "${work}/facts" || { rm -rf "${work}"; return 1; }
+  else
+    facts:document commit > "${work}/facts" || { rm -rf "${work}"; return 1; }
+  fi
+  jq --arg branch "${branch}" --arg subject "${subject}" \
+    '.branch = $branch | .commits = [{sha: "0000000", subject: $subject}]' "${work}/facts" > "${work}/input" \
+    || { rm -rf "${work}"; return 1; }
+  refusals=$(policy:deny "${work}/input")
+  rm -rf "${work}"
   [[ -n "${refusals}" ]] || return 0
   while IFS= read -r line
   do
@@ -174,6 +183,24 @@ commit:judge() {
     error "${line/#commit 0000000 /the subject }"
   done <<<"${refusals}"
   return 1
+}
+
+# commit:index <index> <path>… writes, at <index>, the index git commit --only -- <path>… builds: HEAD, or nothing
+# before the first commit, and each named path as the disk has it. A path the disk lacks is removed. The paths are
+# those the real index or HEAD holds under <path>…, so a file git ignores or does not track never joins, as with git.
+# The real index is only read.
+commit:index() {
+  local index=$1
+  shift
+  if git rev-parse --verify --quiet HEAD >/dev/null
+  then
+    GIT_INDEX_FILE=${index} git read-tree HEAD || return 1
+  else
+    GIT_INDEX_FILE=${index} git read-tree --empty || return 1
+  fi
+  { git ls-files -z -- "$@" && GIT_INDEX_FILE=${index} git ls-files -z -- "$@"; } \
+    | LC_ALL=C sort --zero-terminated --unique \
+    | GIT_INDEX_FILE=${index} git update-index --add --remove -z --stdin
 }
 
 # commit:checks <path>… runs the pre-commit checks over the paths that exist: kit lint, then kit generate --check.
@@ -250,7 +277,13 @@ commit:commit() {
   subject=$(commit:with-reference "${branch}" "${subject}")
   commit:guard "${staged[@]}" || return 1
   commit:checks "${staged[@]}" || return 1
-  commit:judge "${branch}" "${subject}" || return 1
+  # Named paths are committed alone, so the policy judges the tree they make; otherwise, the index is the tree.
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    commit:judge "${branch}" "${subject}" "${staged[@]}" || return 1
+  else
+    commit:judge "${branch}" "${subject}" || return 1
+  fi
   if [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
   then
     warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"

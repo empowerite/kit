@@ -8,13 +8,9 @@
 # the facts, reads the rules, and calls a provider (the policy engine) to list every refusal. A provider is
 # policy/<name>.sh beside it, whose functions are named policy/<name>:<call>.
 #
-# The facts are one JSON document, built by policy:input. `kit policy --input` prints it, to write a rule against.
-# It contains:
-#
-#   - the branch and the default branch
-#   - the commits past the fork from the default branch, merges excluded
-#   - the open change on the branch, with its title, body, and author
-#   - the policy settings, with the kit's defaults filled in
+# The facts are one JSON document, which modules/bash/facts.sh describes and builds. `kit facts` prints it, to write a
+# rule against, and so does `kit policy --input`. It holds the moment, the branch, the commits, the change, the tree
+# of files git holds, and the policy settings, with the kit's defaults filled in.
 #
 # The rules are the `policy:` map in kit.yml, one extended regular expression per subject. A subject
 # that is not set uses the kit's default below. An empty pattern turns that rule off.
@@ -46,7 +42,7 @@
 #
 # see: docs/policy.md
 
-use yaml git settings
+use yaml git settings facts
 
 # The kit's defaults follow the workflow in .kit/1st.md:
 #
@@ -90,42 +86,10 @@ policy:branch() {
   printf '%s\n' "${branch}"
 }
 
-# policy:input prints the facts document described in the file header. The commits are those past the fork from
-# origin's default branch. When the fork point is missing, as in a shallow clone, it warns and omits the commits
-# instead of guessing. The change is read from the forge (GitHub or GitLab). It is omitted when there is no forge
-# or no open change. On the default branch or a detached HEAD, the branch is null and there are no commits or
-# change.
+# policy:input prints the facts document at the ci moment, as facts:document builds it: the branch's commits, its
+# open change, and the tree at HEAD.
 policy:input() {
-  local default_branch branch commits='[]' change='null' rules number title body author
-  rules=$(policy:rules) || return 1
-  default_branch=$(git:default-branch)
-  branch=$(policy:branch)
-  if [[ -n "${branch}" && "${branch}" != "${default_branch}" ]]
-  then
-    if git rev-parse --verify --quiet "origin/${default_branch}" >/dev/null \
-      && git merge-base "origin/${default_branch}" HEAD >/dev/null 2>&1
-    then
-      commits=$(git log --no-merges --format='%H%x1f%s' "origin/${default_branch}..HEAD" \
-        | jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\u001f") | {sha: .[0], subject: .[1]})')
-    else
-      warn "the fork from origin/${default_branch} is not here, so no commit is checked; fetch with full history"
-    fi
-    if use forge 2>/dev/null && number=$(forge:pr-here 2>/dev/null) && [[ -n "${number}" ]]
-    then
-      title=$(forge:pr-title "${number}" 2>/dev/null || true)
-      body=$(forge:pr-body "${number}" 2>/dev/null || true)
-      author=$(forge:pr-author "${number}" 2>/dev/null || true)
-      change=$(jq --null-input --argjson number "${number}" --arg title "${title}" --arg body "${body}" \
-        --arg author "${author}" \
-        '{number: $number, title: $title, body: $body, author: (if $author == "" then null else $author end)}')
-    fi
-  else
-    branch=''
-  fi
-  jq --null-input --arg branch "${branch}" --arg default_branch "${default_branch}" --argjson commits "${commits}" \
-    --argjson change "${change}" --argjson policy "${rules}" \
-    '{branch: (if $branch == "" then null else $branch end), default_branch: $default_branch, commits: $commits,
-      change: $change, policy: $policy}'
+  facts:document ci
 }
 
 # policy:engine prints the provider's name, chosen as the file header describes. It fails, naming the engine,
