@@ -21,6 +21,7 @@ type Model struct {
 	inForm        bool
 	verb          string
 	width, height int
+	keyboard      tea.KeyboardEnhancementsMsg // what the terminal said of its keyboard, once, for each form opened later
 }
 
 // Open opens the palette when no verb is named, else the verb's form filled from the words given, with no way back.
@@ -98,6 +99,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case tea.KeyboardEnhancementsMsg:
+		m.keyboard = msg
 	case palette.OpenMsg:
 		return m.open(msg.Verb)
 	case form.BackMsg:
@@ -116,8 +119,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// open slides the palette away for the verb's form, empty, with the way back; a form that cannot open leaves the
-// palette, with kit's line under its filter.
+// open slides the palette away for the verb's form, empty, with the way back, telling it the terminal's size and
+// keyboard, which came before it did; a form that cannot open leaves the palette, with kit's line under its filter.
 func (m Model) open(verb string) (tea.Model, tea.Cmd) {
 	spec, err := m.runner.Spec(verb)
 	if err != nil {
@@ -133,6 +136,8 @@ func (m Model) open(verb string) (tea.Model, tea.Cmd) {
 		next, _ := m.form.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		m.form = next.(form.Model)
 	}
+	next, _ := m.form.Update(m.keyboard)
+	m.form = next.(form.Model)
 	return m, init
 }
 

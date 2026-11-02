@@ -1,6 +1,7 @@
 // The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up, down, and tab move between
 // fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
-// field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it; esc goes back
+// field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it, and the keys bar
+// names it only where the terminal said it does; esc goes back
 // to the palette or cancels, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
 // and home and end to the first and last row. Where a window hides rows, a dim line says how many. The keys bar is
 // the last line.
@@ -50,7 +51,8 @@ type Model struct {
 	note    string // the line under the focused field: a list's line about a row, or what kit refused
 	refusal string // the line under the command line
 	width   int
-	height  int // the terminal's lines; zero before it says, and nothing is clipped
+	height  int  // the terminal's lines; zero before it says, and nothing is clipped
+	shift   bool // the terminal tells shift-Enter from Enter, so the keys bar names it
 
 	lists  map[string][]kit.Choice
 	sets   map[string]bool
@@ -108,6 +110,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case tea.KeyboardEnhancementsMsg:
+		m.shift = msg.SupportsKeyDisambiguation()
 	case choicesMsg:
 		m.choices(msg)
 	case tea.KeyPressMsg:
@@ -139,9 +143,14 @@ func (m Model) View() tea.View {
 
 // keys gives the keys bar, which fits 80 columns: Enter takes the next field, or runs on the command line, and esc
 // goes back to the palette or cancels. Tab, which moves as down and up do, is left out for the room. While a list has
-// the keyboard, the page keys take the place of left and right, which a list does not use.
+// the keyboard, the page keys take the place of left and right, which a list does not use. Shift-Enter is named only
+// where the terminal answered Bubble Tea's ask for the kitty keyboard protocol; elsewhere, Terminal.app among them,
+// it arrives as Enter, and the way to run is Enter on the command line.
 func (m Model) keys() string {
-	enter := []string{"⏎ next", "⇧⏎ run"}
+	enter := []string{"⏎ next"}
+	if m.shift {
+		enter = append(enter, "⇧⏎ run")
+	}
 	if m.focus >= len(m.fields) {
 		enter = []string{"⏎ run"}
 	}

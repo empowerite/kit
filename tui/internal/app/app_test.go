@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/testkit"
@@ -35,6 +36,18 @@ func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
 	m = drive(m, press(tea.KeyEscape))
 	if run, _, _ := m.Result(); run {
 		t.Error("esc in the palette ran something")
+	}
+}
+
+func TestAFormOpenedLaterKnowsWhatTheTerminalSaidOfItsKeyboard(t *testing.T) {
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}, press(tea.KeyDown),
+		press(tea.KeyEnter))
+	if !m.InForm() || !strings.Contains(m.View().Content, "⇧⏎ run") {
+		t.Errorf("the form does not name shift-Enter:\n%s", m.View().Content)
 	}
 }
 

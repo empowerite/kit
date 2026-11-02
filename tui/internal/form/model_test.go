@@ -262,6 +262,22 @@ func TestShiftEnterRunsFromAnywhere(t *testing.T) {
 	}
 }
 
+func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T) {
+	m := newForm(t, "status", Answers{}, true)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
+	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasSuffix(bar, "⏎ next · esc back") {
+		t.Errorf("a terminal that said nothing of its keyboard, as Terminal.app: %q", bar)
+	}
+	m, _ = drive(t, m, tea.KeyboardEnhancementsMsg{})
+	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") {
+		t.Errorf("a terminal that answered with no flags: %q", bar)
+	}
+	m, _ = drive(t, m, disambiguates)
+	if bar := screen(m)[29]; !strings.HasSuffix(bar, "⏎ next · ⇧⏎ run · esc back") {
+		t.Errorf("a terminal that tells them apart: %q", bar)
+	}
+}
+
 // stripANSI drops the escape sequences of styled text, for measuring it.
 func stripANSI(s string) string {
 	var b strings.Builder
@@ -361,8 +377,12 @@ func TestAFailedExtensionIsTheFocusedFieldsNote(t *testing.T) {
 // screen gives the form's lines without their escapes.
 func screen(m Model) []string { return strings.Split(stripANSI(m.View().Content), "\n") }
 
+// disambiguates is a terminal's answer that it tells shift-Enter from Enter, as kitty, iTerm2, and VS Code's do.
+var disambiguates = tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}
+
 func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) {
 	m := newForm(t, "status", Answers{}, true)
+	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
 	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " ↑↓ move · ←→ row or toggle") {
@@ -407,7 +427,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 				t.Setenv("FAKE_KIT_ROWS", "3000")
 			}
 			m := newForm(t, c.verb, c.a, true)
-			m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: height})
+			m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: height}, disambiguates)
 			m, _ = drive(t, m, keys(c.keys...)...)
 			want := fields
 			if c.list {
@@ -425,7 +445,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 	}
 	// at 80 columns the bar is whole; a height not yet known draws the form, a gap, and the bar
 	m := newForm(t, "status", Answers{}, true)
-	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0})
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, disambiguates)
 	lines := screen(m)
 	if lines[len(lines)-1] != fields || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit status") {
 		t.Errorf("with no height, the last lines: %q", lines[len(lines)-3:])
