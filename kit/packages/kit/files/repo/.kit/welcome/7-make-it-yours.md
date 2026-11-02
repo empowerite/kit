@@ -1,4 +1,4 @@
-<!-- kit:generated -- kit welcome's fourth step, making it yours, from the kit package -->
+<!-- kit:generated -- kit welcome's seventh step, making it yours, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Make it yours
 
@@ -40,7 +40,7 @@ A house package holds your team's own rules, styles, and templates. It lives in 
 - To replace a file kit delivers, depend on the package that delivers it, and place yours at the same path. The
   later package wins.
 - These pages are files too, under `.kit/welcome/`. A house package replaces one by its name, or adds one, such as
-  `5-our-team.md`.
+  `8-our-team.md`.
 
 `kit packages --active`
 

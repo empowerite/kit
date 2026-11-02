@@ -1,4 +1,4 @@
-<!-- kit:generated -- kit welcome's second step, the lay of the land, from the kit package -->
+<!-- kit:generated -- kit welcome's fifth step, the lay of the land, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # The lay of the land
 

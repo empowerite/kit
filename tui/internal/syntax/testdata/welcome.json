@@ -1,6 +1,6 @@
 {
   "verb": "welcome",
-  "purpose": "walks a newcomer through setup, the workflow, the terms, and what to change",
+  "purpose": "walks a newcomer through what kit needs, the toolchains, setup, and the workflow",
   "usage": [
     "kit welcome [--text]",
     "kit welcome --checks [--json | --jq]",
@@ -66,7 +66,7 @@
       "description": "prints the guide, even on a terminal"
     },
     "--checks": {
-      "description": "prints the setup checks alone, one line each"
+      "description": "prints the checks alone, one line each"
     },
     "--json": {
       "description": "the checks as a JSON array"
@@ -78,7 +78,7 @@
       "description": "runs one check's fix, then checks again"
     },
     "<check>": {
-      "description": "a check's id, as --checks --json names it: tool-yq, forge-login-github.com"
+      "description": "a check's id, as --checks --json names it: tool-yq, toolchain-project"
     }
   }
 }

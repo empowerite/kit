@@ -77,6 +77,10 @@ toolchain/brew:usable() {
   [[ "$1" == system || -f Brewfile ]]
 }
 
+# toolchain/brew:remedy prints the command that installs one tool for the system role. Homebrew's formulae are named
+# for the tools kit checks.
+toolchain/brew:remedy() { printf 'brew install %s\n' "$1"; }
+
 # The seam's calls end here; what follows is this provider's own.
 
 # toolchain_brew_prefixes holds where Homebrew installs brew itself, which a runner may leave off PATH.

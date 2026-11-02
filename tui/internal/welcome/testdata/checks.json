@@ -1,7 +1,7 @@
 [
-{"id": "bash", "step": "setup", "ok": true, "line": "bash 5.2 is installed", "fix": null, "interactive": false, "more": null},
-{"id": "git", "step": "setup", "ok": true, "line": "git 2.47 is installed", "fix": null, "interactive": false, "more": null},
-{"id": "jq", "step": "setup", "ok": false, "line": "jq is not installed", "fix": "brew install jq", "interactive": false, "more": null},
+{"id": "bash", "step": "before-toolchains", "ok": true, "line": "bash 5.2 runs kit", "fix": null, "interactive": false, "more": null},
+{"id": "jq", "step": "before-toolchains", "ok": false, "line": "jq is not installed", "fix": "brew install jq", "interactive": false, "more": null},
+{"id": "toolchain-project", "step": "toolchains", "ok": false, "line": "several toolchains are usable for the project: mise, brew; choose one", "fix": "kit toolchains choose mise", "interactive": false, "more": "or: kit toolchains choose brew"},
 {"id": "gh-auth", "step": "setup", "ok": false, "line": "gh is not logged in to github.com", "fix": "gh auth login --hostname github.com", "interactive": true, "more": null},
 {"id": "kit-check", "step": "setup", "ok": false, "line": "kit check finds 2 differences from the release", "fix": null, "interactive": false, "more": "read: kit help check"}
 ]

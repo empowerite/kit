@@ -38,6 +38,8 @@
 #   path                    the directories to put first on PATH for its tools, one per line
 #   pins                    one line per pinned unit, "<name>\t<pinned>\t<installed>"; never reaches the network
 #   require                 succeeds when its own tool is present; otherwise fails with a remedy
+#   remedy <tool>           the command that installs one tool; only a system provider implements it, and kit
+#                           prints it for the person, never running it on its own
 #   roles                   the roles it can fill, one per line: project, system, or both
 #   update                  moves every tool to its latest version, and rewrites the pins and the lock
 #   usable <role>           succeeds when its tool is installed and on PATH, and it is configured for the role

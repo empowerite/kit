@@ -1,37 +1,45 @@
 # shellcheck shell=bash
-# welcome.sh - the checks of kit welcome's setup step, their fixes, and the pages of the steps after it (sourced module)
+# welcome.sh - kit welcome's checks, their fixes, and the pages of its steps (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit welcome walks a newcomer through four steps: setup, the lay of the land, the terms, and making it yours. Setup
-# is a list of checks, run here. Each check is one JSON object:
+# kit welcome walks a newcomer through seven steps, each a page: the intro, before toolchains, toolchains, setup, the
+# lay of the land, the terms, and making it yours. Steps 2 to 4 hold checks, run here. Each check is one JSON object:
 #
-#   id            stable, in kebab-case: tool-yq, linter-shellcheck, forge-login-github.com
-#   step          the step it belongs to: setup
+#   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com
+#   step          the step it belongs to: before-toolchains, toolchains, or setup
 #   ok            true when it holds
 #   line          one short sentence: what holds, or what is wrong
 #   fix           the command that fixes it, or null when it holds or kit knows none
 #   interactive   true when the fix needs the person at the terminal, as gh auth login does
-#   more          where to read more when kit knows no fix, or null
+#   more          where to read more, or the other commands beside the fix, or null
 #
 # The checks run in this order:
 #
-#   - tools: bash, git, jq, yq; lefthook when hooks/lefthook is active; then each linter the active packages' rules
-#     and styles name under lint:
-#   - forges: for each distinct forge host among the remotes, its tool installed, then logged in to that host
-#   - this repository: a git repository; then, where it is one, kit installed; then, where kit is, .kit/ hydrated,
-#     the git hooks installed when hooks/lefthook is active, and kit check clean
-#   - where you are: at the desk or in a worktree; it always holds
+#   - before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain
+#   - toolchains: one check per role, project then system
+#   - setup, tools: lefthook when hooks/lefthook is active; then each linter the active packages' rules and styles
+#     name under lint:
+#   - setup, forges: for each distinct forge host among the remotes, its tool installed, then logged in to that host
+#   - setup, this repository: a git repository; then, where it is one, kit installed; then, where kit is, .kit/
+#     hydrated, the git hooks installed when hooks/lefthook is active, and kit check clean
+#   - setup, where you are: at the desk or in a worktree; it always holds
 #
-# kit detects the repository's toolchain, as kit toolchains does, and never assumes one. A missing tool's fix is
-# kit tools install where a toolchain is detected. Where none is, the tools are ambient: the fix is brew install
-# on macOS with Homebrew, else none, and more names the tool's site. Only welcome:fix runs a fix, and only the one it
-# is asked for.
+# kit finds the toolchains as kit toolchains does, and never assumes one. The checks only report: they never ask
+# which toolchain to use, and never record one. A missing tool's fix:
 #
-# The pages of steps 2 to 4 are markdown files under .kit/welcome/, which the kit package delivers. A house package
-# replaces one by placing a file of the same name, or adds one; the later package wins.
+#   - before toolchains: the system toolchain's command, such as its install of the tool, else none, and more names
+#     the tool's site
+#   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command; else
+#     none, and more says where to read
 #
-# see: bin/kit-welcome, issue #51
+# Only welcome:fix runs a fix, and only the one it is asked for.
+#
+# The pages are markdown files under .kit/welcome/, which the kit package delivers. A page's name is its order, a
+# dash, then its step's id: 2-before-toolchains.md. A house package replaces one by placing a file of the same name,
+# or adds one; the later package wins.
+#
+# see: bin/kit-welcome, modules/bash/toolchain.sh, issue #51
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
@@ -42,13 +50,23 @@ use settings forge materialize render place toolchain
 declare -ga welcome_ids=()
 declare -gA welcome_linter_rule=() welcome_host_forge=()
 
-# welcome:record <id> <ok> <line> [<fix> [<interactive> [<more>]]] prints one check as JSON, on one line. An empty
-# fix or more is null.
+# welcome:record <id> <ok> <line> [<fix> [<interactive> [<more>]]] prints one check as JSON, on one line, in the step
+# its id belongs to. An empty fix or more is null.
 welcome:record() {
-  jq --null-input --compact-output --arg id "$1" --argjson ok "$2" --arg line "$3" --arg fix "${4:-}" \
-    --argjson interactive "${5:-false}" --arg more "${6:-}" \
-    '{id: $id, step: "setup", ok: $ok, line: $line, fix: ($fix | if . == "" then null else . end),
+  jq --null-input --compact-output --arg id "$1" --arg step "$(welcome:step "$1")" --argjson ok "$2" --arg line "$3" \
+    --arg fix "${4:-}" --argjson interactive "${5:-false}" --arg more "${6:-}" \
+    '{id: $id, step: $step, ok: $ok, line: $line, fix: ($fix | if . == "" then null else . end),
       interactive: $interactive, more: ($more | if . == "" then null else . end)}'
+}
+
+# welcome:step <id> prints the step a check belongs to: before-toolchains for what kit needs, toolchains for each
+# role's toolchain, and setup for the rest.
+welcome:step() {
+  case "$1" in
+    (tool-bash | tool-git | tool-jq | tool-yq) printf 'before-toolchains\n' ;;
+    (toolchain-*) printf 'toolchains\n' ;;
+    (*) printf 'setup\n' ;;
+  esac
 }
 
 # welcome:site <tool> prints the page that says how to install the tool, or nothing for a tool kit does not know.
@@ -68,68 +86,150 @@ welcome:site() {
   esac
 }
 
-# welcome:toolchains prints the toolchains usable for the project here, one per line, as kit toolchains lists them.
-# Nothing means the tools are ambient: whatever is on PATH.
-welcome:toolchains() {
-  toolchain:usable project 2>/dev/null || true
+# welcome_chosen holds each role's toolchain, as welcome:find found it. welcome:plan fills it, and a fix fills it
+# again, in the main shell, so the checks that run in subshells read it rather than finding it each time.
+declare -gA welcome_chosen=()
+
+# welcome:find <role> sets welcome_chosen[<role>] to the toolchain for the role, as kit toolchains reports it: a
+# provider, ambient, or nothing when several are usable and none is chosen. It never asks and never records. Where
+# kit cannot read the system choice, as without yq, the one usable system toolchain stands in for it.
+welcome:find() {
+  local role=$1 chosen
+  local -a usable
+  if ! chosen=$(toolchain:chosen "${role}" list 2>/dev/null)
+  then
+    chosen=''
+    readarray -t usable < <(toolchain:usable "${role}" 2>/dev/null)
+    [[ "${role}" != system || ${#usable[@]} -ne 1 ]] || chosen=${usable[0]}
+  fi
+  welcome_chosen[${role}]=${chosen}
 }
 
-# welcome:toolchain-files prints the files the detected toolchains read, comma-separated: where a tool is pinned.
-welcome:toolchain-files() {
-  local provider files=''
-  for provider in $(welcome:toolchains)
-  do
-    files+="${files:+, }$(toolchain:call "${provider}" file 2>/dev/null)"
-  done
-  printf '%s\n' "${files}"
+# welcome:chosen <role> prints the toolchain for the role, as welcome:find sets it, finding it first where it has not.
+welcome:chosen() {
+  [[ -n "${welcome_chosen[$1]+x}" ]] || welcome:find "$1"
+  printf '%s\n' "${welcome_chosen[$1]}"
 }
 
-# welcome:toolchain-has <tool> succeeds when a detected toolchain has installed the tool: it is in a directory the
-# toolchains put on PATH.
+# welcome:remedy <tool> prints the system toolchain's command that installs the tool, and fails where there is no
+# system toolchain, or it names no command.
+welcome:remedy() {
+  local system
+  system=$(welcome:chosen system)
+  [[ -n "${system}" && "${system}" != ambient ]] || return 1
+  use "toolchain/${system}" 2>/dev/null && declare -F "toolchain/${system}:remedy" >/dev/null || return 1
+  toolchain:call "${system}" remedy "$1"
+}
+
+# welcome:toolchain-has <tool> succeeds when the project toolchain has installed the tool: it is in a directory the
+# toolchain puts on PATH.
 welcome:toolchain-has() {
-  local dir
+  local project dir
+  project=$(welcome:chosen project)
+  [[ -n "${project}" && "${project}" != ambient ]] || return 1
   while IFS= read -r dir
   do
     [[ -n "${dir}" && -x "${dir}/$1" ]] && return 0
-  done < <(toolchain:path 2>/dev/null)
+  done < <(toolchain:call "${project}" path 2>/dev/null)
   return 1
 }
 
-# welcome:brew succeeds on macOS with brew on PATH, where brew install is the fix kit offers.
-welcome:brew() {
-  [[ "$(uname -s)" == Darwin ]] && command -v brew >/dev/null 2>&1
-}
-
-# welcome:install <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
+# welcome:install <step> <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
 #
-#   - kit tools install where kit detects a toolchain, and the files that pin the tools
-#   - else, with the tools ambient, brew install <tool> on macOS with Homebrew
-#   - else no fix, and the tool's site
+#   - before toolchains: the system toolchain's command, else no fix, and the tool's site
+#   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command, else
+#     no fix and the tool's site; with several usable and none chosen, no fix, and the toolchains doc
 welcome:install() {
-  if [[ -n "$(welcome:toolchains)" ]]
+  local step=$1 tool=$2 project fix
+  project=$(welcome:chosen project)
+  if [[ "${step}" == setup && -n "${project}" && "${project}" != ambient ]]
   then
-    printf 'kit tools install\x1f%s\n' "$(welcome:toolchain-files)"
-  elif welcome:brew
+    printf 'kit tools install\x1f\n'
+  elif [[ "${step}" == setup && -z "${project}" ]]
   then
-    printf 'brew install %s\x1f\n' "$1"
+    printf '\x1f%s\n' "${welcome_toolchains_doc}"
+  elif fix=$(welcome:remedy "${tool}") && [[ -n "${fix}" ]]
+  then
+    printf '%s\x1f\n' "${fix}"
   else
-    printf '\x1f%s\n' "$(welcome:site "$1")"
+    printf '\x1f%s\n' "$(welcome:site "${tool}")"
   fi
 }
+
+# welcome_toolchains_doc is where to read about choosing a toolchain.
+declare -gr welcome_toolchains_doc=https://github.com/empowerite/kit/blob/main/docs/toolchains.md
 
 # welcome:missing <id> <tool> <line> [<more>] prints the check of a tool that does not run: its install fix, and where
-# to read more, <more> when kit knows no site for it. A tool the toolchain installed, in a directory not on PATH,
-# needs its directory on PATH rather than another install.
+# to read more, <more> when kit knows no site for it. A tool the project toolchain installed, in a directory not on
+# PATH, needs its directory on PATH rather than another install.
 welcome:missing() {
-  local id=$1 tool=$2 line=$3 fix more
-  if welcome:toolchain-has "${tool}"
+  local id=$1 tool=$2 line=$3 step fix more
+  step=$(welcome:step "${id}")
+  if [[ "${step}" == setup ]] && welcome:toolchain-has "${tool}"
   then
     welcome:record "${id}" false "${tool} is installed, but not on PATH; kit tools path names its directory" '' \
-      false 'https://github.com/empowerite/kit/blob/main/docs/toolchains.md'
+      false "${welcome_toolchains_doc}"
     return 0
   fi
-  IFS=$'\x1f' read -r fix more < <(welcome:install "${tool}")
-  welcome:record "${id}" false "${line}" "${fix}" false "${more:-${4:-}}"
+  IFS=$'\x1f' read -r fix more < <(welcome:install "${step}" "${tool}")
+  [[ -n "${fix}" ]] || more=${more:-${4:-}}
+  welcome:record "${id}" false "${line}" "${fix}" false "${more}"
+}
+
+# welcome:toolchain <role> prints the check of the role's toolchain. It holds when one is chosen, when one alone is
+# usable, and when none is, which is ambient. With several usable and none chosen, it fails: its fix chooses the
+# first, and more names the command for each of the others.
+welcome:toolchain() {
+  local role=$1 chosen flag='' candidate names='' others=''
+  local -a usable
+  chosen=$(welcome:chosen "${role}")
+  readarray -t usable < <(toolchain:usable "${role}" 2>/dev/null)
+  [[ "${role}" != system ]] || flag=' --system'
+  case "${chosen}" in
+    (ambient)
+      if (( ${#usable[@]} ))
+      then
+        welcome:record "toolchain-${role}" true "the ${role} toolchain is ambient, as chosen: kit uses what is on PATH"
+      elif [[ "${role}" == project ]]
+      then
+        welcome:record "toolchain-${role}" true \
+          "no toolchain is usable for the project, so its tools are ambient: kit uses what is on PATH"
+      else
+        welcome:record "toolchain-${role}" true \
+          "no toolchain is usable for the system, so it is ambient: kit uses what is on PATH"
+      fi
+      ;;
+    ('')
+      if [[ "${role}" == project && -n "${KIT_TOOLCHAIN:-}" ]]
+      then
+        welcome:record "toolchain-${role}" false \
+          "KIT_TOOLCHAIN names ${KIT_TOOLCHAIN}, which is not usable for the project here" '' false \
+          "${welcome_toolchains_doc}"
+        return 0
+      fi
+      if (( ${#usable[@]} < 2 ))
+      then
+        welcome:record "toolchain-${role}" false "kit could not look for a toolchain for the ${role} here" '' false \
+          "${welcome_toolchains_doc}"
+        return 0
+      fi
+      for candidate in "${usable[@]}"
+      do
+        names+="${names:+, }${candidate}"
+        [[ "${candidate}" == "${usable[0]}" ]] || others+="${others:+; }kit toolchains choose ${candidate}${flag}"
+      done
+      welcome:record "toolchain-${role}" false "several toolchains are usable for the ${role}: ${names}; choose one" \
+        "kit toolchains choose ${usable[0]}${flag}" false "or: ${others}"
+      ;;
+    (*)
+      if [[ "${role}" == project ]]
+      then
+        welcome:record "toolchain-${role}" true "${chosen} is the project toolchain; kit tools lists what it pins"
+      else
+        welcome:record "toolchain-${role}" true "${chosen} is the system toolchain; it names the fix for a missing tool"
+      fi
+      ;;
+  esac
 }
 
 # welcome:version <tool> prints the first line the tool prints for --version, and fails when it does not run: a
@@ -260,10 +360,14 @@ welcome:hooks-active() {
   list:among hooks/lefthook "${packages[@]}"
 }
 
-# welcome:plan fills welcome_ids with the checks to run, in order, and the maps that judging them needs.
+# welcome:plan fills welcome_ids with the checks to run, in order, and the maps that judging them needs, the
+# toolchains among them.
 welcome:plan() {
   local linter rule forge host
-  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_linter_rule=() welcome_host_forge=()
+  welcome_ids=(tool-bash tool-git tool-jq tool-yq toolchain-project toolchain-system) welcome_linter_rule=()
+  welcome_host_forge=()
+  welcome:find project
+  welcome:find system
   if welcome:repository && welcome:installed
   then
     ! welcome:hooks-active || welcome_ids+=(tool-lefthook)
@@ -363,6 +467,8 @@ welcome:judge() {
     (tool-git) welcome:tool tool-git git "kit works through it" ;;
     (tool-jq) welcome:jq ;;
     (tool-yq) welcome:yq ;;
+    (toolchain-project) welcome:toolchain project ;;
+    (toolchain-system) welcome:toolchain system ;;
     (tool-lefthook) welcome:tool tool-lefthook lefthook "it runs the git hooks" ;;
     (linter-*)
       welcome:tool "${id}" "${id#linter-}" "kit lint runs it for ${welcome_linter_rule[${id#linter-}]}" \
@@ -424,8 +530,8 @@ welcome:checks() {
   done
 }
 
-# welcome:show <check-json>… prints each check as text: ✅ or ❌ and its line, and under a failed one, dim, its fix,
-# or where to read more.
+# welcome:show <check-json>… prints each check as text: ✅ or ❌ and its line, and under a failed one, dim, its fix and
+# what more says beside it, or, with no fix, where to read more.
 welcome:show() {
   local check ok line fix more
   for check in "$@"
@@ -441,6 +547,7 @@ welcome:show() {
     if [[ -n "${fix}" ]]
     then
       printf '   %s%s%s\n' "$(out:sgr 90)" "${fix}" "$(out:sgr 0)"
+      [[ -z "${more}" ]] || printf '   %s%s%s\n' "$(out:sgr 90)" "${more}" "$(out:sgr 0)"
     elif [[ -n "${more}" ]]
     then
       printf '   %sread: %s%s\n' "$(out:sgr 90)" "${more}" "$(out:sgr 0)"
@@ -454,7 +561,7 @@ welcome:left() {
   local rows
   rows=$(printf '%s\n' "$@" \
     | jq --raw-output 'select(.ok | not) | "- \(.id): \(.fix // ("read " + (.more // "the line above")))"')
-  printf '## What is left\n\n'
+  printf '# What is left\n\n'
   if [[ -z "${rows}" ]]
   then
     printf 'Nothing is left: every check holds.\n'
@@ -469,6 +576,14 @@ welcome:pages() {
   local dir=.kit/welcome
   compgen -G "${dir}/*.md" >/dev/null || dir=${kit_root}/packages/kit/files/repo/.kit/welcome
   compgen -G "${dir}/*.md" | LC_ALL=C sort
+}
+
+# welcome:page-step <path> prints the id of the step a page is for: its file name without the order and the dash
+# before it, and without .md. 2-before-toolchains.md is for before-toolchains.
+welcome:page-step() {
+  local name=${1##*/}
+  name=${name%.md}
+  printf '%s\n' "${name#*-}"
 }
 
 # welcome:page <path> prints a page without the kit:generated and see: comments it opens with.
@@ -509,6 +624,9 @@ welcome:fix() {
   else
     "${command[@]}" || true
   fi
+  # A fix can choose a toolchain, so the toolchains are found again.
+  welcome:find project
+  welcome:find system
   check=$(welcome:judge "${id}")
   welcome:show "${check}"
   [[ "$(jq --raw-output .ok <<<"${check}")" == true ]] || return 1

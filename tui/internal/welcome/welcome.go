@@ -1,45 +1,71 @@
-// Package welcome is kit welcome on a terminal: four steps as tabs along the top, the step's content below, and the
-// keys bar last. Setup lists kit's checks, one row each. A failed check with a fix offers now and later on the cursor's
-// row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for
-// this session and moves to the next failed check. The other three steps are markdown pages drawn as text.
+// Package welcome is kit welcome on a terminal: seven steps as tabs along the top, the step's content below, and the
+// keys bar last. The steps come from tabs: each has an id, which kit's checks name as their step, a glyph, a name, and
+// a page. A step with checks draws its page, then its checks, one row each. A failed check with a fix offers now and
+// later on the cursor's row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks
+// again; later leaves it for this session and moves to the step's next failed check. The other steps are markdown
+// pages drawn as text.
 //
-// Left and right move between the steps; inside a row with choices they move between now and later. Down enters the
-// setup rows and up on the first row leaves them. Up and down scroll a page. Esc goes back one level: from the rows to
-// the step line, and from there it quits; ctrl-c quits with 130 from anywhere. The screen opens on Setup while the
-// checks run, and moves to the lay of the land when every check passes, unless the person has moved already.
+// Left and right move between the steps; inside a row with choices they move between now and later. Down enters a
+// step's rows and up on the first row leaves them. Up and down scroll a page. Esc goes back one level: from the rows
+// to the step line, and from there it quits; ctrl-c quits with 130 from anywhere. The screen opens on the intro while
+// the checks run. When they answer, it moves to the first failed check, in the first step that has one, unless the
+// person has moved already.
 package welcome
 
 import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/kit"
 )
 
-// The steps, in order.
-const (
-	setup = iota
-	land
-	terms
-	yours
-	steps
-)
-
-// tab is a step's tab: its glyph, its name, and the file of its page. Each glyph is two cells wide with no variation
-// selector.
+// tab is a step: the id its checks name, its tab's glyph and name, the file of its page, and whether it has checks.
+// Each glyph is two cells wide with no variation selector.
 type tab struct {
-	glyph, name, file string
+	id, glyph, name, file string
+	checked               bool
 }
 
-// tabs gives the four steps' tabs.
-var tabs = [steps]tab{
-	{"🔧", "setup", "1-setup.md"},
-	{"🧭", "lay of the land", "2-lay-of-the-land.md"},
-	{"📖", "terms", "3-terms.md"},
-	{"🎨", "make it yours", "4-make-it-yours.md"},
+// tabs gives the steps, in order. A check whose step is not among them shows under the last step with checks.
+var tabs = [...]tab{
+	{"intro", "👋", "intro", "1-intro.md", false},
+	{"before-toolchains", "🧱", "basics", "2-before-toolchains.md", true},
+	{"toolchains", "🧰", "toolchains", "3-toolchains.md", true},
+	{"setup", "🔧", "setup", "4-setup.md", true},
+	{"lay-of-the-land", "🧭", "lay of the land", "5-lay-of-the-land.md", false},
+	{"terms", "📖", "terms", "6-terms.md", false},
+	{"make-it-yours", "🎨", "make it yours", "7-make-it-yours.md", false},
+}
+
+// steps is how many there are.
+const steps = len(tabs)
+
+// stepIndex gives the index of the step with the id, or -1.
+func stepIndex(id string) int {
+	for i, t := range tabs {
+		if t.id == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// stepOf gives the index of the step a check shows under: its own when that step has checks, else the last that has.
+func stepOf(c kit.Check) int {
+	if i := stepIndex(c.Step); i >= 0 && tabs[i].checked {
+		return i
+	}
+	last := 0
+	for i, t := range tabs {
+		if t.checked {
+			last = i
+		}
+	}
+	return last
 }
 
 // The choices on a failed check's row.
@@ -79,12 +105,13 @@ type Model struct {
 	repo     string                                    // owner/repo, for the title, empty when unknown
 	step     int                                       // the selected step
 	inRows   bool                                      // whether the cursor is on a check's row, not on the step line
+	places   [steps]string                             // the check each step's cursor was on when it was left
 	moved    bool                                      // whether the person has changed the step
 	loaded   bool                                      // whether the checks have answered once
 	checking bool                                      // whether kit is running the checks
 	checks   []kit.Check
 	refusal  string // kit's line, when the checks did not run
-	cursor   int    // the check under the cursor
+	cursor   int    // the check under the cursor, an index into checks, in the selected step
 	choice   int    // now or later, on a row that offers them
 	deferred map[string]bool
 	notes    map[string]note
@@ -100,7 +127,7 @@ type Model struct {
 // Open opens the screen in the directory the runner names, with owner/repo read from git.
 func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
 
-// New opens the screen on Setup, checking. Init runs the checks and reads the pages.
+// New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
 	return Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
 		notes: map[string]note{}, width: 80, height: 24}
@@ -153,37 +180,71 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // take keeps the checks, or kit's refusal, and keeps the cursor on the check it was on. The first answer chooses where
-// the screen opens: on the first failed check's row, or on the lay of the land when none failed, unless the person
-// has moved.
+// the screen opens, unless the person has moved: on the first failed check, in the first step that has one, or on
+// the first step with checks when kit refused them.
 func (m *Model) take(msg checksMsg) {
 	m.checking = false
 	if msg.err != nil {
 		m.refusal = refusalOf(msg.err)
+		if !m.loaded && !m.moved {
+			for i, t := range tabs {
+				if t.checked {
+					m.step = i
+					break
+				}
+			}
+		}
 		m.fit()
 		return
 	}
 	id := m.cursorID()
 	m.refusal, m.checks = "", msg.checks
-	m.cursor = 0
-	for i, c := range m.checks {
-		if c.ID == id {
-			m.cursor = i
-		}
+	m.cursor = m.find(m.step, id)
+	for _, c := range m.checks {
 		if c.OK {
 			delete(m.notes, c.ID)
 			delete(m.deferred, c.ID)
 		}
 	}
 	if !m.loaded && !m.moved {
-		if first := m.nextFailed(-1); first >= 0 {
-			m.step, m.inRows, m.cursor = setup, true, first
-		} else if len(m.checks) > 0 {
-			m.step = land
+		for i, c := range m.checks {
+			if !c.OK {
+				m.step, m.inRows, m.cursor = stepOf(c), true, i
+				break
+			}
 		}
 	}
 	m.loaded = true
 	m.fit()
 }
+
+// rows gives the indexes of the step's checks, in order.
+func (m Model) rows(step int) []int {
+	var out []int
+	for i, c := range m.checks {
+		if stepOf(c) == step {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// find gives the index of the check with the id when it is in the step, else the step's first check, else 0.
+func (m Model) find(step int, id string) int {
+	rows := m.rows(step)
+	for _, i := range rows {
+		if m.checks[i].ID == id {
+			return i
+		}
+	}
+	if len(rows) > 0 {
+		return rows[0]
+	}
+	return 0
+}
+
+// hasRows says whether the selected step shows checks.
+func (m Model) hasRows() bool { return tabs[m.step].checked }
 
 // refusalOf gives the line to show when the checks did not run: kit's line, or how kit died with nothing on stderr.
 func refusalOf(err error) string {
@@ -225,7 +286,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if !m.inRows {
 			return m, tea.Quit
 		}
-		m.inRows, m.offsets[setup] = false, 0
+		m.inRows, m.offsets[m.step] = false, 0
 	case "left":
 		if choosing {
 			m.choice = now
@@ -248,7 +309,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.down(max(1, m.paneHeight()-1))
 	case "enter":
 		switch {
-		case m.step == setup && !m.inRows:
+		case m.hasRows() && !m.inRows:
 			m.down(1)
 		case choosing && m.choice == now:
 			return m, m.now()
@@ -268,9 +329,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// choosing says whether the cursor is on a row that offers now and later: a failed check with a fix, in Setup.
+// choosing says whether the cursor is on a row that offers now and later: a failed check with a fix, in a step with
+// checks.
 func (m Model) choosing() bool {
-	if m.step != setup || !m.inRows || m.cursor >= len(m.checks) {
+	if !m.hasRows() || !m.inRows || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
@@ -285,43 +347,52 @@ func (m Model) cursorID() string {
 	return ""
 }
 
-// move selects the step d along, round the ends, on the step line.
+// move selects the step d along, round the ends, on the step line. The cursor goes back to the check it was on in
+// that step, else to the step's first check.
 func (m *Model) move(d int) {
+	m.places[m.step] = m.cursorID()
 	m.step = (m.step + d + steps) % steps
+	m.cursor = m.find(m.step, m.places[m.step])
 	m.inRows, m.moved, m.choice = false, true, now
 }
 
-// up moves the cursor n rows up in Setup, and past the first row back to the step line; on a page it scrolls.
+// up moves the cursor n rows up in a step with checks, and past its first row back to the step line; on a page it
+// scrolls.
 func (m *Model) up(n int) {
-	if m.step != setup {
+	if !m.hasRows() {
 		m.scroll(-n)
 		return
 	}
 	if !m.inRows {
 		return
 	}
-	if m.cursor-n < 0 {
-		m.inRows, m.offsets[setup] = false, 0
+	rows := m.rows(m.step)
+	at := slices.Index(rows, m.cursor)
+	if at-n < 0 {
+		m.inRows, m.offsets[m.step] = false, 0
 		return
 	}
-	m.cursor -= n
+	m.cursor = rows[at-n]
 	m.choice = now
 }
 
-// down moves the cursor n rows down in Setup, entering the rows from the step line; on a page it scrolls.
+// down moves the cursor n rows down in a step with checks, entering the rows from the step line; on a page it
+// scrolls.
 func (m *Model) down(n int) {
-	if m.step != setup {
+	if !m.hasRows() {
 		m.scroll(n)
 		return
 	}
-	if len(m.checks) == 0 {
+	rows := m.rows(m.step)
+	if len(rows) == 0 {
 		return
 	}
+	at := max(0, slices.Index(rows, m.cursor))
 	if !m.inRows {
 		m.inRows = true
 		n--
 	}
-	m.cursor = min(m.cursor+n, len(m.checks)-1)
+	m.cursor = rows[min(at+n, len(rows)-1)]
 	m.choice = now
 }
 
@@ -339,7 +410,8 @@ func (m *Model) now() tea.Cmd {
 	return m.exec(m.runner.WelcomeFix(c.ID), func(err error) tea.Msg { return fixedMsg{id: c.ID, err: err} })
 }
 
-// later leaves the check under the cursor for later and moves to the next failed check not left, if there is one.
+// later leaves the check under the cursor for later and moves to the step's next failed check not left, if there is
+// one.
 func (m *Model) later() {
 	m.deferred[m.checks[m.cursor].ID] = true
 	if next := m.nextFailed(m.cursor); next >= 0 {
@@ -348,11 +420,12 @@ func (m *Model) later() {
 	m.choice = now
 }
 
-// nextFailed gives the first failed check after the row from, round the end, not left for later, or -1.
+// nextFailed gives the step's first failed check after the check from, round the end, not left for later, or -1.
 func (m Model) nextFailed(from int) int {
-	n := len(m.checks)
+	rows := m.rows(m.step)
+	n, at := len(rows), slices.Index(rows, from)
 	for k := 1; k <= n; k++ {
-		i := (from + k + n) % n
+		i := rows[(at+k+n)%n]
 		if c := m.checks[i]; !c.OK && !m.deferred[c.ID] && i != from {
 			return i
 		}

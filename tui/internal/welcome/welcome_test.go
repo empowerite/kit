@@ -16,34 +16,73 @@ import (
 	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
-func TestItOpensOnTheFirstFailedChecksRowWithNowHighlighted(t *testing.T) {
+// The steps, by the ids the checks name them with.
+var (
+	intro  = stepIndex("intro")
+	basics = stepIndex("before-toolchains")
+	chains = stepIndex("toolchains")
+	setup  = stepIndex("setup")
+	land   = stepIndex("lay-of-the-land")
+	terms  = stepIndex("terms")
+	yours  = stepIndex("make-it-yours")
+)
+
+func TestTheStepsAreTheSevenInOrder(t *testing.T) {
+	var ids, files []string
+	for _, s := range tabs {
+		ids, files = append(ids, s.id), append(files, s.file)
+	}
+	want := []string{"intro", "before-toolchains", "toolchains", "setup", "lay-of-the-land", "terms", "make-it-yours"}
+	if !slices.Equal(ids, want) {
+		t.Errorf("ids %q", ids)
+	}
+	for i, f := range files {
+		if f != strconv.Itoa(i+1)+"-"+want[i]+".md" {
+			t.Errorf("step %d's page is %q", i, f)
+		}
+	}
+	if stepIndex("nothing") != -1 {
+		t.Errorf("an unknown step has an index")
+	}
+}
+
+func TestItOpensOnTheFirstStepWithAFailedCheckWithNowHighlighted(t *testing.T) {
 	m, _ := loaded(t)
-	if m.step != setup || !m.inRows || m.cursor != 2 || m.choice != now || !m.choosing() {
+	if m.step != basics || !m.inRows || m.cursor != 1 || m.choice != now || !m.choosing() {
 		t.Fatalf("step %d, in rows %v, cursor %d, choice %d", m.step, m.inRows, m.cursor, m.choice)
 	}
 	if m.keys() != choiceKeys {
 		t.Errorf("keys %q", m.keys())
 	}
+	// with what kit needs in place, it opens on the toolchains
+	m, _ = fake(t)
+	if err := os.WriteFile(os.Getenv("FAKE_WELCOME_STATE"), []byte("jq\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if m = drive(m, testkit.Start(m, at120)...); m.step != chains || !m.inRows || m.cursor != 2 || !m.choosing() {
+		t.Errorf("step %d, in rows %v, cursor %d", m.step, m.inRows, m.cursor)
+	}
 }
 
-func TestItOpensOnTheLayOfTheLandWhenEveryCheckPasses(t *testing.T) {
+func TestItOpensOnTheIntroWhenEveryCheckPasses(t *testing.T) {
 	m, _ := fake(t)
-	if err := os.WriteFile(os.Getenv("FAKE_WELCOME_STATE"), []byte("jq\ngh-auth\nkit-check\n"), 0o644); err != nil {
+	state := []byte("jq\ntoolchain-project\ngh-auth\nkit-check\n")
+	if err := os.WriteFile(os.Getenv("FAKE_WELCOME_STATE"), state, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	m = drive(m, testkit.Start(m, at120)...)
-	if m.step != land || m.inRows {
+	if m.step != intro || m.inRows {
 		t.Errorf("step %d, in rows %v", m.step, m.inRows)
 	}
-	if strings.Contains(view(m), "setup 0") {
-		t.Errorf("setup counts no failure:\n%s", view(m))
+	if got := view(m); strings.Contains(got, "setup 0") || strings.Contains(got, "basics 0") {
+		t.Errorf("a step counts no failure:\n%s", got)
 	}
 }
 
 func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 	m, _ := fake(t)
-	m = drive(m, append([]tea.Msg{at120, right, right}, testkit.Start(m)...)...)
-	if m.step != terms || m.inRows {
+	m = drive(m, append([]tea.Msg{at120, right, right, right}, testkit.Start(m)...)...)
+	if m.step != setup || m.inRows {
 		t.Errorf("step %d, in rows %v", m.step, m.inRows)
 	}
 }
@@ -51,20 +90,27 @@ func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	if got := view(m); !strings.Contains(got, "   checking…") || !strings.Contains(got, "└ 🔧 setup …") {
-		t.Errorf("no checking:\n%s", got)
+	labels := strings.Split(view(m), "\n")[2]
+	for _, want := range []string{"└ 👋 intro  ", "└ 🧱 basics …", "└ 🧰 toolchains …", "└ 🔧 setup …",
+		"└ 🧭 lay of the land  "} {
+		if !strings.Contains(labels, want) {
+			t.Errorf("no %q: %q", want, labels)
+		}
+	}
+	if m = drive(m, right); !strings.Contains(view(m), "   checking…") {
+		t.Errorf("no checking:\n%s", view(m))
 	}
 }
 
 func TestLeftAndRightMoveAlongTheStepsRoundTheEnds(t *testing.T) {
 	m, _ := loaded(t, esc)
-	for _, want := range []int{land, terms, yours, setup} {
+	for _, want := range []int{chains, setup, land, terms, yours, intro, basics} {
 		if m = drive(m, right); m.step != want {
 			t.Fatalf("right: step %d, want %d", m.step, want)
 		}
 	}
-	if m = drive(m, left); m.step != yours {
-		t.Errorf("left from setup: step %d", m.step)
+	if m = drive(m, left, left); m.step != yours {
+		t.Errorf("left from intro: step %d", m.step)
 	}
 	// the selected step's name is drawn in the accent, the rest are not
 	tabs := strings.Split(m.View().Content, "\n")[2]
@@ -73,18 +119,21 @@ func TestLeftAndRightMoveAlongTheStepsRoundTheEnds(t *testing.T) {
 	}
 	// on a check's row with no choices, left and right move along the steps too; down enters the rows where the
 	// cursor was
-	m = drive(m, right, down, up)
-	if m.cursor != 1 || m.choosing() {
-		t.Fatalf("cursor %d", m.cursor)
+	m = drive(m, left, left, left, down, down)
+	if m.step != setup || m.cursor != 4 || m.choosing() {
+		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
 	if m = drive(m, right); m.step != land || m.inRows {
 		t.Errorf("right on a row without choices: step %d, in rows %v", m.step, m.inRows)
+	}
+	if m = drive(m, left, down); m.step != setup || m.cursor != 4 {
+		t.Errorf("back on setup: step %d, cursor %d", m.step, m.cursor)
 	}
 }
 
 func TestLeftAndRightOnAFailedRowMoveBetweenNowAndLater(t *testing.T) {
 	m, r := loaded(t, right)
-	if m.step != setup || m.choice != later {
+	if m.step != basics || m.choice != later {
 		t.Fatalf("step %d, choice %d", m.step, m.choice)
 	}
 	if !strings.Contains(m.View().Content, style.Cursor(" later ")) {
@@ -94,9 +143,9 @@ func TestLeftAndRightOnAFailedRowMoveBetweenNowAndLater(t *testing.T) {
 	if m.choice != now {
 		t.Errorf("left: choice %d", m.choice)
 	}
-	// enter on later leaves the check, as l does
+	// enter on later leaves the check, as l does; it is the step's only failed check, so the cursor stays
 	m = drive(m, right, enter)
-	if !m.deferred["jq"] || m.cursor != 3 || len(r.calls) != 0 {
+	if !m.deferred["jq"] || m.cursor != 1 || m.step != basics || len(r.calls) != 0 {
 		t.Errorf("enter on later: deferred %v, cursor %d, ran %q", m.deferred, m.cursor, r.calls)
 	}
 }
@@ -110,8 +159,8 @@ func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 			t.Fatalf("%v ran %q", key, r.calls)
 		}
 		// the checks ran again, jq is fixed now, and the cursor stays on its row
-		if !m.checks[2].OK || m.cursor != 2 || m.checking || m.choosing() {
-			t.Errorf("%v: jq %+v, cursor %d, checking %v", key, m.checks[2], m.cursor, m.checking)
+		if !m.checks[1].OK || m.cursor != 1 || m.step != basics || m.checking || m.choosing() {
+			t.Errorf("%v: jq %+v, cursor %d, checking %v", key, m.checks[1], m.cursor, m.checking)
 		}
 		if !strings.Contains(view(m), " ▸ ✅ jq is not installed") || strings.Contains(view(m), "brew install jq") {
 			t.Errorf("%v:\n%s", key, view(m))
@@ -123,8 +172,29 @@ func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 	}
 }
 
+func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
+	m, r := loaded(t, esc, right, down)
+	if m.step != chains || m.cursor != 2 || !m.choosing() {
+		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
+	}
+	got := view(m)
+	for _, want := range []string{" ▸ ❌ several toolchains are usable for the project: mise, brew; choose one",
+		"\n      kit toolchains choose mise\n", "\n      or: kit toolchains choose brew\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q:\n%s", want, got)
+		}
+	}
+	m = drive(m, press('n'))
+	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix toolchain-project" || !m.checks[2].OK {
+		t.Errorf("ran %q, check %+v", r.calls, m.checks[2])
+	}
+	if strings.Contains(strings.Split(view(m), "\n")[2], "toolchains 1") {
+		t.Errorf("the toolchains still count a failure:\n%s", view(m))
+	}
+}
+
 func TestNOnACheckThatStillFailsSaysSo(t *testing.T) {
-	m, r := loaded(t, down, press('n'))
+	m, r := loaded(t, esc, right, right, down, press('n'))
 	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix gh-auth" {
 		t.Fatalf("ran %q", r.calls)
 	}
@@ -148,20 +218,19 @@ func TestARefusedFixShowsInRed(t *testing.T) {
 }
 
 func TestLaterLeavesTheCheckAndMovesToTheNextFailedOne(t *testing.T) {
-	m, r := loaded(t, press('l'))
-	if !m.deferred["jq"] || m.cursor != 3 || len(r.calls) != 0 {
+	m, r := loaded(t, esc, right, right, down, press('l'))
+	if !m.deferred["gh-auth"] || m.cursor != 4 || len(r.calls) != 0 {
 		t.Fatalf("deferred %v, cursor %d, ran %q", m.deferred, m.cursor, r.calls)
 	}
 	got := view(m)
-	for _, want := range []string{"   ❌ jq is not installed · later", "   Left for later",
-		"   • jq is not installed: brew install jq"} {
+	for _, want := range []string{"   ❌ gh is not logged in to github.com · later", "   Left for later",
+		"   • gh is not logged in to github.com: gh auth login --hostname github.com"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q:\n%s", want, got)
 		}
 	}
 	// the next failed check has no fix: no choices, and n and l do nothing there
-	m = drive(m, press('l'))
-	if m.cursor != 4 || m.choosing() || m.keys() != rowKeys {
+	if m.choosing() || m.keys() != rowKeys {
 		t.Fatalf("cursor %d, keys %q", m.cursor, m.keys())
 	}
 	m = drive(m, press('n'), press('l'), enter)
@@ -169,14 +238,19 @@ func TestLaterLeavesTheCheckAndMovesToTheNextFailedOne(t *testing.T) {
 		t.Errorf("n and l acted on a check without a fix: %q, %v", r.calls, m.deferred)
 	}
 	// now on a check left for later takes it off the list
-	m = drive(m, up, up, press('n'))
-	if m.deferred["jq"] || strings.Contains(view(m), "• jq") || !strings.Contains(view(m), "• gh is not logged in") {
-		t.Errorf("jq is still left:\n%s", view(m))
+	m = drive(m, up, press('n'))
+	if m.deferred["gh-auth"] || strings.Contains(view(m), "Left for later") {
+		t.Errorf("gh-auth is still left:\n%s", view(m))
+	}
+	// a step lists only its own checks left for later
+	m = drive(m, press('l'), esc, left, left, down, press('l'))
+	if !m.deferred["jq"] || strings.Contains(view(m), "• gh is not logged in") {
+		t.Errorf("another step's check is listed:\n%s", view(m))
 	}
 }
 
 func TestAFailedCheckWithoutAFixShowsWhereToReadMore(t *testing.T) {
-	m, _ := loaded(t, down, down)
+	m, _ := loaded(t, esc, right, right, down, down)
 	got := view(m)
 	if m.cursor != 4 || !strings.Contains(got, " ▸ ❌ kit check finds 2 differences from the release\n") ||
 		!strings.Contains(got, "\n      read: kit help check\n") {
@@ -191,14 +265,17 @@ func TestEscGoesBackFromTheRowsThenQuits(t *testing.T) {
 	m, _ := loaded(t)
 	next, cmd := m.Update(esc)
 	m = next.(Model)
-	if cmd != nil || m.inRows || m.keys() != setupKeys {
+	if cmd != nil || m.inRows || m.keys() != stepKeys {
 		t.Fatalf("esc in the rows: in rows %v, keys %q", m.inRows, m.keys())
 	}
 	if _, cmd = m.Update(esc); cmd == nil || cmd() != tea.Quit() {
 		t.Errorf("esc on the step line did not quit")
 	}
 	// a page has no rows: esc quits at once
-	m = drive(m, right)
+	m = drive(m, left)
+	if m.step != intro || m.keys() != pageKeys {
+		t.Fatalf("step %d, keys %q", m.step, m.keys())
+	}
 	if _, cmd = m.Update(esc); cmd == nil || cmd() != tea.Quit() || m.Interrupted() {
 		t.Errorf("esc on a page did not quit")
 	}
@@ -212,13 +289,16 @@ func TestCtrlCQuitsAsInterrupted(t *testing.T) {
 	}
 }
 
-func TestUpAndDownMoveOverTheRowsAndLeaveThemAtTheTop(t *testing.T) {
+func TestUpAndDownMoveOverTheStepsRowsAndLeaveThemAtTheTop(t *testing.T) {
 	m, _ := loaded(t, esc)
-	if m = drive(m, down); !m.inRows || m.cursor != 2 {
+	if m = drive(m, down); !m.inRows || m.cursor != 1 {
 		t.Fatalf("down from the line: in rows %v, cursor %d", m.inRows, m.cursor)
 	}
-	if m = drive(m, down, down, down); m.cursor != 4 {
-		t.Errorf("down past the last row: cursor %d", m.cursor)
+	if m = drive(m, down, down); m.cursor != 1 {
+		t.Errorf("down past the step's last row: cursor %d", m.cursor)
+	}
+	if m = drive(m, up); m.cursor != 0 {
+		t.Errorf("up: cursor %d", m.cursor)
 	}
 	if m = drive(m, pgup); m.inRows {
 		t.Errorf("page up past the first row stayed in the rows")
@@ -226,22 +306,30 @@ func TestUpAndDownMoveOverTheRowsAndLeaveThemAtTheTop(t *testing.T) {
 	if m = drive(m, enter); !m.inRows {
 		t.Errorf("enter on the line did not enter the rows")
 	}
+	// a step entered for the first time starts on its first row
+	if m = drive(m, esc, right, right, down); m.step != setup || m.cursor != 3 {
+		t.Errorf("setup: step %d, cursor %d", m.step, m.cursor)
+	}
 }
 
 func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
 	m, _ := loaded(t)
 	want := "❌ kit welcome refuses for the test; run: kit help welcome"
-	if m.step != setup || !strings.Contains(view(m), "   "+want) || !strings.Contains(view(m), "└ 🔧 setup !") {
+	if m.step != basics || !strings.Contains(view(m), "   "+want) || !strings.Contains(view(m), "└ 🧱 basics !") ||
+		!strings.Contains(view(m), "└ 🔧 setup !") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	if !strings.Contains(m.View().Content, style.Refusal(want)) {
 		t.Errorf("the refusal is not red: %q", m.View().Content)
 	}
+	if m = drive(m, left); strings.Contains(view(m), want) {
+		t.Errorf("the intro shows the refusal:\n%s", view(m))
+	}
 }
 
 func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
-	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, right, right)
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, left, left, left)
 	if m.step != terms {
 		t.Fatal(m.step)
 	}
@@ -269,7 +357,7 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 }
 
 func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
-	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 10}, down, down)
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 10}, esc, right, right, down, down)
 	if got := view(m); !strings.Contains(got, " ▸ ❌ kit check finds") || !strings.Contains(got, "above") {
 		t.Errorf("the cursor's row is hidden:\n%s", got)
 	}
@@ -285,6 +373,16 @@ func TestEveryLineFitsTheWidth(t *testing.T) {
 				}
 			}
 			m = drive(m, esc, right)
+		}
+	}
+}
+
+func TestEveryTabIsInFullAtTheDesignWidth(t *testing.T) {
+	m, _ := loaded(t)
+	labels := strings.Split(view(m), "\n")[2]
+	for _, s := range tabs {
+		if !strings.Contains(labels, s.glyph+" "+s.name) {
+			t.Errorf("no %q in full: %q", s.name, labels)
 		}
 	}
 }
@@ -310,24 +408,24 @@ func TestTheRepositorysPagesComeFirstAndTheKitPackagesFillIn(t *testing.T) {
 	if err := os.MkdirAll(pages, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(pages, "3-terms.md"), []byte("# Our terms\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(pages, "6-terms.md"), []byte("# Our terms\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	r := testkit.Runner(t, "welcome")
 	r.Dir = dir
 	got, missing := readPages(r)
 	if got[terms] != "# Our terms\n" || !strings.HasPrefix(got[land], "# The lay of the land") ||
-		missing != [steps]string{} {
+		!strings.HasPrefix(got[chains], "# Toolchains") || missing != [steps]string{} {
 		t.Errorf("pages %q, missing %q", got, missing)
 	}
 	// with neither, the page says where it was looked for
 	t.Setenv("FAKE_WELCOME_ROOT", filepath.Join(dir, "nowhere"))
 	_, missing = readPages(r)
-	want := filepath.Join(dir, "nowhere", packageDir, pagesDir, "2-lay-of-the-land.md")
+	want := filepath.Join(dir, "nowhere", packageDir, pagesDir, "5-lay-of-the-land.md")
 	if missing[terms] != "" || missing[land] != want {
 		t.Errorf("missing %q", missing)
 	}
-	m := drive(New(r, ""), at120, pagesMsg{missing: missing}, right)
+	m := drive(New(r, ""), at120, pagesMsg{missing: missing}, right, right, right, right)
 	if !strings.Contains(view(m), "   no page at "+missing[land]) {
 		t.Errorf("no missing line:\n%s", view(m))
 	}

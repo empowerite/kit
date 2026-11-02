@@ -136,17 +136,24 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 ## Welcome
 
-`kit welcome` is where a newcomer starts. It is a guide in four steps:
+`kit welcome` is where a newcomer starts. It is a guide in seven steps:
 
-1. Setup: one check per line for the tools, each forge's login, and the repository, with the fix for each failure.
-2. The lay of the land: how work moves from an issue to a release, through the stages of `kit status`.
-3. Terms: desk, worktree, forge, package, rule, and the rest, one or two sentences each.
-4. Make it yours: the settings teams change first, packages, a house package, and the docs.
+1. Intro: what the guide does.
+2. Before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain.
+3. Toolchains: the project toolchain and the system toolchain, one check each. Several usable means you choose.
+4. Setup: one check per line for the linters, each forge's login, and the repository.
+5. The lay of the land: how work moves from an issue to a release, through the stages of `kit status`.
+6. Terms: desk, worktree, forge, package, rule, and the rest, one or two sentences each.
+7. Make it yours: the settings teams change first, packages, a house package, and the docs.
 
-- On a terminal, it opens in kittui. A failed check offers its fix: now runs it, later moves on.
-- Without a terminal, or with `--text`, it prints the guide and runs nothing. It exits 1 when a check fails.
+- On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs
+  it, later moves on.
+- Without a terminal, or with `--text`, it prints each page with its checks, and runs nothing. It exits 1 when a
+  check fails.
+- A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
+  assumed.
 - `kit welcome --checks --json` prints the checks alone; `kit welcome --fix <check>` runs one fix and checks again.
-- Steps 2 to 4 are pages under `.kit/welcome/`, from the `kit` package. A house package replaces or adds a page.
+- Each step is a page under `.kit/welcome/`, from the `kit` package. A house package replaces or adds a page.
 
 ## The terminal UI
 

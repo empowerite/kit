@@ -3,11 +3,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # welcome --checks --json prints checks.json, beside this script, with every check named in the file
-# FAKE_WELCOME_STATE turned ok. welcome --fix jq adds jq to that file, so a later --checks finds it fixed, and exits 0;
-# --fix gh-auth changes nothing and exits 1, as a fix after which the check still fails; any other id, and the id
-# FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit 2. Every welcome call is written to the file
-# FAKE_WELCOME_CALLS names, when it is set. --checks refuses as kit does when FAKE_WELCOME_REFUSE is set. root prints
-# FAKE_WELCOME_ROOT, else the release directory beside this script, which holds the pages.
+# FAKE_WELCOME_STATE turned ok. welcome --fix jq, or toolchain-project, adds the id to that file, so a later --checks
+# finds it fixed, and exits 0. --fix gh-auth changes nothing and exits 1, as a fix after which the check still fails.
+# Any other id, and the id FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit 2. Every welcome call is written to
+# the file FAKE_WELCOME_CALLS names, when it is set. --checks refuses as kit does when FAKE_WELCOME_REFUSE is set. root
+# prints FAKE_WELCOME_ROOT, else the release directory beside this script, which holds the pages.
 
 set -o errexit -o nounset -o pipefail
 
@@ -45,7 +45,7 @@ case "${1:-}" in
           exit 2
         fi
         case "${id}" in
-          (jq) printf '%s\n' "${id}" >> "${state}" ;;
+          (jq | toolchain-project) printf '%s\n' "${id}" >> "${state}" ;;
           (gh-auth) exit 1 ;;
           (*)
             echo "❌ kit welcome --fix: no fix for '${id}'" >&2

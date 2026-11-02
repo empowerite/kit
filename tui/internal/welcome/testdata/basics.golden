@@ -1,0 +1,30 @@
+ kit welcome · 📚 empowerite/kit
+ ──○────────────●───────────────○───────────────────○─────────────○─────────────────────○───────────○───────────────────
+   └ 👋 intro   └ 🧱 basics 1   └ 🧰 toolchains 1   └ 🔧 setup 2  └ 🧭 lay of the land  └ 📖 terms  └ 🎨 make it yours
+
+   Before toolchains
+
+   kit needs bash, git, jq, and yq before it can look for a toolchain.
+
+   ✅ bash 5.2 runs kit
+ ▸ ❌ jq is not installed    now   later 
+      brew install jq
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back

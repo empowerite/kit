@@ -19,9 +19,10 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar: on the setup step line, on a check's row, on a row that offers now and later, and on a page.
+// The keys bar: on the line of a step with checks, on a check's row, on a row that offers now and later, and on a
+// page.
 const (
-	setupKeys  = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc quit"
+	stepKeys   = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc quit"
 	rowKeys    = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc back"
 	choiceKeys = "↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back"
 	pageKeys   = "↑↓ scroll · ←→ step · esc quit"
@@ -80,21 +81,21 @@ func (m Model) title() string {
 // keys gives the keys bar for where the cursor is.
 func (m Model) keys() string {
 	switch {
-	case m.step != setup:
+	case !m.hasRows():
 		return pageKeys
 	case m.choosing():
 		return choiceKeys
 	case m.inRows:
 		return rowKeys
 	}
-	return setupKeys
+	return stepKeys
 }
 
-// count gives Setup's count: … while the checks first run, ! when kit refused them, else how many failed, or nothing
-// when none did. The pages have none.
+// count gives the count of a step with checks: … while the checks first run, ! when kit refused them, else how many
+// of its checks failed, or nothing when none did. The pages have none.
 func (m Model) count(i int) string {
 	switch {
-	case i != setup:
+	case !tabs[i].checked:
 		return ""
 	case !m.loaded && m.checking:
 		return "…"
@@ -102,8 +103,8 @@ func (m Model) count(i int) string {
 		return "!"
 	}
 	n := 0
-	for _, c := range m.checks {
-		if !c.OK {
+	for _, k := range m.rows(i) {
+		if !m.checks[k].OK {
 			n++
 		}
 	}
@@ -192,8 +193,8 @@ func (m Model) labelLine(l layout) string {
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var texts []string
-	if m.step == setup {
-		for _, l := range m.setupLines() {
+	if m.hasRows() {
+		for _, l := range m.stepLines() {
 			texts = append(texts, l.text)
 		}
 	} else {
@@ -222,14 +223,14 @@ func (m Model) pageLines(i int) []string {
 	return out
 }
 
-// setupLines gives Setup's lines: its page, kit's refusal, the checks, each failed one's fix or where to read more
-// under it, and the list of what is left for later.
-func (m Model) setupLines() []line {
+// stepLines gives the lines of a step with checks: its page, kit's refusal, its checks, each failed one's fix and
+// where to read more under it, and the list of its checks left for later.
+func (m Model) stepLines() []line {
 	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, clip(text, w)}) }
-	if m.missing[setup] == "" && m.pages[setup] != "" {
-		for _, l := range render(m.pages[setup], w-len(lead)) {
+	if m.missing[m.step] == "" && m.pages[m.step] != "" {
+		for _, l := range render(m.pages[m.step], w-len(lead)) {
 			add(-1, strings.TrimRight(lead+l, " "))
 		}
 		add(-1, "")
@@ -240,22 +241,23 @@ func (m Model) setupLines() []line {
 		}
 		add(-1, "")
 	}
-	if len(m.checks) == 0 {
+	rows := m.rows(m.step)
+	if len(rows) == 0 {
 		if m.checking {
 			add(-1, lead+style.Off("checking…"))
 		}
 		return out
 	}
-	for i, c := range m.checks {
-		out = append(out, m.checkLines(i, c.ID)...)
+	for _, i := range rows {
+		out = append(out, m.checkLines(i, m.checks[i].ID)...)
 	}
 	if m.checking {
 		add(-1, "")
 		add(-1, lead+style.Off("checking…"))
 	}
 	var left []line
-	for _, c := range m.checks {
-		if m.deferred[c.ID] && !c.OK {
+	for _, i := range rows {
+		if c := m.checks[i]; m.deferred[c.ID] && !c.OK {
 			left = append(left, line{-1, clip(lead+"• "+c.Line+": "+style.Mark(c.Fix), w)})
 		}
 	}
@@ -268,10 +270,10 @@ func (m Model) setupLines() []line {
 }
 
 // checkLines gives a check's lines: ✅ or ❌ and its line, the cursor's row drawn as chosen with now and later on it
-// when it offers them; under a failed check, its fix, dim, or where to read more; and the note its fix left.
+// when it offers them; under a failed check, its fix, dim, then where to read more; and the note its fix left.
 func (m Model) checkLines(i int, id string) []line {
 	c, w := m.checks[i], m.width-1
-	focused := m.step == setup && m.inRows && i == m.cursor
+	focused := m.hasRows() && m.inRows && i == m.cursor
 	start, text, glyph := lead, c.Line, Passed
 	if focused {
 		start, text = focus, style.Chosen(c.Line)
@@ -288,15 +290,14 @@ func (m Model) checkLines(i int, id string) []line {
 		row = clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}
 	out := []line{{i, clip(row, w)}}
-	switch {
-	case c.OK:
-	case c.Fix != "":
+	if !c.OK && c.Fix != "" {
 		fix := c.Fix
 		if c.Interactive {
 			fix += " · it needs you at the keyboard"
 		}
 		out = append(out, line{i, clip(under+style.Off(fix), w)})
-	case c.More != "":
+	}
+	if !c.OK && c.More != "" {
 		out = append(out, line{i, clip(under+style.Off(c.More), w)})
 	}
 	if n, ok := m.notes[id]; ok {
@@ -317,15 +318,15 @@ func button(name string, highlighted bool) string {
 	return style.Off(" " + name + " ")
 }
 
-// fit keeps the pane's offset within its lines, and in Setup scrolls so the row under the cursor shows, whole when it
-// fits.
+// fit keeps the pane's offset within its lines, and in a step with checks scrolls so the row under the cursor shows,
+// whole when it fits.
 func (m *Model) fit() {
-	if m.step != setup {
+	if !m.hasRows() {
 		m.scroll(0)
 		return
 	}
-	lines, h := m.setupLines(), m.paneHeight()
-	o := &m.offsets[setup]
+	lines, h := m.stepLines(), m.paneHeight()
+	o := &m.offsets[m.step]
 	*o, _, _, _ = window(len(lines), h, *o)
 	if !m.inRows {
 		return

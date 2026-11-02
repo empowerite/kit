@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# welcome.bats - kit welcome: the setup checks as JSON, their fixes, --fix, the text guide, and the hand-off to kittui
+# welcome.bats - kit welcome: its steps, its checks as JSON, their fixes, the text guide, and the hand-off to kittui
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # Each test runs in a fresh repository, with no toolchain file unless the test writes one: its tools are ambient. The
-# tools a check looks for are fakes in a directory first on PATH: a failing stand-in hides a real tool, and uname says
-# which system kit thinks it is on, so the brew fix is tested anywhere.
+# tools a check looks for are fakes in a directory first on PATH: a failing stand-in hides a real tool. A fake brew
+# is there too, so brew is the system toolchain on any machine; a test that needs none chooses ambient for it.
 
 bats_require_minimum_version 1.5.0
 
@@ -14,10 +14,8 @@ setup() {
   fresh-repo >/dev/null
   fakes="${BATS_TEST_TMPDIR}/fakes"
   mkdir -p "${fakes}"
-  # brew is hidden unless a test stands one in; uname says Linux unless FAKE_UNAME says otherwise
+  # brew is found, so it is the system toolchain; it is never run, except for --prefix where a test asks
   fake-script brew 'exit 1'
-  # shellcheck disable=SC2016  # a fake's body expands when it runs
-  fake-script uname '[[ "${1:-}" == -s ]] && { echo "${FAKE_UNAME:-Linux}"; exit 0; }; exec /usr/bin/uname "$@"'
   export PATH="${fakes}:${PATH}"
 }
 
@@ -62,52 +60,127 @@ case "$*" in
 esac'
 }
 
+# outline prints the outline of the text guide on stdin: each page's heading, and ✅ or ❌ for each check, a run
+# of the same glyph once.
+outline() {
+  grep --extended-regexp '^(# |✅|❌)' | sed -E 's/^(✅|❌).*/\1/' | uniq | paste -s -d '|' -
+}
+
+# under prints "<heading>|<glyph> <word>" for each check in the text guide on stdin: the heading of the page above
+# it, and the check's glyph and first word.
+under() {
+  awk '/^# / { heading = $0 } /^(✅|❌)/ { print heading "|" $1 " " $2 }'
+}
+
+# ambient-system chooses ambient for the system role, so no toolchain names a command for a missing tool.
+ambient-system() {
+  "${kit_root}/bin/kit" toolchains choose ambient --system >/dev/null 2>&1
+}
+
 @test "the checks are a JSON array of {id, step, ok, line, fix, interactive, more}, in order, each id once" {
   run --separate-stderr checks
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "step"]] | all' \
     <<<"$output")" = true ]
-  [ "$(jq --raw-output 'map(.step) | unique | join(" ")' <<<"$output")" = setup ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
-  [ "$(jq --raw-output '.[0].id, .[-1].id' <<<"$output" | paste -s -d ' ' -)" = "tool-bash where" ]
-  # tools, then the repository, then where you are; no kit.yml here, so no check of what kit installs
-  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
-    "tool-bash tool-git tool-jq tool-yq repo-git kit-installed where" ]
+  # what kit needs, then the toolchains, then the repository, then where you are; no kit.yml here, so no check of
+  # what kit installs
+  [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash before-toolchains' \
+    'tool-git before-toolchains' 'tool-jq before-toolchains' 'tool-yq before-toolchains' \
+    'toolchain-project toolchains' 'toolchain-system toolchains' 'repo-git setup' 'kit-installed setup' \
+    'where setup')" ]
   [ "$(jq --raw-output '.[] | select(.id == "kit-installed") | [.ok, .fix] | @tsv' <<<"$output")" = \
     $'false\tkit install' ]
   [ "$(jq --raw-output '.[] | select(.id == "where") | .line' <<<"$output")" = \
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "a missing tool's fix is kit tools install where kit detects a toolchain, else brew on macOS, else none" {
+@test "welcome's steps are intro, before toolchains, toolchains, setup, lay of the land, terms, make it yours" {
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [ "$status" -eq 1 ]
+  # each step's page in order, the checks of steps 2 to 4 under their pages, then what is left
+  [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Before toolchains' ✅ '# Toolchains' ✅ '# Setup' \
+    ✅ ❌ ✅ '# The lay of the land' '# Terms' '# Make it yours' '# What is left' | sed 's/|$//')" ]
+  # bash, git, jq, and yq before the toolchains, one check for each role, then the rest
+  [ "$(under <<<"$output")" = "$(printf '%s\n' '# Before toolchains|✅ bash' '# Before toolchains|✅ git' \
+    '# Before toolchains|✅ jq' '# Before toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
+    '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ you')" ]
+}
+
+@test "welcome checks bash, git, jq, and yq before it looks for a toolchain" {
+  local real_jq
+  real_jq=$(command -v jq)
   fake-script yq 'exit 1'
-  # ambient, with no package manager: no fix, and the tool's site to read
+  # the system toolchain names its command for a missing one
   run --separate-stderr check tool-yq
-  [ "$(jq --raw-output '[.ok, .fix, .more] | @tsv' <<<"$output")" = \
-    $'false\t\thttps://github.com/mikefarah/yq#install' ]
-  [ "$(jq --raw-output .line <<<"$output")" = "yq is not installed; kit reads its YAML through it" ]
-  # ambient on macOS with Homebrew
-  fake-script brew 'exit 0'
-  run --separate-stderr env FAKE_UNAME=Darwin "${kit_root}/bin/kit" welcome --checks --json
-  [ "$(jq --raw-output '.[] | select(.id == "tool-yq") | .fix' <<<"$output")" = "brew install yq" ]
-  # ambient on Linux: brew is not offered
-  run --separate-stderr check tool-yq
-  [ "$(jq --raw-output .fix <<<"$output")" = null ]
-  # a detected toolchain wins, even on macOS: its install, and the file that pins the tools
+  [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
+    $'before-toolchains\tfalse\tyq is not installed; kit reads its YAML through it\tbrew install yq\t' ]
+  # still the system toolchain's, with project toolchains here: kit needs these to look for one
   printf 'brew "yq"\n' > Brewfile
+  run --separate-stderr check tool-yq
+  [ "$(jq --raw-output .fix <<<"$output")" = "brew install yq" ]
+  rm Brewfile "${fakes}/yq"
+  # no system toolchain: no fix, and the tool's site to read
+  ambient-system
+  fake-script jq "[[ \"\$*\" != --version ]] || { echo jq-1.6; exit 0; }; exec '${real_jq}' \"\$@\""
+  run --separate-stderr check tool-jq
+  [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
+    $'before-toolchains\tfalse\tjq 1.6 is too old; kit needs jq 1.7 or later\t\thttps://jqlang.org/download/' ]
+  run --separate-stderr check toolchain-system
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
+    $'true\tthe system toolchain is ambient, as chosen: kit uses what is on PATH' ]
+}
+
+@test "welcome fixes a missing tool with kit tools install, or the system toolchain's command when ambient" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  fake-script shellcheck 'exit 1'
+  fake-script actionlint 'exit 0'
+  # ambient for the project: the system toolchain's command
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
+    $'setup\tfalse\tshellcheck is not installed; kit lint runs it for .kit/rules/bash.md\tbrew install shellcheck\t' ]
+  run --separate-stderr check toolchain-project
+  [ "$(jq --raw-output '[.step, .ok, .fix] | @tsv' <<<"$output")" = $'toolchains\ttrue\t' ]
+  [ "$(jq --raw-output .line <<<"$output")" = \
+    "no toolchain is usable for the project, so its tools are ambient: kit uses what is on PATH" ]
+  # ambient for the system too: no fix, and the tool's site
+  ambient-system
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
+    $'\thttps://github.com/koalaman/shellcheck#installing' ]
+  # one project toolchain: it installs what it pins
+  printf 'brew "shellcheck"\n' > Brewfile
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = $'kit tools install\t' ]
+  run --separate-stderr check toolchain-project
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
+    $'true\tbrew is the project toolchain; kit tools lists what it pins' ]
+  # several, none chosen: the toolchains step asks first, and setup has no fix until then
+  touch mise.toml
+  fake-script mise 'exit 0'
+  run --separate-stderr check toolchain-project
+  [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
+    $'false\tkit toolchains choose mise\tfalse\tor: kit toolchains choose brew' ]
+  [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, brew; choose one" ]
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
+    $'\thttps://github.com/empowerite/kit/blob/main/docs/toolchains.md' ]
+  # the toolchains check's fix records the first; the others' commands stand beside it
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix toolchain-project
+  [ "$status" -eq 0 ]
+  [ "$output" = "✅ mise is the project toolchain; kit tools lists what it pins" ]
+  "${kit_root}/bin/kit" toolchains choose brew >/dev/null 2>&1
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output .fix <<<"$output")" = "kit tools install" ]
+  # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
   # shellcheck disable=SC2016  # a fake's body expands when it runs
   fake-script brew '[[ "$*" != --prefix ]] || echo "${BATS_TEST_TMPDIR}/prefix"'
-  run --separate-stderr env FAKE_UNAME=Darwin "${kit_root}/bin/kit" welcome --checks --json
-  [ "$(jq --raw-output '.[] | select(.id == "tool-yq") | [.ok, .fix, .more] | @tsv' <<<"$output")" = \
-    $'false\tkit tools install\tBrewfile' ]
-  # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
   mkdir -p "${BATS_TEST_TMPDIR}/prefix/bin"
-  printf '#!/usr/bin/env bash\necho "yq (https://github.com/mikefarah/yq/) version v4.54.1"\n' \
-    > "${BATS_TEST_TMPDIR}/prefix/bin/yq"
-  chmod +x "${BATS_TEST_TMPDIR}/prefix/bin/yq"
-  run --separate-stderr check tool-yq
+  printf '#!/usr/bin/env bash\nexit 0\n' > "${BATS_TEST_TMPDIR}/prefix/bin/shellcheck"
+  chmod +x "${BATS_TEST_TMPDIR}/prefix/bin/shellcheck"
+  run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
-    $'false\tyq is installed, but not on PATH; kit tools path names its directory\t' ]
+    $'false\tshellcheck is installed, but not on PATH; kit tools path names its directory\t' ]
 }
 
 @test "a forge host among the remotes gets two checks: its tool installed, and logged in, the login's fix interactive" {
@@ -160,26 +233,24 @@ esac'
   [[ "$output" == *"forge-login-github.com holds already, so there is nothing to fix"* ]]
   run grep --quiet 'auth login' "${BATS_TEST_TMPDIR}/gh.calls"
   [ "$status" -eq 1 ]
-  fake-script yq 'exit 1'
-  run "${kit_root}/bin/kit" welcome --fix tool-yq
+  # gh gone: its login has no fix, only a page to read
+  fake-script gh 'exit 1'
+  run "${kit_root}/bin/kit" welcome --fix forge-login-github.com
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit knows no fix for tool-yq; read: https://github.com/mikefarah/yq#install"* ]]
+  [[ "$output" == *"kit knows no fix for forge-login-github.com; read: https://cli.github.com"* ]]
   run "${kit_root}/bin/kit" welcome --fix
   [ "$status" -eq 2 ]
   [[ "$output" == *"--fix needs a value; run: kit help welcome"* ]]
 }
 
-@test "the text guide prints the setup page, the checks, what is left, then the other pages, and exits 1 on a failure" {
+@test "the text guide prints each page with its step's checks, then what is left, and exits 1 on a failure" {
   fake-script yq 'exit 1'
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "# Setup" ]
-  [[ "$output" == *$'\n❌ yq is not installed; kit reads its YAML through it\n   read: https://github.com/mikefarah/yq#install\n'* ]]
-  [[ "$output" == *$'## What is left\n\n- tool-yq: read https://github.com/mikefarah/yq#install\n'* ]]
+  [ "${lines[0]}" = "# Welcome" ]
+  [[ "$output" == *$'\n❌ yq is not installed; kit reads its YAML through it\n   brew install yq\n'* ]]
+  [[ "$output" == *$'# What is left\n\n- tool-yq: brew install yq\n'* ]]
   [[ "$output" != *"kit:generated"* ]]
-  # the pages follow in order, after what is left
-  [ "$(grep --line-number --extended-regexp '^(# |## What is left)' <<<"$output" | cut -d : -f 2- | paste -s -d '|' -)" \
-    = "# Setup|## What is left|# The lay of the land|# Terms|# Make it yours" ]
   # nothing ran: the guide prints the fixes and runs none
   run --separate-stderr "${kit_root}/bin/kit" welcome
   [ "$status" -eq 1 ]
@@ -192,10 +263,12 @@ esac'
   fake-script actionlint 'exit 0'
   run --separate-stderr checks
   [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
-    "tool-bash tool-git tool-jq tool-yq linter-shellcheck linter-actionlint repo-git kit-installed kit-hydrated kit-check where" ]
+    "$(printf '%s ' tool-bash tool-git tool-jq tool-yq toolchain-project toolchain-system linter-shellcheck \
+      linter-actionlint repo-git kit-installed kit-hydrated kit-check where | sed 's/ $//')" ]
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'## What is left\n\nNothing is left: every check holds.\n'* ]]
+  # what is left comes last
+  [[ "$output" == *$'\n# What is left\n\nNothing is left: every check holds.' ]]
   # a placed file gone: hydrate is the fix
   rm .kit/1st.md
   run --separate-stderr check kit-hydrated
@@ -209,13 +282,14 @@ esac'
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   mkdir -p .kit/packages/house/files/repo/.kit/welcome
   printf 'description: "our own"\ndepends:\n  - kit\n' > .kit/packages/house/package.yml
-  printf '# Our terms\n\nWe say "desk".\n' > .kit/packages/house/files/repo/.kit/welcome/3-terms.md
-  printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/5-our-team.md
+  printf '# Our terms\n\nWe say "desk".\n' > .kit/packages/house/files/repo/.kit/welcome/6-terms.md
+  printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/8-our-team.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = \
-    "# Setup|# The lay of the land|# Our terms|# Make it yours|# Our team" ]
-  [ "$(readlink .kit/welcome/3-terms.md)" = ../packages/house/files/repo/.kit/welcome/3-terms.md ]
+  [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
+    '# Before toolchains' '# Toolchains' '# Setup' '# The lay of the land' '# Our terms' '# Make it yours' \
+    '# Our team' '# What is left' | sed 's/|$//')" ]
+  [ "$(readlink .kit/welcome/6-terms.md)" = ../packages/house/files/repo/.kit/welcome/6-terms.md ]
 }
 
 @test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {
@@ -225,13 +299,13 @@ esac'
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
   run pty "'${kit_root}/bin/kit' welcome"
   [[ "$output" == *"kittui native-native welcome"* ]]
-  [[ "$output" != *"# Setup"* ]]
+  [[ "$output" != *"# Welcome"* ]]
   run pty "'${kit_root}/bin/kit' welcome --text"
-  [[ "$output" == *"# Setup"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"# Welcome"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' welcome --checks"
   [[ "$output" == *"✅ bash "* && "$output" != *"kittui"* ]]
   run --separate-stderr "${kit_root}/bin/kit" welcome </dev/null
-  [ "${lines[0]}" = "# Setup" ]
+  [ "${lines[0]}" = "# Welcome" ]
   [[ "$output" != *"kittui"* ]]
 }
 

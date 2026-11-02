@@ -1,19 +1,19 @@
  kit welcome · 📚 empowerite/kit
- ──●──────────────────────────○─────────────────────────────────○───────────────────────○───────────────────────────────
-   └ 🔧 setup 3               └ 🧭 lay of the land              └ 📖 terms              └ 🎨 make it yours
+ ──○────────────○───────────────○───────────────────●─────────────○─────────────────────○───────────○───────────────────
+   └ 👋 intro   └ 🧱 basics 1   └ 🧰 toolchains 1   └ 🔧 setup 2  └ 🧭 lay of the land  └ 📖 terms  └ 🎨 make it yours
 
    Setup
 
    Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
 
-   ✅ bash 5.2 is installed
-   ✅ git 2.47 is installed
- ▸ ❌ jq is not installed    now   later 
-      brew install jq
-   ❌ gh is not logged in to github.com
+ ▸ ❌ gh is not logged in to github.com    now   later 
       gh auth login --hostname github.com · it needs you at the keyboard
    ❌ kit check finds 2 differences from the release
       read: kit help check
+
+
+
+
 
 
 

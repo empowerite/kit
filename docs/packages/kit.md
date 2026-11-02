@@ -7,8 +7,9 @@ out. It delivers:
   `AGENTS.md` to it; see [agents/generic.md](agents/generic.md).
 - `.kit/README.md`, the directory explained to the person at the desk: what is committed, what is placed, and how to
   change what kit adds.
-- `.kit/welcome/`, the pages of `kit welcome` after its setup checks: the lay of the land, the terms, and how to
-  make the kit yours. A house package replaces a page by placing one of the same name, or adds one.
+- `.kit/welcome/`, the pages of `kit welcome`, one per step: the intro, before toolchains, toolchains, setup, the
+  lay of the land, the terms, and how to make the kit yours. A house package replaces a page by placing one of the
+  same name, or adds one.
 - `.kit/kinds/<kind>.yml`, one file per kind, each with the kind's `name:`: the paths and first lines that make a
   file of that kind, and the kinds found inside its files, such as the bash in a justfile.
 - `.kit/rules/<kind>.md`, a rule file for each kind that has one: bash, gitignore, jq, json, just, markdown, and

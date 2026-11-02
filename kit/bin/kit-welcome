@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-welcome - walks a newcomer through setup, the workflow, the terms, and what to change (kit verb: help)
+# kit-welcome - walks a newcomer through what kit needs, the toolchains, setup, and the workflow (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # kit welcome [--text]
@@ -8,32 +8,42 @@
 #
 # kit welcome --fix <check>
 #
-# A guide for your first hour with kit, in four steps:
+# A guide for your first hour with kit, in seven steps:
 #
-#   1. Setup: checks your tools, your forge logins, and this repository, one line each.
-#   2. The lay of the land: how work moves, from an issue to a release.
-#   3. Terms: the words kit uses, one or two sentences each.
-#   4. Make it yours: the settings teams change first, packages, and the docs.
+#   1. Intro: what the guide does.
+#   2. Before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain.
+#   3. Toolchains: the toolchain for the project, and the one for the system, one check each.
+#   4. Setup: your linters, your forge logins, and this repository, one check each.
+#   5. The lay of the land: how work moves, from an issue to a release.
+#   6. Terms: the words kit uses, one or two sentences each.
+#   7. Make it yours: the settings teams change first, packages, and the docs.
 #
-# On a terminal, it opens kittui's welcome screen. Each failed check there offers its fix: now runs it, later moves
-# on. Without a terminal, or with --text, it prints the four steps and runs nothing. Each failed check shows its fix,
-# and a list of what is left follows the checks.
+# Steps 2 to 4 hold checks. On a terminal, it opens kittui's welcome screen, on the first step with a failed check.
+# Each failed check there offers its fix: now runs it, later moves on. Without a terminal, or with --text, it prints
+# each step's page with its checks under it, then a list of what is left. It runs nothing.
 #
 #   --text            prints the guide, even on a terminal
-#   --checks          prints the setup checks alone, one line each
+#   --checks          prints the checks alone, one line each
 #   --json            the checks as a JSON array
 #   --jq              the same JSON, formatted by jq for a person
 #   --fix <check>     runs one check's fix, then checks again
-#   <check>           a check's id, as --checks --json names it: tool-yq, forge-login-github.com
+#   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
 # A check in the JSON is {id, step, ok, line, fix, interactive, more}:
 #
+#   - step is before-toolchains, toolchains, or setup.
 #   - fix is the command that fixes it, or null when it holds or kit knows none.
 #   - interactive is true when the fix needs you at the terminal, as gh auth login does.
-#   - more is where to read when kit knows no fix, or null.
+#   - more is where to read, or the other commands beside the fix, or null.
 #
-# Nothing runs a fix but --fix, and it runs only the one named. The pages of steps 2 to 4 are under .kit/welcome/,
-# from the kit package. A house package replaces a page by placing one of the same name, or adds one.
+# A missing tool's fix comes from the toolchains kit found, and never from one it assumes:
+#
+#   - before toolchains: the system toolchain's command
+#   - setup: kit tools install, or, when ambient, the system toolchain's command
+#
+# Nothing runs a fix but --fix, and it runs only the one named. The pages are under .kit/welcome/, from the kit
+# package, named for their order and step: 3-toolchains.md. A house package replaces a page by placing one of the
+# same name, or adds one.
 #
 # Exits 0 when every check holds, and after --checks prints them; 1 when a check fails, or a fix leaves its check
 # failing; and 2 on a usage error, or a --fix for a check that is unknown, holds already, or has no fix.
@@ -76,20 +86,30 @@ fi
 
 readarray -t pages < <(welcome:pages)
 readarray -t checks < <(welcome:checks)
-# The first page introduces the setup step, so the checks and what is left follow it; the other pages come after.
-if (( ${#pages[@]} ))
+# Each page, with its step's checks under it, then what is left. A check whose step has no page comes last.
+declare -A shown=()
+for page in "${pages[@]}"
+do
+  welcome:page "${page}"
+  step=$(welcome:page-step "${page}")
+  readarray -t mine < <(printf '%s\n' "${checks[@]}" \
+    | jq --compact-output --arg step "${step}" 'select(.step == $step)')
+  if (( ${#mine[@]} ))
+  then
+    printf '\n'
+    welcome:show "${mine[@]}"
+  fi
+  shown[${step}]=1
+  printf '\n'
+done
+readarray -t rest < <(printf '%s\n' "${checks[@]}" \
+  | jq --compact-output --args 'select(.step | IN($ARGS.positional[]) | not)' -- "${!shown[@]}")
+if (( ${#rest[@]} ))
 then
-  welcome:page "${pages[0]}"
+  welcome:show "${rest[@]}"
   printf '\n'
 fi
-welcome:show "${checks[@]}"
-printf '\n'
 welcome:left "${checks[@]}"
-for page in "${pages[@]:1}"
-do
-  printf '\n'
-  welcome:page "${page}"
-done
 printf '%s\n' "${checks[@]}" | jq --slurp --exit-status 'all(.ok)' >/dev/null
 
 # ----------------------------------------------------------------------------------------------------------------------
