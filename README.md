@@ -25,8 +25,8 @@ What else kit provides:
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
 - `kit toolchains`, which lists the toolchains kit finds where it runs, and `kit tools`, which installs and
   updates the tools the chosen one pins, and runs commands with them.
-- `kit flow`, which draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
-  changes, builds, releases.
+- `kit flow`, which draws where the work stands in eight stages: backlog, underway, desk, worktrees,
+  changes, incoming, builds, releases.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.
   The Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
   such as `git rebase`.
@@ -236,8 +236,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    issue reference first, and `<area>:` is this repository's convention.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
-   - `kit flow` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
-     changes, builds, releases. `kit flow <stage>` prints one.
+   - `kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees,
+     changes, incoming, builds, releases. `kit flow <stage>` prints one.
    - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick. A verb run without an
      argument it needs opens the same form.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.

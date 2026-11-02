@@ -6,7 +6,7 @@
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
-#   backlog → underway → incoming → desk → worktrees → changes → builds → releases
+#   backlog → underway → desk → worktrees → changes → incoming → builds → releases
 #
 # The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
 #
@@ -23,7 +23,7 @@
 #   - in a worktree: that worktree, and the pull request its branch holds
 #   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
 #
-# backlog, underway, incoming, desk, builds, and releases draw the same anywhere. A repository with no primary
+# backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
 # remote draws its checkouts, fetches nothing, and says so once.
 #
 #   --no-fetch          fetches nothing; incoming says so
@@ -67,7 +67,7 @@
 # kit flow releases [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for backlog, underway, changes, builds, and releases; an object for incoming, desk, and worktrees. Above desks,
+# for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
 # --json prints an array with one {path, status} per desk.
 #
 # Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest

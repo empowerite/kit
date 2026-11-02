@@ -178,7 +178,7 @@
     },
     "flow": {
       "type": "array",
-      "description": "The stages kit flow draws, in order: backlog, underway, incoming, desk, worktrees, changes, builds, releases. A stage left out is not drawn, but kit flow <stage> still prints it. Default: all eight, in that order.",
+      "description": "The stages kit flow draws, in order: backlog, underway, desk, worktrees, changes, incoming, builds, releases. A stage left out is not drawn, but kit flow <stage> still prints it. Default: all eight, in that order.",
       "uniqueItems": true,
       "items": {
         "enum": [

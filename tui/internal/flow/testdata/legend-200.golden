@@ -1,26 +1,26 @@
  kit flow · 📚 empowerite/kit
- ──●──────────────────────○─────────────────────────────────────○───────────────────────○─────────────────────────○─────────────────────────○───────────────────────────○────────────────────────────┄┄┄
-   ├ 🎫 backlog 3         ├ 🛫 underway 4                       ├ 📥 incoming 6         ├ 🏠 desk 1               ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 🏭 builds 4                 ├ 
-   └ legend               └ legend                              └ legend                └ legend                  └ legend                  └ legend                    └ legend                      └ 
-     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 📥  the fetch         ├ 🏠  the desk            ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 🏭  a build
-     ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ 📡  a remote          ├ ❗  on no branch        ├ ❗  on no branch        ├ 👤  its author            ├ 🏃  running or queued
-     └ 🌿  its branch       ├ 🔀  the pull request                ├ 🌿  a branch          └ 🔀  its pull request    ├ 🔀  its pull request    ├ 🌿  its branch            ├ ✅  passed
-                            ├ 🏠  here, in a worktree             ├ 🔖  a branch gone                               └ 🔖  a branch gone       ├ 🏃  checks running        ├ ❌  failed
-                            └ 🎫  the issue's title               ├ 📌  a new tag                                                             ├ ✅  checks passed         └ 🛑  cancelled or skipped
-                                                                  └ ❌  a fetch failed                                                        ├ ❌  a check failed
-                                                                                                                                              ├ 💬  threads unresolved
-                                                                                                                                              ├ 🛫  an issue it closes
-                                                                                                                                              ├ 🎫  the issue's title
-                                                                                                                                              └ state
-                                                                                                                                                ├ 🔨  draft
-                                                                                                                                                ├ 🚦  queued
-                                                                                                                                                ├ 💥  conflicted
-                                                                                                                                                ├ 🔥  failing:gate
-                                                                                                                                                ├ 📭  no-check
-                                                                                                                                                ├ 💬  comments:open
-                                                                                                                                                ├ 👀  blocked:approval
-                                                                                                                                                ├ 🛬  ready
-                                                                                                                                                └ 🔳  any other state
+ ──●──────────────────────○─────────────────────────────────────○─────────────────────────○─────────────────────────○───────────────────────────○───────────────────────○────────────────────────────┄┄┄
+   ├ 🎫 backlog 3         ├ 🛫 underway 4                       ├ 🏠 desk 1               ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 📥 incoming 6         ├ 🏭 builds 4                 ├ 
+   └ legend               └ legend                              └ legend                  └ legend                  └ legend                    └ legend                └ legend                      └ 
+     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 🏠  the desk            ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 📥  the fetch         ├ 🏭  a build
+     ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ ❗  on no branch        ├ ❗  on no branch        ├ 👤  its author            ├ 📡  a remote          ├ 🏃  running or queued
+     └ 🌿  its branch       ├ 🔀  the pull request                └ 🔀  its pull request    ├ 🔀  its pull request    ├ 🌿  its branch            ├ 🌿  a branch          ├ ✅  passed
+                            ├ 🏠  here, in a worktree                                       └ 🔖  a branch gone       ├ 🏃  checks running        ├ 🔖  a branch gone     ├ ❌  failed
+                            └ 🎫  the issue's title                                                                   ├ ✅  checks passed         ├ 📌  a new tag         └ 🛑  cancelled or skipped
+                                                                                                                      ├ ❌  a check failed        └ ❌  a fetch failed
+                                                                                                                      ├ 💬  threads unresolved
+                                                                                                                      ├ 🛫  an issue it closes
+                                                                                                                      ├ 🎫  the issue's title
+                                                                                                                      └ state
+                                                                                                                        ├ 🔨  draft
+                                                                                                                        ├ 🚦  queued
+                                                                                                                        ├ 💥  conflicted
+                                                                                                                        ├ 🔥  failing:gate
+                                                                                                                        ├ 📭  no-check
+                                                                                                                        ├ 💬  comments:open
+                                                                                                                        ├ 👀  blocked:approval
+                                                                                                                        ├ 🛬  ready
+                                                                                                                        └ 🔳  any other state
 
    #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
    #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts

@@ -273,7 +273,7 @@ answers:
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
-| `flow` | The stages `kit flow` draws, in order: `backlog`, `underway`, `incoming`, `desk`, `worktrees`, `changes`, `builds`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. Default: all eight, in that order. |
+| `flow` | The stages `kit flow` draws, in order: `backlog`, `underway`, `desk`, `worktrees`, `changes`, `incoming`, `builds`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. Default: all eight, in that order. |
 
 A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker, takes one of the
 kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`

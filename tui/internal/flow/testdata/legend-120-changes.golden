@@ -1,32 +1,32 @@
  kit flow · 📚 empowerite/kit
- ┄┄┄─────────○─────────────────────────●───────────────────────────○─────────────────────────────○──────────────────────
-             ├ 🌿 4                    ├ 🔀 changes 3              ├ 🏭 4                        ├ 📦 3
-             └ legend                  └ legend                    └ legend                      └ legend
-               ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 🏭  a build                 ├ 📦  a release
-               ├ ❗  on no branch        ├ 👤  its author            ├ 🏃  running or queued       ├ 🧪  a pre-release
-               ├ 🔀  its pull request    ├ 🌿  its branch            ├ ✅  passed                  ├ 📝  a draft
-               └ 🔖  a branch gone       ├ 🏃  checks running        ├ ❌  failed                  └ ⭐  the latest
-                                         ├ ✅  checks passed         └ 🛑  cancelled or skipped
-                                         ├ ❌  a check failed
-                                         ├ 💬  threads unresolved
-                                         ├ 🛫  an issue it closes
-                                         ├ 🎫  the issue's title
-                                         └ state
-                                           ├ 🔨  draft
-                                           ├ 🚦  queued
-                                           ├ 💥  conflicted
-                                           ├ 🔥  failing:gate
-                                           ├ 📭  no-check
-                                           ├ 💬  comments:open
-                                           ├ 👀  blocked:approval
-                                           ├ 🛬  ready
-                                           └ 🔳  any other state
+ ┄┄┄───────────○───────────────────────────●───────────────────────○─────────────────────────────○──────────────────────
+               ├ 🔀 3                      ├ 📥 incoming 6         ├ 🏭 4                        ├ 📦 3
+               └ legend                    └ legend                └ legend                      └ legend
+                 ├ 🔀  a pull request        ├ 📥  the fetch         ├ 🏭  a build                 ├ 📦  a release
+                 ├ 👤  its author            ├ 📡  a remote          ├ 🏃  running or queued       ├ 🧪  a pre-release
+                 ├ 🌿  its branch            ├ 🌿  a branch          ├ ✅  passed                  ├ 📝  a draft
+                 ├ 🏃  checks running        ├ 🔖  a branch gone     ├ ❌  failed                  └ ⭐  the latest
+                 ├ ✅  checks passed         ├ 📌  a new tag         └ 🛑  cancelled or skipped
+                 ├ ❌  a check failed        └ ❌  a fetch failed
+                 ├ 💬  threads unresolved
+                 ├ 🛫  an issue it closes
+                 ├ 🎫  the issue's title
+                 └ state
+                   ├ 🔨  draft
+                   ├ 🚦  queued
+                   ├ 💥  conflicted
+                   ├ 🔥  failing:gate
+                   ├ 📭  no-check
+                   ├ 💬  comments:open
+                   ├ 👀  blocked:approval
+                   ├ 🛬  ready
+                   └ 🔳  any other state
 
-   🔀 #2  The first r…  👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3m                                 🌿 1-the…
-   🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2                   💬 2 unresolved  🌿 3-a-s…
-   🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint failing 1 / 2 95s                   🌿 4-lin…
-
-
-
+   📡 origin · github · github.com
+   a1b2c3d  #1 docs: the docs say what the code does
+   e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one
+   🌿       46-a-noun-lists updated
+   🌿       42-settings new branch
+   … 5 more
 
  ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

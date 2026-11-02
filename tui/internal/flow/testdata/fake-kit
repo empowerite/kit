@@ -29,12 +29,12 @@ case "${1:-}" in
       echo "❌ kit flow refuses for the test; run: kit help flow" >&2
       exit 2
     fi
-    for stage in ${FAKE_FLOW_STAGES-backlog underway incoming desk worktrees changes builds releases}
+    for stage in ${FAKE_FLOW_STAGES-backlog underway desk worktrees changes incoming builds releases}
     do
       printf '%s\n' "${stage}"
     done
     ;;
-  (backlog | underway | incoming | desk | worktrees | changes | builds | releases)
+  (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
     stage=$1
     shift
     if [[ "${1:-}" != --json ]]

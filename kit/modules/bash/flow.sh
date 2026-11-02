@@ -5,11 +5,11 @@
 #
 # kit flow draws the picture. Work moves left to right through eight stages:
 #
-#   backlog → underway → incoming → desk → worktrees → changes → builds → releases
+#   backlog → underway → desk → worktrees → changes → incoming → builds → releases
 #
 # The flow setting in kit.yml names the stages the picture draws, in order. flow:render draws one stage, or
 # the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,
-# underway, changes, builds, and releases live in the modules named after them. The incoming, desk, and worktrees
+# underway, changes, builds, and releases live in the modules named after them. The desk, worktrees, and incoming
 # stages, and the cells every table shares, are here.
 #
 # The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
@@ -24,7 +24,7 @@
 #     skips hidden directories and symbolic links, and goes no deeper than flow_walk_depth. The desks are drawn in
 #     path order, each with a fetch of its own.
 #
-# backlog, underway, incoming, desk, builds, and releases draw the same anywhere in a repository.
+# backlog, underway, desk, incoming, builds, and releases draw the same anywhere in a repository.
 #
 # The primary remote is the primary setting in kit.yml, else origin; modules/bash/forge.sh says how. The incoming
 # stage fetches every remote, and the rest measure against the primary.
@@ -1157,7 +1157,7 @@ flow:render() {
     return
   fi
   case "${1:-}" in
-    (backlog | underway | incoming | desk | worktrees | changes | builds | releases)
+    (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
       stage=$1
       shift
   esac

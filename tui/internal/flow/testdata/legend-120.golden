@@ -1,17 +1,17 @@
  kit flow · 📚 empowerite/kit
- ──●──────────────────────○─────────────────────────────────────○───────────────────────○─────────────────────────○──┄┄┄
-   ├ 🎫 backlog 3         ├ 🛫 4                                ├ 📥 6                  ├ 🏠 1                    ├ 🌿 4
-   └ legend               └ legend                              └ legend                └ legend                  └ lege
-     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 📥  the fetch         ├ 🏠  the desk            ├ 🌿
-     ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ 📡  a remote          ├ ❗  on no branch        ├ ❗
-     └ 🌿  its branch       ├ 🔀  the pull request                ├ 🌿  a branch          └ 🔀  its pull request    ├ 🔀
-                            ├ 🏠  here, in a worktree             ├ 🔖  a branch gone                               └ 🔖
-                            └ 🎫  the issue's title               ├ 📌  a new tag
-                                                                  └ ❌  a fetch failed
-
-
-
-
+ ──●──────────────────────○─────────────────────────────────────○─────────────────────────○─────────────────────────○┄┄┄
+   ├ 🎫 backlog 3         ├ 🛫 4                                ├ 🏠 1                    ├ 🌿 4                    ├ 🔀
+   └ legend               └ legend                              └ legend                  └ legend                  └ le
+     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 🏠  the desk            ├ 🌿  a worktree          ├
+     ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ ❗  on no branch        ├ ❗  on no branch        ├
+     └ 🌿  its branch       ├ 🔀  the pull request                └ 🔀  its pull request    ├ 🔀  its pull request    ├
+                            ├ 🏠  here, in a worktree                                       └ 🔖  a branch gone       ├
+                            └ 🎫  the issue's title                                                                   ├
+                                                                                                                      ├
+                                                                                                                      ├
+                                                                                                                      ├
+                                                                                                                      ├
+                                                                                                                      └ 
 
 
 
