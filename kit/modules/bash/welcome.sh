@@ -176,11 +176,11 @@ welcome:missing() {
 # usable, and when none is, which is ambient. With several usable and none chosen, it fails: its fix chooses the
 # first, and more names the command for each of the others.
 welcome:toolchain() {
-  local role=$1 chosen flag='' candidate names='' others=''
+  local role=$1 chosen flag candidate names='' others=''
   local -a usable
   chosen=$(welcome:chosen "${role}")
   readarray -t usable < <(toolchain:usable "${role}" 2>/dev/null)
-  [[ "${role}" != system ]] || flag=' --system'
+  flag=$(toolchain:flag "${role}")
   case "${chosen}" in
     (ambient)
       if (( ${#usable[@]} ))
@@ -551,12 +551,13 @@ welcome:show() {
   done
 }
 
-# welcome:left <check-json>… prints what is left: each failed check's id, and its fix or where to read more. With
-# nothing left, it says so.
+# welcome:left <check-json>… prints what is left: each failed check's id, and its fix or where to read more. A fix
+# keeps what more says beside it, as the toolchains check's other choices. With nothing left, it says so.
 welcome:left() {
   local rows
-  rows=$(printf '%s\n' "$@" \
-    | jq --raw-output 'select(.ok | not) | "- \(.id): \(.fix // ("read " + (.more // "the line above")))"')
+  rows=$(printf '%s\n' "$@" | jq --raw-output 'select(.ok | not)
+    | "- \(.id): " + (if .fix then .fix + (if .more then "; " + .more else "" end)
+      else "read " + (.more // "the line above") end)')
   printf '# What is left\n\n'
   if [[ -z "${rows}" ]]
   then

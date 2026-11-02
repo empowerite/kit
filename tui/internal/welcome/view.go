@@ -224,7 +224,8 @@ func (m Model) pageLines(i int) []string {
 }
 
 // stepLines gives the lines of a step with checks: its page, kit's refusal, its checks, each failed one's fix and
-// where to read more under it, and the list of its checks left for later.
+// where to read more under it, and the list of its checks left for later, each with its fix and, under it, what more
+// says, as the toolchains check's other choices.
 func (m Model) stepLines() []line {
 	w := m.width - 1
 	var out []line
@@ -259,6 +260,9 @@ func (m Model) stepLines() []line {
 	for _, i := range rows {
 		if c := m.checks[i]; m.deferred[c.ID] && !c.OK {
 			left = append(left, line{-1, clip(lead+"• "+c.Line+": "+style.Mark(c.Fix), w)})
+			if c.More != "" {
+				left = append(left, line{-1, clip(lead+"  "+style.Mark(c.More), w)})
+			}
 		}
 	}
 	if len(left) > 0 {

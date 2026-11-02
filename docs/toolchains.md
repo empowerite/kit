@@ -29,8 +29,8 @@ tools on `PATH`.
 
 Each provider answers two questions about the repository it runs in:
 
-- **usable**: its tool is installed and on `PATH`, and its file is here. The file counts whether committed,
-  ignored, or not yet added.
+- **usable**: its tool is installed and on `PATH`. For the project role, its file is here too. The file counts
+  whether committed, ignored, or not yet added.
 - **active**: the run is already inside it, as in a shell where mise is activated. Its file must be here too, so a
   marker left over from another project's shell does not count.
 

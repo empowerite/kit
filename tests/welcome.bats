@@ -162,6 +162,9 @@ ambient-system() {
   [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
     $'false\tkit toolchains choose mise\tfalse\tor: kit toolchains choose brew' ]
   [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, brew; choose one" ]
+  # what is left keeps the other toolchain's command beside the fix
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [[ "$output" == *$'\n- toolchain-project: kit toolchains choose mise; or: kit toolchains choose brew\n'* ]]
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/empowerite/kit/blob/main/docs/toolchains.md' ]

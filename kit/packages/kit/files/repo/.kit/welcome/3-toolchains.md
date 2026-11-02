@@ -10,7 +10,8 @@ A toolchain fills one of two roles, or both:
 - The system toolchain supplies what kit runs on: bash, git, jq, and yq. kit names its command for a missing tool,
   and installs nothing there on its own.
 
-A toolchain is usable when its tool is on PATH and its file is in this repository. For each role, kit uses:
+A toolchain is usable when its tool is on PATH. For the project role, its file must also be in this repository.
+For each role, kit uses:
 
 - the one you are already inside, such as a shell it opened
 - else the one you chose, while it is still usable

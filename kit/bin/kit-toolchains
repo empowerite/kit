@@ -9,7 +9,7 @@
 # Alone, it lists each toolchain kit can use, one row for each role it fills. A toolchain is a tool manager: mise,
 # nix, brew, docker, or devcontainer. kit finds them where it runs, and never asks. The columns:
 #
-#   - ✅ marks a toolchain usable here: its tool is installed and its file is here.
+#   - ✅ marks a toolchain usable here: its tool is installed, and for the project role its file is here.
 #   - ⚡ marks one the run is already inside.
 #   - 📌 marks the one kit uses for the role. With several usable and none chosen, no row has it.
 #

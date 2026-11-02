@@ -193,6 +193,18 @@ func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
 	}
 }
 
+func TestLaterKeepsTheOtherToolchainsBesideTheFix(t *testing.T) {
+	m, _ := loaded(t, esc, right, down, press('l'))
+	if !m.deferred["toolchain-project"] {
+		t.Fatalf("deferred %v", m.deferred)
+	}
+	want := "\n   • several toolchains are usable for the project: mise, brew; choose one: kit toolchains choose mise\n" +
+		"     or: kit toolchains choose brew\n"
+	if got := view(m); !strings.Contains(got, want) {
+		t.Errorf("no %q:\n%s", want, got)
+	}
+}
+
 func TestNOnACheckThatStillFailsSaysSo(t *testing.T) {
 	m, r := loaded(t, esc, right, right, down, press('n'))
 	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix gh-auth" {
