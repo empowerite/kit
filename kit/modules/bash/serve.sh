@@ -203,7 +203,7 @@ serve:tool() {
     [[ "${tool}" == "${world}" ]] && open=true
   done
   description="kit ${verb} $(help:purpose "${verb}")"$'\n\nUsage:\n'
-  description+=$(help:usage "${verb}" | sed 's/^/  /')$'\n\n'
+  description+=$(serve:usage "${verb}" | sed 's/^/  /')$'\n\n'
   description+=$(help:description "${verb}")
   jq --null-input --compact-output --arg name "${tool}" --arg description "${description}" \
     --arg verb "${verb}" --argjson open "${open}" '{
@@ -223,6 +223,31 @@ serve:tool() {
       },
       annotations: {readOnlyHint: true, destructiveHint: false, openWorldHint: $open}
     }'
+}
+
+# serve:usage <tool> prints the verb's usage lines. A listing-only tool loses each line that needs one of its refused
+# words, read from the lines' kit syntax JSON, so its description offers only what a call may do.
+serve:usage() {
+  local tool=$1 syntax
+  local -a usage
+  readarray -t usage < <(help:usage "${tool}")
+  if [[ -z "${serve_listing_only[${tool}]+x}" ]]
+  then
+    printf '%s\n' "${usage[@]}"
+    return 0
+  fi
+  syntax=$(syntax:parse "${tool}" "${usage[@]}") || return 1
+  # A word is required when no optional group holds it: a literal, or a flag or option as --name.
+  # shellcheck disable=SC2016  # $syntax and $refused are jq's
+  jq --null-input --raw-output --argjson syntax "${syntax}" --arg refused "${serve_listing_only[${tool}]}" '
+    def required:
+      if .kind == "literal" then .name
+      elif .kind == "flag" or .kind == "option" then "--" + .name
+      elif .kind == "group" and (.optional | not) then .alternatives[][] | required
+      else empty end;
+    ($refused | split(" ")) as $words
+    | [$ARGS.positional, $syntax] | transpose[]
+    | select(any(.[1][] | required; IN($words[])) | not) | .[0]' --args "${usage[@]}"
 }
 
 # serve:tools-call <id> <params> runs the tool's verb with its args and answers with what it printed. A verb that

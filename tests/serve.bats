@@ -138,6 +138,20 @@ call() {
   answer 13 | jq --exit-status '.result.isError == false'
 }
 
+@test "a listing-only tool's description shows only its listing usage lines; any other tool's shows them all" {
+  serve "$(modern 1 tools/list)"
+  local verb
+  for verb in packages toolchains tools
+  do
+    answer 1 | jq --exit-status --arg verb "${verb}" --arg usage "Usage:
+  $(cd "${kit_checkout}" && bash -c 'source modules/bash/1st.sh && use help && help:usage "$1"' - "${verb}" | head -n 1)" \
+      '.result.tools[] | select(.name == $verb) | .description | split("\n\n")[1] == $usage'
+  done
+  answer 1 | jq --exit-status --arg usage "Usage:
+$(cd "${kit_checkout}" && bash -c 'source modules/bash/1st.sh && use help && help:usage syntax' | sed 's/^/  /')" \
+    '.result.tools[] | select(.name == "syntax") | .description | split("\n\n")[1] == $usage'
+}
+
 @test "a verb reads end of file on stdin, so the requests after it reach the server, and nothing but answers reach stdout" {
   serve "$(call 1 context --claude)" "$(call 2 help 'two
 lines')" "$(call 3 version)"
