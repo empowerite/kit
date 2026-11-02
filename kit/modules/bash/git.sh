@@ -10,11 +10,13 @@
 
 use forge
 
-# git:default-branch [<path>] prints the default branch of the repository at <path>: origin/HEAD, else main.
+# git:default-branch [<path>] prints the default branch of the repository at <path>: the primary remote's HEAD, else
+# main.
 git:default-branch() {
-  local branch
-  branch=$(git -C "${1:-.}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' \
-    || true)
+  local branch primary
+  primary=$(forge:primary) || return $?
+  branch=$(git -C "${1:-.}" symbolic-ref --quiet --short "refs/remotes/${primary}/HEAD" 2>/dev/null || true)
+  branch=${branch#"${primary}"/}
   [[ -n "${branch}" ]] || branch=main
   printf '%s\n' "${branch}"
 }
@@ -94,7 +96,7 @@ git:clean() {
 # one worktree and prints the reason. It returns 0 when the worktree was removed (or would be, under a dry run)
 # and 1 when it is kept.
 git:tidy-worktree() {
-  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref
+  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref primary
   if [[ "${path}" == "${self_root}" ]]
   then
     step "keeping ${path} (this command runs in it)"
@@ -118,11 +120,12 @@ git:tidy-worktree() {
   then
     # Remove a detached checkout only when its commit is already on the default branch. Otherwise its HEAD may be
     # the only ref that reaches that commit.
-    if git -C "${path}" merge-base --is-ancestor HEAD "origin/${default_branch}" 2>/dev/null
+    primary=$(forge:primary) || return 1
+    if git -C "${path}" merge-base --is-ancestor HEAD "${primary}/${default_branch}" 2>/dev/null
     then
       state=DETACHED
     else
-      step "keeping ${path} (detached at a commit origin/${default_branch} does not reach)"
+      step "keeping ${path} (detached at a commit ${primary}/${default_branch} does not reach)"
       return 1
     fi
   fi
@@ -145,7 +148,7 @@ git:tidy-worktree() {
 
 # git:tidy [--dry-run] cleans up finished work. It:
 #
-#   1. fetches origin with --prune
+#   1. fetches every remote with --prune: the primary, and the one a branch's upstream is on, as in a fork
 #   2. removes every clean worktree under worktrees/ whose pull request is merged or closed (or, with no pull
 #      request, whose issue is closed), or that is detached at a commit the default branch already has
 #   3. prunes git's worktree bookkeeping
@@ -161,7 +164,7 @@ git:tidy-worktree() {
 #
 # --dry-run prints what it would do and changes nothing.
 git:tidy() {
-  local dry_run=false flag repo default_branch self_root found=false path branch detached
+  local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes
   local removed_worktrees=0 removed_branches=0 checked_out
   local -A freed=()
   for flag in "$@"
@@ -179,15 +182,20 @@ git:tidy() {
     section "kit tidy: sweeping ${repo} back to pristine"
   fi
 
-  default_branch=$(git:default-branch)
+  default_branch=$(git:default-branch) || return $?
   self_root=$(git rev-parse --show-toplevel)
-  if [[ "${dry_run}" == true ]]
-  then
-    step "would run: git fetch --prune origin"
-  else
-    step "git fetch --prune origin"
-    git fetch --quiet --prune origin
-  fi
+  remotes=$(forge:remotes) || return $?
+  while IFS= read -r remote
+  do
+    [[ -n "${remote}" ]] || continue
+    if [[ "${dry_run}" == true ]]
+    then
+      step "would run: git fetch --prune ${remote}"
+    else
+      step "git fetch --prune ${remote}"
+      git fetch --quiet --prune --end-of-options "${remote}"
+    fi
+  done <<<"${remotes}"
 
   section "worktrees whose pull request is merged or closed"
   while IFS=$'\t' read -r path detached branch
@@ -241,7 +249,7 @@ git:tidy() {
 }
 
 # git:rebase [<path>] rebases the branch checked out at <path> (default: the current checkout) onto the default
-# branch at origin, then pushes it with --force-with-lease. It refuses:
+# branch at the primary remote, then pushes it with --force-with-lease. It refuses:
 #
 #   - a checkout with no branch checked out
 #   - the root checkout (the desk, which belongs to the human), whatever branch it has
@@ -250,7 +258,7 @@ git:tidy() {
 #
 # On a conflict it aborts the rebase and leaves the worktree as it was.
 git:rebase() {
-  local worktree=${1:-.} branch default_branch
+  local worktree=${1:-.} branch default_branch primary
   branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   if [[ -z "${branch}" ]]
   then
@@ -273,16 +281,18 @@ git:rebase() {
     error "refusing to rebase ${branch}: the worktree has uncommitted changes; commit or stash them first"
     return 1
   fi
-  section "kit rebase ${branch} onto origin/${default_branch}"
-  git -C "${worktree}" fetch --quiet --prune origin
-  if ! git -C "${worktree}" rebase --quiet "origin/${default_branch}"
+  primary=$(forge:primary) || return $?
+  section "kit rebase ${branch} onto ${primary}/${default_branch}"
+  git -C "${worktree}" fetch --quiet --prune --end-of-options "${primary}"
+  if ! git -C "${worktree}" rebase --quiet "${primary}/${default_branch}"
   then
     git -C "${worktree}" rebase --abort 2>/dev/null || true
-    error "${branch} conflicts with origin/${default_branch}; the rebase was aborted and the worktree is as it was"
+    error "${branch} conflicts with ${primary}/${default_branch};" \
+      "the rebase was aborted and the worktree is as it was"
     return 1
   fi
   git -C "${worktree}" push --quiet --force-with-lease
-  ok "${branch} is rebased onto origin/${default_branch} and pushed."
+  ok "${branch} is rebased onto ${primary}/${default_branch} and pushed."
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

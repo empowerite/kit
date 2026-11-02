@@ -5,6 +5,7 @@
     "kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit status --stages",
     "kit status backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit status underway [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit status incoming [--no-fetch] [--json | --jq]",
     "kit status desk [--json | --jq]",
     "kit status worktrees [--json | --jq]",
@@ -159,6 +160,94 @@
             {
               "kind": "flag",
               "name": "today",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "mine",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "others",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "option",
+                    "inline": true,
+                    "name": "owner",
+                    "value": "login",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "underway",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
               "repeat": false
             }
           ]
@@ -485,7 +574,7 @@
   ],
   "arguments": {
     "--no-fetch": {
-      "description": "skips the git fetch; incoming says so"
+      "description": "fetches nothing; incoming says so"
     },
     "--text": {
       "description": "prints the picture as text, even on a terminal"
@@ -518,10 +607,13 @@
       "description": "only these pull requests, by number or issue closed: #7"
     },
     "backlog": {
-      "description": "the open issues no pull request closes, oldest first"
+      "description": "the open issues no open pull request closes, oldest first; underway has the rest"
+    },
+    "underway": {
+      "description": "the open issues an open pull request closes: who works on each, and where"
     },
     "incoming": {
-      "description": "what the fetch brought: default-branch commits, branches new and gone"
+      "description": "what fetching every remote brought: default-branch commits, branches new and gone"
     },
     "desk": {
       "description": "the root checkout: branch, ahead and behind, uncommitted paths"

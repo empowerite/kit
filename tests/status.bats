@@ -218,29 +218,32 @@ without-kittui() {
   cp -R . ../twin
   run "${kit_root}/bin/kit" status incoming --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '[.fetched, .default, (.commits | map(.subject)), .branches, .tags]' <<<"$output")" \
-    = '[true,"main",["c","b"],{"new":["fresh"],"updated":["stays"],"gone":["old"]},["v1"]]' ]
-  [ "$(jq -r '.commits[0].sha | length' <<<"$output")" -ge 7 ]
+  [ "$(jq -c '[.fetched, .primary, (.remotes | length)]' <<<"$output")" = '[true,"origin",1]' ]
+  [ "$(jq -c '.remotes[0] | [.name, .forge, .host, .default, (.commits | map(.subject)), .branches, .tags]' \
+    <<<"$output")" = '["origin",null,null,"main",["c","b"],{"new":["fresh"],"updated":["stays"],"gone":["old"]},["v1"]]' ]
+  [ "$(jq -r '.remotes[0].commits[0].sha | length' <<<"$output")" -ge 7 ]
   run "${kit_root}/bin/kit" status incoming --json
-  [ "$(jq -c '[.fetched, .commits, .branches.new]' <<<"$output")" = '[true,[],[]]' ]
+  [ "$(jq -c '[.fetched, .remotes[0].commits, .remotes[0].branches.new]' <<<"$output")" = '[true,[],[]]' ]
   cd ../twin
   run "${kit_root}/bin/kit" status incoming
   [ "$status" -eq 0 ]
-  expected='📥 origin: fetched 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
-  [ "$output" = "${expected} · 1 new tag" ]
+  [ "${lines[0]}" = "📡 origin · no forge · ${work}/origin.git" ]
+  expected='📥 fetched 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
+  [ "${lines[1]}" = "${expected} · 1 new tag" ]
+  [ "${#lines[@]}" -eq 2 ]
   run "${kit_root}/bin/kit" status incoming
-  [ "$output" = "📥 origin: unchanged" ]
+  [ "${lines[1]}" = "📥 unchanged" ]
   run "${kit_root}/bin/kit" status incoming --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$output" = '{"fetched":false}' ]
+  [ "$output" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
   run "${kit_root}/bin/kit" status incoming --no-fetch
-  [ "$output" = "📥 origin: not fetched" ]
+  [ "$output" = "📡 origin · no forge · ${work}/origin.git"$'\n'"📥 not fetched" ]
 }
 
 @test "kit status --stages prints the configured stages in order, every stage without the setting, and refuses a name that is none" {
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
+  [ "$output" = $'backlog\nunderway\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
   stages 'releases, worktrees, desk'
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
@@ -248,7 +251,7 @@ without-kittui() {
   printf 'status: [worktrees, nope]\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'nope' is not a stage; the stages are: backlog incoming desk worktrees changes builds releases (status in kit.yml)"* ]]
+  [[ "$output" == *"'nope' is not a stage; the stages are: backlog underway incoming desk worktrees changes builds releases (status in kit.yml)"* ]]
   run "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 2 ]
   [[ "$output" == *"'nope' is not a stage"* ]]
@@ -269,17 +272,19 @@ without-kittui() {
   [ "${lines[5]}" = "   ?? c" ]
   [ "${lines[6]}" = "" ]
   [ "${lines[7]}" = "📥 INCOMING" ]
-  [ "${lines[8]}" = "📥 origin: unchanged" ]
-  [ "${#lines[@]}" -eq 9 ]
+  [ "${lines[8]}" = "📡 origin · no forge · ${work}/origin.git" ]
+  [ "${lines[9]}" = "📥 unchanged" ]
+  [ "${#lines[@]}" -eq 10 ]
   # the heading is dim only when effects are on; --text prints the same picture
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status --text --no-fetch
   [[ "${lines[0]}" == "🌿 ${esc}[1mWORKTREES${esc}[0m ${esc}[90m1${esc}[0m" ]]
   [[ "$output" == *"🏠 ${esc}[1mDESK${esc}[0m ${esc}[90m1${esc}[0m"* ]]
-  [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"${esc}[90m📥 origin: not fetched${esc}[0m"* ]]
+  [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"📡 origin${esc}[90m · no forge · ${work}/origin.git${esc}[0m"$'\n'"${esc}[90m📥 not fetched${esc}[0m"* ]]
   run --keep-empty-lines "${kit_root}/bin/kit" status --text --no-fetch
   [[ "$output" != *"${esc}["* ]]
   [ "${lines[7]}" = "📥 INCOMING" ]
-  [ "${lines[8]}" = "📥 origin: not fetched" ]
+  [ "${lines[8]}" = "📡 origin · no forge · ${work}/origin.git" ]
+  [ "${lines[9]}" = "📥 not fetched" ]
 }
 
 @test "kit status --json is one object: stages in the configured order, and under each name what the stage alone prints" {
@@ -289,14 +294,14 @@ without-kittui() {
   [ "$status" -eq 0 ]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" = '["stages","incoming","desk","worktrees"]' ]
   [ "$(jq -c '.stages' <<<"$output")" = '["incoming","desk","worktrees"]' ]
-  [ "$(jq -c '[.incoming.fetched, .desk.branch, [.worktrees.worktrees[].branch], .worktrees.goneBranches]' <<<"$output")" \
-    = '[true,"main",["7-topic"],[]]' ]
+  [ "$(jq -c '[.incoming.fetched, .incoming.primary, .desk.branch, [.worktrees.worktrees[].branch],
+               .worktrees.goneBranches]' <<<"$output")" = '[true,"origin","main",["7-topic"],[]]' ]
   [ "$(jq -c '.worktrees | keys_unsorted' <<<"$output")" = '["worktrees","goneBranches"]' ]
   [ "$(jq -c .desk <<<"$output")" = "$("${kit_root}/bin/kit" status desk --json)" ]
   [ "$(jq -c .worktrees <<<"$output")" = "$("${kit_root}/bin/kit" status worktrees --json)" ]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.incoming' <<<"$output")" = '{"fetched":false}' ]
+  [ "$(jq -c '.incoming' <<<"$output")" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
   run "${kit_root}/bin/kit" status --jq
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "{" ]
@@ -310,39 +315,50 @@ without-kittui() {
   [[ "${lines[1]}" == " #9        "*"d  🌿 9-other  🎫 Other thing" ]]
   [[ "${lines[2]}" == "#11  👤 ada  "*"d              🎫 Third thing" ]]
   [ "${lines[3]}" = "" ]
-  [ "${lines[4]}" = "📥 INCOMING" ]
-  [ "${lines[5]}" = "📥 origin: not fetched" ]
+  [ "${lines[4]}" = "🛫 UNDERWAY 1" ]
+  [[ "${lines[5]}" == "#7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  👤 ada   🎫 Fix the thing" ]]
   [ "${lines[6]}" = "" ]
-  [ "${lines[7]}" = "🏠 DESK 1" ]
-  [ "${lines[8]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
-  [ "${lines[9]}" = "" ]
-  [ "${lines[10]}" = "🌿 WORKTREES 0" ]
-  [ "${lines[11]}" = "no worktree" ]
-  [ "${lines[12]}" = "" ]
-  [ "${lines[13]}" = "🔀 CHANGES 1" ]
-  [[ "${lines[14]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  [[ "${lines[15]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
+  [ "${lines[7]}" = "📥 INCOMING" ]
+  [ "${lines[8]}" = "📡 origin · github · ${work}/origin.git" ]
+  [ "${lines[9]}" = "📥 not fetched" ]
+  [ "${lines[10]}" = "" ]
+  [ "${lines[11]}" = "🏠 DESK 1" ]
+  [ "${lines[12]}" = "🏠 main · ↑0 ↓0 · +0 -0" ]
+  [ "${lines[13]}" = "" ]
+  [ "${lines[14]}" = "🌿 WORKTREES 0" ]
+  [ "${lines[15]}" = "no worktree" ]
   [ "${lines[16]}" = "" ]
-  [ "${lines[17]}" = "🏭 BUILDS 1" ]
-  [[ "${lines[18]}" == "✅  kit  main  "*"d  3m 36s" ]]
-  [ "${lines[19]}" = "" ]
-  [ "${lines[20]}" = "📦 RELEASES 3" ]
-  [[ "${lines[21]}" == "0.1.0-rc.7  📝 draft "* ]]
-  [[ "${lines[23]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
-  [ "${#lines[@]}" -eq 24 ]
+  [ "${lines[17]}" = "🔀 CHANGES 1" ]
+  [[ "${lines[18]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
+  [[ "${lines[19]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
+  [ "${lines[20]}" = "" ]
+  [ "${lines[21]}" = "🏭 BUILDS 1" ]
+  [[ "${lines[22]}" == "✅  kit  main  "*"d  3m 36s" ]]
+  [ "${lines[23]}" = "" ]
+  [ "${lines[24]}" = "📦 RELEASES 3" ]
+  [[ "${lines[25]}" == "0.1.0-rc.7  📝 draft "* ]]
+  [[ "${lines[27]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
+  [ "${#lines[@]}" -eq 28 ]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.stages' <<<"$output")" = '["backlog","incoming","desk","worktrees","changes","builds","releases"]' ]
+  [ "$(jq -c '.stages' <<<"$output")" \
+    = '["backlog","underway","incoming","desk","worktrees","changes","builds","releases"]' ]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" \
-    = '["stages","backlog","incoming","desk","worktrees","changes","builds","releases"]' ]
-  [ "$(jq -c '[(.backlog | map(.number)), (.changes | map(.number)), (.builds | map(.id)),
-               (.releases | map(.version))]' <<<"$output")" = '[[9,11],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
+    = '["stages","backlog","underway","incoming","desk","worktrees","changes","builds","releases"]' ]
+  [ "$(jq -c '[(.backlog | map(.number)), (.underway | map([.number, .pr.number, .here])), (.changes | map(.number)),
+               (.builds | map(.id)), (.releases | map(.version))]' <<<"$output")" \
+    = '[[9,11],[[7,3,false]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
+  [ "$(jq -c '.underway | del(.. | .age?)' <<<"$output")" \
+    = "$("${kit_root}/bin/kit" status underway --json | jq -c 'del(.. | .age?)')" ]
   # the ages count seconds from now, so they are left out of the comparison
   [ "$(jq -c '.changes | del(.. | .age?)' <<<"$output")" \
     = "$("${kit_root}/bin/kit" status changes --json | jq -c 'del(.. | .age?)')" ]
   # the filters reach the backlog and the changes
   run "${kit_root}/bin/kit" status --no-fetch --mine --json
-  [ "$(jq -c '[(.backlog | map(.number)), (.changes | map(.number))]' <<<"$output")" = '[[11],[3]]' ]
+  [ "$(jq -c '[(.backlog | map(.number)), (.underway | map(.number)), (.changes | map(.number))]' <<<"$output")" \
+    = '[[11],[7],[3]]' ]
+  run "${kit_root}/bin/kit" status --no-fetch --owner=nobody --json
+  [ "$(jq -c '[.backlog, .underway, .changes]' <<<"$output")" = '[[],[],[]]' ]
 }
 
 @test "an empty stage says so in one dim line, alone or in the picture, and prints [] with --json" {
@@ -353,13 +369,15 @@ without-kittui() {
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "🎫 BACKLOG 0" ]
   [ "${lines[1]}" = "no open issue without a pull request" ]
-  [ "${lines[12]}" = "🔀 CHANGES 0" ]
-  [ "${lines[13]}" = "no open pull request" ]
-  [ "${lines[15]}" = "🏭 BUILDS 0" ]
-  [ "${lines[16]}" = "no build since the last 20 runs" ]
-  [ "${lines[18]}" = "📦 RELEASES 0" ]
-  [ "${lines[19]}" = "no release yet" ]
-  [ "${#lines[@]}" -eq 20 ]
+  [ "${lines[3]}" = "🛫 UNDERWAY 0" ]
+  [ "${lines[4]}" = "no issue is underway" ]
+  [ "${lines[16]}" = "🔀 CHANGES 0" ]
+  [ "${lines[17]}" = "no open pull request" ]
+  [ "${lines[19]}" = "🏭 BUILDS 0" ]
+  [ "${lines[20]}" = "no build since the last 20 runs" ]
+  [ "${lines[22]}" = "📦 RELEASES 0" ]
+  [ "${lines[23]}" = "no release yet" ]
+  [ "${#lines[@]}" -eq 24 ]
   run "${kit_root}/bin/kit" status backlog
   [ "$status" -eq 0 ]
   [ "$output" = "no open issue without a pull request" ]
@@ -387,8 +405,8 @@ without-kittui() {
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"set forge in kit.yml"* ]]
-  [ "$(jq -c '[.backlog, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
-    = '[null,null,null,null,"main"]' ]
+  [ "$(jq -c '[.backlog, .underway, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
+    = '[null,null,null,null,null,"main"]' ]
   run "${kit_root}/bin/kit" status changes
   [ "$status" -eq 1 ]
   [[ "$output" == *"set forge in kit.yml"* ]]
@@ -411,7 +429,7 @@ without-kittui() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
   [ "$(jq -c '[.backlog, .incoming, .changes, .builds, .releases, .desk.branch, .worktrees.worktrees]' \
-    <<<"${lines[1]}")" = '[null,{"fetched":false},null,null,null,"main",[]]' ]
+    <<<"${lines[1]}")" = '[null,{"fetched":false,"primary":"origin","remotes":[]},null,null,null,"main",[]]' ]
   run "${kit_root}/bin/kit" status changes
   [ "$status" -eq 1 ]
   [[ "$output" == *"origin's host 'none' names no forge"* ]]
@@ -654,12 +672,13 @@ without-kittui() {
   [[ "$output" == *"--mine cannot be combined with incoming; run: kit help status"* ]]
 }
 
-@test "kit syntax status lists the seven stages as a closed set, each described, and the removed verbs are no verbs" {
+@test "kit syntax status lists the eight stages as a closed set, each described, and the removed verbs are no verbs" {
   run "${kit_root}/bin/kit" syntax status --choices '<stage>'
   [ "$status" -eq 0 ]
-  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog incoming desk worktrees changes builds releases" ]
-  [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
-  [[ "${lines[0]}" == $'backlog\tthe open issues no pull request closes, oldest first\t\t' ]]
+  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog underway incoming desk worktrees changes builds releases" ]
+  [[ "${lines[3]}" == $'desk\tthe root checkout: '* ]]
+  [[ "${lines[0]}" == $'backlog\tthe open issues no open pull request closes, oldest first\t\t' ]]
+  [[ "${lines[1]}" == $'underway\tthe open issues an open pull request closes: who works on each, and where\t\t' ]]
   local verb
   for verb in backlog changes incoming worktrees releases
   do
@@ -691,7 +710,7 @@ without-kittui() {
   printf 'status: []\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 2 ]
-  [[ "$output" == *"status in kit.yml names no stage; the stages are: backlog incoming desk worktrees changes builds releases"* ]]
+  [[ "$output" == *"status in kit.yml names no stage; the stages are: backlog underway incoming desk worktrees changes builds releases"* ]]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
@@ -705,7 +724,37 @@ without-kittui() {
   printf 'status:\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
+  [ "$output" = $'backlog\nunderway\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
+}
+
+@test "a primary or a forges key that is no remote is refused with 2 by every stage, before git sees it" {
+  local setting args
+  for setting in 'primary: --upload-pack=touch pwned' 'primary: nowhere' \
+    'forges: {"--upload-pack=touch pwned": github}'
+  do
+    printf '%s\n' "${setting}" > kit.yml
+    for args in '' '--json' 'incoming' 'releases' 'backlog' 'underway' 'changes' 'desk' 'worktrees'
+    do
+      # shellcheck disable=SC2086  # args is zero or one word, a stage, and empty means none
+      run "${kit_root}/bin/kit" status ${args}
+      [ "$status" -eq 2 ] || { echo "kit status ${args}, with ${setting}: exit ${status}: ${output}"; return 1; }
+    done
+    run "${kit_root}/bin/kit" release 9.9.9
+    [ "$status" -ne 0 ]
+    run "${kit_root}/bin/kit" tidy --dry-run
+    [ "$status" -ne 0 ]
+  done
+  printf 'primary: --upload-pack=touch pwned\n' > kit.yml
+  run "${kit_root}/bin/kit" status incoming
+  [[ "$output" == *"primary '--upload-pack=touch pwned' in kit.yml is not a remote; the remotes are: origin"* ]]
+  printf 'forges: {"--upload-pack=touch pwned": github}\n' > kit.yml
+  run "${kit_root}/bin/kit" status backlog
+  [[ "$output" == *"'--upload-pack=touch pwned' in forges in kit.yml is not a remote name"* ]]
+  [ -z "$(find "${work}" "${BATS_TEST_TMPDIR}" -name pwned)" ]
+  # a forges key may name a remote this desk lacks: it is only compared with a remote's name
+  printf 'forges: {upstream: gitlab}\n' > kit.yml
+  run "${kit_root}/bin/kit" status desk
+  [ "$status" -eq 0 ]
 }
 
 @test "a fetch that fails warns once and the picture exits 1, without incoming in the picture, in text and as JSON" {

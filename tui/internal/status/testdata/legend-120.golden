@@ -1,26 +1,26 @@
  kit status · 📚 empowerite/kit
- ──●──────────────────────○──────────────────────○─────────────────────────○─────────────────────────○───────────────┄┄┄
-   ├ 🎫 backlog 3         ├ 📥 incoming 6        ├ 🏠 desk 1               ├ 🌿 worktrees 4          ├ 🔀 changes 3
-   └ legend               └ legend               └ legend                  └ legend                  └ legend
-     ├ 🎫  an issue         ├ 📥  the fetch        ├ 🏠  the desk            ├ 🌿  a worktree          ├ 🔀  a pull requ
-     ├ 👤  its assignees    ├ 🌿  a branch         ├ ❗  on no branch        ├ ❗  on no branch        ├ 👤  its author
-     └ 🌿  its branch       ├ 🔖  a branch gone    └ 🔀  its pull request    ├ 🔀  its pull request    ├ 🌿  its branch
-                            └ 📌  a new tag                                  └ 🔖  a branch gone       ├ 🏃  checks runn
-                                                                                                       ├ ✅  checks pass
-                                                                                                       ├ ❌  a check fai
-                                                                                                       ├ 💬  threads unr
-                                                                                                       ├ 🛫  an issue it
-                                                                                                       ├ 🎫  the issue's
-                                                                                                       └ state
-                                                                                                         ├ 🔨  draft
-                                                                                                         ├ 🚦  queued
-                                                                                                         ├ 💥  conflicte
-                                                                                                         ├ 🔥  failing:g
-                                                                                                         ├ 📭  no-check
-                                                                                                         ├ 💬  comments:
-                                                                                                         ├ 👀  blocked:a
-                                                                                                         ├ 🛬  ready
-                                                                                                         └ 🔳  any other
+ ──●──────────────────────○─────────────────────────────────────○───────────────────────○─────────────────────────○──┄┄┄
+   ├ 🎫 3                 ├ 🛫 4                                ├ 📥 6                  ├ 🏠 1                    ├ 🌿 4
+   └ legend               └ legend                              └ legend                └ legend                  └ lege
+     ├ 🎫  an issue         ├ 🛫  an issue underway               ├ 📥  the fetch         ├ 🏠  the desk            ├ 🌿
+     ├ 👤  its assignees    ├ 👤  its assignees, or the author    ├ 📡  a remote          ├ ❗  on no branch        ├ ❗
+     └ 🌿  its branch       ├ 🔀  the pull request                ├ 🌿  a branch          └ 🔀  its pull request    ├ 🔀
+                            ├ 🏠  here, in a worktree             ├ 🔖  a branch gone                               └ 🔖
+                            └ 🎫  the issue's title               ├ 📌  a new tag
+                                                                  └ ❌  a fetch failed
+
+
+
+
+
+
+
+
+
+
+
+
+
 
    #45                        2h                      🎫 kit status is the one picture: five stages, interactive on a t…
    #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts

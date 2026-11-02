@@ -1,6 +1,6 @@
 // Every stage's screen at 80×24, closed and with its first row open, is pinned as a golden file without its escapes;
-// builds' is at 120×24, the common width. So are the trees at 120 columns, with the legend and without, and the legend
-// at 80, scrolled to changes.
+// underway's and builds' are at 120×24, the common width. So are the trees at 120 columns, with the legend and
+// without, and the legend at 80, scrolled to changes.
 package status
 
 import (
@@ -14,9 +14,9 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	at80 := tea.WindowSizeMsg{Width: 80, Height: 24}
-	for i, name := range seven {
+	for i, name := range eight {
 		size := at80
-		if name == "builds" {
+		if name == "underway" || name == "builds" {
 			size.Width = 120
 		}
 		m := loaded(t, options(), size)
@@ -33,7 +33,8 @@ func TestGoldenViews(t *testing.T) {
 	golden("legend.golden", at80, press('?'))
 	golden("trees-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})
 	golden("legend-120.golden", tea.WindowSizeMsg{Width: 120, Height: 32}, press('?'))
-	golden("legend-120-changes.golden", tea.WindowSizeMsg{Width: 120, Height: 32}, press('?'), right, right, right, right)
-	golden("legend-80-changes.golden", tea.WindowSizeMsg{Width: 80, Height: 32}, press('?'), right, right, right, right)
+	toChanges := []tea.Msg{press('?'), right, right, right, right, right}
+	golden("legend-120-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 32}}, toChanges...)...)
+	golden("legend-80-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 32}}, toChanges...)...)
 	golden("legend-200.golden", tea.WindowSizeMsg{Width: 200, Height: 32}, press('?'))
 }

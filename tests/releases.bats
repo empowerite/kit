@@ -39,6 +39,21 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   [ -z "$(git ls-remote --heads origin topic)" ]
 }
 
+@test "kit release pushes the tag to the primary remote, and judges the rules there" {
+  git init --quiet --bare --initial-branch=main "${repo}/upstream.git"
+  git remote add upstream "${repo}/upstream.git"
+  git push --quiet upstream main
+  printf 'primary: upstream\n' > kit.yml
+  git push --quiet upstream HEAD:refs/tags/release/0.3.0
+  run "${kit_root}/bin/kit" release 0.2.0
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"0.2.0 is not higher than 0.3.0, the highest release"* ]]
+  run "${kit_root}/bin/kit" release 0.4.0
+  [ "$status" -eq 0 ]
+  [ -n "$(git ls-remote upstream refs/tags/release/0.4.0)" ]
+  [ -z "$(on-origin release/0.4.0)" ]
+}
+
 @test "kit release refuses a word that is not a version, and a tag that exists" {
   run "${kit_root}/bin/kit" release 1.2
   [ "$status" -eq 2 ]

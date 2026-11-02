@@ -69,6 +69,20 @@ func (o Origin) release(tag, given string) string {
 	return fmt.Sprintf("https://%s/%s/releases/tag/%s", o.Host, o.Repo, tag)
 }
 
+// pull gives a pull request's URL by its number, as issue gives an issue's: a merge request's on GitLab.
+func (o Origin) pull(number int, given string) string {
+	if given != "" {
+		return given
+	}
+	if o.Repo == "" {
+		return ""
+	}
+	if o.gitlab() {
+		return fmt.Sprintf("https://%s/%s/-/merge_requests/%d", o.Host, o.Repo, number)
+	}
+	return fmt.Sprintf("https://%s/%s/pull/%d", o.Host, o.Repo, number)
+}
+
 // gitlab says whether the host looks like GitLab's, whose paths carry a -/ before the kind.
 func (o Origin) gitlab() bool { return strings.Contains(strings.ToLower(o.Host), "gitlab") }
 

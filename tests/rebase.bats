@@ -55,6 +55,22 @@ commit-in() {
   [ "$(git -C ../wt rev-parse HEAD)" = "$(git -C ../wt rev-parse origin/1-x)" ]
 }
 
+@test "in a fork, rebase moves the branch onto the primary's default branch and pushes it to its own upstream" {
+  git init --quiet --bare --initial-branch=main ../upstream.git
+  git remote add upstream ../upstream.git
+  git push --quiet upstream main
+  printf 'primary: upstream\n' > kit.yml
+  worktree
+  commit-in ../wt b two && git -C ../wt push --quiet --set-upstream origin 1-x
+  git clone --quiet ../upstream.git ../shared 2>/dev/null
+  commit-in ../shared c three && git -C ../shared push --quiet origin main
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"kit rebase 1-x onto upstream/main"* ]]
+  [ "$(git -C ../wt rev-parse HEAD~1)" = "$(git rev-parse upstream/main)" ]
+  [ "$(git -C ../wt rev-parse HEAD)" = "$(git -C ../wt rev-parse origin/1-x)" ]
+}
+
 @test "rebase aborts on a conflict and leaves the worktree as it was" {
   worktree
   commit-in ../wt a theirs && git -C ../wt push --quiet --set-upstream origin 1-x

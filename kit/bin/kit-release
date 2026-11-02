@@ -5,13 +5,14 @@
 # kit release <version> [--lower]
 #
 # Tags HEAD as release/<version>, annotated, and signed when require_signing is true in kit.yml. It pushes that tag,
-# and only that tag, to origin; no branch is pushed. That is how a release starts: the repository's release workflow,
-# where it has one, publishes it. Before tagging, kit release refuses:
+# and only that tag, to the primary remote: the primary setting in kit.yml, else origin. No branch is pushed. That
+# is how a release starts: the repository's release workflow, where it has one, publishes it. Before tagging, kit
+# release refuses:
 #
 #   - a version that is not <major>.<minor>.<patch>, with -<suffix> for a pre-release
-#   - a tag that exists already, here or on origin: a version is tagged once
-#   - a release, a version with no suffix, when HEAD is not on the default branch at origin
-#   - a version not higher than every release tag on origin, unless --lower
+#   - a tag that exists already, here or on the primary: a version is tagged once
+#   - a release, a version with no suffix, when HEAD is not on the default branch at the primary
+#   - a version not higher than every release tag on the primary, unless --lower
 #
 #   <version>   the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release
 #   --lower     confirms a version not higher than origin's highest release
@@ -20,7 +21,7 @@
 # Versions compare by semantic-version precedence. --lower is for a fix to an older line: kit asks nothing itself, so
 # the confirmation is this flag.
 #
-# Exits 0 when the tag is on origin, 1 on a refusal, and 2 on a usage error.
+# Exits 0 when the tag is on the primary, 1 on a refusal, and 2 on a usage error.
 #
 # see: modules/bash/releases.sh, modules/jq/version.jq, kit-status
 

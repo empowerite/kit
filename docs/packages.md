@@ -261,7 +261,9 @@ answers:
 | `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until `kit update` moves it here. |
 | `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and the `kit packages` verbs select, add, and remove. |
 | `excludes` | Members of an active bundle removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
-| `forge` | The forge provider the workflow commands use, `github` or `gitlab`. The forge is the service that hosts the repository. When absent, it is detected from origin's host. Set it for a self-hosted forge. |
+| `forge` | The forge provider the workflow commands use, `github` or `gitlab`: the primary remote's. The forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com` or `gitlab.com`, or a host the `gh` or `glab` CLI has logged in to. |
+| `forges` | The forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the forge its host names, or none. |
+| `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
 | `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
@@ -271,11 +273,11 @@ answers:
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
-| `status` | The stages `kit status` draws, in order: `backlog`, `incoming`, `desk`, `worktrees`, `changes`, `builds`, `releases`. A stage left out is not drawn; `kit status <stage>` still prints it. Default: all seven, in that order. |
+| `status` | The stages `kit status` draws, in order: `backlog`, `underway`, `incoming`, `desk`, `worktrees`, `changes`, `builds`, `releases`. A stage left out is not drawn; `kit status <stage>` still prints it. Default: all eight, in that order. |
 
-A provider setting, `forge`, `policy_engine`, or the `provider` of a tracker or a toolchain, takes one of the kit's
-providers. It also takes one the repository adds on its bash module path: `forge: bitbucket` with a
-`modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
+A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker or a toolchain,
+takes one of the kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`
+with a `modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Sources
 

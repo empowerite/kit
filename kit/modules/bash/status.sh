@@ -1,16 +1,16 @@
 # shellcheck shell=bash
-# status.sh - the picture of the work: seven stages, drawn one at a time or all together (sourced module)
+# status.sh - the picture of the work: eight stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit status draws the picture. Work moves left to right through seven stages:
+# kit status draws the picture. Work moves left to right through eight stages:
 #
-#   backlog → incoming → desk → worktrees → changes → builds → releases
+#   backlog → underway → incoming → desk → worktrees → changes → builds → releases
 #
 # The status setting in kit.yml names the stages the picture draws, in order. status:render draws one stage, or
 # the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,
-# changes, builds, and releases live in the modules named after them. The incoming, desk, and worktrees stages, and
-# the cells every table shares, are here.
+# underway, changes, builds, and releases live in the modules named after them. The incoming, desk, and worktrees
+# stages, and the cells every table shares, are here.
 #
 # The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
 # and changes draw:
@@ -24,11 +24,14 @@
 #     skips hidden directories and symbolic links, and goes no deeper than status_walk_depth. The desks are drawn in
 #     path order, each with a fetch of its own.
 #
-# backlog, incoming, desk, builds, and releases draw the same anywhere in a repository.
+# backlog, underway, incoming, desk, builds, and releases draw the same anywhere in a repository.
 #
-# The picture collects first and draws after. The forge stages run in the background while origin is fetched. Then
-# the checkouts are measured, and every stage is drawn in order. A repository with no origin draws its checkouts
-# alone, and says so once.
+# The primary remote is the primary setting in kit.yml, else origin; modules/bash/forge.sh says how. The incoming
+# stage fetches every remote, and the rest measure against the primary.
+#
+# The picture collects first and draws after. The forge stages run in the background while the remotes are fetched.
+# Then the checkouts are measured, and every stage is drawn in order. A repository with no primary remote draws its
+# checkouts alone, and says so once.
 #
 # Which pull requests and issues are shown:
 #
@@ -55,10 +58,10 @@
 # --json prints the picture as one object: stages, the names in order, and under each name what kit status <stage>
 # --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
 #
-# see: kit/bin/kit-status, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/builds.sh,
-# modules/bash/releases.sh
+# see: kit/bin/kit-status, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
+# modules/bash/builds.sh, modules/bash/releases.sh
 
-use file git settings backlog changes builds releases
+use file git settings backlog underway changes builds releases
 
 # status_walk_depth is how many directories below the one it runs in kit status looks for desks, above desks.
 status_walk_depth=4
@@ -78,7 +81,8 @@ status_change_sgr=35
 # status:stage-purpose <stage> prints what a stage lists, in a few words.
 status:stage-purpose() {
   case "$1" in
-    (backlog) printf 'the open issues no pull request closes, oldest first\n' ;;
+    (backlog) printf 'the open issues no open pull request closes, oldest first\n' ;;
+    (underway) printf 'the open issues an open pull request closes: who works on each, and where\n' ;;
     (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
     (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
@@ -88,7 +92,7 @@ status:stage-purpose() {
   esac
 }
 
-# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the seven stages, a closed set, each with
+# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the eight stages, a closed set, each with
 # what it lists.
 status:choices() {
   local stage
@@ -149,6 +153,7 @@ status:heading() {
   local glyph line
   case "$1" in
     (backlog)   glyph=🎫 ;;
+    (underway)  glyph=🛫 ;;
     (incoming)  glyph=📥 ;;
     (desk)      glyph=🏠 ;;
     (worktrees) glyph=🌿 ;;
@@ -208,9 +213,9 @@ status:age() {
   fi
 }
 
-# status:refs prints "<ref> <sha>" for origin's branches and for the tags: the refs a fetch moves.
+# status:refs <remote> prints "<ref> <sha>" for the remote's branches and for the tags: the refs a fetch of it moves.
 status:refs() {
-  git for-each-ref --format='%(refname) %(objectname)' refs/remotes/origin refs/tags | grep --invert-match '/HEAD '
+  git for-each-ref --format='%(refname) %(objectname)' "refs/remotes/$1" refs/tags | grep --invert-match '/HEAD '
   return 0
 }
 
@@ -238,45 +243,70 @@ status:fetch-diff() {
     <(printf '%s\n' "$1" | grep .) <(printf '%s\n' "$2" | grep .)
 }
 
-# status:fetch-json <before> <after> <default-branch> prints what a fetch brought, between two status:refs snapshots,
-# as one object: fetched, true; default, the default branch; commits, the ones new on it at origin, newest first,
-# each {sha, subject}; branches, the names new, updated, and gone on origin; and tags, the names new.
+# status:remote-json <remote> prints what kit knows of a remote before it fetches, as one object: name; forge, as
+# forge:of answers, or null; and host, as forge:host answers, or null.
+status:remote-json() {
+  local forge
+  forge=$(forge:of "$1") || return $?
+  jq --null-input --compact-output --arg name "$1" --arg forge "${forge}" --arg host "$(forge:host "$1")" \
+    '{name: $name, forge: ($forge | select(. != "") // null), host: ($host | select(. != "") // null)}'
+}
+
+# status:remote-default <remote> prints the remote's default branch: what its HEAD names, else <fallback> when the
+# remote has a branch of that name, else nothing. A remote added after the clone has no HEAD until git remote
+# set-head, so the primary's default branch is the fallback.
+status:remote-default() {
+  local branch
+  if branch=$(git symbolic-ref --quiet --short "refs/remotes/$1/HEAD" 2>/dev/null)
+  then
+    printf '%s\n' "${branch#"$1"/}"
+  elif [[ -n "$2" ]] && git show-ref --verify --quiet "refs/remotes/$1/$2"
+  then
+    printf '%s\n' "$2"
+  fi
+  return 0
+}
+
+# status:fetch-json <remote> <before> <after> <default-branch> prints what a fetch of <remote> brought, between two
+# status:refs snapshots, as status:remote-json's object with more: default, the default branch, or null; commits, the
+# ones new on it, newest first, each {sha, subject}; branches, the names new, updated, and gone on the remote; and
+# tags, the names new.
 status:fetch-json() {
-  local default_ref="refs/remotes/origin/$3" kind ref old new commits=''
+  local remote=$1 default_ref="refs/remotes/$1/$4" kind ref old new commits=''
   local -a added=() updated=() gone=() tags=()
   while IFS=' ' read -r kind ref old new
   do
     case "${kind}:${ref}" in
       (moved:"${default_ref}") commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null || true) ;;
-      (moved:refs/remotes/origin/*) updated+=("${ref#refs/remotes/origin/}") ;;
-      (new:refs/remotes/origin/*) added+=("${ref#refs/remotes/origin/}") ;;
-      (gone:refs/remotes/origin/*) gone+=("${ref#refs/remotes/origin/}") ;;
+      (moved:"refs/remotes/${remote}/"*) updated+=("${ref#"refs/remotes/${remote}/"}") ;;
+      (new:"refs/remotes/${remote}/"*) added+=("${ref#"refs/remotes/${remote}/"}") ;;
+      (gone:"refs/remotes/${remote}/"*) gone+=("${ref#"refs/remotes/${remote}/"}") ;;
       (new:refs/tags/*) tags+=("${ref#refs/tags/}") ;;
     esac
-  done < <(status:fetch-diff "$1" "$2")
-  jq --null-input --compact-output --arg default "$3" --arg commits "${commits}" \
+  done < <(status:fetch-diff "$2" "$3")
+  jq --compact-output --arg default "$4" --arg commits "${commits}" \
     --argjson new "$(status:json-list "${added[@]}")" --argjson updated "$(status:json-list "${updated[@]}")" \
     --argjson gone "$(status:json-list "${gone[@]}")" --argjson tags "$(status:json-list "${tags[@]}")" \
-    '{fetched: true, default: $default,
-      commits: ($commits | split("\n") | map(select(. != "") | split("\t")
-                | {sha: .[0], subject: (.[1:] | join("\t"))})),
-      branches: {new: $new, updated: $updated, gone: $gone}, tags: $tags}'
+    '. + {default: ($default | select(. != "") // null),
+          commits: ($commits | split("\n") | map(select(. != "") | split("\t")
+                    | {sha: .[0], subject: (.[1:] | join("\t"))})),
+          branches: {new: $new, updated: $updated, gone: $gone}, tags: $tags}' <<<"$(status:remote-json "${remote}")"
 }
 
-# status:incoming-text <incoming-json> prints the fetch's line, from status:incoming's object, to stderr. Nothing
-# fetched says 📥 origin: not fetched, dim. Else it is 📥 origin: unchanged, or what the fetch brought, counted: new
-# commits on the default branch, then branches updated, new, and pruned, then new tags.
-status:incoming-text() {
-  local default commits updated added pruned tags line part
+# status:fetched-line <remote-json> prints, to stderr, a fetched remote's line: ❌ and git's line when the fetch
+# failed; 📥 unchanged; or 📥 fetched and what came, counted: new commits on the default branch, then branches
+# updated, new, and pruned, then new tags.
+status:fetched-line() {
+  local error default commits updated added pruned tags line part
   local -a parts=()
-  if [[ "$(jq '.fetched' <<<"$1")" != true ]]
+  IFS=$'\x1f' read -r error default commits updated added pruned tags < <(jq --raw-output \
+    '[(.error // ""), (.default // ""), (.commits | length), (.branches.updated | length), (.branches.new | length),
+      (.branches.gone | length), (.tags | length)] | map(tostring) | join("\u001f")' <<<"$1")
+  if [[ -n "${error}" ]]
   then
-    status:none '📥 origin: not fetched'
+    printf '❌ %s\n' "${error}" >&2
     return 0
   fi
-  IFS=$'\t' read -r default commits updated added pruned tags < <(jq --raw-output \
-    '[.default, (.commits | length), (.branches.updated | length), (.branches.new | length),
-      (.branches.gone | length), (.tags | length)] | @tsv' <<<"$1")
   (( commits > 0 )) && parts+=("$(status:plural "${commits}" 'new commit' 'new commits') on ${default}")
   (( updated > 0 )) && parts+=("$(status:plural "${updated}" 'branch updated' 'branches updated')")
   (( added > 0 )) && parts+=("$(status:plural "${added}" 'new branch' 'new branches')")
@@ -284,7 +314,7 @@ status:incoming-text() {
   (( tags > 0 )) && parts+=("$(status:plural "${tags}" 'new tag' 'new tags')")
   if (( ${#parts[@]} == 0 ))
   then
-    printf '📥 origin: unchanged\n' >&2
+    printf '📥 unchanged\n' >&2
     return 0
   fi
   line=${parts[0]}
@@ -292,15 +322,44 @@ status:incoming-text() {
   do
     line+="${status_sep}${part}"
   done
-  printf '📥 origin: fetched %s\n' "${line}" >&2
+  printf '📥 fetched %s\n' "${line}" >&2
 }
 
-# status:incoming [--no-fetch] [--json] is the incoming stage. It fetches origin, pruning the branches gone from it,
-# and prints the fetch's line, as status:incoming-text draws it. With --json it prints status:fetch-json's object
-# instead. With --no-fetch it fetches nothing: the line says so, and the object is {"fetched": false}. It returns 1
-# when the fetch fails, with a warning.
+# status:incoming-text <incoming-json> prints status:incoming's object to stderr: a block per remote, the primary
+# first, a blank line between blocks. A block's first line is 📡, the remote's name, its forge or no forge, and its
+# host, or its URL when it has none. Under it is the fetch's line, as status:fetched-line draws it, or 📥 not fetched,
+# dim. With no remote it says so in one dim line.
+status:incoming-text() {
+  local fetched remote name forge host first=true
+  fetched=$(jq '.fetched' <<<"$1")
+  while IFS= read -r remote
+  do
+    [[ -n "${remote}" ]] || continue
+    IFS=$'\x1f' read -r name forge host < <(jq --raw-output '[.name, (.forge // "no forge"), (.host // "")]
+      | join("\u001f")' <<<"${remote}")
+    [[ -n "${host}" ]] || host=$(git remote get-url --end-of-options "${name}" 2>/dev/null || true)
+    if [[ "${first}" == true ]]
+    then first=false
+    else printf '\n' >&2
+    fi
+    printf '📡 %s%s\n' "${name}" "$(status:paint 90 "${status_sep}${forge}${host:+${status_sep}${host}}")" >&2
+    if [[ "${fetched}" == true ]]
+    then status:fetched-line "${remote}"
+    else status:none '📥 not fetched'
+    fi
+  done < <(jq --compact-output '.remotes[]' <<<"$1")
+  [[ "${first}" == false ]] || status:none 'no remote'
+}
+
+# status:incoming [--no-fetch] [--json] is the incoming stage. It fetches every remote, the primary first, each with
+# git fetch --prune, and never rebases, merges, or pulls. It prints the fetch's blocks, as status:incoming-text draws
+# them. With --json it prints one object instead: fetched, true; primary, its name; and remotes, one
+# status:fetch-json object each. A remote whose fetch failed carries error, git's first line, and nothing came from it.
+# With --no-fetch it fetches nothing: fetched is false, and each remote is status:remote-json's object. It returns 1
+# when a fetch failed, after every remote is tried.
 status:incoming() {
-  local json=false no_fetch=false arg before doc
+  local json=false no_fetch=false failed=false arg primary primary_default remote before said doc text
+  local -a remotes=() docs=()
   for arg in "$@"
   do
     case "${arg}" in
@@ -308,24 +367,44 @@ status:incoming() {
       (--no-fetch) no_fetch=true ;;
     esac
   done
-  if [[ "${no_fetch}" == true ]]
-  then
-    doc='{"fetched":false}'
-  else
-    before=$(status:refs)
-    if ! git fetch --quiet --prune origin
+  primary=$(forge:primary) || return $?
+  text=$(forge:remotes) || return $?
+  [[ -z "${text}" ]] || readarray -t remotes <<<"${text}"
+  for remote in "${remotes[@]}"
+  do
+    if [[ "${no_fetch}" == true ]]
     then
-      warn "git fetch --prune failed; ahead and behind counts may be stale"
-      return 1
+      docs+=("$(status:remote-json "${remote}")")
+      continue
     fi
-    doc=$(status:fetch-json "${before}" "$(status:refs)" "$(git:default-branch)")
-  fi
+    before=$(status:refs "${remote}")
+    if said=$(git fetch --quiet --prune --end-of-options "${remote}" 2>&1 >/dev/null)
+    then
+      if [[ "${remote}" == "${primary}" ]]
+      then
+        primary_default=$(git:default-branch)
+        docs+=("$(status:fetch-json "${remote}" "${before}" "$(status:refs "${remote}")" "${primary_default}")")
+      else
+        docs+=("$(status:fetch-json "${remote}" "${before}" "$(status:refs "${remote}")" \
+          "$(status:remote-default "${remote}" "${primary_default:-$(git:default-branch)}")")")
+      fi
+    else
+      failed=true
+      said=$(grep --max-count=1 . <<<"${said}" || true)
+      docs+=("$(status:fetch-json "${remote}" '' '' '' \
+        | jq --compact-output --arg error "${said:-git fetch failed}" '. + {error: $error}')")
+    fi
+  done
+  doc=$(printf '%s\n' "${docs[@]}" | jq --slurp --compact-output --argjson fetched "$([[ "${no_fetch}" == true ]] \
+    && printf false || printf true)" --arg primary "${primary}" \
+    '{fetched: $fetched, primary: $primary, remotes: .}')
   if [[ "${json}" == true ]]
   then
     printf '%s\n' "${doc}"
   else
     status:incoming-text "${doc}"
   fi
+  [[ "${failed}" == false ]]
 }
 
 # status:choice <mine> <others> <owners> names what the owner flags chose, for the wording and the owner column: mine when
@@ -421,9 +500,13 @@ status:select() {
   fi
 }
 
-# status:fork <branch> <default-branch> prints the commit where <branch> left the default branch, or nothing.
+# status:fork <branch> <default-branch> prints the commit where <branch> left the default branch at the primary
+# remote, or else the local one, or nothing.
 status:fork() {
-  git merge-base "origin/$2" "$1" 2>/dev/null || git merge-base "$2" "$1" 2>/dev/null || true
+  local primary
+  primary=$(forge:primary) || return $?
+  git merge-base --end-of-options "${primary}/$2" "$1" 2>/dev/null \
+    || git merge-base --end-of-options "$2" "$1" 2>/dev/null || true
 }
 
 # status:relative <path> prints <path> relative to the directory the command was run from: ".", a path down, or
@@ -458,11 +541,11 @@ status:relative() {
 }
 
 # status:checkout <path> <branch> <default-branch> prints one JSON object that measures the checkout at <path>.
-# The fork point is where the branch left origin's default branch. The fields:
+# The fork point is where the branch left the primary remote's default branch. The fields:
 #
 #   path, relative      the checkout's path, and that path relative to the caller's directory
 #   branch, detached    the branch (empty when detached), and whether the checkout is detached
-#   ahead, behind       the commits on the branch past the fork point, and on origin's default branch past it
+#   ahead, behind       the commits on the branch past the fork point, and on the primary's default branch past it
 #   added, removed      the lines the working tree adds and removes against the fork point
 #   uncommitted         the number of uncommitted paths
 #   changes             each uncommitted path as {status, path}, with git's two-letter status
@@ -470,12 +553,13 @@ status:relative() {
 #
 # A detached checkout measures its lines against its own HEAD and lists no commits.
 status:checkout() {
-  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _
+  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _ primary
+  primary=$(forge:primary) || return $?
   [[ -n "${branch}" ]] && fork=$(status:fork "${branch}" "${default_branch}")
   if [[ -n "${fork}" ]]
   then
     ahead=$(git rev-list --count "${fork}..${branch}" 2>/dev/null || printf 0)
-    behind=$(git rev-list --count "${fork}..origin/${default_branch}" 2>/dev/null || printf 0)
+    behind=$(git rev-list --count "${fork}..${primary}/${default_branch}" 2>/dev/null || printf 0)
   fi
   while IFS=$'\t' read -r a r _
   do
@@ -764,10 +848,11 @@ declare -ga status_worktrees=()
 # status:desk [--json] is the desk stage. It measures the root checkout, wherever kit runs in the repository, and
 # draws its block. With --json it prints the checkout's object instead.
 status:desk() {
-  local main_root branch doc
+  local main_root branch doc default_branch
+  default_branch=$(git:default-branch) || return $?
   main_root=$(git:main-root)
   branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-  doc=$(status:checkout "${main_root}" "${branch}" "$(git:default-branch)")
+  doc=$(status:checkout "${main_root}" "${branch}" "${default_branch}") || return $?
   if [[ " $* " == *" --json "* ]]
   then
     printf '%s\n' "${doc}"
@@ -784,7 +869,7 @@ status:draw-desk() {
   status:checkout-block '🏠' "$1" "${width}"
 }
 
-# status:linked <default-branch> measures every linked worktree, from origin's default branch, into
+# status:linked <default-branch> measures every linked worktree, from the primary's default branch, into
 # status_worktrees.
 status:linked() {
   local path branch
@@ -828,7 +913,7 @@ status:in-worktree() {
 # With --json it prints status:worktrees-json's object instead.
 status:worktrees() {
   local default_branch here branch
-  default_branch=$(git:default-branch)
+  default_branch=$(git:default-branch) || return $?
   status_gone='' status_worktrees=()
   if status:in-worktree
   then
@@ -882,6 +967,7 @@ status:stage() {
   shift
   case "${stage}" in
     (backlog) backlog:render "$@" ;;
+    (underway) underway:render "$@" ;;
     (incoming) status:incoming "$@" ;;
     (desk) status:desk "$@" ;;
     (worktrees) status:worktrees "$@" ;;
@@ -892,7 +978,7 @@ status:stage() {
 }
 
 # status:stage-args <stage> <argument>… prints, one per line, the arguments among those given that the stage takes:
-# --json for every stage, --no-fetch for incoming, and the owner flags for backlog and changes.
+# --json for every stage, --no-fetch for incoming, and the owner flags for backlog, underway, and changes.
 status:stage-args() {
   local stage=$1 arg
   shift
@@ -902,20 +988,23 @@ status:stage-args() {
       (--json) printf '%s\n' "${arg}" ;;
       (--no-fetch) [[ "${stage}" != incoming ]] || printf '%s\n' "${arg}" ;;
       (--all | --mine | --others | --owner=?*)
-        [[ "${stage}" != backlog && "${stage}" != changes ]] || printf '%s\n' "${arg}"
+        list:among "${stage}" backlog underway changes && printf '%s\n' "${arg}"
     esac
   done
   return 0
 }
 
-# status:picture-document <scratch> <stage> <origin> prints the document a stage collected under <scratch>, for the
-# picture's JSON: null for a stage that failed or, with no origin, could not run; {"fetched": false} for incoming
-# with no origin.
+# status:picture-document <scratch> <stage> <reachable> prints the document a stage collected under <scratch>, for the
+# picture's JSON: null for a stage that failed or, with no primary remote, could not run. incoming has a document
+# even when a fetch failed. With no primary remote, it is the remotes, not fetched.
 status:picture-document() {
-  local scratch=$1 stage=$2 origin=$3
-  if [[ "${origin}" == false && "${stage}" == incoming ]]
+  local scratch=$1 stage=$2 reachable=$3
+  if [[ "${reachable}" == false && "${stage}" == incoming ]]
   then
-    printf '{"fetched":false}\n'
+    status:incoming --no-fetch --json
+  elif [[ "${stage}" == incoming && -s "${scratch}/${stage}.json" ]]
+  then
+    cat "${scratch}/${stage}.json"
   elif [[ -f "${scratch}/${stage}.status" && "$(<"${scratch}/${stage}.status")" == 0 ]]
   then
     cat "${scratch}/${stage}.json"
@@ -926,26 +1015,28 @@ status:picture-document() {
 
 # status:picture [--no-fetch] [--json] [<owner flag>…] draws every stage the status setting names, in its order, or
 # prints the picture as one JSON object. It collects first and draws after: the forge stages run in the background
-# while origin is fetched; then the checkouts are measured; then each stage is drawn in order, under its heading. A
-# stage that failed is drawn as its refusal, and the picture returns 1 at the end, in either form; so does a fetch
-# that failed, after one warning, whether or not incoming is drawn. With no origin it fetches nothing and asks the
-# forge nothing: it draws the checkouts, says so once, and returns 0. It returns 2 when the status setting is wrong.
+# while the remotes are fetched; then the checkouts are measured; then each stage is drawn in order, under its
+# heading. A stage that failed is drawn as its refusal, and the picture returns 1 at the end, in either form. So does
+# a fetch that failed: incoming draws it on its remote's line, and without incoming, the primary is fetched alone and
+# a failure warns once. With no primary remote it fetches nothing and asks the forge nothing: it draws the checkouts,
+# says so once, and returns 0. It returns 2 when the status setting is wrong.
 status:picture() {
-  local json=false no_fetch=false origin=true failed=false first=true stage doc code choice scratch text
+  local json=false no_fetch=false reachable=true failed=false first=true stage doc code choice scratch text primary
   local -a stages=() args=() named=()
   text=$(settings:stages) || return 2
   readarray -t stages <<<"${text}"
   [[ " $* " == *" --json "* ]] && json=true
   [[ " $* " == *" --no-fetch "* ]] && no_fetch=true
-  git remote get-url origin >/dev/null 2>&1 || origin=false
+  primary=$(forge:primary) || return $?
+  git remote get-url --end-of-options "${primary}" >/dev/null 2>&1 || reachable=false
   choice=$(status:choice-of "$@")
   file:scratch scratch
   # The forge stages need nothing local and the forge is the slow call, so they start first, in the background.
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (backlog | changes | builds | releases)
-        [[ "${origin}" == true ]] || continue
+      (backlog | underway | changes | builds | releases)
+        [[ "${reachable}" == true ]] || continue
         readarray -t args < <(status:stage-args "${stage}" --json "$@")
         (
           status:stage "${stage}" "${args[@]}" && code=0 || code=$?
@@ -953,8 +1044,8 @@ status:picture() {
         ) > "${scratch}/${stage}.json" 2> "${scratch}/${stage}.err" &
     esac
   done
-  # The fetch comes before the checkouts are measured, so ahead and behind count against origin as it is now.
-  if [[ "${origin}" == false ]]
+  # The fetch comes before the checkouts are measured, so ahead and behind count against the primary as it is now.
+  if [[ "${reachable}" == false ]]
   then
     true
   elif list:among incoming "${stages[@]}"
@@ -962,7 +1053,7 @@ status:picture() {
     readarray -t args < <(status:stage-args incoming --json "$@")
     status:incoming "${args[@]}" > "${scratch}/incoming.json" 2> "${scratch}/incoming.err" && code=0 || code=$?
     printf '%s\n' "${code}" > "${scratch}/incoming.status"
-  elif [[ "${no_fetch}" == false ]] && ! git fetch --quiet --prune origin 2>/dev/null
+  elif [[ "${no_fetch}" == false ]] && ! git fetch --quiet --prune --end-of-options "${primary}" 2>/dev/null
   then
     warn "git fetch --prune failed; ahead and behind counts may be stale"
     failed=true
@@ -975,7 +1066,7 @@ status:picture() {
   done
   wait
   # One rule for both forms: a stage that ran and failed makes the picture return 1, as a fetch that failed does. A
-  # stage that did not run, with no origin, is no failure.
+  # stage that did not run, with no primary remote, is no failure.
   for stage in "${stages[@]}"
   do
     [[ ! -f "${scratch}/${stage}.status" || "$(<"${scratch}/${stage}.status")" == 0 ]] || failed=true
@@ -984,30 +1075,31 @@ status:picture() {
   then
     for stage in "${stages[@]}"
     do
-      doc=$(status:picture-document "${scratch}" "${stage}" "${origin}")
+      doc=$(status:picture-document "${scratch}" "${stage}" "${reachable}")
       named+=(--argjson "${stage}" "${doc}")
       [[ ! -s "${scratch}/${stage}.err" ]] || cat "${scratch}/${stage}.err" >&2
     done
-    [[ "${origin}" == true ]] || warn "no origin: nothing fetched, no pull request shown"
+    [[ "${reachable}" == true ]] || warn "no ${primary}: nothing fetched, no pull request shown"
     jq --null-input --compact-output --argjson stages "$(status:json-list "${stages[@]}")" "${named[@]}" \
       '{stages: $stages} + $ARGS.named'
     [[ "${failed}" == false ]]
     return
   fi
-  if [[ "${origin}" == false ]]
+  if [[ "${reachable}" == false ]]
   then
-    warn "no origin: nothing fetched, no pull request shown"
+    warn "no ${primary}: nothing fetched, no pull request shown"
     first=false
   fi
   for stage in "${stages[@]}"
   do
-    [[ "${origin}" == true || "${stage}" == desk || "${stage}" == worktrees ]] || continue
+    [[ "${reachable}" == true || "${stage}" == desk || "${stage}" == worktrees ]] || continue
     if [[ "${first}" == true ]]
     then first=false
     else printf '\n' >&2
     fi
     code=$(<"${scratch}/${stage}.status")
-    if (( code != 0 ))
+    # A fetch that failed is drawn on its remote's line, beside the remotes that were fetched.
+    if (( code != 0 )) && [[ "${stage}" != incoming || ! -s "${scratch}/${stage}.json" ]]
     then
       status:heading "${stage}"
       cat "${scratch}/${stage}.err" >&2
@@ -1018,6 +1110,10 @@ status:picture() {
       (backlog)
         status:heading backlog "$(jq 'length' <<<"${doc}")"
         backlog:draw "${doc}" "${choice}"
+        ;;
+      (underway)
+        status:heading underway "$(jq 'length' <<<"${doc}")"
+        underway:draw "${doc}" "${choice}"
         ;;
       (incoming)
         status:heading incoming
@@ -1061,7 +1157,7 @@ status:render() {
     return
   fi
   case "${1:-}" in
-    (backlog | incoming | desk | worktrees | changes | builds | releases)
+    (backlog | underway | incoming | desk | worktrees | changes | builds | releases)
       stage=$1
       shift
   esac

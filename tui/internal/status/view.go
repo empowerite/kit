@@ -97,7 +97,7 @@ func (m Model) title() string {
 }
 
 // count gives a stage's count for its label: … while it loads, ! when its command failed, nothing for an incoming
-// that did not fetch, else its rows.
+// that did not fetch, else its rows but the asides, as incoming's headings.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
@@ -108,7 +108,13 @@ func (m Model) count(i int) string {
 	case s.name == "incoming" && s.in != nil && !s.in.Fetched:
 		return ""
 	}
-	return strconv.Itoa(len(m.rows(i)))
+	n := 0
+	for _, r := range m.rows(i) {
+		if !r.aside {
+			n++
+		}
+	}
+	return strconv.Itoa(n)
 }
 
 // layout lays the stages out: each takes its tree's width and a gap, and when they all fit the screen, the width left

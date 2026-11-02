@@ -1,6 +1,6 @@
  kit status · 📚 empowerite/kit
  ┄┄┄─────────○─────────────────────────●───────────────────────────○─────────────────────────────○──────────────────────
-             ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 🏭 builds 4                 ├ 📦 releases 3
+             ├ 🌿 4                    ├ 🔀 3                      ├ 🏭 4                        ├ 📦 3
              └ legend                  └ legend                    └ legend                      └ legend
                ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 🏭  a build                 ├ 📦  a release
                ├ ❗  on no branch        ├ 👤  its author            ├ 🏃  running or queued       ├ 🧪  a pre-release

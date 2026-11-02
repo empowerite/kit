@@ -1,32 +1,35 @@
 # shellcheck shell=bash
-# backlog.sh - the open issues nothing is in flight for, oldest first, with the branch that claims one (sourced module)
+# backlog.sh - the open issues no open pull request closes, oldest first, with the branch for each (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
 # The backlog stage of kit status is the pick: the open issues of the repository on its forge, as forge:open-issues
-# folds them, less the ones an open change closes, which the changes stage draws. An issue with a branch for it on
-# origin is claimed, and its row says so; one with neither is for the next kit issue <N>. The flags are kit status's:
-# --mine is the issues assigned to the caller, --others the rest, unassigned ones included, --owner=<login> the named
-# assignees', --all every one; --today keeps only the issues opened in the last 24 hours, whichever of those is chosen.
+# folds them, less the ones an open pull request closes. The underway stage lists those. An issue with a branch for it
+# on the primary remote is claimed, and its row says so; one with neither is for the next kit issue <N>. The flags are
+# kit status's: --mine is the issues assigned to the caller, --others the rest, unassigned ones included,
+# --owner=<login> the named assignees', --all every one. --today keeps only the issues opened in the last 24 hours,
+# whichever of those is chosen.
 #
 # A row is drawn by status:issue-row, as the issues under a change are, without the state cell:
 #
 #    #7  👤 bob  40d  🌿 7-fix-the-thing  🎫 Fix the thing
 #   #11  👤 ada  30d                      🎫 Third thing
 #
-# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/forge.sh, modules/jq/forge.jq
+# see: kit/bin/kit-status, modules/bash/status.sh, modules/bash/underway.sh, modules/bash/forge.sh,
+# modules/jq/forge.jq
 
 use forge status
 
 # backlog:collect [--except] <login>… prints the open issues no open change closes, as one JSON array, oldest
-# first, each with branch: the branch on origin that starts with its number, or null. With logins, only the issues
-# assigned to one of them, or with --except, those assigned to none of them.
+# first, each with branch: the branch on the primary remote that starts with its number, or null. With logins, only
+# the issues assigned to one of them, or with --except, those assigned to none of them.
 backlog:collect() {
-  local issues changes heads except=false
+  local issues changes heads primary except=false
   [[ "${1:-}" == --except ]] && { except=true; shift; }
+  primary=$(forge:primary) || return $?
   issues=$(forge:open-issues) || return 1
   changes=$(forge:open-prs) || return 1
-  heads=$(git ls-remote --heads origin 2>/dev/null | sed 's@.*refs/heads/@@' || true)
+  heads=$(git ls-remote --heads --end-of-options "${primary}" 2>/dev/null | sed 's@.*refs/heads/@@' || true)
   jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${changes}")" \
     --arg heads "${heads}" --arg logins "$*" --argjson except "${except}" '
     import "backlog" as backlog;

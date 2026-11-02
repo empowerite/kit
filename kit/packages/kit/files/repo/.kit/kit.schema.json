@@ -9,7 +9,7 @@
   "properties": {
     "forge": {
       "type": "string",
-      "description": "The forge (the service that hosts the repository) the workflow commands use: github or gitlab. When absent, it is detected from origin's host, github.com or gitlab.com. A self-hosted forge must be set here.",
+      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github or gitlab. When absent, it is detected from the primary's host: github.com or gitlab.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here.",
       "anyOf": [
         {
           "enum": [
@@ -22,6 +22,30 @@
           "description": "a provider the repository adds on its module path, bash_path"
         }
       ]
+    },
+    "forges": {
+      "type": "object",
+      "description": "The forge of each remote named, by remote: {upstream: gitlab}. A remote not named here takes the forge its host names, or none. For the primary, forge wins over this.",
+      "additionalProperties": {
+        "type": "string",
+        "anyOf": [
+          {
+            "enum": [
+              "github",
+              "gitlab"
+            ]
+          },
+          {
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "a provider the repository adds on its module path, bash_path"
+          }
+        ]
+      }
+    },
+    "primary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: origin."
     },
     "gate": {
       "type": "string",
@@ -186,11 +210,12 @@
     },
     "status": {
       "type": "array",
-      "description": "The stages kit status draws, in order: backlog, incoming, desk, worktrees, changes, builds, releases. A stage left out is not drawn, but kit status <stage> still prints it. Default: all seven, in that order.",
+      "description": "The stages kit status draws, in order: backlog, underway, incoming, desk, worktrees, changes, builds, releases. A stage left out is not drawn, but kit status <stage> still prints it. Default: all eight, in that order.",
       "uniqueItems": true,
       "items": {
         "enum": [
           "backlog",
+          "underway",
           "incoming",
           "desk",
           "worktrees",

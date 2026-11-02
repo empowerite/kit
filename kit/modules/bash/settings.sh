@@ -35,7 +35,7 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | toolchains | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources | status) ;;
+      (linked_exempt | sources | status | primary | forges) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"
         return 1
@@ -217,7 +217,7 @@ settings:require() {
 }
 
 # settings_stages names the stages of kit status, in the order work moves: the values the status setting takes.
-declare -gra settings_stages=(backlog incoming desk worktrees changes builds releases)
+declare -gra settings_stages=(backlog underway incoming desk worktrees changes builds releases)
 
 # settings:stages prints the stages the status setting names, one per line, in its order: what kit status draws.
 # Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 2: a

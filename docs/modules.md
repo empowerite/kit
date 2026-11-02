@@ -229,7 +229,8 @@ from arguments, stays inline where it is used.
 | `status.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
 | `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
-| `backlog.jq` | the issues no open change closes, with the branch on origin that claims each |
+| `backlog.jq` | the issues no open change closes, with the branch on the primary remote that claims each |
+| `underway.jq` | the issues an open change closes, one row per issue and change, and the rows the owner flags keep |
 | `changes.jq` | the open changes that close one of the issues named |
 | `completion.jq` | what the word being typed may be, from a verb's syntax: a flag, an option's value, a literal word, or an operand |
 

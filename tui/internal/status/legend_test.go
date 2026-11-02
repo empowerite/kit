@@ -91,7 +91,7 @@ func opened(t *testing.T, i int) Model {
 
 func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 	text := legendText(t)
-	for i, name := range seven {
+	for i, name := range eight {
 		m := opened(t, i)
 		for g := range glyphsOf(view(m)) {
 			if !strings.Contains(text, g) {
@@ -134,7 +134,7 @@ func stateOf(glyph string) string {
 func TestEachTreeHangsItsLegendWithTheGlyphsInOneColumn(t *testing.T) {
 	for _, width := range []int{80, 120, 200} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
-		for i, name := range seven {
+		for i, name := range eight {
 			if i > 0 {
 				m = drive(m, right)
 			}

@@ -6,8 +6,9 @@
 #
 # modules/bash/forge.sh loads this provider when the repository's forge is gitlab:
 #
-#   - gitlab.com, detected from origin's host
-#   - a self-hosted GitLab, set with `forge: gitlab` in kit.yml; glab finds the host from origin
+#   - gitlab.com, detected from the primary remote's host
+#   - a self-hosted GitLab: a host glab has logged in to, or `forge: gitlab` in kit.yml; glab finds the host from
+#     the remote
 #
 # It implements the calls listed in the header of modules/bash/forge.sh, with the same output as the GitHub
 # provider. The GitLab equivalents:
@@ -183,8 +184,9 @@ forge/gitlab:releases() {
 forge/gitlab:repo() { forge/gitlab:project; }
 
 forge/gitlab:repo-url() {
-  local host
-  host=$(git remote get-url origin 2>/dev/null | sed -E 's#^([a-z]+://)?([^@/]+@)?([^/:]+).*#\3#')
+  local host primary
+  primary=$(forge:primary) || return $?
+  host=$(forge:host "${primary}")
   printf 'https://%s/%s\n' "${host}" "$(forge/gitlab:project)"
 }
 
@@ -210,10 +212,12 @@ forge/gitlab:runs() {
 
 # The seam's calls end here; what follows is this provider's own.
 
-# forge/gitlab:project prints the project's full path, read from origin: group/subgroup/name.
+# forge/gitlab:project prints the project's full path, read from the primary remote: group/subgroup/name.
 forge/gitlab:project() {
-  local url
-  url=$(git remote get-url origin 2>/dev/null) || { error "this checkout has no origin; add one"; return 1; }
+  local url primary
+  primary=$(forge:primary) || return $?
+  url=$(git remote get-url --end-of-options "${primary}" 2>/dev/null) \
+    || { error "this checkout has no ${primary}; add one"; return 1; }
   sed -E 's#^[a-z]+://[^/]+/##; s#^[^@/]+@[^:]+:##; s#\.git$##' <<<"${url}"
 }
 

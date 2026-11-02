@@ -4,11 +4,16 @@
 #
 # kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Draws the picture of the work. It changes nothing. Work moves left to right through seven stages:
+# Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
-#   backlog → incoming → desk → worktrees → changes → builds → releases
+#   backlog → underway → incoming → desk → worktrees → changes → builds → releases
 #
 # The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
+#
+# One remote is the primary: the primary setting in kit.yml, else origin. Ahead and behind, the default branch, pull
+# requests, builds, releases, and issues are read from it. incoming fetches every remote, the primary first, and
+# never rebases, merges, or pulls. Each remote has a forge, or none: the forges setting in kit.yml names it, else its
+# host does. The forge setting names the primary's.
 #
 # The status setting in kit.yml names the stages drawn, in order. On a terminal, kit status opens the picture in
 # kittui. Without one, or with --text, it prints the stages as text. Where it runs decides what worktrees and
@@ -18,10 +23,10 @@
 #   - in a worktree: that worktree, and the pull request its branch holds
 #   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
 #
-# backlog, incoming, desk, builds, and releases draw the same anywhere. A repository with no origin draws its
-# checkouts, fetches nothing, and says so once.
+# backlog, underway, incoming, desk, builds, and releases draw the same anywhere. A repository with no primary
+# remote draws its checkouts, fetches nothing, and says so once.
 #
-#   --no-fetch          skips the git fetch; incoming says so
+#   --no-fetch          fetches nothing; incoming says so
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object, each stage under its name
 #   --jq                the same JSON, formatted by jq for a person
@@ -32,8 +37,9 @@
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
-#   backlog             the open issues no pull request closes, oldest first
-#   incoming            what the fetch brought: default-branch commits, branches new and gone
+#   backlog             the open issues no open pull request closes, oldest first; underway has the rest
+#   underway            the open issues an open pull request closes: who works on each, and where
+#   incoming            what fetching every remote brought: default-branch commits, branches new and gone
 #   desk                the root checkout: branch, ahead and behind, uncommitted paths
 #   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
@@ -45,6 +51,8 @@
 # kit status --stages
 #
 # kit status backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# kit status underway [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # kit status incoming [--no-fetch] [--json | --jq]
 #
@@ -59,8 +67,17 @@
 # kit status releases [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for backlog, changes, builds, and releases; an object for incoming, desk, and worktrees. Above desks, --json prints
-# an array with one {path, status} per desk.
+# for backlog, underway, changes, builds, and releases; an object for incoming, desk, and worktrees. Above desks,
+# --json prints an array with one {path, status} per desk.
+#
+# Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
+# issue first. Its owner flags match the pull request's author or the issue's assignees. A row's JSON is {number,
+# title, assignees, age, pr, here, worktree}. pr is {number, title, author, state, branch}. here is true when a
+# checkout on this desk has the branch, and worktree is that checkout's path, or null.
+#
+# incoming's JSON is {fetched, primary, remotes}. Each remote is {name, forge, host, default, commits, branches, tags}:
+# forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds error,
+# git's line, and the stage exits 1. With --no-fetch, fetched is false and each remote is {name, forge, host}.
 #
 # builds lists the 20 newest runs no pull request owns: pushes to the default branch or a tag, and scheduled or
 # manual runs. A run's JSON is {id, workflow, branch, event, state, age, took, url, jobs}. state is running, passed,
@@ -77,15 +94,26 @@
 #
 #   🎫  an issue
 #   👤  its assignees
-#   🌿  the branch started for it on origin
+#   🌿  the branch started for it on the primary remote
+#   ❌  a refusal: kit could not read the forge
+#
+# underway:
+#
+#   🎫  an issue, and its title
+#   👤  its assignees, or the pull request's author, whose desk the work is on
+#   🛫  in flight, with the issue's age
+#   🔀  the pull request that closes it, with its state glyph as changes draws it
+#   🏠  here: a checkout on this desk has the pull request's branch
 #   ❌  a refusal: kit could not read the forge
 #
 # incoming:
 #
-#   📥  what the fetch brought from origin
-#   🌿  a branch new or updated on origin
-#   🔖  a branch gone from origin
+#   📡  a remote: its name, its forge or no forge, and its host
+#   📥  what the fetch brought from it
+#   🌿  a branch new or updated on it
+#   🔖  a branch gone from it
 #   📌  a new tag
+#   ❌  the fetch failed: git's line
 #
 # desk:
 #
@@ -139,11 +167,12 @@
 #   ⭐  the latest
 #   ❌  a refusal: kit could not read the forge
 #
-# Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
-# status setting that is not a list of distinct stages.
+# Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a wrong
+# setting: a status setting that is not a list of distinct stages, a primary that names no remote, or a forges key
+# that is no remote name.
 #
-# see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/builds.sh,
-# modules/bash/releases.sh
+# see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
+# modules/bash/builds.sh, modules/bash/releases.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -152,6 +181,9 @@ kit:enter
 use status tui
 guard:arguments status "$@" || exit $?
 guard:require tool:git
+
+# A remote's name from kit.yml reaches git as an argument, so a wrong one stops every stage before git sees it.
+forge:primary >/dev/null || exit $?
 
 if [[ -n "${syntax_options[--stages]+x}" ]]
 then

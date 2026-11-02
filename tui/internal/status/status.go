@@ -21,7 +21,7 @@ import (
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
-// whether the fetch is skipped, and the filters backlog and changes take.
+// whether the fetch is skipped, and the filters backlog, underway, and changes take.
 type Options struct {
 	Stages  []string
 	Origin  Origin
@@ -42,6 +42,7 @@ type stage struct {
 	loading bool
 	refusal string // kit's line, when the command failed
 	issues  []issue
+	under   []underway
 	in      *incoming
 	desk    *checkout
 	trees   *worktrees
@@ -54,8 +55,8 @@ type stage struct {
 }
 
 // known names the stages kittui draws.
-var known = map[string]bool{"backlog": true, "incoming": true, "desk": true, "worktrees": true, "changes": true,
-	"builds": true, "releases": true}
+var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
+	"changes": true, "builds": true, "releases": true}
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and r runs it again.
 const deadline = 2 * time.Minute
@@ -82,7 +83,7 @@ type Model struct {
 }
 
 // Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit status's own:
-// --no-fetch, and the filters backlog and changes take. Kit's refusal of --stages is the error.
+// --no-fetch, and the filters backlog, underway, and changes take. Kit's refusal of --stages is the error.
 func Open(r kit.Runner, words []string) (Model, error) {
 	stages, err := r.Stages()
 	if err != nil {
@@ -206,15 +207,15 @@ func (m Model) find(name string) *stage {
 	return nil
 }
 
-// args gives the words a stage's command takes after --json: --no-fetch for incoming, the filters for backlog and
-// changes, nothing for the rest.
+// args gives the words a stage's command takes after --json: --no-fetch for incoming, the filters for backlog,
+// underway, and changes, nothing for the rest.
 func (m Model) args(name string) []string {
 	switch name {
 	case "incoming":
 		if m.noFetch {
 			return []string{"--no-fetch"}
 		}
-	case "backlog", "changes":
+	case "backlog", "underway", "changes":
 		return m.filters
 	}
 	return nil
@@ -249,7 +250,7 @@ func (m *Model) refresh() tea.Cmd {
 	}
 	s := &m.stages[m.stage]
 	s.loading, s.refusal = true, ""
-	s.issues, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil
+	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
 	return m.load(s.name)
 }
 
@@ -284,6 +285,8 @@ func (s *stage) decode(data []byte) error {
 	switch s.name {
 	case "backlog":
 		err = json.Unmarshal(data, &s.issues)
+	case "underway":
+		err = json.Unmarshal(data, &s.under)
 	case "incoming":
 		s.in = &incoming{}
 		err = json.Unmarshal(data, s.in)
@@ -306,28 +309,34 @@ func (s *stage) decode(data []byte) error {
 	return nil
 }
 
-// expected is each stage's document, as kit status's page says: an array of objects for backlog, changes, builds,
-// and releases, each object with the stage's key field; an object for incoming, desk, and worktrees.
-var expected = map[string]struct{ what, key string }{
-	"backlog":   {"an array of issues", "number"},
-	"changes":   {"an array of pull requests", "number"},
-	"builds":    {"an array of builds", "id"},
-	"releases":  {"an array of releases", "version"},
-	"incoming":  {"an object", ""},
-	"desk":      {"an object", ""},
-	"worktrees": {"an object", ""},
+// expected is each stage's document, as kit status's page says: an array of objects for backlog, underway,
+// changes, builds, and releases, each object with the stage's key fields; an object for incoming, desk, and
+// worktrees, incoming's with its remotes.
+var expected = map[string]struct {
+	what  string
+	array bool
+	keys  []string
+}{
+	"backlog":   {"an array of issues", true, []string{"number"}},
+	"underway":  {"an array of issues underway", true, []string{"number", "pr"}},
+	"changes":   {"an array of pull requests", true, []string{"number"}},
+	"builds":    {"an array of builds", true, []string{"id"}},
+	"releases":  {"an array of releases", true, []string{"version"}},
+	"incoming":  {"an object of remotes", false, []string{"remotes"}},
+	"desk":      {"an object", false, nil},
+	"worktrees": {"an object", false, nil},
 }
 
 // shape refuses a document that is not the stage's: an array where an object is expected, an object where an array
-// is, or an array whose objects lack the stage's key field, as the array of desks kit prints above desks.
-// Anything else is left to the decoder.
+// is, an array whose objects lack one of the stage's key fields, as the array of desks kit prints above desks, or an
+// object without its key field, as incoming's before every remote. Anything else is left to the decoder.
 func shape(name string, data []byte) error {
 	want, printed := expected[name], ""
 	switch data = bytes.TrimSpace(data); {
 	case len(data) == 0:
-	case data[0] == '[' && want.key == "":
+	case data[0] == '[' && !want.array:
 		printed = "an array"
-	case data[0] == '{' && want.key != "":
+	case data[0] == '{' && want.array:
 		printed = "an object"
 	case data[0] == '[':
 		var objects []map[string]json.RawMessage
@@ -335,10 +344,18 @@ func shape(name string, data []byte) error {
 			return nil
 		}
 		for _, o := range objects {
-			if _, ok := o[want.key]; !ok {
-				printed = fmt.Sprintf("an array of objects without %q", want.key)
+			if key := lacking(o, want.keys); key != "" {
+				printed = fmt.Sprintf("an array of objects without %q", key)
 				break
 			}
+		}
+	case data[0] == '{':
+		var object map[string]json.RawMessage
+		if json.Unmarshal(data, &object) != nil {
+			return nil
+		}
+		if key := lacking(object, want.keys); key != "" {
+			printed = fmt.Sprintf("an object without %q", key)
 		}
 	}
 	if printed == "" {
@@ -346,6 +363,16 @@ func shape(name string, data []byte) error {
 	}
 	return fmt.Errorf("kit status %s --json printed %s where %s was expected; run kit status inside a repository",
 		name, printed, want.what)
+}
+
+// lacking gives the first of the keys an object lacks, or nothing.
+func lacking(o map[string]json.RawMessage, keys []string) string {
+	for _, key := range keys {
+		if _, ok := o[key]; !ok {
+			return key
+		}
+	}
+	return ""
 }
 
 // refusalOf gives a stage's refusal from its error: that the stage took longer than the deadline and r runs it

@@ -28,10 +28,44 @@ type commit struct {
 	Subject string `json:"subject"`
 }
 
-// incoming is what the fetch brought: the commits new on the default branch, the branches new, updated, and gone on
-// origin, and the tags new; with --no-fetch, Fetched alone, false.
+// underway is one issue an open pull request closes, with that pull request: one per issue and pull request, so an
+// issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
+// Worktree is its path. The URLs are kit's when it prints them.
+type underway struct {
+	Number    int      `json:"number"`
+	Title     string   `json:"title"`
+	Assignees []string `json:"assignees"`
+	Age       *int64   `json:"age"`
+	URL       string   `json:"url"`
+	PR        struct {
+		Number int    `json:"number"`
+		Title  string `json:"title"`
+		Author string `json:"author"`
+		State  string `json:"state"`
+		Branch string `json:"branch"`
+		URL    string `json:"url"`
+	} `json:"pr"`
+	Here     bool   `json:"here"`
+	Worktree string `json:"worktree"`
+}
+
+// incoming is what the fetch brought from every remote, the primary named; with --no-fetch, Fetched is false and the
+// remotes carry no commits, branches, or tags.
 type incoming struct {
-	Fetched  bool     `json:"fetched"`
+	Fetched bool     `json:"fetched"`
+	Primary string   `json:"primary"`
+	Remotes []remote `json:"remotes"`
+}
+
+// remote is one remote and what the fetch brought from it: the commits new on its default branch, its branches new,
+// updated, and gone, and its tags new. Forge is empty when the remote has none. Error is git's line when its fetch
+// failed, and then nothing came.
+type remote struct {
+	Name     string   `json:"name"`
+	Error    string   `json:"error"`
+	Forge    string   `json:"forge"`
+	Host     string   `json:"host"`
+	Default  string   `json:"default"`
 	Commits  []commit `json:"commits"`
 	Branches struct {
 		New     []string `json:"new"`
@@ -134,11 +168,12 @@ type cell struct {
 }
 
 // row is one row of a stage: its key, which survives a refresh; its cells; and the lines it opens to, each a row of
-// cells again, none for a leaf.
+// cells again, none for a leaf. An aside, as a remote's heading, is not counted in the stage's label.
 type row struct {
 	key    string
 	cells  []cell
 	detail [][]cell
+	aside  bool
 }
 
 // text gives a plain cell.
@@ -258,6 +293,8 @@ func (m Model) rows(i int) []row {
 	switch s.name {
 	case "backlog":
 		return m.backlogRows(s)
+	case "underway":
+		return m.underwayRows(s)
 	case "incoming":
 		return incomingRows(s)
 	case "desk":
@@ -294,29 +331,119 @@ func (m Model) backlogRows(s stage) []row {
 	return rows
 }
 
-// incomingRows draws what the fetch brought, in kit status's order: each commit on the default branch, then each
-// branch updated, new, or gone, then each new tag. Every row is a leaf.
+// underwayRows draws each issue underway beside the pull request that closes it, oldest first as kit prints them:
+// number, assignees, age, the pull request's number and state, where the work is, and the title. Where is here when
+// a worktree on this desk has the branch, else the author. Open, the issue's title in full, the pull request's, the
+// worktree when here, and both URLs, dim.
+func (m Model) underwayRows(s stage) []row {
+	var rows []row
+	for _, u := range s.under {
+		issue, pr := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number)
+		where := cell{}
+		switch {
+		case u.Here:
+			where = text(Desk + " here")
+		case u.PR.Author != "":
+			where = dim(Owner + " " + u.PR.Author)
+		}
+		state := stateGlyph(u.PR.State) + " " + u.PR.State
+		r := row{key: issue + " " + pr, cells: []cell{number(issue), dim(owners(u.Assignees)), text(InFlight), dimNumber(ageOf(u.Age)),
+			text(Change + " " + pr), text(state), where, fill(Issue + " " + u.Title)}}
+		for _, line := range wrap(u.Title, m.width-6) {
+			r.detail = append(r.detail, span(line))
+		}
+		for _, line := range wrap(Change+" "+pr+" "+u.PR.Title, m.width-6) {
+			r.detail = append(r.detail, span(line))
+		}
+		if u.Here && u.Worktree != "" {
+			r.detail = append(r.detail, span(Desk+" "+u.Worktree))
+		}
+		for _, url := range []string{m.origin.issue(u.Number, u.URL), m.origin.pull(u.PR.Number, u.PR.URL)} {
+			if url != "" {
+				r.detail = append(r.detail, span(style.Off(url)))
+			}
+		}
+		rows = append(rows, r)
+	}
+	return rows
+}
+
+// incomingRows draws what the fetch brought from each remote, the primary first. Each remote has a dim heading, its
+// name, forge, and host, then its rows in kit status's order: each commit on its default branch, each branch updated,
+// new, or gone, and each new tag. A remote whose fetch failed shows git's line, in red; one with nothing new says
+// unchanged; and without the fetch each says not fetched. Every row is a leaf; the headings and those lines are
+// asides.
 func incomingRows(s stage) []row {
-	if s.in == nil || !s.in.Fetched {
+	if s.in == nil {
 		return nil
 	}
 	var rows []row
-	for _, c := range s.in.Commits {
-		rows = append(rows, row{key: c.SHA, cells: []cell{dim(c.SHA), fill(c.Subject)}})
-	}
-	for _, b := range s.in.Branches.Updated {
-		rows = append(rows, row{key: "updated " + b, cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
-	}
-	for _, b := range s.in.Branches.New {
-		rows = append(rows, row{key: "new " + b, cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
-	}
-	for _, b := range s.in.Branches.Gone {
-		rows = append(rows, row{key: "gone " + b, cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
-	}
-	for _, t := range s.in.Tags {
-		rows = append(rows, row{key: "tag " + t, cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
+	for _, r := range primaryFirst(*s.in) {
+		rows = append(rows, row{key: "remote " + r.Name, cells: span(style.Off(heading(r))), aside: true})
+		before, key := len(rows), r.Name+" "
+		if s.in.Fetched {
+			for _, c := range r.Commits {
+				rows = append(rows, row{key: key + c.SHA, cells: []cell{dim(c.SHA), fill(c.Subject)}})
+			}
+			for _, b := range r.Branches.Updated {
+				rows = append(rows, row{key: key + "updated " + b,
+					cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
+			}
+			for _, b := range r.Branches.New {
+				rows = append(rows, row{key: key + "new " + b,
+					cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
+			}
+			for _, b := range r.Branches.Gone {
+				rows = append(rows, row{key: key + "gone " + b,
+					cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
+			}
+			for _, t := range r.Tags {
+				rows = append(rows, row{key: key + "tag " + t,
+					cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
+			}
+		}
+		if r.Error != "" {
+			failed := span(style.Refusal(Failed + " " + r.Error))
+			rows = append(rows, row{key: key + "error", cells: failed, aside: true})
+		} else if len(rows) == before {
+			word := "unchanged"
+			if !s.in.Fetched {
+				word = "not fetched"
+			}
+			rows = append(rows, row{key: key + word, cells: span(style.Off(word)), aside: true})
+		}
 	}
 	return rows
+}
+
+// primaryFirst gives the remotes with the primary first, the rest in kit's order.
+func primaryFirst(in incoming) []remote {
+	out := slices.Clone(in.Remotes)
+	slices.SortStableFunc(out, func(x, y remote) int {
+		return primaryRank(x, in.Primary) - primaryRank(y, in.Primary)
+	})
+	return out
+}
+
+// primaryRank sorts the primary remote before the rest.
+func primaryRank(r remote, primary string) int {
+	if r.Name == primary {
+		return 0
+	}
+	return 1
+}
+
+// heading gives a remote's heading: its glyph, its name, its forge or no forge, and its host when known.
+func heading(r remote) string {
+	forge := r.Forge
+	if forge == "" {
+		forge = "no forge"
+	}
+	parts := []string{Remote + " " + r.Name, forge}
+	if r.Host != "" {
+		parts = append(parts, r.Host)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // commitsShown is how many commits ahead an open checkout lists before counting the rest.
@@ -527,11 +654,13 @@ func empty(s stage) string {
 	switch s.name {
 	case "backlog":
 		return "no open issue without a pull request"
+	case "underway":
+		return "no issue is underway"
 	case "incoming":
 		if s.in != nil && !s.in.Fetched {
 			return "not fetched: kit status --no-fetch skips the fetch"
 		}
-		return "nothing new on origin"
+		return "no remote to fetch"
 	case "desk":
 		return "no desk"
 	case "worktrees":

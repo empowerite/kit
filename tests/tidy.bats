@@ -119,6 +119,23 @@ gone() { git push --quiet origin --delete "$1"; }
   [ -z "$(git -C worktrees/7-fix-the-thing status --porcelain)" ]
 }
 
+@test "in a fork, kit tidy fetches every remote, the primary first, so a branch the fork dropped is deleted" {
+  world
+  git init --quiet --bare --initial-branch=main ../upstream.git
+  git remote add upstream ../upstream.git
+  git push --quiet upstream main
+  printf 'forge: github\nprimary: upstream\n' > kit.yml
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED
+  run "${kit_root}/bin/kit" tidy --dry-run
+  [[ "$output" == *"would run: git fetch --prune upstream"*"would run: git fetch --prune origin"* ]]
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"git fetch --prune upstream"*"git fetch --prune origin"* ]]
+  [[ "$output" == *"deleting 7-fix-the-thing"* ]]
+  run ! git show-ref --verify --quiet refs/heads/7-fix-the-thing
+}
+
 @test "kit tidy keeps a branch checked out in a worktree it keeps, though origin has dropped the branch" {
   world
   worktree-on 9-other && gone 9-other

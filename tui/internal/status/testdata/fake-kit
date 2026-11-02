@@ -4,11 +4,11 @@
 #
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_STATUS_CALLS names a file every call's words
 # are appended to, one line each, so a test reads the order the stages ran in. FAKE_STATUS_STAGES is what --stages
-# prints, space-separated; unset, it prints the seven. FAKE_STATUS_REFUSE names a stage whose --json answer is a
+# prints, space-separated; unset, it prints the eight. FAKE_STATUS_REFUSE names a stage whose --json answer is a
 # refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_STATUS_SILENT names a stage that exits 1 with
 # nothing on stderr. FAKE_STATUS_SLOW names a stage that sleeps five seconds before it answers. FAKE_STATUS_ABOVE
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
-# --no-fetch, incoming answers {"fetched": false}.
+# --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
 
 set -o errexit -o nounset -o pipefail
 
@@ -29,12 +29,12 @@ case "${1:-}" in
       echo "❌ kit status refuses for the test; run: kit help status" >&2
       exit 2
     fi
-    for stage in ${FAKE_STATUS_STAGES-backlog incoming desk worktrees changes builds releases}
+    for stage in ${FAKE_STATUS_STAGES-backlog underway incoming desk worktrees changes builds releases}
     do
       printf '%s\n' "${stage}"
     done
     ;;
-  (backlog | incoming | desk | worktrees | changes | builds | releases)
+  (backlog | underway | incoming | desk | worktrees | changes | builds | releases)
     stage=$1
     shift
     if [[ "${1:-}" != --json ]]
@@ -55,7 +55,7 @@ case "${1:-}" in
       printf '[{"path": "kit", "status": %s}, {"path": "jig", "status": null}]\n' "$(cat "${here}/${stage}.json")"
     elif [[ "${stage}" == incoming && " $* " == *" --no-fetch "* ]]
     then
-      printf '{"fetched": false}\n'
+      cat "${here}/incoming-no-fetch.json"
     else
       cat "${here}/${stage}.json"
     fi

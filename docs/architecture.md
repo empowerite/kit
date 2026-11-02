@@ -130,7 +130,7 @@ Work starts from an issue:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,
    - `kit commit` to commit, with the checks its rule requires, and `kit submit` to commit and push,
-   - `kit rebase` to rebase the branch onto the default branch at origin and push it.
+   - `kit rebase` to rebase the branch onto the default branch at the primary remote and push it.
 3. Mark the pull request ready for review once its body holds the report: `gh pr ready` on GitHub,
    `glab mr update --ready` on GitLab.
 4. A human merges, and `kit tidy` removes the worktree and the branch.
@@ -139,9 +139,10 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit status` draws where the work stands in seven stages: backlog, incoming, desk, worktrees, changes, builds, releases.
-On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit status <stage>` prints one
-stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick, not a search.
+`kit status` draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees, changes,
+builds, releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit status
+<stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick,
+not a search. underway shows the rest of the open issues: who works on each, and where.
 
 ### Forges, seams, and providers
 
@@ -157,12 +158,13 @@ Every seam has an enabling point, the spot that decides which behavior runs.
 kit says seam rather than interface because seam is the more precise word for these files. An interface is only a
 contract: the calls a provider must answer. It says nothing about who picks the provider, or when. A seam is the
 contract plus its enabling point, and each of these files holds both. Its header lists the calls. Its code picks the
-provider at run time, from a setting or origin's host, by building the provider's function name from a string. Shell
-has no types, so there is no separate interface declaration to point at; the seam is the whole of what exists.
+provider at run time, from a setting or the primary remote's host, by building the provider's function name from a
+string. Shell has no types, so there is no separate interface declaration to point at; the seam is the whole of what
+exists.
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else origin's host |
+| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else the primary remote's host |
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
 | `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/brew.sh`, `toolchain/docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |

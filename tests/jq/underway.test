@@ -1,0 +1,19 @@
+# underway.test - the underway jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is the open changes.
+
+# A row per issue and change, the oldest issue first, and a branch checked out on this desk is here.
+import "underway" as underway; underway::rows({"7-fix": "/desk/worktrees/7-fix"}) | map([.number, .pr.number, .here, .worktree])
+[{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "closes": [{"number": 7, "title": "Seven", "assignees": ["bob"], "age": 100}]}, {"number": 4, "title": "Also", "author": "cy", "state": "ready", "branch": "8-also", "closes": [{"number": 8, "title": "Eight", "assignees": [], "age": 900}, {"number": 7, "title": "Seven", "assignees": ["bob"], "age": 100}]}]
+[[8,4,false,null],[7,3,true,"/desk/worktrees/7-fix"],[7,4,false,null]]
+
+# The change in a row is its number, title, author, state, and branch, and nothing else.
+import "underway" as underway; underway::rows({}) | .[0].pr
+[{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "ref": "#3", "age": 5, "closes": [{"number": 7, "title": "Seven"}]}]
+{"number":3,"title":"Fix","author":"ada","state":"draft","branch":"7-fix"}
+
+# Logins keep the rows whose change one of them opened or whose issue one of them is assigned; except, the others.
+import "underway" as underway; [underway::by_owners(["ada"]; false), underway::by_owners(["ada"]; true), underway::by_owners([]; false)] | map(map(.number))
+[{"number": 1, "assignees": [], "pr": {"author": "ada"}}, {"number": 2, "assignees": ["ada"], "pr": {"author": "bob"}}, {"number": 3, "assignees": ["cy"], "pr": {"author": "bob"}}]
+[[1,2],[3],[1,2,3]]

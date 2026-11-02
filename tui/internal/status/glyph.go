@@ -5,13 +5,14 @@ package status
 // The glyphs, as the legend draws them.
 const (
 	Repository = "📚" // the repository, owner/name, in the title
-	Fetched    = "📥" // what the fetch brought from origin
+	Fetched    = "📥" // what the fetch brought from the remotes
+	Remote     = "📡" // a remote, its forge, and its host
 	Desk       = "🏠" // the desk, the root checkout
 	Branch     = "🌿" // a linked worktree, or a branch
 	Change     = "🔀" // a pull request
 	Owner      = "👤" // an author, or an issue's assignees
 	Issue      = "🎫" // an issue
-	InFlight   = "🛫" // an issue the pull request above it closes
+	InFlight   = "🛫" // an issue a pull request closes: underway, and in flight under changes
 	Gone       = "🔖" // a branch whose upstream is gone
 	Tag        = "📌" // a new tag the fetch brought
 	Detached   = "❗" // a checkout on no branch
@@ -38,19 +39,29 @@ type entry struct {
 // title is the title's glyph, which no stage draws.
 var title = entry{Repository, "the repository, owner/name"}
 
-// legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several. The
-// desk and the worktrees draw a pull request's state as changes does; its glyphs are under changes alone.
+// legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
+// Underway, the desk, and the worktrees draw a pull request's state as changes does; its glyphs are under changes
+// alone.
 var legends = map[string][]entry{
 	"backlog": {
 		{Issue, "an issue"},
 		{Owner, "its assignees"},
 		{Branch, "its branch"},
 	},
+	"underway": {
+		{InFlight, "an issue underway"},
+		{Owner, "its assignees, or the author"},
+		{Change, "the pull request"},
+		{Desk, "here, in a worktree"},
+		{Issue, "the issue's title"},
+	},
 	"incoming": {
 		{Fetched, "the fetch"},
+		{Remote, "a remote"},
 		{Branch, "a branch"},
 		{Gone, "a branch gone"},
 		{Tag, "a new tag"},
+		{Failed, "a fetch failed"},
 	},
 	"desk": {
 		{Desk, "the desk"},
@@ -105,6 +116,7 @@ var states = []entry{
 // stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.
 var stageGlyphs = map[string]string{
 	"backlog":   Issue,
+	"underway":  InFlight,
 	"incoming":  Fetched,
 	"desk":      Desk,
 	"worktrees": Branch,

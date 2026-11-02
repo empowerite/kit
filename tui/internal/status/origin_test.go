@@ -39,6 +39,12 @@ func TestTheURLsFollowTheHost(t *testing.T) {
 	if got := lab.release("v1", ""); got != "https://gitlab.com/group/kit/-/releases/v1" {
 		t.Errorf("GitLab release: %q", got)
 	}
+	if got := hub.pull(2, ""); got != "https://github.com/empowerite/kit/pull/2" {
+		t.Errorf("GitHub pull request: %q", got)
+	}
+	if got := lab.pull(2, ""); got != "https://gitlab.com/group/kit/-/merge_requests/2" {
+		t.Errorf("GitLab merge request: %q", got)
+	}
 	// what kit printed wins, and an unknown origin gives nothing
 	if got := hub.issue(1, "https://example.com/1"); got != "https://example.com/1" {
 		t.Errorf("a given URL: %q", got)
@@ -47,6 +53,9 @@ func TestTheURLsFollowTheHost(t *testing.T) {
 		t.Errorf("no origin: %q", got)
 	}
 	if got := (Origin{}).release("v1", ""); got != "" {
+		t.Errorf("no origin: %q", got)
+	}
+	if got := (Origin{}).pull(2, ""); got != "" {
 		t.Errorf("no origin: %q", got)
 	}
 }

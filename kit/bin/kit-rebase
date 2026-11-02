@@ -4,8 +4,8 @@
 #
 # kit rebase [<path>]
 #
-# Rebases the branch checked out at <path> onto the default branch at origin, and pushes it with
-# --force-with-lease. kit rebase refuses:
+# Rebases the branch checked out at <path> onto the default branch at the primary remote, and pushes it with
+# --force-with-lease. The primary is the primary setting in kit.yml, else origin. kit rebase refuses:
 #
 #   - a checkout with no branch checked out
 #   - the root checkout, the desk, which belongs to the human, whatever branch it has

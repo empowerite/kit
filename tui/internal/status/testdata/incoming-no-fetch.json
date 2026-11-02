@@ -1,0 +1,9 @@
+{
+  "fetched": false,
+  "primary": "origin",
+  "remotes": [
+    {"name": "upstream", "forge": "gitlab", "host": "git.example.org", "default": "main"},
+    {"name": "origin", "forge": "github", "host": "github.com", "default": "main"},
+    {"name": "backup", "forge": "", "host": "nas.local", "default": "main"}
+  ]
+}

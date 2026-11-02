@@ -84,16 +84,19 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    request closes, and assigns it to the caller when no one is assigned.
 3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
    first time. It never forces: when origin has moved, the remedy is `kit rebase`.
-4. `kit rebase` rebases the worktree's branch onto the default branch at origin and pushes it. It refuses the desk,
-   the default branch, and a worktree with uncommitted changes.
+4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it. It
+   refuses the desk, the default branch, and a worktree with uncommitted changes.
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit status` draws where the work stands. Work moves left to right through seven stages:
+`kit status` draws where the work stands. Work moves left to right through eight stages:
 
-- `backlog`: the open issues no pull request closes, oldest first, each with its assignees, its age, and the branch
-  started for it on origin
-- `incoming`: what the fetch brought: commits on the default branch, branches new and gone
+- `backlog`: the open issues no open pull request closes, oldest first, each with its assignees, its age, and the
+  branch started for it on the primary remote
+- `underway`: the open issues an open pull request closes, one row per issue and pull request: the assignees, the
+  pull request and its state, and where the work is, here or on the author's desk
+- `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new
+  and gone, and new tags. It never rebases, merges, or pulls.
 - `desk`: the root checkout, wherever kit runs in the repository, with its commits and its uncommitted paths
 - `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
@@ -106,13 +109,22 @@ glyph and its count. `kit status <stage>` prints one stage, with that stage's fl
 keeps the issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
 document. The `status` setting in `kit.yml` names the stages drawn, in order.
 
+A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
+primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
+builds, releases, and issues are read from it. Each remote has a forge, or none:
+
+1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins
+2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab
+3. else a host `gh` or `glab` has logged in to, which tells a self-hosted forge apart
+4. else it has no forge: kit fetches it and counts its branches, and asks no forge about it
+
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
 release workflow. It refuses:
 
 - a version of the wrong shape
 - a tag that exists
-- a release, one with no suffix, whose commit is not on the default branch at origin
-- a version not higher than every release on origin, unless `--lower` confirms it
+- a release, one with no suffix, whose commit is not on the default branch at the primary remote
+- a version not higher than every release on the primary remote, unless `--lower` confirms it
 
 `kit status releases` lists the releases on the forge, newest first, with each one's kind and age.
 
