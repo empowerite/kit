@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# toolchain.sh - the seam over the tool managers (mise, brew, docker) that install the gate's tools (sourced module)
+# toolchain.sh - the seam over the tool managers that install the gate's tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
@@ -121,8 +121,8 @@ toolchain:call() {
   "toolchain/${provider}:${call}" "$@"
 }
 
-# toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, brew,
-# docker, then any other in toolchain:providers order. The order is how the candidates are offered; a run uses one.
+# toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, nix,
+# brew, docker, then any other in toolchain:providers order. The order is how candidates are offered; a run uses one.
 toolchain:usable() {
   toolchain:detect | toolchain:ranked "$1" usable
 }
@@ -132,7 +132,7 @@ toolchain:usable() {
 toolchain:ranked() {
   awk -F '\t' -v role="$1" -v active="$2" '
     $2 == role && $3 == "yes" && (active != "active" || $4 == "yes") {
-      rank = ($1 == "mise") ? 1 : ($1 == "brew") ? 2 : ($1 == "docker") ? 3 : 4
+      rank = ($1 == "mise") ? 1 : ($1 == "nix") ? 2 : ($1 == "brew") ? 3 : ($1 == "docker") ? 4 : 5
       print rank "\t" $1
     }' | sort -s -n -k 1,1 | cut -f 2
 }

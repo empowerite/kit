@@ -21,3 +21,13 @@ import "toolchain" as toolchain; [toolchain::mise_pins]
 import "toolchain" as toolchain; [toolchain::brew_pins("jq\nnode@22\nfirefox\n")]
 "jq 1.7 1.7.1\nnode@22 22.11.0\nwget 1.24\n"
 ["jq\t\t1.7.1","node@22\t22\t22.11.0","firefox\t\t"]
+
+# flake.lock gives each input the flake names, by its short locked revision; an input that follows another is left out.
+import "toolchain" as toolchain; [toolchain::nix_pins]
+{"root": "root", "nodes": {"root": {"inputs": {"nixpkgs": "nixpkgs", "tool": "tool_2", "follows": ["nixpkgs"]}}, "nixpkgs": {"locked": {"rev": "aaaaaaa1111"}}, "tool_2": {"locked": {"narHash": "sha256-abcdefghij"}}}}
+["nixpkgs\taaaaaaa\taaaaaaa","tool\tabcdefg\tabcdefg"]
+
+# Each input with a revision locked is asked at its original reference; one pinned to a revision, or from a path, is not.
+import "toolchain" as toolchain; [toolchain::nix_refs]
+{"root": "root", "nodes": {"root": {"inputs": {"a": "a", "b": "b", "c": "c", "d": "d", "e": "e"}}, "a": {"locked": {"rev": "r1"}, "original": {"type": "github", "owner": "NixOS", "repo": "nixpkgs", "ref": "nixos-unstable"}}, "b": {"locked": {"rev": "r2"}, "original": {"type": "github", "owner": "o", "repo": "r", "rev": "r2"}}, "c": {"locked": {"narHash": "x"}, "original": {"type": "path", "path": "./c"}}, "d": {"locked": {"rev": "r4"}, "original": {"type": "git", "url": "https://h/d.git", "ref": "main"}}, "e": {"locked": {"rev": "r5"}, "original": {"type": "indirect", "id": "nixpkgs"}}}}
+["a\tgithub:NixOS/nixpkgs/nixos-unstable\tr1","d\tgit+https://h/d.git?ref=main\tr4","e\tnixpkgs\tr5"]

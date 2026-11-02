@@ -8,7 +8,7 @@
 load helper
 
 setup() {
-  fake-tools mise brew docker
+  fake-tools mise nix brew docker
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
@@ -57,6 +57,60 @@ probes() {
   touch mise.toml
   run detect
   grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
+}
+
+# a flake that holds a dev shell, and nix with flakes on
+nix-flake() {
+  printf '{ outputs = { self }: { devShells.x86_64-linux.default = {}; }; }\n' > flake.nix
+  fixture features.txt <<<'nix-command flakes'
+  route nix 'config show experimental-features' features.txt
+}
+
+@test "nix is usable with flakes on and a dev shell in flake.nix" {
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  nix-flake
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tyes\tno' <<<"$output"
+  [ "$(grep '^nix' <<<"$output" | wc -l | tr -d ' ')" -eq 1 ]
+  printf '{ outputs = { self }: { devShell.x86_64-linux = {}; }; }\n' > flake.nix
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tyes\tno' <<<"$output"
+}
+
+@test "nix without flakes, or a flake without a dev shell, is not usable" {
+  nix-flake
+  fixture features.txt <<<'nix-command'
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  nix-flake
+  printf '{ outputs = { self }: { packages.x86_64-linux.default = {}; }; }\n' > flake.nix
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  # no flake.nix, and nix is never asked
+  rm flake.nix
+  : > "${FAKE_DIR}/nix.calls"
+  run detect
+  [ ! -s "${FAKE_DIR}/nix.calls" ]
+}
+
+@test "nix is active in nix develop only where this repository has a flake" {
+  export IN_NIX_SHELL=impure
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  nix-flake
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tyes\tyes' <<<"$output"
+  unset IN_NIX_SHELL
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tyes\tno' <<<"$output"
+}
+
+@test "nix is offered after mise and before brew and docker" {
+  touch mise.toml Brewfile toolchain.Dockerfile
+  nix-flake
+  run kit-bash 'use toolchain && toolchain:usable project'
+  [ "$output" = $'mise\nnix\nbrew\ndocker' ]
 }
 
 @test "the cache answers until PATH, a tool, a file, or a marker changes" {

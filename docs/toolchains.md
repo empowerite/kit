@@ -40,6 +40,7 @@ network, and never calls git.
 | Provider | Roles | Usable when | Active when | Pins |
 | --- | --- | --- | --- | --- |
 | `mise` | project | `mise` runs, and `mise.toml`, `.mise.toml`, or `mise.local.toml` is here | `MISE_SHELL` is set | each tool's version, resolved in `mise.lock` |
+| `nix` | project | `nix` is on `PATH` with flakes on, and `flake.nix` names `devShells` or `devShell` | `IN_NIX_SHELL` is set, and `flake.nix` is here | each flake input by its locked revision in `flake.lock` |
 | `brew` | system; project with a `Brewfile` | `brew` is on `PATH` or at one of Homebrew's prefixes | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
 

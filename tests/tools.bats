@@ -9,7 +9,7 @@
 load helper
 
 setup() {
-  fake-tools mise brew docker
+  fake-tools mise nix brew docker
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
@@ -166,6 +166,48 @@ JSON
   [ "$output" = $'/m/jq/bin\n/m/just/bin' ]
   run "${kit_root}/bin/kit" tools run bash -c 'printf "%s" "${PATH%%:*}"'
   [ "$output" = "/m/jq/bin" ]
+}
+
+@test "nix installs the dev shell, puts its PATH first, and lists the flake's inputs" {
+  printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
+  fixture features.txt <<<'nix-command flakes'
+  fixture lock.json <<'JSON'
+{"version": 7, "root": "root", "nodes": {
+  "root": {"inputs": {"nixpkgs": "nixpkgs", "utils": "flake-utils", "follows": ["nixpkgs"]}},
+  "nixpkgs": {"locked": {"type": "github", "owner": "NixOS", "repo": "nixpkgs", "rev": "aaaaaaa1111111111"},
+              "original": {"type": "github", "owner": "NixOS", "repo": "nixpkgs", "ref": "nixos-unstable"}},
+  "flake-utils": {"locked": {"type": "github", "owner": "numtide", "repo": "flake-utils", "rev": "bbbbbbb2222222222"},
+                  "original": {"type": "github", "owner": "numtide", "repo": "flake-utils"}}}}
+JSON
+  cp "${FAKE_DIR}/lock.json" flake.lock
+  fixture meta-nixpkgs.json <<<'{"locked": {"rev": "ccccccc3333333333"}}'
+  fixture meta-utils.json <<<'{"locked": {"rev": "bbbbbbb2222222222"}}'
+  fixture env.json <<<'{"variables": {"PATH": {"type": "exported", "value": "/n/jq/bin:/n/just/bin"}}}'
+  route nix 'config show experimental-features' features.txt
+  route nix 'develop --command true' '!0'
+  route nix 'flake metadata --json github:NixOS/nixpkgs/nixos-unstable' meta-nixpkgs.json
+  route nix 'flake metadata --json github:numtide/flake-utils' meta-utils.json
+  route nix 'flake update' '!0'
+  route nix 'print-dev-env --json' env.json
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nix: installing from flake.nix"* ]]
+  run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^✅ nixpkgs +· aaaaaaa +· aaaaaaa$' <<<"$output"
+  grep --quiet -E '^✅ utils +· bbbbbbb +· bbbbbbb$' <<<"$output"
+  [ -z "$(grep -E 'metadata|print-dev-env' "${FAKE_DIR}/nix.calls" | head -n 1)" ]
+  run "${kit_root}/bin/kit" tools --outdated
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^🔺 nixpkgs +· aaaaaaa +· aaaaaaa +· ccccccc$' <<<"$output"
+  [[ "$output" != *utils* ]]
+  run "${kit_root}/bin/kit" tools update
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'flake update' "${FAKE_DIR}/nix.calls"
+  run "${kit_root}/bin/kit" tools path
+  [ "$output" = $'/n/jq/bin\n/n/just/bin' ]
+  run "${kit_root}/bin/kit" tools run bash -c 'printf "%s" "${PATH%%:*}"'
+  [ "$output" = "/n/jq/bin" ]
 }
 
 @test "brew installs from the Brewfile without upgrading, and reports and moves only the Brewfile's tools" {
