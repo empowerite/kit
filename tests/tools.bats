@@ -97,6 +97,13 @@ JSON
   run "${kit_root}/bin/kit" tools run printf ran
   [ "$status" -eq 0 ]
   [ "$output" = ran ]
+  # --toolchain is kit's wherever it stands, so the usage names it before run; the command never sees it
+  run "${kit_root}/bin/kit" tools --toolchain ambient run echo ran
+  [ "$status" -eq 0 ]
+  [ "$output" = ran ]
+  run "${kit_root}/bin/kit" tools run echo ran --toolchain ambient
+  [ "$status" -eq 0 ]
+  [ "$output" = ran ]
 }
 
 @test "ambient, with every tool the rules need on PATH, install has nothing to do" {

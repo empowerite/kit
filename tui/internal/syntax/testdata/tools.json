@@ -3,7 +3,7 @@
   "purpose": "lists, installs, and updates what the chosen toolchain pins",
   "usage": [
     "kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]",
-    "kit tools (install | update | path | run <command>…) [--toolchain <name>]"
+    "kit tools [--toolchain <name>] (install | update | path | run <command>…)"
   ],
   "syntax": [
     [
@@ -76,6 +76,22 @@
     [
       {
         "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "inline": false,
+              "name": "toolchain",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
         "optional": false,
         "alternatives": [
           [
@@ -113,22 +129,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "toolchain",
-              "value": "name",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ]
   ],
@@ -140,7 +140,7 @@
       "description": "with --outdated: fails when any tool is behind"
     },
     "--toolchain": {
-      "description": "uses this toolchain for the run, as KIT_TOOLCHAIN does"
+      "description": "uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command"
     },
     "<name>": {
       "description": "mise, nix, brew, docker, devcontainer, or ambient"

@@ -4,7 +4,7 @@
 #
 # kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
 #
-# kit tools (install | update | path | run <command>…) [--toolchain <name>]
+# kit tools [--toolchain <name>] (install | update | path | run <command>…)
 #
 # Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
 #
@@ -14,7 +14,7 @@
 #
 #   --outdated          only the tools behind their latest version; reaches the network
 #   --check             with --outdated: fails when any tool is behind
-#   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does
+#   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
 #   <name>              mise, nix, brew, docker, devcontainer, or ambient
 #   --json              one JSON object per tool: name, pinned, installed, latest with --outdated
 #   --jq                the same JSON, formatted by jq for a person

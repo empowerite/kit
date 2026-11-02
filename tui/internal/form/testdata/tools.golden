@@ -2,7 +2,7 @@
 
    required
    [--outdated [--check]] --toolchain [--json | --jq]
-   (install | update | path | run <command>…) --toolchain
+   --toolchain (install | update | path | run <command>…)
 
 
  kit tools
