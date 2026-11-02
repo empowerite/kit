@@ -35,7 +35,7 @@ guard:arguments toolchains "$@" || exit $?
 settings:validate || exit 1
 
 # Every verb reads the toolchains usable for the project once, here.
-providers=$(toolchain:detect | awk -F '\t' '$2 == "project" && $3 == "yes" { print $1 }') || exit 1
+providers=$(toolchain:usable project) || exit 1
 
 verb=${1:-}
 [[ -n "${verb}" ]] && shift

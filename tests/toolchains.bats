@@ -10,9 +10,8 @@ load helper
 
 setup() {
   fake-tools mise brew docker
-  # each probe runs its tool once, to know it is installed
+  # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
-  route brew '--version' '!0'
   route docker '--version' '!0'
   fresh-repo
 }
@@ -101,6 +100,19 @@ probes() {
   run "${kit_root}/bin/kit" toolchains
   [ "$status" -eq 1 ]
   [[ "$output" == *"a key the kit does not know: toolchains"* ]]
+}
+
+@test "with mise.toml and a Brewfile, mise's pinned tools come first on PATH, before brew's" {
+  touch mise.toml Brewfile
+  fixture paths.txt <<<'/m/jq/bin'
+  fixture prefix.txt <<<'/opt/brew'
+  route mise 'bin-paths' paths.txt
+  route brew '--prefix' prefix.txt
+  run "${kit_root}/bin/kit" toolchains
+  [ "$(awk '{ print $1 }' <<<"$output" | paste -s -d ' ' -)" = "mise brew" ]
+  run "${kit_root}/bin/kit" toolchains path
+  [ "$status" -eq 0 ]
+  [ "$output" = $'/m/jq/bin\n/opt/brew/bin\n/opt/brew/sbin' ]
 }
 
 @test "mise installs, reports, updates, and puts its bin paths first" {

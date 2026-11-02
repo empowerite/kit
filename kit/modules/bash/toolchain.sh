@@ -114,11 +114,22 @@ toolchain:call() {
   "toolchain/${provider}:${call}" "$@"
 }
 
-# toolchain:path prints the directories that every toolchain usable for the project puts first on PATH, in order,
-# one per line.
+# toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, brew,
+# docker, then any other in toolchain:providers order. mise comes first, so its pinned tools shadow brew's unpinned
+# ones on PATH.
+toolchain:usable() {
+  toolchain:detect | awk -F '\t' -v role="$1" '
+    $2 == role && $3 == "yes" {
+      rank = ($1 == "mise") ? 1 : ($1 == "brew") ? 2 : ($1 == "docker") ? 3 : 4
+      print rank "\t" $1
+    }' | sort -s -n -k 1,1 | cut -f 2
+}
+
+# toolchain:path prints the directories that every toolchain usable for the project puts first on PATH, in
+# precedence order, one per line.
 toolchain:path() {
   local provider
-  for provider in $(toolchain:detect | awk -F '\t' '$2 == "project" && $3 == "yes" { print $1 }')
+  for provider in $(toolchain:usable project)
   do
     toolchain:call "${provider}" path || return 1
   done
@@ -127,8 +138,9 @@ toolchain:path() {
 # toolchain:run <command>… runs the command with the project's tools: inside the container when docker is usable
 # for the project, otherwise with every usable toolchain's path first on PATH. With none, the command runs as is.
 toolchain:run() {
-  local dirs
-  if toolchain:detect | awk -F '\t' '$1 == "docker" && $2 == "project" && $3 == "yes" { found = 1 } END { exit !found }'
+  local usable dirs
+  usable=$(toolchain:usable project) || return 1
+  if [[ $'\n'"${usable}"$'\n' == *$'\ndocker\n'* ]]
   then
     toolchain:call docker run "$@"
     return

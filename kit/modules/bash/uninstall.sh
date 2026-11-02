@@ -74,16 +74,19 @@ uninstall:prune() {
   done
 }
 
-# uninstall:manifests <dry> removes the repository's manifest and .kit/.gitignore, and .kit/ itself when nothing is
-# left in it, and writes home's manifest without this repository's paths, which removes it when no line is left.
+# uninstall:manifests <dry> removes the repository's manifest, .kit/.gitignore, and what kit cached in .kit/cache/.
+# It removes .kit/ itself when nothing is left in it. It writes home's manifest without this repository's paths,
+# which removes it when no line is left.
 uninstall:manifests() {
   local dry=$1
   if [[ "${dry}" == true ]]
   then
     [[ ! -e .kit/manifest ]] || step ".kit/manifest and .kit/.gitignore: would be removed"
+    [[ ! -e .kit/cache ]] || step ".kit/cache/: would be removed"
     return 0
   fi
   rm -f .kit/manifest .kit/.gitignore
+  rm -rf .kit/cache
   if [[ -d .kit && -z "$(find .kit -mindepth 1 -maxdepth 1 | head -n 1)" ]]
   then
     rmdir .kit

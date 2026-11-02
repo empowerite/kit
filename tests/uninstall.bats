@@ -42,6 +42,15 @@ tree() {
   [[ "$output" == *"run: kit install"* ]]
 }
 
+@test "uninstall takes out what toolchain detection cached in .kit/cache/" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  kit-bash 'use toolchain && toolchain:detect' >/dev/null
+  [ -f .kit/cache/toolchains.tsv ] && [ -f .kit/cache/toolchains.key ]
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  [ ! -e .kit ]
+}
+
 @test "uninstall leaves a copied file the repository edited, names it, and takes out the rest" {
   "${kit_checkout}/bin/kit" install github/ci >/dev/null 2>&1
   printf '# edited\n' >> .github/workflows/kit-ci.yml

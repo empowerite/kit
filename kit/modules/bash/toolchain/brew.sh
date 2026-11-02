@@ -58,12 +58,11 @@ toolchain/brew:update() {
   "${brew}" upgrade ${outdated}
 }
 
-# toolchain/brew:usable runs brew for its version, so a brew that cannot run is not usable. The project role
-# needs a Brewfile as well.
+# toolchain/brew:usable never runs brew, which calls git on every start. Finding it, on PATH or at a prefix, is
+# enough. The project role needs a Brewfile as well.
 toolchain/brew:usable() {
-  local brew
   [[ "$1" == system || "$1" == project ]] || return 1
-  brew=$(toolchain/brew:brew 2>/dev/null) && "${brew}" --version >/dev/null 2>&1 || return 1
+  toolchain/brew:brew >/dev/null 2>&1 || return 1
   [[ "$1" == system || -f Brewfile ]]
 }
 
