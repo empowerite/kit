@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/tui/internal/kit"
 	"github.com/empowerite/kit/tui/internal/testkit"
 )
 
@@ -52,6 +53,43 @@ func fake(t *testing.T) (Model, *ran) {
 func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	m, r := fake(t)
+	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
+}
+
+// repoWith makes a git repository with the pages under .kit/welcome, and gives the fake runner in it.
+func repoWith(t *testing.T, pages map[string]string) kit.Runner {
+	t.Helper()
+	dir := t.TempDir()
+	if out, err := exec.Command("git", "init", "-q", dir).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	for name, text := range pages {
+		path := filepath.Join(dir, pagesDir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := testkit.Runner(t, "welcome")
+	r.Dir = dir
+	return r
+}
+
+// house opens the screen at 120×30 in a repository whose .kit is testdata/house's, as a house package composes it:
+// the kit package's pages linked, 6-terms.md replaced, and 8-our-team.md added. Then it sends the messages.
+func house(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
+	t.Helper()
+	m, r := fake(t)
+	m.runner = repoWith(t, nil)
+	fixture, err := filepath.Abs(filepath.Join("testdata", "house", ".kit"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(fixture, filepath.Join(m.runner.Dir, ".kit")); err != nil {
+		t.Fatal(err)
+	}
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 

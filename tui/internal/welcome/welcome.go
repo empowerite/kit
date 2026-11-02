@@ -1,9 +1,10 @@
-// Package welcome is kit welcome on a terminal: seven steps as tabs along the top, the step's content below, and the
-// keys bar last. The steps come from tabs: each has an id, which kit's checks name as their step, a glyph, a name, and
-// a page. A step with checks draws its page, then its checks, one row each. A failed check with a fix offers now and
-// later on the cursor's row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks
-// again; later leaves it for this session and moves to the step's next failed check. The other steps are markdown
-// pages drawn as text.
+// Package welcome is kit welcome on a terminal: a step per page as tabs along the top, the step's content below, and
+// the keys bar last. The steps are the pages under .kit/welcome/, as kit welcome --text finds and orders them: each
+// has an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph,
+// its name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page,
+// then its checks, one row each. A failed check with a fix offers now and later on the cursor's row: now runs kit
+// welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
+// moves to the step's next failed check. The other steps are markdown pages drawn as text.
 //
 // Left and right move between the steps; inside a row with choices they move between now and later. Down enters a
 // step's rows and up on the first row leaves them. Up and down scroll a page. Esc goes back one level: from the rows
@@ -17,50 +18,71 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/tui/internal/kit"
 )
 
-// tab is a step: the id its checks name, its tab's glyph and name, the file of its page, and whether it has checks.
-// Each glyph is two cells wide with no variation selector.
+// tab is a step: the id its checks name, its tab's glyph and name, the file of its page, whether it has checks, and
+// its page's markdown, or, when the page could not be read, where it was looked for. Each glyph is two cells wide with
+// no variation selector.
 type tab struct {
 	id, glyph, name, file string
 	checked               bool
+	page, missing         string
 }
 
-// tabs gives the steps, in order. A check whose step is not among them shows under the last step with checks.
-var tabs = [...]tab{
-	{"intro", "👋", "intro", "1-intro.md", false},
-	{"before-toolchains", "🧱", "basics", "2-before-toolchains.md", true},
-	{"toolchains", "🧰", "toolchains", "3-toolchains.md", true},
-	{"setup", "🔧", "setup", "4-setup.md", true},
-	{"lay-of-the-land", "🧭", "lay of the land", "5-lay-of-the-land.md", false},
-	{"terms", "📖", "terms", "6-terms.md", false},
-	{"make-it-yours", "🎨", "make it yours", "7-make-it-yours.md", false},
+// known gives the pages kit knows, in the kit package's order. A check whose step has no page shows under the last
+// step with checks.
+var known = []tab{
+	{id: "intro", glyph: "👋", name: "intro", file: "1-intro.md"},
+	{id: "before-toolchains", glyph: "🧱", name: "basics", file: "2-before-toolchains.md", checked: true},
+	{id: "toolchains", glyph: "🧰", name: "toolchains", file: "3-toolchains.md", checked: true},
+	{id: "setup", glyph: "🔧", name: "setup", file: "4-setup.md", checked: true},
+	{id: "lay-of-the-land", glyph: "🧭", name: "lay of the land", file: "5-lay-of-the-land.md"},
+	{id: "terms", glyph: "📖", name: "terms", file: "6-terms.md"},
+	{id: "make-it-yours", glyph: "🎨", name: "make it yours", file: "7-make-it-yours.md"},
 }
 
-// steps is how many there are.
-const steps = len(tabs)
+// pageGlyph is the glyph of a page kit does not know.
+const pageGlyph = "📄"
 
-// stepIndex gives the index of the step with the id, or -1.
-func stepIndex(id string) int {
-	for i, t := range tabs {
-		if t.id == id {
-			return i
-		}
+// idOf gives the id of the step a page's file is for, as kit welcome reads it: the name without the order and the
+// dash before it, and without .md. 2-before-toolchains.md is for before-toolchains.
+func idOf(file string) string {
+	name := strings.TrimSuffix(file, ".md")
+	if _, id, found := strings.Cut(name, "-"); found {
+		return id
 	}
-	return -1
+	return name
+}
+
+// tabOf gives the step a page's file makes: the known step with its id, with the file's name, so a house package's
+// page in its place keeps its glyph, its name, and its checks; else a plain page, named for its id, dashes as spaces.
+func tabOf(file string) tab {
+	id := idOf(file)
+	if i := indexOf(known, id); i >= 0 {
+		t := known[i]
+		t.file = file
+		return t
+	}
+	return tab{id: id, glyph: pageGlyph, name: strings.ReplaceAll(id, "-", " "), file: file}
+}
+
+// indexOf gives the index of the first step with the id, or -1.
+func indexOf(tabs []tab, id string) int {
+	return slices.IndexFunc(tabs, func(t tab) bool { return t.id == id })
 }
 
 // stepOf gives the index of the step a check shows under: its own when that step has checks, else the last that has.
-func stepOf(c kit.Check) int {
-	if i := stepIndex(c.Step); i >= 0 && tabs[i].checked {
+func (m Model) stepOf(c kit.Check) int {
+	if i := indexOf(m.tabs, c.Step); i >= 0 && m.tabs[i].checked {
 		return i
 	}
 	last := 0
-	for i, t := range tabs {
+	for i, t := range m.tabs {
 		if t.checked {
 			last = i
 		}
@@ -80,9 +102,9 @@ type checksMsg struct {
 	err    error
 }
 
-// pagesMsg brings the pages' markdown, each step's, and for a page not found the path it was looked for at.
+// pagesMsg brings the steps the pages make, each with its page's markdown, or the path it was looked for at.
 type pagesMsg struct {
-	pages, missing [steps]string
+	tabs []tab
 }
 
 // fixedMsg says a check's fix has run, and how it ended.
@@ -103,9 +125,10 @@ type Model struct {
 	runner   kit.Runner
 	exec     func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
 	repo     string                                    // owner/repo, for the title, empty when unknown
+	tabs     []tab                                     // the steps, in order: the known ones until the pages are read
 	step     int                                       // the selected step
 	inRows   bool                                      // whether the cursor is on a check's row, not on the step line
-	places   [steps]string                             // the check each step's cursor was on when it was left
+	places   []string                                  // the check each step's cursor was on when it was left
 	moved    bool                                      // whether the person has changed the step
 	loaded   bool                                      // whether the checks have answered once
 	checking bool                                      // whether kit is running the checks
@@ -115,9 +138,7 @@ type Model struct {
 	choice   int    // now or later, on a row that offers them
 	deferred map[string]bool
 	notes    map[string]note
-	pages    [steps]string
-	missing  [steps]string
-	offsets  [steps]int // the first line of each step's pane
+	offsets  []int // the first line of each step's pane
 	width    int
 	height   int
 
@@ -130,7 +151,8 @@ func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
 	return Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
-		notes: map[string]note{}, width: 80, height: 24}
+		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
+		places: make([]string, len(known)), offsets: make([]int, len(known))}
 }
 
 // Init runs the checks and reads the pages, at once.
@@ -152,9 +174,7 @@ func (m Model) check() tea.Cmd {
 func (m Model) read() tea.Cmd {
 	r := m.runner
 	return func() tea.Msg {
-		var msg pagesMsg
-		msg.pages, msg.missing = readPages(r)
-		return msg
+		return pagesMsg{tabs: readPages(r)}
 	}
 }
 
@@ -167,7 +187,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case checksMsg:
 		m.take(msg)
 	case pagesMsg:
-		m.pages, m.missing = msg.pages, msg.missing
+		m.setTabs(msg.tabs)
 		m.fit()
 	case fixedMsg:
 		m.fixed(msg)
@@ -187,7 +207,7 @@ func (m *Model) take(msg checksMsg) {
 	if msg.err != nil {
 		m.refusal = refusalOf(msg.err)
 		if !m.loaded && !m.moved {
-			for i, t := range tabs {
+			for i, t := range m.tabs {
 				if t.checked {
 					m.step = i
 					break
@@ -209,7 +229,7 @@ func (m *Model) take(msg checksMsg) {
 	if !m.loaded && !m.moved {
 		for i, c := range m.checks {
 			if !c.OK {
-				m.step, m.inRows, m.cursor = stepOf(c), true, i
+				m.step, m.inRows, m.cursor = m.stepOf(c), true, i
 				break
 			}
 		}
@@ -222,7 +242,7 @@ func (m *Model) take(msg checksMsg) {
 func (m Model) rows(step int) []int {
 	var out []int
 	for i, c := range m.checks {
-		if stepOf(c) == step {
+		if m.stepOf(c) == step {
 			out = append(out, i)
 		}
 	}
@@ -244,7 +264,25 @@ func (m Model) find(step int, id string) int {
 }
 
 // hasRows says whether the selected step shows checks.
-func (m Model) hasRows() bool { return tabs[m.step].checked }
+func (m Model) hasRows() bool { return m.tabs[m.step].checked }
+
+// setTabs takes the steps the pages make. The selected step, and each step's place and offset, go with its id; when
+// the selected step's id has no page, the first step is selected.
+func (m *Model) setTabs(tabs []tab) {
+	if len(tabs) == 0 {
+		return
+	}
+	old, offsets, places, selected := m.tabs, m.offsets, m.places, m.tabs[m.step].id
+	m.tabs, m.offsets, m.places = tabs, make([]int, len(tabs)), make([]string, len(tabs))
+	for i, t := range tabs {
+		if j := indexOf(old, t.id); j >= 0 {
+			m.offsets[i], m.places[i] = offsets[j], places[j]
+		}
+	}
+	if m.step = indexOf(tabs, selected); m.step < 0 {
+		m.step, m.inRows = 0, false
+	}
+}
 
 // refusalOf gives the line to show when the checks did not run: kit's line, or how kit died with nothing on stderr.
 func refusalOf(err error) string {
@@ -351,7 +389,8 @@ func (m Model) cursorID() string {
 // that step, else to the step's first check.
 func (m *Model) move(d int) {
 	m.places[m.step] = m.cursorID()
-	m.step = (m.step + d + steps) % steps
+	n := len(m.tabs)
+	m.step = (m.step + d + n) % n
 	m.cursor = m.find(m.step, m.places[m.step])
 	m.inRows, m.moved, m.choice = false, true, now
 }

@@ -18,18 +18,18 @@ import (
 
 // The steps, by the ids the checks name them with.
 var (
-	intro  = stepIndex("intro")
-	basics = stepIndex("before-toolchains")
-	chains = stepIndex("toolchains")
-	setup  = stepIndex("setup")
-	land   = stepIndex("lay-of-the-land")
-	terms  = stepIndex("terms")
-	yours  = stepIndex("make-it-yours")
+	intro  = indexOf(known, "intro")
+	basics = indexOf(known, "before-toolchains")
+	chains = indexOf(known, "toolchains")
+	setup  = indexOf(known, "setup")
+	land   = indexOf(known, "lay-of-the-land")
+	terms  = indexOf(known, "terms")
+	yours  = indexOf(known, "make-it-yours")
 )
 
-func TestTheStepsAreTheSevenInOrder(t *testing.T) {
+func TestTheKnownStepsAreTheSevenInOrder(t *testing.T) {
 	var ids, files []string
-	for _, s := range tabs {
+	for _, s := range known {
 		ids, files = append(ids, s.id), append(files, s.file)
 	}
 	want := []string{"intro", "before-toolchains", "toolchains", "setup", "lay-of-the-land", "terms", "make-it-yours"}
@@ -41,7 +41,7 @@ func TestTheStepsAreTheSevenInOrder(t *testing.T) {
 			t.Errorf("step %d's page is %q", i, f)
 		}
 	}
-	if stepIndex("nothing") != -1 {
+	if indexOf(known, "nothing") != -1 {
 		t.Errorf("an unknown step has an index")
 	}
 }
@@ -378,7 +378,7 @@ func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 func TestEveryLineFitsTheWidth(t *testing.T) {
 	for _, width := range []int{120, 80, 40, 24} {
 		m, _ := loaded(t, tea.WindowSizeMsg{Width: width, Height: 30})
-		for step := range steps {
+		for step := range len(m.tabs) {
 			for _, l := range strings.Split(view(m), "\n") {
 				if ansi.StringWidth(l) > width {
 					t.Errorf("%d columns, step %d: %q is %d cells", width, step, l, ansi.StringWidth(l))
@@ -392,7 +392,7 @@ func TestEveryLineFitsTheWidth(t *testing.T) {
 func TestEveryTabIsInFullAtTheDesignWidth(t *testing.T) {
 	m, _ := loaded(t)
 	labels := strings.Split(view(m), "\n")[2]
-	for _, s := range tabs {
+	for _, s := range known {
 		if !strings.Contains(labels, s.glyph+" "+s.name) {
 			t.Errorf("no %q in full: %q", s.name, labels)
 		}
@@ -400,8 +400,8 @@ func TestEveryTabIsInFullAtTheDesignWidth(t *testing.T) {
 }
 
 func TestTheGlyphsAreTwoCellsWithoutAVariationSelector(t *testing.T) {
-	glyphs := []string{Repository, Passed, Failed}
-	for _, t := range tabs {
+	glyphs := []string{Repository, Passed, Failed, pageGlyph}
+	for _, t := range known {
 		glyphs = append(glyphs, t.glyph)
 	}
 	for _, g := range glyphs {
@@ -411,35 +411,158 @@ func TestTheGlyphsAreTwoCellsWithoutAVariationSelector(t *testing.T) {
 	}
 }
 
-func TestTheRepositorysPagesComeFirstAndTheKitPackagesFillIn(t *testing.T) {
-	dir := t.TempDir()
-	if out, err := exec.Command("git", "init", "-q", dir).CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v\n%s", err, out)
+func TestTheRepositorysPagesWinAndTheKitPackagesAreTheFallback(t *testing.T) {
+	nowhere := filepath.Join(t.TempDir(), "nowhere")
+	r := repoWith(t, map[string]string{"6-terms.md": "# Our terms\n"})
+	// the repository has pages: they are the steps, as kit welcome --text reads them, with no other filling in
+	tabs := readPages(r)
+	if len(tabs) != 1 || tabs[0].id != "terms" || tabs[0].page != "# Our terms\n" || tabs[0].missing != "" {
+		t.Errorf("tabs %+v", tabs)
 	}
-	pages := filepath.Join(dir, ".kit", "welcome")
-	if err := os.MkdirAll(pages, 0o755); err != nil {
-		t.Fatal(err)
+	// with neither, the known steps say where each was looked for
+	t.Setenv("FAKE_WELCOME_ROOT", nowhere)
+	r = repoWith(t, nil)
+	tabs = readPages(r)
+	want := filepath.Join(nowhere, packageDir, pagesDir, "5-lay-of-the-land.md")
+	if len(tabs) != len(known) || tabs[land].missing != want {
+		t.Errorf("tabs %+v", tabs)
 	}
-	if err := os.WriteFile(filepath.Join(pages, "6-terms.md"), []byte("# Our terms\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	r := testkit.Runner(t, "welcome")
-	r.Dir = dir
-	got, missing := readPages(r)
-	if got[terms] != "# Our terms\n" || !strings.HasPrefix(got[land], "# The lay of the land") ||
-		!strings.HasPrefix(got[chains], "# Toolchains") || missing != [steps]string{} {
-		t.Errorf("pages %q, missing %q", got, missing)
-	}
-	// with neither, the page says where it was looked for
-	t.Setenv("FAKE_WELCOME_ROOT", filepath.Join(dir, "nowhere"))
-	_, missing = readPages(r)
-	want := filepath.Join(dir, "nowhere", packageDir, pagesDir, "5-lay-of-the-land.md")
-	if missing[terms] != "" || missing[land] != want {
-		t.Errorf("missing %q", missing)
-	}
-	m := drive(New(r, ""), at120, pagesMsg{missing: missing}, right, right, right, right)
-	if !strings.Contains(view(m), "   no page at "+missing[land]) {
+	m := drive(New(r, ""), at120, pagesMsg{tabs: tabs}, right, right, right, right)
+	if !strings.Contains(view(m), "   no page at "+want) {
 		t.Errorf("no missing line:\n%s", view(m))
+	}
+}
+
+func TestWithNoPagesInTheRepositoryTheKitPackagesAreTheSteps(t *testing.T) {
+	r := repoWith(t, nil)
+	tabs := readPages(r)
+	var files []string
+	for i, tab := range tabs {
+		files = append(files, tab.file)
+		if tab.id != known[i].id || tab.glyph != known[i].glyph || tab.checked != known[i].checked || tab.missing != "" {
+			t.Errorf("step %d: %+v", i, tab)
+		}
+	}
+	want := []string{"1-intro.md", "2-before-toolchains.md", "3-toolchains.md", "4-setup.md", "5-lay-of-the-land.md",
+		"6-terms.md", "7-make-it-yours.md"}
+	if !slices.Equal(files, want) || !strings.HasPrefix(tabs[chains].page, "# Toolchains") {
+		t.Errorf("files %q", files)
+	}
+}
+
+func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) {
+	m, _ := house(t)
+	if len(m.tabs) != 8 {
+		t.Fatalf("%d steps", len(m.tabs))
+	}
+	for i, k := range known {
+		if m.tabs[i].id != k.id || m.tabs[i].glyph != k.glyph || m.tabs[i].checked != k.checked {
+			t.Errorf("step %d: %+v", i, m.tabs[i])
+		}
+	}
+	added := m.tabs[7]
+	if added.id != "our-team" || added.glyph != pageGlyph || added.name != "our team" || added.checked {
+		t.Errorf("the added step: %+v", added)
+	}
+	// the checks still open on the first failed one, under basics
+	if m.step != basics || !m.choosing() {
+		t.Errorf("step %d, choosing %v", m.step, m.choosing())
+	}
+	// the replaced page shows under terms; the added one last, a page with no checks
+	if m = drive(m, esc, left, left, left, left); m.step != terms || !strings.Contains(view(m), "\n   Our terms\n") {
+		t.Errorf("step %d:\n%s", m.step, view(m))
+	}
+	m = drive(m, right, right)
+	labels := strings.Split(view(m), "\n")[2]
+	if m.step != 7 || m.hasRows() || m.keys() != pageKeys || !strings.HasSuffix(labels, "└ 📄 our team") ||
+		!strings.Contains(view(m), "\n   Our team\n") {
+		t.Errorf("step %d:\n%s", m.step, view(m))
+	}
+	// at 120 columns the eight do not fit in full: the others give up their names, the selected one keeps its own
+	if strings.Contains(labels, "└ 👋 intro") || !strings.Contains(labels, "└ 🧱 1") || strings.Contains(view(m), dotted) {
+		t.Errorf("labels %q", labels)
+	}
+}
+
+func TestThePagesAreInTheOrderKitWelcomeGives(t *testing.T) {
+	files := map[string]string{}
+	for _, f := range []string{"1-intro.md", "10-ten.md", "4-setup.md", "45-deploys.md", "5-lay-of-the-land.md",
+		"2-before-toolchains.md", ".hidden.md", "notes.txt"} {
+		files[f] = "# " + f + "\n"
+	}
+	var got []string
+	for _, tab := range readPages(repoWith(t, files)) {
+		got = append(got, tab.file)
+	}
+	want := []string{"1-intro.md", "10-ten.md", "2-before-toolchains.md", "4-setup.md", "45-deploys.md",
+		"5-lay-of-the-land.md"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// as kit welcome sorts them
+	shuffled := slices.Clone(want)
+	slices.Reverse(shuffled)
+	cmd := exec.Command("sort")
+	cmd.Env, cmd.Stdin = append(os.Environ(), "LC_ALL=C"), strings.NewReader(strings.Join(shuffled, "\n")+"\n")
+	if out, err := cmd.Output(); err != nil || strings.Fields(string(out))[3] != "4-setup.md" ||
+		!slices.Equal(strings.Fields(string(out)), want) {
+		t.Errorf("sort gives %q, %v", out, err)
+	}
+	if idOf("45-deploys.md") != "deploys" || idOf("notes.md") != "notes" || tabOf("9-our-on-call.md").name != "our on call" {
+		t.Errorf("ids")
+	}
+}
+
+func TestTheTabLineScrollsToKeepTheSelectedStepInView(t *testing.T) {
+	files := map[string]string{}
+	for _, k := range known {
+		files[k.file] = "# " + k.name + "\n"
+	}
+	for i := range 20 {
+		files["8-page-"+strconv.Itoa(i)+".md"] = "# page\n"
+	}
+	at80 := tea.WindowSizeMsg{Width: 80, Height: 30}
+	m, _ := fake(t)
+	m.runner = repoWith(t, files)
+	m = drive(m, append(testkit.Start(m, at80), esc, left)...)
+	if len(m.tabs) != 27 || m.step != 0 {
+		t.Fatalf("%d steps, step %d", len(m.tabs), m.step)
+	}
+	for _, c := range []struct {
+		keys          []tea.Msg
+		label         string
+		start, finish bool // whether each end is dotted
+	}{
+		{nil, "└ 👋 intro", false, true},
+		{[]tea.Msg{right, right, right, right, right}, "└ 📖 terms", true, true},
+		{[]tea.Msg{left, left, left, left, left, left}, "└ 📄 page 9", true, false},
+	} {
+		m = drive(m, c.keys...)
+		lines := strings.Split(view(m), "\n")
+		line, labels := lines[1], lines[2]
+		if !strings.Contains(labels, c.label) || !strings.Contains(line, "●") {
+			t.Errorf("step %d is not in view:\n%s\n%s", m.step, line, labels)
+		}
+		if strings.HasPrefix(line, " "+dotted+dotted+dotted) != c.start ||
+			strings.HasSuffix(line, dotted+dotted+dotted) != c.finish {
+			t.Errorf("step %d's ends:\n%s", m.step, line)
+		}
+		for _, l := range lines {
+			if ansi.StringWidth(l) > 80 {
+				t.Errorf("%q is %d cells", l, ansi.StringWidth(l))
+			}
+		}
+	}
+}
+
+func TestEightStepsFitAtEightyColumnsWithTheLastInFull(t *testing.T) {
+	m, _ := house(t, tea.WindowSizeMsg{Width: 80, Height: 30}, esc, left, left)
+	lines := strings.Split(view(m), "\n")
+	if m.step != 7 || strings.Contains(lines[1], dotted) || !strings.HasSuffix(lines[2], "└ 📄 our team") {
+		t.Errorf("step %d:\n%s\n%s", m.step, lines[1], lines[2])
+	}
+	if testing.Verbose() {
+		t.Logf("\n%s\n%s", lines[1], lines[2])
 	}
 }
 

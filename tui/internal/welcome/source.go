@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/empowerite/kit/tui/internal/kit"
@@ -17,31 +18,60 @@ const pagesDir = ".kit/welcome"
 // packageDir is the kit package's repository files, under the release's directory.
 const packageDir = "packages/kit/files/repo"
 
-// readPages reads each step's page: from the repository's .kit/welcome when it has the page, else from the kit
-// package under kit root. A page in neither gives the path it was last looked for at.
-func readPages(r kit.Runner) (pages, missing [steps]string) {
-	repo, packaged, asked := "", "", false
+// readPages gives the steps the pages make, as kit welcome --text finds them: every *.md under the repository's
+// .kit/welcome, as the active packages placed them, else under the kit package's, where nothing is placed yet. They
+// are in the order of their file names, byte by byte, as LC_ALL=C sort puts them, so 45-deploys.md comes between
+// 4-setup.md and 5-lay-of-the-land.md. A page that cannot be read gives where it was looked for. When neither has a
+// page, the steps are the known ones, each saying where it was looked for.
+func readPages(r kit.Runner) []tab {
+	repo := ""
 	if out, err := exec.Command("git", "-C", r.Dir, "rev-parse", "--show-toplevel").Output(); err == nil {
 		repo = filepath.Join(strings.TrimSpace(string(out)), pagesDir)
 	}
-	for i, t := range tabs {
-		missing[i] = filepath.Join(pagesDir, t.file)
-		if repo != "" {
-			if pages[i], missing[i] = readPage(filepath.Join(repo, t.file)); missing[i] == "" {
-				continue
-			}
-		}
-		if !asked {
-			asked = true
-			if root, err := r.Root(); err == nil && root != "" {
-				packaged = filepath.Join(root, packageDir, pagesDir)
-			}
-		}
-		if packaged != "" {
-			pages[i], missing[i] = readPage(filepath.Join(packaged, t.file))
+	if tabs := readDir(repo); len(tabs) > 0 {
+		return tabs
+	}
+	packaged := ""
+	if root, err := r.Root(); err == nil && root != "" {
+		packaged = filepath.Join(root, packageDir, pagesDir)
+	}
+	if tabs := readDir(packaged); len(tabs) > 0 {
+		return tabs
+	}
+	where := pagesDir
+	if packaged != "" {
+		where = packaged
+	}
+	tabs := slices.Clone(known)
+	for i := range tabs {
+		tabs[i].missing = filepath.Join(where, tabs[i].file)
+	}
+	return tabs
+}
+
+// readDir gives the step of each page in a directory, in order: each file whose name ends in .md and does not start
+// with a dot, as the shell's *.md matches.
+func readDir(dir string) []tab {
+	if dir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var files []string
+	for _, e := range entries {
+		if name := e.Name(); strings.HasSuffix(name, ".md") && !strings.HasPrefix(name, ".") {
+			files = append(files, name)
 		}
 	}
-	return pages, missing
+	slices.Sort(files)
+	tabs := make([]tab, len(files))
+	for i, f := range files {
+		tabs[i] = tabOf(f)
+		tabs[i].page, tabs[i].missing = readPage(filepath.Join(dir, f))
+	}
+	return tabs
 }
 
 // readPage gives a page's markdown, or the path when it cannot be read.

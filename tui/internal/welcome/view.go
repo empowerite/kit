@@ -1,5 +1,7 @@
 // The screen drawn: the title, the line of steps with each step's tab hanging from it, the selected step's pane, and
-// the keys bar on the last line. Widths are terminal cells, so a two-cell glyph never pushes a line past the edge.
+// the keys bar on the last line. Widths are terminal cells, so a two-cell glyph never pushes a line past the edge. The
+// line and the tabs are one canvas: when it is wider than the screen, the view scrolls sideways to the selected step,
+// as kit status's line does.
 package welcome
 
 import (
@@ -34,6 +36,19 @@ const fixed = 6
 // gap is the cells before the first marker, and between one tab and the next marker.
 const gap = 2
 
+// room is the cells the view keeps before the selected marker when it scrolls: the dotted end and a little line.
+const room = 5
+
+// dotted is what a hidden end of the line is drawn with.
+const dotted = "┄"
+
+// The label forms, widest first: glyph, name, and count; glyph and count; the glyph alone.
+const (
+	fullLabel = iota
+	countLabel
+	glyphLabel
+)
+
 // lead is what starts a pane's line, and focus what starts the line under the cursor.
 const (
 	lead  = "   "
@@ -49,11 +64,13 @@ type line struct {
 	text string
 }
 
-// layout is the line of steps laid out: each tab's marker, each tab's label, and the line's width.
+// layout is the line of steps laid out on its canvas: each tab's marker, each tab's label, the canvas's width, never
+// less than the screen's, and the cells scrolled past on its left.
 type layout struct {
 	at     []int
 	labels []string
 	width  int
+	scroll int
 }
 
 // View draws the screen on the alternate screen.
@@ -95,7 +112,7 @@ func (m Model) keys() string {
 // of its checks failed, or nothing when none did. The pages have none.
 func (m Model) count(i int) string {
 	switch {
-	case !tabs[i].checked:
+	case !m.tabs[i].checked:
 		return ""
 	case !m.loaded && m.checking:
 		return "…"
@@ -114,60 +131,103 @@ func (m Model) count(i int) string {
 	return strconv.Itoa(n)
 }
 
-// label gives a step's label: its glyph, its name, bold in the accent color when selected, and its count, dim. The
-// short form is the glyph alone, with the count.
-func (m Model) label(i int, short bool) string {
-	t := tabs[i]
+// label gives a step's label in a form, hanging from its marker: its glyph, its name, bold in the accent color when
+// selected, and its count, dim, or the accent's when the selected step's name is left out.
+func (m Model) label(i, form int) string {
+	t, chosen := m.tabs[i], i == m.step
 	parts := []string{t.glyph}
-	if !short {
+	if form == fullLabel {
 		name := t.name
-		if i == m.step {
+		if chosen {
 			name = style.Mark(name)
 		}
 		parts = append(parts, name)
 	}
-	if count := m.count(i); count != "" {
-		parts = append(parts, style.Off(count))
+	if count := m.count(i); form != glyphLabel && count != "" {
+		if chosen && form == countLabel {
+			parts = append(parts, style.Mark(count))
+		} else {
+			parts = append(parts, style.Off(count))
+		}
 	}
 	return "└ " + strings.Join(parts, " ")
 }
 
-// layout lays the tabs out: every label in full when they fit, else the selected one in full and the rest short,
-// else every one short. The width left spreads evenly between them.
-func (m Model) layout() layout {
-	w := max(1, m.width-1)
-	l := layout{at: make([]int, steps), labels: make([]string, steps)}
-	forms := []func(i int) bool{
-		func(int) bool { return false },         // every label in full
-		func(i int) bool { return i != m.step }, // the selected one in full
-		func(int) bool { return true },          // every one short
+// forms gives each step's label form, as kit status gives its stages': the widest that lets every label fit the
+// screen. The other steps give up their names first, then their counts; the selected step keeps its name as long as
+// any layout with it fits, and only then shortens with the rest. The floor is the selected step's name among the
+// other glyphs alone; past it the line scrolls. Unlike kit status's, the floor keeps that name: every plain page
+// shares one glyph, so the glyph alone would not say which page is open.
+func (m Model) forms() []int {
+	n := len(m.tabs)
+	fits := func(chosen, others int) bool {
+		total := gap
+		for i := range n {
+			form := others
+			if i == m.step {
+				form = chosen
+			}
+			total += ansi.StringWidth(m.label(i, form)) + gap
+		}
+		return total <= m.width-1
 	}
-	total := 0
-	for _, short := range forms {
-		total = gap
-		for i := range steps {
-			l.labels[i] = m.label(i, short(i))
-			total += ansi.StringWidth(l.labels[i]) + gap
+	every := func(chosen, others int) []int {
+		out := make([]int, n)
+		for i := range out {
+			out[i] = others
 		}
-		if total <= w {
-			break
+		out[m.step] = chosen
+		return out
+	}
+	for others := fullLabel; others <= glyphLabel; others++ {
+		if fits(fullLabel, others) {
+			return every(fullLabel, others)
 		}
+	}
+	for form := countLabel; form < glyphLabel; form++ {
+		if fits(form, form) {
+			return every(form, form)
+		}
+	}
+	return every(fullLabel, glyphLabel)
+}
+
+// layout lays the tabs out in their forms: when they fit the screen, the width left spreads evenly between them; when
+// they do not, the canvas is wider than the screen, and the view scrolls so the selected tab starts a little room
+// after the left edge, or as near it as the end of the canvas lets.
+func (m Model) layout() layout {
+	n, w := len(m.tabs), max(1, m.width-1)
+	l := layout{at: make([]int, n), labels: make([]string, n)}
+	total := gap
+	for i, form := range m.forms() {
+		l.labels[i] = m.label(i, form)
+		total += ansi.StringWidth(l.labels[i]) + gap
 	}
 	l.width = max(total, w)
 	spare, x := max(0, w-total), gap
-	for i := range steps {
+	for i := range n {
 		l.at[i] = x
-		x += ansi.StringWidth(l.labels[i]) + gap + spare/steps
-		if i < spare%steps {
+		x += ansi.StringWidth(l.labels[i]) + gap + spare/n
+		if i < spare%n {
 			x++
 		}
+	}
+	if l.width > w {
+		l.scroll = min(max(l.at[m.step]-room, 0), l.width-w)
 	}
 	return l
 }
 
-// line draws the line of steps: a marker ○ per step and the dot ● in the accent color on the selected one, clipped
-// to the screen.
+// shown gives the cells of the canvas the screen shows, and how many cells each hidden end takes.
+func (m Model) shown(l layout) (w, ends int) {
+	w = min(max(1, m.width-1), l.width)
+	return w, min(3, w/3)
+}
+
+// line draws the line of steps as the view shows it: a marker ○ per step, the dot ● in the accent color on the
+// selected one, and a hidden end drawn dotted.
 func (m Model) line(l layout) string {
+	w, ends := m.shown(l)
 	cells := make([]string, l.width)
 	for k := range cells {
 		cells[k] = "─"
@@ -176,17 +236,42 @@ func (m Model) line(l layout) string {
 		cells[x] = "○"
 	}
 	cells[l.at[m.step]] = style.Mark("●")
-	return " " + strings.Join(cells[:min(l.width, max(0, m.width-1))], "")
+	shown := cells[l.scroll : l.scroll+w]
+	if l.scroll > 0 {
+		for k := range ends {
+			shown[k] = dotted
+		}
+	}
+	if l.scroll+w < l.width {
+		for k := range ends {
+			shown[w-1-k] = dotted
+		}
+	}
+	return " " + strings.Join(shown, "")
 }
 
-// labelLine draws each step's label under its marker, clipped to the screen.
+// labelLine draws each step's label under its marker as the view shows it, clipped at the right edge; a label whose
+// marker is hidden, or under a dotted start, is hidden with it.
 func (m Model) labelLine(l layout) string {
-	var b strings.Builder
-	for i, label := range l.labels {
-		b.WriteString(strings.Repeat(" ", max(0, l.at[i]-ansi.StringWidth(b.String()))))
-		b.WriteString(label)
+	w, edge := m.shown(l)
+	if l.scroll == 0 {
+		edge = 0
 	}
-	return " " + clip(b.String(), m.width-1)
+	var b strings.Builder
+	at := 0
+	for i, label := range l.labels {
+		x := l.at[i] - l.scroll
+		if x < edge || x >= w {
+			continue
+		}
+		if x+ansi.StringWidth(label) > w {
+			label = ansi.Truncate(label, w-x, "")
+		}
+		b.WriteString(strings.Repeat(" ", max(0, x-at)))
+		b.WriteString(label)
+		at = x + ansi.StringWidth(label)
+	}
+	return strings.TrimRight(" "+b.String(), " ")
 }
 
 // pane gives the pane's lines, as many as it has: the selected step's from its offset on.
@@ -211,13 +296,13 @@ func (m Model) pane() []string {
 // saying where the page was looked for.
 func (m Model) pageLines(i int) []string {
 	switch {
-	case m.missing[i] != "":
-		return []string{lead + style.Off("no page at "+m.missing[i])}
-	case m.pages[i] == "":
+	case m.tabs[i].missing != "":
+		return []string{lead + style.Off("no page at "+m.tabs[i].missing)}
+	case m.tabs[i].page == "":
 		return []string{lead + style.Off("reading…")}
 	}
 	var out []string
-	for _, l := range render(m.pages[i], m.width-len(lead)-1) {
+	for _, l := range render(m.tabs[i].page, m.width-len(lead)-1) {
 		out = append(out, strings.TrimRight(lead+l, " "))
 	}
 	return out
@@ -230,8 +315,8 @@ func (m Model) stepLines() []line {
 	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, clip(text, w)}) }
-	if m.missing[m.step] == "" && m.pages[m.step] != "" {
-		for _, l := range render(m.pages[m.step], w-len(lead)) {
+	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
+		for _, l := range render(t.page, w-len(lead)) {
 			add(-1, strings.TrimRight(lead+l, " "))
 		}
 		add(-1, "")
