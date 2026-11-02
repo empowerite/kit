@@ -157,7 +157,7 @@ func TestLeftAndRightMoveAlongTheLineEvenInsideTheRows(t *testing.T) {
 		t.Errorf("right at the last stage: stage %d", m.stage)
 	}
 	m = drive(m, right, right, right)
-	if m.stage != 3 || !strings.Contains(m.View().Content, Desk+" "+style.Mark("1")) {
+	if m.stage != 3 || !strings.Contains(m.View().Content, Desk+" "+style.Mark("desk")) {
 		t.Errorf("right three times: stage %d\n%s", m.stage, view(m))
 	}
 	m = drive(m, right, down, right)
@@ -239,14 +239,14 @@ func TestRefreshRunsTheStageAgain(t *testing.T) {
 	m := loaded(t, options(), right, right, right, right, right, right, right)
 	next, cmd := m.Update(press('r'))
 	m = next.(Model)
-	if cmd == nil || !strings.Contains(view(m), "loading") || !strings.Contains(view(m), Release+" …") {
+	if cmd == nil || !strings.Contains(view(m), "loading") || !strings.Contains(view(m), Release+" releases …") {
 		t.Fatalf("r did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
 	if got := calls(t, record); len(got) != 9 || got[8] != "status releases --json" {
 		t.Errorf("the calls: %q", got)
 	}
-	if !strings.Contains(view(m), Release+" 3") {
+	if !strings.Contains(view(m), Release+" releases 3") {
 		t.Errorf("releases did not come back:\n%s", view(m))
 	}
 }
@@ -256,7 +256,7 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	m := loaded(t, options(), right, right, right, right, right)
 	v := view(m)
 	refusal := Failed + " kit status changes: the forge cannot be read; run: kit help status"
-	if !strings.Contains(v, Change+" !") || !strings.Contains(v, refusal) {
+	if !strings.Contains(v, Change+" changes !") || !strings.Contains(v, refusal) {
 		t.Fatalf("the refusal is not shown:\n%s", v)
 	}
 	if !strings.Contains(m.View().Content, style.Refusal(refusal)) {
@@ -269,7 +269,7 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	}
 	t.Setenv("FAKE_STATUS_REFUSE", "")
 	m = drive(m, right, press('r'))
-	if v := view(m); !strings.Contains(v, Change+" 3") || strings.Contains(v, "cannot be read") {
+	if v := view(m); !strings.Contains(v, Change+" changes 3") || strings.Contains(v, "cannot be read") {
 		t.Errorf("r did not try again:\n%s", v)
 	}
 }
@@ -278,7 +278,7 @@ func TestAStageThatDiesSilentlyIsARefusalNotAnEmptyStage(t *testing.T) {
 	t.Setenv("FAKE_STATUS_SILENT", "backlog")
 	m := loaded(t, options())
 	v := view(m)
-	if !strings.Contains(v, Issue+" !") || strings.Contains(v, "no open issue") ||
+	if !strings.Contains(v, Issue+" backlog !") || strings.Contains(v, "no open issue") ||
 		!strings.Contains(v, Failed+" kit status backlog exited 1 with nothing on stderr") {
 		t.Errorf("the silent failure:\n%s", v)
 	}
@@ -298,7 +298,7 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	// the line wraps at the pane's width, as every refusal does
 	want := "kit status incoming --json printed an array where an object of remotes was expected; run kit status " +
 		"inside a repository"
-	if m.stages[2].refusal != want || !strings.Contains(v, Fetched+" !") ||
+	if m.stages[2].refusal != want || !strings.Contains(v, Fetched+" incoming !") ||
 		!strings.Contains(v, Failed+" kit status incoming --json printed an array where an object of remotes was") {
 		t.Errorf("an array for incoming: %q\n%s", m.stages[2].refusal, v)
 	}
@@ -307,14 +307,14 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	v = view(m)
 	want = `kit status backlog --json printed an array of objects without "number" where an array of issues was ` +
 		"expected; run kit status inside a repository"
-	if m.stages[0].refusal != want || !strings.Contains(v, Issue+" !") || strings.Contains(v, "#0") ||
+	if m.stages[0].refusal != want || !strings.Contains(v, Issue+" backlog !") || strings.Contains(v, "#0") ||
 		!strings.Contains(v, Failed+` kit status backlog --json printed an array of objects without "number"`) {
 		t.Errorf("desks for backlog: %q\n%s", m.stages[0].refusal, v)
 	}
 	t.Setenv("FAKE_STATUS_ABOVE", "desk")
 	m = loaded(t, options(), right, right, right)
 	want = "kit status desk --json printed an array where an object was expected; run kit status inside a repository"
-	if m.stages[3].refusal != want || !strings.Contains(view(m), Desk+" !") || strings.Contains(view(m), Desk+" main") {
+	if m.stages[3].refusal != want || !strings.Contains(view(m), Desk+" desk !") || strings.Contains(view(m), Desk+" main") {
 		t.Errorf("desks above desks: %q\n%s", m.stages[3].refusal, view(m))
 	}
 	for name, data := range map[string]string{"changes": "{}", "worktrees": "[]", "desk": "[]",
@@ -422,13 +422,13 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	}
 	m = drive(m, msg)
 	v := view(m)
-	if !strings.Contains(v, Release+" !") ||
+	if !strings.Contains(v, Release+" releases !") ||
 		!strings.Contains(v, Failed+" kit status releases took longer than 2 minutes; r runs it again") {
 		t.Fatalf("the stage past its limit:\n%s", v)
 	}
 	t.Setenv("FAKE_STATUS_SLOW", "")
 	m = drive(m, press('r'))
-	if v := view(m); !strings.Contains(v, Release+" 3") || strings.Contains(v, "took longer") {
+	if v := view(m); !strings.Contains(v, Release+" releases 3") || strings.Contains(v, "took longer") {
 		t.Errorf("r did not run it again:\n%s", v)
 	}
 }
@@ -492,7 +492,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 			t.Errorf("the incoming pane with --no-fetch, line %d is not %q:\n%s", i, want, view(m))
 		}
 	}
-	if strings.Contains(view(m), Fetched+" 0") || !strings.Contains(lines(m)[2], "└ "+Fetched+"   ") {
+	if strings.Contains(view(m), Fetched+" 0") || !strings.Contains(lines(m)[2], "└ "+Fetched+" incoming   ") {
 		t.Errorf("the incoming label with --no-fetch: %q", lines(m)[2])
 	}
 	if !strings.Contains(m.View().Content, style.Off("not fetched")) {
@@ -538,7 +538,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 			t.Errorf("%q is not dim", text)
 		}
 	}
-	if !strings.Contains(lines(m)[2], Fetched+" "+"6") || m.count(2) != "6" {
+	if !strings.Contains(lines(m)[2], Fetched+" incoming 6") || m.count(2) != "6" {
 		t.Errorf("incoming does not count its rows alone: %q", lines(m)[2])
 	}
 	// every row is a leaf, the headings too
@@ -630,7 +630,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[2], Branch+" 4") || got[8] != " "+backKeys {
+	if !strings.HasPrefix(got[0], " kit status") || !strings.Contains(got[2], Branch+" worktrees 4") || got[8] != " "+backKeys {
 		t.Errorf("the title, the line, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -867,7 +867,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 	if pane := strings.Join(lines(m)[4:], "\n"); strings.Contains(pane, Desk) || strings.Contains(pane, "main") {
 		t.Errorf("the worktrees draw the desk:\n%s", pane)
 	}
-	if !strings.Contains(lines(m)[2], Branch+" 4") {
+	if !strings.Contains(lines(m)[2], Branch+" worktrees 4") {
 		t.Errorf("the worktrees count the desk: %q", lines(m)[2])
 	}
 	// the numbers line up
@@ -885,7 +885,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 		}
 	}
 	if strings.Contains(pane[0], "no pull request") || strings.TrimSpace(pane[1]) != "" ||
-		!strings.Contains(lines(m)[2], Desk+" 1") {
+		!strings.Contains(lines(m)[2], Desk+" desk 1") {
 		t.Errorf("the desk is not one row without a pull request:\n%s", view(m))
 	}
 	if !strings.Contains(m.View().Content, style.Warn("2 uncommitted")) {
@@ -1015,8 +1015,8 @@ func TestTheViewFollowsTheDotAcrossAWideLine(t *testing.T) {
 }
 
 func TestTheLabelsShortenBeforeTheLineScrolls(t *testing.T) {
-	// with these fixtures and eight stages, the names fit from 132 columns, the counts from 67, and the glyphs alone
-	// from 51; at 120 the line shows the counts
+	// with these fixtures and eight stages: every name fits from 132 columns; the others lose their names first, then
+	// their counts from 74, while the selected stage keeps its name; below 61 it loses it too; at 50 the line scrolls
 	for _, c := range []struct {
 		width  int
 		label  string // backlog's, the selected stage
@@ -1025,11 +1025,13 @@ func TestTheLabelsShortenBeforeTheLineScrolls(t *testing.T) {
 	}{
 		{200, Issue + " backlog 3", Fetched + " incoming 6", false},
 		{132, Issue + " backlog 3", Fetched + " incoming 6", false},
-		{131, Issue + " 3", Fetched + " 6", false},
-		{120, Issue + " 3", Fetched + " 6", false},
-		{80, Issue + " 3", Fetched + " 6", false},
-		{67, Issue + " 3", Fetched + " 6", false},
-		{66, Issue, Fetched, false},
+		{131, Issue + " backlog 3", Fetched + " 6", false},
+		{120, Issue + " backlog 3", Fetched + " 6", false},
+		{80, Issue + " backlog 3", Fetched + " 6", false},
+		{75, Issue + " backlog 3", Fetched + " 6", false},
+		{74, Issue + " backlog 3", Fetched, false},
+		{61, Issue + " backlog 3", Fetched, false},
+		{60, Issue, Fetched, false},
 		{51, Issue, Fetched, false},
 		{50, Issue, Fetched, true},
 		{40, Issue, Fetched, true},
@@ -1037,10 +1039,9 @@ func TestTheLabelsShortenBeforeTheLineScrolls(t *testing.T) {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: c.width, Height: 24})
 		trees, line := lines(m)[2], lines(m)[1]
 		if !strings.Contains(trees, "└ "+c.label+" ") && !strings.HasSuffix(trees, "└ "+c.label) ||
-			!strings.Contains(trees, "└ "+c.other) {
+			!strings.Contains(trees, "└ "+c.other+" ") && !strings.HasSuffix(trees, "└ "+c.other) {
 			t.Errorf("at %d the labels are not %q and %q: %q", c.width, c.label, c.other, trees)
 		}
-		// one form for every stage at once
 		if n := strings.Count(trees, "└ "); n != 8 && !c.scroll {
 			t.Errorf("at %d, %d labels show: %q", c.width, n, trees)
 		}
@@ -1048,15 +1049,19 @@ func TestTheLabelsShortenBeforeTheLineScrolls(t *testing.T) {
 			t.Errorf("at %d the line scrolls %v: %q", c.width, !c.scroll, line)
 		}
 	}
-	// in the count form, the selected stage's count is drawn as its name would be
+	// the selected stage's name is drawn in the accent, and moving keeps the new one's name whole
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
-	if !strings.Contains(m.View().Content, Issue+" "+style.Mark("3")) {
-		t.Errorf("the selected count is not marked: %q", lines(m)[2])
+	if !strings.Contains(m.View().Content, Issue+" "+style.Mark("backlog")) {
+		t.Errorf("the selected name is not marked: %q", lines(m)[2])
+	}
+	m = drive(m, right, right)
+	if trees := lines(m)[2]; !strings.Contains(trees, Fetched+" incoming 6") || strings.Contains(trees, "backlog") {
+		t.Errorf("the name did not move with the selection: %q", trees)
 	}
 	// the legend nodes are not shortened, and the labels keep the form the line without them takes
-	m = drive(m, press('?'))
+	m = drive(loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24}), press('?'))
 	if v := view(m); !strings.Contains(v, "└ legend") || !strings.Contains(v, Owner+"  its assignees") ||
-		!strings.Contains(lines(m)[2], "├ "+Issue+" 3") {
+		!strings.Contains(lines(m)[2], "├ "+Issue+" backlog 3") {
 		t.Errorf("the legend at 80:\n%s", v)
 	}
 }
@@ -1146,7 +1151,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between changes and releases
 	m := loaded(t, options(), right, right, right, right, right, right)
-	if m.stages[m.stage].name != "builds" || !strings.Contains(lines(m)[2], Build+" 4") {
+	if m.stages[m.stage].name != "builds" || !strings.Contains(lines(m)[2], Build+" builds 4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}
 	rows := lines(m)[4:8]
@@ -1201,7 +1206,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirJobsFailedFirstThenTheirURL(t *testi
 	}
 	// an empty stage says how far it looked
 	m.find("builds").runs = nil
-	if !strings.Contains(view(m), "   no build since the last 20 runs") || !strings.Contains(lines(m)[2], Build+" 0") {
+	if !strings.Contains(view(m), "   no build since the last 20 runs") || !strings.Contains(lines(m)[2], Build+" builds 0") {
 		t.Errorf("the empty builds:\n%s", view(m))
 	}
 }
@@ -1211,7 +1216,7 @@ func TestBuildsRefuseADocumentWithoutIDs(t *testing.T) {
 	m := loaded(t, options(), right, right, right, right, right, right)
 	want := `kit status builds --json printed an array of objects without "id" where an array of builds was ` +
 		"expected; run kit status inside a repository"
-	if m.stages[6].refusal != want || !strings.Contains(view(m), Build+" !") {
+	if m.stages[6].refusal != want || !strings.Contains(view(m), Build+" builds !") {
 		t.Errorf("desks for builds: %q\n%s", m.stages[6].refusal, view(m))
 	}
 	if err := shape("builds", []byte(`{"id": 1}`)); err == nil || !strings.Contains(err.Error(), "printed an object") {
@@ -1237,7 +1242,7 @@ func TestTookIsToTheSecond(t *testing.T) {
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, options(), right)
-	if m.stages[m.stage].name != "underway" || !strings.Contains(lines(m)[2], InFlight+" 4") {
+	if m.stages[m.stage].name != "underway" || !strings.Contains(lines(m)[2], InFlight+" underway 4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
 	rows := lines(m)[4:8]
@@ -1310,7 +1315,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	// an empty stage says no issue is underway
 	s.under = nil
-	if !strings.Contains(view(m), "   no issue is underway") || !strings.Contains(lines(m)[2], InFlight+" 0") {
+	if !strings.Contains(view(m), "   no issue is underway") || !strings.Contains(lines(m)[2], InFlight+" underway 0") {
 		t.Errorf("the empty underway:\n%s", view(m))
 	}
 }
@@ -1320,7 +1325,7 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	m := loaded(t, options(), right)
 	want := `kit status underway --json printed an array of objects without "number" where an array of issues ` +
 		"underway was expected; run kit status inside a repository"
-	if m.stages[1].refusal != want || !strings.Contains(view(m), InFlight+" !") {
+	if m.stages[1].refusal != want || !strings.Contains(view(m), InFlight+" underway !") {
 		t.Errorf("desks for underway: %q\n%s", m.stages[1].refusal, view(m))
 	}
 	// backlog's issues are not underway's: each needs its pull request

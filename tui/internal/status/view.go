@@ -122,10 +122,10 @@ func (m Model) count(i int) string {
 func (m Model) layout() layout {
 	n, w := len(m.stages), m.width-1
 	l := layout{at: make([]int, n), trees: make([][]string, n)}
-	form := m.form()
+	forms := m.forms()
 	total := gap
 	for i := range m.stages {
-		l.trees[i] = m.tree(i, form)
+		l.trees[i] = m.tree(i, forms[i])
 		total += width(l.trees[i]) + gap
 	}
 	l.width = max(total, w, 1)
@@ -143,19 +143,43 @@ func (m Model) layout() layout {
 	return l
 }
 
-// form gives the widest label form that lets every stage's tree, without its legend, fit the screen: names go first,
-// then counts; the glyph alone is the floor, and past it the line scrolls.
-func (m Model) form() int {
-	for form := fullLabel; form < glyphLabel; form++ {
+// forms gives each stage's label form: the widest that lets every stage's tree, without its legend, fit the screen.
+// The other stages give up their names first, then their counts; the selected stage keeps its name as long as any
+// layout with it fits, and only then shortens with the rest. The glyph alone is the floor; past it the line scrolls.
+func (m Model) forms() []int {
+	n := len(m.stages)
+	fits := func(chosen, others int) bool {
 		total := gap
 		for i := range m.stages {
+			form := others
+			if i == m.stage {
+				form = chosen
+			}
 			total += ansi.StringWidth("└ "+m.label(i, form)) + gap
 		}
-		if total <= m.width-1 {
-			return form
+		return total <= m.width-1
+	}
+	every := func(chosen, others int) []int {
+		out := make([]int, n)
+		for i := range out {
+			out[i] = others
+		}
+		if m.stage < n {
+			out[m.stage] = chosen
+		}
+		return out
+	}
+	for others := fullLabel; others <= glyphLabel; others++ {
+		if fits(fullLabel, others) {
+			return every(fullLabel, others)
 		}
 	}
-	return glyphLabel
+	for form := countLabel; form < glyphLabel; form++ {
+		if fits(form, form) {
+			return every(form, form)
+		}
+	}
+	return every(glyphLabel, glyphLabel)
 }
 
 // label gives a stage's label in a form: its glyph, its name, bold in the accent color when selected, and its count,
