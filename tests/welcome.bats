@@ -295,6 +295,18 @@ ambient-system() {
   [ "$(readlink .kit/welcome/6-terms.md)" = ../packages/house/files/repo/.kit/welcome/6-terms.md ]
 }
 
+@test "the pages go by the number their names start with, so a tenth page comes after the ninth" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  mkdir -p .kit/packages/house/files/repo/.kit/welcome
+  printf 'description: "our own"\ndepends:\n  - kit\n' > .kit/packages/house/package.yml
+  printf '# Ten\n' > .kit/packages/house/files/repo/.kit/welcome/10-ten.md
+  printf '# Nine\n' > .kit/packages/house/files/repo/.kit/welcome/9-nine.md
+  printf '# Notes\n' > .kit/packages/house/files/repo/.kit/welcome/notes.md
+  "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Make it yours|# Nine|# Ten|# Notes|# What is left' ]]
+}
+
 @test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {
   mkdir -p "${BATS_TEST_TMPDIR}/fake"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"

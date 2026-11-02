@@ -2,7 +2,6 @@ package welcome
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -487,26 +486,18 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 func TestThePagesAreInTheOrderKitWelcomeGives(t *testing.T) {
 	files := map[string]string{}
 	for _, f := range []string{"1-intro.md", "10-ten.md", "4-setup.md", "45-deploys.md", "5-lay-of-the-land.md",
-		"2-before-toolchains.md", ".hidden.md", "notes.txt"} {
+		"2-before-toolchains.md", "notes.md", "04-also.md", ".hidden.md", "notes.txt"} {
 		files[f] = "# " + f + "\n"
 	}
 	var got []string
 	for _, tab := range readPages(repoWith(t, files)) {
 		got = append(got, tab.file)
 	}
-	want := []string{"1-intro.md", "10-ten.md", "2-before-toolchains.md", "4-setup.md", "45-deploys.md",
-		"5-lay-of-the-land.md"}
+	// by the number a name starts with, a tie by name, and a name with no number last, as kit welcome --text
+	want := []string{"1-intro.md", "2-before-toolchains.md", "04-also.md", "4-setup.md", "5-lay-of-the-land.md",
+		"10-ten.md", "45-deploys.md", "notes.md"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %q, want %q", got, want)
-	}
-	// as kit welcome sorts them
-	shuffled := slices.Clone(want)
-	slices.Reverse(shuffled)
-	cmd := exec.Command("sort")
-	cmd.Env, cmd.Stdin = append(os.Environ(), "LC_ALL=C"), strings.NewReader(strings.Join(shuffled, "\n")+"\n")
-	if out, err := cmd.Output(); err != nil || strings.Fields(string(out))[3] != "4-setup.md" ||
-		!slices.Equal(strings.Fields(string(out)), want) {
-		t.Errorf("sort gives %q, %v", out, err)
 	}
 	if idOf("45-deploys.md") != "deploys" || idOf("notes.md") != "notes" || tabOf("9-our-on-call.md").name != "our on call" {
 		t.Errorf("ids")

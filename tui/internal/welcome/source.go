@@ -3,10 +3,13 @@
 package welcome
 
 import (
+	"cmp"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/empowerite/kit/tui/internal/kit"
@@ -20,8 +23,8 @@ const packageDir = "packages/kit/files/repo"
 
 // readPages gives the steps the pages make, as kit welcome --text finds them: every *.md under the repository's
 // .kit/welcome, as the active packages placed them, else under the kit package's, where nothing is placed yet. They
-// are in the order of their file names, byte by byte, as LC_ALL=C sort puts them, so 45-deploys.md comes between
-// 4-setup.md and 5-lay-of-the-land.md. A page that cannot be read gives where it was looked for. When neither has a
+// are in the order of the number each name starts with, as kit welcome --text puts them, so 10-ours.md comes after
+// 9-theirs.md; a name with no number comes last, and a tie goes by name. A page that cannot be read gives where it was looked for. When neither has a
 // page, the steps are the known ones, each saying where it was looked for.
 func readPages(r kit.Runner) []tab {
 	repo := ""
@@ -65,7 +68,9 @@ func readDir(dir string) []tab {
 			files = append(files, name)
 		}
 	}
-	slices.Sort(files)
+	slices.SortFunc(files, func(a, b string) int {
+		return cmp.Or(cmp.Compare(order(a), order(b)), strings.Compare(a, b))
+	})
 	tabs := make([]tab, len(files))
 	for i, f := range files {
 		tabs[i] = tabOf(f)
@@ -107,4 +112,13 @@ func repoOf(url string) string {
 		return ""
 	}
 	return strings.Join(segments[len(segments)-2:], "/")
+}
+
+// order gives the number a page's file name starts with, or a number past every page's when it starts with none.
+func order(name string) int {
+	digits := name[:len(name)-len(strings.TrimLeft(name, "0123456789"))]
+	if n, err := strconv.Atoi(digits); err == nil {
+		return n
+	}
+	return math.MaxInt
 }

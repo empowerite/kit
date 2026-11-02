@@ -567,12 +567,15 @@ welcome:left() {
   printf '%s\n\nRun a command yourself, or have kit run one and check again: kit welcome --fix <id>.\n' "${rows}"
 }
 
-# welcome:pages prints the pages of kit welcome, one path per line, in order: the files under .kit/welcome/, as the
-# active packages placed them, else the kit package's own, where nothing is placed yet.
+# welcome:pages prints the pages of kit welcome, one path per line: the files under .kit/welcome/, as the active
+# packages placed them, else the kit package's own, where nothing is placed yet. They are in the order of the number
+# a name starts with, so 10-ours.md comes after 9-theirs.md; a name with no number comes last, and a tie goes by name.
 welcome:pages() {
   local dir=.kit/welcome
   compgen -G "${dir}/*.md" >/dev/null || dir=${kit_root}/packages/kit/files/repo/.kit/welcome
-  compgen -G "${dir}/*.md" | LC_ALL=C sort
+  compgen -G "${dir}/*.md" \
+    | awk -F/ '{ n = $NF; k = match(n, /^[0-9]+/) ? substr(n, 1, RLENGTH) + 0 : 1e9; printf "%d\t%s\n", k, $0 }' \
+    | LC_ALL=C sort -t $'\t' -k1,1n -k2,2 | cut -f2-
 }
 
 # welcome:page-step <path> prints the id of the step a page is for: its file name without the order and the dash
