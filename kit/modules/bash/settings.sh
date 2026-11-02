@@ -21,6 +21,7 @@ settings:value() { yaml:value "$(settings:file)" "$1"; }
 #
 #   - a key the kit does not know
 #   - a require_signing that is not true or false
+#   - a log_days that is not a whole number
 #   - an answer key with characters outside [a-z_]
 #   - a tracker without a prefix (letters and an optional #) or without a provider
 #
@@ -35,7 +36,7 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources | status | primary | forges) ;;
+      (linked_exempt | sources | status | primary | forges | log_days) ;;
       (*)
         error "${settings} has a key the kit does not know: ${key} (see .kit/kit.schema.json)"
         return 1
@@ -45,6 +46,12 @@ settings:validate() {
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
   then
     error "${settings}: require_signing must be true or false, not '${value}'"
+    return 1
+  fi
+  value=$(yaml:value "${settings}" log_days)
+  if [[ -n "${value}" && ! "${value}" =~ ^[0-9]+$ ]]
+  then
+    error "${settings}: log_days must be a whole number of days, 0 for no logs, not '${value}'"
     return 1
   fi
   while IFS=$'\t' read -r key value

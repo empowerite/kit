@@ -170,6 +170,9 @@ run in a repository that has none. What needs the `kit` package is its kinds, ru
 `kit context` names no rule, `kit kinds` lists none, `kit lint` governs no file, and `kit new file` refuses for want
 of a template.
 
+Every kit call, and every message `kit serve` answers, is a line in a daily log under `.kit/logs/`; see
+[docs/logs.md](docs/logs.md).
+
 `kit completion zsh` prints the zsh completion, which completes the verbs, their flags, and the values they take,
 read from the verbs themselves; see [docs/completion.md](docs/completion.md).
 

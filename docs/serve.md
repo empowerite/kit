@@ -94,6 +94,12 @@ The command is `kit serve`, with `kit` found on `PATH`, as the hook in `.claude/
 When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next.
 Claude Code, for one, asks once, at the start of the next session, whether to use a project's servers.
 
+## Its log
+
+Each message the server answers is a line in `.kit/logs/mcp-YYYY-MMDD.log`, with its method, its outcome, and how
+long it took, and a tool's line ends with the command it ran. The server adds a line when it starts and one when it
+stops. [logs.md](logs.md) shows the lines, and how long they are kept.
+
 ## Try it by hand
 
 Feed it request lines. This asks for the server's revisions and its tools, in the 2026-07-28 shape:

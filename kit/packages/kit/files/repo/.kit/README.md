@@ -27,6 +27,10 @@ names every placed file, so git never sees one. Each placed file is one of:
 `manifest` records the digest of every placed file, so `kit update` can tell the release's file from one that was
 edited. It and `.gitignore` are kit's too, and have no write bit either.
 
+`.gitignore` also names two directories kit writes but never places. `cache/` holds what kit found in this checkout.
+`logs/` holds a log of every kit call and of every message `kit serve` answers, a file a day each, kept for
+`log_days` days as `kit.yml` sets it, 14 when it does not.
+
 A fresh clone or worktree has none of these until something runs `kit hydrate`. Every kit command that reads a
 rule runs it first. `kit issue` runs it in the worktree it makes, and a `mise.toml` with the kit's `enter` hook runs
 it on `cd`. A file deleted, a link an editor's save replaced, or a copy given its write bit back is set right the

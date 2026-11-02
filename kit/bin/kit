@@ -9,6 +9,11 @@
 # modules/bash/1st.sh answers. A verb that does not exist is refused with a pointer to kit help, in the words every
 # verb uses for one.
 #
+# It runs the verb as its child, not in its place, so it can write the call to .kit/logs/kit-YYYY-MMDD.log when the
+# verb ends, with its exit status, which it then exits with. modules/bash/log.sh says what a line holds. Ctrl-C reaches
+# the verb, which ends with it, and the call is logged with status 130. A TERM or HUP sent to this process alone waits
+# for the verb to end before this process does.
+#
 # see: .kit/1st.md
 
 set -o errexit -o nounset -o pipefail
@@ -21,14 +26,32 @@ verb=${1:-tui}
 case "${verb}" in
   (--help | -h) verb=help
 esac
+# shellcheck source=../modules/bash/log.sh
+source "${kit_bin}/../modules/bash/log.sh"
+started=0
+log:now started
+line=''
+(( $# == 0 )) || printf -v line ' %q' "$@"
+printf -v line 'kit %q%s' "${verb}" "${line}"
+log:root root || root=${PWD}
+directory=${PWD#"${root}"}
+directory=${directory#/}
+printf -v directory '%q' "${directory:-.}"
 if [[ ! -x "${kit_bin}/kit-${verb}" ]]
 then
   # The loader is sourced only to refuse: the verbs load it themselves.
   # shellcheck source=../modules/bash/1st.sh
   source "${kit_bin}/../modules/bash/1st.sh"
   error "unknown verb '${verb}'; run: kit help"
+  log:call kit "${started}" "pid=$$" "depth=${kit_depth:-0}" status=2 "in=${directory}" "${line}"
   exit 2
 fi
-exec "${kit_bin}/kit-${verb}" "$@"
+# The verb shares the terminal's process group, so Ctrl-C reaches it. A trap here only keeps this process alive to
+# log the call once the verb has ended.
+trap ':' INT TERM HUP
+status=0
+"${kit_bin}/kit-${verb}" "$@" || status=$?
+log:call kit "${started}" "pid=$$" "depth=${kit_depth:-0}" "status=${status}" "in=${directory}" "${line}"
+exit "${status}"
 
 # ----------------------------------------------------------------------------------------------------------------------

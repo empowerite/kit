@@ -113,12 +113,13 @@ materialize:prune() {
 }
 
 # materialize:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, the file
-# itself, and cache/, where kit keeps what it found in this checkout. git never sees any of them.
+# itself, cache/, where kit keeps what it found in this checkout, and logs/, where it logs its calls. git never sees
+# any of them.
 materialize:ignore-text() {
   local path
   printf '# .kit/.gitignore - what kit placed here, which git never sees (written by kit, not by hand)\n'
   {
-    printf '/.gitignore\n/manifest\n/cache/\n'
+    printf '/.gitignore\n/manifest\n/cache/\n/logs/\n'
     for path in "$@"
     do
       printf '/%s\n' "${path#.kit/}"
@@ -262,8 +263,8 @@ materialize:all() {
 }
 
 # materialize:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
-# write bit, and .kit/manifest exists. cache/ is named but never placed, so it is skipped. Where this release is itself
-# inside the worktree, as the kit's own kit/ is, every path must be a link: a copy there came from a kit outside the
+# write bit, and .kit/manifest exists. cache/ and logs/ are named but never placed, so they are skipped. Where this
+# release is itself inside the worktree, as the kit's own kit/ is, every path must be a link: a copy there came from a kit outside the
 # worktree, and the full run turns it into a link. It starts one process, to resolve the release's root, so a reading
 # verb asks on every run. A fresh clone, a `git clean -fdx`, a link an editor's save replaced, and a copy with its write
 # bit back all fail it, and the full materialize:all follows, as it does when kit.yml is newer than .kit/.gitignore: a
@@ -280,7 +281,9 @@ materialize:hydrated() {
   while IFS= read -r line
   do
     [[ "${line}" == /* ]] || continue
-    [[ "${line}" != /.gitignore && "${line}" != /manifest && "${line}" != /cache/ ]] || continue
+    case "${line}" in
+      (/.gitignore | /manifest | /cache/ | /logs/) continue
+    esac
     path=.kit${line}
     if [[ "${inside}" == true ]]
     then

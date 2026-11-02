@@ -74,7 +74,8 @@ uninstall:prune() {
   done
 }
 
-# uninstall:manifests <dry> removes the repository's manifest, .kit/.gitignore, and what kit cached in .kit/cache/.
+# uninstall:manifests <dry> removes the repository's manifest, .kit/.gitignore, what kit cached in .kit/cache/, and
+# its logs in .kit/logs/.
 # It also removes the project toolchain choice made here, kept in the git directory. It removes .kit/ itself when
 # nothing is left in it. It writes home's manifest without this repository's paths, which removes it when no line is
 # left.
@@ -85,11 +86,12 @@ uninstall:manifests() {
   then
     [[ ! -e .kit/manifest ]] || step ".kit/manifest and .kit/.gitignore: would be removed"
     [[ ! -e .kit/cache ]] || step ".kit/cache/: would be removed"
+    [[ ! -e .kit/logs ]] || step ".kit/logs/: would be removed"
     [[ -z "${choice}" ]] || step "${choice#"${PWD}/"}: would be removed"
     return 0
   fi
   rm -f .kit/manifest .kit/.gitignore
-  rm -rf .kit/cache
+  rm -rf .kit/cache .kit/logs
   if [[ -n "${choice}" ]]
   then
     rm -f "${choice}"

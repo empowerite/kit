@@ -6,7 +6,8 @@
 #
 # Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, until stdin ends. It runs in
 # the repository it starts in, and opens no network port. Stdout carries only the protocol's messages, one JSON
-# object per line; every log line goes to stderr.
+# object per line; every message for a person goes to stderr. Each message it answers is a line in
+# .kit/logs/mcp-YYYY-MMDD.log, beside a line when it starts and one when stdin ends, whose seconds are how long it ran.
 #
 # Its tools are the verbs that read and report, and change nothing: check, context, help, kinds, lint, packages,
 # status, syntax, toolchains, and version. A tool's description is the verb's help, and the tool takes args, the
@@ -36,6 +37,10 @@ guard:require tool:jq || exit 1
 materialize:hydrate >&2
 
 use serve
+started=0
+log:now started
+log:call mcp "${started}" "pid=$$" event=start
 serve:main
+log:call mcp "${started}" "pid=$$" event=stop
 
 # ----------------------------------------------------------------------------------------------------------------------

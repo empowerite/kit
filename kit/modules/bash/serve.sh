@@ -20,9 +20,14 @@
 # A resource is one of the kit's files under .kit/: kit://1st.md, kit://rules/<kind> and kit://styles/<kind> for each
 # rule and style, and kit://kinds/<file> for each kinds file, which may define several kinds.
 #
+# Each message it answers is a line in .kit/logs/mcp-YYYY-MMDD.log, as modules/bash/log.sh writes it: the request's
+# id=, its method=, and its outcome=, which is ok, error=<code> for a refusal, status=<status> for a tool whose verb
+# failed, or none for a notification. A resource's line ends with its uri=, and a tool's with the command it ran,
+# kit <verb> <arg>…, quoted so it can be pasted back. kit serve adds a line when it starts and one when stdin ends.
+#
 # see: kit/bin/kit-serve, docs/serve.md, https://modelcontextprotocol.io/specification/2026-07-28
 
-use context help release syntax
+use context help release syntax log
 
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
@@ -53,22 +58,33 @@ declare -grA serve_listing_acts=(
 serve_era=''
 serve_tool_list=''
 
+# serve_log_fields holds the id and method of the message being answered, for its log line, serve_outcome how it
+# ended, and serve_log_last what the line ends with: a resource's uri, or a tool's command. Each message starts
+# with all three empty.
+declare -ga serve_log_fields=()
+serve_outcome=''
+serve_log_last=''
+
 serve_instructions='kit holds the rules this repository asks every agent to follow. Read the resource kit://1st.md'
 serve_instructions+=' first. Before you change a file, call the context tool with its path, and read every rule it names.'
 
-# serve:main answers each message on stdin, in order, until stdin ends.
+# serve:main answers each message on stdin, in order, until stdin ends, and logs each one.
 serve:main() {
-  local line
+  local line started
   while IFS= read -r line || [[ -n "${line}" ]]
   do
     [[ -n "${line//[[:space:]]/}" ]] || continue
+    log:now started
+    serve_log_fields=() serve_outcome='' serve_log_last=''
     serve:handle "${line}"
+    log:call mcp "${started}" "pid=$$" "${serve_log_fields[@]}" "outcome=${serve_outcome:-none}" \
+      ${serve_log_last:+"${serve_log_last}"}
   done
 }
 
 # serve:handle <line> answers one message.
 serve:handle() {
-  local fields kind id method params
+  local fields kind id method params quoted_id quoted_method
   if ! fields=$(jq --raw-output '
       if type != "object" then "invalid", "null", "", "{}"
       elif has("method") | not then "response", "null", "", "{}"
@@ -83,6 +99,10 @@ serve:handle() {
     return 0
   fi
   { read -r kind; read -r id; read -r method; read -r params; } <<<"${fields}"
+  printf -v quoted_id '%q' "${id}"
+  printf -v quoted_method '%q' "${method:-none}"
+  serve_log_fields=("method=${quoted_method}")
+  [[ "${kind}" != request ]] || serve_log_fields=("id=${quoted_id}" "${serve_log_fields[@]}")
   case "${kind}" in
     (invalid)
       serve:error null -32600 'Invalid Request: a message is one JSON object'
@@ -106,11 +126,13 @@ serve:handle() {
 
 # serve:reply <id> <result> writes the answer to request <id>, both as JSON, on one line.
 serve:reply() {
+  serve_outcome=${serve_outcome:-ok}
   jq --null-input --compact-output --argjson id "$1" --argjson result "$2" '{jsonrpc: "2.0", id: $id, result: $result}'
 }
 
 # serve:error <id> <code> <message> [<data>] writes an error answer to request <id>; <id> and <data> are JSON.
 serve:error() {
+  serve_outcome="error=$2"
   jq --null-input --compact-output --argjson id "$1" --argjson code "$2" --arg message "$3" --argjson data "${4:-null}" \
     '{jsonrpc: "2.0", id: $id, error: ({code: $code, message: $message} + if $data then {data: $data} else {} end)}'
 }
@@ -254,7 +276,7 @@ serve:usage() {
 # exits non-zero sets isError, and the text names its exit status. A listing-only tool's action is refused with
 # status 2, and its verb never runs.
 serve:tools-call() {
-  local name status=0 out err refusal
+  local name status=0 out err refusal quoted
   local -a command args
   name=$(jq --raw-output '.name // "" | strings' <<<"$2")
   if ! serve:is-tool "${name}"
@@ -268,6 +290,8 @@ serve:tools-call() {
     return 0
   fi
   readarray -d '' -t args < <(jq --raw-output0 '.arguments.args // [] | .[]' <<<"$2")
+  printf -v quoted ' %q' "${name}" "${args[@]}"
+  serve_log_last="kit${quoted}"
   command=("${name}")
   out=$(mktemp) err=$(mktemp)
   if refusal=$(serve:refused "${name}" "${args[@]}")
@@ -281,6 +305,7 @@ serve:tools-call() {
       run kit "${command[@]}" "${args[@]}"
     ) </dev/null >"${out}" 2>"${err}" || status=$?
   fi
+  (( status == 0 )) || serve_outcome="status=${status}"
   serve:complete "$1" "$(jq --null-input --compact-output --rawfile out "${out}" --rawfile err "${err}" \
     --arg command "kit ${command[*]}" --argjson status "${status}" '{
       content: [{type: "text", text: (
@@ -361,8 +386,10 @@ serve:resources-list() {
 
 # serve:resources-read <id> <params> answers resources/read with the text of the file the URI names.
 serve:resources-read() {
-  local uri path mime
+  local uri path mime quoted
   uri=$(jq --raw-output '.uri // "" | strings' <<<"$2")
+  printf -v quoted '%q' "${uri}"
+  serve_log_last="uri=${quoted}"
   IFS=$'\t' read -r path mime < <(serve:resources | awk -F '\t' -v uri="${uri}" '$1 == uri { print $2 "\t" $3 }') || true
   if [[ -z "${path:-}" ]]
   then
