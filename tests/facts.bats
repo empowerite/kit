@@ -4,6 +4,8 @@
 
 load helper
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   # shellcheck disable=SC2034  # kit-bash reads it
   kit_bash_modules=facts
@@ -111,4 +113,41 @@ commit-all() {
   run "${kit_root}/bin/kit" syntax facts --choices --moment
   [ "${status}" -eq 0 ]
   [ "$(cut -f 1 <<<"${output}" | tr '\n' ' ')" = "commit ci " ]
+}
+
+@test "a file under facts.read carries its text, and no other file does" {
+  printf 'facts:\n  read:\n    - README.md\n' > kit.yml
+  printf '# hello\n\nsecond line' > README.md
+  printf 'x\n' > a.md
+  git add kit.yml README.md a.md
+  printf 'changed on disk\n' > README.md
+  run kit-bash 'facts:tree'
+  [ "${status}" -eq 0 ]
+  jq --exit-status --arg text $'# hello\n\nsecond line' '.["README.md"].text == $text' <<<"${output}"
+  jq --exit-status '.["a.md"] | has("text") | not' <<<"${output}"
+}
+
+@test "a binary, an oversized, or a missing file under facts.read has no text, and is named once" {
+  printf 'facts:\n  read:\n    - bin.dat\n    - big.txt\n    - nothing/*.md\n' > kit.yml
+  printf 'a\0b\n' > bin.dat
+  head -c 65537 /dev/zero | tr '\0' 'x' > big.txt
+  git add kit.yml bin.dat big.txt
+  run --separate-stderr kit-bash 'facts:tree'
+  [ "${status}" -eq 0 ]
+  jq --exit-status '(.["bin.dat"] | has("text") | not) and (.["big.txt"] | has("text") | not)' <<<"${output}"
+  [ "$(grep -c 'bin.dat' <<<"${stderr}")" -eq 1 ]
+  [ "$(grep -c 'big.txt' <<<"${stderr}")" -eq 1 ]
+  [ "$(grep -c . <<<"${stderr}")" -eq 2 ]
+  [[ "${stderr}" == *binary* && "${stderr}" == *"65536"* ]]
+}
+
+@test "kit.yml with a facts key the kit does not know is refused" {
+  printf 'facts:\n  reed:\n    - x\n' > kit.yml
+  kit_bash_modules="facts settings"
+  run kit-bash 'settings:validate'
+  [ "${status}" -eq 1 ]
+  [[ "${output}" == *reed* ]]
+  printf 'facts:\n  read:\n    - x\n' > kit.yml
+  run kit-bash 'settings:validate'
+  [ "${status}" -eq 0 ]
 }

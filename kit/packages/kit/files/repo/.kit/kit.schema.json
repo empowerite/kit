@@ -62,6 +62,18 @@
       "default": 14,
       "description": "How many days kit keeps its logs under .kit/logs/: kit-YYYY-MMDD.log, a line per kit call, and mcp-YYYY-MMDD.log, a line per kit serve request. A day's first line removes each log last written more than this many days before. 0 writes no logs."
     },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What kit facts hands a policy engine beyond names.",
+      "properties": {
+        "read": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Globs of the files whose content kit facts gives as text in the tree, so a rule can judge what a file says. A binary file, or one over 65536 bytes, has no text, and kit warns. A glob that matches nothing is ignored."
+        }
+      }
+    },
     "linked_exempt": {
       "type": "array",
       "description": "Logins whose changes kit linked passes without a linked issue, and kit policy passes without checking the branch, the commits, or the title, each saying so by name: a bot such as dependabot[bot], whose changes have no issue and never will. One login per line under the key.",

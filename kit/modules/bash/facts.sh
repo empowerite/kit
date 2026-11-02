@@ -21,13 +21,21 @@
 #   - `size`: the bytes of the blob, and 0 for a submodule
 #   - `blob`: the object name of the blob, or of the commit a submodule is at
 #   - `kinds`: the kinds of file the path is, as context:classify finds them, and [] where there are none
+#   - `text`: the content of the blob, only for a file that matches a glob under `facts.read` in kit.yml
 #
 # The tree is read from a tree-ish when one is given, and otherwise from the index, so it holds what is staged and
 # not what is on disk. A file git ignores is not in either. Every list from git is NUL-separated, so a path with a
 # space, an accent, or a newline comes through whole. context:classify takes one path to a line, so a path with a
 # newline has no kinds.
+#
+# The `text` is read from the blob in the tree, never from disk, so it is the content of the tree's moment. A binary
+# blob, one with a NUL byte, and one over 65536 bytes get no `text`; kit warns once for each, naming the path. A glob
+# that matches nothing is no fault and says nothing.
 
-use context git policy
+use context git policy yaml
+
+# The most bytes of a blob that facts:tree gives as text.
+declare -gri facts_text_limit=65536
 
 # The moments a document can be for.
 declare -gra facts_moments=(commit ci)
@@ -120,7 +128,7 @@ facts:tree() {
 
 # facts:tree-in <dir> [<tree-ish>] does the work of facts:tree, keeping its lists in <dir>. entries.json is one object
 # per path, from git's list; sizes holds one line per blob, in the order of entries.json; kinds is context:classify's
-# answer for every path that fits on a line.
+# answer for every path that fits on a line; texts.json is one {key, value} per file that facts:texts gives as text.
 facts:tree-in() {
   local dir=$1
   # ls-tree prints "<mode> <type> <blob>\t<path>" and ls-files --stage "<mode> <blob> <stage>\t<path>"; jq reads both.
@@ -142,8 +150,9 @@ facts:tree-in() {
     | git cat-file --batch-check='%(objectsize)' > "${dir}/sizes" || return 1
   jq --join-output '.[] | select(.path | contains("\n") | not) | .path + "\n"' "${dir}/entries.json" \
     | context:classify > "${dir}/kinds" || return 1
+  facts:texts "${dir}" || return 1
   jq --null-input --compact-output --rawfile sizes "${dir}/sizes" --rawfile kinds "${dir}/kinds" \
-    --slurpfile entries "${dir}/entries.json" '
+    --slurpfile entries "${dir}/entries.json" --slurpfile texts "${dir}/texts.json" '
     ($sizes | split("\n")) as $size
     | ($kinds | split("\n") | map(select(length > 0) | capture("^(?<path>.*)\t(?<kinds>[^\t]*)$"))
        | map({key: .path, value: (.kinds | split(" ") | map(select(length > 0)))}) | from_entries) as $kind
@@ -157,6 +166,48 @@ facts:tree-in() {
             blob: $f.blob,
             kinds: ($kind[$f.path] // [])}
         | .n += (if $sub then 0 else 1 end))
-    | .tree'
+    | .tree
+    | reduce $texts[] as $t (.; if has($t.key) then .[$t.key].text = $t.value else . end)'
+}
+
+# facts:texts <dir> writes <dir>/texts.json: one {key, value} per file whose path matches a glob under facts.read in
+# kit.yml, the value being the blob read from git. It reads <dir>/entries.json. A link and a submodule have no text.
+# A binary blob or one over the limit is skipped with a warning naming it.
+facts:texts() {
+  local dir=$1 settings glob path blob size matched
+  local -a globs=()
+  : > "${dir}/texts.json"
+  settings=$(settings:file)
+  [[ -f "${settings}" ]] || return 0
+  mapfile -t globs < <(yaml:json "${settings}" | jq --raw-output '.facts.read // [] | .[]')
+  (( ${#globs[@]} > 0 )) || return 0
+  while IFS= read -r -d '' path && IFS= read -r -d '' blob
+  do
+    matched=false
+    for glob in "${globs[@]}"
+    do
+      if context:glob-matches "${path}" "${glob}"
+      then
+        matched=true
+        break
+      fi
+    done
+    [[ "${matched}" == true ]] || continue
+    size=$(git cat-file -s "${blob}") || return 1
+    if (( size > facts_text_limit ))
+    then
+      warn "facts.read: ${path} has no text; it is ${size} bytes, over the limit of ${facts_text_limit}"
+      continue
+    fi
+    git cat-file blob "${blob}" > "${dir}/blob" || return 1
+    if (( $(LC_ALL=C tr -d '\0' < "${dir}/blob" | wc -c) != size ))
+    then
+      warn "facts.read: ${path} has no text; it is binary"
+      continue
+    fi
+    jq --null-input --compact-output --arg key "${path}" --rawfile value "${dir}/blob" '{key: $key, value: $value}' \
+      >> "${dir}/texts.json" || return 1
+  done < <(jq --join-output '.[] | select(.mode == "100644" or .mode == "100755") | .path, "\u0000", .blob, "\u0000"' \
+    "${dir}/entries.json")
 }
 # ----------------------------------------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ settings:value() { yaml:value "$(settings:file)" "$1"; }
 #   - a key the kit does not know
 #   - a require_signing that is not true or false
 #   - a log_days that is not a whole number
+#   - a key under facts other than read
 #   - an answer key with characters outside [a-z_]
 #   - a tracker without a prefix (letters and an optional #) or without a provider
 #
@@ -36,7 +37,7 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources | flow | primary | forges | log_days) ;;
+      (linked_exempt | sources | flow | primary | forges | log_days | facts) ;;
       (status)
         error "${settings} has a key the kit does not know: status; the stages kit flow draws are named under flow:"
         return 1
@@ -58,6 +59,12 @@ settings:validate() {
     error "${settings}: log_days must be a whole number of days, 0 for no logs, not '${value}'"
     return 1
   fi
+  while IFS= read -r key
+  do
+    [[ "${key}" == read ]] && continue
+    error "${settings}: facts has a key the kit does not know: ${key}; the only one is read, a list of globs"
+    return 1
+  done < <(yaml:json "${settings}" | jq --raw-output '.facts | if type == "object" then keys[] else empty end')
   while IFS=$'\t' read -r key value
   do
     [[ -z "${key}" || "${key}" =~ ^[a-z_]+$ ]] && continue
