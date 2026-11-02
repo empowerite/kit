@@ -94,6 +94,32 @@ The command is `kit serve`, with `kit` found on `PATH`, as the hook in `.claude/
 When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next.
 Claude Code, for one, asks once, at the start of the next session, whether to use a project's servers.
 
+## When the kit changes
+
+A harness starts the server once per session, with the `PATH` it started with. What the server runs stays current
+on its own:
+
+- In a checkout of the kit itself, whose `kit.yml` declares `version: unreleased`, the checkout's own
+  `kit/bin/kit-serve` serves it, whichever kit the harness started. A worktree that changes the kit is served by its
+  own code, not by the desk's or a release's.
+- Before each message, the server looks for a file changed since it started, in its release's `bin/` and
+  `modules/` and in the repository's own module directories. When one has, it starts itself again from the changed
+  code over the same stdin, and the new process answers the message. An edit to a verb, a module, or the server
+  takes effect on the next message, with no reconnect.
+- After it starts again, it sends `notifications/tools/list_changed` and `notifications/resources/list_changed`,
+  and the client asks for both lists again. A `.kit/.gitignore` that changed, as `kit hydrate` rewrites it when what
+  it places changes, sends the second alone.
+- A changed bash file that does not parse is kept out. The server goes on with the code it runs, says so on stderr,
+  and tries again after the next change.
+
+The harness's own configuration is read when its session starts, so a change to `.mcp.json` still needs a new
+session, or `/mcp` and Reconnect in Claude Code.
+
+`kit` on `PATH` is the harness's `PATH`, not a shell's. An app opened from the Dock may not have the `PATH` that mise
+or direnv sets in a terminal. This repository's own `house` package therefore registers the command by path from the
+project directory Claude Code names, as `${CLAUDE_PROJECT_DIR:-.}/kit/bin/kit`. A repository whose kit lives in the
+tree can do the same with an `.mcp.json` entry in a package of its own, after `agents/claude`.
+
 ## Its log
 
 Each message the server answers is a line in `.kit/logs/mcp-YYYY-MMDD.log`, with its method, its outcome, and how

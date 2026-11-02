@@ -43,6 +43,9 @@ Lines are written when calls end, so a call that ran a shorter one inside it com
   failed, or `none` for a notification, which gets no answer.
 - A tool's line ends with the command it ran. The same call is in the kit log, one deeper.
 - The stop line's `seconds` is how long the server ran.
+- `event=reload` is the server starting itself again from a file that changed, and the new process logs its own
+  `event=start`. `event=reload-refused` names a changed bash file that does not parse, which keeps the running code.
+  [serve.md](serve.md) says when the server reloads.
 
 The harness keeps its own log of the server's stderr. Claude Code, for one, keeps it under
 `~/Library/Caches/claude-cli-nodejs/<project>/mcp-logs-kit/` on macOS.
