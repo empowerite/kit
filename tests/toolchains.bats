@@ -50,6 +50,22 @@ probes() {
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
 }
 
+@test "brew is usable only when it is on PATH, not when it is only at a Homebrew prefix" {
+  touch Brewfile
+  # a brew at a prefix, off PATH
+  rm "${FAKE_DIR}/bin/brew"
+  path-without brew
+  mkdir -p "${BATS_TEST_TMPDIR}/prefix/bin"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${BATS_TEST_TMPDIR}/prefix/bin/brew"
+  export KIT_BREW_PREFIXES="${BATS_TEST_TMPDIR}/prefix/bin/brew"
+  run detect
+  [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tno\tno\nbrew\tproject\tno\tno' ]
+  # on PATH, it is usable for both roles
+  export PATH="${BATS_TEST_TMPDIR}/prefix/bin:${PATH}"
+  run detect
+  [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
+}
+
 @test "mise is active only when activated and configured here" {
   export MISE_SHELL=zsh
   run detect

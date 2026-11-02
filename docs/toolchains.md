@@ -41,7 +41,7 @@ network, and never calls git.
 | --- | --- | --- | --- | --- |
 | `mise` | project | `mise` runs, and `mise.toml`, `.mise.toml`, or `mise.local.toml` is here | `MISE_SHELL` is set, and one of its files is here | each tool's version, resolved in `mise.lock` |
 | `nix` | project | `nix` is on `PATH` with flakes on, and `flake.nix` names `devShells` or `devShell` | `IN_NIX_SHELL` is set, and `flake.nix` is here | each flake input by its locked revision in `flake.lock` |
-| `brew` | system; project with a `Brewfile` | `brew` is on `PATH` or at one of Homebrew's prefixes | never | a formula by name; a version only in a name such as `node@22` |
+| `brew` | system; project with a `Brewfile` | `brew` is on `PATH` | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
 | `devcontainer` | project; system too while active | From outside, the `devcontainer` CLI is on `PATH`, and `.devcontainer/devcontainer.json` or `.devcontainer.json` is here. Inside, the file alone. | `REMOTE_CONTAINERS`, `CODESPACES`, or `DEVCONTAINER` is set, and the file is here | each feature in `devcontainer-lock.json` by its locked version |
 
@@ -154,7 +154,8 @@ The delivered workflow runs `kit tools install`, then appends the output of `kit
 `PATH`. [packages/github/ci.md](packages/github/ci.md) says what else the job sets up.
 
 - A runner with several usable toolchains has no terminal to ask, so the run names one with `KIT_TOOLCHAIN`.
-- The brew provider finds Homebrew at its own prefix when the runner leaves it off `PATH`.
+- The brew provider needs `brew` on `PATH`. `kit welcome` offers the `shellenv` line when brew is installed at a prefix
+  but off `PATH`; a runner puts it on `PATH` in its own step.
 
 `tests/toolchains.bats` tests detection and choosing. `tests/tools.bats` tests each provider against a fake of its
 tool.

@@ -29,12 +29,14 @@
 #   --fix <check>     runs one check's fix, then checks again
 #   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
-# A check in the JSON is {id, step, ok, line, fix, interactive, more}:
+# A check in the JSON is {id, step, ok, line, fix, interactive, more, runs}:
 #
 #   - step is before-toolchains, toolchains, or setup.
 #   - fix is the command that fixes it, or null when it holds or kit knows none.
 #   - interactive is true when the fix needs you at the terminal, as gh auth login does.
 #   - more is where to read, or the other commands beside the fix, or null.
+#   - runs is false when kit only shows the fix and never runs it, as for a line that must run in your own shell
+#     (brew-path); true for every other check. --fix refuses a check whose runs is false, with exit 2.
 #
 # A missing tool's fix comes from the toolchains kit found, and never from one it assumes:
 #

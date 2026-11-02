@@ -120,6 +120,27 @@ shims() {
   printf '%s:%s\n' "${dir}" "${PATH}"
 }
 
+# path-without <tool> hides the tool from PATH, such as a real brew on this machine. Each directory that holds it is
+# replaced by a directory of links to everything else in it, so the other tools there still run.
+path-without() {
+  local dir out='' copy n=0 file IFS=:
+  for dir in ${PATH}
+  do
+    if [[ -x "${dir}/$1" ]]
+    then
+      copy="${BATS_TEST_TMPDIR}/without-$1-$((n++))"
+      mkdir -p "${copy}"
+      for file in "${dir}"/*
+      do
+        [[ "${file##*/}" == "$1" || ! -x "${file}" ]] || ln -sf "${file}" "${copy}/${file##*/}"
+      done
+      dir=${copy}
+    fi
+    out+="${out:+:}${dir}"
+  done
+  PATH=${out}
+}
+
 # fake-tools <tool>… stands tests/fakes/fake-tool in for each tool, first on PATH, with an empty route file each, and
 # exports FAKE_DIR, where fixture and route write and the fake records its calls.
 fake-tools() {

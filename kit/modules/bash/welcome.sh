@@ -13,10 +13,13 @@
 #   fix           the command that fixes it, or null when it holds or kit knows none
 #   interactive   true when the fix needs the person at the terminal, as gh auth login does
 #   more          where to read more, or the other commands beside the fix, or null
+#   runs          false when kit only shows the fix and never runs it, as for a line that changes the person's own
+#                 shell; true for every other check. kit welcome --fix refuses a check whose runs is false.
 #
 # The checks run in this order:
 #
-#   - before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain
+#   - before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain; then, only where
+#     brew is installed at a Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs
 #   - toolchains: one check per role, project then system
 #   - setup, tools: lefthook when hooks/lefthook is active; then each linter the active packages' rules and styles
 #     name under lint:
@@ -50,20 +53,20 @@ use settings forge materialize render place toolchain
 declare -ga welcome_ids=()
 declare -gA welcome_linter_rule=() welcome_host_forge=()
 
-# welcome:record <id> <ok> <line> [<fix> [<interactive> [<more>]]] prints one check as JSON, on one line, in the step
-# its id belongs to. An empty fix or more is null.
+# welcome:record <id> <ok> <line> [<fix> [<interactive> [<more> [<runs>]]]] prints one check as JSON, on one line, in
+# the step its id belongs to. An empty fix or more is null. runs is true unless the check says kit only shows its fix.
 welcome:record() {
   jq --null-input --compact-output --arg id "$1" --arg step "$(welcome:step "$1")" --argjson ok "$2" --arg line "$3" \
-    --arg fix "${4:-}" --argjson interactive "${5:-false}" --arg more "${6:-}" \
+    --arg fix "${4:-}" --argjson interactive "${5:-false}" --arg more "${6:-}" --argjson runs "${7:-true}" \
     '{id: $id, step: $step, ok: $ok, line: $line, fix: ($fix | if . == "" then null else . end),
-      interactive: $interactive, more: ($more | if . == "" then null else . end)}'
+      interactive: $interactive, more: ($more | if . == "" then null else . end), runs: $runs}'
 }
 
 # welcome:step <id> prints the step a check belongs to: before-toolchains for what kit needs, toolchains for each
 # role's toolchain, and setup for the rest.
 welcome:step() {
   case "$1" in
-    (tool-bash | tool-git | tool-jq | tool-yq) printf 'before-toolchains\n' ;;
+    (tool-bash | tool-git | tool-jq | tool-yq | brew-path) printf 'before-toolchains\n' ;;
     (toolchain-*) printf 'toolchains\n' ;;
     (*) printf 'setup\n' ;;
   esac
@@ -360,8 +363,9 @@ welcome:hooks-active() {
 # toolchains among them.
 welcome:plan() {
   local linter rule forge host
-  welcome_ids=(tool-bash tool-git tool-jq tool-yq toolchain-project toolchain-system) welcome_linter_rule=()
-  welcome_host_forge=()
+  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_linter_rule=() welcome_host_forge=()
+  ! welcome:brew-off-path || welcome_ids+=(brew-path)
+  welcome_ids+=(toolchain-project toolchain-system)
   welcome:find project
   welcome:find system
   if welcome:repository && welcome:installed
@@ -393,6 +397,22 @@ welcome:plan() {
     fi
   fi
   welcome_ids+=(where)
+}
+
+# welcome:brew-off-path succeeds when brew is installed at a Homebrew prefix but is not on PATH.
+welcome:brew-off-path() {
+  ! command -v brew >/dev/null 2>&1 && toolchain:call brew prefixed >/dev/null
+}
+
+# welcome:brew-path prints the check that brew is on PATH, for brew installed at a prefix and left off it. Its fix is
+# the line that puts brew on PATH. A subshell cannot change the person's shell, so kit shows the line and never runs
+# it: runs is false.
+welcome:brew-path() {
+  local brew prefix
+  brew=$(toolchain:call brew prefixed) || return 0
+  prefix=${brew%/bin/brew}
+  welcome:record brew-path false "brew is installed at ${prefix} but not on your PATH" "eval \"\$(${brew} shellenv)\"" \
+    false "run it in your shell, and add it to your shell's profile so it holds in every shell" false
 }
 
 # welcome:forge-cli <host> prints the check that the host's forge tool, gh or glab, runs.
@@ -463,6 +483,7 @@ welcome:judge() {
     (tool-git) welcome:tool tool-git git "kit works through it" ;;
     (tool-jq) welcome:jq ;;
     (tool-yq) welcome:yq ;;
+    (brew-path) welcome:brew-path ;;
     (toolchain-project) welcome:toolchain project ;;
     (toolchain-system) welcome:toolchain system ;;
     (tool-lefthook) welcome:tool tool-lefthook lefthook "it runs the git hooks" ;;
@@ -557,6 +578,7 @@ welcome:left() {
   local rows
   rows=$(printf '%s\n' "$@" | jq --raw-output 'select(.ok | not)
     | "- \(.id): " + (if .fix then .fix + (if .more then "; " + .more else "" end)
+        + (if .runs == false then "; kit does not run it" else "" end)
       else "read " + (.more // "the line above") end)')
   printf '# What is left\n\n'
   if [[ -z "${rows}" ]]
@@ -593,7 +615,7 @@ welcome:page() {
 
 # welcome:fix <id> runs the fix of one check, with its output on the terminal, then judges the check again and prints
 # it as text. It returns 0 when the check now holds, 1 when it does not, and 2 for an id that names no check, a
-# check that holds already, or one kit knows no fix for.
+# check that holds already, one kit knows no fix for, or one whose fix kit only shows (runs is false).
 welcome:fix() {
   local id=$1 check fix more
   local -a command
@@ -614,6 +636,11 @@ welcome:fix() {
   then
     more=$(jq --raw-output '.more // ""' <<<"${check}")
     error "kit knows no fix for ${id}${more:+; read: ${more}}"
+    return 2
+  fi
+  if [[ "$(jq --raw-output .runs <<<"${check}")" == false ]]
+  then
+    error "${id}'s fix must run in your own shell, so kit does not run it; run it there: ${fix}"
     return 2
   fi
   step "${fix}"

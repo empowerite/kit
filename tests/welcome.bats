@@ -77,10 +77,10 @@ ambient-system() {
   "${kit_root}/bin/kit" toolchains choose ambient --system >/dev/null 2>&1
 }
 
-@test "the checks are a JSON array of {id, step, ok, line, fix, interactive, more}, in order, each id once" {
+@test "the checks are a JSON array of {id, step, ok, line, fix, interactive, more, runs}, in order, each id once" {
   run --separate-stderr checks
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "step"]] | all' \
+  [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "runs", "step"]] | all' \
     <<<"$output")" = true ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
   # what kit needs, then the toolchains, then the repository, then where you are; no kit.yml here, so no check of
@@ -105,6 +105,41 @@ ambient-system() {
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Before toolchains|✅ bash' '# Before toolchains|✅ git' \
     '# Before toolchains|✅ jq' '# Before toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
     '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ you')" ]
+}
+
+@test "welcome offers the shellenv line when brew is at a prefix but not on PATH, and shows no check otherwise" {
+  # on PATH: no check
+  run --separate-stderr check brew-path
+  [ -z "$output" ]
+  # off PATH, with none at a prefix: no check
+  rm "${fakes}/brew"
+  path-without brew
+  export KIT_BREW_PREFIXES="${BATS_TEST_TMPDIR}/opt/bin/brew"
+  run --separate-stderr check brew-path
+  [ -z "$output" ]
+  # off PATH, at a prefix: the check fails and names the line
+  mkdir -p "${BATS_TEST_TMPDIR}/opt/bin"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/opt/bin/brew"
+  chmod +x "${BATS_TEST_TMPDIR}/opt/bin/brew"
+  run --separate-stderr check brew-path
+  [ "$(jq --raw-output '[.step, .ok, .line, .fix, .interactive] | @tsv' <<<"$output")" = \
+    "$(printf 'before-toolchains\tfalse\tbrew is installed at %s/opt but not on your PATH\t' "${BATS_TEST_TMPDIR}"
+      printf 'eval "$(%s/opt/bin/brew shellenv)"\tfalse' "${BATS_TEST_TMPDIR}")" ]
+  [[ "$(jq --raw-output .more <<<"$output")" == *profile* ]]
+  # it comes right after yq, in the step before the toolchains
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | .[0:6] | join(" ")' <<<"$output")" = \
+    "tool-bash tool-git tool-jq tool-yq brew-path toolchain-project" ]
+  # --fix does not run it: kit cannot change the shell it was started from
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix brew-path
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"must run in your own shell"* ]]
+  # the check says so, and the guide names the line without offering to run it
+  run --separate-stderr check brew-path
+  [ "$(jq --raw-output .runs <<<"$output")" = false ]
+  [ "$(check tool-git | jq --raw-output .runs)" = true ]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [[ "$output" == *'- brew-path: eval "$('*"kit does not run it"* ]]
 }
 
 @test "welcome checks bash, git, jq, and yq before it looks for a toolchain" {
