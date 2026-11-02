@@ -95,6 +95,149 @@ probes() {
   [ "$(probes)" -eq 7 ]
 }
 
+# chosen [<role>] prints the toolchain toolchain:chosen gives for the role, project unless named.
+chosen() {
+  kit-bash "use toolchain && toolchain:chosen ${1:-project}"
+}
+
+# choose <provider> [<role>] records the provider for the role, project unless named.
+choose() {
+  kit-bash "use toolchain && toolchain:choose ${2:-project} $1"
+}
+
+@test "one usable toolchain is the one, none is ambient" {
+  run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = ambient ]
+  touch mise.toml
+  run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = mise ]
+  KIT_TOOLCHAIN=ambient run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = ambient ]
+}
+
+@test "an active toolchain is the one, and naming another for the run is refused" {
+  export MISE_SHELL=zsh
+  touch mise.toml Brewfile
+  run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = mise ]
+  run choose brew
+  [ "$status" -eq 0 ]
+  run chosen
+  [ "$output" = mise ]
+  KIT_TOOLCHAIN=mise run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = mise ]
+  KIT_TOOLCHAIN=brew run chosen
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"mise"*"active"* ]]
+  [ "$(grep --count --line-regexp brew <<<"$output")" -eq 0 ]
+}
+
+@test "a toolchain named for the run that is not usable here is refused, never replaced" {
+  touch mise.toml
+  KIT_TOOLCHAIN=brew run chosen
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"brew"* ]]
+  [ "$(grep --count --line-regexp -e mise -e brew -e ambient <<<"$output")" -eq 0 ]
+  KIT_TOOLCHAIN=nix run chosen
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nix"* ]]
+  [ "$(grep --count --line-regexp -e mise -e ambient <<<"$output")" -eq 0 ]
+}
+
+@test "with several usable and no terminal, kit refuses and lists each with the command that picks it" {
+  # setup() stands fakes in for mise and brew; with each one's file here, both are usable
+  touch mise.toml Brewfile
+  run chosen </dev/null
+  [ "$status" -eq 1 ]
+  grep --quiet 'kit toolchains choose mise' <<<"$output"
+  grep --quiet 'kit toolchains choose brew' <<<"$output"
+  [ ! -e .git/kit/toolchain ]
+}
+
+@test "a project choice made at the desk holds in a worktree while usable there; one made there stays there" {
+  touch mise.toml Brewfile
+  printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
+  git add mise.toml Brewfile toolchain.Dockerfile && git commit --quiet --message 'toolchains'
+  run choose mise
+  [ "$status" -eq 0 ]
+  [ "$(cat .git/kit/toolchain)" = mise ]
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
+  cd "${BATS_TEST_TMPDIR}/feature"
+  run chosen </dev/null
+  [ "$status" -eq 0 ]
+  [ "$output" = mise ]
+  rm mise.toml
+  run chosen </dev/null
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit toolchains choose brew"* ]]
+  [ "$(grep --count --line-regexp mise <<<"$output")" -eq 0 ]
+  run choose brew
+  [ "$status" -eq 0 ]
+  run chosen </dev/null
+  [ "$output" = brew ]
+  [ "$(cat .kit/cache/toolchain)" = brew ]
+  [ "$(cat "${repo}/.git/kit/toolchain")" = mise ]
+  cd "${repo}"
+  run chosen </dev/null
+  [ "$output" = mise ]
+}
+
+@test "a recorded toolchain that is no longer usable is not used" {
+  touch mise.toml Brewfile
+  run choose mise
+  [ "$status" -eq 0 ]
+  run chosen </dev/null
+  [ "$output" = mise ]
+  # mise is uninstalled: a stand-in that fails is first on PATH, ahead of the fake and any mise on the desk
+  PATH=$(shims mise)
+  export PATH
+  run chosen </dev/null
+  [ "$status" -eq 0 ]
+  [ "$output" = brew ]
+  run choose mise
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"mise"*"brew"* ]]
+  [ "$(cat .git/kit/toolchain)" = mise ]
+}
+
+@test "the system choice is kept in ~/.kit/settings.yml" {
+  KIT_HOME=$(mktemp -d)
+  export KIT_HOME
+  mkdir "${KIT_HOME}/.kit"
+  printf 'theme: dark\n' > "${KIT_HOME}/.kit/settings.yml"
+  run choose brew system
+  [ "$status" -eq 0 ]
+  [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
+  [ "$(yq .theme "${KIT_HOME}/.kit/settings.yml")" = dark ]
+  run kit-bash 'use toolchain && toolchain:recorded system'
+  [ "$output" = brew ]
+  run chosen system
+  [ "$output" = brew ]
+  # a toolchain named for the run is the project's, and leaves the system one as it is
+  KIT_TOOLCHAIN=ambient run chosen system
+  [ "$output" = brew ]
+  run choose mise system
+  [ "$status" -eq 1 ]
+  [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
+  [ ! -e .git/kit/toolchain ]
+}
+
+@test "a stale marker does not make a toolchain active" {
+  export MISE_SHELL=zsh
+  touch Brewfile
+  run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = brew ]
+  KIT_TOOLCHAIN=brew run chosen
+  [ "$status" -eq 0 ]
+  [ "$output" = brew ]
+}
+
 @test "a toolchains key in kit.yml is refused" {
   printf 'toolchains:\n  - provider: mise\n' > kit.yml
   run "${kit_root}/bin/kit" toolchains

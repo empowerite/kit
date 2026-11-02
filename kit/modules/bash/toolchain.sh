@@ -22,6 +22,12 @@
 # .kit/cache/toolchains.key, still matches: PATH, where each tool resolves, each file's modification time, and
 # each activation marker.
 #
+# toolchain:chosen gives the one toolchain for a role, or ambient for none. toolchain:choose records a choice:
+#
+#   - system: toolchain: <name> in ${KIT_HOME:-$HOME}/.kit/settings.yml
+#   - project, at the desk: <git common dir>/kit/toolchain, shared with every worktree of the clone
+#   - project, in a linked worktree: .kit/cache/toolchain, kept in that worktree alone
+#
 # Every provider implements the calls below, except where noted.
 #
 #   active                  succeeds when the run is inside the toolchain, and its file is here
@@ -118,11 +124,223 @@ toolchain:call() {
 # docker, then any other in toolchain:providers order. mise comes first, so its pinned tools shadow brew's unpinned
 # ones on PATH.
 toolchain:usable() {
-  toolchain:detect | awk -F '\t' -v role="$1" '
-    $2 == role && $3 == "yes" {
+  toolchain:detect | toolchain:ranked "$1" usable
+}
+
+# toolchain:ranked <role> (usable | active) reads toolchain:detect's lines on stdin. It prints the providers that
+# are usable for the role, or usable and active, one per line, in toolchain:usable's precedence order.
+toolchain:ranked() {
+  awk -F '\t' -v role="$1" -v active="$2" '
+    $2 == role && $3 == "yes" && (active != "active" || $4 == "yes") {
       rank = ($1 == "mise") ? 1 : ($1 == "brew") ? 2 : ($1 == "docker") ? 3 : 4
       print rank "\t" $1
     }' | sort -s -n -k 1,1 | cut -f 2
+}
+
+# toolchain:chosen <role> prints the toolchain for the role, project or system, or ambient for none. The first
+# that answers is the one:
+#
+#   1. a toolchain active here; naming another for the run is refused
+#   2. for the project, the one named for the run, by --toolchain or KIT_TOOLCHAIN; one not usable here is
+#      refused, never replaced
+#   3. the one recorded earlier, while it is still usable here
+#   4. the only usable one; none is ambient
+#   5. on a terminal, the person's answer, which is recorded
+#
+# Otherwise, with several usable and no terminal to ask, it refuses. The refusal lists each candidate with the
+# command that picks it. Every refusal returns 1.
+toolchain:chosen() {
+  local role=$1 named='' found active recorded answer
+  local -a usable
+  toolchain:role "${role}" || return 1
+  # The run names one toolchain, the project's: CI names its own, and the system one is found or chosen.
+  [[ "${role}" != project ]] || named=${KIT_TOOLCHAIN:-}
+  found=$(toolchain:detect) || return 1
+  active=$(toolchain:ranked "${role}" active <<<"${found}" | head -n 1)
+  readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
+  if [[ -n "${active}" ]]
+  then
+    if [[ -n "${named}" && "${named}" != "${active}" ]]
+    then
+      error "${active} is active here, so this run cannot use ${named}; leave ${active}'s shell, or name ${active}"
+      return 1
+    fi
+    printf '%s\n' "${active}"
+    return 0
+  fi
+  if [[ -n "${named}" ]]
+  then
+    if [[ "${named}" == ambient ]] || toolchain:among "${named}" "${usable[@]}"
+    then
+      printf '%s\n' "${named}"
+      return 0
+    fi
+    error "the toolchain named for this run, ${named}, is not usable for the ${role} here;" \
+      "usable: ${usable[*]:-none, so name ambient}"
+    return 1
+  fi
+  recorded=$(toolchain:recorded "${role}") || return 1
+  if [[ "${recorded}" == ambient ]] || { [[ -n "${recorded}" ]] && toolchain:among "${recorded}" "${usable[@]}"; }
+  then
+    printf '%s\n' "${recorded}"
+    return 0
+  fi
+  case "${#usable[@]}" in
+    (0) printf 'ambient\n'; return 0 ;;
+    (1) printf '%s\n' "${usable[0]}"; return 0 ;;
+    (*) ;;
+  esac
+  if [[ -t 0 && -t 2 ]]
+  then
+    answer=$(toolchain:ask "${role}" "${usable[@]}") || return 1
+    toolchain:choose "${role}" "${answer}" || return 1
+    info "kit keeps ${answer} for the ${role}; change it with: kit toolchains choose <name>$(toolchain:flag "${role}")"
+    printf '%s\n' "${answer}"
+    return 0
+  fi
+  toolchain:refuse "${role}" "${usable[@]}"
+  return 1
+}
+
+# toolchain:ask <role> <candidate>… asks on the terminal which candidate to use for the role, and prints it. It
+# asks again after an answer it cannot read, and fails when the input ends.
+toolchain:ask() {
+  local role=$1 answer i
+  shift
+  {
+    case "${role}" in
+      (system) printf 'Several toolchains can supply what kit runs on: bash, git, jq, and yq.\n' ;;
+      (*) printf 'Several toolchains can install the tools this repository pins.\n' ;;
+    esac
+    printf 'Which one should kit use?\n'
+    for (( i = 1; i <= $#; i++ ))
+    do
+      printf '  %d) %s\n' "${i}" "${!i}"
+    done
+  } >&2
+  while true
+  do
+    printf 'Type a number from 1 to %d, then Enter: ' "$#" >&2
+    if ! IFS= read -r answer
+    then
+      printf '\n' >&2
+      error "no toolchain was chosen"
+      return 1
+    fi
+    if [[ "${answer}" =~ ^[0-9]+$ ]] && (( 10#${answer} >= 1 && 10#${answer} <= $# ))
+    then
+      printf '%s\n' "${@:10#${answer}:1}"
+      return 0
+    fi
+    if toolchain:among "${answer}" "$@"
+    then
+      printf '%s\n' "${answer}"
+      return 0
+    fi
+  done
+}
+
+# toolchain:refuse <role> <candidate>… says that several toolchains are usable for the role and none can be asked
+# for, and lists each candidate with the command that picks it.
+toolchain:refuse() {
+  local role=$1 candidate
+  shift
+  error "several toolchains are usable for the ${role} here, and there is no terminal to ask which; choose one:"
+  for candidate in "$@"
+  do
+    printf '    with %s: kit toolchains choose %s%s\n' "${candidate}" "${candidate}" "$(toolchain:flag "${role}")" >&2
+  done
+  printf '  or name one for a single run: KIT_TOOLCHAIN=<name>\n' >&2
+}
+
+# toolchain:choose <role> <provider> records the provider as the role's choice, or ambient for none. It fails,
+# naming the usable ones, when the provider is not usable for the role here.
+#
+#   - system: toolchain: <provider> in ${KIT_HOME:-$HOME}/.kit/settings.yml, written with yq
+#   - project, at the desk: <git common dir>/kit/toolchain, which every worktree of the clone reads
+#   - project, in a linked worktree: .kit/cache/toolchain, which only that worktree reads
+toolchain:choose() {
+  local role=$1 provider=$2 settings
+  local -a usable
+  toolchain:role "${role}" || return 1
+  readarray -t usable < <(toolchain:usable "${role}")
+  if [[ "${provider}" != ambient ]] && ! toolchain:among "${provider}" "${usable[@]}"
+  then
+    error "${provider} is not usable for the ${role} here; usable: ${usable[*]:-none, so choose ambient}"
+    return 1
+  fi
+  case "${role}" in
+    (system)
+      settings="$(toolchain:settings)"
+      if [[ -f "${settings}" ]]
+      then
+        kit_toolchain=${provider} file:replace "${settings}" yq '.toolchain = strenv(kit_toolchain)' "${settings}"
+      else
+        kit_toolchain=${provider} file:replace "${settings}" yq --null-input '.toolchain = strenv(kit_toolchain)'
+      fi
+      ;;
+    (project)
+      file:replace "$(toolchain:kept)" printf '%s\n' "${provider}"
+      ;;
+  esac
+}
+
+# toolchain:recorded <role> prints the choice recorded for the role, or nothing. A linked worktree reads its own
+# choice first, then the clone's.
+toolchain:recorded() {
+  local role=$1 kept common
+  toolchain:role "${role}" || return 1
+  if [[ "${role}" == system ]]
+  then
+    use yaml || return 1
+    yaml:value "$(toolchain:settings)" toolchain
+    return
+  fi
+  common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
+  kept=$(toolchain:kept) || return 1
+  [[ "${kept}" == "${common}/kit/toolchain" || ! -s "${kept}" ]] || { head -n 1 "${kept}"; return 0; }
+  [[ ! -s "${common}/kit/toolchain" ]] || head -n 1 "${common}/kit/toolchain"
+}
+
+# toolchain:kept prints the file that keeps the project choice made here: <git common dir>/kit/toolchain at the
+# desk, where git rev-parse --show-toplevel is git:main-root, and .kit/cache/toolchain in a linked worktree.
+toolchain:kept() {
+  local top common
+  use git || return 1
+  top=$(git rev-parse --show-toplevel) || return 1
+  common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
+  if [[ "${top}" == "$(git:main-root)" ]]
+  then printf '%s/kit/toolchain\n' "${common}"
+  else printf '%s/.kit/cache/toolchain\n' "${top}"
+  fi
+}
+
+# toolchain:settings prints the file that keeps the system choice: ~/.kit/settings.yml, under KIT_HOME when set.
+toolchain:settings() {
+  printf '%s/.kit/settings.yml\n' "${KIT_HOME:-${HOME}}"
+}
+
+# toolchain:role <role> succeeds for project and system, and otherwise fails, saying so.
+toolchain:role() {
+  [[ "$1" == project || "$1" == system ]] && return 0
+  error "no such toolchain role: $1; the roles are project and system"
+  return 1
+}
+
+# toolchain:flag <role> prints what kit toolchains choose adds for the role: --system for system, else nothing.
+toolchain:flag() {
+  [[ "$1" != system ]] || printf ' --system'
+}
+
+# toolchain:among <name> <candidate>… succeeds when the name is one of the candidates.
+toolchain:among() {
+  local name=$1 candidate
+  shift
+  for candidate in "$@"
+  do
+    [[ "${candidate}" == "${name}" ]] && return 0
+  done
+  return 1
 }
 
 # toolchain:path prints the directories that every toolchain usable for the project puts first on PATH, in
