@@ -31,14 +31,20 @@ toolchain/docker:install() {
 }
 
 toolchain/docker:outdated() {
-  local base pinned latest
+  local base pinned latest status=0
   toolchain/docker:require || return 1
   while IFS=$'\t' read -r base pinned
   do
     [[ -n "${base}" ]] || continue
-    latest=$(toolchain/docker:latest "${base}") || { warn "${base}: the registry did not answer"; continue; }
+    if ! latest=$(toolchain/docker:latest "${base}")
+    then
+      error "${base}: the registry did not answer"
+      status=1
+      continue
+    fi
     [[ "${latest}" == "${pinned}" ]] || printf '%s\t%s\t%s\n' "${base}" "${pinned:-unpinned}" "${latest}"
   done < <(toolchain/docker:bases)
+  return "${status}"
 }
 
 # The tools are in the image, so path prints nothing. A command reaches them through run.

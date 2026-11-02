@@ -100,7 +100,7 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | Command | What it does |
 | --- | --- |
 | `kit tools` | Lists each pinned tool, and whether it is installed. `--json` prints one object per tool. |
-| `kit tools --outdated` | Lists only the tools behind their latest version, with that version. This asks the network. `--check` fails when one is behind. |
+| `kit tools --outdated` | Lists only the tools behind their latest version, with that version. This asks the network. `--check` fails when one is behind. A source it cannot read is named, and the run fails. |
 | `kit tools install` | Installs the pinned tools: `mise install`, `brew bundle install --no-upgrade`, a `docker build` of the image, or `devcontainer up`. The image is tagged by the file's digest, so an unchanged file is never rebuilt. |
 | `kit tools update` | Moves every tool to its latest version, and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, new `FROM` digests, or `devcontainer upgrade`. Commit the files it rewrote. |
 | `kit tools path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |

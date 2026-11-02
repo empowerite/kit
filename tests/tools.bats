@@ -227,7 +227,7 @@ JSON
   [[ "$output" == *"the dev shell sets no PATH; see: nix print-dev-env"* ]]
 }
 
-@test "nix outdated skips a non-flake input, keeps dir, and reports an unreadable input without stopping" {
+@test "nix outdated skips a non-flake input, keeps dir, and reports an unreadable input without stopping, failing" {
   printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
   fixture features.txt <<<'nix-command flakes'
   fixture lock.json <<'JSON'
@@ -246,10 +246,19 @@ JSON
   route nix 'flake metadata --json github:o/gone' '!1'
   route nix 'flake metadata --json github:NixOS/nixpkgs' meta-nixpkgs.json
   run "${kit_root}/bin/kit" tools --outdated
-  echo "$output" >&2;   [[ "$output" == *"nix could not read github:o/gone, the source of gone"* ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nix could not read github:o/gone, the source of gone"* ]]
   grep --quiet -E '^🔺 mono +· 2222222 +· 2222222 +· 5555555$' <<<"$output"
   grep --quiet -E '^🔺 nixpkgs +· 4444444 +· 4444444 +· 6666666$' <<<"$output"
+  [[ "$output" == *"nix: could not tell whether every tool is behind; see above"* ]]
   [ -z "$(grep 'github:o/src' "${FAKE_DIR}/nix.calls")" ]
+  # with every readable input at its lock, the unreadable one still fails --check, never passes it
+  fixture meta-mono.json <<<'{"locked": {"rev": "2222222aaaa"}}'
+  fixture meta-nixpkgs.json <<<'{"locked": {"rev": "4444444aaaa"}}'
+  run "${kit_root}/bin/kit" tools --outdated --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nix could not read github:o/gone, the source of gone"* ]]
+  [[ "$output" != *"at its latest"* ]]
 }
 
 @test "brew installs from the Brewfile without upgrading, and reports and moves only the Brewfile's tools" {

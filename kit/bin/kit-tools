@@ -24,6 +24,8 @@
 #   run <command>…      runs the command with the tools, or in their container
 #   <command>…          the command and its arguments, as typed, dash-words included
 #
+# With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
+#
 # Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
 # has name and path.
 #
@@ -233,7 +235,9 @@ while IFS=$'\x1f' read -r name pinned installed
 do
   [[ -z "${name}" ]] || { pinned_of[${name}]=${pinned}; installed_of[${name}]=${installed}; }
 done <<<"${pins//$'\t'/$'\x1f'}"
-outdated=$(toolchain:call "${chosen}" outdated) || { error "${chosen}: could not tell which tools are behind"; exit 1; }
+# A provider that cannot read a source prints what it could and fails; the rows it read are still shown.
+failed=false
+outdated=$(toolchain:call "${chosen}" outdated) || failed=true
 rows='' behind=0
 while IFS=$'\x1f' read -r name installed latest
 do
@@ -251,7 +255,11 @@ do
   fi
 done <<<"${outdated//$'\t'/$'\x1f'}"
 [[ "${json}" == true ]] || [[ -z "${rows}" ]] || printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'
-if (( behind == 0 ))
+if [[ "${failed}" == true ]]
+then
+  error "${chosen}: could not tell whether every tool is behind; see above"
+  exit 1
+elif (( behind == 0 ))
 then
   ok "every tool ${chosen} pins is at its latest"
 elif [[ -n "${syntax_options[--check]+x}" ]]

@@ -34,7 +34,8 @@
 #   file                    the file it reads, relative to the repository root
 #   inputs                  what its answers depend on, one per line: file, env, or tool, a tab, then the name
 #   install                 installs every pinned tool, from the file and its lock
-#   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"
+#   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"; when it
+#                           cannot read a source, it says which, prints the rest, and fails
 #   path                    the directories to put first on PATH for its tools, one per line
 #   pins                    one line per pinned unit, "<name>\t<pinned>\t<installed>"; never reaches the network
 #   require                 succeeds when its own tool is present; otherwise fails with a remedy
