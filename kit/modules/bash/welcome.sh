@@ -21,8 +21,8 @@
 #   - before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain; then, only where
 #     brew is installed at a Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs
 #   - toolchains: one check per role, project then system
-#   - setup, tools: lefthook when hooks/lefthook is active; then each linter the active packages' rules and styles
-#     name under lint:
+#   - setup, tools: lefthook when hooks/lefthook is active; then each dependency provider whose manifest is here,
+#     installed from its lock; then each linter the active packages' rules and styles name under lint:
 #   - setup, forges: for each distinct forge host among the remotes, its tool installed, then logged in to that host
 #   - setup, this repository: a git repository; then, where it is one, kit installed; then, where kit is, .kit/
 #     hydrated, the git hooks installed when hooks/lefthook is active, and kit check clean
@@ -46,7 +46,7 @@
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
-use settings forge materialize render place toolchain
+use settings forge materialize render place toolchain dependencies
 
 # welcome_ids holds the checks' ids, in order, and the maps beside it what judging one needs: the rule that names
 # each linter, and the forge of each host. welcome:plan fills them.
@@ -125,11 +125,13 @@ welcome:remedy() {
 welcome:toolchain-has() {
   local project dir
   project=$(welcome:chosen project)
-  [[ -n "${project}" && "${project}" != ambient ]] || return 1
   while IFS= read -r dir
   do
     [[ -n "${dir}" && -x "${dir}/$1" ]] && return 0
-  done < <(toolchain:call "${project}" path 2>/dev/null)
+  done < <(
+    [[ -z "${project}" || "${project}" == ambient ]] || toolchain:call "${project}" path 2>/dev/null
+    dependencies:path 2>/dev/null
+  )
   return 1
 }
 
@@ -229,6 +231,31 @@ welcome:toolchain() {
       fi
       ;;
   esac
+}
+
+# welcome:dependencies <provider> prints the check of a dependency provider whose manifest is here. It holds when
+# every package its lock pins is installed. Its fix is kit tools install. A manifest without its lock, or a provider
+# whose tool is not on PATH, has no fix kit can run.
+welcome:dependencies() {
+  local provider=$1 file lock
+  file=$(dependencies:call "${provider}" file)
+  lock=$(dependencies:call "${provider}" lock)
+  if [[ ! -f "${lock}" ]]
+  then
+    welcome:record "dependencies-${provider}" false \
+      "${file} is here without ${lock}, so ${provider} pins nothing; write the lock with ${provider}, and commit it" \
+      '' false "${welcome_toolchains_doc}"
+  elif ! dependencies:usable | grep --quiet --line-regexp --fixed-strings -- "${provider}"
+  then
+    welcome:record "dependencies-${provider}" false "${lock} is here, but ${provider} is not on PATH" '' false \
+      "${welcome_toolchains_doc}"
+  elif dependencies:installed "${provider}"
+  then
+    welcome:record "dependencies-${provider}" true "${provider} installed every package ${lock} pins"
+  else
+    welcome:record "dependencies-${provider}" false "${provider} has not installed every package ${lock} pins" \
+      'kit tools install'
+  fi
 }
 
 # welcome:version <tool> prints the first line the tool prints for --version, and fails when it does not run: a
@@ -362,7 +389,7 @@ welcome:hooks-active() {
 # welcome:plan fills welcome_ids with the checks to run, in order, and the maps that judging them needs, the
 # toolchains among them.
 welcome:plan() {
-  local linter rule forge host
+  local linter rule forge host provider
   welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_linter_rule=() welcome_host_forge=()
   ! welcome:brew-off-path || welcome_ids+=(brew-path)
   welcome_ids+=(toolchain-project toolchain-system)
@@ -371,6 +398,10 @@ welcome:plan() {
   if welcome:repository && welcome:installed
   then
     ! welcome:hooks-active || welcome_ids+=(tool-lefthook)
+    for provider in $(dependencies:providers)
+    do
+      [[ ! -f "$(dependencies:call "${provider}" file)" ]] || welcome_ids+=("dependencies-${provider}")
+    done
     while IFS=$'\t' read -r linter rule
     do
       welcome_ids+=("linter-${linter##*/}")
@@ -487,6 +518,7 @@ welcome:judge() {
     (toolchain-project) welcome:toolchain project ;;
     (toolchain-system) welcome:toolchain system ;;
     (tool-lefthook) welcome:tool tool-lefthook lefthook "it runs the git hooks" ;;
+    (dependencies-*) welcome:dependencies "${id#dependencies-}" ;;
     (linter-*)
       welcome:tool "${id}" "${id#linter-}" "kit lint runs it for ${welcome_linter_rule[${id#linter-}]}" \
         "${welcome_linter_rule[${id#linter-}]}"

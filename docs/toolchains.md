@@ -5,7 +5,8 @@ manager. It pins the tools the gate runs, the gate being the repository's own CI
 
 - kit finds the toolchains where it runs. `kit.yml` never names one, because it is shared by everyone who clones.
 - `kit toolchains` lists what kit found, and records which one to use.
-- `kit tools` lists, installs, and updates what the chosen toolchain pins, and runs commands with it.
+- `kit tools` lists, installs, and updates what the chosen toolchain pins, and runs commands with it. It does
+  the same for the packages npm or uv pins on top.
 
 ```sh
 kit toolchains
@@ -134,6 +135,29 @@ found on `PATH`, or `missing`.
   naming each missing tool, with the system toolchain's command that installs it.
 - `kit tools update` refuses: there is nothing pinned to update. `kit tools --outdated` finds none behind.
 - `kit tools path` prints nothing, and `kit tools run` runs the command as is.
+
+## Dependencies
+
+A toolchain pins tools, node and python among them. A language's package manager pins that language's packages on
+top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider, in
+`kit/modules/bash/dependencies/<name>.sh`.
+
+| Provider | Usable when | Installs with | Puts on `PATH` | Pins |
+| --- | --- | --- | --- | --- |
+| `npm` | `npm` is on `PATH`, and `package.json` and `package-lock.json` are here | `npm ci` | `node_modules/.bin` | what `package.json` names, at the lock's versions |
+| `uv` | `uv` is on `PATH`, and `pyproject.toml` and `uv.lock` are here | `uv sync --frozen` | `.venv/bin` | every package in the lock but the project |
+
+- A run uses one toolchain, but every usable dependency provider.
+- A provider is looked for with the toolchain's directories first on `PATH`, so a node the toolchain pins counts.
+- The lock is required. A manifest without its lock pins nothing, so it is not usable. `kit welcome` names it.
+- Only the manifest at the repository root counts. Workspaces are not read yet.
+- `kit tools` acts on the toolchain first, then each provider: it lists, installs, updates, and asks what is behind.
+  With several, each table is headed by the name of what it lists. A JSON row's `from` names it.
+- `kit tools path`, `kit tools run`, and `kit gate` put the toolchain's directories first, then the providers'.
+- `kit tools --outdated` asks `npm outdated` and `uv pip list --outdated`. `kit tools update` installs each npm
+  package behind at its latest, and runs `uv lock --upgrade`, which stays within `pyproject.toml`'s bounds.
+- `kit welcome` checks each provider whose manifest is here, at setup. Its fix is `kit tools install`.
+- uv's lock is TOML, which kit reads with yq.
 
 ## The gate
 

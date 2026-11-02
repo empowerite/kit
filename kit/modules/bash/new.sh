@@ -551,7 +551,7 @@ new:provider() {
   use:load-path || return 1
   if [[ -z "$(use:find "${seam}")" ]]
   then
-    error "no seam ${seam} on the module path; the seams are forge, policy, toolchain, and tracker"
+    error "no seam ${seam} on the module path; the seams are dependencies, forge, policy, toolchain, and tracker"
     return 2
   fi
   readarray -t calls < <(new:seam-calls "${seam}")

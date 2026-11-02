@@ -38,7 +38,7 @@ JSON
   run "${kit_root}/bin/kit" tools --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --slurp . <<<"$output")" \
-    = '[{"name":"jq","pinned":"1.8","installed":"1.8.0"},{"name":"just","pinned":"1.40","installed":null}]' ]
+    = '[{"name":"jq","pinned":"1.8","installed":"1.8.0","from":"mise"},{"name":"just","pinned":"1.40","installed":null,"from":"mise"}]' ]
   [ -z "$(reached)" ]
 }
 
@@ -57,7 +57,7 @@ JSON
   [ "$status" -eq 1 ]
   [[ "$output" == *"1 tool(s) are behind; run: kit tools update"* ]]
   run "${kit_root}/bin/kit" tools --outdated --json
-  [ "$(jq --compact-output . <<<"$output")" = '{"name":"jq","pinned":"1.8","installed":"1.8.0","latest":"1.8.1"}' ]
+  [ "$(jq --compact-output . <<<"$output")" = '{"name":"jq","pinned":"1.8","installed":"1.8.0","latest":"1.8.1","from":"mise"}' ]
   run "${kit_root}/bin/kit" tools --check
   [ "$status" -eq 2 ]
 }
@@ -80,7 +80,7 @@ JSON
   run "${kit_root}/bin/kit" tools --json
   [ "$(jq --compact-output --slurp 'sort_by(.name) | map([.name, .path])' <<<"$output")" \
     = "[[\"kit-test-absent-linter\",null],[\"shellcheck\",\"${FAKE_DIR}/bin/shellcheck\"]]" ]
-  [ "$(jq --compact-output --slurp 'map(keys_unsorted) | unique' <<<"$output")" = '[["name","path"]]' ]
+  [ "$(jq --compact-output --slurp 'map(keys_unsorted) | unique' <<<"$output")" = '[["name","path","from"]]' ]
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 1 ]
   # each missing tool comes with the system toolchain's command that installs it, or else its name alone

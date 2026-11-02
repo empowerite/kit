@@ -5,6 +5,8 @@ kind:
   - bash
 lint: shellcheck --shell=bash --external-sources
 templates:
+  - variant: dependencies-provider
+    path: "**/dependencies/*.sh"
   - variant: forge-provider
     path: "**/forge/*.sh"
   - variant: policy-provider

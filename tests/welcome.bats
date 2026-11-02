@@ -188,6 +188,49 @@ ambient-system() {
   [ "$(jq --raw-output '[.fix, .runs] | @tsv' <<<"$output")" = "${sudo}apt-get install shellcheck"$'\ttrue' ]
 }
 
+@test "welcome checks each dependency provider whose manifest is here: its lock, its tool, and what is installed" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  printf '{"devDependencies": {"left-pad": "^1.3.0"}}\n' > package.json
+  fake-script npm 'exit 1'
+  # a manifest without its lock pins nothing, and kit can run no fix
+  run --separate-stderr check dependencies-npm
+  [ "$(jq --raw-output '[.step, .ok, .fix] | @tsv' <<<"$output")" = $'setup\tfalse\t' ]
+  [[ "$(jq --raw-output .line <<<"$output")" == "package.json is here without package-lock.json"* ]]
+  printf '{"packages": {"node_modules/left-pad": {"version": "1.3.0"}}}\n' > package-lock.json
+  # locked, but not installed: kit tools install fixes it
+  run --separate-stderr check dependencies-npm
+  [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
+    $'false\tnpm has not installed every package package-lock.json pins\tkit tools install' ]
+  mkdir -p node_modules
+  cp package-lock.json node_modules/.package-lock.json
+  run --separate-stderr check dependencies-npm
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = $'true\tnpm installed every package package-lock.json pins' ]
+  # with no npm on PATH, kit names that
+  rm "${fakes}/npm"
+  path-without npm
+  run --separate-stderr check dependencies-npm
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = $'false\tpackage-lock.json is here, but npm is not on PATH' ]
+  # the check comes before the linters, and there is none for uv, whose manifest is not here
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | (index("dependencies-npm") < (map(startswith("linter-")) | index(true)))' \
+    <<<"$output")" = true ]
+  [ "$(jq --raw-output 'map(.id) | index("dependencies-uv")' <<<"$output")" = null ]
+}
+
+@test "welcome says a linter npm installed is off PATH, not missing, and names kit tools path" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  printf '{"devDependencies": {"shellcheck": "^0.1.0"}}\n' > package.json
+  printf '{"packages": {}}\n' > package-lock.json
+  fake-script npm 'exit 1'
+  # the shellcheck on PATH does not run, as a missing one
+  fake-script shellcheck 'exit 1'
+  mkdir -p node_modules/.bin
+  printf '#!/bin/sh\n' > node_modules/.bin/shellcheck && chmod +x node_modules/.bin/shellcheck
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
+    $'false\tshellcheck is installed, but not on PATH; kit tools path names its directory' ]
+}
+
 @test "welcome fixes a missing tool with kit tools install, or the system toolchain's command when ambient" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   fake-script shellcheck 'exit 1'

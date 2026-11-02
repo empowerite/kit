@@ -380,36 +380,36 @@ toolchain:among() {
   return 1
 }
 
-# toolchain:path prints the directories the chosen project toolchain puts first on PATH, one per line. Ambient, it
-# prints nothing.
+# toolchain:path prints the directories to put first on PATH, one per line: the chosen project toolchain's, then each
+# usable dependency provider's, as node_modules/.bin. Ambient, only the providers'.
 toolchain:path() {
-  local chosen
+  local chosen dirs=''
   chosen=$(toolchain:chosen project) || return 1
-  [[ "${chosen}" != ambient ]] || return 0
-  toolchain:call "${chosen}" path
+  [[ "${chosen}" == ambient ]] || dirs=$(toolchain:call "${chosen}" path) || return 1
+  [[ -z "${dirs}" ]] || printf '%s\n' "${dirs}"
+  use dependencies || return 1
+  dependencies:path "$(paste -s -d ':' - <<<"${dirs}")"
 }
 
 # toolchain:run <command>… runs the command with the chosen project toolchain's tools:
 #
 #   - through the provider's run, where it has one and is not active, as docker does to run in its container; a
 #     provider that is active is already inside its container, so the command runs there as is
-#   - otherwise, with the provider's path first on PATH
-#   - ambient, as is
+#   - otherwise, with toolchain:path first on PATH: the provider's directories, then the dependencies'
+#   - ambient, with the dependencies' directories first
 toolchain:run() {
   local chosen dirs
   chosen=$(toolchain:chosen project) || return 1
-  if [[ "${chosen}" == ambient ]]
+  if [[ "${chosen}" != ambient ]]
   then
-    "$@"
-    return
+    use "toolchain/${chosen}" || return 1
+    if declare -F "toolchain/${chosen}:run" >/dev/null && ! toolchain:call "${chosen}" active
+    then
+      toolchain:call "${chosen}" run "$@"
+      return
+    fi
   fi
-  use "toolchain/${chosen}" || return 1
-  if declare -F "toolchain/${chosen}:run" >/dev/null && ! toolchain:call "${chosen}" active
-  then
-    toolchain:call "${chosen}" run "$@"
-    return
-  fi
-  dirs=$(toolchain:call "${chosen}" path | paste -s -d ':' -) || return 1
+  dirs=$(toolchain:path | paste -s -d ':' -) || return 1
   PATH="${dirs:+${dirs}:}${PATH}" "$@"
 }
 
