@@ -174,7 +174,13 @@ commit:judge() {
   jq --arg branch "${branch}" --arg subject "${subject}" \
     '.branch = $branch | .commits = [{sha: "0000000", subject: $subject}]' "${work}/facts" > "${work}/input" \
     || { rm -rf "${work}"; return 1; }
-  refusals=$(policy:deny "${work}/input")
+  # An engine that cannot judge refuses the commit: unjudged is never allowed.
+  if ! refusals=$(policy:deny "${work}/input")
+  then
+    rm -rf "${work}"
+    error "the commit is refused: the policy could not be judged"
+    return 1
+  fi
   rm -rf "${work}"
   [[ -n "${refusals}" ]] || return 0
   while IFS= read -r line

@@ -233,6 +233,23 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$(git status --porcelain -- other.md)" = "A  other.md" ]
 }
 
+@test "a policy the engine cannot evaluate refuses the commit, naming the engine's error" {
+  opa-rule 'deny contains "never" if {'
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file' x
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"opa could not evaluate .kit/policy"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "a named path deleted from the disk is committed as a deletion" {
+  # notes.txt is in HEAD from the start commit
+  rm notes.txt
+  run kit commit --message '#1 a: b' notes.txt
+  [ "$status" -eq 0 ]
+  [ -z "$(git ls-tree HEAD -- notes.txt)" ]
+}
+
 @test "a file rule refuses the commit at the commit moment" {
   opa-rule 'deny contains sprintf("%s is not executable", [path]) if {
   input.moment == "commit"

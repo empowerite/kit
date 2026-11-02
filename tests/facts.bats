@@ -104,8 +104,11 @@ commit-all() {
   [ "$("${kit_root}/bin/kit" facts)" = "$("${kit_root}/bin/kit" policy --input)" ]
 }
 
-@test "kit facts --moment=push is refused, naming the moments" {
+@test "kit facts --moment=push is refused, and the moments are its choices" {
   run "${kit_root}/bin/kit" facts --moment=push
   [ "${status}" -eq 2 ]
-  [[ "${output}" == *"the moments: commit, ci"* ]]
+  [[ "${output}" == *"--moment 'push' is not one of the choices"* ]]
+  run "${kit_root}/bin/kit" syntax facts --choices --moment
+  [ "${status}" -eq 0 ]
+  [ "$(cut -f 1 <<<"${output}" | tr '\n' ' ')" = "commit ci " ]
 }

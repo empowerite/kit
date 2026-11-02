@@ -32,6 +32,18 @@ use context git policy
 # The moments a document can be for.
 declare -gra facts_moments=(commit ci)
 
+# facts:choices <key> [<answer>…] answers kit syntax --choices for kit facts' --moment: a closed set, the moments.
+facts:choices() {
+  [[ "$1" == --moment ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'closed\n'
+    return 0
+  fi
+  printf '%s\t%s\t\t\n' commit 'the tree the commit will make, as kit commit judges it' \
+    ci 'HEAD, the commits, and the change, as kit policy judges them'
+}
+
 # facts:document <moment> [<tree-ish>] prints the document described in the file header. At ci, the tree is read from
 # the tree-ish, HEAD by default, and is empty while HEAD has no commit. When the fork point is missing, as in a
 # shallow clone, it warns and omits the commits instead of guessing. The change is read from the forge (GitHub or
