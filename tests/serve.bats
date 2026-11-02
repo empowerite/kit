@@ -37,7 +37,7 @@ call() {
   local id=$1 tool=$2
   shift 2
   modern "${id}" tools/call "$(jq --null-input --compact-output --arg name "${tool}" \
-    '{name: $name, arguments: {args: $ARGS.positional}}' --args "$@")"
+    '{name: $name, arguments: {args: $ARGS.positional}}' --args -- "$@")"
 }
 
 @test "an initialize opens a session of the revision the client asks for; a notification gets no answer, and ping does" {
@@ -103,6 +103,39 @@ call() {
   answer 2 | jq --exit-status '.result | .isError and (.content[0].text | contains("SC2086"))
     and (.content[0].text | contains("kit lint exited with status 1"))'
   answer 3 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("kit"))'
+}
+
+@test "packages, toolchains, and tools are offered as listings only; an action is refused before its verb runs" {
+  fake-tools mise
+  route mise '--version' '!0'
+  fixture ls.json <<<'{"jq": [{"version": "1.8.0", "requested_version": "1.8", "installed": true}]}'
+  route mise 'ls --json --current' ls.json
+  touch mise.toml
+  local before
+  before=$(cksum kit.yml)
+  serve "$(call 1 packages add style/yaml)" "$(call 2 packages remove kit)" "$(call 3 packages select kit)" \
+    "$(call 4 toolchains choose mise)" "$(call 5 tools install)" "$(call 6 tools update)" "$(call 7 tools path)" \
+    "$(call 8 tools run touch ran)" "$(call 9 tools --outdated)" "$(call 10 tools --toolchain mise --outdated=)" \
+    "$(call 11 tools)" "$(call 12 toolchains)" "$(call 13 packages)"
+  for id in 1 2 3
+  do
+    answer "${id}" | jq --exit-status '.result | .isError and (.content[0].text
+      | contains("kit serve offers kit packages as a listing only; run it in a terminal to") and contains("status 2"))'
+  done
+  answer 4 | jq --exit-status '.result | .isError
+    and (.content[0].text | contains("kit serve offers kit toolchains as a listing only"))'
+  for id in 5 6 7 8 9 10
+  do
+    answer "${id}" | jq --exit-status '.result | .isError
+      and (.content[0].text | contains("kit serve offers kit tools as a listing only"))'
+  done
+  # nothing ran: kit.yml, the choice, and the command's file are as they were, and mise was only asked to list
+  [ "$(cksum kit.yml)" = "${before}" ]
+  [ ! -e .git/kit/toolchain ] && [ ! -e ran ]
+  if grep -E 'install|upgrade|outdated|bin-paths' "${FAKE_DIR}/mise.calls"; then false; fi
+  answer 11 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("jq"))'
+  answer 12 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("mise"))'
+  answer 13 | jq --exit-status '.result.isError == false'
 }
 
 @test "a verb reads end of file on stdin, so the requests after it reach the server, and nothing but answers reach stdout" {

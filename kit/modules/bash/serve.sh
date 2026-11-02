@@ -33,6 +33,21 @@ declare -gra serve_tools=(check context help kinds lint packages status syntax t
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(status)
 
+# The tools offered as a listing only. A call whose args hold one of a tool's words would act, or reach the network,
+# so it is refused before the verb runs. Each word is a literal, or a flag, also refused as --flag=<value>.
+declare -grA serve_listing_only=(
+  [packages]='select add remove'
+  [toolchains]='choose'
+  [tools]='install update path run --outdated'
+)
+
+# What each listing-only tool's refused words do, as the refusal names it.
+declare -grA serve_listing_acts=(
+  [packages]='select, add, or remove packages'
+  [toolchains]='choose a toolchain'
+  [tools]='install, update, or run the tools, or ask which are outdated'
+)
+
 # serve_era is legacy once a client opens with initialize, and empty until then. serve_tool_list holds the tools/list
 # result's tools array once it is built.
 serve_era=''
@@ -211,9 +226,10 @@ serve:tool() {
 }
 
 # serve:tools-call <id> <params> runs the tool's verb with its args and answers with what it printed. A verb that
-# exits non-zero sets isError, and the text names its exit status.
+# exits non-zero sets isError, and the text names its exit status. A listing-only tool's action is refused with
+# status 2, and its verb never runs.
 serve:tools-call() {
-  local name status=0 out err
+  local name status=0 out err refusal
   local -a command args
   name=$(jq --raw-output '.name // "" | strings' <<<"$2")
   if ! serve:is-tool "${name}"
@@ -229,11 +245,17 @@ serve:tools-call() {
   readarray -d '' -t args < <(jq --raw-output0 '.arguments.args // [] | .[]' <<<"$2")
   command=("${name}")
   out=$(mktemp) err=$(mktemp)
-  (
-    export NO_COLOR=1
-    unset CLICOLOR_FORCE
-    run kit "${command[@]}" "${args[@]}"
-  ) </dev/null >"${out}" 2>"${err}" || status=$?
+  if refusal=$(serve:refused "${name}" "${args[@]}")
+  then
+    printf '%s\n' "${refusal}" >"${err}"
+    status=2
+  else
+    (
+      export NO_COLOR=1
+      unset CLICOLOR_FORCE
+      run kit "${command[@]}" "${args[@]}"
+    ) </dev/null >"${out}" 2>"${err}" || status=$?
+  fi
   serve:complete "$1" "$(jq --null-input --compact-output --rawfile out "${out}" --rawfile err "${err}" \
     --arg command "kit ${command[*]}" --argjson status "${status}" '{
       content: [{type: "text", text: (
@@ -243,6 +265,27 @@ serve:tools-call() {
       isError: ($status != 0)
     }')"
   rm -f "${out}" "${err}"
+}
+
+# serve:refused <tool> <arg>… prints the refusal and succeeds when the args hold a word the tool is not offered for.
+# Any arg counts, wherever it stands, so a word cannot slip past after another.
+serve:refused() {
+  local tool=$1 arg word
+  shift
+  [[ -n "${serve_listing_only[${tool}]+x}" ]] || return 1
+  for arg in "$@"
+  do
+    for word in ${serve_listing_only[${tool}]}
+    do
+      if [[ "${arg}" == "${word}" || ( "${word}" == --* && "${arg}" == "${word}="* ) ]]
+      then
+        printf 'kit serve offers kit %s as a listing only; run it in a terminal to %s\n' "${tool}" \
+          "${serve_listing_acts[${tool}]}"
+        return 0
+      fi
+    done
+  done
+  return 1
 }
 
 # serve:is-tool <name> is true when the server has a tool of that name.

@@ -35,6 +35,11 @@ The tools are the verbs that read and report, and change nothing:
   happens: `kit serve` hydrates `.kit/` when it starts, `context`, `kinds`, and `lint` hydrate before they read,
   and `context` appends to the context log.
 - `status` asks the forge over the network, and says so in its `openWorldHint`.
+- `packages`, `toolchains`, and `tools` are offered as listings only. A call whose `args` hold an action is refused
+  with status 2, and the verb never runs:
+  - `packages`: `select`, `add`, `remove`
+  - `toolchains`: `choose`
+  - `tools`: `install`, `update`, `path`, `run`, and `--outdated`, which reaches the network
 
 The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
 already editing, which the agent can do by itself.
