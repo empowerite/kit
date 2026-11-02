@@ -27,7 +27,7 @@ const (
 	stepKeys   = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc quit"
 	rowKeys    = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc back"
 	choiceKeys = "↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back"
-	showKeys   = "↑↓ move · ←→ step · esc back"
+	showKeys   = "↑↓ move · ←→ step · l later · esc back"
 	pageKeys   = "↑↓ scroll · ←→ step · esc quit"
 )
 

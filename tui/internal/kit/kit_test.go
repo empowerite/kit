@@ -218,7 +218,8 @@ func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
 	if err != nil || len(verbs) != 6 {
 		t.Fatalf("List: %v, %+v", err, verbs)
 	}
-	want := Verb{Name: "commit", Purpose: "commits what is staged, after the checks a commit's rule requires", Group: "workflow"}
+	want := Verb{Name: "commit", Purpose: "commits what is staged, after the checks a commit's rule requires",
+		Group: "workflow"}
 	if verbs[1] != want {
 		t.Errorf("verb 1: %+v", verbs[1])
 	}

@@ -22,10 +22,10 @@ const pagesDir = ".kit/welcome"
 const packageDir = "packages/kit/files/repo"
 
 // readPages gives the steps the pages make, as kit welcome --text finds them: every *.md under the repository's
-// .kit/welcome, as the active packages placed them, else under the kit package's, where nothing is placed yet. They
-// are in the order of the number each name starts with, as kit welcome --text puts them, so 10-ours.md comes after
-// 9-theirs.md; a name with no number comes last, and a tie goes by name. A page that cannot be read gives where it was looked for. When neither has a
-// page, the steps are the known ones, each saying where it was looked for.
+// .kit/welcome, as the active packages placed them, else under the kit package's, where nothing is placed yet. They are
+// in the order of the number each name starts with, as kit welcome --text puts them, so 10-ours.md comes after
+// 9-theirs.md; a name with no number comes last, and a tie goes by name. A page that cannot be read gives where it was
+// looked for. When neither has a page, the steps are the known ones, each saying where it was looked for.
 func readPages(r kit.Runner) []tab {
 	repo := ""
 	if out, err := exec.Command("git", "-C", r.Dir, "rev-parse", "--show-toplevel").Output(); err == nil {

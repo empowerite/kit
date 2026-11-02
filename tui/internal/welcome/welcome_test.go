@@ -93,7 +93,8 @@ func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
 	labels := strings.Split(view(m), "\n")[2]
-	for _, want := range []string{"└ 👋 intro  ", "└ 🧱 basics …", "└ 🧰 toolchains …", "└ 🔧 setup …",
+	for _, want := range []string{"└ 👋 intro  ", "└ 🧱 basics …", "└ 🧰 toolchains …",
+		"└ 🔧 setup …",
 		"└ 🧭 lay of the land  "} {
 		if !strings.Contains(labels, want) {
 			t.Errorf("no %q: %q", want, labels)
@@ -200,7 +201,8 @@ func TestLaterKeepsTheOtherToolchainsBesideTheFix(t *testing.T) {
 	if !m.deferred["toolchain-project"] {
 		t.Fatalf("deferred %v", m.deferred)
 	}
-	want := "\n   • several toolchains are usable for the project: mise, brew; choose one: kit toolchains choose mise\n" +
+	want := "\n   • several toolchains are usable for the project: mise, brew; " +
+		"choose one: kit toolchains choose mise\n" +
 		"     or: kit toolchains choose brew\n"
 	if got := view(m); !strings.Contains(got, want) {
 		t.Errorf("no %q:\n%s", want, got)
@@ -481,7 +483,8 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	// at 120 columns the eight do not fit in full: the others give up their names, the selected one keeps its own
-	if strings.Contains(labels, "└ 👋 intro") || !strings.Contains(labels, "└ 🧱 2") || strings.Contains(view(m), dotted) {
+	if strings.Contains(labels, "└ 👋 intro") || !strings.Contains(labels, "└ 🧱 2") ||
+		strings.Contains(view(m), dotted) {
 		t.Errorf("labels %q", labels)
 	}
 }
@@ -502,7 +505,8 @@ func TestThePagesAreInTheOrderKitWelcomeGives(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if idOf("45-deploys.md") != "deploys" || idOf("notes.md") != "notes" || tabOf("9-our-on-call.md").name != "our on call" {
+	if idOf("45-deploys.md") != "deploys" || idOf("notes.md") != "notes" ||
+		tabOf("9-our-on-call.md").name != "our on call" {
 		t.Errorf("ids")
 	}
 }
@@ -598,10 +602,14 @@ func TestAShowOnlyFixDrawsItsLinesAndNoChoices(t *testing.T) {
 			t.Errorf("no %q:\n%s", want, got)
 		}
 	}
-	for _, no := range []string{" now ", " later ", "n now", "l later"} {
+	// no choice of now or later on the row, and no way to run it; l still defers it, and the keys say so
+	for _, no := range []string{" now ", "n now", "⏎ choose"} {
 		if strings.Contains(got, no) {
 			t.Errorf("show-only row offers %q:\n%s", no, got)
 		}
+	}
+	if !strings.Contains(got, "l later") {
+		t.Errorf("the keys do not say l defers the row:\n%s", got)
 	}
 }
 
@@ -622,7 +630,8 @@ func TestLaterLeavesAShowOnlyFixWithANote(t *testing.T) {
 	if !m.deferred["brew-path"] || len(r.calls) != 0 {
 		t.Fatalf("deferred %v, ran %q", m.deferred, r.calls)
 	}
-	want := "   • brew is installed but not on PATH: eval \"$(/opt/homebrew/bin/brew shellenv)\" · kit does not run it\n"
+	want := "   • brew is installed but not on PATH: eval \"$(/opt/homebrew/bin/brew shellenv)\" · " +
+		"kit does not run it\n"
 	if got := view(m); !strings.Contains(got, want) {
 		t.Errorf("no %q:\n%s", want, got)
 	}

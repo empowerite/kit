@@ -191,7 +191,8 @@ func (r Runner) Extend(verb string, answers []string) ([]string, map[string]synt
 	return keys, arguments, nil
 }
 
-// Match judges a command line for the verb as the guard would, through kit syntax <verb> --match; the words follow a --.
+// Match judges a command line for the verb as the guard would, through kit syntax <verb> --match; the words follow
+// a --.
 func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
 	out, err := r.run(withAnswers([]string{"syntax", verb, "--match"}, words)...)
 	if err != nil {
