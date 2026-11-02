@@ -573,7 +573,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 func TestTheGoneBranchesAreOneRowThatOpensToEach(t *testing.T) {
 	m := loaded(t, options(), right, right, right, right, down, down, down, down, enter)
 	v := view(m)
-	for _, want := range []string{style.Focus + " " + Gone + " gone: old-experiment, 44-a-spike",
+	for _, want := range []string{style.Opened + " " + Gone + " gone: old-experiment, 44-a-spike",
 		"      " + Gone + " old-experiment upstream gone · kit tidy removes it",
 		"      " + Gone + " 44-a-spike upstream gone"} {
 		if !strings.Contains(v, want) {
@@ -640,7 +640,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	}
 	// a pane of three lines holds the … lines and the row; one more line shows what the row opens to
 	m = drive(m, enter, tea.WindowSizeMsg{Width: 80, Height: 10})
-	if !strings.Contains(view(m), "?? notes.md") || !strings.Contains(view(m), style.Focus) {
+	if !strings.Contains(view(m), "?? notes.md") || !strings.Contains(view(m), style.Opened) {
 		t.Errorf("the open row's detail is not shown with its row:\n%s", view(m))
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 9})
@@ -759,7 +759,7 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	}
 	v := view(m)
 	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 4 more") ||
-		!strings.Contains(v, style.Focus+" "+Branch+" 42-settings") {
+		!strings.Contains(v, style.Opened+" "+Branch+" 42-settings") {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
@@ -893,7 +893,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	}
 	m = drive(m, down, enter)
 	v := view(m)
-	order := []string{style.Focus + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
+	order := []string{style.Opened + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
 		"c0ffeea #45 status: the goldens", "c0ffeeb #45 status: the eleventh", "… and 1 more"}
 	at := -1
 	for _, want := range order {
@@ -1122,28 +1122,39 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	if m.stage != 4 || m.stages[4].cursor != 0 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
+	bare := func(s string) string {
+		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
+	}
+	head := style.Opened + " " + Branch + " 1-the-first-release"
 	seen := map[string]bool{}
 	for k := 0; k < 20 && m.stages[4].cursor == 0; k++ {
 		for _, l := range lines(m) {
-			seen[strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ansi.Strip(l)), style.Focus))] = true
+			seen[bare(l)] = true
+		}
+		// scrolled into the row, its own line stays on the pane's first line, where … above would be
+		if pane := lines(m)[4]; m.stages[4].offset > 0 && (!strings.Contains(pane, head) || strings.Contains(pane, "above")) {
+			t.Errorf("the open row's line is not pinned atop the pane:\n%s", view(m))
 		}
 		m = drive(m, press(tea.KeyPgDown))
 	}
 	// every line the open row holds was shown on the way down, and only then did the cursor move on
 	for _, l := range m.lines(4) {
-		if l.row == 0 && !seen[strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ansi.Strip(l.text)), style.Focus))] {
+		if l.row == 0 && !seen[bare(l.text)] {
 			t.Errorf("page down never showed %q", ansi.Strip(l.text))
 		}
 	}
 	if m.stages[4].cursor == 0 {
 		t.Fatalf("page down never left the open row")
 	}
-	// page up comes back through the same row, to its first line
-	m = drive(m, press(tea.KeyPgUp))
-	for k := 0; k < 20 && strings.Contains(view(m), " above"); k++ {
+	// past the row, the pane says … above again
+	if !strings.Contains(lines(m)[4], " above") {
+		t.Errorf("past the open row, the pane's first line is not … above:\n%s", view(m))
+	}
+	// page up comes back through the same row, to the top of the pane
+	for k := 0; k < 20 && (m.stages[4].cursor != 0 || m.stages[4].offset > 0); k++ {
 		m = drive(m, press(tea.KeyPgUp))
 	}
-	if m.stages[4].cursor != 0 || !strings.Contains(view(m), style.Focus+" "+Branch+" 1-the-first-release") {
+	if m.stages[4].cursor != 0 || m.stages[4].offset != 0 || !strings.Contains(lines(m)[4], head) {
 		t.Errorf("page up did not return to the open row's first line:\n%s", view(m))
 	}
 }
@@ -1190,7 +1201,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	// that failed under it, then its URL, dim
 	m = drive(m, down, down, enter)
 	v := view(m)
-	order := []string{style.Focus + " " + Failed + "  kit",
+	order := []string{style.Opened + " " + Failed + "  kit",
 		"8e817bf #45 status: the builds stage tells which commit each run built", "attempt 2", Failed + "  test",
 		"failed at bats tests/status.bats", Passed + "  gate", Passed + "  lint", Cancelled + "  docs",
 		"https://github.com/empowerite/kit/actions/runs/41309409467", Passed + "  kit"}
@@ -1215,7 +1226,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	// a build without jobs, whose title repeats its workflow, opens to its URL alone
 	m = drive(m, enter, down, enter)
 	got := lines(m)
-	k := slices.IndexFunc(got, func(l string) bool { return strings.Contains(l, style.Focus+" "+Cancelled) })
+	k := slices.IndexFunc(got, func(l string) bool { return strings.Contains(l, style.Opened+" "+Cancelled) })
 	if k < 0 || strings.TrimSpace(got[k+1]) != "https://github.com/empowerite/kit/actions/runs/41309409322" ||
 		strings.TrimSpace(got[k+2]) != "" {
 		t.Errorf("a build without jobs does not open to its URL alone:\n%s", view(m))
@@ -1294,7 +1305,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// the row here opens to the issue's title in full, the pull request's, the worktree, and both URLs, dim
 	m = drive(m, down, enter)
 	v := view(m)
-	order := []string{style.Focus + "  #1",
+	order := []string{style.Opened + "  #1",
 		"The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub",
 		Change + " #2 The first release, v0.1.0", Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0",
 		"https://github.com/empowerite/kit/issues/1", "https://github.com/empowerite/kit/pull/2", "#8"}

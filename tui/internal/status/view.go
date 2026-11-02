@@ -4,6 +4,7 @@
 package status
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -369,12 +370,27 @@ func (m Model) pane(h int) []string {
 		for i, l := range lines {
 			texts[i] = l.text
 		}
-		out = windowed(texts, m.stages[m.stage].offset, h)
+		out = windowed(texts, m.stages[m.stage].offset, h, m.head(lines, h))
 	}
 	for len(out) < h {
 		out = append(out, "")
 	}
 	return out
+}
+
+// head gives the line the pane pins on top, in place of its … above: the first line of the row under the cursor, once
+// paging through that open row has scrolled it away while the rest of the row still shows; else nothing.
+func (m Model) head(lines []line, h int) string {
+	if !m.inRows || len(m.stages) == 0 {
+		return ""
+	}
+	s := m.stages[m.stage]
+	start, _, above, _ := window(len(lines), h, s.offset)
+	first := slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+	if !above || first < 0 || first >= start || lines[start].row != s.cursor {
+		return ""
+	}
+	return lines[first].text
 }
 
 // window says which of n lines a pane of h lines shows from offset o: the offset, clamped, the end, and whether a
@@ -397,11 +413,14 @@ func window(n, h, o int) (start, end int, above, below bool) {
 }
 
 // windowed gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more where lines are
-// hidden.
-func windowed(all []string, o, h int) []string {
+// hidden; a head, when given, takes the place of the … above.
+func windowed(all []string, o, h int, head string) []string {
 	start, end, above, below := window(len(all), h, o)
 	out := make([]string, 0, h)
-	if above {
+	switch {
+	case above && head != "":
+		out = append(out, head)
+	case above:
 		out = append(out, "   "+style.Off("… "+strconv.Itoa(start)+" above"))
 	}
 	out = append(out, all[start:end]...)
@@ -421,7 +440,8 @@ func width(lines []string) int {
 }
 
 // lines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or its rows, the
-// one under the cursor led by the focus glyph, each open row's detail indented under it.
+// one under the cursor led by the focus glyph, which turns down when the row is open, each open row's detail
+// indented under it.
 func (m Model) lines(i int) []line {
 	s := m.stages[i]
 	lead := "   "
@@ -451,7 +471,10 @@ func (m Model) lines(i int) []line {
 	var out []line
 	for k, r := range rows {
 		l := lead
-		if k == chosen {
+		switch {
+		case k == chosen && s.open[r.key] && len(r.detail) > 0:
+			l = " " + style.Opened + " "
+		case k == chosen:
 			l = " " + style.Focus + " "
 		}
 		out = append(out, line{k, l + drawn[k]})

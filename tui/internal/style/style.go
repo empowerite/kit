@@ -12,6 +12,7 @@ import (
 const (
 	Answered = "✓"       // a field answered, in the transcript
 	Focus    = "▸"       // the field that has the keyboard
+	Opened   = "▾"       // the row that has the keyboard, open to what it holds
 	Picked   = "◼"       // a value picked in a list of many
 	Unpicked = "◻"       // a value not picked
 	Filter   = "›"       // the filter line of a list
