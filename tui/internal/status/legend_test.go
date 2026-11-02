@@ -3,6 +3,7 @@
 package status
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -29,11 +30,12 @@ func legendText(t *testing.T) string {
 	return before
 }
 
-// glyphsOf gives the glyphs in a text: the pictographs and symbols, not the arrows, the line art, or the ellipsis.
+// glyphsOf gives the glyphs in a text: the pictographs and symbols, and the media symbols as 🛑, not the arrows, the
+// line art, the ellipsis, or ⏎. A glyph's variation selector is left out, so 🏭 is 🏭.
 func glyphsOf(text string) map[string]bool {
 	out := map[string]bool{}
 	for _, r := range text {
-		if r >= 0x1F000 || r >= 0x2600 && r <= 0x27BF || r >= 0x2B00 && r <= 0x2BFF {
+		if r >= 0x1F000 || r >= 0x2600 && r <= 0x27BF || r >= 0x2B00 && r <= 0x2BFF || r >= 0x23E9 && r <= 0x23FA {
 			out[string(r)] = true
 		}
 	}
@@ -89,7 +91,7 @@ func opened(t *testing.T, i int) Model {
 
 func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 	text := legendText(t)
-	for i, name := range six {
+	for i, name := range seven {
 		m := opened(t, i)
 		for g := range glyphsOf(view(m)) {
 			if !strings.Contains(text, g) {
@@ -99,11 +101,11 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 		// the stage's own glyphs: its rows', and the glyph beside its name
 		own := map[string]bool{}
 		for _, e := range legends[name] {
-			own[e.glyph] = true
+			maps.Copy(own, glyphsOf(e.glyph))
 		}
 		if name == "changes" {
 			for _, e := range states {
-				own[e.glyph] = true
+				maps.Copy(own, glyphsOf(e.glyph))
 			}
 		}
 		var pane []string
@@ -132,7 +134,7 @@ func stateOf(glyph string) string {
 func TestEachTreeHangsItsLegendWithTheGlyphsInOneColumn(t *testing.T) {
 	for _, width := range []int{80, 120, 200} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
-		for i, name := range six {
+		for i, name := range seven {
 			if i > 0 {
 				m = drive(m, right)
 			}

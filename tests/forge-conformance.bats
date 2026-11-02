@@ -338,4 +338,82 @@ JSON
   done
 }
 
+# runs-world <forge> is world's, with the runs: their list, and the jobs of run 103.
+runs-world() {
+  world "$1"
+  route gh 'run list --limit 50 --json *' gh-runs.json
+  route gh 'run view 103 --json jobs' gh-jobs.json
+  route glab 'api projects/empowerite%2Fexample/pipelines?per_page=50' gl-pipelines.json
+}
+
+@test "every provider lists the runs no pull request owns in one shape, newest first, the newest with its jobs" {
+  git commit --quiet --allow-empty --message one && git tag release/0.1.0
+  fixture gh-runs.json <<'JSON'
+[{"databaseId": 104, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
+  "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/104"},
+ {"databaseId": 99, "workflowName": "kit", "headBranch": "9-other", "event": "workflow_dispatch",
+  "status": "completed", "conclusion": "cancelled", "createdAt": "2026-10-01T06:00:00Z",
+  "startedAt": "2026-10-01T06:00:00Z", "updatedAt": "2026-10-01T06:00:42Z", "url": "https://github.com/r/99"},
+ {"databaseId": 103, "workflowName": "kit", "headBranch": "main", "event": "push",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
+  "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/103"},
+ {"databaseId": 102, "workflowName": "kit", "headBranch": "release/0.1.0", "event": "push",
+  "status": "completed", "conclusion": "failure", "createdAt": "2026-10-01T09:00:00Z",
+  "startedAt": "2026-10-01T09:00:00Z", "updatedAt": "2026-10-01T09:04:02Z", "url": "https://github.com/r/102"},
+ {"databaseId": 101, "workflowName": "kit", "headBranch": "main", "event": "schedule",
+  "status": "in_progress", "conclusion": "", "createdAt": "2026-10-01T08:00:00Z",
+  "startedAt": "2026-10-01T08:00:00Z", "updatedAt": "2026-10-01T08:01:00Z", "url": "https://github.com/r/101"},
+ {"databaseId": 100, "workflowName": "kit", "headBranch": "9-other", "event": "push",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T07:00:00Z",
+  "startedAt": "2026-10-01T07:00:00Z", "updatedAt": "2026-10-01T07:01:00Z", "url": "https://github.com/r/100"}]
+JSON
+  fixture gh-jobs.json <<'JSON'
+{"jobs": [{"name": "ci", "status": "completed", "conclusion": "success",
+           "startedAt": "2026-10-01T10:00:03Z", "completedAt": "2026-10-01T10:03:33Z"},
+          {"name": "lint", "status": "in_progress", "conclusion": "",
+           "startedAt": "2026-10-01T10:00:03Z", "completedAt": "0001-01-01T00:00:00Z"}]}
+JSON
+  fixture gl-pipelines.json <<'JSON'
+[{"id": 104, "name": "kit", "ref": "7-fix-the-thing", "source": "merge_request_event", "status": "success",
+  "created_at": "2026-10-01T11:00:00.000Z", "updated_at": "2026-10-01T11:03:00.000Z",
+  "web_url": "https://gl.com/p/104"},
+ {"id": 103, "name": "kit", "ref": "main", "source": "push", "status": "success",
+  "created_at": "2026-10-01T10:00:00.000Z", "updated_at": "2026-10-01T10:03:36.000Z",
+  "web_url": "https://gl.com/p/103"},
+ {"id": 102, "name": "kit", "ref": "release/0.1.0", "source": "push", "status": "failed", "tag": true,
+  "created_at": "2026-10-01T09:00:00.000Z", "updated_at": "2026-10-01T09:04:02.000Z",
+  "web_url": "https://gl.com/p/102"},
+ {"id": 101, "name": "kit", "ref": "main", "source": "schedule", "status": "running",
+  "created_at": "2026-10-01T08:00:00.000Z", "updated_at": "2026-10-01T08:01:00.000Z",
+  "web_url": "https://gl.com/p/101"},
+ {"id": 100, "name": "kit", "ref": "9-other", "source": "push", "status": "success",
+  "created_at": "2026-10-01T07:00:00.000Z", "updated_at": "2026-10-01T07:01:00.000Z",
+  "web_url": "https://gl.com/p/100"},
+ {"id": 99, "name": "kit", "ref": "9-other", "source": "web", "status": "canceled",
+  "created_at": "2026-10-01T06:00:00.000Z", "updated_at": "2026-10-01T06:00:42.000Z",
+  "web_url": "https://gl.com/p/99"}]
+JSON
+  expected='[{"id":103,"workflow":"kit","branch":"main","event":"push","state":"passed","took":216},'
+  expected+='{"id":102,"workflow":"kit","branch":"release/0.1.0","event":"push","state":"failed","took":242},'
+  expected+='{"id":101,"workflow":"kit","branch":"main","event":"schedule","state":"running","took":null},'
+  expected+='{"id":99,"workflow":"kit","branch":"9-other","event":"workflow_dispatch","state":"cancelled","took":42}]'
+  for forge in github gitlab
+  do
+    runs-world "${forge}"
+    run call runs
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output --sort-keys 'map(del(.age, .url, .jobs))' <<<"$output")" \
+      = "$(jq --compact-output --sort-keys . <<<"${expected}")" ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq 'map(.age > 0 and (.url | startswith("https://"))) | all' <<<"$output")" = true ]
+  done
+  # GitHub's newest runs carry their jobs, a call each; GitLab's carry none
+  [ "$(call runs | jq --compact-output 'map(.jobs)')" = '[[],[],[],[]]' ]
+  runs-world github
+  : > "${FAKE_DIR}/gh.calls"
+  [ "$(call runs | jq --compact-output '.[0].jobs')" \
+    = '[{"name":"ci","state":"passed","took":210},{"name":"lint","state":"running","took":null}]' ]
+  [ "$(grep -c '^run view ' "${FAKE_DIR}/gh.calls")" -eq 4 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

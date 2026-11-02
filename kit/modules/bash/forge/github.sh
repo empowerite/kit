@@ -177,6 +177,29 @@ forge/github:releases() {
     <<<"${answer}"
 }
 
+# forge/github:runs prints the builds stage's runs as one JSON array, as the seam's header says. It reads the 50
+# newest runs and keeps those forge.jq's builds keeps. A run's jobs cost a call each, so only the 5 newest runs carry
+# them; a run whose jobs cannot be read keeps none.
+forge/github:runs() {
+  local answer runs id jobs index=0
+  answer=$(gh run list --limit 50 \
+    --json databaseId,workflowName,headBranch,event,status,conclusion,createdAt,startedAt,updatedAt,url \
+    2>/dev/null) || { error "run: gh auth status (the runs could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  runs=$(jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
+    --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::github_builds($now; $default; $tags)' \
+    <<<"${answer}") || return 1
+  while IFS= read -r id
+  do
+    jobs=$(gh run view "${id}" --json jobs 2>/dev/null | jq -L "${kit_jq}" --compact-output \
+      'import "forge" as forge; forge::github_jobs' 2>/dev/null) || jobs='[]'
+    runs=$(jq --compact-output --argjson index "${index}" --argjson jobs "${jobs:-[]}" '.[$index].jobs = $jobs' \
+      <<<"${runs}")
+    index=$(( index + 1 ))
+  done < <(jq --raw-output '.[:5][].id' <<<"${runs}")
+  printf '%s\n' "${runs}"
+}
+
 forge/github:repo() {
   gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null \
     || { error "run: gh repo view (this checkout does not resolve to a GitHub repository)"; return 1; }

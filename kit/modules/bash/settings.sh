@@ -217,7 +217,7 @@ settings:require() {
 }
 
 # settings_stages names the stages of kit status, in the order work moves: the values the status setting takes.
-declare -gra settings_stages=(backlog incoming desk worktrees changes releases)
+declare -gra settings_stages=(backlog incoming desk worktrees changes builds releases)
 
 # settings:stages prints the stages the status setting names, one per line, in its order: what kit status draws.
 # Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 2: a

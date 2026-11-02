@@ -1,26 +1,26 @@
  kit status · 📚 empowerite/kit
- ┄┄┄─────────○──────────────────────────○──────────────────────────●────────────────────────────○───────────────────────
-             ├ 🏠 desk 1                ├ 🌿 worktrees 4           ├ 🔀 changes 3               ├ 📦 releases 3
-             └ legend                   └ legend                   └ legend                     └ legend
-               ├ 🏠  the desk             ├ 🌿  a worktree           ├ 🔀  a pull request         ├ 📦  a release
-               ├ ❗  on no branch         ├ ❗  on no branch         ├ 👤  its author             ├ 🧪  a pre-release
-               └ 🔀  its pull request     ├ 🔀  its pull request     ├ 🌿  its branch             ├ 📝  a draft
-                                          └ 🔖  a branch gone        ├ 🏃  checks running         └ ⭐  the latest
-                                                                     ├ ✅  checks passed
-                                                                     ├ ❌  a check failed
-                                                                     ├ 💬  threads unresolved
-                                                                     ├ 🛫  an issue it closes
-                                                                     ├ 🎫  the issue's title
-                                                                     └ state
-                                                                       ├ 🔨  draft
-                                                                       ├ 🚦  queued
-                                                                       ├ 💥  conflicted
-                                                                       ├ 🔥  failing:gate
-                                                                       ├ 📭  no-check
-                                                                       ├ 💬  comments:open
-                                                                       ├ 👀  blocked:approval
-                                                                       ├ 🛬  ready
-                                                                       └ 🔳  any other state
+ ┄┄┄─────────○─────────────────────────●───────────────────────────○─────────────────────────────○──────────────────────
+             ├ 🌿 worktrees 4          ├ 🔀 changes 3              ├ 🏭 builds 4                 ├ 📦 releases 3
+             └ legend                  └ legend                    └ legend                      └ legend
+               ├ 🌿  a worktree          ├ 🔀  a pull request        ├ 🏭  a build                 ├ 📦  a release
+               ├ ❗  on no branch        ├ 👤  its author            ├ 🏃  running or queued       ├ 🧪  a pre-release
+               ├ 🔀  its pull request    ├ 🌿  its branch            ├ ✅  passed                  ├ 📝  a draft
+               └ 🔖  a branch gone       ├ 🏃  checks running        ├ ❌  failed                  └ ⭐  the latest
+                                         ├ ✅  checks passed         └ 🛑  cancelled or skipped
+                                         ├ ❌  a check failed
+                                         ├ 💬  threads unresolved
+                                         ├ 🛫  an issue it closes
+                                         ├ 🎫  the issue's title
+                                         └ state
+                                           ├ 🔨  draft
+                                           ├ 🚦  queued
+                                           ├ 💥  conflicted
+                                           ├ 🔥  failing:gate
+                                           ├ 📭  no-check
+                                           ├ 💬  comments:open
+                                           ├ 👀  blocked:approval
+                                           ├ 🛬  ready
+                                           └ 🔳  any other state
 
    🔀 #2  The first r…  👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3m                                 🌿 1-the…
    🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2                   💬 2 unresolved  🌿 3-a-s…

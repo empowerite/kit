@@ -1,5 +1,6 @@
 // Every stage's screen at 80×24, closed and with its first row open, is pinned as a golden file without its escapes;
-// so are the trees at 120 columns, with the legend and without, and the legend at 80, scrolled to changes.
+// builds' is at 120×24, the common width. So are the trees at 120 columns, with the legend and without, and the legend
+// at 80, scrolled to changes.
 package status
 
 import (
@@ -13,8 +14,12 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	at80 := tea.WindowSizeMsg{Width: 80, Height: 24}
-	for i, name := range six {
-		m := loaded(t, options(), at80)
+	for i, name := range seven {
+		size := at80
+		if name == "builds" {
+			size.Width = 120
+		}
+		m := loaded(t, options(), size)
 		for range i {
 			m = drive(m, right)
 		}

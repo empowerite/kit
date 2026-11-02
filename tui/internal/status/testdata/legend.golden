@@ -1,11 +1,11 @@
  kit status · 📚 empowerite/kit
- ───●───────────────────────○───────────────────────○────────────────────────┄┄┄
-    ├ 🎫 3                  ├ 📥 6                  ├ 🏠 1                     ├
-    └ legend                └ legend                └ legend                   └
-      ├ 🎫  an issue          ├ 📥  the fetch         ├ 🏠  the desk
-      ├ 👤  its assignees     ├ 🌿  a branch          ├ ❗  on no branch
-      └ 🌿  its branch        ├ 🔖  a branch gone     └ 🔀  its pull request
-                              └ 📌  a new tag
+ ──●──────────────────────○──────────────────────○─────────────────────────○─┄┄┄
+   ├ 🎫 3                 ├ 📥 6                 ├ 🏠 1                    ├ 🌿 
+   └ legend               └ legend               └ legend                  └ leg
+     ├ 🎫  an issue         ├ 📥  the fetch        ├ 🏠  the desk            ├
+     ├ 👤  its assignees    ├ 🌿  a branch         ├ ❗  on no branch        ├
+     └ 🌿  its branch       ├ 🔖  a branch gone    └ 🔀  its pull request    ├
+                            └ 📌  a new tag                                  └
 
 
 

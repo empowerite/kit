@@ -1,16 +1,16 @@
 # shellcheck shell=bash
-# status.sh - the picture of the work: six stages, drawn one at a time or all together (sourced module)
+# status.sh - the picture of the work: seven stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit status draws the picture. Work moves left to right through six stages:
+# kit status draws the picture. Work moves left to right through seven stages:
 #
-#   backlog → incoming → desk → worktrees → changes → releases
+#   backlog → incoming → desk → worktrees → changes → builds → releases
 #
 # The status setting in kit.yml names the stages the picture draws, in order. status:render draws one stage, or
 # the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,
-# changes, and releases live in the modules named after them. The incoming, desk, and worktrees stages, and the
-# cells every table shares, are here.
+# changes, builds, and releases live in the modules named after them. The incoming, desk, and worktrees stages, and
+# the cells every table shares, are here.
 #
 # The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
 # and changes draw:
@@ -24,7 +24,7 @@
 #     skips hidden directories and symbolic links, and goes no deeper than status_walk_depth. The desks are drawn in
 #     path order, each with a fetch of its own.
 #
-# backlog, incoming, desk, and releases draw the same anywhere in a repository.
+# backlog, incoming, desk, builds, and releases draw the same anywhere in a repository.
 #
 # The picture collects first and draws after. The forge stages run in the background while origin is fetched. Then
 # the checkouts are measured, and every stage is drawn in order. A repository with no origin draws its checkouts
@@ -55,9 +55,10 @@
 # --json prints the picture as one object: stages, the names in order, and under each name what kit status <stage>
 # --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
 #
-# see: kit/bin/kit-status, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/releases.sh
+# see: kit/bin/kit-status, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/builds.sh,
+# modules/bash/releases.sh
 
-use file git settings backlog changes releases
+use file git settings backlog changes builds releases
 
 # status_walk_depth is how many directories below the one it runs in kit status looks for desks, above desks.
 status_walk_depth=4
@@ -82,11 +83,12 @@ status:stage-purpose() {
     (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (changes) printf 'the open pull requests, each with the issues it closes\n' ;;
+    (builds) printf 'the runs no pull request owns: the default branch, tags, schedules\n' ;;
     (releases) printf 'the releases on the forge, newest first\n' ;;
   esac
 }
 
-# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the six stages, a closed set, each with
+# status:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the seven stages, a closed set, each with
 # what it lists.
 status:choices() {
   local stage
@@ -151,6 +153,7 @@ status:heading() {
     (desk)      glyph=🏠 ;;
     (worktrees) glyph=🌿 ;;
     (changes)   glyph=🔀 ;;
+    (builds)    glyph=🏭 ;;
     (releases)  glyph=📦 ;;
   esac
   line="${glyph:+${glyph} }$(status:paint 1 "${1^^}")"
@@ -883,6 +886,7 @@ status:stage() {
     (desk) status:desk "$@" ;;
     (worktrees) status:worktrees "$@" ;;
     (changes) changes:render "$@" ;;
+    (builds) builds:render "$@" ;;
     (releases) releases:render "$@" ;;
   esac
 }
@@ -940,7 +944,7 @@ status:picture() {
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (backlog | changes | releases)
+      (backlog | changes | builds | releases)
         [[ "${origin}" == true ]] || continue
         readarray -t args < <(status:stage-args "${stage}" --json "$@")
         (
@@ -1031,6 +1035,10 @@ status:picture() {
         status:heading changes "$(jq 'length' <<<"${doc}")"
         changes:draw "${doc}" "${choice}"
         ;;
+      (builds)
+        status:heading builds "$(jq 'length' <<<"${doc}")"
+        builds:draw "${doc}"
+        ;;
       (releases)
         status:heading releases "$(jq 'length' <<<"${doc}")"
         releases:draw "${doc}"
@@ -1053,7 +1061,7 @@ status:render() {
     return
   fi
   case "${1:-}" in
-    (backlog | incoming | desk | worktrees | changes | releases)
+    (backlog | incoming | desk | worktrees | changes | builds | releases)
       stage=$1
       shift
   esac

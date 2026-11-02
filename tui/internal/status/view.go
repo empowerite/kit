@@ -27,7 +27,7 @@ const fixed = 5
 const minPane = 3
 
 // gap is the cells before the first marker, and between one tree and the next marker.
-const gap = 3
+const gap = 2
 
 // room is the cells the view keeps before the selected marker when it scrolls: the dotted end and a little line.
 const room = 5

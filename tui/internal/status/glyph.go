@@ -24,6 +24,10 @@ const (
 	Draft      = "📝" // a draft release
 	Latest     = "⭐" // the latest release
 	Other      = "🔳" // a pull request in any other state
+
+	// A build's glyphs; the variation selector draws them as emoji, two cells wide.
+	Build     = "🏭" // a build: a workflow run no pull request owns
+	Cancelled = "🛑" // a build cancelled or skipped
 )
 
 // entry is one line of a legend: a glyph and what it means. A state's meaning is the state word kit prints.
@@ -70,6 +74,13 @@ var legends = map[string][]entry{
 		{InFlight, "an issue it closes"},
 		{Issue, "the issue's title"},
 	},
+	"builds": {
+		{Build, "a build"},
+		{Running, "running or queued"},
+		{Passed, "passed"},
+		{Failed, "failed"},
+		{Cancelled, "cancelled or skipped"},
+	},
 	"releases": {
 		{Release, "a release"},
 		{Pre, "a pre-release"},
@@ -98,6 +109,7 @@ var stageGlyphs = map[string]string{
 	"desk":      Desk,
 	"worktrees": Branch,
 	"changes":   Change,
+	"builds":    Build,
 	"releases":  Release,
 }
 
@@ -129,4 +141,19 @@ func kindGlyph(kind string) string {
 		return Pre
 	}
 	return Release
+}
+
+// runGlyph gives a build's glyph, or a job's, by its state; a state #48 does not name draws Other.
+func runGlyph(state string) string {
+	switch state {
+	case "running":
+		return Running
+	case "passed":
+		return Passed
+	case "failed":
+		return Failed
+	case "cancelled":
+		return Cancelled
+	}
+	return Other
 }

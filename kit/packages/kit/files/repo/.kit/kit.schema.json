@@ -186,7 +186,7 @@
     },
     "status": {
       "type": "array",
-      "description": "The stages kit status draws, in order: backlog, incoming, desk, worktrees, changes, releases. A stage left out is not drawn, but kit status <stage> still prints it. Default: all six, in that order.",
+      "description": "The stages kit status draws, in order: backlog, incoming, desk, worktrees, changes, builds, releases. A stage left out is not drawn, but kit status <stage> still prints it. Default: all seven, in that order.",
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -195,6 +195,7 @@
           "desk",
           "worktrees",
           "changes",
+          "builds",
           "releases"
         ]
       }

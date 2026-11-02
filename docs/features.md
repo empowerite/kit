@@ -89,7 +89,7 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit status` draws where the work stands. Work moves left to right through six stages:
+`kit status` draws where the work stands. Work moves left to right through seven stages:
 
 - `backlog`: the open issues no pull request closes, oldest first, each with its assignees, its age, and the branch
   started for it on origin
@@ -97,6 +97,8 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `desk`: the root checkout, wherever kit runs in the repository, with its commits and its uncommitted paths
 - `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
+- `builds`: the runs no pull request owns, newest first: pushes to the default branch or a tag, and scheduled or
+  manual runs, each with its state, age, and duration
 - `releases`: the releases on the forge, newest first
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its

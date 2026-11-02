@@ -1,0 +1,24 @@
+ kit status · 📚 empowerite/kit
+ ──○────────────────○─────────────────○─────────────○──────────────────○────────────────●──────────────○────────────────
+   └ 🎫 backlog 3   └ 📥 incoming 6   └ 🏠 desk 1   └ 🌿 worktrees 4   └ 🔀 changes 3   └ 🏭 builds 4  └ 📦 releases 3
+
+ ▸ 🏃  release  release/0.1.0   5m       …
+      ✅  build    1m 35s
+      🏃  publish       …
+      https://github.com/empowerite/kit/actions/runs/41309409501
+   ❌  kit      main            2h  4m 02s
+   ✅  kit      main           24h  3m 36s
+   🛑  nightly  main            2d     12s
+
+
+
+
+
+
+
+
+
+
+
+
+ ↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back

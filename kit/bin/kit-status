@@ -4,9 +4,9 @@
 #
 # kit status [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Draws the picture of the work. It changes nothing. Work moves left to right through six stages:
+# Draws the picture of the work. It changes nothing. Work moves left to right through seven stages:
 #
-#   backlog → incoming → desk → worktrees → changes → releases
+#   backlog → incoming → desk → worktrees → changes → builds → releases
 #
 # The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
 #
@@ -18,8 +18,8 @@
 #   - in a worktree: that worktree, and the pull request its branch holds
 #   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
 #
-# backlog, incoming, desk, and releases draw the same anywhere. A repository with no origin draws its checkouts,
-# fetches nothing, and says so once.
+# backlog, incoming, desk, builds, and releases draw the same anywhere. A repository with no origin draws its
+# checkouts, fetches nothing, and says so once.
 #
 #   --no-fetch          skips the git fetch; incoming says so
 #   --text              prints the picture as text, even on a terminal
@@ -37,6 +37,7 @@
 #   desk                the root checkout: branch, ahead and behind, uncommitted paths
 #   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
+#   builds              the runs no pull request owns: the default branch, tags, schedules
 #   releases            the releases on the forge, newest first
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
@@ -53,11 +54,17 @@
 #
 # kit status changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
 #
+# kit status builds [--json | --jq]
+#
 # kit status releases [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for backlog, changes, and releases; an object for incoming, desk, and worktrees. Above desks, --json prints an
-# array with one {path, status} per desk.
+# for backlog, changes, builds, and releases; an object for incoming, desk, and worktrees. Above desks, --json prints
+# an array with one {path, status} per desk.
+#
+# builds lists the 20 newest runs no pull request owns: pushes to the default branch or a tag, and scheduled or
+# manual runs. A run's JSON is {id, workflow, branch, event, state, age, took, url, jobs}. state is running, passed,
+# failed, or cancelled. took is null while the run runs. jobs is empty when the forge does not report them cheaply.
 #
 # Legend
 #
@@ -116,6 +123,14 @@
 #   🛬  ready: nothing is left to decide
 #   🔳  any other state
 #
+# builds:
+#
+#   🏭  a build: a run no pull request owns
+#   🏃  running or queued
+#   ✅  passed
+#   ❌  failed, or kit could not read the forge
+#   🛑  cancelled or skipped
+#
 # releases:
 #
 #   📦  a release
@@ -127,7 +142,8 @@
 # Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read, and 2 on a usage error or a
 # status setting that is not a list of distinct stages.
 #
-# see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/releases.sh
+# see: modules/bash/status.sh, modules/bash/backlog.sh, modules/bash/changes.sh, modules/bash/builds.sh,
+# modules/bash/releases.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh

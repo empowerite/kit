@@ -46,6 +46,7 @@ type stage struct {
 	desk    *checkout
 	trees   *worktrees
 	pulls   []pull
+	runs    []run
 	rels    []release
 	cursor  int             // the row under the cursor, kept while another stage is shown
 	offset  int             // the first line of the pane
@@ -54,7 +55,7 @@ type stage struct {
 
 // known names the stages kittui draws.
 var known = map[string]bool{"backlog": true, "incoming": true, "desk": true, "worktrees": true, "changes": true,
-	"releases": true}
+	"builds": true, "releases": true}
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and r runs it again.
 const deadline = 2 * time.Minute
@@ -248,7 +249,7 @@ func (m *Model) refresh() tea.Cmd {
 	}
 	s := &m.stages[m.stage]
 	s.loading, s.refusal = true, ""
-	s.issues, s.in, s.desk, s.trees, s.pulls, s.rels = nil, nil, nil, nil, nil, nil
+	s.issues, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil
 	return m.load(s.name)
 }
 
@@ -294,6 +295,8 @@ func (s *stage) decode(data []byte) error {
 		err = json.Unmarshal(data, s.trees)
 	case "changes":
 		err = json.Unmarshal(data, &s.pulls)
+	case "builds":
+		err = json.Unmarshal(data, &s.runs)
 	case "releases":
 		err = json.Unmarshal(data, &s.rels)
 	}
@@ -303,11 +306,12 @@ func (s *stage) decode(data []byte) error {
 	return nil
 }
 
-// expected is each stage's document, as kit status's page says: an array of objects for backlog, changes, and
-// releases, each object with the stage's key field; an object for incoming, desk, and worktrees.
+// expected is each stage's document, as kit status's page says: an array of objects for backlog, changes, builds,
+// and releases, each object with the stage's key field; an object for incoming, desk, and worktrees.
 var expected = map[string]struct{ what, key string }{
 	"backlog":   {"an array of issues", "number"},
 	"changes":   {"an array of pull requests", "number"},
+	"builds":    {"an array of builds", "id"},
 	"releases":  {"an array of releases", "version"},
 	"incoming":  {"an object", ""},
 	"desk":      {"an object", ""},

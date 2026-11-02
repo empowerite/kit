@@ -4,8 +4,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # origin is a bare repository beside the desk, so the fetch is real git. The forge, where a test needs one, is a fake
-# gh: forge-world sets the caller ada, issues 7, 9, and 11, change 3 closing 7, and three releases, the world of
-# backlog.bats and changes.bats.
+# gh: forge-world sets the caller ada, issues 7, 9, and 11, change 3 closing 7, two runs, and three releases, the world
+# of backlog.bats and changes.bats.
 
 bats_require_minimum_version 1.5.0
 
@@ -51,8 +51,8 @@ stages() {
 }
 
 # forge-world puts a fake gh on PATH that answers for the forge: the caller ada; issue 7, assigned to bob and closed
-# by change 3, a draft by ada on 7-fix-the-thing; issue 9, claimed by the branch 9-other on origin; issue 11; and
-# three releases. The settings name the forge.
+# by change 3, a draft by ada on 7-fix-the-thing; issue 9, claimed by the branch 9-other on origin; issue 11; a run
+# on main and one for change 3; and three releases. The settings name the forge.
 forge-world() {
   fake-tools gh
   commit-settings 'forge: github'
@@ -86,14 +86,24 @@ JSON
   route 'repo view*' repo.json
   route 'issue list --state open --limit 1000 --json *' issues.json
   route 'api graphql*' open-prs.json
+  fixture runs.json <<'JSON'
+[{"databaseId": 12, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
+  "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/12"},
+ {"databaseId": 11, "workflowName": "kit", "headBranch": "main", "event": "push",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
+  "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/11"}]
+JSON
   route 'release list --limit 1000 --json *' releases.json
+  route 'run list --limit 50 --json *' runs.json
 }
 
-# empty-forge makes the fake forge answer with no issue, no change, and no release.
+# empty-forge makes the fake forge answer with no issue, no change, no run, and no release.
 empty-forge() {
   fixture issues.json <<<'[]'
   fixture open-prs.json <<<'{"data": {"repository": {"pullRequests": {"nodes": []}}}}'
   fixture releases.json <<<'[]'
+  fixture runs.json <<<'[]'
 }
 
 # pty <command> runs the command in a pseudo-terminal, so its stdin, stdout, and stderr are terminals, as at a desk.
@@ -230,7 +240,7 @@ without-kittui() {
 @test "kit status --stages prints the configured stages in order, every stage without the setting, and refuses a name that is none" {
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nreleases' ]
+  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
   stages 'releases, worktrees, desk'
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
@@ -238,7 +248,7 @@ without-kittui() {
   printf 'status: [worktrees, nope]\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'nope' is not a stage; the stages are: backlog incoming desk worktrees changes releases (status in kit.yml)"* ]]
+  [[ "$output" == *"'nope' is not a stage; the stages are: backlog incoming desk worktrees changes builds releases (status in kit.yml)"* ]]
   run "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 2 ]
   [[ "$output" == *"'nope' is not a stage"* ]]
@@ -292,7 +302,7 @@ without-kittui() {
   [ "${lines[0]}" = "{" ]
 }
 
-@test "with a forge, the picture counts the backlog, the changes, and the releases, and the blank lines separate the stages" {
+@test "with a forge, the picture counts the backlog, the changes, the builds, and the releases, a blank line between stages" {
   forge-world
   run --keep-empty-lines "${kit_root}/bin/kit" status --no-fetch
   [ "$status" -eq 0 ]
@@ -313,15 +323,20 @@ without-kittui() {
   [[ "${lines[14]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   [[ "${lines[15]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
   [ "${lines[16]}" = "" ]
-  [ "${lines[17]}" = "📦 RELEASES 3" ]
-  [[ "${lines[18]}" == "0.1.0-rc.7  📝 draft "* ]]
-  [[ "${lines[20]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
-  [ "${#lines[@]}" -eq 21 ]
+  [ "${lines[17]}" = "🏭 BUILDS 1" ]
+  [[ "${lines[18]}" == "✅  kit  main  "*"d  3m 36s" ]]
+  [ "${lines[19]}" = "" ]
+  [ "${lines[20]}" = "📦 RELEASES 3" ]
+  [[ "${lines[21]}" == "0.1.0-rc.7  📝 draft "* ]]
+  [[ "${lines[23]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
+  [ "${#lines[@]}" -eq 24 ]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.stages' <<<"$output")" = '["backlog","incoming","desk","worktrees","changes","releases"]' ]
-  [ "$(jq -c '[(.backlog | map(.number)), (.changes | map(.number)), (.releases | map(.version))]' <<<"$output")" \
-    = '[[9,11],[3],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
+  [ "$(jq -c '.stages' <<<"$output")" = '["backlog","incoming","desk","worktrees","changes","builds","releases"]' ]
+  [ "$(jq -c 'keys_unsorted' <<<"$output")" \
+    = '["stages","backlog","incoming","desk","worktrees","changes","builds","releases"]' ]
+  [ "$(jq -c '[(.backlog | map(.number)), (.changes | map(.number)), (.builds | map(.id)),
+               (.releases | map(.version))]' <<<"$output")" = '[[9,11],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
   # the ages count seconds from now, so they are left out of the comparison
   [ "$(jq -c '.changes | del(.. | .age?)' <<<"$output")" \
     = "$("${kit_root}/bin/kit" status changes --json | jq -c 'del(.. | .age?)')" ]
@@ -340,9 +355,11 @@ without-kittui() {
   [ "${lines[1]}" = "no open issue without a pull request" ]
   [ "${lines[12]}" = "🔀 CHANGES 0" ]
   [ "${lines[13]}" = "no open pull request" ]
-  [ "${lines[15]}" = "📦 RELEASES 0" ]
-  [ "${lines[16]}" = "no release yet" ]
-  [ "${#lines[@]}" -eq 17 ]
+  [ "${lines[15]}" = "🏭 BUILDS 0" ]
+  [ "${lines[16]}" = "no build since the last 20 runs" ]
+  [ "${lines[18]}" = "📦 RELEASES 0" ]
+  [ "${lines[19]}" = "no release yet" ]
+  [ "${#lines[@]}" -eq 20 ]
   run "${kit_root}/bin/kit" status backlog
   [ "$status" -eq 0 ]
   [ "$output" = "no open issue without a pull request" ]
@@ -355,6 +372,10 @@ without-kittui() {
   [ "$output" = "[]" ]
   run "${kit_root}/bin/kit" status releases --json
   [ "$output" = "[]" ]
+  run "${kit_root}/bin/kit" status builds
+  [ "$output" = "no build since the last 20 runs" ]
+  run "${kit_root}/bin/kit" status builds --json
+  [ "$output" = "[]" ]
 }
 
 @test "a stage the forge cannot answer is drawn as its refusal under its heading, and the picture exits 1" {
@@ -366,8 +387,8 @@ without-kittui() {
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"set forge in kit.yml"* ]]
-  [ "$(jq -c '[.backlog, .changes, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
-    = '[null,null,null,"main"]' ]
+  [ "$(jq -c '[.backlog, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
+    = '[null,null,null,null,"main"]' ]
   run "${kit_root}/bin/kit" status changes
   [ "$status" -eq 1 ]
   [[ "$output" == *"set forge in kit.yml"* ]]
@@ -389,9 +410,12 @@ without-kittui() {
   run "${kit_root}/bin/kit" status --json
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
-  [ "$(jq -c '[.backlog, .incoming, .changes, .releases, .desk.branch, .worktrees.worktrees]' <<<"${lines[1]}")" \
-    = '[null,{"fetched":false},null,null,"main",[]]' ]
+  [ "$(jq -c '[.backlog, .incoming, .changes, .builds, .releases, .desk.branch, .worktrees.worktrees]' \
+    <<<"${lines[1]}")" = '[null,{"fetched":false},null,null,null,"main",[]]' ]
   run "${kit_root}/bin/kit" status changes
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"origin's host 'none' names no forge"* ]]
+  run "${kit_root}/bin/kit" status builds
   [ "$status" -eq 1 ]
   [[ "$output" == *"origin's host 'none' names no forge"* ]]
 }
@@ -630,10 +654,10 @@ without-kittui() {
   [[ "$output" == *"--mine cannot be combined with incoming; run: kit help status"* ]]
 }
 
-@test "kit syntax status lists the six stages as a closed set, each described, and the removed verbs are no verbs" {
+@test "kit syntax status lists the seven stages as a closed set, each described, and the removed verbs are no verbs" {
   run "${kit_root}/bin/kit" syntax status --choices '<stage>'
   [ "$status" -eq 0 ]
-  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog incoming desk worktrees changes releases" ]
+  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog incoming desk worktrees changes builds releases" ]
   [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
   [[ "${lines[0]}" == $'backlog\tthe open issues no pull request closes, oldest first\t\t' ]]
   local verb
@@ -667,7 +691,7 @@ without-kittui() {
   printf 'status: []\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 2 ]
-  [[ "$output" == *"status in kit.yml names no stage; the stages are: backlog incoming desk worktrees changes releases"* ]]
+  [[ "$output" == *"status in kit.yml names no stage; the stages are: backlog incoming desk worktrees changes builds releases"* ]]
   run "${kit_root}/bin/kit" status --no-fetch --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
@@ -681,7 +705,7 @@ without-kittui() {
   printf 'status:\n' > kit.yml
   run "${kit_root}/bin/kit" status --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nreleases' ]
+  [ "$output" = $'backlog\nincoming\ndesk\nworktrees\nchanges\nbuilds\nreleases' ]
 }
 
 @test "a fetch that fails warns once and the picture exits 1, without incoming in the picture, in text and as JSON" {

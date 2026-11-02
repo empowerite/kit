@@ -43,6 +43,10 @@
 #   open-prs                      one JSON object per open pull request, the documents kit status draws
 #   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws
 #   releases                      one JSON object per release, newest first, the documents the releases stage draws
+#   runs                          one JSON array of the runs no pull request owns, newest first, the 20 newest at
+#                                 most: pushes to the default branch or a tag, scheduled and manual runs; each is
+#                                 {id, workflow, branch, event, state, age, took, url, jobs}, what the builds stage
+#                                 draws
 #
 # see: docs/architecture.md
 
@@ -117,5 +121,13 @@ forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }
 forge:open-prs()            { forge:call open-prs "$@"; }
 forge:open-issues()         { forge:call open-issues "$@"; }
 forge:releases()            { forge:call releases "$@"; }
+forge:runs()                { use git; forge:call runs "$@"; }
+
+# forge:tags prints the repository's tags as one JSON array of names, for the providers' runs: a run on a tag is a
+# push whose branch names one.
+forge:tags() {
+  git for-each-ref --format='%(refname:lstrip=2)' refs/tags | jq --raw-input --slurp --compact-output \
+    'split("\n") | map(select(. != ""))'
+}
 
 # ----------------------------------------------------------------------------------------------------------------------

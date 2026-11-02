@@ -139,9 +139,9 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit status` draws where the work stands in six stages: backlog, incoming, desk, worktrees, changes, releases.
-On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit status <stage>` prints
-one stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick, not a search.
+`kit status` draws where the work stands in seven stages: backlog, incoming, desk, worktrees, changes, builds, releases.
+On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit status <stage>` prints one
+stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick, not a search.
 
 ### Forges, seams, and providers
 

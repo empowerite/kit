@@ -1,0 +1,137 @@
+#!/usr/bin/env bats
+# builds.bats - kit status builds lists the runs no pull request owns: on the default branch, on a tag, and scheduled
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# origin is a bare repository beside the test's, so the tags are real git; gh is tests/fakes/fake-tool, so the stage
+# is the provider's folding of a fixture. The world: on main, a push that passed and a schedule still running; on the
+# tag release/0.1.0, a push that failed; on 9-other, a push left out and a manual run cancelled; and a run for a pull
+# request, left out.
+
+bats_require_minimum_version 1.5.0
+
+load helper
+
+setup() {
+  fake-tools gh
+  repo=$(mktemp -d)
+  git init --quiet --bare --initial-branch=main "${repo}/origin.git"
+  git clone --quiet "${repo}/origin.git" "${repo}/desk" 2>/dev/null
+  cd "${repo}/desk"
+  mkdir .kit && printf 'forge: github\n' > kit.yml
+  git add kit.yml && git commit --quiet --message one && git push --quiet origin main && git remote set-head origin main
+  git tag release/0.1.0
+  fixture user.json <<<'{"login": "ada"}'
+  fixture runs.json <<'JSON'
+[{"databaseId": 6, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
+  "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/6"},
+ {"databaseId": 5, "workflowName": "kit", "headBranch": "main", "event": "push",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
+  "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/5"},
+ {"databaseId": 4, "workflowName": "release", "headBranch": "release/0.1.0", "event": "push",
+  "status": "completed", "conclusion": "failure", "createdAt": "2026-10-01T09:00:00Z",
+  "startedAt": "2026-10-01T09:00:00Z", "updatedAt": "2026-10-01T09:04:02Z", "url": "https://github.com/r/4"},
+ {"databaseId": 3, "workflowName": "nightly", "headBranch": "main", "event": "schedule",
+  "status": "in_progress", "conclusion": "", "createdAt": "2026-10-01T08:00:00Z",
+  "startedAt": "2026-10-01T08:00:00Z", "updatedAt": "2026-10-01T08:01:00Z", "url": "https://github.com/r/3"},
+ {"databaseId": 2, "workflowName": "kit", "headBranch": "9-other", "event": "push",
+  "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T07:00:00Z",
+  "startedAt": "2026-10-01T07:00:00Z", "updatedAt": "2026-10-01T07:01:00Z", "url": "https://github.com/r/2"},
+ {"databaseId": 1, "workflowName": "kit", "headBranch": "9-other", "event": "workflow_dispatch",
+  "status": "completed", "conclusion": "cancelled", "createdAt": "2026-10-01T06:00:00Z",
+  "startedAt": "2026-10-01T06:00:00Z", "updatedAt": "2026-10-01T06:00:42Z", "url": "https://github.com/r/1"}]
+JSON
+  fixture jobs.json <<'JSON'
+{"jobs": [{"name": "ci", "status": "completed", "conclusion": "success",
+           "startedAt": "2026-10-01T10:00:03Z", "completedAt": "2026-10-01T10:03:33Z"}]}
+JSON
+  route 'api user*' user.json
+  route 'run list --limit 50 --json *' runs.json
+  route 'run view 5 --json jobs' jobs.json
+}
+
+@test "kit status builds draws a row per run: its glyph, workflow, branch or tag, age, and how long it took" {
+  run "${kit_root}/bin/kit" status builds
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 4 ]
+  [[ "${lines[0]}" == "✅  kit      main           "*"d  3m 36s" ]]
+  [[ "${lines[1]}" == "❌  release  release/0.1.0  "*"d  4m 02s" ]]
+  [[ "${lines[2]}" == "🏃  nightly  main           "*"d       …" ]]
+  [[ "${lines[3]}" == "🛑  kit      9-other        "*"d     42s" ]]
+  # the rows end in one column
+  [ "${#lines[0]}" -eq "${#lines[1]}" ] && [ "${#lines[2]}" -eq "${#lines[0]}" ]
+}
+
+@test "kit status builds --json keeps a push on main or a tag, a schedule, and a manual run, never a pull request's" {
+  run "${kit_root}/bin/kit" status builds --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output 'map([.id, .event, .branch, .state, .took])' <<<"$output")" \
+    = '[[5,"push","main","passed",216],[4,"push","release/0.1.0","failed",242],[3,"schedule","main","running",null],'"\
+"'[1,"workflow_dispatch","9-other","cancelled",42]]' ]
+  [ "$(jq --compact-output '.[0].jobs' <<<"$output")" = '[{"name":"ci","state":"passed","took":210}]' ]
+  [ "$(jq --compact-output '[.[1:][].jobs]' <<<"$output")" = '[[],[],[]]' ]
+  [ "$(jq '.[0] | keys_unsorted' --compact-output <<<"$output")" \
+    = '["id","workflow","branch","event","state","age","took","url","jobs"]' ]
+}
+
+@test "a push is a build on the default branch or on a tag the repository has, and on no other branch" {
+  git tag --delete release/0.1.0 >/dev/null
+  run "${kit_root}/bin/kit" status builds --json
+  [ "$(jq --compact-output 'map(.id)' <<<"$output")" = '[5,3,1]' ]
+}
+
+@test "the stage holds the 20 newest runs at most, and only the 5 newest ask for their jobs" {
+  jq '[range(30) as $i | .[1] | .databaseId = 100 + $i | .createdAt = "2026-10-01T10:\(10 + $i):00Z"]' \
+    "${FAKE_DIR}/runs.json" \
+    > "${FAKE_DIR}/many.json"
+  mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/runs.json"
+  run "${kit_root}/bin/kit" status builds --json
+  [ "$(jq 'length' <<<"$output")" -eq 20 ]
+  [ "$(jq '.[0].id' <<<"$output")" -eq 129 ]
+  [ "$(grep -c '^run view ' "${FAKE_DIR}/gh.calls")" -eq 5 ]
+}
+
+@test "with no build, the stage says so in one dim line, and --json prints []" {
+  local esc=$'\x1b'
+  fixture runs.json <<<'[{"databaseId": 6, "workflowName": "kit", "headBranch": "7-fix-the-thing",
+    "event": "pull_request", "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T11:00:00Z",
+    "startedAt": "2026-10-01T11:00:00Z", "updatedAt": "2026-10-01T11:03:00Z", "url": "https://github.com/r/6"}]'
+  run "${kit_root}/bin/kit" status builds
+  [ "$status" -eq 0 ]
+  [ "$output" = "no build since the last 20 runs" ]
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" status builds
+  [ "$output" = "${esc}[90mno build since the last 20 runs${esc}[0m" ]
+  run "${kit_root}/bin/kit" status builds --json
+  [ "$output" = "[]" ]
+}
+
+@test "a narrow terminal clips the branch first, then the workflow, with an ellipsis, and keeps the numbers whole" {
+  jq '.[1].headBranch = "main" | .[1].workflowName = "a-workflow-with-a-very-long-name-that-goes-on-and-on"
+      | .[3].headBranch = "main"' "${FAKE_DIR}/runs.json" > "${FAKE_DIR}/long.json"
+  mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/runs.json"
+  git tag release/a-tag-with-a-very-long-name-that-goes-on-and-on-and-on-and-on-past-the-edge
+  jq '.[2].headBranch = "release/a-tag-with-a-very-long-name-that-goes-on-and-on-and-on-and-on-past-the-edge"' \
+    "${FAKE_DIR}/runs.json" > "${FAKE_DIR}/long.json"
+  mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/runs.json"
+  COLUMNS=60 run "${kit_root}/bin/kit" status builds
+  [ "$status" -eq 0 ]
+  local line
+  for line in "${lines[@]}"
+  do
+    # past the glyph, two columns wide, and its gap, every row fills the 56 columns left, and ends in its numbers
+    line=${line#*  }
+    [ "${#line}" -eq 56 ] || { echo "not 56 wide: ${line}"; return 1; }
+    [[ "${line}" == *"s" || "${line}" == *"…" ]]
+  done
+  [[ "${lines[0]}" == "✅  a-workflow-with-a-very-long-na…  main      "* ]]
+  [[ "${lines[1]}" == "❌  release                          release/a…  "* ]]
+}
+
+@test "kit help status holds the builds legend: the stage, and each state's glyph" {
+  run "${kit_root}/bin/kit" help status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'\n  builds:\n\n    🏭  a build: a run no pull request owns\n    🏃  running or queued\n'* ]]
+  [[ "$output" == *$'\n    🛑  cancelled or skipped\n'* ]]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------

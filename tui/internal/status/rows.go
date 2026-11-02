@@ -4,6 +4,7 @@ package status
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -90,6 +91,28 @@ type checks struct {
 	Took    *int64 `json:"took"`
 }
 
+// run is one build: a workflow run no open pull request owns, on the default branch, on a tag, or started by a
+// schedule or by hand. State is running, passed, failed, or cancelled; Age and Took are seconds, Took nil while it
+// runs. Jobs may be empty when the forge does not report them cheaply.
+type run struct {
+	ID       int64  `json:"id"`
+	Workflow string `json:"workflow"`
+	Branch   string `json:"branch"`
+	Event    string `json:"event"`
+	State    string `json:"state"`
+	Age      int64  `json:"age"`
+	Took     *int64 `json:"took"`
+	URL      string `json:"url"`
+	Jobs     []job  `json:"jobs"`
+}
+
+// job is one job of a build: its name, its state as a build's, and how long it took, nil while it runs.
+type job struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+	Took  *int64 `json:"took"`
+}
+
 // release is one release on the forge.
 type release struct {
 	Version string `json:"version"`
@@ -161,6 +184,27 @@ func age(secs int64) string {
 	return strconv.FormatInt(secs/86400, 10) + "d"
 }
 
+// took gives how long a build or a job took, to the second: 45s, 3m 36s, 1h 02m; … while it runs.
+func took(secs *int64) string {
+	switch {
+	case secs == nil:
+		return "…"
+	case *secs < 60:
+		return strconv.FormatInt(max(*secs, 0), 10) + "s"
+	case *secs < 3600:
+		return fmt.Sprintf("%dm %02ds", *secs/60, *secs%60)
+	}
+	return fmt.Sprintf("%dh %02dm", *secs/3600, *secs%3600/60)
+}
+
+// tookCell gives a duration's cell, right-aligned: dim … while it runs.
+func tookCell(secs *int64) cell {
+	if secs == nil {
+		return dimNumber(took(secs))
+	}
+	return number(took(secs))
+}
+
 // ageOf gives an age that may be missing.
 func ageOf(secs *int64) string {
 	if secs == nil {
@@ -222,6 +266,8 @@ func (m Model) rows(i int) []row {
 		return m.worktreeRows(s)
 	case "changes":
 		return changeRows(s)
+	case "builds":
+		return buildRows(s)
 	case "releases":
 		return m.releaseRows(s)
 	}
@@ -429,6 +475,34 @@ func changeRows(s stage) []row {
 	return rows
 }
 
+// buildRows draws each build, newest first as kit prints them: its state's glyph, workflow, branch or tag, age, and
+// how long it took; open, its jobs, the failed first, each with its glyph and how long it took, then its URL, dim.
+func buildRows(s stage) []row {
+	var rows []row
+	for _, b := range s.runs {
+		r := row{key: strconv.FormatInt(b.ID, 10), cells: []cell{text(runGlyph(b.State)), text(b.Workflow),
+			text(b.Branch), dimNumber(age(b.Age)), tookCell(b.Took)}}
+		jobs := slices.Clone(b.Jobs)
+		slices.SortStableFunc(jobs, func(x, y job) int { return failedFirst(x) - failedFirst(y) })
+		for _, j := range jobs {
+			r.detail = append(r.detail, []cell{text(runGlyph(j.State)), text(j.Name), tookCell(j.Took)})
+		}
+		if b.URL != "" {
+			r.detail = append(r.detail, span(style.Off(b.URL)))
+		}
+		rows = append(rows, r)
+	}
+	return rows
+}
+
+// failedFirst sorts a failed job before the rest.
+func failedFirst(j job) int {
+	if j.State == "failed" {
+		return 0
+	}
+	return 1
+}
+
 // releaseRows draws each release: version, kind, age, latest; open, the name, the tag, the date, and the URL.
 func (m Model) releaseRows(s stage) []row {
 	var rows []row
@@ -464,6 +538,8 @@ func empty(s stage) string {
 		return "no linked worktree"
 	case "changes":
 		return "no open pull request"
+	case "builds":
+		return "no build since the last 20 runs"
 	case "releases":
 		return "no release"
 	}

@@ -9,6 +9,7 @@
     "kit status desk [--json | --jq]",
     "kit status worktrees [--json | --jq]",
     "kit status changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
+    "kit status builds [--json | --jq]",
     "kit status releases [--json | --jq]"
   ],
   "syntax": [
@@ -428,6 +429,34 @@
     [
       {
         "kind": "literal",
+        "name": "builds",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
         "name": "releases",
         "repeat": false
       },
@@ -502,6 +531,9 @@
     },
     "changes": {
       "description": "the open pull requests, each with the issues it closes"
+    },
+    "builds": {
+      "description": "the runs no pull request owns: the default branch, tags, schedules"
     },
     "releases": {
       "description": "the releases on the forge, newest first"

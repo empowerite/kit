@@ -1,0 +1,14 @@
+[
+  {"id": 41309409501, "workflow": "release", "branch": "release/0.1.0", "event": "push", "state": "running", "age": 300, "took": null,
+   "url": "https://github.com/empowerite/kit/actions/runs/41309409501",
+   "jobs": [{"name": "build", "state": "passed", "took": 95}, {"name": "publish", "state": "running", "took": null}]},
+  {"id": 41309409467, "workflow": "kit", "branch": "main", "event": "push", "state": "failed", "age": 7200, "took": 242,
+   "url": "https://github.com/empowerite/kit/actions/runs/41309409467",
+   "jobs": [{"name": "gate", "state": "passed", "took": 210}, {"name": "lint", "state": "passed", "took": 38}, {"name": "test", "state": "failed", "took": 242}, {"name": "docs", "state": "cancelled", "took": 3}]},
+  {"id": 41309409400, "workflow": "kit", "branch": "main", "event": "push", "state": "passed", "age": 86400, "took": 216,
+   "url": "https://github.com/empowerite/kit/actions/runs/41309409400",
+   "jobs": [{"name": "gate", "state": "passed", "took": 210}]},
+  {"id": 41309409322, "workflow": "nightly", "branch": "main", "event": "schedule", "state": "cancelled", "age": 172800, "took": 12,
+   "url": "https://github.com/empowerite/kit/actions/runs/41309409322",
+   "jobs": []}
+]
