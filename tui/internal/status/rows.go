@@ -324,8 +324,8 @@ func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) 
 	if c.Detached {
 		label += " " + Detached + " detached"
 	}
-	r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(m.pullOf(c.Branch, desk)),
-		uncommitted(c.Uncommitted)}}
+	r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(diffstat(c)),
+		text(m.pullOf(c.Branch, desk)), uncommitted(c.Uncommitted)}}
 	for _, change := range c.Changes {
 		r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
 	}
@@ -341,19 +341,26 @@ func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) 
 	return r
 }
 
-// counts gives "↑a ↓b", ahead right-aligned to the widest in the table, a zero dim.
+// counts gives "↑a ↓b", ahead right-aligned to the widest in the table: ahead green and behind red, a zero dim.
 func counts(c checkout, aheadWidth int) string {
 	ahead := "↑" + strconv.Itoa(c.Ahead)
 	pad := strings.Repeat(" ", max(0, aheadWidth-len(ahead)))
-	return pad + count(ahead, c.Ahead) + " " + count("↓"+strconv.Itoa(c.Behind), c.Behind)
+	return pad + count(ahead, c.Ahead, style.Gain) + " " + count("↓"+strconv.Itoa(c.Behind), c.Behind, style.Loss)
 }
 
-// count gives a count's text, dim when it is zero.
-func count(text string, n int) string {
+// diffstat gives "+x -y", the lines the branch adds and removes against the default branch: added green and removed
+// red, a zero dim.
+func diffstat(c checkout) string {
+	return count("+"+strconv.Itoa(c.Added), c.Added, style.Gain) + " " +
+		count("-"+strconv.Itoa(c.Removed), c.Removed, style.Loss)
+}
+
+// count gives a count's text in its color, dim when it is zero.
+func count(text string, n int, paint func(string) string) string {
 	if n == 0 {
 		return style.Off(text)
 	}
-	return text
+	return paint(text)
 }
 
 // uncommitted gives the uncommitted cell: the count, or clean, dim.

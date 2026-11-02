@@ -1016,3 +1016,35 @@ func TestAWideLineScrollsWithDottedEndsAndKeepsTheSelectedTreeWhole(t *testing.T
 		}
 	}
 }
+
+func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
+	// worktrees is the fourth stage; its first row, opened, is taller than a pane on a short screen
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, enter)
+	if m.stage != 3 || m.stages[3].cursor != 0 || !strings.Contains(view(m), " more") {
+		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
+	}
+	seen := map[string]bool{}
+	for k := 0; k < 20 && m.stages[3].cursor == 0; k++ {
+		for _, l := range lines(m) {
+			seen[strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ansi.Strip(l)), style.Focus))] = true
+		}
+		m = drive(m, press(tea.KeyPgDown))
+	}
+	// every line the open row holds was shown on the way down, and only then did the cursor move on
+	for _, l := range m.lines(3) {
+		if l.row == 0 && !seen[strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ansi.Strip(l.text)), style.Focus))] {
+			t.Errorf("page down never showed %q", ansi.Strip(l.text))
+		}
+	}
+	if m.stages[3].cursor == 0 {
+		t.Fatalf("page down never left the open row")
+	}
+	// page up comes back through the same row, to its first line
+	m = drive(m, press(tea.KeyPgUp))
+	for k := 0; k < 20 && strings.Contains(view(m), " above"); k++ {
+		m = drive(m, press(tea.KeyPgUp))
+	}
+	if m.stages[3].cursor != 0 || !strings.Contains(view(m), style.Focus+" "+Branch+" 1-the-first-release") {
+		t.Errorf("page up did not return to the open row's first line:\n%s", view(m))
+	}
+}

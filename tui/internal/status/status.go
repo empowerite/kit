@@ -178,9 +178,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "down":
 		m.down(1)
 	case "pgup":
-		m.up(max(1, m.paneHeight()-1))
+		m.page(-1)
 	case "pgdown":
-		m.down(max(1, m.paneHeight()-1))
+		m.page(1)
 	case "enter":
 		m.toggle()
 	case "r":
@@ -477,6 +477,45 @@ func (m *Model) toggle() {
 	key := rows[s.cursor].key
 	s.open[key] = !s.open[key]
 	m.fit()
+}
+
+// page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it
+// first scrolls through that row, so every line it hides can be reached; at the row's end it moves the cursor a page
+// of rows. A page up stops at the first row, and from there leaves the rows for the line.
+func (m *Model) page(d int) {
+	h := max(1, m.paneHeight()-1)
+	if !m.inRows || len(m.stages) == 0 {
+		if d > 0 {
+			m.down(h)
+		}
+		return
+	}
+	s := &m.stages[m.stage]
+	all := m.lines(m.stage)
+	first, last := -1, -1
+	for k, l := range all {
+		if l.row == s.cursor {
+			if first < 0 {
+				first = k
+			}
+			last = k
+		}
+	}
+	start, end, _, _ := window(len(all), m.paneHeight(), s.offset)
+	switch {
+	case first >= 0 && d > 0 && last >= end:
+		s.offset, _, _, _ = window(len(all), m.paneHeight(), s.offset+h)
+	case first >= 0 && d < 0 && first < start:
+		s.offset, _, _, _ = window(len(all), m.paneHeight(), max(first, s.offset-h))
+	case d > 0:
+		m.down(h)
+	case s.cursor > 0:
+		// a page up stops at the first row; only from there does it leave the rows for the line
+		s.cursor = max(0, s.cursor-h)
+		m.fit()
+	default:
+		m.up(h)
+	}
 }
 
 // fit scrolls the view sideways to the selected stage's tree, and its pane so the row under the cursor shows, with
