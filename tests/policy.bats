@@ -144,3 +144,25 @@ REGO
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "kit policy --facts judges a saved document, and gathers nothing" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  change "Fix the thing"
+  "${kit_root}/bin/kit" policy --input | jq '.branch = "BAD"' > facts.json
+  : > "${FAKE_DIR}/gh.calls"
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'BAD' does not match policy.branch"* ]]
+  [[ "$output" != *"7-fix-the-thing"* ]]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+}
+
+@test "kit policy --facts with a file that is not JSON is refused" {
+  printf 'not json\n' > facts.json
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"facts.json"* ]]
+  run "${kit_root}/bin/kit" policy --facts=missing.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"missing.json"* ]]
+}

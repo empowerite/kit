@@ -2,7 +2,7 @@
 # kit-policy - refuses a branch, subject, or title the policy forbids (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# kit policy [--input]
+# kit policy [--input | --facts=<file>]
 #
 # Fails when a name breaks the repository's policy. kit policy collects these facts once:
 #
@@ -12,11 +12,14 @@
 #
 # The policy engine then reports every refusal. The engine is patterns (the default) or Open Policy Agent.
 #
-#   --input   prints the facts as JSON instead of judging them
+#   --input           prints the facts as JSON instead of judging them
+#   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
 #
 # The facts are the document a policy rule is written against. A pull request by a login the repository lists under
 # linked_exempt in kit.yml passes with nothing checked, and the output says so. That is for a bot such as
 # dependabot[bot]; the same setting passes it through kit linked.
+#
+# A file that is missing, or is not JSON, is refused with exit 2.
 #
 # kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
 #
@@ -38,10 +41,21 @@ then
   exit 0
 fi
 
-file:scratch scratch
-# shellcheck disable=SC2154  # scratch is set by file:scratch
-input=${scratch}/input
-policy:input > "${input}"
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+if [[ -n "${syntax_options[--facts]:-}" ]]
+then
+  input=${syntax_options[--facts]}
+  if ! jq empty "${input}" 2>/dev/null
+  then
+    error "'${input}' is missing or is not JSON; --facts takes a facts document, as kit facts prints"
+    exit 2
+  fi
+else
+  file:scratch scratch
+  # shellcheck disable=SC2154  # scratch is set by file:scratch
+  input=${scratch}/input
+  policy:input > "${input}"
+fi
 author=$(jq --raw-output '.change.author // empty' "${input}")
 if [[ -n "${author}" ]]
 then
