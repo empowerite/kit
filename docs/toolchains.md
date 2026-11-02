@@ -84,7 +84,8 @@ here. `--json` prints one object per row.
 ## `kit tools`
 
 Alone, it lists what the chosen project toolchain pins: each tool's name, the version pinned, and the version
-installed. It reads local files only, so `kit serve` can offer it to agents.
+installed. It never reaches the network, so `kit serve` can offer it to agents. docker asks its daemon whether the
+image is built only when the daemon is local; with a remote one, no base shows as installed.
 
 | Command | What it does |
 | --- | --- |
@@ -100,8 +101,9 @@ Each takes `--toolchain <name>` to name the toolchain for that run.
 Ambient, no toolchain pins anything. Then `kit tools` lists the tools the rules' linters need, and where each is
 found on `PATH`, or `missing`.
 
-- `kit tools install` installs nothing. It fails, naming each missing tool, and names the brew command when brew
-  is the system toolchain.
+- `kit tools install` installs nothing. With every tool on `PATH`, it says so and exits 0. Otherwise it fails,
+  naming each missing tool, and the brew command when brew is the system toolchain.
+- `kit tools update` refuses: there is nothing pinned to update. `kit tools --outdated` finds none behind.
 - `kit tools path` prints nothing, and `kit tools run` runs the command as is.
 
 ## The gate

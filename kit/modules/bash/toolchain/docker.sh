@@ -45,12 +45,16 @@ toolchain/docker:outdated() {
 toolchain/docker:path() { return 0; }
 
 # toolchain/docker:pins prints each base image with its pinned digest, read from the file. Once the image built from
-# the file is present, each base is installed at its pin, or as built when it has none.
+# the file is present, each base is installed at its pin, or as built when it has none. Only a local daemon is asked
+# whether the image is present; with a remote one, nothing is reported installed.
 toolchain/docker:pins() {
   local tag present=false base pinned
   toolchain/docker:require || return 1
   tag=$(toolchain/docker:tag) || return 1
-  ! docker image inspect "${tag}" >/dev/null 2>&1 || present=true
+  if toolchain/docker:local && docker image inspect "${tag}" >/dev/null 2>&1
+  then
+    present=true
+  fi
   while IFS=$'\t' read -r base pinned
   do
     [[ -n "${base}" ]] || continue
@@ -124,6 +128,12 @@ toolchain/docker:bases() {
       if (index(ref, "@") > 0) { name = substr(ref, 1, index(ref, "@") - 1); digest = substr(ref, index(ref, "@") + 1) }
       print name "\t" digest
     }' "$(toolchain/docker:file)"
+}
+
+# toolchain/docker:local succeeds when the daemon docker talks to is on this machine: DOCKER_HOST is unset, empty,
+# or a unix socket, and DOCKER_CONTEXT names no context but the default.
+toolchain/docker:local() {
+  [[ -z "${DOCKER_HOST:-}" || "${DOCKER_HOST}" == unix://* ]] && [[ "${DOCKER_CONTEXT:-default}" == default ]]
 }
 
 # toolchain/docker:latest <name:tag> prints the tag's current digest in the registry.

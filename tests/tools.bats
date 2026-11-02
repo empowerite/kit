@@ -236,6 +236,22 @@ JSON
   [ "$(cat toolchain.Dockerfile)" = "${pinned}" ]
 }
 
+@test "docker reports its bases installed only when its daemon is local, so the listing never reaches the network" {
+  printf 'FROM alpine:3.20@sha256:old\n' > toolchain.Dockerfile
+  route docker 'image inspect *' '!0'
+  for host in '' unix:///var/run/docker.sock
+  do
+    DOCKER_HOST=${host} run "${kit_root}/bin/kit" tools
+    [ "$status" -eq 0 ]
+    grep --quiet -E '^✅ alpine:3\.20 +· sha256:old +· sha256:old$' <<<"$output"
+  done
+  : > "${FAKE_DIR}/docker.calls"
+  DOCKER_HOST=tcp://build.example.com:2376 run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^❌ alpine:3\.20 +· sha256:old$' <<<"$output"
+  if grep --quiet 'image inspect' "${FAKE_DIR}/docker.calls"; then false; fi
+}
+
 @test "kit gate runs through the chosen toolchain, inside docker when docker is chosen" {
   mkdir .kit && printf 'gate: echo "${PATH%%%%:*}"\n' > kit.yml
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
@@ -244,11 +260,18 @@ JSON
   route mise 'bin-paths' paths.txt
   route docker 'image inspect *' '!0'
   route docker 'run --rm *' '!0'
-  # with mise and docker both usable and none chosen, the gate cannot run, and that is not the gate failing
+  # with mise and docker both usable and none chosen, the gate cannot run, and that is not the gate failing; the
+  # step summary says why, in toolchain:chosen's words
+  export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
   run "${kit_root}/bin/kit" gate </dev/null
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit toolchains choose docker"* ]]
   [[ "$output" != *"the gate failed"* ]]
+  grep --quiet 'The gate cannot run' "${GITHUB_STEP_SUMMARY}"
+  grep --quiet 'several toolchains are usable for the project here' "${GITHUB_STEP_SUMMARY}"
+  KIT_TOOLCHAIN=brew run "${kit_root}/bin/kit" gate </dev/null
+  [ "$status" -eq 1 ]
+  grep --quiet 'the toolchain named for this run, brew, is not usable' "${GITHUB_STEP_SUMMARY}"
   run "${kit_root}/bin/kit" toolchains choose docker
   [ "$status" -eq 0 ]
   run "${kit_root}/bin/kit" gate

@@ -274,8 +274,8 @@ answers:
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
 | `status` | The stages `kit status` draws, in order: `backlog`, `underway`, `incoming`, `desk`, `worktrees`, `changes`, `builds`, `releases`. A stage left out is not drawn; `kit status <stage>` still prints it. Default: all eight, in that order. |
 
-A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker or a toolchain,
-takes one of the kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`
+A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker, takes one of the
+kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`
 with a `modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Sources

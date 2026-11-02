@@ -36,7 +36,7 @@
 #   install                 installs every pinned tool, from the file and its lock
 #   outdated                one line per tool that is behind its source: "<name>\t<installed>\t<latest>"
 #   path                    the directories to put first on PATH for its tools, one per line
-#   pins                    one line per pinned unit, "<name>\t<pinned>\t<installed>", from local files alone
+#   pins                    one line per pinned unit, "<name>\t<pinned>\t<installed>"; never reaches the network
 #   require                 succeeds when its own tool is present; otherwise fails with a remedy
 #   roles                   the roles it can fill, one per line: project, system, or both
 #   update                  moves every tool to its latest version, and rewrites the pins and the lock

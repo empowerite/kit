@@ -2,9 +2,8 @@
 # toolchains.bats - kit finds the toolchains where it runs, chooses one for each role, and kit toolchains lists them
 # ----------------------------------------------------------------------------------------------------------------------
 #
-# Each provider is driven by tests/fakes/fake-tool standing in for its tool, so what is proven is how the provider
-# reads its tool's answers and what it asks of it. What only the real tool can prove, that it answers as the
-# fixtures do, is proven by running kit toolchains on a desk that has it.
+# tests/fakes/fake-tool stands in for each provider's tool, so detection and choosing run without the real ones.
+# What each provider does with its tool's answers, installing, listing, and updating, is in tests/tools.bats.
 
 load helper
 

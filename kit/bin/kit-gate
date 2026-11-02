@@ -63,12 +63,22 @@ then
     'Set `gate` in `kit.yml`, or give the root justfile a `ci` recipe.'
   exit 1
 fi
-# The toolchain is settled first, so a refusal to choose one is not reported as the gate failing.
-if ! toolchain:chosen project >/dev/null
+# The toolchain is settled first, so a refusal to choose one is not reported as the gate failing. On a terminal, the
+# person may be asked to choose, so nothing is captured; elsewhere, the reason also goes to the step summary.
+if [[ -t 0 && -t 2 ]]
 then
-  # shellcheck disable=SC2016  # a markdown code span, not an expansion
-  summary "### ❌ The gate cannot run: kit cannot tell which toolchain to use" "" 'Run `kit toolchains`.'
-  exit 1
+  toolchain:chosen project >/dev/null || exit 1
+else
+  reason=$(mktemp)
+  if ! toolchain:chosen project >/dev/null 2>"${reason}"
+  then
+    cat "${reason}" >&2
+    summary "### ❌ The gate cannot run" "" "$(grep -v '^::' "${reason}" | sed 's/^❌ //')"
+    rm -f "${reason}"
+    exit 1
+  fi
+  cat "${reason}" >&2
+  rm -f "${reason}"
 fi
 step "the gate: ${gate}"
 if ! toolchain:run bash -c "${gate}"
