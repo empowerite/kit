@@ -389,6 +389,32 @@ choose() {
   [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
 }
 
+@test "a choice made in a fresh worktree with no .kit/ leaves git nothing to see" {
+  touch mise.toml Brewfile
+  git add mise.toml Brewfile && git commit --quiet --message 'toolchains'
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
+  cd "${BATS_TEST_TMPDIR}/feature"
+  [ ! -e .kit ]
+  run "${kit_root}/bin/kit" toolchains choose brew
+  [ "$status" -eq 0 ]
+  [ "$(cat .kit/cache/toolchain)" = brew ]
+  [ -z "$(git status --porcelain)" ]
+  cd "${repo}"
+}
+
+@test "kit toolchains hydrates a kit repository's fresh worktree before it records the choice" {
+  "${kit_checkout}/bin/kit" install
+  touch mise.toml Brewfile
+  git add --all && git commit --quiet --message init
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
+  cd "${BATS_TEST_TMPDIR}/feature"
+  run "${kit_root}/bin/kit" toolchains choose brew
+  [ "$status" -eq 0 ]
+  [ -f .kit/1st.md ]
+  [ -z "$(git status --porcelain)" ]
+  cd "${repo}"
+}
+
 @test "kit toolchains choose refuses a toolchain not usable here, naming the usable ones" {
   touch mise.toml
   run "${kit_root}/bin/kit" toolchains choose brew

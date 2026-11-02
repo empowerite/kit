@@ -274,7 +274,7 @@ toolchain:refuse() {
 #   - project, at the desk: <git common dir>/kit/toolchain, which every worktree of the clone reads
 #   - project, in a linked worktree: .kit/cache/toolchain, which only that worktree reads
 toolchain:choose() {
-  local role=$1 provider=$2 settings found
+  local role=$1 provider=$2 settings found kept
   local -a usable
   toolchain:role "${role}" || return 1
   found=$(toolchain:detect) || return 1
@@ -295,7 +295,9 @@ toolchain:choose() {
       fi
       ;;
     (project)
-      file:replace "$(toolchain:kept)" printf '%s\n' "${provider}"
+      kept=$(toolchain:kept) || return 1
+      toolchain:ignored "${kept}" || return 1
+      file:replace "${kept}" printf '%s\n' "${provider}"
       ;;
   esac
 }
@@ -329,6 +331,17 @@ toolchain:kept() {
   then printf '%s/kit/toolchain\n' "${common}"
   else printf '%s/.kit/cache/toolchain\n' "${top}"
   fi
+}
+
+# toolchain:ignored <kept> makes sure git never sees a choice kept under .kit/cache/. A worktree not yet hydrated
+# has no .kit/.gitignore, so it writes one that lists /cache/, as kit hydrate would, with no delivered paths.
+toolchain:ignored() {
+  local ignore
+  [[ "$1" == */.kit/cache/toolchain ]] || return 0
+  ignore="${1%/cache/toolchain}/.gitignore"
+  ! grep --quiet --line-regexp /cache/ "${ignore}" 2>/dev/null || return 0
+  use materialize || return 1
+  file:replace "${ignore}" materialize:ignore-text
 }
 
 # toolchain:settings prints the file that keeps the system choice: ~/.kit/settings.yml, under KIT_HOME when set.
