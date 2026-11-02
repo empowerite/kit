@@ -268,7 +268,6 @@ answers:
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
 | `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
-| `toolchains` | The tool managers that put the gate's tools on `PATH`: `mise`, `brew`, or `docker`; see [toolchains.md](toolchains.md). |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |

@@ -166,7 +166,7 @@ exists.
 | --- | --- | --- |
 | `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else the primary remote's host |
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/brew.sh`, `toolchain/docker.sh` | the `toolchains` setting, else the files present; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/brew.sh`, `toolchain/docker.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
 Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
@@ -189,7 +189,7 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
 
 - `kit gate` runs the repository's own gate: the `gate` setting, or a detected justfile recipe, Makefile target, or
   `package.json` script. It fails when there is no gate, because a gate that cannot run verifies nothing. The gate
-  runs with the tools the repository's toolchains manage (mise, Homebrew, or a container image); see
+  runs with the tools the chosen toolchain pins (mise, Homebrew, or a container image); see
   [toolchains.md](toolchains.md).
 - `kit check` fails when a delivered file differs from the release.
 - `kit linked` fails when a pull request is not linked to an open issue.
@@ -207,7 +207,7 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit issue` creates the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
 | Branch names, commit subjects, and titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
-| The gate ran with the pinned tools | `kit toolchains install`, then the gate run through the toolchain, locally and in CI |
+| The gate ran with the pinned tools | `kit tools install`, then the gate run through the chosen toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
 | An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |
 | An agent asked for a file's rules | `.git/kit/context.log`, one line per request |

@@ -79,7 +79,7 @@ esac'
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "a missing tool's fix is kit toolchains install where kit detects a toolchain, else brew on macOS, else none" {
+@test "a missing tool's fix is kit tools install where kit detects a toolchain, else brew on macOS, else none" {
   fake-script yq 'exit 1'
   # ambient, with no package manager: no fix, and the tool's site to read
   run --separate-stderr check tool-yq
@@ -99,7 +99,7 @@ esac'
   fake-script brew '[[ "$*" != --prefix ]] || echo "${BATS_TEST_TMPDIR}/prefix"'
   run --separate-stderr env FAKE_UNAME=Darwin "${kit_root}/bin/kit" welcome --checks --json
   [ "$(jq --raw-output '.[] | select(.id == "tool-yq") | [.ok, .fix, .more] | @tsv' <<<"$output")" = \
-    $'false\tkit toolchains install\tBrewfile' ]
+    $'false\tkit tools install\tBrewfile' ]
   # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
   mkdir -p "${BATS_TEST_TMPDIR}/prefix/bin"
   printf '#!/usr/bin/env bash\necho "yq (https://github.com/mikefarah/yq/) version v4.54.1"\n' \
@@ -107,7 +107,7 @@ esac'
   chmod +x "${BATS_TEST_TMPDIR}/prefix/bin/yq"
   run --separate-stderr check tool-yq
   [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
-    $'false\tyq is installed, but not on PATH; kit toolchains path names its directory\t' ]
+    $'false\tyq is installed, but not on PATH; kit tools path names its directory\t' ]
 }
 
 @test "a forge host among the remotes gets two checks: its tool installed, and logged in, the login's fix interactive" {

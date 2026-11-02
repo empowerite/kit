@@ -8,4 +8,5 @@ The rules in `kit.rego` refuse exactly what the patterns engine refuses. Taking 
 the repository adds a rule of its own. To add one, put a `.rego` file of the repository's own beside `kit.rego`,
 in the same package, that adds to `deny`.
 
-`kit policy --input` prints the input document a rule reads. The repository pins `opa` in its toolchain.
+`kit policy --input` prints the input document a rule reads. The repository pins `opa` in its toolchain, and
+`kit tools install` installs it.

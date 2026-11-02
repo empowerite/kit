@@ -227,7 +227,7 @@ from arguments, stays inline where it is used.
 | `forge.jq` | a pull request's checks and state, from either forge's answers |
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
 | `status.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
-| `toolchain.jq` | which of a tool manager's outdated packages the repository pins |
+| `toolchain.jq` | what a tool manager pins and has installed, and which of its outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
 | `backlog.jq` | the issues no open change closes, with the branch on the primary remote that claims each |
 | `underway.jq` | the issues an open change closes, one row per issue and change, and the rows the owner flags keep |

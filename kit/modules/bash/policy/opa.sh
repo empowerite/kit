@@ -16,7 +16,7 @@ policy/opa:deny() {
   local input=$1 out
   if ! command -v opa >/dev/null 2>&1
   then
-    error "pin opa in the repository's toolchain and run: kit toolchains install (the opa policy engine needs it)"
+    error "pin opa in the repository's toolchain and run: kit tools install (the opa policy engine needs it)"
     return 1
   fi
   if ! out=$(opa eval --format json --data .kit/policy --input "${input}" 'data.kit.policy.deny' 2>&1)

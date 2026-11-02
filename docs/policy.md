@@ -73,7 +73,7 @@ and OPA's RE2 share, so both engines read them the same way:
 | `patterns` | Matches each rule in bash. Needs no other tool. | Default. |
 | `opa` | Open Policy Agent evaluates every `.rego` file under `.kit/policy/`, package `kit.policy`. The set `deny` of strings is the refusals. | `policy_engine: opa`, or any `.rego` file in `.kit/policy/`. |
 
-The `opa` engine needs `opa`. Pin it in the repository's toolchain.
+The `opa` engine needs `opa`. Pin it in the repository's toolchain, then run `kit tools install`.
 
 The `policy/opa` package delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
 refusals. Because it is a `.rego` file, adding the package selects the `opa` engine, and the results stay the same.

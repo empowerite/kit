@@ -7,7 +7,7 @@
 #      runners)
 #   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release and unpacked only when
 #      its bytes have the digest published beside it, or the checkout's own kit/bin/ when it declares unreleased
-#   3. installs the gate's tools with `kit toolchains install`, whichever of mise, brew, or docker manages them
+#   3. installs the gate's tools with `kit tools install`, through the toolchain kit finds on the runner
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
 # Added by kit's github/ci package. To remove it, run kit packages remove github/ci.
@@ -81,7 +81,7 @@ jobs:
           fi
 
       - name: toolchain
-        run: kit toolchains install && kit toolchains path >> "${GITHUB_PATH}"
+        run: kit tools install && kit tools path >> "${GITHUB_PATH}"
 
       - name: kit-ci
         env:

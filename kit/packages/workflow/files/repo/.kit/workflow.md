@@ -41,7 +41,7 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 4. Implement what the issue asks and nothing else.
 5. Push as you go.
 6. Before you call anything done, run `kit gate`: the repository's gate (its own CI command, such as `just ci`)
-   through the pinned toolchain.
+   with the tools the chosen toolchain pins.
 7. Finish by marking the pull request ready for review: `gh pr ready` on GitHub, `glab mr update --ready` on
    GitLab, with the report in the pull request body.
 8. If the gate fails or the work is partial, leave the pull request as a draft and say why.

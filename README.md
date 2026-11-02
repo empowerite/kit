@@ -23,8 +23,8 @@ What else kit provides:
 - `.kit/1st.md`, the file every agent reads first, and a rule file for each kind of file that has one. Style, how a
   file looks, is optional: one style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
-- `kit toolchains`, which installs and updates the gate's tools, whether mise, Homebrew, or a container image
-  manages them, and runs commands with them.
+- `kit toolchains`, which lists the toolchains kit finds where it runs, and `kit tools`, which installs and
+  updates the tools the chosen one pins, and runs commands with them.
 - `kit status`, which draws where the work stands in eight stages: backlog, underway, incoming, desk, worktrees,
   changes, builds, releases.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.

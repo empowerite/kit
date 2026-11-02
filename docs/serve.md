@@ -23,6 +23,7 @@ The tools are the verbs that read and report, and change nothing:
 | `status` | `kit status` |
 | `syntax` | `kit syntax` |
 | `toolchains` | `kit toolchains` |
+| `tools` | `kit tools` |
 | `version` | `kit version` |
 
 - A tool's description is read from the verb's header by the functions `kit help` uses, so the help and the server

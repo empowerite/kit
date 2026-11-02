@@ -160,7 +160,7 @@ The packages:
   staged paths. A repository's `lefthook.yml` includes it with `extends` and adds its own commands. `kit lint`
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
 - `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
-  `kit toolchains install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine; before
+  `kit tools install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine; before
   the branch has a pull request, `kit linked` fails and the other three run without one:
   - the repository's gate
   - `kit check`

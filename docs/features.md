@@ -50,7 +50,7 @@ The four checks are fixed. What each one runs is found at run time, from the rep
 | the kit's own checks | the names under `checks:` in that frontmatter; the workflows rule names `pinned`, which refuses an action not pinned to a full commit SHA |
 | the templates | the `templates:` list in that frontmatter |
 | the policy engine | Open Policy Agent when `.kit/policy/` holds a `.rego` file, else the patterns in `kit.yml` |
-| the toolchains | the `toolchains` setting, else the files present, such as `mise.toml` or a `Brewfile` |
+| the toolchain | the one active or usable where kit runs, such as mise with a `mise.toml`, else the person's choice |
 
 A repository that adds a rule or a style adds its linter, its checks, and its templates with it.
 
@@ -184,8 +184,9 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-
 
 ## Toolchains
 
-- `kit toolchains` lists the toolchains and the file each reads, and installs and updates the tools the gate runs,
-  whether mise, Homebrew, or a container image manages them.
+- `kit toolchains` lists the toolchains kit found where it runs, and records which one to use.
+- `kit tools` lists, installs, and updates the tools that toolchain pins, whether mise, Homebrew, or a container
+  image manages them.
 - The gate runs with those tools on the desk, in a worktree, and on a CI runner alike.
 
 see: [toolchains.md](toolchains.md)

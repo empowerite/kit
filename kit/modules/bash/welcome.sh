@@ -24,7 +24,7 @@
 #   - where you are: at the desk or in a worktree; it always holds
 #
 # kit detects the repository's toolchain, as kit toolchains does, and never assumes one. A missing tool's fix is
-# kit toolchains install where a toolchain is detected. Where none is, the tools are ambient: the fix is brew install
+# kit tools install where a toolchain is detected. Where none is, the tools are ambient: the fix is brew install
 # on macOS with Homebrew, else none, and more names the tool's site. Only welcome:fix runs a fix, and only the one it
 # is asked for.
 #
@@ -102,13 +102,13 @@ welcome:brew() {
 
 # welcome:install <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
 #
-#   - kit toolchains install where kit detects a toolchain, and the files that pin the tools
+#   - kit tools install where kit detects a toolchain, and the files that pin the tools
 #   - else, with the tools ambient, brew install <tool> on macOS with Homebrew
 #   - else no fix, and the tool's site
 welcome:install() {
   if [[ -n "$(welcome:toolchains)" ]]
   then
-    printf 'kit toolchains install\x1f%s\n' "$(welcome:toolchain-files)"
+    printf 'kit tools install\x1f%s\n' "$(welcome:toolchain-files)"
   elif welcome:brew
   then
     printf 'brew install %s\x1f\n' "$1"
@@ -124,7 +124,7 @@ welcome:missing() {
   local id=$1 tool=$2 line=$3 fix more
   if welcome:toolchain-has "${tool}"
   then
-    welcome:record "${id}" false "${tool} is installed, but not on PATH; kit toolchains path names its directory" '' \
+    welcome:record "${id}" false "${tool} is installed, but not on PATH; kit tools path names its directory" '' \
       false 'https://github.com/empowerite/kit/blob/main/docs/toolchains.md'
     return 0
   fi
