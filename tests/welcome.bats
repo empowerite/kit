@@ -11,6 +11,7 @@ bats_require_minimum_version 1.5.0
 load helper
 
 setup() {
+  hide-system-toolchains
   fresh-repo >/dev/null
   fakes="${BATS_TEST_TMPDIR}/fakes"
   mkdir -p "${fakes}"
@@ -164,6 +165,27 @@ ambient-system() {
   run --separate-stderr check toolchain-system
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
     $'true\tthe system toolchain is ambient, as chosen: kit uses what is on PATH' ]
+}
+
+@test "with apt the system toolchain, welcome names its package, or the site for a tool Debian has none for" {
+  local sudo='sudo '
+  (( EUID != 0 )) || sudo=''
+  rm "${fakes}/brew"
+  path-without brew
+  fake-script apt-get 'exit 1'
+  run --separate-stderr check toolchain-system
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
+    $'true\tapt is the system toolchain; it names the fix for a missing tool' ]
+  # Debian's yq is not mikefarah's, so there is no command, and the site to read
+  fake-script yq 'exit 1'
+  run --separate-stderr check tool-yq
+  [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = $'\thttps://github.com/mikefarah/yq#install' ]
+  # with no project toolchain, a missing linter is apt's to install
+  rm "${fakes}/yq"
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  fake-script shellcheck 'exit 1'
+  run --separate-stderr check linter-shellcheck
+  [ "$(jq --raw-output '[.fix, .runs] | @tsv' <<<"$output")" = "${sudo}apt-get install shellcheck"$'\ttrue' ]
 }
 
 @test "welcome fixes a missing tool with kit tools install, or the system toolchain's command when ambient" {

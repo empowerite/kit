@@ -1,7 +1,7 @@
 # Toolchains
 
-A toolchain is a tool manager: mise, Nix, Homebrew, a Docker image, or a dev container. It pins the tools the gate
-runs, the gate being the repository's own CI command.
+A toolchain is a tool manager: mise, Nix, Homebrew, a Docker image, a dev container, or a Linux system's package
+manager. It pins the tools the gate runs, the gate being the repository's own CI command.
 
 - kit finds the toolchains where it runs. `kit.yml` never names one, because it is shared by everyone who clones.
 - `kit toolchains` lists what kit found, and records which one to use.
@@ -44,6 +44,9 @@ network, and never calls git.
 | `brew` | system; project with a `Brewfile` | `brew` is on `PATH` | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
 | `devcontainer` | project; system too while active | From outside, the `devcontainer` CLI is on `PATH`, and `.devcontainer/devcontainer.json` or `.devcontainer.json` is here. Inside, the file alone. | `REMOTE_CONTAINERS`, `CODESPACES`, or `DEVCONTAINER` is set, and the file is here | each feature in `devcontainer-lock.json` by its locked version |
+| `apt` | system | `apt-get` is on `PATH` | never | nothing; it installs for the whole machine |
+| `dnf` | system | `dnf` is on `PATH` | never | nothing; it installs for the whole machine |
+| `pacman` | system | `pacman` is on `PATH` | never | nothing; it installs for the whole machine |
 
 A nix older than 2.20 has no `nix config show`, so kit cannot tell whether flakes are on. It reports that nix as
 not usable.
@@ -55,6 +58,17 @@ devcontainer:
 - From outside, it runs commands in the container, as docker does. Inside, a command runs as is.
 - The file allows comments, which kit does not parse. The pins come from the lock, so a feature not yet locked is
   not listed.
+
+apt, dnf, and pacman:
+
+- They fill the system role alone. They install for the whole machine, so they pin no repository's tools.
+- Each names the command that installs a missing tool, such as `sudo apt-get install shellcheck`. kit never runs it
+  on its own. `kit welcome` runs it only when you say now, in your terminal, so `sudo` can ask for a password.
+- A package's name can differ from the tool's. Fedora names shellcheck `ShellCheck`; Arch names gh `github-cli`.
+- A tool with no package there gets no command. kit names the tool's site instead. Debian's and Arch's `yq` are not
+  mikefarah's, which kit needs, so on apt kit names the site, and on pacman it names `go-yq`.
+- With brew on `PATH` too, both are usable for the system. brew is offered first, and the choice is yours:
+  `kit toolchains choose apt --system`.
 
 ## Choosing
 

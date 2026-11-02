@@ -9,6 +9,7 @@
 load helper
 
 setup() {
+  hide-system-toolchains
   fake-tools mise nix brew docker devcontainer
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'

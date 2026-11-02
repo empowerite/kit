@@ -120,6 +120,28 @@ shims() {
   printf '%s:%s\n' "${dir}" "${PATH}"
 }
 
+# hide-system-toolchains hides a real apt-get, dnf, and pacman from PATH, as a Linux runner has, so a test finds only
+# the system toolchains it fakes. Each directory that holds one is replaced by links to everything else in it, made by
+# one ln, as /usr/bin is too large to link one file at a time.
+hide-system-toolchains() {
+  local dir out='' copy n=0 tool IFS=:
+  for dir in ${PATH}
+  do
+    for tool in apt-get dnf pacman
+    do
+      [[ -x "${dir}/${tool}" ]] || continue
+      copy="${BATS_TEST_TMPDIR}/system-hidden-$((n++))"
+      mkdir -p "${copy}"
+      ln -s "${dir}"/* "${copy}/" 2>/dev/null || true
+      rm -f "${copy}/apt-get" "${copy}/dnf" "${copy}/pacman"
+      dir=${copy}
+      break
+    done
+    out+="${out:+:}${dir}"
+  done
+  PATH=${out}
+}
+
 # path-without <tool> hides the tool from PATH, such as a real brew on this machine. Each directory that holds it is
 # replaced by a directory of links to everything else in it, so the other tools there still run.
 path-without() {

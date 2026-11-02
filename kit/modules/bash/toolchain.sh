@@ -135,8 +135,21 @@ toolchain:remedy() {
   printf '%s\n' "${fix}"
 }
 
+# toolchain:system-only <provider> answers a project call for a provider that fills the system role alone, as apt.
+# kit never makes one; it refuses, so a call made by mistake says why.
+toolchain:system-only() {
+  error "$1 fills the system role only: it installs for the whole machine, and pins no repository's tools"
+  return 1
+}
+
+# toolchain:sudo prints "sudo " for a remedy that installs for the whole machine, and nothing when kit already runs as
+# root, as in a container that may have no sudo.
+toolchain:sudo() {
+  (( EUID == 0 )) || printf 'sudo '
+}
+
 # toolchain:usable <role> prints the providers usable for the role, one per line, in precedence order: mise, nix,
-# brew, docker, then any other, as devcontainer, in toolchain:providers order. The order is how candidates are
+# brew, docker, then any other, as apt or devcontainer, in toolchain:providers order. The order is how candidates are
 # offered; a run uses one.
 toolchain:usable() {
   toolchain:detect | toolchain:ranked "$1" usable

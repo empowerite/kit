@@ -8,6 +8,7 @@
 load helper
 
 setup() {
+  hide-system-toolchains
   fake-tools mise nix brew docker devcontainer
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
@@ -64,6 +65,46 @@ probes() {
   export PATH="${BATS_TEST_TMPDIR}/prefix/bin:${PATH}"
   run detect
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
+}
+
+@test "apt, dnf, and pacman are system toolchains where each is on PATH, and never project ones" {
+  run detect
+  [ "$(grep -e '^apt' -e '^dnf' -e '^pacman' <<<"$output")" = \
+    $'apt\tsystem\tno\tno\ndnf\tsystem\tno\tno\npacman\tsystem\tno\tno' ]
+  fake-tools apt-get dnf pacman
+  run detect
+  [ "$(grep -e '^apt' -e '^dnf' -e '^pacman' <<<"$output")" = \
+    $'apt\tsystem\tyes\tno\ndnf\tsystem\tyes\tno\npacman\tsystem\tyes\tno' ]
+  # none is ever run to find it
+  [ ! -e "${FAKE_DIR}/apt-get.calls" ] && [ ! -e "${FAKE_DIR}/dnf.calls" ] && [ ! -e "${FAKE_DIR}/pacman.calls" ]
+  # beside brew, brew is offered first
+  run kit-bash 'use toolchain && toolchain:usable system'
+  [ "$output" = $'brew\napt\ndnf\npacman' ]
+  # a project call refuses, naming the role it fills
+  run kit-bash 'use toolchain && toolchain:call apt install'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"apt fills the system role only"* ]]
+}
+
+@test "each system toolchain names the package that installs a tool, by its own name, or none" {
+  local sudo='sudo '
+  (( EUID != 0 )) || sudo=''
+  run kit-bash 'use toolchain && toolchain:remedy apt shellcheck && toolchain:remedy dnf shellcheck &&
+    toolchain:remedy pacman shellcheck && toolchain:remedy dnf yq && toolchain:remedy pacman yq &&
+    toolchain:remedy pacman gh'
+  [ "$status" -eq 0 ]
+  [ "$output" = "${sudo}apt-get install shellcheck
+${sudo}dnf install ShellCheck
+${sudo}pacman -S shellcheck
+${sudo}dnf install yq
+${sudo}pacman -S go-yq
+${sudo}pacman -S github-cli" ]
+  # Debian's yq is not mikefarah's, and no archive has lefthook
+  run kit-bash 'use toolchain && toolchain:remedy apt yq'
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  run kit-bash 'use toolchain && toolchain:remedy dnf lefthook || toolchain:remedy pacman lefthook'
+  [ "$status" -eq 1 ]
 }
 
 @test "mise is active only when activated and configured here" {
@@ -327,11 +368,17 @@ choose() {
   # a toolchain named for the run is the project's, and leaves the system one as it is
   KIT_TOOLCHAIN=ambient run chosen system
   [ "$output" = brew ]
-  # brew alone fills the system role today, so the refusal for several is asked for directly
-  run kit-bash 'use toolchain && toolchain:refuse system brew nix'
+  # with apt usable too, the choice still holds; forgotten, the system role is refused with no terminal to ask
+  fake-tools apt-get
+  run chosen system
+  [ "$output" = brew ]
+  rm "${KIT_HOME}/.kit/settings.yml"
+  run chosen system
+  [ "$status" -eq 1 ]
   [[ "$output" == *"with brew: kit toolchains choose brew --system"* ]]
-  [[ "$output" == *"with nix: kit toolchains choose nix --system"* ]]
+  [[ "$output" == *"with apt: kit toolchains choose apt --system"* ]]
   [[ "$output" != *KIT_TOOLCHAIN* ]]
+  printf 'theme: dark\ntoolchain: brew\n' > "${KIT_HOME}/.kit/settings.yml"
   run choose mise system
   [ "$status" -eq 1 ]
   [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
