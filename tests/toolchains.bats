@@ -410,7 +410,7 @@ JSON
   touch mise.toml Brewfile
   run "${kit_root}/bin/kit" toolchains </dev/null
   [ "$status" -eq 0 ]
-  ! grep --quiet '📌.*project\|project.*📌' <<<"$output"
+  if grep --quiet '📌.*project\|project.*📌' <<<"$output"; then false; fi
   run "${kit_root}/bin/kit" toolchains --json
   [ "$status" -eq 0 ]
   [ "$(jq --slurp '[.[] | select(.role == "project" and .chosen)] | length' <<<"$output")" -eq 0 ]
