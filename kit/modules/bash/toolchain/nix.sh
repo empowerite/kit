@@ -3,7 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # nix fills the project role. It is configured here by a flake.nix at the repository root that declares devShells or
-# devShell, which the provider reads as text and never evaluates. It is usable only where flakes are on. It is active
+# devShell. That check is textual: the provider greps the file and never evaluates it, so a comment naming devShells
+# counts. It is usable only where flakes are on. It is active
 # inside nix develop, which sets IN_NIX_SHELL, and only where this repository has a flake.nix: a marker left over from
 # another project does not count.
 #
@@ -28,9 +29,11 @@ toolchain/nix:install() {
   nix develop --command true
 }
 
-# toolchain/nix:outdated asks nix for the latest revision of each input's original reference. It prints each input
-# whose locked revision differs, with the locked revision as installed. An input pinned to a revision in flake.nix
-# is not asked.
+# toolchain/nix:outdated asks nix for the current revision of each input's original reference. It prints each input
+# whose locked revision differs from the current one, with the locked revision as installed. Differs is all it can
+# say: nix gives no order between revisions. An input pinned to a revision in flake.nix, or that is not a flake, is
+# not asked. An input nix cannot read is reported by name on stderr, and the others are still asked: kit tools
+# drops a failed call's whole answer, so the report would otherwise be lost to one unreachable source.
 toolchain/nix:outdated() {
   local name ref locked doc latest
   toolchain/nix:require || return 1
@@ -40,7 +43,7 @@ toolchain/nix:outdated() {
     if ! doc=$(nix flake metadata --json "${ref}" 2>/dev/null)
     then
       error "nix could not read ${ref}, the source of ${name}; see: nix flake metadata ${ref}"
-      return 1
+      continue
     fi
     latest=$(jq --raw-output '.locked.rev // empty' <<<"${doc}")
     [[ -z "${latest}" || "${latest}" == "${locked}" ]] && continue
@@ -48,16 +51,23 @@ toolchain/nix:outdated() {
   done < <(toolchain/nix:lock nix_refs)
 }
 
-# toolchain/nix:path prints the dev shell's PATH, one directory per line. This evaluates the flake.
+# toolchain/nix:path prints the dev shell's PATH, one directory per line. This evaluates the flake. A dev shell
+# with no PATH is a failure, never an empty answer.
 toolchain/nix:path() {
-  local doc
+  local doc dirs
   toolchain/nix:require || return 1
   if ! doc=$(nix print-dev-env --json 2>/dev/null)
   then
     error "nix could not build the dev shell; see: nix develop"
     return 1
   fi
-  jq --raw-output '.variables.PATH.value // empty' <<<"${doc}" | tr ':' '\n'
+  dirs=$(jq --raw-output '.variables.PATH.value // empty' <<<"${doc}" 2>/dev/null | tr ':' '\n')
+  if [[ -z "${dirs//[$'\n']/}" ]]
+  then
+    error "the dev shell sets no PATH; see: nix print-dev-env"
+    return 1
+  fi
+  printf '%s\n' "${dirs}"
 }
 
 # toolchain/nix:pins reads flake.lock alone: each flake input by its locked revision, short. Nix keeps no separate
@@ -85,8 +95,8 @@ toolchain/nix:update() {
 toolchain/nix:usable() {
   [[ "$1" == project ]] || return 1
   command -v nix >/dev/null 2>&1 || return 1
-  grep --quiet --extended-regexp 'devShells?([^[:alnum:]_]|$)' flake.nix 2>/dev/null || return 1
-  nix config show experimental-features 2>/dev/null | grep --quiet --word-regexp flakes
+  grep --quiet --extended-regexp '(^|[^[:alnum:]_])devShells?([^[:alnum:]_]|$)' flake.nix 2>/dev/null || return 1
+  nix config show experimental-features 2>/dev/null | tr -s '[:space:],' '\n' | grep --quiet --line-regexp flakes
 }
 
 # The seam's calls end here; what follows is this provider's own.

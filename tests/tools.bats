@@ -210,6 +210,48 @@ JSON
   [ "$output" = "/n/jq/bin" ]
 }
 
+@test "nix path fails, naming why, when the dev shell cannot be built or sets no PATH" {
+  printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
+  fixture features.txt <<<'nix-command flakes'
+  fixture env.json <<<'{"variables": {"HOME": {"type": "exported", "value": "/h"}}}'
+  route nix 'config show experimental-features' features.txt
+  route nix 'print-dev-env --json' '!1'
+  run "${kit_root}/bin/kit" tools path
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nix could not build the dev shell; see: nix develop"* ]]
+  : > "${FAKE_DIR}/nix.routes"
+  route nix 'config show experimental-features' features.txt
+  route nix 'print-dev-env --json' env.json
+  run "${kit_root}/bin/kit" tools path
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the dev shell sets no PATH; see: nix print-dev-env"* ]]
+}
+
+@test "nix outdated skips a non-flake input, keeps dir, and reports an unreadable input without stopping" {
+  printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
+  fixture features.txt <<<'nix-command flakes'
+  fixture lock.json <<'JSON'
+{"version": 7, "root": "root", "nodes": {
+  "root": {"inputs": {"src": "src", "mono": "mono", "gone": "gone", "nixpkgs": "nixpkgs"}},
+  "src": {"flake": false, "locked": {"rev": "1111111aaaa"}, "original": {"type": "github", "owner": "o", "repo": "src"}},
+  "mono": {"locked": {"rev": "2222222aaaa"}, "original": {"type": "github", "owner": "o", "repo": "mono", "dir": "sub"}},
+  "gone": {"locked": {"rev": "3333333aaaa"}, "original": {"type": "github", "owner": "o", "repo": "gone"}},
+  "nixpkgs": {"locked": {"rev": "4444444aaaa"}, "original": {"type": "github", "owner": "NixOS", "repo": "nixpkgs"}}}}
+JSON
+  cp "${FAKE_DIR}/lock.json" flake.lock
+  fixture meta-mono.json <<<'{"locked": {"rev": "5555555bbbb"}}'
+  fixture meta-nixpkgs.json <<<'{"locked": {"rev": "6666666cccc"}}'
+  route nix 'config show experimental-features' features.txt
+  route nix 'flake metadata --json github:o/mono?dir=sub' meta-mono.json
+  route nix 'flake metadata --json github:o/gone' '!1'
+  route nix 'flake metadata --json github:NixOS/nixpkgs' meta-nixpkgs.json
+  run "${kit_root}/bin/kit" tools --outdated
+  echo "$output" >&2;   [[ "$output" == *"nix could not read github:o/gone, the source of gone"* ]]
+  grep --quiet -E '^🔺 mono +· 2222222 +· 2222222 +· 5555555$' <<<"$output"
+  grep --quiet -E '^🔺 nixpkgs +· 4444444 +· 4444444 +· 6666666$' <<<"$output"
+  [ -z "$(grep 'github:o/src' "${FAKE_DIR}/nix.calls")" ]
+}
+
 @test "brew installs from the Brewfile without upgrading, and reports and moves only the Brewfile's tools" {
   touch Brewfile
   fixture names.txt <<<$'jq\nshellcheck\nnode@22'

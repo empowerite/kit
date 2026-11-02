@@ -47,17 +47,27 @@ def nix_pins:
   | (.node.locked | (.rev // ((.narHash // "") | ltrimstr("sha256-")))[:7]) as $rev
   | "\(.name)\t\($rev)\t\($rev)";
 
-# nix_refs gives the inputs that can be asked for a newer revision, "<name>\t<reference>\t<locked revision>". An input
-# pinned to a revision in flake.nix, or with no revision locked, or from a path, is left out.
+# nix_query($pairs) joins the attributes a reference carries after the ?, from [name, value] pairs that have a value.
+def nix_query($pairs):
+  [$pairs[] | select(.[1] != null and .[1] != false) | "\(.[0])=\(.[1] | if . == true then 1 else . end)"]
+  | if length == 0 then "" else "?" + join("&") end;
+
+# nix_refs gives the inputs that can be asked for a newer revision, "<name>\t<reference>\t<locked revision>". The
+# reference carries the attributes the lock's original does: ref, dir, host, and submodules. Left out are an input
+# pinned to a revision in flake.nix, one with no revision locked, one from a path, and one that is not a flake
+# (flake = false), which nix flake metadata cannot read.
 def nix_refs:
   nix_inputs
   | select((.node.original.rev // null) == null and (.node.locked.rev // null) != null)
+  | select(.node.flake != false)
   | .node.original as $o
   | (if ($o.type == "github" or $o.type == "gitlab" or $o.type == "sourcehut")
      then "\($o.type):\($o.owner)/\($o.repo)" + (if $o.ref then "/\($o.ref)" else "" end)
-     elif $o.type == "git" then "git+\($o.url)" + (if $o.ref then "?ref=\($o.ref)" else "" end)
-     elif $o.type == "tarball" then $o.url
-     elif $o.type == "indirect" then $o.id + (if $o.ref then "/\($o.ref)" else "" end)
+       + nix_query([["dir", $o.dir], ["host", $o.host]])
+     elif $o.type == "git"
+     then "git+\($o.url)" + nix_query([["ref", $o.ref], ["dir", $o.dir], ["submodules", $o.submodules]])
+     elif $o.type == "tarball" and ($o.dir // null) == null then $o.url
+     elif $o.type == "indirect" then $o.id + (if $o.ref then "/\($o.ref)" else "" end) + nix_query([["dir", $o.dir]])
      else null end) as $ref
   | select($ref != null)
   | "\(.name)\t\($ref)\t\(.node.locked.rev)";

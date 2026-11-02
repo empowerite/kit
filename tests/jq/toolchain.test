@@ -31,3 +31,8 @@ import "toolchain" as toolchain; [toolchain::nix_pins]
 import "toolchain" as toolchain; [toolchain::nix_refs]
 {"root": "root", "nodes": {"root": {"inputs": {"a": "a", "b": "b", "c": "c", "d": "d", "e": "e"}}, "a": {"locked": {"rev": "r1"}, "original": {"type": "github", "owner": "NixOS", "repo": "nixpkgs", "ref": "nixos-unstable"}}, "b": {"locked": {"rev": "r2"}, "original": {"type": "github", "owner": "o", "repo": "r", "rev": "r2"}}, "c": {"locked": {"narHash": "x"}, "original": {"type": "path", "path": "./c"}}, "d": {"locked": {"rev": "r4"}, "original": {"type": "git", "url": "https://h/d.git", "ref": "main"}}, "e": {"locked": {"rev": "r5"}, "original": {"type": "indirect", "id": "nixpkgs"}}}}
 ["a\tgithub:NixOS/nixpkgs/nixos-unstable\tr1","d\tgit+https://h/d.git?ref=main\tr4","e\tnixpkgs\tr5"]
+
+# An input that is not a flake is left out; dir, host, and submodules go into the reference as the lock's original has them.
+import "toolchain" as toolchain; [toolchain::nix_refs]
+{"root": "root", "nodes": {"root": {"inputs": {"a": "a", "b": "b", "c": "c", "d": "d"}}, "a": {"flake": false, "locked": {"rev": "r1"}, "original": {"type": "github", "owner": "o", "repo": "src"}}, "b": {"locked": {"rev": "r2"}, "original": {"type": "github", "owner": "o", "repo": "mono", "dir": "sub", "host": "git.example.com"}}, "c": {"locked": {"rev": "r3"}, "original": {"type": "git", "url": "https://h/c.git", "ref": "main", "dir": "x", "submodules": true}}, "d": {"locked": {"rev": "r4"}, "original": {"type": "tarball", "url": "https://h/d.tgz", "dir": "x"}}}}
+["b\tgithub:o/mono?dir=sub&host=git.example.com\tr2","c\tgit+https://h/c.git?ref=main&dir=x&submodules=1\tr3"]

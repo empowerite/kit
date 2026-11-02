@@ -87,6 +87,15 @@ nix-flake() {
   printf '{ outputs = { self }: { packages.x86_64-linux.default = {}; }; }\n' > flake.nix
   run detect
   grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  # a name that only ends in devShell is not a dev shell, and no-flakes is not flakes
+  nix-flake
+  printf '{ outputs = { self }: { mydevShell = {}; }; }\n' > flake.nix
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
+  nix-flake
+  fixture features.txt <<<'nix-command no-flakes'
+  run detect
+  grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
   # no flake.nix, and nix is never asked
   rm flake.nix
   : > "${FAKE_DIR}/nix.calls"
