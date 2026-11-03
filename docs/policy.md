@@ -17,6 +17,11 @@ kit policy
 
 `kit facts` prints the JSON document every engine reads. `kit policy --input` prints the same document.
 
+`kit facts --moment=<moment>` chooses the point the facts are gathered for:
+
+- `ci`, the default: the commits past the fork, the open change, and the tree at HEAD.
+- `commit`: the tree in the index, `commits` as `[]`, and `change` as `null`. `kit commit` fills in the commit it makes.
+
 ```json
 {
   "moment": "ci",
@@ -37,7 +42,7 @@ kit policy
 | `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
-| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change, and always `null` at commit. |
+| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change, and `null` at commit. |
 | `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. |
 | `policy` | The patterns, with the kit's defaults filled in. |
 
@@ -51,6 +56,15 @@ Each entry in `tree` has these fields:
 | `blob` | The blob's object name, or the commit a submodule is at. |
 | `kinds` | The kinds of file the path is, such as `bash`, or `[]` for none. |
 | `text` | The blob's content. Only a file matching a `facts.read` glob has it. |
+
+### What kit commit judges
+
+`kit commit` runs the policy before the commit exists.
+
+- It judges the tree its own commit will make: HEAD plus the named paths, or the index when no paths are named.
+- Its moment is `commit`, and `commits` holds the one commit it makes.
+- When the engine errors, because `opa` is missing or a `.rego` file is broken, it refuses the commit. It fails closed.
+- Warnings print, and the commit still goes through.
 
 ### Reading a file's text
 
