@@ -1,32 +1,32 @@
  kit flow · 📚 empowerite/kit
- ┄┄┄───────────○───────────────────────────●───────────────────────○─────────────────────────────○──────────────────────
-               ├ 🔀 3                      ├ 📥 incoming 6         ├ 🏭 4                        ├ 📦 3
-               └ legend                    └ legend                └ legend                      └ legend
-                 ├ 🔀  a pull request        ├ 📥  the fetch         ├ 🏭  a build                 ├ 📦  a release
-                 ├ 👤  its author            ├ 📡  a remote          ├ 🏃  running or queued       ├ 🧪  a pre-release
-                 ├ 🌿  its branch            ├ 🌿  a branch          ├ ✅  passed                  ├ 📝  a draft
-                 ├ 🏃  checks running        ├ 🔖  a branch gone     ├ ❌  failed                  └ ⭐  the latest
-                 ├ ✅  checks passed         ├ 📌  a new tag         └ 🛑  cancelled or skipped
-                 ├ ❌  a check failed        └ ❌  a fetch failed
-                 ├ 💬  threads unresolved
-                 ├ 🛫  an issue it closes
-                 ├ 🎫  the issue's title
-                 └ state
-                   ├ 🔨  draft
-                   ├ 🚦  queued
-                   ├ 💥  conflicted
-                   ├ 🔥  failing:gate
-                   ├ 📭  no-check
-                   ├ 💬  comments:open
-                   ├ 👀  blocked:approval
-                   ├ 🛬  ready
-                   └ 🔳  any other state
+ ─────╮➁╶──────────────╮➂╶──────────╮➃╶───────────────╮➄╶─────────────╴➏╶──────────────╮➆╶────────────╮➇╶──────────────╮
+◃ g 3 │  🛫 underway 4 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3  │ 📥 incoming 6 │  🏭 builds 4 │  📦 releases 3 │
+ ─────╰────────────────╰────────────╰─────────────────╰────────────────╯               ╰──────────────╰────────────────╰
+   📡 origin · github · github.com                                                    ▸ legend
+   a1b2c3d  #1 docs: the docs say what the code does                                  ┊ 📥  the fetch
+   e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no a… ┊ 📡  a remote
+   🌿       46-a-noun-lists updated                                                   ┊ 🌿  a branch
+   🌿       42-settings new branch                                                    ┊ 🔖  a branch gone
+   📡 upstream · gitlab · git.example.org                                             ┊ 📌  a new tag
+   🔖       old-experiment upstream gone                                              ┊ ❌  a fetch failed
+   📌       release/0.2.0 new tag                                                     ┊
+   📡 backup · no forge · nas.local                                                   ┊
+   unchanged                                                                          ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
+                                                                                      ┊
 
-   📡 origin · github · github.com
-   a1b2c3d  #1 docs: the docs say what the code does
-   e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one
-   🌿       46-a-noun-lists updated
-   🌿       42-settings new branch
-   … 5 more
-
- ↑↓ move · ←→ stage · r refresh · ? legend · esc back
+ ←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · esc back

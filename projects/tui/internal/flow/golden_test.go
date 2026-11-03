@@ -23,12 +23,12 @@ func TestGoldenViews(t *testing.T) {
 		for range i {
 			m = drive(m, right)
 		}
-		testkit.Golden(t, filepath.Join("testdata", name+".golden"), view(m))
-		m = drive(m, down, enter)
-		testkit.Golden(t, filepath.Join("testdata", name+"-open.golden"), view(m))
+		testkit.Golden(t, filepath.Join("testdata", name+".golden"), raw(m))
+		m = drive(m, down, toggle)
+		testkit.Golden(t, filepath.Join("testdata", name+"-open.golden"), raw(m))
 	}
 	golden := func(file string, msgs ...tea.Msg) {
-		testkit.Golden(t, filepath.Join("testdata", file), view(loaded(t, options(), msgs...)))
+		testkit.Golden(t, filepath.Join("testdata", file), raw(loaded(t, options(), msgs...)))
 	}
 	golden("legend.golden", at80, press('?'))
 	golden("trees-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})

@@ -1,10 +1,13 @@
-// Package flow is kit flow on a terminal: the stages along one line, a tree hanging from each, the selected
-// stage's rows under them, and a row opened in place. It draws from kit flow <stage> --json and never parses kit's
-// text. Left and right move along the line, even inside the rows; down enters a stage's rows and up on the first row
-// leaves them; Enter opens or closes a row; r runs the stage's command again; ? hangs each stage's legend in its tree,
-// and again takes it down. Esc goes back one level: the legend off, from the rows to the line, and from the line it
-// quits; ctrl-c quits with 130 from anywhere. A stage's command has two minutes; past them it is a refusal, and
-// quitting kills the commands still running.
+// Package flow is kit flow on a terminal: the stages as a tab bar, internal/tabs, the selected stage's rows under
+// it, and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has
+// the keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and
+// gives the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens
+// a row and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it;
+// r runs the stage's command again; ? shows the stage's legend beside its rows, and again takes it away, as a click on
+// the triangle at the top of the rule beside the rows does. Esc goes
+// back one level: the legend off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or
+// super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two minutes; past
+// them it is a refusal, and quitting kills the commands still running.
 package flow
 
 import (
@@ -19,6 +22,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
@@ -77,12 +81,9 @@ type Model struct {
 	filters       []string
 	stages        []stage
 	stage         int  // the selected stage
-	inRows        bool // whether the cursor is on a row, not on the line
-	legend        bool // whether each tree shows its stage's legend
-	scroll        int  // the first cell of the canvas shown, when the line is wider than the screen
+	inRows        bool // whether the rows have the keyboard, not the bar
+	legend        bool // whether the legend shows beside the rows
 	started       bool // whether the stages after incoming have been started
-	moving        bool // whether the dot is on its way along the line
-	dot           dot  // where the dot is, and how far it has to go
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -96,7 +97,7 @@ type built struct {
 }
 
 // rebuild drops the rows built so far; each is built again when it is next drawn.
-func (m *Model) rebuild() { m.built = &built{width: m.width, rows: map[int][]row{}} }
+func (m *Model) rebuild() { m.built = &built{width: m.paneWidth(), rows: map[int][]row{}} }
 
 // Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own:
 // --no-fetch, and the filters backlog, underway, and changes take. Kit's refusal of --stages is the error.
@@ -150,11 +151,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.rebuild()
-		m.moving = false
 		m.fit()
-	case frameMsg:
-		cmd := m.step()
-		return m, cmd
 	case loadedMsg:
 		if !m.take(msg) || msg.stage != "incoming" {
 			return m, nil
@@ -169,36 +166,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
+	case tea.MouseClickMsg:
+		if bar, ok := m.bar().Update(msg); ok {
+			m.choose(bar)
+		} else if msg.Button == tea.MouseLeft && msg.X == m.paneWidth()+1 && msg.Y == paneTop {
+			m.showLegend(!m.legend)
+			m.fit()
+		} else if msg.Button == tea.MouseLeft {
+			m.click(msg.X, msg.Y)
+		}
 	}
 	return m, nil
 }
 
-// key takes a key press: ctrl-c anywhere, and the line's and the rows' keys.
+// key takes a key press: the quitting keys, the bar's, then the rows' and the legend's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
 		m.interrupted = true
 		return m, m.quit()
+	case "alt+esc", "super+esc":
+		return m, m.quit()
+	}
+	if bar, ok := m.bar().Update(k); ok {
+		m.choose(bar)
+		return m, nil
+	}
+	switch k.String() {
 	case "esc":
 		switch {
 		case m.legend:
-			m.legend, m.moving = false, false
-		case !m.inRows:
-			return m, m.quit()
-		default:
+			m.showLegend(false)
+		case m.inRows:
 			s := &m.stages[m.stage]
 			s.cursor, s.offset, m.inRows = 0, 0, false
 		}
 		m.fit()
 	case "?":
-		m.legend, m.moving = !m.legend, false
+		m.showLegend(!m.legend)
 		m.fit()
-	case "left":
-		cmd := m.move(-1)
-		return m, cmd
-	case "right":
-		cmd := m.move(1)
-		return m, cmd
 	case "up":
 		m.up(1)
 	case "down":
@@ -207,12 +213,26 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
-	case "enter":
-		m.toggle()
+	case "right":
+		m.open(true)
+	case "left":
+		m.open(false)
 	case "r":
 		return m, m.refresh()
 	}
 	return m, nil
+}
+
+// showLegend shows the legend beside the rows, or takes it away; the rows are laid out again for the width left.
+func (m *Model) showLegend(on bool) {
+	m.legend = on
+	m.rebuild()
+}
+
+// choose takes what the bar chose: the stage it selected, where the cursor is as it was left, and the keyboard.
+func (m *Model) choose(bar tabs.Bar) {
+	m.stage, m.inRows = bar.Selected, !bar.Focused
+	m.fit()
 }
 
 // quit ends the screen, and the stages' commands still running with it.
@@ -458,72 +478,7 @@ func (m *Model) clamp(i int) {
 	}
 }
 
-// move selects the stage d along the line, round its ends, staying in the rows or on the line as before, and sends
-// the dot there over the canvas, the way the arrow points; the view follows it.
-func (m *Model) move(d int) tea.Cmd {
-	n := len(m.stages)
-	if n == 0 {
-		return nil
-	}
-	from := m.center(m.stage)
-	if m.moving {
-		from = m.dot.at
-	}
-	m.stage = (m.stage + d + n) % n
-	l := m.layout()
-	w := l.width
-	// the cells to go, always the way the arrow points, round the end of the line when it must
-	far := ((l.at[m.stage]-from)*d%w + w) % w
-	already := m.moving
-	m.moving = far != 0
-	if m.moving {
-		m.dot = dot{at: from, left: far, dir: d, step: max(1, (far+frames-1)/frames)}
-	}
-	m.fit()
-	if !m.moving || already {
-		return nil
-	}
-	return frame()
-}
-
-// dot is the selected stage's marker on its way along the line: the cell it is at, the cells it has left to go, the
-// way it goes, and how far it goes each frame.
-type dot struct {
-	at, left, dir, step int
-}
-
-// frames is how many frames the dot takes to reach its stage, however far.
-const frames = 8
-
-// frameEvery is how long a frame lasts; the tests shorten it.
-var frameEvery = 16 * time.Millisecond
-
-// frameMsg asks the dot to take its next step.
-type frameMsg struct{}
-
-// frame asks for the next step after a frame.
-func frame() tea.Cmd {
-	return tea.Tick(frameEvery, func(time.Time) tea.Msg { return frameMsg{} })
-}
-
-// step moves the dot one frame along, round the end of the canvas, and stops it on its stage; the view follows it.
-func (m *Model) step() tea.Cmd {
-	if !m.moving {
-		return nil
-	}
-	w := m.layout().width
-	stride := min(m.dot.step, m.dot.left)
-	m.dot.at = ((m.dot.at+m.dot.dir*stride)%w + w) % w
-	m.dot.left -= stride
-	m.moving = m.dot.left > 0
-	m.follow()
-	if !m.moving {
-		return nil
-	}
-	return frame()
-}
-
-// up moves the cursor n rows up; past the first row, it returns to the line, and the pane to its top.
+// up moves the cursor n rows up; past the first row, it gives the bar the keyboard, and the pane goes to its top.
 func (m *Model) up(n int) {
 	if !m.inRows || len(m.stages) == 0 {
 		return
@@ -537,7 +492,7 @@ func (m *Model) up(n int) {
 	m.fit()
 }
 
-// down moves the cursor n rows down; from the line, it enters the rows, when the stage has any.
+// down moves the cursor n rows down; from the bar, it enters the rows, when the stage has any.
 func (m *Model) down(n int) {
 	if len(m.stages) == 0 {
 		return
@@ -555,8 +510,8 @@ func (m *Model) down(n int) {
 	m.fit()
 }
 
-// toggle opens the row under the cursor, or closes it; a leaf stays as it is.
-func (m *Model) toggle() {
+// open opens the row under the cursor, or closes it; a leaf stays as it is.
+func (m *Model) open(open bool) {
 	if !m.inRows || len(m.stages) == 0 {
 		return
 	}
@@ -565,20 +520,52 @@ func (m *Model) toggle() {
 	if s.cursor >= len(rows) || len(rows[s.cursor].detail) == 0 {
 		return
 	}
-	key := rows[s.cursor].key
-	s.open[key] = !s.open[key]
+	s.open[rows[s.cursor].key] = open
 	m.fit()
+}
+
+// click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
+// click on the first line of the row already under the cursor opens it, or closes it. A click on a … line, on a line
+// about the stage, or on the legend does nothing.
+func (m *Model) click(x, y int) {
+	k := m.lineAt(x, y)
+	if k < 0 {
+		return
+	}
+	lines, s := m.lines(m.stage), &m.stages[m.stage]
+	row := lines[k].row
+	if m.inRows && row == s.cursor && (k == 0 || lines[k-1].row != row) {
+		m.open(!s.open[m.rows(m.stage)[row].key])
+		return
+	}
+	s.cursor, m.inRows = row, true
+	m.fit()
+}
+
+// lineAt gives the index among the selected stage's lines of the line drawn at a cell of the screen, or -1: off the
+// pane, on the legend, on a … line, or on a line that is about the stage, not a row.
+func (m Model) lineAt(x, y int) int {
+	r, h := y-paneTop, m.paneHeight()
+	if len(m.stages) == 0 || r < 0 || r >= h || x >= m.paneWidth() {
+		return -1
+	}
+	lines := m.lines(m.stage)
+	start, end, above, _ := pane.Window(len(lines), h, m.stages[m.stage].offset)
+	if above {
+		r--
+	}
+	if k := start + r; r >= 0 && k < end && lines[k].row >= 0 {
+		return k
+	}
+	return -1
 }
 
 // page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it
 // first scrolls through that row, so every line it hides can be reached; at the row's end it moves the cursor a page
-// of rows. A page up stops at the first row, and from there leaves the rows for the line.
+// of rows. A page never leaves the rows: up stops at the first row, and down at the last; on the bar it does nothing.
 func (m *Model) page(d int) {
 	h := max(1, m.paneHeight()-1)
 	if !m.inRows || len(m.stages) == 0 {
-		if d > 0 {
-			m.down(h)
-		}
 		return
 	}
 	s := &m.stages[m.stage]
@@ -600,22 +587,18 @@ func (m *Model) page(d int) {
 		s.offset, _, _, _ = pane.Window(len(all), m.paneHeight(), max(first, s.offset-h))
 	case d > 0:
 		m.down(h)
-	case s.cursor > 0:
-		// a page up stops at the first row; only from there does it leave the rows for the line
+	default:
 		s.cursor = max(0, s.cursor-h)
 		m.fit()
-	default:
-		m.up(h)
 	}
 }
 
-// fit scrolls the view sideways to the selected stage's tree, and its pane so the row under the cursor shows, with
-// what it opens to when that fits, and never past the last line.
+// fit scrolls the pane so the row under the cursor shows, with what it opens to when that fits, and never past the
+// last line.
 func (m *Model) fit() {
 	if len(m.stages) == 0 {
 		return
 	}
-	m.follow()
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
 	h := m.paneHeight()

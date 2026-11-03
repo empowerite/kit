@@ -1,24 +1,24 @@
  kit flow · 📚 empowerite/kit
- ──●────────────────○────────○────────○────────○────────○───────○───────○───────
-   └ 🎫 backlog 3   └ 🛫 4   └ 💻 1   └ 🌿 4   └ 🔀 3   └ 📥 6  └ 🏭 4  └ 📦 3
+ ➊╶─────────────╮➁╶──────────────╮➂╶──────────╮➃╶───────────────╮➄╶─────────────
+ │ 🎫 backlog 3 │  🛫 underway 4 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes  ▹
+ ╵              ╰────────────────╰────────────╰─────────────────╰───────────────
+   #45                        2h                      🎫 kit flow is the one … ◂
+   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun… ┊
+    #7  👤 ada bob           40d                      🎫 Fix the thing         ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
 
-   #45                        2h                      🎫 kit flow is the one pi…
-   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun w…
-    #7  👤 ada bob           40d                      🎫 Fix the thing
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ↑↓ move · ←→ stage · r refresh · ? legend · esc quit
+ ←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · ctrl+c quit

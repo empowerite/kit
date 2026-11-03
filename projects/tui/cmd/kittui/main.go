@@ -138,7 +138,7 @@ func runWelcome(r kit.Runner, stderr io.Writer) int {
 	return finishWelcome(final.(welcome.Model))
 }
 
-// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
+// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
 func finishWelcome(m welcome.Model) int {
 	if m.Interrupted() {
 		return 130
@@ -146,7 +146,7 @@ func finishWelcome(m welcome.Model) int {
 	return 0
 }
 
-// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on esc; nothing is printed either way.
+// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
 func finishFlow(m flow.Model) int {
 	if m.Interrupted() {
 		return 130

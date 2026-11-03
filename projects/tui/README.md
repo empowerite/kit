@@ -32,8 +32,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/palette/` is the list of verbs that bare `kit` opens.
 - `internal/form/` turns a verb's grammar into form fields, and the fields back into a command line.
 - `internal/syntax/` decodes the grammar `kit syntax` prints.
-- `internal/flow/` draws `kit flow`: the stages along one line, and each stage's rows.
+- `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
+- `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: one line, numbered tabs, the keys and the
+  clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/style/` is the look: one accent color, the glyphs, and the keys bar. It honors `NO_COLOR`.

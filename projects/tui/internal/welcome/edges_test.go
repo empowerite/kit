@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // A page that cannot be read gives the path it was looked for at, and no markdown.
@@ -50,12 +51,12 @@ func TestACheckOfAStepWithoutChecksShowsUnderTheLastStepThatHasThem(t *testing.T
 func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
 	m, _ := loaded(t, esc, right, down)
 	before := m.tabs
-	if m.setTabs(nil); len(m.tabs) != len(before) || m.step != chains || !m.inRows {
+	if m.setTabs(nil); len(m.tabs) != len(before) || m.step != chains || !m.inPane {
 		t.Fatalf("no pages changed the steps: %d steps, step %d", len(m.tabs), m.step)
 	}
 	m.setTabs([]tab{known[intro], known[terms]})
-	if m.step != 0 || m.inRows || len(m.tabs) != 2 {
-		t.Errorf("without the selected step: step %d, in rows %v, %d steps", m.step, m.inRows, len(m.tabs))
+	if m.step != 0 || m.inPane || len(m.tabs) != 2 {
+		t.Errorf("without the selected step: step %d, in rows %v, %d steps", m.step, m.inPane, len(m.tabs))
 	}
 }
 
@@ -88,12 +89,12 @@ func TestAFixThatCannotRunSaysWhy(t *testing.T) {
 // step says it is checking.
 func TestUpOnTheLineAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 	m, _ := loaded(t, esc)
-	if m = drive(m, up); m.inRows || m.step != basics {
-		t.Errorf("up on the line: in rows %v, step %d", m.inRows, m.step)
+	if m = drive(m, up); m.inPane || m.step != basics {
+		t.Errorf("up on the line: in rows %v, step %d", m.inPane, m.step)
 	}
 	m, _ = fake(t)
 	m = drive(m, at120, right, right, right, down)
-	if m.inRows {
+	if m.inPane {
 		t.Error("down entered the rows of a step whose checks have not answered")
 	}
 	if v := view(m); !strings.Contains(v, "checking…") {
@@ -101,20 +102,13 @@ func TestUpOnTheLineAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 	}
 }
 
-// On a screen too narrow for any labels but the selected step's, the others shrink to their glyphs, and the selected
-// keeps its name.
-func TestTheSelectedStepKeepsItsNameWhenNothingElseFits(t *testing.T) {
-	for _, width := range []int{20, 8} {
-		m, _ := loaded(t, tea.WindowSizeMsg{Width: width, Height: 30})
-		for i, f := range m.forms() {
-			want := glyphLabel
-			if i == m.step {
-				want = fullLabel
-			}
-			if f != want {
-				t.Errorf("at %d columns, step %d's label is form %d, not %d", width, i, f, want)
-			}
-		}
+// On a screen too narrow for every tab, the bar scrolls to the selected step, whole, with a triangle where steps are
+// hidden.
+func TestOnAScreenTooNarrowTheBarScrolls(t *testing.T) {
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 40, Height: 30})
+	bar := strings.Split(view(m), "\n")[2]
+	if !strings.Contains(bar, "│ 🧱 basics 2 │") || !strings.HasSuffix(bar, tabs.After) {
+		t.Errorf("at 40 columns, the bar does not scroll to basics: %q", bar)
 	}
 }
 
@@ -137,7 +131,7 @@ func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T)
 // the step as it is.
 func TestThePaneScrollsBackToTheCursorsRow(t *testing.T) {
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 9}, esc, right, right, down)
-	if !m.inRows {
+	if !m.inPane {
 		t.Fatal("not in the rows")
 	}
 	m.offsets[m.step] = 50

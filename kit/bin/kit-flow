@@ -120,13 +120,13 @@
 # desk:
 #
 #   💻  the desk, the root checkout
-#   ❗  on no branch: a detached HEAD
+#   ❗  not on any branch: a detached HEAD
 #   📂  a desk's path, above desks
 #
 # worktrees:
 #
 #   🌿  a linked worktree
-#   ❗  on no branch: a detached HEAD
+#   ❗  not on any branch: a detached HEAD
 #   🔖  a branch whose upstream is gone
 #
 # changes:

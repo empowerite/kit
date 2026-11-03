@@ -1,5 +1,5 @@
 // Every glyph the picture draws is in kit help flow's legend, the header of kit/bin/kit-flow, so bash and Go
-// draw the same picture; and ? hangs each stage's glyphs under its tree, the glyphs in one column.
+// draw the same picture; and ? shows each stage's glyphs beside its rows, the glyphs in one column.
 package flow
 
 import (
@@ -13,6 +13,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // legendText reads the Legend of kit-flow's header, from its heading to the exit codes.
@@ -84,7 +86,7 @@ func opened(t *testing.T, i int) Model {
 		m = drive(m, right)
 	}
 	for range m.rows(i) {
-		m = drive(m, down, enter)
+		m = drive(m, down, toggle)
 	}
 	return m
 }
@@ -93,8 +95,9 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 	text := legendText(t)
 	for i, name := range eight {
 		m := opened(t, i)
-		for g := range glyphsOf(view(m)) {
-			if !strings.Contains(text, g) {
+		for g := range glyphsOf(raw(m)) {
+			// the bar's numbers are the tabs', not the picture's
+			if !strings.Contains(text, g) && !isMarker(g) {
 				t.Errorf("%s draws %s, which kit help flow's legend lacks", name, g)
 			}
 		}
@@ -121,6 +124,16 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 	}
 }
 
+// isMarker says whether a glyph is one of the tab bar's numbers.
+func isMarker(g string) bool {
+	for i := range 10 {
+		if g == tabs.Marker(i, false) || g == tabs.Marker(i, true) {
+			return true
+		}
+	}
+	return false
+}
+
 // stateOf gives the state word a glyph draws, or nothing.
 func stateOf(glyph string) string {
 	for state, g := range stateGlyphs {
@@ -131,33 +144,76 @@ func stateOf(glyph string) string {
 	return ""
 }
 
-func TestEachTreeHangsItsLegendWithTheGlyphsInOneColumn(t *testing.T) {
-	for _, width := range []int{80, 120, 200} {
+func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
+	for _, width := range []int{120, 200} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
 		for i, name := range eight {
 			if i > 0 {
 				m = drive(m, right)
 			}
-			marker := m.center(i) - m.scroll + 1
-			want := map[string]int{"legend": marker + 2}
+			column := m.paneWidth() + ansi.StringWidth(rule)
+			want := map[string]int{"legend": column}
 			for _, e := range legends[name] {
-				want[e.glyph+"  "+e.meaning] = marker + 4
+				want[e.glyph+"  "+e.meaning] = column
 			}
 			if name == "changes" {
-				want["state"] = marker + 4
+				want["state"] = column
 				for _, e := range states {
-					want[e.glyph+"  "+e.meaning] = marker + 6
+					want[e.glyph+"  "+e.meaning] = column
 				}
 			}
-			for text, column := range want {
+			for text, at := range want {
 				found := false
-				for _, l := range lines(m) {
-					found = found || slices.Contains(cellsOf(l, text), column)
+				for _, l := range lines(m)[3:] {
+					found = found || slices.Contains(cellsOf(l, text), at)
 				}
 				if !found {
-					t.Errorf("at %d, %s's tree lacks %q at cell %d:\n%s", width, name, text, column, view(m))
+					t.Errorf("at %d, %s's legend lacks %q at cell %d:\n%s", width, name, text, at, view(m))
 				}
 			}
 		}
+	}
+}
+
+// The legend takes no more than two fifths of the screen, the rows have the rest, and no line passes the edge; esc
+// takes it away, and the rows have the width again.
+func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
+	for _, width := range []int{40, 80, 120} {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 30}, press('?'))
+		if lw := m.legendWidth(); lw == 0 || lw > (width-3)*2/5 || m.paneWidth()+lw+3 != width {
+			t.Errorf("at %d, the legend is %d cells beside rows of %d", width, lw, m.paneWidth())
+		}
+		for _, l := range lines(m) {
+			if n := ansi.StringWidth(l); n > width {
+				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
+			}
+		}
+		if m = drive(m, press(tea.KeyEscape)); m.legend || m.paneWidth() != width-ruled || strings.Contains(view(m), hide+" legend") {
+			t.Errorf("at %d, esc left the legend: %v, rows of %d", width, m.legend, m.paneWidth())
+		}
+	}
+}
+
+// While the legend is hidden, its rule ends every line of the pane, at the screen's last column, with ◂ on the first;
+// a click on the triangle shows the legend, the triangle then ▸ beside its title, and again hides it.
+func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 12})
+	drawn := strings.Split(raw(m), "\n")
+	for k := paneTop; k < paneTop+m.paneHeight(); k++ {
+		end := "┊"
+		if k == paneTop {
+			end = show
+		}
+		if !strings.HasSuffix(drawn[k], end) || ansi.StringWidth(drawn[k]) != 80 {
+			t.Errorf("line %d does not end on %s at the last column: %q", k, end, drawn[k])
+		}
+	}
+	triangle := tea.MouseClickMsg{X: m.paneWidth() + 1, Y: paneTop, Button: tea.MouseLeft}
+	if m = drive(m, triangle); !m.legend || !strings.Contains(raw(m), hide+" legend") {
+		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
+	}
+	triangle.X = m.paneWidth() + 1
+	if m = drive(m, triangle); m.legend || !strings.HasSuffix(strings.Split(raw(m), "\n")[paneTop], show) {
+		t.Errorf("a click on %s did not hide the legend:\n%s", hide, raw(m))
 	}
 }

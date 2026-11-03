@@ -5,12 +5,14 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// With no stage in the picture, the keys that move, enter, page, and refresh do nothing, and the pane says so.
+// With no stage in the picture, the keys that move, open, page, and refresh do nothing, and the pane says so.
 func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	m := New(runner(t), Options{})
-	for _, msg := range []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}, left, right, down, up, enter,
+	for _, msg := range []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}, left, right, down, up, press(tea.KeyEnter),
 		press(tea.KeyPgDown), press('r')} {
 		next, cmd := m.Update(msg)
 		m = next.(Model)
@@ -56,7 +58,7 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 
 // Page up inside an open row taller than the pane scrolls back through that row, the cursor staying on it.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, enter,
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, toggle,
 		press(tea.KeyPgDown))
 	s := m.find("worktrees")
 	if s.cursor != 0 || s.offset == 0 {
@@ -131,13 +133,11 @@ func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 	}
 }
 
-// On a screen too narrow for any layout, every stage, the selected one too, is its glyph alone, the floor; past it
-// the line scrolls.
-func TestEveryStageIsItsGlyphAloneWhenNothingFits(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 8, Height: 24})
-	for i, f := range m.forms() {
-		if f != glyphLabel {
-			t.Errorf("at 8 columns, stage %d's label is form %d, not the glyph alone", i, f)
-		}
+// On a screen too narrow for every stage, the bar scrolls, the selected stage whole.
+func TestOnANarrowScreenTheBarScrolls(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 24})
+	bar := lines(m)[2]
+	if !strings.Contains(bar, "│ 🎫 backlog 3 │") || !strings.HasSuffix(bar, tabs.After) {
+		t.Errorf("at 30 columns, the bar does not scroll with backlog whole: %q", bar)
 	}
 }

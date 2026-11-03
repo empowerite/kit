@@ -1,24 +1,24 @@
  kit flow · 📚 empowerite/kit
- ──○────────○────────○────────○────────○───────○───────○───────●────────────────
-   └ 🎫 3   └ 🛫 4   └ 💻 1   └ 🌿 4   └ 🔀 3  └ 📥 6  └ 🏭 4  └ 📦 releases 3
+ ─────────────╮➄╶─────────────╮➅╶──────────────╮➆╶────────────╴➑╶──────────────╮
+◃ worktrees 4 │  🔀 changes 3 │  📥 incoming 6 │  🏭 builds 4  │ 📦 releases 3 │
+ ─────────────╰───────────────╰────────────────╰───────────────╯               ╵
+   0.2.0       📝 draft        60m                                             ◂
+   0.1.0       📦 release       6h  ⭐ latest                                  ┊
+   0.1.0-rc.7  🧪 pre-release  28h                                             ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
+                                                                               ┊
 
-   0.2.0       📝 draft        60m
-   0.1.0       📦 release       6h  ⭐ latest
-   0.1.0-rc.7  🧪 pre-release  28h
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ↑↓ move · ←→ stage · r refresh · ? legend · esc quit
+ ←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · ctrl+c quit

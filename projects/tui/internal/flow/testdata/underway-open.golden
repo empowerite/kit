@@ -1,24 +1,24 @@
  kit flow · 📚 empowerite/kit
- ──○─────────────●──────────────────────○─────────────○─────────────○────────────○────────────○────────────○────────────
-   └ 🎫 3        └ 🛫 underway 4        └ 💻 1        └ 🌿 4        └ 🔀 3       └ 📥 6       └ 🏭 4       └ 📦 3
+ ➀╶─────────────╴➋╶──────────────╮➂╶──────────╮➃╶───────────────╮➄╶─────────────╮➅╶──────────────╮➆╶────────────╮➇╶─────
+   🎫 backlog 3  │ 🛫 underway 4 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3 │  📥 incoming 6 │  🏭 builds 4 │  📦  ▹
+ ────────────────╯               ╰────────────╰─────────────────╰───────────────╰────────────────╰──────────────╰───────
+ ▾  #1  👤 jeffrey-aguilera  🛫  8d  🔀 #2   🛬 ready          💻 here  🎫 The first release, v0.1.0: the kit verbs, … ◂
+      The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab                   ┊
+      🔀 #2 The first release, v0.1.0                                                                                  ┊
+      💻 /home/kit/worktrees/1-the-first-release-v0-1-0                                                                ┊
+      https://github.com/empowerite/kit/issues/1                                                                       ┊
+      https://github.com/empowerite/kit/pull/2                                                                         ┊
+    #8                       🛫  2d  🔀 #4   🔥 failing:gate   👤 bob   🎫 Lint the modules                            ┊
+    #8                       🛫  2d  🔀 #11  🔨 draft          👤 ada   🎫 Lint the modules                            ┊
+   #31  👤 ada               🛫  3h  🔀 #12  💬 comments:open  👤 ada   🎫 kit commit, kit submit, and kit land: one … ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
+                                                                                                                       ┊
 
- ▾  #1  👤 jeffrey-aguilera  🛫  8d  🔀 #2   🛬 ready          💻 here  🎫 The first release, v0.1.0: the kit verbs, th…
-      The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab
-      🔀 #2 The first release, v0.1.0
-      💻 /home/kit/worktrees/1-the-first-release-v0-1-0
-      https://github.com/empowerite/kit/issues/1
-      https://github.com/empowerite/kit/pull/2
-    #8                       🛫  2d  🔀 #4   🔥 failing:gate   👤 bob   🎫 Lint the modules
-    #8                       🛫  2d  🔀 #11  🔨 draft          👤 ada   🎫 Lint the modules
-   #31  👤 ada               🛫  3h  🔀 #12  💬 comments:open  👤 ada   🎫 kit commit, kit submit, and kit land: one ve…
-
-
-
-
-
-
-
-
-
-
- ↑↓ move · ←→ stage · r refresh · ⏎ close · ? legend · esc back
+ ↑↓ move · pgup/pgdn page · ← close · r refresh · ? legend · esc back

@@ -1,7 +1,5 @@
-// The screen drawn: the title, the line of steps with each step's tab hanging from it, the selected step's pane, and
-// the keys bar on the last line. Widths are terminal cells, so a two-cell glyph never pushes a line past the edge. The
-// line and the tabs are one canvas: when it is wider than the screen, the view scrolls sideways to the selected step,
-// as kit flow's line does.
+// The screen drawn: the title, the steps' tab bar, the selected step's pane, and the keys bar on the last line. Widths
+// are terminal cells, so a two-cell glyph never pushes a line past the edge.
 package welcome
 
 import (
@@ -13,6 +11,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // The glyphs the screen draws besides the tabs'.
@@ -22,33 +21,23 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar: on the line of a step with checks, on a check's row that offers no fix, on a row that offers now and
-// later, on a row whose fix kit only shows, and on a page. Each names only the keys that act there.
+// The keys bar names only the keys that act where the keyboard is: on the bar over a step with checks, and over a
+// page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
+// and in a page.
 const (
-	stepKeys   = "↑↓ move · ←→ step · esc quit"
-	rowKeys    = "↑↓ move · ←→ step · esc back"
-	choiceKeys = "↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back"
-	showKeys   = "↑↓ move · ←→ step · l later · esc back"
-	pageKeys   = "↑↓ scroll · ←→ step · esc quit"
+	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · ctrl+c quit"
+	pageKeys   = "←→ tab · ↓ page · 1-9 jump · ctrl+c quit"
+	rowKeys    = "↑↓ move · pgup/pgdn page · esc back"
+	choiceKeys = "↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose · esc back"
+	showKeys   = "↑↓ move · pgup/pgdn page · l later · esc back"
+	scrollKeys = "↑↓ scroll · pgup/pgdn page · esc back"
 )
 
-// fixed is how many lines the title, the line, the tabs, the gaps, and the keys take; the pane has the rest.
-const fixed = 6
-
-// gap is the cells before the first marker, and between one tab and the next marker.
-const gap = 2
-
-// room is the cells the view keeps before the selected marker when it scrolls: the dotted end and a little line.
-const room = 5
-
-// dotted is what a hidden end of the line is drawn with.
-const dotted = "┄"
-
-// The label forms, widest first: glyph, name, and count; glyph and count; the glyph alone.
+// fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
+// right under the bar, which is open there to the selected tab.
 const (
-	fullLabel = iota
-	countLabel
-	glyphLabel
+	fixed   = 3 + tabs.Height
+	paneTop = 1 + tabs.Height
 )
 
 // lead is what starts a pane's line, and focus what starts the line under the cursor.
@@ -66,24 +55,25 @@ type line struct {
 	text string
 }
 
-// layout is the line of steps laid out on its canvas: each tab's marker, each tab's label, the canvas's width, never
-// less than the screen's, and the cells scrolled past on its left.
-type layout struct {
-	at     []int
-	labels []string
-	width  int
-	scroll int
-}
-
-// View draws the screen on the alternate screen.
+// View draws the screen on the alternate screen, with the mouse on for the bar.
 func (m Model) View() tea.View {
-	l := m.layout()
-	lines := []string{" " + pane.Clip(m.title(), m.width-1), m.line(l), m.labelLine(l), ""}
+	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = append(lines, "")
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+// bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, and the keyboard on
+// it unless the pane has it.
+func (m Model) bar() tabs.Bar {
+	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Width: m.width, Row: 1}
+	for i, t := range m.tabs {
+		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: t.glyph, Name: t.name, Count: m.count(i)})
+	}
+	return b
 }
 
 // paneHeight gives the lines the pane has.
@@ -97,19 +87,21 @@ func (m Model) title() string {
 	return style.Label("kit welcome") + " · " + Repository + " " + style.Repo(m.repo)
 }
 
-// keys gives the keys bar for where the cursor is.
+// keys gives the keys bar for where the keyboard is.
 func (m Model) keys() string {
 	switch {
-	case !m.hasRows():
+	case !m.inPane && m.hasRows():
+		return stepKeys
+	case !m.inPane:
 		return pageKeys
+	case !m.hasRows():
+		return scrollKeys
 	case m.choosing():
 		return choiceKeys
 	case m.showOnly():
 		return showKeys
-	case m.inRows:
-		return rowKeys
 	}
-	return stepKeys
+	return rowKeys
 }
 
 // count gives the count of a step with checks: … while the checks first run, ! when kit refused them, else how many
@@ -133,149 +125,6 @@ func (m Model) count(i int) string {
 		return ""
 	}
 	return strconv.Itoa(n)
-}
-
-// label gives a step's label in a form, hanging from its marker: its glyph, its name, bold in the accent color when
-// selected, and its count, dim, or the accent's when the selected step's name is left out.
-func (m Model) label(i, form int) string {
-	t, chosen := m.tabs[i], i == m.step
-	parts := []string{t.glyph}
-	if form == fullLabel {
-		name := t.name
-		if chosen {
-			name = style.Mark(name)
-		}
-		parts = append(parts, name)
-	}
-	if count := m.count(i); form != glyphLabel && count != "" {
-		if chosen && form == countLabel {
-			parts = append(parts, style.Mark(count))
-		} else {
-			parts = append(parts, style.Off(count))
-		}
-	}
-	return "└ " + strings.Join(parts, " ")
-}
-
-// forms gives each step's label form, as kit flow gives its stages': the widest that lets every label fit the
-// screen. The other steps give up their names first, then their counts; the selected step keeps its name as long as
-// any layout with it fits, and only then shortens with the rest. The floor is the selected step's name among the
-// other glyphs alone; past it the line scrolls. Unlike kit flow's, the floor keeps that name: every plain page
-// shares one glyph, so the glyph alone would not say which page is open.
-func (m Model) forms() []int {
-	n := len(m.tabs)
-	fits := func(chosen, others int) bool {
-		total := gap
-		for i := range n {
-			form := others
-			if i == m.step {
-				form = chosen
-			}
-			total += ansi.StringWidth(m.label(i, form)) + gap
-		}
-		return total <= m.width-1
-	}
-	every := func(chosen, others int) []int {
-		out := make([]int, n)
-		for i := range out {
-			out[i] = others
-		}
-		out[m.step] = chosen
-		return out
-	}
-	for others := fullLabel; others <= glyphLabel; others++ {
-		if fits(fullLabel, others) {
-			return every(fullLabel, others)
-		}
-	}
-	for form := countLabel; form < glyphLabel; form++ {
-		if fits(form, form) {
-			return every(form, form)
-		}
-	}
-	return every(fullLabel, glyphLabel)
-}
-
-// layout lays the tabs out in their forms: when they fit the screen, the width left spreads evenly between them; when
-// they do not, the canvas is wider than the screen, and the view scrolls so the selected tab starts a little room
-// after the left edge, or as near it as the end of the canvas lets.
-func (m Model) layout() layout {
-	n, w := len(m.tabs), max(1, m.width-1)
-	l := layout{at: make([]int, n), labels: make([]string, n)}
-	total := gap
-	for i, form := range m.forms() {
-		l.labels[i] = m.label(i, form)
-		total += ansi.StringWidth(l.labels[i]) + gap
-	}
-	l.width = max(total, w)
-	spare, x := max(0, w-total), gap
-	for i := range n {
-		l.at[i] = x
-		x += ansi.StringWidth(l.labels[i]) + gap + spare/n
-		if i < spare%n {
-			x++
-		}
-	}
-	if l.width > w {
-		l.scroll = min(max(l.at[m.step]-room, 0), l.width-w)
-	}
-	return l
-}
-
-// shown gives the cells of the canvas the screen shows, and how many cells each hidden end takes.
-func (m Model) shown(l layout) (w, ends int) {
-	w = min(max(1, m.width-1), l.width)
-	return w, min(3, w/3)
-}
-
-// line draws the line of steps as the view shows it: a marker ○ per step, the dot ● in the accent color on the
-// selected one, and a hidden end drawn dotted.
-func (m Model) line(l layout) string {
-	w, ends := m.shown(l)
-	cells := make([]string, l.width)
-	for k := range cells {
-		cells[k] = "─"
-	}
-	for _, x := range l.at {
-		cells[x] = "○"
-	}
-	cells[l.at[m.step]] = style.Mark("●")
-	shown := cells[l.scroll : l.scroll+w]
-	if l.scroll > 0 {
-		for k := range ends {
-			shown[k] = dotted
-		}
-	}
-	if l.scroll+w < l.width {
-		for k := range ends {
-			shown[w-1-k] = dotted
-		}
-	}
-	return " " + strings.Join(shown, "")
-}
-
-// labelLine draws each step's label under its marker as the view shows it, clipped at the right edge; a label whose
-// marker is hidden, or under a dotted start, is hidden with it.
-func (m Model) labelLine(l layout) string {
-	w, edge := m.shown(l)
-	if l.scroll == 0 {
-		edge = 0
-	}
-	var b strings.Builder
-	at := 0
-	for i, label := range l.labels {
-		x := l.at[i] - l.scroll
-		if x < edge || x >= w {
-			continue
-		}
-		if x+ansi.StringWidth(label) > w {
-			label = ansi.Truncate(label, w-x, "")
-		}
-		b.WriteString(strings.Repeat(" ", max(0, x-at)))
-		b.WriteString(label)
-		at = x + ansi.StringWidth(label)
-	}
-	return strings.TrimRight(" "+b.String(), " ")
 }
 
 // pane gives the pane's lines, as many as it has: the selected step's from its offset on.
@@ -379,7 +228,7 @@ func (m Model) stepLines() []line {
 // when it offers them; under a failed check, its fix, dim, then where to read more; and the note its fix left.
 func (m Model) checkLines(i int, id string) []line {
 	c, w := m.checks[i], m.width-1
-	focused := m.hasRows() && m.inRows && i == m.cursor
+	focused := m.hasRows() && m.inPane && i == m.cursor
 	start, text, glyph := lead, c.Line, Passed
 	if focused {
 		start, text = focus, style.Chosen(c.Line)
@@ -434,7 +283,7 @@ func (m *Model) fit() {
 	lines, h := m.stepLines(), m.paneHeight()
 	o := &m.offsets[m.step]
 	*o, _, _, _ = pane.Window(len(lines), h, *o)
-	if !m.inRows {
+	if !m.inPane {
 		return
 	}
 	first, last := -1, -1

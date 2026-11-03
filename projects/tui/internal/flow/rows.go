@@ -300,7 +300,7 @@ func (c *checks) cell() string {
 // rows gives a stage's rows from what it loaded, laid out for the width; nothing while it loads or after a refusal.
 // They are built once for what the stages hold and the width, then kept until either changes.
 func (m Model) rows(i int) []row {
-	if m.built == nil || m.built.width != m.width {
+	if m.built == nil || m.built.width != m.paneWidth() {
 		return m.build(i)
 	}
 	r, ok := m.built.rows[i]
@@ -343,7 +343,7 @@ func (m Model) backlogRows(s stage) []row {
 		r := row{key: "#" + strconv.Itoa(i.Number)}
 		r.cells = []cell{number(r.key), dim(owners(i.Assignees)), dimNumber(ageOf(i.Age)), dim(branchOf(i.Branch)),
 			fill(Issue + " " + i.Title)}
-		for _, line := range pane.Wrap(i.Title, m.width-6) {
+		for _, line := range pane.Wrap(i.Title, m.paneWidth()-6) {
 			r.detail = append(r.detail, span(line))
 		}
 		if url := m.origin.issue(i.Number, i.URL); url != "" {
@@ -373,10 +373,10 @@ func (m Model) underwayRows(s stage) []row {
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{key: issue + " " + pr, cells: []cell{number(issue), dim(owners(u.Assignees)), text(InFlight), dimNumber(ageOf(u.Age)),
 			text(Change + " " + pr), text(state), where, fill(Issue + " " + u.Title)}}
-		for _, line := range pane.Wrap(u.Title, m.width-6) {
+		for _, line := range pane.Wrap(u.Title, m.paneWidth()-6) {
 			r.detail = append(r.detail, span(line))
 		}
-		for _, line := range pane.Wrap(Change+" "+pr+" "+u.PR.Title, m.width-6) {
+		for _, line := range pane.Wrap(Change+" "+pr+" "+u.PR.Title, m.paneWidth()-6) {
 			r.detail = append(r.detail, span(line))
 		}
 		if u.Here && u.Worktree != "" {
@@ -644,7 +644,7 @@ func (m Model) buildRows(s stage) []row {
 			if b.SHA != "" {
 				lead, indent = style.Off(b.SHA)+" ", strings.Repeat(" ", len(b.SHA)+1)
 			}
-			for _, line := range pane.Wrap(title, m.width-6-len(indent)) {
+			for _, line := range pane.Wrap(title, m.paneWidth()-6-len(indent)) {
 				r.detail = append(r.detail, span(lead+line))
 				lead = indent
 			}

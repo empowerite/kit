@@ -1,5 +1,5 @@
-// The glyphs the picture draws, as kit help flow's legend names them, and each stage's legend, which ? hangs under
-// the stage's tree. The legend test holds every one to that page, so bash and Go draw the same picture.
+// The glyphs the picture draws, as kit help flow's legend names them, and each stage's legend, which ? shows beside
+// the stage's rows. The legend test holds every one to that page, so bash and Go draw the same picture.
 package flow
 
 // The glyphs, as the legend draws them.
@@ -15,7 +15,7 @@ const (
 	InFlight   = "🛫" // an issue a pull request closes: underway, and in flight under changes
 	Gone       = "🔖" // a branch whose upstream is gone
 	Tag        = "📌" // a new tag the fetch brought
-	Detached   = "❗" // a checkout on no branch
+	Detached   = "❗" // a checkout not on any branch
 	Running    = "🏃" // checks still running
 	Passed     = "✅" // every check passed
 	Failed     = "❌" // a check failed, and a refusal
@@ -65,12 +65,12 @@ var legends = map[string][]entry{
 	},
 	"desk": {
 		{Desk, "the desk"},
-		{Detached, "on no branch"},
+		{Detached, "not on any branch"},
 		{Change, "its pull request"},
 	},
 	"worktrees": {
 		{Branch, "a worktree"},
-		{Detached, "on no branch"},
+		{Detached, "not on any branch"},
 		{Change, "its pull request"},
 		{Gone, "a branch gone"},
 	},

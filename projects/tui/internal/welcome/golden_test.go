@@ -19,8 +19,8 @@ func TestGoldenViews(t *testing.T) {
 		"toolchains.golden":      {esc, right, down},
 		"setup.golden":           {esc, right, right, down},
 		"lay-of-the-land.golden": {esc, right, right, right},
-		"terms.golden":           {esc, left, left, left},
-		"make-it-yours.golden":   {esc, left, left},
+		"terms.golden":           {esc, press('6')},
+		"make-it-yours.golden":   {esc, press('7')},
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))

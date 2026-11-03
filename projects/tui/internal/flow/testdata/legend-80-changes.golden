@@ -1,32 +1,32 @@
  kit flow · 📚 empowerite/kit
- ┄┄┄──●───────────────────────○─────────────────────────────○────────────────┄┄┄
-      ├ 📥 incoming 6         ├ 🏭 4                        ├ 📦 3
-      └ legend                └ legend                      └ legend
-        ├ 📥  the fetch         ├ 🏭  a build                 ├ 📦  a release
-        ├ 📡  a remote          ├ 🏃  running or queued       ├ 🧪  a pre-releas
-        ├ 🌿  a branch          ├ ✅  passed                  ├ 📝  a draft
-        ├ 🔖  a branch gone     ├ ❌  failed                  └ ⭐  the latest
-        ├ 📌  a new tag         └ 🛑  cancelled or skipped
-        └ ❌  a fetch failed
+ ──────────────╮➄╶─────────────╴➏╶──────────────╮➆╶────────────╮➇╶──────────────
+◃ 🌿 worktrees 4 │  🔀 changes 3  │ 📥 incoming 6 │  🏭 builds 4 │  📦 release ▹
+ ──────────────╰────────────────╯               ╰──────────────╰────────────────
+   📡 origin · github · github.com              ▸ legend
+   a1b2c3d  #1 docs: the docs say what the cod… ┊ 📥  the fetch
+   e4f5a6b  #1 yaml: yq reads every YAML file,… ┊ 📡  a remote
+   🌿       46-a-noun-lists updated             ┊ 🌿  a branch
+   🌿       42-settings new branch              ┊ 🔖  a branch gone
+   📡 upstream · gitlab · git.example.org       ┊ 📌  a new tag
+   🔖       old-experiment upstream gone        ┊ ❌  a fetch failed
+   📌       release/0.2.0 new tag               ┊
+   📡 backup · no forge · nas.local             ┊
+   unchanged                                    ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
+                                                ┊
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-   📡 origin · github · github.com
-   a1b2c3d  #1 docs: the docs say what the code does
-   e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and…
-   🌿       46-a-noun-lists updated
-   🌿       42-settings new branch
-   … 5 more
-
- ↑↓ move · ←→ stage · r refresh · ? legend · esc back
+ ←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · esc back
