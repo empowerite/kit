@@ -272,6 +272,15 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ -z "$(git ls-tree HEAD -- notes.txt)" ]
 }
 
+@test "a named folder the disk now holds as a file is committed as that file" {
+  mkdir d && printf 'c\n' > d/c.md && git add d && git commit --quiet --message '#7 d: a folder' -- d
+  rm -r d && printf 'd\n' > d && git add d
+  run kit commit --message '#1 a: b' d
+  [ "$status" -eq 0 ]
+  [ "$(git cat-file -t HEAD:d)" = blob ]
+  [ -z "$(git ls-tree -r HEAD -- d/c.md)" ]
+}
+
 @test "a file rule refuses the commit at the commit moment" {
   opa-rule 'deny contains sprintf("%s is not executable", [path]) if {
   input.moment == "commit"
@@ -350,6 +359,22 @@ EOF
   [[ "$output" == *"$(git rev-parse --short HEAD)"* ]]
   [ "$(git log -1 --format=%s)" = "#7 notes: theirs" ]
   [ "$(git show HEAD:notes.txt)" = theirs ]
+  [ -z "$(git ls-tree HEAD -- mine.txt)" ]
+}
+
+@test "a commit that lands while kit commit checks named paths is refused too, and HEAD stays the other session's" {
+  opa-rule 'deny contains "never" if input.never'
+  peer-script
+  mkdir "${work}/bin"
+  printf '#!/usr/bin/env bash\n[[ -e %q ]] || { touch %q; %q "#7 notes: theirs" notes.txt theirs >/dev/null; }\nexec %q "$@"\n' \
+    "${work}/landed" "${work}/landed" "${work}/peer" "$(command -v opa)" > "${work}/bin/opa"
+  chmod +x "${work}/bin/opa"
+  printf 'mine\n' > mine.txt && git add mine.txt
+  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file' mine.txt
+  [ -e "${work}/landed" ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$(git rev-parse --short HEAD)"* ]]
+  [ "$(git log -1 --format=%s)" = "#7 notes: theirs" ]
   [ -z "$(git ls-tree HEAD -- mine.txt)" ]
 }
 

@@ -12,10 +12,10 @@
 #   - judges the subject and the tree the commit will make by the repository's policy, as kit policy does in CI
 #   - warns when commits here are not signed
 #
-# Without paths, kit commit never undoes a commit the index did not see. It refuses:
+# Without paths, kit commit never undoes a commit the index did not see. It refuses a staged path that is as it was
+# before the last commit that changed it, while the disk holds something else.
 #
-#   - a staged path that is as it was before the last commit that changed it, while the disk holds something else
-#   - a commit that landed on HEAD while the checks ran; run kit commit again
+# With or without paths, it refuses when a commit landed on HEAD while the checks ran; run kit commit again.
 #
 #   --all             stages every tracked change first, as git commit --all does
 #   --message <text>   the message; the first is the subject, the rest are paragraphs

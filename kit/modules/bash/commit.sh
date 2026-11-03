@@ -167,14 +167,19 @@ commit:judge() {
   work=$(mktemp -d) || return 1
   if (( $# > 0 ))
   then
-    commit:index "${work}/index" "$@" || { rm -rf "${work}"; return 1; }
-    GIT_INDEX_FILE=${work}/index facts:document commit > "${work}/facts" || { rm -rf "${work}"; return 1; }
+    if ! commit:index "${work}/index" "$@"
+    then
+      rm -rf "${work}"
+      error "the commit is refused: the tree of the named paths could not be built"
+      return 1
+    fi
+    GIT_INDEX_FILE=${work}/index facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
   else
-    facts:document commit > "${work}/facts" || { rm -rf "${work}"; return 1; }
+    facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
   fi
   jq --arg branch "${branch}" --arg subject "${subject}" \
     '.branch = $branch | .commits = [{sha: "0000000", subject: $subject}]' "${work}/facts" > "${work}/input" \
-    || { rm -rf "${work}"; return 1; }
+    || { commit:unjudged "${work}"; return 1; }
   # An engine that cannot judge refuses the commit: unjudged is never allowed.
   if ! refusals=$(policy:deny "${work}/input")
   then
@@ -204,6 +209,12 @@ commit:judge() {
   return 1
 }
 
+# commit:unjudged <work> removes the judge's scratch directory and says the facts could not be gathered.
+commit:unjudged() {
+  rm -rf "$1"
+  error "the commit is refused: the facts for the policy could not be gathered"
+}
+
 # commit:index <index> <path>… writes, at <index>, the index git commit --only -- <path>… builds: HEAD, or nothing
 # before the first commit, and each named path as the disk has it. A path the disk lacks is removed. The paths are
 # those the real index or HEAD holds under <path>…, so a file git ignores or does not track never joins, as with git.
@@ -219,7 +230,7 @@ commit:index() {
   fi
   { git ls-files -z -- "$@" && GIT_INDEX_FILE=${index} git ls-files -z -- "$@"; } \
     | LC_ALL=C sort --zero-terminated --unique \
-    | GIT_INDEX_FILE=${index} git update-index --add --remove -z --stdin
+    | GIT_INDEX_FILE=${index} git update-index --add --remove --replace -z --stdin
 }
 
 # commit:checks <path>… runs the pre-commit checks over the paths that exist: kit lint, then kit generate --check.
@@ -271,7 +282,8 @@ commit:behind() {
 }
 
 # commit:moved <head> refuses when HEAD is no longer <head>, the commit kit commit started on: another session
-# committed while the checks ran, and the index never saw it. Git refuses a HEAD that moves during its own hook.
+# committed while the checks ran. Without paths, the index never saw that commit; with paths, the policy never judged
+# the tree it makes. Git refuses a HEAD that moves during its own hook.
 commit:moved() {
   local head
   head=$(git rev-parse --verify --quiet HEAD || true)
@@ -362,11 +374,12 @@ commit:commit() {
       done
     fi
   } > "${message}"
+  # A HEAD that moved during the checks was never judged, so the commit is refused either way.
+  commit:moved "${head}" || { rm -f "${message}"; return 1; }
   if (( ${#commit_paths[@]} > 0 ))
   then
     git commit --quiet --file "${message}" -- "${staged[@]}" || { rm -f "${message}"; return 1; }
   else
-    commit:moved "${head}" || { rm -f "${message}"; return 1; }
     git commit --quiet --file "${message}" || { rm -f "${message}"; return 1; }
   fi
   rm -f "${message}"
