@@ -188,4 +188,21 @@ setup() {
   [ -z "$output" ]
 }
 
+@test "two lookups that compile changed kinds at once both succeed and say nothing, though both prune the old matcher" {
+  # kit context --json asks for a path's kinds twice at once; after the kinds change, both compile them and both
+  # prune the old matcher, so the one that finds it gone already must say nothing, or its words land in the JSON
+  "${kit_checkout}/bin/kit" hydrate >/dev/null 2>&1
+  kit_bash_modules=context run kit-bash '
+    dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+    mkdir -p "${dir}"
+    for round in $(seq 40)
+    do
+      : > "${dir}/kinds-0.awk"
+      rm -f "${dir}"/kinds-[1-9]*.awk
+      context:matcher >/dev/null & context:matcher >/dev/null & wait
+    done'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

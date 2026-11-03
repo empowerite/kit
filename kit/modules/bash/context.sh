@@ -249,10 +249,11 @@ context:matcher() {
   if [[ ! -f "${file}" ]]
   then
     # Two processes may compile at once, so each writes a file of its own, by BASHPID, which a subshell does not
-    # share, and moves it into place whole; a matcher of other kinds is removed, never the one being placed.
+    # share, and moves it into place whole; a matcher of other kinds is removed, never the one being placed. Both may
+    # prune the same old matcher, so rm -f takes it, which says nothing of one the other took first.
     mkdir -p "${dir}"
     context:compile > "${file}.${BASHPID}" || { rm -f "${file}.${BASHPID}"; return 1; }
-    find "${dir}" -name 'kinds-*.awk' ! -name "kinds-${key}.awk" -delete
+    find "${dir}" -name 'kinds-*.awk' ! -name "kinds-${key}.awk" -exec rm -f {} +
     mv "${file}.${BASHPID}" "${file}"
   fi
   printf '%s\n' "${file}"
