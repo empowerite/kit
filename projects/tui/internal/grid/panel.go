@@ -74,7 +74,8 @@ func (p Panel) controls() []control {
 }
 
 // Lines draws the panel's controls, one a line, the headings dim, the control under the keyboard inverse while the
-// panel has it; beside each line, the control it draws, or -1 for a heading or a gap.
+// panel has it; the choice of Show picked is bold in the accent color, the others' buttons dim, and all of a choice
+// that cannot be picked. Beside each line is the control it draws, or -1 for a heading or a gap.
 func (p Panel) Lines() (lines []string, at []int) {
 	add := func(line string, control int) {
 		lines, at = append(lines, line), append(at, control)
@@ -104,13 +105,13 @@ func (p Panel) Lines() (lines []string, at []int) {
 				add("", -1)
 				add(style.Off("show"), -1)
 			}
-			button := Unpicked
-			if p.Show == c.show {
-				button = Picked
-			}
-			line = button + " " + shows[c.show]
-			if c.show != All && p.Me == "" {
-				line = style.Off(line)
+			switch {
+			case p.Show == c.show:
+				line = style.Mark(Picked + " " + shows[c.show])
+			case c.show != All && p.Me == "":
+				line = style.Off(Unpicked + " " + shows[c.show])
+			default:
+				line = style.Off(Unpicked) + " " + shows[c.show]
 			}
 		}
 		if p.Focused && p.Cursor == k && !c.search {
@@ -122,8 +123,8 @@ func (p Panel) Lines() (lines []string, at []int) {
 }
 
 // Update takes a key while the panel has the keyboard, and says whether it changed anything: up and down move between
-// the controls, stopping at the ends; on the search, a printable key is typed and backspace takes one back; space,
-// and enter, toggle a checkbox and pick a choice of Show.
+// the controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back;
+// off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -139,6 +140,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		}
 	case c.search && k.Text != "":
 		p.Query += k.Text
+	case k.Text == "/":
+		p.Cursor = 0
 	case !c.search && (key == "space" || key == "enter"):
 		p = p.act(c)
 	default:

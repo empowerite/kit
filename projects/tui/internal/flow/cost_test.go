@@ -22,10 +22,18 @@ func big(n int) loadedMsg {
 	return loadedMsg{stage: "backlog", data: []byte("[" + strings.Join(b, ",") + "]")}
 }
 
+// bigNow gives big's answer as the backlog's latest load on the screen, which the fetch has run again.
+func bigNow(m Model, n int) loadedMsg {
+	msg := big(n)
+	msg.gen = m.find("backlog").gen
+	return msg
+}
+
 // A stage's rows are built once for what it loaded and the width: drawing, moving along the bar, and moving through
 // the rows reuse them. A stage that loads again, a new width, or the legend shown beside them builds them anew.
 func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40}, big(300))
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, bigNow(m, 300))
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "backlog" })
 	first := m.rows(i)
 	_ = m.View()
@@ -44,7 +52,7 @@ func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 		t.Error("a new width reused the rows laid out for the old one")
 	}
 	wide := m.rows(i)
-	m = drive(m, big(300))
+	m = drive(m, bigNow(m, 300))
 	if again := m.rows(i); &again[0] == &wide[0] {
 		t.Error("the stage loaded again and kept the rows of what it had")
 	}
@@ -58,7 +66,8 @@ func TestADrawingOfThreeHundredIssuesIsWellUnderAFramesTime(t *testing.T) {
 	if raceEnabled {
 		budget *= 10
 	}
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40}, big(300))
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, bigNow(m, 300))
 	const n = 30
 	start := time.Now()
 	for range n {

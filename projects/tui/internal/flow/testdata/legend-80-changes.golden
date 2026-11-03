@@ -1,8 +1,8 @@
  kit flow · 📚 empowerite/kit
- ──────────────╮➄╶─────────────╴➏╶──────────────╮➆╶────────────╮➇╶──────────────
-◃ 🌿 worktrees 4 │  🔀 changes 3  │ 📥 incoming 6 │  🏭 builds 4 │  📦 release ▹
- ──────────────╰────────────────╯               ╰──────────────╰────────────────
-   📡 origin · github · github.com              ▸ 🔎 search
+ ──╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶──
+◃  │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │   ▹
+ ──╰────────────────────────╯                       ╰──────────────────────╰────
+   📡 origin · github · github.com              ┊ 🔎 search
  ▸ a1b2c3d  #1 docs: the docs say what the cod… ┊ 
  ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… ┊ legend
    🌿       46-a-noun-lists updated             ┊ 📥  the fetch
@@ -15,7 +15,7 @@
                                                 ┊
                                                 ┊
                                                 ┊
-                                                ┊
+                                                ▸
                                                 ┊
                                                 ┊
                                                 ┊
@@ -29,4 +29,4 @@
                                                 ┊
                                                 ┊
 
- ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · esc back
+ ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · esc back

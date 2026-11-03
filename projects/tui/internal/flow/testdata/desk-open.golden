@@ -1,8 +1,8 @@
  kit flow · 📚 empowerite/kit
- ➀╶─────────────╮➁╶──────────────╴➌╶──────────╮➃╶───────────────╮➄╶─────────────
-   🎫 backlog 3 │  🛫 underway 4  │ 💻 desk 1 │  🌿 worktrees 4 │  🔀 changes  ▹
- ───────────────╰─────────────────╯           ╰─────────────────╰───────────────
- ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      ◂
+ ───╮➁╶──────────────────────╴➌╶──────────────────╮➃╶───────────────────────╮➄╶─
+◃ 3 │  🛫 underway         4  │ 💻 desk       1 ≣ │  🌿 worktrees         4 │  ▹
+ ───╰─────────────────────────╯                   ╰─────────────────────────╰───
+ ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      ┊
        M kit.yml                                                               ┊
       ?? scratch.txt                                                           ┊
       c0ffee1 #45 status: the desk is a stage of its own                       ┊
@@ -11,7 +11,7 @@
       c0ffee4 #45 status: the line scrolls sideways                            ┊
       c0ffee5 #45 status: the dot follows the view                             ┊
       c0ffee6 #45 status: the legend is grouped by stage                       ┊
-      c0ffee7 #45 status: the labels shorten before the line scrolls           ┊
+      c0ffee7 #45 status: the labels shorten before the line scrolls           ◂
       c0ffee8 #45 status: the repository has a glyph                           ┊
       c0ffee9 #45 status: the title has no blank line under it                 ┊
       c0ffeea #45 status: the goldens at 120 columns                           ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back
+ ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? sidebar · esc back

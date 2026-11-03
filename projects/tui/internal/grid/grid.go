@@ -21,11 +21,13 @@ import (
 
 // Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right
 // is a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the
-// row is closed and wrapped when it is open.
+// row is closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page:
+// a click on the glyph opens it.
 type Cell struct {
 	Values []string
 	Right  bool
 	Wrap   bool
+	Link   string
 }
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
@@ -137,6 +139,35 @@ func Hides(r Row, widths []int, left int) bool {
 func Opens(rows []Row, k, width int) bool {
 	widths := columnWidths(rows)
 	return Hides(rows[k], widths, fillWidth(rows[k].Cells, widths, width-len(lead)))
+}
+
+// LinkAt gives the link of the cell whose glyph, the first two cells of its text, a row's first line draws at the
+// column x, as Draw lays the rows out for a pane of so many cells; nothing when no linked glyph is there.
+func LinkAt(rows []Row, k, width, x int) string {
+	widths, r := columnWidths(rows), rows[k].Cells
+	left := fillWidth(r, widths, width-len(lead))
+	at := len(lead)
+	for j, c := range r {
+		w := left
+		switch {
+		case len(r) == 1:
+			w = width - len(lead)
+		case c.Wrap:
+		case j >= len(widths) || widths[j] == 0:
+			continue
+		default:
+			w = widths[j]
+		}
+		start := at
+		if c.Right {
+			start += w - ansi.StringWidth(c.first()+c.more())
+		}
+		if c.Link != "" && x >= start && x < start+2 {
+			return c.Link
+		}
+		at += w + gap
+	}
+	return ""
 }
 
 // table lays rows out closed, as the lines a row opens to are: one line each, clipped to the width.

@@ -1,6 +1,6 @@
-// The picture drawn: the title, the stages' tab bar, the selected stage's rows in a pane that scrolls, beside its
-// panel and legend when ? shows them, and the keys. Widths are terminal cells, so a two-cell glyph never pushes a row past the
-// edge.
+// The picture drawn: the title, the stages' tab bar, the selected stage's rows in a pane that scrolls, beside its panel
+// and legend when ? shows them, and the keys. Widths are terminal cells, so a two-cell glyph never pushes a row past
+// the edge.
 package flow
 
 import (
@@ -23,10 +23,10 @@ const (
 	paneTop = 1 + tabs.Height
 )
 
-// rule is what stands between the rows and the side beside them, the panel and the legend, a space either side of it,
-// drawn dim; while the side is hidden, a space and the rule end every line of the pane, at the screen's last column. On
-// the pane's first line the rule is a triangle, which a click turns as ? does: pointing left to show the side, right
-// to hide it.
+// rule is what stands between the rows and the sidebar beside them, the panel and the legend, a space either side of
+// it, drawn dim; while the sidebar is hidden, a space and the rule end every line of the pane, at the screen's last
+// column. On the pane's middle line the rule is a triangle, which a click turns as ? does: pointing left to show the
+// sidebar, right to hide it.
 const (
 	rule = "┊"
 	show = "◂"
@@ -46,17 +46,22 @@ func (m Model) View() tea.View {
 	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = append(lines, "")
-	lines = style.Bottom(lines, m.height, style.Bar(m.keys(), m.width))
+	bottom := style.Bar(m.keys(), m.width)
+	if m.notice != "" {
+		bottom = " " + style.Refusal(pane.Clip(m.notice, m.width-1))
+	}
+	lines = style.Bottom(lines, m.height, bottom)
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 
-// bar gives the stages' tab bar, from the screen's second line: each stage's glyph, name, and count, and the keyboard
-// on it unless the rows or the panel have it.
+// bar gives the stages' tab bar, from the screen's second line: each stage's glyph, name, and count, the room for a
+// count of n/m and the menu's glyph kept for each, and the keyboard on it unless the rows or the panel have it.
 func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.width, Row: 1}
+	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.width, Row: 1,
+		Reserve: len("xxx/yyy"), Menus: true}
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 	}
@@ -66,20 +71,20 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// legendWidth gives the cells the side takes beside the rows, the rule before it apart: the widest stage's panel or
+// sidebarWidth gives the cells the sidebar takes beside the rows, the rule before it apart: the widest stage's panel or
 // legend, so moving along the bar never lays the rows out again, and never more than two fifths of the screen, which
 // clips it; nothing while ? does not show it.
-func (m Model) legendWidth() int {
-	if !m.legend {
+func (m Model) sidebarWidth() int {
+	if !m.sidebar {
 		return 0
 	}
 	return min(m.widest, (m.width-3)*2/5)
 }
 
-// paneWidth gives the cells the rows have: the screen's, less a space and the rule, and a space and the side while
+// paneWidth gives the cells the rows have: the screen's, less a space and the rule, and a space and the sidebar while
 // ? shows it.
 func (m Model) paneWidth() int {
-	if w := m.legendWidth(); w > 0 {
+	if w := m.sidebarWidth(); w > 0 {
 		return m.width - 3 - w
 	}
 	return m.width - 2
@@ -88,7 +93,7 @@ func (m Model) paneWidth() int {
 // keys gives the keys bar for where the keyboard is, naming only the keys that act there: in the panel, its own; on
 // the bar, left and right, down into the rows, and the numbers; in the rows, up and down and a page at a time; on a
 // row that opens, right to open it or left to close it; tab into the panel; r on a stage kittui loads; esc going back
-// from the rows and from the side, and ctrl-c quitting from the bar.
+// from the rows and from the sidebar, and ctrl-c quitting from the bar.
 func (m Model) keys() string {
 	if m.inPanel {
 		return "↑↓ move · space toggle · type to search · esc back"
@@ -113,8 +118,8 @@ func (m Model) keys() string {
 	if len(m.stages) > 0 && known[m.stages[m.stage].name] {
 		keys = append(keys, "r refresh")
 	}
-	keys = append(keys, "? legend")
-	if m.inRows || m.legend {
+	keys = append(keys, "? sidebar")
+	if m.inRows || m.sidebar {
 		return strings.Join(append(keys, "esc back"), " · ")
 	}
 	return strings.Join(append(keys, "ctrl+c quit"), " · ")
@@ -129,7 +134,8 @@ func (m Model) title() string {
 }
 
 // count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming
-// that did not fetch, else its rows but the asides, as incoming's headings.
+// that did not fetch, else its rows but the asides, as incoming's headings; n/m, the rows the panel lets through of
+// the rows loaded, when it holds some back.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
@@ -140,13 +146,22 @@ func (m Model) count(i int) string {
 	case s.name == "incoming" && s.in != nil && !s.in.Fetched:
 		return ""
 	}
+	n, all := counted(m.rows(i)), m.shown(i).all
+	if n != all {
+		return strconv.Itoa(n) + "/" + strconv.Itoa(all)
+	}
+	return strconv.Itoa(n)
+}
+
+// counted gives how many of the rows are not asides.
+func counted(rows []row) int {
 	n := 0
-	for _, r := range m.rows(i) {
+	for _, r := range rows {
 		if !r.Aside {
 			n++
 		}
 	}
-	return strconv.Itoa(n)
+	return n
 }
 
 // legendLines gives a stage's legend as the column beside its rows draws it: legend, dim, then each glyph the stage
@@ -180,8 +195,8 @@ func (m Model) side() []string {
 }
 
 // pane gives the pane's lines, as many as it has: the selected stage's from its offset on, then the rule, its triangle
-// on the first line, and beside it, while ? shows it, the stage's panel and legend, a side taller than the pane ending
-// in a dim … N more.
+// on the middle line, and beside it, while ? shows it, the stage's panel and legend from the sidebar's offset, a dim …
+// N above and … N more where the pane hides some of it.
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
@@ -199,18 +214,15 @@ func (m Model) pane() []string {
 	for len(out) < h {
 		out = append(out, "")
 	}
-	lw, triangle := m.legendWidth(), show
+	lw, triangle := m.sidebarWidth(), show
 	var side []string
 	if lw > 0 {
-		side, triangle = m.side(), hide
-	}
-	if len(side) > h {
-		side = append(side[:h-1], style.Off(pane.More(len(side)-h+1)))
+		side, triangle = pane.Lines(m.side(), m.sideOffset, h, "", ""), hide
 	}
 	pw := m.paneWidth()
 	for k := range out {
 		line := style.Off(rule)
-		if k == 0 {
+		if k == m.paneHeight()/2 {
 			line = triangle
 		}
 		// the rule's last space only before a side line, so a line with none ends on the rule
@@ -239,7 +251,8 @@ func (m Model) head(lines []line, h int) string {
 }
 
 // lines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or of one whose
-// panel lets no row through, or its rows as the grid draws them, the one under the cursor on a band while the rows have the keyboard.
+// panel lets no row through, or its rows as the grid draws them, the one under the cursor on a band while the rows have
+// the keyboard.
 func (m Model) lines(i int) []line {
 	s := m.stages[i]
 	lead := "   "

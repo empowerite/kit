@@ -1,17 +1,17 @@
  kit flow · 📚 empowerite/kit
- ─────────────╮➄╶─────────────╮➅╶──────────────╮➆╶────────────╴➑╶──────────────╮
-◃ worktrees 4 │  🔀 changes 3 │  📥 incoming 6 │  🏭 builds 4  │ 📦 releases 3 │
- ─────────────╰───────────────╰────────────────╰───────────────╯               ╵
- ▾ 0.2.0       📝 draft        60m                                             ◂
+ ─────╮➅╶──────────────────────╮➆╶────────────────────╴➑╶──────────────────────╮
+◃   3 │  📥 incoming         6 │  🏭 builds         4  │ 📦 releases       3 ≣ │
+ ─────╰────────────────────────╰───────────────────────╯                       ╵
+ ▾ 0.2.0       📝 draft        60m                                             ┊
       kit 0.2.0                                                                ┊
       release/0.2.0                                                            ┊
       2026-11-01T01:00:00Z                                                     ┊
-      https://github.com/empowerite/kit/releases/tag/release/0.2.0             ┊
  ▸ 0.1.0       📦 release       6h  ⭐ latest                                  ┊
  ▸ 0.1.0-rc.7  🧪 pre-release  28h                                             ┊
                                                                                ┊
                                                                                ┊
                                                                                ┊
+                                                                               ◂
                                                                                ┊
                                                                                ┊
                                                                                ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back
+ ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? sidebar · esc back

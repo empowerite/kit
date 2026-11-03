@@ -1,8 +1,8 @@
  kit flow · 📚 empowerite/kit
- ➂╶──────────╮➃╶───────────────╴➎╶─────────────╮➅╶──────────────╮➆╶────────────╮
-◃  💻 desk 1 │  🌿 worktrees 4  │ 🔀 changes 3 │  📥 incoming 6 │  🏭 builds 4 ▹
- ────────────╰──────────────────╯              ╰────────────────╰──────────────╰
- ▾ 🔀 #2  The first     👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3… ◂
+ ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶──────────────────────╮➆╶─
+◃   🌿 worktrees         4  │ 🔀 changes       3 ≣ │  📥 incoming         6 │  ▹
+ ╰──────────────────────────╯                      ╰────────────────────────╰───
+ ▾ 🔀 #2  The first     👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 3… ┊
           release,                                                             ┊
           v0.1.0                                                               ┊
       #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0  ┊
@@ -11,7 +11,7 @@
                                                                                ┊
                                                                                ┊
                                                                                ┊
-                                                                               ┊
+                                                                               ◂
                                                                                ┊
                                                                                ┊
                                                                                ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back
+ ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? sidebar · esc back

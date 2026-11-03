@@ -1,8 +1,8 @@
  kit flow · 📚 empowerite/kit
- ➁╶──────────────╮➂╶──────────╴➍╶───────────────╮➄╶─────────────╮➅╶─────────────
-◃  🛫 underway 4 │  💻 desk 1  │ 🌿 worktrees 4 │  🔀 changes 3 │  📥 incoming ▹
- ────────────────╰─────────────╯                ╰───────────────╰───────────────
- ▸ 🌿 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2 🛬 ready       … ◂
+ ────╮➂╶──────────────────╴➍╶───────────────────────╮➄╶─────────────────────╮➅╶─
+◃  4 │  💻 desk         1  │ 🌿 worktrees       4 ≣ │  🔀 changes         3 │  ▹
+ ────╰─────────────────────╯                        ╰───────────────────────╰───
+ ▸ 🌿 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2 🛬 ready       … ┊
  ▸ 🌿 42-settings                    ↑3 ↓1  +120 -4     no pull request yet  … ┊
  ▸ 🌿 worktrees/spike ❗ detached    ↑0 ↓0  +0 -0                            … ┊
  ▸ 🔖 gone: old-experiment, 44-a-spike                                         ┊
@@ -11,7 +11,7 @@
                                                                                ┊
                                                                                ┊
                                                                                ┊
-                                                                               ┊
+                                                                               ◂
                                                                                ┊
                                                                                ┊
                                                                                ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · ctrl+c quit
+ ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · ctrl+c quit

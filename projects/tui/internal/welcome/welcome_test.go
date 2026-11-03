@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -96,7 +97,8 @@ func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	labels := strings.Split(view(m), "\n")[2]
+	// a count is right-aligned in its tab, so the spaces before it are folded to one
+	labels := regexp.MustCompile(` +`).ReplaceAllString(strings.Split(view(m), "\n")[2], " ")
 	for _, want := range []string{"│ 👋 intro", "🧱 basics …", "🧰 toolchains …", "🔧 setup …", "🧭 lay of"} {
 		if !strings.Contains(labels, want) {
 			t.Errorf("no %q: %q", want, labels)
@@ -415,8 +417,8 @@ func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
 	m, _ := loaded(t)
 	want := "❌ kit welcome refuses for the test; run: kit help welcome"
-	if m.step != basics || !strings.Contains(view(m), "   "+want) || !strings.Contains(view(m), "🧱 basics !") ||
-		!strings.Contains(view(m), "🔧 setup !") {
+	if m.step != basics || !strings.Contains(view(m), "   "+want) || !strings.Contains(view(m), "🧱 basics  !") ||
+		!strings.Contains(view(m), "🔧 setup  !") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	if !strings.Contains(m.View().Content, style.Refusal(want)) {

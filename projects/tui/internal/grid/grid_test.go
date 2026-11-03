@@ -80,6 +80,24 @@ func TestOpensSaysWhichRowsHideSomethingAtTheWidth(t *testing.T) {
 	}
 }
 
+func TestLinkAtFindsTheLinkedGlyphUnderAColumn(t *testing.T) {
+	rows := issues()
+	rows[0].Cells[3].Link = "https://example/1"
+	rows[0].Cells[0].Link = "https://example/number"
+	rows = append(rows, Row{Key: "s", Cells: []Cell{{Values: []string{"🔗 a span"}, Link: "https://example/span"}}})
+	// the title starts after the gutter, #1, the assignees, and the age, each with the gap after it
+	title := len(lead) + 3 + gap + ansi.StringWidth("👤 ada +1") + gap + 3 + gap
+	for x, want := range map[int]string{title: "https://example/1", title + 1: "https://example/1", title + 2: "",
+		len(lead) + 1: "https://example/number", len(lead): "", 0: ""} {
+		if got := LinkAt(rows, 0, 40, x); got != want {
+			t.Errorf("at %d: %q, want %q", x, got, want)
+		}
+	}
+	if got := LinkAt(rows, 3, 40, len(lead)); got != "https://example/span" {
+		t.Errorf("a span's glyph: %q", got)
+	}
+}
+
 func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
 	lines := Draw(issues(), 40, 1, func(Row) bool { return false })
 	band, _, _ := strings.Cut(style.Band("x", 1), "x")
@@ -169,6 +187,13 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	}
 	if _, ok := p.Update(key('x', "x")); ok {
 		t.Error("a letter off the search was taken")
+	}
+	// / off the search goes to it; on it, / is typed
+	if p, _ = p.Update(key('/', "/")); p.Cursor != 0 {
+		t.Errorf("/ off the search: cursor %d", p.Cursor)
+	}
+	if p, _ = p.Update(key('/', "/")); !strings.HasSuffix(p.Query, "/") {
+		t.Errorf("/ on the search: %q", p.Query)
 	}
 }
 

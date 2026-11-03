@@ -1,11 +1,11 @@
  kit flow · 📚 empowerite/kit
- ➊╶──────────────────────╮➁╶───────────────────────╮➂╶─────────────────╮➃╶─────────────────────────╮➄╶──────────────────────╮➅╶───────────────────────╮➆╶────────────────────╮➇╶───────────────────────╮
- │ 🎫 backlog 3          │  🛫 underway 4          │  💻 desk 1        │  🌿 worktrees 4           │  🔀 changes 3          │  📥 incoming 6          │  🏭 builds 4         │  📦 releases 3          │
- ╵                       ╰─────────────────────────╰───────────────────╰───────────────────────────╰────────────────────────╰─────────────────────────╰──────────────────────╰─────────────────────────╰
- ▸ #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it      ▸ 🔎 search
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                        ┊ 
+ ➊╶──────────────────────╮➁╶───────────────────────╮➂╶──────────────────╮➃╶────────────────────────╮➄╶──────────────────────╮➅╶───────────────────────╮➆╶────────────────────╮➇╶───────────────────────╮
+ │ 🎫 backlog        3 ≣ │  🛫 underway          4 │  💻 desk         1 │  🌿 worktrees          4 │  🔀 changes          3 │  📥 incoming          6 │  🏭 builds         4 │  📦 releases          3 │
+ ╵                       ╰─────────────────────────╰────────────────────╰──────────────────────────╰────────────────────────╰─────────────────────────╰──────────────────────╰─────────────────────────╵
+   #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it      ┊ 🔎 search
+   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                        ┊ 
  ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                                                                                                ┊ columns
-                                                                                                                                                                      ┊ ☑ number
+                                                                                                                                                                      ┊ ☑ id
                                                                                                                                                                       ┊ ☑ assignees
                                                                                                                                                                       ┊ ☑ age
                                                                                                                                                                       ┊ ☑ branch
@@ -15,7 +15,7 @@
                                                                                                                                                                       ┊ ⦿ all
                                                                                                                                                                       ┊ ⦾ mine
                                                                                                                                                                       ┊ ⦾ others
-                                                                                                                                                                      ┊ 
+                                                                                                                                                                      ▸ 
                                                                                                                                                                       ┊ legend
                                                                                                                                                                       ┊ 🎫  an issue
                                                                                                                                                                       ┊ 👤  its assignees
@@ -29,4 +29,4 @@
                                                                                                                                                                       ┊
                                                                                                                                                                       ┊
 
- ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · esc back
+ ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · esc back

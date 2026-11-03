@@ -137,7 +137,7 @@ func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 func TestOnANarrowScreenTheBarScrolls(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 24})
 	bar := lines(m)[2]
-	if !strings.Contains(bar, "│ 🎫 backlog 3 │") || !strings.HasSuffix(bar, tabs.After) {
+	if !strings.Contains(squeeze(bar), "│ 🎫 backlog 3 "+tabs.Menu+" │") || !strings.HasSuffix(bar, tabs.After) {
 		t.Errorf("at 30 columns, the bar does not scroll with backlog whole: %q", bar)
 	}
 }

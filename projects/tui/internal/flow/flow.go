@@ -3,11 +3,12 @@
 // keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; r runs
-// the stage's command again; ? shows the stage's legend beside its rows, and again takes it away, as a click on the
-// triangle at the top of the rule beside the rows does. Esc goes back one level: the legend off, then from the rows to
-// the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends
-// command-esc, quits with 0. A stage's command has two minutes; past them it is a refusal, and quitting kills the
-// commands still running.
+// the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
+// away, as a click on the triangle at the top of the rule beside the rows does; tab gives the panel the keyboard, and /
+// its search. A click on a linked glyph, as an issue's before its title, opens its page in the browser. Esc goes back
+// one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and
+// alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two
+// minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
 
 import (
@@ -16,6 +17,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"runtime"
+	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -82,14 +86,16 @@ type Model struct {
 	noFetch       bool
 	filters       []string
 	stages        []stage
-	stage         int    // the selected stage
-	inRows        bool   // whether the rows have the keyboard, not the bar
-	inPanel       bool   // whether the panel has the keyboard, before the rows or the bar
-	legend        bool   // whether the side, the panel and the legend, shows beside the rows
-	widest        int    // the cells of the widest stage's panel or legend
-	me            string // the caller's login, once kit has said it, which the panels' mine and others match
-	asked         bool   // whether kit has been asked for the caller's login
-	started       bool   // whether the stages after incoming have been started
+	stage         int                    // the selected stage
+	inRows        bool                   // whether the rows have the keyboard, not the bar
+	inPanel       bool                   // whether the panel has the keyboard, before the rows or the bar
+	sidebar       bool                   // whether the sidebar, the panel and the legend, shows beside the rows
+	sideOffset    int                    // the sidebar's first line, when it is taller than the pane
+	widest        int                    // the cells of the widest stage's panel or legend
+	me            string                 // the caller's login, once kit has said it, which the panels' mine and others match
+	asked         bool                   // whether kit has been asked for the caller's login
+	browse        func(url string) error // opens a page in the browser
+	notice        string                 // why a page did not open, in place of the keys until the next key
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -98,12 +104,14 @@ type Model struct {
 // built holds each stage's rows as they were last built, and the width they were laid out for. A stage that loads, a
 // refresh, or a new width replaces it, since a stage's rows may draw from another's, as the desk's from changes'.
 type built struct {
-	width int
-	rows  map[int][]row
+	width  int
+	stages map[int]shown
 }
 
 // rebuild drops the rows built so far; each is built again when it is next drawn.
-func (m *Model) rebuild() { m.built = &built{width: m.paneWidth(), rows: map[int][]row{}} }
+func (m *Model) rebuild() {
+	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}}
+}
 
 // Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own:
 // --no-fetch, and the filters backlog, underway, and changes take. Kit's refusal of --stages is the error.
@@ -126,7 +134,8 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // New opens the screen on the options; every stage loads once Init starts it. A stage kittui does not know shows a
 // line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
-	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24}
+	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
+		browse: browser}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.rebuild()
 	for _, name := range o.Stages {
@@ -135,19 +144,14 @@ func New(r kit.Runner, o Options) Model {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)), m.panel(len(m.stages)-1).Width())
+		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columns[name], Owned: owned[name]}.Width())
 	}
 	return m
 }
 
-// Init starts the loading: incoming first, since it fetches, and the rest once it has answered; without incoming
-// in the picture, every stage at once.
-func (m Model) Init() tea.Cmd {
-	if m.find("incoming") != nil {
-		return m.load("incoming")
-	}
-	return m.others()
-}
+// Init starts the loading: every stage at once, so none waits on incoming's fetch, which can take as long as the
+// remotes do; the stages the fetch moves load again once it has fetched.
+func (m Model) Init() tea.Cmd { return m.all() }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -163,12 +167,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.take(msg) || msg.stage != "incoming" {
 			return m, nil
 		}
-		if !m.started {
-			m.started = true
-			return m, m.others()
-		}
-		if msg.gen > 0 {
-			// r on incoming fetched again: the stages the fetch moves load again
+		if in := m.find("incoming").in; in != nil && in.Fetched {
+			// the fetch, at the start or on r, moved what some stages read: they load again
 			return m, m.reloads()
 		}
 	case meMsg:
@@ -176,27 +176,65 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.me = msg.login
 			m.rebuild()
 		}
+	case browsedMsg:
+		if msg.err != nil {
+			m.notice = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err)
+		}
 	case tea.KeyPressMsg:
+		m.notice = ""
 		return m.key(msg)
+	case tea.MouseWheelMsg:
+		if msg.X > m.paneWidth()+1 && m.sidebar {
+			switch msg.Button {
+			case tea.MouseWheelUp:
+				m.scrollSide(-1)
+			case tea.MouseWheelDown:
+				m.scrollSide(1)
+			}
+		}
 	case tea.MouseClickMsg:
 		switch side := m.paneWidth() + 1; {
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
 			}
-		case msg.X == side && msg.Y == paneTop:
-			return m, m.showLegend(!m.legend)
-		case msg.X > side && m.legend:
-			return m, m.clickPanel(msg.Y - paneTop)
+		case msg.X == side && msg.Y == paneTop+m.paneHeight()/2:
+			return m, m.showSidebar(!m.sidebar)
+		case msg.X > side && m.sidebar:
+			m.clickPanel(msg.Y - paneTop)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
 			} else {
-				m.click(msg.X, msg.Y)
+				return m, m.click(msg.X, msg.Y)
 			}
 		}
 	}
 	return m, nil
+}
+
+// browsedMsg says whether the browser was asked to open the page at url: err is why not.
+type browsedMsg struct {
+	url string
+	err error
+}
+
+// browser is how a screen opens a page, which New gives it: the browser, as browse opens it.
+var browser = browse
+
+// browse opens a page in the browser: open on macOS, xdg-open elsewhere, without waiting for it.
+func browse(url string) error {
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	return exec.Command(opener, url).Start()
+}
+
+// openPage asks the browser for the page at url.
+func (m Model) openPage(url string) tea.Cmd {
+	b := m.browse
+	return func() tea.Msg { return browsedMsg{url, b(url)} }
 }
 
 // meMsg is kit's answer to the caller's login: the login, or why it could not be read.
@@ -205,12 +243,20 @@ type meMsg struct {
 	err   error
 }
 
-// panel gives a stage's panel: what the person set in it, its columns, whether its rows belong to people, the caller's
-// login, and whether it has the keyboard.
+// panel gives a stage's panel: what the person set in it, the columns it offers, whether its rows belong to people,
+// the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
+	p := m.filter(i)
+	p.Columns = m.offered(i)
+	return p
+}
+
+// filter gives a stage's panel as its rows are let through: what the person set in it, whether its rows belong to
+// people, and the caller's login; the columns it offers are drawn from the rows, so it has none.
+func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
-	p.Columns, p.Owned, p.Me = columns[s.name], owned[s.name], m.me
+	p.Owned, p.Me = owned[s.name], m.me
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }
@@ -224,13 +270,13 @@ func (m *Model) setPanel(p grid.Panel) {
 	m.fit()
 }
 
-// enterPanel gives the panel the keyboard, the search under it when find says so, and shows the side; it asks kit for
-// the caller's login the first time.
+// enterPanel gives the panel the keyboard, the search under it when find says so, and shows the sidebar; it asks kit
+// for the caller's login the first time.
 func (m *Model) enterPanel(find bool) tea.Cmd {
 	if len(m.stages) == 0 {
 		return nil
 	}
-	cmd := m.showLegend(true)
+	cmd := m.showSidebar(true)
 	m.inPanel = true
 	if find {
 		m.stages[m.stage].view = m.panel(m.stage).Find()
@@ -238,19 +284,56 @@ func (m *Model) enterPanel(find bool) tea.Cmd {
 	return cmd
 }
 
-// clickPanel takes a click on a line of the side: on one of the panel's controls, the panel has the keyboard and acts
-// on it as space does.
-func (m *Model) clickPanel(line int) tea.Cmd {
+// clickPanel takes a click on a line of the sidebar, from the pane's first: on one of the panel's controls, the panel
+// has the keyboard and acts on it as space does; on the … above or … more, the sidebar scrolls a page.
+func (m *Model) clickPanel(line int) {
 	if len(m.stages) == 0 {
-		return nil
+		return
 	}
-	p, ok := m.panel(m.stage).Click(line)
-	if !ok {
-		return nil
+	n, h := len(m.side()), m.paneHeight()
+	start, end, above, below := pane.Window(n, h, m.sideOffset)
+	k := pane.At(n, h, m.sideOffset, line)
+	switch {
+	case above && line == 0:
+		m.scrollSide(-max(1, h-2))
+	case below && line == end-start+btoi(above):
+		m.scrollSide(max(1, h-2))
+	case k >= 0:
+		if p, ok := m.panel(m.stage).Click(k); ok {
+			m.inPanel = true
+			m.setPanel(p)
+		}
 	}
-	m.inPanel = true
-	m.setPanel(p)
-	return nil
+}
+
+// btoi gives 1 for true, 0 for false.
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// scrollSide scrolls the sidebar n lines, down when n is positive, never past its ends.
+func (m *Model) scrollSide(n int) {
+	m.sideOffset, _, _, _ = pane.Window(len(m.side()), m.paneHeight(), m.sideOffset+n)
+}
+
+// fitSide scrolls the sidebar so the panel's control under the keyboard shows.
+func (m *Model) fitSide() {
+	_, at := m.panel(m.stage).Lines()
+	line, n, h := slices.Index(at, m.stages[m.stage].view.Cursor), len(m.side()), m.paneHeight()
+	for line >= 0 {
+		start, end, _, _ := pane.Window(n, h, m.sideOffset)
+		switch {
+		case line < start:
+			m.sideOffset = line
+		case line >= end:
+			m.sideOffset++
+		default:
+			return
+		}
+	}
 }
 
 // askMe runs kit flow --me, once, for the limit at most.
@@ -292,15 +375,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.enterPanel(true)
 	case "esc":
 		switch {
-		case m.legend:
-			m.showLegend(false)
+		case m.sidebar:
+			m.showSidebar(false)
 		case m.inRows:
 			s := &m.stages[m.stage]
 			s.cursor, s.offset, m.inRows = 0, 0, false
 		}
 		m.fit()
 	case "?":
-		return m, m.showLegend(!m.legend)
+		return m, m.showSidebar(!m.sidebar)
 	case "up":
 		m.up(1)
 	case "down":
@@ -320,16 +403,31 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // panelKey takes a key while the panel has the keyboard: tab and esc give it back to the rows or the bar, as they had
-// it; the panel takes what it can, as typing in its search; a number the bar takes selects a stage, and gives the bar
-// the keyboard.
+// it; page up and down scroll the sidebar, and so does down past the last control, so the legend under the panel can
+// be read; the panel takes what it can, as typing in its search, the sidebar following its cursor; a number the bar
+// takes selects a stage, and gives the bar the keyboard.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	h := max(1, m.paneHeight()-2)
 	switch k.String() {
 	case "tab", "esc":
 		m.inPanel = false
 		return m, nil
+	case "pgdown":
+		m.scrollSide(h)
+		return m, nil
+	case "pgup":
+		m.scrollSide(-h)
+		return m, nil
 	}
-	if p, ok := m.panel(m.stage).Update(k); ok {
+	before := m.panel(m.stage)
+	if p, ok := before.Update(k); ok {
 		m.setPanel(p)
+		if k.String() == "down" && p.Cursor == before.Cursor {
+			// past the last control, down scrolls on to the legend under the panel
+			m.scrollSide(1)
+		} else {
+			m.fitSide()
+		}
 		return m, nil
 	}
 	m.inPanel = false
@@ -341,10 +439,10 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// showLegend shows the side beside the rows, or takes it away; the rows are laid out again for the width left, and
+// showSidebar shows the sidebar beside the rows, or takes it away; the rows are laid out again for the width left, and
 // the panel loses the keyboard with it. Shown the first time, it asks kit for the caller's login.
-func (m *Model) showLegend(on bool) tea.Cmd {
-	m.legend = on
+func (m *Model) showSidebar(on bool) tea.Cmd {
+	m.sidebar = on
 	m.inPanel = m.inPanel && on
 	m.rebuild()
 	m.fit()
@@ -356,6 +454,9 @@ func (m *Model) showLegend(on bool) tea.Cmd {
 
 // choose takes what the bar chose: the stage it selected, where the cursor is as it was left, and the keyboard.
 func (m *Model) choose(bar tabs.Bar) {
+	if bar.Selected != m.stage {
+		m.sideOffset = 0
+	}
 	m.stage, m.inRows, m.inPanel = bar.Selected, !bar.Focused, false
 	m.fit()
 }
@@ -408,11 +509,11 @@ func (m Model) load(name string) tea.Cmd {
 	}
 }
 
-// others runs every stage but incoming, at once.
-func (m Model) others() tea.Cmd {
+// all runs every stage kittui draws, at once.
+func (m Model) all() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
-		if s.name != "incoming" && known[s.name] {
+		if known[s.name] {
 			cmds = append(cmds, m.load(s.name))
 		}
 	}
@@ -430,28 +531,37 @@ func (m *Model) refresh() tea.Cmd {
 // restart runs a stage's command again as its latest load, ending the one before when it still runs, and shows the
 // stage loading until it answers.
 func (m *Model) restart(name string) tea.Cmd {
+	cmd, s := m.again(name), m.find(name)
+	s.loading, s.refusal = true, ""
+	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
+	m.rebuild()
+	return cmd
+}
+
+// again runs a stage's command again as its latest load, ending the one before when it still runs; the stage keeps
+// what it shows until the answer replaces it.
+func (m *Model) again(name string) tea.Cmd {
 	s := m.find(name)
 	if s.stop != nil {
 		s.stop()
 	}
 	s.ctx, s.stop = context.WithCancel(m.ctx)
 	s.gen++
-	s.loading, s.refusal = true, ""
-	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
-	m.rebuild()
 	return m.load(name)
 }
 
 // moved names the stages whose rows the fetch moves: the desk's and the worktrees' counts against the default branch,
-// and the issues underway, which the pull requests the fetch brings close.
-var moved = []string{"desk", "worktrees", "underway"}
+// the issues underway, which the pull requests the fetch brings close, and the backlog's branches, which it reads as
+// the fetch left them.
+var moved = []string{"backlog", "desk", "worktrees", "underway"}
 
-// reloads runs again each stage the fetch moves, when it is in the picture.
+// reloads runs again each stage the fetch moves, when it is in the picture, each keeping its rows on the screen until
+// the new ones come.
 func (m *Model) reloads() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, name := range moved {
 		if m.find(name) != nil {
-			cmds = append(cmds, m.restart(name))
+			cmds = append(cmds, m.again(name))
 		}
 	}
 	return tea.Batch(cmds...)
@@ -650,25 +760,36 @@ func (m *Model) open(open bool) {
 }
 
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
-// click on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾,
-// opens the row, or closes it. A click on a … line, or on a line about the stage, does nothing.
-func (m *Model) click(x, y int) {
+// click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
+// on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
+// the row, or closes it. A click on a … line, or on a line about the stage, does nothing.
+func (m *Model) click(x, y int) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
-		return
+		return nil
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	k := pane.At(len(lines), m.paneHeight(), s.offset, y-paneTop)
 	if k < 0 || lines[k].row < 0 {
-		return
+		return nil
 	}
+	rows := m.rows(m.stage)
 	row, first := lines[k].row, k == 0 || lines[k-1].row != lines[k].row
-	toggle := first && (x < 3 || m.inRows && row == s.cursor)
-	s.cursor, m.inRows, m.inPanel = row, true, false
-	if toggle {
-		m.open(!s.open[m.rows(m.stage)[row].Key])
-		return
+	link := ""
+	if first {
+		link = grid.LinkAt(rows, row, m.paneWidth(), x)
 	}
-	m.fit()
+	toggle := first && link == "" && (x < 3 || m.inRows && row == s.cursor)
+	s.cursor, m.inRows, m.inPanel = row, true, false
+	switch {
+	case link != "":
+		m.fit()
+		return m.openPage(link)
+	case toggle:
+		m.open(!s.open[rows[row].Key])
+	default:
+		m.fit()
+	}
+	return nil
 }
 
 // page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it

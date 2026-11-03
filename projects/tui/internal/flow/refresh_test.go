@@ -60,8 +60,8 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 	}
 }
 
-// r on incoming fetches, and what the fetch brings moves the desk's and the worktrees' counts and the issues underway,
-// so those stages load again once incoming answers; the others do not.
+// r on incoming fetches, and what the fetch brings moves the backlog's branches, the desk's and the worktrees' counts,
+// and the issues underway, so those stages load again once incoming answers; the others do not.
 func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	m := to(t, loaded(t, options()), "incoming")
@@ -72,10 +72,10 @@ func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 		ran = append(ran, strings.Fields(call)[1])
 	}
 	slices.Sort(ran)
-	if want := []string{"desk", "incoming", "underway", "worktrees"}; !slices.Equal(ran, want) {
+	if want := []string{"backlog", "desk", "incoming", "underway", "worktrees"}; !slices.Equal(ran, want) {
 		t.Errorf("r on incoming ran %v, not %v", ran, want)
 	}
-	for _, name := range []string{"desk", "underway", "worktrees"} {
+	for _, name := range []string{"backlog", "desk", "underway", "worktrees"} {
 		if s := m.find(name); s.loading || s.refusal != "" {
 			t.Errorf("%s did not load again: loading %v, refusal %q", name, s.loading, s.refusal)
 		}

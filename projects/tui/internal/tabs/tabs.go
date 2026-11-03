@@ -1,8 +1,10 @@
 // Package tabs is the tab bar kit flow and kit welcome share: three lines, as tabs on folders. Each tab's part starts
-// with a cell of its own, which holds its number on the line above; then a space, its glyph, a space, its name, and its
-// count on the middle line; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
+// with a cell of its own, which holds its number on the line above; then a space, its glyph, a space, and its name on
+// the middle line, and its count right-aligned at the tab's end, the menu's glyph after it on the selected tab of a
+// bar with menus; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
 // from the number before it. Each tab but the selected one has a dim border: a line from its number over it to ╮ in
-// that cell, │ under that, and ╰ under that, out to the right over the line under the tab; the tab before the selected
+// that cell, │ under that, and ╰ under that, out to the right over the line under the tab, or a half line, ╵, on the
+// last tab; the tab before the selected
 // one has no such edge: its line over it ends in a half line, ╴, short of the selected tab's number, and the line under
 // it runs on to the selected tab's curve. The selected tab has a line over it, and is open below to the pane under the
 // bar. The selected tab's edges stand in its first cell and in the cell after it: its number in the corner and ╮, each
@@ -41,6 +43,10 @@ const (
 	After  = "▹"
 )
 
+// Menu is the glyph after the selected tab's count, which will open the tab's menu: four lines, as a hamburger, one
+// cell wide in every terminal, which ☰ is not.
+const Menu = "≣"
+
 // Height is the lines the bar takes.
 const Height = 3
 
@@ -50,13 +56,18 @@ type Tab struct {
 }
 
 // Bar is the tab bar as a screen has it now: the tabs, the selected one, whether the bar has the keyboard, the
-// screen's width, and the screen line it starts on, which a click is matched against.
+// screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
+// count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
+// Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
+// the bar moves nothing.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
 	Focused  bool
 	Width    int
 	Row      int
+	Reserve  int
+	Menus    bool
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -121,22 +132,38 @@ func Marker(i int, selected bool) string {
 	return string(rune('➀' + i))
 }
 
-// label gives a tab's label on the middle line: its glyph and a space, when it has one; its name, in the accent when
-// selected; its count, dim; and a space after them. Its number is on the line above.
-func (b Bar) label(i int) string {
-	t, label := b.Tabs[i], ""
+// label gives a tab's label on the middle line, as two ends: its glyph and a space, when it has one, and its name, in
+// the accent when selected; then, right-aligned in the tab, its count, dim, and the menu's glyph after a space on the
+// selected tab, when the bar has menus. Its number is on the line above.
+func (b Bar) label(i int) (name, end string) {
+	t := b.Tabs[i]
 	if t.Glyph != "" {
-		label = t.Glyph + " "
+		name = t.Glyph + " "
 	}
 	if i == b.Selected {
-		label += style.Mark(t.Name)
+		name += style.Mark(t.Name)
 	} else {
-		label += t.Name
+		name += t.Name
 	}
-	if t.Count != "" {
-		label += " " + style.Off(t.Count)
+	end = style.Off(t.Count)
+	if b.Menus && i == b.Selected {
+		end += " " + style.Mark(Menu)
 	}
-	return label + " "
+	return name, end
+}
+
+// wants gives the cells a tab's label takes at least: its name, a space and its count, or the reserve when the count is
+// narrower, room for a space and the menu's glyph on every tab when the bar has menus, and a space after them.
+func (b Bar) wants(i int) int {
+	name, _ := b.label(i)
+	n := ansi.StringWidth(name)
+	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || b.Reserve > 0 {
+		n += 1 + max(count, b.Reserve)
+	}
+	if b.Menus {
+		n += 2
+	}
+	return n + 1
 }
 
 // screen gives the cells of the screen the line takes: all but the margin before it.
@@ -158,7 +185,7 @@ func (b Bar) layout() layout {
 	whole := make([]int, n)
 	wanted := 0
 	for i := range n {
-		whole[i] = 2 + ansi.StringWidth(b.label(i)) + 1 // its number's cell and a space, and the cell after it
+		whole[i] = 2 + b.wants(i) + 1 // its number's cell and a space, and the cell after it
 		wanted += whole[i]
 	}
 	parts := whole
@@ -216,7 +243,8 @@ func (b Bar) View() string {
 	for i := range b.Tabs {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
 		cells := l.parts[i] - 1
-		label := pane.Pad(" "+b.label(i), cells-1, false)
+		name, end := b.label(i)
+		label := pane.Pad(" "+name, cells-2-ansi.StringWidth(end), false) + end + " "
 		if i == b.Selected {
 			cell(style.Mark(cmp.Or(Marker(i, true), "╭")), style.Mark("│"), curve("╯", i == 0))
 			cell(style.Mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
@@ -231,9 +259,13 @@ func (b Bar) View() string {
 		}
 		cell(number, " ", style.Mark(strings.Repeat("─", cells)))
 		cell(style.Off(top(cells-1)), b.dim(label), "")
-		if i+1 == b.Selected {
+		switch {
+		case i+1 == b.Selected:
 			cell(style.Off("╴"), " ", style.Mark("─"))
-		} else {
+		case i == n-1:
+			// the last tab has no line under a tab after it to curve out to: its edge ends in a half line
+			cell(style.Off("╮"), style.Off("│"), style.Off("╵"))
+		default:
 			cell(style.Off("╮"), style.Off("│"), style.Off("╰"))
 		}
 	}

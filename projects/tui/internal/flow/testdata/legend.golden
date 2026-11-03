@@ -1,17 +1,17 @@
  kit flow · 📚 empowerite/kit
- ➊╶─────────────╮➁╶──────────────╮➂╶──────────╮➃╶───────────────╮➄╶─────────────
- │ 🎫 backlog 3 │  🛫 underway 4 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes  ▹
- ╵              ╰────────────────╰────────────╰─────────────────╰───────────────
- ▸ #45                        2h              … ▸ 🔎 search
+ ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────
+ │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 wo ▹
+ ╵                      ╰────────────────────────╰────────────────────╰─────────
+ ▸ #45                        2h              … ┊ 🔎 search
  ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun… ┊ 
  ▸  #7  👤 ada           +1  40d              … ┊ columns
-                                                ┊ ☑ number
+                                                ┊ ☑ id
                                                 ┊ ☑ assignees
                                                 ┊ ☑ age
                                                 ┊ ☑ branch
                                                 ┊ ☑ title
                                                 ┊ 
-                                                ┊ show
+                                                ▸ show
                                                 ┊ ⦿ all
                                                 ┊ ⦾ mine
                                                 ┊ ⦾ others
@@ -21,4 +21,4 @@
                                                 ┊ 👤  its assignees
                                                 ┊ 🌿  its branch
 
- ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · esc back
+ ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · esc back

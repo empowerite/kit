@@ -93,16 +93,17 @@ func raw(m Model) string { return ansi.Strip(m.View().Content) }
 func view(m Model) string { return strings.Join(lines(m), "\n") }
 
 // shows says whether the bar draws a stage's glyph and its count, or no count when it is empty, with the stage's name
-// between them.
+// between them, and the menu's glyph after the selected stage's.
 func shows(m Model, glyph, count string) bool {
 	re := regexp.QuoteMeta(glyph) + `( \S+)?`
 	if count != "" {
-		re += " " + regexp.QuoteMeta(count)
+		re += " +" + regexp.QuoteMeta(count)
 	}
+	re += `( ` + regexp.QuoteMeta(tabs.Menu) + `)?`
 	// on a bar wide enough for every tab, so a stage the screen scrolls past still answers
 	b := m.bar()
 	b.Width = 1000
-	return regexp.MustCompile(re + ` ( |│|$)`).MatchString(strings.Split(ansi.Strip(b.View()), "\n")[1])
+	return regexp.MustCompile(re + ` +( |│|$)`).MatchString(strings.Split(ansi.Strip(b.View()), "\n")[1])
 }
 
 // lines gives the screen's lines without their escapes, and without the rule that ends each of the pane's while the
@@ -110,7 +111,7 @@ func shows(m Model, glyph, count string) bool {
 func lines(m Model) []string {
 	out := strings.Split(raw(m), "\n")
 	for k, l := range out {
-		if k >= paneTop && k < paneTop+m.paneHeight() && !m.legend {
+		if k >= paneTop && k < paneTop+m.paneHeight() && !m.sidebar {
 			for _, end := range []string{show, rule} {
 				if cut, ok := strings.CutSuffix(l, end); ok {
 					out[k] = strings.TrimRight(cut, " ")
@@ -135,6 +136,9 @@ func cursor(m Model) string {
 	return ""
 }
 
+// squeeze gives a line with each run of spaces one space, as a tab's count right-aligned in it reads.
+func squeeze(s string) string { return regexp.MustCompile(` +`).ReplaceAllString(s, " ") }
+
 // calls reads the words of every kit call the fake recorded.
 func calls(t *testing.T, path string) []string {
 	t.Helper()
@@ -145,35 +149,28 @@ func calls(t *testing.T, path string) []string {
 	return strings.Split(strings.TrimSpace(string(got)), "\n")
 }
 
-func TestIncomingLoadsFirstAndTheRestAfterItWithTheirWords(t *testing.T) {
+func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	o := options()
 	o.NoFetch, o.Filters = true, []string{"--mine", "--owner=bob"}
 	m := New(runner(t), o)
-	msg := m.Init()()
-	if got := calls(t, record); len(got) != 1 || got[0] != "flow incoming --json --no-fetch" {
-		t.Fatalf("Init ran %q", got)
+	batch, ok := m.Init()().(tea.BatchMsg)
+	if !ok || len(batch) != 8 {
+		t.Fatalf("Init did not start the eight at once: %T", batch)
 	}
 	for i := range m.stages {
 		if !m.stages[i].loading || m.count(i) != "…" {
-			t.Errorf("%s is not loading before incoming answers", m.stages[i].name)
+			t.Errorf("%s is not loading before it answers", m.stages[i].name)
 		}
 	}
 	if !strings.Contains(view(m), "loading") {
 		t.Errorf("the pane does not say loading:\n%s", view(m))
 	}
-	next, cmd := m.Update(msg)
-	m = next.(Model)
-	batch, ok := cmd().(tea.BatchMsg)
-	if !ok || len(batch) != 7 {
-		t.Fatalf("incoming's answer did not start the other seven: %T", cmd())
-	}
 	m = drive(m, batch)
-	want := []string{"flow incoming --json --no-fetch", "flow backlog --json --mine --owner=bob",
-		"flow underway --json --mine --owner=bob", "flow desk --json", "flow worktrees --json",
-		"flow changes --json --mine --owner=bob",
-		"flow builds --json", "flow releases --json"}
+	want := []string{"flow backlog --json --mine --owner=bob", "flow underway --json --mine --owner=bob",
+		"flow desk --json", "flow worktrees --json", "flow changes --json --mine --owner=bob",
+		"flow incoming --json --no-fetch", "flow builds --json", "flow releases --json"}
 	if got := calls(t, record); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -182,9 +179,41 @@ func TestIncomingLoadsFirstAndTheRestAfterItWithTheirWords(t *testing.T) {
 			t.Errorf("%s still loads", m.stages[i].name)
 		}
 	}
-	// a second answer from incoming starts nothing again
+	// an incoming that did not fetch moves nothing, so nothing loads again
 	if _, cmd := m.Update(loadedMsg{stage: "incoming", data: []byte(`{"fetched": false, "remotes": []}`)}); cmd != nil {
-		t.Errorf("incoming's second answer started something")
+		t.Errorf("incoming's answer without a fetch started something")
+	}
+}
+
+// Incoming's fetch, at the start, moves what the backlog, the desk, the worktrees, and underway read: they load again
+// once it has fetched, keeping their rows on the screen until the new ones come.
+func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	m := New(runner(t), options())
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
+	batch := m.Init()().(tea.BatchMsg)
+	var fetched tea.Msg
+	for _, cmd := range batch {
+		if msg := cmd(); msg.(loadedMsg).stage == "incoming" {
+			fetched = msg
+		} else {
+			m = drive(m, msg)
+		}
+	}
+	next, cmd := m.Update(fetched)
+	m = next.(Model)
+	if cmd == nil || m.find("desk").loading || m.find("backlog").issues == nil || m.count(0) != "3" {
+		t.Fatalf("the fetch blanked the stages it moves: %v %q", m.find("desk").loading, m.count(0))
+	}
+	m = drive(m, cmd())
+	var again []string
+	for _, call := range calls(t, record)[8:] {
+		again = append(again, strings.Fields(call)[1])
+	}
+	slices.Sort(again)
+	if want := []string{"backlog", "desk", "underway", "worktrees"}; !slices.Equal(again, want) {
+		t.Errorf("after the fetch, %v loaded again, not %v", again, want)
 	}
 }
 
@@ -203,7 +232,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if first := lines(m)[0]; first != " kit flow" {
 		t.Errorf("the title without incoming: %q", first)
 	}
-	if labels := lines(m)[2]; !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
+	if labels := squeeze(lines(m)[2]); !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
 		strings.Index(labels, "changes") > strings.Index(labels, "worktrees") {
 		t.Errorf("the labels follow kit's order: %q", labels)
 	}
@@ -298,6 +327,8 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 	if m = drive(m, tea.KeyPressMsg{Code: '9', Text: "9"}); m.stage != 7 {
 		t.Errorf("9 with eight stages moved to %d", m.stage)
 	}
+	// wide enough that ➂ shows with the last stage selected
+	m = drive(m, tea.WindowSizeMsg{Width: 200, Height: 24})
 	x := testkit.Column(lines(m)[1], '➂')
 	if m = drive(m, down, testkit.Click(x, 1)); m.stage != 2 || m.inRows {
 		t.Errorf("a click on ➂: stage %d, in rows %v\n%s", m.stage, m.inRows, view(m))
@@ -380,7 +411,8 @@ func TestRefreshRunsTheStageAgain(t *testing.T) {
 		t.Fatalf("r did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
-	if got := calls(t, record); len(got) != 9 || got[8] != "flow releases --json" {
+	// the eight, the four the fetch moved, then releases again
+	if got := calls(t, record); len(got) != 13 || got[12] != "flow releases --json" {
 		t.Errorf("the calls: %q", got)
 	}
 	if !shows(m, Release, "3") {
@@ -500,14 +532,14 @@ func TestQuitCodes(t *testing.T) {
 
 func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, down, press('?'))
-	if !m.legend || !strings.Contains(view(m), hide+" "+grid.Search) {
+	if !m.sidebar || !strings.Contains(view(m), " "+grid.Search+" ") {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.legend || !m.inRows || m.find("worktrees").cursor != 1 {
-		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.legend, m.inRows, m.find("worktrees").cursor)
+	if m = next.(Model); cmd != nil || m.sidebar || !m.inRows || m.find("worktrees").cursor != 1 {
+		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.sidebar, m.inRows, m.find("worktrees").cursor)
 	}
-	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, hide+" "+grid.Search) {
+	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, " "+grid.Search+" ") {
 		t.Errorf("esc with the legend on did not take it away and keep the rows as they were:\n%s", v)
 	}
 	next, cmd = m.Update(press(tea.KeyEscape))
@@ -516,17 +548,17 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	}
 	// on the bar, esc takes the legend away, and then does nothing
 	m = loaded(t, options(), press('?'), press(tea.KeyEscape))
-	if m.legend || m.ctx.Err() != nil {
-		t.Errorf("esc on the bar with the legend on: legend %v, context %v", m.legend, m.ctx.Err())
+	if m.sidebar || m.ctx.Err() != nil {
+		t.Errorf("esc on the bar with the legend on: legend %v, context %v", m.sidebar, m.ctx.Err())
 	}
 }
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys    = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · ctrl+c quit"
-	legendKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · esc back"
-	opens      = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · r refresh · ? legend · esc back"
-	closes     = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back"
+	barKeys     = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · ctrl+c quit"
+	sidebarKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · esc back"
+	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · r refresh · ? sidebar · esc back"
+	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -535,11 +567,11 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		keys string
 	}{
 		{nil, barKeys},
-		{[]tea.Msg{down}, opens},
+		{[]tea.Msg{right, right, right, down}, opens},
 		{[]tea.Msg{down, down, down, down}, opens},
 		{[]tea.Msg{right, right, right, down, right}, closes},
-		{[]tea.Msg{press('?')}, legendKeys},
-		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, legendKeys},
+		{[]tea.Msg{press('?')}, sidebarKeys},
+		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, sidebarKeys},
 	} {
 		for _, width := range []int{80, 120, 200} {
 			// each load is a model of its own, so the sizes load side by side
@@ -765,21 +797,28 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24}, down, toggle)
 	v := view(m)
 	for _, want := range []string{"#45", "#46  👤 jeffrey-aguilera   2d  " + Branch + " 46-a-noun-lists  " + Issue,
-		"#7  👤 ada           +1  40d", "interactive on a", "listing verbs fold into",
-		"https://github.com/empowerite/kit/issues/45", "kit issue 45 starts it"} {
+		"#7  👤 ada           +1  40d", "interactive on a", "listing verbs fold into"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
+	}
+	// the issue's page is its title's glyph's, not a line of its own, and nothing says how to start it
+	if strings.Contains(v, "https://") || strings.Contains(v, "kit issue 45") ||
+		m.rows(0)[0].Cells[4].Link != "https://github.com/empowerite/kit/issues/45" {
+		t.Errorf("the backlog's links:\n%s", v)
 	}
 	m = loaded(t, options(), right, right, right, right, right, right, right, down, down, toggle)
 	v = view(m)
 	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
 		Latest + " latest",
-		"0.1.0-rc.7  " + Pre + " pre-release  28h", "kit 0.1.0", "release/0.1.0", "2026-10-31T20:00:00Z",
-		"https://github.com/empowerite/kit/releases/tag/release/0.1.0"} {
+		"0.1.0-rc.7  " + Pre + " pre-release  28h", "kit 0.1.0", "release/0.1.0", "2026-10-31T20:00:00Z"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the releases lack %q:\n%s", want, v)
 		}
+	}
+	if rows := m.rows(7); strings.Contains(v, "https://") ||
+		rows[1].Cells[1].Link != "https://github.com/empowerite/kit/releases/tag/release/0.1.0" {
+		t.Errorf("the release's page is not its kind's glyph's:\n%s", v)
 	}
 }
 
@@ -871,7 +910,7 @@ func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, right)
-	if v := view(m); !strings.Contains(v, "nonesuch !") ||
+	if v := view(m); !strings.Contains(squeeze(v), "nonesuch !") ||
 		!strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
 		t.Errorf("the unknown stage:\n%s", v)
 	}
@@ -949,13 +988,13 @@ func TestQuestionMarkShowsTheLegendBesideTheRowsAndTheBarStays(t *testing.T) {
 	before := lines(m)
 	m = drive(m, press('?'))
 	got := lines(m)
-	if len(got) != 24 || got[0] != before[0] || got[23] != " "+legendKeys {
+	if len(got) != 24 || got[0] != before[0] || got[23] != " "+sidebarKeys {
 		t.Errorf("the title or the keys moved under the legend:\n%s", view(m))
 	}
 	if got[1] != before[1] {
 		t.Errorf("the bar moved under the legend:\n%s\n%s", before[1], got[1])
 	}
-	if !strings.Contains(view(m), hide+" "+grid.Search) || !strings.Contains(view(m), Branch+" 1-the-first-release") {
+	if !strings.Contains(view(m), " "+grid.Search+" ") || !strings.Contains(view(m), Branch+" 1-the-first-release") {
 		t.Errorf("the legend is not beside the rows:\n%s", view(m))
 	}
 	// the keys move in the rows while the legend is on
@@ -964,13 +1003,13 @@ func TestQuestionMarkShowsTheLegendBesideTheRowsAndTheBarStays(t *testing.T) {
 		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.find("worktrees").cursor, view(m))
 	}
 	m = drive(m, up, up, press('?'))
-	if m.legend || strings.Contains(view(m), hide+" "+grid.Search) || lines(m)[23] != " "+barKeys ||
+	if m.sidebar || strings.Contains(view(m), " "+grid.Search+" ") || lines(m)[23] != " "+barKeys ||
 		strings.Join(lines(m), "\n") != strings.Join(before, "\n") {
 		t.Errorf("? again did not take the legend away:\n%s", view(m))
 	}
 	// shift-/ comes as ? with its text
 	m = drive(m, tea.KeyPressMsg{Code: '/', Mod: tea.ModShift, Text: "?"})
-	if !m.legend {
+	if !m.sidebar {
 		t.Errorf("shift-/ did not show the legend")
 	}
 }
@@ -1096,13 +1135,13 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	m = drive(m, right, right, right, right, right, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, style.Mark("incoming")) ||
-		!strings.Contains(bar, dim+" 🎫 backlog 3") {
+		!strings.Contains(bar, dim+" 🎫 backlog ") {
 		t.Errorf("with the rows' keyboard, the selected stage left the accent, or the others are not dim: %q", bar)
 	}
 	for _, width := range []int{120, 80} {
 		m = drive(m, tea.WindowSizeMsg{Width: width, Height: 24})
 		bar := lines(m)[2]
-		if !strings.Contains(bar, "│ "+Fetched+" incoming 6 │") || !strings.HasPrefix(bar, tabs.Before) ||
+		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 6 "+tabs.Menu+" │") || !strings.HasPrefix(bar, tabs.Before) ||
 			strings.Contains(bar, "…") {
 			t.Errorf("at %d, the bar does not scroll to incoming whole: %q", width, bar)
 		}
@@ -1196,8 +1235,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	v := view(m)
 	order := []string{style.Opened + " " + Failed + "  kit",
 		"8e817bf  #45 status: the builds stage tells which commit", "each run built", "attempt 2", Failed + "  test",
-		"failed at bats tests/status.bats", Passed + "  gate", Passed + "  lint", Cancelled + "  docs",
-		"https://github.com/empowerite/kit/actions/runs/41309409467", Passed + "  kit"}
+		"failed at bats tests/status.bats", Passed + "  gate", Passed + "  lint", Cancelled + "  docs", Passed + "  kit"}
 	at := -1
 	for _, want := range order {
 		k := strings.Index(v, want)
@@ -1209,20 +1247,18 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	if !strings.Contains(v, "test  4m 02s\n") || !strings.Contains(v, "lint     38s\n") {
 		t.Errorf("the jobs' durations are not right-aligned:\n%s", v)
 	}
-	if !strings.Contains(m.View().Content, style.Off("https://github.com/empowerite/kit/actions/runs/41309409467")) {
-		t.Errorf("the URL is not dim")
+	if b := m.find("builds"); strings.Contains(v, "https://") ||
+		m.rows(slices.Index(eight, "builds"))[b.cursor].Cells[0].Link != "https://github.com/empowerite/kit/actions/runs/41309409467" {
+		t.Errorf("the run's page is not its state's glyph's:\n%s", v)
 	}
 	// a first attempt says nothing of it
 	if m = drive(m, toggle, down, toggle); strings.Contains(view(m), "attempt") {
 		t.Errorf("a first attempt is drawn:\n%s", view(m))
 	}
-	// a build without jobs, whose title repeats its workflow, opens to its URL alone
+	// a build without jobs, whose title repeats its workflow, has nothing to open to
 	m = drive(m, toggle, down, toggle)
-	got := lines(m)
-	k := slices.IndexFunc(got, func(l string) bool { return strings.Contains(l, style.Opened+" "+Cancelled) })
-	if k < 0 || strings.TrimSpace(got[k+1]) != "https://github.com/empowerite/kit/actions/runs/41309409322" ||
-		strings.TrimSpace(got[k+2]) != "" {
-		t.Errorf("a build without jobs does not open to its URL alone:\n%s", view(m))
+	if strings.Contains(view(m), style.Opened+" "+Cancelled) {
+		t.Errorf("a build without jobs opens:\n%s", view(m))
 	}
 	// an empty stage says how far it looked
 	m.find("builds").runs = nil
@@ -1296,13 +1332,13 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		!strings.Contains(c, style.Off(Owner+" jeffrey-aguilera")) || !strings.HasSuffix(rows[3], "…") {
 		t.Errorf("the where cells or the title:\n%s", strings.Join(rows, "\n"))
 	}
-	// the row here opens to the issue's title wrapped in its column, the pull request's, the worktree, and both URLs, dim
+	// the row here opens to the issue's title wrapped in its column, the pull request's, the worktree, and both URLs,
+	// dim
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
 		"The first release, v0.1.0: the kit verbs,", "the picture, and the forge seam on GitHub and", "GitLab",
-		Change + " #2 The first release, v0.1.0", Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0",
-		"https://github.com/empowerite/kit/issues/1", "https://github.com/empowerite/kit/pull/2", "#8"}
+		Change + " #2 The first release, v0.1.0", Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0", "#8"}
 	at := -1
 	for _, want := range order {
 		k := strings.Index(v, want)
@@ -1311,17 +1347,20 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		}
 		at = k
 	}
-	for _, url := range []string{"https://github.com/empowerite/kit/issues/1",
-		"https://github.com/empowerite/kit/pull/2"} {
-		if !strings.Contains(m.View().Content, style.Off(url)) {
-			t.Errorf("%s is not dim", url)
-		}
+	// the pull request's glyph leads to its page, the title's to the issue's
+	links := func(m Model) (string, string) {
+		r := m.rows(1)[m.find("underway").cursor]
+		return r.Cells[4].Link, r.Cells[7].Link
+	}
+	if pr, issue := links(m); strings.Contains(v, "https://") || pr != "https://github.com/empowerite/kit/pull/2" ||
+		issue != "https://github.com/empowerite/kit/issues/1" {
+		t.Errorf("the links: %q %q\n%s", pr, issue, v)
 	}
 	// a row elsewhere opens to no worktree; the issue's other pull request stays closed
 	m = drive(m, toggle, down, toggle)
 	v = view(m)
-	if !strings.Contains(v, Change+" #4 Lint every module") || !strings.Contains(v, "/kit/pull/4") ||
-		strings.Contains(v, "/kit/pull/11") || strings.Contains(v, Desk+" /") {
+	if pr, _ := links(m); !strings.Contains(v, Change+" #4 Lint every module") || !strings.HasSuffix(pr, "/kit/pull/4") ||
+		strings.Contains(v, Desk+" /") {
 		t.Errorf("the open row elsewhere:\n%s", v)
 	}
 	if s := m.find("underway"); !s.open["#8 #4"] || s.open["#8 #11"] {
@@ -1332,8 +1371,9 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	s.under[1].URL = "https://git.example.org/g/kit/-/issues/8"
 	s.under[1].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
 	m.rebuild()
-	if v := view(m); !strings.Contains(v, "/-/issues/8") || !strings.Contains(v, "/-/merge_requests/4") {
-		t.Errorf("kit's URLs do not win:\n%s", v)
+	if pr, issue := links(m); issue != "https://git.example.org/g/kit/-/issues/8" ||
+		pr != "https://git.example.org/g/kit/-/merge_requests/4" {
+		t.Errorf("kit's URLs do not win: %q %q", pr, issue)
 	}
 	// an empty stage says no issue is underway
 	s.under = nil
@@ -1360,5 +1400,18 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	if err := shape("incoming", []byte(`{"fetched": true, "commits": []}`)); err == nil ||
 		!strings.Contains(err.Error(), `printed an object without "remotes"`) {
 		t.Errorf("incoming took the document before every remote: %v", err)
+	}
+}
+
+// browsed is every page a test's screen opened, the newest last; no test opens the browser.
+var browsed []string
+
+func init() {
+	browser = func(url string) error {
+		browsed = append(browsed, url)
+		if strings.Contains(url, "refuse") {
+			return errors.New("no browser for the test")
+		}
+		return nil
 	}
 }

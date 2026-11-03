@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -49,14 +50,15 @@ var tab = press(tea.KeyTab)
 
 func TestTabGivesThePanelTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testing.T) {
 	m := loaded(t, options(), tab)
-	if !m.inPanel || !m.legend || m.bar().Focused || lines(m)[23] != " "+panelKeys {
-		t.Fatalf("tab: in panel %v, side %v, keys %q", m.inPanel, m.legend, lines(m)[23])
+	if !m.inPanel || !m.sidebar || m.bar().Focused || lines(m)[23] != " "+panelKeys {
+		t.Fatalf("tab: in panel %v, side %v, keys %q", m.inPanel, m.sidebar, lines(m)[23])
 	}
 	if !strings.Contains(view(m), grid.Search+" ▏") {
 		t.Errorf("the search under the keyboard has no caret:\n%s", view(m))
 	}
 	m = drive(m, typed("NOUN")...)
-	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "1") {
+	// the tab says how many of the rows loaded the panel lets through
+	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "1/3") {
 		t.Errorf("typing noun: rows %v\n%s", got, view(m))
 	}
 	// a number types into the search, and r does not refresh
@@ -79,8 +81,8 @@ func TestTabGivesThePanelTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testin
 	}
 	// esc gives the keyboard back to the bar, the side still showing; tab again takes it, and esc from the rows
 	// returns to them
-	if m = drive(m, esc); m.inPanel || !m.legend || !m.bar().Focused {
-		t.Errorf("esc: in panel %v, side %v", m.inPanel, m.legend)
+	if m = drive(m, esc); m.inPanel || !m.sidebar || !m.bar().Focused {
+		t.Errorf("esc: in panel %v, side %v", m.inPanel, m.sidebar)
 	}
 	m = drive(m, down, tab, tab)
 	if m.inPanel || !m.inRows {
@@ -102,6 +104,14 @@ func TestSlashFindsAndANumberWithAltLeavesThePanelForItsStage(t *testing.T) {
 	if m.inPanel || m.stage != 2 || !m.bar().Focused {
 		t.Errorf("alt-3 in the panel: in panel %v, stage %d", m.inPanel, m.stage)
 	}
+	// / from another control of the panel goes to the search, and what is typed next lands there
+	m = drive(m, typed("2")...)
+	m = drive(m, tab, down, down)
+	m = drive(m, typed("/x")...)
+	if p := m.panel(m.stage); !m.inPanel || p.Cursor != 0 || p.Query != "x" {
+		t.Errorf("/ from a checkbox: in panel %v, cursor %d, search %q", m.inPanel, p.Cursor, p.Query)
+	}
+	m = drive(m, esc)
 	// each stage keeps its own panel: the desk's search is empty
 	if m.panel(2).Query != "" || m.panel(0).Query != "" {
 		t.Errorf("the panels: %q, %q", m.panel(2).Query, m.panel(0).Query)
@@ -166,11 +176,11 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it
-	if m = drive(m, testkit.Click(1, paneTop+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
-		!m.stages[0].open["#46"] {
-		t.Errorf("a click on #46's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
+	if m = drive(m, testkit.Click(1, paneTop)); m.inPanel || !m.inRows || m.stages[0].cursor != 0 ||
+		!m.stages[0].open["#45"] {
+		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(1, paneTop+1)); m.stages[0].open["#46"] {
+	if m = drive(m, testkit.Click(1, paneTop)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
@@ -194,5 +204,86 @@ func TestAStageWithoutALegendShowsItsPanelAlone(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch"}}, press('?'))
 	if side := m.side(); len(side) != 1 || !strings.HasPrefix(side[0], grid.Search) {
 		t.Errorf("the side of a stage kittui does not draw: %q", side)
+	}
+}
+
+func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 16}, press('?'))
+	x, h := m.paneWidth()+3, m.paneHeight()
+	if len(m.side()) <= h || !strings.Contains(view(m), "… ") {
+		t.Fatalf("the sidebar fits a pane of %d lines: %d", h, len(m.side()))
+	}
+	wheel := func(b tea.MouseButton, x int) tea.Msg { return tea.MouseWheelMsg{X: x, Y: paneTop + 2, Button: b} }
+	if m = drive(m, wheel(tea.MouseWheelDown, x)); m.sideOffset == 0 {
+		t.Error("the wheel did not scroll the sidebar down")
+	}
+	if m = drive(m, wheel(tea.MouseWheelUp, x), wheel(tea.MouseWheelDown, 4)); m.sideOffset != 0 {
+		t.Errorf("the wheel up, or over the rows: offset %d", m.sideOffset)
+	}
+	// a click on … more pages down, and another to the legend's end; one on … above pages back up
+	if m = drive(m, testkit.Click(x, paneTop+h-1)); m.sideOffset == 0 || strings.Contains(view(m), "its branch") {
+		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
+	}
+	if m = drive(m, testkit.Click(x, paneTop+h-1)); !strings.Contains(view(m), "its branch") {
+		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
+	}
+	if m = drive(m, testkit.Click(x, paneTop), testkit.Click(x, paneTop)); m.sideOffset != 0 {
+		t.Errorf("a click on … above: offset %d", m.sideOffset)
+	}
+	// with the panel's keyboard, page down and up scroll it; down past the last control scrolls on, and up brings
+	// the control under the keyboard back
+	if m = drive(m, tab, press(tea.KeyPgDown)); m.sideOffset == 0 || !m.inPanel {
+		t.Errorf("page down in the panel: offset %d", m.sideOffset)
+	}
+	if m = drive(m, press(tea.KeyPgUp)); m.sideOffset != 0 {
+		t.Errorf("page up in the panel: offset %d", m.sideOffset)
+	}
+	m = drive(m, slices.Repeat([]tea.Msg{down}, 8)...)
+	at := m.sideOffset
+	if m = drive(m, down); m.sideOffset != at+1 {
+		t.Errorf("down past the last control: offset %d, was %d", m.sideOffset, at)
+	}
+	if m = drive(m, slices.Repeat([]tea.Msg{up}, 8)...); m.sideOffset != 0 {
+		t.Errorf("up to the search: offset %d", m.sideOffset)
+	}
+	// another stage starts at the sidebar's top
+	m = drive(m, esc, press(tea.KeyPgDown), right)
+	if m.sideOffset != 0 {
+		t.Errorf("another stage: offset %d", m.sideOffset)
+	}
+}
+
+func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
+	m := loaded(t, options())
+	first := lines(m)[paneTop]
+	x := ansi.StringWidth(first[:strings.Index(first, Issue)])
+	browsed = nil
+	if m = drive(m, testkit.Click(x, paneTop)); len(browsed) != 1 ||
+		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
+		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
+	}
+	// a page the browser cannot open says why in place of the keys, until the next key
+	m.find("backlog").issues[0].URL = "https://refuse.example/45"
+	m.rebuild()
+	m = drive(m, testkit.Click(x, paneTop))
+	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") {
+		t.Errorf("a page that did not open: %q", last)
+	}
+	if m = drive(m, down); m.notice != "" || strings.Contains(lines(m)[23], "could not open") {
+		t.Errorf("the next key kept the notice: %q", lines(m)[23])
+	}
+}
+
+func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
+	m := loaded(t, options(), press('?'))
+	if !strings.Contains(view(m), grid.Ticked+" branch") {
+		t.Fatalf("backlog's branch has no checkbox while an issue has one:\n%s", view(m))
+	}
+	for k := range m.find("backlog").issues {
+		m.find("backlog").issues[k].Branch = ""
+	}
+	m.rebuild()
+	if strings.Contains(view(m), grid.Ticked+" branch") || !strings.Contains(view(m), grid.Ticked+" title") {
+		t.Errorf("branch, which no issue has, keeps its checkbox:\n%s", view(m))
 	}
 }

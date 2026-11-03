@@ -86,8 +86,8 @@ func TestTheBarIsThreeLinesWithinTheScreenAndKeepsEveryNumberWhenItFits(t *testi
 }
 
 func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T) {
-	want := " │ 🎫 backlog 15      │  🛫 underway 58      │  📥 incoming 2      │  💻 desk 1     │  🌿 worktrees 4      │  " +
-		"🔀 changes 3      │  🏭 builds 4     │  📦 releases 3      │"
+	want := " │ 🎫 backlog      15 │  🛫 underway      58 │  📥 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
+		"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │"
 	if got := row(stages(0, 170), 1); got != want {
 		t.Errorf("at 170:\n got %q\nwant %q", got, want)
 	}
@@ -117,10 +117,10 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	want := []string{
 		" ➀╶───────────────────╮➁╶────────────────────╮➂╶───────────────────╴➍╶──────────────╮➄╶────────────────────╮" +
 			"➅╶──────────────────╮➆╶────────────────╮➇╶───────────────────╮",
-		"   🎫 backlog 15      │  🛫 underway 58      │  📥 incoming 2       │ 💻 desk 1     │  🌿 worktrees 4      │  " +
-			"🔀 changes 3      │  🏭 builds 4     │  📦 releases 3      │",
+		"   🎫 backlog      15 │  🛫 underway      58 │  📥 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
+			"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │",
 		" ─────────────────────╰──────────────────────╰──────────────────────╯               ╰──────────────────────╰" +
-			"────────────────────╰──────────────────╰─────────────────────╰",
+			"────────────────────╰──────────────────╰─────────────────────╵",
 	}
 	b := stages(3, 170)
 	if got := strings.Split(plain(b), "\n"); !slices.Equal(got, want) {
@@ -275,7 +275,26 @@ func TestTheBarsEdges(t *testing.T) {
 	}
 	// a tab without a glyph has its name under its number
 	bare := Bar{Selected: 1, Width: 40, Tabs: []Tab{{"", "nonesuch", "!"}, {"🎫", "backlog", "3"}}}
-	if got := plain(bare); !strings.HasPrefix(got, " ➀╶") || !strings.HasPrefix(row(bare, 1), "   nonesuch !      │") {
+	if got := plain(bare); !strings.HasPrefix(got, " ➀╶") || !strings.HasPrefix(row(bare, 1), "   nonesuch     !  │") {
 		t.Errorf("a tab without a glyph: %q", got)
+	}
+}
+
+// A reserve lays every count out as wide as it, at least, and a bar with menus keeps the room for the menu's glyph on
+// every tab, drawing it on the selected one alone: a count that grows, or a selection that moves, moves no tab.
+func TestTheReserveAndTheMenuKeepEveryTabWhereItIs(t *testing.T) {
+	bar := func(selected int, count string) Bar {
+		return Bar{Selected: selected, Width: 60, Reserve: 7, Menus: true,
+			Tabs: []Tab{{"🎫", "backlog", count}, {"🛫", "underway", "4"}, {"💻", "desk", ""}}}
+	}
+	at := func(b Bar) []int { return b.layout().at }
+	base := at(bar(0, "3"))
+	for _, b := range []Bar{bar(0, "12/345"), bar(1, "3"), bar(2, "123/456")} {
+		if got := at(b); !slices.Equal(got, base) {
+			t.Errorf("the tabs moved: %v, want %v", got, base)
+		}
+	}
+	if got := row(bar(1, "3"), 1); strings.Count(got, Menu) != 1 || !strings.Contains(got, "4 "+Menu+" │") {
+		t.Errorf("the menu's glyph is not on the selected tab alone, after its count: %q", got)
 	}
 }
