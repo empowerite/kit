@@ -92,15 +92,17 @@ Requirements:
 - `jq` 1.7 or later: every verb reads its arguments through it.
 - `yq` 4, mikefarah's: it reads `kit.yml` and every other YAML file. GitHub's hosted runners have `jq` and `yq`
   preinstalled.
-- `curl`: `kit update` fetches the release through it, and checks the bytes against the `.sha256` published beside
-  it before reading anything in it.
+- `curl`: `kit update` fetches the previous release through it, as the base of a three-way merge, when that
+  release is not in the cache already. It checks the bytes against the `.sha256` published beside the release
+  before reading anything in it.
 - The linters the delivered rules and styles run. `kit lint` fails, not skips, when a linter it needs is missing,
   so a team's first commit needs them:
   - `shellcheck`, which the bash rule runs
   - `actionlint`, which the workflows rule runs
   - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
-- For `kit issue`, `kit flow`, `kit tidy`, and `kit linked`: the code forge's command-line tool, `gh` for GitHub or
-  `glab` for GitLab. The code forge is the service that hosts the repository.
+- For `kit issue`, `kit flow`, `kit tidy`, `kit linked`, and `kit release`: the code forge's command-line tool, `gh`
+  for GitHub or `glab` for GitLab. The code forge is the service that hosts the repository. `kit commit` uses it
+  too, to close an issue its subject names, and `kit policy` uses it in CI to read the pull request.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
 
 kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
@@ -117,7 +119,8 @@ and shows the fix for each problem. Then it walks you through how work flows, th
 ## Take the kit
 
 1. Run `kit install` with the packages you want. The `kit` package, the entry file and the rules, is the default:
-   `kit install` with no names brings it, and `kit packages remove kit` takes it out. The optional packages are:
+   `kit install` with no names brings it. `kit packages remove kit` takes it out once no other active package
+   depends on it, and lists it under `excludes:`, so `kit update` leaves it out. The optional packages are:
 
    | Package | Delivers |
    | --- | --- |
@@ -280,7 +283,7 @@ are written by `bin/refresh`, which runs `kit update` from the index. Do not edi
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | links into `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
 | `.kit/styles/house.md` | a link into `.kit/packages/house/files/repo/.kit/styles/`, this repository's own style beyond the style packages' |
 | `.kit/lefthook.yml` | a link into `kit/packages/hooks/lefthook/files/repo/.kit/` |
-| `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
+| `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner`, `ci_timeout_minutes`, and `ci_toolchain` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
 | `AGENTS.md` | `kit/packages/agents/generic/regions/repo/AGENTS.md`, a region; the rest of the file belongs to this repository |

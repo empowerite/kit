@@ -42,7 +42,7 @@ same way.
 | --- | --- |
 | `kit hydrate` | Places what the declaration names, and says what it changed. |
 | `kit check` | Reports every placed file that differs from the pinned release. It heals nothing. |
-| `kit update` | Brings the repository to the release on `PATH`, after the pin in `mise.toml` changes. |
+| `kit update` | Brings the repository to the release on `PATH`, after the kit's version pin changes. |
 | `kit packages add <package>…` | Takes a package; `kit packages remove` gives one up; `kit packages` lists them. |
 | `kit context <path>` | Prints the rules and the style that govern a file. |
 | `kit lint [<path>…]` | Runs each rule's linter over the staged files, or over the files named. |
@@ -59,10 +59,10 @@ set it under `answers:` in `kit.yml` at the root. The steps are in [1st.md](1st.
 ## Rules, styles, and templates
 
 `kinds/` defines each kind of file: the paths and first lines that make a file of that kind, and the kinds found
-inside its files, such as the bash in a justfile. `rules/` holds one rule per kind: what the kit holds a file of
-that kind to, and the linter that checks it. `styles/` holds the styles the repository takes, one per kind, and
-`templates/` the shapes `kit new file` makes a file from. A rule or a style names the kinds it governs in its
-frontmatter, and `kit context <path>` prints the ones that match. That is how an agent, a hook, and `kit lint` all
-find the same rules for the same file.
+inside its files, such as the bash in a justfile. `rules/` holds a rule for most kinds: what the kit holds a file
+of that kind to, and the linter that checks it. `any`, `text`, and `yaml` have none. `styles/` holds the styles the
+repository takes, one per kind, and `templates/` the shapes `kit new file` makes a file from. A rule or a style
+names the kinds it governs in its frontmatter, and `kit context <path>` prints the ones that match. That is how an
+agent, a hook, and `kit lint` all find the same rules for the same file.
 
 How the kit works, and how to install it, is in the kit's own README, at the link above.

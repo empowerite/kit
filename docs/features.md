@@ -201,7 +201,8 @@ see: [toolchains.md](toolchains.md)
 ## Packages
 
 Everything kit delivers comes from a package. The `kit` package, the entry file and the rules, is the default:
-`kit install` with no names brings it, and `kit packages remove kit` takes it out. The others are optional: the
+`kit install` with no names brings it. `kit packages remove kit` takes it out once no other active package depends
+on it, and lists it under `excludes:`, so `kit update` leaves it out. The others are optional: the
 `workflow` package, one style package per kind of file, the CI job, the pre-commit hook, and an adapter for each of
 Claude Code, Cursor, GitHub Copilot, and Gemini CLI.
 

@@ -84,7 +84,7 @@ answers:
 | Key | Meaning |
 | --- | --- |
 | `description` | Required. One line, shown by `kit packages`. |
-| `default` | `true` makes the package active unless removed. In this release only `kit` sets it. |
+| `default` | `true` makes the package active unless removed. A removed default package is listed under `excludes:`, so `kit update` leaves it out. In this release only `kit` sets it. |
 | `depends` | Packages activated with this one. `kit packages remove` refuses a package another active package depends on. |
 | `includes` | The members of a bundle: packages activated with this one, each of which `kit packages remove` can take out on its own. |
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `kit.yml`. |
@@ -259,9 +259,9 @@ answers:
 
 | Key | Meaning |
 | --- | --- |
-| `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until `kit update` moves it here. |
+| `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until the next kit verb that places files moves it here. |
 | `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and the `kit packages` verbs select, add, and remove. |
-| `excludes` | Members of an active bundle removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
+| `excludes` | Members of an active bundle, and default packages, removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
 | `forge` | The code forge provider the workflow commands use, `github` or `gitlab`: the primary remote's. The code forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com` or `gitlab.com`, or a host the `gh` or `glab` CLI has logged in to. |
 | `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: `origin`. |

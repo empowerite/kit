@@ -1,7 +1,8 @@
 # The kit package
 
-The core package, and the default: `kit install` with no names brings it, and `kit packages remove kit` takes it
-out. It delivers:
+The core package, and the default: `kit install` with no names brings it. `kit packages remove kit` takes it out
+once no other active package depends on it. It is then listed under `excludes:` in `kit.yml`, so `kit update` leaves
+it out. It delivers:
 
 - `.kit/1st.md`, the entry file every agent reads. The `agents/generic` package points the repository's
   `AGENTS.md` to it; see [agents/generic.md](agents/generic.md).
