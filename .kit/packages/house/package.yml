@@ -5,6 +5,8 @@
 # makes, and kit lint requires, a line of dashes to column 120 under the banner and at the end of the file. A
 # repository that installs the kit never sees this package.
 #
+# It also delivers this repository's own tree rules, in Rego, for the opa policy engine.
+#
 # It also has Claude Code run this checkout's own kit as its MCP server, by path from the project directory Claude
 # Code names, rather than whichever kit is on the PATH the harness started with: kit/bin is on PATH only where mise
 # has activated the worktree. Coming after agents/claude, its entry wins.
@@ -15,3 +17,4 @@ description: "This repository's own style and templates, and Claude Code serving
 depends:
   - empowerite
   - agents/claude
+  - policy/opa

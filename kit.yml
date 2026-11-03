@@ -9,6 +9,9 @@ linked_exempt:
 policy:
   commit_subject: ''
 
+facts:
+  read:
+    - README.md
 version: unreleased
 packages:
   - kit
@@ -16,6 +19,7 @@ packages:
   - agents/claude
   - github/ci
   - hooks/lefthook
+  - policy/opa
   - style/bash
   - style/gitignore
   - style/json
