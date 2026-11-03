@@ -607,10 +607,10 @@
       "description": "only these pull requests, by number or issue closed: #7"
     },
     "backlog": {
-      "description": "the open issues no open pull request closes, oldest first; underway has the rest"
+      "description": "the open issues not closed by any open pull request, oldest first; underway has the rest"
     },
     "underway": {
-      "description": "the open issues an open pull request closes: who works on each, and where"
+      "description": "the open issues closed by an open pull request: who works on each, and where"
     },
     "incoming": {
       "description": "what fetching every remote brought: default-branch commits, branches new and gone"
@@ -625,7 +625,7 @@
       "description": "the open pull requests, each with the issues it closes"
     },
     "builds": {
-      "description": "the runs no pull request owns: the default branch, tags, schedules"
+      "description": "the runs not owned by any pull request: the default branch, tags, schedules"
     },
     "releases": {
       "description": "the releases on the forge, newest first"

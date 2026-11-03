@@ -91,17 +91,17 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 
 `kit flow` draws where the work stands. Work moves left to right through eight stages:
 
-- `backlog`: the open issues no open pull request closes, oldest first, each with its assignees, its age, and the
-  branch started for it on the primary remote
-- `underway`: the open issues an open pull request closes, one row per issue and pull request: the assignees, the
+- `backlog`: the open issues not closed by any open pull request, oldest first, each with its assignees, its age, and
+  the branch started for it on the primary remote
+- `underway`: the open issues closed by an open pull request, one row per issue and pull request: the assignees, the
   pull request and its state, and where the work is, here or on the author's desk
 - `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new
   and gone, and new tags. It never rebases, merges, or pulls.
 - `desk`: the root checkout, wherever kit runs in the repository, with its commits and its uncommitted paths
 - `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
-- `builds`: the runs no pull request owns, newest first: pushes to the default branch or a tag, and scheduled or
-  manual runs. Each shows its state, number, commit, and title, with its age and duration; a failed job names the
+- `builds`: the runs not owned by any pull request, newest first: pushes to the default branch or a tag, and scheduled
+  or manual runs. Each shows its state, number, commit, and title, with its age and duration; a failed job names the
   step that failed
 - `releases`: the releases on the forge, newest first
 

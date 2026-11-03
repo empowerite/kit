@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# backlog.sh - the open issues no open pull request closes, oldest first, with the branch for each (sourced module)
+# backlog.sh - open issues not closed by any open pull request, oldest first, with the branch for each (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
@@ -20,7 +20,7 @@
 
 use forge flow
 
-# backlog:collect [--except] <login>… prints the open issues no open change closes, as one JSON array, oldest
+# backlog:collect [--except] <login>… prints the open issues not closed by any open change, as one JSON array, oldest
 # first, each with branch: the branch on the primary remote that starts with its number, or null. With logins, only
 # the issues assigned to one of them, or with --except, those assigned to none of them.
 backlog:collect() {

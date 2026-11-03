@@ -3,16 +3,17 @@
    required
    --no-fetch [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
    --stages                  prints the stages the picture draws, one per line, in order
-   backlog                   the open issues no open pull request closes, oldest first; underway has
-                             the rest
-   underway                  the open issues an open pull request closes: who works on each, and
+   backlog                   the open issues not closed by any open pull request, oldest first;
+                             underway has the rest
+   underway                  the open issues closed by an open pull request: who works on each, and
                              where
    incoming                  what fetching every remote brought: default-branch commits, branches
                              new and gone
    desk                      the root checkout: branch, ahead and behind, uncommitted paths
    worktrees                 every linked worktree: branch, ahead and behind, uncommitted paths
    changes                   the open pull requests, each with the issues it closes
-   builds                    the runs no pull request owns: the default branch, tags, schedules
+   builds                    the runs not owned by any pull request: the default branch, tags,
+                             schedules
    releases                  the releases on the forge, newest first
 
 

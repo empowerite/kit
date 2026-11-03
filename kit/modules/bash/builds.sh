@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# builds.sh - the forge's runs no pull request owns, drawn as kit flow draws them (sourced module)
+# builds.sh - the forge's runs not owned by any pull request, drawn as kit flow draws them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # flow_gap is set by modules/bash/flow.sh
 #

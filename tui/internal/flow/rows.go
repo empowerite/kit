@@ -125,7 +125,7 @@ type checks struct {
 	Took    *int64 `json:"took"`
 }
 
-// run is one build: a workflow run no open pull request owns, on the default branch, on a tag, or started by a
+// run is one build: a workflow run not owned by any open pull request, on the default branch, on a tag, or started by a
 // schedule or by hand. Number is the forge's count of the workflow's runs, nil when unknown, and Attempt 1 for a
 // first run; Tag says the branch is a tag; SHA and Title are the commit's short hash and the forge's headline, empty
 // when it gives none. State is running, passed, failed, or cancelled; Age and Took are seconds, Took nil while it

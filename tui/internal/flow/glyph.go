@@ -27,7 +27,7 @@ const (
 	Other      = "🔳" // a pull request in any other state
 
 	// A build's glyphs; the variation selector draws them as emoji, two cells wide.
-	Build     = "🏭" // a build: a workflow run no pull request owns
+	Build     = "🏭" // a build: a workflow run not owned by any pull request
 	Cancelled = "🛑" // a build cancelled or skipped
 )
 

@@ -71,7 +71,7 @@ in a script in the tree, where it can be read and tested.
 ### No command
 
 A directive with no command runs `kit region`. `kit region` reads the region's name from its environment and
-treats it as the path of a region an active package delivers. A name no package delivers fails, and the error names
+treats it as the path of a region an active package delivers. A name that no package delivers fails, and the error names
 the directive's line, so a forgotten command never passes silently. The directive can be in any file; the name
 only selects the region.
 
@@ -114,7 +114,7 @@ the way a template is. It is the command behind every region the kit delivers.
 - The path defaults to `KIT_GENERATE_REGION`, so a bare directive does not need an argument.
 - Only one active package can deliver a region at a given path. `kit region` prints that package's
   `regions/<base>/<path>`.
-- A path no active package delivers is refused.
+- A path that no active package delivers is refused.
 
 ## What is refused
 

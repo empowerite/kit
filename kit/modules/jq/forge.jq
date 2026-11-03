@@ -149,8 +149,9 @@ def build($now):
            else (.ended | epoch) - ((.started // .createdAt) | epoch) end),
     url, jobs: [] };
 
-# builds($default; $tags) keeps the runs no pull request owns, newest first, the 20 newest at most: a push to the
-# default branch or to a tag, and a scheduled or manually started run on any branch. Each is marked as on a tag or not.
+# builds($default; $tags) keeps the runs not owned by any pull request, newest first, the 20 newest at most: a push to
+# the default branch or to a tag, and a scheduled or manually started run on any branch. Each is marked as on a tag or
+# not.
 def builds($default; $tags):
   map(.tag = (.tag == true or (.branch | IN($tags[]))))
   | map(select((.event == "push" and (.branch == $default or .tag))

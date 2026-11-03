@@ -81,13 +81,13 @@ flow_change_sgr=35
 # flow:stage-purpose <stage> prints what a stage lists, in a few words.
 flow:stage-purpose() {
   case "$1" in
-    (backlog) printf 'the open issues no open pull request closes, oldest first\n' ;;
-    (underway) printf 'the open issues an open pull request closes: who works on each, and where\n' ;;
+    (backlog) printf 'the open issues not closed by any open pull request, oldest first\n' ;;
+    (underway) printf 'the open issues closed by an open pull request: who works on each, and where\n' ;;
     (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
     (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (changes) printf 'the open pull requests, each with the issues it closes\n' ;;
-    (builds) printf 'the runs no pull request owns: the default branch, tags, schedules\n' ;;
+    (builds) printf 'the runs not owned by any pull request: the default branch, tags, schedules\n' ;;
     (releases) printf 'the releases on the forge, newest first\n' ;;
   esac
 }

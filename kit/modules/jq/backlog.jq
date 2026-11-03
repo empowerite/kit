@@ -1,4 +1,4 @@
-# backlog.jq - the issues the backlog lists: those no open change closes, with the branch that claims each (jq module)
+# backlog.jq - the backlog's issues: those not closed by any open change, with the branch that claims each (jq module)
 #
 # import "backlog" as backlog; with jq -L "${kit_jq}".
 #

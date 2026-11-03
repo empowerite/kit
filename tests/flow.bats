@@ -665,8 +665,8 @@ fake-tui() {
   [ "$status" -eq 0 ]
   [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog underway desk worktrees changes incoming builds releases" ]
   [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
-  [[ "${lines[0]}" == $'backlog\tthe open issues no open pull request closes, oldest first\t\t' ]]
-  [[ "${lines[1]}" == $'underway\tthe open issues an open pull request closes: who works on each, and where\t\t' ]]
+  [[ "${lines[0]}" == $'backlog\tthe open issues not closed by any open pull request, oldest first\t\t' ]]
+  [[ "${lines[1]}" == $'underway\tthe open issues closed by an open pull request: who works on each, and where\t\t' ]]
   local verb
   for verb in backlog changes incoming worktrees releases
   do

@@ -60,7 +60,7 @@ import "syntax" as syntax; syntax::match(["--message","a b","--message=c","--all
 {"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","inline":false,"name":"message","value":"text","repeat":true}],[{"kind":"option","inline":false,"name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
 {"status":0,"literals":[],"operands":["--weird"],"options":{"--message":["a b","c"],"--all":["1"]},"values":{"--message":["a b","c"],"--all":["1"],"<path>":["--weird"]}}
 
-# A verb that takes nothing refuses any word, and a wildcard option takes any --x=y no named option took.
+# A verb that takes nothing refuses any word, and a wildcard option takes any --x=y that no named option took.
 import "syntax" as syntax; [syntax::match(["--json"]), ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"inline":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose=x"]))]
 {"verb":"version","syntax":[[]]}
 [{"status":2,"refusal":"kit version takes no arguments; run: kit help version"},{"status":0,"literals":["file"],"operands":["p"],"options":{"--purpose":["x"]},"values":{"--purpose":["x"],"<path>":["p"]}}]

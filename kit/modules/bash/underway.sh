@@ -1,12 +1,12 @@
 # shellcheck shell=bash
-# underway.sh - the open issues an open pull request closes, who works on each, and where (sourced module)
+# underway.sh - the open issues closed by an open pull request, who works on each, and where (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh; flow_gap is set by modules/bash/flow.sh
 #
 # The underway stage of kit flow sits beside the backlog. Every open issue is in one of the two:
 #
-#   - backlog: the open issues no open pull request closes
-#   - underway: the open issues an open pull request closes, whoever opened it
+#   - backlog: the open issues not closed by any open pull request
+#   - underway: the open issues closed by an open pull request, whoever opened it
 #
 # The rows come from forge:open-prs, the call the changes stage makes, so the stage asks the forge nothing new. One
 # row per issue and pull request, the oldest issue first:

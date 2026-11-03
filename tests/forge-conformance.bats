@@ -345,7 +345,7 @@ runs-world() {
   route glab 'api projects/empowerite%2Fexample/pipelines?per_page=50' gl-pipelines.json
 }
 
-@test "every provider lists the runs no pull request owns in one shape, newest first, the newest with its jobs" {
+@test "every provider lists the runs not owned by any pull request in one shape, newest first, the newest with its jobs" {
   git commit --quiet --allow-empty --message one && git tag release/0.1.0
   fixture gh-runs.json <<'JSON'
 [{"databaseId": 104, "number": 50, "headSha": "aaaaaaa0000000000", "displayTitle": "title 104",

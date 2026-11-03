@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# builds.bats - kit flow builds lists the runs no pull request owns: on the default branch, on a tag, and scheduled
+# builds.bats - kit flow builds lists runs not owned by any pull request: on the default branch, on a tag, and scheduled
 # ----------------------------------------------------------------------------------------------------------------------
 # origin is a bare repository beside the test's, so the tags are real git; gh is tests/fakes/fake-tool, so the stage
 # is the provider's folding of a fixture. The world: on main, a push that passed and a schedule still running; on the
@@ -151,7 +151,7 @@ JSON
 @test "kit help flow holds the builds legend: the stage, and each state's glyph" {
   run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n  builds:\n\n    🏭  a build: a run no pull request owns\n    🏃  running or queued\n'* ]]
+  [[ "$output" == *$'\n  builds:\n\n    🏭  a build: a run not owned by any pull request\n    🏃  running or queued\n'* ]]
   [[ "$output" == *$'\n    🛑  cancelled or skipped\n'* ]]
 }
 

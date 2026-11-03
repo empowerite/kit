@@ -143,7 +143,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  underway:\n\n    🎫  an issue, and its title\n'* ]]
   [[ "$output" == *$'\n    💻  here: a checkout on this desk has the pull request\'s branch\n'* ]]
-  [[ "$output" == *"    backlog             the open issues no open pull request closes, oldest"$'\n'*"; underway has the rest"* ]]
+  [[ "$output" == *"    backlog             the open issues not closed by any open pull request,"$'\n'*"oldest first; underway has the rest"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
