@@ -5,6 +5,8 @@
 # the tool's answers and what it asks of it. What only the real tool can prove, that it answers as the fixtures do, is
 # proven by running kit tools on a desk that has it.
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -200,14 +202,14 @@ JSON
   [ "$status" -eq 0 ]
   [[ "$output" == *"brew installed the tools Brewfile pins that mise does not"* ]]
   grep --quiet --line-regexp 'install --quiet user/tap/direnv' "${FAKE_DIR}/brew.calls"
-  ! grep --quiet 'bundle install' "${FAKE_DIR}/brew.calls"
+  run ! grep --quiet 'bundle install' "${FAKE_DIR}/brew.calls"
   run "${kit_root}/bin/kit" tools --outdated
   grep --quiet -E '^🔺 bash ' <<<"$output"
   [[ "$output" != *"🔺 jq"* ]]
   run "${kit_root}/bin/kit" tools update
   [ "$status" -eq 0 ]
   grep --quiet --line-regexp 'upgrade bash' "${FAKE_DIR}/brew.calls"
-  ! grep --quiet 'upgrade jq' "${FAKE_DIR}/brew.calls"
+  run ! grep --quiet 'upgrade jq' "${FAKE_DIR}/brew.calls"
 }
 
 @test "mise installs, reports, updates, and puts its bin paths first" {

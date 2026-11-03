@@ -182,8 +182,8 @@ forge-world() {
   printf 'x\n' > x && git add x
   run kit commit --message '#9 x: a file' x
   [ "$status" -eq 0 ]
-  ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
-  ! grep --quiet '^issue edit' "${FAKE_DIR}/gh.calls"
+  run ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
+  run ! grep --quiet '^issue edit' "${FAKE_DIR}/gh.calls"
 }
 
 @test "kit commit for the branch's own issue asks the forge nothing" {

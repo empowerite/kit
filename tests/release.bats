@@ -2,6 +2,8 @@
 # release.bats - bin/release verifies a tag and packs a checkout as a release that installs from its unpacked directory
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -81,7 +83,7 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(wc -l < "${fakes}/go.calls" | tr -d ' ')" -eq 4 ]
   grep -q '^release create release/9\.9\.9 /[^ ]*/kit-9\.9\.9\.tar\.gz /[^ ]*/kit-9\.9\.9\.tar\.gz\.sha256 --title' "${fakes}/gh.calls"
-  ! grep -q 'kittui' "${fakes}/gh.calls"
+  run ! grep -q 'kittui' "${fakes}/gh.calls"
   grep -q '^kit-9\.9\.9/libexec/kittui-darwin-arm64$' "${fakes}/listing"
 }
 

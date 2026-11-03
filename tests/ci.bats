@@ -2,6 +2,8 @@
 # ci.bats - kit ci runs the gate, kit check, kit linked, and kit policy, and reports every one
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 # ci-world makes the repository every test starts from: origin on GitHub, the kit installed, and gh failing.
@@ -75,7 +77,7 @@ setup() {
   fresh-repo other >/dev/null
   "${kit_checkout}/bin/kit" install github/ci >/dev/null
   grep --quiet '^          kit tools install && kit tools path >> "${GITHUB_PATH}"$' .github/workflows/kit-ci.yml
-  ! grep --quiet "hashFiles" .github/workflows/kit-ci.yml
+  run ! grep --quiet "hashFiles" .github/workflows/kit-ci.yml
 }
 
 @test "ambient, the toolchain step fails naming a tool the rules need and the runner lacks" {

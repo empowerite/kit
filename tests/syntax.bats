@@ -2,6 +2,8 @@
 # syntax.bats - kit syntax prints a verb's grammar as JSON, parsed from its header, and judges the header's discipline
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -289,7 +291,7 @@ setup() {
   run "${kit_root}/bin/kit" syntax lint --choices '<path>'
   [ "$status" -eq 0 ]
   grep -q $'^features.md\t' <<<"$output"
-  ! grep -q $'^docs/features.md\t' <<<"$output"
+  run ! grep -q $'^docs/features.md\t' <<<"$output"
 }
 
 @test "a verb whose usage line does not parse refuses with the check that names why" {

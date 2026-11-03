@@ -2,6 +2,8 @@
 # context.bats - kit context classifies a file into its kinds, names the rules by kind and by what a kind embeds, logs the ask, and answers Claude's hook
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup_file() {
@@ -75,8 +77,8 @@ setup() {
   grep --quiet --line-regexp '  - "\*\*/\*.sh"' .kit/kinds/bash.yml
   for file in .kit/rules/*.md .kit/styles/*.md
   do
-    ! grep --quiet --line-regexp 'paths:' "${file}"
-    ! grep --quiet --line-regexp 'content:' "${file}"
+    run ! grep --quiet --line-regexp 'paths:' "${file}"
+    run ! grep --quiet --line-regexp 'content:' "${file}"
     grep --quiet --line-regexp 'kind:' "${file}"
   done
   grep --quiet --line-regexp '  - bash' .kit/kinds/just.yml
