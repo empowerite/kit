@@ -22,11 +22,11 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar: on the line of a step with checks, on a check's row, on a row that offers now and later, on a row
-// whose fix kit only shows, and on a page.
+// The keys bar: on the line of a step with checks, on a check's row that offers no fix, on a row that offers now and
+// later, on a row whose fix kit only shows, and on a page. Each names only the keys that act there.
 const (
-	stepKeys   = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc quit"
-	rowKeys    = "↑↓ move · ←→ step · n now · l later · ⏎ choose · esc back"
+	stepKeys   = "↑↓ move · ←→ step · esc quit"
+	rowKeys    = "↑↓ move · ←→ step · esc back"
 	choiceKeys = "↑↓ move · ←→ now or later · n now · l later · ⏎ choose · esc back"
 	showKeys   = "↑↓ move · ←→ step · l later · esc back"
 	pageKeys   = "↑↓ scroll · ←→ step · esc quit"

@@ -379,6 +379,35 @@ func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 	}
 }
 
+// On every step, on its line and on each of its rows, the keys bar names n and Enter only where they act, on a row that
+// offers now or later, and l there and on a fix kit only shows.
+func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
+	m, _ := loaded(t)
+	for range len(m.tabs) {
+		for k := 0; k < 30; k++ {
+			bar := m.keys()
+			for _, c := range []struct {
+				key  string
+				acts bool
+			}{
+				{"n now", m.choosing()},
+				{"⏎ choose", m.choosing()},
+				{"l later", m.choosing() || m.showOnly()},
+			} {
+				if strings.Contains(bar, c.key) != c.acts {
+					t.Errorf("step %d, in rows %v, cursor %d: %q names %s: %v", m.step, m.inRows, m.cursor, bar, c.key,
+						!c.acts)
+				}
+			}
+			before := m.cursor
+			if m = drive(m, down); m.cursor == before && k > 0 {
+				break
+			}
+		}
+		m = drive(m, esc, right)
+	}
+}
+
 // Every height from a line to a dozen, on the line, in the rows, scrolled, and on a page: the screen draws as many lines
 // as it has, the keys bar the last, and never panics.
 func TestTheKeysBarIsTheLastLineAtEveryHeight(t *testing.T) {
@@ -391,12 +420,22 @@ func TestTheKeysBarIsTheLastLineAtEveryHeight(t *testing.T) {
 		{right, right, right, right, pgdown, pgdown},
 	} {
 		for _, width := range []int{120, 40} {
-			for height := 1; height <= 12; height++ {
-				m, _ := loaded(t, append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, msgs...)...)
+			check := func(m Model, height int, how string) {
 				got := strings.Split(view(m), "\n")
 				if bar := ansi.Strip(style.Bar(m.keys(), width)); len(got) != height || got[height-1] != bar {
-					t.Errorf("after %v at %d×%d: %d lines, the last %q", msgs, width, height, len(got), got[len(got)-1])
+					t.Errorf("after %v %s %d×%d: %d lines, the last %q", msgs, how, width, height, len(got),
+						got[len(got)-1])
 				}
+			}
+			// the keys pressed at a few heights from the start, then one screen shrunk through every height
+			for _, height := range []int{12, 7, 3, 1} {
+				m, _ := loaded(t, append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, msgs...)...)
+				check(m, height, "at")
+			}
+			m, _ := loaded(t, msgs...)
+			for height := 12; height >= 1; height-- {
+				m = drive(m, tea.WindowSizeMsg{Width: width, Height: height})
+				check(m, height, "shrunk to")
 			}
 		}
 	}
