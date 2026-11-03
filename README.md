@@ -302,6 +302,23 @@ in the same commit:
 says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and the table above
 serves as the notice for `settings.json`.
 
+### The test suite
+
+`kit gate` runs the suite as `bin/ci` does: bats, one job per CPU, on GNU parallel from `mise.toml`. To run one
+file, use `kit tools run bats tests/<file>.bats`, which puts the pinned tools first on `PATH`.
+
+Nearly all of the suite's time goes to starting short processes: bash, jq, yq, and git. macOS starts a process more
+slowly than Linux, so a test takes about twice as long at a Mac desk as on a runner.
+
+On macOS, list the terminal and the editor you run the suite from as developer tools:
+
+1. Run `spctl developer-mode enable-terminal`, which adds a Developer Tools list to System Settings.
+2. Add each app to it, in System Settings › Privacy & Security › Developer Tools. VS Code is one.
+3. Quit and reopen the apps.
+
+macOS checks a new executable the first time it runs, except one an app on that list starts. A test that reaches
+`kit tui` builds a fresh `kittui`, so without the exemption each such test waits on that check.
+
 ## Release
 
 - A release is the tag `release/<version>` on any commit on `main`, not only the latest one.
