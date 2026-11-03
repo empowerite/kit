@@ -92,6 +92,14 @@ logged() {
   [ ! -e .kit/logs ]
 }
 
+@test "a quoted log_days is its number, as yq reads every setting: \"0\" writes no log, and the check takes it" {
+  printf 'log_days: "0"\n' >> kit.yml
+  "${kit_checkout}/bin/kit" version >/dev/null
+  [ ! -e .kit/logs ]
+  run "${kit_checkout}/bin/kit" check
+  [[ "$output" != *"log_days must be"* ]]
+}
+
 @test "a log_days that is not a whole number is refused" {
   printf 'log_days: soon\n' >> kit.yml
   run "${kit_checkout}/bin/kit" check

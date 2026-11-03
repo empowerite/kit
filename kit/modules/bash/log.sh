@@ -14,7 +14,8 @@
 # not set, and 0 writes none. A day's first line removes each log last written more than log_days days before.
 #
 # bin/kit sources this file alone, before a verb loads the loader, so it uses nothing from the loader. Writing a line
-# starts no process but on a day's first line. A log that cannot be written is skipped, and the call goes on.
+# starts no process but on a day's first line, which reads log_days through yq and prunes the old logs. A log that
+# cannot be written is skipped, and the call goes on.
 #
 # see: bin/kit, modules/bash/serve.sh, docs/logs.md
 
@@ -31,20 +32,17 @@ log:root() {
   printf -v "$1" '%s' "${log_dir:-/}"
 }
 
-# log:days <root> <var> sets <var> to how many days a log is kept: log_days in <root>/kit.yml, else 14.
+# log:days <root> <var> sets <var> to how many days a log is kept: log_days in <root>/kit.yml, else 14. It reads the
+# setting through yq, as every setting is read, so a quoted whole number is that number. A value that is not a whole
+# number, which settings:validate refuses for the verb, and a kit.yml yq cannot read, keep 14, as the log never
+# fails a call.
 log:days() {
-  local log_line log_days=14
+  local log_value='' log_days=14
   if [[ -f "$1/kit.yml" ]]
   then
-    while IFS= read -r log_line || [[ -n "${log_line}" ]]
-    do
-      if [[ "${log_line}" =~ ^log_days:[[:space:]]*([0-9]+)[[:space:]]*(#.*)?$ ]]
-      then
-        log_days=$(( 10#${BASH_REMATCH[1]} ))
-        break
-      fi
-    done < "$1/kit.yml"
+    log_value=$(yq --no-colors --unwrapScalar '.log_days // ""' "$1/kit.yml" 2>/dev/null) || log_value=''
   fi
+  [[ "${log_value}" =~ ^[0-9]+$ ]] && log_days=$(( 10#${log_value} ))
   printf -v "$2" '%s' "${log_days}"
 }
 
