@@ -145,28 +145,45 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// keys gives the keys bar, which fits 80 columns: Enter takes the next field, or runs on the command line, and esc
-// goes back to the palette or cancels. Tab, which moves as down and up do, is left out for the room. While a list has
-// the keyboard, the page keys take the place of left and right, which a list does not use. Shift-Enter is named only
-// where the terminal answered Bubble Tea's ask for the kitty keyboard protocol; elsewhere, Terminal.app among them,
-// it arrives as Enter, and the way to run is Enter on the command line.
+// keys gives the keys bar, which fits 80 columns, naming the keys the focused field takes and no other: the arrows
+// across a row of options, the space where it toggles, backspace where it erases or clears, and the page keys on a
+// list. Enter takes the next field, or runs on the command line, and esc goes back to the palette or cancels. Tab,
+// which moves as down and up do, is left out for the room. Shift-Enter is named only where the terminal answered
+// Bubble Tea's ask for the kitty keyboard protocol; elsewhere, Terminal.app among them, it arrives as Enter, and the
+// way to run is Enter on the command line.
 func (m Model) keys() string {
-	enter := []string{"⏎ next"}
-	if m.shift {
-		enter = append(enter, "⇧⏎ run")
-	}
-	if m.focus >= len(m.fields) {
-		enter = []string{"⏎ run"}
-	}
 	end := "esc cancel"
 	if m.back {
 		end = "esc back"
 	}
-	keys := []string{"↑↓ move", "←→ row or toggle", "␣ toggle", "⌫ erase"}
-	if m.focus < len(m.fields) && (m.fields[m.focus].Kind == Pick || m.fields[m.focus].Kind == PickMany) {
-		keys = []string{"↑↓ move", "⇞⇟ page", "␣ toggle", "⌫ erase"}
+	if m.focus >= len(m.fields) {
+		return strings.Join([]string{"↑ move", "⏎ run", end}, " · ")
 	}
-	keys = append(keys, enter...)
+	f := m.fields[m.focus]
+	keys := []string{"↑↓ move"}
+	switch f.Kind {
+	case Toggle:
+		if !f.Required {
+			keys = append(keys, "␣ toggle")
+		}
+	case AnyOf:
+		keys = append(keys, "←→ option", "␣ toggle")
+	case OneOf:
+		keys = append(keys, "←→ choose")
+		if !f.Required {
+			keys = append(keys, "⌫ clear")
+		}
+	case Text, Lines, Wildcard:
+		keys = append(keys, "⌫ erase")
+	case Pick:
+		keys = append(keys, "⇞⇟ page", "⌫ erase")
+	case PickMany:
+		keys = append(keys, "⇞⇟ page", "␣ toggle", "⌫ erase")
+	}
+	keys = append(keys, "⏎ next")
+	if m.shift {
+		keys = append(keys, "⇧⏎ run")
+	}
 	return strings.Join(append(keys, end), " · ")
 }
 
@@ -686,22 +703,24 @@ func (m Model) filtered() []kit.Choice {
 }
 
 // expand draws the focused field live: the text with its caret, the lines with the one being typed, or the list, and
-// gives the line of the list's cursor, -1 for none.
+// gives the line of the list's cursor, -1 for none. Text wider than the screen shows its end, after a …, so the caret
+// stays in sight.
 func (m Model) expand(i int, indent string) (string, int) {
 	if i != m.focus || i >= len(m.fields) {
 		return "", -1
 	}
 	f := m.fields[i]
 	at := -1
+	room := m.width - ansi.StringWidth(indent) - 2 // the caret, and the cell the screen keeps at its edge
 	var b strings.Builder
 	switch f.Kind {
 	case Text:
-		b.WriteString(indent + m.input + "▏\n")
+		b.WriteString(indent + pane.Tail(m.input, room) + "▏\n")
 	case Lines, Wildcard:
 		for _, v := range f.Values {
-			b.WriteString(indent + v + "\n")
+			b.WriteString(indent + pane.Clip(v, room+1) + "\n")
 		}
-		b.WriteString(indent + m.input + "▏\n")
+		b.WriteString(indent + pane.Tail(m.input, room) + "▏\n")
 		m.hint(&b, indent, "⏎ another line · an empty line ends the list")
 	case Pick, PickMany:
 		at = m.drawList(&b, f, indent)

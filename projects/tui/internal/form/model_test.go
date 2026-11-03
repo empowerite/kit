@@ -385,13 +385,9 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " ↑↓ move · ←→ row or toggle") {
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " ↑↓ move · ") ||
+		!strings.HasSuffix(bar, "⏎ next · ⇧⏎ run · esc back") {
 		t.Errorf("with the way back, the first line %q, the last %q", lines[0], bar)
-	}
-	for _, key := range []string{"←→ row or toggle", "⌫ erase", "⏎ next · ⇧⏎ run · esc back"} {
-		if !strings.Contains(bar, key) {
-			t.Errorf("the keys do not mention %q: %q", key, bar)
-		}
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
@@ -404,23 +400,22 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 }
 
 func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
-	const fields = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
-	const list = " ↑↓ move · ⇞⇟ page · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
-	const command = " ↑↓ move · ←→ row or toggle · ␣ toggle · ⌫ erase · ⏎ run · esc back"
+	const text = " ↑↓ move · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
+	const many = " ↑↓ move · ⇞⇟ page · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
+	const command = " ↑ move · ⏎ run · esc back"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
-	for _, height := range []int{40, 12, 7} {
+	for _, height := range []int{40, 12, 7, 3, 2, 1} {
 		for _, c := range []struct {
 			verb    string
 			a       Answers
 			keys    []string
-			command bool // the keyboard on the command line, with a long refusal under it
-			list    bool // the keyboard on a list, whose bar names the page keys
+			command bool   // the keyboard on the command line, with a long refusal under it
+			want    string // the bar, before it is clipped to the width
 		}{
-			{"commit", Answers{}, nil, false, false},
-			{"commit", Answers{}, []string{"right", "down"}, false, false}, // --message's lines, with their hint
-			{"lint", Answers{}, []string{"down"}, false, true},             // a list of 3000 rows, with its count
-			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false, true},
-			{"flow", Answers{}, nil, true, false},
+			{"commit", Answers{}, []string{"right", "down"}, false, text}, // --message's lines, with their hint
+			{"lint", Answers{}, []string{"down"}, false, many},            // a list of 3000 rows, with its count
+			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false, many},
+			{"flow", Answers{}, nil, true, command},
 		} {
 			t.Setenv("FAKE_KIT_ROWS", "")
 			if c.verb == "lint" {
@@ -429,30 +424,62 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			m := newForm(t, c.verb, c.a, true)
 			m, _ = drive(t, m, tea.WindowSizeMsg{Width: 50, Height: height}, disambiguates)
 			m, _ = drive(t, m, keys(c.keys...)...)
-			want := fields
-			if c.list {
-				want = list
-			}
 			if c.command {
-				m.focus, m.refusal, want = len(m.fields), long, command
+				m.focus, m.refusal = len(m.fields), long
 				m.enter()
 			}
-			want = " " + ansi.Truncate(want[1:], 49, "…")
+			want := " " + ansi.Truncate(c.want[1:], 49, "…")
 			if lines := screen(m); len(lines) != height || lines[height-1] != want {
 				t.Errorf("%s %v at %d: %d lines, the last %q", c.verb, c.keys, height, len(lines), lines[len(lines)-1])
 			}
 		}
 	}
 	// at 80 columns the bar is whole; a height not yet known draws the form, a gap, and the bar
-	m := newForm(t, "flow", Answers{}, true)
+	m := newForm(t, "commit", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, disambiguates)
+	m, _ = drive(t, m, keys("right", "down")...)
 	lines := screen(m)
-	if lines[len(lines)-1] != fields || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit flow") {
+	if lines[len(lines)-1] != text || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit commit") {
 		t.Errorf("with no height, the last lines: %q", lines[len(lines)-3:])
 	}
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
-	if lines = screen(m); len(lines) != 30 || lines[29] != fields {
+	if lines = screen(m); len(lines) != 30 || lines[29] != text {
 		t.Errorf("at 80×30: %d lines, the last %q", len(lines), lines[len(lines)-1])
+	}
+}
+
+// On every field of every verb, the keys bar names the keys that field takes, and no other: the arrows across only
+// where they move across options, the space where it toggles, backspace where it erases or clears, and the page keys
+// only on a list.
+func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
+	for verb, spec := range specs(t) {
+		fields, err := Fields(spec, Answers{})
+		if err != nil {
+			continue
+		}
+		m := New(spec, fields, testkit.Runner(t, "kit"), true)
+		for i, f := range m.fields {
+			m.focus = i
+			bar := m.keys()
+			across := f.Kind == AnyOf || f.Kind == OneOf
+			space := f.Kind == AnyOf || f.Kind == PickMany || f.Kind == Toggle && !f.Required
+			erase := f.Kind == Text || f.Kind == Lines || f.Kind == Wildcard || f.Kind == Pick || f.Kind == PickMany ||
+				f.Kind == OneOf && !f.Required
+			page := f.Kind == Pick || f.Kind == PickMany
+			for _, c := range []struct {
+				key  string
+				want bool
+			}{{"←→", across}, {"␣", space}, {"⌫", erase}, {"⇞⇟", page}} {
+				if strings.Contains(bar, c.key) != c.want {
+					t.Errorf("%s %s (kind %d, required %v): %q names %s: %v", verb, f.Key, f.Kind, f.Required, bar,
+						c.key, !c.want)
+				}
+			}
+		}
+		m.focus = len(m.fields)
+		if bar := m.keys(); bar != "↑ move · ⏎ run · esc back" {
+			t.Errorf("%s on the command line: %q", verb, bar)
+		}
 	}
 }
 
@@ -600,8 +627,6 @@ func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
 func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T) {
 	m := rows40(t, 0)
 	m, _ = drive(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
-	whole := screen(m)
-	whole = whole[:len(whole)-2] // the gap and the bar under a form drawn whole
 	for _, height := range []int{24, 16, 12, 9} {
 		m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: height})
 		for _, k := range []rune{0, tea.KeyPgDown, tea.KeyEnd, tea.KeyHome} {
@@ -626,8 +651,8 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 	}
 	// the counts are lines of the form: the lines shown and the lines said hidden make the form drawn whole
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, tea.KeyPressMsg{Code: tea.KeyHome})
-	whole = screen(m)
-	whole = whole[:len(whole)-2]
+	whole := screen(m)
+	whole = whole[:len(whole)-2] // the gap and the bar under a form drawn whole
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 12})
 	lines := screen(m)
 	lines = lines[:len(lines)-2] // the gap and the bar
@@ -644,6 +669,37 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 	if got := hidden(lines); counted != len(whole) || len(got) == 0 {
 		t.Errorf("%d lines shown and said hidden, %d drawn whole; the lines about them %q:\n%s", counted, len(whole),
 			got, strings.Join(lines, "\n"))
+	}
+}
+
+// Text typed longer than the screen keeps its caret in sight: the field shows the text's end after a …, and the command
+// line breaks the long word, so no line runs past the edge and none of the word is lost.
+func TestTextLongerThanTheScreenKeepsItsCaretInSight(t *testing.T) {
+	typed := strings.Repeat("9", 150)
+	for _, width := range []int{80, 40} {
+		m := newForm(t, "generate", Answers{}, false)
+		m, _ = drive(t, m, tea.WindowSizeMsg{Width: width, Height: 30}, key("down"))
+		m, _ = drive(t, m, testkit.Typed(typed)...)
+		lines := screen(m)
+		caret, command := false, ""
+		for _, l := range lines {
+			if ansi.StringWidth(l) > width {
+				t.Errorf("at %d columns, a line of %d cells: %.60q…", width, ansi.StringWidth(l), l)
+			}
+			if strings.HasSuffix(l, "9▏") && strings.Contains(l, "…9") {
+				caret = true
+			}
+			if strings.Count(l, "9") > 0 && !strings.Contains(l, "▏") {
+				command += strings.TrimLeft(strings.TrimSpace(l), "kit generate-ions=")
+			}
+		}
+		if !caret {
+			t.Errorf("at %d columns, the caret is not at the text's shown end:\n%s", width, strings.Join(lines, "\n"))
+		}
+		if strings.Count(command, "9") != len(typed) {
+			t.Errorf("at %d columns, the command line holds %d of the %d nines:\n%s", width, strings.Count(command,
+				"9"), len(typed), strings.Join(lines, "\n"))
+		}
 	}
 }
 

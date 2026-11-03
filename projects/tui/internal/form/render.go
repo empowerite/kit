@@ -87,7 +87,7 @@ func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header
 	}
 	d.b.WriteString("\n")
 	before := d.count()
-	for _, line := range pane.Wrap(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
+	for _, line := range pane.Break(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
 		if o.CommandFocus {
 			line = o.Styles.Label(line)
 		}

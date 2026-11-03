@@ -113,6 +113,29 @@ func Clip(s string, n int) string {
 	return ansi.Truncate(s, n, "…")
 }
 
+// Tail shortens a text to its last n cells, with … in front at the cut, so the end of what was typed stays in sight.
+func Tail(s string, n int) string {
+	w := ansi.StringWidth(s)
+	if w <= n {
+		return s
+	}
+	if n < 1 {
+		return ""
+	}
+	return ansi.TruncateLeft(s, w-n+1, "…")
+}
+
+// Break wraps a text as Wrap does, then breaks a word wider than the width across lines, so no line is wider and none
+// of the text is lost.
+func Break(text string, width int) []string {
+	width = max(width, 10)
+	var out []string
+	for _, l := range Wrap(text, width) {
+		out = append(out, strings.Split(ansi.Hardwrap(l, width, false), "\n")...)
+	}
+	return out
+}
+
 // Wrap breaks a text at spaces into lines no wider than the width, in cells, and never narrower than ten. A word wider
 // than the width stands alone. A text without a word gives no line.
 func Wrap(text string, width int) []string {

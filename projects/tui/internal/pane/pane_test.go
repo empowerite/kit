@@ -152,6 +152,36 @@ func TestWrapBreaksAtSpacesAndKeepsALongWordWhole(t *testing.T) {
 	}
 }
 
+func TestTailKeepsTheEndInCells(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		n    int
+		want string
+	}{
+		{"abcdef", 4, "…def"},
+		{"abc", 4, "abc"},
+		{"abc", 0, ""},
+		{"ab🏭🏭", 3, "…🏭"},
+	} {
+		if got := Tail(c.in, c.n); got != c.want || ansi.StringWidth(got) > max(c.n, 0) {
+			t.Errorf("Tail(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
+		}
+	}
+}
+
+func TestBreakKeepsEveryCellOfALongWord(t *testing.T) {
+	word := strings.Repeat("9", 35)
+	got := Break("--iterations="+word+" x", 12)
+	if strings.Join(got, "") != "--iterations="+word+"x" {
+		t.Errorf("Break lost text: %q", got)
+	}
+	for _, l := range got {
+		if ansi.StringWidth(l) > 12 {
+			t.Errorf("a line wider than 12: %q", l)
+		}
+	}
+}
+
 func TestPadFillsToTheWidthOnEitherSide(t *testing.T) {
 	if got := Pad("ab", 4, false); got != "ab  " {
 		t.Errorf("left: %q", got)
