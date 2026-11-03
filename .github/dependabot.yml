@@ -1,6 +1,5 @@
 # dependabot.yml - keeps the SHA-pinned actions in the workflows current
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Every `uses:` in .github/workflows/ is pinned to a full commit SHA, with the version as a trailing comment. The SHA
 # advances when a pull request from Dependabot's github-actions ecosystem merges. Once a week, Dependabot moves every
 # SHA that is behind, with its comment, in one pull request for the whole group, so a week with three bumps is one

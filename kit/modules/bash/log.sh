@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # log.sh - the worktree's logs under .kit/logs/, a line per kit call and per MCP request, kept log_days days (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit keeps two logs, one file a day each, under .kit/logs/ at the root of the worktree it runs in:
 #
 #   - kit-YYYY-MMDD.log has a line for each call of the kit CLI, written when the call ends: when it started, its

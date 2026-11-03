@@ -1,6 +1,5 @@
 # version.jq - semantic versions: their precedence, which is higher, and the highest of several (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "version" as version; with jq -L "${kit_jq}". A version is <major>.<minor>.<patch>, with -<pre-release> for
 # a pre-release, as kit release takes it and a release tag names it after release/.
 #

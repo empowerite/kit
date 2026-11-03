@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-commit - commits what is staged, after the kit's checks (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit commit [--all] (--message <text>… | --file <path>) [<path>…]
 #
 # Commits in a worktree, never on the desk or the default branch. Before the commit exists, kit commit:

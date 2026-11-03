@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-context - prints the rules that govern a file (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit context <path>… [--json | --jq]
 #
 # Prints the path of each rule that governs the given paths, once each. The rules come first, then the styles, of

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-check - fails when a delivered file differs from the pinned release (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit check takes no arguments. It compares the repository with the release pinned in kit.yml, and reports a finding
 # when:
 #

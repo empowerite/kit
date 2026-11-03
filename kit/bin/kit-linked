@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-linked - refuses a pull request not linked to an open issue (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit linked [<number>]
 #
 # Fails when a pull request is not linked to an open issue of this repository. kit ci runs it in the delivered CI

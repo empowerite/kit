@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # packages.bats - kit packages lists the packages, and select, add, and remove change which are active
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against it.
 
 bats_require_minimum_version 1.5.0

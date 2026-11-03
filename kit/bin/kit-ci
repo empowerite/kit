@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-ci - runs the delivered CI job's four checks on any machine (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit ci takes no arguments. It runs four checks, in order:
 #
 #   1. kit gate: the repository's gate, its own CI command, passes

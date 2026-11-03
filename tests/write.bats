@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # write.bats - what kit writes in the repository is written whole or not at all, and around the repository's own lines
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against it.
 
 bats_require_minimum_version 1.5.0

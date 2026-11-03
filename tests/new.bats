@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # new.bats - kit new makes a rule, a style, a package, a template, a module, a seam's provider, and a verb
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit new file and kit new kind are tested in template.bats and package.bats. These tests make the rest in an empty
 # repository with the kit installed, and the verb and the jq module in a copy of the kit's own source.
 

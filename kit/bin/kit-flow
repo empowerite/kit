@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit flow [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # fake-kit - stands in for kit in the welcome screen's tests: answers welcome --checks and --fix, and root (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # welcome --checks --json prints checks.json, beside this script, with every check named in the file
 # FAKE_WELCOME_STATE turned ok. welcome --fix jq, or toolchain-project, adds the id to that file, so a later --checks
 # finds it fixed, and exits 0. --fix gh-auth changes nothing and exits 1, as a fix after which the check still fails. --fix brew-path, a show-only

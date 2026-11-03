@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # file.sh - writes a file whole or not at all: made beside the path, moved over it only when its producer succeeds (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Every file the kit writes in a repository, or under the home directory, goes through here. The content is produced
 # into <path>.kit-new; when the producer fails, that temporary is removed and <path> is left exactly as it was, so a
 # jq that refuses a file, or an awk that stops, never leaves an empty file where the repository's was. The move is a

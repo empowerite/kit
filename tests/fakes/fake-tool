@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # fake-tool - stands in for a forge's command-line tool in the conformance suite (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Linked as gh or glab on PATH. Every call is appended to ${FAKE_DIR}/<tool>.calls. The response is the first line
 # of ${FAKE_DIR}/<tool>.routes whose glob matches the arguments joined by spaces: "<glob>\t<file>", the file's
 # contents printed, or "<glob>\t!<status>" to fail with that status. A gh call carrying --jq has the filter applied

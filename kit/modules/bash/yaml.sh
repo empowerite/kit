@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # yaml.sh - the kit's YAML files, read through yq (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The kit's files that are not JSON are YAML: the repository's kit.yml, a package's package.yml, the kinds files under
 # .kit/kinds/, and the frontmatter of a rule or style, between the opening `---` and the next. This module reads them
 # through yq 4, mikefarah's (https://github.com/mikefarah/yq), one yq process per read, with an expression in yq's own

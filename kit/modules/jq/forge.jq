@@ -1,6 +1,5 @@
 # forge.jq - a forge's answers, folded into the pull request document kit flow renders (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "forge" as forge; with jq -L "${kit_jq}". Each provider turns its forge's own fields into runs, and the
 # rest is shared, so a pull request on GitHub and a merge request on GitLab fold into the same document:
 #

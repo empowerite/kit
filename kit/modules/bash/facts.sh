@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # facts.sh - the facts about the repository that a policy engine judges (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The facts are JSON that kit policy hands to a policy engine, so a rule can judge more than a name. This module
 # gathers them into one document, which kit facts prints. It holds, in this order:
 #

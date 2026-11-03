@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # builds.bats - kit flow builds lists the runs no pull request owns: on the default branch, on a tag, and scheduled
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # origin is a bare repository beside the test's, so the tags are real git; gh is tests/fakes/fake-tool, so the stage
 # is the provider's folding of a fixture. The world: on main, a push that passed and a schedule still running; on the
 # tag release/0.1.0, a push that failed at its release step, on its second attempt; on 9-other, a push left out and a

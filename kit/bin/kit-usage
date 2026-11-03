@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-usage - prints the usage lines of the verbs (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit usage [<verb>…]
 #
 # Prints each verb's usage lines, as its header writes them, one per line and nothing else. A verb that takes no

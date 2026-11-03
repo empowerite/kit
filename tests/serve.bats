@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # serve.bats - kit serve answers the Model Context Protocol on stdio: the handshake of either era, tools, and resources
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test feeds request lines to kit serve in a repository with the kit installed, and reads the answers with jq.
 # Stdout must hold one JSON-RPC message per line and nothing else, so every test reads it apart from stderr.
 

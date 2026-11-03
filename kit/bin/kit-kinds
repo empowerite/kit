@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-kinds - lists the kinds of file, or the kinds a path is of (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit kinds [--json | --jq] [<kind> | <path>]…
 #
 # Alone, it lists every kind under .kit/kinds/, in name order. A row is the kind's name, the file that defines it,

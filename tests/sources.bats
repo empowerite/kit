@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # sources.bats - packages from sources beyond the release: pinned by digest, fetched once, and looked up last first
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each source here is a tarball on disk, fetched by a file:// URL, so the tests need no network. A git: URL is checked
 # by the address it names.
 

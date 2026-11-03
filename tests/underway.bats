@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # underway.bats - kit flow underway lists each open issue an open pull request closes: who works on it, and where
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The world, seen through a fake gh: the caller ada; issue 7, assigned to bob, closed by two pull requests, 3, a draft
 # by ada on 7-fix-the-thing, and 5, ready, by cy on 11-third; issue 11, assigned to ada, closed by 5 alone. A worktree
 # on this desk has 7-fix-the-thing checked out, so pull request 3 is here, and 5 is on cy's desk.

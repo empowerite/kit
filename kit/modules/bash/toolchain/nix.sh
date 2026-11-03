@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # nix.sh - the nix toolchain provider: flake.nix declares a dev shell, flake.lock pins its inputs (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # nix fills the project role. It is configured here by a flake.nix at the repository root that declares devShells or
 # devShell. That check is textual: the provider greps the file and never evaluates it, so a comment naming devShells
 # counts. It is usable only where flakes are on. It is active

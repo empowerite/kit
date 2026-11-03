@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-uninstall - takes the kit out of the repository and the home directory (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit uninstall [--dry-run]
 #
 # Undoes kit install, and every kit packages add since. For every path the active packages deliver:

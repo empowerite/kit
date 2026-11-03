@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # tracker.sh - the seam over the issue trackers: forge issues, Azure DevOps work items (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # Verbs that read, assign, or create issues call tracker:of or tracker:at here. Each call is passed to the

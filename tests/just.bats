@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # just.bats - a justfile made from the just style's template loads the kit's loader in every bash recipe
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The template exports BASH_ENV as kit root's loader, so a [script] recipe calls use, the output verbs, and run kit
 # <verb> as a verb does, and finds the repository's own modules, from the root justfile and from a module justfile in
 # a directory of its own.

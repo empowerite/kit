@@ -270,6 +270,7 @@ are written by `bin/refresh`, which runs `kit update` from the index. Do not edi
 | `.kit/1st.md`, `.kit/README.md`, `.kit/kinds/`, `.kit/rules/`, `.kit/kit.schema.json` | links into `kit/packages/kit/files/repo/.kit/` |
 | `.kit/styles/<kind>.md`, `.kit/templates/<kind>/`, `.kit/markdownlint.jsonc` | links into `kit/packages/style/<kind>/files/repo/.kit/` |
 | `.kit/templates/bash/`, `.kit/templates/gitignore/file`, `.kit/templates/just/` | links into `.kit/packages/house/files/repo/.kit/templates/`, this repository's own style, which replaces the style packages' |
+| `.kit/styles/house.md` | a link into `.kit/packages/house/files/repo/.kit/styles/`, this repository's own style beyond the style packages' |
 | `.kit/lefthook.yml` | a link into `kit/packages/hooks/lefthook/files/repo/.kit/` |
 | `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |

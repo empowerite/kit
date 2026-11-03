@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # releases.bats - kit release tags HEAD and pushes the tag after the release rules; kit flow releases lists the forge's
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # origin is a bare repository beside the test's, so the tags and pushes are real git; gh is tests/fakes/fake-tool, so
 # the listing is the provider's folding of a fixture.
 

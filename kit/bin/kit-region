@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-region - prints the region an active package delivers at a path (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit region [--home] [<path>]
 #
 # Prints the content an active package delivers as the region at <path>. Every region the kit delivers is filled

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # policy.sh - the seam over the engine that judges the branch, the commits, the change, and the tree (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # A policy sets what a branch name, a commit subject, a change title, or the tree of files may be. kit policy enforces

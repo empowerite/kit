@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # agents.bats - the agents/cursor, agents/copilot, and agents/gemini packages deliver each harness's native shapes
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository and runs the kit from this checkout against it. A rule mirror names, in the
 # harness's own frontmatter, the paths a rule governs, and its body points at the rule under .kit/rules/, so what is
 # proven is that each mirror follows its rule and that the merged settings keep the repository's own entries.

@@ -1,6 +1,5 @@
 # template.jq - the template language: a template's parts, the file it makes, and the values a file gives it (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "template" as template; with jq -L "${kit_jq}". A template is the text of a file with holes in it:
 #
 #   «name»                 within a line: any text on that line

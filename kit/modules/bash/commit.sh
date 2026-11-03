@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # commit.sh - the commit and the push as kit commands: the checks their rules require, then git (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit commit and kit submit replace git commit and git push for an agent, as kit rebase replaces git rebase: the kit
 # command adds the check the rule requires, and a harness's deny list refuses the raw command. Both run in a worktree
 # only. The root checkout is the human's desk, and the default branch advances by a merged change, never by a commit

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # render.sh - renders a package's templates and regions once per process, with the repository's answers (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each packages/<name>/ delivers from files/<base>/, copied as they are; templates/<base>/, whose @key@ placeholders
 # are filled from the repository's settings; and regions/<base>/, rendered the same way and placed as regions. A
 # render keeps the packages/<package>/<kind>/<base> layout under a temporary directory, so a rendered region is

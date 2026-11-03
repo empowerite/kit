@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # issue.bats - kit issue through a fake of the forge's tool: the worktree it makes is hydrated before the start commit
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The world is forge-conformance.bats's: issue 7 "Fix the thing", assigned to bob, with the branch 7-fix-the-thing
 # already on origin, as the forge makes it, and change 3 open on it. origin is a bare repository beside the test's,
 # so git's part is real; gh is tests/fakes/fake-tool, so the forge's part is the provider's folding of fixtures.

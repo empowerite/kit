@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # fetch.bats - a release is fetched with the digest published beside it, and unpacked only when the bytes match it
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # release:fetch brings the previous release for kit update's three-way merge, and the delivered CI job brings the
 # pinned release onto a runner. Both read kit-<version>.tar.gz and its .sha256 from the release, through a fake curl
 # that serves the files a test puts in ${FAKE_RELEASES}.

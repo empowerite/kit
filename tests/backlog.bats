@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # backlog.bats - kit flow backlog lists the open issues nothing is in flight for, oldest first, as every stage draws
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3 open on branch 7-fix-the-thing and closing it, so 7 is the changes stage's and not the backlog's;
 # issue 9 "Other thing", assigned to nobody, with the branch 9-other on origin and no change, so it is in the backlog

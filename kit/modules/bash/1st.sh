@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # 1st.sh - the kit's bash loader: the module path, messages, guards, and run (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Every verb, bin/kit-<verb>, sources this file and then calls kit:enter. A verb runs the same through bin/kit and
 # called directly. This file sets no shell options, so the caller's options stay in effect.
 #

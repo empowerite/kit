@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-generate - expands each kit:generate region, or checks that it is current (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit generate [--check] [--iterations=<n>] [<path>…]
 #
 # Expands each kit:generate region in the given files to what its command makes, and writes the result in place.

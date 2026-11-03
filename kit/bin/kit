@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit - the kit CLI: runs the verb script bin/kit-<verb> (executed entrypoint)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
 # bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
 # when called directly. kit with no verb runs kit tui, the interactive terminal UI. kit --help and kit -h run kit help,

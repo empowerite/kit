@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-syntax - prints a verb's grammar as JSON, and checks its header (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit syntax [--check | --list] [<verb>…]
 #
 # kit syntax <verb> --choices <argument> [<answer>…]

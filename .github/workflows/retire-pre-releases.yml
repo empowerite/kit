@@ -1,6 +1,5 @@
 # retire-pre-releases.yml - deleting a branch deletes the pre-releases that were made from it
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Deleting a branch on GitHub runs this workflow. Its one step is one kit command: bin/release retire deletes
 # every pre-release, tag included, whose commit is no longer on any branch. A release is never deleted, because
 # it is on main and main is never deleted, and a pre-release tagged on main stays for the same reason. Deleting a

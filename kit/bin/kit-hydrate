@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-hydrate - places what the active packages deliver under .kit/ (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit hydrate [--quick]
 #
 # Reads the packages kit.yml declares, and brings every path they deliver under .kit/ to its state:

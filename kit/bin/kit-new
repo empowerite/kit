@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-new - makes a new file, or a new kind, rule, package, template, or verb (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
 #
 # kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]

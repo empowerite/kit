@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-facts - prints the facts a policy engine judges, as JSON (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit facts [--moment=<moment>]
 #
 # Prints the facts document: the JSON that kit policy hands its engine, and that a rule is written against. It holds

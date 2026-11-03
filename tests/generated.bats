@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # generated.bats - every file a package delivers under .kit/ opens with a kit:generated line and a see: line
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The two lines are in the file's own comment syntax, after a frontmatter's opening --- where there is one. A JSON
 # file, which has no comments, carries both in a "$comment" key. A template is the named exception: its text is the
 # shape of the files kit new makes from it, and the lines would pass into each of them.

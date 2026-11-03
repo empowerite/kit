@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # dependencies.bats - npm and uv pin a language's packages on top of the chosen toolchain, and kit tools acts on both
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # tests/fakes/fake-tool stands in for npm, uv, and mise. npm's pins are read from its files, so they are fixtures;
 # uv's installed versions come from uv pip list, so that is a route.
 

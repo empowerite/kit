@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # release - verifies a release tag, packs kit/ as a release, publishes it, and retires pre-releases
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]
 #
 # Releases the kit itself, so it is this repository's command, not one of the kit's verbs: no repository that

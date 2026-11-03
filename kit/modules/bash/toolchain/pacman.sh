@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # pacman.sh - the pacman toolchain provider: Arch Linux's packages, for the system role (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # pacman fills the system role wherever pacman is on PATH. It installs for the whole machine, so it never fills the
 # project role, and the project calls refuse. pacman is never active: it is not a shell one enters.
 #

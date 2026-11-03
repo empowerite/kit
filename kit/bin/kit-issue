@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-issue - starts or resumes an issue (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit issue (<reference>… | --title <text>)
 #
 # Starts work on an issue, or resumes it. kit issue makes each of these, and reuses any that already exists:

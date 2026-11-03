@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # forge.sh - the seam over the forge (GitHub, GitLab) that hosts the repository (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # Verbs that read or change issues, branches, and pull requests call forge:<call> here. Each call is passed to a

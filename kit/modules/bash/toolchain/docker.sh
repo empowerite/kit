@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # docker.sh - the container image toolchain provider: a Dockerfile installs the tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # docker fills the project role. It is configured here by toolchain.Dockerfile at the repository root. It is never
 # active: it runs a command in its container instead. The image is named kit-toolchain.
 #

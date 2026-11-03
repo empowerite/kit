@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # settings.sh - kit.yml, the repository's settings: read, validated, and the declaration written into it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The repository's choices are in kit.yml at the root. The kit reads every key it knows and writes three: version,
 # packages, and excludes, the declaration (settings:declare), rewritten where it stands so the repository's own keys
 # and comments keep their places. A repository from a release before the declaration still carries it on the first

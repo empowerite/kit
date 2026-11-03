@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-tui - runs the interactive terminal UI (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit tui [<verb> [<argument>…]]
 #
 # Opens the palette of verbs, or with a verb that verb's form, filled from the arguments given and asking only for

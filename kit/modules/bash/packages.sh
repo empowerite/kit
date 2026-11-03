@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # packages.sh - the choices kit packages offers, answered by package.sh (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit syntax reads a verb's choices from the module named after the verb. kit packages lists and acts through
 # package.sh, which keeps its name, so this module hands the question on to package:choices.
 

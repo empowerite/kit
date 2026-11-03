@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # forge-conformance.bats - every forge provider answers the seam's calls in the same shape, through a fake of its tool
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # One world, seen through each forge's own API: the repository empowerite/example, the caller ada, issue 7 "Fix
 # the thing" assigned to bob, and change 3 on branch 7-fix-the-thing, opened by ada, closing issue 7, with two
 # checks that passed, the slower in fifty seconds, a failed run of one of them from the day before that a rerun

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # devcontainer.sh - the dev container toolchain provider: devcontainer.json builds the environment (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # devcontainer fills the project role, and the system role too while the run is inside the container. The container
 # is configured by .devcontainer/devcontainer.json, or .devcontainer.json, at the repository root.
 #

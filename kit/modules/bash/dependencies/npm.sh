@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # npm.sh - the npm dependency provider: package.json names the packages, package-lock.json pins them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # npm is usable where npm is on PATH, and package.json and package-lock.json are at the repository root. It pins the
 # packages package.json names under dependencies and devDependencies, at the versions the lock holds. What is
 # installed is read from node_modules/.package-lock.json, which npm writes on every install.

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # apt.sh - the APT toolchain provider: Debian's and Ubuntu's packages, for the system role (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # apt fills the system role wherever apt-get is on PATH. It installs for the whole machine, so it never fills the
 # project role, and the project calls refuse. apt is never active: it is not a shell one enters.
 #

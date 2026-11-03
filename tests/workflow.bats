@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # workflow.bats - the workflow package: the workflow, plans as prose, and the worker contract, apart from the entry file
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against
 # it. The kit package delivers the rules every repository takes; the workflow package delivers the taste a repository
 # may leave out, and the entry file points to it only as a file that may be there.

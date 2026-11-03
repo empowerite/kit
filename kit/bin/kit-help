@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-help - prints kit's overview, a verb's page, or a group's verbs (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit help [--text] [<verb> | <group>]…
 #
 # Shows the help each verb's header holds. On a terminal, it opens the palette that bare kit opens: on the verb's

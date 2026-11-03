@@ -1,6 +1,5 @@
 # merge.jq - a merge by key: a release's JSON over a repository's, keeping what the repository added (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "merge" as merge; with jq -L "${kit_jq}". The parameters are values ($name), not filters, so each is
 # evaluated once, at the right level.
 #

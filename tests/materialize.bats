@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # materialize.bats - what kit delivers under .kit/ is a link or a readonly copy, ignored, and healed by every verb
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against
 # it. The checkout's release is outside the repository, so its files are copies; a test that wants links copies the
 # release into the repository first.

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # context.sh - which kinds a file is of, and which rules govern it (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A kind of file is defined once, in a kinds file under .kit/kinds/, and read by everything that asks what a file is.
 # A kinds file is a YAML stream of one document per kind, separated by `---` lines, so one file may define several
 # kinds. Each document has:

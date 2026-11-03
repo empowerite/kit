@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # sources.sh - the sources packages come from beyond the release: pinned by digest, fetched once, cached (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A repository takes packages from the kit's release and from its own .kit/packages/. It can name more sources, in
 # order, under sources: in kit.yml, each a tarball pinned by the sha256 digest of its bytes:
 #

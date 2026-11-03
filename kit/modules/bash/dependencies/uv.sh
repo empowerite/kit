@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # uv.sh - the uv dependency provider: pyproject.toml names the packages, uv.lock pins them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # uv is usable where uv is on PATH, and pyproject.toml and uv.lock are at the repository root. It pins every package
 # in the lock but the project itself. The lock is TOML, read with yq; what is installed is read with uv pip list,
 # from .venv.

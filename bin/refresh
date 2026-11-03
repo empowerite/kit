@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # refresh - brings this repository's installed copies of its own kit up to the index, and stages the result
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # This repository installs its own kit, and its kit/ is the release. What kit places under .kit/ is a link into
 # kit/packages/ or .kit/packages/house/, live and never committed, so nothing there needs refreshing. The installed
 # copies outside .kit/ (the CI workflow, .claude/settings.json, and the regions in AGENTS.md, .gitignore, and

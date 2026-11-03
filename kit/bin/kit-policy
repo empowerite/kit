@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-policy - refuses a branch, subject, or title the policy forbids (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit policy [--input | --facts=<file>]
 #
 # Fails when the branch, its commits, its change, or its tree breaks the repository's policy. kit policy collects

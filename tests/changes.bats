@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # changes.bats - kit flow changes lists the open changes, each with the issues it closes under it
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3, a draft by ada on branch 7-fix-the-thing, closing it. Issues 9 and 11 are in no change, so they are
 # the backlog stage's and not drawn here.

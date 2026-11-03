@@ -1,6 +1,5 @@
 # toolchain.jq - a tool manager's answers, read for the tools the repository pins (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "toolchain" as toolchain; with jq -L "${kit_jq}".
 #
 # see: modules/bash/toolchain.sh, modules/bash/toolchain/brew.sh, modules/bash/toolchain/devcontainer.sh

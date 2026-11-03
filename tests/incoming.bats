@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # incoming.bats - kit flow incoming fetches every remote, the primary first, and says what came from each
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Two bare repositories beside the desk are its remotes, origin and upstream, so every fetch is real git. kit.yml
 # names their forges: origin is github through the forge setting, and upstream gitlab through the forges map. A
 # remote is moved on from a clone of its own, as another desk would push to it.

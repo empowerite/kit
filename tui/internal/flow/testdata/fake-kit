@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # fake-kit - stands in for kit in the flow tests: answers flow --stages and flow <stage> --json (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
 # are appended to, one line each, so a test reads the order the stages ran in. FAKE_FLOW_STAGES is what --stages
 # prints, space-separated; unset, it prints the eight. FAKE_FLOW_REFUSE names a stage whose --json answer is a

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-gate - runs the repository's gate (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit gate takes no arguments. The gate is the repository's own CI command, the first of:
 #
 #   1. the `gate` setting in kit.yml

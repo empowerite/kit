@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # issue.sh - start an issue: a linked branch, a worktree, a start commit, and a draft pull request (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # issue:start [<reference>…] starts or resumes work on one or more issues. Each reference names its tracker, as
 # modules/bash/tracker.sh describes:
 #

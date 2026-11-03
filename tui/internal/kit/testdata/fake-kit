@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # fake-kit - stands in for kit in the runner's tests: answers syntax and help, and records any other call (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; flow --stages names two stages and a stage echoes its words
 # as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the file

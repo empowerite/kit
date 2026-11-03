@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-lint - runs each rule's linter over the paths it governs (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit lint [--all-files] [<path>…]
 #
 # Runs each rule's checks over the files the rule governs.

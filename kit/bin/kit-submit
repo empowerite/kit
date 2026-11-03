@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-submit - commits what is staged, then pushes the branch (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit submit [--all] [--message <text>… | --file <path>] [<path>…]
 #
 # Runs in a worktree, never on the desk or the default branch. When something is staged, or --all or <path>… say

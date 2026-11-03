@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # kit.bats - bin/kit install, package, check, and update against a fresh repository
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory and runs the kit from this checkout against
 # it. The update tests build a second, later release from the first so the three-way merge has a base.
 

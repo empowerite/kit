@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # git.sh - git helpers: the default branch, worktrees, kit tidy, and kit rebase (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit tidy (git:tidy) decides whether a worktree's work is finished by asking:
 #
 #   - the forge (GitHub, GitLab), through modules/bash/forge.sh: is the branch's pull request merged or closed?

@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # tidy.bats - kit tidy removes the worktrees whose change is done and the branches origin dropped, and keeps the rest
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # origin is a bare repository beside the desk, so git's part is real: a branch pushed there and checked out under
 # worktrees/ is what kit issue leaves, and deleting it on origin is what the forge does when the change merges. gh is
 # tests/fakes/fake-tool, so a change's state is a fixture. The decision on a detached worktree needs no forge at all.

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-release - tags HEAD as a release and pushes the tag (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit release <version> [--lower]
 #
 # Tags HEAD as release/<version>, annotated, and signed when require_signing is true in kit.yml. It pushes that tag,

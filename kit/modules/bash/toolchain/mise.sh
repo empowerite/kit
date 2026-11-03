@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # mise.sh - the mise toolchain provider: mise.toml pins the tools, mise.lock records them (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # mise fills the project role. It is configured here by mise.toml, .mise.toml, or mise.local.toml at the
 # repository root. The provider needs mise. When the caller sets MISE_ENV, mise layers mise.<env>.toml on top, as it
 # always does.

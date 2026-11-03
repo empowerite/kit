@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-welcome - walks a newcomer through what kit needs, the toolchains, setup, and the workflow (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit welcome [--text]
 #
 # kit welcome --checks [--json | --jq]

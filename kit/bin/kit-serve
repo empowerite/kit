@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-serve - serves the kit to an agent over the Model Context Protocol (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit serve
 #
 # Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, until stdin ends. It runs in

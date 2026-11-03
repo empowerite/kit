@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # uninstall.bats - kit uninstall takes everything the kit placed out of the repository, and nothing else
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test gets an empty git repository under a temporary directory, with a few files of its own, installs the kit
 # from this checkout into it, and takes it out again.
 

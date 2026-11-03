@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # dnf.sh - the DNF toolchain provider: Fedora's packages, for the system role (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # dnf fills the system role wherever dnf is on PATH. It installs for the whole machine, so it never fills the project
 # role, and the project calls refuse. dnf is never active: it is not a shell one enters.
 #

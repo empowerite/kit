@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # lint.sh - the kit's own checks, which a rule names under checks: in its frontmatter (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A linter is a tool a rule names under lint:. A check is a function here, lint:<name>, which kit lint runs over the
 # files a rule governs when the rule's frontmatter lists <name> under checks:. A check prints each finding as
 # <file>:<line>: <message>, and returns 1 when it found any.

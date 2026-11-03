@@ -1,6 +1,5 @@
 # flow.jq - the checkout documents kit flow draws, and what of each fits on the screen (jq module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # import "flow" as flow; with jq -L "${kit_jq}".
 #
 # see: modules/bash/flow.sh

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-packages - lists the packages in reach, and changes which are active (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit packages [--active | --inactive] [--json | --jq] [<package>…]
 #
 # kit packages (select | add | remove) <package>…

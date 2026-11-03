@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # dependencies.sh - the seam over the package managers that pin a language's packages (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # A toolchain pins tools, node and python among them. A language's package manager pins that language's packages on

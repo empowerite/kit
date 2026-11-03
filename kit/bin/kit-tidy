@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-tidy - removes merged worktrees and gone branches (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit tidy [--dry-run]
 #
 # Removes finished worktrees under worktrees/, and deletes each local branch whose upstream is gone. A worktree is

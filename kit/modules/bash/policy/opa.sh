@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # opa.sh - the policy provider that runs Open Policy Agent over the Rego in .kit/policy (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # modules/bash/policy.sh uses this provider when the policy_engine setting is opa, or when the setting is not set and
 # .kit/policy/ contains a .rego file.
 #

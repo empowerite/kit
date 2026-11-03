@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # super.sh - override a function another module defined, and still call the one it replaced (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # use sources every <module>.sh on the module path, in order, so a later file can redefine a function an earlier
 # one defined. A plain redefinition replaces the function outright. A module that wants to wrap it instead says so
 # before its own definition:

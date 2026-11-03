@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-completion - prints shell completion for kit (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit completion zsh
 #
 # Prints the zsh completion for kit. Put it on zsh's fpath as _kit, or evaluate it from .zshrc:

@@ -1,12 +1,10 @@
 # shellcheck shell=bash
 # help.sh - the verbs' help, read from each verb's own header (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A verb is an executable kit-<verb> beside bin/kit. Its header is the only place its help is written:
 #
 #   # kit-<verb> - <purpose> (kit verb: <group>)   the banner, on line 2
 #   # ---…                                     a line of dashes, if the verb has one
-#   #
 #   # kit <verb> <arguments>                   a usage line: a paragraph of one line that ends without . or :
 #   #
 #   # <description>                            every other paragraph, up to the first line that is not a comment
