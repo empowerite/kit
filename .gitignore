@@ -1,9 +1,6 @@
 # .gitignore - untracked files and folders
 # ----------------------------------------------------------------------------------------------------------------------
 
-# direnv per-checkout cache; see: https://direnv.net/
-/.direnv/
-
 # kit:generate .gitignore
 # per-issue worktrees for agents; see: .kit/1st.md
 /worktrees/
