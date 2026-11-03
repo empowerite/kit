@@ -103,7 +103,7 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `builds`: the runs not owned by any pull request, newest first: pushes to the default branch or a tag, and scheduled
   or manual runs. Each shows its state, number, commit, and title, with its age and duration; a failed job names the
   step that failed
-- `releases`: the releases on the forge, newest first
+- `releases`: the releases on the code forge, newest first
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
 glyph and its count. `kit flow <stage>` prints one stage, with that stage's flags: `kit flow backlog --today`
@@ -112,12 +112,12 @@ document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
 A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
 primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
-builds, releases, and issues are read from it. Each remote has a forge, or none:
+builds, releases, and issues are read from it. Each remote has a code forge, or none:
 
 1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins
 2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab
-3. else a host `gh` or `glab` has logged in to, which tells a self-hosted forge apart
-4. else it has no forge: kit fetches it and counts its branches, and asks no forge about it
+3. else a host `gh` or `glab` has logged in to, which tells a self-hosted code forge apart
+4. else it has no code forge: kit fetches it and counts its branches, and asks no code forge about it
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
 release workflow. It refuses:
@@ -127,7 +127,7 @@ release workflow. It refuses:
 - a release, one with no suffix, whose commit is not on the default branch at the primary remote
 - a version not higher than every release on the primary remote, unless `--lower` confirms it
 
-`kit flow releases` lists the releases on the forge, newest first, with each one's kind and age.
+`kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age.
 
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
@@ -141,9 +141,9 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 1. Intro: what the guide does.
 2. Before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain.
 3. Toolchains: the project toolchain and the system toolchain, one check each. Several usable means you choose.
-4. Setup: one check per line for the linters, each forge's login, and the repository.
+4. Setup: one check per line for the linters, each code forge's login, and the repository.
 5. The lay of the land: how work moves from an issue to a release, through the stages of `kit flow`.
-6. Terms: desk, worktree, forge, package, rule, and the rest, one or two sentences each.
+6. Terms: desk, worktree, code forge, package, rule, and the rest, one or two sentences each.
 7. Make it yours: the settings teams change first, packages, a house package, and the docs.
 
 - On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs
@@ -178,16 +178,16 @@ stderr, nothing opens: a verb short of an argument refuses in one line, as befor
 
 see: [modules.md](modules.md#writing-a-verb)
 
-## Forges and trackers
+## Code forges and trackers
 
-- A forge is the service that hosts the repository. kit works with GitHub through `gh` and with GitLab through
+- A code forge is the service that hosts the repository. kit works with GitHub through `gh` and with GitLab through
   `glab`, and shows the same picture on either.
-- A tracker holds the issues. The reference picks it: `#7` for the forge's issues, `AB#4521` for an Azure DevOps
+- A tracker holds the issues. The reference picks it: `#7` for the code forge's issues, `AB#4521` for an Azure DevOps
   work item. A repository can use more than one at once.
-- Only the workflow verbs call a forge. A repository with none can still install, update, check, and run
+- Only the workflow verbs call a code forge. A repository with none can still install, update, check, and run
   `kit context`.
 
-see: [trackers.md](trackers.md), [architecture.md](architecture.md#forges-seams-and-providers)
+see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
 
 ## Toolchains
 
@@ -257,11 +257,11 @@ see: [generate.md](generate.md)
   directory per language under `modules/`: bash modules, loaded with `use`, and jq modules, imported by the jq
   programs the bash modules run and tested with `jq --run-tests`.
 - A repository can add bash modules, or override a function, in its own directory on the module path.
-- Each forge, tracker, toolchain, and policy engine sits behind a seam: one file whose header lists the calls a
+- Each code forge, tracker, toolchain, and policy engine sits behind a seam: one file whose header lists the calls a
   provider answers, and whose code picks the provider at run time. A new provider is a module that answers those
   calls.
 
-see: [modules.md](modules.md), [architecture.md](architecture.md#forges-seams-and-providers)
+see: [modules.md](modules.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
 
 ## What no check covers
 

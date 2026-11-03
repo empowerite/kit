@@ -42,7 +42,7 @@ kit policy
 | `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
-| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change, and `null` at commit. |
+| `change` | The change's number, title, body, and author's login, read through the code forge (the service that hosts the repository). `null` when there is no code forge or no change, and `null` at commit. |
 | `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. At commit, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
 | `policy` | The patterns, with the kit's defaults filled in. |
 

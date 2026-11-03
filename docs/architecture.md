@@ -30,7 +30,7 @@ command loads it with `use forge`. `use` looks in each directory listed in the `
 
 That is how a repository changes the kit without editing it. It lists its own directory after the kit's, and its
 `forge.sh` loads second, so it can add functions, replace the kit's, or wrap them. It can add support for another
-forge or toolchain the same way. [modules.md](modules.md) has the details.
+code forge or toolchain the same way. [modules.md](modules.md) has the details.
 
 ### Packages
 
@@ -144,11 +144,11 @@ incoming, builds, releases. On a terminal the picture is interactive; without on
 <stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick,
 not a search. underway shows the rest of the open issues: who works on each, and where.
 
-### Forges, seams, and providers
+### Code forges, seams, and providers
 
-A forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab. The word
-comes from SourceForge, the first widely used site of this kind, in 1999. GitLab, Gitea, and Forgejo still use it for
-the category. kit says forge rather than GitHub because the workflow runs on more than one.
+A code forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab.
+The word forge comes from SourceForge, the first widely used site of this kind, in 1999. GitLab, Gitea, and Forgejo
+still use it for the category. kit says code forge rather than GitHub because the workflow runs on more than one.
 
 Four files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004). He
 took it from tailoring: a seam is where two pieces of cloth join, and where a garment is let out or taken in without
@@ -169,18 +169,18 @@ exists.
 | `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
-Every forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
-branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted forge must
-be named in the `forge` setting.
+Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
+branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted code
+forge must be named in the `forge` setting.
 
-- Every provider returns the same shape, so `kit flow` shows the same picture on either forge.
-- Each provider uses its forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
-- A repository with one origin has one forge. A repository on two forges is a mirror or a migration, and the setting
-  picks the one the workflow uses.
+- Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
+- Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
+- A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and
+  the setting picks the one the workflow uses.
 - `tests/forge-conformance.bats` runs every provider against a fake of its tool and checks that each returns the
   same shape.
-- The core verbs never call the forge, so a repository with no forge can still install, update, check, and run
-  `kit context`. Only a provider needs its forge's tool.
+- The core verbs never call the code forge, so a repository with no code forge can still install, update, check, and run
+  `kit context`. Only a provider needs its code forge's tool.
 
 ### The checks
 

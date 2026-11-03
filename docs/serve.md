@@ -35,7 +35,7 @@ The tools are the verbs that read and report, and change nothing:
   happens: `kit serve` hydrates `.kit/` when it starts, and `context`, `kinds`, and `lint` hydrate before they
   read. `tools` hydrates too when no toolchain is chosen, to read the rules' linters. `context` appends to the
   context log.
-- `flow` asks the forge over the network, and says so in its `openWorldHint`.
+- `flow` asks the code forge over the network, and says so in its `openWorldHint`.
 - `packages`, `toolchains`, and `tools` are offered as listings only. A call whose `args` hold an action is refused
   with status 2, and the verb never runs:
   - `packages`: `select`, `add`, `remove`

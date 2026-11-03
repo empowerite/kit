@@ -5,7 +5,7 @@
 With kit's own tools in place and a toolchain settled, this step checks the rest, in order:
 
 - Tools: the git hooks' runner, where the hooks package is active, and the linters the rules run.
-- Forges: for each remote's forge, its command-line tool, installed and logged in.
+- Code forges: for each remote's code forge, its command-line tool, installed and logged in.
 - This repository: kit installed, `.kit/` in place, the git hooks installed, and `kit check` clean.
 - Where you are: at the desk or in a worktree.
 

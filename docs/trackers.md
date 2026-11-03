@@ -1,6 +1,6 @@
 # Trackers
 
-A tracker is the system that holds a repository's issues. It can be the forge (the service that hosts
+A tracker is the system that holds a repository's issues. It can be the code forge (the service that hosts
 the repository, GitHub or GitLab) or a separate system such as Azure DevOps. The syntax of an issue
 reference selects its tracker:
 
@@ -9,7 +9,7 @@ kit issue AB#4521
 ```
 
 The workflow commands look up issues through one seam, `kit/modules/bash/tracker.sh`;
-[architecture.md](architecture.md#forges-seams-and-providers) says what a seam is. A repository can use more than one
+[architecture.md](architecture.md#code-forges-seams-and-providers) says what a seam is. A repository can use more than one
 tracker at once, for example GitHub issues for bugs and Azure DevOps for planned work.
 
 ## References
@@ -18,10 +18,10 @@ A reference names its tracker in its syntax, the way the trackers already write 
 
 | Reference | Tracker |
 | --- | --- |
-| `7` or `#7` | the forge's own issues, GitHub's or GitLab's |
+| `7` or `#7` | the code forge's own issues, GitHub's or GitLab's |
 | `AB#4521` | an Azure DevOps work item, under a prefix the repository declares |
 
-`kit.yml` declares every tracker except the forge's own. Each record has:
+`kit.yml` declares every tracker except the code forge's own. Each record has:
 
 - `prefix`, the text a reference starts with
 - `provider`, the provider that handles the reference
@@ -36,7 +36,7 @@ trackers:
     type: Task
 ```
 
-`#` is the forge's own tracker unless a record claims it. A reference that matches no declared tracker is refused,
+`#` is the code forge's own tracker unless a record claims it. A reference that matches no declared tracker is refused,
 and the error lists the known prefixes.
 
 ## Commands
@@ -45,10 +45,10 @@ and the error lists the known prefixes.
   - Each issue is assigned to the caller as its tracker knows the caller. For Azure DevOps, that is the
     identity `az` is signed in as.
   - The branch name starts with the reference's key: `7-<slug>` or `ab4521-<slug>`.
-  - The forge links a branch to one of its own issues and closes the issue on merge. For any other issue, and
+  - The code forge links a branch to one of its own issues and closes the issue on merge. For any other issue, and
     for every secondary issue, `kit issue` adds a `Closes <reference>` line to the body of the change (the
     pull request or merge request). GitHub's Azure Boards integration reads that line as a link.
-- `kit linked` passes when the forge reports that the change closes an open issue of the repository. It also
+- `kit linked` passes when the code forge reports that the change closes an open issue of the repository. It also
   passes when the change's body names an open issue of a declared tracker with a closing keyword:
   `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`. A change by a login under `linked_exempt` in
   `kit.yml` passes without an issue, and the output says so.
@@ -59,7 +59,7 @@ and the error lists the known prefixes.
 
 | Provider | Tool | Fields | Closed when the state is |
 | --- | --- | --- | --- |
-| `forge` | the forge's own, through `kit/modules/bash/forge.sh` | none | the forge's closed state |
+| `forge` | the code forge's own, through `kit/modules/bash/forge.sh` | none | the code forge's closed state |
 | `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`) | Closed, Done, or Removed |
 
 A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
@@ -70,7 +70,7 @@ A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 | `state <id>` | `OPEN` or `CLOSED` |
 | `assignees <id>` | the assignees' logins, space-separated |
 | `assign <id> <login>` | nothing; adds the assignee |
-| `me` | the caller's login in this tracker, which can differ from the forge's |
+| `me` | the caller's login in this tracker, which can differ from the code forge's |
 | `create <title>` | the number of the issue it creates |
 | `url <id>` | the issue's browser URL |
 

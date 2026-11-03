@@ -262,8 +262,8 @@ answers:
 | `version` | The kit release the repository is pinned to, written by `kit install` and `kit update`. A checkout of the kit itself declares `unreleased`. A manifest that still carries `version` and `packages` lines, from an earlier release, is read as the declaration until `kit update` moves it here. |
 | `packages` | The active packages, in dependency order, written by `kit install`, `kit update`, and the `kit packages` verbs select, add, and remove. |
 | `excludes` | Members of an active bundle removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
-| `forge` | The forge provider the workflow commands use, `github` or `gitlab`: the primary remote's. The forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com` or `gitlab.com`, or a host the `gh` or `glab` CLI has logged in to. |
-| `forges` | The forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the forge its host names, or none. |
+| `forge` | The code forge provider the workflow commands use, `github` or `gitlab`: the primary remote's. The code forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com` or `gitlab.com`, or a host the `gh` or `glab` CLI has logged in to. |
+| `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
@@ -272,7 +272,7 @@ answers:
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
-| `trackers` | Trackers other than the forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
+| `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
 | `flow` | The stages `kit flow` draws, in order: `backlog`, `underway`, `desk`, `worktrees`, `changes`, `incoming`, `builds`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. Default: all eight, in that order. |
 
@@ -293,8 +293,8 @@ sources:
     digest: sha256:3b1f…
 ```
 
-- A `url` is `git:<owner>/<repo>@<tag>`, the forge's tarball of that tag, on GitHub, or on another host named first,
-  as `git:gitlab.com/<owner>/<repo>@<tag>`; or any URL `curl` fetches, such as `https://…/team-1.2.0.tar.gz`.
+- A `url` is `git:<owner>/<repo>@<tag>`, the code forge's tarball of that tag, on GitHub, or on another host named
+  first, as `git:gitlab.com/<owner>/<repo>@<tag>`; or any URL `curl` fetches, such as `https://…/team-1.2.0.tar.gz`.
 - A source is pinned by the `sha256` digest of the tarball's bytes. It is fetched once into the kit's cache, under its
   digest, and refused when its bytes have any other digest, before anything of it is read. Moving a source to a new
   tag means pinning its new digest.

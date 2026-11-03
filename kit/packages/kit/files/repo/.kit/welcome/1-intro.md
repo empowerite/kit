@@ -6,7 +6,7 @@ kit helps people and agents work in this repository the same way. This guide wal
 
 - Before toolchains: the four tools kit itself runs on.
 - Toolchains: the tool managers kit found here, and which one it uses.
-- Setup: the linters, each forge's login, and this repository.
+- Setup: the linters, each code forge's login, and this repository.
 - The lay of the land: how work moves, from an issue to a release.
 - Terms: the words kit uses.
 - Make it yours: what teams change first.

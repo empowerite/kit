@@ -14,7 +14,7 @@ kit toolchains
 kit tools install
 ```
 
-`kit/modules/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#forges-seams-and-providers)
+`kit/modules/bash/toolchain.sh` defines the seam ([architecture.md](architecture.md#code-forges-seams-and-providers)
 says what a seam is). Each manager has a provider, `kit/modules/bash/toolchain/<name>.sh`, that answers its calls.
 
 ## Roles

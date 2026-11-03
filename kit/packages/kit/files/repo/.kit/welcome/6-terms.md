@@ -16,7 +16,7 @@ A checkout of its own, under `worktrees/`, on one issue's branch. `kit issue` ma
 
 `kit flow worktrees`
 
-## forge
+## code forge
 
 The service that hosts the repository, its issues, its pull requests, and its builds: GitHub or GitLab. kit talks to
 it through its command-line tool, `gh` or `glab`.

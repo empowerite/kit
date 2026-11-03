@@ -224,7 +224,7 @@ from arguments, stays inline where it is used.
 | Module | Decides |
 | --- | --- |
 | `template.jq` | the expression that checks a file against a template, and the file a template makes |
-| `forge.jq` | a pull request's checks and state, from either forge's answers |
+| `forge.jq` | a pull request's checks and state, from either code forge's answers |
 | `merge.jq` | a merge by key: a release's JSON over a repository's, keeping what the repository added |
 | `flow.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
 | `toolchain.jq` | what a tool manager pins and has installed, and which of its outdated packages the repository pins |
