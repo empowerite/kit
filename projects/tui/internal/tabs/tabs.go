@@ -59,7 +59,9 @@ type Tab struct {
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
 // count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
-// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold.
+// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold. Joined says a line runs
+// down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
+// down into it.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
@@ -69,6 +71,7 @@ type Bar struct {
 	Reserve  int
 	Menus    bool
 	MenuOpen bool
+	Joined   bool
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -288,7 +291,33 @@ func (b Bar) View() string {
 		out := ansi.Truncate(margin+rest, w+1, "")
 		return ansi.Truncate(out, ansi.StringWidth(strings.TrimRight(ansi.Strip(out), " ")), "")
 	}
-	return shown(over.String(), false) + "\n" + shown(tabs.String(), true) + "\n" + shown(under.String(), false)
+	bottom := shown(under.String(), false)
+	if b.Joined {
+		bottom = joinDown(bottom, w+1)
+	}
+	return shown(over.String(), false) + "\n" + shown(tabs.String(), true) + "\n" + bottom
+}
+
+// joinDown turns the last cell of the line, at the column width less one, down into a line under it, in that cell's
+// colors: the line under the tabs turns down, ┐; a tab's edge, which goes up from there, runs on down, joining the line
+// under that tab, ┤, when one runs up to it, and alone, │, when, as under the selected tab, open to the pane, none
+// does. A line that stops short of the column gets a half line, ╷, there, dim.
+func joinDown(line string, width int) string {
+	plain := []rune(ansi.Strip(line))
+	if ansi.StringWidth(string(plain)) < width {
+		return pane.Pad(line, width-1, false) + style.Off("╷")
+	}
+	last, turned := plain[len(plain)-1], '│'
+	switch {
+	case last == '─':
+		turned = '┐'
+	case !strings.ContainsRune("╵╰╯│", last):
+		return line
+	case len(plain) > 1 && plain[len(plain)-2] == '─':
+		turned = '┤'
+	}
+	at := strings.LastIndex(line, string(last))
+	return line[:at] + string(turned) + line[at+len(string(last)):]
 }
 
 // top gives the line over a tab, so many cells of it, never fewer than two, as no tab is narrower than four: it starts

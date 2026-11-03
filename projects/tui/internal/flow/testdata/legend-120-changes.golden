@@ -1,7 +1,7 @@
  kit flow · 📚 empowerite/kit                                                           🔎 search
- ─────╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶─────
-◃   4 │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │  📦  ▹  legend
- ─────╰────────────────────────╯                       ╰──────────────────────╰───────  📥  the fetch
+ ──────╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶─────
+◃    4 │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │  📦  ▹ legend
+ ──────╰────────────────────────╯                       ╰──────────────────────╰──────┐ 📥  the fetch
    📡 origin · github · github.com                                                    │ 📡  a remote
    a1b2c3d  #1 docs: the docs say what the code does                                  ▸ 🌿  a branch
  ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no a… ╷ 🔖  a branch gone

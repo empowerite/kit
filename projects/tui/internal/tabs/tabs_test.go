@@ -326,3 +326,23 @@ func TestMenuAtIsWhereTheGlyphIsDrawn(t *testing.T) {
 		t.Error("a bar without menus, or without tabs, has a menu glyph")
 	}
 }
+
+// A joined bar's last line turns down in its last column into a line under the bar: the line under the tabs as ┐, the
+// last tab's edge as ┤ where the line under it runs up to it, and as │ under the selected tab, open to the pane.
+func TestAJoinedBarTurnsDownInItsLastColumn(t *testing.T) {
+	for _, c := range []struct {
+		selected, width int
+		want            string
+	}{{0, 200, "┤"}, {7, 200, "│"}, {0, 80, "┐"}, {3, 60, "┐"}, {1, 12, "╷"}} {
+		b := stages(c.selected, c.width)
+		b.Joined = true
+		under := row(b, 2)
+		if got := ansi.Cut(under, c.width-1, c.width); got != c.want || ansi.StringWidth(under) != c.width {
+			t.Errorf("selected %d at %d: the last cell is %q, not %q: %q", c.selected, c.width, got, c.want, under)
+		}
+	}
+	// a line that ends in no line keeps it
+	if got := joinDown(style.Off("x"), 1); got != style.Off("x") {
+		t.Errorf("x joined: %q", got)
+	}
+}

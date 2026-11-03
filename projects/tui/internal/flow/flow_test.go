@@ -1004,9 +1004,13 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+sidebarKeys {
 		t.Errorf("the title or the keys moved under the sidebar:\n%s", view(m))
 	}
-	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+1 {
+	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+2 {
 		t.Errorf("the sidebar does not start on the screen's first line, or the bar is %d wide:\n%s", m.bar().Width,
 			view(m))
+	}
+	// the bar's last line turns down into the rule, in the rule's column
+	if cell := ansi.Cut(got[paneTop-1], pw+1, pw+2); !strings.Contains("┤│┐├", cell) || cell == "" {
+		t.Errorf("the bar does not join the rule: %q\n%s", cell, view(m))
 	}
 	for k := paneTop; k < 23; k++ {
 		want := rule

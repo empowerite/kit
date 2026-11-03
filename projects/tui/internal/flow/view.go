@@ -67,7 +67,7 @@ func (m Model) View() tea.View {
 // the panel have it.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.barWidth(), Row: 1,
-		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu}
+		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu, Joined: true}
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 	}
@@ -97,11 +97,11 @@ func (m Model) sidebarWidth() int {
 // always there.
 func (m Model) titleWidth() int { return m.width - 2 - m.sideWidth() }
 
-// barWidth gives the cells the bar has: the screen's while the sidebar is hidden; beside it, the rows' and the cell
-// of the rule, which starts under the bar, as the title's.
+// barWidth gives the cells the bar has: the screen's while the sidebar is hidden; beside it, the rows', a space, and
+// the rule's cell, where the bar's last line turns down into the rule under it.
 func (m Model) barWidth() int {
 	if m.sidebar {
-		return m.titleWidth()
+		return m.paneWidth() + 2
 	}
 	return m.width
 }
@@ -277,10 +277,10 @@ func (m Model) side(lines []string) []string {
 	}
 	for k, l := range lines {
 		// the spaces before a side line only when there is one, so a line with none ends on the bar, or the rule
-		width, edge, gap := bw, "", "  "
+		width, edge, gap := bw, "", " "
 		switch {
 		case k == 0:
-			width = m.titleWidth()
+			width, gap = m.titleWidth(), "  "
 		case k >= paneTop:
 			width, edge, gap = pw, " "+style.Off(rule), " "
 			switch k {
