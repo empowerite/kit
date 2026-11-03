@@ -31,7 +31,9 @@ func (r *recorder) Fatalf(format string, args ...any) {
 	panic(stop{})
 }
 
-func (r *recorder) Errorf(format string, args ...any) { r.errors = append(r.errors, fmt.Sprintf(format, args...)) }
+func (r *recorder) Errorf(format string, args ...any) {
+	r.errors = append(r.errors, fmt.Sprintf(format, args...))
+}
 
 // recording runs the helper against a recorder, and gives what it reported.
 func recording(t *testing.T, helper func(T)) *recorder {

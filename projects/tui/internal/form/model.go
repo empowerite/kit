@@ -229,13 +229,7 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 // move takes the keyboard to the field d away, the command line after the last.
 func (m *Model) move(d int) tea.Cmd {
 	m.commitLine()
-	m.focus += d
-	if m.focus < 0 {
-		m.focus = 0
-	}
-	if m.focus > len(m.fields) {
-		m.focus = len(m.fields)
-	}
+	m.focus = min(max(m.focus+d, 0), len(m.fields))
 	return m.enter()
 }
 
@@ -756,7 +750,8 @@ func (m Model) expand(i int, indent string) (string, int) {
 // hides above and one for those below, and the count; the note follows, drawn under the field. A list kit refused
 // draws the values taken so far and says it takes what is typed. It gives the line of the cursor's row, -1 for none.
 func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
-	b.WriteString(indent + style.Filter + " " + m.input + "▏\n")
+	room := m.width - ansi.StringWidth(indent) - 4 // the filter glyph, its space, the caret, and the screen's edge
+	b.WriteString(indent + style.Filter + " " + pane.Tail(m.input, room) + "▏\n")
 	all := m.lists[f.Key]
 	rows := m.filtered()
 	if all == nil {
@@ -792,7 +787,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 	}
 	planned := m.sets[f.Key]
 	states := stateful(all)
-	room := m.width - len(indent) - widest - 8
+	room = m.width - len(indent) - widest - 8
 	for k := start; k < end; k++ {
 		row := rows[k]
 		picked := index(f.Values, row.Value) >= 0
