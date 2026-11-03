@@ -4,8 +4,8 @@
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; r runs
 // the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
-// away, as a click on the triangle at the top of the rule beside the rows does; tab gives the panel the keyboard, and /
-// its search. A click on a linked glyph, as an issue's before its title, opens its page in the browser. Esc goes back
+// away, as a click on the triangle on the rule beside the rows does; tab gives the panel the keyboard, and / or a click
+// on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser. Esc goes back
 // one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and
 // alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two
 // minutes; past them it is a refusal, and quitting kills the commands still running.
@@ -209,10 +209,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
 			}
-		case msg.X == side && msg.Y == paneTop+m.paneHeight()/2:
+		case msg.X == side && msg.Y == triangleAt:
 			return m, m.showSidebar(!m.sidebar)
-		case msg.X > side && m.sidebar:
-			m.clickPanel(msg.Y - paneTop)
+		case msg.X >= m.width-m.sideWidth() && (m.sidebar || msg.Y == 0):
+			return m, m.clickPanel(msg.Y)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -281,27 +281,34 @@ func (m *Model) setPanel(p grid.Panel) {
 	m.fit()
 }
 
-// enterPanel gives the panel the keyboard, the search under it when find says so, and shows the sidebar; it asks kit
-// for the caller's login the first time.
+// enterPanel gives the panel the keyboard: the search under it, as it is, shown or not, when find says so; else the
+// panel's control under it, the sidebar shown, which asks kit for the caller's login the first time.
 func (m *Model) enterPanel(find bool) tea.Cmd {
 	if len(m.stages) == 0 {
 		return nil
 	}
+	if find {
+		m.inPanel = true
+		m.stages[m.stage].view = m.panel(m.stage).Find()
+		return nil
+	}
 	cmd := m.showSidebar(true)
 	m.inPanel = true
-	if find {
-		m.stages[m.stage].view = m.panel(m.stage).Find()
-	}
 	return cmd
 }
 
-// clickPanel takes a click on a line of the sidebar, from the pane's first: on one of the panel's controls, the panel
-// has the keyboard and acts on it as space does; on the … above or … more, the sidebar scrolls a page.
-func (m *Model) clickPanel(line int) {
+// clickPanel takes a click on a line of the screen's right, from its first: on the search, the panel has the keyboard
+// and the search under it, as / does; on one of the panel's other controls, the panel has the keyboard and acts on it
+// as space does; on the … above or … more, the sidebar scrolls a page.
+func (m *Model) clickPanel(line int) tea.Cmd {
 	if len(m.stages) == 0 {
-		return
+		return nil
 	}
-	n, h := len(m.side()), m.paneHeight()
+	if line == 0 {
+		return m.enterPanel(true)
+	}
+	line--
+	n, h := m.scrolled()
 	start, end, above, below := pane.Window(n, h, m.sideOffset)
 	k := pane.At(n, h, m.sideOffset, line)
 	switch {
@@ -310,12 +317,17 @@ func (m *Model) clickPanel(line int) {
 	case below && line == end-start+btoi(above):
 		m.scrollSide(max(1, h-2))
 	case k >= 0:
-		if p, ok := m.panel(m.stage).Click(k); ok {
+		if p, ok := m.panel(m.stage).Click(k + 1); ok {
 			m.inPanel = true
 			m.setPanel(p)
 		}
 	}
+	return nil
 }
+
+// scrolled gives how many of the sidebar's lines scroll, all but the search on the screen's first line, and the lines
+// they have, all under it down to the keys bar.
+func (m Model) scrolled() (n, h int) { return len(m.sideLines()) - 1, m.sideHeight() - 1 }
 
 // btoi gives 1 for true, 0 for false.
 func btoi(b bool) int {
@@ -338,15 +350,21 @@ func (m *Model) scrollRows(n int) {
 	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.paneHeight(), s.offset+n)
 }
 
-// scrollSide scrolls the sidebar n lines, down when n is positive, never past its ends.
+// scrollSide scrolls the sidebar under the search n lines, down when n is positive, never past its ends.
 func (m *Model) scrollSide(n int) {
-	m.sideOffset, _, _, _ = pane.Window(len(m.side()), m.paneHeight(), m.sideOffset+n)
+	lines, h := m.scrolled()
+	m.sideOffset, _, _, _ = pane.Window(lines, h, m.sideOffset+n)
 }
 
-// fitSide scrolls the sidebar so the panel's control under the keyboard shows.
+// fitSide scrolls the sidebar so the panel's control under the keyboard shows; the search always does, and on it the
+// sidebar is back at its top.
 func (m *Model) fitSide() {
 	_, at := m.panel(m.stage).Lines()
-	line, n, h := slices.Index(at, m.stages[m.stage].view.Cursor), len(m.side()), m.paneHeight()
+	n, h := m.scrolled()
+	line := slices.Index(at, m.stages[m.stage].view.Cursor) - 1
+	if line < 0 {
+		m.sideOffset = 0
+	}
 	for line >= 0 {
 		start, end, _, _ := pane.Window(n, h, m.sideOffset)
 		switch {
@@ -436,13 +454,20 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // panelKey takes a key while the panel has the keyboard: tab and esc give it back to the rows or the bar, as they had
 // it; page up and down scroll the sidebar, and so does down past the last control, so the legend under the panel can
 // be read; the panel takes what it can, as typing in its search, the sidebar following its cursor; a number the bar
-// takes selects a stage, and gives the bar the keyboard.
+// takes selects a stage, and gives the bar the keyboard. While the sidebar is hidden the search stands alone: down and
+// a page at a time have nothing to move to.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	h := max(1, m.paneHeight()-2)
+	h := max(1, m.sideHeight()-3)
 	switch k.String() {
 	case "tab", "esc":
 		m.inPanel = false
 		return m, nil
+	case "down", "pgdown", "pgup":
+		if !m.sidebar {
+			return m, nil
+		}
+	}
+	switch k.String() {
 	case "pgdown":
 		m.scrollSide(h)
 		return m, nil

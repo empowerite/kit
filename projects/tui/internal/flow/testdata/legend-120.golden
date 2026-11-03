@@ -1,21 +1,17 @@
- kit flow · 📚 empowerite/kit
- ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────────────────────╮➄╶─────────────────────
- │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes          ▹
- ╵                      ╰────────────────────────╰────────────────────╰─────────────────────────╰───────────────────────
- ▸ #45                        2h                      🎫 kit flow is the one picture… │ 🔎 search
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a… │ 
- ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                │ columns
-                                                                                      │ ☑ id
-                                                                                      │ ☑ assignees
-                                                                                      │ ☑ age
-                                                                                      │ ☑ branch
+ kit flow · 📚 empowerite/kit                                                           🔎 search
+ ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶─────────────
+ │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 worktree ▹  columns
+ ╵                      ╰────────────────────────╰────────────────────╰───────────────  ☑ id
+ ▸ #45                        2h                      🎫 kit flow is the one picture… │ ☑ assignees
+ ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a… ▸ ☑ age
+ ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                ╷ ☑ branch
                                                                                       │ ☑ title
-                                                                                      │ 
+                                                                                      │
                                                                                       │ show
                                                                                       │ ⦿ all
                                                                                       │ ⦾ mine
                                                                                       │ ⦾ others
-                                                                                      ▸ 
+                                                                                      │
                                                                                       │ legend
                                                                                       │ 🎫  an issue
                                                                                       │ 👤  its assignees
@@ -28,5 +24,9 @@
                                                                                       │
                                                                                       │
                                                                                       │
-
- ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+ ^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back

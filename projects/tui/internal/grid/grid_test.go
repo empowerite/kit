@@ -140,6 +140,10 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, 1, 2, 3, -1, -1, 4, 5, 6}) {
 		t.Errorf("the panel:\n%s\n%v", strings.Join(got, "\n"), at)
 	}
+	// what is selected is bold in the accent, a ticked column as the picked choice; the others' boxes are dim
+	if lines[3] != style.Mark("☑ number") || lines[4] != style.Off("☐")+" who" || lines[8] != style.Mark("⦿ all") {
+		t.Errorf("the selected controls are not marked: %q", lines[3:9])
+	}
 	// without the caller's login, mine and others are dim, and cannot be chosen
 	if !strings.Contains(lines[9], style.Off("⦾ mine")) {
 		t.Errorf("mine is not dim without a login: %q", lines[9])

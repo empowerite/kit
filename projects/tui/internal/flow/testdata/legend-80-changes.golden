@@ -1,21 +1,20 @@
- kit flow · 📚 empowerite/kit
- ──╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶──
-◃  │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │   ▹
- ──╰────────────────────────╯                       ╰──────────────────────╰────
-   📡 origin · github · github.com              │ 🔎 search
- ▸ a1b2c3d  #1 docs: the docs say what the cod… │ 
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… │ legend
-   🌿       46-a-noun-lists updated             │ 📥  the fetch
-   🌿       42-settings new branch              │ 📡  a remote
-   📡 upstream · gitlab · git.example.org       │ 🌿  a branch
-   🔖       old-experiment upstream gone        │ 🔖  a branch gone
-   📌       release/0.2.0 new tag               │ 📌  a new tag
-   📡 backup · no forge · nas.local             │ ❌  a fetch failed
+ kit flow · 📚 empowerite/kit                     🔎 search
+ ──────────╴➏╶──────────────────────╮➆╶─────────
+◃        3  │ 📥 incoming       6 ≣ │  🏭 buil ▹  legend
+ ───────────╯                       ╰───────────  📥  the fetch
+   📡 origin · github · github.com              │ 📡  a remote
+ ▸ a1b2c3d  #1 docs: the docs say what the cod… ▸ 🌿  a branch
+ ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… ╷ 🔖  a branch gone
+   🌿       46-a-noun-lists updated             │ 📌  a new tag
+   🌿       42-settings new branch              │ ❌  a fetch failed
+   📡 upstream · gitlab · git.example.org       │
+   🔖       old-experiment upstream gone        │
+   📌       release/0.2.0 new tag               │
+   📡 backup · no forge · nas.local             │
    unchanged                                    │
                                                 │
                                                 │
                                                 │
-                                                ▸
                                                 │
                                                 │
                                                 │
@@ -28,5 +27,6 @@
                                                 │
                                                 │
                                                 │
-
- ←→ view · ↓ rows · ⇥ panel · = menu · r refresh · ? sidebar · esc back
+                                                │
+                                                │
+ ^C quit · ←→ view · ↓ rows · ⇥ panel · = menu · ? sidebar · esc back

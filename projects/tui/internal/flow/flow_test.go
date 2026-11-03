@@ -106,13 +106,18 @@ func shows(m Model, glyph, count string) bool {
 	return regexp.MustCompile(re + ` +( |│|$)`).MatchString(strings.Split(ansi.Strip(b.View()), "\n")[1])
 }
 
-// lines gives the screen's lines without their escapes, and without the rule that ends each of the pane's while the
-// legend is hidden: the rows as they are drawn.
+// lines gives the screen's lines without their escapes, and while the sidebar is hidden, without what is on the
+// screen's right, the search beside the title and the rule under the bar: the title, the bar, and the rows as they
+// are drawn.
 func lines(m Model) []string {
 	out := strings.Split(raw(m), "\n")
 	for k, l := range out {
-		if k >= paneTop && k < paneTop+m.paneHeight() && !m.sidebar {
-			for _, end := range []string{show, rule} {
+		switch {
+		case m.sidebar || k >= min(m.sideHeight(), len(out)-1):
+		case k == 0:
+			out[k] = strings.TrimRight(ansi.Cut(l, 0, m.titleWidth()), " ")
+		default:
+			for _, end := range []string{show, rule, under} {
 				if cut, ok := strings.CutSuffix(l, end); ok {
 					out[k] = strings.TrimRight(cut, " ")
 				}
@@ -295,7 +300,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	}
 	before := view(m)
 	m = drive(m, press('?'))
-	for _, c := range []tea.Msg{click(m.paneWidth()+4, paneTop+1), click(6, 0), click(6, 23),
+	for _, c := range []tea.Msg{click(m.paneWidth()+4, 1), click(6, 0), click(6, 23),
 		tea.MouseClickMsg{X: 6, Y: paneTop + 1, Button: tea.MouseRight}} {
 		if m = drive(m, c); m.find("worktrees").cursor != 0 || strings.Contains(view(m), style.Opened) {
 			t.Errorf("%v moved the cursor or opened a row:\n%s", c, view(m))
@@ -539,7 +544,7 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	if m = next.(Model); cmd != nil || m.sidebar || !m.inRows || m.find("worktrees").cursor != 1 {
 		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.sidebar, m.inRows, m.find("worktrees").cursor)
 	}
-	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, " "+grid.Search+" ") {
+	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, "legend") {
 		t.Errorf("esc with the legend on did not take it away and keep the rows as they were:\n%s", v)
 	}
 	next, cmd = m.Update(press(tea.KeyEscape))
@@ -558,10 +563,10 @@ func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) 
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys     = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · ctrl+c quit"
-	sidebarKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
-	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
-	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
+	barKeys     = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar"
+	sidebarKeys = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
+	opens       = "^C quit · ↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
+	closes      = "^C quit · ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -989,16 +994,31 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	}
 }
 
-func TestQuestionMarkShowsTheLegendBesideTheRowsAndTheBarStays(t *testing.T) {
+// ? shows the sidebar down the screen's right, from its top to the keys bar: the title stays where it is, the bar
+// narrows to the rows' width, and the keys bar keeps the whole line.
+func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 24}, right, right, right)
 	before := lines(m)
 	m = drive(m, press('?'))
-	got := lines(m)
-	if len(got) != 24 || got[0] != before[0] || got[23] != " "+sidebarKeys {
-		t.Errorf("the title or the keys moved under the legend:\n%s", view(m))
+	got, pw := lines(m), m.paneWidth()
+	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+sidebarKeys {
+		t.Errorf("the title or the keys moved under the sidebar:\n%s", view(m))
 	}
-	if got[1] != before[1] {
-		t.Errorf("the bar moved under the legend:\n%s\n%s", before[1], got[1])
+	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+1 {
+		t.Errorf("the sidebar does not start on the screen's first line, or the bar is %d wide:\n%s", m.bar().Width,
+			view(m))
+	}
+	for k := paneTop; k < 23; k++ {
+		want := rule
+		switch k {
+		case triangleAt:
+			want = hide
+		case triangleAt + 1:
+			want = under
+		}
+		if cell := ansi.Cut(got[k], pw+1, pw+2); cell != want {
+			t.Errorf("line %d has %q, not the rule, before the sidebar:\n%s", k, cell, view(m))
+		}
 	}
 	if !strings.Contains(view(m), " "+grid.Search+" ") || !strings.Contains(view(m), Branch+" 1-the-first-release") {
 		t.Errorf("the legend is not beside the rows:\n%s", view(m))
@@ -1009,7 +1029,7 @@ func TestQuestionMarkShowsTheLegendBesideTheRowsAndTheBarStays(t *testing.T) {
 		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.find("worktrees").cursor, view(m))
 	}
 	m = drive(m, up, up, press('?'))
-	if m.sidebar || strings.Contains(view(m), " "+grid.Search+" ") || lines(m)[23] != " "+barKeys ||
+	if m.sidebar || strings.Contains(view(m), "legend") || lines(m)[23] != " "+barKeys ||
 		strings.Join(lines(m), "\n") != strings.Join(before, "\n") {
 		t.Errorf("? again did not take the legend away:\n%s", view(m))
 	}

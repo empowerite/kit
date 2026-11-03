@@ -74,8 +74,8 @@ func (p Panel) controls() []control {
 }
 
 // Lines draws the panel's controls, one a line, the headings dim, the control under the keyboard inverse while the
-// panel has it; the choice of Show picked is bold in the accent color, the others' buttons dim, and all of a choice
-// that cannot be picked. Beside each line is the control it draws, or -1 for a heading or a gap.
+// panel has it; what is selected, a column ticked and the choice of Show picked, is bold in the accent color, the
+// others' boxes and buttons dim, and all of a choice that cannot be picked. Beside each line is the control it draws, or -1 for a heading or a gap.
 func (p Panel) Lines() (lines []string, at []int) {
 	add := func(line string, control int) {
 		lines, at = append(lines, line), append(at, control)
@@ -95,11 +95,10 @@ func (p Panel) Lines() (lines []string, at []int) {
 				add("", -1)
 				add(style.Off("columns"), -1)
 			}
-			box := Ticked
+			line = style.Mark(Ticked + " " + c.column)
 			if p.Hidden[c.column] {
-				box = Unticked
+				line = style.Off(Unticked) + " " + c.column
 			}
-			line = box + " " + c.column
 		default:
 			if c.show == All {
 				add("", -1)

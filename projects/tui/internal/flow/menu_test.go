@@ -26,7 +26,7 @@ func openRows(m Model) int {
 
 func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press('='))
-	if !m.menu || lines(m)[23] != " "+menuKeys || !strings.Contains(view(m), "│ open all  │") ||
+	if !m.menu || lines(m)[23] != " "+quitKey+" · "+menuKeys || !strings.Contains(view(m), "│ open all  │") ||
 		!strings.Contains(view(m), "│ close all │") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}

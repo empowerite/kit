@@ -1,17 +1,16 @@
- kit flow · 📚 empowerite/kit
+ kit flow · 📚 empowerite/kit                     🔎 search
  ─────╮➅╶──────────────────────╮➆╶────────────────────╴➑╶──────────────────────╮
 ◃   3 │  📥 incoming         6 │  🏭 builds         4  │ 📦 releases       3 ≣ │
  ─────╰────────────────────────╰───────────────────────╯                       ╵
  ▾ 0.2.0       📝 draft        60m                                             │
-      kit 0.2.0                                                                │
-      release/0.2.0                                                            │
+      kit 0.2.0                                                                ◂
+      release/0.2.0                                                            ╷
       2026-11-01T01:00:00Z                                                     │
  ▸ 0.1.0       📦 release       6h  ⭐ latest                                  │
  ▸ 0.1.0-rc.7  🧪 pre-release  28h                                             │
                                                                                │
                                                                                │
                                                                                │
-                                                                               ◂
                                                                                │
                                                                                │
                                                                                │
@@ -20,5 +19,6 @@
                                                                                │
                                                                                │
                                                                                │
-
- ↑↓ move · ← close · ⇥ panel · = menu · r refresh · ? sidebar · esc back
+                                                                               │
+                                                                               │
+ ^C quit · ↑↓ move · ← close · ⇥ panel · = menu · ? sidebar · esc back

@@ -17,7 +17,7 @@ import (
 )
 
 // panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "↑↓ move · space toggle · type to search · esc back"
+const panelKeys = "^C quit · ↑↓ move · space toggle · type to search · esc back"
 
 // typed gives a key press for each rune of the text, as a terminal sends typing.
 func typed(text string) []tea.Msg {
@@ -118,6 +118,32 @@ func TestSlashFindsAndANumberWithAltLeavesThePanelForItsStage(t *testing.T) {
 	}
 }
 
+// The search stands on the screen's top right whether the sidebar shows or not, and / or a click on it gives it the
+// keyboard without showing the sidebar; down then has nothing to move to. With the sidebar shown, down moves to the
+// panel's first control.
+func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
+	m := loaded(t, options(), down)
+	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" search") || m.bar().Width != 120 {
+		t.Fatalf("the search is not on the top right, or the bar is %d wide: %q", m.bar().Width, top)
+	}
+	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(m.width-m.sideWidth(), 0)} {
+		m = drive(m, esc, enter)
+		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " ^C quit · type to search · esc back" {
+			t.Fatalf("%v: in panel %v, sidebar %v, keys %q", enter, m.inPanel, m.sidebar, lines(m)[23])
+		}
+		if m = drive(m, down, press(tea.KeyPgDown)); m.panel(0).Cursor != 0 || m.sideOffset != 0 || m.sidebar {
+			t.Errorf("down in the search alone: cursor %d, offset %d", m.panel(0).Cursor, m.sideOffset)
+		}
+	}
+	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) ||
+		!strings.Contains(strings.Split(raw(m), "\n")[0], grid.Search+" noun") {
+		t.Errorf("typing in the search alone: %v\n%s", keys(m), view(m))
+	}
+	if m = drive(m, esc, press('?'), typed("/")[0], down); m.panel(0).Cursor != 1 || !m.sidebar {
+		t.Errorf("down from the search with the sidebar shown: cursor %d", m.panel(0).Cursor)
+	}
+}
+
 func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
@@ -168,11 +194,11 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), press('?'))
 	x := m.paneWidth() + 3
 	// the side's lines: the search, a gap, columns, then number and assignees
-	if m = drive(m, testkit.Click(x, paneTop+4)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
+	if m = drive(m, testkit.Click(x, 4)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
 		strings.Contains(drawn(m), Owner) {
 		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
 	}
-	if m = drive(m, testkit.Click(x, paneTop+1)); !m.inPanel || m.panel(0).Cursor != 2 {
+	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Cursor != 2 {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it
@@ -185,7 +211,7 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	}
 	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
 	before := view(m)
-	if m = drive(m, testkit.Click(x, paneTop+m.paneHeight()-1)); view(m) != before || m.inPanel {
+	if m = drive(m, testkit.Click(x, m.sideHeight()-1)); view(m) != before || m.inPanel {
 		t.Errorf("a click under the side changed the screen")
 	}
 }
@@ -202,16 +228,16 @@ func TestThePanelWithoutStagesDoesNothing(t *testing.T) {
 
 func TestAStageWithoutALegendShowsItsPanelAlone(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch"}}, press('?'))
-	if side := m.side(); len(side) != 1 || !strings.HasPrefix(side[0], grid.Search) {
+	if side := m.sideLines(); len(side) != 1 || !strings.HasPrefix(side[0], grid.Search) {
 		t.Errorf("the side of a stage kittui does not draw: %q", side)
 	}
 }
 
 func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 16}, press('?'))
-	x, h := m.paneWidth()+3, m.paneHeight()
-	if len(m.side()) <= h || !strings.Contains(view(m), "… ") {
-		t.Fatalf("the sidebar fits a pane of %d lines: %d", h, len(m.side()))
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, press('?'))
+	x, h := m.paneWidth()+3, m.sideHeight()
+	if len(m.sideLines()) <= h || !strings.Contains(view(m), "… ") {
+		t.Fatalf("the sidebar fits %d lines: %d", h, len(m.sideLines()))
 	}
 	wheel := func(b tea.MouseButton, x int) tea.Msg { return tea.MouseWheelMsg{X: x, Y: paneTop + 2, Button: b} }
 	if m = drive(m, wheel(tea.MouseWheelDown, x)); m.sideOffset == 0 {
@@ -220,14 +246,14 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	if m = drive(m, wheel(tea.MouseWheelUp, x), wheel(tea.MouseWheelDown, 4)); m.sideOffset != 0 {
 		t.Errorf("the wheel up, or over the rows: offset %d", m.sideOffset)
 	}
-	// a click on … more pages down, and another to the legend's end; one on … above pages back up
-	if m = drive(m, testkit.Click(x, paneTop+h-1)); m.sideOffset == 0 || strings.Contains(view(m), "its branch") {
+	// a click on … more pages down, and another to the legend's end; one on … above, under the search, pages back up
+	if m = drive(m, testkit.Click(x, h-1)); m.sideOffset == 0 || strings.Contains(view(m), "its branch") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
-	if m = drive(m, testkit.Click(x, paneTop+h-1)); !strings.Contains(view(m), "its branch") {
+	if m = drive(m, testkit.Click(x, h-1)); !strings.Contains(view(m), "its branch") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
-	if m = drive(m, testkit.Click(x, paneTop), testkit.Click(x, paneTop)); m.sideOffset != 0 {
+	if m = drive(m, testkit.Click(x, 1), testkit.Click(x, 1)); m.sideOffset != 0 {
 		t.Errorf("a click on … above: offset %d", m.sideOffset)
 	}
 	// with the panel's keyboard, page down and up scroll it; down past the last control scrolls on, and up brings

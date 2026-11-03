@@ -1,17 +1,10 @@
- kit flow · 📚 empowerite/kit
+ kit flow · 📚 empowerite/kit                     🔎 search
  ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────
  │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 wo ▹
  ╵                      ╰────────────────────────╰────────────────────╰─────────
  ▸ #45                        2h                      🎫 kit flow is the one … │
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun… │
- ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing         │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               ◂
+ ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun… ◂
+ ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing         ╷
                                                                                │
                                                                                │
                                                                                │
@@ -20,5 +13,12 @@
                                                                                │
                                                                                │
                                                                                │
-
- ←→ view · ↓ rows · ⇥ panel · = menu · r refresh · ? sidebar · ctrl+c quit
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+ ^C quit · ←→ view · ↓ rows · ⇥ panel · = menu · r refresh · ? sidebar

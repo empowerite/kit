@@ -78,8 +78,8 @@ func (m *Model) pick(k int) {
 }
 
 // menuBox gives the menu's lines, a rounded box in the accent around its items, the one under the keyboard inverse,
-// and the screen column its left edge is drawn at: the menu glyph's; when the box would run off the screen that way,
-// as on the rightmost tab, the column that puts its right edge under the glyph; and against the screen's right when
+// and the screen column its left edge is drawn at: the menu glyph's; when the box would run past the bar that way,
+// as on the rightmost tab, the column that puts its right edge under the glyph; and against the bar's right when
 // the bar does not draw the glyph.
 func (m Model) menuBox() (lines []string, left int) {
 	inner := pane.Width(menuItems) + 2
@@ -95,8 +95,8 @@ func (m Model) menuBox() (lines []string, left int) {
 	glyph, width := m.bar().MenuAt(), inner+2
 	switch {
 	case glyph < 0:
-		left = m.width - width
-	case glyph+width > m.width:
+		left = m.barWidth() - width
+	case glyph+width > m.barWidth():
 		// the box would run off the screen: its right edge is under the glyph instead
 		left = glyph + 1 - width
 	default:

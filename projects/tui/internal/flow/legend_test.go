@@ -171,7 +171,7 @@ func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
 			}
 			for text, at := range want {
 				found := false
-				for _, l := range lines(m)[3:] {
+				for _, l := range lines(m) {
 					found = found || slices.Contains(cellsOf(l, text), at)
 				}
 				if !found {
@@ -195,32 +195,35 @@ func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
 				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
 			}
 		}
-		if m = drive(m, press(tea.KeyEscape)); m.sidebar || m.paneWidth() != width-2 || strings.Contains(view(m), " "+grid.Search+" ") {
+		if m = drive(m, press(tea.KeyEscape)); m.sidebar || m.paneWidth() != width-2 || strings.Contains(view(m), "legend") {
 			t.Errorf("at %d, esc left the legend: %v, rows of %d", width, m.sidebar, m.paneWidth())
 		}
 	}
 }
 
-// While the legend is hidden, its rule ends every line of the pane, at the screen's last column, with ◂ on the first;
-// a click on the triangle, on the pane's middle line, shows the sidebar, the triangle then ▸, and again hides it.
+// While the sidebar is hidden, the rule ends every line from under the bar down to the keys bar, at the screen's last
+// column, with ◂ on its second; a click on the triangle shows the sidebar, the triangle then ▸, and again hides it.
 func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 12})
 	drawn := strings.Split(raw(m), "\n")
-	for k := paneTop; k < paneTop+m.paneHeight(); k++ {
+	for k := paneTop; k < m.sideHeight(); k++ {
 		end := rule
-		if k == paneTop+m.paneHeight()/2 {
+		switch k {
+		case triangleAt:
 			end = show
+		case triangleAt + 1:
+			end = under
 		}
 		if !strings.HasSuffix(drawn[k], end) || ansi.StringWidth(drawn[k]) != 80 {
 			t.Errorf("line %d does not end on %s at the last column: %q", k, end, drawn[k])
 		}
 	}
-	triangle := testkit.Click(m.paneWidth()+1, paneTop+m.paneHeight()/2)
-	if m = drive(m, triangle); !m.sidebar || !strings.Contains(raw(m), " "+grid.Search+" ") {
+	triangle := testkit.Click(m.paneWidth()+1, triangleAt)
+	if m = drive(m, triangle); !m.sidebar || !strings.Contains(raw(m), "columns") {
 		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
 	}
 	triangle.X = m.paneWidth() + 1
-	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[paneTop+m.paneHeight()/2], show) {
+	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[triangleAt], show) {
 		t.Errorf("a click on %s did not hide the legend:\n%s", hide, raw(m))
 	}
 }
