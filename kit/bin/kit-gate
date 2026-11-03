@@ -68,7 +68,8 @@ if [[ -t 0 && -t 2 ]]
 then
   toolchain:chosen project >/dev/null || exit 1
 else
-  reason=$(mktemp)
+  file:temp reason reason || exit 1
+  # shellcheck disable=SC2154  # reason is set by file:temp
   if ! toolchain:chosen project >/dev/null 2>"${reason}"
   then
     cat "${reason}" >&2

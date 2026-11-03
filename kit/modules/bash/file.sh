@@ -21,6 +21,8 @@
 # what the parent made, which stays the parent's to sweep.
 declare -ag file_scratch=() file_at_exit=() file_partial=()
 declare -g file_trapped=''
+# file_temp_dir is the scratch directory file:temp makes its files in, and file_temp_pid the shell that made it.
+declare -g file_temp_dir='' file_temp_pid=''
 
 # file:scratch <name> makes a fresh directory under TMPDIR and puts its path in the variable <name>, registered for
 # file:sweep to remove at exit. The first call installs the one EXIT trap. It assigns rather than prints: a command
@@ -31,6 +33,21 @@ file:scratch() {
   made=$(mktemp -d "${TMPDIR:-/tmp}/kit.XXXXXX") || return 1
   file:trap
   file_scratch+=("${made}")
+  printf -v "$1" '%s' "${made}"
+}
+
+# file:temp <name> [<label>] makes a fresh empty file in this shell's scratch directory and puts its path in the
+# variable <name>. The directory is made by file:scratch on first use, so the sweep removes the file at exit, even
+# when the command is stopped. Every scratch file goes through here or file:scratch: a bare mktemp on macOS ignores
+# TMPDIR. Call it in the shell that uses the file, as file:scratch.
+file:temp() {
+  local made
+  if [[ "${file_temp_pid}" != "${BASHPID}" ]]
+  then
+    file:scratch file_temp_dir || return 1
+    file_temp_pid=${BASHPID}
+  fi
+  made=$(mktemp "${file_temp_dir}/${2:-file}.XXXXXX") || return 1
   printf -v "$1" '%s' "${made}"
 }
 

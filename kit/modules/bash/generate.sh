@@ -245,8 +245,8 @@ generate:unit() {
     fi
     name=${BASH_REMATCH[1]}
     command=${BASH_REMATCH[3]:-kit region}
-    body=$(mktemp)
-    result=$(mktemp)
+    file:temp body region || return 2
+    file:temp result region || return 2
     if ! generate:command "${file}" "${where}" "$(( i + 1 ))" "${name}" "${command}" "${body}" \
       || ! generate:unit "${body}" "${result}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" \
         "${markdown}"
@@ -321,7 +321,7 @@ generate:expand() {
     return 2
   fi
   target=$(generate:target "${file}")
-  temp=$(mktemp)
+  file:temp temp expanded || return 2
   generate:markdown "${file}" && markdown=true
   if ! generate:unit "${file}" "${temp}" "${file}" "${file}" "${markdown}"
   then

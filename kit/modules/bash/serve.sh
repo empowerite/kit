@@ -400,7 +400,8 @@ serve:tools-call() {
   printf -v quoted ' %q' "${name}" "${args[@]}"
   serve_log_last="kit${quoted}"
   command=("${name}")
-  out=$(mktemp) err=$(mktemp)
+  file:temp out out || return 1
+  file:temp err err || return 1
   if refusal=$(serve:refused "${name}" "${args[@]}")
   then
     printf '%s\n' "${refusal}" >"${err}"

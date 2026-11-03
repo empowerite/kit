@@ -70,7 +70,7 @@ sources:fetch() {
     printf '%s\n' "${cache}"
     return 0
   fi
-  fresh=$(mktemp -d)
+  file:scratch fresh || return 1
   step "Fetching the source ${name} from ${url}"
   if ! curl --fail --silent --location --output "${fresh}/source.tar.gz" "$(sources:tarball "${url}")"
   then
