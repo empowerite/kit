@@ -30,10 +30,10 @@ setup() {
   [ -z "$(git status --porcelain --untracked-files=all | grep ' \.kit/')" ]
   [ "$(git status --porcelain kit.yml)" = "?? kit.yml" ]
   run bash -c 'echo edited > .kit/rules/bash.md'
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [ "$(head -n 1 .kit/rules/bash.md)" != "edited" ]
   run bash -c 'echo /mine >> .kit/.gitignore'
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
 }
 
 @test "a copy changed in place and a stray file are findings for check; the next verb restores the copy and leaves the stray to a person" {

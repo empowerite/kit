@@ -94,7 +94,7 @@ JSON
 @test "a tracker record without its organization is refused with the setting to add" {
   printf 'trackers:\n  - prefix: "AB#"\n    provider: ado\n' > kit.yml
   run in_tracker tracker:of 'AB#4521' title
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"add organization: <https://dev.azure.com/name> to the AB# tracker in kit.yml"* ]]
 }
 

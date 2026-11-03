@@ -170,10 +170,10 @@ JSON
   [ "$status" -eq 2 ]
   [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
   run kit backlog
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 2 ]
   [[ "$output" == *"backlog"* ]]
   run kit todo
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 2 ]
   [[ "$output" == *"todo"* ]]
 }
 

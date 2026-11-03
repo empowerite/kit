@@ -75,7 +75,7 @@ change() {
   [ "$status" -eq 0 ]
   printf "policy:\n  branche: '^x\$'\n" > kit.yml
   run "${kit_root}/bin/kit" policy
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"policy has a subject the kit does not know: branche"* ]]
 }
 
@@ -139,7 +139,7 @@ REGO
   [[ "$output" == *"3 commits; split the change"* ]]
   printf 'policy_engine: cue\n' > kit.yml
   run "${kit_root}/bin/kit" policy
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"'cue' is not a policy engine the kit knows"* ]]
 }
 

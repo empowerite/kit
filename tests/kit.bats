@@ -57,7 +57,7 @@ setup() {
 @test "a host template makes the file, places the region in one without it, refuses one it cannot place, and holds the shape" {
   printf 'Our rules, and no title.\n' > AGENTS.md
   run "${kit_checkout}/bin/kit" install agents/generic
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"AGENTS.md does not open as the agents/generic package's host template has it"* ]]
   [ "$(cat AGENTS.md)" = "Our rules, and no title." ]
   printf '# Ours\nOur rules.\n' > AGENTS.md

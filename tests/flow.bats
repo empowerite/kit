@@ -748,9 +748,9 @@ fake-tui() {
       [ "$status" -eq 2 ] || { echo "kit flow ${args}, with ${setting}: exit ${status}: ${output}"; return 1; }
     done
     run "${kit_root}/bin/kit" release 9.9.9
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 2 ]
     run "${kit_root}/bin/kit" tidy --dry-run
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 1 ]
   done
   printf 'primary: --upload-pack=touch pwned\n' > kit.yml
   run "${kit_root}/bin/kit" flow incoming

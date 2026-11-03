@@ -120,13 +120,13 @@ shape() {
   "${kit_root}/bin/kit" new file bash/a.sh --purpose=a
   sed -i.bak '/^set -o/d' bash/a.sh
   run shape bash/a.sh
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"bash/a.sh does not have the shape of the bash template (script, module)"* ]]
   [[ "$output" == *".kit/templates/bash/script line 4: set -o errexit -o nounset -o pipefail"* ]]
   "${kit_root}/bin/kit" new file tools.just
   sed -i.bak 's/"${tools_justfile}"/"${other_justfile}"/' tools.just
   run shape tools.just
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
 }
 
 @test "a hole that is a line matches any run of lines, none included, one within a line any text on it, and unapply gives the values" {
@@ -216,7 +216,7 @@ renders-back() {
   "${kit_root}/bin/kit" packages add odd >/dev/null 2>&1
   printf '# x\nyz\n' > a.notes.md
   run "${kit_root}/bin/kit" lint a.notes.md
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *".kit/templates/notes/twin:2: two holes with nothing between them"* ]]
 }
 
@@ -266,7 +266,7 @@ renders-back() {
   [ "$status" -eq 0 ]
   sed -i.bak '/^toolchain\/nix:outdated() {$/,/^}$/d' bash/toolchain/nix.sh && rm bash/toolchain/nix.sh.bak
   run "${kit_root}/bin/kit" lint bash/toolchain/nix.sh
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"bash/toolchain/nix.sh does not have the shape of the bash template (toolchain-provider)"* ]]
   [[ "$output" == *"toolchain-provider line 6: toolchain/«stem»:outdated()"* ]]
 }
@@ -304,7 +304,7 @@ renders-back() {
   [ "$status" -eq 0 ]
   sed -i.bak 's/core/other/' a.notes.md && rm a.notes.md.bak
   run "${kit_root}/bin/kit" lint a.notes.md
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"a.notes.md does not have the shape of the notes template"* ]]
 }
 

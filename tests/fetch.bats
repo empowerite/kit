@@ -90,7 +90,7 @@ ci-step() {
   rm -rf "${RUNNER_TEMP}/kit" && : > "${GITHUB_PATH}"
   printf 'x' >> "${FAKE_RELEASES}/kit-9.9.9.tar.gz"
   run env PATH="${repo}.bin:/usr/bin:/bin" bash -c "$(ci-step)"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"digest"* ]]
   [ ! -e "${RUNNER_TEMP}/kit/bin/kit" ]
   [ ! -s "${GITHUB_PATH}" ]

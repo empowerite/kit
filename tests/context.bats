@@ -127,12 +127,12 @@ setup() {
   printf '# configuration\nname: toml\npaths:\n  - "**/*.toml"\n---\npaths:\n  - "**/*.ini"\n' \
     > .kit/packages/conf/files/repo/.kit/kinds/config.yml
   run "${kit_checkout}/bin/kit" context Cargo.toml
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *".kit/kinds/config.yml: a kind has no name:"* ]]
   printf 'name: toml\npaths:\n  - "**/*.toml"\n---\nname: toml\npaths:\n  - "**/*.tml"\n' \
     > .kit/packages/conf/files/repo/.kit/kinds/config.yml
   run "${kit_checkout}/bin/kit" context Cargo.toml
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *".kit/kinds/config.yml: the kind toml is defined twice"* ]]
 }
 

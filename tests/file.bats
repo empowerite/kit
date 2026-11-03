@@ -51,7 +51,7 @@ setup() {
   [ "$(cat bin/copy.sh)" = "#!/usr/bin/env bash" ]
   [ ! -w .kit/copy.sh ]
   run kit-bash 'file:copy nonesuch.sh bin/copy.sh'
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [ "$(cat bin/copy.sh)" = "#!/usr/bin/env bash" ]
   [ ! -e bin/copy.sh.kit-new ]
 }

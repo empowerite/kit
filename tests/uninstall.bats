@@ -32,12 +32,12 @@ tree() {
   [ ! -e .claude/CLAUDE.md ]
   [ "$(jq --compact-output . .claude/settings.json)" = '{"model":"x"}' ]
   run grep 'kit:' AGENTS.md
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   grep --quiet '^Text of my own.$' AGENTS.md
   [ "$(cat kit.yml)" = "gate: just ci" ]
   [ ! -e .github ]
   run "${kit_checkout}/bin/kit" packages
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"run: kit install"* ]]
 }
 

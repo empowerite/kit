@@ -51,7 +51,7 @@ manifest recorded
 LIST
   # release:finish reports with the packages' metadata, so use release brings resolve; nothing that writes comes with it
   run kit-bash 'use release && declare -F | sed "s/^declare -f //" | grep -E "^(settings|render|region|place|materialize|manifest):"'
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
   [ -z "$output" ]
   run kit-bash 'use file && printf "abc" | file:digest && printf "abc" > f && file:digest f'
   [ "$status" -eq 0 ]

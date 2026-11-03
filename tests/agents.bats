@@ -57,7 +57,7 @@ claude-prefixes() {
   [ "$(ls .cursor/rules | wc -l | tr -d ' ')" = "$(kinds | wc -l | tr -d ' ')" ]
   printf 'edited\n' >> .cursor/rules/kit-bash.mdc
   run kit check
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 1 ]
 }
 
 @test "agents/copilot places one instruction file per kind, applied to the rule's paths, whose body points at the rule" {
