@@ -149,4 +149,8 @@ EOF
   [ "$(cat x.txt)" = old ]
   [ -z "$(find . -name 'x.txt.kit-new*')" ]
 }
-
+@test "every scratch file the kit makes is under TMPDIR, through file:scratch" {
+  # A bare mktemp on macOS ignores TMPDIR, so what it makes escapes the sweep, and the tests' isolation.
+  run grep -l 'mktemp' "${kit_root}"/bin/kit* "${kit_root}"/modules/bash/*.sh "${kit_root}"/modules/bash/*/*.sh
+  [ "$output" = "${kit_root}/modules/bash/file.sh" ]
+}

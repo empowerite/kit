@@ -394,4 +394,158 @@ EOF
   [ "$(git show --name-status --format= HEAD)" = $'D\tmine.txt' ]
 }
 
+@test "kit commit refuses a file under a directory kit placed, such as the logs and the cache" {
+  kit hydrate >/dev/null 2>&1
+  mkdir -p .kit/logs .kit/cache
+  printf 'a line\n' > .kit/logs/kit-test.log
+  printf 'a probe\n' > .kit/cache/probe
+  git add --force .kit/logs/kit-test.log .kit/cache/probe
+  run kit commit --message '#7 logs: the day'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/logs/kit-test.log is kit's"* ]]
+  [[ "$output" == *".kit/cache/probe is kit's"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "kit commit refuses a directory named by path when it holds a file kit placed" {
+  kit hydrate >/dev/null 2>&1
+  git add --force .kit/1st.md
+  run kit commit --message '#7 kit: the directory' -- .kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/1st.md is kit's"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "a named path is a path, never a pattern: a glob matches no file, and a name with [ ] is that file" {
+  printf 'a\n' > a.md && printf 'b\n' > b.md && git add a.md b.md
+  run kit commit --message '#7 md: a glob' -- '*.md'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"*.md is not known to git"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+  printf 'x\n' > x.txt && printf 'bracket\n' > '[x].txt' && git add x.txt '[x].txt'
+  run kit commit --message '#7 txt: the bracket file' -- '[x].txt'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = '[x].txt' ]
+}
+
+@test "a named directory commits the files under it, each linted" {
+  mkdir scripts
+  printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > scripts/bad.sh
+  git add scripts
+  run kit commit --message '#7 scripts: a bad one' -- scripts
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"linter"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "the policy is the committed tree's: an unstaged kit.yml that weakens it changes nothing about the commit" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ strict: "\n' >> kit.yml
+  git add kit.yml && git commit --quiet --message '#7 policy: strict' -- kit.yml
+  git show HEAD:kit.yml | sed '/^policy:/,$d' > kit.yml
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: loose'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"#7 x: loose"* ]]
+  run kit commit --message '#7 x: loose' -- x
+  [ "$status" -eq 1 ]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 2 ]
+}
+
+@test "the engine is the committed tree's: an unstaged policy_engine cannot swap the Rego out" {
+  opa-rule 'deny contains "never" if true'
+  printf 'policy_engine: patterns\n' >> kit.yml
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file' -- x
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"never"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "a path staged by another session while kit commit checks is refused, and nothing is committed" {
+  opa-rule 'deny contains "never" if input.never'
+  mkdir "${work}/bin"
+  printf '#!/usr/bin/env bash\n[[ -e %q ]] || { touch %q; printf late > late.txt; git add late.txt; }\nexec %q "$@"\n' \
+    "${work}/staged" "${work}/staged" "$(command -v opa)" > "${work}/bin/opa"
+  chmod +x "${work}/bin/opa"
+  printf 'mine\n' > mine.txt && git add mine.txt
+  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file'
+  [ -e "${work}/staged" ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the index changed while kit commit checked"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "kit commit stopped while it checks leaves no scratch behind, and keeps its scratch under TMPDIR" {
+  opa-rule 'deny contains "never" if input.never'
+  mkdir "${work}/bin" "${work}/tmp"
+  # the engine's input file is the seventh word; the stand-in notes it, then stalls, so the commit is stopped mid-judge
+  printf '#!/usr/bin/env bash\n[[ "$1" != eval ]] || { printf "%%s\\n" "$7" > %q; sleep 2; }\nexec %q "$@"\n' \
+    "${work}/judging" "$(command -v opa)" > "${work}/bin/opa"
+  chmod +x "${work}/bin/opa"
+  printf 'mine\n' > mine.txt && git add mine.txt
+  PATH="${work}/bin:${PATH}" TMPDIR="${work}/tmp" "${kit_checkout}/bin/kit-commit" --message '#7 mine: a file' \
+    >/dev/null 2>&1 &
+  local pid=$! tries=0 input
+  until [[ -s "${work}/judging" ]] || (( tries++ > 300 ))
+  do
+    sleep 0.1
+  done
+  input=$(cat "${work}/judging")
+  [[ "${input}" == "${work}/tmp/"* ]]
+  kill -TERM "${pid}"
+  wait "${pid}" || true
+  [ ! -e "${input}" ]
+  [ -z "$(find "${work}/tmp" -mindepth 1 -maxdepth 1)" ]
+}
+
+@test "kit commit refuses --all beside named paths, as git does" {
+  printf 'x\n' > x && git add x
+  run kit commit --all --message '#7 x: a file' -- x
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--all"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "a named path that matches HEAD is nothing to commit, said plainly; kit submit pushes anyway" {
+  run kit commit --message '#7 notes: the same' -- notes.txt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"nothing to commit: notes.txt is as HEAD has it"* ]]
+  printf 'x\n' > x && git add x && kit commit --message '#7 x: a file' >/dev/null 2>&1
+  run kit submit --message '#7 notes: the same' -- notes.txt
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing"* ]]
+  [ "$(git rev-parse origin/7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+}
+
+@test "kit commit refuses a stale region, and a detached HEAD" {
+  printf '# notes\n\n<!-- kit:generate echo fresh -->\nstale\n<!-- kit:end -->\n' > regions.md
+  git add regions.md
+  run kit commit --message '#7 regions: a stale one'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a region is stale; run: kit generate"* ]]
+  git reset --quiet -- regions.md
+  git switch --quiet --detach
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no branch is checked out here"* ]]
+}
+
+@test "kit commit warns when commits are not signed, and commits" {
+  git config commit.gpgsign false
+  printf 'x\n' > x && git add x
+  run kit commit --message '#7 x: a file'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"commits here are not signed"* ]]
+}
+
+@test "facts that cannot be gathered refuse the commit" {
+  printf 'policy:\n  colour: blue\n' >> kit.yml
+  git add kit.yml
+  run kit commit --message '#7 kit: a broken policy'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the commit is refused"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

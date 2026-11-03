@@ -79,10 +79,11 @@ commit:branch() {
   printf '%s\n' "${branch}"
 }
 
-# commit:placed prints each path .kit/.gitignore names, one per line, as kit placed it: .kit/<entry>.
+# commit:placed prints each path .kit/.gitignore names, one per line, as kit placed it: .kit/<entry>. A directory,
+# such as /logs/, loses its trailing slash, so commit:guard holds every path under it.
 commit:placed() {
   [[ -f .kit/.gitignore ]] || return 0
-  sed -n 's@^/@.kit/@p' .kit/.gitignore
+  sed -n -e '/^\//!d' -e 's@^/@.kit/@' -e 's@/*$@@' -e p .kit/.gitignore
 }
 
 # commit:guard <path>… refuses a path kit placed, or one under a directory it placed. The paths are root-relative.
@@ -163,17 +164,19 @@ commit:attach() {
 commit:judge() {
   local branch=$1 subject=$2 work warnings refusals line
   shift 2
-  work=$(mktemp -d) || return 1
+  file:scratch work || return 1
   if (( $# > 0 ))
   then
     if ! commit:index "${work}/index" "$@"
     then
-      rm -rf "${work}"
-      error "the commit is refused: the tree of the named paths could not be built"
+      commit:unjudged "${work}" "the tree of the named paths could not be built"
       return 1
     fi
+    # The policy reads kit.yml and the repository's Rego as the commit will have them, never as the disk does.
+    GIT_INDEX_FILE=${work}/index policy:from '' "${work}/policy" || { commit:unjudged "${work}"; return 1; }
     GIT_INDEX_FILE=${work}/index facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
   else
+    policy:from '' "${work}/policy" || { commit:unjudged "${work}"; return 1; }
     facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
   fi
   jq --arg branch "${branch}" --arg subject "${subject}" \
@@ -182,17 +185,16 @@ commit:judge() {
   # An engine that cannot judge refuses the commit: unjudged is never allowed.
   if ! refusals=$(policy:deny "${work}/input")
   then
-    rm -rf "${work}"
-    error "the commit is refused: the policy could not be judged"
+    commit:unjudged "${work}" "the policy could not be judged"
     return 1
   fi
   # A warning is printed before any refusal and never fails the commit; one that cannot be judged does.
   if ! warnings=$(policy:warn "${work}/input")
   then
-    rm -rf "${work}"
-    error "the commit is refused: the policy could not be judged"
+    commit:unjudged "${work}" "the policy could not be judged"
     return 1
   fi
+  policy:from-disk
   rm -rf "${work}"
   while IFS= read -r line
   do
@@ -208,10 +210,12 @@ commit:judge() {
   return 1
 }
 
-# commit:unjudged <work> removes the judge's scratch directory and says the facts could not be gathered.
+# commit:unjudged <work> [<why>] removes the judge's scratch directory, puts the policy back on the disk's settings, and
+# says why the commit is refused: by default, the facts for the policy could not be gathered.
 commit:unjudged() {
+  policy:from-disk
   rm -rf "$1"
-  error "the commit is refused: the facts for the policy could not be gathered"
+  error "the commit is refused: ${2:-the facts for the policy could not be gathered}"
 }
 
 # commit:index <index> <path>… writes, at <index>, the index git commit --only -- <path>… builds: HEAD, or nothing
@@ -227,7 +231,7 @@ commit:index() {
   else
     GIT_INDEX_FILE=${index} git read-tree --empty || return 1
   fi
-  { git ls-files -z -- "$@" && GIT_INDEX_FILE=${index} git ls-files -z -- "$@"; } \
+  { git ls-files -z -- "${@/#/:(literal)}" && GIT_INDEX_FILE=${index} git ls-files -z -- "${@/#/:(literal)}"; } \
     | LC_ALL=C sort --zero-terminated --unique \
     | GIT_INDEX_FILE=${index} git update-index --add --remove --replace -z --stdin
 }
@@ -280,6 +284,52 @@ commit:behind() {
   [[ "${behind}" == false ]]
 }
 
+# commit:named <path>… prints, NUL-separated, every file git knows under the named paths: in the index, or in HEAD,
+# which holds what git mv or git rm took away. A named path is a path, never a pattern, and a directory names every
+# file under it. It refuses a path under which git knows no file, naming it, and returns 1.
+commit:named() {
+  local path
+  local -a known=() files=()
+  # A path git mv or git rm took away is in HEAD alone, which git commit takes; a first commit has no HEAD.
+  git rev-parse --verify --quiet HEAD >/dev/null && known=(--with-tree=HEAD)
+  for path in "$@"
+  do
+    readarray -d '' -t files < <(git ls-files -z "${known[@]}" -- ":(literal)${path}")
+    if (( ${#files[@]} == 0 ))
+    then
+      error "${path} is not known to git; run: git add '${path}'"
+      return 1
+    fi
+    printf '%s\0' "${files[@]}"
+  done | LC_ALL=C sort --zero-terminated --unique
+  local -a statuses=("${PIPESTATUS[@]}")
+  (( statuses[0] == 0 && statuses[1] == 0 ))
+}
+
+# commit:unchanged <file>… succeeds when every file is as HEAD has it on the disk, so committing them alone would
+# commit nothing. Before the first commit, nothing is unchanged.
+commit:unchanged() {
+  git rev-parse --verify --quiet HEAD >/dev/null || return 1
+  git diff --quiet HEAD -- "${@/#/:(literal)}"
+}
+
+# commit:tree [<file>…] prints the tree the commit would make: the index's, or, with files, HEAD's with those files as
+# the disk has them, built in an index of its own. kit commit takes it before its checks and again before git
+# commits, so what another session staged or wrote meanwhile is never committed unchecked.
+commit:tree() {
+  local work tree
+  if (( $# == 0 ))
+  then
+    git write-tree
+    return
+  fi
+  file:scratch work || return 1
+  commit:index "${work}/index" "$@" || return 1
+  tree=$(GIT_INDEX_FILE=${work}/index git write-tree) || return 1
+  rm -rf "${work}"
+  printf '%s\n' "${tree}"
+}
+
 # commit:moved <head> refuses when HEAD is no longer <head>, the commit kit commit started on: another session
 # committed while the checks ran. Without paths, the index never saw that commit; with paths, the policy never judged
 # the tree it makes. Git refuses a HEAD that moves during its own hook.
@@ -291,12 +341,23 @@ commit:moved() {
   return 1
 }
 
+# commit:same-tree <tree> [<file>…] refuses when the tree the commit would make is no longer <tree>, the one kit commit
+# checked: another session staged or wrote a path meanwhile.
+commit:same-tree() {
+  local tree
+  tree=$(commit:tree "${@:2}") || return 1
+  [[ "${tree}" != "$1" ]] || return 0
+  error "the index changed while kit commit checked, so what was checked is not what git would commit; nothing is" \
+    "committed; run kit commit again"
+  return 1
+}
+
 # commit:commit <argument>… makes the commit as the file header says, from the options commit:parse reads. The first
 # --message, or the file's first line, is the subject; the rest are the body. <path>… commits those paths alone, as
 # git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
 commit:commit() {
-  local branch subject path rest message head
-  local -a staged=() known=()
+  local branch subject path rest message head tree names
+  local -a staged=() named=()
   commit:parse "$@" || return 2
   head=$(git rev-parse --verify --quiet HEAD || true)
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
@@ -313,21 +374,31 @@ commit:commit() {
       return 2
     fi
   fi
+  if [[ "${commit_all}" == true ]] && (( ${#commit_paths[@]} > 0 ))
+  then
+    error "--all takes every change to a tracked file, so it does not go with named paths; name the paths, or use" \
+      "--all alone"
+    return 2
+  fi
   branch=$(commit:branch) || return 1
   if (( ${#commit_paths[@]} > 0 ))
   then
-    # A path git mv or git rm took away is in HEAD alone, which git commit takes; a first commit has no HEAD.
-    git rev-parse --verify --quiet HEAD >/dev/null && known=(--with-tree=HEAD)
     for path in "${commit_paths[@]}"
     do
-      path=$(context:relative "${path}")
-      if ! git ls-files --error-unmatch "${known[@]}" -- "${path}" >/dev/null 2>&1
-      then
-        error "${path} is not known to git; run: git add '${path}'"
-        return 1
-      fi
-      staged+=("${path}")
+      named+=("$(context:relative "${path}")")
     done
+    names=$(commit:named "${named[@]}" | tr '\0' '\n') || return 1
+    readarray -t staged <<<"${names}"
+    if commit:unchanged "${staged[@]}"
+    then
+      if (( ${#named[@]} == 1 ))
+      then
+        error "nothing to commit: ${named[0]} is as HEAD has it"
+      else
+        error "nothing to commit: ${named[*]} are as HEAD has them"
+      fi
+      return 1
+    fi
   else
     [[ "${commit_all}" == false ]] || git add --update
     readarray -d '' -t staged < <(git diff --cached --name-only --diff-filter=ACMRD -z)
@@ -337,6 +408,12 @@ commit:commit() {
       return 1
     fi
     commit:behind "${staged[@]}" || return 1
+  fi
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    tree=$(commit:tree "${staged[@]}") || return 1
+  else
+    tree=$(commit:tree) || return 1
   fi
   if [[ -n "${commit_file}" ]]
   then
@@ -358,7 +435,7 @@ commit:commit() {
   then
     warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"
   fi
-  message=$(mktemp)
+  file:temp message message || return 1
   {
     printf '%s\n' "${subject}"
     if [[ -n "${commit_file}" ]]
@@ -373,12 +450,15 @@ commit:commit() {
       done
     fi
   } > "${message}"
-  # A HEAD that moved during the checks was never judged, so the commit is refused either way.
+  # A HEAD that moved during the checks was never judged, so the commit is refused either way, and so is a tree that
+  # changed under the checks.
   commit:moved "${head}" || { rm -f "${message}"; return 1; }
   if (( ${#commit_paths[@]} > 0 ))
   then
-    git commit --quiet --file "${message}" -- "${staged[@]}" || { rm -f "${message}"; return 1; }
+    commit:same-tree "${tree}" "${staged[@]}" || { rm -f "${message}"; return 1; }
+    git commit --quiet --file "${message}" -- "${staged[@]/#/:(literal)}" || { rm -f "${message}"; return 1; }
   else
+    commit:same-tree "${tree}" || { rm -f "${message}"; return 1; }
     git commit --quiet --file "${message}" || { rm -f "${message}"; return 1; }
   fi
   rm -f "${message}"
@@ -396,7 +476,10 @@ commit:submit() {
   branch=$(commit:branch) || return 1
   [[ "${commit_all}" == false ]] || git add --update
   readarray -d '' -t staged < <(git diff --cached --name-only -z)
-  if (( ${#staged[@]} > 0 || ${#commit_paths[@]} > 0 ))
+  if (( ${#commit_paths[@]} > 0 )) && commit:paths-unchanged "${commit_paths[@]}"
+  then
+    step "nothing to commit: the named paths are as HEAD has them; pushing ${branch}"
+  elif (( ${#staged[@]} > 0 || ${#commit_paths[@]} > 0 ))
   then
     commit:commit "$@" || return $?
   elif (( ${#commit_messages[@]} > 0 )) || [[ -n "${commit_file}" ]]
@@ -426,6 +509,20 @@ commit:submit() {
     return 1
   fi
   ok "pushed ${branch}: ${ahead} commit(s)"
+}
+
+# commit:paths-unchanged <path>… succeeds when git knows every named path and every file under them is as HEAD has
+# it. A path git does not know is left for kit commit to refuse.
+commit:paths-unchanged() {
+  local path names
+  local -a named=() files=()
+  for path in "$@"
+  do
+    named+=("$(context:relative "${path}")")
+  done
+  names=$(commit:named "${named[@]}" 2>/dev/null | tr '\0' '\n') || return 1
+  readarray -t files <<<"${names}"
+  commit:unchanged "${files[@]}"
 }
 
 # commit:push-refused <branch> <git-output> says why the push did not happen, with the remedy, and git's own words
