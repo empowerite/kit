@@ -824,6 +824,10 @@ func TestQuestionMarkHangsTheLegendInEveryTreeAndThePaneStays(t *testing.T) {
 	if len(got) != 24 || got[0] != before[0] || got[23] != " "+backKeys {
 		t.Errorf("the title or the keys moved under the legend:\n%s", view(m))
 	}
+	// the legends fit, so the markers stay where they were
+	if got[1] != before[1] {
+		t.Errorf("the markers moved under the legend:\n%s\n%s", before[1], got[1])
+	}
 	if n := strings.Count(view(m), "└ legend"); n != 8 {
 		t.Errorf("%d trees hang a legend, not eight:\n%s", n, view(m))
 	}

@@ -119,15 +119,23 @@ func (m Model) count(i int) string {
 }
 
 // layout lays the stages out: each takes its tree's width and a gap, and when they all fit the screen, the width left
-// spreads evenly between them; when they do not, the canvas is wider than the screen.
+// spreads evenly between them; when they do not, the canvas is wider than the screen. When the trees with their legends
+// fit the screen, each takes that width, legend on or off, so ? never moves a marker.
 func (m Model) layout() layout {
 	n, w := len(m.stages), m.width-1
 	l := layout{at: make([]int, n), trees: make([][]string, n)}
 	forms := m.forms()
-	total := gap
+	shown, legend := make([]int, n), make([]int, n)
+	total, full := gap, gap
 	for i := range m.stages {
-		l.trees[i] = m.tree(i, forms[i])
-		total += width(l.trees[i]) + gap
+		l.trees[i] = m.tree(i, forms[i], m.legend)
+		shown[i], legend[i] = width(l.trees[i]), width(m.tree(i, forms[i], true))
+		total += shown[i] + gap
+		full += legend[i] + gap
+	}
+	widths := shown
+	if full <= w {
+		widths, total = legend, full
 	}
 	l.width = max(total, w, 1)
 	if n == 0 {
@@ -136,7 +144,7 @@ func (m Model) layout() layout {
 	spare, x := max(0, w-total), gap
 	for i := range m.stages {
 		l.at[i] = x
-		x += width(l.trees[i]) + gap + spare/n
+		x += widths[i] + gap + spare/n
 		if i < spare%n {
 			x++
 		}
@@ -227,11 +235,11 @@ func (n node) draw(prefix string, last bool, out *[]string) {
 	}
 }
 
-// tree gives the tree hanging from a stage's marker, its lines starting under it: the stage's label, and when the
-// legend is on, legend over every glyph the stage draws, changes' states under state.
-func (m Model) tree(i, form int) []string {
+// tree gives the tree hanging from a stage's marker, its lines starting under it: the stage's label, and with the
+// legend, legend over every glyph the stage draws, changes' states under state.
+func (m Model) tree(i, form int, withLegend bool) []string {
 	nodes := []node{{text: m.label(i, form)}}
-	if m.legend {
+	if withLegend {
 		if legend := legendNode(m.stages[i].name); len(legend.kids) > 0 {
 			nodes = append(nodes, legend)
 		}
