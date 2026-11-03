@@ -16,7 +16,7 @@
 #
 # kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from projects/tui/ with go,
 # once for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
-# stdout, and stderr.
+# stdout, and stderr. Without one, kit tui refuses before it builds anything.
 #
 # Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
 # on ctrl-c.
@@ -30,6 +30,20 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 use tui
 
 guard:arguments tui "$@" || exit $?
+# kittui refuses without a terminal; kit tui refuses first, in the same words, so it does not build anything it
+# cannot run.
+if [[ ! -t 0 || ! -t 1 || ! -t 2 ]]
+then
+  verb=${1:-}
+  [[ "${verb}" != -- ]] || verb=${2:-}
+  case "${verb}" in
+    (flow) error "kit flow needs an interactive terminal for its picture; run: kit flow --text" ;;
+    (welcome) error "kit welcome needs an interactive terminal; run: kit welcome --text" ;;
+    (help) error "kit help needs an interactive terminal for its palette; run: kit help --text" ;;
+    (*) error "kit tui needs an interactive terminal; run: kit help tui"
+  esac
+  exit 2
+fi
 binary=$(tui:binary) || exit 1
 export KIT="${kit_root}/bin/kit"
 exec "${binary}" "$@"
