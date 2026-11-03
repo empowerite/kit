@@ -21,7 +21,9 @@
 use forge flow
 
 # backlog:collect [--except] <login>… prints the open issues not closed by any open change, as one JSON array, oldest
-# first, each with branch: the branch on the primary remote that starts with its number, or null. With logins, only
+# first, each with branch: the branch on the primary remote that starts with its number, or null. The branches are the
+# primary's as of the last fetch, which the picture's incoming stage makes first, not asked of the remote, which takes
+# seconds a stage cannot spare. With logins, only
 # the issues assigned to one of them, or with --except, those assigned to none of them.
 backlog:collect() {
   local issues changes heads primary except=false
@@ -29,7 +31,7 @@ backlog:collect() {
   primary=$(forge:primary) || return $?
   issues=$(forge:open-issues) || return 1
   changes=$(forge:open-prs) || return 1
-  heads=$(git ls-remote --heads --end-of-options "${primary}" 2>/dev/null | sed 's@.*refs/heads/@@' || true)
+  heads=$(git for-each-ref --format='%(refname:lstrip=3)' -- "refs/remotes/${primary}/" | grep -v '^HEAD$' || true)
   jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${changes}")" \
     --arg heads "${heads}" --arg logins "$*" --argjson except "${except}" '
     import "backlog" as backlog;
