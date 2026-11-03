@@ -5,7 +5,7 @@
 # SHA that is behind, with its comment, in one pull request for the whole group, so a week with three bumps is one
 # review and one CI run.
 #
-# The commit subject is `actions: <what moved>`: the loop's `<area>: <subject>` without the `#<N>`, since a bot has no
+# The commit subject is `actions: <what moved>`, without the `#<N>` a commit subject starts with, since a bot has no
 # issue to name. `linked_exempt` in kit.yml names dependabot[bot], so kit linked and kit policy pass its
 # pull request by name.
 #

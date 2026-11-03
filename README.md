@@ -232,8 +232,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    a draft pull request. It never switches the branch of the checkout you run it from. For an issue in another
    tracker, use that tracker's reference, such as `kit issue AB#4521` for an Azure DevOps work item; see
    [docs/trackers.md](docs/trackers.md).
-3. Work in that worktree. Commits are signed, with the subject `#<N> <area>: <subject>`: the policy requires the
-   issue reference first, and `<area>:` is this repository's convention.
+3. Work in that worktree. Commits are signed. A commit's subject starts with its issue's reference, as in
+   `#<N> <subject>`, and the policy requires it.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
    - `kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees,
