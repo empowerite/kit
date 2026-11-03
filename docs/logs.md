@@ -18,7 +18,7 @@ The kit CLI runs the verb as its child, and writes the line when the verb ends:
 ```text
 2026-11-02T12:45:23-0800 seconds=0.238 pid=42234 depth=0 status=0 in=. kit version
 2026-11-02T12:45:23-0800 seconds=0.007 pid=42272 depth=0 status=2 in=. kit nosuchverb
-2026-11-02T12:45:24-0800 seconds=0.197 pid=42359 depth=1 status=2 in=kit/modules kit lint --nope a\ b
+2026-11-02T12:45:24-0800 seconds=0.197 pid=42359 depth=1 status=2 in=kit/modules kit help no\ pe
 ```
 
 - The time is when the call started, and `seconds` is how long it ran.
@@ -37,7 +37,7 @@ Lines are written when calls end, so a call that ran a shorter one inside it com
 2026-11-02T12:45:23-0800 seconds=0.000 pid=42287 event=start
 2026-11-02T12:45:23-0800 seconds=0.107 pid=42287 id=1 method=initialize outcome=ok
 2026-11-02T12:45:24-0800 seconds=0.026 pid=42287 method=notifications/initialized outcome=none
-2026-11-02T12:45:24-0800 seconds=0.436 pid=42287 id=2 method=tools/call outcome=status=2 kit lint --nope a\ b
+2026-11-02T12:45:24-0800 seconds=0.436 pid=42287 id=2 method=tools/call outcome=status=2 kit help no\ pe
 2026-11-02T12:45:24-0800 seconds=0.256 pid=42287 id=3 method=resources/read outcome=ok uri=kit://1st.md
 2026-11-02T12:45:23-0800 seconds=0.836 pid=42287 event=stop
 ```

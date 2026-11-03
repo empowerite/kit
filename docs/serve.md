@@ -4,13 +4,18 @@
 tools, and the kit's files as resources. It reads requests on stdin and answers on stdout, in the repository it
 starts in, and does not open a network port.
 
-A tool is its verb, no more. It takes one argument, `args`: the strings that would follow `kit <verb>` on a command
-line. Its description is the verb's help page, and the usage line there is what says what `args` may be. So an
-agent still needs the verb's grammar; the server does not parse anything for it.
+A tool is its verb, with typed input. Each flag, option, and operand of the verb is a property of the tool's input
+schema, built from the verb's own usage lines. So an agent calls a tool without knowing the verb's grammar:
+
+```json
+{"name": "context", "arguments": {"path": ["README.md"], "json": true}}
+```
+
+The server turns those arguments into the verb's words, here `kit context README.md --json`, and runs it.
 
 ## What it offers
 
-The tools are the verbs that read and report, and change nothing:
+The tools are the verbs that read and report, and do not change anything:
 
 | Tool | Runs |
 | --- | --- |
@@ -26,26 +31,51 @@ The tools are the verbs that read and report, and change nothing:
 | `tools` | `kit tools` |
 | `version` | `kit version` |
 
-- A tool's description is read from the verb's header by the functions `kit help` uses, so the help and the server
-  cannot drift apart.
-- A call runs the verb in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+Each tool is described and typed from the verb's header, by the functions `kit help` and `kit syntax` use. So the
+help, the syntax, and the server cannot drift apart.
+
+- **The description** is the verb's purpose and the usage lines the tool offers. The verb's whole page is the
+  resource `kit://help/<verb>`, and the description says so.
+- **The input** has one property per argument:
+  - A flag, such as `--json`, is a boolean.
+  - An option, such as `--toolchain <name>`, is a string.
+  - An operand, such as `<path>…`, is a string, or an array of strings when it repeats.
+  - An argument with a closed set of choices has them as its `enum`, such as the package names for `packages`.
+  - A line's leading word is one property too: `flow`'s `stage`, such as `backlog` or `desk`.
+  - An argument every offered line needs is `required`, such as `context`'s `path`.
+- **A call that does not fit** is refused with `-32602`, and the verb does not run. The error says what is wrong:
+  - a name the tool does not take, with the names it does take
+  - a value of the wrong type
+  - an operand's value that starts with `-`, which the verb would read as a flag
+  - arguments that fit none of the usage lines, which the error lists
+- **A call runs the verb** in a new process with stdin at end of file, so the verb cannot read the protocol stream.
   The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
   names its exit status.
-- Every tool carries `readOnlyHint`: none changes a file the repository tracks. The kit's own bookkeeping still
-  happens: `kit serve` hydrates `.kit/` when it starts, and `context`, `kinds`, and `lint` hydrate before they
-  read. `tools` hydrates too when no toolchain is chosen, to read the rules' linters. `context` appends to the
-  context log.
-- `flow` asks the code forge over the network, and says so in its `openWorldHint`.
-- `packages`, `toolchains`, and `tools` are offered as listings only. A call whose `args` hold an action is refused
-  with status 2, and the verb never runs:
-  - `packages`: `select`, `add`, `remove`
-  - `toolchains`: `choose`
-  - `tools`: `install`, `update`, `path`, `run`, and `--outdated`, which reaches the network
+
+Every tool carries `readOnlyHint`, and it holds:
+
+- A call does not place anything under `.kit/`. The server places `.kit/` when it starts, and again before a
+  message when `kit.yml` changed since.
+- `flow` never fetches. The server gives it `--no-fetch`, so `incoming` shows the refs as they are. Run `kit flow`
+  in a terminal to fetch.
+- An action is never offered. `packages`, `toolchains`, and `tools` are listings only:
+  - `packages` does not offer `select`, `add`, or `remove`.
+  - `toolchains` does not offer `choose`.
+  - `tools` does not offer `install`, `update`, `path`, `run`, or `--outdated`, which reaches the network.
+
+  A call that names one of these is refused, and the error says to run the verb in a terminal.
+- `context` does not offer `--claude`, the hook mode. It is the harness's own.
+
+A tool's verb still writes the kit's own records, which git never sees: its line in `.kit/logs/`, the context log,
+and a toolchain's detection cache under `.kit/cache/`.
+
+`flow` asks the code forge over the network, and says so in its `openWorldHint`.
 
 The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
-already editing, which the agent can do by itself.
+already editing, which the agent can do by itself. The workflow verbs, `commit`, `issue`, and `submit`, are not tools
+either; an agent runs them in its shell.
 
-The resources are the kit's files under `.kit/`, each as the repository has it:
+The resources are the kit's files under `.kit/`, each as the repository has it, and each tool's help page:
 
 | Resource | File | Type |
 | --- | --- | --- |
@@ -54,6 +84,7 @@ The resources are the kit's files under `.kit/`, each as the repository has it:
 | `kit://rules/<kind>` | `.kit/rules/<kind>.md` | `text/markdown` |
 | `kit://styles/<kind>` | `.kit/styles/<kind>.md` | `text/markdown` |
 | `kit://kinds/<file>` | `.kit/kinds/<file>.yml`, which defines one kind or several | `application/yaml` |
+| `kit://help/<verb>` | none: the page `kit help <verb>` prints, for each tool | `text/plain` |
 
 The server's instructions tell an agent to read `kit://1st.md` first, and to call `context` with a path before it
 changes that file.
@@ -111,6 +142,8 @@ on its own:
   it places changes, sends the second alone.
 - A changed bash file that does not parse is kept out. The server goes on with the code it runs, says so on stderr,
   and tries again after the next change.
+- A `kit.yml` changed since, as when the agent adds a package, is placed by the server before the next message.
+  Then `.kit/.gitignore` changes too, and the client hears that the resources changed.
 
 The harness's own configuration is read when its session starts, so a change to `.mcp.json` still needs a new
 session, or `/mcp` and Reconnect in Claude Code.
@@ -142,7 +175,7 @@ The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) drives it
 
 ```bash
 npx @modelcontextprotocol/inspector --cli kit serve --method tools/list
-npx @modelcontextprotocol/inspector --cli kit serve --method tools/call --tool-name context --tool-args-json '{"args": ["README.md"]}'
+npx @modelcontextprotocol/inspector --cli kit serve --method tools/call --tool-name context --tool-args-json '{"path": ["README.md"]}'
 ```
 
 see: [modules/bash/serve.sh](../kit/modules/bash/serve.sh), [context.md](context.md)
