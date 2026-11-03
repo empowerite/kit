@@ -74,7 +74,7 @@ Set `ci_toolchain: nix` under `answers:` in `kit.yml`. The workflow installs nix
 
 Where it differs from mise:
 
-- nixpkgs does not package ajv-cli, so the flake builds it from `nix/ajv-cli/`, whose `package-lock.json` pins it.
+- nixpkgs does not package ajv-cli, so the flake builds it from `.nix/ajv-cli/`, whose `package-lock.json` pins it.
   After that lock changes, set `npmDepsHash` to `lib.fakeHash`, build, and copy in the hash nix reports.
 - The versions follow nixpkgs, so some sit a minor version off mise's pins. go is `go_1_27`, because nixpkgs' default
   `go` is older.

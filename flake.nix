@@ -11,7 +11,7 @@
 # Both put kit/bin on PATH and hydrate .kit/, as mise.toml's [env] and enter hook do. git and bash come from the
 # machine. Nix ignores a flake.nix git does not track, so a new file here needs `git add` before `nix develop`.
 #
-# nixpkgs does not package ajv-cli, so it is built here from nix/ajv-cli/, whose package-lock.json pins it and its
+# nixpkgs does not package ajv-cli, so it is built here from .nix/ajv-cli/, whose package-lock.json pins it and its
 # dependencies.
 
 {
@@ -28,7 +28,7 @@
       ajv-cli = pkgs: pkgs.buildNpmPackage {
         pname = "ajv-cli";
         version = "5.0.0";
-        src = ./nix/ajv-cli;
+        src = ./.nix/ajv-cli;
         npmDepsHash = "sha256-iEYIsU4nhNk0X2khfTdfXpjktivN7Dlum5yUb9JleR0=";
         dontNpmBuild = true;
         postInstall = ''
