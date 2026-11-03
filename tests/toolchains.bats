@@ -162,11 +162,11 @@ ${sudo}pacman -S github-cli" ]
   grep --quiet --line-regexp $'mise\tproject\tno\tno' <<<"$output"
 }
 
-# a flake that holds a dev shell, and nix with flakes on
+# a flake that holds a dev shell, and nix with flakes on: builtins.getFlake exists
 nix-flake() {
   printf '{ outputs = { self }: { devShells.x86_64-linux.default = {}; }; }\n' > flake.nix
-  fixture features.txt <<<'nix-command flakes'
-  route nix 'config show experimental-features' features.txt
+  fixture flakes.txt <<<'true'
+  route nix 'eval --expr builtins ? getFlake' flakes.txt
 }
 
 @test "nix is usable with flakes on and a dev shell in flake.nix" {
@@ -183,20 +183,22 @@ nix-flake() {
 
 @test "nix without flakes, or a flake without a dev shell, is not usable" {
   nix-flake
-  fixture features.txt <<<'nix-command'
+  fixture flakes.txt <<<'false'
   run detect
   grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
   nix-flake
   printf '{ outputs = { self }: { packages.x86_64-linux.default = {}; }; }\n' > flake.nix
   run detect
   grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
-  # a name that only ends in devShell is not a dev shell, and no-flakes is not flakes
+  # a name that only ends in devShell is not a dev shell, and a nix that cannot eval, as without nix-command, has no
+  # flakes
   nix-flake
   printf '{ outputs = { self }: { mydevShell = {}; }; }\n' > flake.nix
   run detect
   grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
   nix-flake
-  fixture features.txt <<<'nix-command no-flakes'
+  : > "${FAKE_DIR}/nix.routes"
+  route nix 'eval --expr builtins ? getFlake' '!1'
   run detect
   grep --quiet --line-regexp $'nix\tproject\tno\tno' <<<"$output"
   # no flake.nix, and nix is never asked

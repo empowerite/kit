@@ -227,7 +227,7 @@ JSON
 
 @test "nix installs the dev shell, puts its PATH first, and lists the flake's inputs" {
   printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
-  fixture features.txt <<<'nix-command flakes'
+  fixture flakes.txt <<<'true'
   fixture lock.json <<'JSON'
 {"version": 7, "root": "root", "nodes": {
   "root": {"inputs": {"nixpkgs": "nixpkgs", "utils": "flake-utils", "follows": ["nixpkgs"]}},
@@ -240,7 +240,7 @@ JSON
   fixture meta-nixpkgs.json <<<'{"locked": {"rev": "ccccccc3333333333"}}'
   fixture meta-utils.json <<<'{"locked": {"rev": "bbbbbbb2222222222"}}'
   fixture env.json <<<'{"variables": {"PATH": {"type": "exported", "value": "/n/jq/bin:/n/just/bin"}}}'
-  route nix 'config show experimental-features' features.txt
+  route nix 'eval --expr builtins ? getFlake' flakes.txt
   route nix 'develop --command true' '!0'
   route nix 'flake metadata --json github:NixOS/nixpkgs/nixos-unstable' meta-nixpkgs.json
   route nix 'flake metadata --json github:numtide/flake-utils' meta-utils.json
@@ -269,15 +269,15 @@ JSON
 
 @test "nix path fails, naming why, when the dev shell cannot be built or sets no PATH" {
   printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
-  fixture features.txt <<<'nix-command flakes'
+  fixture flakes.txt <<<'true'
   fixture env.json <<<'{"variables": {"HOME": {"type": "exported", "value": "/h"}}}'
-  route nix 'config show experimental-features' features.txt
+  route nix 'eval --expr builtins ? getFlake' flakes.txt
   route nix 'print-dev-env --json' '!1'
   run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 1 ]
   [[ "$output" == *"nix could not build the dev shell; see: nix develop"* ]]
   : > "${FAKE_DIR}/nix.routes"
-  route nix 'config show experimental-features' features.txt
+  route nix 'eval --expr builtins ? getFlake' flakes.txt
   route nix 'print-dev-env --json' env.json
   run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 1 ]
@@ -286,7 +286,7 @@ JSON
 
 @test "nix outdated skips a non-flake input, keeps dir, and reports an unreadable input without stopping, failing" {
   printf '{ outputs = { self }: { devShells.x.default = {}; }; }\n' > flake.nix
-  fixture features.txt <<<'nix-command flakes'
+  fixture flakes.txt <<<'true'
   fixture lock.json <<'JSON'
 {"version": 7, "root": "root", "nodes": {
   "root": {"inputs": {"src": "src", "mono": "mono", "gone": "gone", "nixpkgs": "nixpkgs"}},
@@ -298,7 +298,7 @@ JSON
   cp "${FAKE_DIR}/lock.json" flake.lock
   fixture meta-mono.json <<<'{"locked": {"rev": "5555555bbbb"}}'
   fixture meta-nixpkgs.json <<<'{"locked": {"rev": "6666666cccc"}}'
-  route nix 'config show experimental-features' features.txt
+  route nix 'eval --expr builtins ? getFlake' flakes.txt
   route nix 'flake metadata --json github:o/mono?dir=sub' meta-mono.json
   route nix 'flake metadata --json github:o/gone' '!1'
   route nix 'flake metadata --json github:NixOS/nixpkgs' meta-nixpkgs.json

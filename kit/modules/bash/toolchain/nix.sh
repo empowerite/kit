@@ -3,9 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # nix fills the project role. It is configured here by a flake.nix at the repository root that declares devShells or
 # devShell. That check is textual: the provider greps the file and never evaluates it, so a comment naming devShells
-# counts. It is usable only where flakes are on. It is active
-# inside nix develop, which sets IN_NIX_SHELL, and only where this repository has a flake.nix: a marker left over from
-# another project does not count.
+# counts. It is usable only where flakes are on. It is active inside nix develop, which sets IN_NIX_SHELL, and only
+# where this repository has a flake.nix: a marker left over from another project does not count.
 #
 # A probe never evaluates the flake and never reaches the network. Asking nix whether flakes are on runs only when
 # detection misses its cache. Evaluating the flake is for install, path, and update. Outdated reaches the network.
@@ -92,12 +91,14 @@ toolchain/nix:update() {
 }
 
 # toolchain/nix:usable needs nix on PATH, a dev shell named in flake.nix, and flakes on. The file is read first, so
-# nix runs only where a flake could use it.
+# nix runs only where a flake could use it. Flakes are on where builtins.getFlake exists: upstream nix defines it only
+# with the flakes feature on, and Determinate Nix, where flakes are stable, always does. The experimental-features
+# setting cannot tell, because Determinate Nix leaves flakes out of it.
 toolchain/nix:usable() {
   [[ "$1" == project ]] || return 1
   command -v nix >/dev/null 2>&1 || return 1
   grep --quiet --extended-regexp '(^|[^[:alnum:]_])devShells?([^[:alnum:]_]|$)' flake.nix 2>/dev/null || return 1
-  nix config show experimental-features 2>/dev/null | tr -s '[:space:],' '\n' | grep --quiet --line-regexp flakes
+  [[ "$(nix eval --expr 'builtins ? getFlake' 2>/dev/null)" == true ]]
 }
 
 # The seam's calls end here; what follows is this provider's own.

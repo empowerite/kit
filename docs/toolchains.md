@@ -49,8 +49,8 @@ network, and never calls git.
 | `dnf` | system | `dnf` is on `PATH` | never | nothing; it installs for the whole machine |
 | `pacman` | system | `pacman` is on `PATH` | never | nothing; it installs for the whole machine |
 
-A nix older than 2.20 has no `nix config show`, so kit cannot tell whether flakes are on. It reports that nix as
-not usable.
+kit asks nix whether `builtins.getFlake` exists, the one sign of flakes that upstream nix and Determinate Nix share.
+Determinate Nix treats flakes as stable and does not list them in `experimental-features`.
 
 mise is active however its tools reached `PATH`: `mise activate`, `mise env`, a harness, or a runner's setup.
 
