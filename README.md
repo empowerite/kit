@@ -260,7 +260,7 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
 
 | Directory | Contents |
 | --- | --- |
-| `kit/` | the release, packed as it is: everything in it ships, and nothing outside it does |
+| `kit/` | the release, packed as it is: everything in it ships. The tarball adds only a generated `version` file and `libexec/kittui`, built from `tui/` |
 | `kit/bin/` | the kit CLI, `kit`, and its verbs |
 | `kit/modules/` | the modules the verbs share: `bash/` and `jq/`, one directory per language |
 | `kit/packages/` | everything a release delivers |
@@ -286,13 +286,16 @@ are written by `bin/refresh`, which runs `kit update` from the index. Do not edi
 | `.github/workflows/kit-ci.yml` | `kit/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml`, with `ci_runner`, `ci_timeout_minutes`, and `ci_toolchain` filled in |
 | `.claude/CLAUDE.md` | `kit/packages/agents/claude/regions/repo/.claude/CLAUDE.md`, a region; the rest of the file belongs to this repository |
 | `.claude/settings.json` | `kit/packages/agents/claude/files/repo/.claude/settings.json`, merged by key; here only the kit's entries |
+| `.mcp.json` | `kit/packages/agents/claude/files/repo/.mcp.json` and `.kit/packages/house/files/repo/.mcp.json`, merged by key |
+| `.kit/policy/kit.rego`, `.kit/policy/house.rego` | links into `kit/packages/policy/opa/files/repo/.kit/policy/` and `.kit/packages/house/files/repo/.kit/policy/` |
 | `AGENTS.md` | `kit/packages/agents/generic/regions/repo/AGENTS.md`, a region; the rest of the file belongs to this repository |
 | `.gitignore` | `kit/packages/kit/regions/repo/.gitignore`, a region; the rest of the file belongs to this repository |
 | `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `kit.yml` |
 
 `kit.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
-`excludes` keys there. A fresh clone or worktree has nothing else under `.kit/` until a kit verb runs, or `cd`
-hydrates it through the mise hook in `mise.toml`.
+`excludes` keys there. A `.kit/settings.yml` from an earlier release is moved into `kit.yml` whole, once. A fresh
+clone or worktree has nothing else under `.kit/` until a kit verb runs, or `cd` hydrates it through the mise hook in
+`mise.toml`.
 
 When a commit changes a file under `kit/` or `.kit/packages/`, or `kit.yml`, the installed copies must change
 in the same commit:
