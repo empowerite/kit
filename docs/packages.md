@@ -340,7 +340,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`style/gitignore`](packages/style.md) | no | `kit` | `.kit/styles/gitignore.md` and the `file` and `region` templates |
 | [`style/prose`](packages/style.md) | no | `kit` | `.kit/styles/prose.md`, which governs every file of kind `text` |
 | [`hooks/lefthook`](packages/hooks/lefthook.md) | no | `kit` | `.kit/lefthook.yml`, a pre-commit hook running `kit lint` and `kit generate --check` |
-| [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answers `ci_runner`, `ci_toolchain` |
+| [`github/ci`](packages/github/ci.md) | no | `kit` | `.github/workflows/kit-ci.yml`, from a template, running `kit ci`; answers `ci_runner`, `ci_timeout_minutes`, `ci_toolchain` |
 | [`agents/generic`](packages/agents/generic.md) | no | `kit` | a region in `AGENTS.md` that sends any agent to `.kit/1st.md` |
 | [`agents/claude`](packages/agents/claude.md) | no | `kit`, `agents/generic` | a region in `.claude/CLAUDE.md` importing `AGENTS.md`; `.claude/settings.json`, merged: the deny list and the `kit context --claude` hook; `.mcp.json`, merged: the kit's MCP server |
 | [`agents/cursor`](packages/agents/cursor.md) | no | `kit`, `agents/generic` | `.cursor/rules/kit-<kind>.mdc`, one per kit rule, attached by its kind's paths, pointing at `.kit/rules/<kind>.md`; `.cursor/mcp.json`, merged: the kit's MCP server |

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # ci - this repository's gate: kit lint, the schemas, the links, bats, kit check
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # The gate setting in kit.yml names this script, so kit gate runs it, with the toolchain's tools on PATH,
 # and kit ci runs it in CI. It runs, in order:
 #
@@ -10,7 +9,7 @@
 #   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
 #     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
-#   - the bats suite
+#   - the bats suite, each test stopped and failed at 60 seconds
 #   - gofmt, go vet, and go test over tui/, the kit tui binary
 #   - kit/bin/kit check over this repository's installed copy of its own kit
 #
@@ -46,7 +45,8 @@ do
 done
 ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d "${frontmatter}/kinds/*.yml"
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
-bats --timing --print-output-on-failure tests/
+# The slowest test takes seconds; one that waits on a terminal forever fails at a minute, naming itself.
+BATS_TEST_TIMEOUT=60 bats --timing --print-output-on-failure tests/
 (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
 kit/bin/kit check
 echo "✅ ci passed"

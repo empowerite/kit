@@ -1,6 +1,5 @@
 # kit-ci.yml - the check the kit delivers for GitHub Actions: kit ci on every pull request into the default branch
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Runs one job, CI, on each pull request into the default branch. CI is the check name a ruleset requires. The job:
 #
 #   1. puts the toolchain the ci_toolchain answer names on the runner: mise, nix, or the devcontainer CLI (brew and
@@ -12,7 +11,8 @@
 #
 # Added by kit's github/ci package. To remove it, run kit packages remove github/ci.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
-# runs-on is the ci_runner value under answers: in kit.yml; KIT_TOOLCHAIN is its ci_toolchain value.
+# runs-on is the ci_runner value under answers: in kit.yml; timeout-minutes is its ci_timeout_minutes value;
+# KIT_TOOLCHAIN is its ci_toolchain value.
 #
 # see: .kit/1st.md
 
@@ -31,6 +31,9 @@ jobs:
   CI:
     if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: "ubuntu-latest"
+    # A hung step fails the job after this many minutes, not after GitHub's six hours. fromJSON makes the answer a
+    # number, and keeps the template YAML, where a value cannot start with @.
+    timeout-minutes: ${{ fromJSON('45') }}
     env:
       # mise also reads mise.ci.toml, on top of mise.toml, for the tools only a runner needs.
       MISE_ENV: ci

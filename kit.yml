@@ -32,4 +32,6 @@ packages:
   - empowerite
   - house
 answers:
+  # About twice a run: the gate's bats suite takes about 20 minutes on GitHub's runners.
+  ci_timeout_minutes: "45"
   ci_toolchain: mise

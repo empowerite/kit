@@ -7,4 +7,5 @@ depends:
   - kit
 answers:
   ci_runner: ubuntu-latest
+  ci_timeout_minutes: "30"
   ci_toolchain: ambient

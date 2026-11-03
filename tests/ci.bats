@@ -50,6 +50,17 @@ setup() {
   grep --quiet 'npm install --global @devcontainers/cli@[0-9][0-9.]*$' "${workflow}"
 }
 
+@test "the CI job stops after the minutes the ci_timeout_minutes answer gives, 30 by default" {
+  fresh-repo other >/dev/null
+  "${kit_checkout}/bin/kit" install github/ci >/dev/null
+  workflow=.github/workflows/kit-ci.yml
+  grep --quiet "^    timeout-minutes: \${{ fromJSON('30') }}$" "${workflow}"
+  fresh-repo third >/dev/null
+  mkdir .kit && printf 'answers:\n  ci_timeout_minutes: "12"\n' > kit.yml
+  "${kit_checkout}/bin/kit" install github/ci >/dev/null
+  grep --quiet "^    timeout-minutes: \${{ fromJSON('12') }}$" "${workflow}"
+}
+
 @test "the CI workflow installs with kit tools" {
   fresh-repo other >/dev/null
   "${kit_checkout}/bin/kit" install github/ci >/dev/null

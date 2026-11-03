@@ -27,10 +27,13 @@ The job needs `jq` and `yq` on the runner, which the hosted runners have; a runn
 
 A repository on another CI system calls `kit tools install` and `kit ci` from its own pipeline.
 
-The workflow is a template with two keys, both under `answers:` in `kit.yml`:
+The workflow is a template with three keys, all under `answers:` in `kit.yml`:
 
 - `ci_runner` is the label of the runner the job runs on. The default is `ubuntu-latest`. A repository with its own
   runners sets it.
+- `ci_timeout_minutes` is how long the job may run before GitHub stops it and fails it. The default is `"30"`.
+  Without it, a hung step runs for GitHub's limit of six hours. Set it to about twice a usual run, in quotes:
+  `ci_timeout_minutes: "20"`. This repository sets `"45"`.
 - `ci_toolchain` is the toolchain the job installs with. The default is `ambient`: kit installs nothing. The job
   fails at the `toolchain` step, naming each tool the rules need that is missing, unless the runner already has them.
   To have CI install the tools, name a toolchain, such as `ci_toolchain: mise` or `nix`. This repository sets `mise`.
