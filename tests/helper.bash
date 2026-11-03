@@ -8,6 +8,10 @@
 # measured with ${#text} counts characters, and turns color off; a test that asserts colors forces them on for its own
 # command, with CLICOLOR_FORCE=1 or env -u NO_COLOR. kit_root and kit_checkout both name the checkout's kit/.
 #
+# A file whose every test starts from an installed repository builds it once, in setup_file, with world-repo or
+# world-make, and each test's setup() copies it with world-copy-repo or world-copy. A kit install takes seconds; a copy
+# takes a few milliseconds.
+#
 # The file's own setup() adds what its tests need. Its teardown is this file's: a test that ends inside the checkout
 # fails, because a verb run there writes into the checkout's own .git/kit and .kit/. A file that defines teardown() of
 # its own calls helper:outside-checkout from it.
@@ -19,8 +23,14 @@ export kit_root kit_checkout
 # helper:isolate moves what a test could leak under BATS_TEST_TMPDIR. bats sources a file once more for setup_file,
 # before any test's directory exists; that pass changes nothing.
 helper:isolate() {
-  local go_cache go_env
   [[ -n "${BATS_TEST_TMPDIR:-}" ]] || return 0
+  helper:isolate-in "${BATS_TEST_TMPDIR}"
+}
+
+# helper:isolate-in <dir> moves what a command could leak under <dir>, as helper:isolate does for a test, and moves
+# there. world-make runs it in a subshell, to build a world before any test's directory exists.
+helper:isolate-in() {
+  local dir=$1 go_cache go_env
   # The tools on PATH may be mise's shims, which find their installs under the desk's directories. Named before HOME
   # moves, so every tool resolves as it does at the desk.
   export MISE_DATA_DIR="${MISE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/mise}"
@@ -40,9 +50,9 @@ helper:isolate() {
   esac
   export GOPATH="${GOPATH:-${HOME}/go}"
   export GOMODCACHE="${GOMODCACHE:-${GOPATH}/pkg/mod}" GOCACHE="${GOCACHE:-${go_cache}}" GOENV="${GOENV:-${go_env}}"
-  export HOME="${BATS_TEST_TMPDIR}/home" XDG_CONFIG_HOME="${BATS_TEST_TMPDIR}/config"
-  export KIT_HOME="${BATS_TEST_TMPDIR}/kit-home" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
-  export TMPDIR="${BATS_TEST_TMPDIR}/tmp"
+  export HOME="${dir}/home" XDG_CONFIG_HOME="${dir}/config"
+  export KIT_HOME="${dir}/kit-home" XDG_CACHE_HOME="${dir}/cache"
+  export TMPDIR="${dir}/tmp"
   mkdir -p "${HOME}" "${XDG_CONFIG_HOME}" "${KIT_HOME}" "${XDG_CACHE_HOME}" "${TMPDIR}"
   # git reads this file as its global configuration, and no system one: a desk's hooks path, signing, aliases, and
   # global ignores stay out, and every commit a test makes has an author
@@ -63,7 +73,62 @@ helper:isolate() {
   # mise's environment, the desk's or the runner's, which a test names for itself where it counts
   unset MISE_SHELL MISE_ENV
   # a file whose setup() goes nowhere runs its verbs here, outside the checkout, rather than where bats was started
-  cd "${BATS_TEST_TMPDIR}" || return 1
+  cd "${dir}" || return 1
+}
+
+# world-make <name> <function> builds a world once for the file, from its setup_file: <function> runs in an empty
+# directory under BATS_FILE_TMPDIR, isolated there as a test is isolated in its own. A world costs one kit install per
+# file, where setup() would cost one per test. It fails when the function fails.
+world-make() {
+  local dir=${BATS_FILE_TMPDIR}/world/$1
+  mkdir -p "${dir}/root" "${dir}/env"
+  # What the build prints is kept, and shown only when it fails.
+  if ! ( helper:isolate-in "${dir}/env" && cd "${dir}/root" && "$2" ) > "${dir}/make.log" 2>&1
+  then
+    cat "${dir}/make.log" >&2
+    return 1
+  fi
+}
+
+# world-copy <name> [<dir>] copies what the world <name> holds into <dir>, the test's directory by default, so a
+# repository the world made at repo lands where fresh-repo would make it. The kit's home the world made goes into the
+# test's KIT_HOME, and its cache into the test's cache.
+#
+# A git remote is an absolute path, so each repository's config that names the world's directory names the copy
+# instead. An installed repository does not name any other path of its own: the kit places copies under .kit/, and
+# links only to sources inside the repository. A worktree records absolute paths too, so a test adds its worktrees
+# after the copy.
+world-copy() {
+  local from=${BATS_FILE_TMPDIR}/world/$1 to=${2:-${BATS_TEST_TMPDIR}} config
+  mkdir -p "${to}"
+  cp -Rp "${from}/root/." "${to}/"
+  [[ ! -d "${from}/env/kit-home" ]] || cp -Rp "${from}/env/kit-home/." "${KIT_HOME}/"
+  # The cache holds what yq read from the packages, as a test's own install would have left it.
+  [[ ! -d "${from}/env/cache" ]] || cp -Rp "${from}/env/cache/." "${XDG_CACHE_HOME}/"
+  while IFS= read -r -d '' config
+  do
+    sed -e "s|${from}/root|${to}|g" "${config}" > "${config}.copy" && mv -f "${config}.copy" "${config}"
+  done < <(find "${to}" -maxdepth 4 -path '*.git/config' -type f -print0)
+}
+
+# world-repo <name> [<package>…] is setup_file's most common world: a repository at repo with the kit installed and the
+# packages named, or the defaults. world-copy-repo <name> copies it and moves into it, as fresh-repo would.
+world-repo() {
+  helper_world_packages=("${@:2}")
+  world-make "$1" helper:world-install
+}
+
+# helper:world-install makes the repository world-repo describes, in the world's directory.
+helper:world-install() {
+  git init --quiet --initial-branch=main repo && cd repo \
+    && "${kit_checkout}/bin/kit" install "${helper_world_packages[@]}"
+}
+
+world-copy-repo() {
+  world-copy "$1" || return 1
+  # shellcheck disable=SC2034  # the test files read repo
+  repo=${BATS_TEST_TMPDIR}/repo
+  cd "${repo}" || return 1
 }
 
 # helper:outside-checkout fails when the working directory is inside the checkout, naming where the test ended.
