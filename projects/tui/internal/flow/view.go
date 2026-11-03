@@ -26,17 +26,20 @@ const (
 
 // rule is what stands between the rows and the sidebar beside them, a space either side of it: a dim solid line from
 // the line under the bar down to the keys bar; while the sidebar is hidden, a space and the rule end each of those
-// lines, at the screen's last column. Beside the title and the bar there is none. On the rule's second line, at
-// triangleAt, is a triangle, which a click turns as ? does: pointing left to show the sidebar, right to hide it. Under
-// the triangle the rule starts again halfway down its cell, as under, so the space below the triangle looks as wide
-// as the space above it.
+// lines, at the screen's last column. Beside the title and the bar there is none. On the rule's middle line, at
+// triangleAt, is a triangle, pointing left to show the sidebar and right to hide it, as a click anywhere on the rule
+// does, as ? does. Under the triangle the rule starts again halfway down its cell, as under, so the space below the
+// triangle looks as wide as the space above it.
 const (
-	rule       = "│"
-	under      = "╷"
-	show       = "◂"
-	hide       = "▸"
-	triangleAt = paneTop + 1
+	rule  = "│"
+	under = "╷"
+	show  = "◂"
+	hide  = "▸"
 )
+
+// triangleAt gives the screen line of the rule's triangle: the middle of the rule, from under the bar down to the keys
+// bar.
+func (m Model) triangleAt() int { return paneTop + (m.sideHeight()-paneTop)/2 }
 
 // line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
 type line struct {
@@ -267,11 +270,11 @@ func (m Model) pane() []string {
 }
 
 // side ends each of the lines, from the screen's top, with the lines on its right: beside the title, and the bar while
-// the sidebar shows, two spaces and those of sideColumn; under the bar, a space and the rule, its triangle at triangleAt, and beside it,
-// while ? shows it, a space and the rest of them.
+// the sidebar shows, two spaces and those of sideColumn; under the bar, a space and the rule, its triangle at
+// triangleAt, and beside it, while ? shows it, a space and the rest of them.
 func (m Model) side(lines []string) []string {
 	side, sw, pw, bw := m.sideColumn(), m.sideWidth(), m.paneWidth(), m.barWidth()
-	triangle := show
+	triangle, at := show, m.triangleAt()
 	if m.sidebar {
 		triangle = hide
 	}
@@ -284,9 +287,9 @@ func (m Model) side(lines []string) []string {
 		case k >= paneTop:
 			width, edge, gap = pw, " "+style.Off(rule), " "
 			switch k {
-			case triangleAt:
+			case at:
 				edge = " " + triangle
-			case triangleAt + 1:
+			case at + 1:
 				edge = " " + style.Off(under)
 			}
 		}

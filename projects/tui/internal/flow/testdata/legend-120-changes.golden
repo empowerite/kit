@@ -3,8 +3,8 @@
 ◃    4 │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │  📦  ▹ legend
  ──────╰────────────────────────╯                       ╰──────────────────────╰──────┐ 📥  the fetch
    📡 origin · github · github.com                                                    │ 📡  a remote
-   a1b2c3d  #1 docs: the docs say what the code does                                  ▸ 🌿  a branch
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no a… ╷ 🔖  a branch gone
+   a1b2c3d  #1 docs: the docs say what the code does                                  │ 🌿  a branch
+ ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no a… │ 🔖  a branch gone
    🌿       46-a-noun-lists updated                                                   │ 📌  a new tag
    🌿       42-settings new branch                                                    │ ❌  a fetch failed
    📡 upstream · gitlab · git.example.org                                             │
@@ -15,8 +15,8 @@
                                                                                       │
                                                                                       │
                                                                                       │
-                                                                                      │
-                                                                                      │
+                                                                                      ▸
+                                                                                      ╷
                                                                                       │
                                                                                       │
                                                                                       │

@@ -202,28 +202,32 @@ func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
 }
 
 // While the sidebar is hidden, the rule ends every line from under the bar down to the keys bar, at the screen's last
-// column, with ◂ on its second; a click on the triangle shows the sidebar, the triangle then ▸, and again hides it.
+// column, with ◂ on its middle line; a click on the triangle shows the sidebar, the triangle then ▸, and a click
+// anywhere else on the rule again hides it.
 func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 12})
 	drawn := strings.Split(raw(m), "\n")
 	for k := paneTop; k < m.sideHeight(); k++ {
 		end := rule
 		switch k {
-		case triangleAt:
+		case m.triangleAt():
 			end = show
-		case triangleAt + 1:
+		case m.triangleAt() + 1:
 			end = under
 		}
 		if !strings.HasSuffix(drawn[k], end) || ansi.StringWidth(drawn[k]) != 80 {
 			t.Errorf("line %d does not end on %s at the last column: %q", k, end, drawn[k])
 		}
 	}
-	triangle := testkit.Click(m.paneWidth()+1, triangleAt)
+	if m.triangleAt() != paneTop+(m.sideHeight()-paneTop)/2 || m.triangleAt() <= paneTop+1 {
+		t.Errorf("the triangle is on line %d, not the rule's middle", m.triangleAt())
+	}
+	triangle := testkit.Click(m.paneWidth()+1, m.triangleAt())
 	if m = drive(m, triangle); !m.sidebar || !strings.Contains(raw(m), "columns") {
 		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
 	}
-	triangle.X = m.paneWidth() + 1
-	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[triangleAt], show) {
+	triangle.X, triangle.Y = m.paneWidth()+1, paneTop
+	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[m.triangleAt()], show) {
 		t.Errorf("a click on %s did not hide the legend:\n%s", hide, raw(m))
 	}
 }

@@ -1015,9 +1015,9 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 	for k := paneTop; k < 23; k++ {
 		want := rule
 		switch k {
-		case triangleAt:
+		case m.triangleAt():
 			want = hide
-		case triangleAt + 1:
+		case m.triangleAt() + 1:
 			want = under
 		}
 		if cell := ansi.Cut(got[k], pw+1, pw+2); cell != want {
