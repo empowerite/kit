@@ -118,6 +118,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.shift = msg.SupportsKeyDisambiguation()
 	case choicesMsg:
 		m.choices(msg)
+	case matchedMsg:
+		cmd := m.matched(msg)
+		return m, cmd
 	case tea.KeyPressMsg:
 		cmd := m.key(msg)
 		return m, cmd
@@ -569,12 +572,31 @@ func (m Model) answers() []string {
 	return out
 }
 
-// tryRun asks kit whether the command line is complete, and runs it when it is; otherwise it shows kit's line under
-// the command line and takes the keyboard to the first field that needs an answer.
+// matchedMsg brings kit's judgment of the command line it was asked about.
+type matchedMsg struct {
+	args  []string
+	match syntax.Match
+	err   error
+}
+
+// tryRun asks kit, off the update loop, whether the command line is complete; matched takes the answer.
 func (m *Model) tryRun() tea.Cmd {
 	m.commitLine()
-	args := m.CommandLine()
-	match, err := m.runner.Match(m.spec.Verb, args)
+	r, verb, args := m.runner, m.spec.Verb, m.CommandLine()
+	return func() tea.Msg {
+		match, err := r.Match(verb, args)
+		return matchedMsg{args: args, match: match, err: err}
+	}
+}
+
+// matched runs the command line when kit judged it complete; otherwise it shows kit's line under the command line and
+// takes the keyboard to the first field that needs an answer. An answer about a line that changed since is dropped:
+// the person asks again.
+func (m *Model) matched(msg matchedMsg) tea.Cmd {
+	args, match, err := msg.args, msg.match, msg.err
+	if !slices.Equal(args, m.CommandLine()) {
+		return nil
+	}
 	if err != nil {
 		m.refusal = err.Error()
 		return nil

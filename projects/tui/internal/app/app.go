@@ -10,6 +10,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/form"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/palette"
+	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
 
 // Model is what is on the screen.
@@ -108,6 +109,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keyboard = msg
 	case palette.OpenMsg:
 		return m.open(msg.Verb)
+	case openedMsg:
+		return m.opened(msg)
 	case form.BackMsg:
 		if m.hasPalette {
 			m.inForm = false
@@ -124,18 +127,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// open slides the palette away for the verb's form, empty, with the way back, telling it the terminal's size and
-// keyboard, which came before it did; a form that cannot open leaves the palette, with kit's line under its filter.
+// openedMsg brings a verb's grammar and its empty fields, or why its form cannot open.
+type openedMsg struct {
+	verb   string
+	spec   syntax.Spec
+	fields []form.Field
+	err    error
+}
+
+// open asks kit for the verb's grammar off the update loop; opened takes the answer.
 func (m Model) open(verb string) (tea.Model, tea.Cmd) {
-	spec, err := m.runner.Spec(verb)
-	if err != nil {
-		return m.refuse(err)
+	r := m.runner
+	return m, func() tea.Msg {
+		spec, err := r.Spec(verb)
+		if err != nil {
+			return openedMsg{verb: verb, err: err}
+		}
+		fields, err := form.Fields(spec, form.Answers{})
+		return openedMsg{verb: verb, spec: spec, fields: fields, err: err}
 	}
-	fields, err := form.Fields(spec, form.Answers{})
-	if err != nil {
-		return m.refuse(err)
+}
+
+// opened slides the palette away for the verb's form, empty, with the way back, telling it the terminal's size and
+// keyboard, which came before it did; a form that cannot open leaves the palette, with kit's line under its filter.
+func (m Model) opened(msg openedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		return m.refuse(msg.err)
 	}
-	m.form, m.inForm, m.verb = form.New(spec, fields, m.runner, true), true, verb
+	verb := msg.verb
+	m.form, m.inForm, m.verb = form.New(msg.spec, msg.fields, m.runner, true), true, verb
 	init := m.form.Init()
 	if m.width > 0 {
 		next, _ := m.form.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})

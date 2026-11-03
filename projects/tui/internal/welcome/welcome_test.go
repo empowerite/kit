@@ -1,7 +1,9 @@
 package welcome
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -376,6 +379,27 @@ func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 10}, esc, right, right, down, down)
 	if got := view(m); !strings.Contains(got, " ▸ ❌ kit check finds") || !strings.Contains(got, "above") {
 		t.Errorf("the cursor's row is hidden:\n%s", got)
+	}
+}
+
+// Leaving the screen, with esc or ctrl-c, ends the checks still running, and what they started with them.
+func TestLeavingTheScreenEndsTheChecksStillRunning(t *testing.T) {
+	for _, key := range []tea.KeyPressMsg{esc, {Code: 'c', Mod: tea.ModCtrl}} {
+		t.Setenv("FAKE_WELCOME_SLOW", "1")
+		m, _ := fake(t)
+		answers := make(chan tea.Msg, 1)
+		check := m.check()
+		go func() { answers <- check() }()
+		time.Sleep(200 * time.Millisecond)
+		m = drive(m, key)
+		select {
+		case msg := <-answers:
+			if err := msg.(checksMsg).err; !errors.Is(err, context.Canceled) {
+				t.Errorf("%s: the checks ended with %v, not the quit", key, err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("%s: the checks outlived the screen", key)
+		}
 	}
 }
 

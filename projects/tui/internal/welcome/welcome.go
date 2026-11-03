@@ -16,6 +16,7 @@
 package welcome
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -126,6 +127,8 @@ type note struct {
 // Model is the welcome screen.
 type Model struct {
 	runner   kit.Runner
+	ctx      context.Context                           // ends with the screen, and the checks still running with it
+	cancel   context.CancelFunc                        // ends ctx
 	exec     func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
 	repo     string                                    // owner/repo, for the title, empty when unknown
 	tabs     []tab                                     // the steps, in order: the known ones until the pages are read
@@ -153,9 +156,17 @@ func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
-	return Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
+	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known))}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	return m
+}
+
+// quit ends the screen, and the checks still running with it.
+func (m Model) quit() tea.Cmd {
+	m.cancel()
+	return tea.Quit
 }
 
 // Init runs the checks and reads the pages, at once.
@@ -164,11 +175,11 @@ func (m Model) Init() tea.Cmd { return tea.Batch(m.check(), m.read()) }
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
 
-// check runs kit welcome --checks --json.
+// check runs kit welcome --checks --json, for as long as the screen lasts and kit's limit lets it.
 func (m Model) check() tea.Cmd {
-	r := m.runner
+	r, ctx := m.runner, m.ctx
 	return func() tea.Msg {
-		checks, err := r.WelcomeChecks()
+		checks, err := r.WelcomeChecks(ctx)
 		return checksMsg{checks: checks, err: err}
 	}
 }
@@ -322,10 +333,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
 		m.interrupted = true
-		return m, tea.Quit
+		return m, m.quit()
 	case "esc":
 		if !m.inRows {
-			return m, tea.Quit
+			return m, m.quit()
 		}
 		m.inRows, m.offsets[m.step] = false, 0
 	case "left":

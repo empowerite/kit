@@ -230,8 +230,32 @@ func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
 	}
 }
 
+// A kit that hangs is stopped at the call's limit, its process group with it, and the error says how long it had;
+// the checks are stopped too when the screen that asked for them ends.
+func TestAKitThatHangsIsStoppedAtItsLimitOrWhenTheScreenEnds(t *testing.T) {
+	limit0 := callLimit
+	t.Cleanup(func() { callLimit = limit0 })
+	callLimit = 300 * time.Millisecond
+	t.Setenv("FAKE_KIT_HANG", "5")
+	start := time.Now()
+	_, err := fake(t, "").Spec("commit")
+	if took := time.Since(start); took > 3*time.Second || err == nil ||
+		!strings.Contains(err.Error(), "kit syntax took longer than 300ms") {
+		t.Errorf("a hung kit: %v after %s", err, took)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+	start = time.Now()
+	if _, err := fake(t, "").WelcomeChecks(ctx); !errors.Is(err, context.Canceled) || time.Since(start) > 3*time.Second {
+		t.Errorf("checks whose screen ended: %v after %s", err, time.Since(start))
+	}
+}
+
 func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
-	checks, err := fake(t, "").WelcomeChecks()
+	checks, err := fake(t, "").WelcomeChecks(context.Background())
 	if err != nil || len(checks) != 6 {
 		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
 	}

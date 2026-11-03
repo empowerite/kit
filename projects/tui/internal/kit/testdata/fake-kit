@@ -12,6 +12,9 @@
 
 set -o errexit -o nounset -o pipefail
 
+# FAKE_KIT_HANG is the seconds every call sleeps before it answers, as a kit that hangs would.
+[[ -z "${FAKE_KIT_HANG:-}" ]] || sleep "${FAKE_KIT_HANG}"
+
 here=$(cd "$(dirname "$0")" && pwd)
 fixtures=${here}/../../syntax/testdata
 

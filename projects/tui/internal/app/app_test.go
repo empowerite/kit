@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/palette"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -57,6 +59,28 @@ func TestAResizeWhileTheFormIsOpenReachesThePaletteUnderIt(t *testing.T) {
 		if ansi.StringWidth(l) > 60 {
 			t.Errorf("a line of %d cells at 60 columns: %q", ansi.StringWidth(l), ansi.Strip(l))
 		}
+	}
+}
+
+// Opening a verb from the palette asks kit for its grammar off the update loop, so a slow kit never freezes the
+// screen; the form opens when the grammar comes.
+func TestOpeningAVerbAsksKitOffTheUpdateLoop(t *testing.T) {
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
+	t.Setenv("FAKE_KIT_HANG", "1")
+	start := time.Now()
+	next, ask := m.Update(palette.OpenMsg{Verb: "commit"})
+	m = next.(Model)
+	if took := time.Since(start); took > 300*time.Millisecond || ask == nil || m.InForm() {
+		t.Fatalf("opening took %s, asked %v, in the form %v", took, ask != nil, m.InForm())
+	}
+	answer := ask()
+	t.Setenv("FAKE_KIT_HANG", "")
+	if m = drive(m, answer); !m.InForm() || !strings.Contains(m.View().Content, "kit commit") {
+		t.Errorf("the grammar came and the form did not open:\n%s", m.View().Content)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -700,6 +701,30 @@ func TestTextLongerThanTheScreenKeepsItsCaretInSight(t *testing.T) {
 			t.Errorf("at %d columns, the command line holds %d of the %d nines:\n%s", width, strings.Count(command,
 				"9"), len(typed), strings.Join(lines, "\n"))
 		}
+	}
+}
+
+// Enter on the command line asks kit off the update loop, so a kit slow to judge it never freezes the screen; the
+// answer, when it comes, runs the line. An answer about a line that changed since it was asked is dropped.
+func TestEnterOnTheCommandLineAsksKitOffTheUpdateLoop(t *testing.T) {
+	m := newForm(t, "commit", FromMatch(syntax.Match{Values: map[string][]string{"--message": {"hi"}}}), false)
+	m.focus = len(m.fields)
+	m.enter()
+	t.Setenv("FAKE_KIT_HANG", "1")
+	start := time.Now()
+	m, ask := step(m, key("enter"))
+	if took := time.Since(start); took > 300*time.Millisecond || ask == nil || m.done {
+		t.Fatalf("Enter took %s, asked %v, done %v", took, ask != nil, m.done)
+	}
+	answer := ask()
+	t.Setenv("FAKE_KIT_HANG", "")
+	if done, _ := step(m, answer); !done.run {
+		t.Errorf("kit's answer did not run the line")
+	}
+	// the person changed the line while kit judged it: the answer is about another line
+	m.fields[0].Values = []string{"1"}
+	if stale, _ := step(m, answer); stale.run || stale.done {
+		t.Errorf("an answer about a line since changed ran it")
 	}
 }
 

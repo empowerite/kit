@@ -224,16 +224,23 @@ const waitDelay = 2 * time.Second
 // A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
 // the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, r.Kit, append([]string{"flow", stage, "--json"}, args...)...)
+	cmd := grouped(ctx, r.Kit, append([]string{"flow", stage, "--json"}, args...)...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
-	cmd.WaitDelay = waitDelay
 	out, err := r.output(cmd)
 	if err != nil && ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	return out, err
+}
+
+// grouped gives the command kit runs as: in a process group of its own, sent SIGTERM when ctx ends, so what kit
+// started dies with it, and waited for waitDelay at most after that.
+func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
+	cmd.WaitDelay = waitDelay
+	return cmd
 }
 
 // Check is one of kit welcome's checks, as kit welcome --checks --json prints it. Fix is the command that fixes it,
@@ -262,9 +269,10 @@ func (c *Check) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// WelcomeChecks gives kit welcome's checks, in the order kit ran them.
-func (r Runner) WelcomeChecks() ([]Check, error) {
-	out, err := r.run("welcome", "--checks", "--json")
+// WelcomeChecks gives kit welcome's checks, in the order kit ran them. They have checksLimit at most, and end when ctx
+// does, as the screen that asked for them ends.
+func (r Runner) WelcomeChecks(ctx context.Context) ([]Check, error) {
+	out, err := r.within(ctx, checksLimit, append(os.Environ(), "NO_COLOR=1"), "welcome", "--checks", "--json")
 	if err != nil {
 		return nil, err
 	}
@@ -319,11 +327,35 @@ func (r Runner) run(args ...string) ([]byte, error) {
 	return r.runIn(append(os.Environ(), "NO_COLOR=1"), args...)
 }
 
-// runIn runs kit as run does, in the environment env.
+// runIn runs kit as run does, in the environment env, for callLimit at most.
 func (r Runner) runIn(env []string, args ...string) ([]byte, error) {
-	cmd := exec.Command(r.Kit, args...)
+	return r.within(context.Background(), callLimit, env, args...)
+}
+
+// The limits of kit's calls: a call that reads the grammar, a page, or choices has callLimit, and kit welcome's checks
+// have checksLimit, as long as a stage of kit flow. The tests shorten them.
+var (
+	callLimit   = 30 * time.Second
+	checksLimit = 2 * time.Minute
+)
+
+// within runs kit in the environment env until ctx ends or the limit passes, whichever is first; past the limit, the
+// error says how long the call had, and when ctx ends first, the error is ctx's.
+func (r Runner) within(ctx context.Context, limit time.Duration, env []string, args ...string) ([]byte, error) {
+	limited, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	cmd := grouped(limited, r.Kit, args...)
 	cmd.Env = env
-	return r.output(cmd)
+	out, err := r.output(cmd)
+	switch {
+	case err == nil:
+		return out, nil
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	case limited.Err() != nil:
+		return nil, fmt.Errorf("kit %s took longer than %s; it was stopped", args[0], limit)
+	}
+	return nil, err
 }
 
 // output runs the command in Dir and gives its stdout, as run says.
