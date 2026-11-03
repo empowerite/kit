@@ -41,6 +41,25 @@ tree() {
   [[ "$output" == *"run: kit install"* ]]
 }
 
+@test "uninstall removes a JSON file of the kit's entries alone, and names what is left in lefthook.yml and the hook" {
+  rm .claude/settings.json
+  "${kit_checkout}/bin/kit" install agents/claude hooks/lefthook >/dev/null 2>&1
+  [ -f .claude/settings.json ] && [ -f .mcp.json ]
+  printf '# lefthook.yml - the git hooks\nextends: [.kit/lefthook.yml]\n' > lefthook.yml
+  mkdir -p .git/hooks
+  printf '#!/bin/sh\nlefthook run pre-commit\n' > .git/hooks/pre-commit
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  # the kit made both files, and nothing else was ever in them
+  [ ! -e .claude/settings.json ]
+  [ ! -e .mcp.json ]
+  [ ! -e .claude ]
+  # lefthook.yml and the hook are the repository's; kit names them and leaves them
+  [ "$(sed -n 2p lefthook.yml)" = "extends: [.kit/lefthook.yml]" ]
+  [[ "$output" == *"left to do in lefthook.yml: take out the line that names .kit/lefthook.yml"* ]]
+  [[ "$output" == *"left to do: the pre-commit hook still runs lefthook; run: lefthook uninstall"* ]]
+}
+
 @test "uninstall takes out what toolchain detection cached in .kit/cache/" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   kit-bash 'use toolchain && toolchain:detect' >/dev/null

@@ -10,7 +10,7 @@
 #
 # see: bin/kit-uninstall, modules/bash/place.sh, modules/bash/settings.sh
 
-use release file settings render place materialize manifest
+use release file settings render place materialize manifest resolve
 
 # uninstall:run [--dry-run] takes out what every active package delivered, under the repository and under home, then
 # the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing.
@@ -34,7 +34,24 @@ uninstall:run() {
   done
   uninstall:manifests "${dry}"
   uninstall:declaration "${dry}"
+  uninstall:left "${packages[@]}"
   [[ "${dry}" == true ]] || ok "kit is uninstalled; commit what changed. kit install takes it again."
+}
+
+# uninstall:left <package>… names what the kit leaves for the person, since the kit never writes it: each line a
+# package expected in a file the repository owns, and a pre-commit hook that still runs lefthook.
+uninstall:left() {
+  local path pattern _
+  while IFS=$'\x1f' read -r path pattern _
+  do
+    [[ -n "${path}" && -f "${path}" ]] || continue
+    grep --quiet --extended-regexp -- "${pattern}" "${path}" || continue
+    warn "left to do in ${path}: take out the line that names ${pattern//\\/}"
+  done < <(resolve:expectations "${kit_root}" "$@")
+  if list:among hooks/lefthook "$@" && grep --quiet lefthook "$(git rev-parse --git-path hooks/pre-commit)" 2>/dev/null
+  then
+    warn "left to do: the pre-commit hook still runs lefthook; run: lefthook uninstall"
+  fi
 }
 
 # uninstall:path <dry> <base> <path> <source> takes one delivered path out, or says what it would do. A copy outside
@@ -52,7 +69,13 @@ uninstall:path() {
   if [[ "${dry}" == false ]]
   then
     place:remove "${src}" "${dest}"
-    [[ "${kind}" != copy ]] || uninstall:prune "${dest}"
+    # A merged file holding nothing once the kit's entries are out held only the kit's, so it goes as a copy goes.
+    if [[ "${kind}" == merge && -f "${dest}" ]] && jq --exit-status 'length == 0' "${dest}" >/dev/null 2>&1
+    then
+      rm -f "${dest}"
+      step "${dest}: removed; only the kit's entries were in it"
+    fi
+    [[ -e "${dest}" ]] || uninstall:prune "${dest}"
     return 0
   fi
   case "${kind}" in
