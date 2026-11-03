@@ -30,11 +30,12 @@ type Options struct {
 	Filters []string
 }
 
-// loadedMsg brings a stage's JSON, or why kit did not print it.
+// loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
 type loadedMsg struct {
 	stage string
 	data  []byte
 	err   error
+	gen   int
 }
 
 // stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
@@ -50,9 +51,12 @@ type stage struct {
 	pulls   []pull
 	runs    []run
 	rels    []release
-	cursor  int             // the row under the cursor, kept while another stage is shown
-	offset  int             // the first line of the pane
-	open    map[string]bool // the rows opened, by key
+	cursor  int                // the row under the cursor, kept while another stage is shown
+	offset  int                // the first line of the pane
+	open    map[string]bool    // the rows opened, by key
+	gen     int                // the stage's latest load: an answer from an earlier one is dropped
+	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
+	stop    context.CancelFunc // ends the latest load's command, when r starts another
 }
 
 // known names the stages kittui draws.
@@ -81,7 +85,18 @@ type Model struct {
 	dot           dot  // where the dot is, and how far it has to go
 	width, height int
 	interrupted   bool
+	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
 }
+
+// built holds each stage's rows as they were last built, and the width they were laid out for. A stage that loads, a
+// refresh, or a new width replaces it, since a stage's rows may draw from another's, as the desk's from changes'.
+type built struct {
+	width int
+	rows  map[int][]row
+}
+
+// rebuild drops the rows built so far; each is built again when it is next drawn.
+func (m *Model) rebuild() { m.built = &built{width: m.width, rows: map[int][]row{}} }
 
 // Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own:
 // --no-fetch, and the filters backlog, underway, and changes take. Kit's refusal of --stages is the error.
@@ -106,6 +121,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: map[string]bool{}}
 		if !known[name] {
@@ -133,16 +149,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.rebuild()
 		m.moving = false
 		m.fit()
 	case frameMsg:
 		cmd := m.step()
 		return m, cmd
 	case loadedMsg:
-		m.take(msg)
-		if msg.stage == "incoming" && !m.started {
+		if !m.take(msg) || msg.stage != "incoming" {
+			return m, nil
+		}
+		if !m.started {
 			m.started = true
 			return m, m.others()
+		}
+		if msg.gen > 0 {
+			// r on incoming fetched again: the stages the fetch moves load again
+			return m, m.reloads()
 		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
@@ -222,14 +245,21 @@ func (m Model) args(name string) []string {
 	return nil
 }
 
-// load runs a stage's command: kit flow <stage> --json, with the stage's words, for the limit at most.
+// load runs a stage's command: kit flow <stage> --json, with the stage's words, for the limit at most, as the stage's
+// latest load, which r supersedes.
 func (m Model) load(name string) tea.Cmd {
-	r, args, ctx, limit := m.runner, m.args(name), m.ctx, m.limit
+	r, args, ctx, limit, gen := m.runner, m.args(name), m.ctx, m.limit, 0
+	if s := m.find(name); s != nil {
+		gen = s.gen
+		if s.ctx != nil {
+			ctx = s.ctx
+		}
+	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, limit)
 		defer cancel()
 		data, err := r.Status(ctx, name, args)
-		return loadedMsg{stage: name, data: data, err: err}
+		return loadedMsg{stage: name, data: data, err: err, gen: gen}
 	}
 }
 
@@ -249,18 +279,45 @@ func (m *Model) refresh() tea.Cmd {
 	if len(m.stages) == 0 || !known[m.stages[m.stage].name] {
 		return nil
 	}
-	s := &m.stages[m.stage]
-	s.loading, s.refusal = true, ""
-	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
-	return m.load(s.name)
+	return m.restart(m.stages[m.stage].name)
 }
 
-// take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed. The cursor stays
-// within the rows that came.
-func (m *Model) take(msg loadedMsg) {
+// restart runs a stage's command again as its latest load, ending the one before when it still runs, and shows the
+// stage loading until it answers.
+func (m *Model) restart(name string) tea.Cmd {
+	s := m.find(name)
+	if s.stop != nil {
+		s.stop()
+	}
+	s.ctx, s.stop = context.WithCancel(m.ctx)
+	s.gen++
+	s.loading, s.refusal = true, ""
+	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
+	m.rebuild()
+	return m.load(name)
+}
+
+// moved names the stages whose rows the fetch moves: the desk's and the worktrees' counts against the default branch,
+// and the issues underway, which the pull requests the fetch brings close.
+var moved = []string{"desk", "worktrees", "underway"}
+
+// reloads runs again each stage the fetch moves, when it is in the picture.
+func (m *Model) reloads() tea.Cmd {
+	var cmds []tea.Cmd
+	for _, name := range moved {
+		if m.find(name) != nil {
+			cmds = append(cmds, m.restart(name))
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
+// take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed, and says whether it
+// did. The answer of a load a later one superseded is dropped. The cursor stays within the rows that came.
+func (m *Model) take(msg loadedMsg) bool {
 	s := m.find(msg.stage)
-	if s == nil {
-		return
+	if s == nil || msg.gen != s.gen {
+		return false
 	}
 	s.loading = false
 	err := msg.err
@@ -270,10 +327,12 @@ func (m *Model) take(msg loadedMsg) {
 	if err != nil {
 		s.refusal = refusalOf(s.name, err)
 	}
+	m.rebuild()
 	for i := range m.stages {
 		m.clamp(i)
 	}
 	m.fit()
+	return true
 }
 
 // decode keeps what the stage's command printed. A document of another shape, as kit prints above repositories, is

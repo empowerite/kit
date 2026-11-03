@@ -5,6 +5,7 @@ package flow
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -381,26 +382,38 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheLineAndQuits(t *testing.T) {
 	}
 }
 
+// The keys bar in the rows, on a row that opens, closed and open.
+const (
+	opens  = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back"
+	closes = "↑↓ move · ←→ stage · r refresh · ⏎ close · ? legend · esc back"
+)
+
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	for _, c := range []struct {
 		msgs []tea.Msg
 		keys string
 	}{
 		{nil, lineKeys},
-		{[]tea.Msg{down}, backKeys},
-		{[]tea.Msg{down, down, down, down}, backKeys},
-		{[]tea.Msg{right, right, right, down, enter}, backKeys},
+		{[]tea.Msg{down}, opens},
+		{[]tea.Msg{down, down, down, down}, opens},
+		{[]tea.Msg{right, right, right, down, enter}, closes},
 		{[]tea.Msg{press('?')}, backKeys},
-		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, backKeys},
+		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, opens},
 	} {
 		for _, width := range []int{80, 120, 200} {
-			for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
-				m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, c.msgs...)...)
-				got := lines(m)
-				if len(got) != height || got[height-1] != " "+c.keys {
-					t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got), got[len(got)-1])
+			// each load is a model of its own, so the sizes load side by side
+			t.Run(fmt.Sprintf("%v at %d", c.msgs, width), func(t *testing.T) {
+				t.Parallel()
+				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
+					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
+						c.msgs...)...)
+					got := lines(m)
+					if len(got) != height || got[height-1] != " "+c.keys {
+						t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got),
+							got[len(got)-1])
+					}
 				}
-			}
+			})
 		}
 	}
 	// at a width too narrow for it, the bar is clipped, never wrapped
@@ -501,6 +514,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 	// with no remote at all, the pane says why it is empty
 	m.find("incoming").in.Remotes = nil
+	m.rebuild()
 	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
@@ -550,22 +564,26 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 	// a remote whose fetch failed shows git's line, in red, and is no row of the count
 	m.find("incoming").in.Remotes[0].Error = "fatal: could not read from remote repository"
 	m.find("incoming").in.Remotes[0].Branches.Gone, m.find("incoming").in.Remotes[0].Tags = nil, nil
+	m.rebuild()
 	failed := Failed + " fatal: could not read from remote repository"
 	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n   "+failed+"\n") ||
 		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(5) != "4" {
 		t.Errorf("a failed fetch: count %s\n%s", m.count(5), v)
 	}
 	m.find("incoming").in.Remotes[0].Error = ""
+	m.rebuild()
 	// with every remote unchanged, each says so and the count is zero
 	for i := range m.find("incoming").in.Remotes {
 		r := &m.find("incoming").in.Remotes[i]
 		r.Commits, r.Branches.New, r.Branches.Updated, r.Branches.Gone, r.Tags = nil, nil, nil, nil, nil
 	}
+	m.rebuild()
 	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(5) != "0" {
 		t.Errorf("three remotes unchanged: count %s\n%s", m.count(5), v)
 	}
 	// with no remote at all, the pane says so
 	m.find("incoming").in.Remotes = nil
+	m.rebuild()
 	if !strings.Contains(view(m), "   no remote to fetch") {
 		t.Errorf("no remote:\n%s", view(m))
 	}
@@ -631,7 +649,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " kit flow") || !strings.Contains(got[2], Branch+" worktrees 4") || got[8] != " "+backKeys {
+	if !strings.HasPrefix(got[0], " kit flow") || !strings.Contains(got[2], Branch+" worktrees 4") || got[8] != " "+opens {
 		t.Errorf("the title, the line, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -667,29 +685,37 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 func TestEveryLineFitsTheWidthInCells(t *testing.T) {
 	for _, width := range []int{12, 24, 40, 50, 80, 120, 200} {
 		for _, legend := range []bool{false, true} {
-			// one load for the eight: each stage in turn, its first row open, then back to the line
-			m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
-			if legend {
-				m = drive(m, press('?'))
+			t.Run(fmt.Sprintf("%d legend %v", width, legend), func(t *testing.T) {
+				t.Parallel()
+				everyLineFits(t, width, legend)
+			})
+		}
+	}
+}
+
+// everyLineFits opens each stage's first row in turn, at the width, with the legend or without, and holds every line to
+// the width; at 80 columns or fewer, a long title is clipped.
+func everyLineFits(t *testing.T, width int, legend bool) {
+	// one load for the eight: each stage in turn, its first row open, then back to the line
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
+	if legend {
+		m = drive(m, press('?'))
+	}
+	for i := range eight {
+		if i > 0 {
+			m = drive(m, up, right)
+		}
+		m = drive(m, down, enter)
+		clipped := false
+		for _, l := range strings.Split(m.View().Content, "\n") {
+			if n := ansi.StringWidth(l); n > width {
+				t.Errorf("%s at %d, legend %v: a line of %d cells: %q", eight[i], width, legend, n, ansi.Strip(l))
 			}
-			for i := range eight {
-				if i > 0 {
-					m = drive(m, up, right)
-				}
-				m = drive(m, down, enter)
-				clipped := false
-				for _, l := range strings.Split(m.View().Content, "\n") {
-					if n := ansi.StringWidth(l); n > width {
-						t.Errorf("%s at %d, legend %v: a line of %d cells: %q", eight[i], width, legend, n,
-							ansi.Strip(l))
-					}
-					clipped = clipped || strings.HasSuffix(ansi.Strip(l), "…")
-				}
-				long := eight[i] == "changes" || eight[i] == "backlog" || eight[i] == "underway"
-				if width <= 80 && long && !clipped {
-					t.Errorf("%s at %d: no long title was clipped:\n%s", eight[i], width, view(m))
-				}
-			}
+			clipped = clipped || strings.HasSuffix(ansi.Strip(l), "…")
+		}
+		long := eight[i] == "changes" || eight[i] == "backlog" || eight[i] == "underway"
+		if width <= 80 && long && !clipped {
+			t.Errorf("%s at %d: no long title was clipped:\n%s", eight[i], width, view(m))
 		}
 	}
 }
@@ -755,7 +781,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, enter)
 	got := lines(m)
-	if len(got) != 10 || got[9] != " "+backKeys {
+	if len(got) != 10 || got[9] != " "+closes {
 		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)
@@ -896,11 +922,13 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	}
 	// a desk on a branch with a pull request shows it, as a worktree does
 	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
+	m.rebuild()
 	if !strings.Contains(view(m), Change+" #2 🛬 ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
 	}
 	// a clean desk says so, dim
 	m.find("desk").desk.Uncommitted = 0
+	m.rebuild()
 	if !strings.Contains(m.View().Content, style.Off("clean")) {
 		t.Errorf("a clean desk does not say clean")
 	}
@@ -1221,6 +1249,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	}
 	// an empty stage says how far it looked
 	m.find("builds").runs = nil
+	m.rebuild()
 	if !strings.Contains(view(m), "   no build since the last 20 runs") || !strings.Contains(lines(m)[2], Build+" builds 0") {
 		t.Errorf("the empty builds:\n%s", view(m))
 	}
@@ -1325,11 +1354,13 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	s := m.find("underway")
 	s.under[1].URL = "https://git.example.org/g/kit/-/issues/8"
 	s.under[1].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
+	m.rebuild()
 	if v := view(m); !strings.Contains(v, "/-/issues/8") || !strings.Contains(v, "/-/merge_requests/4") {
 		t.Errorf("kit's URLs do not win:\n%s", v)
 	}
 	// an empty stage says no issue is underway
 	s.under = nil
+	m.rebuild()
 	if !strings.Contains(view(m), "   no issue is underway") || !strings.Contains(lines(m)[2], InFlight+" underway 0") {
 		t.Errorf("the empty underway:\n%s", view(m))
 	}

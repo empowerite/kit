@@ -298,7 +298,21 @@ func (c *checks) cell() string {
 }
 
 // rows gives a stage's rows from what it loaded, laid out for the width; nothing while it loads or after a refusal.
+// They are built once for what the stages hold and the width, then kept until either changes.
 func (m Model) rows(i int) []row {
+	if m.built == nil || m.built.width != m.width {
+		return m.build(i)
+	}
+	r, ok := m.built.rows[i]
+	if !ok {
+		r = m.build(i)
+		m.built.rows[i] = r
+	}
+	return r
+}
+
+// build lays a stage's rows out from what it loaded.
+func (m Model) build(i int) []row {
 	s := m.stages[i]
 	switch s.name {
 	case "backlog":

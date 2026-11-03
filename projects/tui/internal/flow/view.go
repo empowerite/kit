@@ -15,11 +15,11 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// The keys bar, the screen's last line: on the line, where esc quits, and in the rows or over the legend, where esc
-// goes back.
+// The keys bar, the screen's last line: on the line, where esc quits, and over the legend or on a row that does not
+// open, where esc goes back. A row that opens adds ⏎, as open or close.
 const (
-	lineKeys = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc quit"
-	backKeys = "↑↓ move · ←→ stage · r refresh · ⏎ open · ? legend · esc back"
+	lineKeys = "↑↓ move · ←→ stage · r refresh · ? legend · esc quit"
+	backKeys = "↑↓ move · ←→ stage · r refresh · ? legend · esc back"
 )
 
 // fixed is how many lines the title, the line, the gaps, and the keys take; the trees and the pane have the rest.
@@ -83,12 +83,28 @@ func (m Model) paneHeight() int { return m.paneOf(m.treeRows(m.layout())) }
 // paneOf gives the lines the pane has under trees of so many rows.
 func (m Model) paneOf(rows int) int { return max(1, m.height-fixed-rows) }
 
-// keys gives the keys bar for the state the screen is in: esc goes back from the rows and from the legend.
+// keys gives the keys bar for the state the screen is in, naming only the keys that act there: Enter on a row that
+// opens, as open or close; r on a stage kittui loads; esc going back from the rows and from the legend.
 func (m Model) keys() string {
-	if m.inRows || m.legend {
-		return backKeys
+	keys := []string{"↑↓ move", "←→ stage"}
+	if len(m.stages) > 0 && known[m.stages[m.stage].name] {
+		keys = append(keys, "r refresh")
 	}
-	return lineKeys
+	if m.inRows {
+		s, rows := m.stages[m.stage], m.rows(m.stage)
+		if s.cursor < len(rows) && len(rows[s.cursor].detail) > 0 {
+			if s.open[rows[s.cursor].key] {
+				keys = append(keys, "⏎ close")
+			} else {
+				keys = append(keys, "⏎ open")
+			}
+		}
+	}
+	keys = append(keys, "? legend")
+	if m.inRows || m.legend {
+		return strings.Join(append(keys, "esc back"), " · ")
+	}
+	return strings.Join(append(keys, "esc quit"), " · ")
 }
 
 // title gives the title line: kit flow, and origin's owner/repo after its glyph, in its own color, when known.
