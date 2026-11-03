@@ -147,6 +147,23 @@ group-has() {
   done
 }
 
+@test "an unknown verb a letter or two from a verb names that verb, in the same words everywhere" {
+  local command
+  for command in '' help usage syntax
+  do
+    # shellcheck disable=SC2086  # an empty command is bin/kit alone
+    run "${kit_root}/bin/kit" ${command} comit
+    [ "$status" -eq 2 ] || { echo "kit ${command} comit: exit ${status}"; return 1; }
+    [ "$output" = "❌ unknown verb 'comit'; did you mean commit? run: kit help commit" ] \
+      || { echo "kit ${command} comit: ${output}"; return 1; }
+  done
+  run "${kit_root}/bin/kit" packges
+  [ "$output" = "❌ unknown verb 'packges'; did you mean packages? run: kit help packages" ]
+  # a word far from every verb does not get a guess
+  run "${kit_root}/bin/kit" che
+  [ "$output" = "❌ unknown verb 'che'; run: kit help" ]
+}
+
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {
   run "${kit_root}/bin/kit" help tidy
   [ "$status" -eq 0 ]

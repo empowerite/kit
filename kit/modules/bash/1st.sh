@@ -326,6 +326,40 @@ guard:jq() {
     "${verb}" "${args[@]}"
 }
 
+# guard:unknown-verb <word> refuses a word no verb answers, in the words every refusal of one uses. When a verb is one
+# or two edits from it, a letter added, dropped, changed, or two swapped, and the edits are fewer than half the word,
+# it names the nearest verb and its page. It always returns 2.
+guard:unknown-verb() {
+  local word=$1 nearest
+  nearest=$(find "${kit_root}/bin" -maxdepth 1 -name 'kit-*' -perm -u+x | sed 's@.*/kit-@@' | LC_ALL=C sort \
+    | awk -v word="${word}" '
+      # the optimal string alignment distance: insertions, deletions, substitutions, and adjacent transpositions
+      function distance(a, b,    i, j, la, lb, cost, d) {
+        la = length(a); lb = length(b)
+        for (i = 0; i <= la; i++) d[i, 0] = i
+        for (j = 0; j <= lb; j++) d[0, j] = j
+        for (i = 1; i <= la; i++)
+          for (j = 1; j <= lb; j++) {
+            cost = substr(a, i, 1) != substr(b, j, 1)
+            d[i, j] = d[i - 1, j] + 1
+            if (d[i, j - 1] + 1 < d[i, j]) d[i, j] = d[i, j - 1] + 1
+            if (d[i - 1, j - 1] + cost < d[i, j]) d[i, j] = d[i - 1, j - 1] + cost
+            if (i > 1 && j > 1 && substr(a, i, 1) == substr(b, j - 1, 1) && substr(a, i - 1, 1) == substr(b, j, 1) \
+              && d[i - 2, j - 2] + 1 < d[i, j]) d[i, j] = d[i - 2, j - 2] + 1
+          }
+        return d[la, lb]
+      }
+      { n = distance(word, $0); if (best == "" || n < least) { best = $0; least = n } }
+      END { if (best != "" && least <= 2 && least * 2 < length(word)) print best }')
+  if [[ -n "${nearest}" ]]
+  then
+    error "unknown verb '${word}'; did you mean ${nearest}? run: kit help ${nearest}"
+  else
+    error "unknown verb '${word}'; run: kit help"
+  fi
+  return 2
+}
+
 # guard:arguments <verb> <argument>… judges a verb's arguments against its syntax, read from its header, so every verb
 # refuses in one place and in the same words: an unknown flag or argument, an option without its value, two
 # alternatives of one group together, or a required argument missing, each in one line that points to kit help <verb>.

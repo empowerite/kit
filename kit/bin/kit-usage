@@ -25,8 +25,7 @@ for verb in "${verbs[@]}"
 do
   if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
   then
-    error "unknown verb '${verb}'; run: kit help"
-    exit 2
+    guard:unknown-verb "${verb}" || exit $?
   fi
 done
 for verb in "${verbs[@]}"

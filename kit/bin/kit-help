@@ -50,8 +50,7 @@ do
   # shellcheck disable=SC2154  # help_groups is set by modules/bash/help.sh
   if [[ -z "$(help:verbs "${word}")" && " ${help_groups[*]} " != *" ${word} "* ]]
   then
-    error "unknown verb '${word}'; run: kit help"
-    exit 2
+    guard:unknown-verb "${word}" || exit $?
   fi
 done
 # On a terminal, one name or none opens the palette, which runs this kit: on the verb when the name matches one, on

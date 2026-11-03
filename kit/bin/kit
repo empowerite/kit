@@ -41,7 +41,7 @@ then
   # The loader is sourced only to refuse: the verbs load it themselves.
   # shellcheck source=../modules/bash/1st.sh
   source "${kit_bin}/../modules/bash/1st.sh"
-  error "unknown verb '${verb}'; run: kit help"
+  guard:unknown-verb "${verb}" || true
   log:call kit "${started}" "pid=$$" "depth=${kit_depth:-0}" status=2 "in=${directory}" "${line}"
   exit 2
 fi
