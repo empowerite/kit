@@ -346,3 +346,25 @@ func TestAJoinedBarTurnsDownInItsLastColumn(t *testing.T) {
 		t.Errorf("x joined: %q", got)
 	}
 }
+
+// However the view scrolls, the middle line keeps every cell in its column: each tab's edge, ╮ over it, stands over │,
+// short of the triangles at either end, and MenuAt is where the menu's glyph is drawn. A cut through a two-cell glyph
+// at the view's left edge would move the rest of the line a cell right.
+func TestEveryLineOfAScrolledBarKeepsItsColumns(t *testing.T) {
+	for w := 20; w < 260; w++ {
+		for s := range 8 {
+			b := stages(s, w)
+			b.Reserve, b.Menus = len("xxx/yyy"), true
+			lines := strings.Split(plain(b), "\n")
+			for x := 2; x < w-2; x++ {
+				if ansi.Cut(lines[0], x, x+1) == "╮" && ansi.Cut(lines[1], x, x+1) != "│" {
+					t.Fatalf("at %d, tab %d selected, column %d is not under its edge:\n%s\n%s", w, s, x, lines[0],
+						lines[1])
+				}
+			}
+			if at := b.MenuAt(); at >= 0 && ansi.Cut(lines[1], at, at+1) != Menu {
+				t.Fatalf("at %d, tab %d selected, MenuAt says %d: %q", w, s, at, lines[1])
+			}
+		}
+	}
+}

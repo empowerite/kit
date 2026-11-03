@@ -128,28 +128,7 @@ func (m Model) overlay(lines []string) []string {
 func splice(line, box string, left int) string {
 	right := left + ansi.StringWidth(box)
 	line = pane.Pad(line, right, false)
-	return cells(line, 0, left) + box + cells(line, right, ansi.StringWidth(line))
-}
-
-// cells gives the cells of line from the column from up to to, with every escape sequence in it, so its colors hold;
-// a glyph either edge cuts in half is a space for each of its cells inside.
-func cells(line string, from, to int) string {
-	var b strings.Builder
-	col, state := 0, byte(0)
-	for line != "" {
-		seq, width, n, next := ansi.DecodeSequence(line, state, nil)
-		start, end := col, col+width
-		switch {
-		case width == 0:
-			b.WriteString(seq)
-		case start >= from && end <= to:
-			b.WriteString(seq)
-		case end > from && start < to:
-			b.WriteString(strings.Repeat(" ", min(end, to)-max(start, from)))
-		}
-		col, state, line = end, next, line[n:]
-	}
-	return b.String()
+	return pane.Cells(line, 0, left) + box + pane.Cells(line, right, ansi.StringWidth(line))
 }
 
 // menuClick takes a left click while the menu is open: on an item, it chooses it; anywhere else, it closes the menu.

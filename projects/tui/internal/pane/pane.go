@@ -139,7 +139,29 @@ func Tail(s string, n int) string {
 	if n < 1 {
 		return ""
 	}
-	return ansi.TruncateLeft(s, w-n+1, "…")
+	return "…" + Cells(s, w-n+1, w)
+}
+
+// Cells gives the cells of a line from the column from up to to, exactly so many, with every escape sequence in it, so
+// its colors hold; a two-cell glyph either edge cuts in half is a space for its cell inside. ansi.Cut keeps such a
+// glyph whole, a cell more than asked for, which moves everything after it.
+func Cells(line string, from, to int) string {
+	var b strings.Builder
+	col, state := 0, byte(0)
+	for line != "" {
+		seq, width, n, next := ansi.DecodeSequence(line, state, nil)
+		start, end := col, col+width
+		switch {
+		case width == 0:
+			b.WriteString(seq)
+		case start >= from && end <= to:
+			b.WriteString(seq)
+		case end > from && start < to:
+			b.WriteString(strings.Repeat(" ", min(end, to)-max(start, from)))
+		}
+		col, state, line = end, next, line[n:]
+	}
+	return b.String()
 }
 
 // Break wraps a text as Wrap does, then breaks a word wider than the width across lines, so no line is wider and none

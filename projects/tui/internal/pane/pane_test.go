@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
 func TestTheWindowCountsWhatItHides(t *testing.T) {
@@ -188,10 +190,29 @@ func TestTailKeepsTheEndInCells(t *testing.T) {
 		{"abc", 4, "abc"},
 		{"abc", 0, ""},
 		{"ab🏭🏭", 3, "…🏭"},
+		{"ab🏭🏭", 4, "… 🏭"},
 	} {
-		if got := Tail(c.in, c.n); got != c.want || ansi.StringWidth(got) > max(c.n, 0) {
+		if got := Tail(c.in, c.n); got != c.want || ansi.StringWidth(got) != min(c.n, ansi.StringWidth(c.in)) {
 			t.Errorf("Tail(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
 		}
+	}
+}
+
+// Cells gives exactly the cells asked for, a two-cell glyph either edge cuts in half a space, and keeps the escapes,
+// where ansi.Cut keeps the glyph whole.
+func TestCellsCutsExactlyEvenThroughATwoCellGlyph(t *testing.T) {
+	line := "a" + style.Off("🏭b") + "🌿"
+	for _, c := range []struct {
+		from, to int
+		want     string
+	}{{0, 6, "a🏭b🌿"}, {2, 6, " b🌿"}, {0, 2, "a "}, {1, 3, "🏭"}, {4, 5, " "}} {
+		got := Cells(line, c.from, c.to)
+		if ansi.Strip(got) != c.want || ansi.StringWidth(got) != c.to-c.from {
+			t.Errorf("Cells(%d, %d) = %q, want %q", c.from, c.to, got, c.want)
+		}
+	}
+	if !strings.Contains(Cells(line, 2, 6), "\x1b[") {
+		t.Error("Cells dropped the colors")
 	}
 }
 

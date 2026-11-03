@@ -279,16 +279,15 @@ func (b Bar) View() string {
 	}
 	// shown gives a line as the view shows it, after the margin, the triangles on the middle line
 	shown := func(line string, middle bool) string {
-		margin, rest := " ", pane.Pad(ansi.Cut(line, l.scroll, l.scroll+w), w, false)
+		margin, rest := " ", pane.Pad(pane.Cells(line, l.scroll, l.scroll+w), w, false)
 		if middle && l.scroll > 0 {
-			margin, rest = Before, " "+pane.Pad(ansi.Cut(rest, 1, w), w-1, false)
+			margin, rest = Before, " "+pane.Pad(pane.Cells(rest, 1, w), w-1, false)
 		}
 		if middle && l.scroll+w < l.width {
-			rest = pane.Pad(ansi.Cut(rest, 0, w-2), w-2, false) + " " + After
+			rest = pane.Pad(pane.Cells(rest, 0, w-2), w-2, false) + " " + After
 		}
-		// a cut through a two-cell glyph can leave a cell more than the screen has; the spaces it ends with go, and the
-		// colors of what the cut left empty with them
-		out := ansi.Truncate(margin+rest, w+1, "")
+		// the spaces it ends with go, and the colors of what the cut left empty with them
+		out := margin + rest
 		return ansi.Truncate(out, ansi.StringWidth(strings.TrimRight(ansi.Strip(out), " ")), "")
 	}
 	bottom := shown(under.String(), false)
