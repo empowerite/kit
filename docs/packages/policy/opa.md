@@ -5,8 +5,9 @@ present under `.kit/policy/`, `kit policy` evaluates the policy with Open Policy
 patterns engine.
 
 The rules in `kit.rego` refuse exactly what the patterns engine refuses. Taking the package changes nothing until
-the repository adds a rule of its own. To add one, put a `.rego` file of the repository's own beside `kit.rego`,
-in the same package, that adds to `deny`.
+the repository adds a rule of its own. Such a rule is Rego in package `kit.policy` that adds to `deny` or `warn`.
+It ships through a local package; see
+[a rule of your own, through a local package](../../policy.md#a-rule-of-your-own-through-a-local-package).
 
-`kit policy --input` prints the input document a rule reads. The repository pins `opa` in its toolchain, and
-`kit tools install` installs it.
+`kit facts` prints the document a rule reads. The repository pins `opa` in its toolchain, and `kit tools install`
+installs it.

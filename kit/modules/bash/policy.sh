@@ -1,12 +1,12 @@
 # shellcheck shell=bash
-# policy.sh - the seam over the engine that checks branch names, commit subjects, and change titles (sourced module)
+# policy.sh - the seam over the engine that judges the branch, the commits, the change, and the tree (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
-# A policy sets what a branch name, a commit subject, or a change title may be. kit policy enforces it: it gathers
-# the facts, reads the rules, and calls a provider (the policy engine) to list every refusal and every warning. A provider is
-# policy/<name>.sh beside it, whose functions are named policy/<name>:<call>.
+# A policy sets what a branch name, a commit subject, a change title, or the tree of files may be. kit policy enforces
+# it: it gathers the facts, reads the rules, and calls a provider (the policy engine). The provider lists every
+# refusal and every warning. A provider is policy/<name>.sh beside it, whose functions are named policy/<name>:<call>.
 #
 # The facts are one JSON document, which modules/bash/facts.sh describes and builds. `kit facts` prints it, to write a
 # rule against, and so does `kit policy --input`. It holds the moment, the branch, the commits, the change, the tree
@@ -120,7 +120,10 @@ policy:deny() {
   local engine
   engine=$(policy:engine) || return 1
   use "policy/${engine}" || return 1
+  # Each stage's status is checked, since a caller may not set pipefail.
   "policy/${engine}:deny" "$1" | LC_ALL=C sort --unique
+  local -a statuses=("${PIPESTATUS[@]}")
+  (( statuses[0] == 0 && statuses[1] == 0 ))
 }
 
 # policy:warn <input-file> prints every warning the provider finds in the facts, one per line, sorted and without
@@ -131,6 +134,8 @@ policy:warn() {
   use "policy/${engine}" || return 1
   declare -F "policy/${engine}:warn" >/dev/null || return 0
   "policy/${engine}:warn" "$1" | LC_ALL=C sort --unique
+  local -a statuses=("${PIPESTATUS[@]}")
+  (( statuses[0] == 0 && statuses[1] == 0 ))
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

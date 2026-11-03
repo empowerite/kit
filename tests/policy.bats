@@ -191,3 +191,25 @@ REGO
   [ "$status" -eq 2 ]
   [[ "$output" == *"missing.json"* ]]
 }
+
+@test "kit policy --facts refuses an empty file, and an object with no policy, as no facts document" {
+  : > empty.json
+  run "${kit_root}/bin/kit" policy --facts=empty.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"empty.json"*"is not a facts document"* ]]
+  printf '{}\n' > bare.json
+  run "${kit_root}/bin/kit" policy --facts=bare.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"bare.json"*"is not a facts document"* ]]
+}
+
+@test "kit policy --facts reads a relative file from the directory it was typed in" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  mkdir sub
+  "${kit_root}/bin/kit" policy --input | jq '.branch = "BAD"' > sub/fx.json
+  "${kit_root}/bin/kit" policy --input > fx.json
+  cd sub
+  run "${kit_root}/bin/kit" policy --facts=fx.json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'BAD' does not match policy.branch"* ]]
+}

@@ -27,9 +27,10 @@ entry() {
     "${work}/doc.json" > "${work}/doc.tmp" && mv "${work}/doc.tmp" "${work}/doc.json"
 }
 
-# fixture starts a document that passes: a README.md, and the kit command in kit/bin/.
+# fixture starts a document that passes: a README.md, and the kit command in kit/bin/. kit policy --facts takes
+# only a document with a policy key.
 fixture() {
-  printf '{"tree": {}}\n' > "${work}/doc.json"
+  printf '{"tree": {}, "policy": {}}\n' > "${work}/doc.json"
   entry README.md
   entry kit/bin/kit x
 }
@@ -49,9 +50,10 @@ judge() {
 }
 
 @test "the kit's own tree passes" {
-  # the kit's own tree, as HEAD holds it, judged by the rules in a scratch repository
-  (cd "${repo_root}" && "${kit_root}/bin/kit" facts > "${BATS_TEST_TMPDIR}/own.json")
-  cp "${BATS_TEST_TMPDIR}/own.json" "${work}/doc.json"
+  # the kit's own tree, gathered in a copy so nothing lands in the checkout, judged without the branch's names
+  (checkout-copy && "${kit_root}/bin/kit" facts --moment=commit > "${BATS_TEST_TMPDIR}/own.json")
+  jq '.branch = null | .commits = [] | .change = null' "${BATS_TEST_TMPDIR}/own.json" > "${work}/doc.json"
+  [ "$(jq '.tree | length' "${work}/doc.json")" -gt 0 ]
   judge
   [ "$status" -eq 0 ]
 }

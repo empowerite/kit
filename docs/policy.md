@@ -1,17 +1,17 @@
 # Policy
 
 A policy is the set of patterns that a branch name, a commit subject, and a change's title must match. A change is
-a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current branch; it prints each
-name that breaks the policy and fails.
+a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current branch. It prints each
+refusal and fails, and it prints each warning too.
 
 ```sh
 kit policy
 ```
 
-- `kit policy` gathers the facts once, then the policy engine reports every refusal.
+- `kit policy` gathers the facts once, then the policy engine reports every refusal and every warning.
 - `kit ci` runs it beside the gate (the repository's own CI command), so a name that breaks the policy fails the
   delivered check like a failing test.
-- On a runner, the refusals also appear in the step summary.
+- On a runner, the refusals and the warnings also appear in the step summary.
 
 ## The facts
 
@@ -43,7 +43,7 @@ kit policy
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
 | `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change, and `null` at commit. |
-| `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. |
+| `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. At commit, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
 | `policy` | The patterns, with the kit's defaults filled in. |
 
 Each entry in `tree` has these fields:
@@ -90,6 +90,9 @@ kit policy --facts=fixture.json
 ```
 
 Edit the fixture to test a rule against facts that the repository does not have.
+
+- A relative `<file>` starts from the directory the command was typed in.
+- A file that is not a facts document, a JSON object with a `policy` key, is refused.
 
 ## The rules
 
@@ -155,6 +158,10 @@ source, and kit delivers it as a link:
 
 - The package must list `policy/opa` under `depends:`.
 - Without it, `kit.rego` is missing. Any `.rego` file selects `opa`, so the naming rules would silently stop.
+- `kit packages add` brings in what a package depends on. `kit hydrate` does not: it reads only `packages:` in
+  `kit.yml`.
+- So a package that is already active, and gains the line, needs one more step. Run `kit packages add policy/opa`,
+  or list `policy/opa` under `packages:` in `kit.yml`.
 
 ```yaml
 description: "This repository's own tree rules"
