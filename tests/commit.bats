@@ -9,16 +9,26 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
-setup() {
-  work=$(mktemp -d)
-  cd "${work}"
+# desk-world makes what every test starts from, once for the file: origin, a bare repository beside the desk, and the
+# desk with the kit installed and its start commit on main, pushed.
+desk-world() {
   git init --quiet --bare --initial-branch=main origin.git
   git clone --quiet origin.git desk 2>/dev/null
-  cd desk
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  cd desk || return 1
+  "${kit_checkout}/bin/kit" install
   printf 'notes\n' > notes.txt
   git add --all && git commit --quiet --message '#1 start: the first' && git push --quiet origin main
   git remote set-head origin main
+}
+
+setup_file() {
+  world-make desk desk-world
+}
+
+setup() {
+  work=$(mktemp -d)
+  world-copy desk "${work}"
+  cd "${work}/desk"
   git worktree add --quiet -b 7-fix-the-thing worktrees/7-fix-the-thing main
   cd worktrees/7-fix-the-thing
 }
