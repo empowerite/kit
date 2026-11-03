@@ -7,7 +7,7 @@ members, and that is all it does.
 | --- | --- |
 | the eight `style/*` packages | the style for each kind of file, with its templates, and the prose style; see [style.md](style.md) |
 | `github/ci` | the GitHub Actions job that runs `kit ci` |
-| `agents/claude` | Claude Code's deny list, and the hook that runs `kit context` before every write |
+| `agents/claude` | Claude Code's deny list, and the hook that runs `kit context` before each Write, Edit, and MultiEdit |
 | `hooks/lefthook` | the pre-commit hook that runs `kit lint` and `kit generate --check` |
 | `workflow` | `.kit/workflow.md`: the workflow from an issue to a merged pull request, plans as prose, and the worker contract; see [workflow.md](workflow.md) |
 

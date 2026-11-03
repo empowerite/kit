@@ -131,7 +131,8 @@ release workflow. It refuses:
 `kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age.
 
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
-verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`.
+verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`. It matches
+literal patterns, so a form it does not list, such as `git -C <dir> commit`, passes. Other harnesses get none.
 
 see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 

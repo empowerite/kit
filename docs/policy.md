@@ -11,7 +11,7 @@ kit policy
 
 - `kit policy` gathers the facts once, then the policy engine reports every refusal and every warning.
 - `kit ci` runs it beside the gate (the repository's own CI command), so a name that breaks the policy fails the
-  delivered check like a failing test.
+  delivered check like a failing test. That check blocks a merge only when a branch ruleset requires it.
 - On a runner, the refusals and the warnings also appear in the step summary.
 
 ## The facts
@@ -60,7 +60,8 @@ Each entry in `tree` has these fields:
 
 ### What kit commit judges
 
-`kit commit` runs the policy before the commit exists.
+`kit commit` runs the policy before the commit exists. A plain `git commit` does not: until CI, only a harness's
+deny list stops one.
 
 - It judges the tree its own commit will make: HEAD plus the named paths, or the index when no paths are named.
 - Its moment is `commit`, and `commits` holds the one commit it makes.

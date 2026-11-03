@@ -35,7 +35,8 @@ How work moves from an issue to a merged pull request is the repository's to say
 ## Kit commands instead of git commands
 
 Some git commands have a kit replacement that adds the check its rule requires. An agent uses only the kit
-command. A harness with a deny list refuses the raw git command.
+command. Claude Code and Gemini CLI, with the kit's adapter, refuse the raw git command by its literal pattern.
+Elsewhere, this rule is the only thing that stops it.
 
 - `kit rebase`, never `git rebase`. `kit rebase` refuses to run in the root checkout or on the default branch.
   Otherwise it rebases the worktree's branch onto the default branch at the primary remote, `origin` unless
@@ -47,7 +48,7 @@ command. A harness with a deny list refuses the raw git command.
 - `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
 - An agent never switches or resets the desk. `git checkout main`, `git switch main`, `git reset --hard`, and
-  `git push --force` are refused as well.
+  `git push --force` are on the same deny list. It names `main` literally.
 
 These limits do not apply to the human at the desk.
 
@@ -73,7 +74,8 @@ parse.
 
 Before you change a file:
 
-1. Run `kit context <path>`. It prints the rules, then the style, that govern the file, and records that you asked.
+1. Run `kit context <path>`. It prints the rules, then the style, that govern the file, and records the path in a
+   local log.
 2. Read every file it prints.
 
 No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them. Where the
@@ -175,7 +177,8 @@ The packages:
 - `agents/claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:
   - a region in `.claude/CLAUDE.md` that imports `AGENTS.md`, so Claude Code reads `AGENTS.md` in every case
   - the deny list above, merged into `.claude/settings.json`
-  - a hook that runs `kit context` before every write, so the agent is told the file's rules without asking
+  - a hook that runs `kit context` before each Write, Edit, and MultiEdit, so the agent is told the file's rules
+    without asking; a write through the shell does not reach it
 - `agents/cursor`: support for Cursor, which reads `AGENTS.md` on its own. It delivers a rule under `.cursor/rules/`
   for each kit rule, attached by the rule's paths, whose body sends the agent to `.kit/rules/<kind>.md`.
 - `agents/copilot`: support for GitHub Copilot, which reads `AGENTS.md` on its own. It delivers an instruction file

@@ -23,7 +23,8 @@ person allows it.
 
 `.cursor/rules/` otherwise belongs to the repository. The package places only its seven files, `kit check` holds them
 to the release, and `kit packages remove agents/cursor` takes them out. Cursor does not offer a deny list that a
-repository can commit, so the git commands `.kit/1st.md` forbids are refused by the hooks and the ruleset alone.
+repository can commit, so nothing in Cursor refuses the git commands `.kit/1st.md` forbids. The pre-commit hook only
+lints. CI refuses a pull request that breaks the policy, and binds only when a ruleset requires its check.
 
 Verified on 2026-10-30 against [Cursor's rules page][cursor-rules], which does not show a version, and a Cursor staff
 statement of the frontmatter form in [its forum][cursor-forum].

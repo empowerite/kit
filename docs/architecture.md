@@ -105,7 +105,7 @@ gets the same answer:
 - a person at the shell,
 - a tool reading `--json`, and
 - Claude Code's `PreToolUse` hook, which the `agents/claude` package wires to `kit context --claude`, so the rules are
-  shown before every write.
+  shown before each Write, Edit, and MultiEdit. A write through the shell does not reach it.
 
 The log records each path asked about, and when.
 
@@ -213,11 +213,11 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | The gate ran with the pinned tools | `kit tools install`, then the gate run through the chosen toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
 | An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |
-| An agent asked for a file's rules | `.git/kit/context.log`, one line per request |
+| An agent asked for a file's rules | no check; `.git/kit/context.log` records each request, one line per path, and nothing reads it |
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
 | A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
 | The forbidden git commands were not used | no check; the deny list prevents them where the harness has one (Claude Code, Gemini CLI), and elsewhere this rests on the report in the pull request body, which `kit ci` does not verify |
-| The desk was not changed | `kit rebase` refusing the root checkout; `kit issue` never switching its branch |
+| The desk was not changed | no check; `kit rebase` refuses the root checkout and `kit issue` never switches its branch, and the deny lists refuse a few raw git commands where a harness has one |
 
 No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds
 of file they handle. The rest is the report in the pull request body, which the integrity rules in `.kit/1st.md`

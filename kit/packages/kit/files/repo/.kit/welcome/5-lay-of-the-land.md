@@ -39,8 +39,9 @@ reaches the default branch any other way.
 
 ## The build
 
-On each push, the code forge runs the repository's CI. A pull request's checks show on its row. The runs no pull
-request owns, such as those on the default branch, show as builds. `kit gate` runs the same gate on your machine.
+The code forge runs the delivered CI job on each pull request into the default branch. A pull request's checks show
+on its row. The runs not owned by any pull request, such as those on the default branch, show as builds. `kit gate`
+runs the same gate on your machine.
 
 `kit flow builds`
 

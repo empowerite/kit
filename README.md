@@ -37,11 +37,12 @@ What else kit provides:
   changes, incoming, builds, releases.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.
   The Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
-  such as `git rebase`.
+  such as `git rebase`, by literal pattern. `git -C <dir> commit` and `git merge` pass it.
 - A rule that agents never change the desk: the root checkout on your machine, on whatever branch it has.
 
-CI, through `kit ci`, is the only enforcement every harness feels. An adapter's deny list and hooks stop an agent
-only in that harness.
+CI, through `kit ci`, is the only enforcement every harness feels. It runs on pull requests into the default
+branch. It blocks a merge only when a branch ruleset requires its check, and kit does not ship a ruleset. An
+adapter's deny list and hooks stop an agent only in that harness.
 
 A repository keeps its own rules next to the delivered ones. The design is in
 [#1](https://github.com/empowerite/kit/issues/1) and [#4](https://github.com/empowerite/kit/issues/4).
@@ -163,7 +164,7 @@ and shows the fix for each problem. Then it walks you through how work flows, th
    - pin `lefthook`,
    - add `extends: [.kit/lefthook.yml]` to `lefthook.yml`, and
    - run `kit hydrate && lefthook install` once per clone; lefthook skips a missing `.kit/lefthook.yml` without a
-     word.
+     word, and `git commit --no-verify` skips the hook.
 
    With the `hooks/lefthook` package installed, `kit check` fails until `lefthook.yml` has that `extends` line. kit
    never writes it for you.

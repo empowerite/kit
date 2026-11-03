@@ -106,7 +106,8 @@ in two places:
 
 - `kit check`, over the whole repository, so `kit ci` checks every generated region, the kit's and the
   repository's own.
-- The `hooks/lefthook` package's pre-commit hook, over the staged paths.
+- The `hooks/lefthook` package's pre-commit hook, over the staged paths, in a clone that ran `lefthook install`.
+  `git commit --no-verify` skips it.
 
 `kit region [--home] [<path>]` prints the content the active packages deliver as the region at a path, rendered
 the way a template is. It is the command behind every region the kit delivers.

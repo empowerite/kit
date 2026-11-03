@@ -69,7 +69,8 @@ stays yours.
 
 ## gate
 
-The repository's own CI command, such as `just ci`. It runs on every push, and `kit gate` runs it on your machine.
+The repository's own CI command, such as `just ci`. The delivered CI job runs it on each pull request into the
+default branch, and `kit gate` runs it on your machine.
 
 `kit gate`
 
