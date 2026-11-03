@@ -242,13 +242,13 @@ settings:require() {
 declare -gra settings_stages=(backlog underway desk worktrees changes incoming builds releases)
 
 # settings:stages prints the stages the flow setting names, one per line, in its order: what kit flow draws.
-# Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 2: a
+# Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 1: a
 # setting that is not a list, a list that names no stage, a name that is no stage, and a name given twice.
 settings:stages() {
   local settings type value stage
   local -a stages=() seen=()
   settings=$(settings:file)
-  type=$(yaml:type "${settings}" flow) || return 2
+  type=$(yaml:type "${settings}" flow) || return 1
   case "${type}" in
     ('' | '!!null') stages=("${settings_stages[@]}") ;;
     ('!!seq')
@@ -256,25 +256,25 @@ settings:stages() {
       if (( ${#stages[@]} == 0 ))
       then
         error "flow in ${settings} names no stage; the stages are: ${settings_stages[*]}"
-        return 2
+        return 1
       fi
       ;;
     (*)
       value=$(yaml:value "${settings}" flow)
       error "flow in ${settings} must be a list of stages, not '${value:-${type#!!}}'"
-      return 2
+      return 1
   esac
   for stage in "${stages[@]}"
   do
     if ! list:among "${stage}" "${settings_stages[@]}"
     then
       error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (flow in ${settings})"
-      return 2
+      return 1
     fi
     if list:among "${stage}" "${seen[@]}"
     then
       error "'${stage}' is named twice in flow in ${settings}; name each stage once"
-      return 2
+      return 1
     fi
     seen+=("${stage}")
   done

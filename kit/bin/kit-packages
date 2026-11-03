@@ -25,7 +25,8 @@
 #   remove <package>…   deactivates the packages; refuses one an active package needs
 #   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
 #
-# Exits 0 when it did it, 1 when it could not, and 2 on a usage error or a package name the kit does not know.
+# Exits 0 when it did it, 1 when it could not, as when a source in kit.yml cannot be fetched or has another digest,
+# and 2 on a usage error or a package name the kit does not know.
 #
 # see: modules/bash/package.sh, modules/bash/settings.sh, docs/packages.md
 
@@ -33,7 +34,12 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use package settings
+use package settings sources
+# A package a source holds is a name the arguments may give only once the source is fetched, so a source that cannot
+# be is the refusal, not the name.
+case "${1:-}" in
+  (select | add | remove) sources:fetch-all || exit 1
+esac
 guard:arguments packages "$@" || exit $?
 settings:require
 

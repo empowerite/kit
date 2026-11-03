@@ -1032,12 +1032,12 @@ flow:picture-document() {
 # a fetch that failed: incoming draws it on its remote's line, and without incoming, the primary is fetched alone and
 # a failure warns once. With no primary remote it fetches nothing and asks the forge nothing: it draws the checkouts,
 # says so once, and returns 0. A primary whose forge kit cannot tell is fetched, and drawn with the checkouts; the
-# forge stages are left out, said once. It returns 2 when the flow setting is wrong.
+# forge stages are left out, said once. It returns 1 when a setting is wrong.
 flow:picture() {
   local json=false no_fetch=false reachable=true forged=true failed=false first=true stage doc code choice scratch text
   local primary host said
   local -a stages=() args=() named=()
-  text=$(settings:stages) || return 2
+  text=$(settings:stages) || return $?
   readarray -t stages <<<"${text}"
   [[ " $* " == *" --json "* ]] && json=true
   [[ " $* " == *" --no-fetch "* ]] && no_fetch=true

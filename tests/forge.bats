@@ -151,15 +151,15 @@ in-forge() {
   # a primary that names no remote is refused before any git command takes it as an argument
   printf 'primary: nowhere\n' > kit.yml
   run provider
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"primary 'nowhere' in kit.yml is not a remote; the remotes are: origin upstream zeta"* ]]
   printf 'primary: --upload-pack=touch pwned\n' > kit.yml
   run in-forge forge:remotes
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [ -z "$(find "${BATS_TEST_TMPDIR}" -name pwned)" ]
   printf 'forges: {"-x": github}\n' > kit.yml
   run in-forge forge:of origin
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"'-x' in forges in kit.yml is not a remote name"* ]]
 }
 

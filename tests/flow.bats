@@ -238,10 +238,10 @@ fake-tui() {
   [ "$output" = $'releases\nworktrees\ndesk' ]
   printf 'flow: [worktrees, nope]\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"'nope' is not a stage; the stages are: backlog underway desk worktrees changes incoming builds releases (flow in kit.yml)"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"'nope' is not a stage"* ]]
 }
 
@@ -712,24 +712,24 @@ fake-tui() {
 @test "flow in kit.yml must be a list of stages: a scalar, an empty list, and a repeated name are refused, and null means every stage" {
   printf 'flow: backlog\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"flow in kit.yml must be a list of stages, not 'backlog'"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"must be a list of stages, not 'backlog'"* && "$output" != *"WORKTREES"* ]]
   printf 'flow: []\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"flow in kit.yml names no stage; the stages are: backlog underway desk worktrees changes incoming builds releases"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch --json
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
   printf 'flow: [worktrees, worktrees]\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"'worktrees' is named twice in flow in kit.yml"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" != *"WORKTREES"* ]]
   printf 'flow:\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
@@ -737,7 +737,7 @@ fake-tui() {
   [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nincoming\nbuilds\nreleases' ]
 }
 
-@test "a primary or a forges key that is no remote is refused with 2 by every stage, before git sees it" {
+@test "a primary or a forges key that is no remote is refused with 1 by every stage, before git sees it" {
   local setting args
   for setting in 'primary: --upload-pack=touch pwned' 'primary: nowhere' \
     'forges: {"--upload-pack=touch pwned": github}'
@@ -747,10 +747,10 @@ fake-tui() {
     do
       # shellcheck disable=SC2086  # args is zero or one word, a stage, and empty means none
       run "${kit_root}/bin/kit" flow ${args}
-      [ "$status" -eq 2 ] || { echo "kit flow ${args}, with ${setting}: exit ${status}: ${output}"; return 1; }
+      [ "$status" -eq 1 ] || { echo "kit flow ${args}, with ${setting}: exit ${status}: ${output}"; return 1; }
     done
     run "${kit_root}/bin/kit" release 9.9.9
-    [ "$status" -eq 2 ]
+    [ "$status" -eq 1 ]
     run "${kit_root}/bin/kit" tidy --dry-run
     [ "$status" -eq 1 ]
   done

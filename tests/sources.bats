@@ -51,8 +51,9 @@ source-tarball() {
   IFS=$'\t' read -r file _ < <(source-tarball team guides first)
   printf 'sources:\n  - name: team\n    url: file://%s\n    digest: sha256:%064d\n' "${file}" 0 >> kit.yml
   run kit packages add guides
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *"the source team has digest sha256:"*", not the sha256:0000"* ]]
+  [[ "$output" != *"is not one of the choices"* ]]
   [ ! -e "${XDG_CACHE_HOME}/kit/sources" ] || [ -z "$(ls "${XDG_CACHE_HOME}/kit/sources")" ]
   printf 'sources:\n  - name: bare\n    url: file://%s\n' "${file}" > kit.yml.extra
   sed -i.bak '/^sources:/,$d' kit.yml && rm kit.yml.bak && cat kit.yml.extra >> kit.yml

@@ -62,7 +62,8 @@
 use settings
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
-# setting reaches git as an argument, so it must be safe first. It refuses, and returns 2, a settings error:
+# setting reaches git as an argument, so it must be safe first. It refuses, and returns 1, as kit cannot go on with a
+# wrong setting:
 #
 #   - a primary that names no remote here; git remote add refuses a name that starts with -, so a remote is never an
 #     option
@@ -78,7 +79,7 @@ forge:primary() {
     if ! grep --quiet --line-regexp --fixed-strings -- "${primary}" <<<"${remotes}"
     then
       error "primary '${primary}' in kit.yml is not a remote; the remotes are: $(paste -s -d ' ' - <<<"${remotes}")"
-      return 2
+      return 1
     fi
   fi
   while IFS=$'\t' read -r name _
@@ -87,7 +88,7 @@ forge:primary() {
     if [[ "${name}" == -* || ! "${name}" =~ ^[A-Za-z0-9._/-]+$ ]]
     then
       error "'${name}' in forges in kit.yml is not a remote name; name a remote, as git remote lists them"
-      return 2
+      return 1
     fi
   done < <(yaml:map "$(settings:file)" forges)
   printf '%s\n' "${primary:-origin}"

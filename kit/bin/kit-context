@@ -17,7 +17,8 @@
 # Runs as Claude Code's PreToolUse hook. It reads the hook's input on stdin, and answers with the rules that govern
 # the file the tool is about to write, as additional context.
 #
-# Exits 0 when the rules are printed, and 2 on a usage error.
+# Exits 0 when the rules are printed, 1 when a kind under .kit/kinds/ cannot be read, as one with no name: or one
+# defined twice, and 2 on a usage error.
 #
 # see: modules/bash/context.sh, docs/context.md
 
