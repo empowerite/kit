@@ -51,12 +51,17 @@ helper:isolate() {
     > "${GIT_CONFIG_GLOBAL}"
   printf '[init]\n\tdefaultBranch = main\n' >> "${GIT_CONFIG_GLOBAL}"
   export LC_ALL=C.UTF-8 NO_COLOR=1
-  # what a CI runner's environment would hand the verbs that read it
+  # what a CI runner's environment would hand the verbs that read it: the workflow commands an error adds, the step
+  # summary, the toolchain the job names, and the pull request
+  unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY KIT_TOOLCHAIN
   unset GITHUB_EVENT_PATH GITHUB_HEAD_REF CI_MERGE_REQUEST_IID CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+  # the depth of the kit call that ran bats, kit gate's under kit ci, which every call a test makes would add to
+  unset kit_depth
   # the forge tools' login files, which name the hosts each forge serves: a test writes its own, under the new HOME
   unset GH_CONFIG_DIR GLAB_CONFIG_DIR
-  # the marker of a toolchain the desk's shell activated, which would make that toolchain active in every test
-  unset MISE_SHELL
+  # the marker of a toolchain the desk's shell activated, which would make that toolchain active in every test, and
+  # mise's environment, the desk's or the runner's, which a test names for itself where it counts
+  unset MISE_SHELL MISE_ENV
   # a file whose setup() goes nowhere runs its verbs here, outside the checkout, rather than where bats was started
   cd "${BATS_TEST_TMPDIR}" || return 1
 }
@@ -142,19 +147,18 @@ hide-system-toolchains() {
 }
 
 # path-without <tool> hides the tool from PATH, such as a real brew on this machine. Each directory that holds it is
-# replaced by a directory of links to everything else in it, so the other tools there still run.
+# replaced by links to everything else in it, so the other tools there still run. One ln makes them, as
+# hide-system-toolchains does: Homebrew's bin is too large to link one file at a time.
 path-without() {
-  local dir out='' copy n=0 file IFS=:
+  local dir out='' copy n=0 IFS=:
   for dir in ${PATH}
   do
     if [[ -x "${dir}/$1" ]]
     then
       copy="${BATS_TEST_TMPDIR}/without-$1-$((n++))"
       mkdir -p "${copy}"
-      for file in "${dir}"/*
-      do
-        [[ "${file##*/}" == "$1" || ! -x "${file}" ]] || ln -sf "${file}" "${copy}/${file##*/}"
-      done
+      ln -s "${dir}"/* "${copy}/" 2>/dev/null || true
+      rm -f "${copy}/$1"
       dir=${copy}
     fi
     out+="${out:+:}${dir}"
