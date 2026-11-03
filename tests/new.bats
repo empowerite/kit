@@ -8,9 +8,12 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+setup_file() {
+  world-repo installed style/bash style/markdown
+}
+
 setup() {
-  fresh-repo
-  "${kit_checkout}/bin/kit" install style/bash style/markdown >/dev/null 2>&1
+  world-copy-repo installed
 }
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }

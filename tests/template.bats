@@ -6,9 +6,12 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+setup_file() {
+  world-repo installed 'style/*'
+}
+
 setup() {
-  fresh-repo
-  "${kit_root}/bin/kit" install 'style/*' >/dev/null 2>&1
+  world-copy-repo installed
 }
 
 # in_template <command>… runs a command with the template module loaded, from the repository, as a verb would.

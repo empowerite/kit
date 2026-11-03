@@ -6,9 +6,12 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+setup_file() {
+  world-repo installed
+}
+
 setup() {
-  fresh-repo
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  world-copy-repo installed
 }
 
 # candidates <word>… prints the candidates' words alone, for the words after kit.

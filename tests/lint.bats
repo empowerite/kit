@@ -4,10 +4,13 @@
 
 load helper
 
+setup_file() {
+  world-repo installed
+}
+
 setup() {
   shellcheck --version >/dev/null 2>&1 || skip "shellcheck is the bash rule's linter, and it is not on PATH"
-  fresh-repo
-  "${kit_checkout}/bin/kit" install >/dev/null
+  world-copy-repo installed
   script bad.sh 'echo $x'
   script good.sh 'echo "${x:-}"'
   script tool 'echo $y'

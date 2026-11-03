@@ -4,12 +4,22 @@
 
 load helper
 
+# ci-world makes the repository every test starts from: origin on GitHub, the kit installed, and gh failing.
+ci-world() {
+  mkdir shims && printf '#!/usr/bin/env bash\nexit 1\n' > shims/gh && chmod +x shims/gh
+  git init --quiet --initial-branch=main repo && cd repo \
+    && git remote add origin https://github.com/empowerite/example.git \
+    && PATH="${PWD}/../shims:${PATH}" "${kit_checkout}/bin/kit" install
+}
+
+setup_file() {
+  world-make installed ci-world
+}
+
 setup() {
   PATH=$(shims gh)
-  fresh-repo
-  git remote add origin https://github.com/empowerite/example.git
+  world-copy-repo installed
   export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
-  "${kit_checkout}/bin/kit" install >/dev/null
 }
 
 @test "every check runs and the refusals are counted" {

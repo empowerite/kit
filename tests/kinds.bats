@@ -6,9 +6,12 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+setup_file() {
+  world-repo installed
+}
+
 setup() {
-  fresh-repo
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  world-copy-repo installed
 }
 
 @test "one path prints its kinds one per line, by name, by first line, and through the kinds made of others" {

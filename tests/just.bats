@@ -9,11 +9,14 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+setup_file() {
+  world-repo installed style/just
+}
+
 setup() {
   command -v just >/dev/null || skip "just is not on PATH"
   export PATH="${kit_checkout}/bin:${PATH}"
-  fresh-repo
-  kit install style/just >/dev/null 2>&1
+  world-copy-repo installed
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   mkdir bash
   printf 'local:greet() { info "hello from $1"; }\n' > bash/local.sh

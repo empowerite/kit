@@ -4,9 +4,12 @@
 
 load helper
 
+setup_file() {
+  world-repo installed
+}
+
 setup() {
-  fresh-repo
-  "${kit_checkout}/bin/kit" install >/dev/null
+  world-copy-repo installed
 }
 
 @test "a file is governed by its path, by its first line, or by nothing" {
