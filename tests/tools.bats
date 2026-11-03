@@ -108,6 +108,19 @@ JSON
   [ "$output" = ran ]
 }
 
+@test "ambient, a found path too long for the terminal gives way at its start, so its file name shows" {
+  mkdir -p .kit/rules
+  printf -- '---\nlint: shellcheck --shell=bash\n---\n# Bash\n' > .kit/rules/bash.md
+  fake-tools shellcheck
+  export COLUMNS=60
+  run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  line=$(grep '^✅ shellcheck' <<<"$output")
+  [[ "${line}" == *" · …"*"/bin/shellcheck" ]]
+  # a glyph is drawn two wide, so the row takes one character less than the width
+  [ "${#line}" -eq 59 ]
+}
+
 @test "ambient, with every tool the rules need on PATH, install has nothing to do" {
   mkdir -p .kit/rules
   printf -- '---\nlint: shellcheck --shell=bash\n---\n# Bash\n' > .kit/rules/bash.md

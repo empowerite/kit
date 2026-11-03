@@ -70,9 +70,10 @@ needed() {
 }
 
 # draw <header> reads tab-separated rows on stdin, a glyph first, and prints them as a table: each column sized to
-# its widest cell, the cells joined by flow_sep, and the empty cells at a row's end dropped with their separators.
+# its widest cell, the cells joined by flow_sep, and the empty cells at a row's end dropped with their separators. A
+# row too wide for the terminal is clipped at its end. A found path gives way at its start, so its file name shows.
 draw() {
-  local width row line i
+  local width row line i room last
   local -a header lines cells sizes=()
   IFS=$'\t' read -r -a header <<<"$1"
   readarray -t lines
@@ -95,6 +96,16 @@ draw() {
     split "${row}"
     line=$(join "${cells[@]}")
     # a glyph counts as one character and is drawn two wide, so the row is clipped one short
+    if (( ${#line} + 1 > width )) && [[ "${header[-1]}" == found && ${#cells[@]} == $(( ${#header[@]} + 1 )) ]]
+    then
+      last=${cells[-1]}
+      room=$(( width - 1 - (${#line} - ${#last}) ))
+      if (( room > 1 ))
+      then
+        cells[-1]="…${last: -$(( room - 1 ))}"
+        line=$(join "${cells[@]}")
+      fi
+    fi
     if (( ${#line} + 1 > width ))
     then flow:cell "${line}" $(( width - 1 )); printf '\n'
     else printf '%s\n' "${line}"
