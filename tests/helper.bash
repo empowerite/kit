@@ -61,6 +61,8 @@ helper:isolate-in() {
     > "${GIT_CONFIG_GLOBAL}"
   printf '[init]\n\tdefaultBranch = main\n' >> "${GIT_CONFIG_GLOBAL}"
   export LC_ALL=C.UTF-8 NO_COLOR=1
+  # one time zone on every desk and runner, so a date the kit writes reads the same in every test
+  export TZ=UTC
   # what a CI runner's environment would hand the verbs that read it: the workflow commands an error adds, the step
   # summary, the toolchain the job names, and the pull request
   unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY KIT_TOOLCHAIN
