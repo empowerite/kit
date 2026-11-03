@@ -106,7 +106,7 @@ Edit the fixture to test a rule against facts that the repository does not have.
 - An empty pattern turns that rule off.
 - A subject the kit does not know is refused.
 - A change whose author is a login under `linked_exempt` in `kit.yml` passes with no rule checked, the tree rules
-  included, and `kit policy` says so by name. Its branch, its commits, and its title are a bot's, such as
+  included, and `kit policy` says so by name. Its branch, its commits, and its pull request title are a bot's, such as
   `dependabot[bot]`'s. The same setting passes the change through `kit linked`; see
   [packages.md](packages.md#settings).
 

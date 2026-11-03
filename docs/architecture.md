@@ -209,7 +209,7 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | A delivered file matches the release | `kit check`, in `kit ci` beside the gate and locally, against the release's files and the version `kit.yml` declares |
 | A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit issue` creates the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
-| Branch names, commit subjects, and titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
+| Branch names, commit subjects, and pull request titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
 | The gate ran with the pinned tools | `kit tools install`, then the gate run through the chosen toolchain, locally and in CI |
 | All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
 | An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |

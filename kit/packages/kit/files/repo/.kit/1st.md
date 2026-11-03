@@ -169,7 +169,8 @@ The packages:
   - the repository's gate
   - `kit check`
   - `kit linked`, which refuses a pull request not linked to an open issue
-  - `kit policy`, which refuses a branch name, commit subject, or title that breaks the repository's policy
+  - `kit policy`, which refuses a branch name, commit subject, or pull request title that breaks the repository's
+    policy
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
 - `agents/generic`: support for any agent that reads `AGENTS.md`. Every `agents/<harness>` package below depends
