@@ -1,8 +1,8 @@
 # flake.nix - the nix dev shells: the tools mise.toml and mise.desk.toml pin, for a desk or runner that uses nix
 # ----------------------------------------------------------------------------------------------------------------------
-# A port of mise.toml for the nix toolchain; see: docs/toolchains.md. Each mise tool is the nixpkgs package of that
-# name, and flake.lock pins nixpkgs by revision, as mise.lock pins each tool by version. The versions follow nixpkgs,
-# so they can sit a minor version off mise's pins.
+# A port of mise.toml for the nix toolchain; see: docs/toolchains/using-nix.md. Each mise tool is the nixpkgs package
+# of that name, and flake.lock pins nixpkgs by revision, as mise.lock pins each tool by version. The versions follow
+# nixpkgs, so they can sit a minor version off mise's pins.
 #
 #   - devShells.ci is mise.toml: the tools the gate runs.
 #   - devShells.default is mise.toml and mise.desk.toml: the gate's tools and lefthook. `nix develop` enters it, and

@@ -9,7 +9,7 @@
 # Homebrew. git and curl come from the machine.
 #
 # On macOS, brew fills in for the tools mise does not pin: kit tools lists, installs, and updates bash, direnv, and
-# mise through it. On Linux, kit does not read this file. See docs/toolchains.md#brew-fills-in.
+# mise through it. On Linux, kit does not read this file. See docs/toolchains/using-brew.md#brew-fills-in.
 #
 # Why each tool is here:
 #   bash     runs kit, which needs 4.4 or later; macOS ships 3.2
