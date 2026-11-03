@@ -216,7 +216,8 @@ PATH_add kit/bin
 kit hydrate --quick
 ```
 
-- It leaves mise's tools to mise. mise has deprecated `use mise`, its direnv integration.
+- It puts no tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
+  `use flake`.
 - An agent's subprocess shell and a CI runner have neither. There the verbs' own call and `kit ci` do the work.
 
 ## On a runner
