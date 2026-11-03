@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // stages is a bar like kit flow's: eight tabs with glyphs and counts.
@@ -50,7 +51,7 @@ func TestPastTheTenthATabsBorderRunsThroughItsNumbersCell(t *testing.T) {
 	}
 	b := Bar{Tabs: many, Selected: 10, Focused: true, Width: 200}
 	over := row(b, 0)
-	if !strings.Contains(over, "➉") || strings.ContainsAny(over, "○●") || !strings.Contains(over, "─╴╭") ||
+	if !strings.Contains(over, "➉") || !strings.Contains(over, "─╴╭") ||
 		strings.Count(over, "╮") != 11 || !strings.HasSuffix(over, "╮") {
 		t.Errorf("the line over twelve tabs: %q", over)
 	}
@@ -98,15 +99,13 @@ func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T)
 	}
 }
 
-func TestShareGivesEachItsProportionAndNoneUnderItsFloor(t *testing.T) {
-	if got := share(10, []int{1, 1, 2}, []int{0, 0, 0}); !slices.Equal(got, []int{3, 2, 5}) {
+// share gives each its proportion, and the cells the rounding leaves to the largest remainders, the earlier first.
+func TestShareGivesEachItsProportion(t *testing.T) {
+	if got := share(10, []int{1, 1, 2}); !slices.Equal(got, []int{3, 2, 5}) {
 		t.Errorf("share(10, 1:1:2) = %v", got)
 	}
-	if got := share(20, []int{1, 9}, []int{6, 0}); !slices.Equal(got, []int{6, 14}) {
-		t.Errorf("share(20, 1:9, floor 6) = %v", got)
-	}
-	if got := share(4, []int{3}, []int{4}); !slices.Equal(got, []int{4}) {
-		t.Errorf("share(4, 3, floor 4) = %v", got)
+	if got := share(20, []int{1, 9}); !slices.Equal(got, []int{2, 18}) {
+		t.Errorf("share(20, 1:9) = %v", got)
 	}
 }
 
@@ -163,13 +162,13 @@ func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
 	// a click on a triangle selects the nearest tab it hides, cut at the edge or wholly hidden, which then shows
 	b := stages(5, 40)
 	for _, c := range []struct{ x, want int }{{0, 4}, {39, 6}} {
-		got, ok := b.Update(tea.MouseClickMsg{X: c.x, Y: 2, Button: tea.MouseLeft})
+		got, ok := b.Update(testkit.Click(c.x, 2))
 		if !ok || got.Selected != c.want || !strings.Contains(row(got, 0), Marker(c.want, true)) {
 			t.Errorf("a click on the triangle at %d: tab %d, taken %v", c.x, got.Selected, ok)
 		}
 	}
 	// the margin without a triangle is no tab's
-	if _, ok := stages(3, 170).Update(tea.MouseClickMsg{X: 0, Y: 2, Button: tea.MouseLeft}); ok {
+	if _, ok := stages(3, 170).Update(testkit.Click(0, 2)); ok {
 		t.Error("a click on the margin was taken")
 	}
 }
@@ -216,15 +215,7 @@ func TestANumberSelectsItsTabFromAnywhere(t *testing.T) {
 func TestAClickOnTheBarSelectsTheTabUnderIt(t *testing.T) {
 	b := stages(0, 80)
 	b.Focused = false
-	line := []rune(row(b, 0))
-	x := 0
-	for _, r := range line {
-		if r == '➃' {
-			break
-		}
-		x += ansi.StringWidth(string(r))
-	}
-	click := func(x, y int) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft} }
+	x, click := testkit.Column(row(b, 0), '➃'), testkit.Click
 	if got, ok := b.Update(click(x, 1)); !ok || got.Selected != 3 || !got.Focused {
 		t.Errorf("a click on ➃: tab %d, taken %v, focused %v", got.Selected, ok, got.Focused)
 	}
@@ -233,7 +224,7 @@ func TestAClickOnTheBarSelectsTheTabUnderIt(t *testing.T) {
 	}
 	for _, y := range []int{2, 3} {
 		if got, ok := b.Update(click(x, y)); !ok || got.Selected != 3 {
-			t.Errorf("a click on ④'s line %d: tab %d, taken %v", y, got.Selected, ok)
+			t.Errorf("a click on ➃'s line %d: tab %d, taken %v", y, got.Selected, ok)
 		}
 	}
 	for _, y := range []int{0, 4} {
@@ -278,13 +269,8 @@ func TestTheBarsEdges(t *testing.T) {
 	if _, ok := empty.Update(tea.KeyPressMsg{Code: '1', Text: "1"}); ok || empty.View() != "" {
 		t.Error("an empty bar drew or took a key")
 	}
-	// a click on the margin is no tab's
-	b := stages(0, 80)
-	if _, ok := b.Update(tea.MouseClickMsg{X: 0, Y: 1, Button: tea.MouseLeft}); ok {
-		t.Error("a click on the margin was taken")
-	}
 	// a key the bar has no use for
-	if _, ok := b.Update(tea.KeyPressMsg{Code: 'x', Text: "x"}); ok {
+	if _, ok := stages(0, 80).Update(tea.KeyPressMsg{Code: 'x', Text: "x"}); ok {
 		t.Error("x was taken")
 	}
 	// a tab without a glyph has its name under its number

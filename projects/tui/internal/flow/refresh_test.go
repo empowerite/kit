@@ -12,7 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// to selects the stage by name, on the line.
+// to selects the stage by name, on the bar.
 func to(t *testing.T, m Model, name string) Model {
 	t.Helper()
 	for range m.stages {

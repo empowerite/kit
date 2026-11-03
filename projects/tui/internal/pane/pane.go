@@ -36,6 +36,23 @@ func Window(n, h, o int) (start, end int, above, below bool) {
 	return start, min(end, n), above, below
 }
 
+// At gives which of n lines a pane of h lines shows from offset o draws on its line r, from 0: its index, or -1 for a
+// line that says how many are hidden, a line past the last, and a line off the pane. It is Window read backwards, as
+// a click on the pane needs it.
+func At(n, h, o, r int) int {
+	if r < 0 || r >= h {
+		return -1
+	}
+	start, end, above, _ := Window(n, h, o)
+	if above {
+		r--
+	}
+	if k := start + r; r >= 0 && k < end {
+		return k
+	}
+	return -1
+}
+
 // Lines gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more after lead where
 // lines are hidden. A head, when given, takes the place of the … above.
 func Lines(all []string, o, h int, head, lead string) []string {

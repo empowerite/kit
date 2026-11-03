@@ -52,15 +52,11 @@ func drive(m Model, msgs ...tea.Msg) Model {
 // toggleMsg stands, in drive, for the key that opens the row under the cursor or closes it: toggle.
 type toggleMsg struct{}
 
-// toggle opens the row under the cursor when it is closed, with right, and closes it when it is open, with left; on
-// the bar it is Enter, which the bar has no use for.
+// toggle opens the row under the cursor when it is closed, with right, and closes it when it is open, with left.
 var toggle tea.Msg = toggleMsg{}
 
-// toggleKey gives the key toggle sends where the cursor is.
+// toggleKey gives the key toggle sends for the row under the cursor.
 func (m Model) toggleKey() tea.KeyPressMsg {
-	if !m.inRows {
-		return press(tea.KeyEnter)
-	}
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	if s.cursor < len(rows) && s.open[rows[s.cursor].key] {
 		return left
@@ -114,7 +110,7 @@ func lines(m Model) []string {
 	out := strings.Split(raw(m), "\n")
 	for k, l := range out {
 		if k >= paneTop && k < paneTop+m.paneHeight() && !m.legend {
-			for _, end := range []string{show, strings.TrimSpace(rule)} {
+			for _, end := range []string{show, rule} {
 				if cut, ok := strings.CutSuffix(l, end); ok {
 					out[k] = strings.TrimRight(cut, " ")
 				}
@@ -235,7 +231,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 // A click on a row puts the cursor there and gives the rows the keyboard; a click on the row under the cursor opens it,
 // and again closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
-	click := func(x, y int) tea.Msg { return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft} }
+	click := testkit.Click
 	m := loaded(t, options(), right, right, right)
 	// the screen line the row is drawn on, as the person sees it
 	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "42-settings") }); y != paneTop+1 {
@@ -287,15 +283,8 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 	if m = drive(m, tea.KeyPressMsg{Code: '9', Text: "9"}); m.stage != 7 {
 		t.Errorf("9 with eight stages moved to %d", m.stage)
 	}
-	bar := []rune(lines(m)[1])
-	x := 0
-	for _, r := range bar {
-		if r == '➂' {
-			break
-		}
-		x += ansi.StringWidth(string(r))
-	}
-	if m = drive(m, down, tea.MouseClickMsg{X: x, Y: 1, Button: tea.MouseLeft}); m.stage != 2 || m.inRows {
+	x := testkit.Column(lines(m)[1], '➂')
+	if m = drive(m, down, testkit.Click(x, 1)); m.stage != 2 || m.inRows {
 		t.Errorf("a click on ➂: stage %d, in rows %v\n%s", m.stage, m.inRows, view(m))
 	}
 	if m.View().MouseMode != tea.MouseModeCellMotion {
@@ -335,7 +324,7 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 }
 
 func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, toggle)
+	m := loaded(t, options(), right, right, right, down, right)
 	v := view(m)
 	for _, want := range []string{"f6f51bc #1 materialize", "… and 263 more", " M kit/bin/kit-flow",
 		"?? docs/flow.md"} {
@@ -355,7 +344,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 		t.Errorf("left did not close the row, or moved the stage:\n%s", v)
 	}
 	// enter on the bar opens nothing
-	m = drive(m, up, up, up, toggle)
+	m = drive(m, up, up, up, press(tea.KeyEnter))
 	if strings.Contains(view(m), "f6f51bc") {
 		t.Errorf("enter on the bar opened a row")
 	}
@@ -617,12 +606,11 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	if !strings.Contains(m.View().Content, Repository+" "+style.Repo("empowerite/kit")) {
 		t.Errorf("the repository is not in its own color: %q", lines(m)[0])
 	}
-	// the line of stages comes right under the title
-	// at 120 the eight labels take the count form
+	// the bar comes right under the title
 	if !strings.Contains(lines(m)[1], "➊") || !shows(m, Fetched, "6") {
 		t.Errorf("the bar: %q", lines(m)[2])
 	}
-	// while incoming loads, its label says so
+	// while incoming loads, its tab says so
 	m = New(runner(t), options())
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
 	if labels := lines(m)[2]; !shows(m, Fetched, "…") {
@@ -634,7 +622,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	if first := lines(m)[0]; first != " kit flow" {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
-	// without the fetch, each remote's heading says not fetched, and the label has no count
+	// without the fetch, each remote's heading says not fetched, and its tab has no count
 	pane := lines(m)[4:10]
 	for i, want := range []string{Remote + " origin · github · github.com", "not fetched",
 		Remote + " upstream · gitlab · git.example.org", "not fetched", Remote + " backup · no forge · nas.local",

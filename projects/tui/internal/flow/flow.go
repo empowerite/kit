@@ -1,13 +1,13 @@
-// Package flow is kit flow on a terminal: the stages as a tab bar, internal/tabs, the selected stage's rows under
-// it, and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has
-// the keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and
-// gives the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens
-// a row and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it;
-// r runs the stage's command again; ? shows the stage's legend beside its rows, and again takes it away, as a click on
-// the triangle at the top of the rule beside the rows does. Esc goes
-// back one level: the legend off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or
-// super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two minutes; past
-// them it is a refusal, and quitting kills the commands still running.
+// Package flow is kit flow on a terminal: the stages as a tab bar, internal/tabs, the selected stage's rows under it,
+// and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has the
+// keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
+// the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
+// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; r runs
+// the stage's command again; ? shows the stage's legend beside its rows, and again takes it away, as a click on the
+// triangle at the top of the rule beside the rows does. Esc goes back one level: the legend off, then from the rows to
+// the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends
+// command-esc, quits with 0. A stage's command has two minutes; past them it is a refusal, and quitting kills the
+// commands still running.
 package flow
 
 import (
@@ -83,6 +83,7 @@ type Model struct {
 	stage         int  // the selected stage
 	inRows        bool // whether the rows have the keyboard, not the bar
 	legend        bool // whether the legend shows beside the rows
+	widest        int  // the cells of the widest stage's legend
 	started       bool // whether the stages after incoming have been started
 	width, height int
 	interrupted   bool
@@ -129,6 +130,7 @@ func New(r kit.Runner, o Options) Model {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		m.stages = append(m.stages, s)
+		m.widest = max(m.widest, pane.Width(legendLines(name)))
 	}
 	return m
 }
@@ -528,11 +530,14 @@ func (m *Model) open(open bool) {
 // click on the first line of the row already under the cursor opens it, or closes it. A click on a … line, on a line
 // about the stage, or on the legend does nothing.
 func (m *Model) click(x, y int) {
-	k := m.lineAt(x, y)
-	if k < 0 {
+	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
+	k := pane.At(len(lines), m.paneHeight(), s.offset, y-paneTop)
+	if k < 0 || lines[k].row < 0 {
+		return
+	}
 	row := lines[k].row
 	if m.inRows && row == s.cursor && (k == 0 || lines[k-1].row != row) {
 		m.open(!s.open[m.rows(m.stage)[row].key])
@@ -540,24 +545,6 @@ func (m *Model) click(x, y int) {
 	}
 	s.cursor, m.inRows = row, true
 	m.fit()
-}
-
-// lineAt gives the index among the selected stage's lines of the line drawn at a cell of the screen, or -1: off the
-// pane, on the legend, on a … line, or on a line that is about the stage, not a row.
-func (m Model) lineAt(x, y int) int {
-	r, h := y-paneTop, m.paneHeight()
-	if len(m.stages) == 0 || r < 0 || r >= h || x >= m.paneWidth() {
-		return -1
-	}
-	lines := m.lines(m.stage)
-	start, end, above, _ := pane.Window(len(lines), h, m.stages[m.stage].offset)
-	if above {
-		r--
-	}
-	if k := start + r; r >= 0 && k < end && lines[k].row >= 0 {
-		return k
-	}
-	return -1
 }
 
 // page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it

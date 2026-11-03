@@ -2,6 +2,7 @@ package pane
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -30,6 +31,31 @@ func TestTheWindowCountsWhatItHides(t *testing.T) {
 
 // Every height from none to a dozen lines, every offset in and past the lines: the window never ends before it
 // starts, never takes more lines than the pane has, and fills the pane when the lines do not fit.
+// At reads Lines backwards: each line a pane draws is the line At gives for its place, and the lines that say how
+// many are hidden, the places past the last line, and the places off the pane are no line's.
+func TestAtGivesTheLineLinesDrawsAtEachPlace(t *testing.T) {
+	for n := 0; n <= 12; n++ {
+		all := make([]string, n)
+		for k := range all {
+			all[k] = strconv.Itoa(k)
+		}
+		for h := 0; h <= 6; h++ {
+			for o := 0; o <= n; o++ {
+				drawn := Lines(all, o, h, "", "")
+				for r := -1; r <= h; r++ {
+					want := -1
+					if r >= 0 && r < len(drawn) && !strings.HasPrefix(ansi.Strip(drawn[r]), "…") {
+						want, _ = strconv.Atoi(drawn[r])
+					}
+					if got := At(n, h, o, r); got != want {
+						t.Fatalf("At(%d, %d, %d, %d) = %d, want %d: %q", n, h, o, r, got, want, drawn)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestTheWindowFitsEveryHeight(t *testing.T) {
 	for n := 0; n <= 30; n++ {
 		for h := 0; h <= 12; h++ {

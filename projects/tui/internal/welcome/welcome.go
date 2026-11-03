@@ -398,20 +398,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // pane has the keyboard; on a page, the page has it. A … line, or a line that is no check's, does nothing.
 func (m *Model) click(y int) {
 	r, h := y-paneTop, m.paneHeight()
-	if r < 0 || r >= h {
-		return
-	}
-	if !m.hasRows() {
+	switch {
+	case r < 0 || r >= h:
+	case !m.hasRows():
 		m.inPane = true
-		return
-	}
-	lines := m.stepLines()
-	start, end, above, _ := pane.Window(len(lines), h, m.offsets[m.step])
-	if above {
-		r--
-	}
-	if k := start + r; r >= 0 && k < end && lines[k].row >= 0 {
-		m.cursor, m.inPane, m.choice = lines[k].row, true, now
+	default:
+		lines := m.stepLines()
+		if k := pane.At(len(lines), h, m.offsets[m.step], r); k >= 0 && lines[k].row >= 0 {
+			m.cursor, m.inPane, m.choice = lines[k].row, true, now
+		}
 	}
 }
 

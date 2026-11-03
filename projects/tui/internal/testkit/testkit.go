@@ -1,5 +1,6 @@
 // Package testkit holds what the packages' tests share: a runner over a package's fake kit, a driver that sends
-// messages to a model as the program would, the key presses of a text, and a golden file compared or rewritten.
+// messages to a model as the program would, the key presses of a text, a click and the cell a rune is drawn at, and a
+// golden file compared or rewritten.
 // Tests alone import it; -update is its flag, and the test binary that imports it takes the flag.
 package testkit
 
@@ -8,8 +9,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 )
@@ -113,6 +116,18 @@ func Typed(text string) []tea.Msg {
 		msgs = append(msgs, tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 	return msgs
+}
+
+// Click gives a left click on a cell of the screen.
+func Click(x, y int) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft} }
+
+// Column gives the cell of a line where the rune first starts, or -1 when the line lacks it.
+func Column(line string, r rune) int {
+	k := strings.IndexRune(line, r)
+	if k < 0 {
+		return -1
+	}
+	return ansi.StringWidth(line[:k])
 }
 
 // Golden compares got with the golden file at path; with -update it rewrites the file instead and says nothing.

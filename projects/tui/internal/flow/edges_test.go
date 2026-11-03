@@ -25,7 +25,7 @@ func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	}
 }
 
-// r on a stage kittui does not draw runs nothing, and down into a stage with no rows stays on the line.
+// r on a stage kittui does not draw runs nothing, and down into a stage with no rows stays on the bar.
 func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch", "builds"}})
 	if _, cmd := m.Update(press('r')); cmd != nil {

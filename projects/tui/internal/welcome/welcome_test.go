@@ -55,7 +55,7 @@ func TestTheKnownStepsAreTheSevenInOrder(t *testing.T) {
 func TestItOpensOnTheFirstStepWithAFailedCheckWithNowHighlighted(t *testing.T) {
 	m, _ := loaded(t)
 	if m.step != basics || !m.inPane || m.cursor != 1 || m.choice != now || !m.choosing() {
-		t.Fatalf("step %d, in rows %v, cursor %d, choice %d", m.step, m.inPane, m.cursor, m.choice)
+		t.Fatalf("step %d, in the pane %v, cursor %d, choice %d", m.step, m.inPane, m.cursor, m.choice)
 	}
 	if m.keys() != choiceKeys {
 		t.Errorf("keys %q", m.keys())
@@ -66,7 +66,7 @@ func TestItOpensOnTheFirstStepWithAFailedCheckWithNowHighlighted(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m = drive(m, testkit.Start(m, at120)...); m.step != chains || !m.inPane || m.cursor != 2 || !m.choosing() {
-		t.Errorf("step %d, in rows %v, cursor %d", m.step, m.inPane, m.cursor)
+		t.Errorf("step %d, in the pane %v, cursor %d", m.step, m.inPane, m.cursor)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestItOpensOnTheIntroWhenEveryCheckPasses(t *testing.T) {
 	}
 	m = drive(m, testkit.Start(m, at120)...)
 	if m.step != intro || m.inPane {
-		t.Errorf("step %d, in rows %v", m.step, m.inPane)
+		t.Errorf("step %d, in the pane %v", m.step, m.inPane)
 	}
 	if got := view(m); strings.Contains(got, "setup 0") || strings.Contains(got, "basics 0") {
 		t.Errorf("a step counts no failure:\n%s", got)
@@ -89,7 +89,7 @@ func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, append([]tea.Msg{at120, right, right, right}, testkit.Start(m)...)...)
 	if m.step != setup || m.inPane {
-		t.Errorf("step %d, in rows %v", m.step, m.inPane)
+		t.Errorf("step %d, in the pane %v", m.step, m.inPane)
 	}
 }
 
@@ -336,7 +336,7 @@ func TestLeftAndRightMoveStepsOnlyFromTheBar(t *testing.T) {
 // A click on a check's line puts the cursor on that check, and the pane has the keyboard; a click on a page gives the
 // page the keyboard; a click on a line that is no check's does nothing.
 func TestAClickOnACheckSelectsIt(t *testing.T) {
-	click := func(y int) tea.Msg { return tea.MouseClickMsg{X: 6, Y: y, Button: tea.MouseLeft} }
+	click := func(y int) tea.Msg { return testkit.Click(6, y) }
 	m, _ := loaded(t, esc)
 	lines := m.stepLines()
 	at := slices.IndexFunc(lines, func(l line) bool { return l.row >= 0 && l.row != m.cursor })
@@ -368,15 +368,8 @@ func TestANumberOrAClickSelectsAStepFromAnywhere(t *testing.T) {
 	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyKp1}); m.step != intro {
 		t.Errorf("keypad 1: step %d", m.step)
 	}
-	bar := []rune(strings.Split(view(m), "\n")[1])
-	x := 0
-	for _, r := range bar {
-		if r == '➂' {
-			break
-		}
-		x += ansi.StringWidth(string(r))
-	}
-	if m = drive(m, tea.MouseClickMsg{X: x, Y: 1, Button: tea.MouseLeft}); m.step != chains {
+	x := testkit.Column(strings.Split(view(m), "\n")[1], '➂')
+	if m = drive(m, testkit.Click(x, 1)); m.step != chains {
 		t.Errorf("a click on ➂: step %d\n%s", m.step, view(m))
 	}
 	if m.View().MouseMode != tea.MouseModeCellMotion {
@@ -395,7 +388,7 @@ func TestCtrlCQuitsAsInterrupted(t *testing.T) {
 func TestUpAndDownMoveOverTheStepsRowsAndLeaveThemAtTheTop(t *testing.T) {
 	m, _ := loaded(t, esc)
 	if m = drive(m, down); !m.inPane || m.cursor != 1 {
-		t.Fatalf("down from the line: in rows %v, cursor %d", m.inPane, m.cursor)
+		t.Fatalf("down from the line: in the pane %v, cursor %d", m.inPane, m.cursor)
 	}
 	if m = drive(m, down, down, down); m.cursor != 5 {
 		t.Errorf("down past the step's last row: cursor %d", m.cursor)
@@ -491,7 +484,7 @@ func TestLeavingTheScreenEndsTheChecksStillRunning(t *testing.T) {
 	}
 }
 
-// On every step, on its line and on each of its rows, the keys bar names n and Enter only where they act, on a row that
+// On every step, on the bar and on each of its rows, the keys bar names n and Enter only where they act, on a row that
 // offers now or later, and l there and on a fix kit only shows.
 func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 	m, _ := loaded(t)
@@ -507,7 +500,7 @@ func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 				{"l later", m.choosing() || m.showOnly()},
 			} {
 				if strings.Contains(bar, c.key) != c.acts {
-					t.Errorf("step %d, in rows %v, cursor %d: %q names %s: %v", m.step, m.inPane, m.cursor, bar, c.key,
+					t.Errorf("step %d, in the pane %v, cursor %d: %q names %s: %v", m.step, m.inPane, m.cursor, bar, c.key,
 						!c.acts)
 				}
 			}
@@ -520,7 +513,7 @@ func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 	}
 }
 
-// Every height from a line to a dozen, on the line, in the rows, scrolled, and on a page: the screen draws as many lines
+// Every height from a line to a dozen, on the bar, in the rows, scrolled, and on a page: the screen draws as many lines
 // as it has, the keys bar the last, and never panics.
 func TestTheKeysBarIsTheLastLineAtEveryHeight(t *testing.T) {
 	for _, msgs := range [][]tea.Msg{
@@ -703,7 +696,7 @@ func TestThePagesAreInTheOrderKitWelcomeGives(t *testing.T) {
 	}
 }
 
-func TestTheTabLineScrollsToKeepTheSelectedStepInView(t *testing.T) {
+func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	files := map[string]string{}
 	for _, k := range known {
 		files[k.file] = "# " + k.name + "\n"
@@ -721,7 +714,7 @@ func TestTheTabLineScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	for _, c := range []struct {
 		keys          []tea.Msg
 		label         string
-		start, finish bool // whether each end is dotted
+		start, finish bool // whether each end has a triangle
 	}{
 		{nil, "👋 intro │", false, true},
 		{[]tea.Msg{right, right, right, right, right}, "📖 terms │", true, true},
@@ -729,12 +722,11 @@ func TestTheTabLineScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	} {
 		m = drive(m, c.keys...)
 		lines := strings.Split(view(m), "\n")
-		line := lines[3]
 		if !strings.Contains(lines[2], c.label) {
 			t.Errorf("step %d is not in view:\n%s", m.step, lines[2])
 		}
 		if strings.HasPrefix(lines[2], tabs.Before) != c.start || strings.HasSuffix(lines[2], tabs.After) != c.finish {
-			t.Errorf("step %d's ends:\n%s", m.step, line)
+			t.Errorf("step %d's ends:\n%s", m.step, lines[2])
 		}
 		for _, l := range lines {
 			if ansi.StringWidth(l) > 80 {

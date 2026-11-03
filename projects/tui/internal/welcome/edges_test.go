@@ -47,7 +47,7 @@ func TestACheckOfAStepWithoutChecksShowsUnderTheLastStepThatHasThem(t *testing.T
 	}
 }
 
-// Pages that make no step change nothing; pages without the selected step's select the first step, on its line.
+// Pages that make no step change nothing; pages without the selected step's select the first step, on the bar.
 func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
 	m, _ := loaded(t, esc, right, down)
 	before := m.tabs
@@ -56,7 +56,7 @@ func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
 	}
 	m.setTabs([]tab{known[intro], known[terms]})
 	if m.step != 0 || m.inPane || len(m.tabs) != 2 {
-		t.Errorf("without the selected step: step %d, in rows %v, %d steps", m.step, m.inPane, len(m.tabs))
+		t.Errorf("without the selected step: step %d, in the pane %v, %d steps", m.step, m.inPane, len(m.tabs))
 	}
 }
 
@@ -85,12 +85,12 @@ func TestAFixThatCannotRunSaysWhy(t *testing.T) {
 	}
 }
 
-// On the line of a step with checks, up does nothing; down does nothing while the checks have not answered, and the
+// On the bar over a step with checks, up does nothing; down does nothing while the checks have not answered, and the
 // step says it is checking.
-func TestUpOnTheLineAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
+func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 	m, _ := loaded(t, esc)
 	if m = drive(m, up); m.inPane || m.step != basics {
-		t.Errorf("up on the line: in rows %v, step %d", m.inPane, m.step)
+		t.Errorf("up on the bar: in the pane %v, step %d", m.inPane, m.step)
 	}
 	m, _ = fake(t)
 	m = drive(m, at120, right, right, right, down)

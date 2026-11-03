@@ -30,6 +30,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -76,7 +77,7 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 			b.Selected = min(b.Selected+1, n-1)
 			return b, true
 		}
-		if i, ok := Number(msg); ok && i < n {
+		if i, ok := number(msg); ok && i < n {
 			b.Selected, b.Focused = i, true
 			return b, true
 		}
@@ -93,13 +94,10 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 	return b, false
 }
 
-// Number gives the tab a key names, from 0: 1 to 9, and 0 for the tenth, typed or on the keypad, alone or with alt or
+// number gives the tab a key names, from 0: 1 to 9, and 0 for the tenth, typed or on the keypad, alone or with alt or
 // super.
-func Number(k tea.KeyPressMsg) (int, bool) {
-	key := k.String()
-	for _, mod := range []string{"alt+", "super+"} {
-		key = strings.TrimPrefix(key, mod)
-	}
+func number(k tea.KeyPressMsg) (int, bool) {
+	key := strings.TrimPrefix(strings.TrimPrefix(k.String(), "alt+"), "super+")
 	key = strings.TrimPrefix(key, "kp")
 	switch {
 	case key == "0":
@@ -123,35 +121,29 @@ func Marker(i int, selected bool) string {
 	return string(rune('➀' + i))
 }
 
-// paint draws the selected tab's text: in the accent, wherever the keyboard is.
-func (b Bar) paint(s string) string { return style.Mark(s) }
-
-// head gives a tab's head on the middle line: its glyph and a space, when it has one. Its number is on the line above.
-func (b Bar) head(i int) string {
-	if g := b.Tabs[i].Glyph; g != "" {
-		return g + " "
+// label gives a tab's label on the middle line: its glyph and a space, when it has one; its name, in the accent when
+// selected; its count, dim; and a space after them. Its number is on the line above.
+func (b Bar) label(i int) string {
+	t, label := b.Tabs[i], ""
+	if t.Glyph != "" {
+		label = t.Glyph + " "
 	}
-	return ""
-}
-
-// text gives a tab's name and count and a space after them: the name painted when selected, the count dim.
-func (b Bar) text(i int) string {
-	t := b.Tabs[i]
-	name := t.Name
 	if i == b.Selected {
-		name = b.paint(name)
+		label += style.Mark(t.Name)
+	} else {
+		label += t.Name
 	}
 	if t.Count != "" {
-		name += " " + style.Off(t.Count)
+		label += " " + style.Off(t.Count)
 	}
-	return name + " "
+	return label + " "
 }
 
 // screen gives the cells of the screen the line takes: all but the margin before it.
 func (b Bar) screen() int { return max(1, b.Width-1) }
 
 // layout is the bar laid out on its canvas: where each tab's part starts, its cells, the cell between it and the next
-// among them, the canvas's width, never less than the screen's, and the cells scrolled past on its left.
+// among them, the canvas's width, and the cells scrolled past on its left.
 type layout struct {
 	at, parts []int
 	width     int
@@ -166,135 +158,100 @@ func (b Bar) layout() layout {
 	whole := make([]int, n)
 	wanted := 0
 	for i := range n {
-		whole[i] = 2 + ansi.StringWidth(b.head(i)+b.text(i)) + 1 // its number's cell and a space, and the cell after it
+		whole[i] = 2 + ansi.StringWidth(b.label(i)) + 1 // its number's cell and a space, and the cell after it
 		wanted += whole[i]
 	}
 	parts := whole
 	if wanted <= w {
-		parts = share(w, whole, whole)
+		parts = share(w, whole)
 	}
 	l := layout{at: make([]int, n), parts: parts}
-	x := 0
 	for i, part := range parts {
-		l.at[i], x = x, x+part
+		l.at[i], l.width = l.width, l.width+part
 	}
-	l.width = max(x, w)
 	if l.width > w {
 		l.scroll = min(max(l.at[b.Selected]+l.parts[b.Selected]/2-w/2, 0), l.width-w)
 	}
 	return l
 }
 
-// share splits so many cells between parts in proportion to what each wants, none less than its floor; the cells the
-// rounding leaves go to the largest remainders, the earlier part of two alike first. The floors fit the cells.
-func share(cells int, wants, floors []int) []int {
-	n := len(wants)
-	out, fixed := make([]int, n), make([]bool, n)
-	for {
-		left, total := cells, 0
-		for i := range n {
-			if fixed[i] {
-				left -= out[i]
-			} else {
-				total += wants[i]
-			}
-		}
-		if total == 0 {
-			return out
-		}
-		short := false
-		for i := range n {
-			if !fixed[i] && left*wants[i] < floors[i]*total {
-				out[i], fixed[i], short = floors[i], true, true
-			}
-		}
-		if short {
-			continue
-		}
-		var free []int
-		given := 0
-		for i := range n {
-			if !fixed[i] {
-				out[i] = left * wants[i] / total
-				given += out[i]
-				free = append(free, i)
-			}
-		}
-		slices.SortStableFunc(free, func(a, b int) int { return left*wants[b]%total - left*wants[a]%total })
-		for _, i := range free[:left-given] {
-			out[i]++
-		}
-		return out
+// share splits so many cells between parts in proportion to what each wants; the cells the rounding leaves go to the
+// largest remainders, the earlier part of two alike first.
+func share(cells int, wants []int) []int {
+	total := 0
+	for _, want := range wants {
+		total += want
 	}
+	out, order, given := make([]int, len(wants)), make([]int, len(wants)), 0
+	for i, want := range wants {
+		out[i], order[i] = cells*want/total, i
+		given += out[i]
+	}
+	slices.SortStableFunc(order, func(a, b int) int { return cells*wants[b]%total - cells*wants[a]%total })
+	for _, i := range order[:cells-given] {
+		out[i]++
+	}
+	return out
 }
 
-// View draws the bar's three lines as the screen shows them, each after a margin of one cell.
+// View draws the bar's three lines as the screen shows them, each after a margin of one cell, as the package says.
 func (b Bar) View() string {
 	if len(b.Tabs) == 0 {
 		return ""
 	}
-	l, w := b.layout(), b.screen()
-	n := len(b.Tabs)
+	l, w, n := b.layout(), b.screen(), len(b.Tabs)
 	var over, tabs, under strings.Builder
 	cell := func(top, middle, bottom string) {
 		over.WriteString(top)
 		tabs.WriteString(middle)
 		under.WriteString(bottom)
 	}
-	// where no tab is beside the selected tab's edge, its curve is a half line
-	half := func(curve string, end bool) string {
+	// curve draws a curve under the selected tab's edge, or a half line where no tab is beside it
+	curve := func(glyph string, end bool) string {
 		if end {
-			return b.paint("╵")
+			glyph = "╵"
 		}
-		return b.paint(curve)
+		return style.Mark(glyph)
 	}
-	cell(" ", " ", " ") // the margin
 	for i := range b.Tabs {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
 		cells := l.parts[i] - 1
-		text := fill(" "+b.head(i)+b.text(i), cells-1)
+		label := pane.Pad(" "+b.label(i), cells-1, false)
 		if i == b.Selected {
-			cell(b.paint(cmp.Or(Marker(i, true), "╭")), b.paint("│"), half("╯", i == 0))
-			cell(b.paint(top(cells-1)), text, strings.Repeat(" ", cells-1))
-			// the cell after it: its other edge
-			cell(b.paint("╮"), b.paint("│"), half("╰", i == n-1))
+			cell(style.Mark(cmp.Or(Marker(i, true), "╭")), style.Mark("│"), curve("╯", i == 0))
+			cell(style.Mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
+			cell(style.Mark("╮"), style.Mark("│"), curve("╰", i == n-1))
 			continue
 		}
-		// the others' borders are dim: from the number over the tab to ╮, down │, and out to the right with ╰, over the
-		// line under the tab; the tab before the selected one has no edge after it: its line over it ends in a half
-		// line, ╴, short of the selected tab's number, and the line under it runs on to the selected tab's curve
+		// the others' borders are dim, and the line under them in the accent; the tab before the selected one has no
+		// edge after it
 		number := b.dim(Marker(i, false))
 		if number == "" {
 			number = style.Off("─")
 		}
-		// the line under it is in the accent, as the selected tab's border is
-		cell(number, " ", b.paint(strings.Repeat("─", cells)))
-		cell(style.Off(top(cells-1)), b.dim(text), "")
+		cell(number, " ", style.Mark(strings.Repeat("─", cells)))
+		cell(style.Off(top(cells-1)), b.dim(label), "")
 		if i+1 == b.Selected {
-			cell(style.Off("╴"), " ", b.paint("─"))
+			cell(style.Off("╴"), " ", style.Mark("─"))
 		} else {
 			cell(style.Off("╮"), style.Off("│"), style.Off("╰"))
 		}
 	}
-	// the canvas from the margin on: the margin, then the cells the view shows
-	shown := func(line string, k int) string {
-		margin, rest := ansi.Cut(line, 0, 1), fill(ansi.Cut(line, 1+l.scroll, 1+l.scroll+w), w)
-		// a triangle, and a space between it and the tabs, on the middle line
-		if l.scroll > 0 {
-			margin = " "
-			if k == 1 {
-				margin, rest = Before, " "+fill(ansi.Cut(rest, 1, w), w-1)
-			}
+	// shown gives a line as the view shows it, after the margin, the triangles on the middle line
+	shown := func(line string, middle bool) string {
+		margin, rest := " ", pane.Pad(ansi.Cut(line, l.scroll, l.scroll+w), w, false)
+		if middle && l.scroll > 0 {
+			margin, rest = Before, " "+pane.Pad(ansi.Cut(rest, 1, w), w-1, false)
 		}
-		if l.scroll+w < l.width && k == 1 {
-			rest = fill(ansi.Cut(rest, 0, w-2), w-2) + " " + After
+		if middle && l.scroll+w < l.width {
+			rest = pane.Pad(ansi.Cut(rest, 0, w-2), w-2, false) + " " + After
 		}
 		// a cut through a two-cell glyph can leave a cell more than the screen has; the spaces it ends with go, and the
 		// colors of what the cut left empty with them
 		out := ansi.Truncate(margin+rest, w+1, "")
 		return ansi.Truncate(out, ansi.StringWidth(strings.TrimRight(ansi.Strip(out), " ")), "")
 	}
-	return shown(over.String(), 0) + "\n" + shown(tabs.String(), 1) + "\n" + shown(under.String(), 2)
+	return shown(over.String(), false) + "\n" + shown(tabs.String(), true) + "\n" + shown(under.String(), false)
 }
 
 // top gives the line over a tab, so many cells of it, never fewer than two, as no tab is narrower than four: it starts
@@ -309,38 +266,26 @@ func (b Bar) dim(s string) string {
 	}
 	// the spaces after it stay out of the dim, so a line can end without them
 	text := strings.TrimRight(ansi.Strip(s), " ")
-	return style.Off(text) + strings.Repeat(" ", ansi.StringWidth(s)-ansi.StringWidth(text))
+	return pane.Pad(style.Off(text), ansi.StringWidth(s), false)
 }
 
-// fill pads a cut line with spaces to its width, where the cut fell inside a two-cell glyph.
-func fill(s string, width int) string {
-	return s + strings.Repeat(" ", max(0, width-ansi.StringWidth(s)))
-}
-
-// hit gives the tab a column of the screen falls on: the one whose part it is in; on a triangle that says tabs are
-// hidden, the nearest of them, which selected comes into view: the last that starts before the view on the left, the
-// first that ends after it on the right. The margin without a triangle is no tab's: -1.
+// hit gives the tab a column of the screen falls on: the one whose part covers it; on a triangle that says tabs are
+// hidden, the one that covers the cell just past the view, which selected comes into view. The margin without a
+// triangle is no tab's: -1.
 func (b Bar) hit(x int) int {
 	l, w := b.layout(), b.screen()
+	var at int
 	switch {
 	case x == 0 && l.scroll > 0:
-		hit := 0
-		for i, start := range l.at {
-			if start < l.scroll {
-				hit = i
-			}
-		}
-		return hit
+		at = l.scroll - 1
 	case x == w && l.scroll+w < l.width:
-		for i, start := range l.at {
-			if start+l.parts[i] > l.scroll+w {
-				return i
-			}
-		}
+		at = l.scroll + w
 	case x < 1 || x > w:
 		return -1
+	default:
+		at = x - 1 + l.scroll
 	}
-	at, hit := x-1+l.scroll, 0
+	hit := 0
 	for i, start := range l.at {
 		if start <= at {
 			hit = i

@@ -26,14 +26,13 @@ const (
 // minFill is the fewest cells a fill cell keeps when the other columns leave it less; the row is then clipped.
 const minFill = 12
 
-// rule is what stands between the rows and the legend beside them, drawn dim; while the legend is hidden, its space
-// and its line alone end every line of the pane, at the screen's last column. On the pane's first line the line is a
-// triangle, which a click turns as ? does: pointing left to show the legend, right to hide it.
+// rule is what stands between the rows and the legend beside them, a space either side of it, drawn dim; while the
+// legend is hidden, a space and the rule end every line of the pane, at the screen's last column. On the pane's first
+// line the rule is a triangle, which a click turns as ? does: pointing left to show the legend, right to hide it.
 const (
-	rule  = " ┊ "
-	show  = "◂"
-	hide  = "▸"
-	ruled = 2 // the space and the line, before the legend's space
+	rule = "┊"
+	show = "◂"
+	hide = "▸"
 )
 
 // line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
@@ -47,7 +46,7 @@ type line struct {
 // bottom.
 func (m Model) View() tea.View {
 	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
-	lines = append(lines, m.pane(m.paneHeight())...)
+	lines = append(lines, m.pane()...)
 	lines = append(lines, "")
 	lines = style.Bottom(lines, m.height, style.Bar(m.keys(), m.width))
 	v := tea.NewView(strings.Join(lines, "\n"))
@@ -56,8 +55,8 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// bar gives the stages' tab bar, from the screen's second line: each stage's glyph, name, and count, the keyboard on it
-// unless the rows have it, and the glyph alone the floor for the selected stage too.
+// bar gives the stages' tab bar, from the screen's second line: each stage's glyph, name, and count, and the keyboard
+// on it unless the rows have it.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows, Width: m.width, Row: 1}
 	for i, s := range m.stages {
@@ -76,25 +75,22 @@ func (m Model) legendWidth() int {
 	if !m.legend {
 		return 0
 	}
-	widest := 0
-	for _, s := range m.stages {
-		widest = max(widest, pane.Width(legendLines(s.name)))
-	}
-	return min(widest, (m.width-ansi.StringWidth(rule))*2/5)
+	return min(m.widest, (m.width-3)*2/5)
 }
 
-// paneWidth gives the cells the rows have: the screen's, less the rule, and the legend while ? shows it.
+// paneWidth gives the cells the rows have: the screen's, less a space and the rule, and a space and the legend while
+// ? shows it.
 func (m Model) paneWidth() int {
 	if w := m.legendWidth(); w > 0 {
-		return m.width - w - ansi.StringWidth(rule)
+		return m.width - 3 - w
 	}
-	return m.width - ruled
+	return m.width - 2
 }
 
 // keys gives the keys bar for where the keyboard is, naming only the keys that act there: on the bar, left and right,
 // down into the rows, and the numbers; in the rows, up and down and a page at a time; on a row that opens, right to
-// open it or left to close it; r on a stage kittui
-// loads; esc going back from the rows and from the legend, and ctrl-c quitting from the bar.
+// open it or left to close it; r on a stage kittui loads; esc going back from the rows and from the legend, and ctrl-c
+// quitting from the bar.
 func (m Model) keys() string {
 	var keys []string
 	if m.inRows {
@@ -128,7 +124,7 @@ func (m Model) title() string {
 	return style.Label("kit flow") + " · " + Repository + " " + style.Repo(m.origin.Repo)
 }
 
-// count gives a stage's count for its label: … while it loads, ! when its command failed, nothing for an incoming
+// count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming
 // that did not fetch, else its rows but the asides, as incoming's headings.
 func (m Model) count(i int) string {
 	s := m.stages[i]
@@ -173,7 +169,8 @@ func legendLines(name string) []string {
 // pane gives the pane's lines, as many as it has: the selected stage's from its offset on, then the rule, its triangle
 // on the first line, and beside it, while ? shows it, the stage's legend, a legend taller than the pane ending in a dim
 // … N more.
-func (m Model) pane(h int) []string {
+func (m Model) pane() []string {
+	h := m.paneHeight()
 	var out []string
 	switch {
 	case len(m.stages) == 0:
@@ -191,15 +188,15 @@ func (m Model) pane(h int) []string {
 	}
 	lw, triangle := m.legendWidth(), show
 	var legend []string
-	if lw > 0 && len(m.stages) > 0 {
+	if lw > 0 {
 		legend, triangle = legendLines(m.stages[m.stage].name), hide
 	}
 	if len(legend) > h {
-		legend = append(legend[:h-1], style.Off("… "+strconv.Itoa(len(legend)-h+1)+" more"))
+		legend = append(legend[:h-1], style.Off(pane.More(len(legend)-h+1)))
 	}
 	pw := m.paneWidth()
 	for k := range out {
-		line := style.Off(strings.TrimSpace(rule))
+		line := style.Off(rule)
 		if k == 0 {
 			line = triangle
 		}

@@ -147,6 +147,16 @@ func TestTypedPressesEachRune(t *testing.T) {
 	}
 }
 
+func TestClickAndColumn(t *testing.T) {
+	if c := Click(3, 4); c.X != 3 || c.Y != 4 || c.Button != tea.MouseLeft {
+		t.Errorf("Click = %+v", c)
+	}
+	// a two-cell glyph before the rune counts as two
+	if Column("a🏭b", 'b') != 3 || Column("abc", 'z') != -1 {
+		t.Errorf("Column: %d %d", Column("a🏭b", 'b'), Column("abc", 'z'))
+	}
+}
+
 // A golden file that matches says nothing, one that differs is an error, and a missing one stops the test naming
 // -update; with -update the file is written instead, and a file that cannot be written stops the test.
 func TestGoldenComparesOrRewrites(t *testing.T) {

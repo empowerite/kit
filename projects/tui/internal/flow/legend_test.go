@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
+	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // legendText reads the Legend of kit-flow's header, from its heading to the exit codes.
@@ -91,7 +92,7 @@ func opened(t *testing.T, i int) Model {
 	return m
 }
 
-func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
+func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 	text := legendText(t)
 	for i, name := range eight {
 		m := opened(t, i)
@@ -116,9 +117,9 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesTree(t *testing.T) {
 			pane = append(pane, ansi.Strip(l.text))
 		}
 		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
-			// the desk and the worktrees draw a pull request's state as changes does, and changes' tree names it
+			// the desk and the worktrees draw a pull request's state as changes does, and changes' legend names it
 			if _, state := stateGlyphs[stateOf(g)]; !own[g] && !(own[Change] && state) {
-				t.Errorf("%s draws %s, which its tree's legend lacks", name, g)
+				t.Errorf("%s draws %s, which its legend lacks", name, g)
 			}
 		}
 	}
@@ -151,7 +152,7 @@ func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
 			if i > 0 {
 				m = drive(m, right)
 			}
-			column := m.paneWidth() + ansi.StringWidth(rule)
+			column := m.paneWidth() + 3 // a space, the rule, and a space
 			want := map[string]int{"legend": column}
 			for _, e := range legends[name] {
 				want[e.glyph+"  "+e.meaning] = column
@@ -188,7 +189,7 @@ func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
 				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
 			}
 		}
-		if m = drive(m, press(tea.KeyEscape)); m.legend || m.paneWidth() != width-ruled || strings.Contains(view(m), hide+" legend") {
+		if m = drive(m, press(tea.KeyEscape)); m.legend || m.paneWidth() != width-2 || strings.Contains(view(m), hide+" legend") {
 			t.Errorf("at %d, esc left the legend: %v, rows of %d", width, m.legend, m.paneWidth())
 		}
 	}
@@ -208,7 +209,7 @@ func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 			t.Errorf("line %d does not end on %s at the last column: %q", k, end, drawn[k])
 		}
 	}
-	triangle := tea.MouseClickMsg{X: m.paneWidth() + 1, Y: paneTop, Button: tea.MouseLeft}
+	triangle := testkit.Click(m.paneWidth()+1, paneTop)
 	if m = drive(m, triangle); !m.legend || !strings.Contains(raw(m), hide+" legend") {
 		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
 	}
