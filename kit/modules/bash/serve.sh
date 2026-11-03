@@ -14,9 +14,21 @@
 #   - The revisions before it, which a client selects by opening with initialize. From then on a request needs no
 #     _meta, and ping is answered.
 #
-# A tool is a verb that reads and reports, and changes nothing. Its description is the verb's help, read by the
-# functions kit help uses, and its one argument is args, the verb's arguments as an array of strings. A call runs
-# kit <verb> <args>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+# A tool is a verb that reads and reports, and does not change anything. Its description is the verb's purpose and the
+# usage lines it offers. The verb's whole page is a resource, kit://help/<verb>. Its input is typed, built from the
+# verb's syntax by modules/jq/serve.jq: a property for each flag, option, and operand, and one for a line's leading
+# word. A call's arguments become the verb's words, and a name the tool does not know is refused with -32602. A call
+# runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+#
+# A tool never writes the repository and never fetches:
+#
+#   - The server places .kit/ as it starts, and again between messages when kit.yml changed. A call does not place
+#     anything; kit_serve_hydrated tells the verb so.
+#   - kit flow is always given --no-fetch, so incoming reads the refs as they are.
+#   - A word that acts is never offered: packages, toolchains, and tools are listings only, and context's hook mode,
+#     --claude, is the harness's own.
+#
+# A tool's verb still writes the kit's log, and a verb's cache under .kit/cache/, which git never sees.
 #
 # Before each message, the server looks for a file in its release's bin/ and modules/, or in a module directory of
 # the repository's own, changed since it started. When one has, it starts itself again over the same stdin, from the
@@ -28,7 +40,8 @@
 #
 # A resource is one of the kit's files under .kit/: kit://1st.md, kit://workflow.md with the workflow package,
 # kit://rules/<kind> and kit://styles/<kind> for each rule and style, and kit://kinds/<file> for each kinds file, which
-# may define several kinds.
+# may define several kinds. Each tool's whole help page is a resource too, kit://help/<verb>, as kit help <verb>
+# prints it.
 #
 # Each message it answers is a line in .kit/logs/mcp-YYYY-MMDD.log, as modules/bash/log.sh writes it: the request's
 # id=, its method=, and its outcome=, which is ok, error=<code> for a refusal, status=<status> for a tool whose verb
@@ -37,36 +50,53 @@
 #
 # see: kit/bin/kit-serve, docs/serve.md, https://modelcontextprotocol.io/specification/2026-07-28
 
-use context help release syntax log file
+use context help release syntax log file materialize
 
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools, each a verb that changes nothing.
+# The tools, each a verb that does not change anything.
 declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(flow)
 
-# The tools offered as a listing only. A call whose args hold one of a tool's words would act, or reach the network,
-# so it is refused before the verb runs. Each word is a literal, or a flag, also refused as --flag=<value>.
+# The tools offered as a listing only. Each word would act, or reach the network, so a tool does not offer it: a line
+# that needs one is not offered, and an optional part that holds one is taken out. Each word is a literal or --flag.
 declare -grA serve_listing_only=(
   [packages]='select add remove'
   [toolchains]='choose'
   [tools]='install update path run --outdated'
 )
 
-# What each listing-only tool's refused words do, as the refusal names it.
+# What each listing-only tool's words do, as the refusal of a call that names one says.
 declare -grA serve_listing_acts=(
   [packages]='select, add, or remove packages'
   [toolchains]='choose a toolchain'
   [tools]='install, update, or run the tools, or ask which are outdated'
 )
 
+# The words a tool does not offer for another reason: context's hook mode is the harness's own.
+declare -grA serve_hidden=(
+  [context]='--claude'
+)
+
+# The flags the server gives a tool's verb itself, on any line that takes them, and never offers: flow never fetches.
+declare -grA serve_implied=(
+  [flow]='no-fetch'
+)
+
+# The name of the property that holds a line's leading word, where the verb has such lines.
+declare -grA serve_leading=(
+  [flow]='stage'
+)
+
 # serve_era is legacy once a client opens with initialize, and empty until then. serve_tool_list holds the tools/list
-# result's tools array once it is built.
+# result's tools array once it is built. serve_specs holds each tool's spec and serve_opts what the server says of it,
+# as serve.jq reads them, once each is built.
 serve_era=''
 serve_tool_list=''
+declare -gA serve_specs=() serve_opts=()
 
 # serve_log_fields holds the id and method of the message being answered, for its log line, serve_outcome how it
 # ended, and serve_log_last what the line ends with: a resource's uri, or a tool's command. Each message starts
@@ -133,7 +163,8 @@ serve:changed() {
 
 # serve:reload <line> starts the server again from the changed code, to answer <line>, when a file it runs has
 # changed and every changed bash file parses. It passes the era a client chose with initialize, and the line, in
-# kit_serve_era and kit_serve_pending. Otherwise it returns, and the running server answers <line>: after it sends
+# kit_serve_era and kit_serve_pending. Otherwise it returns, and the running server answers <line>. Before that, it
+# places .kit/ again when kit.yml changed, since a call does not place anything. It sends
 # notifications/resources/list_changed when .kit/.gitignore changed, and says so on stderr when a file did not parse.
 serve:reload() {
   local file now
@@ -141,10 +172,20 @@ serve:reload() {
   readarray -t changed < <(serve:changed)
   if (( ${#changed[@]} == 0 ))
   then
+    local placed=false
+    if [[ kit.yml -nt "${serve_marker}" ]]
+    then
+      # Placing writes its steps to stderr; one that fails is the next call's to report, as the verb's would be.
+      materialize:hydrate >&2 || true
+      placed=true
+    fi
     if [[ .kit/.gitignore -nt "${serve_marker}" ]]
     then
       : > "${serve_marker}"
       serve:notify notifications/resources/list_changed
+    elif [[ "${placed}" == true ]]
+    then
+      : > "${serve_marker}"
     fi
     return 0
   fi
@@ -324,99 +365,94 @@ serve:tools-list() {
   serve:complete "$1" "{\"tools\": ${serve_tool_list}}" cacheable
 }
 
-# serve:tool <tool> prints the tool's definition as JSON: its name, its description from the verb's help, args as
-# its input, and the hints that it changes nothing.
+# serve:spec <tool> fills serve_specs[<tool>] with the verb's syntax, as syntax:spec prints it, and serve_opts[<tool>]
+# with what the server says of the tool, as serve.jq reads it: the words it does not offer, the flags it gives itself,
+# the name of the property for a line's leading word, and the values of each argument whose choices are closed.
+# Each is built once per process. It assigns rather than prints, so call it in the server's own shell.
+serve:spec() {
+  local tool=$1 spec key choices='{}'
+  [[ -z "${serve_specs[${tool}]+x}" ]] || return 0
+  spec=$(syntax:spec "${tool}") || return 1
+  while IFS= read -r key
+  do
+    [[ -n "${key}" ]] || continue
+    choices=$(syntax:choices "${tool}" "${key}" | cut -f 1 \
+      | jq --raw-input --slurp --compact-output --argjson choices "${choices}" --arg key "${key}" \
+        '$choices + {($key): (split("\n") | map(select(. != "")))}')
+  done < <(jq --raw-output '.arguments | to_entries[] | select(.value.choices == "closed") | .key' <<<"${spec}")
+  serve_specs[${tool}]=${spec}
+  serve_opts[${tool}]=$(jq --null-input --compact-output --argjson choices "${choices}" \
+    --arg refused "${serve_listing_only[${tool}]:-} ${serve_hidden[${tool}]:-}" --arg implied "${serve_implied[${tool}]:-}" \
+    --arg word "${serve_leading[${tool}]:-}" \
+    '{refused: ($refused | split(" ") | map(select(. != ""))), implied: ($implied | split(" ") | map(select(. != ""))),
+      choices: $choices} + (if $word != "" then {word: $word} else {} end)')
+}
+
+# serve:tool <tool> prints the tool's definition as JSON: its name, a description of its purpose and the usage lines
+# it offers, its typed input, and the hints that it reads only.
 serve:tool() {
-  local tool=$1 verb=$1 description open=false world
+  local tool=$1 open=false world
   for world in "${serve_open_world[@]}"
   do
     [[ "${tool}" == "${world}" ]] && open=true
   done
-  description="kit ${verb} $(help:purpose "${verb}")"$'\n\nUsage:\n'
-  description+=$(serve:usage "${verb}" | sed 's/^/  /')$'\n\n'
-  description+=$(help:description "${verb}")
-  jq --null-input --compact-output --arg name "${tool}" --arg description "${description}" \
-    --arg verb "${verb}" --argjson open "${open}" '{
-      name: $name,
-      title: ("kit " + $name),
-      description: $description,
-      inputSchema: {
-        type: "object",
-        properties: {
-          args: {
-            type: "array",
-            items: {type: "string"},
-            description: ("the arguments that follow kit " + $name + ", as the usage lines write them")
-          }
-        },
-        additionalProperties: false
-      },
+  serve:spec "${tool}" || return 1
+  jq --compact-output -L "${kit_jq}" --arg purpose "$(help:purpose "${tool}")" --argjson opts "${serve_opts[${tool}]}" \
+    --argjson open "${open}" 'import "serve" as serve;
+    {
+      name: .verb,
+      title: ("kit " + .verb),
+      description: ("kit \(.verb) \($purpose)\n\nUsage:\n" + ([serve::lines($opts)[].text | "  " + .] | join("\n"))
+        + "\n\nIts whole page is the resource kit://help/\(.verb)."),
+      inputSchema: serve::schema($opts),
       annotations: {readOnlyHint: true, destructiveHint: false, openWorldHint: $open}
-    }'
+    }' <<<"${serve_specs[${tool}]}"
 }
 
-# serve:usage <tool> prints the verb's usage lines. A listing-only tool loses each line that needs one of its refused
-# words, read from the lines' kit syntax JSON, so its description offers only what a call may do.
-serve:usage() {
-  local tool=$1 syntax
-  local -a usage
-  readarray -t usage < <(help:usage "${tool}")
-  if [[ -z "${serve_listing_only[${tool}]+x}" ]]
-  then
-    printf '%s\n' "${usage[@]}"
-    return 0
-  fi
-  syntax=$(syntax:parse "${tool}" "${usage[@]}") || return 1
-  # A word is required when no optional group holds it: a literal, or a flag or option as --name.
-  # shellcheck disable=SC2016  # $syntax and $refused are jq's
-  jq --null-input --raw-output --argjson syntax "${syntax}" --arg refused "${serve_listing_only[${tool}]}" '
-    def required:
-      if .kind == "literal" then .name
-      elif .kind == "flag" or .kind == "option" then "--" + .name
-      elif .kind == "group" and (.optional | not) then .alternatives[][] | required
-      else empty end;
-    ($refused | split(" ")) as $words
-    | [$ARGS.positional, $syntax] | transpose[]
-    | select(any(.[1][] | required; IN($words[])) | not) | .[0]' --args "${usage[@]}"
-}
-
-# serve:tools-call <id> <params> runs the tool's verb with its args and answers with what it printed. A verb that
-# exits non-zero sets isError, and the text names its exit status. A listing-only tool's action is refused with
-# status 2, and its verb never runs.
+# serve:tools-call <id> <params> runs the tool's verb with the words its arguments make, and answers with what it
+# printed. Arguments the tool does not take are refused with -32602, and the verb never runs; a listing-only tool's
+# refusal says what it does not offer. A verb that exits non-zero sets isError, and the text names its exit status.
 serve:tools-call() {
-  local name status=0 out err refusal quoted
-  local -a command args
+  local name status=0 out err quoted made problem
+  local -a words
   name=$(jq --raw-output '.name // "" | strings' <<<"$2")
   if ! serve:is-tool "${name}"
   then
     serve:error "$1" -32602 "Unknown tool: ${name}; the tools are ${serve_tools[*]}"
     return 0
   fi
-  if ! jq --exit-status '(.arguments.args // []) | type == "array" and all(type == "string")' <<<"$2" >/dev/null
+  if ! jq --exit-status '(.arguments // {}) | type == "object"' <<<"$2" >/dev/null
   then
-    serve:error "$1" -32602 'Invalid params: args is an array of strings'
+    serve:error "$1" -32602 'Invalid params: arguments is an object, one property per argument'
     return 0
   fi
-  readarray -d '' -t args < <(jq --raw-output0 '.arguments.args // [] | .[]' <<<"$2")
-  printf -v quoted ' %q' "${name}" "${args[@]}"
+  serve:spec "${name}" || { serve:error "$1" -32603 "Internal error: kit ${name}'s usage does not parse"; return 0; }
+  made=$(jq --compact-output -L "${kit_jq}" --argjson args "$(jq --compact-output '.arguments // {}' <<<"$2")" \
+    --argjson opts "${serve_opts[${name}]}" 'import "serve" as serve; serve::argv($args; $opts)' \
+    <<<"${serve_specs[${name}]}")
+  problem=$(jq --raw-output '.error // empty' <<<"${made}")
+  if [[ -n "${problem}" ]]
+  then
+    if [[ -n "${serve_listing_only[${name}]+x}" && "${problem}" == 'unknown argument'* ]]
+    then
+      problem+="; kit serve offers kit ${name} as a listing only; run it in a terminal to ${serve_listing_acts[${name}]}"
+    fi
+    serve:error "$1" -32602 "Invalid params: ${problem}"
+    return 0
+  fi
+  readarray -d '' -t words < <(jq --raw-output0 '.argv[]' <<<"${made}")
+  printf -v quoted ' %q' "${name}" "${words[@]}"
   serve_log_last="kit${quoted}"
-  command=("${name}")
   file:temp out out || return 1
   file:temp err err || return 1
-  if refusal=$(serve:refused "${name}" "${args[@]}")
-  then
-    printf '%s\n' "${refusal}" >"${err}"
-    status=2
-  else
-    (
-      export NO_COLOR=1
-      unset CLICOLOR_FORCE
-      run kit "${command[@]}" "${args[@]}"
-    ) </dev/null >"${out}" 2>"${err}" || status=$?
-  fi
+  (
+    export NO_COLOR=1 kit_serve_hydrated=1
+    unset CLICOLOR_FORCE
+    run kit "${name}" "${words[@]}"
+  ) </dev/null >"${out}" 2>"${err}" || status=$?
   (( status == 0 )) || serve_outcome="status=${status}"
   serve:complete "$1" "$(jq --null-input --compact-output --rawfile out "${out}" --rawfile err "${err}" \
-    --arg command "kit ${command[*]}" --argjson status "${status}" '{
+    --arg command "kit ${name}${words[*]:+ ${words[*]}}" --argjson status "${status}" '{
       content: [{type: "text", text: (
         [$out, $err, (if $status != 0 then "\($command) exited with status \($status)\n" else empty end)]
         | map(select(length > 0)) | join("\n")
@@ -424,27 +460,6 @@ serve:tools-call() {
       isError: ($status != 0)
     }')"
   rm -f "${out}" "${err}"
-}
-
-# serve:refused <tool> <arg>… prints the refusal and succeeds when the args hold a word the tool is not offered for.
-# Any arg counts, wherever it stands, so a word cannot slip past after another.
-serve:refused() {
-  local tool=$1 arg word
-  shift
-  [[ -n "${serve_listing_only[${tool}]+x}" ]] || return 1
-  for arg in "$@"
-  do
-    for word in ${serve_listing_only[${tool}]}
-    do
-      if [[ "${arg}" == "${word}" || ( "${word}" == --* && "${arg}" == "${word}="* ) ]]
-      then
-        printf 'kit serve offers kit %s as a listing only; run it in a terminal to %s\n' "${tool}" \
-          "${serve_listing_acts[${tool}]}"
-        return 0
-      fi
-    done
-  done
-  return 1
 }
 
 # serve:is-tool <name> is true when the server has a tool of that name.
@@ -458,9 +473,9 @@ serve:is-tool() {
 }
 
 # serve:resources prints each resource the repository has, one per line: its URI, its path, its MIME type, and its
-# description, tab-separated.
+# description, tab-separated. A tool's help page has no file; its path is help:<verb>.
 serve:resources() {
-  local file kind directory
+  local file kind directory tool
   [[ -f .kit/1st.md ]] &&
     printf 'kit://1st.md\t.kit/1st.md\ttext/markdown\tthe entry every agent reads first: integrity, the desk, and the rules\n'
   [[ -f .kit/workflow.md ]] &&
@@ -482,6 +497,11 @@ serve:resources() {
     printf 'kit://kinds/%s\t%s\tapplication/yaml\tthe paths and first lines that make a file of kind %s\n' \
       "$(basename "${file}" .yml)" "${file}" "${kind}"
   done
+  for tool in "${serve_tools[@]}"
+  do
+    printf 'kit://help/%s\thelp:%s\ttext/plain\tthe whole help page of kit %s, the %s tool\n' "${tool}" "${tool}" \
+      "${tool}" "${tool}"
+  done
 }
 
 # serve:resources-list <id> answers resources/list with every resource the repository has.
@@ -493,7 +513,8 @@ serve:resources-list() {
   }')" cacheable
 }
 
-# serve:resources-read <id> <params> answers resources/read with the text of the file the URI names.
+# serve:resources-read <id> <params> answers resources/read with the text of the file the URI names, or of the help
+# page, without color, when it names a tool's page.
 serve:resources-read() {
   local uri path mime quoted
   uri=$(jq --raw-output '.uri // "" | strings' <<<"$2")
@@ -503,6 +524,13 @@ serve:resources-read() {
   if [[ -z "${path:-}" ]]
   then
     serve:error "$1" -32602 "Resource not found: ${uri}" "$(jq --null-input --compact-output --arg uri "${uri}" '{uri: $uri}')"
+    return 0
+  fi
+  if [[ "${path}" == help:* ]]
+  then
+    serve:complete "$1" "$(jq --null-input --compact-output --arg uri "${uri}" --arg mime "${mime}" \
+      --arg text "$(NO_COLOR=1 help:page "${path#help:}")" '{contents: [{uri: $uri, mimeType: $mime, text: ($text + "\n")}]}')" \
+      cacheable
     return 0
   fi
   serve:complete "$1" "$(jq --null-input --compact-output --arg uri "${uri}" --arg mime "${mime}" \

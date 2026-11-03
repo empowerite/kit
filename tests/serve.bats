@@ -31,12 +31,10 @@ modern() {
   }'
 }
 
-# call <id> <tool> <arg>… prints a tools/call request of the 2026-07-28 revision.
+# call <id> <tool> [<arguments>] prints a tools/call request of the 2026-07-28 revision, its arguments a JSON object.
 call() {
-  local id=$1 tool=$2
-  shift 2
-  modern "${id}" tools/call "$(jq --null-input --compact-output --arg name "${tool}" \
-    '{name: $name, arguments: {args: $ARGS.positional}}' --args -- "$@")"
+  modern "$1" tools/call "$(jq --null-input --compact-output --arg name "$2" --argjson arguments "${3:-{\}}" \
+    '{name: $name, arguments: $arguments}')"
 }
 
 @test "an initialize opens a session of the revision the client asks for; a notification gets no answer, and ping does" {
@@ -67,18 +65,23 @@ call() {
 }
 
 @test "a line that is not JSON, an array, an unknown method, and an unknown tool each get their error, and the server goes on" {
-  serve 'not json' '[1,2]' "$(modern 1 nope)" "$(call 2 rm -rf /)" '{"jsonrpc":"2.0","method":"nope"}' \
-    "$(modern 3 tools/call '{"name":"version","arguments":{"args":[1]}}')" "$(call 4 version)"
-  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 6 ]
+  serve 'not json' '[1,2]' "$(modern 1 nope)" "$(call 2 rm)" '{"jsonrpc":"2.0","method":"nope"}' \
+    "$(call 3 version '{"args":["1"]}')" "$(call 4 version)" "$(call 5 context '{"file":"x.sh"}')" \
+    "$(call 6 context '{"path":"x.sh"}')" "$(call 7 context '{"path":["-x"]}')" "$(call 8 context '{"json":true}')"
+  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 10 ]
   [ "$(sed -n 1p "${BATS_TEST_TMPDIR}/out" | jq '.error.code')" -eq -32700 ]
   [ "$(sed -n 2p "${BATS_TEST_TMPDIR}/out" | jq '.error.code')" -eq -32600 ]
   answer 1 | jq --exit-status '.error.code == -32601'
   answer 2 | jq --exit-status '.error | .code == -32602 and (.message | contains("context"))'
-  answer 3 | jq --exit-status '.error.code == -32602'
+  answer 3 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument args; kit version takes: "))'
   answer 4 | jq --exit-status '.result.isError == false'
+  answer 5 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument file; kit context takes: path, json, jq"))'
+  answer 6 | jq --exit-status '.error | .code == -32602 and (.message | contains("path is a list of strings"))'
+  answer 7 | jq --exit-status '.error | .code == -32602 and (.message | contains("starts with -"))'
+  answer 8 | jq --exit-status '.error | .code == -32602 and (.message | contains("fit no usage of kit context: kit context <path>… [--json | --jq]"))'
 }
 
-@test "tools/list names every tool, each described by its verb's help, with args as its only input" {
+@test "tools/list names every tool, with its purpose, its usage, its page's resource, and typed inputs from its syntax" {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'
   [ "$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')" = \
@@ -88,23 +91,35 @@ call() {
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
       sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
-      '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose))
-        and (.inputSchema.properties | keys == ["args"]) and .annotations.readOnlyHint'
+      '.result.tools[] | select(.name == $verb) | (.description | startswith($purpose)
+        and endswith("Its whole page is the resource kit://help/\($verb).")) and .inputSchema.additionalProperties == false'
   done
-  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.openWorldHint) | .name] == ["flow"]'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "context") | .inputSchema
+    | (.properties | keys_unsorted) == ["path", "json", "jq"] and .required == ["path"]
+      and .properties.path.type == "array" and .properties.json.type == "boolean"
+      and (.properties.path.description | startswith("the files"))'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "flow") | .inputSchema.properties
+    | (.stage.enum | index("backlog") and index("releases")) and (has("no-fetch") | not) and .owner.type == "array"'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
+    | index("kit") and index("workflow")'
+  # the whole list fits in well under half the size it had when each description was the verb's whole page
+  [ "$(answer 1 | wc -c)" -lt 13000 ]
 }
 
-@test "a tool runs its verb: context names a bash file's rule, and lint's finding comes back as an error" {
+@test "a tool runs its verb from typed arguments: context names a bash file's rule, and lint's finding comes back as an error" {
   command -v shellcheck >/dev/null || skip "shellcheck, the bash rule's linter, is not on PATH"
   printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > tool.sh
-  serve "$(call 1 context tool.sh)" "$(call 2 lint tool.sh)" "$(call 3 packages)"
+  serve "$(call 1 context '{"path":["tool.sh"]}')" "$(call 2 lint '{"path":["tool.sh"]}')" "$(call 3 packages)" \
+    "$(call 4 context '{"path":["tool.sh"],"json":true}')" "$(call 5 kinds '{"path":["tool.sh"],"json":false}')"
   answer 1 | jq --exit-status '.result | .isError == false and (.content[0].text | split("\n") | index(".kit/rules/bash.md"))'
   answer 2 | jq --exit-status '.result | .isError and (.content[0].text | contains("SC2086"))
-    and (.content[0].text | contains("kit lint exited with status 1"))'
+    and (.content[0].text | contains("kit lint tool.sh exited with status 1"))'
   answer 3 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("kit"))'
+  answer 4 | jq --exit-status '.result.content[0].text | fromjson | .path == "tool.sh" and (.rules | length > 0)'
+  answer 5 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("bash"))'
 }
 
-@test "packages, toolchains, and tools are offered as listings only; an action is refused before its verb runs" {
+@test "packages, toolchains, and tools are offered as listings only; an action cannot be said, and is refused unrun" {
   fake-tools mise
   route mise '--version' '!0'
   fixture ls.json <<<'{"jq": [{"version": "1.8.0", "requested_version": "1.8", "installed": true}]}'
@@ -112,52 +127,108 @@ call() {
   touch mise.toml
   local before
   before=$(cksum kit.yml)
-  serve "$(call 1 packages add style/yaml)" "$(call 2 packages remove kit)" "$(call 3 packages select kit)" \
-    "$(call 4 toolchains choose mise)" "$(call 5 tools install)" "$(call 6 tools update)" "$(call 7 tools path)" \
-    "$(call 8 tools run touch ran)" "$(call 9 tools --outdated)" "$(call 10 tools --toolchain mise --outdated=)" \
-    "$(call 11 tools)" "$(call 12 toolchains)" "$(call 13 packages)"
-  for id in 1 2 3
+  serve "$(call 1 packages '{"subcommand":"add","package":["style/yaml"]}')" "$(call 2 packages '{"add":true}')" \
+    "$(call 3 toolchains '{"subcommand":"choose","name":"mise"}')" "$(call 4 tools '{"subcommand":"install"}')" \
+    "$(call 5 tools '{"outdated":true}')" "$(call 6 tools '{"command":["touch","ran"]}')" \
+    "$(call 7 tools)" "$(call 8 toolchains)" "$(call 9 packages)" "$(modern 10 tools/list)"
+  for id in 1 2
   do
-    answer "${id}" | jq --exit-status '.result | .isError and (.content[0].text
-      | contains("kit serve offers kit packages as a listing only; run it in a terminal to") and contains("status 2"))'
+    answer "${id}" | jq --exit-status '.error | .code == -32602
+      and (.message | contains("kit serve offers kit packages as a listing only; run it in a terminal to"))'
   done
-  answer 4 | jq --exit-status '.result | .isError
-    and (.content[0].text | contains("kit serve offers kit toolchains as a listing only"))'
-  for id in 5 6 7 8 9 10
+  answer 3 | jq --exit-status '.error.message | contains("kit serve offers kit toolchains as a listing only")'
+  for id in 4 5 6
   do
-    answer "${id}" | jq --exit-status '.result | .isError
-      and (.content[0].text | contains("kit serve offers kit tools as a listing only"))'
+    answer "${id}" | jq --exit-status '.error.message | contains("kit serve offers kit tools as a listing only")'
   done
   # nothing ran: kit.yml, the choice, and the command's file are as they were, and mise was only asked to list
   [ "$(cksum kit.yml)" = "${before}" ]
   [ ! -e .git/kit/toolchain ] && [ ! -e ran ]
   if grep -E 'install|upgrade|outdated' "${FAKE_DIR}/mise.calls"; then false; fi
-  answer 11 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("jq"))'
-  answer 12 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("mise"))'
-  answer 13 | jq --exit-status '.result.isError == false'
+  answer 7 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("jq"))'
+  answer 8 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("mise"))'
+  answer 9 | jq --exit-status '.result.isError == false'
+  answer 10 | jq --exit-status '[.result.tools[] | select(.name == "packages" or .name == "toolchains" or .name == "tools")
+    | .inputSchema.properties | keys[]] | any(IN("subcommand", "add", "outdated", "check", "command", "name")) | not'
 }
 
-@test "a listing-only tool's description shows only its listing usage lines; any other tool's shows them all" {
+@test "a listing-only tool's description shows only its listing usage, without the parts it refuses" {
   serve "$(modern 1 tools/list)"
-  local verb
-  for verb in packages toolchains tools
-  do
-    answer 1 | jq --exit-status --arg verb "${verb}" --arg usage "Usage:
-  $(cd "${kit_checkout}" && bash -c 'source modules/bash/1st.sh && use help && help:usage "$1"' - "${verb}" | head -n 1)" \
-      '.result.tools[] | select(.name == $verb) | .description | split("\n\n")[1] == $usage'
-  done
-  answer 1 | jq --exit-status --arg usage "Usage:
-$(cd "${kit_checkout}" && bash -c 'source modules/bash/1st.sh && use help && help:usage syntax' | sed 's/^/  /')" \
-    '.result.tools[] | select(.name == "syntax") | .description | split("\n\n")[1] == $usage'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .description | split("\n\n")[1]
+    == "Usage:\n  kit packages [--active | --inactive] [--json | --jq] [<package>…]"'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "tools") | .description | split("\n\n")[1]
+    == "Usage:\n  kit tools [--toolchain <name>] [--json | --jq]"'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "toolchains") | .description | split("\n\n")[1]
+    == "Usage:\n  kit toolchains [--json | --jq]"'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "context") | .description | split("\n\n")[1]
+    == "Usage:\n  kit context <path>… [--json | --jq]"'
 }
 
 @test "a verb reads end of file on stdin, so the requests after it reach the server, and nothing but answers reach stdout" {
-  serve "$(call 1 context --claude)" "$(call 2 help 'two
-lines')" "$(call 3 version)"
+  serve "$(call 1 context '{"claude":true}')" "$(call 2 help '{"verb":["two\nlines"]}')" "$(call 3 version)"
   [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 3 ]
   jq --exit-status --slurp 'all(.jsonrpc == "2.0") and (map(.id) == [1, 2, 3])' "${BATS_TEST_TMPDIR}/out"
+  answer 1 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument claude"))'
   answer 2 | jq --exit-status '.result.isError'
   answer 3 | jq --exit-status '.result.content[0].text == "unreleased\n"'
+}
+
+@test "a tool changes nothing: a call never hydrates, flow never fetches, and every tool says it reads only" {
+  git init --quiet --bare --initial-branch=main "${BATS_TEST_TMPDIR}/origin.git"
+  git remote add origin "${BATS_TEST_TMPDIR}/origin.git"
+  git add --all && git commit --quiet --message 'start' && git push --quiet origin HEAD:main 2>/dev/null
+  git clone --quiet "${BATS_TEST_TMPDIR}/origin.git" "${BATS_TEST_TMPDIR}/other" 2>/dev/null
+  (cd "${BATS_TEST_TMPDIR}/other" && git commit --quiet --allow-empty --message 'theirs' && git push --quiet origin main)
+  local seen
+  seen=$(git rev-parse origin/main)
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  "${kit_checkout}/bin/kit" serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 tools/list >&7
+  await 1
+  # the server placed .kit/ as it started; a call after a delivered file went missing leaves it missing
+  rm -f .kit/rules/json.md
+  call 2 kinds >&7
+  call 3 flow '{"stage":"incoming","json":true}' >&7
+  call 4 flow '{"json":true}' >&7
+  await 4
+  exec 7>&-
+  wait "${server}"
+  [ ! -e .kit/rules/json.md ]
+  [ "$(git rev-parse origin/main)" = "${seen}" ]
+  answer 3 | jq --exit-status '.result.content[0].text | fromjson | .fetched == false'
+  answer 1 | jq --exit-status '[.result.tools[].annotations] | all(.readOnlyHint and (.destructiveHint | not))'
+}
+
+@test "kit.yml changed between messages is placed by the server, which tells the client the resources changed" {
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  "${kit_checkout}/bin/kit" serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 server/discover >&7
+  await 1
+  [ ! -e .kit/workflow.md ]
+  yq --inplace '.packages += ["workflow"]' kit.yml
+  touch -t 209901010000 kit.yml
+  modern 2 resources/list >&7
+  await 2
+  exec 7>&-
+  wait "${server}"
+  [ -e .kit/workflow.md ]
+  answer 2 | jq --exit-status '[.result.resources[].uri] | index("kit://workflow.md")'
+  grep --quiet '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out"
+}
+
+@test "each tool's whole help page is a resource" {
+  serve "$(modern 1 resources/list)" "$(modern 2 resources/read '{"uri":"kit://help/context"}')" \
+    "$(modern 3 resources/read '{"uri":"kit://help/commit"}')"
+  [ "$(answer 1 | jq --raw-output '[.result.resources[].uri | select(startswith("kit://help/"))] | join(" ")')" = \
+    "$(printf 'kit://help/%s ' check context flow help kinds lint packages syntax toolchains tools version | sed 's/ $//')" ]
+  answer 2 | jq --exit-status '.result.contents[0] | .mimeType == "text/plain"
+    and (.text | startswith("kit context - prints the rules that govern a file")) and (.text | contains("Description"))
+    and (.text | contains("\u001b") | not)'
+  answer 3 | jq --exit-status '.error.code == -32602'
 }
 
 @test "resources list the kit's files on disk, a read returns one, and a URI that names none is refused" {
@@ -167,7 +238,8 @@ lines')" "$(call 3 version)"
   expected=$( { printf 'kit://1st.md\n'
     [[ ! -f .kit/workflow.md ]] || printf 'kit://workflow.md\n'
     for file in .kit/rules/*.md; do printf 'kit://rules/%s\n' "$(basename "${file}" .md)"; done
-    for file in .kit/kinds/*.yml; do printf 'kit://kinds/%s\n' "$(basename "${file}" .yml)"; done; } )
+    for file in .kit/kinds/*.yml; do printf 'kit://kinds/%s\n' "$(basename "${file}" .yml)"; done
+    printf 'kit://help/%s\n' check context flow help kinds lint packages syntax toolchains tools version; } )
   [ "$(answer 1 | jq --raw-output '.result.resources[].uri')" = "${expected}" ]
   [ "$(answer 2 | jq --raw-output '.result.contents[0].text')" = "$(cat .kit/rules/bash.md)" ]
   answer 2 | jq --exit-status '.result.contents[0].mimeType == "text/markdown"'

@@ -31,7 +31,7 @@ today_log() { printf '.kit/logs/%s-%s.log\n' "$1" "${today}"; }
   printf '%s\n' \
     '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}' \
     '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"lint","arguments":{"args":["--nope","a b"]}}}' \
+    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"help","arguments":{"verb":["no pe"]}}}' \
     '{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"kit://1st.md"}}' \
     '{"jsonrpc":"2.0","id":4,"method":"nope"}' \
     | "${kit_checkout}/bin/kit" serve >/dev/null 2>&1
@@ -40,11 +40,11 @@ today_log() { printf '.kit/logs/%s-%s.log\n' "$1" "${today}"; }
   [[ "${lines[0]}" == *" event=start" ]]
   [[ "${lines[1]}" == *" id=1 method=initialize outcome=ok" ]]
   [[ "${lines[2]}" == *" method=notifications/initialized outcome=none" ]]
-  [[ "${lines[3]}" == *" id=2 method=tools/call outcome=status=2 kit lint --nope a\\ b" ]]
+  [[ "${lines[3]}" == *" id=2 method=tools/call outcome=status=2 kit help no\\ pe" ]]
   [[ "${lines[4]}" == *" id=3 method=resources/read outcome=ok uri=kit://1st.md" ]]
   [[ "${lines[5]}" == *" id=4 method=nope outcome=error=-32601" ]]
   [[ "${lines[6]}" == *" event=stop" ]]
-  grep --quiet ' depth=1 status=2 in=. kit lint --nope a\\ b$' "$(today_log kit)"
+  grep --quiet ' depth=1 status=2 in=. kit help no\\ pe$' "$(today_log kit)"
   grep --quiet ' depth=0 status=0 in=. kit serve$' "$(today_log kit)"
 }
 
