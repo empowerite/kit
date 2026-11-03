@@ -103,8 +103,8 @@ A bash module is `<module>.sh` in a directory on the path, or below one: the mod
 `toolchain/brew.sh`, and `use toolchain/brew` loads it. A name with an empty, `.`, or `..` part, or a leading `/`, is
 refused, so no module loads from outside the path. A module:
 
-- opens with `# shellcheck shell=bash` and the banner, and sets no shell options, because it runs in its caller's
-  shell
+- opens with `# shellcheck shell=bash` and the banner, and does not set any shell options, because it runs in its
+  caller's shell
 - names each function `<module>:<name>`, so that every function says where it is defined:
   `toolchain/brew:install` in `toolchain/brew.sh`
 - loads what it needs with `use`, at the top
@@ -247,8 +247,8 @@ template:regex() {
 - Its tests are `tests/jq/<module>.test`, in the format of `jq --run-tests`: a program, an input, and the outputs it
   gives. `tests/jq.bats` runs every module's tests, and fails a module that has none.
 - jq compiles a program each time it starts, and has no compiled form to keep. Starting jq takes about 20 ms;
-  importing a module adds nothing measurable. So speed comes from starting jq fewer times: one process for all the
-  files a verb reads, not one per file.
+  importing a module does not add any measurable time. So speed comes from starting jq fewer times: one process for
+  all the files a verb reads, not one per file.
 - The jq modules come from the release alone. A repository has no jq module path of its own.
 
 ## YAML

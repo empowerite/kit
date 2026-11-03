@@ -28,5 +28,5 @@ offers the read-only verbs as tools and the rules as resources; see [docs/serve.
 asks once, at the start of the next session, whether to use a project's servers. The kit says so when it places the
 entry. The hook stays: it fires before every edit, while a tool fires only when the agent calls it.
 
-`.claude/rules/` belongs to the repository. `AGENTS.md` contains no `@` import for Claude Code, because every
+`.claude/rules/` belongs to the repository. `AGENTS.md` does not contain an `@` import for Claude Code, because every
 harness reads `AGENTS.md`.

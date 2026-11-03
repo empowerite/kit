@@ -82,7 +82,7 @@ facts:
 
 ### Testing a rule
 
-`kit policy --facts=<file>` judges a saved facts document and gathers nothing.
+`kit policy --facts=<file>` judges a saved facts document, and does not gather any facts.
 
 ```sh
 kit facts > fixture.json

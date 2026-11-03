@@ -96,12 +96,12 @@ replaced along with the rest of the region's content.
 - Named paths are relative to the directory you typed the command in. Each named file gets one pass, or up to
   `--iterations=<n>` passes.
 - With no paths, it expands every tracked file and every untracked file git does not ignore. It repeats passes
-  until a pass changes nothing, up to twenty passes or `--iterations=<n>`, because one command may read another
+  until a pass does not change anything, up to twenty passes or `--iterations=<n>`, because one command may read another
   file's region.
 - A run over the whole repository that is still changing at the limit fails. The cause is a command whose output
   depends on its own output.
 
-`kit generate --check [<path>…]` runs one pass, writes nothing, and fails naming every stale file. It runs
+`kit generate --check [<path>…]` runs one pass without writing anything, and fails naming every stale file. It runs
 in two places:
 
 - `kit check`, over the whole repository, so `kit ci` checks every generated region, the kit's and the
@@ -111,7 +111,7 @@ in two places:
 `kit region [--home] [<path>]` prints the content the active packages deliver as the region at a path, rendered
 the way a template is. It is the command behind every region the kit delivers.
 
-- The path defaults to `KIT_GENERATE_REGION`, so a bare directive needs no argument.
+- The path defaults to `KIT_GENERATE_REGION`, so a bare directive does not need an argument.
 - Only one active package can deliver a region at a given path. `kit region` prints that package's
   `regions/<base>/<path>`.
 - A path no active package delivers is refused.

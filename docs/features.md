@@ -38,8 +38,8 @@ request: before one exists, `kit linked` fails, and the other three run without 
 | `kit linked` | the pull request is not linked to an open issue |
 | `kit policy` | a branch name, commit subject, or pull request title breaks the naming policy |
 
-`kit lint` runs each rule's linter over the staged files, or any files, before a commit or at any time. It needs no
-hook manager; the `hooks/lefthook` package runs it from lefthook.
+`kit lint` runs each rule's linter over the staged files, or any files, before a commit or at any time. It does not
+need a hook manager; the `hooks/lefthook` package runs it from lefthook.
 
 The four checks are fixed. What each one runs is found at run time, from the repository's files:
 
@@ -148,8 +148,8 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 - On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs
   it, later moves on.
-- Without a terminal, or with `--text`, it prints each page with its checks, and runs nothing. It exits 1 when a
-  check fails.
+- Without a terminal, or with `--text`, it prints each page with its checks, and does not run anything. It exits 1
+  when a check fails.
 - A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
   assumed.
 - `kit welcome --checks --json` prints the checks alone; `kit welcome --fix <check>` runs one fix and checks again.
@@ -172,7 +172,7 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 - `kit packages select` shows the whole set of packages, each marked by what will happen to it.
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
-verb needs nothing but its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
+verb needs only its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
 on amd64 and arm64; in a checkout of the kit it is built from `tui/`. Without a terminal on stdin, stdout, and
 stderr, nothing opens: a verb short of an argument refuses in one line, as before.
 

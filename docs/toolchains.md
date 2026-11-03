@@ -72,8 +72,8 @@ apt, dnf, and pacman:
 - Each names the command that installs a missing tool, such as `sudo apt-get install shellcheck`. kit never runs it
   on its own. `kit welcome` runs it only when you say now, in your terminal, so `sudo` can ask for a password.
 - A package's name can differ from the tool's. Fedora names shellcheck `ShellCheck`; Arch names gh `github-cli`.
-- A tool with no package there gets no command. kit names the tool's site instead. Debian's and Arch's `yq` are not
-  mikefarah's, which kit needs, so on apt kit names the site, and on pacman it names `go-yq`.
+- A tool with no package there does not get a command. kit names the tool's site instead. Debian's and Arch's `yq` are
+  not mikefarah's, which kit needs, so on apt kit names the site, and on pacman it names `go-yq`.
 - With brew on `PATH` too, both are usable for the system. brew is offered first, and the choice is yours:
   `kit toolchains choose apt --system`.
 
@@ -93,7 +93,7 @@ command that picks it, such as `kit toolchains choose mise`. With none usable, k
 is on `PATH`.
 
 `kit toolchains choose <name>` records the project choice, and `--system` records the system one. `ambient` is a
-name too: it chooses none.
+name too: it chooses not to use a toolchain.
 
 ## brew fills in
 
@@ -130,7 +130,7 @@ Filling in:
 - A worktree takes the desk's choice while that toolchain is usable there. Its branch may lack the file, though.
   Then kit asks again, and keeps the answer in the worktree alone.
 - The cache holds while `PATH`, where each tool resolves, each provider's files, and each activation marker are
-  unchanged. A hit runs no tool. Discarding the cache never discards a choice.
+  unchanged. A hit does not run any tool. Discarding the cache never discards a choice.
 
 ## `kit toolchains`
 
@@ -157,10 +157,10 @@ Each takes `--toolchain <name>` to name the toolchain for that run.
 Ambient, no toolchain pins anything. Then `kit tools` lists the tools the rules' linters need, and where each is
 found on `PATH`, or `missing`.
 
-- `kit tools install` installs nothing. With every tool on `PATH`, it says so and exits 0. Otherwise it fails,
+- `kit tools install` does not install anything. With every tool on `PATH`, it says so and exits 0. Otherwise it fails,
   naming each missing tool, with the system toolchain's command that installs it.
 - `kit tools update` refuses: there is nothing pinned to update. `kit tools --outdated` finds none behind.
-- `kit tools path` prints nothing, and `kit tools run` runs the command as is.
+- `kit tools path` does not print anything, and `kit tools run` runs the command as is.
 
 ## Dependencies
 
@@ -175,7 +175,7 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
 
 - A run uses one toolchain, but every usable dependency provider.
 - A provider is looked for with the toolchain's directories first on `PATH`, so a node the toolchain pins counts.
-- The lock is required. A manifest without its lock pins nothing, so it is not usable. `kit welcome` names it.
+- The lock is required. A manifest without its lock does not pin anything, so it is not usable. `kit welcome` names it.
 - Only the manifest at the repository root counts. Workspaces are not read yet.
 - `kit tools` acts on the toolchain first, then each provider: it lists, installs, updates, and asks what is behind.
   With several, each table is headed by the name of what it lists. A JSON row's `from` names it.
@@ -206,7 +206,7 @@ can hydrate when a shell enters it, so a fresh worktree is complete before its f
 enter = "kit hydrate --quick"
 ```
 
-With `--quick`, the hook starts nothing and says nothing when everything is in place, and does the whole job
+With `--quick`, the hook does not start or print anything when everything is in place, and does the whole job
 otherwise. The hook runs only in a shell with `mise activate`. mise's documentation marks hooks experimental.
 
 A desk that uses direnv gets the same from an `.envrc` of two lines, as this repository's is:

@@ -8,7 +8,8 @@ kit writes two logs in each worktree, one file a day each, under `.kit/logs/`:
 | `mcp-YYYY-MMDD.log` | each message `kit serve` answers, and its start and stop |
 
 Neither needs setting up. `kit hydrate` lists `/logs/` in `.kit/.gitignore`, as it lists `/cache/`, so git never
-sees a log. A directory where kit has not hydrated gets no logs, and a directory outside a git worktree gets none.
+sees a log. A directory where kit has not hydrated does not get any logs, and
+neither does a directory outside a git worktree.
 
 ## A call
 
@@ -40,7 +41,7 @@ Lines are written when calls end, so a call that ran a shorter one inside it com
 ```
 
 - `outcome` is `ok`, `error=<code>` for a request the server refused, `status=<status>` for a tool whose verb
-  failed, or `none` for a notification, which gets no answer.
+  failed, or `none` for a notification, which does not get an answer.
 - A tool's line ends with the command it ran. The same call is in the kit log, one deeper.
 - The stop line's `seconds` is how long the server ran.
 - `event=reload` is the server starting itself again from a file that changed, and the new process logs its own

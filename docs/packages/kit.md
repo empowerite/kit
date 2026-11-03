@@ -22,7 +22,7 @@ out. It delivers:
 The region starts at a `kit:generate` directive, and `kit generate` fills it through `kit region`. The rest of
 `.gitignore` belongs to the repository.
 
-The kit package delivers no style. How a file looks, and the templates that hold its shape, come from the style
+The kit package does not deliver any style. How a file looks, and the templates that hold its shape, come from the style
 packages a repository takes; see [style.md](style.md). The one exception is the four provider templates the bash
 rule lists, `.kit/templates/bash/<seam>-provider`. They hold a seam's provider to its seam's calls in every
 repository, whatever style it takes.

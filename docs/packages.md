@@ -39,8 +39,8 @@ packages/<name>/
   hosts/<base>/       for a region, the template of the file that holds it, at the region's path
 ```
 
-A package must have `package.yml`. `files/`, `templates/`, `regions/`, and `hosts/` are optional, and the kit reads nothing
-else in the package's directory. The base sets where a file lands:
+A package must have `package.yml`. `files/`, `templates/`, `regions/`, and `hosts/` are optional, and the kit does
+not read anything else in the package's directory. The base sets where a file lands:
 
 | Base | Root | Record |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ else in the package's directory. The base sets where a file lands:
 - `files/home/.kit/<name>` is a user-level setting. Each machine has one copy, from whichever repository installed
   or updated last.
 - `kit check` compares home paths with the release where `~/.kit/manifest` exists. Where it does not, as on a
-  runner, which installs nothing there, `kit check` reports that it did not check them.
+  runner, which does not install anything there, `kit check` reports that it did not check them.
 - A package that names any other base is refused at install, and the error lists the known bases.
 - `KIT_HOME` replaces the home directory. The tests use it to stay out of the real one.
 
@@ -144,7 +144,7 @@ expects:
 
 - `kit install` and `kit packages add` list each unmet expectation as left to do.
 - `kit check` fails until every expectation is met.
-- The kit writes nothing into the file. It belongs entirely to the repository.
+- The kit does not write anything into the file. It belongs entirely to the repository.
 
 A single-quoted value is taken literally, backslashes included. Write patterns that way.
 
@@ -161,7 +161,8 @@ notices:
 ```
 
 `kit install`, `kit packages add`, and `kit update` print a notice when they place its path afresh, or merge into it
-an entry that was not there. A path the repository already holds as the release has it prints nothing.
+an entry that was not there. When the repository already holds a path as the release has it, they
+stay quiet.
 
 The kit changes a file it touches in one of four ways:
 
@@ -266,7 +267,7 @@ answers:
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
-| `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` writes none. See [logs.md](logs.md). |
+| `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |
 | `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
@@ -306,8 +307,8 @@ sources:
   `empowerite` as the release carries the kit's.
 
 A file a source delivers is held to the source by `kit check`, like any other. `kit update` takes the source as the
-pin names it. A file outside `.kit/` that came from a source and was edited keeps the edit, since the kit keeps no
-earlier copy of a source to merge against.
+pin names it. A file outside `.kit/` that came from a source and was edited keeps the edit, since the kit does not keep
+an earlier copy of a source to merge against.
 
 ## Packages a repository defines
 

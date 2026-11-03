@@ -21,11 +21,11 @@ The package also merges `mcpServers.kit` into `.cursor/mcp.json`, with `type: st
 `kit serve`; see [docs/serve.md](../../serve.md). Cursor asks before it runs each of the server's tools unless the
 person allows it.
 
-`.cursor/rules/` otherwise belongs to the repository. The package places only its seven files, `kit check` holds
-them to the release, and `kit packages remove agents/cursor` takes them out. Cursor offers no deny list a repository
-can commit, so the git commands `.kit/1st.md` forbids are refused by the hooks and the ruleset alone.
+`.cursor/rules/` otherwise belongs to the repository. The package places only its seven files, `kit check` holds them
+to the release, and `kit packages remove agents/cursor` takes them out. Cursor does not offer a deny list that a
+repository can commit, so the git commands `.kit/1st.md` forbids are refused by the hooks and the ruleset alone.
 
-Verified on 2026-10-30 against [Cursor's rules page][cursor-rules], which shows no version, and a Cursor staff
+Verified on 2026-10-30 against [Cursor's rules page][cursor-rules], which does not show a version, and a Cursor staff
 statement of the frontmatter form in [its forum][cursor-forum].
 
 [cursor-rules]: https://cursor.com/docs/context/rules

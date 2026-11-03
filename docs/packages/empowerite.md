@@ -1,6 +1,6 @@
 # The empowerite package
 
-The bundle of packages Empowerite's repositories take. It delivers no file of its own: adding it activates its
+The bundle of packages Empowerite's repositories take. It does not deliver any file of its own: adding it activates its
 members, and that is all it does.
 
 | Member | Brings |

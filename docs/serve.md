@@ -2,11 +2,11 @@
 
 `kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's read-only verbs to an agent as
 tools, and the kit's files as resources. It reads requests on stdin and answers on stdout, in the repository it
-starts in, and opens no network port.
+starts in, and does not open a network port.
 
 A tool is its verb, no more. It takes one argument, `args`: the strings that would follow `kit <verb>` on a command
 line. Its description is the verb's help page, and the usage line there is what says what `args` may be. So an
-agent still needs the verb's grammar; the server parses nothing for it.
+agent still needs the verb's grammar; the server does not parse anything for it.
 
 ## What it offers
 
@@ -64,17 +64,17 @@ changes that file.
 of the specification. It answers two eras of the protocol, as the specification lets a dual-era server do:
 
 - The 2026-07-28 revision has no session. A client may ask `server/discover`, and every other request names its
-  version in `params._meta["io.modelcontextprotocol/protocolVersion"]`. A request that names none is refused with
+  version in `params._meta["io.modelcontextprotocol/protocolVersion"]`. A request that does not name one is refused with
   `-32602`, and one that names a revision the server does not answer gets `-32022` with the revisions it does.
 - The revisions before it, `2025-11-25`, `2025-06-18`, and `2025-03-26`, open with `initialize`. The server answers
-  with the revision the client asks for, or the newest of them, and from then on a request needs no `_meta` and
+  with the revision the client asks for, or the newest of them, and from then on a request does not need `_meta` and
   `ping` is answered.
 
 Either way:
 
 - Stdout carries only protocol messages, one JSON object per line. Every log line goes to stderr.
 - Requests are answered one at a time, in order.
-- A message without an `id` is a notification, and gets no answer, even when it fails.
+- A message without an `id` is a notification, and does not get an answer, even when it fails.
 - A list or a read carries `ttlMs` of 0 and `cacheScope` of `private`, because the files and the verbs' answers
   change as the agent works.
 

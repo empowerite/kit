@@ -59,8 +59,8 @@ them. `text` lists every kind the kit defines that holds prose, plus `**/*.txt`,
 - A `content:` pattern lets a bash script with no extension match by its shebang.
 - A file that does not exist yet is matched by its path alone.
 
-A rule file, or a style file, opens with a frontmatter block that names the kinds it governs and carries no glob of
-its own. The keys appear in rules and styles alike; templates are mostly a style's, though the bash rule lists four:
+A rule file, or a style file, opens with a frontmatter block that names the kinds it governs and does not carry a glob
+of its own. The keys appear in rules and styles alike; templates are mostly a style's, though the bash rule lists four:
 
 ```yaml
 ---
@@ -85,9 +85,9 @@ templates:
 the kinds those kinds embed. So opening a justfile names the just rule, the just style, and the bash rule, with no
 sentence in one rule pointing at another. `--json` reports the kinds beside the rules.
 
-`kit lint` runs each rule's `lint:` command once over the paths of that rule's kinds, and never follows `embeds:`,
-so no linter runs over a file it cannot parse. The paths are the staged paths, the paths you name, or every tracked
-path with `--all-files`. A linter that is not on `PATH` is a failure, not a skip. The kit assumes no hook manager;
+`kit lint` runs each rule's `lint:` command once over the paths of that rule's kinds, and never follows `embeds:`, so
+no linter runs over a file it cannot parse. The paths are the staged paths, the paths you name, or every tracked path
+with `--all-files`. A linter that is not on `PATH` is a failure, not a skip. The kit does not assume a hook manager;
 the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through
 the same classification.
 

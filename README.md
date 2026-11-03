@@ -147,8 +147,8 @@ and shows the fix for each problem. Then it walks you through how work flows, th
 
    `kit ci` fails when there is no gate. The gate runs with the tools your toolchain manages; see
    [docs/toolchains.md](docs/toolchains.md). The naming policy is in [docs/policy.md](docs/policy.md).
-4. Run the linters before each commit. `kit lint` lints the staged files and needs no hook manager. To run it from
-   lefthook instead:
+4. Run the linters before each commit. `kit lint` lints the staged files and does not need a hook manager. To run it
+   from lefthook instead:
    - pin `lefthook`,
    - add `extends: [.kit/lefthook.yml]` to `lefthook.yml`, and
    - run `kit hydrate && lefthook install` once per clone; lefthook skips a missing `.kit/lefthook.yml` without a
@@ -167,8 +167,8 @@ package format is in [docs/packages.md](docs/packages.md).
 kit works with no package at all. The workflow verbs (`kit flow`, `kit issue`, `kit commit`, `kit submit`,
 `kit rebase`, `kit tidy`, `kit release`) and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`)
 run in a repository that has none. What needs the `kit` package is its kinds, rules, and templates: without them,
-`kit context` names no rule, `kit kinds` lists none, `kit lint` governs no file, and `kit new file` refuses for want
-of a template.
+`kit context` does not name any rule, `kit kinds` does not list any kind, `kit lint` does not govern any file, and
+`kit new file` refuses, because there is no template.
 
 Every kit call, and every message `kit serve` answers, is a line in a daily log under `.kit/logs/`; see
 [docs/logs.md](docs/logs.md).
@@ -280,7 +280,7 @@ are written by `bin/refresh`, which runs `kit update` from the index. Do not edi
 | `.kit/.gitignore`, `.kit/manifest` | written by kit beside what it placed under `.kit/`, and ignored like it: the paths git never sees, and a digest per delivered path. The release version (`unreleased` here) and the active packages are declared in `kit.yml` |
 
 `kit.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
-`excludes` keys there. A fresh clone or worktree holds nothing else under `.kit/` until a kit verb runs, or `cd`
+`excludes` keys there. A fresh clone or worktree has nothing else under `.kit/` until a kit verb runs, or `cd`
 hydrates it through the mise hook in `mise.toml`.
 
 When a commit changes a file under `kit/` or `.kit/packages/`, or `kit.yml`, the installed copies must change
