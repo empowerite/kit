@@ -55,6 +55,10 @@ bash_path:
 - A directory that does not exist is skipped, as `PATH` skips one. A root other than `kit:` must be a source that
   `sources:` in `kit.yml` names; see [packages.md](packages.md). Any other is refused.
 - `use:path` prints the directories the path resolved to, one per line, which shows what was skipped.
+- The path is read once per process tree. A kit command that another one runs takes the path its parent read,
+  unless the release, the home directory, the cache directory, the repository root, or the text of `kit.yml`
+  differs, so an edit to the setting is read at once. In the same way, `yq --version` runs once, and not again
+  while the `yq` on `PATH` is the one it ran.
 
 A module only one directory has loads from there. A module several directories have loads from each, in path
 order, so a later file adds functions to the module or replaces one an earlier file defined. A module that no

@@ -142,12 +142,11 @@ shape() {
   run ! in_template template:unapply "${BATS_TEST_TMPDIR}/dot" dot
 }
 
-# renders-back <shard> <shards> checks every <shards>th governed file in this repository, from the <shard>th, counting
-# from 0: each renders back from what it gives its template. The files are split into shards, tests of their own, so
-# bats --jobs spreads them over its jobs; one test over every file took most of the five minutes a test is given.
-renders-back() {
-  local path rule variant values file bound name n=0 failed=0 checked=0
-  checkout-copy
+# renders-back-files <shard> <shards> checks every <shards>th governed file in this repository, from the <shard>th,
+# counting from 0, in a shell that has loaded the template module: each renders back from what it gives its
+# template. It prints each that does not, then how many templates it checked.
+renders-back-files() {
+  local path rule variant values file bound name n=0 checked=0
   while IFS= read -r path
   do
     (( n++ % $2 == $1 )) || continue
@@ -158,21 +157,29 @@ renders-back() {
       do
         [[ -n "${variant}" ]] || continue
         file=.kit/templates/${rule}/${variant}
-        values=$(in_template template:unapply "${file}" "${path}") || continue
+        values=$(template:unapply "${file}" "${path}") || continue
         checked=$(( checked + 1 ))
         name=${path##*/}
         bound=$(jq -nc --arg p "${path}" --arg n "${name}" --arg s "${name%.*}" '{path: $p, name: $n, stem: $s}')
-        if ! cmp --silent "${path}" <(in_template template:render "${file}" "$(jq -c --argjson b "${bound}" '. + $b' <<<"${values}")")
-        then
-          echo "does not render back: ${path} from ${file}"
-          failed=$(( failed + 1 ))
-        fi
-      done < <(in_template template:applies ".kit/styles/${rule}.md" "${path}")
-    done < <(in_template template:rules "${path}" | sed 's|.*/||; s|\.md$||' | sort -u)
+        cmp --silent "${path}" <(template:render "${file}" "$(jq -c --argjson b "${bound}" '. + $b' <<<"${values}")") \
+          || echo "does not render back: ${path} from ${file}"
+      done < <(template:applies ".kit/styles/${rule}.md" "${path}")
+    done < <(template:rules "${path}" | sed 's|.*/||; s|\.md$||' | sort -u)
   done < <(git ls-files | grep -vE '(^|/)\.kit/templates/|/regions/')
   echo "checked ${checked}"
-  [ "${checked}" -ge 10 ]
-  [ "${failed}" -eq 0 ]
+}
+
+# renders-back <shard> <shards> runs renders-back-files over a copy of the checkout, in one bash that loads the
+# template module once for the whole shard. The files are split into shards, tests of their own, so bats --jobs
+# spreads them over its jobs; one test over every file took most of the five minutes a test is given.
+renders-back() {
+  local out
+  checkout-copy
+  export -f renders-back-files
+  out=$(bash -c 'source "${kit_root}/modules/bash/1st.sh" && use template && renders-back-files "$@"' _ "$1" "$2")
+  printf '%s\n' "${out}"
+  [[ "${out}" != *"does not render back"* ]]
+  [ "${out##*checked }" -ge 10 ]
 }
 
 @test "every governed file in this repository renders back from what it gives its template: shard 1 of 8" {

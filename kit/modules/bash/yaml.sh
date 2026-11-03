@@ -51,13 +51,20 @@
 # and empty where it was loaded in a subshell or the directory cannot be used.
 declare -g yaml_ready=false yaml_cache=''
 
-# yaml:detect looks for mikefarah's yq on PATH and sets yaml_ready. In the main shell it says what is missing, and the
-# remedy; in a subshell it says nothing.
+# yaml:detect looks for mikefarah's yq on PATH and sets yaml_ready. A yq on PATH that is the one kit_yq names, which
+# the loader exports once it has seen it is mikefarah's, is trusted without starting it. In the main shell it says
+# what is missing, and the remedy; in a subshell it says nothing.
 yaml:detect() {
-  local version=''
-  if command -v yq >/dev/null 2>&1
+  local version='' yq=''
+  hash yq 2>/dev/null && yq=${BASH_CMDS[yq]:-}
+  if [[ -n "${yq}" && "${yq}" == "${kit_yq:-}" ]]
   then
-    version=$(yq --version 2>/dev/null) || version=''
+    yaml_ready=true
+    return 0
+  fi
+  if [[ -n "${yq}" ]]
+  then
+    version=$("${yq}" --version 2>/dev/null) || version=''
   fi
   if [[ "${version}" == *mikefarah* ]]
   then

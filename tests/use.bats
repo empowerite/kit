@@ -85,6 +85,45 @@ setup() {
   [ "$output" = "apt brew devcontainer dnf docker local mise nix pacman" ]
 }
 
+# child <script> runs the script in a child bash process that has loaded the loader, as a kit verb's child would.
+child() {
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && eval "$1"' child "$1"
+}
+
+@test "a child process uses the module path its parent read, and reads kit.yml again once it changes" {
+  export -f child
+  printf 'bash_path:\n  - kit:modules/bash/\n' > kit.yml
+  printf 'local:hello() { echo hello from bash/; }\n' > bash/local.sh
+  run kit-bash 'use:path >/dev/null
+    [[ "${kit_bash_path_dirs}" == "${kit_root}/modules/bash/"$'"'"'\n'"'"' ]] || exit 3
+    child "use:path"
+    printf "bash_path:\n  - kit:modules/bash/\n  - bash/\n" > kit.yml
+    child "use local && local:hello"'
+  [ "$status" -eq 0 ]
+  [ "$output" = "${kit_root}/modules/bash"$'\n'"hello from bash/" ]
+}
+
+@test "a child process starts no yq when its parent has seen yq and read bash_path, and a parent starts yq --version once" {
+  export -f child
+  # a yq that logs each call, then steps out of PATH and hands it to the yq behind it
+  mkdir shims
+  printf '#!/usr/bin/env bash\necho "$*" >> "%s/yq.log"\nPATH=${PATH#*:} exec yq "$@"\n' "${repo}" > shims/yq
+  chmod +x shims/yq
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  run env PATH="${repo}/shims:${PATH}" kit_yq='' kit_bash_path_dirs='' bash -c '
+    source "${kit_root}/modules/bash/1st.sh" && use yaml && echo parent
+    : > yq.log
+    child "use yaml && use:path >/dev/null && echo child"'
+  [ "$status" -eq 0 ]
+  [ "$output" = $'parent\nchild' ]
+  [ ! -s yq.log ]
+  : > yq.log
+  run env PATH="${repo}/shims:${PATH}" kit_yq='' kit_bash_path_dirs='' bash -c '
+    source "${kit_root}/modules/bash/1st.sh" && use yaml && use:path >/dev/null'
+  [ "$status" -eq 0 ]
+  [ "$(grep -c -- --version yq.log)" -eq 1 ]
+}
+
 @test "use refuses a name that could reach outside the module path" {
   local name
   for name in /etc/passwd ../yaml forge/../yaml forge//github ./yaml forge/

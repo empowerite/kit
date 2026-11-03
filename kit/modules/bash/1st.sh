@@ -62,15 +62,35 @@ kit:move-settings() {
   step "kit.yml: the settings moved here from .kit/settings.yml; commit both paths"
 }
 
+# use:yq exports kit_yq, the path of the yq on PATH, once it has seen that yq is mikefarah's, the one yaml.sh reads
+# through. yaml.sh trusts kit_yq while the yq on PATH is still that one, so neither its load in the loader's subshell,
+# nor its load in the main shell, nor any load in a child process starts yq --version again. bash's own command hash
+# finds the yq on PATH, so looking costs no process. A yq that is not mikefarah's leaves kit_yq as it was, for yaml.sh
+# to say so.
+use:yq() {
+  local yq=''
+  hash yq 2>/dev/null && yq=${BASH_CMDS[yq]:-}
+  [[ -n "${yq}" && "${kit_yq:-}" != "${yq}" ]] || return 0
+  [[ "$("${yq}" --version 2>/dev/null)" == *mikefarah* ]] || return 0
+  kit_yq=${yq}
+  export kit_yq
+}
+
 # use:load-path fills kit_bash_path with the module path's directories, once per process: each entry of the bash_path
 # setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir> (in
 # the home directory), <source>:<dir> (in a source the settings name), or a directory relative to the repository root.
 # A directory that does not exist is skipped, as PATH skips one. Away from the root, it reads the root's settings. It
 # returns 2 on a path that does not start with kit:modules/bash/, or a root other than kit: and the sources.
+#
+# Reading bash_path starts yq, so the entries it found are exported for child processes: kit_bash_path_dirs, their
+# directories, one per line, and kit_bash_path_from, all they were resolved from: the release, the home directory, the
+# cache directory, the root, and the text of the kit.yml there. A child for which all of them are the same uses the
+# directories as they are, and reads kit.yml again otherwise, so an edit to it, another repository, or another release
+# is never read stale. Whether each directory exists is asked again every time.
 use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
-  local entry dir root digest
-  local -a entries
+  local entry dir root digest settings='' from
+  local -a entries dirs=()
   # A verb runs at the repository root, where kit.yml is. A just recipe, or any script that sources this
   # file, may run in a directory below it, so the settings and the relative entries are read from the root then.
   root=$(pwd -P)
@@ -78,6 +98,19 @@ use:load-path() {
   then
     root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
   fi
+  # read, a builtin, takes the file's text with no process; at the end of a file with no NUL it returns 1
+  if [[ -f "${root}/kit.yml" ]]
+  then
+    IFS= read -r -d '' settings < "${root}/kit.yml" || true
+  fi
+  printf -v from '%s\n' "${kit_root}" "${HOME}" "${XDG_CACHE_HOME:-}" "${root}" "${settings}"
+  if [[ -n "${kit_bash_path_dirs:-}" && "${kit_bash_path_from:-}" == "${from}" ]]
+  then
+    readarray -t dirs <<<"${kit_bash_path_dirs}"
+    use:keep-path "${dirs[@]}"
+    return 0
+  fi
+  use:yq
   # yaml.sh is read in a subshell, so this does not count as loading it.
   # shellcheck source=SCRIPTDIR/yaml.sh
   readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list "${root}/kit.yml" bash_path)
@@ -107,6 +140,19 @@ use:load-path() {
         ;;
       (*) dir=${root}/${entry}
     esac
+    dirs+=("${dir}")
+  done
+  kit_bash_path_from=${from}
+  printf -v kit_bash_path_dirs '%s\n' "${dirs[@]}"
+  export kit_bash_path_from kit_bash_path_dirs
+  use:keep-path "${dirs[@]}"
+}
+
+# use:keep-path <dir>… fills kit_bash_path with each directory that exists, by its physical path.
+use:keep-path() {
+  local dir
+  for dir in "$@"
+  do
     [[ -d "${dir}" ]] && kit_bash_path+=("$(cd "${dir}" && pwd -P)")
   done
   return 0
