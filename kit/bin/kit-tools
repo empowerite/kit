@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # kit-tools - lists, installs, and updates what the chosen toolchain and the dependencies pin (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
 #
 # kit tools [--toolchain <name>] (install | update | path | run <command>…)
@@ -132,8 +131,9 @@ join() {
 }
 
 # layers holds what this run acts on, in order: toolchain/<name> for the chosen toolchain, unless ambient, then
-# dependencies/<name> for each usable dependency provider. dirs holds the toolchain's directories, joined by colons,
-# found only where a dependency provider's manifest and lock are here.
+# toolchain/brew where brew fills in for it, then dependencies/<name> for each usable dependency provider. dirs holds
+# the toolchain's directories, joined by colons, found only where a dependency provider's manifest and lock are here.
+# toolchain_pinned names what the chosen toolchain pins, so brew filling in leaves those tools to it.
 dirs=''
 for provider in $(dependencies:providers)
 do
@@ -145,6 +145,14 @@ do
 done
 layers=()
 [[ "${chosen}" == ambient ]] || layers+=("toolchain/${chosen}")
+filler=$(toolchain:filler "${chosen}") || exit 1
+if [[ -n "${filler}" ]]
+then
+  # shellcheck disable=SC2034  # read by modules/bash/toolchain/brew.sh
+  toolchain_pinned=$(toolchain:pinned-names "${chosen}") \
+    || { error "${chosen}: the pinned tools could not be read"; exit 1; }
+  layers+=("toolchain/${filler}")
+fi
 while IFS= read -r provider
 do
   [[ -z "${provider}" ]] || layers+=("dependencies/${provider}")
@@ -170,6 +178,13 @@ source_of() {
   then call "$1" file
   else call "$1" lock
   fi
+}
+
+# described <layer> prints what the layer's table lists: its source, and for the filler, what it fills in for.
+described() {
+  local layer=$1
+  printf '%s' "$(source_of "${layer}")"
+  [[ "${layer}" != "toolchain/${filler}" ]] || printf ', for what %s does not pin' "${chosen}"
 }
 
 # heading <name> <file> names the table that follows, when several are drawn: blank between tables, then the name.
@@ -246,14 +261,15 @@ case "${verb}" in
   (install)
     for layer in "${layers[@]}"
     do
-      name=${layer#*/} file=$(source_of "${layer}")
+      name=${layer#*/} file=$(source_of "${layer}") rest=''
+      [[ "${layer}" != "toolchain/${filler}" ]] || rest=" that ${chosen} does not"
       step "${name}: installing from ${file}"
       if ! call "${layer}" install
       then
         error "${name}: the tools could not be installed; see above"
         exit 1
       fi
-      ok "${name} installed the tools ${file} pins"
+      ok "${name} installed the tools ${file} pins${rest}"
       summary "✅ Tools installed with ${name}, from ${file}."
     done
     [[ "${chosen}" != ambient ]] || ambient
@@ -295,7 +311,7 @@ then
       fi
     done <<<"${pins//$'\t'/$'\x1f'}"
     [[ "${json}" != true ]] || continue
-    heading "${name}" "$(source_of "${layer}")"
+    heading "${name}" "$(described "${layer}")"
     printf '%s' "${rows}" | draw $'name\tpinned\tinstalled'
   done
   exit 0
@@ -334,7 +350,7 @@ do
   done <<<"${outdated//$'\t'/$'\x1f'}"
   unset pinned_of installed_of
   [[ "${json}" == true || -z "${rows}" ]] \
-    || { heading "${name}" "$(source_of "${layer}")"; printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'; }
+    || { heading "${name}" "$(described "${layer}")"; printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'; }
 done
 (( ${#layers[@]} )) || exit 0
 # names lists the layers as a sentence does: mise, or mise and npm, or mise, npm, and uv.

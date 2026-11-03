@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # toolchain.sh - the seam over the tool managers that install the gate's tools (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A seam is a contract plus the point that picks who answers it; docs/architecture.md says why not "interface".
 #
 # kit finds the toolchains where it runs, never in kit.yml. Each tool manager is a provider: toolchain/<name>.sh
@@ -22,7 +21,9 @@
 # .kit/cache/toolchains.key, still matches: PATH, where each tool resolves, each file's modification time, and
 # each activation marker.
 #
-# toolchain:chosen gives the one toolchain for a role, or ambient for none. toolchain:choose records a choice:
+# toolchain:chosen gives the one toolchain for a role, or ambient for none. brew is a project candidate only where no
+# other is usable; otherwise it fills in, for the tools the chosen one does not pin (toolchain:filler). toolchain:choose
+# records a choice:
 #
 #   - system: toolchain: <name> in ${KIT_HOME:-$HOME}/.kit/settings.yml
 #   - project, at the desk: <git common dir>/kit/toolchain, shared with every worktree of the clone
@@ -156,13 +157,37 @@ toolchain:usable() {
 }
 
 # toolchain:ranked <role> (usable | active) reads toolchain:detect's lines on stdin. It prints the providers that
-# are usable for the role, or usable and active, one per line, in toolchain:usable's precedence order.
+# are usable for the role, or usable and active, one per line, in toolchain:usable's precedence order. For the
+# project, brew is left out where another is usable, since it fills in for that one instead.
 toolchain:ranked() {
   awk -F '\t' -v role="$1" -v active="$2" '
     $2 == role && $3 == "yes" && (active != "active" || $4 == "yes") {
       rank = ($1 == "mise") ? 1 : ($1 == "nix") ? 2 : ($1 == "brew") ? 3 : ($1 == "docker") ? 4 : 5
-      print rank "\t" $1
-    }' | sort -s -n -k 1,1 | cut -f 2
+      found[$1] = rank "\t" NR
+      if ($1 != "brew") others++
+    }
+    END {
+      for (name in found)
+        if (!(role == "project" && name == "brew" && others)) print found[name] "\t" name
+    }' | sort -n -k 1,1 -k 2,2 | cut -f 3
+}
+
+# toolchain:filler <chosen> prints brew where it fills in for the chosen project toolchain, and nothing otherwise.
+# brew fills in where it is usable for the project and another is chosen that runs commands on this machine. docker
+# and devcontainer run them in a container, which brew's tools never reach.
+toolchain:filler() {
+  local chosen=$1
+  [[ -n "${chosen}" && "${chosen}" != ambient && "${chosen}" != brew ]] || return 0
+  use "toolchain/${chosen}" || return 1
+  ! declare -F "toolchain/${chosen}:run" >/dev/null || return 0
+  toolchain:detect | awk -F '\t' '$1 == "brew" && $2 == "project" && $3 == "yes" { print "brew" }'
+}
+
+# toolchain:pinned-names <provider> prints the name of each tool the provider pins, one per line, as the filler
+# compares them: without a backend, as npm: or aqua:, a path, or an @version. brew filling in reads them from
+# toolchain_pinned.
+toolchain:pinned-names() {
+  toolchain:call "$1" pins | cut -f 1 | awk '{ sub(/^.*:/, ""); sub(/^.*\//, ""); sub(/@.*$/, ""); print }'
 }
 
 # toolchain:chosen <role> prints the toolchain for the role, project or system, or ambient for none. The first
@@ -303,6 +328,12 @@ toolchain:choose() {
   toolchain:role "${role}" || return 1
   found=$(toolchain:detect) || return 1
   readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
+  if [[ "${role}" == project && "${provider}" == brew && ${#usable[@]} -gt 0 ]] \
+    && grep --quiet --line-regexp $'brew\tproject\tyes\t.*' <<<"${found}"
+  then
+    error "brew fills in for the tools ${usable[*]// / or } does not pin; choose ${usable[*]// / or }"
+    return 1
+  fi
   if [[ "${provider}" != ambient ]] && ! toolchain:among "${provider}" "${usable[@]}"
   then
     error "${provider} is not usable for the ${role} here; usable: ${usable[*]:-none, so choose ambient}"
@@ -380,12 +411,14 @@ toolchain:among() {
   return 1
 }
 
-# toolchain:path prints the directories to put first on PATH, one per line: the chosen project toolchain's, then each
-# usable dependency provider's, as node_modules/.bin. Ambient, only the providers'.
+# toolchain:path prints the directories to put first on PATH, one per line: the chosen project toolchain's, then its
+# filler's, then each usable dependency provider's, as node_modules/.bin. Ambient, only the providers'.
 toolchain:path() {
-  local chosen dirs=''
+  local chosen filler dirs=''
   chosen=$(toolchain:chosen project) || return 1
   [[ "${chosen}" == ambient ]] || dirs=$(toolchain:call "${chosen}" path) || return 1
+  filler=$(toolchain:filler "${chosen}") || return 1
+  [[ -z "${filler}" ]] || dirs+=${dirs:+$'\n'}$(toolchain:call "${filler}" path) || return 1
   [[ -z "${dirs}" ]] || printf '%s\n' "${dirs}"
   use dependencies || return 1
   dependencies:path "$(paste -s -d ':' - <<<"${dirs}")"

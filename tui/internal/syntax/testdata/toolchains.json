@@ -58,7 +58,7 @@
   ],
   "arguments": {
     "--json": {
-      "description": "one JSON object per row: provider, role, usable, active, and chosen"
+      "description": "one JSON object per row: provider, role, usable, active, chosen, and fills"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"

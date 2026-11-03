@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # tools.bats - kit tools lists, installs, updates, and runs with what the chosen project toolchain pins
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each provider is driven by tests/fakes/fake-tool standing in for its tool, so what is proven is how kit tools reads
 # the tool's answers and what it asks of it. What only the real tool can prove, that it answers as the fixtures do, is
 # proven by running kit tools on a desk that has it.
@@ -14,6 +13,8 @@ setup() {
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
+  # brew reads a Brewfile on macOS alone, so every run is on macOS unless a test says otherwise
+  export OSTYPE=darwin24
   fresh-repo
 }
 
@@ -117,41 +118,83 @@ JSON
 }
 
 @test "kit tools acts on the toolchain named for the run, and refuses one not usable here" {
-  touch mise.toml Brewfile
+  touch mise.toml toolchain.Dockerfile
   fixture paths.txt <<<'/m/jq/bin'
-  fixture prefix.txt <<<'/opt/brew'
   route mise 'bin-paths' paths.txt
-  route brew '--prefix' prefix.txt
   # with two usable and no terminal, kit refuses and names the command that picks each
   run "${kit_root}/bin/kit" tools path </dev/null
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit toolchains choose mise"* ]]
-  run "${kit_root}/bin/kit" tools path --toolchain brew
-  [ "$status" -eq 0 ]
-  [ "$output" = $'/opt/brew/bin\n/opt/brew/sbin' ]
+  [[ "$output" == *"kit toolchains choose docker"* ]]
   KIT_TOOLCHAIN=mise run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]
   [ "$output" = '/m/jq/bin' ]
-  run "${kit_root}/bin/kit" tools path --toolchain docker
+  run "${kit_root}/bin/kit" tools path --toolchain brew
   [ "$status" -eq 1 ]
-  [[ "$output" == *"docker"*"not usable"* ]]
+  [[ "$output" == *"brew"*"not usable"* ]]
 }
 
-@test "kit tools path prints only the chosen toolchain's directories, never two toolchains' combined" {
+@test "kit tools path prints the chosen toolchain's directories, then brew's only where it fills in" {
   touch mise.toml Brewfile
   fixture paths.txt <<<'/m/jq/bin'
   fixture prefix.txt <<<'/opt/brew'
   route mise 'bin-paths' paths.txt
   route brew '--prefix' prefix.txt
-  run "${kit_root}/bin/kit" toolchains choose mise
-  [ "$status" -eq 0 ]
   run kit-bash 'use toolchain && toolchain:path'
   [ "$status" -eq 0 ]
+  [ "$output" = $'/m/jq/bin\n/opt/brew/bin\n/opt/brew/sbin' ]
+  # on Linux the Brewfile is not read, so only mise's directories are put first
+  OSTYPE=linux-gnu run "${kit_root}/bin/kit" tools path
+  [ "$status" -eq 0 ]
   [ "$output" = '/m/jq/bin' ]
-  run "${kit_root}/bin/kit" toolchains choose brew
+  # docker runs commands in its container, so brew fills in for nothing there
+  touch toolchain.Dockerfile
+  run "${kit_root}/bin/kit" toolchains choose docker
+  [ "$status" -eq 0 ]
   run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]
-  [ "$output" = $'/opt/brew/bin\n/opt/brew/sbin' ]
+  [[ "$output" != *"/opt/brew"* ]]
+}
+
+@test "brew filling in lists, installs, and moves only the Brewfile's tools the chosen toolchain does not pin" {
+  touch mise.toml Brewfile
+  fixture ls.json <<<'{"jq": [{"version": "1.8.2", "requested_version": "1.8", "installed": true}]}'
+  route mise 'ls --json --current' ls.json
+  route mise 'install --quiet' '!0'
+  route mise 'trust --quiet mise.toml' '!0'
+  route mise 'outdated --json' empty.json
+  route mise 'upgrade --quiet' '!0'
+  fixture empty.json <<<'{}'
+  fixture names.txt <<<$'jq\nbash\nuser/tap/direnv'
+  fixture versions.txt <<<$'jq 1.7.1\nbash 5.3.20'
+  fixture outdated.json <<'JSON'
+{"formulae": [{"name": "jq", "installed_versions": ["1.7.1"], "current_version": "1.8.1"},
+              {"name": "bash", "installed_versions": ["5.3.20"], "current_version": "5.3.21"}],
+ "casks": []}
+JSON
+  route brew 'bundle list --file Brewfile --formula --cask' names.txt
+  route brew 'list --versions' versions.txt
+  route brew 'outdated --json=v2' outdated.json
+  route brew 'install --quiet user/tap/direnv' '!0'
+  route brew 'upgrade bash' '!0'
+  run "${kit_root}/bin/kit" tools
+  [ "$status" -eq 0 ]
+  grep --quiet 'brew · Brewfile, for what mise does not pin' <<<"$output"
+  grep --quiet -E '^✅ bash +· +· 5\.3\.20$' <<<"$output"
+  grep --quiet -E '^❌ user/tap/direnv$' <<<"$output"
+  [ "$(grep --count -E '^✅ jq' <<<"$output")" -eq 1 ]
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew installed the tools Brewfile pins that mise does not"* ]]
+  grep --quiet --line-regexp 'install --quiet user/tap/direnv' "${FAKE_DIR}/brew.calls"
+  ! grep --quiet 'bundle install' "${FAKE_DIR}/brew.calls"
+  run "${kit_root}/bin/kit" tools --outdated
+  grep --quiet -E '^🔺 bash ' <<<"$output"
+  [[ "$output" != *"🔺 jq"* ]]
+  run "${kit_root}/bin/kit" tools update
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'upgrade bash' "${FAKE_DIR}/brew.calls"
+  ! grep --quiet 'upgrade jq' "${FAKE_DIR}/brew.calls"
 }
 
 @test "mise installs, reports, updates, and puts its bin paths first" {

@@ -8,8 +8,8 @@
 # Run `brew bundle install` once per machine. A Brewfile pins a formula by name only, so its version moves with
 # Homebrew. git and curl come from the machine.
 #
-# This file makes brew usable for the project role too, so kit asks which toolchain to use. Choose mise once per
-# clone: kit toolchains choose mise. The workflow names it with KIT_TOOLCHAIN.
+# On macOS, brew fills in for the tools mise does not pin: kit tools lists, installs, and updates bash, direnv, and
+# mise through it. On Linux, kit does not read this file. See docs/toolchains.md#brew-fills-in.
 #
 # Why each tool is here:
 #   bash     runs kit, which needs 4.4 or later; macOS ships 3.2

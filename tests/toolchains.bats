@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # toolchains.bats - kit finds the toolchains where it runs, chooses one for each role, and kit toolchains lists them
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # tests/fakes/fake-tool stands in for each provider's tool, so detection and choosing run without the real ones.
 # What each provider does with its tool's answers, installing, listing, and updating, is in tests/tools.bats.
 
@@ -13,6 +12,8 @@ setup() {
   # a probe runs mise and docker once, to know each is installed; brew is never run, since it calls git
   route mise '--version' '!0'
   route docker '--version' '!0'
+  # brew reads a Brewfile on macOS alone, so every run is on macOS unless a test says otherwise
+  export OSTYPE=darwin24
   fresh-repo
 }
 
@@ -42,13 +43,36 @@ probes() {
   grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
 }
 
-@test "brew is a system toolchain anywhere it is installed, and a project one with a Brewfile" {
+@test "brew is a system toolchain anywhere it is installed, and a project one with a Brewfile on macOS" {
   run detect
   [ "$status" -eq 0 ]
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tno\tno' ]
   touch Brewfile
   run detect
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
+  # elsewhere, as on a Linux runner, the Brewfile is not read
+  OSTYPE=linux-gnu run detect
+  [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tno\tno' ]
+}
+
+@test "brew fills in for the chosen toolchain, for the Brewfile's tools it does not pin" {
+  touch mise.toml Brewfile toolchain.Dockerfile
+  export MISE_SHELL=zsh
+  run kit-bash 'use toolchain && toolchain:filler mise'
+  [ "$output" = brew ]
+  # docker runs commands in its container, which brew's tools never reach; brew alone fills in for none
+  run kit-bash 'use toolchain && toolchain:filler docker && toolchain:filler brew && toolchain:filler ambient'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  OSTYPE=linux-gnu run kit-bash 'use toolchain && toolchain:filler mise'
+  [ -z "$output" ]
+  # a tool's name is compared without its backend, path, or version
+  fixture ls.json <<<'{"jq": [{"requested_version": "1.8", "version": "1.8.2", "installed": true}],
+    "npm:markdownlint-cli2": [{"version": "0.24.0", "installed": true}],
+    "aqua:mikefarah/yq": [{"version": "4.54.1", "installed": true}]}'
+  route mise 'ls --json --current' ls.json
+  run kit-bash 'use toolchain && toolchain:pinned-names mise'
+  [ "$output" = $'jq\nmarkdownlint-cli2\nyq' ]
 }
 
 @test "brew is usable only when it is on PATH, not when it is only at a Homebrew prefix" {
@@ -194,11 +218,14 @@ nix-flake() {
   grep --quiet --line-regexp $'nix\tproject\tyes\tno' <<<"$output"
 }
 
-@test "nix is offered after mise and before brew and docker" {
+@test "nix is offered after mise and before docker, and brew is offered only alone" {
   touch mise.toml Brewfile toolchain.Dockerfile
   nix-flake
   run kit-bash 'use toolchain && toolchain:usable project'
-  [ "$output" = $'mise\nnix\nbrew\ndocker' ]
+  [ "$output" = $'mise\nnix\ndocker' ]
+  rm mise.toml flake.nix toolchain.Dockerfile
+  run kit-bash 'use toolchain && toolchain:usable project'
+  [ "$output" = brew ]
 }
 
 @test "the cache answers until PATH, a tool, a file, or a marker changes" {
@@ -274,21 +301,21 @@ choose() {
 
 @test "an active toolchain is the one, and naming another for the run is refused" {
   export MISE_SHELL=zsh
-  touch mise.toml Brewfile
+  touch mise.toml toolchain.Dockerfile
   run chosen
   [ "$status" -eq 0 ]
   [ "$output" = mise ]
-  run choose brew
+  run choose docker
   [ "$status" -eq 0 ]
   run chosen
   [ "$output" = mise ]
   KIT_TOOLCHAIN=mise run chosen
   [ "$status" -eq 0 ]
   [ "$output" = mise ]
-  KIT_TOOLCHAIN=brew run chosen
+  KIT_TOOLCHAIN=docker run chosen
   [ "$status" -eq 1 ]
   [[ "$output" == *"mise"*"active"* ]]
-  [ "$(grep --count --line-regexp brew <<<"$output")" -eq 0 ]
+  [ "$(grep --count --line-regexp docker <<<"$output")" -eq 0 ]
 }
 
 @test "a toolchain named for the run that is not usable here is refused, never replaced" {
@@ -304,19 +331,20 @@ choose() {
 }
 
 @test "with several usable and no terminal, kit refuses and lists each with the command that picks it" {
-  # setup() stands fakes in for mise and brew; with each one's file here, both are usable
-  touch mise.toml Brewfile
+  # setup() stands fakes in for mise and docker; with each one's file here, both are usable
+  touch mise.toml toolchain.Dockerfile
   run chosen </dev/null
   [ "$status" -eq 1 ]
   grep --quiet 'kit toolchains choose mise' <<<"$output"
-  grep --quiet 'kit toolchains choose brew' <<<"$output"
+  grep --quiet 'kit toolchains choose docker' <<<"$output"
   [ ! -e .git/kit/toolchain ]
 }
 
 @test "a project choice made at the desk holds in a worktree while usable there; one made there stays there" {
-  touch mise.toml Brewfile
+  touch mise.toml
+  nix-flake
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
-  git add mise.toml Brewfile toolchain.Dockerfile && git commit --quiet --message 'toolchains'
+  git add mise.toml flake.nix toolchain.Dockerfile && git commit --quiet --message 'toolchains'
   run choose mise
   [ "$status" -eq 0 ]
   [ "$(cat .git/kit/toolchain)" = mise ]
@@ -328,13 +356,13 @@ choose() {
   rm mise.toml
   run chosen </dev/null
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit toolchains choose brew"* ]]
+  [[ "$output" == *"kit toolchains choose docker"* ]]
   [ "$(grep --count --line-regexp mise <<<"$output")" -eq 0 ]
-  run choose brew
+  run choose docker
   [ "$status" -eq 0 ]
   run chosen </dev/null
-  [ "$output" = brew ]
-  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ "$output" = docker ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit/cache/toolchain ]
   [ "$(cat "${repo}/.git/kit/toolchain")" = mise ]
   cd "${repo}"
@@ -343,21 +371,22 @@ choose() {
 }
 
 @test "in a worktree, its own choice that is no longer usable gives way to the clone's that is" {
-  touch mise.toml Brewfile
+  touch mise.toml
+  nix-flake
   printf 'FROM alpine:3.20\n' > toolchain.Dockerfile
-  git add mise.toml Brewfile toolchain.Dockerfile && git commit --quiet --message 'toolchains'
+  git add mise.toml flake.nix toolchain.Dockerfile && git commit --quiet --message 'toolchains'
   run choose mise
   [ "$status" -eq 0 ]
   git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
   cd "${BATS_TEST_TMPDIR}/feature"
   rm mise.toml
-  run choose brew
+  run choose docker
   [ "$status" -eq 0 ]
-  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit/cache/toolchain ]
-  # the branch gains mise.toml and drops the Brewfile; mise and docker are usable, brew is not
+  # the branch gains mise.toml and drops toolchain.Dockerfile; mise and nix are usable, docker is not
   touch mise.toml
-  rm Brewfile
+  rm toolchain.Dockerfile
   run chosen </dev/null
   [ "$status" -eq 0 ]
   [ "$output" = mise ]
@@ -446,16 +475,17 @@ choose() {
   run "${kit_root}/bin/kit" toolchains
   [ "$status" -eq 0 ]
   grep --quiet 'provider *role *usable *active *chosen' <<<"$output"
-  # mise is active, so it is the project's choice; brew fills the system role alone among the usable
+  # mise is active, so it is the project's choice; brew fills in for what mise does not pin, and fills the system role
+  # alone among the usable
   grep --quiet -E '^mise +project +✅ +⚡ +📌' <<<"$output"
-  grep --quiet -E '^brew +project +✅ *$' <<<"$output"
+  grep --quiet -E '^brew +project +✅ +➕' <<<"$output"
   grep --quiet -E '^brew +system +✅ +📌' <<<"$output"
   grep --quiet -E '^docker +project *$' <<<"$output"
   [ "$(grep --count 'project' <<<"$output")" -ge 3 ]
 }
 
 @test "kit toolchains marks none chosen with several usable, exits 0, and never asks" {
-  touch mise.toml Brewfile
+  touch mise.toml toolchain.Dockerfile
   run "${kit_root}/bin/kit" toolchains </dev/null
   [ "$status" -eq 0 ]
   if grep --quiet '📌.*project\|project.*📌' <<<"$output"; then false; fi
@@ -470,34 +500,34 @@ choose() {
   run "${kit_root}/bin/kit" toolchains --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --slurp 'map(keys_unsorted) | unique' <<<"$output")" \
-    = '[["provider","role","usable","active","chosen"]]' ]
-  [ "$(jq --slurp 'map(select(.provider == "mise" and .role == "project")) | .[0] | [.usable, .active, .chosen]
+    = '[["provider","role","usable","active","chosen","fills"]]' ]
+  [ "$(jq --slurp 'map(select(.provider == "mise" and .role == "project")) | .[0] | [.usable, .active, .chosen, .fills]
     | map(type) | unique' --compact-output <<<"$output")" = '["boolean"]' ]
   [ "$(jq --slurp 'map(select(.provider == "mise" and .role == "project")) | .[0].chosen' <<<"$output")" = true ]
   [ "$(jq --slurp 'length' <<<"$output")" -eq "$(detect | wc -l | tr -d ' ')" ]
 }
 
 @test "kit toolchains choose records the project choice, and --system the system one" {
-  touch mise.toml Brewfile
-  run "${kit_root}/bin/kit" toolchains choose brew
+  touch mise.toml toolchain.Dockerfile
+  run "${kit_root}/bin/kit" toolchains choose docker
   [ "$status" -eq 0 ]
-  [ "$(cat .git/kit/toolchain)" = brew ]
+  [ "$(cat .git/kit/toolchain)" = docker ]
   run "${kit_root}/bin/kit" toolchains --json
-  [ "$(jq --slurp 'map(select(.chosen and .role == "project") | .provider) | .[]' --raw-output <<<"$output")" = brew ]
+  [ "$(jq --slurp 'map(select(.chosen and .role == "project") | .provider) | .[]' --raw-output <<<"$output")" = docker ]
   run "${kit_root}/bin/kit" toolchains choose brew --system
   [ "$status" -eq 0 ]
   [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
 }
 
 @test "a choice made in a fresh worktree with no .kit/ leaves git nothing to see" {
-  touch mise.toml Brewfile
-  git add mise.toml Brewfile && git commit --quiet --message 'toolchains'
+  touch mise.toml toolchain.Dockerfile
+  git add mise.toml toolchain.Dockerfile && git commit --quiet --message 'toolchains'
   git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
   cd "${BATS_TEST_TMPDIR}/feature"
   [ ! -e .kit ]
-  run "${kit_root}/bin/kit" toolchains choose brew
+  run "${kit_root}/bin/kit" toolchains choose docker
   [ "$status" -eq 0 ]
-  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit ]
   [ -z "$(git status --porcelain)" ]
   cd "${repo}"
@@ -505,13 +535,13 @@ choose() {
 
 @test "a choice made in a kit repository's fresh worktree is kept in its git directory, and git sees nothing" {
   "${kit_checkout}/bin/kit" install
-  touch mise.toml Brewfile
+  touch mise.toml toolchain.Dockerfile
   git add --all && git commit --quiet --message init
   git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
   cd "${BATS_TEST_TMPDIR}/feature"
-  run "${kit_root}/bin/kit" toolchains choose brew
+  run "${kit_root}/bin/kit" toolchains choose docker
   [ "$status" -eq 0 ]
-  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = brew ]
+  [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit/cache/toolchain ]
   [ -z "$(git status --porcelain)" ]
   cd "${repo}"
@@ -522,6 +552,12 @@ choose() {
   run "${kit_root}/bin/kit" toolchains choose brew
   [ "$status" -eq 1 ]
   [[ "$output" == *"brew is not usable for the project here; usable: mise"* ]]
+  [ ! -e .git/kit/toolchain ]
+  # with a Brewfile, brew fills in for mise, and is never chosen over it
+  touch Brewfile
+  run "${kit_root}/bin/kit" toolchains choose brew
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"brew fills in for the tools mise does not pin; choose mise"* ]]
   [ ! -e .git/kit/toolchain ]
   run "${kit_root}/bin/kit" toolchains choose
   [ "$status" -eq 2 ]
@@ -570,7 +606,7 @@ devcontainer-file() {
   touch mise.toml Brewfile toolchain.Dockerfile
   nix-flake
   run kit-bash 'use toolchain && toolchain:usable project'
-  [ "$output" = $'mise\nnix\nbrew\ndocker\ndevcontainer' ]
+  [ "$output" = $'mise\nnix\ndocker\ndevcontainer' ]
   mkdir -p .kit
   printf '/cache/\n' > .kit/.gitignore
   run detect

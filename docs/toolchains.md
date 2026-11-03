@@ -23,8 +23,8 @@ A toolchain fills one role or both:
 - **project**: it pins the repository's tools, such as the linters and the gate's own tools.
 - **system**: it supplies what kit itself stands on: bash, git, jq, and yq.
 
-A run uses exactly one project toolchain, and at most one system toolchain. kit never combines two toolchains'
-tools on `PATH`.
+A run uses exactly one project toolchain, and at most one system toolchain. kit combines two toolchains' tools on
+`PATH` only where brew fills in; see [brew fills in](#brew-fills-in).
 
 ## Detection
 
@@ -42,7 +42,7 @@ network, and never calls git.
 | --- | --- | --- | --- | --- |
 | `mise` | project | `mise` runs, and `mise.toml`, `.mise.toml`, or `mise.local.toml` is here | one of its files is here, and `MISE_SHELL` is set or every directory `mise bin-paths` prints is on `PATH` | each tool's version, resolved in `mise.lock` |
 | `nix` | project | `nix` is on `PATH` with flakes on, and `flake.nix` names `devShells` or `devShell` | `IN_NIX_SHELL` is set, and `flake.nix` is here | each flake input by its locked revision in `flake.lock` |
-| `brew` | system; project with a `Brewfile` | `brew` is on `PATH` | never | a formula by name; a version only in a name such as `node@22` |
+| `brew` | system; project with a `Brewfile`, on macOS | `brew` is on `PATH` | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
 | `devcontainer` | project; system too while active | From outside, the `devcontainer` CLI is on `PATH`, and `.devcontainer/devcontainer.json` or `.devcontainer.json` is here. Inside, the file alone. | `REMOTE_CONTAINERS`, `CODESPACES`, or `DEVCONTAINER` is set, and the file is here | each feature in `devcontainer-lock.json` by its locked version |
 | `apt` | system | `apt-get` is on `PATH` | never | nothing; it installs for the whole machine |
@@ -95,6 +95,26 @@ is on `PATH`.
 `kit toolchains choose <name>` records the project choice, and `--system` records the system one. `ambient` is a
 name too: it chooses none.
 
+## brew fills in
+
+A `Brewfile` often lists what comes before the project toolchain: a newer bash, mise itself, direnv. So brew never
+competes with another project toolchain:
+
+- Only on macOS is the `Brewfile` read for the project. Elsewhere, as on a Linux runner, brew fills the system role
+  alone.
+- Where another project toolchain is usable, brew is not a candidate. `kit toolchains choose brew` is refused.
+- Where it is the only one usable, brew is the project toolchain, as any other is.
+- Otherwise it fills in for the chosen one: it acts on the `Brewfile`'s tools that toolchain does not pin.
+
+Filling in:
+
+- A tool counts as pinned when its name matches without a backend, a path, or a version. mise's `npm:bats` and
+  brew's `user/tap/bats@1` are both `bats`. nix pins flake inputs, not tools, so brew fills in for all of its own.
+- `kit tools` lists those tools in a table of their own, after the chosen toolchain's. `kit tools install` installs
+  each one missing with `brew install`. `--outdated` and `update` read and move only those.
+- `kit tools path`, `kit tools run`, and `kit gate` put brew's directories after the chosen toolchain's.
+- docker and devcontainer run commands in a container, which brew's tools never reach. brew fills in for neither.
+
 ## Where things are kept
 
 | What | Where | Shared with |
@@ -115,7 +135,7 @@ name too: it chooses none.
 ## `kit toolchains`
 
 Lists each provider, one row for each role it fills. The columns mark whether it is usable, active, and chosen
-here. `--json` prints one object per row.
+here. ➕ marks brew where it fills in. `--json` prints one object per row, with `fills` for that.
 
 ## `kit tools`
 
@@ -127,7 +147,7 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | --- | --- |
 | `kit tools` | Lists each pinned tool, and whether it is installed. `--json` prints one object per tool. |
 | `kit tools --outdated` | Lists only the tools behind their latest version, with that version. This asks the network. `--check` fails when one is behind. A source it cannot read is named, and the run fails. |
-| `kit tools install` | Installs the pinned tools: `mise install`, `brew bundle install --no-upgrade`, a `docker build` of the image, or `devcontainer up`. docker tags its image by the file's digest, so an unchanged file is never rebuilt. |
+| `kit tools install` | Installs the pinned tools: `mise install`, `brew bundle install --no-upgrade` (filling in, `brew install` of what is missing), a `docker build` of the image, or `devcontainer up`. docker tags its image by the file's digest, so an unchanged file is never rebuilt. |
 | `kit tools update` | Moves every tool to its latest version, and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, new `FROM` digests, or `devcontainer upgrade`. Commit the files it rewrote. |
 | `kit tools path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
 | `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, and for devcontainer from outside; otherwise with the tools first on `PATH`. |

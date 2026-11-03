@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # welcome.bats - kit welcome: its steps, its checks as JSON, their fixes, the text guide, and the hand-off to kittui
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # Each test runs in a fresh repository, with no toolchain file unless the test writes one: its tools are ambient. The
 # tools a check looks for are fakes in a directory first on PATH: a failing stand-in hides a real tool. A fake brew
 # is there too, so brew is the system toolchain on any machine; a test that needs none chooses ambient for it.
@@ -248,23 +247,25 @@ ambient-system() {
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/koalaman/shellcheck#installing' ]
-  # one project toolchain: it installs what it pins
+  # one project toolchain: it installs what it pins; brew reads a Brewfile on macOS alone
+  export OSTYPE=darwin24
   printf 'brew "shellcheck"\n' > Brewfile
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = $'kit tools install\t' ]
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
     $'true\tbrew is the project toolchain; kit tools lists what it pins' ]
-  # several, none chosen: the toolchains step asks first, and setup has no fix until then
-  touch mise.toml
+  # several, none chosen: the toolchains step asks first, and setup has no fix until then; brew fills in beside them
+  touch mise.toml toolchain.Dockerfile
   fake-script mise 'exit 0'
+  fake-script docker 'exit 0'
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
-    $'false\tkit toolchains choose mise\tfalse\tor: kit toolchains choose brew' ]
-  [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, brew; choose one" ]
+    $'false\tkit toolchains choose mise\tfalse\tor: kit toolchains choose docker' ]
+  [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, docker; choose one" ]
   # what is left keeps the other toolchain's command beside the fix
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$output" == *$'\n- toolchain-project: kit toolchains choose mise; or: kit toolchains choose brew\n'* ]]
+  [[ "$output" == *$'\n- toolchain-project: kit toolchains choose mise; or: kit toolchains choose docker\n'* ]]
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/empowerite/kit/blob/main/docs/toolchains.md' ]
@@ -272,7 +273,8 @@ ambient-system() {
   run --separate-stderr "${kit_root}/bin/kit" welcome --fix toolchain-project
   [ "$status" -eq 0 ]
   [ "$output" = "✅ mise is the project toolchain; kit tools lists what it pins" ]
-  "${kit_root}/bin/kit" toolchains choose brew >/dev/null 2>&1
+  # with mise and docker gone, brew is the only one again, and the recorded mise gives way to it
+  rm mise.toml toolchain.Dockerfile
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output .fix <<<"$output")" = "kit tools install" ]
   # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
