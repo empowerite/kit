@@ -13,7 +13,7 @@
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
 #                             directory). The tarball holds one directory, kit-<version>/, with bin/,
 #                             modules/, packages/, a version file, and libexec/, which holds kittui, the binary kit
-#                             tui runs, built from tui/ with go for linux and darwin on amd64 and arm64.
+#                             tui runs, built from projects/tui/ with go for linux and darwin on amd64 and arm64.
 #   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
 #                             pre-release. Only a runner publishes a release, from the release workflow that a
 #                             pushed tag starts. A desk may publish a pre-release.
@@ -35,17 +35,17 @@ use git release releases
 
 usage() { echo "usage: bin/release verify <tag> | pack <tag> [<directory>] | publish <tag> | retire [<branch>]" >&2; }
 
-# build-kittui <version> <directory> builds kittui, the binary kit tui runs, from tui/ for the four platforms the lock
-# covers, static and stripped with the version written in, each as <directory>/kittui-<goos>-<goarch>. The release
-# carries them in libexec/, so whatever installs the kit installs kittui at the same version; modules/bash/tui.sh
-# picks the one for the machine.
+# build-kittui <version> <directory> builds kittui, the binary kit tui runs, from projects/tui/ for the four platforms
+# the lock covers, static and stripped with the version written in, each as <directory>/kittui-<goos>-<goarch>. The
+# release carries them in libexec/, so whatever installs the kit installs kittui at the same version;
+# modules/bash/tui.sh picks the one for the machine.
 build-kittui() {
   local version=$1 into=$2 platform goos goarch
   for platform in linux/amd64 linux/arm64 darwin/arm64 darwin/amd64
   do
     IFS=/ read -r goos goarch <<<"${platform}"
     (
-      cd "${kit_root}/../tui" &&
+      cd "${kit_root}/../projects/tui" &&
         GOOS=${goos} GOARCH=${goarch} CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${version}" \
           -o "${into}/kittui-${goos}-${goarch}" ./cmd/kittui
     ) || return 1

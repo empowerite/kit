@@ -1,11 +1,11 @@
 # shellcheck shell=bash
-# tui.sh - finds kittui, the binary kit tui runs: the release's own, one on PATH, or one built from tui/ in a checkout
+# tui.sh - finds kittui, the binary kit tui runs: the release's own, one on PATH, or one built from projects/tui/
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
 # A release carries kittui for each platform it supports in libexec/, built by bin/release pack, so whatever installs
-# the kit installs kittui at the same version. A checkout of the kit has tui/ beside kit/ instead, and kittui is
-# built from it, once per change to its sources or to go, into the cache; a kittui on PATH is the last resort.
+# the kit installs kittui at the same version. A checkout of the kit has projects/tui/ instead, and kittui is built from
+# it, once per change to its sources or to go, into the cache; a kittui on PATH is the last resort.
 
 use file
 
@@ -27,11 +27,11 @@ tui:platform() {
   printf '%s-%s\n' "${os}" "${arch}"
 }
 
-# tui:checkout prints the tui/ directory of a checkout of the kit, and fails for a release, which has a version file
-# and no tui/ beside it.
+# tui:checkout prints the projects/tui/ directory of a checkout of the kit, and fails for a release, which has a version
+# file and no projects/tui/.
 tui:checkout() {
-  [[ ! -f "${kit_root}/version" && -f "${kit_root}/../tui/go.mod" ]] || return 1
-  (cd "${kit_root}/../tui" && pwd)
+  [[ ! -f "${kit_root}/version" && -f "${kit_root}/../projects/tui/go.mod" ]] || return 1
+  (cd "${kit_root}/../projects/tui" && pwd)
 }
 
 # tui:cached <tui> prints where the build of the sources under <tui>, with the go on PATH, lives in the cache: named by
@@ -43,10 +43,10 @@ tui:cached() {
   printf '%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}/kit/kittui-${digest:0:16}"
 }
 
-# tui:binary [--probe] prints the path of the kittui to run. In a checkout with go, it is the build of tui/'s sources,
-# built first when they or go changed, under a temporary name and then renamed into place, so two first runs never
-# run a half-written file. Otherwise it is the release's own for this platform, else kittui on PATH. With --probe it
-# only says whether one can be had, and builds nothing, as the hand-off asks. It says why there is none, with the
+# tui:binary [--probe] prints the path of the kittui to run. In a checkout with go, it is the build of projects/tui/'s
+# sources, built first when they or go changed, under a temporary name and then renamed into place, so two first runs
+# never run a half-written file. Otherwise it is the release's own for this platform, else kittui on PATH. With --probe
+# it only says whether one can be had, and builds nothing, as the hand-off asks. It says why there is none, with the
 # remedy, and returns 1.
 tui:binary() {
   local probe=false platform tui out tmp
@@ -56,7 +56,7 @@ tui:binary() {
     out=$(tui:cached "${tui}")
     if [[ ! -x "${out}" && "${probe}" == false ]]
     then
-      step "building kittui from tui/, once for these sources and this go"
+      step "building kittui from projects/tui/, once for these sources and this go"
       tmp="${out}.tmp.$$"
       mkdir -p "$(dirname "${out}")"
       if ! (cd "${tui}" && CGO_ENABLED=0 go build -o "${tmp}" ./cmd/kittui)

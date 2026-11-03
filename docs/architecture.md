@@ -17,8 +17,9 @@ A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checko
   `modules/jq/`, imported by the jq programs they run; see [Bash modules](#bash-modules).
 - `packages/` holds everything a release delivers.
 - `libexec/` holds `kittui-<os>-<arch>`, the binary `kit tui` runs, for linux and darwin on amd64 and arm64. It is
-  built from this checkout's `tui/`, so whatever installs the kit installs `kittui` at the same version. A checkout
-  has no `libexec/`; there `kit tui` builds `kittui` from `tui/` with Go, once for each change to its sources.
+  built from this checkout's `projects/tui/`, so whatever installs the kit installs `kittui` at the same version. A
+  checkout has no `libexec/`; there `kit tui` builds `kittui` from `projects/tui/` with Go, once for each change to its
+  sources.
 - `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
   and reports `unreleased`.
 

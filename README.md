@@ -335,7 +335,8 @@ The release workflow runs two commands:
 
 1. `bin/release verify` rejects a tag that is not `release/<version>`, and a release tag on a commit not on `main`.
 2. `bin/release publish` packs `kit/` (`bin/`, `modules/`, and `packages/`), `version`, and `libexec/`, which holds
-   `kittui` built from `tui/` for linux and darwin on amd64 and arm64, into `kit-<version>.tar.gz` and publishes it.
+   `kittui` built from `projects/tui/` for linux and darwin on amd64 and arm64, into `kit-<version>.tar.gz` and
+   publishes it.
 
 `bin/release pack` builds the same tarball locally. `bin/release publish` refuses to publish a release anywhere but
 the CI runner, so only the workflow publishes releases. A pre-release can be published from a developer machine.

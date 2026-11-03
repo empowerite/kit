@@ -115,8 +115,8 @@ pty() {
   fi
 }
 
-# fake-tui puts the fake go and the fake kittui first on PATH, as tui.bats does: kit builds kittui from tui/ with the
-# fake go, which writes a script that prints "kittui native-native" and its arguments.
+# fake-tui puts the fake go and the fake kittui first on PATH, as tui.bats does: kit builds kittui from projects/tui/
+# with the fake go, which writes a script that prints "kittui native-native" and its arguments.
 fake-tui() {
   mkdir -p "${BATS_TEST_TMPDIR}/fake"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
@@ -430,7 +430,7 @@ fake-tui() {
   fake-tui
   stages 'desk'
   run pty "'${kit_root}/bin/kit' flow --no-fetch --mine"
-  [[ "$output" == *"building kittui from tui/"* ]]
+  [[ "$output" == *"building kittui from projects/tui/"* ]]
   [[ "$output" == *"kittui native-native flow --no-fetch --mine"* ]]
   [[ "$output" != *"DESK"* ]]
   run pty "'${kit_root}/bin/kit' flow --text --no-fetch"

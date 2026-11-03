@@ -173,8 +173,8 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 The form reads everything from `kit syntax <verb>`, the verb's grammar as JSON, parsed from its header, so a new
 verb needs only its header. `kit tui` runs `kittui`, a Go binary each release carries for linux and darwin
-on amd64 and arm64; in a checkout of the kit it is built from `tui/`. Without a terminal on stdin, stdout, and
-stderr, nothing opens: a verb short of an argument refuses in one line, as before.
+on amd64 and arm64; in a checkout of the kit it is built from `projects/tui/`. Without a terminal on stdin, stdout,
+and stderr, nothing opens: a verb short of an argument refuses in one line, as before.
 
 see: [modules.md](modules.md#writing-a-verb)
 

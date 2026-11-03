@@ -14,14 +14,14 @@
 # it as kit tui -- <verb> <argument>…, when stdin, stdout, and stderr are terminals. The words follow a --, so kit
 # reads none of them as its own.
 #
-# kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from tui/ with go, once
-# for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
+# kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from projects/tui/ with go,
+# once for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
 # stdout, and stderr.
 #
 # Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
 # on ctrl-c.
 #
-# see: bin/kit, modules/bash/1st.sh, modules/bash/tui.sh, tui/
+# see: bin/kit, modules/bash/1st.sh, modules/bash/tui.sh, projects/tui/
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh

@@ -8,8 +8,8 @@ setup() {
   fresh-repo
   : > .gitignore
   git add .gitignore
-  # go and a kittui are fakes, first on PATH; in this checkout kit tui builds kittui from tui/ with the fake go, which
-  # writes a script that prints "kittui native-native" and its arguments, so the kittui on PATH proves it lost
+  # go and a kittui are fakes, first on PATH; in this checkout kit tui builds kittui from projects/tui/ with the fake
+  # go, which writes a script that prints "kittui native-native" and its arguments, so the kittui on PATH proves it lost
   mkdir -p "${BATS_TEST_TMPDIR}/fake"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
@@ -26,7 +26,7 @@ pty() {
   fi
 }
 
-@test "kit with no verb runs kit tui, which in a checkout runs kittui built from tui/, not one on PATH, with the words after --" {
+@test "kit with no verb runs kit tui, which in a checkout runs kittui built from projects/tui/, not one on PATH, with the words after --" {
   run "${kit_root}/bin/kit"
   [ "$status" -eq 0 ]
   [ "${lines[${#lines[@]} - 1]}" = "kittui native-native" ]
@@ -48,7 +48,7 @@ pty() {
   run pty "'${kit_root}/bin/kit' commit .gitignore"
   [[ "$output" == *"kittui native-native -- commit .gitignore"* ]]
   # the hand-off only asks whether a kittui can be had; kit tui builds it, where its line shows
-  [[ "$output" == *"building kittui from tui/"* ]]
+  [[ "$output" == *"building kittui from projects/tui/"* ]]
   run "${kit_root}/bin/kit" commit .gitignore </dev/null
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit commit needs --message or --file; run: kit help commit"* ]]
@@ -88,7 +88,7 @@ platform() {
   [ "$output" = "kittui $(platform) -- commit" ]
 }
 
-@test "a checkout with no kittui builds it from tui/ with go, once per sources and go, into place by rename, and runs it" {
+@test "a checkout with no kittui builds it from projects/tui/ with go, once per sources and go, into place by rename, and runs it" {
   export FAKES="${BATS_TEST_TMPDIR}/gofakes" XDG_CACHE_HOME="${BATS_TEST_TMPDIR}/cache"
   mkdir -p "${FAKES}"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${FAKES}/go"
@@ -107,7 +107,7 @@ platform() {
   [ "$(grep -c ' build ' "${FAKES}/go.calls")" -eq 2 ]
 }
 
-@test "a copy of the kit with no tui/ and no binary of its own runs the kittui on PATH" {
+@test "a copy of the kit with no projects/tui/ and no binary of its own runs the kittui on PATH" {
   mkdir -p "${BATS_TEST_TMPDIR}/copy"
   cp -R "${kit_root}/bin" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
   run "${BATS_TEST_TMPDIR}/copy/bin/kit" tui -- version
