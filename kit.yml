@@ -32,6 +32,6 @@ packages:
   - empowerite
   - house
 answers:
-  # About twice a run: the job took 29 minutes on GitHub's runners, nearly all of it the bats suite.
-  ci_timeout_minutes: "60"
+  # About twice a run: the job takes 12 to 18 minutes on GitHub's runners, with bats on four jobs.
+  ci_timeout_minutes: "35"
   ci_toolchain: mise

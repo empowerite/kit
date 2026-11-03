@@ -18,18 +18,26 @@ GitHub runner. Some of the numbers are still being measured; each one says where
 A test that waits forever must fail fast, not run until GitHub stops it. One did: a test started the real `kittui`
 on a terminal, and run 41556526134 waited two hours before it was cancelled.
 
-- Each test fails at 300 seconds. `bin/ci` sets `BATS_TEST_TIMEOUT`. The slowest test takes about a minute on a
-  runner and over two at a desk.
-- The CI job fails at 60 minutes. `ci_timeout_minutes` in `kit.yml` sets it; see
-  [packages/github/ci.md](packages/github/ci.md). It is about twice the length of a serial run.
+- Each test fails at 300 seconds. `bin/ci` sets `BATS_TEST_TIMEOUT`. The check of every governed file against its
+  template took over two minutes at a desk, so it runs as eight shards of about 44 seconds each.
+- The CI job fails at 35 minutes. `ci_timeout_minutes` in `kit.yml` sets it; see
+  [packages/github/ci.md](packages/github/ci.md). It is about twice the longest run.
 
 ## How long a run takes
 
-| Where | Jobs | Time | Source |
-| --- | --- | --- | --- |
-| GitHub runner, `ubuntu-latest` | 1 | 27 minutes of tests, 31 for the job | run 41586980312 |
-| GitHub runner, `ubuntu-latest` | one per CPU | being measured | run 41596868298 |
-| Mac desk, M2 Ultra, 24 cores | 24 | 450 seconds | commit 40e3f42 |
+| Where | Jobs | Tests | Job | Source |
+| --- | --- | --- | --- | --- |
+| GitHub runner, `ubuntu-latest`, 4 vCPUs | 1 | 19 to 27 minutes | 25 to 31 minutes | runs 41578395796, 41586980312 |
+| GitHub runner, `ubuntu-latest`, 4 vCPUs | 4 | 15 minutes | 12 to 18 minutes | runs 41596868298 to 41599080269 |
+| Mac desk, M2 Ultra, 24 cores | 1 | 46 to 58 minutes | | commit 40e3f42 |
+| Mac desk, M2 Ultra, 24 cores | 24 | 7.5 minutes | | commit 40e3f42 |
+
+The desk's serial times were taken while other test runs loaded the machine. At a desk, 12 jobs took 564 seconds and
+48 took 630, so more jobs than CPUs only queue. On the runner, four jobs make each test about 2.6 times slower, so
+running them side by side gains only about 1.3 times: the runner has no spare CPU.
+
+The next saving, at a desk and in CI alike, is fewer process starts. Loading the yaml module runs `yq` three times,
+and the template check loads it about 2,000 times.
 
 ## Why a Mac desk is slower
 
@@ -58,7 +66,8 @@ The Linux numbers are preliminary: they were taken while the Mac was busy. A cle
 
 A tool reached through a mise shim costs about 23 ms a call, against 3.5 ms for the tool itself. `kit gate` and
 `kit tools run` put the tools' own directories first on `PATH`, as CI does. Running `bats` straight from a shell
-that has only the shims on `PATH` makes the suite several times slower.
+that has only the shims on `PATH` makes the suite several times slower. With `--jobs`, it breaks: a shim rebuilds
+`PATH` and drops bats' own `libexec`.
 
 ### Developer Tools
 

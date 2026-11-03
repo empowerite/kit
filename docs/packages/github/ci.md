@@ -34,7 +34,7 @@ The workflow is a template with three keys, all under `answers:` in `kit.yml`:
   runners sets it.
 - `ci_timeout_minutes` is how long the job may run before GitHub stops it and fails it. The default is `"30"`.
   Without it, a hung step runs for GitHub's limit of six hours. Set it to about twice a usual run, in quotes:
-  `ci_timeout_minutes: "20"`. This repository sets `"60"`.
+  `ci_timeout_minutes: "20"`. This repository sets `"35"`.
 - `ci_toolchain` is the toolchain the job installs with. The default is `ambient`: kit does not install anything. The
   job fails at the `toolchain` step, naming each tool the rules need that is missing, unless the runner already has
   them. To have CI install the tools, name a toolchain, such as `ci_toolchain: mise` or `nix`. This repository sets
