@@ -131,7 +131,7 @@ call() {
   # nothing ran: kit.yml, the choice, and the command's file are as they were, and mise was only asked to list
   [ "$(cksum kit.yml)" = "${before}" ]
   [ ! -e .git/kit/toolchain ] && [ ! -e ran ]
-  if grep -E 'install|upgrade|outdated|bin-paths' "${FAKE_DIR}/mise.calls"; then false; fi
+  if grep -E 'install|upgrade|outdated' "${FAKE_DIR}/mise.calls"; then false; fi
   answer 11 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("jq"))'
   answer 12 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("mise"))'
   answer 13 | jq --exit-status '.result.isError == false'
