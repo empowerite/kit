@@ -115,3 +115,38 @@ setup() {
   run kit-bash 'file:at-exit exit 9; file:scratch a; exit 3'
   [ "$status" -eq 3 ]
 }
+
+@test "writes to one path at once each land whole, and none fails another" {
+  local script
+  script=$(cat <<'EOF'
+pids=()
+for i in 1 2 3 4 5 6 7 8
+do
+  file:replace same.txt bash -c 'sleep 0.2; printf "%s\n" "$1"' writer "${i}" &
+  pids+=("$!")
+  file:copy src.txt copied.txt &
+  pids+=("$!")
+done
+failed=0
+for pid in "${pids[@]}"
+do
+  wait "${pid}" || failed=$(( failed + 1 ))
+done
+exit "${failed}"
+EOF
+)
+  printf 'source\n' > src.txt
+  run kit-bash "${script}"
+  [ "$status" -eq 0 ]
+  [[ "$(cat same.txt)" =~ ^[1-8]$ ]]
+  [ "$(cat copied.txt)" = source ]
+  [ -z "$(find . -name '*.kit-new*')" ]
+}
+
+@test "a write stopped midway leaves the path as it was and no partial file" {
+  printf 'old\n' > x.txt
+  run kit-bash 'file:replace x.txt bash -c "printf part; kill -TERM \$PPID; sleep 1"'
+  [ "$(cat x.txt)" = old ]
+  [ -z "$(find . -name 'x.txt.kit-new*')" ]
+}
+
