@@ -28,6 +28,19 @@ func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 	}
 }
 
+// A band keeps the line's text and styles, pads it to the width, and opens the band again after each style ends.
+func TestABandRunsTheWholeLine(t *testing.T) {
+	line := "#45 " + Off("2h") + " title"
+	got := Band(line, 20)
+	if ansi.Strip(got) != "#45 2h title        " {
+		t.Errorf("the band's text: %q", ansi.Strip(got))
+	}
+	open, _, _ := strings.Cut(band.Render("x"), "x")
+	if !strings.Contains(got, "\x1b[m"+open+" title") || !strings.Contains(got, Off("2h")) {
+		t.Errorf("the band does not run past the dim age: %q", got)
+	}
+}
+
 // The bar is one dim line after a space, clipped to the width with …, and nothing at all on a screen of one column.
 func TestTheBarFitsItsLine(t *testing.T) {
 	keys := "↑↓ move · ⏎ next · esc back"

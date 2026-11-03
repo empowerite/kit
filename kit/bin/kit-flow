@@ -34,6 +34,7 @@
 #   --all               every issue and pull request (the default); it stands alone
 #   --owner=<login>     only the named login's; give it once or more
 #   --stages            prints the stages the picture draws, one per line, in order
+#   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
 #   backlog             the open issues not closed by any open pull request, oldest first; underway has the rest
@@ -48,6 +49,8 @@
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
 # kit flow --stages
+#
+# kit flow --me
 #
 # kit flow backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
@@ -190,6 +193,13 @@ forge:primary >/dev/null || exit $?
 if [[ -n "${syntax_options[--stages]+x}" ]]
 then
   settings:stages
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--me]+x}" ]]
+then
+  use forge
+  forge:me || exit $?
   exit 0
 fi
 

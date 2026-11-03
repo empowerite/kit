@@ -665,6 +665,15 @@ fake-tui() {
   [ "$output" = ".." ]
 }
 
+@test "kit flow --me prints the caller's login alone, the one --mine matches" {
+  forge-world
+  run "${kit_root}/bin/kit" flow --me
+  [ "$status" -eq 0 ]
+  [ "$output" = "ada" ]
+  run "${kit_root}/bin/kit" flow --me backlog
+  [ "$status" -eq 2 ]
+}
+
 @test "flow:filter turns the owner flags into flow:select's arguments, and kit flow refuses --all beside --mine" {
   run in_flow flow:filter false false bob cy
   [ "$status" -eq 0 ]

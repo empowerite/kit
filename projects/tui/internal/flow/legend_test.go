@@ -14,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -97,8 +98,8 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 	for i, name := range eight {
 		m := opened(t, i)
 		for g := range glyphsOf(raw(m)) {
-			// the bar's numbers are the tabs', not the picture's
-			if !strings.Contains(text, g) && !isMarker(g) {
+			// the bar's numbers are the tabs', and the panel's glyphs its controls', not the picture's
+			if !strings.Contains(text, g) && !isMarker(g) && !isControl(g) {
 				t.Errorf("%s draws %s, which kit help flow's legend lacks", name, g)
 			}
 		}
@@ -123,6 +124,11 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 			}
 		}
 	}
+}
+
+// isControl says whether a glyph is one the panel draws for its controls.
+func isControl(g string) bool {
+	return slices.Contains([]string{grid.Search, grid.Ticked, grid.Unticked, grid.Picked, grid.Unpicked}, g)
 }
 
 // isMarker says whether a glyph is one of the tab bar's numbers.
@@ -189,7 +195,7 @@ func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
 				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
 			}
 		}
-		if m = drive(m, press(tea.KeyEscape)); m.legend || m.paneWidth() != width-2 || strings.Contains(view(m), hide+" legend") {
+		if m = drive(m, press(tea.KeyEscape)); m.legend || m.paneWidth() != width-2 || strings.Contains(view(m), hide+" "+grid.Search) {
 			t.Errorf("at %d, esc left the legend: %v, rows of %d", width, m.legend, m.paneWidth())
 		}
 	}
@@ -210,7 +216,7 @@ func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 		}
 	}
 	triangle := testkit.Click(m.paneWidth()+1, paneTop)
-	if m = drive(m, triangle); !m.legend || !strings.Contains(raw(m), hide+" legend") {
+	if m = drive(m, triangle); !m.legend || !strings.Contains(raw(m), hide+" "+grid.Search) {
 		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
 	}
 	triangle.X = m.paneWidth() + 1

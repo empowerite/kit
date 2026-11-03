@@ -178,6 +178,9 @@ func TestStagesAndStatusRunKitStatus(t *testing.T) {
 	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "worktrees", "args": "--json"}` {
 		t.Errorf("Status(worktrees): %v, %q", err, out)
 	}
+	if me, err := r.Me(ctx); err != nil || me != "ada" {
+		t.Errorf("Me: %v, %q", err, me)
+	}
 	_, err = r.Status(ctx, "nonesuch", nil)
 	var refusal *ExitError
 	if !errors.As(err, &refusal) || refusal.Code != 2 || !strings.Contains(refusal.Stderr, "no stage 'nonesuch'") {

@@ -8,6 +8,7 @@
 # nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
 # --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
+# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1.
 
 set -o errexit -o nounset -o pipefail
 
@@ -32,6 +33,14 @@ case "${1:-}" in
     do
       printf '%s\n' "${stage}"
     done
+    ;;
+  (--me)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == me ]]
+    then
+      echo "❌ kit flow: the forge cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_FLOW_ME-ada}"
     ;;
   (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
     stage=$1

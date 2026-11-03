@@ -215,6 +215,18 @@ func (r Runner) Stages() ([]string, error) {
 	return stages, nil
 }
 
+// Me gives the caller's login on the primary's forge, as kit flow --me prints it: the login a row's people are
+// matched against. Kit's refusal, as when the forge cannot be read, is the error.
+func (r Runner) Me(ctx context.Context) (string, error) {
+	cmd := grouped(ctx, r.Kit, "flow", "--me")
+	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	out, err := r.output(cmd)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // waitDelay is how long Status waits, once ctx has ended, for kit to die and its pipes to close before the pipes
 // are closed for it.
 const waitDelay = 2 * time.Second

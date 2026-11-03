@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -169,46 +170,37 @@ type release struct {
 	URL     string `json:"url"`
 }
 
-// cell is one column of a row: its text, styled already when it is dim; right is a number, right-aligned in its
-// column; fill is the one cell that takes the width left, clipped.
-type cell struct {
-	text  string
-	right bool
-	fill  bool
-}
-
-// row is one row of a stage: its key, which survives a refresh; its cells; and the lines it opens to, each a row of
-// cells again, none for a leaf. An aside, as a remote's heading, is not counted in the stage's label.
-type row struct {
-	key    string
-	cells  []cell
-	detail [][]cell
-	aside  bool
-}
+// cell is one column of a row, and row one row, as internal/grid lays them out: a cell's values, a number right-aligned,
+// and the one cell that wraps; a row's key, its cells, the lines it opens to, whether it is an aside, which a stage's
+// count leaves out, as a remote's heading, and the logins it belongs to, which the panel's show matches.
+type (
+	cell = grid.Cell
+	row  = grid.Row
+)
 
 // text gives a plain cell.
-func text(s string) cell { return cell{text: s} }
+func text(s string) cell { return cell{Values: []string{s}} }
 
 // dim gives a dim cell; an empty text stays empty, so its column can be left out.
 func dim(s string) cell {
 	if s == "" {
 		return cell{}
 	}
-	return cell{text: style.Off(s)}
+	return text(style.Off(s))
 }
 
 // number gives a right-aligned cell.
-func number(s string) cell { return cell{text: s, right: true} }
+func number(s string) cell { return cell{Values: []string{s}, Right: true} }
 
 // dimNumber gives a dim, right-aligned cell.
 func dimNumber(s string) cell {
 	c := dim(s)
-	c.right = true
+	c.Right = true
 	return c
 }
 
-// fill gives the cell that takes the width left.
-func fill(s string) cell { return cell{text: s, fill: true} }
+// fill gives the cell that takes the width left, cut while its row is closed and wrapped when it is open.
+func fill(s string) cell { return cell{Values: []string{s}, Wrap: true} }
 
 // span gives a line of one cell, which spans the width.
 func span(s string) []cell { return []cell{fill(s)} }
@@ -258,12 +250,14 @@ func ageOf(secs *int64) string {
 	return age(*secs)
 }
 
-// owners gives the assignees after their glyph, or nothing.
-func owners(logins []string) string {
-	if len(logins) == 0 {
-		return ""
+// owners gives the assignees' cell: each after its glyph, dim, a value of its own, so a closed row shows the first and
+// how many more; empty for none.
+func owners(logins []string) cell {
+	var c cell
+	for _, login := range logins {
+		c.Values = append(c.Values, style.Off(Owner+" "+login))
 	}
-	return Owner + " " + strings.Join(logins, " ")
+	return c
 }
 
 // branchOf gives a branch after its glyph, or nothing.
@@ -297,8 +291,9 @@ func (c *checks) cell() string {
 	return out
 }
 
-// rows gives a stage's rows from what it loaded, laid out for the width; nothing while it loads or after a refusal.
-// They are built once for what the stages hold and the width, then kept until either changes.
+// rows gives a stage's rows from what it loaded, laid out for the width, as its panel lets them through; nothing while
+// it loads or after a refusal. They are built once for what the stages hold, the width, and the panels, then kept
+// until one changes.
 func (m Model) rows(i int) []row {
 	if m.built == nil || m.built.width != m.paneWidth() {
 		return m.build(i)
@@ -311,8 +306,30 @@ func (m Model) rows(i int) []row {
 	return r
 }
 
-// build lays a stage's rows out from what it loaded.
+// columns names each stage's columns, in the order its rows' cells come, for the panel's checkboxes; a column without
+// a name, as a glyph's, has none. A stage without columns, as incoming, whose rows are commits and branches, has only
+// the search.
+var columns = map[string][]string{
+	"backlog":   {"number", "assignees", "age", "branch", "title"},
+	"underway":  {"number", "assignees", "", "age", "change", "state", "where", "title"},
+	"desk":      {"branch", "ahead", "lines", "change", "uncommitted"},
+	"worktrees": {"branch", "ahead", "lines", "change", "uncommitted"},
+	"changes":   {"change", "title", "author", "state", "age", "checks", "threads", "branch"},
+	"builds":    {"", "workflow", "number", "event", "branch", "commit", "title", "age", "took"},
+	"releases":  {"version", "kind", "age", "latest"},
+}
+
+// owned names the stages whose rows belong to people, which the panel lets through as every row, the caller's, or
+// everyone else's.
+var owned = map[string]bool{"backlog": true, "underway": true, "changes": true}
+
+// build gives a stage's rows from what it loaded, as its panel lets them through.
 func (m Model) build(i int) []row {
+	return m.panel(i).Filter(m.unfiltered(i), columns[m.stages[i].name])
+}
+
+// unfiltered lays a stage's rows out from what it loaded.
+func (m Model) unfiltered(i int) []row {
 	s := m.stages[i]
 	switch s.name {
 	case "backlog":
@@ -335,21 +352,18 @@ func (m Model) build(i int) []row {
 	return nil
 }
 
-// backlogRows draws each issue: number, assignees, age, branch, title; open, the title in full, the URL, and the
-// command that starts it.
+// backlogRows draws each issue: number, assignees, age, branch, title; open, every assignee, the title wrapped, the
+// URL, and the command that starts it. An issue belongs to its assignees.
 func (m Model) backlogRows(s stage) []row {
 	var rows []row
 	for _, i := range s.issues {
-		r := row{key: "#" + strconv.Itoa(i.Number)}
-		r.cells = []cell{number(r.key), dim(owners(i.Assignees)), dimNumber(ageOf(i.Age)), dim(branchOf(i.Branch)),
+		r := row{Key: "#" + strconv.Itoa(i.Number), Owners: i.Assignees}
+		r.Cells = []cell{number(r.Key), owners(i.Assignees), dimNumber(ageOf(i.Age)), dim(branchOf(i.Branch)),
 			fill(Issue + " " + i.Title)}
-		for _, line := range pane.Wrap(i.Title, m.paneWidth()-6) {
-			r.detail = append(r.detail, span(line))
-		}
 		if url := m.origin.issue(i.Number, i.URL); url != "" {
-			r.detail = append(r.detail, span(style.Off(url)))
+			r.Detail = append(r.Detail, span(style.Off(url)))
 		}
-		r.detail = append(r.detail, span(style.Off(fmt.Sprintf("kit issue %d starts it", i.Number))))
+		r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("kit issue %d starts it", i.Number))))
 		rows = append(rows, r)
 	}
 	return rows
@@ -357,8 +371,9 @@ func (m Model) backlogRows(s stage) []row {
 
 // underwayRows draws each issue underway beside the pull request that closes it, oldest first as kit prints them:
 // number, assignees, age, the pull request's number and state, where the work is, and the title. Where is here when
-// a worktree on this desk has the branch, else the author. Open, the issue's title in full, the pull request's, the
-// worktree when here, and both URLs, dim.
+// a worktree on this desk has the branch, else the author. Open, every assignee, the issue's title wrapped, the pull
+// request's title, the worktree when here, and both URLs, dim. A row belongs to the issue's assignees and the pull
+// request's author.
 func (m Model) underwayRows(s stage) []row {
 	var rows []row
 	for _, u := range s.under {
@@ -371,20 +386,18 @@ func (m Model) underwayRows(s stage) []row {
 			where = dim(Owner + " " + u.PR.Author)
 		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
-		r := row{key: issue + " " + pr, cells: []cell{number(issue), dim(owners(u.Assignees)), text(InFlight), dimNumber(ageOf(u.Age)),
-			text(Change + " " + pr), text(state), where, fill(Issue + " " + u.Title)}}
-		for _, line := range pane.Wrap(u.Title, m.paneWidth()-6) {
-			r.detail = append(r.detail, span(line))
-		}
+		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
+			Cells: []cell{number(issue), owners(u.Assignees), text(InFlight), dimNumber(ageOf(u.Age)),
+				text(Change + " " + pr), text(state), where, fill(Issue + " " + u.Title)}}
 		for _, line := range pane.Wrap(Change+" "+pr+" "+u.PR.Title, m.paneWidth()-6) {
-			r.detail = append(r.detail, span(line))
+			r.Detail = append(r.Detail, span(line))
 		}
 		if u.Here && u.Worktree != "" {
-			r.detail = append(r.detail, span(Desk+" "+u.Worktree))
+			r.Detail = append(r.Detail, span(Desk+" "+u.Worktree))
 		}
 		for _, url := range []string{m.origin.issue(u.Number, u.URL), m.origin.pull(u.PR.Number, u.PR.URL)} {
 			if url != "" {
-				r.detail = append(r.detail, span(style.Off(url)))
+				r.Detail = append(r.Detail, span(style.Off(url)))
 			}
 		}
 		rows = append(rows, r)
@@ -403,38 +416,38 @@ func incomingRows(s stage) []row {
 	}
 	var rows []row
 	for _, r := range primaryFirst(*s.in) {
-		rows = append(rows, row{key: "remote " + r.Name, cells: span(style.Off(heading(r))), aside: true})
+		rows = append(rows, row{Key: "remote " + r.Name, Cells: span(style.Off(heading(r))), Aside: true})
 		before, key := len(rows), r.Name+" "
 		if s.in.Fetched {
 			for _, c := range r.Commits {
-				rows = append(rows, row{key: key + c.SHA, cells: []cell{dim(c.SHA), fill(c.Subject)}})
+				rows = append(rows, row{Key: key + c.SHA, Cells: []cell{dim(c.SHA), fill(c.Subject)}})
 			}
 			for _, b := range r.Branches.Updated {
-				rows = append(rows, row{key: key + "updated " + b,
-					cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
+				rows = append(rows, row{Key: key + "updated " + b,
+					Cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
 			}
 			for _, b := range r.Branches.New {
-				rows = append(rows, row{key: key + "new " + b,
-					cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
+				rows = append(rows, row{Key: key + "new " + b,
+					Cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
 			}
 			for _, b := range r.Branches.Gone {
-				rows = append(rows, row{key: key + "gone " + b,
-					cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
+				rows = append(rows, row{Key: key + "gone " + b,
+					Cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
 			}
 			for _, t := range r.Tags {
-				rows = append(rows, row{key: key + "tag " + t,
-					cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
+				rows = append(rows, row{Key: key + "tag " + t,
+					Cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
 			}
 		}
 		if r.Error != "" {
 			failed := span(style.Refusal(Failed + " " + r.Error))
-			rows = append(rows, row{key: key + "error", cells: failed, aside: true})
+			rows = append(rows, row{Key: key + "error", Cells: failed, Aside: true})
 		} else if len(rows) == before {
 			word := "unchanged"
 			if !s.in.Fetched {
 				word = "not fetched"
 			}
-			rows = append(rows, row{key: key + word, cells: span(style.Off(word)), aside: true})
+			rows = append(rows, row{Key: key + word, Cells: span(style.Off(word)), Aside: true})
 		}
 	}
 	return rows
@@ -494,9 +507,9 @@ func (m Model) worktreeRows(s stage) []row {
 		rows = append(rows, m.checkoutRow(c, Branch, aheadWidth, false))
 	}
 	if gone := s.trees.GoneBranches; len(gone) > 0 {
-		r := row{key: "gone", cells: span(style.Off(Gone + " gone: " + strings.Join(gone, ", ")))}
+		r := row{Key: "gone", Cells: span(style.Off(Gone + " gone: " + strings.Join(gone, ", ")))}
 		for _, b := range gone {
-			r.detail = append(r.detail, span(Gone+" "+b+" "+style.Off("upstream gone · kit tidy removes it")))
+			r.Detail = append(r.Detail, span(Gone+" "+b+" "+style.Off("upstream gone · kit tidy removes it")))
 		}
 		rows = append(rows, r)
 	}
@@ -518,16 +531,16 @@ func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) 
 	if c.Detached {
 		label += " " + Detached + " detached"
 	}
-	r := row{key: c.Path, cells: []cell{text(label), text(counts(c, aheadWidth)), text(diffstat(c)),
+	r := row{Key: c.Path, Cells: []cell{text(label), text(counts(c, aheadWidth)), text(diffstat(c)),
 		text(m.pullOf(c.Branch, desk)), uncommitted(c.Uncommitted)}}
 	for _, change := range c.Changes {
-		r.detail = append(r.detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
+		r.Detail = append(r.Detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
 	}
 	for _, commit := range c.Commits {
-		r.detail = append(r.detail, span(style.Off(commit.SHA)+" "+commit.Subject))
+		r.Detail = append(r.Detail, span(style.Off(commit.SHA)+" "+commit.Subject))
 	}
 	if more := c.Ahead - len(c.Commits); more > 0 {
-		r.detail = append(r.detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
+		r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
 	}
 	return r
 }
@@ -592,8 +605,8 @@ func ref(p pull) string {
 	return "#" + strconv.Itoa(p.Number)
 }
 
-// changeRows draws each pull request: number, title, author, state, age, checks, threads, branch; open, the issues
-// it closes, one row each, in flight.
+// changeRows draws each pull request: number, title, author, state, age, checks, threads, branch; open, the title
+// wrapped, then the issues it closes, one row each, in flight. A pull request belongs to its author.
 func changeRows(s stage) []row {
 	var rows []row
 	for _, p := range s.pulls {
@@ -605,15 +618,15 @@ func changeRows(s stage) []row {
 		if p.Author != "" {
 			author = Owner + " " + p.Author
 		}
-		r := row{key: ref(p), cells: []cell{text(Change + " " + ref(p)), fill(p.Title), dim(author),
+		r := row{Key: ref(p), Owners: []string{p.Author}, Cells: []cell{text(Change + " " + ref(p)), fill(p.Title), dim(author),
 			text(stateGlyph(p.State) + " " + p.State), dimNumber(age(p.Age)), text(p.Checks.cell()), text(threads),
 			dim(branchOf(p.Branch))}}
 		for _, i := range p.Closes {
-			r.detail = append(r.detail, []cell{number("#" + strconv.Itoa(i.Number)), dim(owners(i.Assignees)),
+			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),
 				text(InFlight + " in flight"), dimNumber(ageOf(i.Age)), fill(Issue + " " + i.Title)})
 		}
 		if len(p.Closes) == 0 {
-			r.detail = append(r.detail, span(style.Off("closes no issue")))
+			r.Detail = append(r.Detail, span(style.Off("closes no issue")))
 		}
 		rows = append(rows, r)
 	}
@@ -622,9 +635,8 @@ func changeRows(s stage) []row {
 
 // buildRows draws each build, newest first as kit prints them: its state's glyph, workflow, number, how it began,
 // branch or tag, commit, title, age, and how long it took; the number, how it began, and the commit dim, and a title
-// that only repeats the workflow left out. Open, the commit and its title in full, the attempt past the first, its
-// jobs, the failed first, each with its glyph and how long it took and, under a failed one, the step that failed,
-// then its URL, dim.
+// that only repeats the workflow left out. Open, the title wrapped, the attempt past the first, its jobs, the failed
+// first, each with its glyph and how long it took and, under a failed one, the step that failed, then its URL, dim.
 func (m Model) buildRows(s stage) []row {
 	var rows []row
 	for _, b := range s.runs {
@@ -635,33 +647,22 @@ func (m Model) buildRows(s stage) []row {
 		if title == b.Workflow {
 			title = ""
 		}
-		r := row{key: strconv.FormatInt(b.ID, 10), cells: []cell{text(runGlyph(b.State)), text(b.Workflow),
+		r := row{Key: strconv.FormatInt(b.ID, 10), Cells: []cell{text(runGlyph(b.State)), text(b.Workflow),
 			dimNumber(number), dim(eventOf(b)), text(b.Branch), dim(b.SHA), fill(title), dimNumber(age(b.Age)),
 			tookCell(b.Took)}}
-		if title != "" {
-			// the commit leads the title's first line, and the lines after it start under the title
-			lead, indent := "", ""
-			if b.SHA != "" {
-				lead, indent = style.Off(b.SHA)+" ", strings.Repeat(" ", len(b.SHA)+1)
-			}
-			for _, line := range pane.Wrap(title, m.paneWidth()-6-len(indent)) {
-				r.detail = append(r.detail, span(lead+line))
-				lead = indent
-			}
-		}
 		if b.Attempt > 1 {
-			r.detail = append(r.detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
+			r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
 		}
 		jobs := slices.Clone(b.Jobs)
 		slices.SortStableFunc(jobs, func(x, y job) int { return failedFirst(x) - failedFirst(y) })
 		for _, j := range jobs {
-			r.detail = append(r.detail, []cell{text(runGlyph(j.State)), text(j.Name), tookCell(j.Took)})
+			r.Detail = append(r.Detail, []cell{text(runGlyph(j.State)), text(j.Name), tookCell(j.Took)})
 			if j.Step != "" {
-				r.detail = append(r.detail, span("    "+style.Off("failed at")+" "+j.Step))
+				r.Detail = append(r.Detail, span("    "+style.Off("failed at")+" "+j.Step))
 			}
 		}
 		if b.URL != "" {
-			r.detail = append(r.detail, span(style.Off(b.URL)))
+			r.Detail = append(r.Detail, span(style.Off(b.URL)))
 		}
 		rows = append(rows, r)
 	}
@@ -696,11 +697,11 @@ func (m Model) releaseRows(s stage) []row {
 		if rel.Latest {
 			latest = Latest + " latest"
 		}
-		r := row{key: rel.Tag, cells: []cell{text(rel.Version), text(kindGlyph(rel.Kind) + " " + rel.Kind),
+		r := row{Key: rel.Tag, Cells: []cell{text(rel.Version), text(kindGlyph(rel.Kind) + " " + rel.Kind),
 			dimNumber(age(rel.Age)), text(latest)}}
-		r.detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
+		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
 		if url := m.origin.release(rel.Tag, rel.URL); url != "" {
-			r.detail = append(r.detail, span(style.Off(url)))
+			r.Detail = append(r.Detail, span(style.Off(url)))
 		}
 		rows = append(rows, r)
 	}

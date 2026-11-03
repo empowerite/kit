@@ -25,8 +25,8 @@ const (
 // page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
 // and in a page.
 const (
-	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · ctrl+c quit"
-	pageKeys   = "←→ tab · ↓ page · 1-9 jump · ctrl+c quit"
+	stepKeys   = "←→ view · ↓ checks · 1-9 jump · ctrl+c quit"
+	pageKeys   = "←→ view · ↓ page · 1-9 jump · ctrl+c quit"
 	rowKeys    = "↑↓ move · pgup/pgdn page · esc back"
 	choiceKeys = "↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose · esc back"
 	showKeys   = "↑↓ move · pgup/pgdn page · l later · esc back"

@@ -20,6 +20,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
@@ -58,6 +59,7 @@ type stage struct {
 	cursor  int                // the row under the cursor, kept while another stage is shown
 	offset  int                // the first line of the pane
 	open    map[string]bool    // the rows opened, by key
+	view    grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
 	gen     int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
 	stop    context.CancelFunc // ends the latest load's command, when r starts another
@@ -80,11 +82,14 @@ type Model struct {
 	noFetch       bool
 	filters       []string
 	stages        []stage
-	stage         int  // the selected stage
-	inRows        bool // whether the rows have the keyboard, not the bar
-	legend        bool // whether the legend shows beside the rows
-	widest        int  // the cells of the widest stage's legend
-	started       bool // whether the stages after incoming have been started
+	stage         int    // the selected stage
+	inRows        bool   // whether the rows have the keyboard, not the bar
+	inPanel       bool   // whether the panel has the keyboard, before the rows or the bar
+	legend        bool   // whether the side, the panel and the legend, shows beside the rows
+	widest        int    // the cells of the widest stage's panel or legend
+	me            string // the caller's login, once kit has said it, which the panels' mine and others match
+	asked         bool   // whether kit has been asked for the caller's login
+	started       bool   // whether the stages after incoming have been started
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -130,7 +135,7 @@ func New(r kit.Runner, o Options) Model {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)))
+		m.widest = max(m.widest, pane.Width(legendLines(name)), m.panel(len(m.stages)-1).Width())
 	}
 	return m
 }
@@ -166,22 +171,105 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// r on incoming fetched again: the stages the fetch moves load again
 			return m, m.reloads()
 		}
+	case meMsg:
+		if msg.err == nil {
+			m.me = msg.login
+			m.rebuild()
+		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
-		if bar, ok := m.bar().Update(msg); ok {
-			m.choose(bar)
-		} else if msg.Button == tea.MouseLeft && msg.X == m.paneWidth()+1 && msg.Y == paneTop {
-			m.showLegend(!m.legend)
-			m.fit()
-		} else if msg.Button == tea.MouseLeft {
-			m.click(msg.X, msg.Y)
+		switch side := m.paneWidth() + 1; {
+		case msg.Button != tea.MouseLeft:
+			if bar, ok := m.bar().Update(msg); ok {
+				m.choose(bar)
+			}
+		case msg.X == side && msg.Y == paneTop:
+			return m, m.showLegend(!m.legend)
+		case msg.X > side && m.legend:
+			return m, m.clickPanel(msg.Y - paneTop)
+		default:
+			if bar, ok := m.bar().Update(msg); ok {
+				m.choose(bar)
+			} else {
+				m.click(msg.X, msg.Y)
+			}
 		}
 	}
 	return m, nil
 }
 
-// key takes a key press: the quitting keys, the bar's, then the rows' and the legend's.
+// meMsg is kit's answer to the caller's login: the login, or why it could not be read.
+type meMsg struct {
+	login string
+	err   error
+}
+
+// panel gives a stage's panel: what the person set in it, its columns, whether its rows belong to people, the caller's
+// login, and whether it has the keyboard.
+func (m Model) panel(i int) grid.Panel {
+	s := m.stages[i]
+	p := s.view
+	p.Columns, p.Owned, p.Me = columns[s.name], owned[s.name], m.me
+	p.Focused = m.inPanel && i == m.stage
+	return p
+}
+
+// setPanel keeps what the selected stage's panel became; the rows are let through again, and the cursor stays within
+// them.
+func (m *Model) setPanel(p grid.Panel) {
+	m.stages[m.stage].view = p
+	m.rebuild()
+	m.clamp(m.stage)
+	m.fit()
+}
+
+// enterPanel gives the panel the keyboard, the search under it when find says so, and shows the side; it asks kit for
+// the caller's login the first time.
+func (m *Model) enterPanel(find bool) tea.Cmd {
+	if len(m.stages) == 0 {
+		return nil
+	}
+	cmd := m.showLegend(true)
+	m.inPanel = true
+	if find {
+		m.stages[m.stage].view = m.panel(m.stage).Find()
+	}
+	return cmd
+}
+
+// clickPanel takes a click on a line of the side: on one of the panel's controls, the panel has the keyboard and acts
+// on it as space does.
+func (m *Model) clickPanel(line int) tea.Cmd {
+	if len(m.stages) == 0 {
+		return nil
+	}
+	p, ok := m.panel(m.stage).Click(line)
+	if !ok {
+		return nil
+	}
+	m.inPanel = true
+	m.setPanel(p)
+	return nil
+}
+
+// askMe runs kit flow --me, once, for the limit at most.
+func (m *Model) askMe() tea.Cmd {
+	if m.asked {
+		return nil
+	}
+	m.asked = true
+	r, ctx, limit := m.runner, m.ctx, m.limit
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(ctx, limit)
+		defer cancel()
+		login, err := r.Me(ctx)
+		return meMsg{login, err}
+	}
+}
+
+// key takes a key press: the quitting keys, the panel's while it has the keyboard, the bar's, then the rows' and the
+// side's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -190,11 +278,18 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+esc", "super+esc":
 		return m, m.quit()
 	}
+	if m.inPanel {
+		return m.panelKey(k)
+	}
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)
 		return m, nil
 	}
 	switch k.String() {
+	case "tab":
+		return m, m.enterPanel(false)
+	case "/":
+		return m, m.enterPanel(true)
 	case "esc":
 		switch {
 		case m.legend:
@@ -205,8 +300,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.fit()
 	case "?":
-		m.showLegend(!m.legend)
-		m.fit()
+		return m, m.showLegend(!m.legend)
 	case "up":
 		m.up(1)
 	case "down":
@@ -225,15 +319,44 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// showLegend shows the legend beside the rows, or takes it away; the rows are laid out again for the width left.
-func (m *Model) showLegend(on bool) {
+// panelKey takes a key while the panel has the keyboard: tab and esc give it back to the rows or the bar, as they had
+// it; the panel takes what it can, as typing in its search; a number the bar takes selects a stage, and gives the bar
+// the keyboard.
+func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "tab", "esc":
+		m.inPanel = false
+		return m, nil
+	}
+	if p, ok := m.panel(m.stage).Update(k); ok {
+		m.setPanel(p)
+		return m, nil
+	}
+	m.inPanel = false
+	if bar, ok := m.bar().Update(k); ok {
+		m.choose(bar)
+		return m, nil
+	}
+	m.inPanel = true
+	return m, nil
+}
+
+// showLegend shows the side beside the rows, or takes it away; the rows are laid out again for the width left, and
+// the panel loses the keyboard with it. Shown the first time, it asks kit for the caller's login.
+func (m *Model) showLegend(on bool) tea.Cmd {
 	m.legend = on
+	m.inPanel = m.inPanel && on
 	m.rebuild()
+	m.fit()
+	if on {
+		return m.askMe()
+	}
+	return nil
 }
 
 // choose takes what the bar chose: the stage it selected, where the cursor is as it was left, and the keyboard.
 func (m *Model) choose(bar tabs.Bar) {
-	m.stage, m.inRows = bar.Selected, !bar.Focused
+	m.stage, m.inRows, m.inPanel = bar.Selected, !bar.Focused, false
 	m.fit()
 }
 
@@ -519,16 +642,16 @@ func (m *Model) open(open bool) {
 	}
 	s := &m.stages[m.stage]
 	rows := m.rows(m.stage)
-	if s.cursor >= len(rows) || len(rows[s.cursor].detail) == 0 {
+	if s.cursor >= len(rows) || !grid.Opens(rows, s.cursor, m.paneWidth()) {
 		return
 	}
-	s.open[rows[s.cursor].key] = open
+	s.open[rows[s.cursor].Key] = open
 	m.fit()
 }
 
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
-// click on the first line of the row already under the cursor opens it, or closes it. A click on a … line, on a line
-// about the stage, or on the legend does nothing.
+// click on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾,
+// opens the row, or closes it. A click on a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int) {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return
@@ -538,12 +661,13 @@ func (m *Model) click(x, y int) {
 	if k < 0 || lines[k].row < 0 {
 		return
 	}
-	row := lines[k].row
-	if m.inRows && row == s.cursor && (k == 0 || lines[k-1].row != row) {
-		m.open(!s.open[m.rows(m.stage)[row].key])
+	row, first := lines[k].row, k == 0 || lines[k-1].row != lines[k].row
+	toggle := first && (x < 3 || m.inRows && row == s.cursor)
+	s.cursor, m.inRows, m.inPanel = row, true, false
+	if toggle {
+		m.open(!s.open[m.rows(m.stage)[row].Key])
 		return
 	}
-	s.cursor, m.inRows = row, true
 	m.fit()
 }
 

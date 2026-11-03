@@ -2,7 +2,7 @@
  ➀╶─────────────╮➁╶──────────────╴➌╶──────────╮➃╶───────────────╮➄╶─────────────
    🎫 backlog 3 │  🛫 underway 4  │ 💻 desk 1 │  🌿 worktrees 4 │  🔀 changes  ▹
  ───────────────╰─────────────────╯           ╰─────────────────╰───────────────
-   💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      ◂
+ ▸ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      ◂
                                                                                ┊
                                                                                ┊
                                                                                ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · ctrl+c quit
+ ←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · ctrl+c quit

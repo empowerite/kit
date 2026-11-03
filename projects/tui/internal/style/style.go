@@ -4,6 +4,8 @@
 package style
 
 import (
+	"strings"
+
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -36,6 +38,7 @@ var (
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
 	repo    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))
+	band    = lipgloss.NewStyle().Background(lipgloss.Color("236"))
 )
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
@@ -68,6 +71,17 @@ func Cursor(s string) string { return cursor.Render(s) }
 
 // Refusal draws the line a verb would print about an answer.
 func Refusal(s string) string { return refusal.Render(s) }
+
+// Band draws a line on a faint background, as the row under the cursor is drawn, to the width: the line's own styles
+// stay, and the band is opened again after each of them ends, so it runs the whole line.
+func Band(line string, width int) string {
+	open, end, _ := strings.Cut(band.Render("x"), "x")
+	if open == "" {
+		return line
+	}
+	line += strings.Repeat(" ", max(0, width-ansi.StringWidth(line)))
+	return open + strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+open) + end
+}
 
 // Bar draws the keys bar every screen ends with: one dim line, clipped to the width with …, never wrapped.
 func Bar(keys string, width int) string {

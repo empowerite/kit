@@ -10,9 +10,9 @@
       04f0802 #1 materialize: a manifest record that climbs out of its root i… ┊
       3c247a8 #1 tests: every suite loads one helper that isolates HOME, git … ┊
       … and 263 more                                                           ┊
-   🌿 42-settings                    ↑3 ↓1  +120 -4     no pull request yet  … ┊
-   🌿 worktrees/spike ❗ detached    ↑0 ↓0  +0 -0                            … ┊
-   🔖 gone: old-experiment, 44-a-spike                                         ┊
+ ▸ 🌿 42-settings                    ↑3 ↓1  +120 -4     no pull request yet  … ┊
+ ▸ 🌿 worktrees/spike ❗ detached    ↑0 ↓0  +0 -0                            … ┊
+ ▸ 🔖 gone: old-experiment, 44-a-spike                                         ┊
                                                                                ┊
                                                                                ┊
                                                                                ┊
@@ -21,4 +21,4 @@
                                                                                ┊
                                                                                ┊
 
- ↑↓ move · pgup/pgdn page · ← close · r refresh · ? legend · esc back
+ ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back

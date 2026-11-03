@@ -4,6 +4,7 @@
   "usage": [
     "kit flow [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow --stages",
+    "kit flow --me",
     "kit flow backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow underway [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow incoming [--no-fetch] [--json | --jq]",
@@ -122,6 +123,13 @@
       {
         "kind": "flag",
         "name": "stages",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "me",
         "repeat": false
       }
     ],
@@ -599,6 +607,9 @@
     },
     "--stages": {
       "description": "prints the stages the picture draws, one per line, in order"
+    },
+    "--me": {
+      "description": "prints the caller's login on the primary's forge, the login --mine and --others match"
     },
     "--today": {
       "description": "only the issues opened in the last 24 hours"

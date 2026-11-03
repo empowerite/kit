@@ -17,6 +17,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
@@ -58,7 +59,7 @@ var toggle tea.Msg = toggleMsg{}
 // toggleKey gives the key toggle sends for the row under the cursor.
 func (m Model) toggleKey() tea.KeyPressMsg {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.cursor < len(rows) && s.open[rows[s.cursor].key] {
+	if s.cursor < len(rows) && s.open[rows[s.cursor].Key] {
 		return left
 	}
 	return right
@@ -118,6 +119,20 @@ func lines(m Model) []string {
 		}
 	}
 	return out
+}
+
+// band is what opens the faint band the grid draws the cursor's row on.
+var band, _, _ = strings.Cut(style.Band("x", 1), "x")
+
+// cursor gives the first line the cursor's row is drawn on, without its escapes and its gutter, or nothing when no row
+// is under the cursor.
+func cursor(m Model) string {
+	for _, l := range strings.Split(m.View().Content, "\n") {
+		if strings.HasPrefix(l, band) {
+			return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(l)), style.Focus+style.Opened))
+		}
+	}
+	return ""
 }
 
 // calls reads the words of every kit call the fake recorded.
@@ -218,7 +233,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	}
 	// esc gives the bar the keyboard back, and right moves again, onto the next stage's first row
 	m = drive(m, esc, right, down)
-	if m.stage != 4 || !strings.Contains(view(m), style.Focus+" "+Change+" #2") {
+	if m.stage != 4 || !strings.HasPrefix(cursor(m), Change+" #2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
 	// from changes, five to the right stops at the end: incoming, builds, releases, and there
@@ -294,15 +309,15 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 
 func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 	m := loaded(t, options(), right, right, right)
-	if m.inRows || strings.Contains(view(m), style.Focus) {
+	if m.inRows || cursor(m) != "" {
 		t.Fatalf("on the bar, a row has the focus:\n%s", view(m))
 	}
 	m = drive(m, down)
-	if !m.inRows || !strings.Contains(view(m), " "+style.Focus+" "+Branch+" 1-the-first-release") {
+	if !m.inRows || !strings.HasPrefix(cursor(m), Branch+" 1-the-first-release") {
 		t.Fatalf("down did not enter the rows:\n%s", view(m))
 	}
 	m = drive(m, down)
-	if !strings.Contains(view(m), style.Focus+" "+Branch+" 42-settings") {
+	if !strings.HasPrefix(cursor(m), Branch+" 42-settings") {
 		t.Errorf("down once more:\n%s", view(m))
 	}
 	m = drive(m, down, down, down)
@@ -314,7 +329,7 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 		t.Errorf("up to the first row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
 	}
 	m = drive(m, up)
-	if m.inRows || strings.Contains(view(m), style.Focus) {
+	if m.inRows || cursor(m) != "" {
 		t.Errorf("up on the first row did not return to the bar:\n%s", view(m))
 	}
 	m = drive(m, up)
@@ -485,18 +500,18 @@ func TestQuitCodes(t *testing.T) {
 
 func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, down, press('?'))
-	if !m.legend || !strings.Contains(view(m), hide+" legend") {
+	if !m.legend || !strings.Contains(view(m), hide+" "+grid.Search) {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
 	if m = next.(Model); cmd != nil || m.legend || !m.inRows || m.find("worktrees").cursor != 1 {
 		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.legend, m.inRows, m.find("worktrees").cursor)
 	}
-	if v := view(m); !strings.Contains(v, style.Focus+" "+Branch+" 42-settings") || strings.Contains(v, hide+" legend") {
+	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, hide+" "+grid.Search) {
 		t.Errorf("esc with the legend on did not take it away and keep the rows as they were:\n%s", v)
 	}
 	next, cmd = m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.inRows || m.stage != 3 || strings.Contains(view(m), style.Focus) {
+	if m = next.(Model); cmd != nil || m.inRows || m.stage != 3 || cursor(m) != "" {
 		t.Fatalf("esc in the rows: in rows %v, stage %d\n%s", m.inRows, m.stage, view(m))
 	}
 	// on the bar, esc takes the legend away, and then does nothing
@@ -508,10 +523,10 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys    = "←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · ctrl+c quit"
-	legendKeys = "←→ tab · ↓ rows · 1-9 jump · r refresh · ? legend · esc back"
-	opens      = "↑↓ move · pgup/pgdn page · → open · r refresh · ? legend · esc back"
-	closes     = "↑↓ move · pgup/pgdn page · ← close · r refresh · ? legend · esc back"
+	barKeys    = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · ctrl+c quit"
+	legendKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? legend · esc back"
+	opens      = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · r refresh · ? legend · esc back"
+	closes     = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? legend · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -750,7 +765,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24}, down, toggle)
 	v := view(m)
 	for _, want := range []string{"#45", "#46  👤 jeffrey-aguilera   2d  " + Branch + " 46-a-noun-lists  " + Issue,
-		"#7  👤 ada bob           40d", "interactive on a terminal, and\n", "the listing verbs fold into it",
+		"#7  👤 ada           +1  40d", "interactive on a", "listing verbs fold into",
 		"https://github.com/empowerite/kit/issues/45", "kit issue 45 starts it"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
@@ -778,7 +793,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
-	if !strings.Contains(got[4], "… 2 above") || !strings.Contains(got[5], style.Focus+" "+Branch+" worktrees/spike") ||
+	if !strings.Contains(got[4], "… 2 above") || !strings.Contains(got[5], Branch+" worktrees/spike") || !strings.HasPrefix(cursor(m), Branch+" worktrees/spike") ||
 		!strings.Contains(got[6], Gone+" gone:") || strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
 	}
@@ -896,7 +911,8 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 
 func TestTheSelectedRowIsChosen(t *testing.T) {
 	m := loaded(t, options(), down)
-	if !strings.Contains(m.View().Content, " "+style.Focus+" "+style.Chosen("#45")) {
+	chosen, _, _ := strings.Cut(style.Chosen("#"), "#")
+	if !strings.Contains(m.View().Content, chosen+"#") || !strings.HasPrefix(cursor(m), "#45") {
 		t.Errorf("the row under the cursor is not drawn as chosen:\n%s", m.View().Content)
 	}
 }
@@ -939,16 +955,16 @@ func TestQuestionMarkShowsTheLegendBesideTheRowsAndTheBarStays(t *testing.T) {
 	if got[1] != before[1] {
 		t.Errorf("the bar moved under the legend:\n%s\n%s", before[1], got[1])
 	}
-	if !strings.Contains(view(m), hide+" legend") || !strings.Contains(view(m), Branch+" 1-the-first-release") {
+	if !strings.Contains(view(m), hide+" "+grid.Search) || !strings.Contains(view(m), Branch+" 1-the-first-release") {
 		t.Errorf("the legend is not beside the rows:\n%s", view(m))
 	}
 	// the keys move in the rows while the legend is on
 	m = drive(m, down, down)
-	if !m.inRows || m.find("worktrees").cursor != 1 || !strings.Contains(view(m), style.Focus+" "+Branch+" 42-settings") {
+	if !m.inRows || m.find("worktrees").cursor != 1 || !strings.HasPrefix(cursor(m), Branch+" 42-settings") {
 		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.find("worktrees").cursor, view(m))
 	}
 	m = drive(m, up, up, press('?'))
-	if m.legend || strings.Contains(view(m), hide+" legend") || lines(m)[23] != " "+barKeys ||
+	if m.legend || strings.Contains(view(m), hide+" "+grid.Search) || lines(m)[23] != " "+barKeys ||
 		strings.Join(lines(m), "\n") != strings.Join(before, "\n") {
 		t.Errorf("? again did not take the legend away:\n%s", view(m))
 	}
@@ -1015,7 +1031,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 		}
 		at = k
 	}
-	if !strings.Contains(m.View().Content, style.Warn(" M")+" kit.yml") {
+	if !strings.Contains(m.View().Content, style.Warn(" M")) {
 		t.Errorf("an uncommitted path's status is not yellow")
 	}
 	// a desk on a branch with a pull request shows it, as a worktree does
@@ -1174,12 +1190,12 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 			t.Errorf("%q is not dim", text)
 		}
 	}
-	// the failed build opens to its commit and title in full, its attempt, its jobs, the failed first with the step
+	// the failed build opens to its title wrapped in its column, its attempt, its jobs, the failed first with the step
 	// that failed under it, then its URL, dim
 	m = drive(m, down, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + " " + Failed + "  kit",
-		"8e817bf #45 status: the builds stage tells which commit each run built", "attempt 2", Failed + "  test",
+		"8e817bf  #45 status: the builds stage tells which commit", "each run built", "attempt 2", Failed + "  test",
 		"failed at bats tests/status.bats", Passed + "  gate", Passed + "  lint", Cancelled + "  docs",
 		"https://github.com/empowerite/kit/actions/runs/41309409467", Passed + "  kit"}
 	at := -1
@@ -1280,11 +1296,11 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		!strings.Contains(c, style.Off(Owner+" jeffrey-aguilera")) || !strings.HasSuffix(rows[3], "…") {
 		t.Errorf("the where cells or the title:\n%s", strings.Join(rows, "\n"))
 	}
-	// the row here opens to the issue's title in full, the pull request's, the worktree, and both URLs, dim
+	// the row here opens to the issue's title wrapped in its column, the pull request's, the worktree, and both URLs, dim
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub",
+		"The first release, v0.1.0: the kit verbs,", "the picture, and the forge seam on GitHub and", "GitLab",
 		Change + " #2 The first release, v0.1.0", Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0",
 		"https://github.com/empowerite/kit/issues/1", "https://github.com/empowerite/kit/pull/2", "#8"}
 	at := -1
