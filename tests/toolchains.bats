@@ -116,6 +116,28 @@ ${sudo}pacman -S github-cli" ]
   grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
 }
 
+@test "mise is active where every directory it puts on PATH is there, as direnv puts them" {
+  touch mise.toml
+  mkdir -p "${BATS_TEST_TMPDIR}/installs/jq" "${BATS_TEST_TMPDIR}/installs/yq"
+  printf '%s\n' "${BATS_TEST_TMPDIR}/installs/jq" "${BATS_TEST_TMPDIR}/installs/yq" | fixture bin-paths.txt
+  route mise 'bin-paths' bin-paths.txt
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
+  # one directory of two is not enough
+  export PATH="${BATS_TEST_TMPDIR}/installs/jq:${PATH}"
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
+  export PATH="${BATS_TEST_TMPDIR}/installs/yq:${PATH}"
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
+  run chosen
+  [ "$output" = mise ]
+  # with the tools on PATH but no mise file here, mise is neither usable nor active
+  rm mise.toml
+  run detect
+  grep --quiet --line-regexp $'mise\tproject\tno\tno' <<<"$output"
+}
+
 # a flake that holds a dev shell, and nix with flakes on
 nix-flake() {
   printf '{ outputs = { self }: { devShells.x86_64-linux.default = {}; }; }\n' > flake.nix
@@ -202,16 +224,29 @@ nix-flake() {
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${BATS_TEST_TMPDIR}/elsewhere/mise"
   run detect
   [ "$(probes)" -eq 5 ]
+  # mise configured here runs twice: once for the directories it puts on PATH, once for its version
   touch mise.toml
   run detect
-  [ "$(probes)" -eq 6 ]
+  [ "$(probes)" -eq 7 ]
   grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
   export MISE_SHELL=zsh
   run detect
-  [ "$(probes)" -eq 7 ]
+  [ "$(probes)" -eq 8 ]
   grep --quiet --line-regexp $'mise\tproject\tyes\tyes' <<<"$output"
   run detect
-  [ "$(probes)" -eq 7 ]
+  [ "$(probes)" -eq 8 ]
+  # mise's lock, its environment, and that environment's file each change what it puts on PATH
+  touch mise.lock
+  run detect
+  [ "$(probes)" -eq 9 ]
+  export MISE_ENV=desk
+  run detect
+  [ "$(probes)" -eq 10 ]
+  touch mise.desk.toml
+  run detect
+  [ "$(probes)" -eq 11 ]
+  run detect
+  [ "$(probes)" -eq 11 ]
 }
 
 # chosen [<role>] prints the toolchain toolchain:chosen gives for the role, project unless named.

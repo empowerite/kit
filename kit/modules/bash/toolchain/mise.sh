@@ -3,11 +3,22 @@
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # mise fills the project role. It is configured here by mise.toml, .mise.toml, or mise.local.toml at the
-# repository root. It is active where mise is activated in the shell, which sets MISE_SHELL, and configured here.
-# The provider needs mise. When the caller sets MISE_ENV, mise layers mise.<env>.toml on top, as it always does.
+# repository root. The provider needs mise. When the caller sets MISE_ENV, mise layers mise.<env>.toml on top, as it
+# always does.
+#
+# It is active where it is configured here and its tools are already on PATH, however they got there:
+#
+#   - mise activate sets MISE_SHELL
+#   - every directory mise bin-paths prints is on PATH, as direnv, a harness, or a runner's setup puts them
+#
+# Shims alone do not count: they sit on PATH in every directory, set up once per machine, not for this repository.
+#
+# Detection's cache keeps the answer while PATH, MISE_ENV, and mise's files are unchanged.
 
 toolchain/mise:active() {
-  [[ -n "${MISE_SHELL:-}" ]] && toolchain/mise:configured
+  toolchain/mise:configured || return 1
+  [[ -n "${MISE_SHELL:-}" ]] && return 0
+  toolchain/mise:on-path
 }
 
 toolchain/mise:file() {
@@ -18,8 +29,14 @@ toolchain/mise:file() {
 }
 
 toolchain/mise:inputs() {
-  printf 'tool\tmise\nenv\tMISE_SHELL\n'
-  printf 'file\t%s\n' mise.toml .mise.toml mise.local.toml
+  local env
+  printf 'tool\tmise\nenv\tMISE_SHELL\nenv\tMISE_ENV\n'
+  printf 'file\t%s\n' mise.toml .mise.toml mise.local.toml mise.lock
+  # MISE_ENV names one environment or several, comma-separated, each with its own file and lock
+  for env in ${MISE_ENV:+${MISE_ENV//,/ }}
+  do
+    printf 'file\t%s\n' "mise.${env}.toml" "mise.${env}.lock"
+  done
 }
 
 toolchain/mise:install() {
@@ -75,6 +92,18 @@ toolchain/mise:usable() {
 }
 
 # The seam's calls end here; what follows is this provider's own.
+
+# toolchain/mise:on-path succeeds when every directory mise bin-paths prints is on PATH. It runs mise offline, and
+# only where mise is installed.
+toolchain/mise:on-path() {
+  local dirs dir
+  command -v mise >/dev/null 2>&1 || return 1
+  dirs=$(MISE_OFFLINE=1 mise bin-paths 2>/dev/null) && [[ -n "${dirs}" ]] || return 1
+  while IFS= read -r dir
+  do
+    [[ ":${PATH}:" == *":${dir}:"* ]] || return 1
+  done <<<"${dirs}"
+}
 
 # toolchain/mise:configured succeeds when one of mise's files is at the repository root.
 toolchain/mise:configured() {

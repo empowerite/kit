@@ -40,7 +40,7 @@ network, and never calls git.
 
 | Provider | Roles | Usable when | Active when | Pins |
 | --- | --- | --- | --- | --- |
-| `mise` | project | `mise` runs, and `mise.toml`, `.mise.toml`, or `mise.local.toml` is here | `MISE_SHELL` is set, and one of its files is here | each tool's version, resolved in `mise.lock` |
+| `mise` | project | `mise` runs, and `mise.toml`, `.mise.toml`, or `mise.local.toml` is here | one of its files is here, and `MISE_SHELL` is set or every directory `mise bin-paths` prints is on `PATH` | each tool's version, resolved in `mise.lock` |
 | `nix` | project | `nix` is on `PATH` with flakes on, and `flake.nix` names `devShells` or `devShell` | `IN_NIX_SHELL` is set, and `flake.nix` is here | each flake input by its locked revision in `flake.lock` |
 | `brew` | system; project with a `Brewfile` | `brew` is on `PATH` | never | a formula by name; a version only in a name such as `node@22` |
 | `docker` | project | `docker` runs, and `toolchain.Dockerfile` is here | never; it runs commands in its container | each base image by digest, `FROM name:tag@sha256:…` |
@@ -51,6 +51,12 @@ network, and never calls git.
 
 A nix older than 2.20 has no `nix config show`, so kit cannot tell whether flakes are on. It reports that nix as
 not usable.
+
+mise is active however its tools reached `PATH`: `mise activate`, `mise env`, a harness, or a runner's setup.
+
+- `mise activate` sets `MISE_SHELL`. The others put mise's directories on `PATH`, and kit asks `mise bin-paths`.
+- Shims alone do not count. They sit on `PATH` in every directory, set up once per machine, not for this repository.
+- The answer is cached with the rest. `PATH`, `MISE_ENV`, and mise's files and locks are part of the key.
 
 devcontainer:
 
