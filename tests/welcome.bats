@@ -187,6 +187,21 @@ ambient-system() {
   [ "$(jq --raw-output '[.fix, .runs] | @tsv' <<<"$output")" = "${sudo}apt-get install shellcheck"$'\ttrue' ]
 }
 
+@test "welcome names kit check's one finding with its own remedy, and offers a fix only where the finding names one" {
+  "${kit_root}/bin/kit" install hooks/lefthook >/dev/null 2>&1
+  # the one finding: lefthook.yml lacks the include, which no command fixes
+  run --separate-stderr check kit-check
+  [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\t' ]
+  [[ "$(jq --raw-output .line <<<"$output")" == "lefthook.yml: put extends: [.kit/lefthook.yml] in lefthook.yml"* ]]
+  # a finding that names a command offers that command
+  printf '# lefthook.yml - the git hooks\nextends: [.kit/lefthook.yml]\n' > lefthook.yml
+  rm .gitignore
+  run --separate-stderr check kit-check
+  [ "$(jq --raw-output .ok <<<"$output")" = false ]
+  [ "$(jq --raw-output .fix <<<"$output")" = "kit update" ]
+  [[ "$(jq --raw-output .line <<<"$output")" == ".gitignore "* ]]
+}
+
 @test "welcome checks each dependency provider whose manifest is here: its lock, its tool, and what is installed" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   printf '{"devDependencies": {"left-pad": "^1.3.0"}}\n' > package.json

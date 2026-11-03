@@ -60,7 +60,7 @@ do
     fi
     if [[ ! -f "${dest}" ]]
     then
-      error "${dest} is missing"
+      error "${dest} is missing; run: kit update"
       findings=$(( findings + 1 ))
     elif [[ "${kind}" == merge ]] && ! command -v jq >/dev/null 2>&1
     then
@@ -95,7 +95,7 @@ do
     then
       case "${kind}" in
         (merge) error "${dest} is missing an entry the kit writes; run: kit update" ;;
-        (*) error "${dest} differs from the pinned release" ;;
+        (*) error "${dest} differs from the pinned release; run: kit update" ;;
       esac
       findings=$(( findings + 1 ))
     fi
@@ -114,8 +114,7 @@ done < <(resolve:unmet "${kit_root}" "${packages[@]}")
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))
 then
-  error "${findings} finding(s). A delivered file changes by a new release and kit update, never in place;" \
-    "a generated region by kit generate."
+  error "${findings} finding(s), each named above with what to do about it"
   exit 1
 fi
 ok "kit ${version}, packages ${packages[*]:-none}: every delivered file matches the pinned release."

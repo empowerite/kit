@@ -471,18 +471,43 @@ welcome:forge-login() {
   fi
 }
 
-# welcome:kit-check prints the check that kit check finds nothing: it runs kit check and counts its findings. Its fix
-# is kit update, which brings every delivered file back to the release.
+# welcome:kit-check prints the check that kit check finds nothing. It runs kit check and reads each finding, the ❌
+# lines above its count. A single finding is the check's line. The fix is the command after "run:" when every finding
+# names the same one. It runs only when it is a kit command. A finding without a command does not get a fix.
 welcome:kit-check() {
-  local out count
+  local out line command fix='' runs=false
+  local -a findings=() commands=()
   if out=$(NO_COLOR=1 run kit check 2>&1)
   then
     welcome:record kit-check true "kit check finds nothing wrong"
-  else
-    count=$(grep --count '^❌' <<<"${out}" || true)
-    (( count > 0 )) || count=1
-    welcome:record kit-check false "kit check finds ${count} problem(s); run kit check to see them" 'kit update'
+    return 0
   fi
+  # the counts kit check and kit generate --check print are not findings of their own
+  readarray -t findings < <(sed -n 's/^❌ //p' <<<"${out}" \
+    | grep --invert-match --extended-regexp '^[0-9]+ finding\(s\), each named above|^generate: [0-9]+ of [0-9]+ ')
+  for line in "${findings[@]}"
+  do
+    command=''
+    if [[ "${line}" == *'run: '* ]]
+    then
+      command=${line##*run: }
+      command=${command%% (*}
+      command=${command%%;*}
+      command=${command%%,*}
+    fi
+    commands+=("${command}")
+  done
+  if (( ${#findings[@]} > 0 )) && [[ "$(printf '%s\n' "${commands[@]}" | sort --unique | wc -l)" -eq 1 ]]
+  then
+    fix=${commands[0]}
+    [[ "${fix}" != 'kit '* ]] || runs=true
+  fi
+  case "${#findings[@]}" in
+    (0) line="kit check fails; run kit check to see why" ;;
+    (1) line=${findings[0]} ;;
+    (*) line="kit check finds ${#findings[@]} problem(s); run kit check to see each one"
+  esac
+  welcome:record kit-check false "${line}" "${fix}" false '' "${runs}"
 }
 
 # welcome:where prints where this shell is: at the desk, in a worktree, or outside any repository. It always holds;

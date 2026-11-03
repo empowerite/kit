@@ -397,6 +397,22 @@ setup() {
   [ "$(cat lefthook.yml)" = "$(printf 'extends:\n  - .kit/lefthook.yml')" ]
 }
 
+@test "the include hint says what a new file needs, so the file it describes passes lint and check" {
+  run "${kit_checkout}/bin/kit" install hooks/lefthook style/yaml
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"A new lefthook.yml starts with a # line that says what it is"* ]]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  # the summary names no delivered file and no region when neither is the finding
+  [[ "$output" == *"1 finding(s), each named above"* ]]
+  [[ "$output" != *"a generated region by kit generate"* ]]
+  printf '# lefthook.yml - the git hooks\nextends: [.kit/lefthook.yml]\n' > lefthook.yml
+  run "${kit_checkout}/bin/kit" lint lefthook.yml
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 0 ]
+}
+
 @test "install keeps the repository's own settings keys and deny entries" {
   mkdir .claude
   printf '{"model":"x","permissions":{"deny":["Bash(rm -rf /)"]}}\n' > .claude/settings.json
