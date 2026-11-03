@@ -12,16 +12,23 @@ a `kit:generate` directive, and `kit generate` fills it. As a result:
   file a title, the region, then the repository's own instructions, as `agents/generic` does for `AGENTS.md`.
 - `kit check` checks only the region.
 
-The package also merges two entries into `.claude/settings.json`, by key, and leaves the repository's own entries
-alone:
+The package also merges two entries into `.claude/settings.json`, by key. The repository's own entries stay as they
+are.
 
-- `permissions.deny`: the git commands that `.kit/1st.md` forbids an agent, because the kit's commands and the
-  workflow replace them. They are `git commit` and `git push`, which `kit commit` and `kit submit` replace;
-  `git rebase`, `git worktree add`, `git checkout -b`, `git switch -c`, `git worktree remove`, `git branch -D`,
-  `git checkout main`, `git switch main`, `git reset --hard`, `git push --force`, and `git push -f`.
-- `hooks.PreToolUse`: on `Write`, `Edit`, and `MultiEdit`, runs `kit context --claude`, which shows the agent the
-  rules that govern the file. It is described in
-  [docs/context.md](../../context.md).
+`permissions.deny` lists the git commands that `.kit/1st.md` forbids an agent. Each has a kit command in its place:
+
+| Denied | Instead |
+| --- | --- |
+| `git commit` | `kit commit` |
+| `git push` | `kit submit` |
+| `git rebase` | `kit rebase` |
+| `git worktree add`, `git checkout -b`, `git switch -c` | `kit issue` |
+| `git worktree remove`, `git branch -D` | `kit tidy` |
+| `git checkout main`, `git switch main`, `git reset --hard` | none: an agent leaves the desk as it is |
+| `git push --force`, `git push -f` | none: `kit submit` never forces |
+
+`hooks.PreToolUse` runs `kit context --claude` before each `Write`, `Edit`, and `MultiEdit`. It shows the agent the
+rules that govern the file; see [docs/context.md](../../context.md).
 
 The package merges one more entry, `mcpServers.kit`, into `.mcp.json`: the kit's MCP server, `kit serve`, which
 offers the read-only verbs as tools and the rules as resources; see [docs/serve.md](../../serve.md). Claude Code
