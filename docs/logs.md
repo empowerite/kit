@@ -22,7 +22,9 @@ The kit CLI runs the verb as its child, and writes the line when the verb ends:
 ```
 
 - The time is when the call started, and `seconds` is how long it ran.
-- `depth` is 0 for a call typed or run by something other than kit, and one more for each kit call that made it.
+- `depth` is 0 for a call typed or run by something other than kit, and one more for each kit verb that ran it
+  through kit's own `run` helper. A kit call that a generate command, the gate, `kit tools run`, or a hook makes
+  keeps its caller's depth.
 - `status` is the verb's exit status. Ctrl-C ends the verb, and the call is logged with status 130.
 - `in` is the directory the call was typed in, relative to the worktree's root.
 - The command line comes last, quoted as bash quotes it, so it can be pasted back into a shell.
@@ -42,7 +44,8 @@ Lines are written when calls end, so a call that ran a shorter one inside it com
 
 - `outcome` is `ok`, `error=<code>` for a request the server refused, `status=<status>` for a tool whose verb
   failed, or `none` for a notification, which does not get an answer.
-- A tool's line ends with the command it ran. The same call is in the kit log, one deeper.
+- A tool's line ends with the command it ran. The same call is in the kit log, one deeper. A call `kit serve`
+  refuses before running it is in this log alone.
 - The stop line's `seconds` is how long the server ran.
 - `event=reload` is the server starting itself again from a file that changed, and the new process logs its own
   `event=start`. `event=reload-refused` names a changed bash file that does not parse, which keeps the running code.
@@ -60,7 +63,7 @@ log_days: 30
 ```
 
 The first line of a day's log removes each log last written more than `log_days` days before. `log_days: 0` writes
-no logs, and leaves the ones there to remove by hand. `kit uninstall` removes `.kit/logs/` with the rest of what kit
-wrote.
+no logs from the next new day's file on: a day whose log exists keeps it going. It leaves the logs there to remove by
+hand. `kit uninstall` removes `.kit/logs/` with the rest of what kit wrote.
 
 see: [modules/bash/log.sh](../kit/modules/bash/log.sh), [serve.md](serve.md)
