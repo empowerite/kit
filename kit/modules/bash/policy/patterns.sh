@@ -21,7 +21,7 @@ policy/patterns:deny() {
     do
       [[ -n "${sha}" && ! "${subject}" =~ ${pattern} ]] || continue
       printf "commit %s '%s' does not match policy.commit_subject: %s\n" "${sha:0:7}" "${subject}" "${pattern}"
-    done < <(jq --raw-output '.commits[] | "\(.sha)\u001f\(.subject)"' "${input}")
+    done < <(jq --raw-output '.commits // [] | .[] | "\(.sha)\u001f\(.subject)"' "${input}")
   fi
   title=$(jq --raw-output '.change.title // ""' "${input}")
   pattern=$(jq --raw-output '.policy.change_title' "${input}")

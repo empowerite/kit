@@ -6,7 +6,8 @@
 #
 #   - `moment`: commit or ci, the point the facts are judged at
 #   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD
-#   - `commits`: at ci, those past the fork from origin's default branch, merges excluded; at commit, the one commit
+#   - `commits`: at ci, those past the fork from origin's default branch, merges excluded, or null when the fork is not
+#     here, as in a shallow clone; at commit, the one commit
 #   - `change`: at ci, the open change on the branch, with its title, body, and author; at commit, always null
 #   - `tree`: at ci, HEAD; at commit, the tree the commit will make
 #   - `policy`: the policy settings, with the kit's defaults filled in
@@ -53,7 +54,7 @@ facts:choices() {
 
 # facts:document <moment> [<tree-ish>] prints the document described in the file header. At ci, the tree is read from
 # the tree-ish, HEAD by default, and is empty while HEAD has no commit. When the fork point is missing, as in a
-# shallow clone, it warns and omits the commits instead of guessing. The change is read from the forge (GitHub or
+# shallow clone, it warns and gives null for the commits instead of guessing. The change is read from the forge (GitHub or
 # GitLab), and is null when there is no forge or no open change. At commit, the tree is the index, as facts:tree
 # reads it; commits is empty and change is null, so the caller fills in the commit it makes.
 facts:document() {
@@ -77,6 +78,7 @@ facts:document() {
       commits=$(git log --no-merges --format='%H%x1f%s' "origin/${default_branch}..HEAD" \
         | jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\u001f") | {sha: .[0], subject: .[1]})')
     else
+      commits=null
       warn "the fork from origin/${default_branch} is not here, so no commit is checked; fetch with full history"
     fi
     if use forge 2>/dev/null && number=$(forge:pr-here 2>/dev/null) && [[ -n "${number}" ]]
@@ -118,7 +120,7 @@ facts:document-tree() {
 # index named by GIT_INDEX_FILE, or the default index. It runs from the repository root.
 facts:tree() {
   local work
-  work=$(mktemp -d) || return 1
+  file:scratch work || return 1
   facts:tree-in "${work}" "$@"
   local -i status=$?
   rm -rf "${work}"

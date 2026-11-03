@@ -10,8 +10,13 @@
 
 use yaml file resolve
 
-# settings:file prints the path of the repository's settings file.
-settings:file() { printf 'kit.yml\n'; }
+# settings_file names the settings file a policy judgment reads, as the judged tree holds it (policy:from), or is
+# empty for kit.yml on the disk.
+declare -g settings_file=''
+
+# settings:file prints the path of the repository's settings file: kit.yml, or the judged tree's while the policy
+# judges.
+settings:file() { printf '%s\n' "${settings_file:-kit.yml}"; }
 
 # settings:value <key> prints the value of one top-level setting, or nothing.
 settings:value() { yaml:value "$(settings:file)" "$1"; }

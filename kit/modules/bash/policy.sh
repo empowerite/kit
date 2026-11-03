@@ -24,6 +24,12 @@
 #   2. otherwise opa, if .kit/policy/ contains a .rego file
 #   3. otherwise patterns
 #
+# kit commit reads the policy from the tree it will commit, never from the disk: kit.yml as that tree holds it, and
+# each .rego file under .kit/policy/ from that tree when its source is a file of the repository's, such as a package
+# of its own. A file the release delivers is read as placed, since the pinned release cannot change under a commit.
+# So an edit on the disk that is not staged cannot weaken the judgment of the commit. kit policy reads the disk, which
+# in CI is the change's HEAD. policy:from sets this up; policy:from-disk puts it back.
+#
 # The providers:
 #
 #   patterns          the default: matches each pattern in bash, with no tool needed
@@ -44,7 +50,10 @@
 #
 # see: docs/policy.md
 
-use yaml git settings facts
+use yaml git settings facts file
+
+# policy_rego is the directory of Rego the opa engine loads: .kit/policy, or the judged tree's copy (policy:from).
+declare -g policy_rego=.kit/policy
 
 # The kit's defaults follow the workflow in .kit/1st.md:
 #
@@ -69,7 +78,7 @@ policy:rules() {
     [[ -n "${key}" ]] || continue
     if [[ -z "${rule[${key}]+x}" ]]
     then
-      error "${settings}: policy has a subject the kit does not know: ${key} (the subjects: branch," \
+      error "kit.yml: policy has a subject the kit does not know: ${key} (the subjects: branch," \
         "commit_subject, change_title)"
       return 1
     fi
@@ -102,7 +111,7 @@ policy:engine() {
   if [[ -z "${engine}" ]]
   then
     engine=patterns
-    compgen -G '.kit/policy/*.rego' >/dev/null && engine=opa
+    compgen -G "${policy_rego}/*.rego" >/dev/null && engine=opa
   fi
   if [[ -z "$(use:modules "policy/${engine}")" ]]
   then
@@ -111,6 +120,38 @@ policy:engine() {
     return 1
   fi
   printf '%s\n' "${engine}"
+}
+
+# policy:from <rev> <dir> makes the policy read its settings and its Rego as <rev> holds them, an empty <rev> being the
+# index that GIT_INDEX_FILE names, or the default one. It writes them under <dir>, which it makes. A tree with no
+# kit.yml reads as one with no settings, the kit's defaults.
+policy:from() {
+  local rev=$1 dir=$2 rego target root
+  mkdir -p "${dir}/rego" || return 1
+  git show "${rev}:kit.yml" > "${dir}/kit.yml" 2>/dev/null || : > "${dir}/kit.yml"
+  root=$(git rev-parse --show-toplevel) || return 1
+  for rego in .kit/policy/*.rego
+  do
+    [[ -e "${rego}" ]] || continue
+    target=$(readlink -f "${rego}")
+    if [[ -L "${rego}" && "${target}" == "${root}/"* ]]
+    then
+      # a source the judged tree lacks is not part of its policy
+      git show "${rev}:${target#"${root}/"}" > "${dir}/rego/${rego##*/}" 2>/dev/null || rm -f "${dir}/rego/${rego##*/}"
+    else
+      cp "${rego}" "${dir}/rego/" || return 1
+    fi
+  done
+  # shellcheck disable=SC2034  # settings:file reads settings_file
+  settings_file=${dir}/kit.yml
+  policy_rego=${dir}/rego
+}
+
+# policy:from-disk makes the policy read kit.yml and .kit/policy from the disk again.
+policy:from-disk() {
+  # shellcheck disable=SC2034  # settings:file reads settings_file
+  settings_file=''
+  policy_rego=.kit/policy
 }
 
 # policy:deny <input-file> prints every refusal the provider finds in the facts, one per line, sorted and without

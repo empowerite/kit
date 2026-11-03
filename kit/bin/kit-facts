@@ -19,11 +19,19 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use facts materialize
+use facts materialize policy file
 guard:arguments facts "$@" || exit $?
 materialize:hydrate
 
 # shellcheck disable=SC2154  # syntax_options is set by guard:arguments
-facts:document "${syntax_options[--moment]:-ci}"
+moment=${syntax_options[--moment]:-ci}
+# At commit, the policy settings in the document are the index's, as kit commit reads them.
+if [[ "${moment}" == commit ]]
+then
+  file:scratch scratch
+  # shellcheck disable=SC2154  # scratch is set by file:scratch
+  policy:from '' "${scratch}/policy"
+fi
+facts:document "${moment}"
 
 # ----------------------------------------------------------------------------------------------------------------------

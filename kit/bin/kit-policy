@@ -59,6 +59,13 @@ else
   input=${scratch}/input
   policy:input > "${input}"
 fi
+if jq --exit-status '.branch != null and .commits == null' "${input}" >/dev/null
+then
+  error "no commit was checked: the fork from origin's default branch is not here; fetch it with full history" \
+    "(fetch-depth: 0 in a GitHub checkout), then run: kit policy"
+  summary "### ❌ No commit was checked" "" "The fork from origin's default branch is not in the clone; fetch it with full history."
+  exit 1
+fi
 author=$(jq --raw-output '.change.author // empty' "${input}")
 if [[ -n "${author}" ]]
 then
@@ -97,10 +104,18 @@ then
   summary "### ❌ ${count} refusal(s) by the policy" "" "- ${refusals//$'\n'/$'\n'- }"
   exit 1
 fi
-subjects=$(jq --raw-output '[if .branch then "the branch" else empty end,
-  "\(.commits | length) commit(s)", if .change then "the change title" else empty end] | join(", ")' "${input}")
 with=''
 (( warning_count == 0 )) || with=", with ${warning_count} warning(s)"
+if jq --exit-status '.branch == null' "${input}" >/dev/null
+then
+  # On the default branch, or detached, there is no branch past the default branch, so only the tree is judged.
+  ok "the ${engine} policy allows the tree at HEAD; on $(jq --raw-output .default_branch "${input}"), no branch or" \
+    "commit is judged${with}"
+  summary "✅ The policy allows the tree at HEAD; no branch or commit is judged${with}."
+  exit 0
+fi
+subjects=$(jq --raw-output '["the branch", "\(.commits | length) commit(s)",
+  if .change then "the change title" else empty end, "the tree"] | join(", ")' "${input}")
 ok "the ${engine} policy allows ${subjects}${with}"
 summary "✅ The policy allows ${subjects}${with}."
 

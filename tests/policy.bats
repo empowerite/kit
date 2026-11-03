@@ -92,10 +92,10 @@ change() {
   [[ "$output" == *"branch 'dependabot/github-actions/actions-1a2b3c' does not match policy.branch"* ]]
 }
 
-@test "on the default branch, or detached, nothing is under check" {
+@test "on the default branch, or detached, only the tree is under check, and kit policy says so" {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
-  [[ "$output" == *"allows 0 commit(s)"* ]]
+  [[ "$output" == *"the patterns policy allows the tree at HEAD; on main, no branch or commit is judged"* ]]
   git commit --quiet --allow-empty --message "not checked"
   git switch --quiet --detach
   run "${kit_root}/bin/kit" policy
@@ -213,3 +213,22 @@ REGO
   [ "$status" -eq 1 ]
   [[ "$output" == *"branch 'BAD' does not match policy.branch"* ]]
 }
+
+@test "Rego that defines no deny in package kit.policy refuses, since unjudged is never allowed" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy
+  printf 'package kit.polcy\n\nimport rego.v1\n\ndeny contains "a typo hides me" if true\n' > .kit/policy/typo.rego
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"defines no data.kit.policy.deny"* ]]
+}
+
+@test "at ci, a branch whose fork from the default branch is not here fails, since no commit could be checked" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git update-ref -d refs/remotes/origin/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no commit was checked"*"fetch"* ]]
+}
+
