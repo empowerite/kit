@@ -139,11 +139,15 @@ shape() {
   run ! in_template template:unapply "${BATS_TEST_TMPDIR}/dot" dot
 }
 
-@test "every governed file in this repository renders back from what it gives its template" {
-  local path rule variant values file bound name failed=0 checked=0
+# renders-back <shard> <shards> checks every <shards>th governed file in this repository, from the <shard>th, counting
+# from 0: each renders back from what it gives its template. The files are split into shards, tests of their own, so
+# bats --jobs spreads them over its jobs; one test over every file took most of the five minutes a test is given.
+renders-back() {
+  local path rule variant values file bound name n=0 failed=0 checked=0
   checkout-copy
   while IFS= read -r path
   do
+    (( n++ % $2 == $1 )) || continue
     [[ -f "${path}" ]] || continue
     while IFS= read -r rule
     do
@@ -164,8 +168,40 @@ shape() {
     done < <(in_template template:rules "${path}" | sed 's|.*/||; s|\.md$||' | sort -u)
   done < <(git ls-files | grep -vE '(^|/)\.kit/templates/|/regions/')
   echo "checked ${checked}"
-  [ "${checked}" -ge 50 ]
+  [ "${checked}" -ge 10 ]
   [ "${failed}" -eq 0 ]
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 1 of 8" {
+  renders-back 0 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 2 of 8" {
+  renders-back 1 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 3 of 8" {
+  renders-back 2 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 4 of 8" {
+  renders-back 3 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 5 of 8" {
+  renders-back 4 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 6 of 8" {
+  renders-back 5 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 7 of 8" {
+  renders-back 6 8
+}
+
+@test "every governed file in this repository renders back from what it gives its template: shard 8 of 8" {
+  renders-back 7 8
 }
 
 @test "kit lint refuses a template with two holes and nothing between them" {

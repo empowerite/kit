@@ -2,6 +2,54 @@
 
 lockfile_version = 3
 
+[conda-packages.linux-arm64."_openmp_mutex-4.5-20_gnu"]
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda"
+checksum = "sha256:a2527b1d81792a0ccd2c05850960df119c2b6d8f5fdec97f2db7d25dc23b1068"
+
+[conda-packages.linux-arm64."libgcc-16.2.0-h205dda4_7"]
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/libgcc-16.2.0-h205dda4_7.conda"
+checksum = "sha256:eae7a3449d5a3b5351c5427137c076cc3fc826645c7bfc42dc10772b783826f1"
+
+[conda-packages.linux-arm64."libgomp-16.2.0-h8acb6b2_7"]
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/libgomp-16.2.0-h8acb6b2_7.conda"
+checksum = "sha256:4406fd67c5beeb99b9372f9bf07aa3e40ca141e337eceebac3ff64aa72799494"
+
+[conda-packages.linux-arm64."libxcrypt-4.4.38-h80f16a2_0"]
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/libxcrypt-4.4.38-h80f16a2_0.conda"
+checksum = "sha256:d3514900e2121972e435f7803763c1843dad6709e48aa02a2b47c4d481f83be7"
+
+[conda-packages.linux-arm64."perl-5.44.0-1_h5bc82ec_perl5"]
+url = "https://conda.anaconda.org/conda-forge/linux-aarch64/perl-5.44.0-1_h5bc82ec_perl5.conda"
+checksum = "sha256:7cf91a128068608c731df55e9c452cccb179b84df086ebc95f70797092c55d73"
+
+[conda-packages.linux-x64."_openmp_mutex-4.5-20_gnu"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda"
+checksum = "sha256:1dd3fffd892081df9726d7eb7e0dea6198962ba775bd88842135a4ddb4deb3c9"
+
+[conda-packages.linux-x64."libgcc-16.2.0-ha9f2e26_7"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgcc-16.2.0-ha9f2e26_7.conda"
+checksum = "sha256:e031634c3a928f9594eba868bc46ef5230d6571a364a0c63215b06c4563bfcea"
+
+[conda-packages.linux-x64."libgomp-16.2.0-he0feb66_7"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgomp-16.2.0-he0feb66_7.conda"
+checksum = "sha256:92a0bb350c7be6a4eedcb4e111c60aefd176018e6b1c009a6e025dbe9bbcd758"
+
+[conda-packages.linux-x64."libxcrypt-4.4.38-h280c20c_0"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/libxcrypt-4.4.38-h280c20c_0.conda"
+checksum = "sha256:f7e9292dd219a6435bbb1223da9586c3e70d66d169c5a92f08db3f2127df04e9"
+
+[conda-packages.linux-x64."perl-5.44.0-1_h7cc23a3_perl5"]
+url = "https://conda.anaconda.org/conda-forge/linux-64/perl-5.44.0-1_h7cc23a3_perl5.conda"
+checksum = "sha256:43afad1c27c24ccc40d98461ab7e1648ccac876421a8783167861ae19c4edc83"
+
+[conda-packages.macos-arm64."perl-5.44.0-1_hb001647_perl5"]
+url = "https://conda.anaconda.org/conda-forge/osx-arm64/perl-5.44.0-1_hb001647_perl5.conda"
+checksum = "sha256:d68a8d9a8f329e46920d7750b495f613e093fa40736d00a227b727f5898804bb"
+
+[conda-packages.macos-x64."perl-5.44.0-1_hd115831_perl5"]
+url = "https://conda.anaconda.org/conda-forge/osx-64/perl-5.44.0-1_hd115831_perl5.conda"
+checksum = "sha256:9af85b288f54b9da1b18c4c9c52acad4d94fe8b6915f5aaaef2c731624a3a747"
+
 [[tools.actionlint]]
 version = "1.7.12"
 backend = "aqua:rhysd/actionlint"
@@ -55,6 +103,46 @@ url_api = "https://api.github.com/repos/bats-core/bats-core/tarball/v1.14.0"
 checksum = "sha256:bb537b70b15b732f6d8827dd6578e3d8ce166636ce1f18ea9a074184fcce9177"
 url = "https://github.com/bats-core/bats-core/archive/refs/tags/v1.14.0.tar.gz"
 url_api = "https://api.github.com/repos/bats-core/bats-core/tarball/v1.14.0"
+
+[[tools."conda:parallel"]]
+version = "20260922"
+backend = "conda:parallel"
+specifiers = ["20260922"]
+
+[tools."conda:parallel".options]
+channel = "conda-forge"
+
+[tools."conda:parallel"."platforms.linux-arm64"]
+checksum = "sha256:5709a5f86eb1c1b7f0578275894860890a58b6c6753e13943cd1f877282e00df"
+url = "https://conda.anaconda.org/conda-forge/noarch/parallel-20260922-hd8ed1ab_0.conda"
+conda_deps = [
+    "perl-5.44.0-1_h5bc82ec_perl5",
+    "libxcrypt-4.4.38-h80f16a2_0",
+    "libgcc-16.2.0-h205dda4_7",
+    "_openmp_mutex-4.5-20_gnu",
+    "libgomp-16.2.0-h8acb6b2_7",
+]
+
+[tools."conda:parallel"."platforms.linux-x64"]
+checksum = "sha256:5709a5f86eb1c1b7f0578275894860890a58b6c6753e13943cd1f877282e00df"
+url = "https://conda.anaconda.org/conda-forge/noarch/parallel-20260922-hd8ed1ab_0.conda"
+conda_deps = [
+    "perl-5.44.0-1_h7cc23a3_perl5",
+    "libxcrypt-4.4.38-h280c20c_0",
+    "libgcc-16.2.0-ha9f2e26_7",
+    "_openmp_mutex-4.5-20_gnu",
+    "libgomp-16.2.0-he0feb66_7",
+]
+
+[tools."conda:parallel"."platforms.macos-arm64"]
+checksum = "sha256:5709a5f86eb1c1b7f0578275894860890a58b6c6753e13943cd1f877282e00df"
+url = "https://conda.anaconda.org/conda-forge/noarch/parallel-20260922-hd8ed1ab_0.conda"
+conda_deps = ["perl-5.44.0-1_hb001647_perl5"]
+
+[tools."conda:parallel"."platforms.macos-x64"]
+checksum = "sha256:5709a5f86eb1c1b7f0578275894860890a58b6c6753e13943cd1f877282e00df"
+url = "https://conda.anaconda.org/conda-forge/noarch/parallel-20260922-hd8ed1ab_0.conda"
+conda_deps = ["perl-5.44.0-1_hd115831_perl5"]
 
 [[tools.gh]]
 version = "2.103.2"

@@ -9,7 +9,7 @@
 #   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
 #     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
-#   - the bats suite, each test stopped and failed at five minutes
+#   - the bats suite, one job per CPU, each test stopped and failed at five minutes
 #   - gofmt, go vet, and go test over tui/, the kit tui binary
 #   - kit/bin/kit check over this repository's installed copy of its own kit
 #
@@ -46,8 +46,9 @@ done
 ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d "${frontmatter}/kinds/*.yml"
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
 # The slowest test takes about a minute on a runner and over two at a desk; one that waits on a terminal forever
-# fails at five minutes, naming itself.
-BATS_TEST_TIMEOUT=300 bats --timing --print-output-on-failure tests/
+# fails at five minutes, naming itself. The tests run side by side, one job per CPU, on GNU parallel from mise.toml:
+# nearly all their time goes to starting short processes, so more jobs than CPUs only queue.
+BATS_TEST_TIMEOUT=300 bats --jobs "$(getconf _NPROCESSORS_ONLN)" --timing --print-output-on-failure tests/
 (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...)
 kit/bin/kit check
 echo "✅ ci passed"
