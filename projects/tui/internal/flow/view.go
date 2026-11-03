@@ -96,9 +96,32 @@ func (m Model) sidebarWidth() int {
 	return m.sideWidth()
 }
 
-// titleWidth gives the cells the title has: the screen's, less two spaces and the panel's search beside it, which is
-// always there.
-func (m Model) titleWidth() int { return m.width - 2 - m.sideWidth() }
+// titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
+func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
+
+// typing is the cells the search keeps at least for what is typed, while the sidebar is hidden.
+const typing = 10
+
+// searchAt gives the screen column the search starts at, on the screen's first line: the sidebar's, while it shows;
+// while it is hidden, right-aligned one cell short of the screen's edge, and while the search is in use, with the
+// keyboard or a query, its glyph over the rightmost tab's number that leaves typing cells after it, or as far right
+// as leaves them when no number does.
+func (m Model) searchAt() int {
+	if m.sidebar || len(m.stages) == 0 {
+		return m.width - m.sideWidth()
+	}
+	if p := m.panel(m.stage); !(p.Focused && p.Cursor == 0) && p.Query == "" {
+		return max(0, m.width-1-ansi.StringWidth(grid.Search+" search"))
+	}
+	room := m.width - 1 - typing - ansi.StringWidth(grid.Search+" ")
+	at := room
+	for _, x := range m.bar().Numbers() {
+		if x <= room {
+			at = x
+		}
+	}
+	return max(0, at)
+}
 
 // barWidth gives the cells the bar has: the screen's while the sidebar is hidden; beside it, the rows', a space, and
 // the rule's cell, where the bar's last line turns down into the rule under it.
@@ -269,8 +292,8 @@ func (m Model) pane() []string {
 	return out
 }
 
-// side ends each of the lines, from the screen's top, with the lines on its right: beside the title, and the bar while
-// the sidebar shows, two spaces and those of sideColumn; under the bar, a space and the rule, its triangle at
+// side ends each of the lines, from the screen's top, with the lines on its right: beside the title, two spaces and
+// the search, from searchAt; beside the bar while the sidebar shows, a space and the next of sideColumn's lines; under the bar, a space and the rule, its triangle at
 // triangleAt, and beside it, while ? shows it, a space and the rest of them.
 func (m Model) side(lines []string) []string {
 	side, sw, pw, bw := m.sideColumn(), m.sideWidth(), m.paneWidth(), m.barWidth()
@@ -280,10 +303,13 @@ func (m Model) side(lines []string) []string {
 	}
 	for k, l := range lines {
 		// the spaces before a side line only when there is one, so a line with none ends on the bar, or the rule
-		width, edge, gap := bw, "", " "
+		width, edge, gap, room := bw, "", " ", sw
 		switch {
 		case k == 0:
-			width, gap = m.titleWidth(), "  "
+			width, gap, room = m.titleWidth(), "  ", m.width-m.searchAt()
+			if !m.sidebar {
+				room-- // the search alone ends one cell short of the edge
+			}
 		case k >= paneTop:
 			width, edge, gap = pw, " "+style.Off(rule), " "
 			switch k {
@@ -294,7 +320,7 @@ func (m Model) side(lines []string) []string {
 			}
 		}
 		if k < len(side) && side[k] != "" {
-			edge += gap + pane.Clip(side[k], sw)
+			edge += gap + pane.Clip(side[k], room)
 		}
 		lines[k] = pane.Pad(pane.Clip(l, width), width, false) + edge
 	}

@@ -211,7 +211,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case msg.X == side && msg.Y >= paneTop && msg.Y < m.sideHeight():
 			return m, m.showSidebar(!m.sidebar)
-		case msg.X >= m.width-m.sideWidth() && (m.sidebar || msg.Y == 0):
+		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
 			return m, m.clickPanel(msg.Y)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {

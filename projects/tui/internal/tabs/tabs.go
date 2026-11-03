@@ -356,6 +356,22 @@ func (b Bar) MenuAt() int {
 	return x
 }
 
+// Numbers gives the screen columns the tabs' numbers are drawn at on the bar's first line, left to right: the first
+// ten tabs', those the view shows.
+func (b Bar) Numbers() []int {
+	if len(b.Tabs) == 0 {
+		return nil
+	}
+	l, w := b.layout(), b.screen()
+	var out []int
+	for i := range min(len(b.Tabs), 10) {
+		if x := 1 + l.at[i] - l.scroll; x >= 1 && x <= w {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 // hit gives the tab a column of the screen falls on: the one whose part covers it; on a triangle that says tabs are
 // hidden, the one that covers the cell just past the view, which selected comes into view. The margin without a
 // triangle is no tab's: -1.

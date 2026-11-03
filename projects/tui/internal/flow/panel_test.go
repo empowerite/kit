@@ -118,29 +118,60 @@ func TestSlashFindsAndANumberWithAltLeavesThePanelForItsStage(t *testing.T) {
 	}
 }
 
-// The search stands on the screen's top right whether the sidebar shows or not, and / or a click on it gives it the
-// keyboard without showing the sidebar; down then has nothing to move to. With the sidebar shown, down moves to the
-// panel's first control.
+// glyphAt gives the column of the search's glyph on the screen's first line.
+func glyphAt(m Model) int {
+	top := strings.Split(raw(m), "\n")[0]
+	return ansi.StringWidth(top[:strings.Index(top, grid.Search)])
+}
+
+// The search stands on the screen's top right whether the sidebar shows or not: while it is hidden, right-aligned one
+// cell short of the edge, and in use, its glyph over the rightmost tab's number that leaves ten cells to type in, until
+// it is left empty. / or a click on it gives it the keyboard without showing the sidebar; down then has nothing to move
+// to. With the sidebar shown, the search is the sidebar's, and down moves to the panel's first control.
 func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	m := loaded(t, options(), down)
-	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" search") || m.bar().Width != 120 {
-		t.Fatalf("the search is not on the top right, or the bar is %d wide: %q", m.bar().Width, top)
+	idle := m.width - 1 - ansi.StringWidth(grid.Search+" search")
+	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" search") ||
+		ansi.StringWidth(top) != m.width-1 || glyphAt(m) != idle || m.bar().Width != 120 {
+		t.Fatalf("the search is not right-aligned, or the bar is %d wide: %q", m.bar().Width, top)
 	}
-	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(m.width-m.sideWidth(), 0)} {
+	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(idle, 0)} {
 		m = drive(m, esc, enter)
 		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " ^C quit · type to search · esc back" {
 			t.Fatalf("%v: in panel %v, sidebar %v, keys %q", enter, m.inPanel, m.sidebar, lines(m)[23])
+		}
+		numbers := m.bar().Numbers()
+		at := glyphAt(m)
+		if !slices.Contains(numbers, at) || m.width-1-(at+3) < typing ||
+			slices.ContainsFunc(numbers, func(x int) bool { return x > at && m.width-1-(x+3) >= typing }) {
+			t.Errorf("%v: the search's glyph is at %d, over none of %v that leaves room", enter, at, numbers)
 		}
 		if m = drive(m, down, press(tea.KeyPgDown)); m.panel(0).Cursor != 0 || m.sideOffset != 0 || m.sidebar {
 			t.Errorf("down in the search alone: cursor %d, offset %d", m.panel(0).Cursor, m.sideOffset)
 		}
 	}
+	at := glyphAt(m)
 	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) ||
 		!strings.Contains(strings.Split(raw(m), "\n")[0], grid.Search+" noun") {
 		t.Errorf("typing in the search alone: %v\n%s", keys(m), view(m))
 	}
-	if m = drive(m, esc, press('?'), typed("/")[0], down); m.panel(0).Cursor != 1 || !m.sidebar {
-		t.Errorf("down from the search with the sidebar shown: cursor %d", m.panel(0).Cursor)
+	// a query left behind keeps the search where it is typed in; an empty one goes back to the edge
+	if m = drive(m, esc); glyphAt(m) != at {
+		t.Errorf("the search with a query moved to %d", glyphAt(m))
+	}
+	if m = drive(m, typed("/")[0], press(tea.KeyBackspace), press(tea.KeyBackspace), press(tea.KeyBackspace),
+		press(tea.KeyBackspace), esc); glyphAt(m) != idle {
+		t.Errorf("the empty search stayed at %d", glyphAt(m))
+	}
+	// on a screen too narrow for any number to leave the room, the search leaves it as far right as it can
+	m = drive(m, tea.WindowSizeMsg{Width: 24, Height: 24}, typed("/")[0])
+	if at := glyphAt(m); at != 24-1-typing-3 {
+		t.Errorf("at 24 columns, the search's glyph is at %d", at)
+	}
+	m = drive(m, esc, tea.WindowSizeMsg{Width: 120, Height: 24})
+	if m = drive(m, press('?'), typed("/")[0], down); m.panel(0).Cursor != 1 || !m.sidebar ||
+		glyphAt(m) != m.width-m.sideWidth() {
+		t.Errorf("down from the search with the sidebar shown: cursor %d, glyph at %d", m.panel(0).Cursor, glyphAt(m))
 	}
 }
 
