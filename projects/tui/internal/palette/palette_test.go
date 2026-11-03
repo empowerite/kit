@@ -3,7 +3,9 @@
 package palette
 
 import (
+	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -86,6 +88,17 @@ func TestEveryVerbButTuiInTheOrderOfTheGroups(t *testing.T) {
 	m, _ := drive(open(t))
 	if names(m) != "commit submit context check version" {
 		t.Errorf("verbs: %q", names(m))
+	}
+}
+
+// A group kit help does not name follows the groups it does, by its name, and a verb with no group is under OTHER,
+// as kit help lists them.
+func TestAGroupKitHelpDoesNotNameFollowsTheOthers(t *testing.T) {
+	m := New([]kit.Verb{{Name: "zeta", Group: "zany"}, {Name: "bare"}, {Name: "commit", Group: "workflow"},
+		{Name: "tui", Group: "interfaces"}}, testkit.Runner(t, "kit"))
+	m, _ = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
+	if drawn(m) != "WORKFLOW ▸commit OTHER bare ZANY zeta" {
+		t.Errorf("tree: %q", drawn(m))
 	}
 }
 
@@ -232,7 +245,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
-	for _, height := range []int{30, 12, 6} {
+	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
 			"open":     nil,
 			"filtered": testkit.Typed("co"),
@@ -266,6 +279,67 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 0})
 	if last(m) != bar || drawn(m) != "WORKFLOW ▸commit submit FILES context CHECKS check INSTALLATION version" {
 		t.Errorf("with no height: %q, %q", drawn(m), last(m))
+	}
+}
+
+// Every line fits the screen at every width the palette may meet, with the purposes and with the pages.
+func TestEveryLineFitsTheWidthWithPurposesOrPages(t *testing.T) {
+	for _, width := range []int{120, 80, 40, 20, 10} {
+		for _, pages := range []bool{false, true} {
+			msgs := []tea.Msg{tea.WindowSizeMsg{Width: width, Height: 20}, down}
+			if pages {
+				msgs = append(msgs, tea.KeyPressMsg{Code: tea.KeyRight})
+			}
+			m, _ := drive(open(t), msgs...)
+			for _, l := range strings.Split(stripANSI(m.View().Content), "\n") {
+				if ansi.StringWidth(l) > width {
+					t.Errorf("at %d, pages %v: a line of %d cells: %q", width, pages, ansi.StringWidth(l), l)
+				}
+			}
+		}
+	}
+}
+
+// Keys pressed while a verb's page is on its way ask kit for it once, not once a key; a page kit could not give is
+// asked for again when the cursor comes back to it, and shows kit's line until then.
+func TestAPageIsAskedForOnceAtATimeAndAgainAfterItFailed(t *testing.T) {
+	m := open(t).At("commit")
+	asked := 0
+	press := func(msg tea.Msg) tea.Cmd {
+		next, cmd := m.Update(msg)
+		m = next.(Model)
+		if cmd != nil {
+			asked++
+		}
+		return cmd
+	}
+	pending := m.Init()
+	if pending == nil {
+		t.Fatal("the palette opened on a page asked for none")
+	}
+	asked = 1
+	for _, msg := range testkit.Typed("qqq") {
+		press(msg) // a filter that hides every verb asks for no page
+	}
+	for range 3 {
+		press(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	}
+	press(down) // to submit: its page is asked for
+	press(up)   // back to commit, whose page is on its way
+	press(down) // submit's is on its way too
+	if asked != 2 {
+		t.Errorf("%d pages asked for over two verbs, not 2", asked)
+	}
+	// commit's page fails: kit's line shows, and coming back asks again
+	m.runner = kit.Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	next, _ := m.Update(pageMsg{verb: "commit", err: errors.New("kit could not run")})
+	m = next.(Model)
+	press(up)
+	if v := stripANSI(m.View().Content); !strings.Contains(v, "kit could not run") {
+		t.Errorf("a failed page does not show kit's line:\n%s", v)
+	}
+	if asked != 3 {
+		t.Errorf("a failed page is not asked for again: %d asked", asked)
 	}
 }
 

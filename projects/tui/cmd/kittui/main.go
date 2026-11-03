@@ -21,22 +21,36 @@ import (
 // version is the release's, written by the release build.
 var version = "unreleased"
 
-func main() { os.Exit(run(os.Args[1:])) }
+// The seams the tests drive: whether stdin, stdout, and stderr are all terminals; what runs a model until the person
+// ends it, a program on the terminal, with the options a test gives it in place of the terminal's streams; what puts
+// kit in this process's place to run the command line; and how the process ends.
+var (
+	terminals = func() bool {
+		return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) &&
+			term.IsTerminal(int(os.Stderr.Fd()))
+	}
+	programOptions []tea.ProgramOption
+	runModel       = func(m tea.Model) (tea.Model, error) { return tea.NewProgram(m, programOptions...).Run() }
+	execKit        = func(r kit.Runner, verb string, args []string) error { return r.Exec(verb, args) }
+	exit           = os.Exit
+)
+
+func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
 // flow, or the guide for welcome, and ends as the person ended it.
-func run(args []string) int {
+func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
-	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) || !term.IsTerminal(int(os.Stderr.Fd())) {
-		fmt.Fprintln(os.Stderr, "❌ "+needsTerminal(verb))
+	if !terminals() {
+		fmt.Fprintln(stderr, "❌ "+needsTerminal(verb))
 		return 2
 	}
 	r := kit.New()
 	if verb == "flow" {
-		return runFlow(r, words)
+		return runFlow(r, words, stderr)
 	}
 	if verb == "welcome" {
-		return runWelcome(r)
+		return runWelcome(r, stderr)
 	}
 	var m app.Model
 	var err error
@@ -50,14 +64,19 @@ func run(args []string) int {
 		m, err = app.Open(r, verb, words)
 	}
 	if err != nil {
-		return refuse(err, os.Stderr)
+		return refuse(err, stderr)
 	}
-	final, err := tea.NewProgram(m).Run()
+	final, err := runModel(m)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
-		return 1
+		return failed(err, stderr)
 	}
-	return finish(final.(app.Model), os.Stderr, r.Exec)
+	return finish(final.(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
+}
+
+// failed says the program could not run, and ends with 1.
+func failed(err error, stderr io.Writer) int {
+	fmt.Fprintf(stderr, "❌ kittui %s: %v\n", version, err)
+	return 1
 }
 
 // needsTerminal gives the line kittui prints without a terminal: the picture and the guide have a text form, the rest
@@ -98,25 +117,23 @@ func refuse(err error, stderr io.Writer) int {
 
 // runFlow opens the picture on kit flow's stages, with the words kit flow was given, and ends as the person
 // ended it.
-func runFlow(r kit.Runner, words []string) int {
+func runFlow(r kit.Runner, words []string, stderr io.Writer) int {
 	m, err := flow.Open(r, words)
 	if err != nil {
-		return refuse(err, os.Stderr)
+		return refuse(err, stderr)
 	}
-	final, err := tea.NewProgram(m).Run()
+	final, err := runModel(m)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
-		return 1
+		return failed(err, stderr)
 	}
 	return finishFlow(final.(flow.Model))
 }
 
 // runWelcome opens the guide where the command was typed, and ends as the person ended it.
-func runWelcome(r kit.Runner) int {
-	final, err := tea.NewProgram(welcome.Open(r)).Run()
+func runWelcome(r kit.Runner, stderr io.Writer) int {
+	final, err := runModel(welcome.Open(r))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ kittui %s: %v\n", version, err)
-		return 1
+		return failed(err, stderr)
 	}
 	return finishWelcome(final.(welcome.Model))
 }
@@ -137,11 +154,15 @@ func finishFlow(m flow.Model) int {
 	return 0
 }
 
-// finish ends as the form ended: 130 and nothing printed on ctrl-c, 1 and nothing printed on esc, and on run the
-// command line to stderr, and the verb exec'd in its place, where the command was typed.
+// finish ends as the screen ended: 130 and nothing printed on ctrl-c; 0 and nothing printed when esc leaves the
+// palette, as kit help ends; 1 and nothing printed when esc cancels a form; and on run the command line to stderr, and
+// the verb exec'd in its place, where the command was typed.
 func finish(m app.Model, stderr io.Writer, exec func(verb string, args []string) error) int {
 	if m.Interrupted() {
 		return 130
+	}
+	if !m.InForm() {
+		return 0
 	}
 	ran, verb, args := m.Result()
 	if !ran {

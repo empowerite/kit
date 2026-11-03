@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/app"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
@@ -122,6 +124,158 @@ func TestEscIsSilent(t *testing.T) {
 	var stderr bytes.Buffer
 	if code := finish(m, &stderr, nil); code != 1 || stderr.Len() != 0 {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())
+	}
+}
+
+// Esc leaves the palette as kit help ends, with 0, even after a form opened from it went back: only a form cancelled
+// ends with 1.
+func TestEscFromThePaletteEndsZero(t *testing.T) {
+	for _, keys := range [][]tea.Msg{
+		{tea.KeyPressMsg{Code: tea.KeyEscape}},
+		{tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: tea.KeyEscape}},
+	} {
+		m, _ := app.OpenHelp(testkit.Runner(t, "kit"), "commit")
+		m = drive(m, keys...)
+		var stderr bytes.Buffer
+		if code := finish(m, &stderr, nil); code != 0 || stderr.Len() != 0 {
+			t.Errorf("after %d keys: exit %d, stderr %q", len(keys), code, stderr.String())
+		}
+	}
+}
+
+func TestAVerbThatCannotRunIsKittuisLine(t *testing.T) {
+	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
+	var stderr bytes.Buffer
+	code := finish(m, &stderr, func(string, []string) error { return errors.New("no such file") })
+	if code != 1 || !strings.Contains(stderr.String(), "❌ kittui could not run kit commit: no such file") {
+		t.Errorf("exit %d, stderr %q", code, stderr.String())
+	}
+}
+
+// ending gives a stand-in for the program: it drives the model from its start at 120×30, then sends the key, as a
+// person would, and gives the model the program would end with.
+func ending(key tea.KeyPressMsg) func(tea.Model) (tea.Model, error) {
+	return func(m tea.Model) (tea.Model, error) {
+		m, _ = testkit.Drive(m, nil, testkit.Start(m, tea.WindowSizeMsg{Width: 120, Height: 30}, key)...)
+		return m, nil
+	}
+}
+
+// onTerminal makes kittui believe it runs on a terminal, over the kit package's fake kit, with the program stood in
+// for by run, and kit's exec by a record of what it would run, which it gives; it puts the seams back when the test
+// ends.
+func onTerminal(t *testing.T, run func(tea.Model) (tea.Model, error)) *[]string {
+	t.Helper()
+	terminals0, runModel0, execKit0 := terminals, runModel, execKit
+	t.Cleanup(func() { terminals, runModel, execKit = terminals0, runModel0, execKit0 })
+	ran := &[]string{}
+	terminals, runModel = func() bool { return true }, run
+	execKit = func(_ kit.Runner, verb string, args []string) error {
+		*ran = append([]string{verb}, args...)
+		return nil
+	}
+	t.Setenv("KIT", testkit.Runner(t, "kit").Kit)
+	t.Setenv("kit_invoked_in", t.TempDir())
+	t.Setenv("FAKE_KIT_RECORD", filepath.Join(t.TempDir(), "record"))
+	return ran
+}
+
+// On a terminal, each screen opens and ends as the person ended it: the palette and kit help with 0 on esc, a form
+// with 1, the picture and the guide with 0, and every one of them with 130 on ctrl-c.
+func TestEveryScreenOpensOnATerminalAndEndsAsThePersonEndedIt(t *testing.T) {
+	esc, ctrlC := tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
+	for _, c := range []struct {
+		args       []string
+		key        tea.KeyPressMsg
+		code       int
+		stderrHas  string
+		stderrNone bool
+	}{
+		{nil, esc, 0, "", true},
+		{[]string{"help"}, esc, 0, "", true},
+		{[]string{"help", "commit"}, esc, 0, "", true},
+		{[]string{"--", "commit"}, esc, 1, "", true},
+		{[]string{"--", "commit", "--message", "hi"}, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift}, 0,
+			"kit commit ", false},
+		{[]string{"flow"}, esc, 0, "", true},
+		{[]string{"welcome"}, esc, 0, "", true},
+		{nil, ctrlC, 130, "", true},
+		{[]string{"flow"}, ctrlC, 130, "", true},
+		{[]string{"welcome"}, ctrlC, 130, "", true},
+		{[]string{"--", "nonesuch"}, esc, 2, "❌ no kit verb 'nonesuch'; run: kit help", false},
+	} {
+		ran := onTerminal(t, ending(c.key))
+		var stderr bytes.Buffer
+		code := run(c.args, &stderr)
+		if code != c.code || c.stderrNone && stderr.Len() != 0 || !strings.Contains(stderr.String(), c.stderrHas) {
+			t.Errorf("kittui %q, then %s: exit %d, stderr %q", c.args, c.key, code, stderr.String())
+		}
+		if run := c.stderrHas == "kit commit "; run != (len(*ran) > 0 && (*ran)[0] == "commit") {
+			t.Errorf("kittui %q, then %s: kit ran %q", c.args, c.key, *ran)
+		}
+	}
+}
+
+// A program that cannot run on the terminal is kittui's own line, ending with 1, on every screen; a picture whose
+// stages kit refuses is kit's line with its code.
+func TestAProgramThatCannotRunIsKittuisLine(t *testing.T) {
+	for _, args := range [][]string{nil, {"flow"}, {"welcome"}} {
+		onTerminal(t, func(tea.Model) (tea.Model, error) { return nil, errors.New("no tty") })
+		var stderr bytes.Buffer
+		if code := run(args, &stderr); code != 1 || stderr.String() != "❌ kittui unreleased: no tty\n" {
+			t.Errorf("kittui %q: exit %d, stderr %q", args, code, stderr.String())
+		}
+	}
+	onTerminal(t, ending(tea.KeyPressMsg{Code: tea.KeyEscape}))
+	t.Setenv("KIT", testkit.Runner(t, "flow").Kit)
+	t.Setenv("FAKE_FLOW_REFUSE", "stages")
+	var stderr bytes.Buffer
+	if code := run([]string{"flow"}, &stderr); code != 2 || !strings.Contains(stderr.String(), "refuses for the test") {
+		t.Errorf("kittui flow over a refusal: exit %d, stderr %q", code, stderr.String())
+	}
+}
+
+// quitter is a model that ends as soon as it starts.
+type quitter struct{}
+
+func (quitter) Init() tea.Cmd                         { return tea.Quit }
+func (q quitter) Update(tea.Msg) (tea.Model, tea.Cmd) { return q, nil }
+func (quitter) View() tea.View                        { return tea.NewView("") }
+
+// The seams' own defaults: the program runs a model to its end over the streams it is given, kit's exec fails without
+// replacing the process when there is no kit to run, and main ends the process with run's code.
+func TestTheSeamsDefaultsRunTheProgramExecKitAndEndTheProcess(t *testing.T) {
+	programOptions = []tea.ProgramOption{tea.WithInput(strings.NewReader("")), tea.WithOutput(io.Discard)}
+	t.Cleanup(func() { programOptions = nil })
+	if m, err := runModel(quitter{}); err != nil || m == nil {
+		t.Errorf("runModel(quitter) = %v, %v", m, err)
+	}
+	if err := execKit(kit.Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}, "commit", nil); err == nil {
+		t.Error("exec of a kit that is not there did not fail")
+	}
+	exit0, args0 := exit, os.Args
+	t.Cleanup(func() { exit, os.Args = exit0, args0 })
+	code := -1
+	exit, os.Args = func(c int) { code = c }, []string{"kittui", "--", "commit"}
+	main()
+	if code != 2 {
+		t.Errorf("main off a terminal ended with %d, not 2", code)
+	}
+}
+
+func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
+	for args, want := range map[string]string{
+		"welcome":   "kit welcome needs an interactive terminal; run: kit welcome --text",
+		"help":      "kit help needs an interactive terminal for its palette; run: kit help --text",
+		"":          "kit tui needs an interactive terminal; run: kit help tui",
+		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
+		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
+	} {
+		var stderr bytes.Buffer
+		if code := run(strings.Fields(args), &stderr); code != 2 || stderr.String() != "❌ "+want+"\n" {
+			t.Errorf("%q: exit %d, stderr %q", args, code, stderr.String())
+		}
 	}
 }
 

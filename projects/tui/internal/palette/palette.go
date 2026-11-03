@@ -34,13 +34,18 @@ type pageMsg struct {
 // groups is the order kit help lists the groups in; a group it does not name follows them.
 var groups = []string{"workflow", "files", "checks", "installation", "interfaces", "help"}
 
+// minPage is the fewest cells beside the names that a page is drawn in; a screen narrower shows the names alone.
+const minPage = 12
+
 // Model is the palette on the screen.
 type Model struct {
 	verbs         []kit.Verb
 	runner        kit.Runner
 	filter        string
 	cursor        int
-	pages         map[string]string
+	pages         map[string]string // the pages kit gave, by verb
+	asked         map[string]bool   // the verbs whose page is on its way
+	failed        map[string]string // kit's line for a page it could not give, shown until it is asked for again
 	showPages     bool
 	refusal       string // kit's line about the verb that did not open, under the filter
 	width, height int
@@ -51,7 +56,8 @@ type Model struct {
 // New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
 // orders the groups, a group kit help does not name after them by its name, and within a group as kit listed them.
 func New(verbs []kit.Verb, r kit.Runner) Model {
-	m := Model{runner: r, pages: map[string]string{}, width: 100, height: 30}
+	m := Model{runner: r, pages: map[string]string{}, asked: map[string]bool{}, failed: map[string]string{}, width: 100,
+		height: 30}
 	for _, v := range verbs {
 		if v.Name != "tui" {
 			m.verbs = append(m.verbs, v)
@@ -133,10 +139,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case pageMsg:
+		delete(m.asked, msg.verb)
 		if msg.err != nil {
-			m.pages[msg.verb] = style.Excluded + " " + msg.err.Error()
+			m.failed[msg.verb] = style.Excluded + " " + msg.err.Error()
 		} else {
 			m.pages[msg.verb] = msg.page
+			delete(m.failed, msg.verb)
 		}
 	case tea.KeyPressMsg:
 		visible := m.Visible()
@@ -229,16 +237,18 @@ func next(visible []kit.Verb, i int) int {
 	return len(visible)
 }
 
-// page fetches the highlighted verb's page, once per verb, when the pages are shown.
+// page fetches the highlighted verb's page when the pages are shown: once, and never while it is on its way. A page
+// kit could not give is asked for again, its line shown meanwhile.
 func (m Model) page() tea.Cmd {
 	visible := m.Visible()
 	if !m.showPages || m.cursor >= len(visible) {
 		return nil
 	}
 	verb := visible[m.cursor].Name
-	if _, ok := m.pages[verb]; ok {
+	if _, ok := m.pages[verb]; ok || m.asked[verb] {
 		return nil
 	}
+	m.asked[verb] = true // the map is shared, so the palette that returned this command knows
 	r := m.runner
 	return func() tea.Msg {
 		page, err := r.Help(verb)
@@ -356,13 +366,17 @@ func (m Model) View() tea.View {
 	if span.Below {
 		list = append(list, "   "+style.Off(pane.More(verbs(lines[span.End:]))))
 	}
-	if m.showPages {
+	leftWidth := 3 + widest + 2
+	rightWidth := m.width - leftWidth
+	if m.showPages && rightWidth >= minPage {
 		right := ""
 		if m.cursor < len(visible) {
-			right = m.pages[visible[m.cursor].Name]
+			name := visible[m.cursor].Name
+			right = m.pages[name]
+			if line, ok := m.failed[name]; ok {
+				right = line
+			}
 		}
-		leftWidth := 3 + widest + 2
-		rightWidth := m.width - leftWidth
 		pageLines := page(right, rightWidth-1)
 		if cut := pane.Frame(len(pageLines), rows, 0, 0, 0); cut.Below {
 			pageLines = append(pageLines[:cut.End], style.Off(pane.More(len(pageLines)-cut.End)))
@@ -373,7 +387,12 @@ func (m Model) View() tea.View {
 			lipgloss.NewStyle().Width(leftWidth).Render(strings.Join(list, "\n")),
 			lipgloss.NewStyle().Width(rightWidth).Render(strings.Join(pageLines, "\n"))), "\n")
 	}
-	v := tea.NewView(strings.Join(style.Bottom(append(top, list...), m.height, style.Bar(keys, m.width)), "\n"))
+	// a screen narrower than the names' column cuts every line at its edge
+	var drawn []string
+	for _, l := range append(top, list...) {
+		drawn = append(drawn, pane.Clip(l, m.width))
+	}
+	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
 	return v
 }
