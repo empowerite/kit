@@ -295,4 +295,79 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$(git log -1 --format=%s)" = "#7 x: a file" ]
 }
 
+# peer-script writes ${work}/peer. peer <message> <path> <content> is another session in this worktree: it writes
+# <path> on the disk and commits it on the branch from an index of its own, so the shared index never sees the commit.
+# It prints the commit.
+peer-script() {
+  cat > "${work}/peer" <<'EOF'
+#!/usr/bin/env bash
+set -o errexit -o nounset
+own=$(mktemp -d)
+printf '%s\n' "$3" > "$2"
+GIT_INDEX_FILE=${own}/index git read-tree HEAD
+GIT_INDEX_FILE=${own}/index git update-index --add -- "$2"
+commit=$(git commit-tree "$(GIT_INDEX_FILE=${own}/index git write-tree)" -p HEAD -m "$1")
+git update-ref HEAD "${commit}"
+rm -rf "${own}"
+printf '%s\n' "${commit}"
+EOF
+  chmod +x "${work}/peer"
+}
+
+@test "an index left behind by another session's commit is refused, naming the commit, and HEAD stays" {
+  local index=${work}/private-index peer
+  peer-script
+  # a changed path: the index holds notes.txt as it was before the peer changed it
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > mine.txt && GIT_INDEX_FILE=${index} git update-index --add mine.txt
+  peer=$("${work}/peer" '#7 notes: theirs' notes.txt theirs)
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"notes.txt"*"${peer:0:7}"* ]]
+  [ "$(git rev-parse HEAD)" = "${peer}" ]
+  # an added path: the index lacks peer.txt, which the peer added
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  GIT_INDEX_FILE=${index} git update-index --add mine.txt
+  peer=$("${work}/peer" '#7 peer: a file' peer.txt peer)
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"peer.txt"*"${peer:0:7}"* ]]
+  [ "$(git rev-parse HEAD)" = "${peer}" ]
+}
+
+@test "a commit that lands while kit commit checks is refused, naming it, and HEAD stays the other session's" {
+  opa-rule 'deny contains "never" if input.never'
+  peer-script
+  # the engine runs during the checks: the other session commits as it is called the first time
+  mkdir "${work}/bin"
+  printf '#!/usr/bin/env bash\n[[ -e %q ]] || { touch %q; %q "#7 notes: theirs" notes.txt theirs >/dev/null; }\nexec %q "$@"\n' \
+    "${work}/landed" "${work}/landed" "${work}/peer" "$(command -v opa)" > "${work}/bin/opa"
+  chmod +x "${work}/bin/opa"
+  printf 'mine\n' > mine.txt && git add mine.txt
+  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file'
+  [ -e "${work}/landed" ]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$(git rev-parse --short HEAD)"* ]]
+  [ "$(git log -1 --format=%s)" = "#7 notes: theirs" ]
+  [ "$(git show HEAD:notes.txt)" = theirs ]
+  [ -z "$(git ls-tree HEAD -- mine.txt)" ]
+}
+
+@test "the shared index commits as before: after a commit by name, a change put back on purpose, and a file removed" {
+  printf 'mine\n' > mine.txt && git add mine.txt
+  printf 'theirs\n' > notes.txt && git commit --quiet --message '#7 notes: theirs' -- notes.txt
+  run kit commit --message '#7 mine: a file'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = mine.txt ]
+  [ "$(git show HEAD:notes.txt)" = theirs ]
+  printf 'notes\n' > notes.txt && git add notes.txt
+  run kit commit --message '#7 notes: back as they were'
+  [ "$status" -eq 0 ]
+  [ "$(git show HEAD:notes.txt)" = notes ]
+  rm mine.txt
+  run kit commit --all --message '#7 mine: gone'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-status --format= HEAD)" = $'D\tmine.txt' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

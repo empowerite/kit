@@ -244,13 +244,50 @@ commit:checks() {
   fi
 }
 
+# commit:behind <path>… refuses a staged path that would undo a commit the index never saw. Such a path is staged as it
+# was before the last commit on HEAD that changed it, absent when that commit added it, while the disk holds something
+# else: an index another session's commit passed by. A change put back on purpose matches the disk, and passes. It
+# names every such path and returns 1.
+commit:behind() {
+  local path last before staged behind=false
+  for path in "$@"
+  do
+    last=$(git log -1 --format=%H HEAD -- ":(literal)${path}")
+    [[ -n "${last}" ]] || continue
+    before=$(git rev-parse --verify --quiet "${last}^:${path}" || true)
+    staged=$(git ls-files --stage -- ":(literal)${path}" | cut -d ' ' -f 2)
+    [[ "${staged}" == "${before}" ]] || continue
+    if [[ -n "${staged}" ]]
+    then
+      git diff --quiet -- ":(literal)${path}" && continue
+    else
+      [[ -e "${path}" || -L "${path}" ]] || continue
+    fi
+    error "${path} is staged as it was before $(git log -1 --format='%h %s' "${last}"); committing it would undo" \
+      "that commit; run: git restore --staged -- '${path}'"
+    behind=true
+  done
+  [[ "${behind}" == false ]]
+}
+
+# commit:moved <head> refuses when HEAD is no longer <head>, the commit kit commit started on: another session
+# committed while the checks ran, and the index never saw it. Git refuses a HEAD that moves during its own hook.
+commit:moved() {
+  local head
+  head=$(git rev-parse --verify --quiet HEAD || true)
+  [[ "${head}" != "$1" ]] || return 0
+  error "HEAD moved to $(git log -1 --format='%h %s') while kit commit checked; nothing is committed; run kit commit again"
+  return 1
+}
+
 # commit:commit <argument>… makes the commit as the file header says, from the options commit:parse reads. The first
 # --message, or the file's first line, is the subject; the rest are the body. <path>… commits those paths alone, as
 # git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
 commit:commit() {
-  local branch subject path rest message
+  local branch subject path rest message head
   local -a staged=() known=()
   commit:parse "$@" || return 2
+  head=$(git rev-parse --verify --quiet HEAD || true)
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
   then
     error "say what the commit is: --message <text>, or --file <path>; kit commit opens no editor; run: kit help commit"
@@ -288,6 +325,7 @@ commit:commit() {
       error "nothing is staged; run: git add <path>…, or kit commit --all for every change to a tracked file"
       return 1
     fi
+    commit:behind "${staged[@]}" || return 1
   fi
   if [[ -n "${commit_file}" ]]
   then
@@ -328,6 +366,7 @@ commit:commit() {
   then
     git commit --quiet --file "${message}" -- "${staged[@]}" || { rm -f "${message}"; return 1; }
   else
+    commit:moved "${head}" || { rm -f "${message}"; return 1; }
     git commit --quiet --file "${message}" || { rm -f "${message}"; return 1; }
   fi
   rm -f "${message}"
