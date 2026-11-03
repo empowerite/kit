@@ -18,6 +18,7 @@
 # args, the verb's arguments as an array of strings. Its resources are the kit's files:
 #
 #   - kit://1st.md
+#   - kit://workflow.md, with the workflow package
 #   - kit://rules/<kind> and kit://styles/<kind>, for each rule and style
 #   - kit://kinds/<file>, for each kinds file
 #

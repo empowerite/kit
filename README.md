@@ -32,7 +32,7 @@ What else kit provides:
   file looks, is optional: one style package per kind of file.
 - `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
 - `kit toolchains`, which lists the toolchains kit finds where it runs, and `kit tools`, which installs and
-  updates the tools the chosen one pins, and runs commands with them.
+  updates the tools the chosen one pins, and the packages npm or uv pins on top, and runs commands with them.
 - `kit flow`, which draws where the work stands in eight stages: backlog, underway, desk, worktrees,
   changes, incoming, builds, releases.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.

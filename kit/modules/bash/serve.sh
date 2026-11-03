@@ -26,8 +26,9 @@
 # changed, with notifications/tools/list_changed and notifications/resources/list_changed, so it asks for them again.
 # A .kit/.gitignore changed since, which kit hydrate rewrites when what it places changes, sends the second alone.
 #
-# A resource is one of the kit's files under .kit/: kit://1st.md, kit://rules/<kind> and kit://styles/<kind> for each
-# rule and style, and kit://kinds/<file> for each kinds file, which may define several kinds.
+# A resource is one of the kit's files under .kit/: kit://1st.md, kit://workflow.md with the workflow package,
+# kit://rules/<kind> and kit://styles/<kind> for each rule and style, and kit://kinds/<file> for each kinds file, which
+# may define several kinds.
 #
 # Each message it answers is a line in .kit/logs/mcp-YYYY-MMDD.log, as modules/bash/log.sh writes it: the request's
 # id=, its method=, and its outcome=, which is ok, error=<code> for a refusal, status=<status> for a tool whose verb

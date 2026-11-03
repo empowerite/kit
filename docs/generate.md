@@ -95,9 +95,10 @@ replaced along with the rest of the region's content.
 
 - Named paths are relative to the directory you typed the command in. Each named file gets one pass, or up to
   `--iterations=<n>` passes.
-- With no paths, it expands every tracked file and every untracked file git does not ignore. It repeats passes
-  until a pass does not change anything, up to twenty passes or `--iterations=<n>`, because one command may read another
-  file's region.
+- With no paths, it expands every tracked file and every untracked file git does not ignore, but a template: a file
+  under `.kit/templates/` or a package's `hosts/` is skipped, since its directive belongs to the file made from it.
+  It repeats passes until a pass does not change anything, up to twenty passes or `--iterations=<n>`, because one
+  command may read another file's region.
 - A run over the whole repository that is still changing at the limit fails. The cause is a command whose output
   depends on its own output.
 

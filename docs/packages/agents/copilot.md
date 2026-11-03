@@ -5,10 +5,11 @@ the neutral tree already reaches it. What the package adds is Copilot's native d
 file per kind under `.github/instructions/`, applied when a file it names is changed.
 
 Each `.github/instructions/kit-<kind>.instructions.md` has the one frontmatter key Copilot reads, `applyTo`. It is
-set to the `paths` of the kind in `.kit/kinds/`, comma-separated in one quoted string, the documented form. The
-body tells the agent to read `.kit/rules/<kind>.md` and follow it, as the `agents/cursor` rules do, so the rule
-text is in one place. A rule that governs a file by its content, such as a bash script with no suffix, is beyond a
-glob; the body names `kit context <path>` for those.
+set to the `paths` of the kind in `.kit/kinds/` as the release ships them, comma-separated in one quoted string,
+the documented form. A repository that changes a kind's paths keeps the release's `applyTo` until it replaces the
+file through a package of its own. The body tells the agent to read `.kit/rules/<kind>.md` and follow it, as the
+`agents/cursor` rules do, so the rule text is in one place. A rule that governs a file by its content, such as a
+bash script with no suffix, is beyond a glob; the body names `kit context <path>` for those.
 
 On GitHub.com the files apply to the Copilot coding agent and to Copilot code review. VS Code attaches them in chat
 and agent mode. Copilot does not offer a deny list that a repository can commit, and the package does not deliver a

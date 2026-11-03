@@ -28,8 +28,8 @@ eval "$(kit completion zsh)"
 ## How it works
 
 The script does not know any verb. On every completion it runs `kit completion candidates` with the words typed so
-far, and offers what comes back. A candidate is one line: the word, a tab, and its description, with `:files` when
-files fit as well. The candidates come from the verbs themselves:
+far, and offers what comes back. A candidate is one line: the word, a tab, and its description. A line `:files`
+of its own asks the shell to offer files as well. The candidates come from the verbs themselves:
 
 - the verbs and their purposes from their headers, as `kit help` reads them
 - a verb's flags, options, literal words, and operands from `kit syntax`, the grammar of its usage lines

@@ -35,7 +35,7 @@ written, the issue is the deliverable, and the workflow above starts from it.
 A worker is whoever implements one issue, in the worktree named for that issue.
 
 1. `cd` into the worktree named in the task. Confirm that `git rev-parse --abbrev-ref HEAD` prints a branch name
-   that begins with `<N>-`.
+   that begins with the issue's key and a dash: `7-` for `#7`, `ab4521-` for `AB#4521`.
 2. Run every command from there. Never touch the root checkout.
 3. Never run `kit issue`, create a branch, or create a worktree. These were done before the handoff.
 4. Implement what the issue asks and nothing else.

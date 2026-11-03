@@ -40,7 +40,7 @@ kit policy
 | Field | Contents |
 | --- | --- |
 | `moment` | `commit` or `ci`: the point the facts are judged at. |
-| `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
+| `branch` | On a runner, the change's head branch. Elsewhere, at the desk or in any worktree, the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
 | `change` | The change's number, title, body, and author's login, read through the code forge (the service that hosts the repository). `null` when there is no code forge, no change, or the code forge could not be read, and `null` at commit. A `null` change leaves `change_title` unchecked. |

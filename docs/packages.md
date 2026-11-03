@@ -26,7 +26,8 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
   which the update says.
 - `kit uninstall` deactivates every package, the `kit` package included: it takes out what they delivered, the
   manifests, and the declaration, and removes `kit.yml` when nothing else is in it. A copied file the repository
-  edited is named and left; `--dry-run` only names what would go.
+  edited is named and left; `--dry-run` only names what would go. What kit keeps in git's own directory stays: the
+  context log and the cached kinds programs.
 
 ## Layout
 
@@ -266,12 +267,14 @@ answers:
 | `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. `kit issue` and `kit submit` fetch from and push to `origin` whatever it is. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
-| `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
+| `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`, and makes `kit release` sign its tag. |
 | `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |
 | `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
+| `facts` | `facts.read`: the globs of the files whose text the policy's facts carry; see [policy.md](policy.md#reading-a-files-text). |
+| `sources` | Other releases a repository takes packages from, each with a `name`, a `url`, and a `digest`; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
 | `flow` | The stages `kit flow` draws, in order: `backlog`, `underway`, `desk`, `worktrees`, `changes`, `incoming`, `builds`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. Default: all eight, in that order. |
