@@ -141,7 +141,8 @@ How a delivered file is placed depends on its destination:
 - A region inside a file the repository owns starts at a `kit:generate` directive and ends at a `kit:end` line.
   `kit generate` fills it with the output of the directive's command, or of `kit region` when it names none.
 - Every other file under `.kit/` is a link to its source when the source is inside the worktree, and otherwise a
-  copy without the write bit. Every other file outside `.kit/` is copied as it is.
+  copy without the write bit. Every other file outside `.kit/` is copied. A package's `templates/` files have their
+  `@key@` placeholders filled from `answers:` first.
 
 The packages:
 
@@ -190,7 +191,8 @@ when any region differs from what its command produces.
 ## Changing what kit adds
 
 Every file kit adds belongs to a package. A file under `.kit/` opens with a `kit:generated` line that names what it is
-and its package, and a `see:` line that says how to stop using it or replace it. It cannot be edited where it lies:
+and its package, and a `see:` line that says how to stop using it or replace it. A template under `.kit/templates/`
+is the exception: it holds the shape a new file starts as. It cannot be edited where it lies:
 a link leads to its source, a copy has no write bit, and git never sees either. `kit check` fails when any
 delivered file differs from the pinned release. Instead:
 

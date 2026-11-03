@@ -302,8 +302,8 @@ in the same commit:
 - Without the hook, stage your change, run `bin/refresh`, and commit.
 
 `kit/bin/kit check`, which the gate runs, names any installed copy that does not match its source. Each delivered file
-says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and the table above
-serves as the notice for `settings.json`.
+but a template says in its header that kit delivered it. A region's `kit:generate` line serves as its notice, and
+the table above serves as the notice for `settings.json`.
 
 ### The test suite
 

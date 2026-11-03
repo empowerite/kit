@@ -194,7 +194,8 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-s
 
 - `kit toolchains` lists the toolchains kit found where it runs, and records which one to use.
 - `kit tools` lists, installs, and updates the tools that toolchain pins, whether mise, nix, Homebrew, docker, or a
-  dev container manages them.
+  dev container manages them, and the packages npm or uv pins on top. apt, dnf, and pacman can fill the system
+  role: they supply what kit itself runs on.
 - The gate runs with those tools on the desk, in a worktree, and on a CI runner alike.
 
 see: [toolchains.md](toolchains.md)
@@ -259,9 +260,9 @@ see: [generate.md](generate.md)
   directory per language under `modules/`: bash modules, loaded with `use`, and jq modules, imported by the jq
   programs the bash modules run and tested with `jq --run-tests`.
 - A repository can add bash modules, or override a function, in its own directory on the module path.
-- Each code forge, tracker, toolchain, and policy engine sits behind a seam: one file whose header lists the calls a
-  provider answers, and whose code picks the provider at run time. A new provider is a module that answers those
-  calls.
+- Each code forge, tracker, toolchain, dependency provider, and policy engine sits behind a seam: one file whose
+  header lists the calls a provider answers, and whose code picks the provider at run time. A new provider is a
+  module that answers those calls.
 
 see: [modules.md](modules.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
 

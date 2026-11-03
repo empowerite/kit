@@ -7,7 +7,7 @@ repository takes the ones it agrees with.
 | Package | Delivers |
 | --- | --- |
 | `style/bash` | `.kit/styles/bash.md`; the `script` and `module` templates under `.kit/templates/bash/` |
-| `style/markdown` | `.kit/styles/markdown.md`; four templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
+| `style/markdown` | `.kit/styles/markdown.md`; three templates under `.kit/templates/markdown/`; `.kit/markdownlint.jsonc` |
 | `style/just` | `.kit/styles/just.md`; the `root` and `module` templates under `.kit/templates/just/` |
 | `style/workflows` | `.kit/styles/workflows.md`; the `workflow` template under `.kit/templates/workflows/` |
 | `style/yaml` | `.kit/styles/yaml.md`; the `document` template under `.kit/templates/yaml/` |

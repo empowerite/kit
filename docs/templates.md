@@ -3,7 +3,7 @@
 A template is a file of one kind with holes in it, attached to the rule or the style for that kind. `kit new file`
 fills the holes to make a new file, and `kit lint` checks that every existing file still has the shape of one of
 its templates. A style package delivers the templates for its kind; without that package, a kind has no style
-templates. The kit package delivers four of its own, `.kit/templates/bash/<seam>-provider`, which the bash rule
+templates. The kit package delivers five of its own, `.kit/templates/bash/<seam>-provider`, which the bash rule
 lists: they hold a seam's providers to its calls in every repository.
 
 ```sh
@@ -37,7 +37,7 @@ templates:
 | workflows | `workflow` | | |
 | gitignore | `file` | | |
 | gitignore | `region` | `.gitignore` | a file the kit made of its region alone |
-| bash (the rule) | `forge-provider`, `policy-provider`, `toolchain-provider`, `tracker-provider` | `**/<seam>/*.sh` | a seam's provider; see below |
+| bash (the rule) | `dependencies-provider`, `forge-provider`, `policy-provider`, `toolchain-provider`, `tracker-provider` | `**/<seam>/*.sh` | a seam's provider; see below |
 
 JSON style has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 
@@ -49,9 +49,10 @@ under the banner and at the end of the file. The templates the kit delivers have
 
 ## Holes
 
-A hole is a name between guillemets, `«name»`, with `[a-z_]+` for the name. No file kind the rules govern uses
-guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and `…` with Option-;. Without them, type
-`<<name>>`, `<<name...>>`, or `<<name=default>>`, and `kit template fix <path>` rewrites them.
+A hole is a name between guillemets, `«name»`, with `[a-z_]+` for the name, or a dotted path of such names. No
+file kind the rules govern uses guillemets. On a Mac, type `«` with Option-\ and `»` with Shift-Option-\, and `…`
+with Option-;. Without them, type `<<name>>`, `<<name...>>`, or `<<name=default>>`, and `kit template fix <path>`
+rewrites them.
 
 | Hole | When making a file | When checking a file |
 | --- | --- | --- |

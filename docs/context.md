@@ -60,7 +60,7 @@ them. `text` lists every kind the kit defines that holds prose, plus `**/*.txt`,
 - A file that does not exist yet is matched by its path alone.
 
 A rule file, or a style file, opens with a frontmatter block that names the kinds it governs and does not carry a glob
-of its own. The keys appear in rules and styles alike; templates are mostly a style's, though the bash rule lists four:
+of its own. The keys appear in rules and styles alike; templates are mostly a style's, though the bash rule lists five:
 
 ```yaml
 ---

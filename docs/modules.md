@@ -52,7 +52,8 @@ bash_path:
 
 - Without the setting, the path is `kit:modules/bash/` alone.
 - The path starts with `kit:modules/bash/`. A path that does not is refused.
-- A directory that does not exist is skipped, as `PATH` skips one. A root other than `kit:` is refused.
+- A directory that does not exist is skipped, as `PATH` skips one. A root other than `kit:` must be a source that
+  `sources:` in `kit.yml` names; see [packages.md](packages.md). Any other is refused.
 - `use:path` prints the directories the path resolved to, one per line, which shows what was skipped.
 
 A module only one directory has loads from there. A module several directories have loads from each, in path
