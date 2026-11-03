@@ -80,14 +80,15 @@ JSON
 @test "kit flow backlog --mine drops the assignee column, as kit flow --mine drops the author; --owner keeps it" {
   run kit flow backlog --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#11  "*"d  🎫 Third thing" ]]
+  in-order "${lines[0]}" '#11' 'Third thing'
+  [[ "${lines[0]}" != *"ada"* ]]
   [ "${#lines[@]}" -eq 1 ]
   fixture issues.json <<'JSON'
 [{"number": 11, "title": "Third thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-30T09:00:00Z"}]
 JSON
   run kit flow backlog --owner=bob
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#11  👤 bob  "*"d  🎫 Third thing" ]]
+  in-order "${lines[0]}" '#11' 'bob' 'Third thing'
   [ "${#lines[@]}" -eq 1 ]
 }
 
@@ -97,7 +98,7 @@ JSON
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "9" ]
   run kit flow backlog --others
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#9  "*"d  🌿 9-other  🎫 Other thing" ]]
+  in-order "${lines[0]}" '#9' '9-other' 'Other thing'
   [ "${#lines[@]}" -eq 1 ]
 }
 
@@ -150,12 +151,13 @@ JSON
 JSON
   run kit flow backlog --today
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#13  👤 ada  "*"  🎫 Fresh thing" ]]
-  [[ "${lines[1]}" == "#14        "*"  🎫 Fresh other" ]]
+  in-order "${lines[0]}" '#13' 'ada' 'Fresh thing'
+  in-order "${lines[1]}" '#14' 'Fresh other'
   [ "${#lines[@]}" -eq 2 ]
   run kit flow backlog --today --mine
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#13  "*"  🎫 Fresh thing" ]]
+  in-order "${lines[0]}" '#13' 'Fresh thing'
+  [[ "${lines[0]}" != *"ada"* ]]
   [ "${#lines[@]}" -eq 1 ]
   run kit flow backlog --today --json
   [ "$status" -eq 0 ]
@@ -184,7 +186,7 @@ JSON
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "11" ]
   run kit flow backlog --mine --owner=bob
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "#11  👤 ada  "*"d  🎫 Third thing" ]]
+  in-order "${lines[0]}" '#11' 'ada' 'Third thing'
   [ "${#lines[@]}" -eq 1 ]
   run kit flow backlog --mine --others --json
   [ "$status" -eq 0 ]

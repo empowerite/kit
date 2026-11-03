@@ -89,7 +89,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq -c '[.primary, [.remotes[] | [.name, .forge, (.commits | length)]]]' <<<"$output")" \
     = '["upstream",[["upstream","gitlab",2],["origin","github",0]]]' ]
   run kit flow incoming
-  [ "${lines[0]}" = "📡 upstream · gitlab · ../upstream.git" ]
+  in-order "${lines[0]}" 'upstream' 'gitlab' '../upstream.git'
   run kit flow desk --json
   [ "$(jq -c '[.ahead, .behind]' <<<"$output")" = '[0,2]' ]
   run kit flow desk
@@ -101,11 +101,11 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   push-to upstream u1 main
   run --keep-empty-lines kit flow incoming
   [ "$status" -eq 1 ]
-  [ "${lines[1]}" = "📥 unchanged" ]
-  [ "${lines[3]}" = "📡 gone · no forge · ${work}/nowhere.git" ]
+  in-order "${lines[1]}" 'unchanged'
+  in-order "${lines[3]}" 'gone' 'no forge' "${work}/nowhere.git"
   [[ "${lines[4]}" == "❌ fatal: "*"nowhere.git"* ]]
-  [ "${lines[6]}" = "📡 upstream · gitlab · ../upstream.git" ]
-  [ "${lines[7]}" = "📥 fetched 1 new commit on main" ]
+  in-order "${lines[6]}" 'upstream' 'gitlab' '../upstream.git'
+  in-order "${lines[7]}" 'fetched 1 new commit on main'
   run kit flow incoming --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.remotes[] | [.name, (.error != null)]]' <<<"$output")" \
@@ -115,8 +115,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   printf 'forge: github\nforges: {upstream: gitlab}\nflow: [incoming, desk]\n' > kit.yml
   run kit flow
   [ "$status" -eq 1 ]
-  [[ "$output" == *$'📥 INCOMING\n📡 origin · github · '*$'\n📡 gone · no forge · '*$'\n❌ fatal: '* ]]
-  [[ "$output" == *$'\n💻 DESK 1\n'* ]]
+  in-order "$output" $'INCOMING\n' 'origin' 'github' 'gone' 'no forge' $'\n❌ fatal: '
+  [[ "$output" == *$'DESK 1\n'* ]]
   run kit flow --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.incoming.remotes[].name]' <<<"$output")" = '["origin","gone","upstream"]' ]
@@ -137,9 +137,9 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 "'{"name":"mirror","forge":"github","host":"git.example.test"},{"name":"plain","forge":null,"host":"elsewhere.test"},'"\
 "'{"name":"upstream","forge":"gitlab","host":null}]}' ]
   GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit flow incoming --no-fetch
-  [ "${lines[2]}" = "📡 mirror · github · git.example.test" ]
-  [ "${lines[3]}" = "📥 not fetched" ]
-  [ "${lines[4]}" = "📡 plain · no forge · elsewhere.test" ]
+  in-order "${lines[2]}" 'mirror' 'github' 'git.example.test'
+  in-order "${lines[3]}" 'not fetched'
+  in-order "${lines[4]}" 'plain' 'no forge' 'elsewhere.test'
 }
 
 @test "kit help flow holds the incoming legend: the remote's glyph and a failed fetch" {

@@ -252,27 +252,28 @@ fake-tui() {
   printf 'x\n' > c
   run --keep-empty-lines "${kit_root}/bin/kit" flow
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🌿 WORKTREES 1" ]
-  [ "${lines[1]}" = "🌿 worktrees/7-topic · ↑0 ↓0 · +0 -0" ]
+  # the rows' drawing is pinned where each row is tested; here, what each stage holds, in order
+  [[ "${lines[0]}" == *"WORKTREES 1" ]]
+  in-order "${lines[1]}" 'worktrees/7-topic'
   [ "${lines[2]}" = "" ]
-  [ "${lines[3]}" = "💻 DESK 1" ]
-  [ "${lines[4]}" = "💻 main · ↑0 ↓0 · +0 -0 · 1 uncommitted" ]
-  [ "${lines[5]}" = "   ?? c" ]
+  [[ "${lines[3]}" == *"DESK 1" ]]
+  in-order "${lines[4]}" 'main' '1 uncommitted'
+  in-order "${lines[5]}" '?? c'
   [ "${lines[6]}" = "" ]
-  [ "${lines[7]}" = "📥 INCOMING" ]
-  [ "${lines[8]}" = "📡 origin · no forge · ${work}/origin.git" ]
-  [ "${lines[9]}" = "📥 unchanged" ]
+  [[ "${lines[7]}" == *"INCOMING" ]]
+  in-order "${lines[8]}" 'origin' 'no forge' "${work}/origin.git"
+  in-order "${lines[9]}" 'unchanged'
   [ "${#lines[@]}" -eq 10 ]
-  # the heading is dim only when effects are on; --text prints the same picture
+  # the heading is dim only when effects are on; --text prints the same picture. These pin the heading's drawing.
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "${lines[0]}" == "🌿 ${esc}[1mWORKTREES${esc}[0m ${esc}[90m1${esc}[0m" ]]
   [[ "$output" == *"💻 ${esc}[1mDESK${esc}[0m ${esc}[90m1${esc}[0m"* ]]
   [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"📡 origin${esc}[90m · no forge · ${work}/origin.git${esc}[0m"$'\n'"${esc}[90m📥 not fetched${esc}[0m"* ]]
   run --keep-empty-lines "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "$output" != *"${esc}["* ]]
-  [ "${lines[7]}" = "📥 INCOMING" ]
-  [ "${lines[8]}" = "📡 origin · no forge · ${work}/origin.git" ]
-  [ "${lines[9]}" = "📥 not fetched" ]
+  [[ "${lines[7]}" == *"INCOMING" ]]
+  in-order "${lines[8]}" 'origin' 'no forge' "${work}/origin.git"
+  in-order "${lines[9]}" 'not fetched'
 }
 
 @test "kit flow --json is one object: stages in the configured order, and under each name what the stage alone prints" {
@@ -299,33 +300,34 @@ fake-tui() {
   forge-world
   run --keep-empty-lines "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🎫 BACKLOG 2" ]
-  [[ "${lines[1]}" == " #9        "*"d  🌿 9-other  🎫 Other thing" ]]
-  [[ "${lines[2]}" == "#11  👤 ada  "*"d              🎫 Third thing" ]]
+  # each stage's rows are drawn as its own tests pin them; here, the stages, their counts, and what each holds
+  [[ "${lines[0]}" == *"BACKLOG 2" ]]
+  in-order "${lines[1]}" '#9' '9-other' 'Other thing'
+  in-order "${lines[2]}" '#11' 'ada' 'Third thing'
   [ "${lines[3]}" = "" ]
-  [ "${lines[4]}" = "🛫 UNDERWAY 1" ]
-  [[ "${lines[5]}" == "#7  👤 bob  🛫 "*"d  🔀 #3 🔨 draft  👤 ada   🎫 Fix the thing" ]]
+  [[ "${lines[4]}" == *"UNDERWAY 1" ]]
+  in-order "${lines[5]}" '#7' 'bob' '#3' 'draft' 'ada' 'Fix the thing'
   [ "${lines[6]}" = "" ]
-  [ "${lines[7]}" = "💻 DESK 1" ]
-  [ "${lines[8]}" = "💻 main · ↑0 ↓0 · +0 -0" ]
+  [[ "${lines[7]}" == *"DESK 1" ]]
+  in-order "${lines[8]}" 'main'
   [ "${lines[9]}" = "" ]
-  [ "${lines[10]}" = "🌿 WORKTREES 0" ]
+  [[ "${lines[10]}" == *"WORKTREES 0" ]]
   [ "${lines[11]}" = "no worktree" ]
   [ "${lines[12]}" = "" ]
-  [ "${lines[13]}" = "🔀 CHANGES 1" ]
-  [[ "${lines[14]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
-  [[ "${lines[15]}" == "   #7  👤 bob  🛫 in flight "*"d  🎫 Fix the thing" ]]
+  [[ "${lines[13]}" == *"CHANGES 1" ]]
+  in-order "${lines[14]}" '#3' 'Fix the thing' 'ada' 'draft' '7-fix-the-thing'
+  in-order "${lines[15]}" '#7' 'bob' 'in flight' 'Fix the thing'
   [ "${lines[16]}" = "" ]
-  [ "${lines[17]}" = "📥 INCOMING" ]
-  [ "${lines[18]}" = "📡 origin · github · ${work}/origin.git" ]
-  [ "${lines[19]}" = "📥 not fetched" ]
+  [[ "${lines[17]}" == *"INCOMING" ]]
+  in-order "${lines[18]}" 'origin' 'github' "${work}/origin.git"
+  in-order "${lines[19]}" 'not fetched'
   [ "${lines[20]}" = "" ]
-  [ "${lines[21]}" = "🏭 BUILDS 1" ]
-  [[ "${lines[22]}" == "✅  kit  push  main  "*"d  3m 36s" ]]
+  [[ "${lines[21]}" == *"BUILDS 1" ]]
+  in-order "${lines[22]}" 'kit' 'push' 'main' '3m 36s'
   [ "${lines[23]}" = "" ]
-  [ "${lines[24]}" = "📦 RELEASES 3" ]
-  [[ "${lines[25]}" == "0.1.0-rc.7  📝 draft "* ]]
-  [[ "${lines[27]}" == "0.0.9       📦 release "*"  ⭐ latest" ]]
+  [[ "${lines[24]}" == *"RELEASES 3" ]]
+  in-order "${lines[25]}" '0.1.0-rc.7' 'draft'
+  in-order "${lines[27]}" '0.0.9' 'release' 'latest'
   [ "${#lines[@]}" -eq 28 ]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
@@ -355,15 +357,15 @@ fake-tui() {
   empty-forge
   run --keep-empty-lines "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🎫 BACKLOG 0" ]
+  [[ "${lines[0]}" == *"BACKLOG 0" ]]
   [ "${lines[1]}" = "no open issue without a pull request" ]
-  [ "${lines[3]}" = "🛫 UNDERWAY 0" ]
+  [[ "${lines[3]}" == *"UNDERWAY 0" ]]
   [ "${lines[4]}" = "no issue is underway" ]
-  [ "${lines[12]}" = "🔀 CHANGES 0" ]
+  [[ "${lines[12]}" == *"CHANGES 0" ]]
   [ "${lines[13]}" = "no open pull request" ]
-  [ "${lines[19]}" = "🏭 BUILDS 0" ]
+  [[ "${lines[19]}" == *"BUILDS 0" ]]
   [ "${lines[20]}" = "no build since the last 20 runs" ]
-  [ "${lines[22]}" = "📦 RELEASES 0" ]
+  [[ "${lines[22]}" == *"RELEASES 0" ]]
   [ "${lines[23]}" = "no release yet" ]
   [ "${#lines[@]}" -eq 24 ]
   run "${kit_root}/bin/kit" flow backlog
@@ -390,9 +392,9 @@ fake-tui() {
   export PATH="$(shims gh)"
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "🎫 BACKLOG" ]
+  [[ "${lines[0]}" == *"BACKLOG" ]]
   [[ "${lines[1]}" == "❌ "* ]]
-  [[ "$output" == *$'\n💻 DESK 1\n💻 main'* ]]
+  in-order "$output" $'DESK 1\n' 'main'
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.backlog, .underway, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
@@ -408,10 +410,10 @@ fake-tui() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
   [ "${lines[1]}" = "" ]
-  [ "${lines[2]}" = "💻 DESK 1" ]
-  [ "${lines[3]}" = "💻 main · ↑0 ↓0 · +0 -0" ]
+  [[ "${lines[2]}" == *"DESK 1" ]]
+  in-order "${lines[3]}" 'main'
   [ "${lines[4]}" = "" ]
-  [ "${lines[5]}" = "🌿 WORKTREES 0" ]
+  [[ "${lines[5]}" == *"WORKTREES 0" ]]
   [ "${lines[6]}" = "no worktree" ]
   [ "${#lines[@]}" -eq 7 ]
   run "${kit_root}/bin/kit" flow --json
@@ -458,10 +460,10 @@ fake-tui() {
   run pty "'${kit_root}/bin/kit' flow --json --no-fetch"
   [[ "$output" == *'"stages":["desk"]'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow desk"
-  [[ "$output" == *"💻 main"* && "$output" != *"kittui"* && "$output" != *"DESK"* ]]
+  [[ "$output" == *"main"* && "$output" != *"kittui"* && "$output" != *"DESK"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch </dev/null
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "💻 DESK 1" ]
+  [[ "${lines[0]}" == *"DESK 1" ]]
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --bogus"
   [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* && "$output" != *"kittui"* ]]
@@ -489,17 +491,17 @@ fake-tui() {
   cd worktrees/7-fix-the-thing
   run "${kit_root}/bin/kit" flow worktrees
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "🌿 7-fix-the-thing · ↑0 ↓0 · +0 -0" ]
+  in-order "${lines[0]}" '7-fix-the-thing'
   [ "${#lines[@]}" -eq 1 ]
   run "${kit_root}/bin/kit" flow worktrees --json
   [ "$(jq -c '[has("desk"), [.worktrees[].branch]]' <<<"$output")" = '[false,["7-fix-the-thing"]]' ]
   run "${kit_root}/bin/kit" flow changes --others
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
+  in-order "${lines[0]}" '#3' 'Fix the thing' 'ada' 'draft' '7-fix-the-thing'
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n💻 DESK 1\n💻 main on ../.. · '*$'\n🌿 WORKTREES 1\n🌿 7-fix-the-thing · '* ]]
-  [[ "$output" == *$'\n🔀 CHANGES 1\n🔀 #3 Fix the thing'* ]]
+  in-order "$output" $'DESK 1\n' 'main on ../..' $'WORKTREES 1\n' '7-fix-the-thing'
+  in-order "$output" $'CHANGES 1\n' '#3 Fix the thing'
   cd ../../../elsewhere
   run "${kit_root}/bin/kit" flow changes
   [ "$output" = "no open pull request" ]
@@ -507,7 +509,7 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow worktrees --json
   [ "$(jq -c '[has("desk"), [.worktrees[].branch]]' <<<"$output")" = '[false,["elsewhere","7-fix-the-thing"]]' ]
   run "${kit_root}/bin/kit" flow worktrees
-  [[ "${lines[0]}" == "🌿 ../elsewhere "* ]]
+  in-order "${lines[0]}" '../elsewhere'
   [[ "$output" == *$'\n\n🌿 worktrees/7-fix-the-thing'* && "$output" != *"💻"* ]]
 }
 
@@ -517,7 +519,7 @@ fake-tui() {
   printf 'x\n' > c
   run "${kit_root}/bin/kit" flow desk
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "💻 main · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
+  in-order "${lines[0]}" 'main' '2 uncommitted'
   [[ "$output" == *"?? c"* && "$output" == *" two" && "$output" != *"7-topic"* ]]
   run "${kit_root}/bin/kit" flow desk --json
   [ "$status" -eq 0 ]
@@ -529,7 +531,7 @@ fake-tui() {
   cd worktrees/7-topic
   run "${kit_root}/bin/kit" flow desk
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "💻 main on ../.. · ↑1 ↓0 · +1 -0 · 2 uncommitted" ]
+  in-order "${lines[0]}" 'main on ../..' '2 uncommitted'
   run "${kit_root}/bin/kit" flow desk --json
   [ "$(jq -c '[.path, .relative, .branch, .uncommitted]' <<<"$output")" \
     = "$(jq -nc --arg path "${desk}" '[$path, "../..", "main", 2]')" ]
@@ -560,13 +562,13 @@ fake-tui() {
   git init --quiet --initial-branch=main desk/nested
   run "${kit_root}/bin/kit" flow --no-fetch
   [[ "$output" == *"📂 desk"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
-  [[ "$output" == *"📂 group/deep/two"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
-  [[ "$output" != *"📂 group/.hidden"* && "$output" != *"📂 desk/nested"* ]]
+  in-order "$output" $'group/deep/two\n' $'DESK 1\n' 'main'
+  [[ "$output" != *"group/.hidden"* && "$output" != *"desk/nested"* ]]
   output=$("${kit_root}/bin/kit" flow --no-fetch --json 2>/dev/null)
   [ "$(jq -c 'map(.path)' <<<"$output")" = '["desk","group/deep/two"]' ]
   [ "$(jq -r '.[0].status.desk.branch' <<<"$output")" = main ]
   run "${kit_root}/bin/kit" flow desk
-  [[ "$output" == *"📂 desk"$'\n'"💻 main"* ]]
+  in-order "$output" $'desk\n' 'main'
   output=$("${kit_root}/bin/kit" flow desk --json 2>/dev/null)
   [ "$(jq -c 'map([.path, .status.branch])' <<<"$output")" = '[["desk","main"],["group/deep/two","main"]]' ]
   mkdir "${BATS_TEST_TMPDIR}/nowhere" && cd "${BATS_TEST_TMPDIR}/nowhere"
@@ -703,7 +705,7 @@ fake-tui() {
   cd "${work}"
   run pty "'${kit_root}/bin/kit' flow --no-fetch"
   # the pseudo-terminal ends every line with CR LF
-  [[ "${output//$'\r'/}" == *"📂 desk"$'\n'"💻 DESK 1"$'\n'"💻 main"* ]]
+  in-order "${output//$'\r'/}" $'desk\n' $'DESK 1\n' 'main'
   [[ "$output" != *"kittui"* ]]
 }
 
@@ -772,7 +774,7 @@ fake-tui() {
   [ "$status" -eq 1 ]
   [[ "${lines[0]}" == *"git fetch --prune failed; ahead and behind counts may be stale" ]]
   [ "$(grep -c 'fetch --prune failed' <<<"$output")" -eq 1 ]
-  [[ "$output" == *$'💻 DESK 1\n💻 main'* ]]
+  in-order "$output" $'DESK 1\n' 'main'
   run "${kit_root}/bin/kit" flow --json
   [ "$status" -eq 1 ]
   [[ "$output" == *"git fetch --prune failed"* ]]

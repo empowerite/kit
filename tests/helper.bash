@@ -285,6 +285,23 @@ route() {
   printf '%s\t%s\n' "$1" "$2" >> "${FAKE_DIR}/${tool}.routes"
 }
 
+# in-order <text> <word>… succeeds when the text holds each word, each after the one before, and otherwise names the
+# first word it lacks. A test of what a picture holds checks its words this way, so a change to a glyph or a column's
+# padding breaks only the test that pins that drawing.
+in-order() {
+  local text=$1 rest=$1 word
+  shift
+  for word in "$@"
+  do
+    if [[ "${rest}" != *"${word}"* ]]
+    then
+      printf "'%s' is not where it belongs in:\n%s\n" "${word}" "${text}" >&2
+      return 1
+    fi
+    rest=${rest#*"${word}"}
+  done
+}
+
 # declared <key> prints a top-level key of kit.yml: a scalar's value, or a list's items on one line.
 declared() {
   awk -v key="$1" '
