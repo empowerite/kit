@@ -1,0 +1,65 @@
+// The styles draw their text whole, each with its own escapes, and the keys bar fits its line and ends the screen.
+package style
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+)
+
+// Each style keeps its text as it is, and only adds the escapes that draw it; two styles draw it differently.
+func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
+	styles := map[string]func(string) string{"Mark": Mark, "Gain": Gain, "Loss": Loss, "Warn": Warn, "Repo": Repo,
+		"Chosen": Chosen, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal}
+	drawn := map[string]string{}
+	for name, draw := range styles {
+		got := draw("kit 🏭")
+		if ansi.Strip(got) != "kit 🏭" {
+			t.Errorf("%s changes the text: %q", name, ansi.Strip(got))
+		}
+		for other, before := range drawn {
+			if got == before && other != name {
+				t.Errorf("%s and %s draw alike: %q", name, other, got)
+			}
+		}
+		drawn[name] = got
+	}
+}
+
+// The bar is one dim line after a space, clipped to the width with …, and nothing at all on a screen of one column.
+func TestTheBarFitsItsLine(t *testing.T) {
+	keys := "↑↓ move · ⏎ next · esc back"
+	if got := ansi.Strip(Bar(keys, 80)); got != " "+keys {
+		t.Errorf("at 80: %q", got)
+	}
+	if got := ansi.Strip(Bar(keys, 12)); ansi.StringWidth(got) != 12 || !strings.HasSuffix(got, "…") {
+		t.Errorf("at 12: %q", got)
+	}
+	if Bar(keys, 1) != "" || Bar(keys, 0) != "" {
+		t.Errorf("at one column or none: %q %q", Bar(keys, 1), Bar(keys, 0))
+	}
+	if !strings.Contains(Bar(keys, 80), Off(keys)) {
+		t.Error("the bar is not dim")
+	}
+}
+
+// The bar is the last line of a screen of any height: the lines above are cut or padded to the rest, and a height not
+// yet known draws them all, a gap, and the bar.
+func TestTheBarIsTheLastLineOfTheScreen(t *testing.T) {
+	lines := []string{"a", "b", "c"}
+	for _, c := range []struct {
+		height int
+		want   []string
+	}{
+		{5, []string{"a", "b", "c", "", "bar"}},
+		{3, []string{"a", "b", "bar"}},
+		{1, []string{"bar"}},
+		{0, []string{"a", "b", "c", "", "bar"}},
+	} {
+		if got := Bottom(slices.Clone(lines), c.height, "bar"); !slices.Equal(got, c.want) {
+			t.Errorf("Bottom at %d = %q, want %q", c.height, got, c.want)
+		}
+	}
+}

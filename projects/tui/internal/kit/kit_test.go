@@ -230,6 +230,55 @@ func TestListReadsEachVerbsNamePurposeAndGroup(t *testing.T) {
 	}
 }
 
+// script gives a Runner over a shell script of the body, standing in for a kit that misbehaves.
+func script(t *testing.T, body string) Runner {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "kit")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return Runner{Kit: path, Dir: t.TempDir()}
+}
+
+// A kit that cannot run is an error from every call, and so is one that prints what is not the JSON asked for; a
+// check whose fields are of the wrong type is one too. Exec into a directory that is not there fails before it runs.
+func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
+	missing := Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	garbled := script(t, "echo '{not json'")
+	for _, r := range []Runner{missing, garbled} {
+		calls := map[string]error{}
+		_, calls["Verbs"] = r.Verbs()
+		_, calls["Spec"] = r.Spec("commit")
+		_, _, calls["Extend"] = r.Extend("new", nil)
+		_, calls["Match"] = r.Match("commit", nil)
+		_, calls["WelcomeChecks"] = r.WelcomeChecks(context.Background())
+		if r.Kit == missing.Kit {
+			_, calls["List"] = r.List()
+			_, calls["Choices"] = r.Choices("commit", "<path>", nil)
+			_, calls["Stages"] = r.Stages()
+			_, calls["Root"] = r.Root()
+			_, calls["Help"] = r.Help("commit")
+		}
+		for call, err := range calls {
+			if err == nil {
+				t.Errorf("%s over %s: no error", call, filepath.Base(r.Kit))
+			}
+		}
+	}
+	if _, err := script(t, `echo '[{"id": "jq", "ok": "yes"}]'`).WelcomeChecks(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "kit welcome --checks --json") {
+		t.Errorf("a check with ok a string: %v", err)
+	}
+	r := script(t, "exit 0")
+	r.Dir = filepath.Join(t.TempDir(), "gone")
+	if err := r.Exec("commit", nil); err == nil {
+		t.Error("exec into a directory that is not there did not fail")
+	}
+	if err := missing.Exec("commit", nil); err == nil {
+		t.Error("exec of a kit that is not there did not fail")
+	}
+}
+
 // A kit that hangs is stopped at the call's limit, its process group with it, and the error says how long it had;
 // the checks are stopped too when the screen that asked for them ends.
 func TestAKitThatHangsIsStoppedAtItsLimitOrWhenTheScreenEnds(t *testing.T) {

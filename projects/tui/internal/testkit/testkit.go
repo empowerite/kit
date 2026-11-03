@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -17,8 +16,17 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the golden files")
 
+// T is what the helpers report through: a test, as *testing.T is, or, in this package's own tests, a recorder.
+type T interface {
+	Helper()
+	TempDir() string
+	Fatal(args ...any)
+	Fatalf(format string, args ...any)
+	Errorf(format string, args ...any)
+}
+
 // Runner gives a kit.Runner over internal/<pkg>/testdata/fake-kit, run in a directory of its own.
-func Runner(t *testing.T, pkg string) kit.Runner {
+func Runner(t T, pkg string) kit.Runner {
 	t.Helper()
 	root, err := moduleRoot()
 	if err != nil {
@@ -108,7 +116,7 @@ func Typed(text string) []tea.Msg {
 }
 
 // Golden compares got with the golden file at path; with -update it rewrites the file instead and says nothing.
-func Golden(t *testing.T, path, got string) {
+func Golden(t T, path, got string) {
 	t.Helper()
 	if *update {
 		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {

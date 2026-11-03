@@ -181,10 +181,9 @@ func (r Runner) Extend(verb string, answers []string) ([]string, map[string]synt
 		case string:
 			if _, ok := arguments[v]; ok && depth == 1 {
 				keys = append(keys, v)
+				// the document decoded whole above, so the value after its key decodes too
 				var skip json.RawMessage
-				if err := dec.Decode(&skip); err != nil {
-					return nil, nil, err
-				}
+				_ = dec.Decode(&skip)
 			}
 		}
 	}

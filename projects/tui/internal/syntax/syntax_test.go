@@ -122,6 +122,19 @@ func TestNewExtendsAndItsChoicesAreClosed(t *testing.T) {
 	}
 }
 
+// A match reads as kit syntax <verb> --match prints it: the status, kit's line, what is missing, and the words sorted.
+func TestDecodeMatchReadsTheJudgment(t *testing.T) {
+	m, err := DecodeMatch(strings.NewReader(`{"status": 1, "missing": "<path>", "literals": ["new", "file"],
+		"operands": [], "options": {"--title": ["x"]}, "values": {"--title": ["x"]}}`))
+	if err != nil || m.Status != 1 || m.Missing != "<path>" || strings.Join(m.Literals, " ") != "new file" ||
+		m.Options["--title"][0] != "x" {
+		t.Fatalf("DecodeMatch: %v, %+v", err, m)
+	}
+	if _, err := DecodeMatch(strings.NewReader("{not json")); err == nil {
+		t.Error("a match that is not JSON decodes")
+	}
+}
+
 func TestDecodeAllReadsAnArray(t *testing.T) {
 	specs, err := DecodeAll(strings.NewReader(`[{"verb":"a","syntax":[[]]},{"verb":"b","syntax":[[]],"extends":true}]`))
 	if err != nil || len(specs) != 2 || specs[1].Verb != "b" || !specs[1].Extends {
