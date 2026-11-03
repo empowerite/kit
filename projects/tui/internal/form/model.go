@@ -9,6 +9,7 @@ package form
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -24,13 +25,15 @@ import (
 // BackMsg asks the palette to take the form back: esc on a form opened from the palette.
 type BackMsg struct{}
 
-// choicesMsg brings a list's rows; flipped names the value whose flip asked for them again.
+// choicesMsg brings a list's rows; flipped names the value whose flip asked for them again, and asked holds the other
+// answers the rows were asked with.
 type choicesMsg struct {
 	key     string
 	rows    []kit.Choice
 	set     bool
 	err     error
 	flipped string
+	asked   []string
 }
 
 // listWindow is the lines a list's window takes: its rows, and the lines that say how many it hides.
@@ -466,10 +469,12 @@ func (m *Model) flip(value string) tea.Cmd {
 // choices takes a list's rows. A list kit calls a set, empty, starts from the values active now, so the command line
 // is the whole set; a row the verb has a line about, flipped off, is flipped back on with that line
 // shown, since the verb keeps it anyway. A list kit refused shows kit's line as the note, and takes what is typed.
+// Rows asked for before another answer changed are kept, and stay stale, so the list asks again when it is next
+// entered.
 func (m *Model) choices(msg choicesMsg) {
 	m.lists[msg.key] = msg.rows
 	m.sets[msg.key] = msg.set
-	m.stale[msg.key] = false
+	m.stale[msg.key] = !slices.Equal(msg.asked, m.others(msg.key))
 	m.failed[msg.key] = msg.err != nil
 	if msg.err != nil {
 		m.note = msg.err.Error()
@@ -505,7 +510,7 @@ func (m *Model) choices(msg choicesMsg) {
 
 // fetch asks kit for a list's rows, with the answers as they stand, and, for closed choices, whether they are a set.
 func (m *Model) fetch(key, flipped string) tea.Cmd {
-	r, verb, answers := m.runner, m.spec.Verb, m.answers()
+	r, verb, answers, asked := m.runner, m.spec.Verb, m.answers(), m.others(key)
 	closed := false
 	if i := m.fieldOf(key); i >= 0 {
 		closed = m.fields[i].Choices == "closed"
@@ -517,8 +522,19 @@ func (m *Model) fetch(key, flipped string) tea.Cmd {
 			kind, kindErr := r.Kind(verb, key, answers)
 			set = kindErr == nil && kind == "set"
 		}
-		return choicesMsg{key: key, rows: rows, set: set, err: err, flipped: flipped}
+		return choicesMsg{key: key, rows: rows, set: set, err: err, flipped: flipped, asked: asked}
 	}
+}
+
+// others gives the answers but a list's own: what its rows may depend on.
+func (m Model) others(key string) []string {
+	var out []string
+	for _, a := range m.answers() {
+		if !strings.HasPrefix(a, key+"=") {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // answers gives the answers kit syntax takes after a --: each <key>=<value>, and the subcommand words chosen, which a

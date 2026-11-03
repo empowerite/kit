@@ -646,3 +646,35 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 			got, strings.Join(lines, "\n"))
 	}
 }
+
+// step sends one message and gives the model and its command, unrun, so a test can hold an answer back.
+func step(m Model, msg tea.Msg) (Model, tea.Cmd) {
+	next, cmd := m.Update(msg)
+	return next.(Model), cmd
+}
+
+// A list's rows asked for before another answer changed, and arriving after, came from answers that no longer hold:
+// the list asks again when the keyboard comes back to it.
+func TestRowsAskedBeforeAnAnswerChangedAreAskedAgain(t *testing.T) {
+	for _, late := range []bool{false, true} {
+		m := newForm(t, "generate", Answers{}, false)
+		m.focus = 1 // --iterations
+		m.initCmd = m.enter()
+		m, fetch := step(m, key("down")) // onto <path>: its rows are asked for
+		if fetch == nil {
+			t.Fatal("going onto <path> asked for no rows")
+		}
+		answer := fetch()
+		if !late {
+			m, _ = step(m, answer)
+		}
+		m, _ = step(m, key("up"))
+		m, _ = step(m, tea.KeyPressMsg{Code: '3', Text: "3"})
+		if late {
+			m, _ = step(m, answer)
+		}
+		if _, again := step(m, key("down")); again == nil {
+			t.Errorf("rows arriving after --iterations changed (late %v) are not asked for again", late)
+		}
+	}
+}
