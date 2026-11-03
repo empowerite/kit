@@ -3,7 +3,8 @@
 A toolchain is a tool manager: mise, Nix, Homebrew, a Docker image, a dev container, or a Linux system's package
 manager. It pins the tools the gate runs, the gate being the repository's own CI command.
 
-- kit finds the toolchains where it runs. `kit.yml` never names one, because it is shared by everyone who clones.
+- kit finds the toolchains where it runs. `kit.yml` does not name one for a desk, because everyone who clones
+  shares it. CI is the exception: the CI package's `ci_toolchain` answer names the runner's toolchain.
 - `kit toolchains` lists what kit found, and records which one to use.
 - `kit tools` lists, installs, and updates what the chosen toolchain pins, and runs commands with it. It does
   the same for the packages npm or uv pins on top.
@@ -68,9 +69,10 @@ devcontainer:
 
 apt, dnf, and pacman:
 
-- They fill the system role alone. They install for the whole machine, so they pin no repository's tools.
+- They fill the system role alone. They install for the whole machine, so they do not pin any repository's tools.
 - Each names the command that installs a missing tool, such as `sudo apt-get install shellcheck`. kit never runs it
-  on its own. `kit welcome` runs it only when you say now, in your terminal, so `sudo` can ask for a password.
+  on its own, and `kit tools install` only names it. `kit welcome` runs it only when you say now, in your terminal,
+  so `sudo` can ask for a password.
 - A package's name can differ from the tool's. Fedora names shellcheck `ShellCheck`; Arch names gh `github-cli`.
 - A tool with no package there does not get a command. kit names the tool's site instead. Debian's and Arch's `yq` are
   not mikefarah's, which kit needs, so on apt kit names the site, and on pacman it names `go-yq`.
@@ -159,8 +161,10 @@ found on `PATH`, or `missing`.
 
 - `kit tools install` does not install anything. With every tool on `PATH`, it says so and exits 0. Otherwise it fails,
   naming each missing tool, with the system toolchain's command that installs it.
-- `kit tools update` refuses: there is nothing pinned to update. `kit tools --outdated` finds none behind.
-- `kit tools path` does not print anything, and `kit tools run` runs the command as is.
+- `kit tools update` refuses when no dependency provider is usable either: there is nothing pinned to update.
+  With npm or uv usable, it updates what they pin. `kit tools --outdated` finds no tool behind.
+- `kit tools path` prints only the dependency providers' directories, such as `node_modules/.bin`.
+  `kit tools run` runs the command with those first on `PATH`, or as is when there are none.
 
 ## Dependencies
 
