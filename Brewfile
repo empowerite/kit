@@ -13,7 +13,7 @@
 #
 # Why each tool is here:
 #   bash     runs kit, which needs 4.4 or later; macOS ships 3.2
-#   direnv   runs .envrc on cd, which activates mise and hydrates .kit/
+#   direnv   runs .envrc on cd, which puts kit/bin on PATH and hydrates .kit/
 #   jq       reads every verb's arguments, before any toolchain is chosen
 #   mise     installs the tools mise.toml and mise.desk.toml pin
 #   yq       reads kit.yml, before any toolchain is chosen

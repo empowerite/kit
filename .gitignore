@@ -1,7 +1,7 @@
 # .gitignore - untracked files and folders
 # ----------------------------------------------------------------------------------------------------------------------
 
-# direnv per-checkout cache (`use mise` in .envrc); see: https://direnv.net/
+# direnv per-checkout cache; see: https://direnv.net/
 /.direnv/
 
 # kit:generate .gitignore
