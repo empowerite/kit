@@ -79,10 +79,11 @@ An app listed as a developer tool skips the check, and so does every process it 
 3. Quit and reopen each app. A process started before the change still pays the check.
 
 The check is real but small. Waiting of every kind was 4 to 6 percent of the tests timed, so skipping the check
-saves at most that much. Most of the gap is the cost of starting processes, above.
+saves at most that much. It does not speed up starting a program that has run before: from iTerm, a developer tool,
+a start took 1.0 ms for a subshell, 2.1 ms for `true`, and 6.0 ms for `git`, the same as from an app not listed.
+Most of the gap is the cost of starting processes, above.
 
 ### Still to measure
 
-- Whether listing an app as a developer tool also speeds up starting a program that is not new, such as `git`.
 - A clean comparison of macOS and Linux on the same Mac, with nothing else running.
 - How much a malware scanner or a backup running at the same time adds.
