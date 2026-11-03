@@ -194,8 +194,8 @@ branch, and any other pipeline can run it too. It runs four checks, each a kit c
   [toolchains.md](toolchains.md).
 - `kit check` fails when a delivered file differs from the release.
 - `kit linked` fails when a pull request is not linked to an open issue.
-- `kit policy` fails when a branch name, commit subject, or pull request title breaks the repository's policy. The
-  policy is a set of patterns or an Open Policy Agent policy; see [policy.md](policy.md).
+- `kit policy` fails when a branch name, commit subject, pull request title, or file in the tree at HEAD breaks the
+  repository's policy. The policy is a set of patterns or an Open Policy Agent policy; see [policy.md](policy.md).
 
 On a desk, `kit ci` passes only once the branch has a pull request. Before one exists, `kit linked` fails, and the
 other three, `kit gate`, `kit check`, and `kit policy`, run without one.

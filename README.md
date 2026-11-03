@@ -20,7 +20,7 @@ What kit checks:
   - `kit gate`: the repository's own gate fails, or it has none
   - `kit check`: a delivered file differs from the release, or a generated region from its command's output
   - `kit linked`: the pull request is not linked to an open issue
-  - `kit policy`: the branch name, a commit subject, or the title breaks the naming policy
+  - `kit policy`: the branch name, a commit subject, the title, or a file in the tree breaks the policy
 
   The delivered GitHub Actions job runs it. Any other pipeline can.
 - `kit lint` runs each rule's linter, and the kit's own checks, over the files the rule governs. One of those checks

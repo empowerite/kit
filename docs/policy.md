@@ -1,8 +1,9 @@
 # Policy
 
-A policy is the set of patterns that a branch name, a commit subject, and a change's title must match. A change is
-a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current branch. It prints each
-refusal and fails, and it prints each warning too.
+A policy is the set of rules that a branch name, a commit subject, a change's title, and the tree of files must
+meet. A change is a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current
+branch: its name, its commits, its open change, and the tree at HEAD. It prints each refusal and fails, and it
+prints each warning too.
 
 ```sh
 kit policy
@@ -41,9 +42,9 @@ kit policy
 | `moment` | `commit` or `ci`: the point the facts are judged at. |
 | `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
-| `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
-| `change` | The change's number, title, body, and author's login, read through the code forge (the service that hosts the repository). `null` when there is no code forge or no change, and `null` at commit. |
-| `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. At commit, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
+| `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
+| `change` | The change's number, title, body, and author's login, read through the code forge (the service that hosts the repository). `null` when there is no code forge, no change, or the code forge could not be read, and `null` at commit. A `null` change leaves `change_title` unchecked. |
+| `tree` | The files git holds, keyed by path, read from git: the index at commit, and HEAD at ci. At either moment, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
 | `policy` | The patterns, with the kit's defaults filled in. |
 
 Each entry in `tree` has these fields:
@@ -64,6 +65,8 @@ Each entry in `tree` has these fields:
 - It judges the tree its own commit will make: HEAD plus the named paths, or the index when no paths are named.
 - Its moment is `commit`, and `commits` holds the one commit it makes.
 - When the engine errors, because `opa` is missing or a `.rego` file is broken, it refuses the commit. It fails closed.
+- The engine and the patterns are read from the tree being judged, so an unstaged edit to `kit.yml` or
+  `.kit/policy/` does not change the verdict.
 - Warnings print, and the commit still goes through.
 
 ### Reading a file's text
@@ -101,9 +104,10 @@ Edit the fixture to test a rule against facts that the repository does not have.
 - A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`.
 - An empty pattern turns that rule off.
 - A subject the kit does not know is refused.
-- A change whose author is a login under `linked_exempt` in `kit.yml` passes with no rule checked, and
-  `kit policy` says so by name. Its branch, its commits, and its title are a bot's, such as `dependabot[bot]`'s,
-  and the same setting passes the change through `kit linked`; see [packages.md](packages.md#settings).
+- A change whose author is a login under `linked_exempt` in `kit.yml` passes with no rule checked, the tree rules
+  included, and `kit policy` says so by name. Its branch, its commits, and its title are a bot's, such as
+  `dependabot[bot]`'s. The same setting passes the change through `kit linked`; see
+  [packages.md](packages.md#settings).
 
 | Subject | Checks | Default |
 | --- | --- | --- |
@@ -130,7 +134,7 @@ and OPA's RE2 share, so both engines read them the same way:
 | Engine | How it checks | Chosen by |
 | --- | --- | --- |
 | `patterns` | Matches each rule in bash. Needs no other tool. | Default. |
-| `opa` | Open Policy Agent evaluates every `.rego` file under `.kit/policy/`, package `kit.policy`. The set `deny` of strings is the refusals. | `policy_engine: opa`, or any `.rego` file in `.kit/policy/`. |
+| `opa` | Open Policy Agent evaluates every `.rego` file under `.kit/policy/`, package `kit.policy`. The set `deny` of strings is the refusals. | `policy_engine: opa`, or any `.rego` file in `.kit/policy/` when `policy_engine` is not set. |
 
 The `opa` engine needs `opa`. Pin it in the repository's toolchain, then run `kit tools install`.
 
@@ -143,7 +147,8 @@ Rules over `tree` need `opa`. The `patterns` engine ignores `tree`.
 
 The engine reads two sets of strings from package `kit.policy`:
 
-- `deny` holds refusals. Any one fails `kit policy`.
+- `deny` holds refusals. Any one fails `kit policy`. Rego that does not define `deny` at all, as in a misspelled
+  package, is refused too, since nothing was judged.
 - `warn` holds warnings. They are printed and never fail anything.
 
 ### A rule of your own, through a local package
