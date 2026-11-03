@@ -3,7 +3,8 @@
 // wraps, as a title. A closed row shows a cell's first value, with +N, right-aligned in the cell, when it holds more,
 // and its text cut with … where its column ends. An open row shows every value, one a line in its column, the text
 // wrapped in its column, then the lines it opens to. A row that hides anything, closed, has ▸ in the gutter before it,
-// and ▾ open; the row under the cursor is drawn on a faint band, its first cell chosen.
+// and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks
+// the row, so the cell is not underlined as a chosen name is.
 //
 // A panel beside the rows narrows them: a search, which keeps the rows whose text has it; a checkbox per column, which
 // shows or hides it; and, for rows that belong to people, a choice of every row, the caller's, or everyone else's.
@@ -237,7 +238,7 @@ func fillWidth(r []Cell, widths []int, width int) int {
 
 // closedLine draws a closed row: each cell's first value, padded to its column, +N after it when it holds more, the
 // number right-aligned, the text that wraps cut to the width left; a column with no text is left out. The chosen row's
-// first cell is drawn as chosen, but for a row of one cell, which spans the columns and only the band marks.
+// first cell is drawn as choose says, but for a row of one cell, which spans the columns and only the band marks.
 func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 	if len(r) == 1 {
 		return pane.Clip(r[0].first(), width)
@@ -261,7 +262,7 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 }
 
 // openLines draws an open row: as many lines as its tallest cell, each value on a line of its own in its column, and
-// the text that wraps wrapped in its; the chosen row's first cell is drawn as chosen, as a closed row's is.
+// the text that wraps wrapped in its; the chosen row's first cell is drawn as choose says, as a closed row's is.
 func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 	if len(r) == 1 {
 		return wrapped(r[0], width)
@@ -313,11 +314,11 @@ func wrapped(c Cell, width int) []string {
 	return out
 }
 
-// choose draws a cell's text as chosen, when it is: its own styles, as dim, give way, since the chosen style cannot
-// draw over them.
+// choose draws the chosen row's first cell: bold in the accent, its own styles, as dim, giving way, since the accent
+// cannot draw over them.
 func choose(s string, chosen bool) string {
 	if chosen && s != "" {
-		return style.Chosen(ansi.Strip(s))
+		return style.Mark(ansi.Strip(s))
 	}
 	return s
 }

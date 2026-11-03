@@ -961,7 +961,7 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 
 func TestTheSelectedRowIsChosen(t *testing.T) {
 	m := loaded(t, options(), down)
-	chosen, _, _ := strings.Cut(style.Chosen("#"), "#")
+	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
 	if !strings.Contains(m.View().Content, chosen+"#") || !strings.HasPrefix(cursor(m), "#45") {
 		t.Errorf("the row under the cursor is not drawn as chosen:\n%s", m.View().Content)
 	}

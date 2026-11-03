@@ -98,12 +98,15 @@ func TestLinkAtFindsTheLinkedGlyphUnderAColumn(t *testing.T) {
 	}
 }
 
+// The band marks the cursor's row, so its first cell is bold in the accent and not underlined.
 func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
 	lines := Draw(issues(), 40, 1, func(Row) bool { return false })
 	band, _, _ := strings.Cut(style.Band("x", 1), "x")
-	chosen, _, _ := strings.Cut(style.Chosen("#"), "#")
-	if !strings.HasPrefix(lines[1].Text, band) || !strings.Contains(lines[1].Text, chosen+"#") {
-		t.Errorf("the cursor's row is not on a band, its first cell chosen: %q", lines[1].Text)
+	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
+	underlined, _, _ := strings.Cut(style.Chosen("#"), "#")
+	if !strings.HasPrefix(lines[1].Text, band) || !strings.Contains(lines[1].Text, chosen+"#") ||
+		strings.Contains(lines[1].Text, underlined) {
+		t.Errorf("the cursor's row is not on a band, its first cell bold in the accent alone: %q", lines[1].Text)
 	}
 	if ansi.StringWidth(lines[1].Text) != 40 || strings.Contains(lines[0].Text, chosen) || strings.HasPrefix(lines[0].Text, band) {
 		t.Errorf("the band does not fill the width, or another row is chosen: %q", lines[0].Text)
@@ -112,7 +115,7 @@ func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
 
 func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{style.Off("abc")}}, one("x")}}}
-	chosen, _, _ := strings.Cut(style.Chosen("a"), "a")
+	chosen, _, _ := strings.Cut(style.Mark("a"), "a")
 	dim, _, _ := strings.Cut(style.Off("a"), "a")
 	if got := Draw(rows, 20, 0, func(Row) bool { return false })[0].Text; !strings.Contains(got, chosen+"a") ||
 		strings.Contains(got, dim) {
