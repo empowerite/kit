@@ -41,9 +41,21 @@ and the template check loads it about 2,000 times.
 
 ## Why a Mac desk is slower
 
-Test for test, a Mac desk takes about 2.4 times as long as a runner. Over 130 tests timed in both places, the
-median test took 2.5 times as long, and none was faster. A slowdown that even points at the machine, not at any
-one test.
+The Mac is the faster machine; macOS is the slower system. The same 17 tests of `tests/commit.bats`, run on one M2
+Ultra, then on a GitHub runner:
+
+| Where | Time | Against Linux on the Mac |
+| --- | --- | --- |
+| Linux, on the Mac, in Docker | 43 s | 1.0 |
+| GitHub runner, `ubuntu-latest` | 86 s | 2.0 times |
+| macOS, on the Mac | 126 s | 2.9 times |
+
+Each of the 17 took 2.4 to 3.4 times as long on macOS as on Linux on the same hardware. Linux there beats the
+runner by 2 times, so the hardware is faster; macOS spends that and more.
+
+How far a desk falls behind a runner depends on what else runs. On a quiet Mac with its malware scanner off, the
+desk took 1.5 times a runner's time. Earlier, with a backup and the scanner running, it took 2.4 times, over 130
+tests; the median test took 2.5 times as long, and none was faster.
 
 Nearly all of a test's time goes to starting short processes: bash, git, jq, and yq. A typical test, `kit commit
 prints a warning and commits`, took 10.7 seconds at the desk against 4.3 on a runner:
@@ -52,15 +64,16 @@ prints a warning and commits`, took 10.7 seconds at the desk against 4.3 on a ru
 - 6.6 seconds ran in the kernel, starting processes
 - 0.6 seconds waited on something else
 
-Starting a process costs more on macOS. Measured on the desk, each start took:
+Starting a process costs far more on macOS. On the same Mac, with little else running, each start took:
 
-| Start | macOS, desk | Linux, same Mac, in Docker |
-| --- | --- | --- |
-| a bash subshell | 1.0 ms | 1.2 ms |
-| `true` | 2.1 ms | 1.3 ms |
-| `git` | 6.4 ms | 1.7 ms |
+| Start | macOS | Linux, in Docker | macOS against Linux |
+| --- | --- | --- | --- |
+| a bash subshell | 0.80 ms | 0.21 ms | 3.8 times |
+| `true` | 1.79 ms | 0.26 ms | 7 times |
+| `git` | 5.56 ms | 0.45 ms | 12 times |
 
-The Linux numbers are preliminary: they were taken while the Mac was busy. A clean comparison is still to come.
+A start that runs a program costs the most, and `git`, which loads libraries, costs the most of those. On macOS,
+about half of a `git` start is the new process's own work before `git` runs, and the rest is the kernel's.
 
 ### mise shims
 
@@ -94,5 +107,5 @@ Most of the gap is the cost of starting processes, above.
 
 ### Still to measure
 
-- A clean comparison of macOS and Linux on the same Mac, with nothing else running.
-- How much a malware scanner or a backup running at the same time adds.
+- How much a malware scanner and a backup each add. They were turned off together, so the 2.4 and 1.5 above do
+  not separate them.

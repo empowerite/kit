@@ -316,7 +316,7 @@ the table above serves as the notice for `settings.json`.
 file, use `kit tools run bats tests/<file>.bats`, which puts the pinned tools first on `PATH`.
 
 Nearly all of the suite's time goes to starting short processes: bash, jq, yq, and git. macOS starts a process more
-slowly than Linux, so a test takes about 2.4 times as long at a Mac desk as on a runner. On a Mac, list the terminal
+slowly than Linux, so a test takes 1.5 to 2.4 times as long at a Mac desk as on a runner. On a Mac, list the terminal
 and the editor you run the tests from as developer tools; that saves up to about 5 percent of a run.
 [docs/testing.md](docs/testing.md) has the numbers, the time limits, and the steps.
 
