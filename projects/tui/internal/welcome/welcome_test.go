@@ -379,8 +379,31 @@ func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 	}
 }
 
+// Every height from a line to a dozen, on the line, in the rows, scrolled, and on a page: the screen draws as many lines
+// as it has, the keys bar the last, and never panics.
+func TestTheKeysBarIsTheLastLineAtEveryHeight(t *testing.T) {
+	for _, msgs := range [][]tea.Msg{
+		nil,
+		{down},
+		{down, down, down},
+		{esc, right, right, down, down},
+		{pgdown, pgdown, pgdown},
+		{right, right, right, right, pgdown, pgdown},
+	} {
+		for _, width := range []int{120, 40} {
+			for height := 1; height <= 12; height++ {
+				m, _ := loaded(t, append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, msgs...)...)
+				got := strings.Split(view(m), "\n")
+				if bar := ansi.Strip(style.Bar(m.keys(), width)); len(got) != height || got[height-1] != bar {
+					t.Errorf("after %v at %d×%d: %d lines, the last %q", msgs, width, height, len(got), got[len(got)-1])
+				}
+			}
+		}
+	}
+}
+
 func TestEveryLineFitsTheWidth(t *testing.T) {
-	for _, width := range []int{120, 80, 40, 24} {
+	for _, width := range []int{120, 80, 40, 24, 12} {
 		m, _ := loaded(t, tea.WindowSizeMsg{Width: width, Height: 30})
 		for step := range len(m.tabs) {
 			for _, l := range strings.Split(view(m), "\n") {
@@ -431,9 +454,22 @@ func TestTheRepositorysPagesWinAndTheKitPackagesAreTheFallback(t *testing.T) {
 	if len(tabs) != len(known) || tabs[land].missing != want {
 		t.Errorf("tabs %+v", tabs)
 	}
-	m := drive(New(r, ""), at120, pagesMsg{tabs: tabs}, right, right, right, right)
-	if !strings.Contains(view(m), "   no page at "+want) {
-		t.Errorf("no missing line:\n%s", view(m))
+	// the path is broken across lines, so all of it shows at any width
+	for _, width := range []int{120, 40} {
+		m := drive(New(r, ""), tea.WindowSizeMsg{Width: width, Height: 30}, pagesMsg{tabs: tabs}, right, right, right,
+			right)
+		lines := strings.Split(view(m), "\n")
+		at := slices.Index(lines, "   no page at")
+		path := ""
+		for _, l := range lines[max(at+1, 0):] {
+			if !strings.HasPrefix(l, "   ") || strings.TrimSpace(l) == "" {
+				break
+			}
+			path += strings.TrimPrefix(l, "   ")
+		}
+		if at < 0 || path != want {
+			t.Errorf("at %d columns, no missing line, or the path %q is not whole:\n%s", width, path, view(m))
+		}
 	}
 }
 

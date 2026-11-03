@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
@@ -532,12 +533,12 @@ func (m *Model) page(d int) {
 			last = k
 		}
 	}
-	start, end, _, _ := window(len(all), m.paneHeight(), s.offset)
+	start, end, _, _ := pane.Window(len(all), m.paneHeight(), s.offset)
 	switch {
 	case first >= 0 && d > 0 && last >= end:
-		s.offset, _, _, _ = window(len(all), m.paneHeight(), s.offset+h)
+		s.offset, _, _, _ = pane.Window(len(all), m.paneHeight(), s.offset+h)
 	case first >= 0 && d < 0 && first < start:
-		s.offset, _, _, _ = window(len(all), m.paneHeight(), max(first, s.offset-h))
+		s.offset, _, _, _ = pane.Window(len(all), m.paneHeight(), max(first, s.offset-h))
 	case d > 0:
 		m.down(h)
 	case s.cursor > 0:
@@ -559,7 +560,7 @@ func (m *Model) fit() {
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
 	h := m.paneHeight()
-	s.offset, _, _, _ = window(len(lines), h, s.offset)
+	s.offset, _, _, _ = pane.Window(len(lines), h, s.offset)
 	if !m.inRows {
 		return
 	}
@@ -578,7 +579,7 @@ func (m *Model) fit() {
 	// Scroll until the cursor's row shows whole, or its first line and as much as the pane holds; a … line takes the
 	// place of a row at either edge, so the window is asked rather than counted.
 	for {
-		start, end, _, _ := window(len(lines), h, s.offset)
+		start, end, _, _ := pane.Window(len(lines), h, s.offset)
 		switch {
 		case first < start:
 			s.offset = first

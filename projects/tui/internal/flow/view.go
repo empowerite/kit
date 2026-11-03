@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -61,15 +62,16 @@ type layout struct {
 }
 
 // View draws the title, the line, the trees under it, the selected stage's pane, and the keys bar on the last line,
-// on the alternate screen.
+// on the alternate screen. A screen too short for all of them keeps the bar, and cuts the rest from the bottom.
 func (m Model) View() tea.View {
 	l := m.layout()
 	rows := m.treeRows(l)
-	lines := []string{" " + clip(m.title(), m.width-1), m.line(l)}
+	lines := []string{" " + pane.Clip(m.title(), m.width-1), m.line(l)}
 	lines = append(lines, m.treeLines(l, rows)...)
 	lines = append(lines, "")
 	lines = append(lines, m.pane(m.paneOf(rows))...)
-	lines = append(lines, "", style.Bar(m.keys(), m.width))
+	lines = append(lines, "")
+	lines = style.Bottom(lines, m.height, style.Bar(m.keys(), m.width))
 	v := tea.NewView(strings.Join(lines, "\n"))
 	v.AltScreen = true
 	return v
@@ -129,7 +131,7 @@ func (m Model) layout() layout {
 	total, full := gap, gap
 	for i := range m.stages {
 		l.trees[i] = m.tree(i, forms[i], m.legend)
-		shown[i], legend[i] = width(l.trees[i]), width(m.tree(i, forms[i], true))
+		shown[i], legend[i] = pane.Width(l.trees[i]), pane.Width(m.tree(i, forms[i], true))
 		total += shown[i] + gap
 		full += legend[i] + gap
 	}
@@ -256,7 +258,7 @@ func legendNode(name string) node {
 	glyphs := func(entries []entry) []node {
 		var out []node
 		for _, e := range entries {
-			out = append(out, node{text: pad(e.glyph, 2, false) + "  " + e.meaning})
+			out = append(out, node{text: pane.Pad(e.glyph, 2, false) + "  " + e.meaning})
 		}
 		return out
 	}
@@ -378,7 +380,7 @@ func (m Model) pane(h int) []string {
 		for i, l := range lines {
 			texts[i] = l.text
 		}
-		out = windowed(texts, m.stages[m.stage].offset, h, m.head(lines, h))
+		out = pane.Lines(texts, m.stages[m.stage].offset, h, m.head(lines, h), "   ")
 	}
 	for len(out) < h {
 		out = append(out, "")
@@ -393,58 +395,12 @@ func (m Model) head(lines []line, h int) string {
 		return ""
 	}
 	s := m.stages[m.stage]
-	start, _, above, _ := window(len(lines), h, s.offset)
+	start, _, above, _ := pane.Window(len(lines), h, s.offset)
 	first := slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
 	if !above || first < 0 || first >= start || lines[start].row != s.cursor {
 		return ""
 	}
 	return lines[first].text
-}
-
-// window says which of n lines a pane of h lines shows from offset o: the offset, clamped, the end, and whether a
-// line says how many are hidden above, and how many below. Each such line takes the place of a shown one.
-func window(n, h, o int) (start, end int, above, below bool) {
-	if n <= h {
-		return 0, n, false, false
-	}
-	start = min(max(o, 0), n-h+1)
-	above = start > 0
-	end = start + h
-	if above {
-		end--
-	}
-	if end < n {
-		below = true
-		end--
-	}
-	return start, min(end, n), above, below
-}
-
-// windowed gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more where lines are
-// hidden; a head, when given, takes the place of the … above.
-func windowed(all []string, o, h int, head string) []string {
-	start, end, above, below := window(len(all), h, o)
-	out := make([]string, 0, h)
-	switch {
-	case above && head != "":
-		out = append(out, head)
-	case above:
-		out = append(out, "   "+style.Off("… "+strconv.Itoa(start)+" above"))
-	}
-	out = append(out, all[start:end]...)
-	if below {
-		out = append(out, "   "+style.Off("… "+strconv.Itoa(len(all)-end)+" more"))
-	}
-	return out
-}
-
-// width gives the widest of some lines, in cells.
-func width(lines []string) int {
-	widest := 0
-	for _, l := range lines {
-		widest = max(widest, ansi.StringWidth(l))
-	}
-	return widest
 }
 
 // lines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or its rows, the
@@ -458,7 +414,7 @@ func (m Model) lines(i int) []line {
 		return []line{{-1, lead + style.Off("loading")}}
 	case s.refusal != "":
 		var out []line
-		for _, l := range wrap(Failed+" "+s.refusal, m.width-3) {
+		for _, l := range pane.Wrap(Failed+" "+s.refusal, m.width-3) {
 			out = append(out, line{-1, lead + style.Refusal(l)})
 		}
 		return out
@@ -503,7 +459,7 @@ func table(rows [][]cell, width, chosen int) []string {
 	lines := make([]string, len(rows))
 	for i, r := range rows {
 		if len(r) == 1 {
-			lines[i] = clip(r[0].text, width)
+			lines[i] = pane.Clip(r[0].text, width)
 			continue
 		}
 		used, gaps, hasFill := 0, -1, false
@@ -524,17 +480,17 @@ func table(rows [][]cell, width, chosen int) []string {
 		for j, c := range r {
 			switch {
 			case c.fill:
-				parts = append(parts, pad(clip(c.text, left), left, false))
+				parts = append(parts, pane.Pad(pane.Clip(c.text, left), left, false))
 			case widths[j] == 0:
 			default:
 				text := c.text
 				if i == chosen && len(parts) == 0 {
 					text = style.Chosen(text)
 				}
-				parts = append(parts, pad(text, widths[j], c.right))
+				parts = append(parts, pane.Pad(text, widths[j], c.right))
 			}
 		}
-		lines[i] = clip(strings.TrimRight(strings.Join(parts, "  "), " "), width)
+		lines[i] = pane.Clip(strings.TrimRight(strings.Join(parts, "  "), " "), width)
 	}
 	return lines
 }
@@ -556,46 +512,4 @@ func columnWidths(rows [][]cell) []int {
 		}
 	}
 	return widths
-}
-
-// pad fills a text to the width with spaces, before it when right is set.
-func pad(text string, width int, right bool) string {
-	n := width - ansi.StringWidth(text)
-	if n <= 0 {
-		return text
-	}
-	if right {
-		return strings.Repeat(" ", n) + text
-	}
-	return text + strings.Repeat(" ", n)
-}
-
-// clip shortens a text to n cells, with … at the cut.
-func clip(s string, n int) string {
-	if n < 1 {
-		return ""
-	}
-	return ansi.Truncate(s, n, "…")
-}
-
-// wrap breaks a text at spaces into lines no wider than the width, in cells; a word wider than the width stands alone.
-func wrap(text string, width int) []string {
-	width = max(width, 10)
-	var lines []string
-	current := ""
-	for _, word := range strings.Fields(text) {
-		switch {
-		case current == "":
-			current = word
-		case ansi.StringWidth(current)+1+ansi.StringWidth(word) <= width:
-			current += " " + word
-		default:
-			lines = append(lines, current)
-			current = word
-		}
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
 }

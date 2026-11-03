@@ -388,12 +388,13 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	}{
 		{nil, lineKeys},
 		{[]tea.Msg{down}, backKeys},
+		{[]tea.Msg{down, down, down, down}, backKeys},
 		{[]tea.Msg{right, right, right, down, enter}, backKeys},
 		{[]tea.Msg{press('?')}, backKeys},
 		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, backKeys},
 	} {
 		for _, width := range []int{80, 120, 200} {
-			for _, height := range []int{24, 12} {
+			for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
 				m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}}, c.msgs...)...)
 				got := lines(m)
 				if len(got) != height || got[height-1] != " "+c.keys {
@@ -664,7 +665,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 }
 
 func TestEveryLineFitsTheWidthInCells(t *testing.T) {
-	for _, width := range []int{40, 50, 80, 120, 200} {
+	for _, width := range []int{12, 24, 40, 50, 80, 120, 200} {
 		for _, legend := range []bool{false, true} {
 			// one load for the eight: each stage in turn, its first row open, then back to the line
 			m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
@@ -766,23 +767,6 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m = loaded(t, options(), right, right, right)
 	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
-	}
-}
-
-func TestTheWindowCountsWhatItHides(t *testing.T) {
-	for _, c := range []struct {
-		n, h, o, start, end int
-		above, below        bool
-	}{
-		{5, 10, 3, 0, 5, false, false},
-		{20, 10, 0, 0, 9, false, true},
-		{20, 10, 5, 5, 13, true, true},
-		{20, 10, 50, 11, 20, true, false},
-	} {
-		start, end, above, below := window(c.n, c.h, c.o)
-		if start != c.start || end != c.end || above != c.above || below != c.below {
-			t.Errorf("window(%d, %d, %d) = %d %d %v %v", c.n, c.h, c.o, start, end, above, below)
-		}
 	}
 }
 

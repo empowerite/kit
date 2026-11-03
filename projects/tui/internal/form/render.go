@@ -4,12 +4,12 @@
 package form
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
 
@@ -75,7 +75,7 @@ func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header
 	}
 	width := o.Width
 	header = d.count()
-	for _, line := range wrap("kit "+spec.Verb+" - "+spec.Purpose, width-1) {
+	for _, line := range pane.Wrap("kit "+spec.Verb+" - "+spec.Purpose, width-1) {
 		d.b.WriteString(" " + line + "\n")
 	}
 	d.b.WriteString("\n")
@@ -87,7 +87,7 @@ func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header
 	}
 	d.b.WriteString("\n")
 	before := d.count()
-	for _, line := range wrap(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
+	for _, line := range pane.Wrap(strings.TrimSpace("kit "+spec.Verb+" "+Quote(CommandLine(spec, fields))), width-1) {
 		if o.CommandFocus {
 			line = o.Styles.Label(line)
 		}
@@ -120,71 +120,20 @@ func window(content string, height, header, first, last, at int, dim func(string
 	if last < 0 {
 		first = 0
 	}
-	s := Frame(len(body), room, 0, first, max(first, last))
+	s := pane.Frame(len(body), room, 0, first, max(first, last))
 	if at >= 0 && (at < s.Start || at >= s.End) {
-		s = Frame(len(body), room, 0, at, at)
+		s = pane.Frame(len(body), room, 0, at, at)
 	}
 	shown := lines[:header:header]
 	if s.Above {
-		shown = append(shown, strings.Repeat(" ", gutter)+dim(Above(s.Start)))
+		shown = append(shown, strings.Repeat(" ", gutter)+dim(pane.Above(s.Start)))
 	}
 	shown = append(shown, body[s.Start:s.End]...)
 	if s.Below {
-		shown = append(shown, strings.Repeat(" ", gutter)+dim(More(len(body)-s.End)))
+		shown = append(shown, strings.Repeat(" ", gutter)+dim(pane.More(len(body)-s.End)))
 	}
 	return strings.Join(shown, "\n") + "\n"
 }
-
-// A Span is the rows a window shows out of all of them: from Start to End, under a line that says how many rows it
-// hides above when Above, and over one that says how many it hides below when Below.
-type Span struct {
-	Start, End   int
-	Above, Below bool
-}
-
-// Frame gives the rows a window of room lines shows out of n. A line that says how many rows the window hides takes
-// a row's place, above it or below it, so the window never grows, and it hides two rows at least, never one it could
-// show instead. The window starts at want, or as near it as holds the rows from first to last; a range longer than the
-// window shows from first. A window that reaches the last row starts where it shows the most. A room under three
-// lines has no place for those lines, and shows the rows from first. A room of zero or less shows every row.
-func Frame(n, room, want, first, last int) Span {
-	if room <= 0 || n <= room {
-		return Span{End: n}
-	}
-	if room < 3 {
-		start := min(max(first, 0), n-room)
-		return Span{Start: start, End: start + room}
-	}
-	end := func(start int) int { // the end of the rows shown from start, less the lines that say what is hidden
-		shown := room
-		if start > 0 {
-			shown--
-		}
-		if start+shown >= n {
-			return n
-		}
-		return start + shown - 1
-	}
-	first, last = min(max(first, 0), n-1), min(max(last, first), n-1)
-	start := min(max(want, 0), n-1)
-	if end(start) <= last {
-		start = max(start, min(last-room+3, n-room+1))
-	}
-	start = min(start, first)
-	if start == 1 {
-		start = 0 // the line above would hide one row, which it could show; from 0 the window ends at the same row
-	}
-	if end(start) == n {
-		start = min(start, n-room+1)
-	}
-	return Span{Start: start, End: end(start), Above: start > 0, Below: end(start) < n}
-}
-
-// Above says how many rows a window hides above it.
-func Above(n int) string { return fmt.Sprintf("… %d above", n) }
-
-// More says how many rows a window hides below it.
-func More(n int) string { return fmt.Sprintf("… %d more", n) }
 
 // drawer holds what every block shares while the form is drawn, the first and last line of the focused field, and the
 // line of a list's cursor.
@@ -381,7 +330,7 @@ func (d *drawer) note(i int, indent string) {
 	if i != d.focus || d.o.Note == "" {
 		return
 	}
-	for _, line := range wrap("❌ "+d.o.Note, d.width-ansi.StringWidth(indent)) {
+	for _, line := range pane.Wrap("❌ "+d.o.Note, d.width-ansi.StringWidth(indent)) {
 		d.b.WriteString(indent + d.st.Refusal(line) + "\n")
 	}
 }
@@ -443,7 +392,7 @@ func (d *drawer) row(i int, lead string) {
 	}
 	room := d.width - ansi.StringWidth(lead) // a name wider than the screen, a whole usage line, is clipped
 	for k, option := range f.Options {
-		d.beside(lead, clip(name(k), room), min(ansi.StringWidth(option), room), d.column, d.optionDescription(option))
+		d.beside(lead, pane.Clip(name(k), room), min(ansi.StringWidth(option), room), d.column, d.optionDescription(option))
 		lead = strings.Repeat(" ", ansi.StringWidth(lead))
 		if !on(k) || f.Kind != OneOf {
 			continue
@@ -472,7 +421,7 @@ func (d *drawer) optionDescription(option string) string {
 // wider than the column pushes the description to the next line.
 func (d *drawer) beside(lead, name string, nameWidth, column int, description string) {
 	indent := strings.Repeat(" ", column)
-	lines := wrap(description, d.width-column)
+	lines := pane.Wrap(description, d.width-column)
 	d.b.WriteString(lead + name)
 	if len(lines) == 0 {
 		d.b.WriteString("\n")
@@ -486,28 +435,4 @@ func (d *drawer) beside(lead, name string, nameWidth, column int, description st
 	for _, line := range lines[1:] {
 		d.b.WriteString(indent + line + "\n")
 	}
-}
-
-// wrap breaks text at spaces into lines no wider than width, in cells; a word wider than the width stands alone.
-func wrap(text string, width int) []string {
-	if text == "" {
-		return nil
-	}
-	if width < 10 {
-		width = 10
-	}
-	var lines []string
-	line := ""
-	for _, word := range strings.Fields(text) {
-		switch {
-		case line == "":
-			line = word
-		case ansi.StringWidth(line)+1+ansi.StringWidth(word) <= width:
-			line += " " + word
-		default:
-			lines = append(lines, line)
-			line = word
-		}
-	}
-	return append(lines, line)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
@@ -721,10 +722,10 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 	if len(rows) == 0 {
 		b.WriteString(indent + style.Off("nothing matches") + "\n")
 	}
-	span := Frame(len(rows), listWindow, m.cursor-4, m.cursor, m.cursor)
+	span := pane.Frame(len(rows), listWindow, m.cursor-4, m.cursor, m.cursor)
 	start, end, at := span.Start, span.End, -1
 	if span.Above {
-		b.WriteString(indent + style.Off(Above(start)) + "\n")
+		b.WriteString(indent + style.Off(pane.Above(start)) + "\n")
 	}
 	widest := 0
 	for _, row := range rows[start:end] {
@@ -756,10 +757,10 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 			lead, value = style.Focus+" ", style.Chosen(row.Value)+strings.Repeat(" ", widest-ansi.StringWidth(row.Value))
 			at = strings.Count(b.String(), "\n")
 		}
-		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(clip(row.Description, room)) + "\n")
+		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(pane.Clip(row.Description, room)) + "\n")
 	}
 	if span.Below {
-		b.WriteString(indent + style.Off(More(len(rows)-end)) + "\n")
+		b.WriteString(indent + style.Off(pane.More(len(rows)-end)) + "\n")
 	}
 	glyphs := ""
 	if named := legend(all, f.Values, planned); states && named != "" {
@@ -810,7 +811,7 @@ func legend(all []kit.Choice, values []string, planned bool) string {
 
 // hint writes a line of keys under a field, dim, wrapped to the width left beside the indent.
 func (m Model) hint(b *strings.Builder, indent, text string) {
-	for _, line := range wrap(text, m.width-len(indent)) {
+	for _, line := range pane.Wrap(text, m.width-len(indent)) {
 		b.WriteString(indent + style.Off(line) + "\n")
 	}
 }
@@ -867,14 +868,6 @@ func answerList(a Answers) []string {
 		}
 	}
 	return out
-}
-
-// clip shortens a text to n cells, with … at the cut.
-func clip(s string, n int) string {
-	if n < 1 {
-		return ""
-	}
-	return ansi.Truncate(s, n, "…")
 }
 
 // index gives the position of a value among values, or -1.

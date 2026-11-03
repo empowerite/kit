@@ -25,6 +25,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 )
 
 // tab is a step: the id its checks name, its tab's glyph and name, the file of its page, whether it has checks, and
@@ -448,7 +449,7 @@ func (m *Model) down(n int) {
 
 // scroll moves a page's pane n lines, never past its ends.
 func (m *Model) scroll(n int) {
-	start, _, _, _ := window(len(m.pageLines(m.step)), m.paneHeight(), m.offsets[m.step]+n)
+	start, _, _, _ := pane.Window(len(m.pageLines(m.step)), m.paneHeight(), m.offsets[m.step]+n)
 	m.offsets[m.step] = start
 }
 

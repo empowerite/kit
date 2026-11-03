@@ -646,37 +646,3 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 			got, strings.Join(lines, "\n"))
 	}
 }
-
-func TestAFrameHoldsTheRowAndItsLinesNeverGrowTheWindow(t *testing.T) {
-	for n := 0; n <= 30; n++ {
-		for room := 1; room <= 12; room++ {
-			for at := 0; at < max(n, 1); at++ {
-				for _, want := range []int{0, at - 4, at} {
-					s := Frame(n, room, want, at, at)
-					lines := s.End - s.Start
-					if s.Above {
-						lines++
-					}
-					if s.Below {
-						lines++
-					}
-					switch {
-					case n <= room && (s.Start != 0 || s.End != n || s.Above || s.Below):
-						t.Errorf("n %d room %d: a list that fits is cut: %+v", n, room, s)
-					case n > 0 && (at < s.Start || at >= s.End):
-						t.Errorf("n %d room %d at %d want %d: the row is not shown: %+v", n, room, at, want, s)
-					case lines > room:
-						t.Errorf("n %d room %d at %d want %d: %d lines: %+v", n, room, at, want, lines, s)
-					case room >= 3 && n > room && lines != room:
-						t.Errorf("n %d room %d at %d want %d: %d lines, the window not full: %+v", n, room, at, want,
-							lines, s)
-					case s.Above != (s.Start > 0 && room >= 3) || s.Below != (s.End < n && room >= 3):
-						t.Errorf("n %d room %d at %d want %d: rows hidden and not said: %+v", n, room, at, want, s)
-					case s.Above && s.Start < 2 || s.Below && n-s.End < 2:
-						t.Errorf("n %d room %d at %d want %d: a line hides one row: %+v", n, room, at, want, s)
-					}
-				}
-			}
-		}
-	}
-}

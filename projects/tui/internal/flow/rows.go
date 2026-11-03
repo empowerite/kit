@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -328,7 +329,7 @@ func (m Model) backlogRows(s stage) []row {
 		r := row{key: "#" + strconv.Itoa(i.Number)}
 		r.cells = []cell{number(r.key), dim(owners(i.Assignees)), dimNumber(ageOf(i.Age)), dim(branchOf(i.Branch)),
 			fill(Issue + " " + i.Title)}
-		for _, line := range wrap(i.Title, m.width-6) {
+		for _, line := range pane.Wrap(i.Title, m.width-6) {
 			r.detail = append(r.detail, span(line))
 		}
 		if url := m.origin.issue(i.Number, i.URL); url != "" {
@@ -358,10 +359,10 @@ func (m Model) underwayRows(s stage) []row {
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{key: issue + " " + pr, cells: []cell{number(issue), dim(owners(u.Assignees)), text(InFlight), dimNumber(ageOf(u.Age)),
 			text(Change + " " + pr), text(state), where, fill(Issue + " " + u.Title)}}
-		for _, line := range wrap(u.Title, m.width-6) {
+		for _, line := range pane.Wrap(u.Title, m.width-6) {
 			r.detail = append(r.detail, span(line))
 		}
-		for _, line := range wrap(Change+" "+pr+" "+u.PR.Title, m.width-6) {
+		for _, line := range pane.Wrap(Change+" "+pr+" "+u.PR.Title, m.width-6) {
 			r.detail = append(r.detail, span(line))
 		}
 		if u.Here && u.Worktree != "" {
@@ -629,7 +630,7 @@ func (m Model) buildRows(s stage) []row {
 			if b.SHA != "" {
 				lead, indent = style.Off(b.SHA)+" ", strings.Repeat(" ", len(b.SHA)+1)
 			}
-			for _, line := range wrap(title, m.width-6-len(indent)) {
+			for _, line := range pane.Wrap(title, m.width-6-len(indent)) {
 				r.detail = append(r.detail, span(lead+line))
 				lead = indent
 			}

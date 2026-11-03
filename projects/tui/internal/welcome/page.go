@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -46,7 +47,7 @@ func render(md string, width int) []string {
 				blank()
 			}
 		case fenced:
-			out = append(out, clip("  "+style.Mark(raw), width))
+			out = append(out, pane.Clip("  "+style.Mark(raw), width))
 		case comment || strings.HasPrefix(text, "<!--"):
 			flush()
 			comment = !strings.Contains(text, "-->")
@@ -63,7 +64,7 @@ func render(md string, width int) []string {
 			blank()
 		case strings.HasPrefix(text, "|"):
 			flush()
-			out = append(out, clip(text, width))
+			out = append(out, pane.Clip(text, width))
 		case item.MatchString(raw):
 			flush()
 			parts := item.FindStringSubmatch(raw)
@@ -151,20 +152,12 @@ func wrapWords(words []string, width int, first, indent string) []string {
 		case ansi.StringWidth(lead)+ansi.StringWidth(current)+1+ansi.StringWidth(w) <= width:
 			current += " " + w
 		default:
-			lines = append(lines, clip(lead+current, width))
+			lines = append(lines, pane.Clip(lead+current, width))
 			current, lead = w, indent
 		}
 	}
 	if current != "" {
-		lines = append(lines, clip(lead+current, width))
+		lines = append(lines, pane.Clip(lead+current, width))
 	}
 	return lines
-}
-
-// clip shortens a text to n cells, with … at the cut.
-func clip(s string, n int) string {
-	if n < 1 {
-		return ""
-	}
-	return ansi.Truncate(s, n, "…")
 }

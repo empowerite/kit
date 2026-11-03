@@ -17,8 +17,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/form"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -328,13 +328,13 @@ func (m Model) View() tea.View {
 			at = i
 		}
 	}
-	span := form.Frame(len(lines), rows, 0, at, at)
+	span := pane.Frame(len(lines), rows, 0, at, at)
 	var list []string
 	if len(visible) == 0 {
 		list = append(list, "   "+style.Off("no verb matches"))
 	}
 	if span.Above {
-		list = append(list, "   "+style.Off(form.Above(verbs(lines[:span.Start]))))
+		list = append(list, "   "+style.Off(pane.Above(verbs(lines[:span.Start]))))
 	}
 	for i := span.Start; i < span.End; i++ {
 		r := lines[i]
@@ -349,12 +349,12 @@ func (m Model) View() tea.View {
 		}
 		line := lead + name + strings.Repeat(" ", widest-ansi.StringWidth(v.Name))
 		if !m.showPages {
-			line += "  " + style.Off(clip(v.Purpose, m.width-3-widest-2))
+			line += "  " + style.Off(pane.Clip(v.Purpose, m.width-3-widest-2))
 		}
 		list = append(list, line)
 	}
 	if span.Below {
-		list = append(list, "   "+style.Off(form.More(verbs(lines[span.End:]))))
+		list = append(list, "   "+style.Off(pane.More(verbs(lines[span.End:]))))
 	}
 	if m.showPages {
 		right := ""
@@ -364,8 +364,8 @@ func (m Model) View() tea.View {
 		leftWidth := 3 + widest + 2
 		rightWidth := m.width - leftWidth
 		pageLines := page(right, rightWidth-1)
-		if cut := form.Frame(len(pageLines), rows, 0, 0, 0); cut.Below {
-			pageLines = append(pageLines[:cut.End], style.Off(form.More(len(pageLines)-cut.End)))
+		if cut := pane.Frame(len(pageLines), rows, 0, 0, 0); cut.Below {
+			pageLines = append(pageLines[:cut.End], style.Off(pane.More(len(pageLines)-cut.End)))
 		} else {
 			pageLines = pageLines[:cut.End]
 		}
@@ -401,12 +401,4 @@ func page(text string, width int) []string {
 		out = append(out, current)
 	}
 	return out
-}
-
-// clip shortens a text to n cells, with … at the cut.
-func clip(s string, n int) string {
-	if n < 1 {
-		return ""
-	}
-	return ansi.Truncate(s, n, "…")
 }

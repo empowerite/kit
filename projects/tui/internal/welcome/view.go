@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -77,7 +78,7 @@ type layout struct {
 // View draws the screen on the alternate screen.
 func (m Model) View() tea.View {
 	l := m.layout()
-	lines := []string{" " + clip(m.title(), m.width-1), m.line(l), m.labelLine(l), ""}
+	lines := []string{" " + pane.Clip(m.title(), m.width-1), m.line(l), m.labelLine(l), ""}
 	lines = append(lines, m.pane()...)
 	lines = append(lines, "")
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
@@ -288,19 +289,28 @@ func (m Model) pane() []string {
 	} else {
 		texts = m.pageLines(m.step)
 	}
-	out := windowed(texts, m.offsets[m.step], h)
+	out := pane.Lines(texts, m.offsets[m.step], h, "", lead)
+	for k := range out {
+		out[k] = pane.Clip(out[k], m.width-1)
+	}
 	for len(out) < h {
 		out = append(out, "")
 	}
 	return out
 }
 
-// pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim line
-// saying where the page was looked for.
+// pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim lines
+// saying where the page was looked for, the path broken across lines so all of it shows. The pane clips what a narrow
+// screen cannot hold, since a page keeps ten cells for its words.
 func (m Model) pageLines(i int) []string {
 	switch {
 	case m.tabs[i].missing != "":
-		return []string{lead + style.Off("no page at "+m.tabs[i].missing)}
+		out := []string{lead + style.Off("no page at")}
+		path := ansi.Hardwrap(m.tabs[i].missing, max(m.width-len(lead)-1, 1), false)
+		for _, piece := range strings.Split(path, "\n") {
+			out = append(out, lead+style.Off(piece))
+		}
+		return out
 	case m.tabs[i].page == "":
 		return []string{lead + style.Off("reading…")}
 	}
@@ -317,7 +327,7 @@ func (m Model) pageLines(i int) []string {
 func (m Model) stepLines() []line {
 	w := m.width - 1
 	var out []line
-	add := func(row int, text string) { out = append(out, line{row, clip(text, w)}) }
+	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
 		for _, l := range render(t.page, w-len(lead)) {
 			add(-1, strings.TrimRight(lead+l, " "))
@@ -351,9 +361,9 @@ func (m Model) stepLines() []line {
 			if !c.Runs && c.Fix != "" {
 				text += style.Off(" · kit does not run it")
 			}
-			left = append(left, line{-1, clip(text, w)})
+			left = append(left, line{-1, pane.Clip(text, w)})
 			if c.More != "" {
-				left = append(left, line{-1, clip(lead+"  "+style.Mark(c.More), w)})
+				left = append(left, line{-1, pane.Clip(lead+"  "+style.Mark(c.More), w)})
 			}
 		}
 	}
@@ -383,25 +393,25 @@ func (m Model) checkLines(i int, id string) []line {
 	}
 	if focused && !c.OK && c.Fix != "" && c.Runs {
 		buttons := "   " + button("now", m.choice == now) + " " + button("later", m.choice == later)
-		row = clip(row, w-ansi.StringWidth(buttons)) + buttons
+		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}
-	out := []line{{i, clip(row, w)}}
+	out := []line{{i, pane.Clip(row, w)}}
 	if !c.OK && c.Fix != "" {
 		fix := c.Fix
 		if c.Interactive {
 			fix += " · it needs you at the keyboard"
 		}
-		out = append(out, line{i, clip(under+style.Off(fix), w)})
+		out = append(out, line{i, pane.Clip(under+style.Off(fix), w)})
 	}
 	if !c.OK && c.More != "" {
-		out = append(out, line{i, clip(under+style.Off(c.More), w)})
+		out = append(out, line{i, pane.Clip(under+style.Off(c.More), w)})
 	}
 	if n, ok := m.notes[id]; ok {
 		draw := style.Warn
 		if n.refusal {
 			draw = style.Refusal
 		}
-		out = append(out, line{i, clip(under+draw(n.text), w)})
+		out = append(out, line{i, pane.Clip(under+draw(n.text), w)})
 	}
 	return out
 }
@@ -423,7 +433,7 @@ func (m *Model) fit() {
 	}
 	lines, h := m.stepLines(), m.paneHeight()
 	o := &m.offsets[m.step]
-	*o, _, _, _ = window(len(lines), h, *o)
+	*o, _, _, _ = pane.Window(len(lines), h, *o)
 	if !m.inRows {
 		return
 	}
@@ -441,7 +451,7 @@ func (m *Model) fit() {
 	}
 	// a … line takes the place of a line at either edge, so the window is asked rather than counted
 	for {
-		start, end, _, _ := window(len(lines), h, *o)
+		start, end, _, _ := pane.Window(len(lines), h, *o)
 		switch {
 		case first < start:
 			*o = first
@@ -451,38 +461,4 @@ func (m *Model) fit() {
 			return
 		}
 	}
-}
-
-// window says which of n lines a pane of h lines shows from offset o: the offset, clamped, the end, and whether a
-// line says how many are hidden above, and how many below. Each such line takes the place of a shown one.
-func window(n, h, o int) (start, end int, above, below bool) {
-	if n <= h {
-		return 0, n, false, false
-	}
-	start = min(max(o, 0), n-h+1)
-	above = start > 0
-	end = start + h
-	if above {
-		end--
-	}
-	if end < n {
-		below = true
-		end--
-	}
-	return start, min(end, n), above, below
-}
-
-// windowed gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more where lines are
-// hidden.
-func windowed(all []string, o, h int) []string {
-	start, end, above, below := window(len(all), h, o)
-	out := make([]string, 0, h)
-	if above {
-		out = append(out, lead+style.Off("… "+strconv.Itoa(start)+" above"))
-	}
-	out = append(out, all[start:end]...)
-	if below {
-		out = append(out, lead+style.Off("… "+strconv.Itoa(len(all)-end)+" more"))
-	}
-	return out
 }
