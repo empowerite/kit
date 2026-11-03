@@ -136,13 +136,15 @@ release:fetch() {
   printf '%s\n' "${cache}"
 }
 
-# release:finish <package>… reports a finished install or update.
+# release:finish <package>… reports a finished install or update. It names where the workflow is when the workflow
+# package delivers it, and otherwise the entry file every agent reads.
 release:finish() {
+  local read=' Every agent reads .kit/1st.md first.'
   ok "kit $(release:version) is installed, packages: ${*:-none}; kit.yml declares them."
   release:say-unmet "$@"
   release:say-notices "$@"
-  step "Commit kit.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored. The" \
-    "workflow is in .kit/1st.md."
+  [[ " $* " != *" workflow "* ]] || read=' The workflow is in .kit/workflow.md.'
+  step "Commit kit.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored.${read}"
 }
 
 # release:say-notices <package>… prints each notice of the packages whose path this process placed afresh, or merged

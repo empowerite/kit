@@ -13,6 +13,17 @@ setup() {
   fresh-repo
 }
 
+@test "install's last line names the file the workflow is in: .kit/workflow.md with the package, else none" {
+  run "${kit_checkout}/bin/kit" install workflow
+  [ "$status" -eq 0 ]
+  [[ "${lines[${#lines[@]} - 1]}" == *"The workflow is in .kit/workflow.md." ]]
+  run "${kit_checkout}/bin/kit" uninstall
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"The workflow is in"* ]]
+  [[ "${lines[${#lines[@]} - 1]}" == *"Every agent reads .kit/1st.md first." ]]
+}
+
 @test "kit install alone delivers the entry file without the workflow, the worker contract, or a forge's command" {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
