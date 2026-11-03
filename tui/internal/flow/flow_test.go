@@ -255,7 +255,7 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "changes")
 	m := loaded(t, options(), right, right, right, right)
 	v := view(m)
-	refusal :=Failed + " kit flow changes: the forge cannot be read; run: kit help flow"
+	refusal := Failed + " kit flow changes: the forge cannot be read; run: kit help flow"
 	if !strings.Contains(v, Change+" changes !") || !strings.Contains(v, refusal) {
 		t.Fatalf("the refusal is not shown:\n%s", v)
 	}
