@@ -16,17 +16,6 @@ setup() {
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
 }
 
-# without-kittui prints a PATH with bash, git, and jq, the system's tools, and no kittui.
-without-kittui() {
-  local dir="${BATS_TEST_TMPDIR}/nokittui" tool
-  mkdir -p "${dir}"
-  for tool in bash git jq
-  do
-    ln -sf "$(command -v "${tool}")" "${dir}/${tool}"
-  done
-  printf '%s:/usr/bin:/bin\n' "${dir}"
-}
-
 # pty <command> runs the command in a pseudo-terminal, so its stdin, stdout, and stderr are terminals, as at a desk.
 pty() {
   if script --version >/dev/null 2>&1

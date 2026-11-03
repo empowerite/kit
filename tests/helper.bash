@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 # helper.bash - what every test file loads: the checkout's kit, an environment the desk cannot reach, and shared helpers
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # A file loads this with `load helper`, after bats_require_minimum_version where it has one. Loading moves everything a
 # test could leak under BATS_TEST_TMPDIR, which bats removes after the test: HOME and git's global configuration, the
 # kit's home and its cache, and TMPDIR, so a mktemp in the kit or in a test lands there too; and it moves the test
@@ -161,6 +160,31 @@ path-without() {
     out+="${out:+:}${dir}"
   done
   PATH=${out}
+}
+
+# without-kittui prints a PATH with bash, git, jq, and yq, then the system's /usr/bin and /bin, and neither go nor
+# kittui: with go, a checkout builds kittui, and GitHub's Ubuntu images link their go into /usr/bin. A system directory
+# that holds either is replaced by links to everything else in it, made by one ln, as hide-system-toolchains does.
+without-kittui() {
+  local dir="${BATS_TEST_TMPDIR}/nokittui" system out='' copy n=0 tool
+  mkdir -p "${dir}"
+  for tool in bash git jq yq
+  do
+    ln -sf "$(command -v "${tool}")" "${dir}/${tool}"
+  done
+  for system in /usr/bin /bin
+  do
+    if [[ -x "${system}/go" || -x "${system}/kittui" ]]
+    then
+      copy="${BATS_TEST_TMPDIR}/nokittui-system-$((n++))"
+      mkdir -p "${copy}"
+      ln -s "${system}"/* "${copy}/" 2>/dev/null || true
+      rm -f "${copy}/go" "${copy}/kittui"
+      system=${copy}
+    fi
+    out+=":${system}"
+  done
+  printf '%s%s\n' "${dir}" "${out}"
 }
 
 # fake-tools <tool>… stands tests/fakes/fake-tool in for each tool, first on PATH, with an empty route file each, and

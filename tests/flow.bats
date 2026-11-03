@@ -2,7 +2,6 @@
 # flow.bats - kit flow draws the picture: its stages, their headings and counts, one stage alone, the JSON, the
 # hand-off to kittui on a terminal, and the cells every stage shares
 # ----------------------------------------------------------------------------------------------------------------------
-#
 # origin is a bare repository beside the desk, so the fetch is real git. The forge, where a test needs one, is a fake
 # gh: forge-world sets the caller ada, issues 7, 9, and 11, change 3 closing 7, two runs, and three releases, the world
 # of backlog.bats and changes.bats.
@@ -123,17 +122,6 @@ fake-tui() {
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
-}
-
-# without-kittui prints a PATH with the tools kit flow needs and neither go nor kittui.
-without-kittui() {
-  local dir="${BATS_TEST_TMPDIR}/nokittui" tool
-  mkdir -p "${dir}"
-  for tool in bash git jq yq
-  do
-    ln -sf "$(command -v "${tool}")" "${dir}/${tool}"
-  done
-  printf '%s:/usr/bin:/bin\n' "${dir}"
 }
 
 @test "a cell is padded to its width, or clipped with an ellipsis" {
