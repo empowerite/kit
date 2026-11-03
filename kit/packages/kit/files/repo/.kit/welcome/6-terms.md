@@ -26,7 +26,7 @@ it through its command-line tool, `gh` or `glab`.
 ## remote and primary
 
 A remote is another copy of the repository, as git names it. The primary is the remote kit reads pull requests,
-builds, and issues from: `primary` in `kit.yml`, else `origin`.
+builds, and issues from: `primary` in `kit.yml`, else `origin`. `kit issue` and `kit submit` push to `origin`.
 
 `git remote --verbose`
 

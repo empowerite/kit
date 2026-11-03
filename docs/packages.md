@@ -264,7 +264,7 @@ answers:
 | `excludes` | Members of an active bundle, and default packages, removed with `kit packages remove`, which `kit update` leaves out. Written by the `kit packages` verbs and `kit update`. |
 | `forge` | The code forge provider the workflow commands use, `github` or `gitlab`: the primary remote's. The code forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com` or `gitlab.com`, or a host the `gh` or `glab` CLI has logged in to. |
 | `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
-| `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: `origin`. |
+| `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. `kit issue` and `kit submit` fetch from and push to `origin` whatever it is. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit issue` refuse to start when git has no `user.signingkey`. |
 | `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |

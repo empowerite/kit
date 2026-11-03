@@ -38,7 +38,8 @@ Some git commands have a kit replacement that adds the check its rule requires. 
 command. A harness with a deny list refuses the raw git command.
 
 - `kit rebase`, never `git rebase`. `kit rebase` refuses to run in the root checkout or on the default branch.
-  Otherwise it rebases the worktree's branch onto the default branch at origin and pushes it.
+  Otherwise it rebases the worktree's branch onto the default branch at the primary remote, `origin` unless
+  `primary` in `kit.yml` names another, and pushes it.
 - `kit commit`, never `git commit`. `kit commit` refuses the desk and the default branch, runs the linters over the
   staged paths, refuses a path the kit placed, and holds the subject to the policy before the commit exists.
 - `kit submit`, never `git push`. `kit submit` commits what is staged the same way, then pushes the branch. It never

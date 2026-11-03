@@ -2,7 +2,7 @@
 
    <version> required  the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release
 
-   --lower             confirms a version not higher than origin's highest release
+   --lower             confirms a version not higher than the primary remote's highest release
 
 
  kit release

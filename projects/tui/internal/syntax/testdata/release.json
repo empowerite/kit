@@ -32,7 +32,7 @@
       "description": "the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release"
     },
     "--lower": {
-      "description": "confirms a version not higher than origin's highest release"
+      "description": "confirms a version not higher than the primary remote's highest release"
     }
   }
 }

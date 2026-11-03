@@ -125,8 +125,9 @@ in place.
 Work starts from an issue:
 
 1. `kit issue <N>` creates `worktrees/<N>-<slug>`, hydrated, a branch linked to the issue, a start commit, and a
-   draft pull request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so. When
-   the desk is on the default branch, `kit issue` also fast-forwards it. It does not change anything else on the desk.
+   draft pull request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so.
+   Then, when the desk is on the default branch, it also fast-forwards it. It does not change anything else on the
+   desk.
 2. In the worktree:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,
@@ -172,7 +173,7 @@ exists.
 
 Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
 branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted code
-forge must be named in the `forge` setting.
+forge is named in the `forge` or `forges` setting, or found from a host `gh` or `glab` has logged in to.
 
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
 - Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.

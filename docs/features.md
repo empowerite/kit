@@ -112,7 +112,8 @@ document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
 A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
 primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
-builds, releases, and issues are read from it. Each remote has a code forge, or none:
+builds, releases, and issues are read from it. `kit issue` and `kit submit` still fetch from and push to `origin`,
+whatever the primary is. Each remote has a code forge, or none:
 
 1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins
 2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab
@@ -184,8 +185,8 @@ see: [modules.md](modules.md#writing-a-verb)
   `glab`, and shows the same picture on either.
 - A tracker holds the issues. The reference picks it: `#7` for the code forge's issues, `AB#4521` for an Azure DevOps
   work item. A repository can use more than one at once.
-- Only the workflow verbs call a code forge. A repository with none can still install, update, check, and run
-  `kit context`.
+- Only the workflow verbs and two checks, `kit linked` and `kit policy`, call a code forge. A repository with none
+  can still install, update, check, and run `kit context`.
 
 see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
 

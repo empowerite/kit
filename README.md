@@ -332,7 +332,7 @@ macOS checks a new executable the first time it runs, except one an app on that 
 - Published releases are immutable, so a tag is never reused.
 
 `kit release <version>` makes the tag and pushes it alone, after these rules and one more: a version not higher
-than every release on origin needs `--lower`. `kit flow releases` lists what the code forge published.
+than every release on the primary remote needs `--lower`. `kit flow releases` lists what the code forge published.
 
 The release workflow runs two commands:
 
