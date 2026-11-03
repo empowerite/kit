@@ -216,7 +216,7 @@ PATH_add kit/bin
 kit hydrate --quick
 ```
 
-- It puts no tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
+- It does not put any tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
   `use flake`.
 - An agent's subprocess shell and a CI runner have neither. There the verbs' own call and `kit ci` do the work.
 
