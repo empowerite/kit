@@ -2,6 +2,6 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "The naming policy as Rego, so kit policy runs on Open Policy Agent"
+description: "The naming policy as Rego, so kit policy runs on Open Policy Agent, ready for rules over names and files"
 depends:
   - kit

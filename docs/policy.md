@@ -15,25 +15,67 @@ kit policy
 
 ## The facts
 
-`kit policy --input` prints the JSON document every engine reads:
+`kit facts` prints the JSON document every engine reads. `kit policy --input` prints the same document.
 
 ```json
 {
+  "moment": "ci",
   "branch": "7-fix-the-thing",
   "default_branch": "main",
   "commits": [{"sha": "56d4f4b…", "subject": "#7 cli: fix the thing"}],
   "change": {"number": 3, "title": "Fix the thing", "body": "Closes #7", "author": "ada"},
+  "tree": {
+    "kit/bin/kit": {"type": "file", "executable": true, "size": 2048, "blob": "9f2c1a…", "kinds": ["bash"]}
+  },
   "policy": {"branch": "…", "commit_subject": "…", "change_title": "…"}
 }
 ```
 
 | Field | Contents |
 | --- | --- |
+| `moment` | `commit` or `ci`: the point the facts are judged at. |
 | `branch` | On a runner, the change's head branch. In the root checkout (the desk), the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, no commit is checked and `kit policy` warns. |
-| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change. |
+| `change` | The change's number, title, body, and author's login, read through the forge (the service that hosts the repository). `null` when there is no forge or no change, and always `null` at commit. |
+| `tree` | The files git holds, keyed by path. Read from git, never from the disk: the index at commit, and HEAD at ci. |
 | `policy` | The patterns, with the kit's defaults filled in. |
+
+Each entry in `tree` has these fields:
+
+| Field | Contents |
+| --- | --- |
+| `type` | `file`, `link`, or `submodule`. |
+| `executable` | `true` for a file of mode 100755, and `false` for everything else. |
+| `size` | The blob's bytes, and 0 for a submodule. |
+| `blob` | The blob's object name, or the commit a submodule is at. |
+| `kinds` | The kinds of file the path is, such as `bash`, or `[]` for none. |
+| `text` | The blob's content. Only a file matching a `facts.read` glob has it. |
+
+### Reading a file's text
+
+A rule that judges content needs `text`. Name the files in `kit.yml` by glob:
+
+```yaml
+facts:
+  read:
+    - README.md
+```
+
+- A file's `text` is capped at 65536 bytes.
+- A binary file or an oversized file has no `text`, and kit warns, naming it.
+- A rule should treat a missing `text` as unknown, not as empty.
+
+### Testing a rule
+
+`kit policy --facts=<file>` judges a saved facts document and gathers nothing.
+
+```sh
+kit facts > fixture.json
+kit policy --facts=fixture.json
+```
+
+Edit the fixture to test a rule against facts that the repository does not have.
 
 ## The rules
 
@@ -77,7 +119,59 @@ The `opa` engine needs `opa`. Pin it in the repository's toolchain, then run `ki
 
 The `policy/opa` package delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
 refusals. Because it is a `.rego` file, adding the package selects the `opa` engine, and the results stay the same.
-Write a rule that a pattern cannot express in a separate `.rego` file beside it:
+
+Rules over `tree` need `opa`. The `patterns` engine ignores `tree`.
+
+### Refusals and warnings
+
+The engine reads two sets of strings from package `kit.policy`:
+
+- `deny` holds refusals. Any one fails `kit policy`.
+- `warn` holds warnings. They are printed and never fail anything.
+
+### A rule of your own, through a local package
+
+Rego that belongs to one repository ships through a local package, as templates do. Put the file in the package's
+source, and kit delivers it as a link:
+
+```text
+.kit/packages/house/files/repo/.kit/policy/house.rego   the source
+.kit/policy/house.rego                                  delivered by kit, as a link
+```
+
+- The package must list `policy/opa` under `depends:`.
+- Without it, `kit.rego` is missing. Any `.rego` file selects `opa`, so the naming rules would silently stop.
+
+```yaml
+description: "This repository's own tree rules"
+depends:
+  - policy/opa
+```
+
+This repository's `house` package holds a rule over `tree`. It refuses a file in `kit/bin/` that is not executable:
+
+```rego
+package kit.policy
+
+import rego.v1
+
+bin := "kit/bin/"
+
+# The name after kit/bin/, for a file directly in it.
+bin_name(path) := name if {
+    startswith(path, bin)
+    name := substring(path, count(bin), -1)
+    not contains(name, "/")
+}
+
+deny contains sprintf("%s is not executable", [path]) if {
+    some path, f in input.tree
+    bin_name(path)
+    not f.executable
+}
+```
+
+A rule can also judge the commits:
 
 ```rego
 package kit.policy
