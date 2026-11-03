@@ -994,6 +994,18 @@ flow:stage-args() {
   return 0
 }
 
+# flow:asks-forge <stage>… succeeds when one of the stages is answered by the forge.
+flow:asks-forge() {
+  local stage
+  for stage in "$@"
+  do
+    case "${stage}" in
+      (backlog | underway | changes | builds | releases) return 0
+    esac
+  done
+  return 1
+}
+
 # flow:picture-document <scratch> <stage> <reachable> prints the document a stage collected under <scratch>, for the
 # picture's JSON: null for a stage that failed or, with no primary remote, could not run. incoming has a document
 # even when a fetch failed. With no primary remote, it is the remotes, not fetched.
@@ -1019,9 +1031,11 @@ flow:picture-document() {
 # heading. A stage that failed is drawn as its refusal, and the picture returns 1 at the end, in either form. So does
 # a fetch that failed: incoming draws it on its remote's line, and without incoming, the primary is fetched alone and
 # a failure warns once. With no primary remote it fetches nothing and asks the forge nothing: it draws the checkouts,
-# says so once, and returns 0. It returns 2 when the flow setting is wrong.
+# says so once, and returns 0. A primary whose forge kit cannot tell is fetched, and drawn with the checkouts; the
+# forge stages are left out, said once. It returns 2 when the flow setting is wrong.
 flow:picture() {
-  local json=false no_fetch=false reachable=true failed=false first=true stage doc code choice scratch text primary
+  local json=false no_fetch=false reachable=true forged=true failed=false first=true stage doc code choice scratch text
+  local primary host said
   local -a stages=() args=() named=()
   text=$(settings:stages) || return 2
   readarray -t stages <<<"${text}"
@@ -1029,6 +1043,18 @@ flow:picture() {
   [[ " $* " == *" --no-fetch "* ]] && no_fetch=true
   primary=$(forge:primary) || return $?
   git remote get-url --end-of-options "${primary}" >/dev/null 2>&1 || reachable=false
+  # A primary whose forge kit cannot tell is still fetched; only the forge stages are left out, said once, when the
+  # flow setting names one.
+  if [[ "${reachable}" == true ]] && flow:asks-forge "${stages[@]}" && [[ -z "$(forge:of "${primary}")" ]]
+  then
+    forged=false
+    host=$(forge:host "${primary}")
+    if [[ -z "${host}" ]]
+    then said="${primary} is a local path, so it does not name a forge"
+    else said="${primary}'s host '${host}' does not name a forge the kit knows"
+    fi
+    said+="; kit does not show any pull request; set forge in kit.yml ($(forge:providers))"
+  fi
   choice=$(flow:choice-of "$@")
   file:scratch scratch
   # The forge stages need nothing local and the forge is the slow call, so they start first, in the background.
@@ -1036,7 +1062,7 @@ flow:picture() {
   do
     case "${stage}" in
       (backlog | underway | changes | builds | releases)
-        [[ "${reachable}" == true ]] || continue
+        [[ "${reachable}" == true && "${forged}" == true ]] || continue
         readarray -t args < <(flow:stage-args "${stage}" --json "$@")
         (
           flow:stage "${stage}" "${args[@]}" && code=0 || code=$?
@@ -1080,6 +1106,7 @@ flow:picture() {
       [[ ! -s "${scratch}/${stage}.err" ]] || cat "${scratch}/${stage}.err" >&2
     done
     [[ "${reachable}" == true ]] || warn "no ${primary}: nothing fetched, no pull request shown"
+    [[ "${forged}" == true ]] || warn "${said}"
     jq --null-input --compact-output --argjson stages "$(flow:json-list "${stages[@]}")" "${named[@]}" \
       '{stages: $stages} + $ARGS.named'
     [[ "${failed}" == false ]]
@@ -1089,10 +1116,18 @@ flow:picture() {
   then
     warn "no ${primary}: nothing fetched, no pull request shown"
     first=false
+  elif [[ "${forged}" == false ]]
+  then
+    warn "${said}"
+    first=false
   fi
   for stage in "${stages[@]}"
   do
-    [[ "${reachable}" == true || "${stage}" == desk || "${stage}" == worktrees ]] || continue
+    case "${stage}" in
+      (desk | worktrees) ;;
+      (incoming) [[ "${reachable}" == true ]] || continue ;;
+      (*) [[ "${reachable}" == true && "${forged}" == true ]] || continue
+    esac
     if [[ "${first}" == true ]]
     then first=false
     else printf '\n' >&2

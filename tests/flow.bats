@@ -385,19 +385,20 @@ fake-tui() {
 }
 
 @test "a stage the forge cannot answer is drawn as its refusal under its heading, and the picture exits 1" {
+  # the forge is named, and its tool fails every call
+  commit-settings 'forge: github'
+  export PATH="$(shims gh)"
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
   [ "${lines[0]}" = "🎫 BACKLOG" ]
-  [[ "${lines[1]}" == *"set forge in kit.yml"* ]]
+  [[ "${lines[1]}" == "❌ "* ]]
   [[ "$output" == *$'\n💻 DESK 1\n💻 main'* ]]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"set forge in kit.yml"* ]]
   [ "$(jq -c '[.backlog, .underway, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
     = '[null,null,null,null,null,"main"]' ]
   run "${kit_root}/bin/kit" flow changes
   [ "$status" -eq 1 ]
-  [[ "$output" == *"set forge in kit.yml"* ]]
 }
 
 @test "a repository with no origin draws its checkouts, says so once, and exits 0; a forge stage alone still refuses" {
@@ -420,10 +421,29 @@ fake-tui() {
     <<<"${lines[1]}")" = '[null,{"fetched":false,"primary":"origin","remotes":[]},null,null,null,"main",[]]' ]
   run "${kit_root}/bin/kit" flow changes
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin's host 'none' names no forge"* ]]
+  [[ "$output" == *"does not have a remote named origin"* ]]
   run "${kit_root}/bin/kit" flow builds
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin's host 'none' names no forge"* ]]
+  [[ "$output" == *"does not have a remote named origin"* ]]
+}
+
+@test "an origin that does not name a forge is fetched, said once, and its checkouts drawn; kit flow exits 0" {
+  fresh-repo alone >/dev/null
+  printf 'one\n' > a && git add a && git commit --quiet --message one
+  git init --quiet --bare "${BATS_TEST_TMPDIR}/origin.git"
+  git remote add origin "${BATS_TEST_TMPDIR}/origin.git"
+  git push --quiet origin main
+  run --keep-empty-lines "${kit_root}/bin/kit" flow
+  [ "$status" -eq 0 ]
+  [ "$(grep --count 'does not name a forge' <<<"${output}")" -eq 1 ]
+  [[ "${lines[0]}" == *"origin is a local path, so it does not name a forge; kit does not show any pull request"* ]]
+  [[ "$output" == *"💻 DESK 1"* ]]
+  [[ "$output" == *"🌿 WORKTREES 0"* ]]
+  [[ "$output" != *"BACKLOG"* ]]
+  run "${kit_root}/bin/kit" flow --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.backlog, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" = \
+    '[null,null,null,null,"main"]' ]
 }
 
 @test "on a terminal, kit flow hands off to kittui with its arguments; a stage, --text, --json, or no terminal stays in text" {

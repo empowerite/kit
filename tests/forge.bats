@@ -32,10 +32,18 @@ provider() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"set forge in kit.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
   [[ "$output" == *"(github gitlab)"* ]]
+  # a local path has no host, so it is named as a path
+  git remote set-url origin "${BATS_TEST_TMPDIR}/origin.git"
+  run provider
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"origin is a local path, so it does not name a forge; set forge in kit.yml (github gitlab)"* ]]
+  # no origin at all says so, and how to add one
   git remote remove origin
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin's host 'none'"* ]]
+  [[ "$output" == *"this repository does not have a remote named origin, so kit cannot tell its forge;"* ]]
+  [[ "$output" == *"run: git remote add origin <url>, or set forge in kit.yml"* ]]
+  [[ "$output" != *"'none'"* ]]
 }
 
 @test "the forge setting wins, and an unknown one is refused by name" {

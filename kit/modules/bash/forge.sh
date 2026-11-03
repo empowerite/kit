@@ -185,8 +185,16 @@ forge:provider() {
   if [[ -z "${provider}" ]]
   then
     host=$(forge:host "${primary}")
-    error "set forge in kit.yml; ${primary}'s host '${host:-none}' names no forge the kit knows" \
-      "($(forge:providers))"
+    if ! git remote get-url --end-of-options "${primary}" >/dev/null 2>&1
+    then
+      error "this repository does not have a remote named ${primary}, so kit cannot tell its forge;" \
+        "run: git remote add ${primary} <url>, or set forge in kit.yml ($(forge:providers))"
+    elif [[ -z "${host}" ]]
+    then
+      error "${primary} is a local path, so it does not name a forge; set forge in kit.yml ($(forge:providers))"
+    else
+      error "set forge in kit.yml; ${primary}'s host '${host}' names no forge the kit knows ($(forge:providers))"
+    fi
     return 1
   fi
   if [[ -z "$(use:modules "forge/${provider}")" ]]
