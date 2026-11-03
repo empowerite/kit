@@ -117,4 +117,20 @@ setup() {
   [[ "$output" == *"toml "*".kit/kinds/toml.yml"*"**/*.toml · embeds bash"* ]]
 }
 
+@test "a default package removed stays out, so kit update does not bring it back, and adding it lifts that" {
+  "${kit_checkout}/bin/kit" install
+  run "${kit_checkout}/bin/kit" packages remove kit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"kit: excluded, so an update does not bring it back as a default"* ]]
+  [ ! -e .kit/1st.md ]
+  run "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ ! -e .kit/1st.md ]
+  grep --quiet '^excludes:' kit.yml
+  run "${kit_checkout}/bin/kit" packages add kit
+  [ "$status" -eq 0 ]
+  [ -e .kit/1st.md ]
+  run ! grep --quiet '^excludes:' kit.yml
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -133,10 +133,11 @@ package:add() {
 
 # package:remove <package>… takes out what the packages delivered (files, the kit's JSON entries, and the kit's
 # regions) and rewrites the manifests. A package that an active package depends on is refused, and it returns 1. A
-# member of a bundle that stays active is recorded as excluded, so that kit update does not bring it back.
+# member of a bundle that stays active, and a package that is on by default, is recorded as excluded, so that kit
+# update does not bring it back.
 package:remove() {
   local package base path newly='' names
-  local -a named active excluded remaining dependents includers
+  local -a named active excluded remaining dependents includers defaults
   guard:require tool:jq || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
@@ -160,6 +161,7 @@ package:remove() {
   done
   render:all "${kit_root}" "${active[@]}"
   section "kit packages remove ${named[*]}"
+  readarray -t defaults < <(resolve:defaults "${kit_root}")
   for package in "${named[@]}"
   do
     readarray -t includers < <(resolve:includers "${kit_root}" "${package}" "${remaining[@]}")
@@ -167,6 +169,10 @@ package:remove() {
     then
       newly+=" ${package}"
       step "${package}: excluded, so an update does not bring it back as a member of ${includers[*]}"
+    elif list:among "${package}" "${defaults[@]}"
+    then
+      newly+=" ${package}"
+      step "${package}: excluded, so an update does not bring it back as a default"
     fi
   done
   readarray -t excluded < <(resolve:exclusions "${excluded[*]}${newly}" "${remaining[@]}")

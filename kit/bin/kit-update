@@ -42,6 +42,11 @@ settings:require
 readarray -t recorded < <(settings:packages)
 readarray -t excluded < <(settings:excludes)
 readarray -t defaults < <(resolve:defaults "${kit_root}")
+# A default removed by kit packages remove is excluded, and stays out.
+for package in "${excluded[@]}"
+do
+  readarray -t defaults < <(list:without "${package}" "${defaults[@]}")
+done
 resolve:require "${kit_root}" "${recorded[@]}"
 # The active set is resolved again from this release; the header says what comes in and what stays out.
 readarray -t packages < <(resolve:active "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}")
