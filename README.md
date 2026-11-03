@@ -1,5 +1,13 @@
 # empowerite/kit: **k**eep **i**t **t**rustworthy
 
+[![kit CI][ci-badge]][ci] [![release][release-badge]][releases] [![license: MIT][license-badge]](LICENSE)
+
+[ci-badge]: https://github.com/empowerite/kit/actions/workflows/kit-ci.yml/badge.svg?event=pull_request
+[ci]: https://github.com/empowerite/kit/actions/workflows/kit-ci.yml
+[release-badge]: https://img.shields.io/github/v/release/empowerite/kit?include_prereleases&display_name=release
+[releases]: https://github.com/empowerite/kit/releases
+[license-badge]: https://img.shields.io/badge/license-MIT-blue
+
 Do you trust your agents? They were trained on the whole of what people have written, and that includes every shortcut
 anyone ever took: the "done" that was not, the test that was skipped and reported as passing, the rebase that quietly
 rewrote a colleague's branch. An agent is a tireless new colleague who has read everything and holds none of your house
@@ -91,8 +99,8 @@ Requirements:
   - `shellcheck`, which the bash rule runs
   - `actionlint`, which the workflows rule runs
   - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
-- For `kit issue`, `kit flow`, `kit tidy`, and `kit linked`: the forge's command-line tool, `gh` for GitHub or
-  `glab` for GitLab. The forge is the service that hosts the repository.
+- For `kit issue`, `kit flow`, `kit tidy`, and `kit linked`: the code forge's command-line tool, `gh` for GitHub or
+  `glab` for GitLab. The code forge is the service that hosts the repository.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
 
 kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
@@ -103,7 +111,7 @@ unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite
 Then check the install: `kit version` prints the release, and `kit help` lists the verbs. Once a repository has
 taken the kit, `kit check` says every delivered file matches the release.
 
-New to a repository that uses kit? Run `kit welcome`. It checks your tools, your forge logins, and the repository,
+New to a repository that uses kit? Run `kit welcome`. It checks your tools, your code forge logins, and the repository,
 and shows the fix for each problem. Then it walks you through how work flows, the terms, and what a team can change.
 
 ## Take the kit
@@ -304,7 +312,7 @@ serves as the notice for `settings.json`.
 - Published releases are immutable, so a tag is never reused.
 
 `kit release <version>` makes the tag and pushes it alone, after these rules and one more: a version not higher
-than every release on origin needs `--lower`. `kit flow releases` lists what the forge published.
+than every release on origin needs `--lower`. `kit flow releases` lists what the code forge published.
 
 The release workflow runs two commands:
 
