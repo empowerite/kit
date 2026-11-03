@@ -297,4 +297,32 @@ func TestTheReserveAndTheMenuKeepEveryTabWhereItIs(t *testing.T) {
 	if got := row(bar(1, "3"), 1); strings.Count(got, Menu) != 1 || !strings.Contains(got, "4 "+Menu+" │") {
 		t.Errorf("the menu's glyph is not on the selected tab alone, after its count: %q", got)
 	}
+	// the glyph is bold only while the menu is open
+	open := bar(1, "3")
+	if closed := open.View(); strings.Contains(closed, style.Mark(Menu)) || !strings.Contains(closed, style.Tint(Menu)) {
+		t.Errorf("the glyph of a closed menu is bold: %q", closed)
+	}
+	if open.MenuOpen = true; !strings.Contains(open.View(), style.Mark(Menu)) {
+		t.Errorf("the glyph of an open menu is not bold")
+	}
+}
+
+// MenuAt says where the selected tab's menu glyph is drawn, as a click needs it, and -1 when it is not drawn.
+func TestMenuAtIsWhereTheGlyphIsDrawn(t *testing.T) {
+	for _, width := range []int{40, 80, 170} {
+		for selected := range 8 {
+			b := stages(selected, width)
+			b.Menus = true
+			want := -1
+			if line := strings.Split(ansi.Strip(b.View()), "\n")[1]; strings.Contains(line, Menu) {
+				want = ansi.StringWidth(line[:strings.Index(line, Menu)])
+			}
+			if got := b.MenuAt(); got != want {
+				t.Errorf("at %d, tab %d: MenuAt %d, drawn at %d", width, selected, got, want)
+			}
+		}
+	}
+	if (Bar{Tabs: []Tab{{"", "a", ""}}, Width: 40}).MenuAt() != -1 || (Bar{Menus: true}).MenuAt() != -1 {
+		t.Error("a bar without menus, or without tabs, has a menu glyph")
+	}
 }

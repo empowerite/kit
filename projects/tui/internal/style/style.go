@@ -34,6 +34,7 @@ var (
 	cursor  = lipgloss.NewStyle().Reverse(true)
 	refusal = lipgloss.NewStyle().Foreground(red)
 	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
+	tint    = lipgloss.NewStyle().Foreground(accent)
 	warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
@@ -43,6 +44,9 @@ var (
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
 func Mark(s string) string { return mark.Render(s) }
+
+// Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
+func Tint(s string) string { return tint.Render(s) }
 
 // Gain draws a count that adds: commits ahead, lines added. Bold green, as kit flow --text draws it.
 func Gain(s string) string { return gain.Render(s) }

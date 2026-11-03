@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
@@ -45,6 +46,7 @@ type line struct {
 func (m Model) View() tea.View {
 	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
+	lines = m.overlay(lines)
 	lines = append(lines, "")
 	bottom := style.Bar(m.keys(), m.width)
 	if m.notice != "" {
@@ -61,7 +63,7 @@ func (m Model) View() tea.View {
 // count of n/m and the menu's glyph kept for each, and the keyboard on it unless the rows or the panel have it.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.width, Row: 1,
-		Reserve: len("xxx/yyy"), Menus: true}
+		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu}
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 	}
@@ -92,10 +94,14 @@ func (m Model) paneWidth() int {
 
 // keys gives the keys bar for where the keyboard is, naming only the keys that act there: in the panel, its own; on
 // the bar, left and right, down into the rows, and the numbers; in the rows, up and down and a page at a time; on a
-// row that opens, right to open it or left to close it; tab into the panel; r on a stage kittui loads; esc going back
-// from the rows and from the sidebar, and ctrl-c quitting from the bar.
+// row that opens, right to open it or left to close it; tab into the panel, and = for the menu; r on a stage kittui
+// loads; esc going back from the rows and from the sidebar, and ctrl-c quitting from the bar. On a screen too narrow
+// for them, the keys spared names are left out before the bar is cut.
 func (m Model) keys() string {
-	if m.inPanel {
+	switch {
+	case m.menu:
+		return menuKeys
+	case m.inPanel:
 		return "↑↓ move · space toggle · type to search · esc back"
 	}
 	var keys []string
@@ -113,16 +119,35 @@ func (m Model) keys() string {
 		keys = append(keys, "←→ view", "↓ rows", "1-9 jump")
 	}
 	if len(m.stages) > 0 {
-		keys = append(keys, "⇥ panel")
+		keys = append(keys, "⇥ panel", "= menu")
 	}
 	if len(m.stages) > 0 && known[m.stages[m.stage].name] {
 		keys = append(keys, "r refresh")
 	}
 	keys = append(keys, "? sidebar")
 	if m.inRows || m.sidebar {
-		return strings.Join(append(keys, "esc back"), " · ")
+		keys = append(keys, "esc back")
+	} else {
+		keys = append(keys, "ctrl+c quit")
 	}
-	return strings.Join(append(keys, "ctrl+c quit"), " · ")
+	return fitKeys(keys, m.width-1)
+}
+
+// spared names the keys a narrow keys bar leaves out, the first first, until the rest fit: the numbers, which the
+// tabs show, a page at a time, and r.
+var spared = []string{"1-9 jump", "pgup/pgdn page", "r refresh"}
+
+// fitKeys joins the keys, leaving out what spared names, in its order, until they fit so many cells.
+func fitKeys(keys []string, width int) string {
+	line := strings.Join(keys, " · ")
+	for _, key := range spared {
+		if ansi.StringWidth(line) <= width {
+			break
+		}
+		keys = slices.DeleteFunc(keys, func(k string) bool { return k == key })
+		line = strings.Join(keys, " · ")
+	}
+	return line
 }
 
 // title gives the title line: kit flow, and origin's owner/repo after its glyph, in its own color, when known.

@@ -553,12 +553,15 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	}
 }
 
+// at80 gives the keys bar as a screen of 80 columns draws it, the keys spared names left out as it needs.
+func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) }
+
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys     = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · ctrl+c quit"
-	sidebarKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · r refresh · ? sidebar · esc back"
-	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · r refresh · ? sidebar · esc back"
-	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · r refresh · ? sidebar · esc back"
+	barKeys     = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · ctrl+c quit"
+	sidebarKeys = "←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
+	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
+	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · r refresh · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -580,8 +583,11 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
 					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
+					// a bar too narrow for every key leaves out the ones spared names, never the way out
+					want := fitKeys(strings.Split(c.keys, " · "), width-1)
 					got := lines(m)
-					if len(got) != height || got[height-1] != " "+c.keys {
+					if len(got) != height || got[height-1] != " "+want || strings.Contains(want, "…") ||
+						!strings.Contains(want, "= menu") {
 						t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got),
 							got[len(got)-1])
 					}
@@ -828,7 +834,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " kit flow") || !shows(m, Branch, "4") || got[8] != " "+opens {
+	if !strings.HasPrefix(got[0], " kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(opens) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -968,7 +974,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
 	got := lines(m)
-	if len(got) != 10 || got[9] != " "+closes {
+	if len(got) != 10 || got[9] != " "+at80(closes) {
 		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)

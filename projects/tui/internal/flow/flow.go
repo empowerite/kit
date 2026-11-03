@@ -96,6 +96,8 @@ type Model struct {
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, in place of the keys until the next key
+	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
+	menuAt        int                    // the menu's item under the keyboard
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -184,16 +186,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.notice = ""
 		return m.key(msg)
 	case tea.MouseWheelMsg:
-		if msg.X > m.paneWidth()+1 && m.sidebar {
-			switch msg.Button {
-			case tea.MouseWheelUp:
-				m.scrollSide(-1)
-			case tea.MouseWheelDown:
-				m.scrollSide(1)
-			}
+		d := 0
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			d = -1
+		case tea.MouseWheelDown:
+			d = 1
+		}
+		switch {
+		case msg.X > m.paneWidth()+1 && m.sidebar:
+			m.scrollSide(d)
+		case msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight():
+			m.scrollRows(d * wheel)
 		}
 	case tea.MouseClickMsg:
 		switch side := m.paneWidth() + 1; {
+		case m.menu && msg.Button == tea.MouseLeft:
+			m.menuClick(msg.X, msg.Y)
+		case msg.Button == tea.MouseLeft && msg.Y == m.bar().Row+1 && msg.X == m.bar().MenuAt():
+			m.openMenu()
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -314,6 +325,19 @@ func btoi(b bool) int {
 	return 0
 }
 
+// wheel is the lines a turn of the mouse wheel scrolls the rows.
+const wheel = 3
+
+// scrollRows scrolls the rows n lines, down when n is positive, never past their ends; the cursor stays where it is,
+// until a key moves it and the pane follows it again.
+func (m *Model) scrollRows(n int) {
+	if len(m.stages) == 0 {
+		return
+	}
+	s := &m.stages[m.stage]
+	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.paneHeight(), s.offset+n)
+}
+
 // scrollSide scrolls the sidebar n lines, down when n is positive, never past its ends.
 func (m *Model) scrollSide(n int) {
 	m.sideOffset, _, _, _ = pane.Window(len(m.side()), m.paneHeight(), m.sideOffset+n)
@@ -351,8 +375,8 @@ func (m *Model) askMe() tea.Cmd {
 	}
 }
 
-// key takes a key press: the quitting keys, the panel's while it has the keyboard, the bar's, then the rows' and the
-// side's.
+// key takes a key press: the quitting keys, the menu's while it is open, the panel's while it has the keyboard, = for
+// the menu, the bar's, then the rows' and the sidebar's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -361,8 +385,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+esc", "super+esc":
 		return m, m.quit()
 	}
+	if m.menu {
+		return m.menuKey(k)
+	}
 	if m.inPanel {
 		return m.panelKey(k)
+	}
+	if k.String() == "=" {
+		m.openMenu()
+		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)
@@ -420,6 +451,11 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	before := m.panel(m.stage)
+	if k.String() == "=" && before.Cursor != 0 {
+		// off the search, = drops the tab's menu down, as it does from the rows
+		m.openMenu()
+		return m, nil
+	}
 	if p, ok := before.Update(k); ok {
 		m.setPanel(p)
 		if k.String() == "down" && p.Cursor == before.Cursor {

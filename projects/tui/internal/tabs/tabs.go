@@ -59,7 +59,7 @@ type Tab struct {
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
 // count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
-// the bar moves nothing.
+// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
@@ -68,6 +68,7 @@ type Bar struct {
 	Row      int
 	Reserve  int
 	Menus    bool
+	MenuOpen bool
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -147,7 +148,11 @@ func (b Bar) label(i int) (name, end string) {
 	}
 	end = style.Off(t.Count)
 	if b.Menus && i == b.Selected {
-		end += " " + style.Mark(Menu)
+		glyph := style.Tint(Menu)
+		if b.MenuOpen {
+			glyph = style.Mark(Menu)
+		}
+		end += " " + glyph
 	}
 	return name, end
 }
@@ -299,6 +304,28 @@ func (b Bar) dim(s string) string {
 	// the spaces after it stay out of the dim, so a line can end without them
 	text := strings.TrimRight(ansi.Strip(s), " ")
 	return pane.Pad(style.Off(text), ansi.StringWidth(s), false)
+}
+
+// MenuAt gives the screen column the selected tab's menu glyph is drawn at on the bar's middle line, or -1 when the bar
+// has no menus or the view hides the glyph, as past a triangle.
+func (b Bar) MenuAt() int {
+	if !b.Menus || len(b.Tabs) == 0 {
+		return -1
+	}
+	l, w := b.layout(), b.screen()
+	// the glyph is the label's last cell but its trailing space, after the tab's number cell
+	x := 1 + l.at[b.Selected] + l.parts[b.Selected] - 3 - l.scroll
+	first, last := 1, w
+	if l.scroll > 0 {
+		first++
+	}
+	if l.scroll+w < l.width {
+		last -= 2
+	}
+	if x < first || x > last {
+		return -1
+	}
+	return x
 }
 
 // hit gives the tab a column of the screen falls on: the one whose part covers it; on a triangle that says tabs are

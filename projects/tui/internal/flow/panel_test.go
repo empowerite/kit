@@ -287,3 +287,19 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 		t.Errorf("branch, which no issue has, keeps its checkbox:\n%s", view(m))
 	}
 }
+
+func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, right, right, right, down)
+	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: paneTop + 1, Button: b} }
+	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").offset == 0 || m.find("worktrees").cursor != 0 {
+		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").offset, m.find("worktrees").cursor, view(m))
+	}
+	if m = drive(m, turn(tea.MouseWheelUp), turn(tea.MouseWheelUp)); m.find("worktrees").offset != 0 {
+		t.Errorf("the wheel up past the top: offset %d", m.find("worktrees").offset)
+	}
+	// on the bar, or with no stage, the wheel scrolls nothing
+	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("worktrees").offset != 0 {
+		t.Errorf("the wheel on the bar scrolled the rows")
+	}
+	loaded(t, Options{}, turn(tea.MouseWheelDown))
+}
