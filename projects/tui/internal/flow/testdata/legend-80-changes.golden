@@ -2,31 +2,31 @@
  ──╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶──
 ◃  │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │   ▹
  ──╰────────────────────────╯                       ╰──────────────────────╰────
-   📡 origin · github · github.com              ┊ 🔎 search
- ▸ a1b2c3d  #1 docs: the docs say what the cod… ┊ 
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… ┊ legend
-   🌿       46-a-noun-lists updated             ┊ 📥  the fetch
-   🌿       42-settings new branch              ┊ 📡  a remote
-   📡 upstream · gitlab · git.example.org       ┊ 🌿  a branch
-   🔖       old-experiment upstream gone        ┊ 🔖  a branch gone
-   📌       release/0.2.0 new tag               ┊ 📌  a new tag
-   📡 backup · no forge · nas.local             ┊ ❌  a fetch failed
-   unchanged                                    ┊
-                                                ┊
-                                                ┊
-                                                ┊
+   📡 origin · github · github.com              │ 🔎 search
+ ▸ a1b2c3d  #1 docs: the docs say what the cod… │ 
+ ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… │ legend
+   🌿       46-a-noun-lists updated             │ 📥  the fetch
+   🌿       42-settings new branch              │ 📡  a remote
+   📡 upstream · gitlab · git.example.org       │ 🌿  a branch
+   🔖       old-experiment upstream gone        │ 🔖  a branch gone
+   📌       release/0.2.0 new tag               │ 📌  a new tag
+   📡 backup · no forge · nas.local             │ ❌  a fetch failed
+   unchanged                                    │
+                                                │
+                                                │
+                                                │
                                                 ▸
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
-                                                ┊
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
+                                                │
 
  ←→ view · ↓ rows · ⇥ panel · = menu · r refresh · ? sidebar · esc back

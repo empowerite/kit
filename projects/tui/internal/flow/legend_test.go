@@ -207,7 +207,7 @@ func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 12})
 	drawn := strings.Split(raw(m), "\n")
 	for k := paneTop; k < paneTop+m.paneHeight(); k++ {
-		end := "┊"
+		end := rule
 		if k == paneTop+m.paneHeight()/2 {
 			end = show
 		}

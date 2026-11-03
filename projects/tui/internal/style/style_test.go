@@ -76,3 +76,12 @@ func TestTheBarIsTheLastLineOfTheScreen(t *testing.T) {
 		}
 	}
 }
+
+func TestTheDividerIsAGreyDarkerThanDim(t *testing.T) {
+	if got := Divider("│"); !strings.Contains(got, "38;5;239") || strings.Contains(got, "\x1b[2m") {
+		t.Errorf("the divider: %q", got)
+	}
+	if got := Tint("x"); strings.Contains(got, "1;") {
+		t.Errorf("a tint is bold: %q", got)
+	}
+}

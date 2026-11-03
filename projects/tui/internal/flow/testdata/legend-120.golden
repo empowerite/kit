@@ -2,31 +2,31 @@
  ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────────────────────╮➄╶─────────────────────
  │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes          ▹
  ╵                      ╰────────────────────────╰────────────────────╰─────────────────────────╰───────────────────────
- ▸ #45                        2h                      🎫 kit flow is the one picture… ┊ 🔎 search
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a… ┊ 
- ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                ┊ columns
-                                                                                      ┊ ☑ id
-                                                                                      ┊ ☑ assignees
-                                                                                      ┊ ☑ age
-                                                                                      ┊ ☑ branch
-                                                                                      ┊ ☑ title
-                                                                                      ┊ 
-                                                                                      ┊ show
-                                                                                      ┊ ⦿ all
-                                                                                      ┊ ⦾ mine
-                                                                                      ┊ ⦾ others
+ ▸ #45                        2h                      🎫 kit flow is the one picture… │ 🔎 search
+ ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a… │ 
+ ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                │ columns
+                                                                                      │ ☑ id
+                                                                                      │ ☑ assignees
+                                                                                      │ ☑ age
+                                                                                      │ ☑ branch
+                                                                                      │ ☑ title
+                                                                                      │ 
+                                                                                      │ show
+                                                                                      │ ⦿ all
+                                                                                      │ ⦾ mine
+                                                                                      │ ⦾ others
                                                                                       ▸ 
-                                                                                      ┊ legend
-                                                                                      ┊ 🎫  an issue
-                                                                                      ┊ 👤  its assignees
-                                                                                      ┊ 🌿  its branch
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
-                                                                                      ┊
+                                                                                      │ legend
+                                                                                      │ 🎫  an issue
+                                                                                      │ 👤  its assignees
+                                                                                      │ 🌿  its branch
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
+                                                                                      │
 
  ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back

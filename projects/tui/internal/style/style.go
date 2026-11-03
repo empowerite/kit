@@ -35,6 +35,7 @@ var (
 	refusal = lipgloss.NewStyle().Foreground(red)
 	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
 	tint    = lipgloss.NewStyle().Foreground(accent)
+	divider = lipgloss.NewStyle().Foreground(lipgloss.Color("239"))
 	warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
@@ -44,6 +45,10 @@ var (
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
 func Mark(s string) string { return mark.Render(s) }
+
+// Divider draws a line that divides a screen: a grey a step darker than dim, and not black. It is the same grey on a
+// light background, as the cursor's band is the same faint background on either.
+func Divider(s string) string { return divider.Render(s) }
 
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }

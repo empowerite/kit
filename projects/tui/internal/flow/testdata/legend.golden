@@ -2,23 +2,23 @@
  ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────
  │ 🎫 backlog       3 ≣ │  🛫 underway         4 │  💻 desk         1 │  🌿 wo ▹
  ╵                      ╰────────────────────────╰────────────────────╰─────────
- ▸ #45                        2h              … ┊ 🔎 search
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun… ┊ 
- ▸  #7  👤 ada           +1  40d              … ┊ columns
-                                                ┊ ☑ id
-                                                ┊ ☑ assignees
-                                                ┊ ☑ age
-                                                ┊ ☑ branch
-                                                ┊ ☑ title
-                                                ┊ 
+ ▸ #45                        2h              … │ 🔎 search
+ ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun… │ 
+ ▸  #7  👤 ada           +1  40d              … │ columns
+                                                │ ☑ id
+                                                │ ☑ assignees
+                                                │ ☑ age
+                                                │ ☑ branch
+                                                │ ☑ title
+                                                │ 
                                                 ▸ show
-                                                ┊ ⦿ all
-                                                ┊ ⦾ mine
-                                                ┊ ⦾ others
-                                                ┊ 
-                                                ┊ legend
-                                                ┊ 🎫  an issue
-                                                ┊ 👤  its assignees
-                                                ┊ 🌿  its branch
+                                                │ ⦿ all
+                                                │ ⦾ mine
+                                                │ ⦾ others
+                                                │ 
+                                                │ legend
+                                                │ 🎫  an issue
+                                                │ 👤  its assignees
+                                                │ 🌿  its branch
 
  ←→ view · ↓ rows · ⇥ panel · = menu · r refresh · ? sidebar · esc back

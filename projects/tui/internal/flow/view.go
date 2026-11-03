@@ -25,11 +25,11 @@ const (
 )
 
 // rule is what stands between the rows and the sidebar beside them, the panel and the legend, a space either side of
-// it, drawn dim; while the sidebar is hidden, a space and the rule end every line of the pane, at the screen's last
+// it, a solid line in the divider's grey, darker than dim; while the sidebar is hidden, a space and the rule end every line of the pane, at the screen's last
 // column. On the pane's middle line the rule is a triangle, which a click turns as ? does: pointing left to show the
 // sidebar, right to hide it.
 const (
-	rule = "┊"
+	rule = "│"
 	show = "◂"
 	hide = "▸"
 )
@@ -246,7 +246,7 @@ func (m Model) pane() []string {
 	}
 	pw := m.paneWidth()
 	for k := range out {
-		line := style.Off(rule)
+		line := style.Divider(rule)
 		if k == m.paneHeight()/2 {
 			line = triangle
 		}

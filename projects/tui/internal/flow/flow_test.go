@@ -902,7 +902,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 				t.Errorf("%s at %d, legend %v: a line of %d cells: %q", eight[i], width, legend, n, ansi.Strip(l))
 			}
 			// a clipped row ends in …, before the rule
-			clipped = clipped || strings.Contains(ansi.Strip(l), "… ┊") || strings.Contains(ansi.Strip(l), "… "+show) ||
+			clipped = clipped || strings.Contains(ansi.Strip(l), "… "+rule) || strings.Contains(ansi.Strip(l), "… "+show) ||
 				strings.Contains(ansi.Strip(l), "… "+hide)
 		}
 		long := eight[i] == "changes" || eight[i] == "backlog" || eight[i] == "underway"
