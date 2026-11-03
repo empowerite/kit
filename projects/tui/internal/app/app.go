@@ -95,10 +95,15 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update takes a message: the palette's request to open a verb, the form's to go back, or anything for the pane shown.
+// A new size reaches the palette under an open form too, so it draws to the size the terminal has when the form goes.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		if m.inForm && m.hasPalette {
+			next, _ := m.palette.Update(msg)
+			m.palette = next.(palette.Model)
+		}
 	case tea.KeyboardEnhancementsMsg:
 		m.keyboard = msg
 	case palette.OpenMsg:

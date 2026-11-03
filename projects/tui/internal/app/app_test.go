@@ -2,6 +2,8 @@
 package app
 
 import (
+	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -36,6 +39,24 @@ func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
 	m = drive(m, press(tea.KeyEscape))
 	if run, _, _ := m.Result(); run {
 		t.Error("esc in the palette ran something")
+	}
+}
+
+func TestAResizeWhileTheFormIsOpenReachesThePaletteUnderIt(t *testing.T) {
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30}, press(tea.KeyDown), press(tea.KeyEnter),
+		tea.WindowSizeMsg{Width: 60, Height: 12}, press(tea.KeyEscape))
+	lines := strings.Split(m.View().Content, "\n")
+	if m.InForm() || len(lines) != 12 {
+		t.Fatalf("back in the palette, %d lines, not 12:\n%s", len(lines), m.View().Content)
+	}
+	for _, l := range lines {
+		if ansi.StringWidth(l) > 60 {
+			t.Errorf("a line of %d cells at 60 columns: %q", ansi.StringWidth(l), ansi.Strip(l))
+		}
 	}
 }
 
@@ -91,9 +112,82 @@ func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 
 func TestAnUnknownVerbIsKitsRefusal(t *testing.T) {
 	_, err := Open(testkit.Runner(t, "kit"), "nonesuch", nil)
-	var refusal *kit.ExitError
-	if err == nil || !strings.Contains(err.Error(), "no kit verb 'nonesuch'") {
-		t.Fatalf("err = %v", err)
+	line, code, ok := Refusal(err)
+	if !ok || code != 2 || !strings.Contains(line, "no kit verb 'nonesuch'") || strings.HasPrefix(line, "❌") {
+		t.Fatalf("Refusal(%v) = %q %d %v", err, line, code, ok)
 	}
-	_ = refusal
+	if _, _, ok := Refusal(errors.New("not kit's")); ok {
+		t.Error("an error not kit's is taken for a refusal")
+	}
+}
+
+func TestWordsTheVerbRefusesAreKitsRefusal(t *testing.T) {
+	t.Setenv("FAKE_KIT_MATCH_REFUSE", "commit")
+	_, err := Open(testkit.Runner(t, "kit"), "commit", []string{"--bogus"})
+	if line, code, ok := Refusal(err); !ok || code != 2 || !strings.Contains(line, "refuses these words") {
+		t.Fatalf("Refusal(%v) = %q %d %v", err, line, code, ok)
+	}
+}
+
+func TestAUsageThatDoesNotParseOpensNoForm(t *testing.T) {
+	t.Setenv("FAKE_KIT_UNPARSED", "commit")
+	if _, err := Open(testkit.Runner(t, "kit"), "commit", nil); err == nil || !strings.Contains(err.Error(), "parse") {
+		t.Fatalf("a hand-off to a verb whose usage does not parse: err = %v", err)
+	}
+	// from the palette, the line shows under the filter and the palette stays
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, press(tea.KeyEnter))
+	if m.InForm() || !strings.Contains(m.View().Content, "usage does not parse") {
+		t.Errorf("the palette does not say why commit did not open:\n%s", m.View().Content)
+	}
+}
+
+func TestAKitThatCannotListOpensNoPalette(t *testing.T) {
+	r := kit.Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	if _, err := Open(r, "", nil); err == nil {
+		t.Error("a palette opened over a kit that does not run")
+	}
+	if _, err := OpenHelp(r, "commit"); err == nil {
+		t.Error("kit help opened a palette over a kit that does not run")
+	}
+}
+
+func TestHelpOpensThePaletteOnTheVerbsPage(t *testing.T) {
+	m, err := OpenHelp(testkit.Runner(t, "kit"), "submit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "kit submit - a purpose for the test") ||
+		!strings.Contains(v, style.Focus+" submit") {
+		t.Errorf("kit help submit is not on submit's page:\n%s", v)
+	}
+	// with no name, the palette opens at the top, purposes shown
+	m, err = OpenHelp(testkit.Runner(t, "kit"), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := ansi.Strip(drive(m).View().Content); strings.Contains(v, "a purpose for the test") ||
+		!strings.Contains(v, style.Focus+" commit") {
+		t.Errorf("kit help with no name:\n%s", v)
+	}
+}
+
+func TestCtrlCIsAnInterruptInThePaletteAndInTheForm(t *testing.T) {
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if drive(m).Interrupted() {
+		t.Fatal("interrupted before ctrl-c")
+	}
+	if !drive(m, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}).Interrupted() {
+		t.Error("ctrl-c in the palette is not an interrupt")
+	}
+	if !drive(m, press(tea.KeyDown), press(tea.KeyEnter), tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}).Interrupted() {
+		t.Error("ctrl-c in the form is not an interrupt")
+	}
 }
