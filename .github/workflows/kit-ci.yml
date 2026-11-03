@@ -33,7 +33,7 @@ jobs:
     runs-on: "ubuntu-latest"
     # A hung step fails the job after this many minutes, not after GitHub's six hours. fromJSON makes the answer a
     # number, and keeps the template YAML, where a value cannot start with @.
-    timeout-minutes: ${{ fromJSON('45') }}
+    timeout-minutes: ${{ fromJSON('60') }}
     env:
       # mise also reads mise.ci.toml, on top of mise.toml, for the tools only a runner needs.
       MISE_ENV: ci
