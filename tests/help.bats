@@ -95,7 +95,7 @@ group-has() {
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  Legend\n'* ]]
   [[ "$output" == *$'\n    🔀  a pull request'* ]]
-  [[ "$output" == *$'\n    🛬  ready'* ]]
+  [[ "$output" == *$'\n    🏁  ready'* ]]
   [[ "$output" == *"NO_COLOR removes the colors"* ]]
 }
 

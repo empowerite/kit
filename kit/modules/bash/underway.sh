@@ -13,8 +13,8 @@
 #
 #    #7  👤 bob  45d  🔀 #3 🔨 draft  🌿 here          📤  3d          🎫 Fix the thing
 #    #8  👤 bob  37d  🔀 #6 🔨 draft  💻 here          📤 10m          🎫 Eight
-#    #9  👤 ada  34d  🔀 #4 🛬 ready  🌱 local                         🎫 Nine
-#   #11  👤 ada  30d  🔀 #5 🛬 ready  👤 cy     🍴 cy  📤  2h  👤 dee  🎫 Third thing
+#    #9  👤 ada  34d  🔀 #4 🏁 ready  🌱 local                         🎫 Nine
+#   #11  👤 ada  30d  🔀 #5 🏁 ready  👤 cy     🍴 cy  📤  2h  👤 dee  🎫 Third thing
 #
 # 💻 here means the desk, the root checkout, has the pull request's branch, and 🌿 here that a linked worktree has it.
 # 🌱 local means the desk has the branch and no checkout has it. Otherwise the cell names the pull request's author,

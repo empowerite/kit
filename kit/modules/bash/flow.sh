@@ -53,7 +53,7 @@
 #   no-check           📭      blue
 #   comments:open      💬      yellow
 #   blocked:approval   👀      blue
-#   ready              🛬      green
+#   ready              🏁      green
 #
 # --json prints the picture as one object: stages, the names in order, and under each name what kit flow <stage>
 # --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
@@ -154,7 +154,7 @@ flow:heading() {
   case "$1" in
     (backlog)   glyph=🎫 ;;
     (underway)  glyph=🛫 ;;
-    (incoming)  glyph=📥 ;;
+    (incoming)  glyph=🛬 ;;
     (desk)      glyph=💻 ;;
     (worktrees) glyph=🌿 ;;
     (changes)   glyph=🔀 ;;
@@ -192,7 +192,7 @@ flow:state-emoji() {
     (no-check)         printf '📭' ;;
     (comments:open)    printf '💬' ;;
     (blocked:approval) printf '👀' ;;
-    (ready)            printf '🛬' ;;
+    (ready)            printf '🏁' ;;
     (*)                printf '🔳' ;;
   esac
 }
@@ -294,7 +294,7 @@ flow:fetch-json() {
 }
 
 # flow:fetched-line <remote-json> prints, to stderr, a fetched remote's line: ❌ and git's line when the fetch
-# failed; 📥 unchanged; or 📥 fetched and what came, counted: new commits on the default branch, then branches
+# failed; 🛬 unchanged; or 🛬 fetched and what came, counted: new commits on the default branch, then branches
 # updated, new, and pruned, then new tags.
 flow:fetched-line() {
   local error default commits updated added pruned tags line part
@@ -314,7 +314,7 @@ flow:fetched-line() {
   (( tags > 0 )) && parts+=("$(flow:plural "${tags}" 'new tag' 'new tags')")
   if (( ${#parts[@]} == 0 ))
   then
-    printf '📥 unchanged\n' >&2
+    printf '🛬 unchanged\n' >&2
     return 0
   fi
   line=${parts[0]}
@@ -322,12 +322,12 @@ flow:fetched-line() {
   do
     line+="${flow_sep}${part}"
   done
-  printf '📥 fetched %s\n' "${line}" >&2
+  printf '🛬 fetched %s\n' "${line}" >&2
 }
 
 # flow:incoming-text <incoming-json> prints flow:incoming's object to stderr: a block per remote, the primary
 # first, a blank line between blocks. A block's first line is 📡, the remote's name, its forge or no forge, and its
-# host, or its URL when it has none. Under it is the fetch's line, as flow:fetched-line draws it, or 📥 not fetched,
+# host, or its URL when it has none. Under it is the fetch's line, as flow:fetched-line draws it, or 🛬 not fetched,
 # dim. With no remote it says so in one dim line.
 flow:incoming-text() {
   local fetched remote name forge host first=true
@@ -345,7 +345,7 @@ flow:incoming-text() {
     printf '📡 %s%s\n' "${name}" "$(flow:paint 90 "${flow_sep}${forge}${host:+${flow_sep}${host}}")" >&2
     if [[ "${fetched}" == true ]]
     then flow:fetched-line "${remote}"
-    else flow:none '📥 not fetched'
+    else flow:none '🛬 not fetched'
     fi
   done < <(jq --compact-output '.remotes[]' <<<"$1")
   [[ "${first}" == false ]] || flow:none 'no remote'

@@ -216,16 +216,16 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow incoming
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "📡 origin · no forge · ${work}/origin.git" ]
-  expected='📥 fetched 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
+  expected='🛬 fetched 2 new commits on main · 1 branch updated · 1 new branch · 1 branch pruned'
   [ "${lines[1]}" = "${expected} · 1 new tag" ]
   [ "${#lines[@]}" -eq 2 ]
   run "${kit_root}/bin/kit" flow incoming
-  [ "${lines[1]}" = "📥 unchanged" ]
+  [ "${lines[1]}" = "🛬 unchanged" ]
   run "${kit_root}/bin/kit" flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$output" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
   run "${kit_root}/bin/kit" flow incoming --no-fetch
-  [ "$output" = "📡 origin · no forge · ${work}/origin.git"$'\n'"📥 not fetched" ]
+  [ "$output" = "📡 origin · no forge · ${work}/origin.git"$'\n'"🛬 not fetched" ]
 }
 
 @test "kit flow --stages prints the configured stages in order, every stage without the setting, and refuses a name that is none" {
@@ -268,7 +268,7 @@ fake-tui() {
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "${lines[0]}" == "🌿 ${esc}[1mWORKTREES${esc}[0m ${esc}[90m1${esc}[0m" ]]
   [[ "$output" == *"💻 ${esc}[1mDESK${esc}[0m ${esc}[90m1${esc}[0m"* ]]
-  [[ "$output" == *"📥 ${esc}[1mINCOMING${esc}[0m"$'\n'"📡 origin${esc}[90m · no forge · ${work}/origin.git${esc}[0m"$'\n'"${esc}[90m📥 not fetched${esc}[0m"* ]]
+  [[ "$output" == *"🛬 ${esc}[1mINCOMING${esc}[0m"$'\n'"📡 origin${esc}[90m · no forge · ${work}/origin.git${esc}[0m"$'\n'"${esc}[90m🛬 not fetched${esc}[0m"* ]]
   run --keep-empty-lines "${kit_root}/bin/kit" flow --text --no-fetch
   [[ "$output" != *"${esc}["* ]]
   [[ "${lines[7]}" == *"INCOMING" ]]

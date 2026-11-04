@@ -124,7 +124,7 @@
 # incoming:
 #
 #   📡  a remote: its name, its forge or no forge, and its host
-#   📥  what the fetch brought from it
+#   🛬  what the fetch brought from it
 #   🌿  a branch new or updated on it
 #   🔖  a branch gone from it
 #   📌  a new tag
@@ -163,7 +163,7 @@
 #   📭  no-check: no check has reported
 #   💬  comments:open: a review thread is unresolved
 #   👀  blocked:approval: a review blocks the merge
-#   🛬  ready: nothing is left to decide
+#   🏁  ready: nothing is left to decide
 #   🔳  any other state
 #
 # builds:

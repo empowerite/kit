@@ -56,8 +56,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 3 ]
   [[ "${lines[0]}" == " #7  👤 bob  "*"d  🔀 #3 🔨 draft  🌿 here  🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🛬 ready  👤 cy    🎫 Fix the thing" ]]
-  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🛬 ready  👤 cy    🎫 Third thing" ]]
+  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🏁 ready  👤 cy    🎫 Fix the thing" ]]
+  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🏁 ready  👤 cy    🎫 Third thing" ]]
   # the cells sit in columns, so every title starts at the same column
   [ "${#lines[0]}" -eq "${#lines[1]}" ]
 }
@@ -66,7 +66,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   local esc=$'\x1b'
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow underway
   [[ "${lines[2]}" == "${esc}[36m#11${esc}[0m  👤 ${esc}[90mada${esc}[0m  ${esc}[90m"* ]]
-  [[ "${lines[2]}" == *"🔀 ${esc}[35m#5${esc}[0m 🛬 ${esc}[32mready${esc}[0m  👤 ${esc}[90mcy  ${esc}[0m  🎫 Third thing" ]]
+  [[ "${lines[2]}" == *"🔀 ${esc}[35m#5${esc}[0m 🏁 ${esc}[32mready${esc}[0m  👤 ${esc}[90mcy  ${esc}[0m  🎫 Third thing" ]]
 }
 
 @test "kit flow underway --json is one object per issue and pull request: the issue, its pull request, and where" {
@@ -89,7 +89,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq -c 'map([.pr.number, .here])' <<<"$output")" = '[[3,false],[5,true],[5,true]]' ]
   [ "$(jq -r '.[1].worktree' <<<"$output")" -ef . ]
   run kit flow underway
-  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🛬 ready  💻 here   🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🏁 ready  💻 here   🎫 Fix the thing" ]]
 }
 
 @test "a branch this desk has and no checkout has is local, drawn 🌱 local; one the desk lacks is the author's" {
@@ -99,7 +99,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
     = '[[3,false,true,null],[5,false,false,null],[5,false,false,null]]' ]
   run kit flow underway
   [[ "${lines[0]}" == " #7  👤 bob  "*"d  🔀 #3 🔨 draft  🌱 local  🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🛬 ready  👤 cy     🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🏁 ready  👤 cy     🎫 Fix the thing" ]]
 }
 
 @test "a fork's owner, the last push's age, and who pushed it when not the author each take a column" {
@@ -119,8 +119,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   # ada pushed her own pull request last, so no second 👤 follows its push
   run kit flow underway
   [[ "${lines[0]}" == " #7  👤 bob  "*"d  🔀 #3 🔨 draft  🌿 here         📤 3d          🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🛬 ready  👤 cy    🍴 cy  📤 2h  👤 dee  🎫 Fix the thing" ]]
-  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🛬 ready  👤 cy    🍴 cy  📤 2h  👤 dee  🎫 Third thing" ]]
+  [[ "${lines[1]}" == " #7  👤 bob  "*"d  🔀 #5 🏁 ready  👤 cy    🍴 cy  📤 2h  👤 dee  🎫 Fix the thing" ]]
+  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🏁 ready  👤 cy    🍴 cy  📤 2h  👤 dee  🎫 Third thing" ]]
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow underway
   [[ "${lines[1]}" == *"🍴 ${esc}[90mcy${esc}[0m  📤 ${esc}[90m2h${esc}[0m  👤 ${esc}[90mdee${esc}[0m  🎫 "* ]]
   # a push the forge does not tell leaves its cell blank, and the column stays for the rows that have one
@@ -173,7 +173,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
     > "${FAKE_DIR}/long.json"
   mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/open-prs.json"
   COLUMNS=60 run kit flow underway
-  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🛬 ready  👤 cy    🎫 a title long"*"…" ]]
+  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🏁 ready  👤 cy    🎫 a title long"*"…" ]]
 }
 
 @test "a forge that cannot be read is refused, and the stage exits 1" {

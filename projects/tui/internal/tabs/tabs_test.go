@@ -15,7 +15,7 @@ import (
 // stages is a bar like kit flow's: eight tabs with glyphs and counts.
 func stages(selected int, width int) Bar {
 	return Bar{Selected: selected, Focused: true, Width: width, Row: 1, Tabs: []Tab{
-		{"🎫", "backlog", "15"}, {"🛫", "underway", "58"}, {"📥", "incoming", "2"}, {"💻", "desk", "1"},
+		{"🎫", "backlog", "15"}, {"🛫", "underway", "58"}, {"🛬", "incoming", "2"}, {"💻", "desk", "1"},
 		{"🌿", "worktrees", "4"}, {"🔀", "changes", "3"}, {"🏭", "builds", "4"}, {"📦", "releases", "3"},
 	}}
 }
@@ -86,7 +86,7 @@ func TestTheBarIsThreeLinesWithinTheScreenAndKeepsEveryNumberWhenItFits(t *testi
 }
 
 func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T) {
-	want := " │ 🎫 backlog      15 │  🛫 underway      58 │  📥 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
+	want := " │ 🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
 		"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │"
 	if got := row(stages(0, 170), 1); got != want {
 		t.Errorf("at 170:\n got %q\nwant %q", got, want)
@@ -117,7 +117,7 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	want := []string{
 		" ➀╶───────────────────╮➁╶────────────────────╮➂╶───────────────────╴➍╶──────────────╮➄╶────────────────────╮" +
 			"➅╶──────────────────╮➆╶────────────────╮➇╶───────────────────╮",
-		"   🎫 backlog      15 │  🛫 underway      58 │  📥 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
+		"   🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
 			"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │",
 		" ─────────────────────╰──────────────────────╰──────────────────────╯               ╰──────────────────────╰" +
 			"────────────────────╰──────────────────╰─────────────────────╵",
@@ -253,12 +253,12 @@ func TestAClickOnTheBarSelectsTheTabUnderIt(t *testing.T) {
 func TestTheOtherTabsAreDimWhileThePaneHasTheKeyboard(t *testing.T) {
 	b := stages(0, 80)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
-	if strings.Contains(b.View(), dim+" 📥 incoming 2") {
+	if strings.Contains(b.View(), dim+" 🛬 incoming 2") {
 		t.Errorf("an other tab is dim while the bar has the keyboard: %q", b.View())
 	}
 	b.Focused = false
 	got := b.View()
-	if !strings.Contains(got, dim+" 📥 incoming 2") || !strings.Contains(got, dim+"➂") || !strings.Contains(got, dim+"╶─") ||
+	if !strings.Contains(got, dim+" 🛬 incoming 2") || !strings.Contains(got, dim+"➂") || !strings.Contains(got, dim+"╶─") ||
 		!strings.Contains(got, style.Mark("backlog")) {
 		t.Errorf("the other tabs and their lines are not dim beside the selected one: %q", got)
 	}

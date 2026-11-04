@@ -791,7 +791,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, toggle)
 	v := view(m)
-	for _, want := range []string{Change + " #2", "👤 jeffrey-aguilera", "🛬 ready", Passed + " 1 / 1 3m",
+	for _, want := range []string{Change + " #2", "👤 jeffrey-aguilera", "🏁 ready", Passed + " 1 / 1 3m",
 		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing 1 / 2 95s",
 		"#1  👤 jeffrey-aguilera  " + InFlight + " in flight  8d  " + Issue + " The first release, v0.1.0"} {
 		if !strings.Contains(v, want) {
@@ -1048,7 +1048,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 	m := loaded(t, options(), right, right, right)
 	rows := lines(m)[4:7]
 	for i, want := range [][]string{
-		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2  🛬 ready", "3 uncommitted"},
+		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2  🏁 ready", "3 uncommitted"},
 		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
 		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
 	} {
@@ -1106,7 +1106,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	// a desk on a branch with a pull request shows it, as a worktree does
 	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
 	m.rebuild()
-	if !strings.Contains(view(m), Change+" #2  🛬 ready") {
+	if !strings.Contains(view(m), Change+" #2  🏁 ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
 	}
 	// its pull request's glyph leads to its row under changes, and its state's to its page
@@ -1339,7 +1339,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	rows := lines(m)[4:8]
 	for i, want := range [][]string{
-		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🛬 ready", Branch + " here", Pushed + " 60m",
+		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
 			Issue + " The first release"},
 		{"#8", "2d", Change + " #4 ", "🔥 failing:gate", Owner + " bob", Fork + " bob", Pushed + " 25h", Owner + " cy",
 			Issue + " Lint the modules"},

@@ -5,7 +5,7 @@ package flow
 // The glyphs, as the legend draws them.
 const (
 	Repository = "📚" // the repository, owner/name, in the title
-	Fetched    = "📥" // what the fetch brought from the remotes
+	Fetched    = "🛬" // what the fetch brought from the remotes
 	Remote     = "📡" // a remote, its forge, and its host
 	Desk       = "💻" // the desk, the root checkout
 	Branch     = "🌿" // a linked worktree, or a branch
@@ -135,7 +135,7 @@ var states = []entry{
 	{"📭", "no-check"},
 	{"💬", "comments:open"},
 	{"👀", "blocked:approval"},
-	{"🛬", "ready"},
+	{"🏁", "ready"},
 	{Other, "any other state"},
 }
 

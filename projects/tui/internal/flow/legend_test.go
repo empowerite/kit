@@ -72,7 +72,7 @@ func TestEveryGlyphIsInTheLegend(t *testing.T) {
 			t.Errorf("the legend does not draw %s as %s", state, glyph)
 		}
 	}
-	if stateGlyph("nonesuch") != Other || stateGlyph("ready") != "🛬" {
+	if stateGlyph("nonesuch") != Other || stateGlyph("ready") != "🏁" {
 		t.Errorf("stateGlyph: %s %s", stateGlyph("nonesuch"), stateGlyph("ready"))
 	}
 	if kindGlyph("draft") != Draft || kindGlyph("pre-release") != Pre || kindGlyph("release") != Release {

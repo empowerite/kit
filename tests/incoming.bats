@@ -47,13 +47,13 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run --keep-empty-lines kit flow incoming
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "📡 origin · github · ${work}/origin.git" ]
-  [ "${lines[1]}" = "📥 fetched 1 new commit on main" ]
+  [ "${lines[1]}" = "🛬 fetched 1 new commit on main" ]
   [ "${lines[2]}" = "" ]
   [ "${lines[3]}" = "📡 upstream · gitlab · ../upstream.git" ]
-  [ "${lines[4]}" = "📥 fetched 1 new commit on main · 1 new branch · 1 new tag" ]
+  [ "${lines[4]}" = "🛬 fetched 1 new commit on main · 1 new branch · 1 new tag" ]
   [ "${#lines[@]}" -eq 5 ]
   run kit flow incoming
-  [ "$output" = "📡 origin · github · ${work}/origin.git"$'\n'"📥 unchanged"$'\n\n'"📡 upstream · gitlab · ../upstream.git"$'\n'"📥 unchanged" ]
+  [ "$output" = "📡 origin · github · ${work}/origin.git"$'\n'"🛬 unchanged"$'\n\n'"📡 upstream · gitlab · ../upstream.git"$'\n'"🛬 unchanged" ]
 }
 
 @test "incoming --json is the primary and one object per remote, each with what came from it" {
