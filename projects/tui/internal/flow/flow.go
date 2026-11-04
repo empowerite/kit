@@ -5,7 +5,8 @@
 // and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; r runs
 // the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
 // away, as a click anywhere on the rule beside the rows does; tab gives the panel the keyboard, and / or a click
-// on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser. Esc goes back
+// on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
+// and one on underway's pull request selects changes with that pull request under the cursor. Esc goes back
 // one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and
 // alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two
 // minutes; past them it is a refusal, and quitting kills the commands still running.
@@ -20,6 +21,8 @@ import (
 	"os/exec"
 	"runtime"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -842,6 +845,9 @@ func (m *Model) click(x, y int) tea.Cmd {
 	toggle := first && link == "" && (x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel = row, true, false
 	switch {
+	case strings.HasPrefix(link, jumps):
+		m.fit()
+		m.jump(strings.TrimPrefix(link, jumps))
 	case link != "":
 		m.fit()
 		return m.openPage(link)
@@ -851,6 +857,28 @@ func (m *Model) click(x, y int) tea.Cmd {
 		m.fit()
 	}
 	return nil
+}
+
+// jump follows a link to a row of another stage, its name and the pull request's number: the stage is selected, its
+// rows have the keyboard, and the cursor is on the pull request's row, or where it was when the panel hides that row
+// or the stage has not loaded it.
+func (m *Model) jump(to string) {
+	name, number, _ := strings.Cut(to, "/")
+	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
+	if i < 0 {
+		return
+	}
+	m.choose(tabs.Bar{Selected: i})
+	s := &m.stages[i]
+	for _, p := range s.pulls {
+		if strconv.Itoa(p.Number) != number {
+			continue
+		}
+		if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == ref(p) }); k >= 0 {
+			s.cursor = k
+		}
+	}
+	m.fit()
 }
 
 // page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it

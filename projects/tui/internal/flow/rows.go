@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
-	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -406,13 +405,14 @@ func (m Model) backlogRows(s stage) []row {
 
 // underwayRows draws each issue underway beside the pull request that closes it, oldest first as kit prints them:
 // number, assignees, age, the pull request's number and state, where the work is, and the title. Where is here when
-// a worktree on this desk has the branch, else the author. The pull request's glyph leads to its page, the title's to
-// the issue's. Open, every assignee, the issue's title wrapped, the pull request's title, and the worktree when here.
-// A row belongs to the issue's assignees and the pull request's author.
+// a worktree on this desk has the branch, else the author. The pull request's glyph leads to its row under changes,
+// or to its page when changes is not in the picture; the state's glyph to its page, and the title's to the issue's.
+// Open, every assignee, the issue's title wrapped, and the worktree when here; the pull request's title is under
+// changes. A row belongs to the issue's assignees and the pull request's author.
 func (m Model) underwayRows(s stage) []row {
 	var rows []row
 	for _, u := range s.under {
-		issue, pr := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number)
+		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), m.origin.pull(u.PR.Number, u.PR.URL)
 		where := cell{}
 		switch {
 		case u.Here:
@@ -420,14 +420,15 @@ func (m Model) underwayRows(s stage) []row {
 		case u.PR.Author != "":
 			where = dim(Owner + " " + u.PR.Author)
 		}
+		change := page
+		if m.find("changes") != nil {
+			change = jumpTo("changes", u.PR.Number)
+		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
 			Cells: []cell{number(issue), owners(u.Assignees), text(InFlight), dimNumber(ageOf(u.Age)),
-				linked(text(Change+" "+pr), m.origin.pull(u.PR.Number, u.PR.URL)), text(state), where,
+				linked(text(Change+" "+pr), change), linked(text(state), page), where,
 				linked(fill(Issue+" "+u.Title), m.origin.issue(u.Number, u.URL))}}
-		for _, line := range pane.Wrap(Change+" "+pr+" "+u.PR.Title, m.paneWidth()-6) {
-			r.Detail = append(r.Detail, span(line))
-		}
 		if u.Here && u.Worktree != "" {
 			r.Detail = append(r.Detail, span(Desk+" "+u.Worktree))
 		}
@@ -435,6 +436,12 @@ func (m Model) underwayRows(s stage) []row {
 	}
 	return rows
 }
+
+// jumps is how a link to a row of another stage begins, which a click follows on the screen, not in the browser.
+const jumps = "kittui:"
+
+// jumpTo gives the link to a pull request's row under a stage: the stage's name and the pull request's number.
+func jumpTo(stage string, number int) string { return jumps + stage + "/" + strconv.Itoa(number) }
 
 // incomingRows draws what the fetch brought from each remote, the primary first. Each remote has a dim heading, its
 // name, forge, and host, then its rows in kit flow's order: each commit on its default branch, each branch updated,

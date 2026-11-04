@@ -1362,13 +1362,16 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		!strings.Contains(c, style.Off(Owner+" jeffrey-aguilera")) || !strings.HasSuffix(rows[3], "…") {
 		t.Errorf("the where cells or the title:\n%s", strings.Join(rows, "\n"))
 	}
-	// the row here opens to the issue's title wrapped in its column, the pull request's, the worktree, and both URLs,
-	// dim
+	// the row here opens to the issue's title wrapped in its column and the worktree; the pull request's title is
+	// under changes
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
 		"The first release, v0.1.0: the kit verbs,", "the picture, and the forge seam on GitHub and", "GitLab",
-		Change + " #2 The first release, v0.1.0", Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0", "#8"}
+		Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0", "#8"}
+	if strings.Contains(v, Change+" #2 The first release") {
+		t.Errorf("the open row repeats the pull request:\n%s", v)
+	}
 	at := -1
 	for _, want := range order {
 		k := strings.Index(v, want)
@@ -1377,24 +1380,27 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		}
 		at = k
 	}
-	// the pull request's glyph leads to its page, the title's to the issue's
+	// the pull request's glyph leads to its row under changes, the state's to its page, the title's to the issue's
 	links := func(m Model) (string, string) {
 		r := m.rows(1)[m.find("underway").cursor]
-		return r.Cells[4].Link, r.Cells[7].Link
+		if r.Cells[4].Link != jumpTo("changes", 2) && r.Cells[4].Link != jumpTo("changes", 4) {
+			t.Errorf("the pull request's glyph leads to %q", r.Cells[4].Link)
+		}
+		return r.Cells[5].Link, r.Cells[7].Link
 	}
 	if pr, issue := links(m); strings.Contains(v, "https://") || pr != "https://github.com/empowerite/kit/pull/2" ||
 		issue != "https://github.com/empowerite/kit/issues/1" {
 		t.Errorf("the links: %q %q\n%s", pr, issue, v)
 	}
-	// a row elsewhere opens to no worktree; the issue's other pull request stays closed
+	// a row elsewhere has no worktree, and with a title that fits, nothing to open
 	m = drive(m, toggle, down, toggle)
 	v = view(m)
-	if pr, _ := links(m); !strings.Contains(v, Change+" #4 Lint every module") || !strings.HasSuffix(pr, "/kit/pull/4") ||
+	if pr, _ := links(m); !strings.Contains(v, "Lint the modules") || !strings.HasSuffix(pr, "/kit/pull/4") ||
 		strings.Contains(v, Desk+" /") {
 		t.Errorf("the open row elsewhere:\n%s", v)
 	}
-	if s := m.find("underway"); !s.open["#8 #4"] || s.open["#8 #11"] {
-		t.Errorf("the two rows of #8 are not apart: %v", s.open)
+	if s := m.find("underway"); s.open["#8 #4"] || grid.Opens(m.rows(1), s.cursor, m.paneWidth()) {
+		t.Errorf("a row elsewhere with a short title opens: %v", s.open)
 	}
 	// the URLs kit prints win, as a merge request's on GitLab
 	s := m.find("underway")
@@ -1430,6 +1436,41 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	if err := shape("incoming", []byte(`{"fetched": true, "commits": []}`)); err == nil ||
 		!strings.Contains(err.Error(), `printed an object without "remotes"`) {
 		t.Errorf("incoming took the document before every remote: %v", err)
+	}
+}
+
+// A click on underway's pull request glyph selects changes, the cursor on that pull request's row; a click on its
+// state's glyph opens its page; without changes in the picture, the pull request's glyph opens the page too.
+func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
+	m := loaded(t, options(), right, down, down)
+	at := func(m Model, glyph string) int {
+		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
+	}
+	change, state := at(m, Change+" #4"), at(m, "🔥")
+	browsed = nil
+	if m = drive(m, testkit.Click(state, paneTop+1)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
+		m.stages[m.stage].name != "underway" {
+		t.Fatalf("a click on the state: %v\n%s", browsed, view(m))
+	}
+	m = drive(m, testkit.Click(change, paneTop+1))
+	if s := m.stages[m.stage]; s.name != "changes" || !m.inRows || m.rows(m.stage)[s.cursor].Key != "#4" ||
+		len(browsed) != 1 {
+		t.Fatalf("a click on the pull request: %s, row %d:\n%s", s.name, s.cursor, view(m))
+	}
+	// a pull request changes does not hold leaves its cursor where it was
+	before := m.stages[m.stage].cursor
+	if m.jump("changes/999"); m.stages[m.stage].cursor != before {
+		t.Errorf("a jump to no row moved the cursor to %d", m.stages[m.stage].cursor)
+	}
+	if m.jump("nonesuch/1"); m.stages[m.stage].name != "changes" {
+		t.Errorf("a jump to no stage moved to %s", m.stages[m.stage].name)
+	}
+	// without changes, the pull request's glyph opens its page
+	o := options()
+	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
+	m = loaded(t, o, right)
+	if link := m.rows(1)[0].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
+		t.Errorf("without changes the pull request's glyph leads to %q", link)
 	}
 }
 
