@@ -564,9 +564,13 @@ func (m Model) args(name string) []string {
 }
 
 // load runs a stage's command: kit flow <stage> --json, with the stage's words, for the limit at most, as the stage's
-// latest load, which r supersedes.
-func (m Model) load(name string) tea.Cmd {
+// latest load, which r supersedes. Fresh says the stage reads the forge afresh, as r asks: kit shares one read of the
+// open issues and pull requests a minute between the stages that need it, and a load without it takes that read.
+func (m Model) load(name string, fresh bool) tea.Cmd {
 	r, args, ctx, limit, gen := m.runner, m.args(name), m.ctx, m.limit, 0
+	if fresh && shared[name] {
+		args = append(slices.Clone(args), "--fresh")
+	}
 	if s := m.find(name); s != nil {
 		gen = s.gen
 		if s.ctx != nil {
@@ -586,13 +590,13 @@ func (m Model) all() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
 		if known[s.name] {
-			cmds = append(cmds, m.load(s.name))
+			cmds = append(cmds, m.load(s.name, false))
 		}
 	}
 	return tea.Batch(cmds...)
 }
 
-// refresh runs the selected stage's command again, and shows it loading until it answers.
+// refresh runs the selected stage's command again, reading the forge afresh, and shows it loading until it answers.
 func (m *Model) refresh() tea.Cmd {
 	if len(m.stages) == 0 || !known[m.stages[m.stage].name] {
 		return nil
@@ -600,27 +604,31 @@ func (m *Model) refresh() tea.Cmd {
 	return m.restart(m.stages[m.stage].name)
 }
 
-// restart runs a stage's command again as its latest load, ending the one before when it still runs, and shows the
-// stage loading until it answers.
+// restart runs a stage's command again as its latest load, reading the forge afresh, ending the one before when it
+// still runs, and shows the stage loading until it answers.
 func (m *Model) restart(name string) tea.Cmd {
-	cmd, s := m.again(name), m.find(name)
+	cmd, s := m.again(name, true), m.find(name)
 	s.loading, s.refusal = true, ""
 	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
 	m.rebuild()
 	return cmd
 }
 
-// again runs a stage's command again as its latest load, ending the one before when it still runs; the stage keeps
-// what it shows until the answer replaces it.
-func (m *Model) again(name string) tea.Cmd {
+// again runs a stage's command again as its latest load, fresh or not as load takes it, ending the one before when it
+// still runs; the stage keeps what it shows until the answer replaces it.
+func (m *Model) again(name string, fresh bool) tea.Cmd {
 	s := m.find(name)
 	if s.stop != nil {
 		s.stop()
 	}
 	s.ctx, s.stop = context.WithCancel(m.ctx)
 	s.gen++
-	return m.load(name)
+	return m.load(name, fresh)
 }
+
+// shared names the stages that read kit's shared snapshot of the open issues and pull requests, which --fresh reads
+// afresh.
+var shared = map[string]bool{"backlog": true, "underway": true, "changes": true}
 
 // moved names the stages whose rows the fetch moves: the desk's and the worktrees' counts against the default branch,
 // the issues underway, which the pull requests the fetch brings close, and the backlog's branches, which it reads as
@@ -628,12 +636,12 @@ func (m *Model) again(name string) tea.Cmd {
 var moved = []string{"backlog", "desk", "worktrees", "underway"}
 
 // reloads runs again each stage the fetch moves, when it is in the picture, each keeping its rows on the screen until
-// the new ones come.
+// the new ones come. They take kit's snapshot of the forge, which the fetch does not move.
 func (m *Model) reloads() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, name := range moved {
 		if m.find(name) != nil {
-			cmds = append(cmds, m.again(name))
+			cmds = append(cmds, m.again(name, false))
 		}
 	}
 	return tea.Batch(cmds...)

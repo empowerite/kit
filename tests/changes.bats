@@ -33,12 +33,14 @@ world() {
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
   fixture open-prs.json <<'JSON'
-{"data": {"repository": {"pullRequests": {"nodes": [{
+{"data": {"repository": {"nameWithOwner": "empowerite/example",
+  "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
+  "pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": true, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": []},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
 JSON
@@ -124,6 +126,20 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit flow changes x7
   [ "$status" -eq 2 ]
   [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help flow"* ]]
+}
+
+@test "a spent rate limit is the stage's refusal, with when it resets, and the stage exits 1" {
+  local reset
+  reset=$(( $(date +%s) + 300 ))
+  fixture limited.txt <<<'gh: API rate limit already exceeded for user ID 1.'
+  fixture limits.json <<<"{\"resources\": {\"graphql\": {\"remaining\": 0, \"reset\": ${reset}}}}"
+  { printf 'api rate_limit*\tlimits.json\napi graphql*\t!1 limited.txt\n'; cat "${FAKE_DIR}/gh.routes"; } \
+    > "${FAKE_DIR}/routes"
+  mv "${FAKE_DIR}/routes" "${FAKE_DIR}/gh.routes"
+  run kit flow changes
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"in 5m, when GitHub's GraphQL rate limit resets (the pull requests could not be read)"* ]]
+  [[ "$output" != *"gh auth status"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

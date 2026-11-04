@@ -81,3 +81,28 @@ func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 		}
 	}
 }
+
+// r on backlog, underway, or changes reads the forge afresh, past kit's shared snapshot of the open issues and pull
+// requests; the stages incoming's fetch reloads take the snapshot, and the stages that never share it are not told.
+func TestRefreshReadsTheForgeAfreshAndTheFetchsReloadsDoNot(t *testing.T) {
+	for _, c := range []struct {
+		stage string
+		want  []string
+	}{
+		{"underway", []string{"flow underway --json --fresh"}},
+		{"changes", []string{"flow changes --json --fresh"}},
+		{"builds", []string{"flow builds --json"}},
+		{"incoming", []string{"flow backlog --json", "flow desk --json", "flow incoming --json", "flow underway --json",
+			"flow worktrees --json"}},
+	} {
+		record := filepath.Join(t.TempDir(), "calls")
+		m := to(t, loaded(t, options()), c.stage)
+		t.Setenv("FAKE_FLOW_CALLS", record)
+		drive(m, press('r'))
+		got := calls(t, record)
+		slices.Sort(got)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("r on %s ran %q, not %q", c.stage, got, c.want)
+		}
+	}
+}

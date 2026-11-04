@@ -8,8 +8,9 @@
 #   - backlog: the open issues not closed by any open pull request
 #   - underway: the open issues closed by an open pull request, whoever opened it
 #
-# The rows come from forge:open-prs, the call the changes stage makes, so the stage asks the forge nothing new. One
-# row per issue and pull request, the oldest issue first:
+# The rows come from forge:open-prs, the call the changes stage makes, and the stages of one load share its snapshot,
+# as modules/bash/forge.sh says, so the stage asks the forge nothing new. One row per issue and pull request, the
+# oldest issue first:
 #
 #    #7  👤 bob  45d  🔀 #3 🔨 draft  🌿 here          📤  3d          🎫 Fix the thing
 #    #8  👤 bob  37d  🔀 #6 🔨 draft  💻 here          📤 10m          🎫 Eight

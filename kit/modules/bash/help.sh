@@ -158,12 +158,17 @@ help:summary() {
 # not bullets continue it. An indented line starts an entry, and the lines indented deeper than it continue it: an
 # argument, `  <token>   description`, whose description hangs at its own column; a bullet, `  - …` or `  1. …`, whose
 # text hangs after the mark; and any other indented line, hanging at its indent. A blank line separates them. Nothing
-# printed exceeds 80 columns but a word wider than its room. Width is counted in characters: awk runs in the C
+# printed exceeds 80 columns but a word wider than its room. Width is counted in terminal columns: awk runs in the C
 # locale, where a byte that continues a multibyte character is told by its value, and those are left out of the
-# count.
+# count; an emoji, four bytes or one of the few of three that terminals draw as one, counts two, so the text after a
+# glyph hangs under its own column.
 help:reflow() {
   LC_ALL=C awk '
-    function width(s) { gsub(/[\200-\277]/, "", s); return length(s) }
+    function width(s,   wide) {
+      wide = gsub(/[\360-\364]|⌚|⌛|⏩|⏪|⏫|⏬|⏰|⏳|✅|✊|✋|✨|❌|❎|❓|❔|❕|❗|➕|➖|➗|⬛|⬜|⭐|⭕/, "&", s)
+      gsub(/[\200-\277]/, "", s)
+      return length(s) + wide
+    }
     function emit(prefix, hang, text,   i, n, word, line, room) {
       room = 78 - hang
       n = split(text, word, " ")

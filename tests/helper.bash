@@ -275,6 +275,12 @@ fake-tools() {
 # fixture <name> writes stdin to a response file the routes name.
 fixture() { cat > "${FAKE_DIR}/$1"; }
 
+# forge-forget drops the snapshots of the forge's open changes and issues that the repository here keeps for a minute,
+# so the next stage reads the fake again. A test that changes the fake's answers between two runs calls it.
+forge-forget() {
+  rm -rf "$(git rev-parse --path-format=absolute --git-common-dir)/kit/forge"
+}
+
 # route [<tool>] <glob> <response> adds a route for <tool>, gh when none is named, the more particular before the more
 # general: "<glob>\t<response>", as tests/fakes/fake-tool reads it.
 route() {

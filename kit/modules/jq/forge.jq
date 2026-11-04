@@ -76,9 +76,14 @@ def github_runs:
 
 # github_prs($now) reads the answer to forge/github:open-prs's GraphQL query and gives one document per pull request.
 # GitHub tells no push's time without a further call, so pushed is the head commit's: when it was committed, and the
-# login of its author, or null when the author's email belongs to no account.
+# login of its author, or null when the author's email belongs to no account. A closed issue's assignees are those
+# the answer's open issues with an assignee give it; an issue they do not name has none: one with no assignee, one
+# closed, one in another repository, or one past the hundred most recently updated.
 def github_prs($now):
-  .data.repository.pullRequests.nodes[]
+  .data.repository as $repository
+  | ([$repository.issues.nodes[]? | {key: "\(.number)", value: [.assignees.nodes[]?.login]}] | from_entries)
+    as $assigned
+  | $repository.pullRequests.nodes[]
   | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
       fork: (if .isCrossRepository then .headRepositoryOwner.login // null else null end),
       pushed: (.commits.nodes[0].commit // {}
@@ -88,8 +93,20 @@ def github_prs($now):
       runs: ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] | github_runs),
       unresolved: ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length),
       closes: [.closingIssuesReferences.nodes[]
-               | { number, title, assignees: [.assignees.nodes[]?.login], createdAt }] }
+               | { number, title, createdAt,
+                   assignees: (if .repository.nameWithOwner == $repository.nameWithOwner
+                               then $assigned["\(.number)"] // [] else [] end) }] }
   | document($now);
+
+# github_spent($now) reads the answer of GitHub's rate_limit endpoint and gives the wait for the limit that is spent,
+# GraphQL's or REST's, the later to reset when both are: when it resets, in local time, and how long that is from
+# $now. It gives nothing when neither is spent.
+def github_spent($now):
+  [.resources // {} | to_entries[] | select(.key | IN("graphql", "core")) | select(.value.remaining == 0)]
+  | max_by(.value.reset) // empty
+  | (((.value.reset - $now) / 60) | ceil | if . < 1 then 1 else . end) as $minutes
+  | "wait until \(.value.reset | strflocaltime("%H:%M")), in \($minutes)m, when GitHub's"
+    + " \({graphql: "GraphQL", core: "REST"}[.key]) rate limit resets";
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:

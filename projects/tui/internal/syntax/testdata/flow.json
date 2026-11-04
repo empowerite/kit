@@ -2,15 +2,15 @@
   "verb": "flow",
   "purpose": "shows where the work stands, from backlog to releases",
   "usage": [
-    "kit flow [--no-fetch] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow --stages",
     "kit flow --me",
-    "kit flow backlog [--json | --jq] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
-    "kit flow underway [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow backlog [--json | --jq] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow underway [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow incoming [--no-fetch] [--json | --jq]",
     "kit flow desk [--json | --jq]",
     "kit flow worktrees [--json | --jq]",
-    "kit flow changes [--json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
+    "kit flow changes [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
     "kit flow builds [--json | --jq]",
     "kit flow releases [--json | --jq]"
   ],
@@ -24,6 +24,20 @@
             {
               "kind": "flag",
               "name": "no-fetch",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
               "repeat": false
             }
           ]
@@ -167,6 +181,20 @@
           [
             {
               "kind": "flag",
+              "name": "fresh",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
               "name": "today",
               "repeat": false
             }
@@ -256,6 +284,20 @@
             {
               "kind": "flag",
               "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
               "repeat": false
             }
           ]
@@ -455,6 +497,20 @@
           [
             {
               "kind": "flag",
+              "name": "fresh",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
               "name": "all",
               "repeat": false
             }
@@ -583,6 +639,9 @@
   "arguments": {
     "--no-fetch": {
       "description": "fetches nothing; incoming says so"
+    },
+    "--fresh": {
+      "description": "reads the open issues and pull requests afresh, not the snapshot of the last minute"
     },
     "--text": {
       "description": "prints the picture as text, even on a terminal"

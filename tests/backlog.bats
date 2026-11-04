@@ -34,12 +34,14 @@ world() {
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
   fixture open-prs.json <<'JSON'
-{"data": {"repository": {"pullRequests": {"nodes": [{
+{"data": {"repository": {"nameWithOwner": "empowerite/example",
+  "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
+  "pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": true, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": []},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
 JSON
@@ -86,6 +88,7 @@ JSON
   fixture issues.json <<'JSON'
 [{"number": 11, "title": "Third thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-30T09:00:00Z"}]
 JSON
+  forge-forget
   run kit flow backlog --owner=bob
   [ "$status" -eq 0 ]
   in-order "${lines[0]}" '#11' 'bob' 'Third thing'

@@ -613,7 +613,7 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	m.limit = 100 * time.Millisecond
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, right, right, right, right, right, right, right)
 	start := time.Now()
-	msg := m.load("releases")()
+	msg := m.load("releases", false)()
 	// the fake sleeps five seconds: the answer comes at the limit only when the sleep is killed with the kit
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("the stage did not end at the limit: %s", took)
@@ -637,7 +637,7 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 	t.Setenv("FAKE_FLOW_SLOW", "releases")
 	m := New(runner(t), options())
 	answers := make(chan tea.Msg, 1)
-	load := m.load("releases")
+	load := m.load("releases", false)
 	go func() { answers <- load() }()
 	// the fake records its call before it sleeps: alt-esc comes once it runs
 	for start := time.Now(); calls(t, record) == nil; time.Sleep(10 * time.Millisecond) {

@@ -3,7 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Linked as gh or glab on PATH. Every call is appended to ${FAKE_DIR}/<tool>.calls. The response is the first line
 # of ${FAKE_DIR}/<tool>.routes whose glob matches the arguments joined by spaces: "<glob>\t<file>", the file's
-# contents printed, or "<glob>\t!<status>" to fail with that status. A gh call carrying --jq has the filter applied
+# contents printed, or "<glob>\t!<status>" to fail with that status, or "<glob>\t!<status> <file>" to fail with it
+# after printing the file on stderr, as a tool says why it failed. A gh call carrying --jq has the filter applied
 # to the response, as gh does, so the provider's own filter is what is tested. An unrouted call fails.
 #
 # As gh does, the fake colors an unfiltered response when CLICOLOR_FORCE is set to other than 0 or GH_FORCE_TTY is set:
@@ -27,7 +28,9 @@ do
   [[ -n "${glob}" && "$*" == ${glob} ]] || continue
   if [[ "${response}" == '!'* ]]
   then
-    exit "${response#!}"
+    response=${response#!}
+    [[ "${response}" != *' '* ]] || cat "${FAKE_DIR}/${response#* }" >&2
+    exit "${response%% *}"
   fi
   if [[ -n "${filter}" ]]
   then

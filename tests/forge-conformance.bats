@@ -20,6 +20,25 @@ call() {
   bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && "forge:$0" "$@"' "$@"
 }
 
+# fresh-call <call> <argument>… runs one call of the seam as a stage given --fresh would: after forge:fresh.
+fresh-call() {
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge:fresh && "forge:$0" "$@"' "$@"
+}
+
+# reads <forge> prints how many times the provider's tool was asked for the open changes.
+reads() {
+  if [[ "$1" == github ]]
+  then grep --count '^api graphql' "${FAKE_DIR}/gh.calls"
+  else grep --count 'merge_requests?state=opened&per_page=100&order_by=' "${FAKE_DIR}/glab.calls"
+  fi
+}
+
+# snapshot <forge> <call> prints the path of the call's snapshot, which forge:snapshot keeps under the common git
+# directory.
+snapshot() {
+  printf '%s\n' "$(git rev-parse --path-format=absolute --git-common-dir)"/kit/forge/"$1"-*/"$2.json"
+}
+
 # provider prints the provider the seam picks here.
 provider() {
   bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge:provider'
@@ -50,12 +69,14 @@ world-github() {
 JSON
   fixture closing-none.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
   fixture open-prs.json <<'JSON'
-{"data": {"repository": {"pullRequests": {"nodes": [{
+{"data": {"repository": {"nameWithOwner": "empowerite/example",
+  "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
+  "pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": false, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
@@ -476,6 +497,148 @@ JSON
     = '[{"name":"ci","state":"passed","took":210,"step":null},'"\
 "'{"name":"lint","state":"running","took":null,"step":null}]' ]
   [ "$(grep -c '^run view ' "${FAKE_DIR}/gh.calls")" -eq 4 ]
+}
+
+@test "every provider reads its open changes once a minute: a second call takes the snapshot, an old one is read again" {
+  local file
+  for forge in github gitlab
+  do
+    world "${forge}"
+    : > "${FAKE_DIR}/gh.calls"
+    : > "${FAKE_DIR}/glab.calls"
+    first=$(call open-prs)
+    [ "$(call open-prs)" = "${first}" ]
+    [ "$(reads "${forge}")" -eq 1 ] || { echo "${forge}: $(reads "${forge}") reads"; return 1; }
+    # a snapshot is kept under the second its read began; one older than a minute is read again, its ages anew
+    file=$(snapshot "${forge}" open-prs)
+    [ -f "${file}" ]
+    { printf '%s\n' "$(( $(date +%s) - 61 ))"; tail -n +2 "${file}"; } > "${file}.old"
+    mv "${file}.old" "${file}"
+    [ "$(call open-prs | jq --raw-output .ref)" = "$(jq --raw-output .ref <<<"${first}")" ]
+    [ "$(reads "${forge}")" -eq 2 ]
+    call open-prs > /dev/null
+    [ "$(reads "${forge}")" -eq 2 ]
+  done
+}
+
+@test "a stage given --fresh reads afresh, and a call that changes the forge drops the snapshot" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    : > "${FAKE_DIR}/gh.calls"
+    : > "${FAKE_DIR}/glab.calls"
+    call open-prs > /dev/null
+    # a snapshot read in the second the stage began counts as fresh, so the stage begins a second later
+    sleep 1
+    fresh-call open-prs > /dev/null
+    [ "$(reads "${forge}")" -eq 2 ]
+    # the fresh read is the snapshot now
+    call open-prs > /dev/null
+    [ "$(reads "${forge}")" -eq 2 ]
+    call pr-create 7-fix-the-thing main "Fix the thing" > /dev/null
+    [ ! -e "$(snapshot "${forge}" open-prs)" ]
+    call open-prs > /dev/null
+    [ "$(reads "${forge}")" -eq 3 ]
+  done
+}
+
+@test "processes that ask at once make one read: the first takes the lock, the others wait for its snapshot" {
+  local i
+  local -a pids=()
+  world github
+  # gh answers slowly, so every process asks while the first still reads
+  mkdir -p "${FAKE_DIR}/slow"
+  mv "${FAKE_DIR}/bin/gh" "${FAKE_DIR}/slow/gh"
+  cat > "${FAKE_DIR}/bin/gh" <<'SH'
+#!/usr/bin/env bash
+sleep 1
+exec "${FAKE_DIR}/slow/gh" "$@"
+SH
+  chmod +x "${FAKE_DIR}/bin/gh"
+  : > "${FAKE_DIR}/gh.calls"
+  for i in 1 2 3 4
+  do
+    call open-prs > "${BATS_TEST_TMPDIR}/answer.${i}" 3>&- &
+    pids+=("$!")
+  done
+  # bats has a process of its own in the background, so the wait names the test's
+  wait "${pids[@]}"
+  [ "$(reads github)" -eq 1 ]
+  for i in 2 3 4
+  do
+    cmp "${BATS_TEST_TMPDIR}/answer.1" "${BATS_TEST_TMPDIR}/answer.${i}"
+  done
+  [ "$(jq --raw-output .ref "${BATS_TEST_TMPDIR}/answer.4")" = "#3" ]
+  # so do the stages of one picture given --fresh, which take no snapshot read before the picture began
+  : > "${FAKE_DIR}/gh.calls"
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge:fresh
+    for i in 1 2 3
+    do
+      forge:open-prs > /dev/null &
+    done
+    wait' 3>&-
+  [ "$(reads github)" -eq 1 ]
+  [ ! -e "$(dirname "$(snapshot github open-prs)")/open-prs.lock" ]
+}
+
+@test "a lock whose process is gone is taken over, and the open issues are kept as the open changes are" {
+  local dir
+  world github
+  call open-issues > /dev/null
+  dir=$(dirname "$(snapshot github open-issues)")
+  rm -f "${dir}"/*.json
+  # a process that does not exist holds the lock
+  ln -s 999999 "${dir}/open-prs.lock"
+  run call open-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output .ref <<<"$output")" = "#3" ]
+  [ ! -e "${dir}/open-prs.lock" ]
+  : > "${FAKE_DIR}/gh.calls"
+  call open-issues > /dev/null
+  call open-issues > /dev/null
+  [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+}
+
+@test "GitHub's open changes cost 5 points: the closed issues' assignees come from the open issues, not from each" {
+  world github
+  run call open-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '.closes | map(.assignees)' <<<"$output")" = '[["bob"]]' ]
+  grep --quiet 'issues(states: OPEN, first: 100, filterBy: {assignee: "\*"}' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'closingIssuesReferences(first: 100) { nodes { number title createdAt repository { nameWithOwner } } }' \
+    "${FAKE_DIR}/gh.calls"
+  [ "$(grep --count 'assignees(first: 10)' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+}
+
+@test "a read GitHub's rate limit stops says which limit, and when it resets, never gh auth status" {
+  local reset
+  world github
+  reset=$(( $(date +%s) + 700 ))
+  fixture limited.txt <<<'gh: API rate limit already exceeded for user ID 1.'
+  fixture limits.json <<<"{\"resources\": {\"core\": {\"remaining\": 4990, \"reset\": ${reset}},
+    \"graphql\": {\"remaining\": 0, \"reset\": ${reset}}}}"
+  printf 'api rate_limit*\tlimits.json\n' > "${FAKE_DIR}/routes.first"
+  printf 'api graphql*\t!1 limited.txt\nissue list*\t!1 limited.txt\n' >> "${FAKE_DIR}/routes.first"
+  cat "${FAKE_DIR}/routes.first" "${FAKE_DIR}/gh.routes" > "${FAKE_DIR}/routes.all"
+  mv "${FAKE_DIR}/routes.all" "${FAKE_DIR}/gh.routes"
+  run call open-prs
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"wait until $(jq --null-input --raw-output "${reset} | strflocaltime(\"%H:%M\")"), in 12m, when GitHub's GraphQL rate limit resets (the pull requests could not be read)"* ]]
+  [[ "$output" != *"gh auth status"* ]]
+  run call open-issues
+  [[ "$output" == *"GraphQL rate limit resets (the issues could not be read)"* ]]
+  # nothing is kept from a read that failed, so the next process asks again
+  [ ! -e "$(snapshot github open-prs)" ]
+  # a secondary rate limit names no reset; GitHub asks for a wait of a few minutes
+  fixture limited.txt <<<'gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again.'
+  run call open-prs
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"wait a few minutes: GitHub's secondary rate limit refused the read (the pull requests could not be read)"* ]]
+  # any other failure still names gh auth status
+  fixture limited.txt <<<'gh: Bad credentials (HTTP 401)'
+  run call open-prs
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"run: gh auth status (the pull requests could not be read)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

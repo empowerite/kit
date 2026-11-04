@@ -64,12 +64,14 @@ forge-world() {
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
 JSON
   fixture open-prs.json <<'JSON'
-{"data": {"repository": {"pullRequests": {"nodes": [{
+{"data": {"repository": {"nameWithOwner": "empowerite/example",
+  "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
+  "pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": true, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": []},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
 JSON
@@ -349,6 +351,35 @@ fake-tui() {
     = '[[11],[7],[3]]' ]
   run "${kit_root}/bin/kit" flow --no-fetch --owner=nobody --json
   [ "$(jq -c '[.backlog, .underway, .changes]' <<<"$output")" = '[[],[],[]]' ]
+}
+
+@test "the stages of a load share one read of the open changes and one of the issues, and --fresh reads them afresh" {
+  local stage
+  forge-world
+  run "${kit_root}/bin/kit" flow --no-fetch --json
+  [ "$status" -eq 0 ]
+  # backlog, underway, and changes run at once in the picture, and each needs the open changes
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  # kittui loads each stage on its own, then again the ones a fetch moves; the forge is not asked again
+  for stage in backlog underway changes backlog underway
+  do
+    run "${kit_root}/bin/kit" flow "${stage}" --json
+    [ "$status" -eq 0 ]
+  done
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  # --fresh takes no snapshot read before the stage began
+  sleep 1
+  run in_flow flow:render backlog --json --fresh
+  [ "$status" -eq 0 ]
+  [ "$(jq -c 'map(.number)' <<<"$output")" = '[9,11]' ]
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  # --fresh is no number for changes to choose by
+  run in_flow flow:render changes --json --fresh 3
+  [ "$status" -eq 0 ]
+  [ "$(jq -c 'map(.number)' <<<"$output")" = '[3]' ]
 }
 
 @test "an empty stage says so in one dim line, alone or in the picture, and prints [] with --json" {

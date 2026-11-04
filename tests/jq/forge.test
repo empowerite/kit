@@ -60,6 +60,20 @@ import "forge" as forge; [forge::github_prs(1000000) | {fork, pushed}]
 {"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": true, "headRepositoryOwner": {"login": "cy"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:45:00Z", "author": {"user": {"login": "dee"}}, "statusCheckRollup": null}}]}}, {"number": 4, "title": "Also", "isDraft": true, "headRefName": "8-also", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": false, "headRepositoryOwner": {"login": "empowerite"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:46:00Z", "author": {"user": null}, "statusCheckRollup": null}}]}}, {"number": 5, "title": "Old", "isDraft": true, "headRefName": "9-old", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
 [{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":40,"by":null}},{"fork":null,"pushed":null}]
 
+# A closed issue's assignees come from the answer's open issues with an assignee, not from the issue itself: one they
+# do not name has none, as has an issue of another repository with the same number.
+import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .assignees]
+{"data": {"repository": {"nameWithOwner": "empowerite/example", "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}, {"login": "cy"}]}}]}, "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 8, "title": "Eight, closed or unassigned", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 7, "title": "Seven elsewhere", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "other/place"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[7,["bob","cy"]]
+[8,[]]
+[7,[]]
+
+# A rate limit that is spent gives the wait until it resets, in local time, which the suite runs in UTC, and in
+# minutes rounded up, the later of the two when both are; with neither spent, or no answer, nothing.
+import "forge" as forge; [.[] | [forge::github_spent(1000000)]]
+[{"resources": {"core": {"remaining": 10, "reset": 1003600}, "graphql": {"remaining": 0, "reset": 1000690}}}, {"resources": {"core": {"remaining": 0, "reset": 1001200}, "graphql": {"remaining": 0, "reset": 1000060}}}, {"resources": {"core": {"remaining": 0, "reset": 1000010}}}, {"resources": {"core": {"remaining": 1, "reset": 1000010}}}, {}]
+[["wait until 13:58, in 12m, when GitHub's GraphQL rate limit resets"],["wait until 14:06, in 20m, when GitHub's REST rate limit resets"],["wait until 13:46, in 1m, when GitHub's REST rate limit resets"],[],[]]
+
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login and the age in seconds.
 import "forge" as forge; forge::github_issues(1000000)
 [{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "1970-01-12T13:46:20Z"}]

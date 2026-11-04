@@ -1182,7 +1182,8 @@ flow:picture() {
 
 # flow:render [<stage>] [<argument>…] draws one stage, or the picture, as kit flow's page says. Above desks it
 # draws each desk's under its path. --text, which kit flow takes to stay in text on a terminal, changes nothing
-# here.
+# here. --fresh makes every stage read the forge afresh, not from the snapshot of the last minute, as forge:fresh
+# says.
 flow:render() {
   local stage='' arg
   local -a args=()
@@ -1198,7 +1199,14 @@ flow:render() {
   esac
   for arg in "$@"
   do
-    [[ "${arg}" == --text ]] || args+=("${arg}")
+    case "${arg}" in
+      (--text) ;;
+      (--fresh)
+        use forge
+        forge:fresh
+        ;;
+      (*) args+=("${arg}")
+    esac
   done
   if [[ -n "${stage}" ]]
   then

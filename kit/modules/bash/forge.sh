@@ -24,6 +24,15 @@
 # kit install, update, check, context, and lint never call the forge, so they work in a repository that has no
 # forge.
 #
+# The open changes and the open issues are kept as a snapshot, so the stages of one load, which run as processes of
+# their own and at once, share one read of each and agree on what is open. A snapshot lives under kit/forge/ in the
+# repository's common git directory, which every worktree shares, one directory per forge and primary remote URL.
+# It is used for a minute after the read that made it began: long enough for a load's stages, and for the ones a
+# fetch moves to load again, and short enough that a person reading the picture sees the forge as it is. The first
+# process to miss takes the lock, a symbolic link that names its process, and reads; the others wait for its
+# snapshot. A lock whose process is gone is taken over. forge:fresh makes a process read afresh, and a call that
+# changes an issue or a change drops the snapshot.
+#
 # Every provider implements the calls below. Each prints its result on stdout. On failure it prints a remedy on
 # stderr. A call marked "or nothing" prints nothing when there is no match.
 #
@@ -59,7 +68,12 @@
 #
 # see: docs/architecture.md
 
-use settings
+use settings file
+
+# forge_snapshot_seconds is how long a snapshot is used after its read began, and forge_snapshot_wait how long, in
+# tenths of a second, a process waits for another's read before it reads on its own. forge_fresh_since, set by
+# forge:fresh, is the second a snapshot must have been read in or after; empty, the last forge_snapshot_seconds do.
+declare -g forge_snapshot_seconds=60 forge_snapshot_wait=1200 forge_fresh_since=''
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
 # setting reaches git as an argument, so it must be safe first. It refuses, and returns 1, as kit cannot go on with a
@@ -228,26 +242,130 @@ forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
 forge:noun()                { forge:call noun "$@"; }
 forge:pr-url()              { forge:call pr-url "$@"; }
-forge:issue-create()        { forge:call issue-create "$@"; }
+forge:issue-create()        { forge:changing issue-create "$@"; }
 forge:issue-title()         { forge:call issue-title "$@"; }
 forge:issue-state()         { forge:call issue-state "$@"; }
 forge:issue-assignees()     { forge:call issue-assignees "$@"; }
-forge:issue-assign()        { forge:call issue-assign "$@"; }
+forge:issue-assign()        { forge:changing issue-assign "$@"; }
 forge:branch-for-issue()    { forge:call branch-for-issue "$@"; }
-forge:link-branch()         { forge:call link-branch "$@"; }
+forge:link-branch()         { forge:changing link-branch "$@"; }
 forge:pr-for-branch()       { forge:call pr-for-branch "$@"; }
-forge:pr-create()           { forge:call pr-create "$@"; }
+forge:pr-create()           { forge:changing pr-create "$@"; }
 forge:pr-title()            { forge:call pr-title "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
-forge:pr-set-body()         { forge:call pr-set-body "$@"; }
+forge:pr-set-body()         { forge:changing pr-set-body "$@"; }
 forge:pr-author()           { forge:call pr-author "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }
 forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }
-forge:open-prs()            { forge:call open-prs "$@"; }
-forge:open-issues()         { forge:call open-issues "$@"; }
+forge:open-prs()            { forge:snapshot open-prs; }
+forge:open-issues()         { forge:snapshot open-issues; }
 forge:releases()            { forge:call releases "$@"; }
 forge:runs()                { use git; forge:call runs "$@"; }
+
+# forge:changing <call> <argument>… runs a call that changes the forge, as forge:call does, then drops the
+# snapshots, whether it succeeded or not, so the next read sees the change.
+forge:changing() {
+  local status=0
+  forge:call "$@" || status=$?
+  forge:forget
+  return "${status}"
+}
+
+# forge:fresh makes every snapshot read before this second too old for this process, and for the stages it starts,
+# so each reads the forge afresh; processes that start with it at once still share one read.
+forge:fresh() {
+  forge_fresh_since=$(date +%s)
+}
+
+# forge:snapshots prints the directory that keeps this repository's snapshots, named for the forge and the primary's
+# URL, or fails outside a repository, or for a primary with no URL.
+forge:snapshots() {
+  local common provider primary url
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  provider=$(forge:provider 2>/dev/null) || return 1
+  primary=$(forge:primary 2>/dev/null) || return 1
+  url=$(git remote get-url --end-of-options "${primary}" 2>/dev/null) || return 1
+  printf '%s/kit/forge/%s-%s\n' "${common}" "${provider}" "$(printf '%s' "${url}" | cksum | cut -d ' ' -f 1)"
+}
+
+# forge:forget drops this repository's snapshots.
+forge:forget() {
+  local dir
+  dir=$(forge:snapshots) || return 0
+  rm -f "${dir}"/*.json
+}
+
+# forge:snapshot <call> prints the call's answer from the snapshot when one is recent enough, and otherwise reads it,
+# as the file header says, and keeps the answer as the new snapshot. Its first line is the second the read began.
+# Where there is no place for a snapshot, it reads. A read that fails keeps nothing, and the next process reads again.
+forge:snapshot() {
+  local call=$1 dir file lock floor holder waited=0
+  if ! dir=$(forge:snapshots) || ! mkdir -p "${dir}"
+  then
+    forge:call "${call}"
+    return
+  fi
+  file=${dir}/${call}.json lock=${dir}/${call}.lock
+  floor=${forge_fresh_since:-$(( $(date +%s) - forge_snapshot_seconds ))}
+  while ! forge:snapshot-read "${file}" "${floor}"
+  do
+    # ln -s fails when the link is there, so one process alone makes it, and the link names that process as it is
+    # made. The process that made it checks the snapshot once more, as the one before may have just written it.
+    if ln -s "${BASHPID}" "${lock}" 2>/dev/null
+    then
+      file:at-exit forge:unlock "${lock}" "${BASHPID}"
+      forge:snapshot-read "${file}" "${floor}" || forge:snapshot-take "${call}" "${file}" || {
+        forge:unlock "${lock}" "${BASHPID}"
+        return 1
+      }
+      forge:unlock "${lock}" "${BASHPID}"
+      return 0
+    fi
+    # A lock whose process is gone is taken over. Every other turn waits, so a lock that cannot be made or removed
+    # ends in a read of the process's own.
+    if holder=$(readlink "${lock}" 2>/dev/null) \
+      && { [[ ! "${holder}" =~ ^[0-9]+$ ]] || ! kill -0 "${holder}" 2>/dev/null; }
+    then
+      forge:unlock "${lock}" "${holder}"
+      [[ -L "${lock}" ]] || continue
+    fi
+    if (( waited >= forge_snapshot_wait ))
+    then
+      forge:call "${call}"
+      return
+    fi
+    sleep 0.1
+    waited=$(( waited + 1 ))
+  done
+}
+
+# forge:snapshot-read <file> <floor> prints the snapshot's answer when it was read in the second <floor> or after,
+# and fails otherwise, or when there is none. A snapshot is replaced by a rename, so the one open is read whole.
+forge:snapshot-read() {
+  local taken
+  [[ -f "$1" ]] || return 1
+  {
+    IFS= read -r taken && [[ "${taken}" =~ ^[0-9]+$ ]] && (( taken >= $2 )) || return 1
+    cat
+  } < "$1"
+}
+
+# forge:snapshot-take <call> <file> reads the call's answer from the forge, prints it, and keeps it in <file>, under
+# the second the read began.
+forge:snapshot-take() {
+  local taken answer
+  taken=$(date +%s)
+  answer=$(forge:call "$1") || return 1
+  file:replace "$2" printf '%s\n' "${taken}" ${answer:+"${answer}"} || true
+  [[ -z "${answer}" ]] || printf '%s\n' "${answer}"
+}
+
+# forge:unlock <lock> <process> removes the lock when it still names the process, so a process never removes a lock
+# another has taken since.
+forge:unlock() {
+  [[ "$(readlink "$1" 2>/dev/null)" != "$2" ]] || rm -f "$1"
+}
 
 # forge:tags prints the repository's tags as one JSON array of names, for the providers' runs: a run on a tag is a
 # push whose branch names one.

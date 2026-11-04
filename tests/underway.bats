@@ -25,20 +25,25 @@ setup() {
   fixture user.json <<<'{"login": "ada"}'
   fixture repo.json <<<'{"nameWithOwner": "empowerite/example", "url": "https://github.com/empowerite/example"}'
   fixture open-prs.json <<'JSON'
-{"data": {"repository": {"pullRequests": {"nodes": [
+{"data": {"repository": {"nameWithOwner": "empowerite/example",
+  "issues": {"nodes": [{"number": 11, "assignees": {"nodes": [{"login": "ada"}]}},
+                       {"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
+  "pullRequests": {"nodes": [
  {"number": 3, "title": "Fix the thing", "isDraft": true, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "assignees": {"nodes": [{"login": "bob"}]}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": []},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}},
  {"number": 5, "title": "Third and more", "isDraft": false, "headRefName": "11-third",
   "createdAt": "2026-10-02T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": "APPROVED",
   "author": {"login": "cy"},
   "closingIssuesReferences": {"nodes": [
-    {"number": 11, "title": "Third thing", "createdAt": "2026-09-30T09:00:00Z", "assignees": {"nodes": [{"login": "ada"}]}},
-    {"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z", "assignees": {"nodes": [{"login": "bob"}]}}]},
+    {"number": 11, "title": "Third thing", "createdAt": "2026-09-30T09:00:00Z",
+     "repository": {"nameWithOwner": "empowerite/example"}},
+    {"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
+     "repository": {"nameWithOwner": "empowerite/example"}}]},
   "reviewThreads": {"nodes": []},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "ci", "status": "COMPLETED", "conclusion": "SUCCESS",
@@ -127,6 +132,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   jq '.data.repository.pullRequests.nodes[0].commits.nodes[0].commit |= del(.committedDate)' \
     "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/unknown.json"
   mv "${FAKE_DIR}/unknown.json" "${FAKE_DIR}/open-prs.json"
+  forge-forget
   run kit flow underway --json
   [ "$(jq -c 'map(.pr.pushed == null)' <<<"$output")" = '[true,false,false]' ]
   run kit flow underway
@@ -172,6 +178,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
       = "a title long enough to run past the edge of any terminal this narrow"' "${FAKE_DIR}/open-prs.json" \
     > "${FAKE_DIR}/long.json"
   mv "${FAKE_DIR}/long.json" "${FAKE_DIR}/open-prs.json"
+  forge-forget
   COLUMNS=60 run kit flow underway
   [[ "${lines[2]}" == "#11  👤 ada  "*"d  🔀 #5 🏁 ready  👤 cy    🎫 a title long"*"…" ]]
 }
@@ -186,9 +193,9 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit help flow holds the underway legend, and backlog points to it" {
   run kit help flow
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n  underway:\n\n    🎫  an issue, and its title\n'* ]]
-  [[ "$output" == *$'\n    💻  here: the desk, the root checkout, has the pull request\'s branch\n'* ]]
-  [[ "$output" == *$'\n    🌱  local: a local branch with no worktree;'* ]]
+  [[ "$output" == *$'\n  underway:\n\n    🛫  underway: an issue an open pull request closes\n'* ]]
+  [[ "$output" == *$'\n    💻  the desk: the root checkout\n'* ]]
+  [[ "$output" == *$'\n    🌱  a local branch: this desk has it, and no checkout does\n'* ]]
   [[ "$output" == *"    backlog             the open issues not closed by any open pull request,"$'\n'*"oldest first; underway has the rest"* ]]
 }
 
