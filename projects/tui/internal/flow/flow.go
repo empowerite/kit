@@ -2,15 +2,16 @@
 // and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has the
 // keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
-// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; r runs
-// the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
-// away, as a click anywhere on the rule beside the rows does; tab gives the panel the keyboard, and / or a click
-// on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
-// and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
-// under the cursor. Esc goes back
-// one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and
-// alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two
-// minutes; past them it is a refusal, and quitting kills the commands still running.
+// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops
+// the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; r runs the stage's command again; ?
+// shows the sidebar beside the rows, the stage's panel over its legend, and again takes it away, as a click anywhere on
+// the rule beside the rows does; tab gives the panel the keyboard, and / or a click on the search, always on the
+// screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's
+// before its title, opens its page in the browser, and one on a glyph that names a row of another stage, as underway's
+// pull request, selects that stage with the row under the cursor. Esc goes back one level: from the panel, the sidebar
+// off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that
+// reports it sends command-esc, quits with 0. A stage's command has two minutes; past them it is a refusal, and
+// quitting kills the commands still running.
 package flow
 
 import (
