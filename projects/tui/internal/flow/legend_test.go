@@ -5,6 +5,7 @@ package flow
 import (
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -277,5 +278,34 @@ func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
 				t.Errorf("%s's legend marks %s %s, which no row leads from", name, glyph, mark)
 			}
 		}
+	}
+}
+
+// The glyphs region is what its command makes from the kit's table of glyphs, legend.jq's Go gofmt'd, so a change to
+// the table that kit generate has not carried here fails.
+func TestTheGlyphsRegionIsWhatTheKitsTableGives(t *testing.T) {
+	for _, tool := range []string{"bash", "jq", "gofmt"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("no %s", tool)
+		}
+	}
+	source, err := os.ReadFile("glyph.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, after, _ := strings.Cut(string(source), "// kit:generate glyphs `")
+	command, region, _ := strings.Cut(after, "`\n")
+	region, _, ok := strings.Cut(region, "// kit:end glyphs\n")
+	if !ok || command == "" {
+		t.Fatal("glyph.go has no glyphs region")
+	}
+	run := exec.Command("bash", "-c", command)
+	run.Dir = filepath.Join("..", "..", "..", "..")
+	made, err := run.Output()
+	if err != nil {
+		t.Fatalf("%s: %v", command, err)
+	}
+	if string(made) != region {
+		t.Errorf("the glyphs region is stale; run kit generate:\n%s", made)
 	}
 }

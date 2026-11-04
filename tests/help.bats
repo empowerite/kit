@@ -90,13 +90,15 @@ group-has() {
   [[ "$output" == *$'\n  usage        prints the usage lines'*$'\n\nkit tidy - removes merged worktrees and gone branches\n'* ]]
 }
 
-@test "kit help flow holds the legend of the glyphs every stage draws" {
+@test "kit help flow holds the legend of the glyphs every stage draws, made from the kit's table, without its region's lines" {
   run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  Legend\n'* ]]
   [[ "$output" == *$'\n    🔀  a pull request'* ]]
   [[ "$output" == *$'\n    🏁  ready'* ]]
   [[ "$output" == *"NO_COLOR removes the colors"* ]]
+  [[ "$output" != *"kit:generate"* && "$output" != *"kit:end"* ]]
+  [[ "$output" == *$'\n    🎫  '"$(jq -r '.glyphs[] | select(.name == "Issue") | .meaning' "${kit_root}/modules/jq/glyphs.json")"* ]]
 }
 
 @test "kit usage prints the usage lines alone, of the named verbs or of every verb, and refuses a name that is no verb" {

@@ -99,66 +99,60 @@
 # the colors and keeps the glyphs. In kittui's legend, a dim † after a meaning says a click on the glyph goes to its
 # row in another stage, and a dim 🔗 that a click opens the glyph's page.
 #
-#   📚  the repository, owner/name, in kittui's title
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
+#   📚  the repository: owner/name, in kittui's title
 #
 # backlog:
 #
-#   🎫  an issue
-#   👤  its assignees
-#   🌿  the branch started for it on the primary remote
-#   ❌  a refusal: kit could not read the forge
+#   🎫  an issue: its number and title
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # underway:
 #
-#   🎫  an issue, and its title
-#   👤  its assignees, the pull request's author, whose desk the work is on, or who pushed last, when not the author
-#   🛫  an issue underway
-#   🔀  the pull request that closes it, with its state glyph as changes draws it
-#   💻  here: the desk, the root checkout, has the pull request's branch
-#   🌿  here, in a linked worktree: a worktree on this desk has the pull request's branch
-#   🌱  local: a local branch with no worktree; this desk has the branch, and no checkout has it
-#   🍴  a fork's owner: the pull request's branch lives in their repository
-#   📤  the last push's age
-#   ❌  a refusal: kit could not read the forge
-#
-# incoming:
-#
-#   📡  a remote: its name, its forge or no forge, and its host
-#   🛬  what the fetch brought from it
-#   🌿  a branch new or updated on it
-#   🔖  a branch gone from it
-#   📌  a new tag
-#   ❌  the fetch failed: git's line
+#   🛫  underway: an issue an open pull request closes
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🔀  a pull request: a merge request, on GitLab
+#   💻  the desk: the root checkout
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  a local branch: this desk has it, and no checkout does
+#   🍴  a fork's owner: the pull request's branch is in their repository
+#   📤  the last push: how long ago
+#   🎫  an issue: its number and title
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # desk:
 #
-#   💻  the desk, the root checkout
+#   💻  the desk: the root checkout
 #   ❗  not on any branch: a detached HEAD
-#   📂  a desk's path, above desks
+#   🔀  a pull request: a merge request, on GitLab
+#   📂  a desk's path: above desks
 #
 # worktrees:
 #
-#   🌿  a linked worktree
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
 #   ❗  not on any branch: a detached HEAD
-#   🔖  a branch whose upstream is gone
+#   🔀  a pull request: a merge request, on GitLab
+#   🔖  a branch gone: its upstream is gone; kit tidy removes it
 #
 # changes:
 #
-#   🔀  a pull request, or a merge request on GitLab
-#   👤  its author, or an issue's assignees
-#   🌿  its branch
-#   🎫  an issue it closes
-#   🛫  that issue, in flight
-#   💬  unresolved review threads
-#   🏃  checks still running, with passed / total
-#   ✅  every check passed
-#   ❌  a check failed, or kit could not read the forge
+#   🔀  a pull request: a merge request, on GitLab
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🏃  running: checks or a build still running or queued
+#   ✅  passed: every check, or a build
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#   💬  threads unresolved: review threads, with how many
+#   🛫  underway: an issue an open pull request closes
+#   🎫  an issue: its number and title
 #
 # changes: a pull request's state, the first of these that holds:
 #
 #   🔨  draft
 #   🚦  queued: a check is still running
-#   💥  conflicted with its base
+#   💥  conflicted: with its base
 #   🔥  failing:gate: a check failed
 #   📭  no-check: no check has reported
 #   💬  comments:open: a review thread is unresolved
@@ -168,20 +162,30 @@
 #
 # builds:
 #
-#   🏭  a build: a run not owned by any pull request
-#   🏃  running or queued
-#   ✅  passed
-#   ❌  failed, or kit could not read the forge
-#   🛑  cancelled or skipped
+#   🏭  a build: a workflow run not owned by any pull request
+#   🏃  running: checks or a build still running or queued
+#   ✅  passed: every check, or a build
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#   🛑  cancelled or skipped: a build
+#
+# incoming:
+#
+#   🛬  the fetch: what it brought from the remotes
+#   📡  a remote: its name, its forge or no forge, and its host
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🔖  a branch gone: its upstream is gone; kit tidy removes it
+#   📌  a new tag: the fetch brought it
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # releases:
 #
 #   📦  a release
 #   🧪  a pre-release
-#   📝  a draft
-#   ⭐  the latest
-#   ❌  a refusal: kit could not read the forge
+#   📝  a draft release
+#   ⭐  the latest release
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
+# kit:end legend
 # Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read or a setting is wrong, and 2 on a
 # usage error. A wrong setting is a flow setting that is not a list of distinct stages, a primary that names no
 # remote, or a forges key that is no remote name.

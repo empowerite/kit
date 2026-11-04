@@ -1,0 +1,30 @@
+# glyphs.test - the glyphs jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is null; a case gives its table as an argument.
+
+# A glyph is found by its name.
+import "glyphs" as glyphs; glyphs::glyph({"glyphs": [{"name": "Issue", "glyph": "🎫"}, {"name": "Tag", "glyph": "📌"}]}; "Tag") | .glyph
+null
+"📌"
+
+# A line too long breaks at the space before the word that would pass the width, the rest after the indent.
+import "glyphs" as glyphs; "one two three four" | [glyphs::wrap(9; "> ")]
+null
+["one two","> three","> four"]
+
+# A line of the help's legend is the glyph, two spaces, and the meaning, with more after a colon when there is more.
+import "glyphs" as glyphs; [glyphs::line("🎫"; "an issue"; "its number and title"), glyphs::line("📦"; "a release"; null)]
+null
+["#   🎫  an issue: its number and title","#   📦  a release"]
+
+# The legend is the title's glyph, then each stage's glyphs under its name; a stage that lists the states has them
+# under a heading of their own, then any other state.
+import "glyphs" as glyphs; [glyphs::legend({"glyphs": [{"name": "Repository", "glyph": "📚", "meaning": "the repository"}, {"name": "Issue", "glyph": "🎫", "meaning": "an issue", "more": "its title"}, {"name": "Other", "glyph": "🔳", "meaning": "any other state"}], "states": [{"glyph": "🏁", "state": "ready"}], "title": "Repository", "stages": [{"stage": "backlog", "glyph": "Issue", "legend": [{"name": "Issue", "link": "page"}]}, {"stage": "changes", "glyph": "Issue", "states": "page", "legend": [{"name": "Issue"}]}]})]
+null
+["#   📚  the repository","#","# backlog:","#","#   🎫  an issue: its title","#","# changes:","#","#   🎫  an issue: its title","#","# changes: a pull request's state, the first of these that holds:","#","#   🏁  ready","#   🔳  any other state","#"]
+
+# glyphs.json gives a legend whose every stage is one kit flow draws, in its order.
+import "glyphs" as glyphs; [glyphs::legend | select(test("^# [a-z]+:$")) | ltrimstr("# ") | rtrimstr(":")]
+null
+["backlog","underway","desk","worktrees","changes","builds","incoming","releases"]

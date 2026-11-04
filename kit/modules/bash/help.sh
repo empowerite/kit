@@ -80,13 +80,15 @@ help:members() {
 }
 
 # help:header <verb> prints the verb's header text below the banner, without the comment marks, and without a line of
-# dashes, the blank lines at either end, and the see: lines.
+# dashes, the blank lines at either end, the see: lines, and the lines that open and close a region kit generate fills,
+# as the legend kit-flow's header has.
 help:header() {
   awk '
     NR <= 2 { next }
     /^# -+$/ { next }
     !/^#/ { exit }
     /^# see: / { next }
+    /^# kit:(generate|end) / { next }
     { sub(/^# ?/, ""); line[++n] = $0 }
     END {
       first = 1; while (first <= n && line[first] == "") first++

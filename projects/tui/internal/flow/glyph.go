@@ -1,38 +1,7 @@
-// The glyphs the picture draws, as kit help flow's legend names them, and each stage's legend, which ? shows beside
-// the stage's rows. The legend test holds every one to that page, so bash and Go draw the same picture.
+// The glyphs the picture draws, and each stage's legend, which ? shows beside the stage's rows. The glyphs region is
+// generated from the kit's one table of glyphs, kit/modules/jq/glyphs.json, which kit help flow's legend is made from
+// too, so the two say the same of every glyph; the legend test holds what each stage draws to its legend.
 package flow
-
-// The glyphs, as the legend draws them.
-const (
-	Repository = "📚" // the repository, owner/name, in the title
-	Fetched    = "🛬" // what the fetch brought from the remotes
-	Remote     = "📡" // a remote, its forge, and its host
-	Desk       = "💻" // the desk, the root checkout
-	Branch     = "🌿" // a linked worktree, or a branch
-	Sprout     = "🌱" // a branch on this desk with no checkout
-	Change     = "🔀" // a pull request
-	Owner      = "👤" // an author, or an issue's assignees
-	Issue      = "🎫" // an issue
-	InFlight   = "🛫" // an issue a pull request closes: underway, and in flight under changes
-	Gone       = "🔖" // a branch whose upstream is gone
-	Tag        = "📌" // a new tag the fetch brought
-	Detached   = "❗" // a checkout not on any branch
-	Running    = "🏃" // checks still running
-	Passed     = "✅" // every check passed
-	Failed     = "❌" // a check failed, and a refusal
-	Threads    = "💬" // unresolved review threads
-	Release    = "📦" // a release
-	Pre        = "🧪" // a pre-release
-	Draft      = "📝" // a draft release
-	Latest     = "⭐" // the latest release
-	Other      = "🔳" // a pull request in any other state
-	Fork       = "🍴" // the owner of the fork a pull request's branch is in
-	Pushed     = "📤" // a branch's last push, how long ago
-
-	// A build's glyphs; the variation selector draws them as emoji, two cells wide.
-	Build     = "🏭" // a build: a workflow run not owned by any pull request
-	Cancelled = "🛑" // a build cancelled or skipped
-)
 
 // entry is one line of a legend: a glyph and what it means. A state's meaning is the state word kit prints.
 type entry struct {
@@ -45,76 +14,110 @@ const (
 	ToPage = "🔗"
 )
 
+// kit:generate glyphs `jq -nr -L projects/tui/internal/flow 'import "legend" as l; l::go' | gofmt | sed 1,2d; echo`
+// The glyphs, as the legend draws them, each beside its meaning.
+const (
+	Repository = "📚" // the repository
+	Issue      = "🎫" // an issue
+	InFlight   = "🛫" // underway
+	Desk       = "💻" // the desk
+	Branch     = "🌿" // a branch or a worktree
+	Sprout     = "🌱" // a local branch
+	Change     = "🔀" // a pull request
+	Owner      = "👤" // assignees or author
+	Fork       = "🍴" // a fork's owner
+	Pushed     = "📤" // the last push
+	Path       = "📂" // a desk's path
+	Fetched    = "🛬" // the fetch
+	Remote     = "📡" // a remote
+	Gone       = "🔖" // a branch gone
+	Tag        = "📌" // a new tag
+	Detached   = "❗" // not on any branch
+	Threads    = "💬" // threads unresolved
+	Running    = "🏃" // running
+	Passed     = "✅" // passed
+	Failed     = "❌" // failed
+	Cancelled  = "🛑" // cancelled or skipped
+	Build      = "🏭" // a build
+	Release    = "📦" // a release
+	Pre        = "🧪" // a pre-release
+	Draft      = "📝" // a draft release
+	Latest     = "⭐" // the latest release
+	Other      = "🔳" // any other state
+)
+
 // title is the title's glyph, which no stage draws.
-var title = entry{Repository, "the repository, owner/name"}
+var title = entry{Repository, "the repository"}
 
 // legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
-// Underway, the desk, and the worktrees draw a pull request's state as changes does; its glyphs are under changes
-// alone.
 var legends = map[string][]entry{
 	"backlog": {
 		{Issue, "an issue"},
-		{Owner, "its assignees"},
-		{Branch, "its branch"},
+		{Owner, "assignees or author"},
+		{Branch, "a branch or a worktree"},
+		{Failed, "failed"},
 	},
 	"underway": {
-		{InFlight, "an issue underway"},
-		{Owner, "its assignees, the author, who pushed"},
-		{Change, "the pull request"},
-		{Desk, "here, on the desk"},
-		{Branch, "here, in a worktree"},
-		{Sprout, "local, no worktree"},
-		{Fork, "the fork's owner"},
+		{InFlight, "underway"},
+		{Owner, "assignees or author"},
+		{Change, "a pull request"},
+		{Desk, "the desk"},
+		{Branch, "a branch or a worktree"},
+		{Sprout, "a local branch"},
+		{Fork, "a fork's owner"},
 		{Pushed, "the last push"},
-		{Issue, "the issue's title"},
-	},
-	"incoming": {
-		{Fetched, "the fetch"},
-		{Remote, "a remote"},
-		{Branch, "a branch"},
-		{Gone, "a branch gone"},
-		{Tag, "a new tag"},
-		{Failed, "a fetch failed"},
+		{Issue, "an issue"},
+		{Failed, "failed"},
 	},
 	"desk": {
 		{Desk, "the desk"},
 		{Detached, "not on any branch"},
-		{Change, "its pull request"},
+		{Change, "a pull request"},
+		{Path, "a desk's path"},
 	},
 	"worktrees": {
-		{Branch, "a worktree"},
+		{Branch, "a branch or a worktree"},
 		{Detached, "not on any branch"},
-		{Change, "its pull request"},
+		{Change, "a pull request"},
 		{Gone, "a branch gone"},
 	},
 	"changes": {
 		{Change, "a pull request"},
-		{Owner, "its author"},
-		{Branch, "its branch"},
-		{Running, "checks running"},
-		{Passed, "checks passed"},
-		{Failed, "a check failed"},
+		{Owner, "assignees or author"},
+		{Branch, "a branch or a worktree"},
+		{Running, "running"},
+		{Passed, "passed"},
+		{Failed, "failed"},
 		{Threads, "threads unresolved"},
-		{InFlight, "an issue it closes"},
-		{Issue, "the issue's title"},
+		{InFlight, "underway"},
+		{Issue, "an issue"},
 	},
 	"builds": {
 		{Build, "a build"},
-		{Running, "running or queued"},
+		{Running, "running"},
 		{Passed, "passed"},
 		{Failed, "failed"},
 		{Cancelled, "cancelled or skipped"},
 	},
+	"incoming": {
+		{Fetched, "the fetch"},
+		{Remote, "a remote"},
+		{Branch, "a branch or a worktree"},
+		{Gone, "a branch gone"},
+		{Tag, "a new tag"},
+		{Failed, "failed"},
+	},
 	"releases": {
 		{Release, "a release"},
 		{Pre, "a pre-release"},
-		{Draft, "a draft"},
-		{Latest, "the latest"},
+		{Draft, "a draft release"},
+		{Latest, "the latest release"},
+		{Failed, "failed"},
 	},
 }
 
-// marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere: to the
-// row of a pull request under changes, or to a page.
+// marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere:
+// to the row of another stage, or to a page.
 var marks = map[string]map[string]string{
 	"backlog":   {Issue: ToPage},
 	"underway":  {Change: ToRow, Desk: ToRow, Branch: ToRow, Issue: ToPage},
@@ -143,13 +146,15 @@ var states = []entry{
 var stageGlyphs = map[string]string{
 	"backlog":   Issue,
 	"underway":  InFlight,
-	"incoming":  Fetched,
 	"desk":      Desk,
 	"worktrees": Branch,
 	"changes":   Change,
 	"builds":    Build,
+	"incoming":  Fetched,
 	"releases":  Release,
 }
+
+// kit:end glyphs
 
 // stateGlyphs gives a pull request's glyph by its state word, read from the states but the last, any other.
 var stateGlyphs = func() map[string]string {

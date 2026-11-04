@@ -1,32 +1,32 @@
- kit flow · 📚 empowerite/kit                     🔎 search
- ───────────╴➎╶─────────────────────╮➅╶──────────
-◃         4  │ 🔀 changes       3 ≡ │  🏭 build ▹ columns
- ────────────╯                      ╰───────────┐ ☑ change
- ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  …  │ ☑ title
- ▸ 🔀 #3  A spike on …  👤 ada               …  │ ☑ author
- ▸ 🔀 #4  Lint every …  👤 bob               …  │ ☑ state
-                                                │ ☑ age
-                                                │ ☑ checks
-                                                │ ☑ threads
-                                                │ ☑ branch
-                                                │
-                                                │ show
-                                                │ ⦿ all
-                                                │ ⦾ mine
-                                                │ ⦾ others
-                                                │
-                                                ▸ legend
-                                                ╷ 🔀 a pull request 🔗
-                                                │ 👤 its author
-                                                │ 🌿 its branch
-                                                │ 🏃 checks running
-                                                │ ✅ checks passed
-                                                │ ❌ a check failed
-                                                │ 💬 threads unresolved
-                                                │ 🛫 an issue it closes
-                                                │ 🎫 the issue's title
-                                                │
-                                                │ state 🔗
-                                                │ 🔨 draft
-                                                │ … 8 more
+ kit flow · 📚 empowerite/kit                        🔎 search
+ ────────────╴➎╶─────────────────────╮➅╶────────────
+◃          4  │ 🔀 changes       3 ≡ │  🏭 builds  ▹ columns
+ ─────────────╯                      ╰─────────────┐ ☑ change
+ ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 r… │ ☑ title
+ ▸ 🔀 #3  A spike on …  👤 ada               🔨 d… │ ☑ author
+ ▸ 🔀 #4  Lint every …  👤 bob               🔥 f… │ ☑ state
+                                                   │ ☑ age
+                                                   │ ☑ checks
+                                                   │ ☑ threads
+                                                   │ ☑ branch
+                                                   │
+                                                   │ show
+                                                   │ ⦿ all
+                                                   │ ⦾ mine
+                                                   │ ⦾ others
+                                                   │
+                                                   ▸ legend
+                                                   ╷ 🔀 a pull request 🔗
+                                                   │ 👤 assignees or author
+                                                   │ 🌿 a branch or a worktree
+                                                   │ 🏃 running
+                                                   │ ✅ passed
+                                                   │ ❌ failed
+                                                   │ 💬 threads unresolved
+                                                   │ 🛫 underway
+                                                   │ 🎫 an issue
+                                                   │
+                                                   │ state 🔗
+                                                   │ 🔨 draft
+                                                   │ … 8 more
  ^C quit · ←→ view · ↓ rows · ⇥ panel · = menu · ? sidebar · esc back

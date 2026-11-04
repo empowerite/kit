@@ -1,32 +1,32 @@
- kit flow · 📚 empowerite/kit                                                   🔎 search
- ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶──
-◃   🌿 worktrees         4  │ 🔀 changes       3 ≡ │  🏭 builds         4 │   ▹ columns
- ╰──────────────────────────╯                      ╰──────────────────────╰───┐ ☑ change
- ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 … │ ☑ title
- ▸ 🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2 … │ ☑ author
- ▸ 🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint f… │ ☑ state
-                                                                              │ ☑ age
-                                                                              │ ☑ checks
-                                                                              │ ☑ threads
-                                                                              │ ☑ branch
-                                                                              │
-                                                                              │ show
-                                                                              │ ⦿ all
-                                                                              │ ⦾ mine
-                                                                              │ ⦾ others
-                                                                              │
-                                                                              ▸ legend
-                                                                              ╷ 🔀 a pull request 🔗
-                                                                              │ 👤 its author
-                                                                              │ 🌿 its branch
-                                                                              │ 🏃 checks running
-                                                                              │ ✅ checks passed
-                                                                              │ ❌ a check failed
-                                                                              │ 💬 threads unresolved
-                                                                              │ 🛫 an issue it closes
-                                                                              │ 🎫 the issue's title
-                                                                              │
-                                                                              │ state 🔗
-                                                                              │ 🔨 draft
-                                                                              │ … 8 more
+ kit flow · 📚 empowerite/kit                                                                🔎 search
+ ──────╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶─────────
+◃    1 │  🌿 worktrees         4  │ 🔀 changes       3 ≡ │  🏭 builds         4 │  🛬 inco ▹ columns
+ ──────╰──────────────────────────╯                      ╰──────────────────────╰──────────┐ ☑ change
+ ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 3m           … │ ☑ title
+ ▸ 🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2              … │ ☑ author
+ ▸ 🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint failing 1 / 2 … │ ☑ state
+                                                                                           │ ☑ age
+                                                                                           │ ☑ checks
+                                                                                           │ ☑ threads
+                                                                                           │ ☑ branch
+                                                                                           │
+                                                                                           │ show
+                                                                                           │ ⦿ all
+                                                                                           │ ⦾ mine
+                                                                                           │ ⦾ others
+                                                                                           │
+                                                                                           ▸ legend
+                                                                                           ╷ 🔀 a pull request 🔗
+                                                                                           │ 👤 assignees or author
+                                                                                           │ 🌿 a branch or a worktree
+                                                                                           │ 🏃 running
+                                                                                           │ ✅ passed
+                                                                                           │ ❌ failed
+                                                                                           │ 💬 threads unresolved
+                                                                                           │ 🛫 underway
+                                                                                           │ 🎫 an issue
+                                                                                           │
+                                                                                           │ state 🔗
+                                                                                           │ 🔨 draft
+                                                                                           │ … 8 more
  ^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back

@@ -278,10 +278,10 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 		t.Errorf("the wheel up, or over the rows: offset %d", m.sideOffset)
 	}
 	// a click on … more pages down, and another to the legend's end; one on … above, under the search, pages back up
-	if m = drive(m, testkit.Click(x, h-1)); m.sideOffset == 0 || strings.Contains(view(m), "its branch") {
+	if m = drive(m, testkit.Click(x, h-1)); m.sideOffset == 0 || strings.Contains(view(m), Failed+" failed") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
-	if m = drive(m, testkit.Click(x, h-1)); !strings.Contains(view(m), "its branch") {
+	if m = drive(m, testkit.Click(x, h-1)); !strings.Contains(view(m), Failed+" failed") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
 	if m = drive(m, testkit.Click(x, 1), testkit.Click(x, 1)); m.sideOffset != 0 {
