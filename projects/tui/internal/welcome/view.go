@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
@@ -25,8 +26,8 @@ const (
 // page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
 // and in a page.
 const (
-	stepKeys   = "←→ view · ↓ checks · 1-9 jump · ctrl+c quit"
-	pageKeys   = "←→ view · ↓ page · 1-9 jump · ctrl+c quit"
+	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · = menu"
+	pageKeys   = "←→ tab · ↓ page · 1-9 jump · = menu"
 	rowKeys    = "↑↓ move · pgup/pgdn page · esc back"
 	choiceKeys = "↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose · esc back"
 	showKeys   = "↑↓ move · pgup/pgdn page · l later · esc back"
@@ -59,7 +60,7 @@ type line struct {
 func (m Model) View() tea.View {
 	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
-	lines = append(lines, "")
+	lines = m.appMenu.Overlay(append(lines, ""), m.width)
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
@@ -79,17 +80,21 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// title gives the title line: kit welcome, and origin's owner/repo after its glyph, in its own color, when known.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; and origin's
+// owner/repo after its glyph, in its own color, when known.
 func (m Model) title() string {
+	title := shell.Title(style.Label("kit welcome"), m.appMenu.Open)
 	if m.repo == "" {
-		return style.Label("kit welcome")
+		return title
 	}
-	return style.Label("kit welcome") + " · " + Repository + " " + style.Repo(m.repo)
+	return title + " · " + Repository + " " + style.Repo(m.repo)
 }
 
 // keys gives the keys bar for where the keyboard is.
 func (m Model) keys() string {
 	switch {
+	case m.appMenu.Open:
+		return shell.Keys
 	case !m.inPane && m.hasRows():
 		return stepKeys
 	case !m.inPane:

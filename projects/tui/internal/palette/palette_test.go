@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -243,7 +245,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
+	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · = menu"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -445,7 +447,7 @@ var (
 )
 
 func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
-	m := forty(12) // a window of 8 lines, so a page of 7 verbs
+	m := forty(14) // a window of 8 lines, under the title and the filter, so a page of 7 verbs
 	for _, c := range []struct {
 		key    tea.KeyPressMsg
 		cursor int
@@ -459,8 +461,8 @@ func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
 		if m.cursor != c.cursor || !strings.Contains(drawn(m), style.Focus+want) {
 			t.Fatalf("%s: the cursor on %d, want %d; drawn %q", c.key, m.cursor, c.cursor, drawn(m))
 		}
-		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
-			!strings.HasPrefix(lines[11], " ↑↓ move · ⇞⇟ page") {
+		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 14 ||
+			!strings.HasPrefix(lines[13], " ↑↓ move · ⇞⇟ page") {
 			t.Errorf("%s: %d lines, the last %q", c.key, len(lines), lines[len(lines)-1])
 		}
 	}
@@ -498,7 +500,7 @@ func TestTheWindowSaysHowManyVerbsItHides(t *testing.T) {
 		// the rows hidden above are a heading and a verb; the count is of verbs
 		{[]tea.Msg{pgDown, pgDown}, "… 10 above|… 25 more", "… v10 v11 v12 v13 FILES ▸v14 …"},
 	} {
-		m, _ := drive(forty(12), c.keys...)
+		m, _ := drive(forty(14), c.keys...)
 		if got := strings.Join(said(m), "|"); got != c.said {
 			t.Errorf("%v: %q, want %q", c.keys, got, c.said)
 		}
@@ -519,11 +521,11 @@ func TestTheWindowSaysHowManyVerbsItHides(t *testing.T) {
 }
 
 func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 8}, tea.KeyPressMsg{Code: tea.KeyRight})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 10}, tea.KeyPressMsg{Code: tea.KeyRight})
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
 	whole := page(m.pages["commit"], 100-(3+m.widest()+2)-1)
 	shown := 0
-	for _, line := range lines[2:6] {
+	for _, line := range lines[4:8] {
 		if right := string([]rune(line)[3+m.widest()+2:]); strings.Contains(right, "… ") { // the page's column
 			var n int
 			fmt.Sscanf(strings.TrimSpace(right), "… %d more", &n)
@@ -532,8 +534,8 @@ func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
 		}
 		shown++
 	}
-	if len(lines) != 8 || len(whole) <= 4 || shown != len(whole) ||
-		!strings.Contains(ansi.Strip(lines[5]), fmt.Sprintf("… %d more", len(whole)-3)) {
+	if len(lines) != 10 || len(whole) <= 4 || shown != len(whole) ||
+		!strings.Contains(ansi.Strip(lines[7]), fmt.Sprintf("… %d more", len(whole)-3)) {
 		t.Errorf("a page of %d lines in 4: %d said\n%s", len(whole), shown, strings.Join(lines, "\n"))
 	}
 }
@@ -556,5 +558,37 @@ func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
 	}
 	if m = open(t).At("nonesuch"); m.cursor != 0 || m.showPages {
 		t.Errorf("At an unknown name moved the palette: cursor %d", m.cursor)
+	}
+}
+
+// = or a click on ≡ before the title drops the app's menu down, with the help's own screen dim: welcome asks kittui to
+// show it in the palette's place, and quit ends the palette; while it is open, the keys bar is the menu's.
+func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
+	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: '=', Text: "="})
+	if v := stripANSI(m.View().Content); !m.appMenu.Open || !strings.Contains(v, "Welcome") ||
+		!strings.HasSuffix(v, shell.Keys) || m.filter != "" {
+		t.Fatalf("= did not drop the app's menu down:\n%s", v)
+	}
+	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
+		testkit.Typed("w")[0], tea.KeyPressMsg{Code: tea.KeyEnter})
+	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
+		t.Errorf("welcome asked %v", msgs)
+	}
+	// a click on ≡ drops it down, one on quit ends the palette, and one off it closes it
+	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape})
+	m, _ = testkit.Drive(m, nil, testkit.Click(shell.At, shell.Top), tea.MouseClickMsg{Button: tea.MouseRight})
+	if !m.appMenu.Open {
+		t.Fatal("a click on ≡ did not drop the menu down")
+	}
+	quit := testkit.Click(3, shell.Top+8)
+	if _, msgs := testkit.Drive(m, nil, quit); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
+		t.Errorf("a click on quit: %v", msgs)
+	}
+	if m, _ = testkit.Drive(m, nil, testkit.Click(80, 20)); m.appMenu.Open {
+		t.Error("a click off the menu did not close it")
+	}
+	if m.chose(shell.Choice{}) != nil {
+		t.Error("no choice did something")
 	}
 }

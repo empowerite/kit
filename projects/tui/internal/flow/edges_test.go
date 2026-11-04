@@ -11,12 +11,12 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// With no stage in the picture, the keys that move, open, page, and drop a menu down do nothing, and the pane says
-// so.
+// With no stage in the picture, the keys that move, open, page, and drop the tab's menu down do nothing, and the pane
+// says so; = still drops the app's menu down.
 func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	m := New(runner(t), Options{})
 	for _, msg := range []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}, left, right, down, up, press(tea.KeyEnter),
-		press(tea.KeyPgDown), press('='), press(':')} {
+		press(tea.KeyPgDown), press(':')} {
 		next, cmd := m.Update(msg)
 		m = next.(Model)
 		if cmd != nil {
@@ -25,6 +25,14 @@ func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	}
 	if !strings.Contains(view(m), "no stage is configured") || m.inRows {
 		t.Errorf("no stage:\n%s", view(m))
+	}
+	// the app's menu still drops down, to another screen or out
+	if next, _ := m.Update(press('=')); !next.(Model).appMenu.Open {
+		t.Error("= with no stage did not drop the app's menu down")
+	}
+	// Close ends what the picture still runs, as quitting does
+	if m.Close(); m.ctx.Err() == nil {
+		t.Error("Close did not end the stages' commands")
 	}
 }
 

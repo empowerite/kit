@@ -82,3 +82,13 @@ func TestATintIsNotBold(t *testing.T) {
 		t.Errorf("a tint is bold: %q", got)
 	}
 }
+
+// In gives the mark and the tint in a color of their own, and the accent's for none.
+func TestInDrawsAGroupsColor(t *testing.T) {
+	if m, ti := In(""); m("x") != Mark("x") || ti("x") != Tint("x") {
+		t.Error("no color is not the accent")
+	}
+	if m, ti := In("75"); m("x") == Mark("x") || ti("x") == Tint("x") || m("x") == ti("x") || ansi.Strip(m("x")) != "x" {
+		t.Errorf("a color: %q %q", m("x"), ti("x"))
+	}
+}

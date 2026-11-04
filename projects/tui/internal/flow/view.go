@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
@@ -70,7 +71,7 @@ func (m Model) View() tea.View {
 // panel have it, and the selected stage's group's color.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.barWidth(), Row: 1,
-		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu && !m.app, Joined: true}
+		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu, Joined: true}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}
@@ -152,8 +153,8 @@ func (m Model) paneWidth() int {
 // them, the keys spared names are left out before the bar is cut.
 func (m Model) keys() string {
 	switch {
-	case m.menu:
-		return menuKeys
+	case m.menu || m.appMenu.Open:
+		return shell.Keys
 	case m.inPanel && !m.sidebar:
 		return "type to search · esc back"
 	case m.inPanel:
@@ -200,17 +201,10 @@ func fitKeys(keys []string, width int) string {
 	return line
 }
 
-// title gives the title line: the app's menu glyph, tinted, or in the menu's color while its menu is open, when there
-// is a stage to have a menu; kit flow; and origin's owner/repo after its glyph, in its own color, when known.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; and origin's
+// owner/repo after its glyph, in its own color, when known.
 func (m Model) title() string {
-	title := style.Label("kit flow")
-	if len(m.stages) > 0 {
-		glyph := style.Tint(App)
-		if m.menu && m.app {
-			glyph = style.Menu(App)
-		}
-		title = glyph + " " + title
-	}
+	title := shell.Title(style.Label("kit flow"), m.appMenu.Open)
 	if m.origin.Repo == "" {
 		return title
 	}

@@ -1,11 +1,12 @@
 // Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
 // verb with its whole purpose, filtered as it is typed, over the keys bar. The up and down arrows move over the verbs,
-// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. Page down
-// and page up move a page, and home and end to the first and the last verb. The right arrow trades the purposes for
-// the highlighted verb's page beside the names, and the left arrow brings them back. Backspace erases the filter.
-// Enter opens the verb's form, and a form that cannot open leaves kit's line under the filter; esc quits, and ctrl-c
-// quits as interrupted. Where the tree or the page is cut, a dim line says how many verbs or lines are hidden. The
-// keys bar is the last line. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
+// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. Page down and
+// page up move a page, and home and end to the first and the last verb. The right arrow trades the purposes for the
+// highlighted verb's page beside the names, and the left arrow brings them back. Backspace erases the filter. Enter
+// opens the verb's form, and a form that cannot open leaves kit's line under the filter; = or a click on ≡ before the
+// title drops the app's menu down, internal/shell's, as every screen of kittui has it; esc quits, and ctrl-c quits as
+// interrupted. Where the tree or the page is cut, a dim line says how many verbs or lines are hidden. The keys bar is
+// the last line. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -19,6 +20,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -51,13 +53,14 @@ type Model struct {
 	width, height int
 	cancelled     bool
 	interrupted   bool
+	appMenu       shell.Menu // the app's menu, internal/shell's, which has the keyboard while it is open
 }
 
 // New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
 // orders the groups, a group kit help does not name after them by its name, and within a group as kit listed them.
 func New(verbs []kit.Verb, r kit.Runner) Model {
 	m := Model{runner: r, pages: map[string]string{}, asked: map[string]bool{}, failed: map[string]string{}, width: 100,
-		height: 30}
+		height: 30, appMenu: shell.Menu{Here: shell.Help}}
 	for _, v := range verbs {
 		if v.Name != "tui" {
 			m.verbs = append(m.verbs, v)
@@ -108,6 +111,18 @@ func (m Model) At(name string) Model {
 	return m
 }
 
+// chose does what a choice from the app's menu asks: a screen asks kittui to show it in the palette's place, which
+// stays as it is; and quit ends the palette, as esc does.
+func (m Model) chose(c shell.Choice) tea.Cmd {
+	switch {
+	case c.Quit:
+		return tea.Quit
+	case c.Screen != "":
+		return shell.Switch(c.Screen)
+	}
+	return nil
+}
+
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }
 
@@ -146,9 +161,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pages[msg.verb] = msg.page
 			delete(m.failed, msg.verb)
 		}
+	case tea.MouseClickMsg:
+		switch {
+		case msg.Button != tea.MouseLeft:
+		case m.appMenu.Open:
+			var c shell.Choice
+			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
+			return m, m.chose(c)
+		case shell.OnApp(msg.X, msg.Y):
+			m.appMenu = m.appMenu.Opened()
+		}
 	case tea.KeyPressMsg:
 		visible := m.Visible()
+		if m.appMenu.Open && msg.String() != "ctrl+c" {
+			var c shell.Choice
+			m.appMenu, c = m.appMenu.Key(msg)
+			return m, m.chose(c)
+		}
 		switch msg.String() {
+		case "=":
+			// no verb's name holds =, so it never filters: it drops the app's menu down
+			m.appMenu = m.appMenu.Opened()
 		case "esc":
 			m.cancelled = true
 			return m, tea.Quit
@@ -285,9 +318,11 @@ func (m Model) widest() int {
 	return widest
 }
 
-// top gives the lines over the tree: the filter, kit's line under it when a verb did not open, and a gap.
+// top gives the lines over the tree: the title, as internal/shell draws it, after the app's menu's glyph, a gap, the
+// filter, kit's line under it when a verb did not open, and a gap.
 func (m Model) top() []string {
-	top := []string{" " + style.Filter + " " + m.filter + "▏"}
+	top := []string{" " + shell.Title(style.Label("kit help"), m.appMenu.Open), "",
+		" " + style.Filter + " " + m.filter + "▏"}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
 			top = append(top, " "+style.Refusal(line))
@@ -324,9 +359,12 @@ func verbs(rows []row) int {
 // It leaves out backspace, which erases as the filter is typed, so the page keys fit 80 columns.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · esc quit"
+	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · = menu"
 	if m.showPages {
-		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · esc quit"
+		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · = menu"
+	}
+	if m.appMenu.Open {
+		keys = shell.Keys
 	}
 	top := m.top()
 	widest := m.widest()
@@ -392,8 +430,10 @@ func (m Model) View() tea.View {
 	for _, l := range append(top, list...) {
 		drawn = append(drawn, pane.Clip(l, m.width))
 	}
+	drawn = m.appMenu.Overlay(drawn, m.width)
 	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 

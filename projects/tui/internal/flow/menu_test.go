@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -29,7 +30,7 @@ func openRows(m Model) int {
 
 func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press(':'))
-	if !m.menu || m.app || lines(m)[23] != " "+menuKeys ||
+	if !m.menu || m.appMenu.Open || lines(m)[23] != " "+shell.Keys ||
 		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
@@ -74,69 +75,45 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 			t.Errorf("%v did not close the menu alone: menu %v", closing, m.menu)
 		}
 	}
-	if m = drive(m, press(':'), press('=')); !m.menu || m.app {
-		t.Errorf("= in the tab's menu: menu %v, app %v", m.menu, m.app)
+	if m = drive(m, press(':'), press('=')); !m.menu || m.appMenu.Open {
+		t.Errorf("= in the tab's menu: menu %v, app %v", m.menu, m.appMenu.Open)
 	}
 }
 
-// = or a click on ≡ before the title drops the app's menu down from the title line: refresh all; a rule; welcome, help,
-// and the tutorials, dim; a rule; the settings, dim; a rule; and quit. Refresh all runs every stage again, the forge
-// read afresh; welcome and help end the picture for their screens; quit ends it with 0.
-func TestEqualsDropsTheAppsMenuDownToRefreshKitsOtherScreensOrQuit(t *testing.T) {
+// = or a click on ≡ before the title drops the app's menu down, internal/shell's, with the picture's own first:
+// refresh all, which runs every stage again, the forge read afresh. The flow's own screen is dim; another screen asks
+// kittui to show it in the picture's place, and quit ends the picture with 0.
+func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	m := loaded(t, options(), press('='))
-	box, left := m.menuBox()
-	if !m.menu || !m.app || left != 0 || len(box) != len(appItems)+2 || m.menuAt != 0 ||
-		!strings.HasPrefix(lines(m)[appTop], "╭"+App+"╶") || !strings.Contains(view(m), "│ "+Reload+" Refresh All │") ||
-		!strings.Contains(view(m), "│ "+Home+" Welcome") || !strings.Contains(view(m), "│ "+Asking+" Help") ||
-		!strings.Contains(box[5], style.Off(" "+Tutorials+" Tutorials   ")) ||
-		!strings.Contains(box[7], style.Off(" "+Settings+" Settings…   ")) || !strings.Contains(view(m), "│ "+Leave+" Quit") ||
-		strings.Count(view(m), "│ ────────────── │") != 3 || box[0] != style.Menu(ansi.Strip(box[0])) {
+	if !m.appMenu.Open || m.menu || !strings.HasPrefix(lines(m)[shell.Top], "╭"+shell.App+"╶") ||
+		!strings.Contains(view(m), "│ "+Reload+" Refresh All │") || !strings.Contains(view(m), "Welcome") ||
+		lines(m)[23] != " "+shell.Keys {
 		t.Fatalf("= did not drop the app's menu down:\n%s", view(m))
 	}
-	// down passes the rules by, and up and down pass the dim tutorials and settings; = and esc close it
-	for _, step := range []struct {
-		key  tea.Msg
-		want int
-	}{{down, 2}, {down, 3}, {down, 8}, {up, 3}} {
-		if m = drive(m, step.key); m.menuAt != step.want {
-			t.Errorf("%v: item %d, want %d", step.key, m.menuAt, step.want)
-		}
-	}
-	for _, closing := range []tea.Msg{esc, press('=')} {
-		if m = drive(m, press('='), closing); m.menu {
-			t.Errorf("%v did not close the app's menu", closing)
-		}
+	if m = drive(m, esc); m.appMenu.Open {
+		t.Error("esc did not close the app's menu")
 	}
 	// a click on ≡ drops it down; one on refresh all runs every stage again, the shared ones afresh
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	if m = drive(m, testkit.Click(appAt, appTop)); !m.menu || !m.app {
-		t.Fatalf("a click on %s:\n%s", App, view(m))
+	if m = drive(m, testkit.Click(shell.At, shell.Top)); !m.appMenu.Open {
+		t.Fatalf("a click on %s:\n%s", shell.App, view(m))
 	}
-	m = drive(m, testkit.Click(left+3, appTop+1))
+	m = drive(m, testkit.Click(3, shell.Top+1))
 	got := calls(t, record)
-	if m.menu || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
+	if m.appMenu.Open || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
 		len(got) < len(eight) {
 		t.Errorf("refresh all ran %q", got)
 	}
-	// welcome, help, and quit end the picture, not interrupted; welcome and help name the screen to open in its place,
-	// on the stage it was left on
-	quits := func(msgs []tea.Msg) bool {
-		return slices.ContainsFunc(msgs, func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok })
+	// welcome asks for the welcome, the picture kept as it is; quit ends it, not interrupted
+	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
+		press('='), typed("w")[0], press(tea.KeyEnter))
+	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
+		t.Errorf("welcome asked %v", msgs)
 	}
-	m = drive(m, right)
-	for _, c := range []struct {
-		letter string
-		next   string
-	}{{"w", ToWelcome}, {"h", ToHelp}, {"q", ""}} {
-		after, msgs := testkit.Drive(m, nil, press('='), typed(c.letter)[0], press(tea.KeyEnter))
-		if !quits(msgs) || after.interrupted || after.Next() != c.next || after.Selected() != "underway" {
-			t.Errorf("%s: quit %v, next %q, on %q", c.letter, quits(msgs), after.Next(), after.Selected())
-		}
-	}
-	if m.On("releases").Selected() != "releases" || m.On("nonesuch").Selected() != "underway" ||
-		(Model{}).Selected() != "" {
-		t.Error("On or Selected")
+	after, msgs := testkit.Drive(m, nil, press('='), typed("q")[0], press(tea.KeyEnter))
+	if !slices.ContainsFunc(msgs, func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok }) || after.interrupted {
+		t.Errorf("quit did not end the picture: %v", msgs)
 	}
 }
 
@@ -192,14 +169,14 @@ func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
 		key rune
 		app bool
 	}{{'=', true}, {':', false}, {';', false}} {
-		if m = drive(m, down, press(c.key)); !m.menu || m.app != c.app || !m.inPanel {
-			t.Errorf("%c off the search: menu %v, app %v, in panel %v", c.key, m.menu, m.app, m.inPanel)
+		if m = drive(m, down, press(c.key)); m.menu == c.app || m.appMenu.Open != c.app || !m.inPanel {
+			t.Errorf("%c off the search: menu %v, app %v, in panel %v", c.key, m.menu, m.appMenu.Open, m.inPanel)
 		}
 		m = drive(m, esc)
 	}
 	// with no stage, neither drops, and no glyph stands before the title; the tab's menu's box keeps to the screen
 	// when the bar draws no glyph
-	if m = loaded(t, Options{}, press('='), press(':')); m.menu || strings.Contains(view(m), App) {
+	if m = loaded(t, Options{}, press(':')); m.menu || !strings.Contains(view(m), shell.App) {
 		t.Error("a menu with no stage")
 	}
 	m = loaded(t, options(), tea.WindowSizeMsg{Width: 20, Height: 24}, press(':'))
@@ -237,9 +214,9 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 	}
 	for _, line := range []string{"ab🎫cd", "🎫🎫🎫🎫"} {
 		for at := range 4 {
-			got := splice(line, "XY", at)
+			got := shell.Splice(line, "XY", at)
 			if ansi.StringWidth(got) != ansi.StringWidth(line) || ansi.Cut(got, at, at+2) != "XY" {
-				t.Errorf("splice(%q, XY, %d) = %q", line, at, got)
+				t.Errorf("Splice(%q, XY, %d) = %q", line, at, got)
 			}
 		}
 	}

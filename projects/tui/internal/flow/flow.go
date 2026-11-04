@@ -32,6 +32,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -101,10 +102,9 @@ type Model struct {
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, in place of the keys until the next key
-	menu          bool                   // whether a menu is open, which then has the keyboard
-	app           bool                   // whether the open menu is the app's, not the selected tab's
-	next          string                 // the screen the app's menu asked to open in the picture's place, or none
-	menuAt        int                    // the open menu's item under the keyboard
+	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
+	menuAt        int                    // the tab's menu's item under the keyboard
+	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -144,7 +144,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser}
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.rebuild()
 	for _, name := range o.Stages {
@@ -165,26 +165,8 @@ func (m Model) Init() tea.Cmd { return m.all() }
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
 
-// Next says which screen the app's menu ended the picture to open in its place, ToWelcome or ToHelp, or none, when
-// the picture ended on its own.
-func (m Model) Next() string { return m.next }
-
-// Selected gives the selected stage's name, or none without a stage.
-func (m Model) Selected() string {
-	if len(m.stages) == 0 {
-		return ""
-	}
-	return m.stages[m.stage].name
-}
-
-// On gives the picture with the named stage selected, as a picture opened again after another screen is on the
-// stage it was left on; a name that is no stage of it changes nothing.
-func (m Model) On(name string) Model {
-	if i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name }); i >= 0 {
-		m.stage = i
-	}
-	return m
-}
+// Close ends the stages' commands still running, as quitting does, for a picture kittui leaves hidden as it ends.
+func (m Model) Close() { m.cancel() }
 
 // Update takes a message.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -229,12 +211,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseClickMsg:
 		switch side := m.paneWidth() + 1; {
+		case m.appMenu.Open && msg.Button == tea.MouseLeft:
+			var c shell.Choice
+			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.paneWidth())
+			return m, m.chose(c)
 		case m.menu && msg.Button == tea.MouseLeft:
-			return m, m.menuClick(msg.X, msg.Y)
+			m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
-			m.openMenu(false)
-		case msg.Button == tea.MouseLeft && msg.Y == appTop && msg.X <= appAt+ansi.StringWidth(App):
-			m.openMenu(true)
+			m.openMenu()
+		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
+			m.appMenu = m.appMenu.Opened()
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -259,6 +245,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) onMenu(x, y int) bool {
 	at := m.bar().MenuAt()
 	return at >= 0 && y == m.bar().Row+1 && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
+}
+
+// dropDown drops a menu down: the app's, or the selected tab's.
+func (m *Model) dropDown(app bool) {
+	if app {
+		m.appMenu = m.appMenu.Opened()
+		return
+	}
+	m.openMenu()
 }
 
 // menuFor says whether a key drops a menu down, and whether it is the app's: = the app's, and : or ; the tab's.
@@ -451,6 +446,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+esc", "super+esc":
 		return m, m.quit()
 	}
+	if m.appMenu.Open {
+		return m.appKey(k)
+	}
 	if m.menu {
 		return m.menuKey(k)
 	}
@@ -458,7 +456,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.panelKey(k)
 	}
 	if menu, app := menuFor(k); menu {
-		m.openMenu(app)
+		m.dropDown(app)
 		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {
@@ -524,7 +522,7 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	before := m.panel(m.stage)
 	if menu, app := menuFor(k); menu && before.Cursor != 0 {
 		// off the search, the menus' keys drop them down, as they do from the rows
-		m.openMenu(app)
+		m.dropDown(app)
 		return m, nil
 	}
 	if p, ok := before.Update(k); ok {

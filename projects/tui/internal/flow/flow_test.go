@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -237,7 +238,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "flow changes --json\nflow worktrees --json" {
 		t.Errorf("the calls: %q", got)
 	}
-	if first := lines(m)[0]; first != " "+App+" kit flow" {
+	if first := lines(m)[0]; first != " "+shell.App+" kit flow" {
 		t.Errorf("the title without incoming: %q", first)
 	}
 	if labels := squeeze(lines(m)[2]); !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
@@ -661,7 +662,7 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 
 func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	m := loaded(t, options())
-	if first := lines(m)[0]; first != " "+App+" kit flow · "+Repository+" empowerite/kit" {
+	if first := lines(m)[0]; first != " "+shell.App+" kit flow · "+Repository+" empowerite/kit" {
 		t.Errorf("the title: %q", first)
 	}
 	if !strings.Contains(m.View().Content, Repository+" "+style.Repo("empowerite/kit")) {
@@ -680,7 +681,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
 	m = loaded(t, o, right, right, right, right, right, right)
-	if first := lines(m)[0]; first != " "+App+" kit flow" {
+	if first := lines(m)[0]; first != " "+shell.App+" kit flow" {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
 	// without the fetch, each remote's heading says not fetched, and its tab has no count
@@ -705,7 +706,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
 	m = loaded(t, Options{Stages: []string{"releases"}})
-	if first := lines(m)[0]; first != " "+App+" kit flow" {
+	if first := lines(m)[0]; first != " "+shell.App+" kit flow" {
 		t.Errorf("the title alone: %q", first)
 	}
 }
@@ -842,7 +843,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], " "+App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(opens) {
+	if !strings.HasPrefix(got[0], " "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(opens) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line

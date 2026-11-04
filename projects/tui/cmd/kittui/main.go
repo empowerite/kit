@@ -14,6 +14,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/app"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/screens"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/transcript"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
@@ -38,7 +40,8 @@ var (
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
-// flow, or the guide for welcome, and ends as the person ended it.
+// flow, or the guide for welcome, under kittui's root, whose app's menu switches between them, and ends as the person
+// ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
 	if !terminals() {
@@ -46,31 +49,45 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
-	if verb == "flow" {
-		return runFlow(r, words, stderr)
+	first, m, err := open(r, verb, words)
+	if err != nil {
+		return refuse(err, stderr)
 	}
-	if verb == "welcome" {
-		return runWelcome(r, stderr)
+	final, err := runModel(screens.New(r, first, m))
+	if err != nil {
+		return failed(err, stderr)
 	}
-	var m app.Model
-	var err error
-	if verb == "help" {
+	root := final.(screens.Model)
+	root.Close()
+	switch shown := root.Shown().(type) {
+	case flow.Model:
+		return finishFlow(shown)
+	case welcome.Model:
+		return finishWelcome(shown)
+	}
+	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
+}
+
+// open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the
+// palette on a verb's page or a group for help; and, as the help's screen, the palette, or the form of the verb
+// named.
+func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
+	switch verb {
+	case "flow":
+		m, err := flow.Open(r, words)
+		return shell.Flow, m, err
+	case "welcome":
+		return shell.Welcome, welcome.Open(r), nil
+	case "help":
 		name := ""
 		if len(words) > 0 {
 			name = words[0]
 		}
-		m, err = app.OpenHelp(r, name)
-	} else {
-		m, err = app.Open(r, verb, words)
+		m, err := app.OpenHelp(r, name)
+		return shell.Help, m, err
 	}
-	if err != nil {
-		return refuse(err, stderr)
-	}
-	final, err := runModel(m)
-	if err != nil {
-		return failed(err, stderr)
-	}
-	return finish(final.(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
+	m, err := app.Open(r, verb, words)
+	return shell.Help, m, err
 }
 
 // failed says the program could not run, and ends with 1.
@@ -113,66 +130,6 @@ func refuse(err error, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stderr, "❌ kittui %s: %v\n", version, err)
 	return 1
-}
-
-// runFlow opens the picture on kit flow's stages, with the words kit flow was given, and ends as the person ended it.
-// When the app's menu asks for kit's welcome or its help, that screen opens in the picture's place, and when it ends,
-// the picture opens again on the stage it was left on; ctrl-c there ends kittui, and a command the help runs takes
-// kittui's place.
-func runFlow(r kit.Runner, words []string, stderr io.Writer) int {
-	stage := ""
-	for {
-		m, err := flow.Open(r, words)
-		if err != nil {
-			return refuse(err, stderr)
-		}
-		final, err := runModel(m.On(stage))
-		if err != nil {
-			return failed(err, stderr)
-		}
-		f := final.(flow.Model)
-		code, back := 0, false
-		switch f.Next() {
-		case flow.ToWelcome:
-			code = runWelcome(r, stderr)
-			back = code == 0
-		case flow.ToHelp:
-			code, back = runHelp(r, stderr)
-		default:
-			return finishFlow(f)
-		}
-		if !back {
-			return code
-		}
-		stage = f.Selected()
-	}
-}
-
-// runHelp opens kit help's palette in the picture's place, and says how it ended: back, when esc left it, so the
-// picture opens again; else the code kittui ends with, as kit help ends, 130 on ctrl-c, or as the command it ran.
-func runHelp(r kit.Runner, stderr io.Writer) (code int, back bool) {
-	m, err := app.OpenHelp(r, "")
-	if err != nil {
-		return refuse(err, stderr), false
-	}
-	final, err := runModel(m)
-	if err != nil {
-		return failed(err, stderr), false
-	}
-	if a := final.(app.Model); !a.Interrupted() && !a.InForm() {
-		return 0, true
-	}
-	return finish(final.(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) }),
-		false
-}
-
-// runWelcome opens the guide where the command was typed, and ends as the person ended it.
-func runWelcome(r kit.Runner, stderr io.Writer) int {
-	final, err := runModel(welcome.Open(r))
-	if err != nil {
-		return failed(err, stderr)
-	}
-	return finishWelcome(final.(welcome.Model))
 }
 
 // finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.

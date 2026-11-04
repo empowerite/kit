@@ -30,6 +30,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -151,6 +152,7 @@ type Model struct {
 	offsets  []int // the first line of each step's pane
 	width    int
 	height   int
+	appMenu  shell.Menu // the app's menu, internal/shell's, which has the keyboard while it is open
 
 	interrupted bool
 }
@@ -162,7 +164,7 @@ func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
 func New(r kit.Runner, repo string) Model {
 	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
-		places: make([]string, len(known)), offsets: make([]int, len(known))}
+		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
 }
@@ -173,11 +175,26 @@ func (m Model) quit() tea.Cmd {
 	return tea.Quit
 }
 
+// chose does what a choice from the app's menu asks: a screen asks kittui to show it in the guide's place, which stays
+// as it is; and quit ends the screen.
+func (m Model) chose(c shell.Choice) tea.Cmd {
+	switch {
+	case c.Quit:
+		return m.quit()
+	case c.Screen != "":
+		return shell.Switch(c.Screen)
+	}
+	return nil
+}
+
 // Init runs the checks and reads the pages, at once.
 func (m Model) Init() tea.Cmd { return tea.Batch(m.check(), m.read()) }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
+
+// Close ends the checks still running, as quitting does, for a guide kittui leaves hidden as it ends.
+func (m Model) Close() { m.cancel() }
 
 // check runs kit welcome --checks --json, for as long as the screen lasts and kit's limit lets it.
 func (m Model) check() tea.Cmd {
@@ -214,6 +231,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
+		switch {
+		case m.appMenu.Open && msg.Button == tea.MouseLeft:
+			var c shell.Choice
+			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
+			return m, m.chose(c)
+		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
+			m.appMenu = m.appMenu.Opened()
+			return m, nil
+		}
 		if bar, ok := m.bar().Update(msg); ok {
 			m.choose(bar)
 		} else if msg.Button == tea.MouseLeft {
@@ -338,7 +364,7 @@ func (m *Model) fixed(msg fixedMsg) {
 	}
 }
 
-// key takes a key press: the quitting keys, the bar's, then the pane's.
+// key takes a key press: the quitting keys, the app's menu's while it is open, = for it, the bar's, then the pane's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -346,6 +372,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.quit()
 	case "alt+esc", "super+esc":
 		return m, m.quit()
+	}
+	if m.appMenu.Open {
+		var c shell.Choice
+		m.appMenu, c = m.appMenu.Key(k)
+		return m, m.chose(c)
+	}
+	if k.String() == "=" {
+		m.appMenu = m.appMenu.Opened()
+		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)

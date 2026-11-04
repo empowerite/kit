@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -761,10 +762,10 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 			t.Errorf("repoOf(%q) = %q, want %q", url, got, want)
 		}
 	}
-	if m, _ := fake(t); !strings.HasPrefix(view(m), " kit welcome · 📚 empowerite/kit\n") {
+	if m, _ := fake(t); !strings.HasPrefix(view(m), " "+shell.App+" kit welcome · 📚 empowerite/kit\n") {
 		t.Errorf("title:\n%s", view(m))
 	}
-	if got := view(New(testkit.Runner(t, "welcome"), "")); !strings.HasPrefix(got, " kit welcome\n") {
+	if got := view(New(testkit.Runner(t, "welcome"), "")); !strings.HasPrefix(got, " "+shell.App+" kit welcome\n") {
 		t.Errorf("title without a repository:\n%s", got)
 	}
 }
@@ -829,5 +830,34 @@ func TestACheckWithoutRunsIsRunnable(t *testing.T) {
 	}
 	if err := json.Unmarshal([]byte(`{"id": "x", "fix": "do it", "runs": false}`), &c); err != nil || c.Runs {
 		t.Errorf("%+v, %v", c, err)
+	}
+}
+
+// = or a click on ≡ before the title drops the app's menu down over the guide, the welcome's own screen dim: help asks
+// kittui to show it in the guide's place, quit ends the guide, and Close ends the checks still running.
+func TestEqualsDropsTheAppsMenuDownOverTheGuide(t *testing.T) {
+	m, _ := fake(t)
+	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30}, tea.KeyPressMsg{Code: '=', Text: "="})
+	if v := view(m); !m.appMenu.Open || !strings.Contains(v, "Help") || !strings.HasSuffix(v, shell.Keys) {
+		t.Fatalf("= did not drop the app's menu down:\n%s", v)
+	}
+	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
+		tea.KeyPressMsg{Code: 'h', Text: "h"}, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Help})) {
+		t.Errorf("help asked %v", msgs)
+	}
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, testkit.Click(shell.At, shell.Top))
+	if !m.appMenu.Open {
+		t.Fatal("a click on ≡ did not drop the menu down")
+	}
+	if _, msgs := testkit.Drive(m, nil, testkit.Click(3, shell.Top+8)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
+		t.Errorf("a click on quit: %v", msgs)
+	}
+	if m.chose(shell.Choice{}) != nil {
+		t.Error("no choice did something")
+	}
+	m.Close()
+	if m.ctx.Err() == nil {
+		t.Error("Close did not end the checks")
 	}
 }
