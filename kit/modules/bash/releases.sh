@@ -114,15 +114,15 @@ releases:draw() {
   while IFS=$'\t' read -r version kind latest age
   do
     case "${kind}" in
-      (draft) glyph='📝' ;;
-      (pre-release) glyph='🧪' ;;
-      (*) glyph='📦' ;;
+      (draft) glyph=${flow_glyphs[Draft]} ;;
+      (pre-release) glyph=${flow_glyphs[Pre]} ;;
+      (*) glyph=${flow_glyphs[Release]} ;;
     esac
     # the age is a number, so it is right-aligned, as kit flow draws one
     printf '%s  %s %s %s%s\n' "$(flow:cell "${version}" "${width}")" "${glyph}" \
       "$(flow:cell "${kind}" "${kind_width}")" \
       "$(flow:paint 2 "$(flow:cell "$(flow:age "${age}")" "${age_width}" right)")" \
-      "$([[ "${latest}" == true ]] && printf '  ⭐ latest')" >&2
+      "$([[ "${latest}" == true ]] && printf '  %s latest' "${flow_glyphs[Latest]}")" >&2
   done < <(jq --raw-output '.[] | [.version, .kind, .latest, .age] | @tsv' <<<"${doc}")
 }
 

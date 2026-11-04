@@ -51,3 +51,25 @@ def legend($d):
 
 # legend gives glyphs.json's legend, as legend($d) does.
 def legend: legend(data);
+
+# quote reads a string and gives it as a bash word in single quotes.
+def quote: "'" + gsub("'"; "'\\''") + "'";
+
+# bash($d) gives the lines of bash that declare the table $d's glyphs for modules/bash/flow.sh's glyphs region: each
+# glyph by its name, each stage's glyph by the stage, and each state's glyph by the state word.
+def bash($d):
+  "# flow_glyphs gives each glyph by its name, flow_stage_glyphs each stage's by the stage, and flow_state_glyphs a",
+  "# pull request state's by its word; a state word not among them draws flow_glyphs[Other].",
+  "declare -gA flow_glyphs=(",
+  ($d.glyphs[] | "  [\(.name)]=\(.glyph | quote)"),
+  ")",
+  "declare -gA flow_stage_glyphs=(",
+  ($d.stages[] | "  [\(.stage)]=\(glyph($d; .glyph).glyph | quote)"),
+  ")",
+  "declare -gA flow_state_glyphs=(",
+  ($d.states[] | "  [\(.state)]=\(.glyph | quote)"),
+  ")";
+
+# bash gives glyphs.json's declarations, as bash($d) does.
+def bash: bash(data);
+

@@ -824,4 +824,25 @@ fake-tui() {
   [[ "$output" != *"fetch --prune failed"* ]]
 }
 
+@test "the picture draws its glyphs by name, from the kit's one table, and no stage's code spells one out" {
+  local glyphs file
+  glyphs=$(jq -r '[.glyphs[].glyph, .states[].glyph] | join("|")' "${kit_root}/modules/jq/glyphs.json")
+  for file in flow underway backlog changes builds releases
+  do
+    # a line in the glyphs region, or a comment, may name a glyph; the code that draws one names it by its name
+    if awk '/kit:generate glyphs/ { skip = 1 } /kit:end glyphs/ { skip = 0; next } !skip && !/^ *#/' \
+      "${kit_root}/modules/bash/${file}.sh" | grep -E "${glyphs}"
+    then
+      echo "modules/bash/${file}.sh spells out a glyph"
+      return 1
+    fi
+  done
+  source "${kit_root}/modules/bash/1st.sh"
+  use flow
+  [ "${flow_glyphs[Issue]}" = "$(jq -r '.glyphs[] | select(.name == "Issue") | .glyph' "${kit_root}/modules/jq/glyphs.json")" ]
+  [ "${flow_stage_glyphs[incoming]}" = "${flow_glyphs[Fetched]}" ]
+  [ "$(flow:state-emoji ready)" = "${flow_state_glyphs[ready]}" ]
+  [ "$(flow:state-emoji nonesuch)" = "${flow_glyphs[Other]}" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

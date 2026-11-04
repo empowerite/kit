@@ -26,10 +26,10 @@ builds:documents() {
 # builds:glyph <state> prints a run's state glyph: the check glyphs the changes stage draws, and 🛑 for cancelled.
 builds:glyph() {
   case "$1" in
-    (running) printf '🏃' ;;
-    (passed) printf '✅' ;;
-    (failed) printf '❌' ;;
-    (*) printf '🛑' ;;
+    (running) printf '%s' "${flow_glyphs[Running]}" ;;
+    (passed) printf '%s' "${flow_glyphs[Passed]}" ;;
+    (failed) printf '%s' "${flow_glyphs[Failed]}" ;;
+    (*) printf '%s' "${flow_glyphs[Cancelled]}" ;;
   esac
 }
 

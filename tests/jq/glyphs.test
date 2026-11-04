@@ -28,3 +28,9 @@ null
 import "glyphs" as glyphs; [glyphs::legend | select(test("^# [a-z]+:$")) | ltrimstr("# ") | rtrimstr(":")]
 null
 ["backlog","underway","desk","worktrees","changes","builds","incoming","releases"]
+
+# The bash declarations give each glyph by its name, each stage's by the stage, and each state's by its word, every
+# glyph quoted.
+import "glyphs" as glyphs; [glyphs::bash({"glyphs": [{"name": "Issue", "glyph": "🎫"}], "states": [{"glyph": "🏁", "state": "ready"}], "stages": [{"stage": "backlog", "glyph": "Issue", "legend": []}]})] | .[2:]
+null
+["declare -gA flow_glyphs=(","  [Issue]='🎫'",")","declare -gA flow_stage_glyphs=(","  [backlog]='🎫'",")","declare -gA flow_state_glyphs=(","  [ready]='🏁'",")"]

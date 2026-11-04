@@ -43,17 +43,18 @@
 # A pull request's state is the first of these that applies. Its color shows the state's family, never the
 # single state: green when nothing is left to decide, yellow when a human owes a decision, and blue when the next
 # move is a machine's or a reviewer's. Detail is dim. An issue's number is always cyan and a change's magenta,
-# the two colors no family uses, so either reads as what it is in every table the kit draws.
+# the two colors no family uses, so either reads as what it is in every table the kit draws. Each state's glyph is
+# modules/jq/glyphs.json's, as every glyph kit flow draws is.
 #
-#   state              glyph   color
-#   draft              🔨      dim
-#   queued             🚦      blue
-#   conflicted         💥      yellow
-#   failing:gate       🔥      yellow
-#   no-check           📭      blue
-#   comments:open      💬      yellow
-#   blocked:approval   👀      blue
-#   ready              🏁      green
+#   state              color
+#   draft              dim
+#   queued             blue
+#   conflicted         yellow
+#   failing:gate       yellow
+#   no-check           blue
+#   comments:open      yellow
+#   blocked:approval   blue
+#   ready              green
 #
 # --json prints the picture as one object: stages, the names in order, and under each name what kit flow <stage>
 # --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
@@ -77,6 +78,61 @@ flow_gap='  '
 # flow_issue_sgr and flow_change_sgr color an issue's number and a change's, in every table the kit draws.
 flow_issue_sgr=36
 flow_change_sgr=35
+
+# The glyphs are modules/jq/glyphs.json's, which kit help flow's legend and kittui's are made from too.
+# kit:generate glyphs `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::bash'`
+# flow_glyphs gives each glyph by its name, flow_stage_glyphs each stage's by the stage, and flow_state_glyphs a
+# pull request state's by its word; a state word not among them draws flow_glyphs[Other].
+declare -gA flow_glyphs=(
+  [Repository]='📚'
+  [Issue]='🎫'
+  [InFlight]='🛫'
+  [Desk]='💻'
+  [Branch]='🌿'
+  [Sprout]='🌱'
+  [Change]='🔀'
+  [Owner]='👤'
+  [Fork]='🍴'
+  [Pushed]='📤'
+  [Path]='📂'
+  [Fetched]='🛬'
+  [Remote]='📡'
+  [Gone]='🔖'
+  [Tag]='📌'
+  [Detached]='❗'
+  [Threads]='💬'
+  [Running]='🏃'
+  [Passed]='✅'
+  [Failed]='❌'
+  [Cancelled]='🛑'
+  [Build]='🏭'
+  [Release]='📦'
+  [Pre]='🧪'
+  [Draft]='📝'
+  [Latest]='⭐'
+  [Other]='🔳'
+)
+declare -gA flow_stage_glyphs=(
+  [backlog]='🎫'
+  [underway]='🛫'
+  [desk]='💻'
+  [worktrees]='🌿'
+  [changes]='🔀'
+  [builds]='🏭'
+  [incoming]='🛬'
+  [releases]='📦'
+)
+declare -gA flow_state_glyphs=(
+  [draft]='🔨'
+  [queued]='🚦'
+  [conflicted]='💥'
+  [failing:gate]='🔥'
+  [no-check]='📭'
+  [comments:open]='💬'
+  [blocked:approval]='👀'
+  [ready]='🏁'
+)
+# kit:end glyphs
 
 # flow:stage-purpose <stage> prints what a stage lists, in a few words.
 flow:stage-purpose() {
@@ -150,17 +206,7 @@ flow:paint() {
 # flow:heading <stage> [<count>] prints a stage's heading to stderr: its glyph, its name in capitals and bold, then
 # its count, dim, as kittui labels the stages on its line.
 flow:heading() {
-  local glyph line
-  case "$1" in
-    (backlog)   glyph=🎫 ;;
-    (underway)  glyph=🛫 ;;
-    (incoming)  glyph=🛬 ;;
-    (desk)      glyph=💻 ;;
-    (worktrees) glyph=🌿 ;;
-    (changes)   glyph=🔀 ;;
-    (builds)    glyph=🏭 ;;
-    (releases)  glyph=📦 ;;
-  esac
+  local glyph=${flow_stage_glyphs[$1]:-} line
   line="${glyph:+${glyph} }$(flow:paint 1 "${1^^}")"
   [[ -z "${2:-}" ]] || line+=" $(flow:paint 90 "$2")"
   printf '%s\n' "${line}" >&2
@@ -184,17 +230,7 @@ flow:state-sgr() {
 # flow:state-emoji <state> prints a state's glyph. Each glyph is one code point drawn two columns wide, so the
 # next column stays aligned.
 flow:state-emoji() {
-  case "$1" in
-    (draft)            printf '🔨' ;;
-    (queued)           printf '🚦' ;;
-    (conflicted)       printf '💥' ;;
-    (failing:gate)     printf '🔥' ;;
-    (no-check)         printf '📭' ;;
-    (comments:open)    printf '💬' ;;
-    (blocked:approval) printf '👀' ;;
-    (ready)            printf '🏁' ;;
-    (*)                printf '🔳' ;;
-  esac
+  printf '%s' "${flow_state_glyphs[$1]:-${flow_glyphs[Other]}}"
 }
 
 # flow:age <seconds> prints a duration in its coarsest informative unit: 45s, 12m, 3h, 47d. It prints nothing
@@ -304,7 +340,7 @@ flow:fetched-line() {
       (.branches.gone | length), (.tags | length)] | map(tostring) | join("\u001f")' <<<"$1")
   if [[ -n "${error}" ]]
   then
-    printf '❌ %s\n' "${error}" >&2
+    printf '%s %s\n' "${flow_glyphs[Failed]}" "${error}" >&2
     return 0
   fi
   (( commits > 0 )) && parts+=("$(flow:plural "${commits}" 'new commit' 'new commits') on ${default}")
@@ -314,7 +350,7 @@ flow:fetched-line() {
   (( tags > 0 )) && parts+=("$(flow:plural "${tags}" 'new tag' 'new tags')")
   if (( ${#parts[@]} == 0 ))
   then
-    printf '🛬 unchanged\n' >&2
+    printf '%s unchanged\n' "${flow_glyphs[Fetched]}" >&2
     return 0
   fi
   line=${parts[0]}
@@ -322,7 +358,7 @@ flow:fetched-line() {
   do
     line+="${flow_sep}${part}"
   done
-  printf '🛬 fetched %s\n' "${line}" >&2
+  printf '%s fetched %s\n' "${flow_glyphs[Fetched]}" "${line}" >&2
 }
 
 # flow:incoming-text <incoming-json> prints flow:incoming's object to stderr: a block per remote, the primary
@@ -342,10 +378,10 @@ flow:incoming-text() {
     then first=false
     else printf '\n' >&2
     fi
-    printf '📡 %s%s\n' "${name}" "$(flow:paint 90 "${flow_sep}${forge}${host:+${flow_sep}${host}}")" >&2
+    printf '%s %s%s\n' "${flow_glyphs[Remote]}" "${name}" "$(flow:paint 90 "${flow_sep}${forge}${host:+${flow_sep}${host}}")" >&2
     if [[ "${fetched}" == true ]]
     then flow:fetched-line "${remote}"
-    else flow:none '🛬 not fetched'
+    else flow:none "${flow_glyphs[Fetched]} not fetched"
     fi
   done < <(jq --compact-output '.remotes[]' <<<"$1")
   [[ "${first}" == false ]] || flow:none 'no remote'
@@ -655,7 +691,7 @@ flow:checkout-block() {
   local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
   IFS=$'\t' read -r label width < <(flow:label "${relative}" "${branch}")
-  [[ -n "${branch}" ]] || mark="${flow_gap}$(flow:paint 33 '❗ detached HEAD')"
+  [[ -n "${branch}" ]] || mark="${flow_gap}$(flow:paint 33 "${flow_glyphs[Detached]} detached HEAD")"
   printf '%s %s%*s%s%s%s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" "${flow_sep}" \
     "$(flow:measures "${doc}" "${widths}")" >&2
   # A status can start with a space, which a tab-separated read would drop, so the separator is \x1f instead.
@@ -699,9 +735,9 @@ flow:check-cell() {
   IFS=$'\x1f' read -r state passed total failing took \
     < <(jq --raw-output '[.state, .passed, .total, .failing, (.took // "")] | map(tostring) | join("\u001f")' <<<"$1")
   case "${state}" in
-    (SUCCESS) text="✅ ${total} / ${total}" ;;
-    (FAILURE) text="❌ ${failing} failing ${passed} / ${total}" ;;
-    (PENDING) text="🏃 ${passed} / ${total}" ;;
+    (SUCCESS) text="${flow_glyphs[Passed]} ${total} / ${total}" ;;
+    (FAILURE) text="${flow_glyphs[Failed]} ${failing} failing ${passed} / ${total}" ;;
+    (PENDING) text="${flow_glyphs[Running]} ${passed} / ${total}" ;;
     (*) return 0 ;;
   esac
   printf '%s' "${text}"
@@ -744,14 +780,14 @@ flow:issue-row() {
   if (( owner_w > 0 ))
   then
     glyph='   '
-    [[ -n "${assignees}" ]] && glyph='👤 '
+    [[ -n "${assignees}" ]] && glyph="${flow_glyphs[Owner]} "
     row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "${assignees}" "${owner_w}")")"
     width=$(( width - 5 - owner_w ))
   fi
   text=$(flow:age "${age}")
   if [[ -n "${state}" ]]
   then
-    row+="${flow_gap}🛫 $(flow:paint 34 "${state}")"
+    row+="${flow_gap}${flow_glyphs[InFlight]} $(flow:paint 34 "${state}")"
     width=$(( width - 5 - ${#state} ))
     if [[ -n "${text}" ]]
     then
@@ -766,14 +802,14 @@ flow:issue-row() {
   if (( branch_w > 0 ))
   then
     if [[ -n "${branch}" ]]
-    then row+="${flow_gap}$(flow:paint 90 "🌿 $(flow:cell "${branch}" "${branch_w}")")"
+    then row+="${flow_gap}$(flow:paint 90 "${flow_glyphs[Branch]} $(flow:cell "${branch}" "${branch_w}")")"
     else row+="${flow_gap}   $(flow:cell '' "${branch_w}")"
     fi
     width=$(( width - 5 - branch_w ))
   fi
   (( width < 20 )) && width=20
   (( ${#title} > width )) && title="${title:0:width-1}…"
-  printf '%s%s🎫 %s\n' "${row}" "${flow_gap}" "${title}" >&2
+  printf '%s%s%s %s\n' "${row}" "${flow_gap}" "${flow_glyphs[Issue]}" "${title}" >&2
 }
 
 # flow:pr-block <pr-json> <title-width> <owner-width> <state-width> <age-width> <with-branch> <issue-widths>
@@ -788,15 +824,15 @@ flow:pr-block() {
     < <(jq --raw-output '[.number, (.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
           | map(tostring)
           | join("\u001f")' <<<"${doc}")
-  row="🔀 $(flow:paint "${flow_change_sgr}" "${ref}") $(flow:cell "${title}" $(( title_w - ${#ref} - 1 )))"
-  (( owner_w > 0 )) && row+="${flow_gap}👤 $(flow:paint 90 "$(flow:cell "${author}" "${owner_w}")")"
+  row="${flow_glyphs[Change]} $(flow:paint "${flow_change_sgr}" "${ref}") $(flow:cell "${title}" $(( title_w - ${#ref} - 1 )))"
+  (( owner_w > 0 )) && row+="${flow_gap}${flow_glyphs[Owner]} $(flow:paint 90 "$(flow:cell "${author}" "${owner_w}")")"
   row+="${flow_gap}$(flow:state-emoji "${state}")"
   row+=" $(flow:paint "$(flow:state-sgr "${state}")" "$(flow:cell "${state}" "${state_w}")")"
   row+=" $(flow:paint 90 "$(flow:cell "$(flow:age "${age}")" "${age_w}" right)")"
   checks=$(flow:check-cell "$(jq --compact-output .checks <<<"${doc}")")
   [[ -n "${checks}" ]] && row+="${flow_gap}${checks}"
-  (( unresolved > 0 )) && row+="${flow_gap}$(flow:paint 33 "💬 ${unresolved} unresolved")"
-  [[ -n "${worktree}" ]] && row+="${flow_gap}$(flow:paint 90 "🌿 ${branch}")"
+  (( unresolved > 0 )) && row+="${flow_gap}$(flow:paint 33 "${flow_glyphs[Threads]} ${unresolved} unresolved")"
+  [[ -n "${worktree}" ]] && row+="${flow_gap}$(flow:paint 90 "${flow_glyphs[Branch]} ${branch}")"
   printf '%s\n' "${row}" >&2
   while IFS= read -r issue
   do
@@ -866,7 +902,7 @@ flow:draw-desk() {
   local relative branch width
   IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"$1")
   IFS=$'\t' read -r _ width < <(flow:label "${relative}" "${branch}")
-  flow:checkout-block '💻' "$1" "${width}"
+  flow:checkout-block "${flow_glyphs[Desk]}" "$1" "${width}"
 }
 
 # flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
@@ -898,7 +934,7 @@ flow:draw-checkouts() {
     then first=false
     else printf '\n' >&2
     fi
-    flow:checkout-block '🌿' "${doc}" "${label_w}" "${widths}"
+    flow:checkout-block "${flow_glyphs[Branch]}" "${doc}" "${label_w}" "${widths}"
   done
 }
 
@@ -956,7 +992,7 @@ flow:draw-worktrees() {
   printf '\n' >&2
   while IFS= read -r branch
   do
-    printf '🔖 %s%s%s\n' "${branch}" "${flow_sep}" \
+    printf '%s %s%s%s\n' "${flow_glyphs[Gone]}" "${branch}" "${flow_sep}" \
       "$(flow:paint 90 "upstream gone${flow_sep}kit tidy removes it")" >&2
   done <<<"${flow_gone}"
 }
@@ -1275,7 +1311,7 @@ flow:above() {
   for index in "${!desks[@]}"
   do
     (( index == 0 )) || printf '\n' >&2
-    printf '%s\n' "$(flow:paint 1 "📂 $(flow:relative "${desks[${index}]}")")" >&2
+    printf '%s\n' "$(flow:paint 1 "${flow_glyphs[Path]} $(flow:relative "${desks[${index}]}")")" >&2
     cat "${scratch}/${index}.err" "${scratch}/${index}.out" >&2
   done
 }

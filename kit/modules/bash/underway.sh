@@ -132,40 +132,40 @@ underway:draw() {
     if (( owner_w > 0 ))
     then
       glyph='   '
-      [[ -n "${assignees}" ]] && glyph='👤 '
+      [[ -n "${assignees}" ]] && glyph="${flow_glyphs[Owner]} "
       row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "${assignees}" "${owner_w}")")"
     fi
     row+="${flow_gap}$(flow:paint 90 "$(flow:cell "$(flow:age "${age}")" "${age_w}" right)")"
     number=$(flow:cell "${sigil:-#}${number}" "${pr_w}" right)
-    row+="${flow_gap}🔀 $(flow:paint "${flow_change_sgr}" "${number}")"
+    row+="${flow_gap}${flow_glyphs[Change]} $(flow:paint "${flow_change_sgr}" "${number}")"
     row+=" $(flow:state-emoji "${state}") $(flow:paint "$(flow:state-sgr "${state}")" \
       "$(flow:cell "${state}" "${state_w}")")"
     case "${where}" in
-      (desk) row+="${flow_gap}💻 $(flow:cell here "${where_w}")" ;;
-      (linked) row+="${flow_gap}🌿 $(flow:cell here "${where_w}")" ;;
-      (local) row+="${flow_gap}🌱 $(flow:cell local "${where_w}")" ;;
-      (*) row+="${flow_gap}👤 $(flow:paint 90 "$(flow:cell "${author}" "${where_w}")")"
+      (desk) row+="${flow_gap}${flow_glyphs[Desk]} $(flow:cell here "${where_w}")" ;;
+      (linked) row+="${flow_gap}${flow_glyphs[Branch]} $(flow:cell here "${where_w}")" ;;
+      (local) row+="${flow_gap}${flow_glyphs[Sprout]} $(flow:cell local "${where_w}")" ;;
+      (*) row+="${flow_gap}${flow_glyphs[Owner]} $(flow:paint 90 "$(flow:cell "${author}" "${where_w}")")"
     esac
     if (( fork_w > 0 ))
     then
       glyph='   '
-      [[ -n "${fork}" ]] && glyph='🍴 '
+      [[ -n "${fork}" ]] && glyph="${flow_glyphs[Fork]} "
       row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "${fork}" "${fork_w}")")"
     fi
     if (( pushed_w > 0 ))
     then
       glyph='   '
-      [[ -n "${pushed}" ]] && glyph='📤 '
+      [[ -n "${pushed}" ]] && glyph="${flow_glyphs[Pushed]} "
       row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "$(flow:age "${pushed}")" "${pushed_w}" right)")"
     fi
     if (( by_w > 0 ))
     then
       glyph='   '
-      [[ -n "${by}" ]] && glyph='👤 '
+      [[ -n "${by}" ]] && glyph="${flow_glyphs[Owner]} "
       row+="${flow_gap}${glyph}$(flow:paint 90 "$(flow:cell "${by}" "${by_w}")")"
     fi
     (( ${#title} > width )) && title="${title:0:width-1}…"
-    printf '%s%s🎫 %s\n' "${row}" "${flow_gap}" "${title}" >&2
+    printf '%s%s%s %s\n' "${row}" "${flow_gap}" "${flow_glyphs[Issue]}" "${title}" >&2
   done
 }
 
