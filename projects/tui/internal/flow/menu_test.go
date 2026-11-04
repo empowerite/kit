@@ -3,6 +3,7 @@
 package flow
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -26,29 +27,27 @@ func openRows(m Model) int {
 	return n
 }
 
-func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
-	m := loaded(t, options(), right, right, right, press('='))
-	if !m.menu || lines(m)[23] != " "+quitKey+" · "+menuKeys || !strings.Contains(view(m), "│ "+Settings+" Settings…    │") ||
-		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "│ ─────────────── │") ||
-		!strings.Contains(m.View().Content, style.Off("───────────────")) {
-		t.Fatalf("= did not drop the menu down:\n%s", view(m))
+func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
+	m := loaded(t, options(), right, right, right, press(':'))
+	if !m.menu || m.app || lines(m)[23] != " "+quitKey+" · "+menuKeys ||
+		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || strings.Contains(view(m), "Settings") {
+		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
-	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on expand all, collapse all,
-	// with no row open, is dim, and the settings, last, do nothing yet
+	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on expand all, and collapse
+	// all, with no row open, is dim
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
-	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(menuItems)+2 || m.menuAt != 0 ||
+	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(tabItems)+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
-		!strings.Contains(box[2], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) ||
-		!strings.Contains(box[4], style.Off(" "+Settings+" Settings…    ")) {
+		!strings.Contains(box[2], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; down
-	// passes collapse all by while it is dim, and the rule and the settings
+	// passes collapse all by while it is dim
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 0}, {"s", 0}, {"E", 0}, {"z", 0}} {
+	}{{"c", 0}, {"E", 0}, {"z", 0}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
@@ -61,24 +60,62 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf("expand all: menu %v, open %d", m.menu, openRows(m))
 	}
 	opened := openRows(m)
-	// now expand all is dim and the keyboard starts on collapse all, which space chooses
-	if m = drive(m, press('=')); m.menuAt != 1 || m.enabled(0) {
+	// now expand all is dim and the keyboard starts on collapse all, which space chooses; ; drops it down too
+	if m = drive(m, press(';')); !m.menu || m.menuAt != 1 || m.enabled(0) {
 		t.Errorf("with every row expanded the keyboard is on %d", m.menuAt)
 	}
 	if m = drive(m, up, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
 		t.Errorf("collapse all: open %d", openRows(m))
 	}
-	// esc and = close it, choosing nothing
-	m = drive(m, press('='), press(tea.KeyEnter))
-	for _, closing := range []tea.Msg{esc, press('=')} {
-		if m = drive(m, press('='), closing); m.menu || openRows(m) != opened {
+	// esc, :, and ; close it, choosing nothing, and = does not
+	m = drive(m, press(':'), press(tea.KeyEnter))
+	for _, closing := range []tea.Msg{esc, press(':'), press(';')} {
+		if m = drive(m, press(':'), closing); m.menu || openRows(m) != opened {
 			t.Errorf("%v did not close the menu alone: menu %v", closing, m.menu)
 		}
 	}
-	// enter on a dim item does nothing, and leaves the menu open
+	if m = drive(m, press(':'), press('=')); !m.menu || m.app {
+		t.Errorf("= in the tab's menu: menu %v, app %v", m.menu, m.app)
+	}
+}
+
+// = or a click on ≡ before the title drops the app's menu down from the title line: refresh all, a rule, the settings,
+// dim, a rule, and quit. Refresh all runs every stage again, the forge read afresh; quit ends the screen with 0.
+func TestEqualsDropsTheAppsMenuDownToRefreshAllOrQuit(t *testing.T) {
+	m := loaded(t, options(), press('='))
+	box, left := m.menuBox()
+	if !m.menu || !m.app || left != 0 || len(box) != len(appItems)+2 || m.menuAt != 0 ||
+		!strings.HasPrefix(lines(m)[appTop], "╭"+App+"╶") || !strings.Contains(view(m), "│ "+Reload+" Refresh All │") ||
+		!strings.Contains(box[3], style.Off(" "+Settings+" Settings…   ")) || !strings.Contains(view(m), "│ "+Leave+" Quit") ||
+		strings.Count(view(m), "│ ────────────── │") != 2 || box[0] != style.Menu(ansi.Strip(box[0])) {
+		t.Fatalf("= did not drop the app's menu down:\n%s", view(m))
+	}
+	// down passes the rules and the dim settings by; = and esc close it
+	if m = drive(m, down); m.menuAt != 4 {
+		t.Errorf("down from refresh all: item %d", m.menuAt)
+	}
+	for _, closing := range []tea.Msg{esc, press('=')} {
+		if m = drive(m, press('='), closing); m.menu {
+			t.Errorf("%v did not close the app's menu", closing)
+		}
+	}
+	// a click on ≡ drops it down; one on refresh all runs every stage again, the shared ones afresh
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	if m = drive(m, testkit.Click(appAt, appTop)); !m.menu || !m.app {
+		t.Fatalf("a click on %s:\n%s", App, view(m))
+	}
+	m = drive(m, testkit.Click(left+3, appTop+1))
+	got := calls(t, record)
+	if m.menu || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
+		len(got) < len(eight) {
+		t.Errorf("refresh all ran %q", got)
+	}
+	// quit ends the screen, not interrupted
 	m = drive(m, press('='))
-	if m.pick(3); !m.menu {
-		t.Error("the settings closed the menu")
+	if _, msgs := testkit.Drive(m, nil, press(tea.KeyDown), press(tea.KeyEnter)); !slices.ContainsFunc(msgs,
+		func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok }) || m.interrupted {
+		t.Errorf("quit did not end the screen: %v", msgs)
 	}
 }
 
@@ -86,7 +123,7 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 // enter does nothing.
 func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
 	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m = drive(m, press('='), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
+	if m = drive(m, press(':'), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
 	// nothing is drawn under the keyboard, even when the keyboard was left on an item the rows no longer let do
@@ -106,8 +143,8 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
 	}
 	_, left := m.menuBox()
-	// a click on collapse all while it is dim, on the rule, or on the settings does nothing, and leaves the menu open
-	for _, y := range []int{menuTop + 2, menuTop + 3, menuTop + 4} {
+	// a click on collapse all while it is dim does nothing, and leaves the menu open
+	for _, y := range []int{menuTop + 2} {
 		if m = drive(m, testkit.Click(left+2, y)); !m.menu || openRows(m) != 0 {
 			t.Errorf("a click on line %d: menu %v, open %d", y, m.menu, openRows(m))
 		}
@@ -125,19 +162,26 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 	}
 }
 
-func TestEqualsInThePanelDropsTheMenuButIsTypedInTheSearch(t *testing.T) {
+func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
 	m := loaded(t, options(), tab)
-	if m = drive(m, typed("=")...); m.menu || m.panel(0).Query != "=" {
-		t.Fatalf("= in the search: menu %v, search %q", m.menu, m.panel(0).Query)
+	if m = drive(m, typed("=:;")...); m.menu || m.panel(0).Query != "=:;" {
+		t.Fatalf("the menus' keys in the search: menu %v, search %q", m.menu, m.panel(0).Query)
 	}
-	if m = drive(m, down, press('=')); !m.menu || !m.inPanel {
-		t.Errorf("= off the search: menu %v, in panel %v", m.menu, m.inPanel)
+	for _, c := range []struct {
+		key rune
+		app bool
+	}{{'=', true}, {':', false}, {';', false}} {
+		if m = drive(m, down, press(c.key)); !m.menu || m.app != c.app || !m.inPanel {
+			t.Errorf("%c off the search: menu %v, app %v, in panel %v", c.key, m.menu, m.app, m.inPanel)
+		}
+		m = drive(m, esc)
 	}
-	// with no stage, = drops nothing, and the menu's box keeps to the screen when the bar draws no glyph
-	if m = loaded(t, Options{}, press('=')); m.menu {
-		t.Error("= with no stage dropped a menu")
+	// with no stage, neither drops, and no glyph stands before the title; the tab's menu's box keeps to the screen
+	// when the bar draws no glyph
+	if m = loaded(t, Options{}, press('='), press(':')); m.menu || strings.Contains(view(m), App) {
+		t.Error("a menu with no stage")
 	}
-	m = loaded(t, options(), tea.WindowSizeMsg{Width: 20, Height: 24}, press('='))
+	m = loaded(t, options(), tea.WindowSizeMsg{Width: 20, Height: 24}, press(':'))
 	if _, left := m.menuBox(); m.bar().MenuAt() >= 0 || left < 0 || !m.menu {
 		t.Errorf("a bar too narrow for the glyph: glyph %d, left %d", m.bar().MenuAt(), left)
 	}
@@ -155,7 +199,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 				m = drive(m, press('?'))
 			}
 			for i := range m.stages {
-				m = drive(m, press('='))
+				m = drive(m, press(':'))
 				box, left := m.menuBox()
 				glyph, end := m.bar().MenuAt(), left+ansi.StringWidth(box[0])
 				drawn, cells := lines(m), ansi.StringWidth(tabs.Menu)
@@ -185,7 +229,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: paneTop + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
-	m := loaded(t, options(), size, right, right, right, press('='), press(tea.KeyEnter), wheel)
+	m := loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
 	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[paneTop], " "+style.Opened) {
 		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
 	}
@@ -193,7 +237,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
-	m = loaded(t, options(), size, right, right, right, press('='), press(tea.KeyEnter), wheel)
+	m = loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
 	if m = drive(m, testkit.Click(1, paneTop)); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}

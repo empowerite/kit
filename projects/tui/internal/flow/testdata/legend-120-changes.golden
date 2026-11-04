@@ -1,6 +1,6 @@
- kit flow · 📚 empowerite/kit                                                                🔎 search
+ ≡ kit flow · 📚 empowerite/kit                                                              🔎 search
  ──────╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶─────────
-◃    1 │  🌿 worktrees         4  │ 🔀 changes       3 ≡ │  🏭 builds         4 │  🛬 inco ▹ columns
+◃    1 │  🌿 worktrees         4  │ 🔀 changes       3 ⋮ │  🏭 builds         4 │  🛬 inco ▹ columns
  ──────╰──────────────────────────╯                      ╰──────────────────────╰──────────┐ ☑ change
  ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 3m           … │ ☑ title
  ▸ 🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2              … │ ☑ author
@@ -29,4 +29,4 @@
                                                                                            │ state 🔗
                                                                                            │ 🔨 draft
                                                                                            │ … 8 more
- ^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back
+ ^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar · esc back

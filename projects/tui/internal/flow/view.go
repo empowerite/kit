@@ -70,7 +70,7 @@ func (m Model) View() tea.View {
 // the panel have it.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.barWidth(), Row: 1,
-		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu, Joined: true}
+		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu && !m.app, Joined: true}
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 	}
@@ -144,11 +144,12 @@ func (m Model) paneWidth() int {
 // quitKey leads the keys bar wherever the keyboard is, as ctrl-c quits from anywhere: the one key that never moves.
 const quitKey = "^C quit"
 
-// keys gives the keys bar for where the keyboard is: ctrl-c first, then only the keys that act there: in the menu, in
-// the panel, and in the search alone while the sidebar is hidden, their own; on the bar, left and right, down into the rows, and the numbers; in the rows, up and down
-// and a page at a time; on a row that opens, right to open it or left to close it; tab into the panel, and = for the
-// menu; r on a stage kittui loads; esc going back from the rows and from the sidebar. On a screen too narrow for them,
-// the keys spared names are left out before the bar is cut.
+// keys gives the keys bar for where the keyboard is: ctrl-c first, then only the keys that act there: in a menu, in the
+// panel, and in the search alone while the sidebar is hidden, their own; on the bar, left and right, down into the
+// rows, and the numbers; in the rows, up and down and a page at a time; on a row that opens, right to open it or left
+// to close it; tab into the panel, = for the app's menu, and : for the tab's, ; too, which the bar does not name; r on
+// a stage kittui loads; esc going back from the rows and from the sidebar. On a screen too narrow for them, the keys
+// spared names are left out before the bar is cut.
 func (m Model) keys() string {
 	switch {
 	case m.menu:
@@ -173,7 +174,7 @@ func (m Model) keys() string {
 		keys = append(keys, "←→ view", "↓ rows", "1-9 jump")
 	}
 	if len(m.stages) > 0 {
-		keys = append(keys, "⇥ panel", "= menu")
+		keys = append(keys, "⇥ panel", "= menu", ": tab menu")
 	}
 	if len(m.stages) > 0 && known[m.stages[m.stage].name] {
 		keys = append(keys, "r refresh")
@@ -186,8 +187,8 @@ func (m Model) keys() string {
 }
 
 // spared names the keys a narrow keys bar leaves out, the first first, until the rest fit: the numbers, which the
-// tabs show, a page at a time, and r.
-var spared = []string{"1-9 jump", "pgup/pgdn page", "r refresh"}
+// tabs show, a page at a time, the tab's menu, whose ⋮ the bar shows, and r.
+var spared = []string{"1-9 jump", "pgup/pgdn page", ": tab menu", "r refresh"}
 
 // fitKeys joins the keys, leaving out what spared names, in its order, until they fit so many cells.
 func fitKeys(keys []string, width int) string {
@@ -202,12 +203,21 @@ func fitKeys(keys []string, width int) string {
 	return line
 }
 
-// title gives the title line: kit flow, and origin's owner/repo after its glyph, in its own color, when known.
+// title gives the title line: the app's menu glyph, tinted, or in the menu's color while its menu is open, when there
+// is a stage to have a menu; kit flow; and origin's owner/repo after its glyph, in its own color, when known.
 func (m Model) title() string {
-	if m.origin.Repo == "" {
-		return style.Label("kit flow")
+	title := style.Label("kit flow")
+	if len(m.stages) > 0 {
+		glyph := style.Tint(App)
+		if m.menu && m.app {
+			glyph = style.Menu(App)
+		}
+		title = glyph + " " + title
 	}
-	return style.Label("kit flow") + " · " + Repository + " " + style.Repo(m.origin.Repo)
+	if m.origin.Repo == "" {
+		return title
+	}
+	return title + " · " + Repository + " " + style.Repo(m.origin.Repo)
 }
 
 // count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming

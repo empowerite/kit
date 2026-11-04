@@ -1,8 +1,10 @@
-// The selected tab's menu: = or a click on the tab's menu glyph drops it down from the glyph, which takes a cell of the
-// box's top edge, two in from its left corner, or from its right one when the box would run off the screen. While it is
-// open it has the keyboard: up and down move, a letter moves to the next item that starts with it, enter and space
-// choose, and esc or = closes it; a click on an item chooses it, and a click anywhere else closes it. Each choice acts
-// on the selected stage's rows; an item that would change nothing is dim, and the keyboard passes it by.
+// The menus: the app's, which = or a click on ≡ before the title drops down, and the selected tab's, which : or ; or a
+// click on the tab's ⋮ drops down. Each hangs from its glyph, which takes a cell of the box's top edge, two in from
+// its left corner, or from its right one when the box would run off the screen. While one is open it has the
+// keyboard: up and down move, a letter moves to the next item that starts with it, enter and space choose, and esc or
+// the key that opened it closes it; a click on an item chooses it, and a click anywhere else closes it. The tab's
+// choices act on the selected stage's rows, the app's on all of kittui; an item that would change nothing is dim, and
+// the keyboard passes it by.
 package flow
 
 import (
@@ -18,42 +20,61 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// The glyphs beside the menu's items: the settings, every row expanded, and every row collapsed, all the way down and
-// up as ▾ and ▸ are one row's.
+// App is the glyph before the title, which drops the app's menu down: three bars, a hamburger, as the tab's menu is
+// its ⋮.
+const App = "≡"
+
+// The glyphs beside the menus' items: every row expanded, and every row collapsed, all the way down and up as ▾ and
+// ▸ are one row's; every stage loaded again; the settings; and the way out.
 const (
-	Settings = "🔧"
 	Expand   = "⏬"
 	Collapse = "⏫"
+	Reload   = "🔄"
+	Settings = "🔧"
+	Leave    = "🚪"
 )
 
-// menuItem is one line of the menu: a glyph, which may be none, and the name it is chosen by; a line with no name is
-// the rule between groups of items.
+// menuItem is one line of a menu: a glyph, which may be none, and the name it is chosen by; a line with no name is the
+// rule between groups of items.
 type menuItem struct{ glyph, name string }
 
-// menuItems are the menu's lines, top to bottom: every row that hides something expanded, every row collapsed, a
-// rule, and the settings, which kittui does not have yet.
-var menuItems = []menuItem{{Expand, "Expand All"}, {Collapse, "Collapse All"}, {}, {Settings, "Settings…"}}
+// tabItems are the tab's menu's lines, top to bottom: every row that hides something expanded, and every row
+// collapsed. appItems are the app's: every stage loaded again, reading the forge afresh, a rule, the settings, which
+// kittui does not have yet, a rule, and quit.
+var (
+	tabItems = []menuItem{{Expand, "Expand All"}, {Collapse, "Collapse All"}}
+	appItems = []menuItem{{Reload, "Refresh All"}, {}, {Settings, "Settings…"}, {}, {Leave, "Quit"}}
+)
 
-// menuKeys is the keys bar while the menu is open.
+// menuKeys is the keys bar while a menu is open.
 const menuKeys = "↑↓ move · ⏎ choose · esc close"
 
-// openMenu drops the menu down, its first item that does something under the keyboard.
-func (m *Model) openMenu() {
+// items gives the open menu's lines: the app's, or the tab's.
+func (m Model) items() []menuItem {
+	if m.app {
+		return appItems
+	}
+	return tabItems
+}
+
+// openMenu drops a menu down, the app's or the tab's, its first item that does something under the keyboard.
+func (m *Model) openMenu(app bool) {
 	if len(m.stages) > 0 {
-		m.menu, m.menuAt = true, m.move(-1, 1)
+		m.menu, m.app = true, app
+		m.menuAt = m.move(-1, 1)
 	}
 }
 
-// menuKey takes a key while the menu is open.
+// menuKey takes a key while a menu is open.
 func (m Model) menuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch k.String() {
-	case "up":
+	switch key := k.String(); {
+	case key == "up":
 		m.menuAt = m.move(m.menuAt, -1)
-	case "down":
+	case key == "down":
 		m.menuAt = m.move(m.menuAt, 1)
-	case "enter", "space":
-		m.pick(m.menuAt)
-	case "esc", "=":
+	case key == "enter" || key == "space":
+		return m, m.pick(m.menuAt)
+	case key == "esc", m.app && key == "=", !m.app && (key == ":" || key == ";"):
 		m.menu = false
 	default:
 		m.menuAt = m.nextItem(m.menuAt, k.Text)
@@ -61,12 +82,20 @@ func (m Model) menuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// enabled says whether the menu's line k does something to the selected stage's rows now: expand all while a row
-// that hides something is collapsed, collapse all while a row is expanded; the settings and the rule never do.
+// enabled says whether the open menu's line k does something now: expand all while a row of the selected stage that
+// hides something is collapsed, collapse all while one of its rows is expanded, refresh all and quit always; the
+// settings and the rules never do.
 func (m Model) enabled(k int) bool {
+	switch m.items()[k].name {
+	case "Refresh All", "Quit":
+		return true
+	case "Expand All", "Collapse All":
+	default:
+		return false
+	}
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	for j, r := range rows {
-		switch menuItems[k].name {
+		switch m.items()[k].name {
 		case "Expand All":
 			if !s.open[r.Key] && grid.Opens(rows, j, m.paneWidth()) {
 				return true
@@ -83,7 +112,7 @@ func (m Model) enabled(k int) bool {
 // move gives the item from k on, by step, that is enabled, stopping at the first and the last; k itself when none
 // is.
 func (m Model) move(k, step int) int {
-	for j := k + step; j >= 0 && j < len(menuItems); j += step {
+	for j := k + step; j >= 0 && j < len(m.items()); j += step {
 		if m.enabled(j) {
 			return j
 		}
@@ -97,24 +126,40 @@ func (m Model) nextItem(k int, typed string) int {
 	if typed == "" {
 		return k
 	}
-	for step := 1; step <= len(menuItems); step++ {
-		j := (k + step) % len(menuItems)
-		if m.enabled(j) && strings.HasPrefix(strings.ToLower(menuItems[j].name), strings.ToLower(typed)) {
+	items := m.items()
+	for step := 1; step <= len(items); step++ {
+		j := (k + step) % len(items)
+		if m.enabled(j) && strings.HasPrefix(strings.ToLower(items[j].name), strings.ToLower(typed)) {
 			return j
 		}
 	}
 	return k
 }
 
-// pick does what the menu's item at k says to the selected stage's rows, closes the menu, and gives the rows the
-// keyboard, so left and right go on from there; an item that is not enabled does nothing, and leaves the menu open.
-func (m *Model) pick(k int) {
+// pick does what the open menu's item at k says, closes the menu, and gives the command it runs: the tab's choices
+// change the selected stage's rows and give them the keyboard, so left and right go on from there; refresh all runs
+// every stage again, reading the forge afresh, and quit ends the screen. An item that is not enabled does nothing,
+// and leaves the menu open.
+func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
-		return
+		return nil
 	}
-	m.menu, m.inRows, m.inPanel = false, true, false
+	m.menu = false
+	switch m.items()[k].name {
+	case "Refresh All":
+		var cmds []tea.Cmd
+		for _, s := range m.stages {
+			if known[s.name] {
+				cmds = append(cmds, m.restart(s.name))
+			}
+		}
+		return tea.Batch(cmds...)
+	case "Quit":
+		return m.quit()
+	}
+	m.inRows, m.inPanel = true, false
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	switch menuItems[k].name {
+	switch m.items()[k].name {
 	case "Expand All":
 		for j, r := range rows {
 			if grid.Opens(rows, j, m.paneWidth()) {
@@ -125,21 +170,27 @@ func (m *Model) pick(k int) {
 		clear(s.open)
 	}
 	m.fit()
+	return nil
 }
 
-// menuBox gives the menu's lines, a rounded box in the menu's color around its items, each after the room for a glyph,
-// the one under the keyboard inverse and the ones not enabled dim, a dim rule between groups, a cell short of either
-// side; and the screen column its left edge is drawn at: two before the menu glyph's, so the glyph starts at the top
-// edge's third cell; when the box would run past the rows that way, as on the rightmost tab, the column that puts the
-// glyph two cells before the right corner instead, or nearer when the rows end there; and against the rows' right when
-// the bar does not draw the glyph. The rows, not the bar, bound it, as the lines under the bar end where the rows do.
+// menuBox gives the open menu's lines, a rounded box in the menu's color around its items, each after the room for a
+// glyph, the one under the keyboard inverse and the ones not enabled dim, a dim rule between groups, a cell short of
+// either side; and the screen column its left edge is drawn at: two before its glyph's, or the screen's first, so the
+// glyph starts at the top edge's third cell; when the box would run past the rows that way, as on the rightmost tab,
+// the column that puts the glyph two cells before the right corner instead, or nearer when the rows end there; and
+// against the rows' right when the bar does not draw the glyph. The rows, not the bar, bound it, as the lines under the
+// bar end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
-	names := make([]string, len(menuItems))
-	for k, item := range menuItems {
+	names := make([]string, len(m.items()))
+	for k, item := range m.items() {
 		names[k] = item.name
 	}
 	inner := pane.Width(names) + 5
-	glyph, width, room, cells := m.bar().MenuAt(), inner+2, m.paneWidth(), ansi.StringWidth(tabs.Menu)
+	mark, glyph := tabs.Menu, m.bar().MenuAt()
+	if m.app {
+		mark, glyph = App, appAt
+	}
+	width, room, cells := inner+2, m.paneWidth(), ansi.StringWidth(mark)
 	switch {
 	case glyph < 0:
 		left = room - width
@@ -159,10 +210,10 @@ func (m Model) menuBox() (lines []string, left int) {
 		if c+cells < width-1 {
 			top[c+cells] = '╶'
 		}
-		top = slices.Concat(top[:c], []rune(tabs.Menu), top[c+cells:])
+		top = slices.Concat(top[:c], []rune(mark), top[c+cells:])
 	}
 	lines = append(lines, style.Menu(string(top)))
-	for k, item := range menuItems {
+	for k, item := range m.items() {
 		text := pane.Pad(" "+pane.Pad(item.glyph, 2, false)+" "+item.name+" ", inner, false)
 		switch {
 		case item.name == "":
@@ -180,10 +231,23 @@ func (m Model) menuBox() (lines []string, left int) {
 	return lines, left
 }
 
-// menuTop is the screen line the menu's box starts on: the bar's middle one, its top edge through the menu glyph.
-const menuTop = paneTop - 2
+// menuTop is the screen line the tab's menu's box starts on: the bar's middle one, its top edge through the tab's
+// glyph. The app's starts on the title's, through App, which stands at appAt.
+const (
+	menuTop = paneTop - 2
+	appTop  = 0
+	appAt   = 1
+)
 
-// overlay draws the open menu over the screen's lines, from menuTop; what the box covers is hidden, and what is
+// boxTop gives the screen line the open menu's box starts on.
+func (m Model) boxTop() int {
+	if m.app {
+		return appTop
+	}
+	return menuTop
+}
+
+// overlay draws the open menu over the screen's lines, from its top; what the box covers is hidden, and what is
 // beside it stays in its columns, a two-cell glyph the box cuts in half giving way to a space.
 func (m Model) overlay(lines []string) []string {
 	if !m.menu {
@@ -191,7 +255,7 @@ func (m Model) overlay(lines []string) []string {
 	}
 	box, left := m.menuBox()
 	for k, b := range box {
-		if i := menuTop + k; i < len(lines) {
+		if i := m.boxTop() + k; i < len(lines) {
 			lines[i] = splice(lines[i], b, left)
 		}
 	}
@@ -206,14 +270,14 @@ func splice(line, box string, left int) string {
 	return pane.Cells(line, 0, left) + box + pane.Cells(line, right, ansi.StringWidth(line))
 }
 
-// menuClick takes a left click while the menu is open: on an item, it chooses it, and on one not enabled, or the rule,
-// it does nothing; anywhere else, it closes the menu.
-func (m *Model) menuClick(x, y int) {
+// menuClick takes a left click while a menu is open: on an item, it chooses it, and on one not enabled, or a rule, it
+// does nothing; anywhere else, it closes the menu.
+func (m *Model) menuClick(x, y int) tea.Cmd {
 	box, left := m.menuBox()
-	k := y - menuTop - 1
-	if x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(menuItems) {
-		m.pick(k)
-		return
+	k := y - m.boxTop() - 1
+	if x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(m.items()) {
+		return m.pick(k)
 	}
 	m.menu = false
+	return nil
 }

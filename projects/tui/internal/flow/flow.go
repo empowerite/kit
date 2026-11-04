@@ -2,7 +2,7 @@
 // and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has the
 // keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
-// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; r runs
+// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; r runs
 // the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
 // away, as a click anywhere on the rule beside the rows does; tab gives the panel the keyboard, and / or a click
 // on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
@@ -100,8 +100,9 @@ type Model struct {
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, in place of the keys until the next key
-	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
-	menuAt        int                    // the menu's item under the keyboard
+	menu          bool                   // whether a menu is open, which then has the keyboard
+	app           bool                   // whether the open menu is the app's, not the selected tab's
+	menuAt        int                    // the open menu's item under the keyboard
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -206,9 +207,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		switch side := m.paneWidth() + 1; {
 		case m.menu && msg.Button == tea.MouseLeft:
-			m.menuClick(msg.X, msg.Y)
+			return m, m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
-			m.openMenu()
+			m.openMenu(false)
+		case msg.Button == tea.MouseLeft && msg.Y == appTop && msg.X <= appAt+ansi.StringWidth(App):
+			m.openMenu(true)
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -233,6 +236,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) onMenu(x, y int) bool {
 	at := m.bar().MenuAt()
 	return at >= 0 && y == m.bar().Row+1 && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
+}
+
+// menuFor says whether a key drops a menu down, and whether it is the app's: = the app's, and : or ; the tab's.
+func menuFor(k tea.KeyPressMsg) (menu, app bool) {
+	switch k.String() {
+	case "=":
+		return true, true
+	case ":", ";":
+		return true, false
+	}
+	return false, false
 }
 
 // browsedMsg says whether the browser was asked to open the page at url: err is why not.
@@ -404,8 +418,8 @@ func (m *Model) askMe() tea.Cmd {
 	}
 }
 
-// key takes a key press: the quitting keys, the menu's while it is open, the panel's while it has the keyboard, = for
-// the menu, the bar's, then the rows' and the sidebar's.
+// key takes a key press: the quitting keys, the open menu's while one is open, the panel's while it has the keyboard,
+// = for the app's menu and : or ; for the tab's, the bar's, then the rows' and the sidebar's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -420,8 +434,8 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.inPanel {
 		return m.panelKey(k)
 	}
-	if k.String() == "=" {
-		m.openMenu()
+	if menu, app := menuFor(k); menu {
+		m.openMenu(app)
 		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {
@@ -487,9 +501,9 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	before := m.panel(m.stage)
-	if k.String() == "=" && before.Cursor != 0 {
-		// off the search, = drops the tab's menu down, as it does from the rows
-		m.openMenu()
+	if menu, app := menuFor(k); menu && before.Cursor != 0 {
+		// off the search, the menus' keys drop them down, as they do from the rows
+		m.openMenu(app)
 		return m, nil
 	}
 	if p, ok := before.Update(k); ok {

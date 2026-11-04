@@ -1,6 +1,6 @@
- kit flow · 📚 empowerite/kit                                                                                 🔎 search
+ ≡ kit flow · 📚 empowerite/kit                                                                               🔎 search
  ➀╶─────────────────────╴➋╶──────────────────────╮➂╶──────────────────╮➃╶───────────────────────╮➄╶─────────────────────
-   🎫 backlog         3  │ 🛫 underway       4 ≡ │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes          ▹
+   🎫 backlog         3  │ 🛫 underway       4 ⋮ │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes          ▹
  ────────────────────────╯                       ╰────────────────────╰─────────────────────────╰──────────────────────┐
  ▾  #1  👤 jeffrey-aguilera  8d  🔀 #2   🏁 ready          🌿 here           📤 60m         🎫 The first release,      │
                                                                                             v0.1.0: the kit verbs, the │
@@ -21,4 +21,4 @@
                                                                                                                        │
                                                                                                                        │
                                                                                                                        │
- ^C quit · ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · r refresh · ? sidebar · esc back
+ ^C quit · ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar · esc back

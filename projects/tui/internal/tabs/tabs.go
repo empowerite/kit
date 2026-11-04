@@ -43,10 +43,9 @@ const (
 	After  = "▹"
 )
 
-// Menu is the glyph after the selected tab's count, which will open the tab's menu: three bars, a hamburger, one cell
-// wide wherever the bar's lines are. ☰ is not: Unicode 16 made it two cells wide, as kittui lays it out, while most
-// terminals still draw it in one, which would shift the rest of its line a cell left.
-const Menu = "≡"
+// Menu is the glyph after the selected tab's count, which will open the tab's menu: a vertical ellipsis, a kebab, as a
+// menu of actions on what it stands beside is drawn, narrow in every terminal.
+const Menu = "⋮"
 
 // Height is the lines the bar takes.
 const Height = 3
