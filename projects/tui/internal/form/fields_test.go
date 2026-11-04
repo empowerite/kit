@@ -131,8 +131,9 @@ func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kinds(fields) != "OneOf Toggle OneOf OneOf" || fields[0].Chosen != 0 {
-		t.Fatalf("flow: %s %+v", kinds(fields), fields[0])
+	if kinds(fields) != "OneOf AnyOf OneOf OneOf" || fields[0].Chosen != 0 ||
+		strings.Join(fields[1].Options, " ") != "--no-fetch --fresh" {
+		t.Fatalf("flow: %s %+v", kinds(fields), fields[1])
 	}
 	if strings.Join(fields[2].Options, "|") != "--text|--json|--jq" || fields[2].Required {
 		t.Errorf("the output row, one or the other or neither: %+v", fields[2])
@@ -145,7 +146,7 @@ func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
 		Values: map[string][]string{"--json": {"1"}, "--mine": {"1"}, "--owner": {"ada", "bob"}}})
 	fields, _ = Fields(specs(t)["flow"], chosen)
 	// the chosen --json brings its required flag as a field of its own, as every chosen flag alternative does
-	if kinds(fields) != "OneOf Toggle OneOf Toggle OneOf AnyOf Lines" || fields[0].Chosen != 0 || fields[2].Chosen != 1 ||
+	if kinds(fields) != "OneOf AnyOf OneOf Toggle OneOf AnyOf Lines" || fields[0].Chosen != 0 || fields[2].Chosen != 1 ||
 		fields[4].Chosen != 1 || fields[6].Values[1] != "bob" {
 		t.Errorf("flow --json --mine --owner: %s %+v", kinds(fields), fields)
 	}

@@ -1,7 +1,7 @@
  kit flow - shows where the work stands, from backlog to releases
 
    required
-   --no-fetch [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+   --no-fetch --fresh [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
    --stages                  prints the stages the picture draws, one per line, in order
    --me                      prints the caller's login on the primary's forge, the login --mine and
                              --others match

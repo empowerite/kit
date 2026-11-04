@@ -16,7 +16,7 @@ func anyOf(t *testing.T) (Model, int) {
 	t.Helper()
 	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
 	m = send(m, key("down"), key("down"), key("down"), key("right"), key("right"))
-	i := slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == AnyOf })
+	i := slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == AnyOf && slices.Contains(f.Options, "--others") })
 	if i < 0 {
 		t.Fatalf("no any-of row: %s", kinds(m.fields))
 	}
