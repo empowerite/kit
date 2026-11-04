@@ -25,19 +25,17 @@ func to(t *testing.T, m Model, name string) Model {
 	return m
 }
 
-// Pressing r again while a stage loads supersedes the load before: its command is ended, and its answer, should it
+// Refreshing a stage again while it loads supersedes the load before: its command is ended, and its answer, should it
 // still come, is dropped, so the newer load is the one the stage shows.
 func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 	t.Setenv("FAKE_FLOW_SLOW", "releases")
 	m := to(t, loaded(t, options()), "releases")
 	t.Setenv("FAKE_FLOW_SLOW", "")
-	next, older := m.Update(press('r'))
-	m = next.(Model)
+	older := m.restart("releases")
 	t.Setenv("FAKE_FLOW_SLOW", "releases")
 	answers := make(chan tea.Msg, 1)
 	go func() { answers <- older() }()
-	next, newer := m.Update(press('r'))
-	m = next.(Model)
+	newer := m.restart("releases")
 	t.Setenv("FAKE_FLOW_SLOW", "")
 	// the older load is told it was superseded, and the answer it gives is not taken
 	var dropped tea.Msg
@@ -60,20 +58,20 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 	}
 }
 
-// r on incoming fetches, and what the fetch brings moves the backlog's branches, the desk's and the worktrees' counts,
+// Refreshing incoming fetches, and what the fetch brings moves the backlog's branches, the desk's and the worktrees' counts,
 // and the issues underway, so those stages load again once incoming answers; the others do not.
 func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	m := to(t, loaded(t, options()), "incoming")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m = drive(m, press('r'))
+	m = drive(m, m.restart("incoming")())
 	var ran []string
 	for _, call := range calls(t, record) {
 		ran = append(ran, strings.Fields(call)[1])
 	}
 	slices.Sort(ran)
 	if want := []string{"backlog", "desk", "incoming", "underway", "worktrees"}; !slices.Equal(ran, want) {
-		t.Errorf("r on incoming ran %v, not %v", ran, want)
+		t.Errorf("refreshing incoming ran %v, not %v", ran, want)
 	}
 	for _, name := range []string{"backlog", "desk", "underway", "worktrees"} {
 		if s := m.find(name); s.loading || s.refusal != "" {
@@ -82,27 +80,21 @@ func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 	}
 }
 
-// r on backlog, underway, or changes reads the forge afresh, past kit's shared snapshot of the open issues and pull
-// requests; the stages incoming's fetch reloads take the snapshot, and the stages that never share it are not told.
-func TestRefreshReadsTheForgeAfreshAndTheFetchsReloadsDoNot(t *testing.T) {
-	for _, c := range []struct {
-		stage string
-		want  []string
-	}{
-		{"underway", []string{"flow underway --json --fresh"}},
-		{"changes", []string{"flow changes --json --fresh"}},
-		{"builds", []string{"flow builds --json"}},
-		{"incoming", []string{"flow backlog --json", "flow desk --json", "flow incoming --json", "flow underway --json",
-			"flow worktrees --json"}},
-	} {
-		record := filepath.Join(t.TempDir(), "calls")
-		m := to(t, loaded(t, options()), c.stage)
-		t.Setenv("FAKE_FLOW_CALLS", record)
-		drive(m, press('r'))
-		got := calls(t, record)
-		slices.Sort(got)
-		if !slices.Equal(got, c.want) {
-			t.Errorf("r on %s ran %q, not %q", c.stage, got, c.want)
-		}
+// Refresh All reads the forge afresh for backlog, underway, and changes, past kit's shared snapshot of the open issues
+// and pull requests; the stages incoming's fetch then reloads take the snapshot, and the stages that never share it
+// are not told.
+func TestRefreshAllReadsTheForgeAfreshAndTheFetchsReloadsDoNot(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	m := loaded(t, options())
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	drive(m, refreshAll...)
+	got := calls(t, record)
+	slices.Sort(got)
+	want := []string{"flow backlog --json", "flow backlog --json --fresh", "flow builds --json",
+		"flow changes --json --fresh", "flow desk --json", "flow desk --json", "flow incoming --json",
+		"flow releases --json", "flow underway --json", "flow underway --json --fresh", "flow worktrees --json",
+		"flow worktrees --json"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Refresh All ran %q, not %q", got, want)
 	}
 }

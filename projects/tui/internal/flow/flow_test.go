@@ -50,6 +50,9 @@ func drive(m Model, msgs ...tea.Msg) Model {
 	return m
 }
 
+// refreshAll drops the app's menu down and chooses its first item, Refresh All.
+var refreshAll = []tea.Msg{press('='), press(tea.KeyEnter)}
+
 // toggleMsg stands, in drive, for the key that opens the row under the cursor or closes it: toggle.
 type toggleMsg struct{}
 
@@ -406,18 +409,18 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 	}
 }
 
-func TestRefreshRunsTheStageAgain(t *testing.T) {
+func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), right, right, right, right, right, right, right)
-	next, cmd := m.Update(press('r'))
+	m := loaded(t, options(), right, right, right, right, right, right, right, press('='))
+	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	if cmd == nil || !strings.Contains(view(m), "loading") || !shows(m, Release, "…") {
-		t.Fatalf("r did not run releases again:\n%s", view(m))
+		t.Fatalf("Refresh All did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
-	// the eight, the four the fetch moved, then releases again
-	if got := calls(t, record); len(got) != 13 || got[12] != "flow releases --json" {
+	// the eight and the four the fetch moved, then the eight again and the four again
+	if got := calls(t, record); len(got) != 24 || slices.Index(got[12:], "flow releases --json") < 0 {
 		t.Errorf("the calls: %q", got)
 	}
 	if !shows(m, Release, "3") {
@@ -442,9 +445,9 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 		t.Errorf("the worktrees claim pull requests after changes failed:\n%s", v)
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "")
-	m = drive(m, right, press('r'))
+	m = drive(m, append([]tea.Msg{right}, refreshAll...)...)
 	if v := view(m); !shows(m, Change, "3") || strings.Contains(v, "cannot be read") {
-		t.Errorf("r did not try again:\n%s", v)
+		t.Errorf("Refresh All did not try again:\n%s", v)
 	}
 }
 
@@ -563,10 +566,10 @@ func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) 
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys     = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar"
-	sidebarKeys = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar · esc back"
-	opens       = "^C quit · ↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar · esc back"
-	closes      = "^C quit · ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · r refresh · ? sidebar · esc back"
+	barKeys     = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · ? sidebar"
+	sidebarKeys = "^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
+	opens       = "^C quit · ↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
+	closes      = "^C quit · ↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -621,13 +624,13 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	m = drive(m, msg)
 	v := view(m)
 	if !shows(m, Release, "!") ||
-		!strings.Contains(v, Failed+" kit flow releases took longer than 2 minutes; r runs it again") {
+		!strings.Contains(v, Failed+" kit flow releases took longer than 2 minutes; the menu's Refresh All runs it again") {
 		t.Fatalf("the stage past its limit:\n%s", v)
 	}
 	t.Setenv("FAKE_FLOW_SLOW", "")
-	m = drive(m, press('r'))
+	m = drive(m, refreshAll...)
 	if v := view(m); !shows(m, Release, "3") || strings.Contains(v, "took longer") {
-		t.Errorf("r did not run it again:\n%s", v)
+		t.Errorf("Refresh All did not run it again:\n%s", v)
 	}
 }
 

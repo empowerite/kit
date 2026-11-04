@@ -3,7 +3,7 @@
 // keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops
-// the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; r runs the stage's command again; ?
+// the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; ?
 // shows the sidebar beside the rows, the stage's panel over its legend, and again takes it away, as a click anywhere on
 // the rule beside the rows does; tab gives the panel the keyboard, and / or a click on the search, always on the
 // screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's
@@ -78,7 +78,7 @@ type stage struct {
 var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
 	"changes": true, "builds": true, "releases": true}
 
-// deadline is how long a stage's command may take: past it, the stage is a refusal, and r runs it again.
+// deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
 const deadline = 2 * time.Minute
 
 // Model is the picture on the screen.
@@ -176,7 +176,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if in := m.find("incoming").in; in != nil && in.Fetched {
-			// the fetch, at the start or on r, moved what some stages read: they load again
+			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
 			return m, m.reloads()
 		}
 	case meMsg:
@@ -471,8 +471,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.open(true)
 	case "left":
 		m.open(false)
-	case "r":
-		return m, m.refresh()
 	}
 	return m, nil
 }
@@ -609,14 +607,6 @@ func (m Model) all() tea.Cmd {
 		}
 	}
 	return tea.Batch(cmds...)
-}
-
-// refresh runs the selected stage's command again, reading the forge afresh, and shows it loading until it answers.
-func (m *Model) refresh() tea.Cmd {
-	if len(m.stages) == 0 || !known[m.stages[m.stage].name] {
-		return nil
-	}
-	return m.restart(m.stages[m.stage].name)
 }
 
 // restart runs a stage's command again as its latest load, reading the forge afresh, ending the one before when it
@@ -785,13 +775,14 @@ func lacking(o map[string]json.RawMessage, keys []string) string {
 	return ""
 }
 
-// refusalOf gives a stage's refusal from its error: that the stage took longer than the deadline and r runs it
-// again; else kit's line; and when kit died with nothing on stderr, how: exited with its code, or killed.
+// refusalOf gives a stage's refusal from its error: that the stage took longer than the deadline and the menu's
+// Refresh All runs it again; else kit's line; and when kit died with nothing on stderr, how: exited with its code, or killed.
 func refusalOf(name string, err error) string {
 	var exit *kit.ExitError
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return fmt.Sprintf("kit flow %s took longer than %d minutes; r runs it again", name, int(deadline.Minutes()))
+		return fmt.Sprintf("kit flow %s took longer than %d minutes; the menu's Refresh All runs it again", name,
+			int(deadline.Minutes()))
 	case err.Error() != "":
 		return err.Error()
 	case errors.As(err, &exit) && exit.Code >= 0:

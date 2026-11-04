@@ -1,6 +1,8 @@
 package flow
 
 import (
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -9,11 +11,12 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// With no stage in the picture, the keys that move, open, page, and refresh do nothing, and the pane says so.
+// With no stage in the picture, the keys that move, open, page, and drop a menu down do nothing, and the pane says
+// so.
 func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	m := New(runner(t), Options{})
 	for _, msg := range []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}, left, right, down, up, press(tea.KeyEnter),
-		press(tea.KeyPgDown), press('r')} {
+		press(tea.KeyPgDown), press('='), press(':')} {
 		next, cmd := m.Update(msg)
 		m = next.(Model)
 		if cmd != nil {
@@ -25,15 +28,17 @@ func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 	}
 }
 
-// r on a stage kittui does not draw runs nothing, and down into a stage with no rows stays on the bar.
+// Refresh All runs no stage kittui does not draw, and down into a stage with no rows stays on the bar.
 func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch", "builds"}})
-	if _, cmd := m.Update(press('r')); cmd != nil {
-		t.Error("r on a stage kittui does not draw started something")
-	}
 	m = drive(m, right, loadedMsg{stage: "builds", data: []byte("[]")}, down)
 	if m.inRows || !strings.Contains(view(m), "no build since the last 20 runs") {
 		t.Errorf("down into an empty stage: in rows %v\n%s", m.inRows, view(m))
+	}
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	if drive(m, refreshAll...); !slices.Equal(calls(t, record), []string{"flow builds --json"}) {
+		t.Errorf("Refresh All ran %q", calls(t, record))
 	}
 }
 
@@ -71,14 +76,14 @@ func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 	}
 }
 
-// r while the cursor is in a stage's rows shows the stage loading, the cursor kept, and the rows come back with the
-// answer.
+// Refresh All while the cursor is in a stage's rows shows the stage loading, the cursor kept, and the rows come back
+// with the answer.
 func TestRefreshInTheRowsKeepsTheCursorThroughTheLoad(t *testing.T) {
-	m := loaded(t, options(), down)
-	next, cmd := m.Update(press('r'))
+	m := loaded(t, options(), down, press('='))
+	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	if !m.inRows || !strings.Contains(view(m), "loading") {
-		t.Fatalf("r in the rows: in rows %v\n%s", m.inRows, view(m))
+		t.Fatalf("Refresh All in the rows: in rows %v\n%s", m.inRows, view(m))
 	}
 	if m = drive(m, cmd()); !m.inRows || len(m.rows(m.stage)) == 0 || strings.Contains(view(m), "loading") {
 		t.Errorf("the answer did not bring the rows back:\n%s", view(m))

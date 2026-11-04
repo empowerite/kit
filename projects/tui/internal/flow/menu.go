@@ -25,13 +25,13 @@ import (
 const App = "≡"
 
 // The glyphs beside the menus' items: every row expanded, and every row collapsed, all the way down and up as ▾ and
-// ▸ are one row's; every stage loaded again; the settings; and the way out.
+// ▸ are one row's; every stage loaded again; the settings; and goodbye.
 const (
 	Expand   = "⏬"
 	Collapse = "⏫"
 	Reload   = "🔄"
 	Settings = "🔧"
-	Leave    = "🚪"
+	Leave    = "👋"
 )
 
 // menuItem is one line of a menu: a glyph, which may be none, and the name it is chosen by; a line with no name is the
