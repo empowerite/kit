@@ -17,7 +17,7 @@ import (
 )
 
 // panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "^C quit · ↑↓ move · space toggle · type to search · esc back"
+const panelKeys = "↑↓ move · space toggle · type to search · esc back"
 
 // typed gives a key press for each rune of the text, as a terminal sends typing.
 func typed(text string) []tea.Msg {
@@ -137,7 +137,7 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	}
 	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(idle, 0)} {
 		m = drive(m, esc, enter)
-		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " ^C quit · type to search · esc back" {
+		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " type to search · esc back" {
 			t.Fatalf("%v: in panel %v, sidebar %v, keys %q", enter, m.inPanel, m.sidebar, lines(m)[23])
 		}
 		numbers := m.bar().Numbers()

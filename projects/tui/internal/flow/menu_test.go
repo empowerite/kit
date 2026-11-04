@@ -29,7 +29,7 @@ func openRows(m Model) int {
 
 func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press(':'))
-	if !m.menu || m.app || lines(m)[23] != " "+quitKey+" · "+menuKeys ||
+	if !m.menu || m.app || lines(m)[23] != " "+menuKeys ||
 		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}

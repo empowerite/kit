@@ -141,25 +141,22 @@ func (m Model) paneWidth() int {
 	return m.width - 2
 }
 
-// quitKey leads the keys bar wherever the keyboard is, as ctrl-c quits from anywhere: the one key that never moves.
-const quitKey = "^C quit"
-
-// keys gives the keys bar for where the keyboard is: ctrl-c first, then only the keys that act there: in a menu, in the
-// panel, and in the search alone while the sidebar is hidden, their own; on the bar, left and right, down into the
-// rows, and the numbers; in the rows, up and down and a page at a time; on a row that opens, right to open it or left
-// to close it; tab into the panel, = for the app's menu, and : for the tab's, ; too, which the bar does not name; esc
-// going back from the rows and from the sidebar. On a screen too narrow for them, the keys spared names are left out
-// before the bar is cut.
+// keys gives the keys bar for where the keyboard is: only the keys that act there, ctrl-c left out, as the app's menu
+// has Quit: in a menu, in the panel, and in the search alone while the sidebar is hidden, their own; on the bar, left
+// and right along the tabs, down into the rows, and the numbers; in the rows, up and down and a page at a time; on a
+// row that opens, right to open it or left to close it; tab into the panel, = for the app's menu, and : for the tab's,
+// ; too, which the bar does not name; esc going back from the rows and from the sidebar. On a screen too narrow for
+// them, the keys spared names are left out before the bar is cut.
 func (m Model) keys() string {
 	switch {
 	case m.menu:
-		return quitKey + " · " + menuKeys
+		return menuKeys
 	case m.inPanel && !m.sidebar:
-		return quitKey + " · type to search · esc back"
+		return "type to search · esc back"
 	case m.inPanel:
-		return quitKey + " · ↑↓ move · space toggle · type to search · esc back"
+		return "↑↓ move · space toggle · type to search · esc back"
 	}
-	keys := []string{quitKey}
+	var keys []string
 	if m.inRows {
 		keys = append(keys, "↑↓ move", "pgup/pgdn page")
 		s, rows := m.stages[m.stage], m.rows(m.stage)
@@ -171,7 +168,7 @@ func (m Model) keys() string {
 			}
 		}
 	} else {
-		keys = append(keys, "←→ view", "↓ rows", "1-9 jump")
+		keys = append(keys, "←→ tab", "↓ rows", "1-9 jump")
 	}
 	if len(m.stages) > 0 {
 		keys = append(keys, "⇥ panel", "= menu", ": tab menu")
