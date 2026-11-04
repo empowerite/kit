@@ -7,6 +7,8 @@
 #             shows; and more, what kit help flow adds after a colon, when there is more to say
 #   states    a pull request's states, the first that holds as kit flow reads them: glyph, state, and more
 #   title     the name of the title's glyph, which no stage draws
+#   groups    the stages in pairs that are about one thing: name; color, a 256-color number, which kittui draws a
+#             selected tab of the group in; and stages, the group's
 #   stages    each stage in kit flow's order: stage; glyph, the name of the one beside its tab; legend, the glyphs
 #             it draws, each by name, with link, row or page, when a click on it in kittui leads to a row of another
 #             stage or to a page; and states, page, when the stage's legend lists the states, and a click on one opens

@@ -154,6 +154,18 @@ var stageGlyphs = map[string]string{
 	"releases":  Release,
 }
 
+// stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.
+var stageColors = map[string]string{
+	"backlog":   "75",
+	"underway":  "75",
+	"desk":      "114",
+	"worktrees": "114",
+	"changes":   "221",
+	"builds":    "221",
+	"incoming":  "177",
+	"releases":  "177",
+}
+
 // kit:end glyphs
 
 // stateGlyphs gives a pull request's glyph by its state word, read from the states but the last, any other.

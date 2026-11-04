@@ -50,6 +50,16 @@ func Mark(s string) string { return mark.Render(s) }
 // has, so the menu stands out over what it covers.
 func Menu(s string) string { return menu.Render(s) }
 
+// In gives Mark and Tint in a color of their own, a 256-color number, for what belongs to one group, as a tab of the
+// stages' bar does; no color gives Mark and Tint themselves.
+func In(color string) (marked, tinted func(string) string) {
+	if color == "" {
+		return Mark, Tint
+	}
+	m, t := mark.Foreground(lipgloss.Color(color)), tint.Foreground(lipgloss.Color(color))
+	return func(s string) string { return m.Render(s) }, func(s string) string { return t.Render(s) }
+}
+
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }
 

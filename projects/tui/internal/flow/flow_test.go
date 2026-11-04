@@ -248,7 +248,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 
 func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	m := loaded(t, options())
-	if m.stage != 0 || !strings.Contains(m.View().Content, style.Mark("➊")) {
+	if mark, _ := style.In(stageColors["backlog"]); m.stage != 0 || !strings.Contains(m.View().Content, mark("➊")) {
 		t.Fatalf("the first stage is not selected:\n%s", view(m))
 	}
 	// left at the first stage stays there, and right at the last
@@ -260,7 +260,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 		t.Errorf("right at the last stage: stage %d", last.stage)
 	}
 	m = drive(m, right, right)
-	if m.stage != 2 || !strings.Contains(m.View().Content, Desk+" "+style.Mark("desk")) {
+	if mark, _ := style.In(stageColors["desk"]); m.stage != 2 || !strings.Contains(m.View().Content, Desk+" "+mark("desk")) {
 		t.Errorf("right twice: stage %d\n%s", m.stage, view(m))
 	}
 	// inside the rows, left and right are the rows' own, and move nothing
@@ -1167,14 +1167,15 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 			t.Errorf("at 200, %s is not whole: %q", name, bar)
 		}
 	}
-	if !strings.Contains(m.View().Content, Issue+" "+style.Mark("backlog")) {
+	if mark, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, Issue+" "+mark("backlog")) {
 		t.Errorf("the selected name is not marked: %q", lines(m)[2])
 	}
 	m = drive(m, right, right, right, right, right, right, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
-	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, style.Mark("incoming")) ||
+	mark, _ := style.In(stageColors["incoming"])
+	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, mark("incoming")) ||
 		!strings.Contains(bar, dim+" 🛫 underway ") {
-		t.Errorf("with the rows' keyboard, the selected stage left the accent, or the others are not dim: %q", bar)
+		t.Errorf("with the rows' keyboard, the selected stage left its color, or the others are not dim: %q", bar)
 	}
 	for _, width := range []int{120, 80} {
 		m = drive(m, tea.WindowSizeMsg{Width: width, Height: 24})

@@ -43,6 +43,12 @@
     {"glyph": "🏁", "state": "ready", "more": "nothing is left to decide"}
   ],
   "title": "Repository",
+  "groups": [
+    {"name": "issues", "color": "75", "stages": ["backlog", "underway"]},
+    {"name": "branches", "color": "114", "stages": ["desk", "worktrees"]},
+    {"name": "integration", "color": "221", "stages": ["changes", "builds"]},
+    {"name": "delivery", "color": "177", "stages": ["incoming", "releases"]}
+  ],
   "stages": [
     {"stage": "backlog", "glyph": "Issue",
      "legend": [{"name": "Issue", "link": "page"}, {"name": "Owner"}, {"name": "Branch"}, {"name": "Failed"}]},

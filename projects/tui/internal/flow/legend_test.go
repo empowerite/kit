@@ -16,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -307,5 +308,28 @@ func TestTheGlyphsRegionIsWhatTheKitsTableGives(t *testing.T) {
 	}
 	if string(made) != region {
 		t.Errorf("the glyphs region is stale; run kit generate:\n%s", made)
+	}
+}
+
+// Every stage is in one group of the kit's table, the pair that are about one thing, and the bar draws the selected
+// tab, and the line under the others, in that group's color: a stage of another group, another color.
+func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
+	for _, name := range eight {
+		if stageColors[name] == "" {
+			t.Errorf("%s is in no group", name)
+		}
+	}
+	m := loaded(t, options())
+	for i, name := range eight {
+		mark, _ := style.In(stageColors[name])
+		open, _, _ := strings.Cut(mark("x"), "x")
+		bar := strings.Split(m.View().Content, "\n")[1:4]
+		if !strings.Contains(bar[1], mark(name)) || !strings.Contains(bar[2], open+"─") {
+			t.Errorf("tab %d, %s, is not drawn in its group's color, %s", i, name, stageColors[name])
+		}
+		m = drive(m, right)
+	}
+	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["desk"] {
+		t.Errorf("the groups' colors: %v", stageColors)
 	}
 }

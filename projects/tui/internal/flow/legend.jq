@@ -17,7 +17,7 @@ def glyph($d; $name): $d.glyphs[] | select(.name == $name);
 
 # go($d) gives the Go the glyphs region holds for the table $d, unformatted, after flow's package clause, so gofmt
 # takes it: a constant per glyph, its meaning as its comment; the title's entry; each stage's legend and marks; the
-# states, then any other; and each stage's glyph.
+# states, then any other; each stage's glyph; and each stage's group's color.
 def go($d):
   $d
   | "package flow",
@@ -55,6 +55,11 @@ def go($d):
     "// stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.",
     "var stageGlyphs = map[string]string{",
     ($d.stages[] | "\t\(.stage | quote): \(.glyph),"),
+    "}",
+    "",
+    "// stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.",
+    "var stageColors = map[string]string{",
+    ($d.groups[] | .color as $color | .stages[] | "\t\(quote): \($color | quote),"),
     "}";
 
 # go gives the Go of glyphs.json, as go($d) does.

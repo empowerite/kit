@@ -62,7 +62,8 @@ type Tab struct {
 // the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
 // count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
-// down into it.
+// down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
+// stage's group has one; none is the accent.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
@@ -73,6 +74,7 @@ type Bar struct {
 	Menus    bool
 	MenuOpen bool
 	Joined   bool
+	Color    string
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -145,14 +147,15 @@ func (b Bar) label(i int) (name, end string) {
 	if t.Glyph != "" {
 		name = t.Glyph + " "
 	}
+	mark, tint := style.In(b.Color)
 	if i == b.Selected {
-		name += style.Mark(t.Name)
+		name += mark(t.Name)
 	} else {
 		name += t.Name
 	}
 	end = style.Off(t.Count)
 	if b.Menus && i == b.Selected {
-		glyph := style.Tint(Menu)
+		glyph := tint(Menu)
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
 			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)
@@ -244,11 +247,12 @@ func (b Bar) View() string {
 		under.WriteString(bottom)
 	}
 	// curve draws a curve under the selected tab's edge, or a half line where no tab is beside it
+	mark, _ := style.In(b.Color)
 	curve := func(glyph string, end bool) string {
 		if end {
 			glyph = "╵"
 		}
-		return style.Mark(glyph)
+		return mark(glyph)
 	}
 	for i := range b.Tabs {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
@@ -256,22 +260,22 @@ func (b Bar) View() string {
 		name, end := b.label(i)
 		label := pane.Pad(" "+name, cells-2-ansi.StringWidth(end), false) + end + " "
 		if i == b.Selected {
-			cell(style.Mark(cmp.Or(Marker(i, true), "╭")), style.Mark("│"), curve("╯", i == 0))
-			cell(style.Mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
-			cell(style.Mark("╮"), style.Mark("│"), curve("╰", i == n-1))
+			cell(mark(cmp.Or(Marker(i, true), "╭")), mark("│"), curve("╯", i == 0))
+			cell(mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
+			cell(mark("╮"), mark("│"), curve("╰", i == n-1))
 			continue
 		}
-		// the others' borders are dim, and the line under them in the accent; the tab before the selected one has no
-		// edge after it
+		// the others' borders are dim, and the line under them in the selected tab's color; the tab before the selected
+		// one has no edge after it
 		number := b.dim(Marker(i, false))
 		if number == "" {
 			number = style.Off("─")
 		}
-		cell(number, " ", style.Mark(strings.Repeat("─", cells)))
+		cell(number, " ", mark(strings.Repeat("─", cells)))
 		cell(style.Off(top(cells-1)), b.dim(label), "")
 		switch {
 		case i+1 == b.Selected:
-			cell(style.Off("╴"), " ", style.Mark("─"))
+			cell(style.Off("╴"), " ", mark("─"))
 		case i == n-1:
 			// the last tab has no line under a tab after it to curve out to: its edge ends in a half line
 			cell(style.Off("╮"), style.Off("│"), style.Off("╵"))
