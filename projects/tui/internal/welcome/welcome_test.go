@@ -762,10 +762,12 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 			t.Errorf("repoOf(%q) = %q, want %q", url, got, want)
 		}
 	}
-	if m, _ := fake(t); !strings.HasPrefix(view(m), " "+shell.App+" kit welcome · 📚 empowerite/kit\n") {
+	if m, _ := fake(t); !strings.HasPrefix(view(m), " "+shell.App+" kit welcome · 📚 empowerite/kit ") ||
+		!strings.HasSuffix(strings.Split(view(m), "\n")[0], shell.Find+" search") {
 		t.Errorf("title:\n%s", view(m))
 	}
-	if got := view(New(testkit.Runner(t, "welcome"), "")); !strings.HasPrefix(got, " "+shell.App+" kit welcome\n") {
+	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got, " "+shell.App+" kit welcome ") ||
+		strings.Contains(got, "·") {
 		t.Errorf("title without a repository:\n%s", got)
 	}
 }
@@ -859,5 +861,47 @@ func TestEqualsDropsTheAppsMenuDownOverTheGuide(t *testing.T) {
 	m.Close()
 	if m.ctx.Err() == nil {
 		t.Error("Close did not end the checks")
+	}
+}
+
+// The guide's search is every screen's, one for each step: on a step with checks it narrows them to those whose id,
+// line, or fix holds what is typed; on a page, to the lines that hold it.
+func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 100, Height: 40}, tea.KeyPressMsg{Code: tea.KeyEscape})
+	for !m.tabs[m.step].checked {
+		m = drive(m, tea.KeyPressMsg{Code: tea.KeyRight})
+	}
+	all := len(m.rows(m.step))
+	m = drive(m, tea.KeyPressMsg{Code: '/', Text: "/"})
+	if !m.search().Focused || !strings.HasSuffix(view(m), shell.SearchKeys) {
+		t.Fatalf("/ did not give the search the keyboard:\n%s", view(m))
+	}
+	first := m.checks[m.rows(m.step)[0]].ID
+	m = drive(m, testkit.Typed(first)...)
+	if n := len(m.rows(m.step)); n == 0 || n > all || m.checks[m.cursor].ID != first {
+		t.Errorf("searching %q: %d of %d checks, the cursor on %s", first, n, all, m.checks[m.cursor].ID)
+	}
+	m = drive(m, testkit.Typed("zzz")...)
+	if len(m.rows(m.step)) != 0 || !strings.Contains(view(m), "no check matches the search") {
+		t.Errorf("a search no check matches:\n%s", view(m))
+	}
+	// esc leaves the search, what is typed kept; another step has a search of its own
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}); m.search().Focused || m.search().Query == "" {
+		t.Errorf("esc: %+v", m.search())
+	}
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	if m.search().Query != "" {
+		t.Errorf("the step before shares the search: %q", m.search().Query)
+	}
+	// on a page, the search keeps the lines that hold it; one no line holds says so
+	for m.tabs[m.step].checked {
+		m = drive(m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	}
+	m = drive(m, testkit.Click(m.searchAt()+1, shell.Top))
+	if !m.search().Focused {
+		t.Fatal("a click on the search did not give it the keyboard")
+	}
+	if m = drive(m, testkit.Typed("qqqq")...); !strings.Contains(view(m), "no line matches the search") {
+		t.Errorf("a page no line of which holds the search:\n%s", view(m))
 	}
 }

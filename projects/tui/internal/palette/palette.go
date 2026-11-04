@@ -1,12 +1,13 @@
 // Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
-// verb with its whole purpose, filtered as it is typed, over the keys bar. The up and down arrows move over the verbs,
-// never onto a heading, and shift with either jumps to the first verb of the previous or the next group. Page down and
-// page up move a page, and home and end to the first and the last verb. The right arrow trades the purposes for the
-// highlighted verb's page beside the names, and the left arrow brings them back. Backspace erases the filter. Enter
-// opens the verb's form, and a form that cannot open leaves kit's line under the filter; = or a click on ≡ before the
-// title drops the app's menu down, internal/shell's, as every screen of kittui has it; esc quits, and ctrl-c quits as
-// interrupted. Where the tree or the page is cut, a dim line says how many verbs or lines are hidden. The keys bar is
-// the last line. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
+// verb with its whole purpose, narrowed by the search, internal/shell's, on the title line, over the keys bar. The up
+// and down arrows move over the verbs, never onto a heading, and shift with either jumps to the first verb of the
+// previous or the next group. Page down and page up move a page, and home and end to the first and the last verb. The
+// right arrow trades the purposes for the highlighted verb's page beside the names, and the left arrow brings them
+// back. / or a click on the search gives it the keyboard, as on every screen. Enter opens the verb's form, and a form
+// that cannot open leaves kit's line under the title; = or a click on ≡ before the title drops the app's menu down,
+// internal/shell's, as every screen of kittui has it; esc quits, and ctrl-c quits as interrupted. Where the tree or the
+// page is cut, a dim line says how many verbs or lines are hidden. The keys bar is the last line. Widths are terminal
+// cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -43,13 +44,13 @@ const minPage = 12
 type Model struct {
 	verbs         []kit.Verb
 	runner        kit.Runner
-	filter        string
+	search        shell.Search // what is typed in the search, internal/shell's, which narrows the verbs to it
 	cursor        int
 	pages         map[string]string // the pages kit gave, by verb
 	asked         map[string]bool   // the verbs whose page is on its way
 	failed        map[string]string // kit's line for a page it could not give, shown until it is asked for again
 	showPages     bool
-	refusal       string // kit's line about the verb that did not open, under the filter
+	refusal       string // kit's line about the verb that did not open, under the title
 	width, height int
 	cancelled     bool
 	interrupted   bool
@@ -123,25 +124,28 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 	return nil
 }
 
+// searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's.
+func (m Model) searchAt() int { return shell.SearchAt(m.width, nil, m.search.InUse()) }
+
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }
 
 // Cancelled says whether esc ended the palette.
 func (m Model) Cancelled() bool { return m.cancelled }
 
-// Refuse shows kit's line, why the verb opened did not open, in red under the filter, until the filter changes or
+// Refuse shows kit's line, why the verb opened did not open, in red under the title, until the search changes or
 // another verb is opened.
 func (m Model) Refuse(line string) Model {
 	m.refusal = line
 	return m
 }
 
-// Visible gives the verbs the filter leaves, those whose name holds the text typed, in the order the tree draws them,
+// Visible gives the verbs the search leaves, those whose name holds the text typed, in the order the tree draws them,
 // which the cursor counts along.
 func (m Model) Visible() []kit.Verb {
 	var out []kit.Verb
 	for _, v := range m.verbs {
-		if strings.Contains(v.Name, strings.ToLower(m.filter)) {
+		if strings.Contains(v.Name, strings.ToLower(m.search.Query)) {
 			out = append(out, v)
 		}
 	}
@@ -170,6 +174,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.chose(c)
 		case shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
+		case msg.Y == shell.Top && msg.X >= m.searchAt():
+			m.search.Focused = true
 		}
 	case tea.KeyPressMsg:
 		visible := m.Visible()
@@ -178,10 +184,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appMenu, c = m.appMenu.Key(msg)
 			return m, m.chose(c)
 		}
+		if m.search.Focused && msg.String() != "ctrl+c" {
+			// the search has the keyboard: what it does not take, as the arrows, is nobody's
+			before := m.search.Query
+			m.search, _ = m.search.Key(msg)
+			if m.search.Query != before {
+				m.cursor, m.refusal = 0, ""
+			}
+			return m, m.page()
+		}
 		switch msg.String() {
 		case "=":
-			// no verb's name holds =, so it never filters: it drops the app's menu down
 			m.appMenu = m.appMenu.Opened()
+		case "/":
+			m.search.Focused = true
 		case "esc":
 			m.cancelled = true
 			return m, tea.Quit
@@ -235,16 +251,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = len(visible) - 1
 			}
 			m.cursor = max(0, min(m.cursor, len(visible)-1))
-		case "backspace":
-			if r := []rune(m.filter); len(r) > 0 {
-				m.filter = string(r[:len(r)-1])
-				m.cursor, m.refusal = 0, ""
-			}
-		default:
-			if msg.Text != "" && msg.Mod&(tea.ModCtrl|tea.ModAlt) == 0 {
-				m.filter += msg.Text
-				m.cursor, m.refusal = 0, ""
-			}
 		}
 		return m, m.page()
 	}
@@ -295,7 +301,7 @@ type row struct {
 	index   int
 }
 
-// tree gives the rows the tree draws for the visible verbs: each group's heading, then its verbs. A group the filter
+// tree gives the rows the tree draws for the visible verbs: each group's heading, then its verbs. A group the search
 // leaves empty has no row.
 func tree(visible []kit.Verb) []row {
 	var rows []row
@@ -318,11 +324,11 @@ func (m Model) widest() int {
 	return widest
 }
 
-// top gives the lines over the tree: the title, as internal/shell draws it, after the app's menu's glyph, a gap, the
-// filter, kit's line under it when a verb did not open, and a gap.
+// top gives the lines over the tree: the title, as internal/shell draws it, after the app's menu's glyph, with the
+// search on its right; kit's line under it when a verb did not open; and a gap.
 func (m Model) top() []string {
-	top := []string{" " + shell.Title(style.Label("kit help"), m.appMenu.Open), "",
-		" " + style.Filter + " " + m.filter + "▏"}
+	title, at := " "+shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
+	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + shell.SearchLine(m.search.Query, m.search.Focused)}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
 			top = append(top, " "+style.Refusal(line))
@@ -351,20 +357,23 @@ func verbs(rows []row) int {
 	return n
 }
 
-// View draws the filter, kit's line under it when a verb did not open, and the tree: each group's heading, dimmed,
-// over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right arrow, the names
-// beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, with a dim line for
-// the verbs it hides above and one for those below, each in a row's place; a page cut short says how many lines it
-// hides. The keys bar is the last line, one line clipped to the width, so neither filtering nor a refusal moves it.
-// It leaves out backspace, which erases as the filter is typed, so the page keys fit 80 columns.
+// View draws the title and the search, kit's line under them when a verb did not open, and the tree: each group's
+// heading, dimmed, over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right
+// arrow, the names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, with
+// a dim line for the verbs it hides above and one for those below, each in a row's place; a page cut short says how
+// many lines it hides. The keys bar is the last line, one line clipped to the width, so neither searching nor a refusal
+// moves it; while the search has the keyboard it is the search's, as on every screen.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · = menu"
+	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · → pages · ⏎ open · = menu"
 	if m.showPages {
-		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · ← purposes · ⏎ open · = menu"
+		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · ← purposes · ⏎ open · = menu"
 	}
-	if m.appMenu.Open {
+	switch {
+	case m.appMenu.Open:
 		keys = shell.Keys
+	case m.search.Focused:
+		keys = shell.SearchKeys
 	}
 	top := m.top()
 	widest := m.widest()

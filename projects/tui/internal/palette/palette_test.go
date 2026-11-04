@@ -44,6 +44,13 @@ var (
 	shiftDown = tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift}
 )
 
+// search gives the keys that search for the text: / to give the search the keyboard, the text, and enter to leave it,
+// the text kept.
+func search(text string) []tea.Msg {
+	return append(append([]tea.Msg{tea.KeyPressMsg{Code: '/', Text: "/"}}, testkit.Typed(text)...),
+		tea.KeyPressMsg{Code: tea.KeyEnter})
+}
+
 func names(m Model) string {
 	var out []string
 	for _, v := range m.Visible() {
@@ -68,7 +75,7 @@ func drawn(m Model) string {
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
 	lines = lines[:len(lines)-1]
 	for i, line := range lines {
-		if strings.Contains(line, style.Filter) {
+		if strings.Contains(line, shell.Find) {
 			lines = lines[i+1:]
 			break
 		}
@@ -155,11 +162,11 @@ func TestShiftDownAndShiftUpMoveToTheFirstVerbOfTheNextAndPreviousGroup(t *testi
 }
 
 func TestAFilterThatEmptiesAGroupHidesItsHeading(t *testing.T) {
-	m, _ := drive(open(t), testkit.Typed("co")...)
+	m, _ := drive(open(t), search("co")...)
 	if drawn(m) != "WORKFLOW ▸commit FILES context" {
 		t.Errorf("co: %q", drawn(m))
 	}
-	m, _ = drive(open(t), testkit.Typed("zz")...)
+	m, _ = drive(open(t), search("zz")...)
 	if drawn(m) != "no" || !strings.Contains(m.View().Content, "no verb matches") {
 		t.Errorf("zz: %q", drawn(m))
 	}
@@ -176,15 +183,15 @@ func TestTheWindowCountsTheHeadingsSoTheCursorStaysOnScreen(t *testing.T) {
 }
 
 func TestFilterNarrows(t *testing.T) {
-	m, _ := drive(open(t), testkit.Typed("co")...)
+	m, _ := drive(open(t), search("co")...)
 	if names(m) != "commit context" {
 		t.Errorf("co: %q", names(m))
 	}
-	m, _ = drive(m, testkit.Typed("m")...)
+	m, _ = drive(m, search("m")...)
 	if names(m) != "commit" {
 		t.Errorf("com: %q", names(m))
 	}
-	m, _ = drive(open(t), testkit.Typed("tui")...)
+	m, _ = drive(open(t), search("tui")...)
 	if names(m) != "" || !strings.Contains(m.View().Content, "no verb matches") {
 		t.Errorf("tui: %q", names(m))
 	}
@@ -245,13 +252,13 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · type to filter · → pages · ⏎ open · = menu"
+	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · → pages · ⏎ open · = menu"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
 			"open":     nil,
-			"filtered": testkit.Typed("co"),
-			"empty":    testkit.Typed("zz"),
+			"filtered": search("co"),
+			"empty":    search("zz"),
 			"moved":    {down, down, down, down},
 		} {
 			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, msgs...)...)
@@ -320,15 +327,17 @@ func TestAPageIsAskedForOnceAtATimeAndAgainAfterItFailed(t *testing.T) {
 		t.Fatal("the palette opened on a page asked for none")
 	}
 	asked = 1
+	press(tea.KeyPressMsg{Code: '/', Text: "/"})
 	for _, msg := range testkit.Typed("qqq") {
-		press(msg) // a filter that hides every verb asks for no page
+		press(msg) // a search that hides every verb asks for no page
 	}
 	for range 3 {
 		press(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	}
-	press(down) // to submit: its page is asked for
-	press(up)   // back to commit, whose page is on its way
-	press(down) // submit's is on its way too
+	press(tea.KeyPressMsg{Code: tea.KeyEscape}) // out of the search, the verbs have the keyboard again
+	press(down)                                 // to submit: its page is asked for
+	press(up)                                   // back to commit, whose page is on its way
+	press(down)                                 // submit's is on its way too
 	if asked != 2 {
 		t.Errorf("%d pages asked for over two verbs, not 2", asked)
 	}
@@ -369,27 +378,28 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
 	at := -1
 	for i, l := range lines {
-		if strings.Contains(l, style.Filter) {
+		if strings.Contains(l, shell.Find) {
 			at = i
 		}
 	}
 	if at < 0 || strings.TrimSpace(lines[at+1]) != "❌ "+line {
-		t.Fatalf("no refusal under the filter:\n%s", m.View().Content)
+		t.Fatalf("no refusal under the title:\n%s", m.View().Content)
 	}
 	if !strings.Contains(m.View().Content, style.Refusal("❌ "+line)) {
 		t.Errorf("the refusal is not red:\n%s", m.View().Content)
 	}
-	// moving keeps it; typing, erasing, or opening a verb clears it
+	// moving keeps it; searching, erasing, or opening a verb clears it
 	if m, _ = drive(m, down); !strings.Contains(m.View().Content, line) {
 		t.Errorf("down cleared the refusal")
 	}
-	if m, _ = drive(m, testkit.Typed("c")...); strings.Contains(m.View().Content, line) {
+	if m, _ = drive(m, tea.KeyPressMsg{Code: '/', Text: "/"}, tea.KeyPressMsg{Code: 'c', Text: "c"}); strings.Contains(m.View().Content, line) {
 		t.Errorf("typing left the refusal")
 	}
 	m = m.Refuse(line)
 	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyBackspace}); strings.Contains(m.View().Content, line) {
 		t.Errorf("backspace left the refusal")
 	}
+	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = m.Refuse(line)
 	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter}); strings.Contains(m.View().Content, line) {
 		t.Errorf("enter left the refusal")
@@ -399,7 +409,7 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	}
 }
 
-func TestEscQuitsCtrlCInterruptsAndQIsTyped(t *testing.T) {
+func TestEscQuitsCtrlCInterruptsAndQIsTypedInTheSearch(t *testing.T) {
 	m, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyEscape})
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
 		t.Errorf("esc: %v", produced)
@@ -408,9 +418,17 @@ func TestEscQuitsCtrlCInterruptsAndQIsTyped(t *testing.T) {
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Interrupted() {
 		t.Errorf("ctrl-c: %v", produced)
 	}
-	m, produced = drive(open(t), testkit.Typed("q")...)
-	if len(produced) != 0 || m.filter != "q" {
-		t.Errorf("q: %v, filter %q", produced, m.filter)
+	m, produced = drive(open(t), append([]tea.Msg{tea.KeyPressMsg{Code: '/', Text: "/"}}, testkit.Typed("q=")...)...)
+	if len(produced) != 0 || m.search.Query != "q=" || m.appMenu.Open {
+		t.Errorf("q: %v, search %q", produced, m.search.Query)
+	}
+	// out of the search, a letter types nothing, and esc in it leaves it, not the palette
+	if m, produced = drive(open(t), testkit.Typed("q")...); len(produced) != 0 || m.search.Query != "" {
+		t.Errorf("q off the search: %v, search %q", produced, m.search.Query)
+	}
+	if m, produced = drive(open(t), tea.KeyPressMsg{Code: '/', Text: "/"}, tea.KeyPressMsg{Code: tea.KeyEscape}); len(produced) != 0 ||
+		m.search.Focused || m.Cancelled() {
+		t.Errorf("esc in the search: %v", produced)
 	}
 }
 
@@ -447,7 +465,7 @@ var (
 )
 
 func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
-	m := forty(14) // a window of 8 lines, under the title and the filter, so a page of 7 verbs
+	m := forty(12) // a window of 8 lines, under the title, so a page of 7 verbs
 	for _, c := range []struct {
 		key    tea.KeyPressMsg
 		cursor int
@@ -461,13 +479,13 @@ func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
 		if m.cursor != c.cursor || !strings.Contains(drawn(m), style.Focus+want) {
 			t.Fatalf("%s: the cursor on %d, want %d; drawn %q", c.key, m.cursor, c.cursor, drawn(m))
 		}
-		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 14 ||
-			!strings.HasPrefix(lines[13], " ↑↓ move · ⇞⇟ page") {
+		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
+			!strings.HasPrefix(lines[11], " ↑↓ move · ⇞⇟ page") {
 			t.Errorf("%s: %d lines, the last %q", c.key, len(lines), lines[len(lines)-1])
 		}
 	}
 	// a filter narrows the page keys to the verbs it leaves: v03, then v30 to v39
-	m, _ = drive(m, append(testkit.Typed("v3"), end)...)
+	m, _ = drive(m, append(search("v3"), end)...)
 	if highlighted(m) != "v39" {
 		t.Errorf("end under the filter v3: %q", highlighted(m))
 	}
@@ -500,7 +518,7 @@ func TestTheWindowSaysHowManyVerbsItHides(t *testing.T) {
 		// the rows hidden above are a heading and a verb; the count is of verbs
 		{[]tea.Msg{pgDown, pgDown}, "… 10 above|… 25 more", "… v10 v11 v12 v13 FILES ▸v14 …"},
 	} {
-		m, _ := drive(forty(14), c.keys...)
+		m, _ := drive(forty(12), c.keys...)
 		if got := strings.Join(said(m), "|"); got != c.said {
 			t.Errorf("%v: %q, want %q", c.keys, got, c.said)
 		}
@@ -521,11 +539,11 @@ func TestTheWindowSaysHowManyVerbsItHides(t *testing.T) {
 }
 
 func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 10}, tea.KeyPressMsg{Code: tea.KeyRight})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 8}, tea.KeyPressMsg{Code: tea.KeyRight})
 	lines := strings.Split(stripANSI(m.View().Content), "\n")
 	whole := page(m.pages["commit"], 100-(3+m.widest()+2)-1)
 	shown := 0
-	for _, line := range lines[4:8] {
+	for _, line := range lines[2:6] {
 		if right := string([]rune(line)[3+m.widest()+2:]); strings.Contains(right, "… ") { // the page's column
 			var n int
 			fmt.Sscanf(strings.TrimSpace(right), "… %d more", &n)
@@ -534,8 +552,8 @@ func TestAPageCutShortSaysHowManyLinesItHides(t *testing.T) {
 		}
 		shown++
 	}
-	if len(lines) != 10 || len(whole) <= 4 || shown != len(whole) ||
-		!strings.Contains(ansi.Strip(lines[7]), fmt.Sprintf("… %d more", len(whole)-3)) {
+	if len(lines) != 8 || len(whole) <= 4 || shown != len(whole) ||
+		!strings.Contains(ansi.Strip(lines[5]), fmt.Sprintf("… %d more", len(whole)-3)) {
 		t.Errorf("a page of %d lines in 4: %d said\n%s", len(whole), shown, strings.Join(lines, "\n"))
 	}
 }
@@ -567,7 +585,7 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: '=', Text: "="})
 	if v := stripANSI(m.View().Content); !m.appMenu.Open || !strings.Contains(v, "Welcome") ||
-		!strings.HasSuffix(v, shell.Keys) || m.filter != "" {
+		!strings.HasSuffix(v, shell.Keys) || m.search.Query != "" {
 		t.Fatalf("= did not drop the app's menu down:\n%s", v)
 	}
 	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
@@ -590,5 +608,22 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	}
 	if m.chose(shell.Choice{}) != nil {
 		t.Error("no choice did something")
+	}
+}
+
+// The palette's search is every screen's: / or a click on it gives it the keyboard, the keys bar is then the search's,
+// and the arrows move nothing until it is left.
+func TestThePalettesSearchIsEveryScreens(t *testing.T) {
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
+	title := strings.Split(stripANSI(m.View().Content), "\n")[0]
+	if !strings.HasSuffix(title, shell.Find+" search") || ansi.StringWidth(title) != 99 {
+		t.Errorf("the idle search: %q", title)
+	}
+	m, _ = testkit.Drive(m, nil, testkit.Click(m.searchAt()+1, shell.Top))
+	if !m.search.Focused || last(m) != " "+shell.SearchKeys {
+		t.Fatalf("a click on the search: focused %v, keys %q", m.search.Focused, last(m))
+	}
+	if m, _ = testkit.Drive(m, nil, down); m.cursor != 0 {
+		t.Errorf("down in the search moved the cursor to %d", m.cursor)
 	}
 }

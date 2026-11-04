@@ -26,12 +26,12 @@ const (
 // page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
 // and in a page.
 const (
-	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · = menu"
-	pageKeys   = "←→ tab · ↓ page · 1-9 jump · = menu"
-	rowKeys    = "↑↓ move · pgup/pgdn page · esc back"
+	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · / search · = menu"
+	pageKeys   = "←→ tab · ↓ page · 1-9 jump · / search · = menu"
+	rowKeys    = "↑↓ move · pgup/pgdn page · / search · esc back"
 	choiceKeys = "↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose · esc back"
-	showKeys   = "↑↓ move · pgup/pgdn page · l later · esc back"
-	scrollKeys = "↑↓ scroll · pgup/pgdn page · esc back"
+	showKeys   = "↑↓ move · pgup/pgdn page · l later · / search · esc back"
+	scrollKeys = "↑↓ scroll · pgup/pgdn page · / search · esc back"
 )
 
 // fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
@@ -58,7 +58,9 @@ type line struct {
 
 // View draws the screen on the alternate screen, with the mouse on for the bar.
 func (m Model) View() tea.View {
-	lines := append([]string{" " + pane.Clip(m.title(), m.width-1)}, strings.Split(m.bar().View(), "\n")...)
+	at := m.searchAt()
+	title := pane.Pad(" "+pane.Clip(m.title(), at-3), at, false) + shell.SearchLine(m.search().Query, m.search().Focused)
+	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.appMenu.Overlay(append(lines, ""), m.width)
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
@@ -95,6 +97,8 @@ func (m Model) keys() string {
 	switch {
 	case m.appMenu.Open:
 		return shell.Keys
+	case m.search().Focused:
+		return shell.SearchKeys
 	case !m.inPane && m.hasRows():
 		return stepKeys
 	case !m.inPane:
@@ -169,8 +173,14 @@ func (m Model) pageLines(i int) []string {
 		return []string{lead + style.Off("reading…")}
 	}
 	var out []string
+	query := m.searches[m.tabs[i].id].Query
 	for _, l := range render(m.tabs[i].page, m.width-len(lead)-1) {
-		out = append(out, strings.TrimRight(lead+l, " "))
+		if matches(l, query) {
+			out = append(out, strings.TrimRight(lead+l, " "))
+		}
+	}
+	if len(out) == 0 {
+		return []string{lead + style.Off("no line matches the search")}
 	}
 	return out
 }
@@ -182,11 +192,18 @@ func (m Model) stepLines() []line {
 	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	query := m.search().Query
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
+		shown := 0
 		for _, l := range render(t.page, w-len(lead)) {
-			add(-1, strings.TrimRight(lead+l, " "))
+			if matches(l, query) {
+				add(-1, strings.TrimRight(lead+l, " "))
+				shown++
+			}
 		}
-		add(-1, "")
+		if shown > 0 {
+			add(-1, "")
+		}
 	}
 	if m.refusal != "" {
 		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {
@@ -196,8 +213,11 @@ func (m Model) stepLines() []line {
 	}
 	rows := m.rows(m.step)
 	if len(rows) == 0 {
-		if m.checking {
+		switch {
+		case m.checking:
 			add(-1, lead+style.Off("checking…"))
+		case query != "":
+			add(-1, lead+style.Off("no check matches the search"))
 		}
 		return out
 	}

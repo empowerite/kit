@@ -103,28 +103,14 @@ func (m Model) sidebarWidth() int {
 // titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
 func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
 
-// typing is the cells the search keeps at least for what is typed, while the sidebar is hidden.
-const typing = 10
-
 // searchAt gives the screen column the search starts at, on the screen's first line: the sidebar's, while it shows;
-// while it is hidden, right-aligned one cell short of the screen's edge, and while the search is in use, with the
-// keyboard or a query, its glyph over the rightmost tab's number that leaves typing cells after it, or as far right
-// as leaves them when no number does.
+// while it is hidden, where internal/shell puts every screen's, over the tab bar's numbers.
 func (m Model) searchAt() int {
 	if m.sidebar || len(m.stages) == 0 {
 		return m.width - m.sideWidth()
 	}
-	if p := m.panel(m.stage); !(p.Focused && p.Cursor == 0) && p.Query == "" {
-		return max(0, m.width-1-ansi.StringWidth(grid.Search+" search"))
-	}
-	room := m.width - 1 - typing - ansi.StringWidth(grid.Search+" ")
-	at := room
-	for _, x := range m.bar().Numbers() {
-		if x <= room {
-			at = x
-		}
-	}
-	return max(0, at)
+	p := m.panel(m.stage)
+	return shell.SearchAt(m.width, m.bar().Numbers(), p.Focused && p.Cursor == 0 || p.Query != "")
 }
 
 // barWidth gives the cells the bar has: the screen's while the sidebar is hidden; beside it, the rows', a space, and
@@ -156,7 +142,7 @@ func (m Model) keys() string {
 	case m.menu || m.appMenu.Open:
 		return shell.Keys
 	case m.inPanel && !m.sidebar:
-		return "type to search · esc back"
+		return shell.SearchKeys
 	case m.inPanel:
 		return "↑↓ move · space toggle · type to search · esc back"
 	}
@@ -177,7 +163,7 @@ func (m Model) keys() string {
 	if len(m.stages) > 0 {
 		keys = append(keys, "⇥ panel", "= menu", ": tab menu")
 	}
-	keys = append(keys, "? sidebar")
+	keys = append(keys, "/ search", "? sidebar")
 	if m.inRows || m.sidebar {
 		keys = append(keys, "esc back")
 	}
@@ -185,8 +171,8 @@ func (m Model) keys() string {
 }
 
 // spared names the keys a narrow keys bar leaves out, the first first, until the rest fit: the numbers, which the
-// tabs show, a page at a time, and the tab's menu, whose ⋮ the bar shows.
-var spared = []string{"1-9 jump", "pgup/pgdn page", ": tab menu"}
+// tabs show, a page at a time, the tab's menu, whose ⋮ the bar shows, and the search, which the title line shows.
+var spared = []string{"1-9 jump", "pgup/pgdn page", ": tab menu", "/ search"}
 
 // fitKeys joins the keys, leaving out what spared names, in its order, until they fit so many cells.
 func fitKeys(keys []string, width int) string {

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -27,7 +28,7 @@ var shows = []string{"all", "mine", "others"}
 // The glyphs the panel draws: the search, a checkbox off and on, and a radio button off and on. Each is one cell wide
 // in every terminal, as Unicode fixes its width, but the search, which is two.
 const (
-	Search   = "🔎"
+	Search   = shell.Find
 	Unticked = "☐"
 	Ticked   = "☑"
 	Unpicked = "⦾"
@@ -84,12 +85,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 		var line string
 		switch {
 		case c.search:
-			line = Search + " " + p.Query
-			if p.Focused && p.Cursor == k {
-				line += "▏"
-			} else if p.Query == "" {
-				line = Search + " " + style.Off("search")
-			}
+			line = shell.SearchLine(p.Query, p.Focused && p.Cursor == k)
 		case c.column != "":
 			if k == 1 {
 				add("", -1)
@@ -133,12 +129,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		p.Cursor = max(p.Cursor-1, 0)
 	case key == "down":
 		p.Cursor = min(p.Cursor+1, len(controls)-1)
-	case c.search && key == "backspace":
-		if r := []rune(p.Query); len(r) > 0 {
-			p.Query = string(r[:len(r)-1])
-		}
-	case c.search && k.Text != "":
-		p.Query += k.Text
+	case c.search && (key == "backspace" || k.Text != ""):
+		p.Query, _ = shell.Type(p.Query, k)
 	case k.Text == "/":
 		p.Cursor = 0
 	case !c.search && (key == "space" || key == "enter"):

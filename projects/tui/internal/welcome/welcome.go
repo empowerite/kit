@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
@@ -152,7 +153,8 @@ type Model struct {
 	offsets  []int // the first line of each step's pane
 	width    int
 	height   int
-	appMenu  shell.Menu // the app's menu, internal/shell's, which has the keyboard while it is open
+	appMenu  shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
+	searches map[string]shell.Search // each step's search, internal/shell's, by the step's id
 
 	interrupted bool
 }
@@ -164,7 +166,8 @@ func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
 func New(r kit.Runner, repo string) Model {
 	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
-		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome}}
+		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
+		searches: map[string]shell.Search{}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
 }
@@ -239,6 +242,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
 			return m, nil
+		case msg.Button == tea.MouseLeft && msg.Y == shell.Top && msg.X >= m.searchAt():
+			m.focusSearch(true)
+			return m, nil
 		}
 		if bar, ok := m.bar().Update(msg); ok {
 			m.choose(bar)
@@ -289,16 +295,52 @@ func (m *Model) take(msg checksMsg) {
 	m.fit()
 }
 
-// rows gives the indexes of the step's checks, in order.
+// rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
+// what is typed, without regard to case.
 func (m Model) rows(step int) []int {
+	query := m.searches[m.tabs[step].id].Query
 	var out []int
 	for i, c := range m.checks {
-		if m.stepOf(c) == step {
+		if m.stepOf(c) == step && (matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)) {
 			out = append(out, i)
 		}
 	}
 	return out
 }
+
+// matches says whether a text holds what is typed in a search, without regard to case or escapes; anything holds
+// nothing typed.
+func matches(text, query string) bool {
+	return strings.Contains(strings.ToLower(ansi.Strip(text)), strings.ToLower(query))
+}
+
+// search gives the selected step's search.
+func (m Model) search() shell.Search { return m.searches[m.tabs[m.step].id] }
+
+// setSearch keeps the selected step's search, the cursor on the check it was on when the search lets it through, else
+// on the first it does, and the pane back at its top when what is typed changed.
+func (m *Model) setSearch(s shell.Search) {
+	id := m.tabs[m.step].id
+	if s.Query != m.searches[id].Query {
+		m.offsets[m.step] = 0
+	}
+	m.searches[id] = s
+	if m.cursor < len(m.checks) {
+		m.cursor = m.find(m.step, m.checks[m.cursor].ID)
+	}
+	m.fit()
+}
+
+// focusSearch gives the selected step's search the keyboard, or takes it away.
+func (m *Model) focusSearch(focused bool) {
+	s := m.search()
+	s.Focused = focused
+	m.setSearch(s)
+}
+
+// searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's, over the
+// steps' numbers.
+func (m Model) searchAt() int { return shell.SearchAt(m.width, m.bar().Numbers(), m.search().InUse()) }
 
 // find gives the index of the check with the id when it is in the step, else the step's first check, else 0.
 func (m Model) find(step int, id string) int {
@@ -378,8 +420,18 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
 	}
-	if k.String() == "=" {
+	if s := m.search(); s.Focused {
+		// the search has the keyboard: what it does not take, as the arrows, is nobody's
+		s, _ = s.Key(k)
+		m.setSearch(s)
+		return m, nil
+	}
+	switch k.String() {
+	case "=":
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case "/":
+		m.focusSearch(true)
 		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {

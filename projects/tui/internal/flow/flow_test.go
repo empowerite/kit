@@ -567,10 +567,10 @@ func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) 
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
 const (
-	barKeys     = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · ? sidebar"
-	sidebarKeys = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
-	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
-	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · ? sidebar · esc back"
+	barKeys     = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar"
+	sidebarKeys = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
+	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
+	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {

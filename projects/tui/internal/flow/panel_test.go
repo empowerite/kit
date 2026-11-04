@@ -1,4 +1,4 @@
-// The panel beside the rows, driven as the person drives it: tab and / give it the keyboard, typing narrows the rows,
+// The panel beside the rows, driven as the person drives it: tab and / give it the keyboard, shell.Typing narrows the rows,
 // space hides a column or picks whose rows show, and a click acts on a control. A click on a row's gutter opens it.
 package flow
 
@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -19,7 +20,7 @@ import (
 // panelKeys is the keys bar while the panel has the keyboard.
 const panelKeys = "↑↓ move · space toggle · type to search · esc back"
 
-// typed gives a key press for each rune of the text, as a terminal sends typing.
+// typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
 func typed(text string) []tea.Msg {
 	var out []tea.Msg
 	for _, r := range text {
@@ -59,7 +60,7 @@ func TestTabGivesThePanelTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testin
 	m = drive(m, typed("NOUN")...)
 	// the tab says how many of the rows loaded the panel lets through
 	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "1/3") {
-		t.Errorf("typing noun: rows %v\n%s", got, view(m))
+		t.Errorf("shell.Typing noun: rows %v\n%s", got, view(m))
 	}
 	// a number types into the search, and r does not refresh
 	m = drive(m, typed("2r")...)
@@ -142,8 +143,8 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 		}
 		numbers := m.bar().Numbers()
 		at := glyphAt(m)
-		if !slices.Contains(numbers, at) || m.width-1-(at+3) < typing ||
-			slices.ContainsFunc(numbers, func(x int) bool { return x > at && m.width-1-(x+3) >= typing }) {
+		if !slices.Contains(numbers, at) || m.width-1-(at+3) < shell.Typing ||
+			slices.ContainsFunc(numbers, func(x int) bool { return x > at && m.width-1-(x+3) >= shell.Typing }) {
 			t.Errorf("%v: the search's glyph is at %d, over none of %v that leaves room", enter, at, numbers)
 		}
 		if m = drive(m, down, press(tea.KeyPgDown)); m.panel(0).Cursor != 0 || m.sideOffset != 0 || m.sidebar {
@@ -153,7 +154,7 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	at := glyphAt(m)
 	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) ||
 		!strings.Contains(strings.Split(raw(m), "\n")[0], grid.Search+" noun") {
-		t.Errorf("typing in the search alone: %v\n%s", keys(m), view(m))
+		t.Errorf("shell.Typing in the search alone: %v\n%s", keys(m), view(m))
 	}
 	// a query left behind keeps the search where it is typed in; an empty one goes back to the edge
 	if m = drive(m, esc); glyphAt(m) != at {
@@ -165,7 +166,7 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	}
 	// on a screen too narrow for any number to leave the room, the search leaves it as far right as it can
 	m = drive(m, tea.WindowSizeMsg{Width: 24, Height: 24}, typed("/")[0])
-	if at := glyphAt(m); at != 24-1-typing-3 {
+	if at := glyphAt(m); at != 24-1-shell.Typing-3 {
 		t.Errorf("at 24 columns, the search's glyph is at %d", at)
 	}
 	m = drive(m, esc, tea.WindowSizeMsg{Width: 120, Height: 24})
