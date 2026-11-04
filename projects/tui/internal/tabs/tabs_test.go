@@ -300,10 +300,10 @@ func TestTheReserveAndTheMenuKeepEveryTabWhereItIs(t *testing.T) {
 	// the glyph is bold only while the menu is open, and the count is then blank, the glyph in its column
 	open := bar(1, "3")
 	closed := open.View()
-	if strings.Contains(closed, style.Mark(Menu)) || !strings.Contains(closed, style.Tint(Menu)) {
+	if strings.Contains(closed, style.Menu(Menu)) || !strings.Contains(closed, style.Tint(Menu)) {
 		t.Errorf("the glyph of a closed menu is bold: %q", closed)
 	}
-	if open.MenuOpen = true; !strings.Contains(open.View(), style.Mark(Menu)) {
+	if open.MenuOpen = true; !strings.Contains(open.View(), style.Menu(Menu)) {
 		t.Errorf("the glyph of an open menu is not bold")
 	}
 	if got := row(open, 1); !strings.Contains(got, "  "+Menu+" │") || strings.Contains(got, "4 "+Menu) ||
@@ -367,7 +367,7 @@ func TestEveryLineOfAScrolledBarKeepsItsColumns(t *testing.T) {
 						lines[1])
 				}
 			}
-			if at := b.MenuAt(); at >= 0 && ansi.Cut(lines[1], at, at+1) != Menu {
+			if at := b.MenuAt(); at >= 0 && ansi.Cut(lines[1], at, at+ansi.StringWidth(Menu)) != Menu {
 				t.Fatalf("at %d, tab %d selected, MenuAt says %d: %q", w, s, at, lines[1])
 			}
 		}

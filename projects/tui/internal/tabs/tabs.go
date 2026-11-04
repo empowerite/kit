@@ -43,9 +43,10 @@ const (
 	After  = "▹"
 )
 
-// Menu is the glyph after the selected tab's count, which will open the tab's menu: four lines, as a hamburger, one
-// cell wide in every terminal, which ☰ is not.
-const Menu = "≣"
+// Menu is the glyph after the selected tab's count, which will open the tab's menu: three bars, a hamburger, one cell
+// wide wherever the bar's lines are. ☰ is not: Unicode 16 made it two cells wide, as kittui lays it out, while most
+// terminals still draw it in one, which would shift the rest of its line a cell left.
+const Menu = "≡"
 
 // Height is the lines the bar takes.
 const Height = 3
@@ -59,7 +60,8 @@ type Tab struct {
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
 // count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
-// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold, and the count blank. Joined says a line runs
+// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
+// count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it.
 type Bar struct {
@@ -154,7 +156,7 @@ func (b Bar) label(i int) (name, end string) {
 		glyph := style.Tint(Menu)
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
-			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Mark(Menu)
+			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)
 		}
 		end += " " + glyph
 	}
@@ -170,7 +172,7 @@ func (b Bar) wants(i int) int {
 		n += 1 + max(count, b.Reserve)
 	}
 	if b.Menus {
-		n += 2
+		n += 1 + ansi.StringWidth(Menu)
 	}
 	return n + 1
 }
@@ -342,8 +344,8 @@ func (b Bar) MenuAt() int {
 		return -1
 	}
 	l, w := b.layout(), b.screen()
-	// the glyph is the label's last cell but its trailing space, after the tab's number cell
-	x := 1 + l.at[b.Selected] + l.parts[b.Selected] - 3 - l.scroll
+	// the glyph ends the label but its trailing space, after the tab's number cell
+	x := 1 + l.at[b.Selected] + l.parts[b.Selected] - 2 - ansi.StringWidth(Menu) - l.scroll
 	first, last := 1, w
 	if l.scroll > 0 {
 		first++
@@ -351,7 +353,7 @@ func (b Bar) MenuAt() int {
 	if l.scroll+w < l.width {
 		last -= 2
 	}
-	if x < first || x > last {
+	if x < first || x+ansi.StringWidth(Menu)-1 > last {
 		return -1
 	}
 	return x

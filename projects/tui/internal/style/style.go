@@ -35,6 +35,7 @@ var (
 	refusal = lipgloss.NewStyle().Foreground(red)
 	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
 	tint    = lipgloss.NewStyle().Foreground(accent)
+	menu    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 	warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
@@ -44,6 +45,10 @@ var (
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
 func Mark(s string) string { return mark.Render(s) }
+
+// Menu draws an open menu, its box and the glyph it hangs from: bold, in orange, a color nothing else on the screen has,
+// so the menu stands out over what it covers.
+func Menu(s string) string { return menu.Render(s) }
 
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }

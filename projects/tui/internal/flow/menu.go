@@ -6,6 +6,7 @@
 package flow
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -29,9 +30,9 @@ const (
 // the rule between groups of items.
 type menuItem struct{ glyph, name string }
 
-// menuItems are the menu's lines, top to bottom: the settings, which kittui does not have yet, a rule, every row that
-// hides something expanded, and every row collapsed.
-var menuItems = []menuItem{{Settings, "Settings…"}, {}, {Expand, "Expand All"}, {Collapse, "Collapse All"}}
+// menuItems are the menu's lines, top to bottom: every row that hides something expanded, every row collapsed, a
+// rule, and the settings, which kittui does not have yet.
+var menuItems = []menuItem{{Expand, "Expand All"}, {Collapse, "Collapse All"}, {}, {Settings, "Settings…"}}
 
 // menuKeys is the keys bar while the menu is open.
 const menuKeys = "↑↓ move · ⏎ choose · esc close"
@@ -128,7 +129,7 @@ func (m *Model) pick(k int) {
 
 // menuBox gives the menu's lines, a rounded box in the accent around its items, each after the room for a glyph, the
 // one under the keyboard inverse and the ones not enabled dim, a rule across it between groups; and the screen column
-// its left edge is drawn at: two before the menu glyph's, so the glyph takes the top edge's third cell; when the box
+// its left edge is drawn at: two before the menu glyph's, so the glyph starts at the top edge's third cell; when the box
 // would run past the rows that way, as on the rightmost tab, the column that puts the glyph two cells before the right
 // corner instead, or nearer when the rows end there; and against the rows' right when the bar does not draw the
 // glyph. The rows, not the bar, bound it, as the lines under the bar
@@ -139,42 +140,44 @@ func (m Model) menuBox() (lines []string, left int) {
 		names[k] = item.name
 	}
 	inner := pane.Width(names) + 5
-	glyph, width, room := m.bar().MenuAt(), inner+2, m.paneWidth()
+	glyph, width, room, cells := m.bar().MenuAt(), inner+2, m.paneWidth(), ansi.StringWidth(tabs.Menu)
 	switch {
 	case glyph < 0:
 		left = room - width
 	case glyph-2+width > room:
-		left = min(glyph+3, room) - width
+		left = min(glyph+cells+2, room) - width
 	default:
 		left = glyph - 2
 	}
 	left = max(0, left)
 	top := []rune("╭" + strings.Repeat("─", inner) + "╮")
-	if c := glyph - left; glyph >= 0 && c >= 0 && c < width {
-		// the glyph takes its cell of the top edge, the edge either side of it drawn half its length
-		top[c] = []rune(tabs.Menu)[0]
+	if c := glyph - left; glyph >= 0 && c >= 0 && c+cells <= width {
+		// the glyph takes its cells of the top edge, the edge either side of it drawn half its length; every cell of
+		// the edge is a rune of its own
 		if c > 1 {
 			top[c-1] = '╴'
 		}
-		if c < width-2 {
-			top[c+1] = '╶'
+		if c+cells < width-1 {
+			top[c+cells] = '╶'
 		}
+		top = slices.Concat(top[:c], []rune(tabs.Menu), top[c+cells:])
 	}
-	lines = append(lines, style.Mark(string(top)))
+	lines = append(lines, style.Menu(string(top)))
 	for k, item := range menuItems {
 		text := pane.Pad(" "+pane.Pad(item.glyph, 2, false)+" "+item.name+" ", inner, false)
 		switch {
 		case item.name == "":
-			lines = append(lines, style.Mark("├"+strings.Repeat("─", inner)+"┤"))
+			lines = append(lines, style.Menu("├"+strings.Repeat("─", inner)+"┤"))
 			continue
+		case !m.enabled(k):
+			// dim, and never under the keyboard, even when the rows changed under an open menu
+			text = style.Off(text)
 		case k == m.menuAt:
 			text = style.Cursor(text)
-		case !m.enabled(k):
-			text = style.Off(text)
 		}
-		lines = append(lines, style.Mark("│")+text+style.Mark("│"))
+		lines = append(lines, style.Menu("│")+text+style.Menu("│"))
 	}
-	lines = append(lines, style.Mark("╰"+strings.Repeat("─", inner)+"╯"))
+	lines = append(lines, style.Menu("╰"+strings.Repeat("─", inner)+"╯"))
 	return lines, left
 }
 

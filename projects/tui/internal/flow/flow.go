@@ -26,6 +26,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
@@ -206,7 +207,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch side := m.paneWidth() + 1; {
 		case m.menu && msg.Button == tea.MouseLeft:
 			m.menuClick(msg.X, msg.Y)
-		case msg.Button == tea.MouseLeft && msg.Y == m.bar().Row+1 && msg.X == m.bar().MenuAt():
+		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			m.openMenu()
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
@@ -225,6 +226,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// onMenu says whether a click at x, y is on the selected tab's menu glyph: its cells on the bar's middle line, or the
+// blank cell either side of them, so a click a little off still drops the menu.
+func (m Model) onMenu(x, y int) bool {
+	at := m.bar().MenuAt()
+	return at >= 0 && y == m.bar().Row+1 && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
 }
 
 // browsedMsg says whether the browser was asked to open the page at url: err is why not.

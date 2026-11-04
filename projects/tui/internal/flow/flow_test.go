@@ -1170,7 +1170,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	m = drive(m, right, right, right, right, right, right, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, style.Mark("incoming")) ||
-		!strings.Contains(bar, dim+" 🎫 backlog ") {
+		!strings.Contains(bar, dim+" 🛫 underway ") {
 		t.Errorf("with the rows' keyboard, the selected stage left the accent, or the others are not dim: %q", bar)
 	}
 	for _, width := range []int{120, 80} {

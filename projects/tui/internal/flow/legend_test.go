@@ -126,9 +126,9 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 	}
 }
 
-// isControl says whether a glyph is one the panel draws for its controls.
+// isControl says whether a glyph is one the panel draws for its controls, or the bar's menu glyph.
 func isControl(g string) bool {
-	return slices.Contains([]string{grid.Search, grid.Ticked, grid.Unticked, grid.Picked, grid.Unpicked}, g)
+	return slices.Contains([]string{grid.Search, grid.Ticked, grid.Unticked, grid.Picked, grid.Unpicked, tabs.Menu}, g)
 }
 
 // isMarker says whether a glyph is one of the tab bar's numbers.

@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -31,25 +32,27 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}
-	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the glyph,
-	// half a line either side of it;
-	// the keyboard starts on expand all, as the settings do nothing yet, and collapse all, with no row open, is dim
-	glyph := m.bar().MenuAt()
-	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(menuItems)+2 || m.menuAt != 2 ||
-		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+2) != "╴≣╶" || !strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) {
+	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
+	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on expand all, collapse all,
+	// with no row open, is dim, and the settings, last, do nothing yet
+	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
+	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(menuItems)+2 || m.menuAt != 0 ||
+		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
+		!strings.Contains(box[2], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) ||
+		!strings.Contains(box[4], style.Off(" "+Settings+" Settings…    ")) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
-	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; up
-	// passes the rule and the settings by, as down passes collapse all while it is dim
+	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; down
+	// passes collapse all by while it is dim, and the rule and the settings
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 2}, {"s", 2}, {"E", 2}, {"z", 2}} {
+	}{{"c", 0}, {"s", 0}, {"E", 0}, {"z", 0}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
 	}
-	if m = drive(m, up, down); m.menuAt != 2 {
+	if m = drive(m, down, up); m.menuAt != 0 {
 		t.Errorf("up and down moved to a dim item: %d", m.menuAt)
 	}
 	// enter on expand all expands every worktree row that hides something; the menu closes
@@ -58,10 +61,10 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 	opened := openRows(m)
 	// now expand all is dim and the keyboard starts on collapse all, which space chooses
-	if m = drive(m, press('=')); m.menuAt != 3 || m.enabled(2) {
+	if m = drive(m, press('=')); m.menuAt != 1 || m.enabled(0) {
 		t.Errorf("with every row expanded the keyboard is on %d", m.menuAt)
 	}
-	if m = drive(m, down, up, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
+	if m = drive(m, up, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
 		t.Errorf("collapse all: open %d", openRows(m))
 	}
 	// esc and = close it, choosing nothing
@@ -73,7 +76,7 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 	// enter on a dim item does nothing, and leaves the menu open
 	m = drive(m, press('='))
-	if m.pick(0); !m.menu {
+	if m.pick(3); !m.menu {
 		t.Error("the settings closed the menu")
 	}
 }
@@ -85,8 +88,13 @@ func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
 	if m = drive(m, press('='), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
-	if box, _ := m.menuBox(); strings.Contains(box[3], style.Cursor(" "+Expand+" Expand All")) {
-		t.Errorf("a dim item is under the keyboard: %q", box[3])
+	// nothing is drawn under the keyboard, even when the keyboard was left on an item the rows no longer let do
+	// anything
+	for _, at := range []int{-1, 0} {
+		m.menuAt = at
+		if box, _ := m.menuBox(); strings.Contains(strings.Join(box, "\n"), style.Cursor(" ")[:4]) {
+			t.Errorf("with the keyboard on %d, a dim item is drawn under it: %q", at, box)
+		}
 	}
 }
 
@@ -97,16 +105,16 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
 	}
 	_, left := m.menuBox()
-	// a click on the settings, or the rule, does nothing, and leaves the menu open
-	for _, y := range []int{menuTop + 1, menuTop + 2} {
+	// a click on collapse all while it is dim, on the rule, or on the settings does nothing, and leaves the menu open
+	for _, y := range []int{menuTop + 2, menuTop + 3, menuTop + 4} {
 		if m = drive(m, testkit.Click(left+2, y)); !m.menu || openRows(m) != 0 {
 			t.Errorf("a click on line %d: menu %v, open %d", y, m.menu, openRows(m))
 		}
 	}
-	if m = drive(m, testkit.Click(left+2, menuTop+3)); m.menu || openRows(m) == 0 {
+	if m = drive(m, testkit.Click(left+2, menuTop+1)); m.menu || openRows(m) == 0 {
 		t.Errorf("a click on expand all: menu %v, open %d", m.menu, openRows(m))
 	}
-	if m = drive(m, glyph, testkit.Click(left+2, menuTop+4)); m.menu || openRows(m) != 0 {
+	if m = drive(m, glyph, testkit.Click(left+2, menuTop+2)); m.menu || openRows(m) != 0 {
 		t.Errorf("a click on collapse all: menu %v, open %d", m.menu, openRows(m))
 	}
 	// a click off the menu closes it, and does nothing else
@@ -149,12 +157,10 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 				m = drive(m, press('='))
 				box, left := m.menuBox()
 				glyph, end := m.bar().MenuAt(), left+ansi.StringWidth(box[0])
-				drawn := lines(m)
-				want := map[int]string{1: "╴≣", 2: "╴≣╮"}[end-glyph]
-				if want == "" {
-					want = "╴≣╶"
-				}
-				if end > m.paneWidth() || glyph-left < 2 || ansi.Cut(drawn[menuTop], glyph-1, glyph-1+len([]rune(want))) != want ||
+				drawn, cells := lines(m), ansi.StringWidth(tabs.Menu)
+				after := ansi.Cut(drawn[menuTop], glyph+cells, glyph+cells+1)
+				if end > m.paneWidth() || glyph-left < 2 || ansi.Cut(drawn[menuTop], glyph-1, glyph+cells) != "╴"+tabs.Menu ||
+					!(after == "╶" || glyph+cells == end-1 && after == "╮" || glyph+cells == end) ||
 					ansi.Cut(drawn[menuTop+len(box)-1], left, end) != ansi.Strip(box[len(box)-1]) {
 					t.Errorf("at %d, sidebar %v, tab %d: the box spans %d to %d, the glyph at %d:\n%s", width, sidebar, i,
 						left, end-1, glyph, view(m))
