@@ -25,13 +25,16 @@ import (
 const App = "≡"
 
 // The glyphs beside the menus' items: every row expanded, and every row collapsed, all the way down and up as ▾ and
-// ▸ are one row's; every stage loaded again; the settings; and goodbye.
+// ▸ are one row's; every stage loaded again; kit's welcome, its help, and its tutorials; the settings; and goodbye.
 const (
-	Expand   = "⏬"
-	Collapse = "⏫"
-	Reload   = "🔄"
-	Settings = "🔧"
-	Leave    = "👋"
+	Expand    = "⏬"
+	Collapse  = "⏫"
+	Reload    = "🔄"
+	Home      = "🏠"
+	Asking    = "❓"
+	Tutorials = "🎓"
+	Settings  = "🔧"
+	Leave     = "👋"
 )
 
 // menuItem is one line of a menu: a glyph, which may be none, and the name it is chosen by; a line with no name is the
@@ -39,11 +42,19 @@ const (
 type menuItem struct{ glyph, name string }
 
 // tabItems are the tab's menu's lines, top to bottom: every row that hides something expanded, and every row
-// collapsed. appItems are the app's: every stage loaded again, reading the forge afresh, a rule, the settings, which
-// kittui does not have yet, a rule, and quit.
+// collapsed. appItems are the app's: every stage loaded again, reading the forge afresh; a rule; kit's other screens,
+// its welcome, its help, and its tutorials, which kit does not have yet; a rule; the settings, which kittui does not
+// have yet; a rule; and quit.
 var (
 	tabItems = []menuItem{{Expand, "Expand All"}, {Collapse, "Collapse All"}}
-	appItems = []menuItem{{Reload, "Refresh All"}, {}, {Settings, "Settings…"}, {}, {Leave, "Quit"}}
+	appItems = []menuItem{{Reload, "Refresh All"}, {}, {Home, "Welcome"}, {Asking, "Help"}, {Tutorials, "Tutorials"},
+		{}, {Settings, "Settings…"}, {}, {Leave, "Quit"}}
+)
+
+// The screens kittui opens in the picture's place, as the app's menu asks: kit's welcome, and its help.
+const (
+	ToWelcome = "welcome"
+	ToHelp    = "help"
 )
 
 // menuKeys is the keys bar while a menu is open.
@@ -83,11 +94,11 @@ func (m Model) menuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // enabled says whether the open menu's line k does something now: expand all while a row of the selected stage that
-// hides something is collapsed, collapse all while one of its rows is expanded, refresh all and quit always; the
-// settings and the rules never do.
+// hides something is collapsed, collapse all while one of its rows is expanded, refresh all, welcome, help, and quit
+// always; the tutorials, the settings, and the rules never do.
 func (m Model) enabled(k int) bool {
 	switch m.items()[k].name {
-	case "Refresh All", "Quit":
+	case "Refresh All", "Welcome", "Help", "Quit":
 		return true
 	case "Expand All", "Collapse All":
 	default:
@@ -138,8 +149,8 @@ func (m Model) nextItem(k int, typed string) int {
 
 // pick does what the open menu's item at k says, closes the menu, and gives the command it runs: the tab's choices
 // change the selected stage's rows and give them the keyboard, so left and right go on from there; refresh all runs
-// every stage again, reading the forge afresh, and quit ends the screen. An item that is not enabled does nothing,
-// and leaves the menu open.
+// every stage again, reading the forge afresh; welcome and help end the picture, to open that screen in its place;
+// and quit ends the screen. An item that is not enabled does nothing, and leaves the menu open.
 func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
 		return nil
@@ -154,6 +165,12 @@ func (m *Model) pick(k int) tea.Cmd {
 			}
 		}
 		return tea.Batch(cmds...)
+	case "Welcome":
+		m.next = ToWelcome
+		return m.quit()
+	case "Help":
+		m.next = ToHelp
+		return m.quit()
 	case "Quit":
 		return m.quit()
 	}

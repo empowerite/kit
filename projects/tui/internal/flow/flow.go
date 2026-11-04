@@ -103,6 +103,7 @@ type Model struct {
 	notice        string                 // why a page did not open, in place of the keys until the next key
 	menu          bool                   // whether a menu is open, which then has the keyboard
 	app           bool                   // whether the open menu is the app's, not the selected tab's
+	next          string                 // the screen the app's menu asked to open in the picture's place, or none
 	menuAt        int                    // the open menu's item under the keyboard
 	width, height int
 	interrupted   bool
@@ -163,6 +164,27 @@ func (m Model) Init() tea.Cmd { return m.all() }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
+
+// Next says which screen the app's menu ended the picture to open in its place, ToWelcome or ToHelp, or none, when
+// the picture ended on its own.
+func (m Model) Next() string { return m.next }
+
+// Selected gives the selected stage's name, or none without a stage.
+func (m Model) Selected() string {
+	if len(m.stages) == 0 {
+		return ""
+	}
+	return m.stages[m.stage].name
+}
+
+// On gives the picture with the named stage selected, as a picture opened again after another screen is on the
+// stage it was left on; a name that is no stage of it changes nothing.
+func (m Model) On(name string) Model {
+	if i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name }); i >= 0 {
+		m.stage = i
+	}
+	return m
+}
 
 // Update takes a message.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

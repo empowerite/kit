@@ -115,18 +115,55 @@ func refuse(err error, stderr io.Writer) int {
 	return 1
 }
 
-// runFlow opens the picture on kit flow's stages, with the words kit flow was given, and ends as the person
-// ended it.
+// runFlow opens the picture on kit flow's stages, with the words kit flow was given, and ends as the person ended it.
+// When the app's menu asks for kit's welcome or its help, that screen opens in the picture's place, and when it ends,
+// the picture opens again on the stage it was left on; ctrl-c there ends kittui, and a command the help runs takes
+// kittui's place.
 func runFlow(r kit.Runner, words []string, stderr io.Writer) int {
-	m, err := flow.Open(r, words)
+	stage := ""
+	for {
+		m, err := flow.Open(r, words)
+		if err != nil {
+			return refuse(err, stderr)
+		}
+		final, err := runModel(m.On(stage))
+		if err != nil {
+			return failed(err, stderr)
+		}
+		f := final.(flow.Model)
+		code, back := 0, false
+		switch f.Next() {
+		case flow.ToWelcome:
+			code = runWelcome(r, stderr)
+			back = code == 0
+		case flow.ToHelp:
+			code, back = runHelp(r, stderr)
+		default:
+			return finishFlow(f)
+		}
+		if !back {
+			return code
+		}
+		stage = f.Selected()
+	}
+}
+
+// runHelp opens kit help's palette in the picture's place, and says how it ended: back, when esc left it, so the
+// picture opens again; else the code kittui ends with, as kit help ends, 130 on ctrl-c, or as the command it ran.
+func runHelp(r kit.Runner, stderr io.Writer) (code int, back bool) {
+	m, err := app.OpenHelp(r, "")
 	if err != nil {
-		return refuse(err, stderr)
+		return refuse(err, stderr), false
 	}
 	final, err := runModel(m)
 	if err != nil {
-		return failed(err, stderr)
+		return failed(err, stderr), false
 	}
-	return finishFlow(final.(flow.Model))
+	if a := final.(app.Model); !a.Interrupted() && !a.InForm() {
+		return 0, true
+	}
+	return finish(final.(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) }),
+		false
 }
 
 // runWelcome opens the guide where the command was typed, and ends as the person ended it.

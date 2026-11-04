@@ -314,3 +314,59 @@ func TestWordsAfterADoubleDash(t *testing.T) {
 	}
 	_ = os.Stdin
 }
+
+// The app's menu ends the picture for kit's welcome or its help, which opens in the picture's place; when it ends,
+// the picture opens again on the stage it was left on. Ctrl-c in the welcome ends kittui with 130.
+func TestThePicturesMenuOpensTheWelcomeAndTheHelpThenComesBack(t *testing.T) {
+	keys := func(letter rune) []tea.Msg {
+		return []tea.Msg{tea.KeyPressMsg{Code: tea.KeyRight}, tea.KeyPressMsg{Code: '=', Text: "="},
+			tea.KeyPressMsg{Code: letter, Text: string(letter)}, tea.KeyPressMsg{Code: tea.KeyEnter}}
+	}
+	for _, c := range []struct {
+		name   string
+		letter rune
+		then   tea.KeyPressMsg
+		screen string
+		code   int
+	}{
+		{"welcome", 'w', tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}, "welcome", 0},
+		{"help", 'h', tea.KeyPressMsg{Code: tea.KeyEscape}, "help", 0},
+		{"ctrl-c in the welcome", 'w', tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, "welcome", 130},
+	} {
+		var ran []string
+		leftOn := ""
+		onTerminal(t, func(m tea.Model) (tea.Model, error) {
+			size := tea.WindowSizeMsg{Width: 120, Height: 30}
+			switch m := m.(type) {
+			case flow.Model:
+				ran = append(ran, "flow on "+m.Selected())
+				if len(ran) == 1 {
+					m, _ = testkit.Drive(m, nil, testkit.Start(m, append([]tea.Msg{size}, keys(c.letter)...)...)...)
+					leftOn = m.Selected()
+					return m, nil
+				}
+				m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt})
+				return m, nil
+			case welcome.Model:
+				ran = append(ran, "welcome")
+				m, _ = testkit.Drive(m, nil, testkit.Start(m, size, c.then)...)
+				return m, nil
+			case app.Model:
+				ran = append(ran, "help")
+				m, _ = testkit.Drive(m, nil, testkit.Start(m, size, c.then)...)
+				return m, nil
+			}
+			return m, nil
+		})
+		var stderr bytes.Buffer
+		code := run([]string{"flow"}, &stderr)
+		want := []string{"flow on backlog", c.screen, "flow on " + leftOn}
+		if c.code != 0 {
+			want = want[:2]
+		}
+		if code != c.code || strings.Join(ran, ", ") != strings.Join(want, ", ") || leftOn == "backlog" ||
+			stderr.Len() != 0 {
+			t.Errorf("%s: exit %d, ran %q, stderr %q", c.name, code, ran, stderr.String())
+		}
+	}
+}

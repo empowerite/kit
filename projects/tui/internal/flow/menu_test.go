@@ -79,20 +79,28 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 }
 
-// = or a click on ≡ before the title drops the app's menu down from the title line: refresh all, a rule, the settings,
-// dim, a rule, and quit. Refresh all runs every stage again, the forge read afresh; quit ends the screen with 0.
-func TestEqualsDropsTheAppsMenuDownToRefreshAllOrQuit(t *testing.T) {
+// = or a click on ≡ before the title drops the app's menu down from the title line: refresh all; a rule; welcome, help,
+// and the tutorials, dim; a rule; the settings, dim; a rule; and quit. Refresh all runs every stage again, the forge
+// read afresh; welcome and help end the picture for their screens; quit ends it with 0.
+func TestEqualsDropsTheAppsMenuDownToRefreshKitsOtherScreensOrQuit(t *testing.T) {
 	m := loaded(t, options(), press('='))
 	box, left := m.menuBox()
 	if !m.menu || !m.app || left != 0 || len(box) != len(appItems)+2 || m.menuAt != 0 ||
 		!strings.HasPrefix(lines(m)[appTop], "╭"+App+"╶") || !strings.Contains(view(m), "│ "+Reload+" Refresh All │") ||
-		!strings.Contains(box[3], style.Off(" "+Settings+" Settings…   ")) || !strings.Contains(view(m), "│ "+Leave+" Quit") ||
-		strings.Count(view(m), "│ ────────────── │") != 2 || box[0] != style.Menu(ansi.Strip(box[0])) {
+		!strings.Contains(view(m), "│ "+Home+" Welcome") || !strings.Contains(view(m), "│ "+Asking+" Help") ||
+		!strings.Contains(box[5], style.Off(" "+Tutorials+" Tutorials   ")) ||
+		!strings.Contains(box[7], style.Off(" "+Settings+" Settings…   ")) || !strings.Contains(view(m), "│ "+Leave+" Quit") ||
+		strings.Count(view(m), "│ ────────────── │") != 3 || box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Fatalf("= did not drop the app's menu down:\n%s", view(m))
 	}
-	// down passes the rules and the dim settings by; = and esc close it
-	if m = drive(m, down); m.menuAt != 4 {
-		t.Errorf("down from refresh all: item %d", m.menuAt)
+	// down passes the rules by, and up and down pass the dim tutorials and settings; = and esc close it
+	for _, step := range []struct {
+		key  tea.Msg
+		want int
+	}{{down, 2}, {down, 3}, {down, 8}, {up, 3}} {
+		if m = drive(m, step.key); m.menuAt != step.want {
+			t.Errorf("%v: item %d, want %d", step.key, m.menuAt, step.want)
+		}
 	}
 	for _, closing := range []tea.Msg{esc, press('=')} {
 		if m = drive(m, press('='), closing); m.menu {
@@ -111,11 +119,24 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAllOrQuit(t *testing.T) {
 		len(got) < len(eight) {
 		t.Errorf("refresh all ran %q", got)
 	}
-	// quit ends the screen, not interrupted
-	m = drive(m, press('='))
-	if _, msgs := testkit.Drive(m, nil, press(tea.KeyDown), press(tea.KeyEnter)); !slices.ContainsFunc(msgs,
-		func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok }) || m.interrupted {
-		t.Errorf("quit did not end the screen: %v", msgs)
+	// welcome, help, and quit end the picture, not interrupted; welcome and help name the screen to open in its place,
+	// on the stage it was left on
+	quits := func(msgs []tea.Msg) bool {
+		return slices.ContainsFunc(msgs, func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok })
+	}
+	m = drive(m, right)
+	for _, c := range []struct {
+		letter string
+		next   string
+	}{{"w", ToWelcome}, {"h", ToHelp}, {"q", ""}} {
+		after, msgs := testkit.Drive(m, nil, press('='), typed(c.letter)[0], press(tea.KeyEnter))
+		if !quits(msgs) || after.interrupted || after.Next() != c.next || after.Selected() != "underway" {
+			t.Errorf("%s: quit %v, next %q, on %q", c.letter, quits(msgs), after.Next(), after.Selected())
+		}
+	}
+	if m.On("releases").Selected() != "releases" || m.On("nonesuch").Selected() != "underway" ||
+		(Model{}).Selected() != "" {
+		t.Error("On or Selected")
 	}
 }
 
