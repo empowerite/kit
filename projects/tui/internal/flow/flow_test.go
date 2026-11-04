@@ -1048,7 +1048,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 	m := loaded(t, options(), right, right, right)
 	rows := lines(m)[4:7]
 	for i, want := range [][]string{
-		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2 🛬 ready", "3 uncommitted"},
+		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2  🛬 ready", "3 uncommitted"},
 		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
 		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
 	} {
@@ -1106,8 +1106,13 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	// a desk on a branch with a pull request shows it, as a worktree does
 	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
 	m.rebuild()
-	if !strings.Contains(view(m), Change+" #2 🛬 ready") {
+	if !strings.Contains(view(m), Change+" #2  🛬 ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
+	}
+	// its pull request's glyph leads to its row under changes, and its state's to its page
+	if r := m.rows(m.stage)[0]; r.Cells[3].Link != jumpTo("changes", "#2") ||
+		r.Cells[4].Link != "https://github.com/empowerite/kit/pull/2" {
+		t.Errorf("the desk's links: %q %q", r.Cells[3].Link, r.Cells[4].Link)
 	}
 	// a clean desk says so, dim
 	m.find("desk").desk.Uncommitted = 0
@@ -1334,10 +1339,11 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	rows := lines(m)[4:8]
 	for i, want := range [][]string{
-		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🛬 ready", Desk + " here",
-			Issue + " The first release, v0.1.0"},
-		{"#8", "2d", Change + " #4 ", "🔥 failing:gate", Owner + " bob", Issue + " Lint the modules"},
-		{"#8", "2d", Change + " #11", "🔨 draft", Owner + " ada", Issue + " Lint the modules"},
+		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🛬 ready", Branch + " here", Pushed + " 60m",
+			Issue + " The first release"},
+		{"#8", "2d", Change + " #4 ", "🔥 failing:gate", Owner + " bob", Fork + " bob", Pushed + " 25h", Owner + " cy",
+			Issue + " Lint the modules"},
+		{"#8", "2d", Change + " #11", "🔨 draft", Sprout + " local", Pushed + "  2h", Issue + " Lint the modules"},
 		{"#31  " + Owner + " ada", "3h", Change + " #12", "💬 comments:open", Owner + " ada", Issue + " kit commit"},
 	} {
 		for _, text := range want {
@@ -1351,10 +1357,21 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		cellsOf(rows[3], "3h")[0] != cellsOf(rows[0], "8d")[0] {
 		t.Errorf("the numbers or the ages do not line up on the right:\n%s", strings.Join(rows, "\n"))
 	}
-	for _, text := range []string{Change, Owner + " ada"} {
-		if slices.Max(cellsOf(rows[2], text)) != slices.Max(cellsOf(rows[3], text)) {
+	for _, text := range []string{Change, Pushed} {
+		if slices.Max(cellsOf(rows[0], text)) != slices.Max(cellsOf(rows[2], text)) {
 			t.Errorf("%q does not line up:\n%s", text, strings.Join(rows, "\n"))
 		}
+	}
+	// where lines up, here, local, and the author's alike, and a push's age is right-aligned after its glyph
+	if at := cellsOf(rows[0], Branch+" here")[0]; cellsOf(rows[1], Owner+" bob")[0] != at ||
+		cellsOf(rows[2], Sprout+" local")[0] != at || slices.Max(cellsOf(rows[3], Owner+" ada")) != at ||
+		cellsOf(rows[2], "2h")[0]+1 != cellsOf(rows[0], "60m")[0]+2 {
+		t.Errorf("where or the pushes do not line up:\n%s", strings.Join(rows, "\n"))
+	}
+	// a push by the author names no one; one by another names them; an unknown push draws nothing
+	if strings.Contains(rows[0], Owner+" jeffrey-aguilera  "+Pushed) || strings.Count(rows[0], Owner) != 1 ||
+		strings.Contains(rows[3], Pushed) {
+		t.Errorf("the pushes:\n%s", strings.Join(rows, "\n"))
 	}
 	// here is plain; another's desk and the assignees are dim; a long title is clipped
 	c := m.View().Content
@@ -1367,8 +1384,8 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release, v0.1.0: the kit verbs,", "the picture, and the forge seam on GitHub and", "GitLab",
-		Desk + " /home/kit/worktrees/1-the-first-release-v0-1-0", "#8"}
+		"The first release,", "v0.1.0: the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
+		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {
 		t.Errorf("the open row repeats the pull request:\n%s", v)
 	}
@@ -1383,10 +1400,10 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// the pull request's glyph leads to its row under changes, the state's to its page, the title's to the issue's
 	links := func(m Model) (string, string) {
 		r := m.rows(1)[m.find("underway").cursor]
-		if r.Cells[4].Link != jumpTo("changes", 2) && r.Cells[4].Link != jumpTo("changes", 4) {
-			t.Errorf("the pull request's glyph leads to %q", r.Cells[4].Link)
+		if r.Cells[3].Link != jumpTo("changes", "#2") && r.Cells[3].Link != jumpTo("changes", "#4") {
+			t.Errorf("the pull request's glyph leads to %q", r.Cells[3].Link)
 		}
-		return r.Cells[5].Link, r.Cells[7].Link
+		return r.Cells[4].Link, r.Cells[9].Link
 	}
 	if pr, issue := links(m); strings.Contains(v, "https://") || pr != "https://github.com/empowerite/kit/pull/2" ||
 		issue != "https://github.com/empowerite/kit/issues/1" {
@@ -1469,7 +1486,7 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
 	m = loaded(t, o, right)
-	if link := m.rows(1)[0].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
+	if link := m.rows(1)[0].Cells[3].Link; link != "https://github.com/empowerite/kit/pull/2" {
 		t.Errorf("without changes the pull request's glyph leads to %q", link)
 	}
 }

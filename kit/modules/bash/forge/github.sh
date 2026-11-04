@@ -68,9 +68,10 @@ forge/github:open-issues() {
 }
 
 # forge/github:open-prs makes one GraphQL request for every open pull request, with the issues it closes, its
-# review threads, and the checks on its head commit. It prints one JSON object per pull request: the document kit
-# status renders, which modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit,
-# as after a rerun, only the latest counts.
+# review threads, the owner of the repository its branch lives in, and its head commit: when it was committed, by
+# whom, and the checks on it. It prints one JSON object per pull request: the document kit status renders, which
+# modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit, as after a rerun, only
+# the latest counts.
 forge/github:open-prs() {
   local repo query answer
   repo=$(forge/github:repo) || return 1
@@ -78,17 +79,21 @@ forge/github:open-prs() {
     repository(owner: $owner, name: $name) {
       pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
         nodes {
-          number title isDraft headRefName createdAt mergeStateStatus reviewDecision
+          number title isDraft headRefName createdAt mergeStateStatus reviewDecision isCrossRepository
           author { login }
+          headRepositoryOwner { login }
           closingIssuesReferences(first: 100) {
             nodes { number title createdAt assignees(first: 10) { nodes { login } } }
           }
           reviewThreads(first: 100) { nodes { isResolved } }
-          commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
-            __typename
-            ... on CheckRun { name status conclusion startedAt completedAt }
-            ... on StatusContext { context state createdAt }
-          } } } } } }
+          commits(last: 1) { nodes { commit {
+            committedDate author { user { login } }
+            statusCheckRollup { contexts(first: 100) { nodes {
+              __typename
+              ... on CheckRun { name status conclusion startedAt completedAt }
+              ... on StatusContext { context state createdAt }
+            } } }
+          } } }
         }
       }
     }

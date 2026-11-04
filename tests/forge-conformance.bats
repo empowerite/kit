@@ -189,7 +189,7 @@ JSON
 }
 
 @test "every provider folds its open changes into the one document kit flow draws" {
-  expected='{"number":3,"branch":"7-fix-the-thing","title":"Fix the thing","author":"ada",'
+  expected='{"number":3,"branch":"7-fix-the-thing","fork":null,"title":"Fix the thing","author":"ada","pushed":null,'
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
   expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"]}]}'
   for forge in github gitlab
@@ -201,6 +201,51 @@ JSON
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
     [ "$(jq '.closes[0].age > 0' <<<"$output")" = true ]
   done
+}
+
+@test "every provider names a fork's owner and the last push, the same way, and reads a fork's project once" {
+  local pushed
+  pushed=$(jq --null-input --raw-output 'now - 7200 | todate')
+  for forge in github gitlab
+  do
+    world "${forge}"
+    if [[ "${forge}" == github ]]
+    then
+      jq --arg at "${pushed}" '.data.repository.pullRequests.nodes[0]
+            |= (.isCrossRepository = true | .headRepositoryOwner = {login: "cy"}
+                | .commits.nodes[0].commit += {committedDate: $at, author: {user: {login: "dee"}}})' \
+        "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/fork.json"
+      mv "${FAKE_DIR}/fork.json" "${FAKE_DIR}/open-prs.json"
+    else
+      # The same merge request listed twice stands for two from one fork.
+      fixture mrs-list.json <<<'[{"iid": 3}, {"iid": 3}]'
+      fixture project.json <<<'{"id": 99, "namespace": {"full_path": "cy"}}'
+      jq --arg at "${pushed}" '. + {source_project_id: 99, target_project_id: 1}
+            | .head_pipeline += {created_at: $at, user: {username: "dee"}}' "${FAKE_DIR}/mr.json" \
+        > "${FAKE_DIR}/fork.json"
+      mv "${FAKE_DIR}/fork.json" "${FAKE_DIR}/mr.json"
+      route glab 'api projects/99' project.json
+    fi
+    run call open-prs
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output '[.fork, .pushed.by, (.pushed.age >= 7200 and .pushed.age < 7300)]' <<<"${lines[0]}")" \
+      = '["cy","dee",true]' ] || { echo "${forge}: ${output}"; return 1; }
+  done
+  grep --quiet 'isCrossRepository' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'headRepositoryOwner { login }' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'committedDate author { user { login } }' "${FAKE_DIR}/gh.calls"
+  [ "$(grep --count '^api projects/99$' "${FAKE_DIR}/glab.calls")" -eq 1 ]
+}
+
+@test "a merge request from a fork the caller cannot read names no owner, and one without a pipeline no push" {
+  world gitlab
+  jq '. + {source_project_id: 99, target_project_id: 1} | del(.head_pipeline)' "${FAKE_DIR}/mr.json" \
+    > "${FAKE_DIR}/fork.json"
+  mv "${FAKE_DIR}/fork.json" "${FAKE_DIR}/mr.json"
+  route glab 'api projects/99' '!1'
+  run call open-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.fork, .pushed, .checks.total]' <<<"$output")" = '[null,null,0]' ]
 }
 
 @test "a change that closes more issues than a page holds is drawn with every one: each provider asks for a hundred" {

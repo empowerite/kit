@@ -16,8 +16,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Settings is the glyph beside the menu's settings item.
-const Settings = "🔧"
+// The glyphs beside the menu's items: the settings, every row expanded, and every row collapsed, all the way down and
+// up as ▾ and ▸ are one row's.
+const (
+	Settings = "🔧"
+	Expand   = "⏬"
+	Collapse = "⏫"
+)
 
 // menuItem is one line of the menu: a glyph, which may be none, and the name it is chosen by; a line with no name is
 // the rule between groups of items.
@@ -25,7 +30,7 @@ type menuItem struct{ glyph, name string }
 
 // menuItems are the menu's lines, top to bottom: the settings, which kittui does not have yet, a rule, every row that
 // hides something expanded, and every row collapsed.
-var menuItems = []menuItem{{Settings, "Settings…"}, {}, {"", "Expand All"}, {"", "Collapse All"}}
+var menuItems = []menuItem{{Settings, "Settings…"}, {}, {Expand, "Expand All"}, {Collapse, "Collapse All"}}
 
 // menuKeys is the keys bar while the menu is open.
 const menuKeys = "↑↓ move · ⏎ choose · esc close"
@@ -99,13 +104,13 @@ func (m Model) nextItem(k int, typed string) int {
 	return k
 }
 
-// pick does what the menu's item at k says to the selected stage's rows, and closes the menu; an item that is not
-// enabled does nothing, and leaves the menu open.
+// pick does what the menu's item at k says to the selected stage's rows, closes the menu, and gives the rows the
+// keyboard, so left and right go on from there; an item that is not enabled does nothing, and leaves the menu open.
 func (m *Model) pick(k int) {
 	if k < 0 || !m.enabled(k) {
 		return
 	}
-	m.menu = false
+	m.menu, m.inRows, m.inPanel = false, true, false
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	switch menuItems[k].name {
 	case "Expand All":

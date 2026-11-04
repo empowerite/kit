@@ -43,10 +43,22 @@ import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
 [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00.5Z", "finished_at": "1970-01-12T13:46:40.5Z"}, {"name": "deploy", "status": "manual", "started_at": null, "finished_at": null, "created_at": "1970-01-12T13:45:00Z"}, {"name": "lint", "status": "running", "started_at": "1970-01-12T13:45:00Z", "finished_at": null}, {"name": "build", "status": "failed", "started_at": null, "finished_at": null}]
 [["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
 
-# A merge request folds into the document, with its ref written !<iid>.
-import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}]}])
+# A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}]}]; null)
 {"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
-{"number":3,"ref":"!3","branch":"7-fix-the-thing","title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"age":400}]}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"age":400}]}
+
+# A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
+# started it; a pipeline that names no one gives a null by.
+import "forge" as forge; [forge::gitlab_pr(1000000; []; []; []; "cy"), (.head_pipeline.user = null | forge::gitlab_pr(1000000; []; []; []; null))] | map({fork, pushed})
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "head_pipeline": {"id": 11, "created_at": "1970-01-12T13:45:00.000Z", "user": {"username": "dee"}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":100,"by":null}}]
+
+# A pull request from another repository names its owner's login, and its head commit gives the last push: its age,
+# and the login of its author. A branch in the base repository is no fork, and a commit without a time is unknown.
+import "forge" as forge; [forge::github_prs(1000000) | {fork, pushed}]
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": true, "headRepositoryOwner": {"login": "cy"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:45:00Z", "author": {"user": {"login": "dee"}}, "statusCheckRollup": null}}]}}, {"number": 4, "title": "Also", "isDraft": true, "headRefName": "8-also", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": false, "headRepositoryOwner": {"login": "empowerite"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:46:00Z", "author": {"user": null}, "statusCheckRollup": null}}]}}, {"number": 5, "title": "Old", "isDraft": true, "headRefName": "9-old", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":40,"by":null}},{"fork":null,"pushed":null}]
 
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login and the age in seconds.
 import "forge" as forge; forge::github_issues(1000000)

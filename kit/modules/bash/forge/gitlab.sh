@@ -88,14 +88,17 @@ forge/gitlab:open-issues() {
 
 # forge/gitlab:open-prs prints one JSON object per open merge request: the document kit flow renders, which
 # modules/jq/forge.jq folds the answers into. Of several jobs of one name in the pipeline, as after a retry, only
-# the latest counts. GitLab's REST API needs four reads per merge request:
+# the latest counts. GitLab's REST API needs four reads per merge request, and one per fork:
 #
-#   - the merge request
+#   - the merge request, whose head pipeline also says when the branch was last pushed, and by whom
 #   - its pipeline's jobs
 #   - its discussions
 #   - the issues it closes
+#   - the project its branch lives in, when that is not this project, once for each such project: its namespace's
+#     path names the fork's owner, and a project the caller cannot read names none
 forge/gitlab:open-prs() {
-  local list iid mr jobs discussions closes pipeline
+  local list iid mr jobs discussions closes pipeline source fork
+  local -A owners=()
   list=$(forge/gitlab:api "merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \
     || { error "run: glab auth status (the merge requests could not be read)"; return 1; }
   while IFS= read -r iid
@@ -107,10 +110,20 @@ forge/gitlab:open-prs() {
     [[ -n "${pipeline}" ]] && jobs=$(forge/gitlab:api "pipelines/${pipeline}/jobs?per_page=100")
     discussions=$(forge/gitlab:api "merge_requests/${iid}/discussions?per_page=100")
     closes=$(forge/gitlab:api "merge_requests/${iid}/closes_issues?per_page=100")
+    source=$(jq --raw-output 'select(.source_project_id != .target_project_id) | .source_project_id // empty' \
+      <<<"${mr}")
+    # The fork's project is not under this one, so glab reads it by its id, past forge/gitlab:api.
+    if [[ -n "${source}" && -z "${owners[${source}]+x}" ]]
+    then
+      owners[${source}]=$(glab api "projects/${source}" 2>/dev/null \
+        | jq --compact-output '.namespace.full_path // null' 2>/dev/null) || owners[${source}]=null
+    fi
+    fork=null
+    [[ -n "${source}" ]] && fork=${owners[${source}]:-null}
     # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
     jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --argjson jobs "${jobs}" \
-      --argjson discussions "${discussions}" --argjson closes "${closes}" \
-      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes)' <<<"${mr}"
+      --argjson discussions "${discussions}" --argjson closes "${closes}" --argjson fork "${fork}" \
+      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork)' <<<"${mr}"
   done < <(jq --raw-output '.[].iid' <<<"${list}")
 }
 

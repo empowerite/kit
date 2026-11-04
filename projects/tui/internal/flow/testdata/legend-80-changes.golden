@@ -1,12 +1,12 @@
  kit flow · 📚 empowerite/kit                     🔎 search
  ───────────╴➏╶──────────────────────╮➆╶─────────
 ◃         3  │ 📥 incoming       6 ≣ │  🏭 buil ▹ legend
- ────────────╯                       ╰──────────┐ 📥  the fetch
-   📡 origin · github · github.com              │ 📡  a remote
- ▸ a1b2c3d  #1 docs: the docs say what the cod… │ 🌿  a branch
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… │ 🔖  a branch gone
-   🌿       46-a-noun-lists updated             │ 📌  a new tag
-   🌿       42-settings new branch              │ ❌  a fetch failed
+ ────────────╯                       ╰──────────┐ 📥 the fetch
+   📡 origin · github · github.com              │ 📡 a remote
+ ▸ a1b2c3d  #1 docs: the docs say what the cod… │ 🌿 a branch
+ ▸ e4f5a6b  #1 yaml: yq reads every YAML file,… │ 🔖 a branch gone
+   🌿       46-a-noun-lists updated             │ 📌 a new tag
+   🌿       42-settings new branch              │ ❌ a fetch failed
    📡 upstream · gitlab · git.example.org       │
    🔖       old-experiment upstream gone        │
    📌       release/0.2.0 new tag               │

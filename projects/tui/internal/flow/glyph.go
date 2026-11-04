@@ -9,6 +9,7 @@ const (
 	Remote     = "📡" // a remote, its forge, and its host
 	Desk       = "💻" // the desk, the root checkout
 	Branch     = "🌿" // a linked worktree, or a branch
+	Sprout     = "🌱" // a branch on this desk with no checkout
 	Change     = "🔀" // a pull request
 	Owner      = "👤" // an author, or an issue's assignees
 	Issue      = "🎫" // an issue
@@ -25,6 +26,8 @@ const (
 	Draft      = "📝" // a draft release
 	Latest     = "⭐" // the latest release
 	Other      = "🔳" // a pull request in any other state
+	Fork       = "🍴" // the owner of the fork a pull request's branch is in
+	Pushed     = "📤" // a branch's last push, how long ago
 
 	// A build's glyphs; the variation selector draws them as emoji, two cells wide.
 	Build     = "🏭" // a build: a workflow run not owned by any pull request
@@ -35,6 +38,12 @@ const (
 type entry struct {
 	glyph, meaning string
 }
+
+// The marks after a legend's meaning, dim: a click on the glyph goes to its row in another stage, or opens its page.
+const (
+	ToRow  = "†"
+	ToPage = "🔗"
+)
 
 // title is the title's glyph, which no stage draws.
 var title = entry{Repository, "the repository, owner/name"}
@@ -50,9 +59,13 @@ var legends = map[string][]entry{
 	},
 	"underway": {
 		{InFlight, "an issue underway"},
-		{Owner, "its assignees, or the author"},
+		{Owner, "its assignees, the author, who pushed"},
 		{Change, "the pull request"},
-		{Desk, "here, in a worktree"},
+		{Desk, "here, on the desk"},
+		{Branch, "here, in a worktree"},
+		{Sprout, "local, no worktree"},
+		{Fork, "the fork's owner"},
+		{Pushed, "the last push"},
 		{Issue, "the issue's title"},
 	},
 	"incoming": {
@@ -100,7 +113,20 @@ var legends = map[string][]entry{
 	},
 }
 
-// states gives a pull request's glyph by its state word, the last for any other; it hangs under changes' legend.
+// marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere: to the
+// row of a pull request under changes, or to a page.
+var marks = map[string]map[string]string{
+	"backlog":   {Issue: ToPage},
+	"underway":  {Change: ToRow, Desk: ToRow, Branch: ToRow, Issue: ToPage},
+	"desk":      {Change: ToRow},
+	"worktrees": {Change: ToRow},
+	"changes":   {Change: ToPage},
+	"builds":    {Running: ToPage, Passed: ToPage, Failed: ToPage, Cancelled: ToPage},
+	"releases":  {Release: ToPage, Pre: ToPage, Draft: ToPage},
+}
+
+// states gives a pull request's glyph by its state word, the last for any other; it hangs under changes' legend,
+// under a heading marked ToPage, as a click on any of them opens the pull request's page.
 var states = []entry{
 	{"🔨", "draft"},
 	{"🚦", "queued"},

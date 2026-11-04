@@ -2,7 +2,7 @@
  ────╮➂╶──────────────────╴➍╶───────────────────────╮➄╶─────────────────────╮➅╶─
 ◃  4 │  💻 desk         1  │ 🌿 worktrees       4 ≣ │  🔀 changes         3 │  ▹
  ────╰─────────────────────╯                        ╰───────────────────────╰──┐
- ▾ 🌿 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2 🛬 ready       … │
+ ▾ 🌿 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2  🛬 ready      … │
        M kit/bin/kit-flow                                                      │
        M kit/modules/bash/flow.sh                                              │
       ?? docs/flow.md                                                          │
@@ -10,7 +10,7 @@
       04f0802 #1 materialize: a manifest record that climbs out of its root i… │
       3c247a8 #1 tests: every suite loads one helper that isolates HOME, git … │
       … and 263 more                                                           │
- ▸ 🌿 42-settings                    ↑3 ↓1  +120 -4     no pull request yet  … │
+ ▸ 🌿 42-settings                    ↑3 ↓1  +120 -4            no pull reques… │
  ▸ 🌿 worktrees/spike ❗ detached    ↑0 ↓0  +0 -0                            … ◂
  ▸ 🔖 gone: old-experiment, 44-a-spike                                         ╷
                                                                                │

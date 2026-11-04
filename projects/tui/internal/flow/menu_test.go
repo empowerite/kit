@@ -28,14 +28,14 @@ func openRows(m Model) int {
 func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press('='))
 	if !m.menu || lines(m)[23] != " "+quitKey+" · "+menuKeys || !strings.Contains(view(m), "│ "+Settings+" Settings…    │") ||
-		!strings.Contains(view(m), "│    Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
+		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}
 	// the menu's left edge is a cell before the menu glyph, its top on the bar's last line, ┸ right under the glyph;
 	// the keyboard starts on expand all, as the settings do nothing yet, and collapse all, with no row open, is dim
 	glyph := m.bar().MenuAt()
 	if box, left := m.menuBox(); left != glyph-1 || len(box) != len(menuItems)+2 || m.menuAt != 2 ||
-		ansi.Cut(lines(m)[menuTop], glyph, glyph+1) != "┸" || !strings.Contains(box[4], style.Off("    Collapse All ")) {
+		ansi.Cut(lines(m)[menuTop], glyph, glyph+1) != "┸" || !strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; up
@@ -84,7 +84,7 @@ func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
 	if m = drive(m, press('='), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
-	if box, _ := m.menuBox(); strings.Contains(box[3], style.Cursor("    Expand All")) {
+	if box, _ := m.menuBox(); strings.Contains(box[3], style.Cursor(" "+Expand+" Expand All")) {
 		t.Errorf("a dim item is under the keyboard: %q", box[3])
 	}
 }
@@ -169,5 +169,24 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 				t.Errorf("splice(%q, XY, %d) = %q", line, at, got)
 			}
 		}
+	}
+}
+
+// After Expand All, the rows have the keyboard, so left closes the row under the cursor even once the wheel has
+// scrolled its first line away; and a click on that first line, pinned atop the pane, closes it too.
+func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
+	wheel := tea.MouseWheelMsg{X: 10, Y: paneTop + 2, Button: tea.MouseWheelDown}
+	size := tea.WindowSizeMsg{Width: 100, Height: 12}
+	m := loaded(t, options(), size, right, right, right, press('='), press(tea.KeyEnter), wheel)
+	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[paneTop], " "+style.Opened) {
+		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
+	}
+	opened := openRows(m)
+	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
+		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
+	}
+	m = loaded(t, options(), size, right, right, right, press('='), press(tea.KeyEnter), wheel)
+	if m = drive(m, testkit.Click(1, paneTop)); openRows(m) != opened-1 {
+		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
 }

@@ -196,9 +196,9 @@ func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T)
 		t.Errorf("others: %v", keys(m))
 	}
 	// underway's rows belong to the pull request's author too, so ada's pull request on #8 is mine; mine is past
-	// underway's seven named columns
+	// underway's ten named columns
 	m = drive(m, esc, right)
-	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 9)...)...)
+	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 12)...)...)
 	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#8 #11", "#31 #12"}) {
 		t.Errorf("underway, mine: %v\n%s", keys(m), view(m))
 	}

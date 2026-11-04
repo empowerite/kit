@@ -161,12 +161,12 @@ func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
 			column := m.paneWidth() + 3 // a space, the rule, and a space
 			want := map[string]int{"legend": column}
 			for _, e := range legends[name] {
-				want[e.glyph+"  "+e.meaning] = column
+				want[e.glyph+" "+e.meaning] = column
 			}
 			if name == "changes" {
 				want["state"] = column
 				for _, e := range states {
-					want[e.glyph+"  "+e.meaning] = column
+					want[e.glyph+" "+e.meaning] = column
 				}
 			}
 			for text, at := range want {
@@ -229,5 +229,53 @@ func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 	triangle.X, triangle.Y = m.paneWidth()+1, paneTop
 	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[m.triangleAt()], show) {
 		t.Errorf("a click on %s did not hide the legend:\n%s", hide, raw(m))
+	}
+}
+
+// Each glyph a stage's rows lead somewhere from is marked in its legend, † for a row under another stage and 🔗 for
+// a page, and each mark is on a glyph that leads there; a pull request's state, marked under changes' state heading,
+// leads to its page wherever it is drawn.
+func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
+	for i, name := range eight {
+		m := opened(t, i)
+		if name == "desk" {
+			// the desk, on main, has no pull request; on a branch with one, it leads to it
+			m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
+			m.rebuild()
+		}
+		if name == "underway" {
+			// a row whose work is on the desk leads to the desk, as one in a worktree leads to the worktree
+			s := m.find("underway")
+			s.under[1].Here, s.under[1].Worktree = true, m.find("desk").desk.Path
+			m.rebuild()
+		}
+		drawn := map[string]string{}
+		for _, r := range m.rows(i) {
+			for _, c := range r.Cells {
+				if c.Link == "" {
+					continue
+				}
+				glyph, _, _ := strings.Cut(ansi.Strip(c.Values[0]), " ")
+				mark := ToPage
+				if strings.HasPrefix(c.Link, jumps) {
+					mark = ToRow
+				}
+				if _, state := stateGlyphs[stateOf(glyph)]; state || glyph == Other {
+					if mark != ToPage {
+						t.Errorf("%s: a state's glyph %s leads to %q", name, glyph, c.Link)
+					}
+					continue
+				}
+				drawn[glyph] = mark
+				if marks[name][glyph] != mark {
+					t.Errorf("%s: %s leads to %q, but its legend marks it %q", name, glyph, c.Link, marks[name][glyph])
+				}
+			}
+		}
+		for glyph, mark := range marks[name] {
+			if drawn[glyph] != mark {
+				t.Errorf("%s's legend marks %s %s, which no row leads from", name, glyph, mark)
+			}
+		}
 	}
 }

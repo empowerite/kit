@@ -6,7 +6,8 @@
 // the stage's command again; ? shows the sidebar beside the rows, the stage's panel over its legend, and again takes it
 // away, as a click anywhere on the rule beside the rows does; tab gives the panel the keyboard, and / or a click
 // on the search, always on the screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
-// and one on underway's pull request selects changes with that pull request under the cursor. Esc goes back
+// and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
+// under the cursor. Esc goes back
 // one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and
 // alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's command has two
 // minutes; past them it is a refusal, and quitting kills the commands still running.
@@ -21,7 +22,6 @@ import (
 	"os/exec"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -826,13 +826,18 @@ func (m *Model) open(open bool) {
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
 // click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
 // on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
-// the row, or closes it. A click on a … line, or on a line about the stage, does nothing.
+// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does. A click on
+// a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	k := pane.At(len(lines), m.paneHeight(), s.offset, y-paneTop)
+	if y == paneTop && m.head(lines, m.paneHeight()) != "" {
+		// the pinned line is the first of the row under the cursor, in place of the … above
+		k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+	}
 	if k < 0 || lines[k].row < 0 {
 		return nil
 	}
@@ -859,24 +864,18 @@ func (m *Model) click(x, y int) tea.Cmd {
 	return nil
 }
 
-// jump follows a link to a row of another stage, its name and the pull request's number: the stage is selected, its
-// rows have the keyboard, and the cursor is on the pull request's row, or where it was when the panel hides that row
-// or the stage has not loaded it.
+// jump follows a link to a row of another stage, its name and the row's key: the stage is selected, its rows have the
+// keyboard, and the cursor is on the row, or where it was when the panel hides the row or the stage has not loaded
+// it.
 func (m *Model) jump(to string) {
-	name, number, _ := strings.Cut(to, "/")
+	name, key, _ := strings.Cut(to, "/")
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
 	if i < 0 {
 		return
 	}
 	m.choose(tabs.Bar{Selected: i})
-	s := &m.stages[i]
-	for _, p := range s.pulls {
-		if strconv.Itoa(p.Number) != number {
-			continue
-		}
-		if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == ref(p) }); k >= 0 {
-			s.cursor = k
-		}
+	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
+		m.stages[i].cursor = k
 	}
 	m.fit()
 }

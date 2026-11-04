@@ -74,8 +74,13 @@
 #
 # Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
 # issue first. Its owner flags match the pull request's author or the issue's assignees. A row's JSON is {number,
-# title, assignees, age, pr, here, worktree}. pr is {number, title, author, state, branch}. here is true when a
-# checkout on this desk has the branch, and worktree is that checkout's path, or null.
+# title, assignees, age, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
+# is the owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a
+# namespace's path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not
+# tell it cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head
+# pipeline's. here is true when a checkout on this desk has the branch, and worktree is that checkout's path, or null.
+# local is true when the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same
+# fork and pushed.
 #
 # incoming's JSON is {fetched, primary, remotes}. Each remote is {name, forge, host, default, commits, branches, tags}:
 # forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds error,
@@ -91,7 +96,8 @@
 # Legend
 #
 # Each stage lists the glyphs it draws, one per line. A glyph can show under more than one stage. NO_COLOR removes
-# the colors and keeps the glyphs.
+# the colors and keeps the glyphs. In kittui's legend, a dim † after a meaning says a click on the glyph goes to its
+# row in another stage, and a dim 🔗 that a click opens the glyph's page.
 #
 #   📚  the repository, owner/name, in kittui's title
 #
@@ -105,10 +111,14 @@
 # underway:
 #
 #   🎫  an issue, and its title
-#   👤  its assignees, or the pull request's author, whose desk the work is on
-#   🛫  in flight, with the issue's age
+#   👤  its assignees, the pull request's author, whose desk the work is on, or who pushed last, when not the author
+#   🛫  an issue underway
 #   🔀  the pull request that closes it, with its state glyph as changes draws it
-#   💻  here: a checkout on this desk has the pull request's branch
+#   💻  here: the desk, the root checkout, has the pull request's branch
+#   🌿  here, in a linked worktree: a worktree on this desk has the pull request's branch
+#   🌱  local: a local branch with no worktree; this desk has the branch, and no checkout has it
+#   🍴  a fork's owner: the pull request's branch lives in their repository
+#   📤  the last push's age
 #   ❌  a refusal: kit could not read the forge
 #
 # incoming:

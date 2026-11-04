@@ -4,7 +4,12 @@
 # rest is shared, so a pull request on GitHub and a merge request on GitLab fold into the same document:
 #
 #   number, ref, branch, title, author, createdAt
+#   fork        the owner of the repository the change's branch lives in, when that is not the base repository: a
+#               login on GitHub, a namespace's path on GitLab; null for a branch in the base repository, or a fork
+#               whose owner the forge does not name
 #   age         seconds since the change was created
+#   pushed      {age, by} of the latest push to the branch, as far as the forge tells it cheaply, or null when it
+#               does not: age in seconds, and by a login, or null
 #   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
 #   checks      {state, passed, total, failing, took}
 #   unresolved  the number of unresolved review threads
@@ -45,12 +50,14 @@ def state:
   elif .approval then "blocked:approval"
   else "ready" end;
 
-# document($now) reads {number, ref, branch, title, author, createdAt, draft, conflicted, approval, runs, unresolved,
-# closes} and gives the document. Each of closes is {number, title, assignees, createdAt}, and comes out with its
-# age; an issue an older answer gives without a time has a null age.
+# document($now) reads {number, ref, branch, fork, title, author, createdAt, pushed, draft, conflicted, approval, runs,
+# unresolved, closes} and gives the document. pushed is {at, by}, or null, and comes out with its age in place of at.
+# Each of closes is {number, title, assignees, createdAt}, and comes out with its age; an issue an older answer gives
+# without a time has a null age.
 def document($now):
   (.runs | checks($now)) as $checks
-  | { number, ref, branch, title, author, createdAt, age: ($now - (.createdAt | epoch)),
+  | { number, ref, branch, fork: (.fork // null), title, author, createdAt, age: ($now - (.createdAt | epoch)),
+      pushed: (if .pushed == null then null else {age: ($now - (.pushed.at | epoch)), by: (.pushed.by // null)} end),
       state: (. + {checks: $checks} | state), checks: $checks, unresolved,
       closes: [.closes[] | { number, title, assignees: (.assignees // []),
                              age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }] };
@@ -68,9 +75,14 @@ def github_runs:
                  then (.completedAt | epoch) - (.startedAt | epoch) else null end) });
 
 # github_prs($now) reads the answer to forge/github:open-prs's GraphQL query and gives one document per pull request.
+# GitHub tells no push's time without a further call, so pushed is the head commit's: when it was committed, and the
+# login of its author, or null when the author's email belongs to no account.
 def github_prs($now):
   .data.repository.pullRequests.nodes[]
   | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
+      fork: (if .isCrossRepository then .headRepositoryOwner.login // null else null end),
+      pushed: (.commits.nodes[0].commit // {}
+               | if .committedDate == null then null else {at: .committedDate, by: .author.user.login} end),
       draft: .isDraft, conflicted: (.mergeStateStatus == "DIRTY"),
       approval: ((.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED")),
       runs: ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] | github_runs),
@@ -89,11 +101,15 @@ def gitlab_runs:
         took: (if .started_at != null and .finished_at != null
                then (.finished_at | epoch) - (.started_at | epoch) else null end) });
 
-# gitlab_pr($now; $jobs; $discussions; $closes) reads a merge request, with its pipeline's jobs, its discussions,
-# and the issues it closes, and gives its document.
-def gitlab_pr($now; $jobs; $discussions; $closes):
+# gitlab_pr($now; $jobs; $discussions; $closes; $fork) reads a merge request, with its pipeline's jobs, its
+# discussions, the issues it closes, and the owner of the fork its branch lives in, or null, and gives its document.
+# GitLab tells no push's time without a further call, so pushed is the head pipeline's: when it was created, and who
+# started it; null when the branch has no pipeline.
+def gitlab_pr($now; $jobs; $discussions; $closes; $fork):
   { number: .iid, ref: "!\(.iid)", branch: .source_branch, title, author: (.author.username // ""),
-    createdAt: .created_at, draft, conflicted: .has_conflicts,
+    createdAt: .created_at, draft, conflicted: .has_conflicts, fork: $fork,
+    pushed: (.head_pipeline // {}
+             | if .created_at == null then null else {at: .created_at, by: (.user.username // null)} end),
     approval: ((.detailed_merge_status // "") == "not_approved"),
     runs: ($jobs | gitlab_runs),
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),

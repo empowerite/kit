@@ -242,24 +242,32 @@ func counted(rows []row) int {
 }
 
 // legendLines gives a stage's legend as the column beside its rows draws it: legend, dim, then each glyph the stage
-// draws, two cells wide, two spaces, and what it means; changes' states after a gap under state, dim; nothing for a
-// stage with no legend.
+// draws, two cells wide, a space, what it means, and its mark when a click on it leads somewhere; changes' states
+// after a gap under state, dim and marked; nothing for a stage with no legend.
 func legendLines(name string) []string {
 	if len(legends[name]) == 0 {
 		return nil
 	}
-	lines := func(entries []entry) []string {
+	lines := func(entries []entry, mark map[string]string) []string {
 		var out []string
 		for _, e := range entries {
-			out = append(out, pane.Pad(e.glyph, 2, false)+"  "+e.meaning)
+			out = append(out, pane.Pad(e.glyph, 2, false)+" "+e.meaning+marked(mark[e.glyph]))
 		}
 		return out
 	}
-	out := append([]string{style.Off("legend")}, lines(legends[name])...)
+	out := append([]string{style.Off("legend")}, lines(legends[name], marks[name])...)
 	if name == "changes" {
-		out = append(append(out, "", style.Off("state")), lines(states)...)
+		out = append(append(out, "", style.Off("state")+marked(ToPage)), lines(states, nil)...)
 	}
 	return out
+}
+
+// marked gives a legend's mark after its meaning, dim after a space, or nothing for none.
+func marked(mark string) string {
+	if mark == "" {
+		return ""
+	}
+	return " " + style.Off(mark)
 }
 
 // sideLines gives the sidebar's lines while ? shows it: the selected stage's panel, then, after a gap, its legend.

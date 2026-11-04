@@ -31,7 +31,9 @@ type commit struct {
 
 // underway is one issue an open pull request closes, with that pull request: one per issue and pull request, so an
 // issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
-// Worktree is its path. The URLs are kit's when it prints them.
+// Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
+// owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how long ago
+// and by whom, when the forge says. The URLs are kit's when it prints them.
 type underway struct {
 	Number    int      `json:"number"`
 	Title     string   `json:"title"`
@@ -45,8 +47,14 @@ type underway struct {
 		State  string `json:"state"`
 		Branch string `json:"branch"`
 		URL    string `json:"url"`
+		Fork   string `json:"fork"`
+		Pushed *struct {
+			Age int64  `json:"age"`
+			By  string `json:"by"`
+		} `json:"pushed"`
 	} `json:"pr"`
 	Here     bool   `json:"here"`
+	Local    bool   `json:"local"`
 	Worktree string `json:"worktree"`
 }
 
@@ -331,9 +339,9 @@ type shown struct {
 // the search. An issue's column is its id, the reference its tracker gives it, which need not be a number.
 var columns = map[string][]string{
 	"backlog":   {"id", "assignees", "age", "branch", "title"},
-	"underway":  {"id", "assignees", "", "age", "change", "state", "where", "title"},
-	"desk":      {"branch", "ahead", "lines", "change", "uncommitted"},
-	"worktrees": {"branch", "ahead", "lines", "change", "uncommitted"},
+	"underway":  {"id", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"},
+	"desk":      {"branch", "ahead", "lines", "change", "state", "uncommitted"},
+	"worktrees": {"branch", "ahead", "lines", "change", "state", "uncommitted"},
 	"changes":   {"change", "title", "author", "state", "age", "checks", "threads", "branch"},
 	"builds":    {"", "workflow", "run", "event", "branch", "commit", "title", "age", "took"},
 	"releases":  {"version", "kind", "age", "latest"},
@@ -404,44 +412,87 @@ func (m Model) backlogRows(s stage) []row {
 }
 
 // underwayRows draws each issue underway beside the pull request that closes it, oldest first as kit prints them:
-// number, assignees, age, the pull request's number and state, where the work is, and the title. Where is here when
-// a worktree on this desk has the branch, else the author. The pull request's glyph leads to its row under changes,
-// or to its page when changes is not in the picture; the state's glyph to its page, and the title's to the issue's.
-// Open, every assignee, the issue's title wrapped, and the worktree when here; the pull request's title is under
-// changes. A row belongs to the issue's assignees and the pull request's author.
+// number, assignees, age, the pull request's number and state, where the work is, the fork its branch is in, when
+// last pushed, its age right-aligned after the glyph, by whom when not the author, and the title. Where is here when
+// a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
+// it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
+// the picture; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
+// title wrapped; the pull request's title is under changes, and the checkout's path under desk or worktrees. A row
+// belongs to the issue's assignees and the pull request's author.
 func (m Model) underwayRows(s stage) []row {
 	var rows []row
+	widest := 0
+	for _, u := range s.under {
+		if u.PR.Pushed != nil {
+			widest = max(widest, len(age(u.PR.Pushed.Age)))
+		}
+	}
 	for _, u := range s.under {
 		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), m.origin.pull(u.PR.Number, u.PR.URL)
-		where := cell{}
+		where, fork, pushed, by := cell{}, cell{}, cell{}, cell{}
 		switch {
 		case u.Here:
-			where = text(Desk + " here")
+			where = m.here(u.Worktree)
+		case u.Local:
+			where = text(Sprout + " local")
 		case u.PR.Author != "":
 			where = dim(Owner + " " + u.PR.Author)
 		}
+		if u.PR.Fork != "" {
+			fork = dim(Fork + " " + u.PR.Fork)
+		}
+		if p := u.PR.Pushed; p != nil {
+			pushed = dim(Pushed + " " + fmt.Sprintf("%*s", widest, age(p.Age)))
+			if p.By != "" && p.By != u.PR.Author {
+				by = dim(Owner + " " + p.By)
+			}
+		}
 		change := page
 		if m.find("changes") != nil {
-			change = jumpTo("changes", u.PR.Number)
+			change = jumpTo("changes", m.pullKey(u.PR.Number))
 		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
-			Cells: []cell{number(issue), owners(u.Assignees), text(InFlight), dimNumber(ageOf(u.Age)),
-				linked(text(Change+" "+pr), change), linked(text(state), page), where,
+			Cells: []cell{number(issue), owners(u.Assignees), dimNumber(ageOf(u.Age)),
+				linked(text(Change+" "+pr), change), linked(text(state), page), where, fork, pushed, by,
 				linked(fill(Issue+" "+u.Title), m.origin.issue(u.Number, u.URL))}}
-		if u.Here && u.Worktree != "" {
-			r.Detail = append(r.Detail, span(Desk+" "+u.Worktree))
-		}
 		rows = append(rows, r)
 	}
 	return rows
 }
 
+// here gives underway's where cell for work in a checkout on this desk, at path: the desk's glyph when the desk is
+// that checkout, leading to its row under desk, else a worktree's, leading to its row under worktrees; without the
+// stage in the picture, the glyph leads nowhere.
+func (m Model) here(path string) cell {
+	stage, glyph := "worktrees", Branch
+	if d := m.find("desk"); d != nil && d.desk != nil && d.desk.Path == path {
+		stage, glyph = "desk", Desk
+	}
+	c := text(glyph + " here")
+	if m.find(stage) != nil && path != "" {
+		c.Link = jumpTo(stage, path)
+	}
+	return c
+}
+
 // jumps is how a link to a row of another stage begins, which a click follows on the screen, not in the browser.
 const jumps = "kittui:"
 
-// jumpTo gives the link to a pull request's row under a stage: the stage's name and the pull request's number.
-func jumpTo(stage string, number int) string { return jumps + stage + "/" + strconv.Itoa(number) }
+// jumpTo gives the link to a row of a stage: the stage's name and the row's key.
+func jumpTo(stage, key string) string { return jumps + stage + "/" + key }
+
+// pullKey gives the key of a pull request's row under changes: its reference as kit printed it, else #<number>.
+func (m Model) pullKey(number int) string {
+	if s := m.find("changes"); s != nil {
+		for _, p := range s.pulls {
+			if p.Number == number {
+				return ref(p)
+			}
+		}
+	}
+	return "#" + strconv.Itoa(number)
+}
 
 // incomingRows draws what the fetch brought from each remote, the primary first. Each remote has a dim heading, its
 // name, forge, and host, then its rows in kit flow's order: each commit on its default branch, each branch updated,
@@ -554,7 +605,8 @@ func (m Model) worktreeRows(s stage) []row {
 	return rows
 }
 
-// checkoutRow draws a checkout: glyph and branch, ahead and behind, its pull request's number and state, and its
+// checkoutRow draws a checkout: glyph and branch, ahead and behind, its pull request's number and state, as pullOf
+// gives them, and its
 // uncommitted count; open, the uncommitted paths with their status in yellow, then every commit ahead that kit
 // listed, which the pane pages through, and a count of any kit did not list.
 func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) row {
@@ -569,8 +621,9 @@ func (m Model) checkoutRow(c checkout, glyph string, aheadWidth int, desk bool) 
 	if c.Detached {
 		label += " " + Detached + " detached"
 	}
-	r := row{Key: c.Path, Cells: []cell{text(label), text(counts(c, aheadWidth)), text(diffstat(c)),
-		text(m.pullOf(c.Branch, desk)), uncommitted(c.Uncommitted)}}
+	number, state := m.pullOf(c.Branch, desk)
+	r := row{Key: c.Path, Cells: []cell{text(label), text(counts(c, aheadWidth)), text(diffstat(c)), number, state,
+		uncommitted(c.Uncommitted)}}
 	for _, change := range c.Changes {
 		r.Detail = append(r.Detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
 	}
@@ -613,26 +666,29 @@ func uncommitted(n int) cell {
 	return text(style.Warn(fmt.Sprintf("%d uncommitted", n)))
 }
 
-// pullOf gives the pull request cell of a checkout on the branch: its number and state when changes has loaded and
-// holds one, … while changes loads, nothing when changes is not in the picture or failed, nothing for the desk or a
-// detached checkout without one, and no pull request yet for a worktree without one.
-func (m Model) pullOf(branch string, desk bool) string {
+// pullOf gives the pull request cells of a checkout on the branch, its number and its state, when changes has loaded
+// and holds one: the number's glyph leads to its row under changes, and the state's to its page. Else the number's
+// cell says … while changes loads; both say nothing when changes is not in the picture or failed, or for the desk or
+// a detached checkout without one; and the state's says no pull request yet for a worktree without one, so the
+// numbers' column stays narrow.
+func (m Model) pullOf(branch string, desk bool) (number, state cell) {
 	s := m.find("changes")
 	if s == nil || s.refusal != "" {
-		return ""
+		return cell{}, cell{}
 	}
 	if s.loading {
-		return style.Off("…")
+		return dim("…"), cell{}
 	}
 	for _, p := range s.pulls {
 		if p.Branch == branch && branch != "" {
-			return Change + " " + ref(p) + " " + stateGlyph(p.State) + " " + p.State
+			return linked(text(Change+" "+ref(p)), jumpTo("changes", ref(p))),
+				linked(text(stateGlyph(p.State)+" "+p.State), m.origin.pull(p.Number, ""))
 		}
 	}
 	if desk || branch == "" {
-		return ""
+		return cell{}, cell{}
 	}
-	return style.Off("no pull request yet")
+	return cell{}, dim("no pull request yet")
 }
 
 // ref gives a pull request's reference: what kit printed, else #<number>.
@@ -644,8 +700,8 @@ func ref(p pull) string {
 }
 
 // changeRows draws each pull request: number, title, author, state, age, checks, threads, branch; open, the title
-// wrapped, then the issues it closes, one row each, in flight. The pull request's glyph leads to its page. A pull
-// request belongs to its author.
+// wrapped, then the issues it closes, one row each, in flight. The pull request's glyph and its state's lead to its
+// page. A pull request belongs to its author.
 func (m Model) changeRows(s stage) []row {
 	var rows []row
 	for _, p := range s.pulls {
@@ -657,9 +713,10 @@ func (m Model) changeRows(s stage) []row {
 		if p.Author != "" {
 			author = Owner + " " + p.Author
 		}
-		r := row{Key: ref(p), Owners: []string{p.Author}, Cells: []cell{linked(text(Change+" "+ref(p)), m.origin.pull(p.Number, "")), fill(p.Title), dim(author),
-			text(stateGlyph(p.State) + " " + p.State), dimNumber(age(p.Age)), text(p.Checks.cell()), text(threads),
-			dim(branchOf(p.Branch))}}
+		page := m.origin.pull(p.Number, "")
+		r := row{Key: ref(p), Owners: []string{p.Author}, Cells: []cell{linked(text(Change+" "+ref(p)), page),
+			fill(p.Title), dim(author), linked(text(stateGlyph(p.State)+" "+p.State), page), dimNumber(age(p.Age)),
+			text(p.Checks.cell()), text(threads), dim(branchOf(p.Branch))}}
 		for _, i := range p.Closes {
 			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),
 				text(InFlight + " in flight"), dimNumber(ageOf(i.Age)), fill(Issue + " " + i.Title)})
