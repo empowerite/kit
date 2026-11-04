@@ -128,12 +128,11 @@ func (m *Model) pick(k int) {
 }
 
 // menuBox gives the menu's lines, a rounded box in the accent around its items, each after the room for a glyph, the
-// one under the keyboard inverse and the ones not enabled dim, a rule across it between groups; and the screen column
-// its left edge is drawn at: two before the menu glyph's, so the glyph starts at the top edge's third cell; when the box
-// would run past the rows that way, as on the rightmost tab, the column that puts the glyph two cells before the right
-// corner instead, or nearer when the rows end there; and against the rows' right when the bar does not draw the
-// glyph. The rows, not the bar, bound it, as the lines under the bar
-// end where the rows do.
+// one under the keyboard inverse and the ones not enabled dim, a rule between groups, a cell short of either side; and
+// the screen column its left edge is drawn at: two before the menu glyph's, so the glyph starts at the top edge's third
+// cell; when the box would run past the rows that way, as on the rightmost tab, the column that puts the glyph two
+// cells before the right corner instead, or nearer when the rows end there; and against the rows' right when the bar
+// does not draw the glyph. The rows, not the bar, bound it, as the lines under the bar end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
 	names := make([]string, len(menuItems))
 	for k, item := range menuItems {
@@ -167,7 +166,7 @@ func (m Model) menuBox() (lines []string, left int) {
 		text := pane.Pad(" "+pane.Pad(item.glyph, 2, false)+" "+item.name+" ", inner, false)
 		switch {
 		case item.name == "":
-			lines = append(lines, style.Menu("├"+strings.Repeat("─", inner)+"┤"))
+			lines = append(lines, style.Menu("│ "+strings.Repeat("─", inner-2)+" │"))
 			continue
 		case !m.enabled(k):
 			// dim, and never under the keyboard, even when the rows changed under an open menu

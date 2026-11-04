@@ -29,7 +29,7 @@ func openRows(m Model) int {
 func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press('='))
 	if !m.menu || lines(m)[23] != " "+quitKey+" · "+menuKeys || !strings.Contains(view(m), "│ "+Settings+" Settings…    │") ||
-		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
+		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "│ ─────────────── │") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
