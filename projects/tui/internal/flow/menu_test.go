@@ -31,11 +31,12 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}
-	// the menu's left edge is a cell before the menu glyph, its top on the bar's last line, ┸ right under the glyph;
+	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the glyph,
+	// half a line either side of it;
 	// the keyboard starts on expand all, as the settings do nothing yet, and collapse all, with no row open, is dim
 	glyph := m.bar().MenuAt()
-	if box, left := m.menuBox(); left != glyph-1 || len(box) != len(menuItems)+2 || m.menuAt != 2 ||
-		ansi.Cut(lines(m)[menuTop], glyph, glyph+1) != "┸" || !strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) {
+	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(menuItems)+2 || m.menuAt != 2 ||
+		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+2) != "╴≣╶" || !strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; up
@@ -80,7 +81,7 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 // On incoming, where no row hides anything, every item is dim: the keyboard is on none of them, moves to none, and
 // enter does nothing.
 func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
-	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 5)...)
+	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
 	if m = drive(m, press('='), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
@@ -133,9 +134,9 @@ func TestEqualsInThePanelDropsTheMenuButIsTypedInTheSearch(t *testing.T) {
 	}
 }
 
-// On the rightmost tab, a box under the glyph would run past the rows: the glyph is over its last cell before the
-// corner instead, where ┸ joins it, or over the corner, ┦, when the rows end there; at every width, beside the
-// sidebar or not, the whole box shows.
+// On the rightmost tab, a box from the glyph would run past the rows: the glyph takes the top edge's cell two before
+// the right corner instead, or a nearer one when the rows end there; at every width, beside the sidebar or not, the
+// whole box shows, the edge half a line either side of the glyph.
 // What the box does not cover stays in its columns, a two-cell glyph it cuts in half giving way to a space.
 func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *testing.T) {
 	for _, width := range []int{60, 80, 97, 110, 131, 174, 200} {
@@ -148,12 +149,12 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 				m = drive(m, press('='))
 				box, left := m.menuBox()
 				glyph, end := m.bar().MenuAt(), left+ansi.StringWidth(box[0])
-				want := map[int]string{end - left: "┞", 1: "┦", 2: "┸"}[end-glyph]
-				if end-glyph > 2 && glyph == left+1 {
-					want = "┸"
-				}
 				drawn := lines(m)
-				if end > m.paneWidth() || want == "" || ansi.Cut(drawn[menuTop], glyph, glyph+1) != want ||
+				want := map[int]string{1: "╴≣", 2: "╴≣╮"}[end-glyph]
+				if want == "" {
+					want = "╴≣╶"
+				}
+				if end > m.paneWidth() || glyph-left < 2 || ansi.Cut(drawn[menuTop], glyph-1, glyph-1+len([]rune(want))) != want ||
 					ansi.Cut(drawn[menuTop+len(box)-1], left, end) != ansi.Strip(box[len(box)-1]) {
 					t.Errorf("at %d, sidebar %v, tab %d: the box spans %d to %d, the glyph at %d:\n%s", width, sidebar, i,
 						left, end-1, glyph, view(m))

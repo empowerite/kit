@@ -231,7 +231,7 @@ fake-tui() {
 @test "kit flow --stages prints the configured stages in order, every stage without the setting, and refuses a name that is none" {
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nincoming\nbuilds\nreleases' ]
+  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
   stages 'releases, worktrees, desk'
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
@@ -239,7 +239,7 @@ fake-tui() {
   printf 'flow: [worktrees, nope]\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'nope' is not a stage; the stages are: backlog underway desk worktrees changes incoming builds releases (flow in kit.yml)"* ]]
+  [[ "$output" == *"'nope' is not a stage; the stages are: backlog underway desk worktrees changes builds incoming releases (flow in kit.yml)"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
   [[ "$output" == *"'nope' is not a stage"* ]]
@@ -318,12 +318,12 @@ fake-tui() {
   in-order "${lines[14]}" '#3' 'Fix the thing' 'ada' 'draft' '7-fix-the-thing'
   in-order "${lines[15]}" '#7' 'bob' 'in flight' 'Fix the thing'
   [ "${lines[16]}" = "" ]
-  [[ "${lines[17]}" == *"INCOMING" ]]
-  in-order "${lines[18]}" 'origin' 'github' "${work}/origin.git"
-  in-order "${lines[19]}" 'not fetched'
-  [ "${lines[20]}" = "" ]
-  [[ "${lines[21]}" == *"BUILDS 1" ]]
-  in-order "${lines[22]}" 'kit' 'push' 'main' '3m 36s'
+  [[ "${lines[17]}" == *"BUILDS 1" ]]
+  in-order "${lines[18]}" 'kit' 'push' 'main' '3m 36s'
+  [ "${lines[19]}" = "" ]
+  [[ "${lines[20]}" == *"INCOMING" ]]
+  in-order "${lines[21]}" 'origin' 'github' "${work}/origin.git"
+  in-order "${lines[22]}" 'not fetched'
   [ "${lines[23]}" = "" ]
   [[ "${lines[24]}" == *"RELEASES 3" ]]
   in-order "${lines[25]}" '0.1.0-rc.7' 'draft'
@@ -332,9 +332,9 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '.stages' <<<"$output")" \
-    = '["backlog","underway","desk","worktrees","changes","incoming","builds","releases"]' ]
+    = '["backlog","underway","desk","worktrees","changes","builds","incoming","releases"]' ]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" \
-    = '["stages","backlog","underway","desk","worktrees","changes","incoming","builds","releases"]' ]
+    = '["stages","backlog","underway","desk","worktrees","changes","builds","incoming","releases"]' ]
   [ "$(jq -c '[(.backlog | map(.number)), (.underway | map([.number, .pr.number, .here])), (.changes | map(.number)),
                (.builds | map(.id)), (.releases | map(.version))]' <<<"$output")" \
     = '[[9,11],[[7,3,false]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
@@ -363,8 +363,8 @@ fake-tui() {
   [ "${lines[4]}" = "no issue is underway" ]
   [[ "${lines[12]}" == *"CHANGES 0" ]]
   [ "${lines[13]}" = "no open pull request" ]
-  [[ "${lines[19]}" == *"BUILDS 0" ]]
-  [ "${lines[20]}" = "no build since the last 20 runs" ]
+  [[ "${lines[15]}" == *"BUILDS 0" ]]
+  [ "${lines[16]}" = "no build since the last 20 runs" ]
   [[ "${lines[22]}" == *"RELEASES 0" ]]
   [ "${lines[23]}" = "no release yet" ]
   [ "${#lines[@]}" -eq 24 ]
@@ -694,7 +694,7 @@ fake-tui() {
 @test "kit syntax flow lists the eight stages as a closed set, each described, and the removed verbs are no verbs" {
   run "${kit_root}/bin/kit" syntax flow --choices '<stage>'
   [ "$status" -eq 0 ]
-  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog underway desk worktrees changes incoming builds releases" ]
+  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog underway desk worktrees changes builds incoming releases" ]
   [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
   [[ "${lines[0]}" == $'backlog\tthe open issues not closed by any open pull request, oldest first\t\t' ]]
   [[ "${lines[1]}" == $'underway\tthe open issues closed by an open pull request: who works on each, and where\t\t' ]]
@@ -729,7 +729,7 @@ fake-tui() {
   printf 'flow: []\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"flow in kit.yml names no stage; the stages are: backlog underway desk worktrees changes incoming builds releases"* ]]
+  [[ "$output" == *"flow in kit.yml names no stage; the stages are: backlog underway desk worktrees changes builds incoming releases"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
@@ -743,7 +743,7 @@ fake-tui() {
   printf 'flow:\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nincoming\nbuilds\nreleases' ]
+  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
 }
 
 @test "a primary or a forges key that is no remote is refused with 1 by every stage, before git sees it" {

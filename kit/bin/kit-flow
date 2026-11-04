@@ -5,7 +5,7 @@
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
-#   backlog → underway → desk → worktrees → changes → incoming → builds → releases
+#   backlog → underway → desk → worktrees → changes → builds → incoming → releases
 #
 # The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
 #

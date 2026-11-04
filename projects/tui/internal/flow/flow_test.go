@@ -25,7 +25,7 @@ import (
 )
 
 // eight is the picture's default order.
-var eight = []string{"backlog", "underway", "desk", "worktrees", "changes", "incoming", "builds", "releases"}
+var eight = []string{"backlog", "underway", "desk", "worktrees", "changes", "builds", "incoming", "releases"}
 
 // runner gives a kit.Runner over testdata/fake-kit.
 func runner(t *testing.T) kit.Runner {
@@ -175,7 +175,7 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 	m = drive(m, batch)
 	want := []string{"flow backlog --json --mine --owner=bob", "flow underway --json --mine --owner=bob",
 		"flow desk --json", "flow worktrees --json", "flow changes --json --mine --owner=bob",
-		"flow incoming --json --no-fetch", "flow builds --json", "flow releases --json"}
+		"flow builds --json", "flow incoming --json --no-fetch", "flow releases --json"}
 	if got := calls(t, record); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -270,7 +270,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	if m.stage != 4 || !strings.HasPrefix(cursor(m), Change+" #2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
-	// from changes, five to the right stops at the end: incoming, builds, releases, and there
+	// from changes, five to the right stops at the end: builds, incoming, releases, and there
 	m = drive(m, esc, right, right, right, right, right)
 	if m.stage != 7 {
 		t.Errorf("right past the end of the bar: %d", m.stage)
@@ -467,7 +467,7 @@ func TestAStageThatDiesSilentlyIsARefusalNotAnEmptyStage(t *testing.T) {
 
 func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "incoming")
-	m := loaded(t, options(), right, right, right, right, right)
+	m := loaded(t, options(), right, right, right, right, right, right)
 	v := view(m)
 	// the line wraps at the pane's width, as every refusal does
 	want := "kit flow incoming --json printed an array where an object of remotes was expected; run kit flow " +
@@ -676,7 +676,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
-	m = loaded(t, o, right, right, right, right, right)
+	m = loaded(t, o, right, right, right, right, right, right)
 	if first := lines(m)[0]; first != " kit flow" {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
@@ -708,7 +708,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 }
 
 func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
-	m := loaded(t, options(), right, right, right, right, right)
+	m := loaded(t, options(), right, right, right, right, right, right)
 	want := []string{
 		Remote + " origin · github · github.com",
 		"a1b2c3d  #1 docs: the docs say what the code does",
@@ -736,7 +736,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 			t.Errorf("%q is not dim", text)
 		}
 	}
-	if !shows(m, Fetched, "6") || m.count(5) != "6" {
+	if !shows(m, Fetched, "6") || m.count(6) != "6" {
 		t.Errorf("incoming does not count its rows alone: %q", lines(m)[2])
 	}
 	// every row is a leaf, the headings too
@@ -750,8 +750,8 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 	m.rebuild()
 	failed := Failed + " fatal: could not read from remote repository"
 	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n   "+failed+"\n") ||
-		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(5) != "4" {
-		t.Errorf("a failed fetch: count %s\n%s", m.count(5), v)
+		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(6) != "4" {
+		t.Errorf("a failed fetch: count %s\n%s", m.count(6), v)
 	}
 	m.find("incoming").in.Remotes[0].Error = ""
 	m.rebuild()
@@ -761,8 +761,8 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 		r.Commits, r.Branches.New, r.Branches.Updated, r.Branches.Gone, r.Tags = nil, nil, nil, nil, nil
 	}
 	m.rebuild()
-	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(5) != "0" {
-		t.Errorf("three remotes unchanged: count %s\n%s", m.count(5), v)
+	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(6) != "0" {
+		t.Errorf("three remotes unchanged: count %s\n%s", m.count(6), v)
 	}
 	// with no remote at all, the pane says so
 	m.find("incoming").in.Remotes = nil
@@ -1167,7 +1167,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	if !strings.Contains(m.View().Content, Issue+" "+style.Mark("backlog")) {
 		t.Errorf("the selected name is not marked: %q", lines(m)[2])
 	}
-	m = drive(m, right, right, right, right, right, down)
+	m = drive(m, right, right, right, right, right, right, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, style.Mark("incoming")) ||
 		!strings.Contains(bar, dim+" 🎫 backlog ") {
@@ -1228,7 +1228,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 
 func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between incoming and releases
-	m := loaded(t, options(), right, right, right, right, right, right)
+	m := loaded(t, options(), right, right, right, right, right)
 	if m.stages[m.stage].name != "builds" || !shows(m, Build, "4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}
@@ -1305,11 +1305,11 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 
 func TestBuildsRefuseADocumentWithoutIDs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "builds")
-	m := loaded(t, options(), right, right, right, right, right, right)
+	m := loaded(t, options(), right, right, right, right, right)
 	want := `kit flow builds --json printed an array of objects without "id" where an array of builds was ` +
 		"expected; run kit flow inside a repository"
-	if m.stages[6].refusal != want || !shows(m, Build, "!") {
-		t.Errorf("desks for builds: %q\n%s", m.stages[6].refusal, view(m))
+	if m.stages[5].refusal != want || !shows(m, Build, "!") {
+		t.Errorf("desks for builds: %q\n%s", m.stages[5].refusal, view(m))
 	}
 	if err := shape("builds", []byte(`{"id": 1}`)); err == nil || !strings.Contains(err.Error(), "printed an object") {
 		t.Errorf("builds took an object: %v", err)

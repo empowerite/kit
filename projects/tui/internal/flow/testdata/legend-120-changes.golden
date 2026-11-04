@@ -1,32 +1,32 @@
  kit flow · 📚 empowerite/kit                                                   🔎 search
- ──╮➄╶─────────────────────╴➏╶──────────────────────╮➆╶────────────────────╮➇╶─
-◃  │  🔀 changes         3  │ 📥 incoming       6 ≣ │  🏭 builds         4 │  ▹ legend
- ──╰────────────────────────╯                       ╰──────────────────────╰──┐ 📥 the fetch
-   📡 origin · github · github.com                                            │ 📡 a remote
-   a1b2c3d  #1 docs: the docs say what the code does                          │ 🌿 a branch
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, … │ 🔖 a branch gone
-   🌿       46-a-noun-lists updated                                           │ 📌 a new tag
-   🌿       42-settings new branch                                            │ ❌ a fetch failed
-   📡 upstream · gitlab · git.example.org                                     │
-   🔖       old-experiment upstream gone                                      │
-   📌       release/0.2.0 new tag                                             │
-   📡 backup · no forge · nas.local                                           │
-   unchanged                                                                  │
+ ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶──
+◃   🌿 worktrees         4  │ 🔀 changes       3 ≣ │  🏭 builds         4 │   ▹ columns
+ ╰──────────────────────────╯                      ╰──────────────────────╰───┐ ☑ change
+ ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🛬 ready          8d  ✅ 1 / 1 … │ ☑ title
+ ▸ 🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2 … │ ☑ author
+ ▸ 🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint f… │ ☑ state
+                                                                              │ ☑ age
+                                                                              │ ☑ checks
+                                                                              │ ☑ threads
+                                                                              │ ☑ branch
                                                                               │
+                                                                              │ show
+                                                                              │ ⦿ all
+                                                                              │ ⦾ mine
+                                                                              │ ⦾ others
                                                                               │
+                                                                              ▸ legend
+                                                                              ╷ 🔀 a pull request 🔗
+                                                                              │ 👤 its author
+                                                                              │ 🌿 its branch
+                                                                              │ 🏃 checks running
+                                                                              │ ✅ checks passed
+                                                                              │ ❌ a check failed
+                                                                              │ 💬 threads unresolved
+                                                                              │ 🛫 an issue it closes
+                                                                              │ 🎫 the issue's title
                                                                               │
-                                                                              ▸
-                                                                              ╷
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
-                                                                              │
+                                                                              │ state 🔗
+                                                                              │ 🔨 draft
+                                                                              │ … 8 more
  ^C quit · ←→ view · ↓ rows · 1-9 jump · ⇥ panel · = menu · r refresh · ? sidebar · esc back

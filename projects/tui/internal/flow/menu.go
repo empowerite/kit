@@ -1,8 +1,8 @@
-// The selected tab's menu: = or a click on the tab's menu glyph drops it down right under the glyph, which ┸ joins to
-// the box's top edge, one cell in from its left corner, or from its right one when the box would run off the screen.
-// While it is open it has the keyboard: up and down move, a letter moves to the next item that starts with it, enter
-// and space choose, and esc or = closes it; a click on an item chooses it, and a click anywhere else closes it. Each
-// choice acts on the selected stage's rows; an item that would change nothing is dim, and the keyboard passes it by.
+// The selected tab's menu: = or a click on the tab's menu glyph drops it down from the glyph, which takes a cell of the
+// box's top edge, two in from its left corner, or from its right one when the box would run off the screen. While it is
+// open it has the keyboard: up and down move, a letter moves to the next item that starts with it, enter and space
+// choose, and esc or = closes it; a click on an item chooses it, and a click anywhere else closes it. Each choice acts
+// on the selected stage's rows; an item that would change nothing is dim, and the keyboard passes it by.
 package flow
 
 import (
@@ -14,6 +14,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // The glyphs beside the menu's items: the settings, every row expanded, and every row collapsed, all the way down and
@@ -127,10 +128,10 @@ func (m *Model) pick(k int) {
 
 // menuBox gives the menu's lines, a rounded box in the accent around its items, each after the room for a glyph, the
 // one under the keyboard inverse and the ones not enabled dim, a rule across it between groups; and the screen column
-// its left edge is drawn at: one before the menu glyph's, so the glyph stands over the top edge's first cell, where ┸
-// joins it; when the box would run past the rows that way, as on the rightmost tab, the column that puts the glyph
-// over its last cell before the corner instead, or over the corner itself, ┦, when the rows end there; and against
-// the rows' right when the bar does not draw the glyph. The rows, not the bar, bound it, as the lines under the bar
+// its left edge is drawn at: two before the menu glyph's, so the glyph takes the top edge's third cell; when the box
+// would run past the rows that way, as on the rightmost tab, the column that puts the glyph two cells before the right
+// corner instead, or nearer when the rows end there; and against the rows' right when the bar does not draw the
+// glyph. The rows, not the bar, bound it, as the lines under the bar
 // end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
 	names := make([]string, len(menuItems))
@@ -142,21 +143,22 @@ func (m Model) menuBox() (lines []string, left int) {
 	switch {
 	case glyph < 0:
 		left = room - width
-	case glyph-1+width > room:
-		left = min(glyph+2, room) - width
+	case glyph-2+width > room:
+		left = min(glyph+3, room) - width
 	default:
-		left = glyph - 1
+		left = glyph - 2
 	}
 	left = max(0, left)
 	top := []rune("╭" + strings.Repeat("─", inner) + "╮")
-	switch c := glyph - left; {
-	case glyph < 0 || c < 0 || c >= width:
-	case c == 0:
-		top[c] = '┞'
-	case c == width-1:
-		top[c] = '┦'
-	default:
-		top[c] = '┸'
+	if c := glyph - left; glyph >= 0 && c >= 0 && c < width {
+		// the glyph takes its cell of the top edge, the edge either side of it drawn half its length
+		top[c] = []rune(tabs.Menu)[0]
+		if c > 1 {
+			top[c-1] = '╴'
+		}
+		if c < width-2 {
+			top[c+1] = '╶'
+		}
 	}
 	lines = append(lines, style.Mark(string(top)))
 	for k, item := range menuItems {
@@ -176,8 +178,8 @@ func (m Model) menuBox() (lines []string, left int) {
 	return lines, left
 }
 
-// menuTop is the screen line the menu's box starts on: the bar's last, right under the menu glyph on its middle one.
-const menuTop = paneTop - 1
+// menuTop is the screen line the menu's box starts on: the bar's middle one, its top edge through the menu glyph.
+const menuTop = paneTop - 2
 
 // overlay draws the open menu over the screen's lines, from menuTop; what the box covers is hidden, and what is
 // beside it stays in its columns, a two-cell glyph the box cuts in half giving way to a space.

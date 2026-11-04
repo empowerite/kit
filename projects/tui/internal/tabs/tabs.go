@@ -59,7 +59,7 @@ type Tab struct {
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
 // count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
-// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold. Joined says a line runs
+// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then bold, and the count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it.
 type Bar struct {
@@ -138,7 +138,7 @@ func Marker(i int, selected bool) string {
 
 // label gives a tab's label on the middle line, as two ends: its glyph and a space, when it has one, and its name, in
 // the accent when selected; then, right-aligned in the tab, its count, dim, and the menu's glyph after a space on the
-// selected tab, when the bar has menus. Its number is on the line above.
+// selected tab, when the bar has menus, its count blank while the menu is open. Its number is on the line above.
 func (b Bar) label(i int) (name, end string) {
 	t := b.Tabs[i]
 	if t.Glyph != "" {
@@ -153,7 +153,8 @@ func (b Bar) label(i int) (name, end string) {
 	if b.Menus && i == b.Selected {
 		glyph := style.Tint(Menu)
 		if b.MenuOpen {
-			glyph = style.Mark(Menu)
+			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
+			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Mark(Menu)
 		}
 		end += " " + glyph
 	}

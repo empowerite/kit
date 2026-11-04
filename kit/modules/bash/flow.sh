@@ -5,7 +5,7 @@
 #
 # kit flow draws the picture. Work moves left to right through eight stages:
 #
-#   backlog → underway → desk → worktrees → changes → incoming → builds → releases
+#   backlog → underway → desk → worktrees → changes → builds → incoming → releases
 #
 # The flow setting in kit.yml names the stages the picture draws, in order. flow:render draws one stage, or
 # the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,

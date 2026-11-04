@@ -239,7 +239,7 @@ settings:require() {
 }
 
 # settings_stages names the stages of kit flow, in the order work moves: the values the flow setting takes.
-declare -gra settings_stages=(backlog underway desk worktrees changes incoming builds releases)
+declare -gra settings_stages=(backlog underway desk worktrees changes builds incoming releases)
 
 # settings:stages prints the stages the flow setting names, one per line, in its order: what kit flow draws.
 # Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 1: a
