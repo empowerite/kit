@@ -28,14 +28,14 @@ func openRows(m Model) int {
 func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press('='))
 	if !m.menu || lines(m)[23] != " "+quitKey+" · "+menuKeys || !strings.Contains(view(m), "│ "+Settings+" Settings…    │") ||
-		!strings.Contains(view(m), "│    Expand all   │") || !strings.Contains(view(m), "├─────────────────┤") {
+		!strings.Contains(view(m), "│    Expand All   │") || !strings.Contains(view(m), "├─────────────────┤") {
 		t.Fatalf("= did not drop the menu down:\n%s", view(m))
 	}
 	// the menu's left edge is a cell before the menu glyph, its top on the bar's last line, ┸ right under the glyph;
 	// the keyboard starts on expand all, as the settings do nothing yet, and collapse all, with no row open, is dim
 	glyph := m.bar().MenuAt()
 	if box, left := m.menuBox(); left != glyph-1 || len(box) != len(menuItems)+2 || m.menuAt != 2 ||
-		ansi.Cut(lines(m)[menuTop], glyph, glyph+1) != "┸" || !strings.Contains(box[4], style.Off("    Collapse all ")) {
+		ansi.Cut(lines(m)[menuTop], glyph, glyph+1) != "┸" || !strings.Contains(box[4], style.Off("    Collapse All ")) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; up
@@ -52,7 +52,7 @@ func TestEqualsDropsTheMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Errorf("up and down moved to a dim item: %d", m.menuAt)
 	}
 	// enter on expand all expands every worktree row that hides something; the menu closes
-	if m = drive(m, press(tea.KeyEnter)); m.menu || openRows(m) == 0 || strings.Contains(view(m), "Expand all") {
+	if m = drive(m, press(tea.KeyEnter)); m.menu || openRows(m) == 0 || strings.Contains(view(m), "Expand All") {
 		t.Fatalf("expand all: menu %v, open %d", m.menu, openRows(m))
 	}
 	opened := openRows(m)
@@ -84,7 +84,7 @@ func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
 	if m = drive(m, press('='), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
-	if box, _ := m.menuBox(); strings.Contains(box[3], style.Cursor("    Expand all")) {
+	if box, _ := m.menuBox(); strings.Contains(box[3], style.Cursor("    Expand All")) {
 		t.Errorf("a dim item is under the keyboard: %q", box[3])
 	}
 }

@@ -25,7 +25,7 @@ type menuItem struct{ glyph, name string }
 
 // menuItems are the menu's lines, top to bottom: the settings, which kittui does not have yet, a rule, every row that
 // hides something expanded, and every row collapsed.
-var menuItems = []menuItem{{Settings, "Settings…"}, {}, {"", "Expand all"}, {"", "Collapse all"}}
+var menuItems = []menuItem{{Settings, "Settings…"}, {}, {"", "Expand All"}, {"", "Collapse All"}}
 
 // menuKeys is the keys bar while the menu is open.
 const menuKeys = "↑↓ move · ⏎ choose · esc close"
@@ -60,11 +60,11 @@ func (m Model) enabled(k int) bool {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	for j, r := range rows {
 		switch menuItems[k].name {
-		case "Expand all":
+		case "Expand All":
 			if !s.open[r.Key] && grid.Opens(rows, j, m.paneWidth()) {
 				return true
 			}
-		case "Collapse all":
+		case "Collapse All":
 			if s.open[r.Key] {
 				return true
 			}
@@ -108,13 +108,13 @@ func (m *Model) pick(k int) {
 	m.menu = false
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	switch menuItems[k].name {
-	case "Expand all":
+	case "Expand All":
 		for j, r := range rows {
 			if grid.Opens(rows, j, m.paneWidth()) {
 				s.open[r.Key] = true
 			}
 		}
-	case "Collapse all":
+	case "Collapse All":
 		clear(s.open)
 	}
 	m.fit()
