@@ -159,12 +159,25 @@ func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
 	if got := row(stages(7, 40), 1); !strings.HasPrefix(got, Before) || strings.HasSuffix(got, After) {
 		t.Errorf("at 40, tab 7: %q", got)
 	}
-	// a click on a triangle selects the nearest tab it hides, cut at the edge or wholly hidden, which then shows
-	b := stages(5, 40)
-	for _, c := range []struct{ x, want int }{{0, 4}, {39, 6}} {
-		got, ok := b.Update(testkit.Click(c.x, 2))
-		if !ok || got.Selected != c.want || !strings.Contains(row(got, 0), Marker(c.want, true)) {
-			t.Errorf("a click on the triangle at %d: tab %d, taken %v", c.x, got.Selected, ok)
+	// a click on a triangle selects the tab before the selected one, or after it, at any width, which then shows,
+	// centered as near as the bar's ends let
+	for _, width := range []int{40, 60, 80, 100} {
+		for s := range 8 {
+			b := stages(s, width)
+			line := row(b, 1)
+			for _, c := range []struct {
+				x, want int
+				shown   bool
+			}{{0, s - 1, strings.HasPrefix(line, Before)}, {width - 1, s + 1, strings.HasSuffix(line, After)}} {
+				if !c.shown {
+					continue
+				}
+				got, ok := b.Update(testkit.Click(c.x, 2))
+				if !ok || got.Selected != c.want || !strings.Contains(row(got, 0), Marker(c.want, true)) {
+					t.Errorf("at %d from tab %d, a click on the triangle at %d: tab %d, taken %v", width, s, c.x,
+						got.Selected, ok)
+				}
+			}
 		}
 	}
 	// the margin without a triangle is no tab's

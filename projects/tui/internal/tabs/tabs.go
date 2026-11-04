@@ -376,16 +376,16 @@ func (b Bar) Numbers() []int {
 }
 
 // hit gives the tab a column of the screen falls on: the one whose part covers it; on a triangle that says tabs are
-// hidden, the one that covers the cell just past the view, which selected comes into view. The margin without a
-// triangle is no tab's: -1.
+// hidden, the tab before the selected one, or after it, which the view then centers as it does any selected tab, or
+// nearly, at the bar's ends. The margin without a triangle is no tab's: -1.
 func (b Bar) hit(x int) int {
 	l, w := b.layout(), b.screen()
 	var at int
 	switch {
 	case x == 0 && l.scroll > 0:
-		at = l.scroll - 1
+		return max(b.Selected-1, 0)
 	case x == w && l.scroll+w < l.width:
-		at = l.scroll + w
+		return min(b.Selected+1, len(b.Tabs)-1)
 	case x < 1 || x > w:
 		return -1
 	default:
