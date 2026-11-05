@@ -26,7 +26,6 @@ package tabs
 
 import (
 	"cmp"
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -207,23 +206,18 @@ type layout struct {
 	scroll    int
 }
 
-// layout lays each tab out whole, its number's cell and a space before it and the cell after it besides. When they
-// fit the screen, they share it in proportion to their widths; when they do not, the canvas is as wide as they are,
-// and the view scrolls so the selected tab is in its middle, or as near as the ends of the canvas let.
+// layout lays each tab out whole, at its own width, its number's cell and a space before it and the cell after it
+// besides; the canvas is as wide as they are. When it is narrower than the screen, the line under the bar runs on to
+// the screen's edge; when it is wider, the view scrolls so the selected tab is in its middle, or as near as the ends
+// of the canvas let.
 func (b Bar) layout() layout {
 	n, w := len(b.Tabs), b.screen()
 	whole := make([]int, n)
-	wanted := 0
 	for i := range n {
 		whole[i] = 2 + b.wants(i) + 1 // its number's cell and a space, and the cell after it
-		wanted += whole[i]
 	}
-	parts := whole
-	if wanted <= w {
-		parts = share(w, whole)
-	}
-	l := layout{at: make([]int, n), parts: parts}
-	for i, part := range parts {
+	l := layout{at: make([]int, n), parts: whole}
+	for i, part := range whole {
 		l.at[i], l.width = l.width, l.width+part
 	}
 	if l.width > w {
@@ -232,31 +226,14 @@ func (b Bar) layout() layout {
 	return l
 }
 
-// share splits so many cells between parts in proportion to what each wants; the cells the rounding leaves go to the
-// largest remainders, the earlier part of two alike first.
-func share(cells int, wants []int) []int {
-	total := 0
-	for _, want := range wants {
-		total += want
-	}
-	out, order, given := make([]int, len(wants)), make([]int, len(wants)), 0
-	for i, want := range wants {
-		out[i], order[i] = cells*want/total, i
-		given += out[i]
-	}
-	slices.SortStableFunc(order, func(a, b int) int { return cells*wants[b]%total - cells*wants[a]%total })
-	for _, i := range order[:cells-given] {
-		out[i]++
-	}
-	return out
-}
-
 // View draws the bar's three lines as the screen shows them, each after the gutter, as the package says.
 func (b Bar) View() string {
 	if len(b.Tabs) == 0 {
 		return ""
 	}
 	l, w, n := b.layout(), b.screen(), len(b.Tabs)
+	// whether the last tab reaches the screen's edge; short of it, the line under the bar runs on past it
+	edge := l.width >= w
 	var over, tabs, under strings.Builder
 	cell := func(top, middle, bottom string) {
 		over.WriteString(top)
@@ -280,7 +257,7 @@ func (b Bar) View() string {
 		if i == b.Selected {
 			cell(mark(cmp.Or(Marker(i, true), "╭")), mark("│"), curve("╯", i == 0))
 			cell(mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
-			cell(mark("╮"), mark("│"), curve("╰", i == n-1))
+			cell(mark("╮"), mark("│"), curve("╰", i == n-1 && edge))
 			continue
 		}
 		// the others' borders are dim, and the line under them in the selected tab's color; the tab before the selected
@@ -299,12 +276,16 @@ func (b Bar) View() string {
 		switch {
 		case i+1 == b.Selected:
 			cell(style.Off("╴"), " ", mark("─"))
-		case i == n-1:
-			// the last tab has no line under a tab after it to curve out to: its edge ends in a half line
+		case i == n-1 && edge:
+			// the last tab at the edge has no line after it to curve out to: its edge ends in a half line
 			cell(style.Off("╮"), style.Off("│"), style.Off("╵"))
 		default:
 			cell(style.Off("╮"), style.Off("│"), style.Off("╰"))
 		}
+	}
+	// past the last tab, the line under the bar runs on to the screen's edge
+	if l.width < w {
+		under.WriteString(mark(strings.Repeat("─", w-l.width)))
 	}
 	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line
 	shown := func(line string, middle bool) string {

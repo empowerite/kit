@@ -85,11 +85,21 @@ func TestTheBarIsThreeLinesWithinTheScreenAndKeepsEveryNumberWhenItFits(t *testi
 	}
 }
 
-func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T) {
-	want := "  │ 🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
-		"🔀 changes     3 │  🏭 builds     4 │  📦 releases      3 │"
-	if got := row(stages(0, 170), 1); got != want {
-		t.Errorf("at 170:\n got %q\nwant %q", got, want)
+// natural is the screen's width the eight stages' tabs just fill, each at its own width, the gutter before them.
+func natural() int { return stages(0, 1000).layout().width + Gutter }
+
+func TestEveryTabIsWholeAtItsOwnWidthAndTheLineUnderRunsOnPastThem(t *testing.T) {
+	want := "  │ 🎫 backlog 15 │  🛫 underway 58 │  🛬 incoming 2 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3 │  " +
+		"🏭 builds 4 │  📦 releases 3 │"
+	// a wider screen draws them as wide, and the line under them runs on to its edge
+	for _, width := range []int{natural(), 170} {
+		if got := row(stages(0, width), 1); got != want {
+			t.Errorf("at %d:\n got %q\nwant %q", width, got, want)
+		}
+	}
+	if under := row(stages(0, 170), 2); ansi.StringWidth(under) != 170 || !strings.HasSuffix(under, "╰"+
+		strings.Repeat("─", 170-natural())) {
+		t.Errorf("the line under at 170: %q", under)
 	}
 	// narrower, no name is cut: the bar scrolls instead
 	for width := 20; width < 170; width++ {
@@ -99,36 +109,26 @@ func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T)
 	}
 }
 
-// share gives each its proportion, and the cells the rounding leaves to the largest remainders, the earlier first.
-func TestShareGivesEachItsProportion(t *testing.T) {
-	if got := share(10, []int{1, 1, 2}); !slices.Equal(got, []int{3, 2, 5}) {
-		t.Errorf("share(10, 1:1:2) = %v", got)
-	}
-	if got := share(20, []int{1, 9}); !slices.Equal(got, []int{2, 18}) {
-		t.Errorf("share(20, 1:9) = %v", got)
-	}
-}
-
 // The selected tab has the line over it and none under; the others a dim border, from the number over them to ╮,
 // down │, and out to the right with ╰ over the line under them, which is in the accent; the tab before the selected
 // one has no edge after it: its line over it ends in a half line short of the selected number, and the line under it
 // runs on.
 func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	want := []string{
-		"  ➀╶───────────────────╮➁╶────────────────────╮➂╶───────────────────╴➍╶──────────────╮➄╶────────────────────╮" +
-			"➅╶─────────────────╮➆╶────────────────╮➇╶───────────────────╮",
-		"    🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
-			"🔀 changes     3 │  🏭 builds     4 │  📦 releases      3 │",
-		"  ─────────────────────╰──────────────────────╰──────────────────────╯               ╰──────────────────────╰" +
-			"───────────────────╰──────────────────╰─────────────────────╵",
+		"  ➀╶──────────────╮➁╶───────────────╮➂╶──────────────╴➍╶──────────╮➄╶───────────────╮➅╶─────────────╮" +
+			"➆╶────────────╮➇╶──────────────╮",
+		"    🎫 backlog 15 │  🛫 underway 58 │  🛬 incoming 2  │ 💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3 │  " +
+			"🏭 builds 4 │  📦 releases 3 │",
+		"  ────────────────╰─────────────────╰─────────────────╯           ╰─────────────────╰───────────────╰" +
+			"──────────────╰────────────────╵",
 	}
-	b := stages(3, 170)
+	b := stages(3, natural())
 	if got := strings.Split(plain(b), "\n"); !slices.Equal(got, want) {
 		t.Errorf("the bar:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// the first tab and the last have the same edges, the first's after the gutter, each over a half line where no tab
 	// is beside it
-	first, last := strings.Split(plain(stages(0, 170)), "\n"), strings.Split(plain(stages(7, 170)), "\n")
+	first, last := strings.Split(plain(stages(0, natural())), "\n"), strings.Split(plain(stages(7, natural())), "\n")
 	for k, edge := range []string{"➊", "│", "╵"} {
 		if !strings.HasPrefix(first[k], "  "+edge) {
 			t.Errorf("the first tab's line %d does not start with %s: %q", k, edge, first[k])
@@ -139,9 +139,13 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 			t.Errorf("the last tab's line %d does not end with %s: %q", k, edge, last[k])
 		}
 	}
+	// short of the screen's edge, the last tab's edge curves out to the line that runs on
+	if under := row(stages(7, 170), 2); !strings.Contains(under, "╰─") || strings.Contains(under, "╵") {
+		t.Errorf("the selected last tab short of the edge: %q", under)
+	}
 	// the selected tab's lines are in the accent, and so is the line under every tab; the others' hooks are dim
 	if v := b.View(); !strings.Contains(v, style.Mark("➍")) || !strings.Contains(v, style.Mark("╯")) ||
-		!strings.Contains(v, style.Mark("╰")) || !strings.Contains(v, style.Mark(strings.Repeat("─", 21))) ||
+		!strings.Contains(v, style.Mark("╰")) || !strings.Contains(v, style.Mark(strings.Repeat("─", 15))) ||
 		!strings.Contains(v, style.Off("╰")) {
 		t.Errorf("the edges are not in the accent: %q", v)
 	}
@@ -288,7 +292,7 @@ func TestTheBarsEdges(t *testing.T) {
 	}
 	// a tab without a glyph has its name under its number
 	bare := Bar{Selected: 1, Width: 40, Tabs: []Tab{{"", "nonesuch", "!"}, {"🎫", "backlog", "3"}}}
-	if got := plain(bare); !strings.HasPrefix(got, "  ➀╶") || !strings.HasPrefix(row(bare, 1), "    nonesuch     !  │") {
+	if got := plain(bare); !strings.HasPrefix(got, "  ➀╶") || !strings.HasPrefix(row(bare, 1), "    nonesuch !  │") {
 		t.Errorf("a tab without a glyph: %q", got)
 	}
 }
@@ -351,7 +355,8 @@ func TestAJoinedBarTurnsDownInItsLastColumn(t *testing.T) {
 	for _, c := range []struct {
 		selected, width int
 		want            string
-	}{{0, 200, "┤"}, {7, 200, "│"}, {0, 80, "┐"}, {3, 60, "┐"}, {1, 12, "╷"}} {
+	}{{0, natural(), "┤"}, {7, natural(), "│"}, {0, 200, "┐"}, {7, 200, "┐"}, {0, 80, "┐"}, {3, 60, "┐"},
+		{1, 12, "╷"}} {
 		b := stages(c.selected, c.width)
 		b.Joined = true
 		under := row(b, 2)
