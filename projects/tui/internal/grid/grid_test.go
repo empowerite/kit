@@ -448,7 +448,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
 	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
 		{Key: "gone", Cells: []Cell{one("gone: x")}}}
-	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state").Grouped("who")
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
 	var got []string
 	for _, r := range p.group(rows, columns) {
 		text := r.Key
@@ -462,7 +462,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if q := p.Grouped("state"); !slices.Equal(q.Group, []string{"who"}) || p.Grouped("id").Group[0] != "state" {
+	if q := p.Grouped("state", true); !slices.Equal(q.Group, []string{"who"}) || p.Grouped("id", false).Group[0] != "state" {
 		t.Errorf("ungrouping, or a column that cannot group: %q", q.Group)
 	}
 	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {

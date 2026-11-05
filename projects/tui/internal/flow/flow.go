@@ -313,7 +313,7 @@ type meMsg struct {
 // the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
-	p.Columns = m.offered(i)
+	p.Columns, p.Fill = m.offered(i), m.sideWidth()-1
 	return p
 }
 
@@ -393,7 +393,8 @@ func (m *Model) clickPanel(line int) tea.Cmd {
 // after the others, as the panel's Sorted says; elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also bool) {
 	s := &m.stages[m.stage]
-	if _, hides := m.header(); hides && y == paneTop && x < 3 {
+	x -= m.indent(m.stage)
+	if _, hides := m.header(); hides && y == paneTop && x >= 0 && x < 3 {
 		s.headed = !s.headed
 		m.fit()
 		return
@@ -402,7 +403,7 @@ func (m *Model) clickHeader(x, y int, also bool) {
 	if y >= paneTop+len(lines)-1 {
 		return
 	}
-	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.paneWidth(), x); j >= 0 {
+	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x); j >= 0 {
 		m.setPanel(m.panel(m.stage).Sorted(m.shownColumns(m.stage)[j], also))
 	}
 }
@@ -504,12 +505,13 @@ func (m *Model) dragTo(x, y int) {
 	m.setPanel(p)
 }
 
-// release ends a hold on a column's line: a hold no drag moved, released on the line it began on, toggles the column's
-// checkbox, as a click on any other control acts on it.
+// release ends a hold on a column's line: a hold no drag moved, released on the checkbox of the line it began on,
+// toggles it, as a click on any other control acts on it; released on the column's name, which takes the keyboard to
+// sort or group by it, it toggles nothing.
 func (m *Model) release(x, y int) {
 	held := m.drag
 	m.drag = drag{}
-	if held.column == "" || held.moved {
+	if held.column == "" || held.moved || x > m.width-m.sideWidth()+1 {
 		return
 	}
 	line := m.panelLine(x, y)
@@ -1023,7 +1025,7 @@ func (m *Model) open(open bool) {
 	}
 	s := &m.stages[m.stage]
 	rows := m.rows(m.stage)
-	if s.cursor >= len(rows) || !grid.Opens(rows, m.names(m.stage), s.cursor, m.paneWidth()) {
+	if s.cursor >= len(rows) || !grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
 		return
 	}
 	s.open[rows[s.cursor].Key] = open
@@ -1056,9 +1058,12 @@ func (m *Model) click(x, y int) tea.Cmd {
 	row, first := lines[k].row, k == 0 || lines[k-1].row != lines[k].row
 	link := ""
 	if first {
-		link = grid.LinkAt(rows, m.names(m.stage), row, m.paneWidth(), x)
+		if !rows[row].Aside {
+			x -= m.indent(m.stage)
+		}
+		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
-	toggle := first && link == "" && (x < 3 || m.inRows && row == s.cursor)
+	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel = row, true, false
 	switch {
 	case strings.HasPrefix(link, jumps):

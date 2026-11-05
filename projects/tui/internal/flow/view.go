@@ -154,7 +154,7 @@ func (m Model) keys() string {
 	if m.inRows {
 		keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
 		s, rows := m.stages[m.stage], m.rows(m.stage)
-		if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.paneWidth()) {
+		if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
 			if s.open[rows[s.cursor].Key] {
 				keys = append(keys, "← close")
 			} else {
@@ -292,7 +292,7 @@ func (m Model) shownColumns(i int) []string {
 	p := m.filter(i)
 	var names []string
 	for _, name := range p.Arrange(columns[m.stages[i].name]) {
-		if name == "" || !p.Hidden[name] {
+		if name == "" || p.Shows(name) {
 			names = append(names, name)
 		}
 	}
@@ -311,9 +311,12 @@ func (m Model) header() (lines []string, hides bool) {
 	if !s.headers || s.loading || s.refusal != "" {
 		return nil, false
 	}
-	lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.paneWidth(), s.headed)
+	lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.headed)
 	if len(lines) == 0 {
 		return nil, false
+	}
+	for k := range lines {
+		lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 	}
 	return append(lines, "   "+style.Off(strings.Repeat("─", max(0, m.paneWidth()-3)))), hides
 }
@@ -444,11 +447,22 @@ func (m Model) lines(i int) []line {
 	if m.inRows && i == m.stage && s.cursor < len(rows) {
 		chosen = s.cursor
 	}
-	drawn := grid.Draw(rows, m.names(i), m.paneWidth(), chosen, func(r row) bool { return s.open[r.Key] },
+	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, func(r row) bool { return s.open[r.Key] },
 		func(r row) bool { return s.picked[r.Key] })
 	out := make([]line, len(drawn))
+	indent := strings.Repeat(" ", m.indent(i))
 	for k, l := range drawn {
-		out[k] = line{l.Row, l.Text}
+		if rows[l.Row].Aside {
+			out[k] = line{l.Row, l.Text}
+		} else {
+			out[k] = line{l.Row, indent + l.Text}
+		}
 	}
 	return out
 }
+
+// indent gives the cells a stage's rows, and its header, stand in by, under the headings of its groups: two a level.
+func (m Model) indent(i int) int { return 2 * len(m.filter(i).Group) }
+
+// gridWidth gives the cells a stage's rows are laid out in: the pane's, less their indent.
+func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }

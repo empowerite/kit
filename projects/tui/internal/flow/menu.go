@@ -39,12 +39,15 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 // expanded, every row collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the
 // rows selected: each one's page opened, every row selected, and none.
 func (m Model) tabItems() []shell.Item {
-	headers := ""
+	headers, which := "", "All"
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
 		headers = Checked
 	}
-	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand All"},
-		{Glyph: Collapse, Name: "Collapse All"}, {}, {Glyph: headers, Name: "Show Headers"}, {},
+	if m.selected() > 0 {
+		which = "Selected"
+	}
+	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand " + which},
+		{Glyph: Collapse, Name: "Collapse " + which}, {}, {Glyph: headers, Name: "Show Headers"}, {},
 		{Glyph: Browse, Name: "Open Selected"}, {Glyph: Every, Name: "Select All"}, {Glyph: Sweep, Name: "Clear Selection"}}
 }
 
@@ -119,6 +122,14 @@ func (m Model) enabled(k int) bool {
 		return m.selected() > 0
 	case "":
 		return false
+	case "Expand Selected", "Collapse Selected":
+		for j, r := range rows {
+			opens := grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage))
+			if s.picked[r.Key] && opens && s.open[r.Key] == (m.tabItems()[k].Name == "Collapse Selected") {
+				return true
+			}
+		}
+		return false
 	case "Expand All":
 		if hides && !s.headed {
 			return true
@@ -131,7 +142,7 @@ func (m Model) enabled(k int) bool {
 	for j, r := range rows {
 		switch m.tabItems()[k].Name {
 		case "Expand All":
-			if !s.open[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.paneWidth()) {
+			if !s.open[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
 				return true
 			}
 		case "Collapse All":
@@ -176,12 +187,21 @@ func (m *Model) pick(k int) tea.Cmd {
 	case "Clear Selection":
 		clear(s.picked)
 		return nil
+	case "Expand Selected", "Collapse Selected":
+		for j, r := range rows {
+			if s.picked[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
+				s.open[r.Key] = m.tabItems()[k].Name == "Expand Selected"
+			}
+		}
+		m.inRows, m.inPanel = true, false
+		m.fit()
+		return nil
 	}
 	m.inRows, m.inPanel = true, false
 	switch m.tabItems()[k].Name {
 	case "Expand All":
 		for j, r := range rows {
-			if grid.Opens(rows, m.names(m.stage), j, m.paneWidth()) {
+			if grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
 				s.open[r.Key] = true
 			}
 		}

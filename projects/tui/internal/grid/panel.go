@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -45,7 +46,7 @@ const (
 // given, but gives a new one. Order is the order the named columns stand in, the rows' and the panel's checkboxes
 // alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first, and Group
 // the columns they group by, the outermost first; Sortable and Groupable name the columns that can, which the stage
-// says.
+// says. Fill is the cells the control under the keyboard is drawn inverse across, at least.
 type Panel struct {
 	Query     string
 	Columns   []string
@@ -55,6 +56,7 @@ type Panel struct {
 	Sortable  map[string]bool
 	Group     []string
 	Groupable map[string]bool
+	Fill      int
 	Show      Show
 	Owned     bool
 	Me        string
@@ -120,17 +122,24 @@ func subscript(n int) string {
 	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
 }
 
-// Grouped gives the panel grouping the rows by the column too, innermost, or no longer when it does; a column that
-// cannot group changes nothing.
-func (p Panel) Grouped(column string) Panel {
+// Grouped gives the panel grouping the rows by the column alone, as g asks, or, with nest, as G asks, within the groups
+// it has, innermost; a column it groups by already, it no longer does, alone or among the others. A column that cannot
+// group changes nothing.
+func (p Panel) Grouped(column string, nest bool) Panel {
 	if !p.Groupable[column] {
 		return p
 	}
-	if k := slices.Index(p.Group, column); k >= 0 {
+	k := slices.Index(p.Group, column)
+	switch {
+	case k >= 0 && nest:
 		p.Group = slices.Delete(slices.Clone(p.Group), k, k+1)
-		return p
+	case k >= 0 && len(p.Group) == 1:
+		p.Group = nil
+	case nest:
+		p.Group = append(slices.Clone(p.Group), column)
+	default:
+		p.Group = []string{column}
 	}
-	p.Group = append(slices.Clone(p.Group), column)
 	return p
 }
 
@@ -307,7 +316,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 			}
 		}
 		if p.Focused && p.Cursor == k && !c.search {
-			line = style.Cursor(ansi.Strip(line))
+			line = style.Cursor(pane.Pad(ansi.Strip(line), p.Fill, false))
 		}
 		add(line, k)
 	}
@@ -318,7 +327,8 @@ func (p Panel) Lines() (lines []string, at []int) {
 // the controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back;
 // off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show; on a column's
 // checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone, s sorts by
-// the column alone and S adds it to the sort, as Sorted says, and g groups by it, or no longer, as Grouped says.
+// the column alone and S adds it to the sort, as Sorted says, and g groups by it alone and G within the groups, as
+// Grouped says.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -334,8 +344,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		p.Cursor = 0
 	case c.column != "" && (k.Text == "s" || k.Text == "S"):
 		p = p.Sorted(c.column, k.Text == "S")
-	case c.column != "" && k.Text == "g":
-		p = p.Grouped(c.column)
+	case c.column != "" && (k.Text == "g" || k.Text == "G"):
+		p = p.Grouped(c.column, k.Text == "G")
 	case c.column != "" && (key == "shift+up" || key == "shift+down"):
 		step := 1
 		if key == "shift+up" {
@@ -490,12 +500,12 @@ func owned(r Row, login string) bool {
 // hide gives the row with its cells in the panel's order, without the hidden columns' cells; a row of one cell spans
 // the columns, and keeps it.
 func (p Panel) hide(r Row, columns []string) Row {
-	if len(r.Cells) < 2 || len(p.Hidden) == 0 && len(p.Order) == 0 {
+	if len(r.Cells) < 2 || len(p.Hidden) == 0 && len(p.Order) == 0 && len(p.Group) == 0 {
 		return r
 	}
 	var cells []Cell
 	for _, j := range p.arrangement(columns) {
-		if j < len(r.Cells) && (j >= len(columns) || !p.Hidden[columns[j]]) {
+		if j < len(r.Cells) && (j >= len(columns) || p.Shows(columns[j])) {
 			cells = append(cells, r.Cells[j])
 		}
 	}
@@ -504,6 +514,12 @@ func (p Panel) hide(r Row, columns []string) Row {
 	}
 	r.Cells = cells
 	return r
+}
+
+// Shows says whether the rows show a column: one hidden does not, nor, while the rows are grouped by it, one whose
+// value each group's heading names.
+func (p Panel) Shows(column string) bool {
+	return !p.Hidden[column] && !slices.Contains(p.Group, column)
 }
 
 // arrangement gives the order the columns stand in, as indexes into them: a column without a name keeps its place, and

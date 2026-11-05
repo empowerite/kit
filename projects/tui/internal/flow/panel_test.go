@@ -459,3 +459,53 @@ func TestGInThePanelGroupsTheRows(t *testing.T) {
 		t.Errorf("g on id: %q", m.panel(m.stage).Group)
 	}
 }
+
+// In the side panel a column toggles only by space, or a click on its checkbox: a click on its name takes the keyboard,
+// to sort or group by it, and toggles nothing. The control under the keyboard is inverse across the panel but a cell.
+func TestAClickOnAColumnsNameTogglesNothing(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, press('?'))
+	box := m.paneWidth() + 3
+	m = drive(m, testkit.Click(box+3, 4), testkit.Release(box+3, 4))
+	if p := m.panel(0); len(p.Hidden) != 0 || !m.inPanel || p.ColumnAt(4) != "source" {
+		t.Errorf("a click on source's name: hidden %v, in panel %v", p.Hidden, m.inPanel)
+	}
+	lines, _ := m.panel(0).Lines()
+	if got := ansi.StringWidth(lines[4]); got != m.sideWidth()-1 || !strings.HasPrefix(lines[4], style.Cursor(grid.Ticked)[:4]) {
+		t.Errorf("the control under the keyboard is %d cells inverse, not %d: %q", got, m.sideWidth()-1, lines[4])
+	}
+	if m = drive(m, testkit.Click(box, 4), testkit.Release(box, 4)); !m.panel(0).Hidden["source"] {
+		t.Error("a click on source's checkbox did not toggle it")
+	}
+}
+
+// g groups by a column alone, G within the groups there are; a grouped column leaves the header and the rows, whose
+// heading names its value, and the rows and the header stand in two cells a level, a click on a name finding its
+// column there.
+func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
+	// down to source, then to assignees: g on each groups by it alone; G nests
+	m = drive(m, down, down, typed("g")[0], down, typed("g")[0])
+	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"assignees"}) {
+		t.Fatalf("g on source, then g on assignees: %q", got)
+	}
+	m = drive(m, up, typed("G")[0])
+	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"assignees", "source"}) {
+		t.Fatalf("G on source: %q", got)
+	}
+	header := ansi.Cut(lines(m)[paneTop], 0, m.paneWidth())
+	if strings.Contains(header, "source") || strings.Contains(header, "assignees") || !strings.HasPrefix(header, strings.Repeat(" ", 4+3)) {
+		t.Errorf("the header of rows grouped two deep:\n%s", view(m))
+	}
+	first := slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, "#1") })
+	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
+		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
+	}
+	// a click on a name in the indented header sorts by it
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+		t.Errorf("a click on age in the indented header:\n%s", view(m))
+	}
+	// g on a column grouping alone stops it
+	if p := m.panel(m.stage).Grouped("assignees", false).Grouped("assignees", false); len(p.Group) != 0 {
+		t.Errorf("g twice: %q", p.Group)
+	}
+}

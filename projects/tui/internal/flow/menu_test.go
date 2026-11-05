@@ -356,8 +356,8 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.HasPrefix(lines(m)[23], " 1 selected · ") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
-	if !strings.Contains(m.View().Content, style.Mark(grid.Chosen)) {
-		t.Error("the check mark is not in the accent")
+	if !strings.Contains(m.View().Content, style.Tint(grid.Chosen)) {
+		t.Error("the selection's bar is not in the accent")
 	}
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 || gutter(0) != " " {
 		t.Errorf("space again: %d selected", m.selected())
@@ -406,5 +406,22 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	}
 	if m = drive(m, esc, press(tea.KeySpace), ctrlA); m.selected() != 3 || m.inRows {
 		t.Errorf("off the rows: %d selected", m.selected())
+	}
+}
+
+// With rows selected, the tab's menu expands and collapses the selected rows alone.
+func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
+	m := loaded(t, options(), right, right, right, down, press(tea.KeySpace), press(':'))
+	if m.tabItems()[2].Name != "Expand Selected" || m.tabItems()[3].Name != "Collapse Selected" || m.enabled(3) {
+		t.Fatalf("the items with a row selected: %+v", m.tabItems()[2:4])
+	}
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].open[m.rows(m.stage)[0].Key] {
+		t.Errorf("expand selected opened %d", openRows(m))
+	}
+	if m = drive(m, press(':')); m.enabled(2) || !m.enabled(3) {
+		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(2), m.enabled(3))
+	}
+	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
+		t.Errorf("collapse selected left %d open", openRows(m))
 	}
 }
