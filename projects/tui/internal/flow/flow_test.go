@@ -42,9 +42,19 @@ func bare() Options {
 	return o
 }
 
-// options gives the eight stages and origin as a test knows them, the sidebar hidden until the test shows it with ?.
+// options gives the eight stages and origin as a test knows them, the sidebar hidden until the test shows it with ?,
+// and the panels without their dropdown of views, which views_test.go tests.
 func options() Options {
-	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoSidebar: true}
+	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoSidebar: true,
+		NoViews: true}
+}
+
+// viewing gives the options with the panels' dropdown of views, their views kept in the file named, or for the test
+// alone when it is empty.
+func viewing(file string) Options {
+	o := options()
+	o.NoViews, o.Views = false, file
+	return o
 }
 
 // drive sends the messages, running every command each update returns and feeding its messages back, a batch's

@@ -28,7 +28,7 @@ func TestGoldenViews(t *testing.T) {
 		testkit.Golden(t, filepath.Join("testdata", name+"-open.golden"), raw(m))
 	}
 	golden := func(file string, msgs ...tea.Msg) {
-		testkit.Golden(t, filepath.Join("testdata", file), raw(loaded(t, options(), msgs...)))
+		testkit.Golden(t, filepath.Join("testdata", file), raw(loaded(t, viewing(""), msgs...)))
 	}
 	golden("legend.golden", at80, press('?'))
 	golden("bar-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})

@@ -49,6 +49,8 @@ type Options struct {
 	Filters   []string
 	NoHeaders bool
 	NoSidebar bool
+	Views     string // the file the person's views are kept in; none keeps them for the session alone
+	NoViews   bool   // whether the panels offer no dropdown of views, as a test of the panel alone asks
 }
 
 // loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
@@ -72,16 +74,20 @@ type stage struct {
 	pulls   []pull
 	runs    []run
 	rels    []release
-	cursor  int                // the row under the cursor, kept while another stage is shown
-	offset  int                // the first line of the pane
-	open    map[string]bool    // the rows opened, by key
-	headers bool               // whether the names of its columns stand over its rows, as its tab's menu says
-	headed  bool               // whether its header is open, every line of names that take more than one
-	picked  map[string]bool    // the rows selected, by key, several at once, which the tab's menu acts on
-	view    grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
-	gen     int                // the stage's latest load: an answer from an earlier one is dropped
-	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
-	stop    context.CancelFunc // ends the latest load's command, when r starts another
+	cursor  int             // the row under the cursor, kept while another stage is shown
+	offset  int             // the first line of the pane
+	open    map[string]bool // the rows opened, by key
+	headers bool            // whether the names of its columns stand over its rows, as its tab's menu says
+	headed  bool            // whether its header is open, every line of names that take more than one
+	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
+	// the view its panel's dropdown names, and the name typed over it while the person renames it
+	viewName string
+	naming   string
+	renaming bool
+	view     grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
+	gen      int                // the stage's latest load: an answer from an earlier one is dropped
+	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
+	stop     context.CancelFunc // ends the latest load's command, when r starts another
 }
 
 // known names the stages kittui draws.
@@ -118,6 +124,12 @@ type Model struct {
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
 	noted         bool                   // whether the notice says what was done, rather than why it was not
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
+	saved         map[string][]named     // the person's views, by stage, as their file keeps them
+	viewsPath     string                 // that file, or none
+	viewMenu      bool                   // whether the panel's dropdown of views is open
+	viewAt        int                    // the line of that menu under the keyboard
+	noHeaders     bool                   // whether the stages open with their headers hidden
+	noViews       bool                   // whether the panels offer no dropdown of views
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
@@ -146,7 +158,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	if err != nil {
 		return Model{}, err
 	}
-	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir)}
+	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Views: viewsFile()}
 	for _, word := range words {
 		if word == "--no-fetch" {
 			o.NoFetch = true
@@ -164,9 +176,15 @@ func New(r kit.Runner, o Options) Model {
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.sideChosen = o.NoSidebar
+	m.noHeaders, m.viewsPath, m.noViews = o.NoHeaders, o.Views, o.NoViews
+	var err error
+	if m.saved, err = readViews(o.Views); err != nil {
+		m.notice = fmt.Sprintf("%s %s does not read as views, and is left as it is: %v", Failed, o.Views, err)
+	}
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders}
+		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders,
+			viewName: Opening}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
@@ -241,6 +259,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.ask != nil {
 			return m, nil
 		}
+		if m.viewMenu {
+			m.viewMenuClick(msg.X, msg.Y)
+			return m, nil
+		}
 		switch side := m.paneWidth() + 1; {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
 			var c shell.Choice
@@ -262,7 +284,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.X == side && msg.Y >= paneTop && msg.Y < m.sideHeight():
 			return m, m.showSidebar(!m.sidebar)
 		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
-			return m, m.clickPanel(msg.Y)
+			return m, m.clickPanel(msg.X, msg.Y)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
 			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false)
 		default:
@@ -343,6 +365,12 @@ type meMsg struct {
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
 	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
+	s := m.stages[i]
+	p.Views, p.View, p.Naming = !m.noViews && len(columns[s.name]) > 0, s.viewName, s.renaming
+	if s.renaming {
+		p.View = s.naming
+	}
+	p.Changed = p.Views && m.changed(i)
 	return p
 }
 
@@ -384,7 +412,7 @@ func (m *Model) enterPanel(find bool) tea.Cmd {
 // clickPanel takes a click on a line of the screen's right, from its first: on the search, the panel has the keyboard
 // and the search under it, as / does; on one of the panel's other controls, the panel has the keyboard and acts on it
 // as space does; on the … above or … more, the sidebar scrolls a page.
-func (m *Model) clickPanel(line int) tea.Cmd {
+func (m *Model) clickPanel(x, line int) tea.Cmd {
 	if len(m.stages) == 0 {
 		return nil
 	}
@@ -402,6 +430,9 @@ func (m *Model) clickPanel(line int) tea.Cmd {
 		m.scrollSide(max(1, h-2))
 	case k >= 0:
 		p := m.panel(m.stage)
+		if p.ViewAt(k + 1) {
+			return m.viewClick(x)
+		}
 		if column := p.ColumnAt(k + 1); column != "" {
 			// a column's line is held, to drag or to toggle on the release; it takes the keyboard now
 			p, _ = p.Point(k + 1)
@@ -667,6 +698,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.ask != nil {
 		return m.askKey(k)
 	}
+	if m.viewMenu {
+		return m.viewMenuKey(k)
+	}
 	if m.appMenu.Open {
 		return m.appKey(k)
 	}
@@ -733,6 +767,12 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // a page at a time have nothing to move to.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	h := max(1, m.sideHeight()-3)
+	if m.panel(m.stage).OnView() {
+		// the dropdown takes its keys first: esc stops a rename before it leaves the panel
+		if cmd, ok := m.viewKey(k); ok {
+			return m, cmd
+		}
+	}
 	switch k.String() {
 	case "tab", "esc":
 		m.inPanel = false

@@ -1,22 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                                                             🔎 search
   ────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────╮➆╶──────────────
- ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ columns
-  ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ ☑ change
-   change  title         author      state       age  checks      threads      branch      │ ☑ title
-   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ author
- ▸ 🔀 #2   The first r…  👤 jeffre…  🏁 ready     8d  ✅ 1 / 1 …               🌿 1-the-f… │ ☑ state
- ▸ 🔀 #3   A spike on …  👤 ada      🔨 draft    90m  🏃 0 / 2    💬 2 unres…  🌿 3-a-spi… │ ☑ age
- ▸ 🔀 #4   Lint every …  👤 bob      🔥 failin…  25h  ❌ lint f…               🌿 4-lint-… │ ☑ checks
+ ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ 📑 Default ▾
+  ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐
+   change  title         author      state       age  checks      threads      branch      │ columns
+   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ change
+ ▸ 🔀 #2   The first r…  👤 jeffre…  🏁 ready     8d  ✅ 1 / 1 …               🌿 1-the-f… │ ☑ title
+ ▸ 🔀 #3   A spike on …  👤 ada      🔨 draft    90m  🏃 0 / 2    💬 2 unres…  🌿 3-a-spi… │ ☑ author
+ ▸ 🔀 #4   Lint every …  👤 bob      🔥 failin…  25h  ❌ lint f…               🌿 4-lint-… │ ☑ state
+                                                                                           │ ☑ age
+                                                                                           │ ☑ checks
                                                                                            │ ☑ threads
                                                                                            │ ☑ branch
                                                                                            │
                                                                                            │ show
                                                                                            │ ⦿ all
                                                                                            │ ⦾ mine
-                                                                                           │ ⦾ others
-                                                                                           │
-                                                                                           ▸ legend
-                                                                                           ╷ 🔀 a pull request 🔗
+                                                                                           ▸ ⦾ others
+                                                                                           ╷
+                                                                                           │ legend
+                                                                                           │ 🔀 a pull request 🔗
                                                                                            │ 👤 assignees or author
                                                                                            │ 🌿 a branch or a worktree
                                                                                            │ 🏃 running
@@ -26,7 +28,5 @@
                                                                                            │ 🛫 underway
                                                                                            │ 🎫 an issue
                                                                                            │
-                                                                                           │ state 🔗
-                                                                                           │ 🔨 draft
-                                                                                           │ … 8 more
+                                                                                           │ … 10 more
  = menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump

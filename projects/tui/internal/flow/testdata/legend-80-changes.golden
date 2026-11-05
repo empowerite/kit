@@ -1,22 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                     🔎 search
   ──────────────╴➎╶─────────────────╮➅╶─────────────
- ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ columns
-  ───────────────╯                  ╰──────────────┐ ☑ change
- ▸ change  title   author  state   age  checks  t… │ ☑ title
-   ─────────────────────────────────────────────── │ ☑ author
- ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ state
- ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ age
- ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ checks
+ ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ 📑 Default ▾
+  ───────────────╯                  ╰──────────────┐
+ ▸ change  title   author  state   age  checks  t… │ columns
+   ─────────────────────────────────────────────── │ ☑ change
+ ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ title
+ ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ author
+ ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ state
+                                                   │ ☑ age
+                                                   │ ☑ checks
                                                    │ ☑ threads
                                                    │ ☑ branch
                                                    │
                                                    │ show
                                                    │ ⦿ all
                                                    │ ⦾ mine
-                                                   │ ⦾ others
-                                                   │
-                                                   ▸ legend
-                                                   ╷ 🔀 a pull request 🔗
+                                                   ▸ ⦾ others
+                                                   ╷
+                                                   │ legend
+                                                   │ 🔀 a pull request 🔗
                                                    │ 👤 assignees or author
                                                    │ 🌿 a branch or a worktree
                                                    │ 🏃 running
@@ -26,7 +28,5 @@
                                                    │ 🛫 underway
                                                    │ 🎫 an issue
                                                    │
-                                                   │ state 🔗
-                                                   │ 🔨 draft
-                                                   │ … 8 more
+                                                   │ … 10 more
  … · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump

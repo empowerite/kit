@@ -644,3 +644,34 @@ func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 		t.Errorf("a heading deeper than the groups: %q", h)
 	}
 }
+
+// The views' dropdown stands under the search, a gap either side of it, before the columns: the view's name and ▾,
+// a caret while it is renamed under the keyboard, inverse there, and Save at the line's right while the panel differs.
+func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
+	p := Panel{Columns: []string{"id", "title"}, Views: true, View: "Default", Fill: 24}
+	lines, at := p.Lines()
+	plain := make([]string, len(lines))
+	for k, l := range lines {
+		plain[k] = strings.TrimRight(ansi.Strip(l), " ")
+	}
+	if !slices.Equal(plain[:5], []string{"🔎 search", "", ViewGlyph + " Default ▾", "", "columns"}) ||
+		!slices.Equal(at[:5], []int{0, -1, 1, -1, -1}) || !p.ViewAt(2) || p.ViewAt(4) || p.OnView() {
+		t.Errorf("the dropdown: %q %v", plain[:5], at[:5])
+	}
+	p.Focused, p.Cursor, p.Naming, p.Changed, p.View = true, 1, true, true, "Mine"
+	lines, _ = p.Lines()
+	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor(ViewGlyph+" Mine▏ ▾")[:8]) ||
+		!strings.HasSuffix(lines[2], Save) || ansi.StringWidth(lines[2]) != 24 {
+		t.Errorf("renamed under the keyboard, changed: %q", lines[2])
+	}
+	// the dropdown's keys are its screen's, but up and down
+	if _, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); ok {
+		t.Error("the panel took enter on the dropdown")
+	}
+	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.Cursor != 2 {
+		t.Errorf("down from the dropdown: %d", q.Cursor)
+	}
+	if q, ok := p.Click(2); !ok || q.Cursor != 1 || q.Show != p.Show {
+		t.Errorf("a click on the dropdown: %d", q.Cursor)
+	}
+}

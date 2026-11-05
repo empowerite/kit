@@ -49,7 +49,9 @@ const (
 // says. Beside the groups the person chose, the rows group on their own by each groupable column whose value is the
 // same on every row of a group, as group says; Auto names the columns that do so now, as Filtered gave them, AutoAt
 // the level of the headings each is said at, from 1, as Said gives it, and Kept
-// those the person keeps as columns, which never do, a new map as Hidden is. Fill is the cells the control under the
+// those the person keeps as columns, which never do, a new map as Hidden is. Views says whether the panel offers a
+// dropdown of named views under its search: View is the name it shows, Naming whether the person is typing a new one,
+// and Changed whether the panel differs from the view, which shows Save. Fill is the cells the control under the
 // keyboard is drawn inverse across, at least.
 type Panel struct {
 	Query     string
@@ -62,6 +64,10 @@ type Panel struct {
 	Groupable map[string]bool
 	Auto      []string
 	AutoAt    map[string]int
+	Views     bool
+	View      string
+	Naming    bool
+	Changed   bool
 	Kept      map[string]bool
 	Fill      int
 	Show      Show
@@ -428,6 +434,7 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 // control is one of the panel's controls: the search, a column's checkbox, or a choice of Show.
 type control struct {
 	search bool
+	view   bool
 	column string
 	show   Show
 }
@@ -435,6 +442,9 @@ type control struct {
 // controls gives the panel's controls, in order.
 func (p Panel) controls() []control {
 	out := []control{{search: true}}
+	if p.Views {
+		out = append(out, control{view: true})
+	}
 	for _, c := range p.Arrange(p.Columns) {
 		if c != "" {
 			out = append(out, control{column: c})
@@ -461,8 +471,13 @@ func (p Panel) Lines() (lines []string, at []int) {
 		switch {
 		case c.search:
 			line = shell.SearchLine(p.Query, p.Focused && p.Cursor == k)
+		case c.view:
+			add("", -1)
+			line = p.viewLine(p.Focused && p.Cursor == k)
+			add(line, k)
+			continue
 		case c.column != "":
-			if k == 1 {
+			if controls[k-1].column == "" {
 				add("", -1)
 				add(style.Off("columns"), -1)
 			}
@@ -539,6 +554,10 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
 	c := controls[p.Cursor]
+	if key := k.String(); c.view && key != "up" && key != "down" {
+		// the dropdown's keys are its screen's to take: it opens the views, names one, and saves it
+		return p, false
+	}
 	switch key := k.String(); {
 	case key == "up":
 		p.Cursor = max(p.Cursor-1, 0)
@@ -581,10 +600,46 @@ func (p Panel) Click(line int) (Panel, bool) {
 		return p, false
 	}
 	p.Cursor = at[line]
-	if c := p.controls()[p.Cursor]; !c.search {
+	if c := p.controls()[p.Cursor]; !c.search && !c.view {
 		p = p.act(c)
 	}
 	return p, true
+}
+
+// Viewed glyphs: the views' dropdown, and the save that stands at its right while the panel differs from its view.
+const (
+	ViewGlyph = "📑"
+	Save      = "💾"
+)
+
+// viewLine draws the views' dropdown: the view's name, as typed while it is renamed, with a caret while the keyboard is
+// on it, and ▾; and Save at the line's right end, at Fill's last cells, while the panel differs from the view or the
+// name was changed. Under the keyboard, the line is inverse up to Save.
+func (p Panel) viewLine(under bool) string {
+	name := p.View
+	if under && p.Naming {
+		name += "▏"
+	}
+	text := ViewGlyph + " " + name + " ▾"
+	if under {
+		text = style.Cursor(pane.Pad(text, max(ansi.StringWidth(text), p.Fill-3), false))
+	}
+	if !p.Changed {
+		return text
+	}
+	return pane.Pad(text, max(ansi.StringWidth(text)+1, p.Fill-2), false) + Save
+}
+
+// OnView says whether the views' dropdown is under the keyboard.
+func (p Panel) OnView() bool {
+	controls := p.controls()
+	return p.Cursor >= 0 && p.Cursor < len(controls) && controls[p.Cursor].view
+}
+
+// ViewAt says whether a line of the panel, as Lines numbers them, is the views' dropdown's.
+func (p Panel) ViewAt(line int) bool {
+	_, at := p.Lines()
+	return line >= 0 && line < len(at) && at[line] >= 0 && p.controls()[at[line]].view
 }
 
 // ColumnAt gives the name of the column whose checkbox a line of the panel, as Lines numbers them, draws, or nothing.

@@ -296,6 +296,10 @@ func (m Model) overlay(lines []string) []string {
 		box, left := m.askBox()
 		lines = shell.Over(lines, box, paneTop+1, left)
 	}
+	if m.viewMenu {
+		box, top, left := m.viewBox()
+		lines = shell.Over(lines, box, top, left)
+	}
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }
 
