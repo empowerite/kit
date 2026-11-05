@@ -37,7 +37,7 @@ candidates() {
   [ "$(candidates packages '')" = $'add\nremove\nselect' ]
   run candidates packages add ''
   [[ "$output" == *"agents/claude"* && "$output" == *"style/bash"* ]]
-  [ "$(candidates help '' | head -n 1)" = check ]
+  [ "$(candidates help '' | head -n 1)" = assign ]
 }
 
 @test "an option's value comes from its choices, after --name= or apart, and a path asks for the files" {

@@ -81,13 +81,131 @@ world() {
 @test "kit work with nothing is refused: a reference or a title, and no prompt remains" {
   run "${kit_checkout}/bin/kit" work </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit work needs <reference> or --title; run: kit help work"* ]]
+  [[ "$output" == *"kit work needs <reference> or --title or --pr; run: kit help work"* ]]
   [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   # the module takes the title as an argument, and reads nothing the argument check left behind
   [ "$(grep -c syntax_ "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
-  run "${kit_checkout}/bin/kit" work 7 --title 'Fix the thing'
+  run "${kit_checkout}/bin/kit" work --pr 3 --title 'Fix the thing' 7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<reference> cannot be combined with --title; run: kit help work"* ]]
+  [[ "$output" == *"--title cannot be combined with --pr; run: kit help work"* ]]
+  run "${kit_checkout}/bin/kit" work --pr 3
+  [ "$status" -eq 2 ]
+}
+
+@test "kit work --title with issues gathers them under a new parent and starts it, the one change closing them all" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\n' >> kit.yml
+  git add --all && git commit --quiet --message init
+  world
+  git push --quiet origin main:12-the-parent
+  fixture created.txt <<<'https://github.com/empowerite/example/issues/12'
+  fixture parent.json <<<'{"title": "The parent", "state": "OPEN", "assignees": []}'
+  fixture other.json <<<'{"title": "Other", "state": "OPEN", "assignees": []}'
+  fixture heads.json <<<'[{"headRefName": "12-the-parent"}]'
+  fixture pr-open-12.json <<<'[{"number": 5}]'
+  fixture pr-5.json <<<'{"title": "The parent", "body": ""}'
+  route 'issue create --title The parent --body *' created.txt
+  route 'issue edit 12 --add-sub-issue *' '!0'
+  route 'issue view 12 *' parent.json
+  route 'issue view 9 *' other.json
+  route 'issue edit 12 --add-assignee ada' '!0'
+  route 'issue edit 9 --add-assignee ada' '!0'
+  sed -i.bak '/open-heads.json/d' "${FAKE_DIR}/gh.routes"
+  route 'pr list --state open --json headRefName*' heads.json
+  route 'pr list --head 12-the-parent --state open*' pr-open-12.json
+  route 'pr view 5 --json *' pr-5.json
+  route 'pr edit 5 --body *' '!0'
+  run "${kit_checkout}/bin/kit" work --title 'The parent' 7 9
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Created #12: The parent"* ]]
+  [[ "$output" == *"Gathered #7 #9 under #12"* ]]
+  grep -q '^issue edit 12 --add-sub-issue 7$' "${FAKE_DIR}/gh.calls"
+  grep -q '^issue edit 12 --add-sub-issue 9$' "${FAKE_DIR}/gh.calls"
+  grep -q '^issue edit 7 --add-assignee ada$' "${FAKE_DIR}/gh.calls"
+  grep -q '^pr edit 5 --body' "${FAKE_DIR}/gh.calls"
+  [ -d worktrees/12-the-parent ]
+}
+
+@test "kit work --pr adds issues to the caller's own open change, and refuses someone else's with the way to hand them over" {
+  git commit --quiet --allow-empty --message init
+  world
+  fixture pr-state.json <<<'{"state": "OPEN", "mergeCommit": null}'
+  fixture pull-bob.json <<<'{"user": {"login": "bob"}}'
+  fixture pull-ada.json <<<'{"user": {"login": "ada"}}'
+  fixture pr-4.json <<<'{"title": "Mine", "body": "Closes #2"}'
+  printf 'forge: github\n' >> kit.yml
+  route 'pr view 4 --json state,mergeCommit*' pr-state.json
+  route 'pr view 6 --json state,mergeCommit*' pr-state.json
+  route 'api repos/empowerite/example/pulls/4 *' pull-ada.json
+  route 'api repos/empowerite/example/pulls/6 *' pull-bob.json
+  route 'pr view 4 --json *' pr-4.json
+  route 'pr edit 4 --body *' '!0'
+  run "${kit_checkout}/bin/kit" work --pr 6 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"pull request #6 is bob's; hand the issues over instead: kit assign --to bob #7"* ]]
+  run "${kit_checkout}/bin/kit" work --pr 4 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Added #7 to pull request #4"* ]]
+  grep -q '^issue edit 7 --add-assignee ada$' "${FAKE_DIR}/gh.calls"
+  run grep -A1 '^pr edit 4 --body' "${FAKE_DIR}/gh.calls"
+  [[ "$output" == *"Closes #7"* ]]
+}
+
+@test "kit assign adds the caller or a login, kit unassign takes the caller or everyone off, and each says what it did" {
+  git commit --quiet --allow-empty --message init
+  world
+  printf 'forge: github\n' >> kit.yml
+  route 'issue edit 7 --add-assignee carol' '!0'
+  route 'issue edit 7 --remove-assignee *' '!0'
+  run "${kit_checkout}/bin/kit" assign 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 is already assigned to bob; adding you as well"* ]]
+  run "${kit_checkout}/bin/kit" assign --to carol 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 assigned to carol"* ]]
+  run "${kit_checkout}/bin/kit" unassign 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 is not assigned to you"* ]]
+  run "${kit_checkout}/bin/kit" unassign --all 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 no longer assigned to bob"* ]]
+  grep -q '^issue edit 7 --remove-assignee bob$' "${FAKE_DIR}/gh.calls"
+}
+
+@test "kit close closes as not planned, or as a duplicate, never an issue as its own, and leaves a closed one be" {
+  git commit --quiet --allow-empty --message init
+  world
+  printf 'forge: github\n' >> kit.yml
+  fixture closed.json <<<'{"title": "Old", "state": "CLOSED", "assignees": []}'
+  route 'issue view 8 *' closed.json
+  route 'issue close 7 *' '!0'
+  run "${kit_checkout}/bin/kit" close --not-planned 7 8
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 closed as not planned"* ]]
+  [[ "$output" == *"#8 is closed already"* ]]
+  run "${kit_checkout}/bin/kit" close --duplicate-of 9 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 closed as duplicate of #9"* ]]
+  grep -q '^issue close 7 --reason duplicate --duplicate-of 9$' "${FAKE_DIR}/gh.calls"
+  run "${kit_checkout}/bin/kit" close --duplicate-of 7 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"#7 cannot be a duplicate of itself"* ]]
+  run "${kit_checkout}/bin/kit" close 7
+  [ "$status" -eq 2 ]
+}
+
+@test "kit gather creates a parent with the issues under it, and starts nothing" {
+  git commit --quiet --allow-empty --message init
+  world
+  printf 'forge: github\n' >> kit.yml
+  fixture created.txt <<<'https://github.com/empowerite/example/issues/12'
+  route 'issue create --title Plan --body *' created.txt
+  route 'issue edit 12 --add-sub-issue *' '!0'
+  run --separate-stderr "${kit_checkout}/bin/kit" gather --title Plan 7 9
+  [ "$status" -eq 0 ]
+  [ "$output" = "#12" ]
+  [[ "$stderr" == *"Gathered #7 #9 under #12"* ]]
+  [ ! -d worktrees ]
 }
 
 @test "kit work --title creates the issue and starts it in one step" {

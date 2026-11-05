@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # kit-work - starts or resumes work on issues (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit work (<reference>… | --title <text>)
+# kit work <reference>…
+#
+# kit work --title <text> [<reference>…]
+#
+# kit work --pr <number> <reference>…
 #
 # Starts work on issues, or resumes it. kit work makes each of these, and reuses any that already exists:
 #
 #   - a branch linked to the issue
 #   - a worktree for the branch, hydrated: what the kit delivers under .kit/ is in place
 #   - a start commit
-#   - a draft pull request
+#   - a draft pull request, so the team sees the work at once
 #
-#   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521
-#   --title <text>   creates an issue with that title, then starts it
+# Every issue it starts is assigned to the caller, whose worktree it is.
+#
+#   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the
+#                    one pull request closes them all
+#   --title <text>   creates an issue with that title and starts it; with references, creates it as their parent,
+#                    as kit gather does, and starts it with them
+#   --pr <number>    adds the issues to one of the caller's own open pull requests instead: each is assigned to the
+#                    caller and closed by it
 #
 # 7 and #7 name an issue on the forge, the service that hosts the repository: GitHub or GitLab. AB#4521 names an
 # Azure DevOps work item, when kit.yml declares that tracker. kit work asks nothing itself; kit tui asks for the
@@ -30,9 +40,12 @@ use issue
 
 guard:arguments work "$@" || exit $?
 # shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
-if [[ -n "${syntax_options[--title]+x}" ]]
+if [[ -n "${syntax_options[--pr]+x}" ]]
 then
-  issue:start --title "${syntax_options[--title]}"
+  issue:start --pr "${syntax_options[--pr]}" "${syntax_operands[@]}"
+elif [[ -n "${syntax_options[--title]+x}" ]]
+then
+  issue:start --title "${syntax_options[--title]}" "${syntax_operands[@]}"
 else
   issue:start "${syntax_operands[@]}"
 fi

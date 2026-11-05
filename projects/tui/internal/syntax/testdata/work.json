@@ -2,13 +2,29 @@
   "verb": "work",
   "purpose": "starts or resumes work on issues",
   "usage": [
-    "kit work (<reference>… | --title <text>)"
+    "kit work <reference>…",
+    "kit work --title <text> [<reference>…]",
+    "kit work --pr <number> <reference>…"
   ],
   "syntax": [
     [
       {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "inline": false,
+        "name": "title",
+        "value": "text",
+        "repeat": false
+      },
+      {
         "kind": "group",
-        "optional": false,
+        "optional": true,
         "alternatives": [
           [
             {
@@ -16,27 +32,35 @@
               "name": "reference",
               "repeat": true
             }
-          ],
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "title",
-              "value": "text",
-              "repeat": false
-            }
           ]
         ],
         "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "inline": false,
+        "name": "pr",
+        "value": "number",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
       }
     ]
   ],
   "arguments": {
     "<reference>": {
-      "description": "the issues, each named with its tracker: 7, #7, or AB#4521"
+      "description": "the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the one pull request closes them all"
     },
     "--title": {
-      "description": "creates an issue with that title, then starts it"
+      "description": "creates an issue with that title and starts it; with references, creates it as their parent, as kit gather does, and starts it with them"
+    },
+    "--pr": {
+      "description": "adds the issues to one of the caller's own open pull requests instead: each is assigned to the caller and closed by it"
     }
   }
 }
