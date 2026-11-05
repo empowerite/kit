@@ -121,6 +121,65 @@ func Draw(rows []Row, width, cursor int, open func(Row) bool) []Line {
 	return out
 }
 
+// Header draws the names over the rows' columns, as Draw lays the rows out for a pane of so many cells: each name in
+// its column, after the gutter, bold, right-aligned over a number, and wrapped in its column when wider, a word wider
+// than the column broken in it; as many lines as the tallest name takes. A column no row has text in is left out, as
+// Draw leaves it. Rows of one cell alone, which span the width, have no header.
+func Header(rows []Row, names []string, width int) []string {
+	var shape []Cell
+	for _, r := range rows {
+		if len(r.Cells) >= 2 {
+			shape = r.Cells
+			break
+		}
+	}
+	if shape == nil {
+		return nil
+	}
+	widths := columnWidths(rows)
+	cells := width - len(lead)
+	left := fillWidth(shape, widths, cells)
+	type column struct {
+		lines []string
+		width int
+		right bool
+	}
+	var columns []column
+	height := 0
+	for j, c := range shape {
+		w := left
+		if !c.Wrap {
+			if j >= len(widths) || widths[j] == 0 {
+				continue
+			}
+			w = widths[j]
+		}
+		name := ""
+		if j < len(names) {
+			name = names[j]
+		}
+		var lines []string
+		if name != "" {
+			lines = strings.Split(ansi.Wrap(name, max(w, 1), ""), "\n")
+		}
+		columns = append(columns, column{lines, w, c.Right})
+		height = max(height, len(lines))
+	}
+	out := make([]string, height)
+	for k := range height {
+		var parts []string
+		for _, c := range columns {
+			v := ""
+			if k < len(c.lines) {
+				v = style.Label(c.lines[k])
+			}
+			parts = append(parts, pane.Pad(v, c.width, c.right))
+		}
+		out[k] = lead + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
+	}
+	return out
+}
+
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
 // a text wider than the cells its column leaves it.
 func Hides(r Row, widths []int, left int) bool {

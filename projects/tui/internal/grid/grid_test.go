@@ -248,3 +248,39 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 		t.Errorf("asides without one: %v", got)
 	}
 }
+
+// The header stands each name in its column, as Draw lays the rows out: over a number right-aligned, over the text
+// that wraps at its start, wrapped in its column when wider, and left out over a column no row has text in; rows of
+// one cell have none.
+func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
+	rows := []Row{
+		{Key: "a", Cells: []Cell{{Values: []string{"#1"}, Right: true}, one(""), one("🔀 #2"), {Values: []string{"a title"}, Wrap: true}}},
+		{Key: "b", Cells: []Cell{{Values: []string{"#31"}, Right: true}, one(""), one("🔀 #12"), {Values: []string{"another"}, Wrap: true}}},
+	}
+	header := Header(rows, []string{"id", "fork", "changes", "title"}, 40)
+	plain := make([]string, len(header))
+	for k, l := range header {
+		plain[k] = ansi.Strip(l)
+	}
+	drawn := ansi.Strip(Draw(rows, 40, -1, func(Row) bool { return false })[1].Text)
+	// "changes" is wider than its column, "🔀 #12", and breaks in it; "fork" is over no text, and left out
+	if len(header) != 2 || plain[0] != "    id  change  title" || plain[1] != "        s" || strings.Contains(plain[0], "fork") {
+		t.Fatalf("the header:\n%s", strings.Join(plain, "\n"))
+	}
+	for _, name := range []string{"id", "change", "title"} {
+		at := strings.Index(plain[0], name)
+		under := map[string]string{"id": "#31", "change": "🔀", "title": "another"}[name]
+		if name == "id" {
+			at += len(name) - len(under)
+		}
+		if ansi.StringWidth(plain[0][:at]) != ansi.StringWidth(drawn[:strings.Index(drawn, under)]) {
+			t.Errorf("%s does not stand over its column:\n%s\n%s", name, plain[0], drawn)
+		}
+	}
+	if !strings.Contains(header[0], style.Label("id")) {
+		t.Errorf("the names are not bold: %q", header[0])
+	}
+	if got := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40); got != nil {
+		t.Errorf("rows of one cell have a header: %q", got)
+	}
+}

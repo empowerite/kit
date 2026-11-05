@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
@@ -38,7 +39,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on expand all, and collapse
 	// all, with no row open, is dim
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
-	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(tabItems)+2 || m.menuAt != 0 ||
+	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[2], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
@@ -65,7 +66,11 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if m = drive(m, press(';')); !m.menu || m.menuAt != 1 || m.enabled(0) {
 		t.Errorf("with every row expanded the keyboard is on %d", m.menuAt)
 	}
-	if m = drive(m, up, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
+	// up passes the dim expand all by, and down the rule, to show headers
+	if m = drive(m, up, down); m.menuAt != 3 {
+		t.Errorf("down from collapse all: item %d", m.menuAt)
+	}
+	if m = drive(m, up, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
 		t.Errorf("collapse all: open %d", openRows(m))
 	}
 	// esc, :, and ; close it, choosing nothing, and = does not
@@ -238,5 +243,51 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	m = loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
 	if m = drive(m, testkit.Click(1, paneTop)); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
+	}
+}
+
+// Show Headers, in the tab's menu, stands the names of the stage's columns over its rows, checked while it does: a
+// header that never scrolls, a thin dim line under it, and no row of its own, so a click on it chooses nothing. Each
+// stage keeps its own; incoming, whose rows are no columns, has none to show.
+func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, press(':'))
+	box, _ := m.menuBox()
+	if !strings.Contains(ansi.Strip(box[4]), "    Show Headers") || m.rowsTop() != paneTop {
+		t.Fatalf("the menu before: %q", ansi.Strip(box[4]))
+	}
+	m = drive(m, typed("s")[0], press(tea.KeyEnter))
+	drawn := lines(m)
+	if !m.stages[m.stage].headers || m.menu || !strings.Contains(drawn[paneTop], "branch") ||
+		!strings.Contains(drawn[paneTop], "uncommitted") || !strings.HasPrefix(drawn[m.rowsTop()-1], "   ───") ||
+		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") || m.rowsTop() <= paneTop {
+		t.Fatalf("the headers:\n%s", view(m))
+	}
+	if m = drive(m, press(':')); !strings.Contains(ansi.Strip(m.tabItems()[3].Glyph), Checked) {
+		t.Errorf("show headers is not checked: %+v", m.tabItems()[3])
+	}
+	m = drive(m, esc)
+	// the header stays while the rows scroll under it
+	header := drawn[paneTop:m.rowsTop()]
+	m = drive(m, down, down, down, down, down, down)
+	if got := lines(m)[paneTop:m.rowsTop()]; !slices.Equal(got, header) || m.stages[m.stage].offset == 0 {
+		t.Errorf("the header scrolled with the rows, offset %d:\n%s", m.stages[m.stage].offset, view(m))
+	}
+	// a click on the header chooses no row
+	before := m.stages[m.stage].cursor
+	if m = drive(m, testkit.Click(5, paneTop)); m.stages[m.stage].cursor != before {
+		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].cursor)
+	}
+	// a column the panel hides has no name over it
+	m.setPanel(grid.Panel{Hidden: map[string]bool{"uncommitted": true}})
+	if strings.Contains(lines(m)[paneTop], "uncommitted") {
+		t.Errorf("a hidden column's name:\n%s", view(m))
+	}
+	// the stage beside has none, and incoming cannot show them
+	if m = drive(m, esc, right); m.rowsTop() != paneTop {
+		t.Errorf("changes shows the worktrees' headers")
+	}
+	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
+	if m.stages[m.stage].name != "incoming" || m.enabled(3) {
+		t.Errorf("%s offers headers", m.stages[m.stage].name)
 	}
 }

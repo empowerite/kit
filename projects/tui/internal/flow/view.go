@@ -266,10 +266,42 @@ func (m Model) sideLines() []string {
 	return panel
 }
 
-// pane gives the pane's lines, as many as it has, each as wide as the pane: the selected stage's from its offset on.
+// header gives the lines that stand over the selected stage's rows while its tab's menu shows its headers: the names of
+// its columns the panel shows, as internal/grid lays them over the rows, then a thin dim line under them; nothing
+// while it loads, after a refusal, or when it has no rows in columns.
+func (m Model) header() []string {
+	if len(m.stages) == 0 {
+		return nil
+	}
+	s := m.stages[m.stage]
+	if !s.headers || s.loading || s.refusal != "" {
+		return nil
+	}
+	hidden := m.panel(m.stage).Hidden
+	var names []string
+	for _, name := range columns[s.name] {
+		if name == "" || !hidden[name] {
+			names = append(names, name)
+		}
+	}
+	lines := grid.Header(m.rows(m.stage), names, m.paneWidth())
+	if len(lines) == 0 {
+		return nil
+	}
+	return append(lines, "   "+style.Off(strings.Repeat("─", max(0, m.paneWidth()-3))))
+}
+
+// rowsTop gives the screen line the rows start on: the pane's first, or the one under the header.
+func (m Model) rowsTop() int { return paneTop + len(m.header()) }
+
+// rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's, which do not.
+func (m Model) rowsHeight() int { return max(1, m.paneHeight()-len(m.header())) }
+
+// pane gives the pane's lines, as many as it has, each as wide as the pane: the header, when shown, then the selected
+// stage's rows from its offset on.
 func (m Model) pane() []string {
-	h := m.paneHeight()
-	var out []string
+	h := m.rowsHeight()
+	out := m.header()
 	switch {
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
@@ -279,9 +311,9 @@ func (m Model) pane() []string {
 		for i, l := range lines {
 			texts[i] = l.text
 		}
-		out = pane.Lines(texts, m.stages[m.stage].offset, h, m.head(lines, h), "   ")
+		out = append(out, pane.Lines(texts, m.stages[m.stage].offset, h, m.head(lines, h), "   ")...)
 	}
-	for len(out) < h {
+	for len(out) < m.paneHeight() {
 		out = append(out, "")
 	}
 	return out

@@ -69,6 +69,7 @@ type stage struct {
 	cursor  int                // the row under the cursor, kept while another stage is shown
 	offset  int                // the first line of the pane
 	open    map[string]bool    // the rows opened, by key
+	headers bool               // whether the names of its columns stand over its rows, as its tab's menu says
 	view    grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
 	gen     int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
@@ -206,7 +207,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.X > m.paneWidth()+1 && m.sidebar:
 			m.scrollSide(d)
-		case msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight():
+		case msg.X < m.paneWidth() && msg.Y >= m.rowsTop() && msg.Y < paneTop+m.paneHeight():
 			m.scrollRows(d * wheel)
 		}
 	case tea.MouseClickMsg:
@@ -390,7 +391,7 @@ func (m *Model) scrollRows(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.paneHeight(), s.offset+n)
+	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.rowsHeight(), s.offset+n)
 }
 
 // scrollSide scrolls the sidebar under the search n lines, down when n is positive, never past its ends.
@@ -875,8 +876,8 @@ func (m *Model) click(x, y int) tea.Cmd {
 		return nil
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
-	k := pane.At(len(lines), m.paneHeight(), s.offset, y-paneTop)
-	if y == paneTop && m.head(lines, m.paneHeight()) != "" {
+	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
+	if y == m.rowsTop() && m.head(lines, m.rowsHeight()) != "" {
 		// the pinned line is the first of the row under the cursor, in place of the … above
 		k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
 	}
@@ -926,7 +927,7 @@ func (m *Model) jump(to string) {
 // first scrolls through that row, so every line it hides can be reached; at the row's end it moves the cursor a page
 // of rows. A page never leaves the rows: up stops at the first row, and down at the last; on the bar it does nothing.
 func (m *Model) page(d int) {
-	h := max(1, m.paneHeight()-1)
+	h := max(1, m.rowsHeight()-1)
 	if !m.inRows || len(m.stages) == 0 {
 		return
 	}
@@ -941,12 +942,12 @@ func (m *Model) page(d int) {
 			last = k
 		}
 	}
-	start, end, _, _ := pane.Window(len(all), m.paneHeight(), s.offset)
+	start, end, _, _ := pane.Window(len(all), m.rowsHeight(), s.offset)
 	switch {
 	case first >= 0 && d > 0 && last >= end:
-		s.offset, _, _, _ = pane.Window(len(all), m.paneHeight(), s.offset+h)
+		s.offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), s.offset+h)
 	case first >= 0 && d < 0 && first < start:
-		s.offset, _, _, _ = pane.Window(len(all), m.paneHeight(), max(first, s.offset-h))
+		s.offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), max(first, s.offset-h))
 	case d > 0:
 		m.down(h)
 	default:
@@ -963,7 +964,7 @@ func (m *Model) fit() {
 	}
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
-	h := m.paneHeight()
+	h := m.rowsHeight()
 	s.offset, _, _, _ = pane.Window(len(lines), h, s.offset)
 	if !m.inRows {
 		return
