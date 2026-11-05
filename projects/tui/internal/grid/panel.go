@@ -277,7 +277,8 @@ func (p Panel) Lines() (lines []string, at []int) {
 	add := func(line string, control int) {
 		lines, at = append(lines, line), append(at, control)
 	}
-	for k, c := range p.controls() {
+	controls := p.controls()
+	for k, c := range controls {
 		var line string
 		switch {
 		case c.search:
@@ -319,8 +320,27 @@ func (p Panel) Lines() (lines []string, at []int) {
 			line = style.Cursor(pane.Pad(ansi.Strip(line), p.Fill, false))
 		}
 		add(line, k)
+		if p.Focused && c.column != "" && (k+1 == len(controls) || controls[k+1].column == "") {
+			add("", -1)
+			for _, h := range p.hints() {
+				add(style.Off(h), -1)
+			}
+		}
 	}
 	return lines, at
+}
+
+// hints gives the dim lines under the columns, while the panel has the keyboard, that say what a column's keys do: the
+// sort's and the groups' only where a column can sort or group, and the order's always.
+func (p Panel) hints() []string {
+	var out []string
+	if len(p.Sortable) > 0 {
+		out = append(out, "s/S  sort, then by")
+	}
+	if len(p.Groupable) > 0 {
+		out = append(out, "g/G  group, within")
+	}
+	return append(out, "⇧↑↓  order, or drag")
 }
 
 // Update takes a key while the panel has the keyboard, and says whether it changed anything: up and down move between
@@ -419,8 +439,9 @@ func (p Panel) act(c control) Panel {
 	return p
 }
 
-// Width gives the cells the panel's widest line takes.
+// Width gives the cells the panel's widest line takes, with the keyboard or without it.
 func (p Panel) Width() int {
+	p.Focused = true
 	lines, _ := p.Lines()
 	widest := 0
 	for _, l := range lines {

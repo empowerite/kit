@@ -154,8 +154,30 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	if q, ok := p.Click(9); !ok || q.Show != All {
 		t.Errorf("mine was chosen without a login: %v, %v", q.Show, ok)
 	}
-	if p.Width() != ansi.StringWidth("🔎 search") {
+	// the width keeps room for the hints the panel shows with the keyboard
+	if p.Width() != ansi.StringWidth("⇧↑↓  order, or drag") {
 		t.Errorf("width %d", p.Width())
+	}
+	// with the keyboard, dim hints under the columns say what a column's keys do, the sort's and the groups' only
+	// where a column can sort or group
+	p.Focused, p.Cursor = true, 0
+	for _, c := range []struct {
+		sortable, groupable map[string]bool
+		want                []string
+	}{
+		{nil, nil, []string{"", "⇧↑↓  order, or drag"}},
+		{map[string]bool{"number": true}, map[string]bool{"who": true},
+			[]string{"", "s/S  sort, then by", "g/G  group, within", "⇧↑↓  order, or drag"}},
+	} {
+		p.Sortable, p.Groupable = c.sortable, c.groupable
+		lines, at := p.Lines()
+		got := make([]string, len(c.want))
+		for i := range got {
+			got[i] = ansi.Strip(lines[6+i])
+		}
+		if !slices.Equal(got, c.want) || at[6] != -1 || ansi.Strip(lines[7+len(c.want)]) != "show" {
+			t.Errorf("the hints: %q", got)
+		}
 	}
 }
 
@@ -189,7 +211,8 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	if q, ok := p.Click(1); ok || q.Cursor != p.Cursor {
 		t.Errorf("a click on a gap was taken")
 	}
-	if q, ok := p.Click(7); !ok || q.Show != All || q.Cursor != 3 {
+	// with the keyboard, the hints under the columns push the show choices down: a gap, the order's hint, a gap
+	if q, ok := p.Click(9); !ok || q.Show != All || q.Cursor != 3 {
 		t.Errorf("a click on all: show %v, cursor %d", q.Show, q.Cursor)
 	}
 	if _, ok := p.Update(key('x', "x")); ok {
