@@ -346,7 +346,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	}
 }
 
-// In the rows, space selects the row under the cursor, ☑ in its gutter in the tab's group's color, and again unselects
+// In the rows, space selects the row under the cursor, ▣ in its gutter in the tab's group's color, and again unselects
 // it; shift with up or down
 // selects as it moves; ctrl+a selects every row shown, and again none. A click puts the cursor on a row and selects
 // nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each

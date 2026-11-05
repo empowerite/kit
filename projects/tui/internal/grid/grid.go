@@ -97,9 +97,9 @@ type Line struct {
 	Text string
 }
 
-// Chosen marks a row selected, in the gutter before its ▸ on its first line: the panel's ticked box, one cell wide in
-// every terminal and centered on the line as the triangles are.
-const Chosen = Ticked
+// Chosen marks a row selected, in the gutter before its ▸ on its first line: a filled box, centered on the line as the
+// triangles are, solid enough to show without bold; a row not selected has nothing there, so the selection scans.
+const Chosen = "▣"
 
 // gap is the cells between two columns; minFill the fewest a cell that wraps keeps when the other columns leave it
 // less, the row then clipped.
