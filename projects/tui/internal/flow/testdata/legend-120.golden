@@ -4,7 +4,7 @@
   ╵                      ╰────────────────────────╰────────────────────╰───────────────────┐ ☑ id
     id  assignees         age  branch            title                                     │ ☑ source ▤
    ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ assignees
-   🐙 github  3                                                                            │ ☑ age
+   source · 🐙 github  3                                                                   │ ☑ age
  ▸ #45                     2h                    🎫 kit flow is the one picture: five sta… │ ☑ branch
  ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb acts  │ ☑ title
  ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing                          │

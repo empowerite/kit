@@ -581,7 +581,7 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
+	if got := heading(m); got != "source · "+GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
 		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
 	}
 	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {

@@ -1,6 +1,7 @@
 package grid
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -566,12 +567,12 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
 	p := Panel{Columns: columns, Groupable: groupable}
 	got, auto := p.group(rows, columns)
-	want := []string{"github · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
+	want := []string{"source · github, where · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 0 {
 		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// the panel's order joins the values; a hidden column and one kept do not group
-	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "here · github  3" {
+	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "where · here, source · github  3" {
 		t.Errorf("in the panel's order: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable, Hidden: map[string]bool{"source": true}, Kept: map[string]bool{"where": true}}).group(rows, columns); len(got) != 3 || auto != nil {
@@ -581,14 +582,14 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	p.Group = []string{"state"}
 	got, auto = p.group(rows, columns)
 	// the column the person groups by stays in the cells, which the panel's hide then leaves out
-	want = []string{"state · draft · github · here  2", "#1||draft||ada", "#2||draft||", "state · ready  1",
+	want = []string{"state · draft, source · github, where · here  2", "#1||draft||ada", "#2||draft||", "state · ready  1",
 		"#3|github|ready|here|bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
 		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// two values in a cell, or one row alone, do not group
 	rows[0].Cells[3].Values = []string{"here", "there"}
-	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "github  3" {
+	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "source · github  3" {
 		t.Errorf("several values: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable}).group(rows[:1], columns); len(got) != 1 || auto != nil {
@@ -598,6 +599,23 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	q := Panel{Columns: columns, Groupable: groupable, Auto: []string{"source"}, Cursor: 2}
 	if lines, _ := q.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping)) {
 		t.Errorf("source grouping on its own: %q", lines[4])
+	}
+	// the headings say which columns they group by on their own, at which level; with more than one column grouping,
+	// the panel numbers each by its level, the person's and the rows' own alike
+	got, _ = p.group(rows, columns)
+	if said := Said(got); !maps.Equal(said, map[string]int{"source": 1}) {
+		t.Errorf("said: %v", said)
+	}
+	if said := Said([]Row{{Key: overAll, Aside: true, Says: []string{"where"}},
+		{Key: "group\x00a\x00b", Aside: true, Says: []string{"where", "source"}}}); !maps.Equal(said,
+		map[string]int{"where": 1, "source": 2}) {
+		t.Errorf("said at two levels: %v", said)
+	}
+	n := Panel{Columns: columns, Groupable: groupable, Group: []string{"state"}, Auto: []string{"source"},
+		AutoAt: map[string]int{"source": 1}}
+	if lines, _ := n.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping+"₁")) ||
+		!strings.HasSuffix(lines[5], " "+style.Tint(Grouping+"₁")) {
+		t.Errorf("numbered by level: %q %q", lines[4], lines[5])
 	}
 	q.Focused = true
 	if q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"}); !q.Kept["source"] || len(q.Group) > 0 || len(q.Auto) > 0 {

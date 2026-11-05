@@ -47,7 +47,8 @@ const (
 // alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first, and Group
 // the columns they group by, the outermost first; Sortable and Groupable name the columns that can, which the stage
 // says. Beside the groups the person chose, the rows group on their own by each groupable column whose value is the
-// same on every row of a group, as group says; Auto names the columns that do so now, as Filtered gave them, and Kept
+// same on every row of a group, as group says; Auto names the columns that do so now, as Filtered gave them, AutoAt
+// the level of the headings each is said at, from 1, as Said gives it, and Kept
 // those the person keeps as columns, which never do, a new map as Hidden is. Fill is the cells the control under the
 // keyboard is drawn inverse across, at least.
 type Panel struct {
@@ -60,6 +61,7 @@ type Panel struct {
 	Group     []string
 	Groupable map[string]bool
 	Auto      []string
+	AutoAt    map[string]int
 	Kept      map[string]bool
 	Fill      int
 	Show      Show
@@ -122,6 +124,17 @@ func (p Panel) Mark(column string) string {
 	return ""
 }
 
+// grouping gives how many columns the rows group by: those the person chose, and those they group by on their own.
+func (p Panel) grouping() int {
+	n := len(p.Group)
+	for _, c := range p.Auto {
+		if !slices.Contains(p.Group, c) {
+			n++
+		}
+	}
+	return n
+}
+
 // subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
 func subscript(n int) string {
 	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
@@ -172,6 +185,25 @@ func Levels(rows []Row) int {
 		}
 	}
 	return n
+}
+
+// Said gives the level of the headings, from 1, that say each column the rows group by on their own, the shallowest
+// when it is said at several: the heading over every row is the first level, as is a heading of the outermost column
+// the person chose.
+func Said(rows []Row) map[string]int {
+	out := map[string]int{}
+	for _, r := range rows {
+		if !Heads(r) {
+			continue
+		}
+		level := max(1, strings.Count(r.Key, "\x00"))
+		for _, c := range r.Says {
+			if at, ok := out[c]; !ok || level < at {
+				out[c] = level
+			}
+		}
+	}
+	return out
 }
 
 // overAll is the key of the heading over every row.
@@ -241,8 +273,9 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		if len(took) == 0 {
 			return rows, nil
 		}
-		heading := joined(grouped[0], took) + "  " + strconv.Itoa(len(grouped))
-		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true}}
+		heading := joined(grouped[0], columns, took) + "  " + strconv.Itoa(len(grouped))
+		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true,
+			Says: names(columns, took)}}
 		for _, r := range grouped {
 			out = append(out, blank(r, took))
 		}
@@ -280,10 +313,11 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			took = append(took, auto[depth]...)
 			heading := strings.Repeat("  ", depth) + columns[j] + " · " + value(r, j)
 			if len(auto[depth]) > 0 {
-				heading += " · " + joined(r, auto[depth])
+				heading += ", " + joined(r, columns, auto[depth])
 			}
 			heading += "  " + strconv.Itoa(n)
-			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true})
+			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true,
+				Says: names(columns, auto[depth])})
 		}
 		out = append(out, blank(r, slices.Concat(auto...)))
 	}
@@ -322,13 +356,15 @@ func constant(rows []Row, columns []int) []int {
 	return out
 }
 
-// joined gives a row's values in the columns, without their styles, a dot between them, as a heading says them.
-func joined(r Row, columns []int) string {
+// joined gives each column a row groups by on its own, at the indexes, as a heading says it: the column's name and
+// the row's value in it, without its style, a dot between them, as a heading of a column the person chose says them,
+// and a comma between columns.
+func joined(r Row, names []string, columns []int) string {
 	var values []string
 	for _, j := range columns {
-		values = append(values, ansi.Strip(r.Cells[j].first()))
+		values = append(values, names[j]+" · "+ansi.Strip(r.Cells[j].first()))
 	}
-	return strings.Join(values, " · ")
+	return strings.Join(values, ", ")
 }
 
 // blank gives the row with its cells in the columns blank, their values said by the heading over it.
@@ -439,13 +475,18 @@ func (p Panel) Lines() (lines []string, at []int) {
 			}
 			if k := slices.Index(p.Group, c.column); k >= 0 {
 				mark := Grouping
-				if len(p.Group) > 1 {
+				if p.grouping() > 1 {
 					mark += subscript(k + 1)
 				}
 				line += " " + style.Tint(mark)
 			} else if slices.Contains(p.Auto, c.column) {
-				// a column the rows group by on their own, apart from one the person chose
-				line += " " + style.Off(Grouping)
+				// a column the rows group by on their own, apart from one the person chose, numbered by the level of
+				// the headings that say it
+				mark := Grouping
+				if at := p.AutoAt[c.column]; at > 0 && p.grouping() > 1 {
+					mark += subscript(at)
+				}
+				line += " " + style.Off(mark)
 			}
 		default:
 			if c.show == All {

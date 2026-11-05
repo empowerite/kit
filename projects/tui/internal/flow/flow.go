@@ -342,7 +342,7 @@ type meMsg struct {
 // whether its rows belong to people, the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
-	p.Columns, p.Auto, p.Fill = m.offered(i), m.shown(i).auto, m.sideWidth()-1
+	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
 	return p
 }
 

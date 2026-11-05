@@ -83,14 +83,16 @@ func digits(s string) int {
 }
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
-// drawn closed; whether it is an aside, as a heading, which a screen does not count; and the logins it belongs to,
-// which Show matches.
+// drawn closed; whether it is an aside, as a heading, which a screen does not count; the logins it belongs to, which
+// Show matches; and, for a group's heading, the columns whose value it says because the rows group by them on their
+// own.
 type Row struct {
 	Key    string
 	Cells  []Cell
 	Detail [][]Cell
 	Aside  bool
 	Owners []string
+	Says   []string
 }
 
 // Line is one line the grid draws: the row it belongs to, an index into the rows drawn, and its text.
