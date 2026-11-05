@@ -542,3 +542,22 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).Sort)
 	}
 }
+
+// Underway groups by change: the issues one pull request carries stand under its heading, and those without one under
+// none.
+func TestUnderwayGroupsByChange(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m.setPanel(m.panel(m.stage).Grouped("change", false))
+	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"change"}) {
+		t.Fatalf("grouped by change: %q", got)
+	}
+	headings := 0
+	for _, r := range m.rows(m.stage) {
+		if r.Aside && m.panel(m.stage).Heading(r) == "change" {
+			headings++
+		}
+	}
+	if headings == 0 || !strings.Contains(view(m), "change · ") {
+		t.Errorf("no heading per change:\n%s", view(m))
+	}
+}

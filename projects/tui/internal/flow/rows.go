@@ -390,7 +390,7 @@ var (
 	}
 	groupable = map[string]map[string]bool{
 		"backlog":   set("source", "assignees"),
-		"underway":  set("source", "assignees", "state", "where", "fork", "by"),
+		"underway":  set("source", "assignees", "change", "state", "where", "fork", "by"),
 		"worktrees": set("state"),
 		"changes":   set("author", "state", "checks"),
 		"builds":    set("workflow", "event", "branch"),
