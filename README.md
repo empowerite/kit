@@ -102,9 +102,10 @@ Requirements:
   - `shellcheck`, which the bash rule runs
   - `actionlint`, which the workflows rule runs
   - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
-- For `kit work`, `kit flow`, `kit tidy`, `kit linked`, and `kit release`: the code forge's command-line tool, `gh`
-  for GitHub or `glab` for GitLab. The code forge is the service that hosts the repository. `kit commit` uses it
-  too, to close an issue its subject names, and `kit policy` uses it in CI to read the pull request.
+- For `kit work`, `kit assign`, `kit unassign`, `kit close`, `kit gather`, `kit settle`, `kit flow`, `kit tidy`,
+  `kit linked`, and `kit release`: the code forge's command-line tool, `gh` for GitHub or `glab` for GitLab. The
+  code forge is the service that hosts the repository. `kit commit` uses it too, to close an issue its subject
+  names, and `kit policy` uses it in CI to read the pull request.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
 
 kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
@@ -177,11 +178,12 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. So the `agents/
 `kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are active. The
 package format is in [docs/packages.md](docs/packages.md).
 
-kit works with no package at all. The workflow verbs (`kit flow`, `kit work`, `kit commit`, `kit submit`,
-`kit rebase`, `kit tidy`, `kit release`) and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`)
-run in a repository that has none. What needs the `kit` package is its kinds, rules, and templates: without them,
-`kit context` does not name any rule, `kit kinds` does not list any kind, `kit lint` does not govern any file, and
-`kit new file` refuses, because there is no template.
+kit works with no package at all. The workflow verbs (`kit flow`, `kit work`, `kit assign`, `kit unassign`,
+`kit close`, `kit gather`, `kit commit`, `kit submit`, `kit rebase`, `kit settle`, `kit tidy`, `kit release`)
+and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`) run in a repository that has none.
+What needs the `kit` package is its kinds, rules, and templates: without them, `kit context` does not name any
+rule, `kit kinds` does not list any kind, `kit lint` does not govern any file, and `kit new file` refuses, because
+there is no template.
 
 In a repository kit has hydrated, every kit call, and every message `kit serve` answers, is a line in a daily log
 under `.kit/logs/`; see [docs/logs.md](docs/logs.md).

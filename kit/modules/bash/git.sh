@@ -91,6 +91,18 @@ git:clean() {
   [[ -z "$(git -C "$1" status --porcelain 2>/dev/null)" ]]
 }
 
+# git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, before kit tidy
+# removes its worktree: what the forge does not close itself is closed or put back here, in case nothing else did.
+# A failure is said and does not stop the sweep.
+git:tidy-settle() {
+  local pr
+  [[ -n "$1" ]] || return 0
+  pr=$(forge:pr-last-for-branch "$1")
+  [[ -n "${pr}" ]] || return 0
+  use issue
+  issue:settle "${pr}" || warn "the issues of change ${pr} could not all be settled; run: kit settle ${pr}"
+}
+
 # git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides whether to remove
 # one worktree and prints the reason. It returns 0 when the worktree was removed (or would be, under a dry run)
 # and 1 when it is kept.
@@ -135,6 +147,7 @@ git:tidy-worktree() {
         step "would remove ${path} (${branch:-detached}, ${state})"
       else
         step "removing ${path} (${branch:-detached}, ${state})"
+        git:tidy-settle "${branch}"
         git worktree remove "${path}"
       fi
       return 0

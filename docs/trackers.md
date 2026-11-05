@@ -52,6 +52,15 @@ and the error lists the known prefixes.
   passes when the change's body names an open issue of a declared tracker with a closing keyword:
   `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`. A change by a login under `linked_exempt` in
   `kit.yml` passes without an issue, and the output says so.
+- `kit work --title <text> 7 AB#4521` gathers the issues under a new parent issue and starts the parent, as
+  `kit gather` does without starting it: a forge issue is a sub-issue on GitHub, a linked item on GitLab; a work
+  item is a task line in the parent's body.
+- `kit assign`, `kit unassign`, and `kit close` take references from any tracker. `kit close --duplicate-of` a
+  reference in another tracker comments with the original, and closes the issue as not planned.
+- `kit settle` does for a closed change what the code forge does not: when it merged, it closes the work items its
+  body closes, with a comment naming the merge commit; when it closed without merging, it puts every issue it names
+  back in the backlog. The delivered CI runs it when a change closes, and `kit tidy` runs it before removing a
+  finished worktree.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
 

@@ -201,6 +201,10 @@ forge/github:pr-set-body() {
   gh pr edit "$1" --body "$2" >/dev/null
 }
 
+forge/github:pr-last-for-branch() {
+  gh pr list --head "$1" --state all --json number --jq '.[0].number // empty' 2>/dev/null || true
+}
+
 forge/github:pr-state() {
   gh pr view "$1" --json state,mergeCommit --jq '"\(.state)\t\(.mergeCommit.oid // "")"' 2>/dev/null \
     || { error "run: gh auth status (pull request #$1 could not be read)"; return 1; }

@@ -130,6 +130,65 @@ JSON
   grep --quiet 'Closes <reference>' "${GITHUB_STEP_SUMMARY}"
 }
 
+@test "kit settle closes a merged change's work items with the merge commit, and puts a closed change's issues back, once" {
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example", "url": "https://github.com/empowerite/example"}'
+  fixture merged.json <<<'{"state": "MERGED", "mergeCommit": {"oid": "abcdef0123456789"}}'
+  fixture closed.json <<<'{"state": "CLOSED", "mergeCommit": null}'
+  fixture open.json <<<'{"state": "OPEN", "mergeCommit": null}'
+  fixture body.json <<<'{"body": "Does the work.\nCloses AB#4521"}'
+  fixture active.json <<'JSON'
+{"id": 4521, "fields": {"System.Title": "Fix it", "System.State": "Active",
+ "System.AssignedTo": {"uniqueName": "ada@example.com"}}}
+JSON
+  fixture done.json <<<'{"id": 4521, "fields": {"System.Title": "Fix it", "System.State": "Closed"}}'
+  fixture author.json <<<'{"user": {"login": "ada"}}'
+  fixture closing.json <<'JSON'
+{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": [
+  {"number": 7, "state": "OPEN", "repository": {"nameWithOwner": "empowerite/example"}},
+  {"number": 8, "state": "OPEN", "repository": {"nameWithOwner": "someone/else"}}]}}}}}
+JSON
+  fixture issue.json <<<'{"title": "Seven", "state": "OPEN", "assignees": [{"login": "ada"}]}'
+  fixture me.txt <<<'ada@example.com'
+  fixture user.json <<<'{"login": "ada"}'
+  route gh 'api user*' user.json
+  route gh 'repo view*' repo.json
+  route gh 'pr view 3 --json state,mergeCommit*' merged.json
+  route gh 'pr view 4 --json state,mergeCommit*' closed.json
+  route gh 'pr view 6 --json state,mergeCommit*' open.json
+  route gh 'pr view * --json body*' body.json
+  route gh 'api repos/empowerite/example/pulls/4 *' author.json
+  route gh 'api graphql*number=4*' closing.json
+  route gh 'issue view 7 *' issue.json
+  route gh 'issue comment 7 *' '!0'
+  route gh 'issue edit 7 --remove-assignee ada' '!0'
+  route az 'boards work-item show --id 4521 *' active.json
+  route az 'boards work-item update --id 4521 *' '!0'
+  route az 'account show*' me.txt
+  printf 'forge: github\n' >> kit.yml
+  run "${kit_root}/bin/kit" settle 3
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AB#4521 closed: pull request #3 merged"* ]]
+  grep -q 'update --id 4521 --discussion Closed by pull request #3, merged as abcdef012345: https://github.com/empowerite/example/pull/3' "${FAKE_DIR}/az.calls"
+  grep -q 'update --id 4521 --state Closed' "${FAKE_DIR}/az.calls"
+  run "${kit_root}/bin/kit" settle 4
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#7 is backlog again: pull request #4 closed unmerged, ada unassigned"* ]]
+  [[ "$output" == *"AB#4521 is backlog again"* ]]
+  [[ "$output" != *"#8"* ]]
+  grep -q '^issue edit 7 --remove-assignee ada$' "${FAKE_DIR}/gh.calls"
+  run "${kit_root}/bin/kit" settle 6
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pull request #6 is open; nothing to settle"* ]]
+  # again, with the work item closed: nothing more is done to it
+  route az 'boards work-item show --id 4521 *' done.json
+  sed -i.bak '/show --id 4521 \*\tactive.json/d' "${FAKE_DIR}/az.routes"
+  : > "${FAKE_DIR}/az.calls"
+  run "${kit_root}/bin/kit" settle 3
+  [ "$status" -eq 0 ]
+  run grep -c update "${FAKE_DIR}/az.calls"
+  [ "$output" = 0 ]
+}
+
 @test "the settings take a tracker with a prefix and a provider, and refuse one without" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   run "${kit_root}/bin/kit" check

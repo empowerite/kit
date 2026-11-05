@@ -9,6 +9,10 @@
 #   3. installs the gate's tools with `kit tools install`, through that toolchain: KIT_TOOLCHAIN names it
 #   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
 #
+# When a pull request closes, a second job, Settle, runs `kit settle` on it: an issue in another tracker that a merged
+# pull request's body closes is closed, and the issues of one closed without merging are backlog again. It alone may
+# write to issues. It reads the other trackers with the repository's secrets: AZURE_DEVOPS_EXT_PAT for Azure DevOps.
+#
 # Added by kit's github/ci package. To remove it, run kit packages remove github/ci.
 # To change it, do not edit it here: see "Changing what kit adds" in .kit/1st.md.
 # runs-on is the ci_runner value under answers: in kit.yml; timeout-minutes is its ci_timeout_minutes value;
@@ -20,7 +24,7 @@ name: kit
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, closed]
 
 permissions:
   contents: read
@@ -29,7 +33,9 @@ permissions:
 
 jobs:
   CI:
-    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    if: >-
+      github.event.action != 'closed'
+      && github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: "ubuntu-latest"
     # A hung step fails the job after this many minutes, not after GitHub's six hours. fromJSON makes the answer a
     # number, and keeps the template YAML, where a value cannot start with @.
@@ -104,5 +110,57 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: kit ci
+
+  Settle:
+    if: github.event.action == 'closed'
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: kit-on-path
+        run: |
+          set -o errexit -o nounset -o pipefail
+          version=$(sed -n 's/^version: *//p' kit.yml 2>/dev/null | sed "s/[[:space:]]*#.*//; s/^[\"']//; s/[\"']$//")
+          if [[ -z "${version}" ]]
+          then
+            echo '::error::run kit install and commit what it writes; kit.yml declares no kit version'
+            exit 1
+          fi
+          if [[ "${version}" == unreleased && -x kit/bin/kit ]]
+          then
+            printf '%s/kit/bin\n' "${PWD}" >> "${GITHUB_PATH}"
+          elif [[ "${version}" == unreleased ]]
+          then
+            echo '::error::kit.yml declares unreleased and there is no kit/bin/kit; pin a release and run kit update'
+            exit 1
+          elif ! command -v kit >/dev/null
+          then
+            tarball="https://github.com/empowerite/kit/releases/download/release/${version}/kit-${version}.tar.gz"
+            curl --fail --silent --location --output "${RUNNER_TEMP}/kit-${version}.tar.gz" "${tarball}"
+            curl --fail --silent --location --output "${RUNNER_TEMP}/kit-${version}.tar.gz.sha256" "${tarball}.sha256"
+            # Nothing from the tarball runs until its bytes have the digest the release publishes beside it.
+            if ! (cd "${RUNNER_TEMP}" && shasum --algorithm 256 --check --status "kit-${version}.tar.gz.sha256")
+            then
+              echo "::error::kit-${version}.tar.gz does not have the digest its release publishes; it is not unpacked"
+              exit 1
+            fi
+            mkdir -p "${RUNNER_TEMP}/kit"
+            tar --extract --gzip --file "${RUNNER_TEMP}/kit-${version}.tar.gz" --directory "${RUNNER_TEMP}/kit" \
+              --strip-components 1
+            printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
+          fi
+
+      - name: kit-settle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AZURE_DEVOPS_EXT_PAT: ${{ secrets.AZURE_DEVOPS_EXT_PAT }}
+          PR: ${{ github.event.pull_request.number }}
+        run: kit settle "${PR}"
 
 # ----------------------------------------------------------------------------------------------------------------------

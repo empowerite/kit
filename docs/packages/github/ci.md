@@ -26,6 +26,12 @@ toolchain named, and none for the others:
 
 The job needs `jq` and `yq` on the runner, which the hosted runners have; a runner of the repository's own needs both.
 
+When a pull request closes, a second job, `Settle`, puts `kit` on `PATH` the same way and runs `kit settle` on it.
+An issue in another tracker that a merged pull request's body closes (`Closes AB#4521`) is closed with a comment
+naming the merge commit; the issues of a pull request closed without merging get a comment and lose its author, so
+they are backlog again. `Settle` alone may write to issues. For an Azure DevOps tracker it reads the repository's
+`AZURE_DEVOPS_EXT_PAT` secret, which `az` takes as its token.
+
 A repository on another CI system calls `kit tools install` and `kit ci` from its own pipeline.
 
 The workflow is a template with three keys, all under `answers:` in `kit.yml`:

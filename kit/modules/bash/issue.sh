@@ -217,6 +217,68 @@ issue:join() {
   ok "Added ${refs[*]} to ${noun} ${sigil}${pr}"
 }
 
+# issue:settle <change> settles the issues a closed pull request names, as kit settle describes. It is safe to run
+# again: an issue already closed, or no longer assigned, is left as it is.
+issue:settle() {
+  local pr=${1#[#!]} line state sha sigil noun url body author repo ref login number istate owner failed=0
+  local -a refs=()
+  IFS=$'\t' read -r sigil noun < <(forge:noun)
+  line=$(forge:pr-state "${pr}") || return 1
+  state=${line%%$'\t'*}
+  sha=${line#*$'\t'}
+  url=$(forge:pr-url "${pr}")
+  body=$(forge:pr-body "${pr}") || return 1
+  case ${state} in
+    MERGED)
+      while IFS= read -r ref
+      do
+        [[ -n "${ref}" ]] || continue
+        [[ "$(tracker:of "${ref}" state)" != CLOSED ]] || continue
+        if tracker:of "${ref}" comment "Closed by ${noun} ${sigil}${pr}, merged as ${sha:0:12}: ${url}" \
+          && tracker:of "${ref}" close completed
+        then
+          ok "${ref} closed: ${noun} ${sigil}${pr} merged"
+        else
+          error "${ref} could not be closed"
+          failed=1
+        fi
+      done < <(tracker:body-refs "${body}")
+      ;;
+    CLOSED)
+      author=$(forge:pr-author "${pr}") || return 1
+      repo=$(forge:repo) || return 1
+      while read -r number istate owner
+      do
+        [[ "${owner}" == "${repo}" && "${istate}" == OPEN ]] && refs+=("#${number}")
+      done < <(forge:pr-closing-issues "${pr}")
+      while IFS= read -r ref
+      do
+        [[ -z "${ref}" ]] || refs+=("${ref}")
+      done < <(tracker:body-refs "${body}")
+      for ref in "${refs[@]}"
+      do
+        if tracker:is-forge "${ref}"
+        then login=${author}
+        else login=$(tracker:at "$(tracker:parse "${ref}" | cut -f 1)" me 2>/dev/null) || continue
+        fi
+        [[ " $(tracker:of "${ref}" assignees) " == *" ${login} "* ]] || continue
+        if tracker:of "${ref}" comment "${noun} ${sigil}${pr} closed without merging; this is backlog again: ${url}" \
+          && tracker:of "${ref}" unassign "${login}"
+        then
+          ok "${ref} is backlog again: ${noun} ${sigil}${pr} closed unmerged, ${login} unassigned"
+        else
+          error "${ref} could not be put back"
+          failed=1
+        fi
+      done
+      ;;
+    *)
+      info "${noun} ${sigil}${pr} is open; nothing to settle"
+      ;;
+  esac
+  return "${failed}"
+}
+
 # issue:branch <reference> <default-branch> <title> prints the issue's branch. It reuses an existing branch, so a
 # second run never creates a duplicate. It looks, in order, for:
 #

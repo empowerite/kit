@@ -59,6 +59,7 @@
 #   pr-body <n>                   the pull request's body
 #   pr-set-body <n> <body>        replaces it
 #   pr-author <n>                 the login of the change's author, as the forge shows it: dependabot[bot]
+#   pr-last-for-branch <branch>   the number of the latest pull request on the branch, in any state, or nothing
 #   pr-state <n>                  MERGED, CLOSED, or OPEN, a tab, and the merge commit when it is merged
 #   pr-state-for-branch <branch>  MERGED, CLOSED, or OPEN for the latest pull request on the branch, or nothing
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
@@ -264,6 +265,7 @@ forge:pr-title()            { forge:call pr-title "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
 forge:pr-set-body()         { forge:changing pr-set-body "$@"; }
 forge:pr-author()           { forge:call pr-author "$@"; }
+forge:pr-last-for-branch()  { forge:call pr-last-for-branch "$@"; }
 forge:pr-state()            { forge:call pr-state "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }

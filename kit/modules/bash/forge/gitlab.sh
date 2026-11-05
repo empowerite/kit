@@ -199,6 +199,11 @@ forge/gitlab:pr-set-body() {
   forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
 }
 
+forge/gitlab:pr-last-for-branch() {
+  forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
+    | jq --raw-output '.[0].iid // empty' || true
+}
+
 forge/gitlab:pr-state() {
   forge/gitlab:api "merge_requests/$1" 2>/dev/null \
     | jq --raw-output '"\(.state | if . == "merged" then "MERGED" elif . == "closed" then "CLOSED" else "OPEN" end
