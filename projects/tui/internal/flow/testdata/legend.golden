@@ -2,11 +2,11 @@
   ➊╶─────────────────────╮➁╶──────────────────────╮➂
   │ 🎫 backlog       3 ⋮ │  🛫 underway         4  ▹ columns
   ╵                      ╰────────────────────────╰┐ ☑ id
-    id  source     assignees            age  bran… │ ☑ source
+ ▸  id  source  assign  age  branch   title        │ ☑ source
    ─────────────────────────────────────────────── │ ☑ assignees
- ▸ #45  🐙 github                        2h      … │ ☑ age
- ▸ #46  🐙 github  👤 jeffrey-aguilera   2d  🌿 4… │ ☑ branch
- ▸  #7  🐙 github  👤 ada           +1  40d      … │ ☑ title
+ ▸ #45  🐙 gi…           2h           🎫 kit flow… │ ☑ age
+ ▸ #46  🐙 gi…  👤 je…   2d  🌿 46-…  🎫 A noun l… │ ☑ branch
+ ▸  #7  🐙 gi…  👤… +1  40d           🎫 Fix the … │ ☑ title
                                                    │
                                                    │ show
                                                    │ ⦿ all

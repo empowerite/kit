@@ -2,11 +2,11 @@
   ──────╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶────────
  ◃    1 │  🌿 worktrees         4  │ 🔀 changes       3 ⋮ │  🏭 builds         4 │  🛬 inc ▹ columns
   ──────╰──────────────────────────╯                      ╰──────────────────────╰─────────┐ ☑ change
-   change  title         author               state            age  checks               … │ ☑ title
+   change  title         author      state       age  checks      threads      branch      │ ☑ title
    ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ author
- ▸ 🔀 #2   The first r…  👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 3m          … │ ☑ state
- ▸ 🔀 #3   A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2             … │ ☑ age
- ▸ 🔀 #4   Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint failing 1 / 2… │ ☑ checks
+ ▸ 🔀 #2   The first r…  👤 jeffre…  🏁 ready     8d  ✅ 1 / 1 …               🌿 1-the-f… │ ☑ state
+ ▸ 🔀 #3   A spike on …  👤 ada      🔨 draft    90m  🏃 0 / 2    💬 2 unres…  🌿 3-a-spi… │ ☑ age
+ ▸ 🔀 #4   Lint every …  👤 bob      🔥 failin…  25h  ❌ lint f…               🌿 4-lint-… │ ☑ checks
                                                                                            │ ☑ threads
                                                                                            │ ☑ branch
                                                                                            │

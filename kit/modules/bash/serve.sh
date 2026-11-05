@@ -14,13 +14,15 @@
 #   - The revisions before it, which a client selects by opening with initialize. From then on a request needs no
 #     _meta, and ping is answered.
 #
-# A tool is a verb that reads and reports, and does not change anything. Its description is the verb's purpose and the
+# A tool is a verb. Most read and report, and change nothing; the workflow tools act on issues and pull requests, and
+# say so in their annotations, so a client can ask before it calls one. Its description is the verb's purpose and the
 # usage lines it offers. The verb's whole page is a resource, kit://help/<verb>. Its input is typed, built from the
 # verb's syntax by modules/jq/serve.jq: a property for each flag, option, and operand, and one for a line's leading
 # word. A call's arguments become the verb's words, and a name the tool does not know is refused with -32602. A call
 # runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
 #
-# A tool never writes the repository and never fetches:
+# A tool that reads never writes the repository and never fetches; of the workflow tools, only work writes the
+# repository, as it makes a branch, a worktree, and a pull request:
 #
 #   - The server places .kit/ as it starts, and again between messages when kit.yml changed. A call does not place
 #     anything; kit_serve_hydrated tells the verb so.
@@ -55,11 +57,23 @@ use context help release syntax log file materialize
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools, each a verb that does not change anything.
-declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version)
+# The tools: the verbs that read and change nothing, then the workflow verbs, which act on issues and pull requests.
+declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version
+  assign close gather settle unassign work)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
-declare -gra serve_open_world=(flow)
+declare -gra serve_open_world=(flow assign close gather settle unassign work)
+
+# The workflow tools' annotations: each changes something, and so is not read-only. A destructive one closes issues or
+# takes people off them; an idempotent one called again with the same arguments changes nothing more.
+declare -grA serve_acts=(
+  [assign]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
+  [close]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
+  [gather]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false}'
+  [settle]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
+  [unassign]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
+  [work]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
+)
 
 # The tools offered as a listing only. Each word would act, or reach the network, so a tool does not offer it: a line
 # that needs one is not offered, and an optional part that holds one is taken out. Each word is a literal or --flag.
@@ -389,23 +403,24 @@ serve:spec() {
 }
 
 # serve:tool <tool> prints the tool's definition as JSON: its name, a description of its purpose and the usage lines
-# it offers, its typed input, and the hints that it reads only.
+# it offers, its typed input, and its hints: that it reads only, or, for a workflow tool, what it changes.
 serve:tool() {
-  local tool=$1 open=false world
+  local tool=$1 open=false world acts='{"readOnlyHint": true, "destructiveHint": false}'
   for world in "${serve_open_world[@]}"
   do
     [[ "${tool}" == "${world}" ]] && open=true
   done
+  [[ -z "${serve_acts[${tool}]+x}" ]] || acts=${serve_acts[${tool}]}
   serve:spec "${tool}" || return 1
   jq --compact-output -L "${kit_jq}" --arg purpose "$(help:purpose "${tool}")" --argjson opts "${serve_opts[${tool}]}" \
-    --argjson open "${open}" 'import "serve" as serve;
+    --argjson open "${open}" --argjson acts "${acts}" 'import "serve" as serve;
     {
       name: .verb,
       title: ("kit " + .verb),
       description: ("kit \(.verb) \($purpose)\n\nUsage:\n" + ([serve::lines($opts)[].text | "  " + .] | join("\n"))
         + "\n\nIts whole page is the resource kit://help/\(.verb)."),
       inputSchema: serve::schema($opts),
-      annotations: {readOnlyHint: true, destructiveHint: false, openWorldHint: $open}
+      annotations: ($acts + {openWorldHint: $open})
     }' <<<"${serve_specs[${tool}]}"
 }
 

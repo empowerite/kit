@@ -2,16 +2,16 @@
   ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶──
  ◃│  🌿 worktrees         4  │ 🔀 changes       3 ⋮ │  🏭 builds         4 │   ▹
   ╰──────────────────────────╯                      ╰──────────────────────╰───┐
-   change  title         author               state            age  checks   … │
+   change  title         author    state     age  checks    threads   branch   │
    ─────────────────────────────────────────────────────────────────────────── │
- ▾ 🔀 #2   The first     👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 … │
-           release,                                                            │
-           v0.1.0                                                              │
+ ▾ 🔀 #2   The first     👤        🏁 ready   8d  ✅ 1 / 1            🌿 1-    │
+           release,      jeffrey-                 3m                  the-firs │
+           v0.1.0        aguilera                                     t-       │
+                                                                      release- │
+                                                                      v0-1-0   │
       #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0  │
- ▸ 🔀 #3   A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2 … │
- ▸ 🔀 #4   Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint f… │
-                                                                               │
-                                                                               ◂
+ ▸ 🔀 #3   A spike on …  👤 ada    🔨 draft  90m  🏃 0 / 2  💬 2 un…  🌿 3-a-… │
+ ▸ 🔀 #4   Lint every …  👤 bob    🔥 fail…  25h  ❌ lint…            🌿 4-li… ◂
                                                                                ╷
                                                                                │
                                                                                │

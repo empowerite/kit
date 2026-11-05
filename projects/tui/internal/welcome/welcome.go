@@ -6,16 +6,19 @@
 // welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
 // moves to the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is
 // drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps
-// are markdown pages drawn as text.
+// are markdown pages drawn as text. The intro's page ends with what the checks found: checking… while they run, then
+// that all of them pass, or how many need the person, each failed check's line a link to it, with the glyph and name
+// of its step. Enter or a click on a link goes to that check, on its step, with the cursor on it. When kit refused
+// the checks, the intro says what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, left and right move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
-// pane the keyboard: a step's rows, where up on the first row gives it back, or its page, which up and down then
-// scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row with choices,
-// left and right move between now and later. Esc gives the bar the keyboard back. Ctrl-c quits with 130 from anywhere,
-// and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. The screen opens on the
-// intro while the checks run. When they answer, it moves to the first failed check, in the first step that has one,
-// unless the person has moved already.
+// pane the keyboard: a step's rows, or the intro's links, where up on the first gives it back, or its page, which up
+// and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row
+// with choices, left and right move between now and later. Esc gives the bar the keyboard back. Ctrl-c quits with 130
+// from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. The screen
+// opens on the intro while the checks run, and stays there when they answer. A step with a failed check has its count
+// in red on the bar, from every step.
 package welcome
 
 import (
@@ -34,6 +37,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
+
+// introID is the id of the intro, the step whose page ends with what the checks found.
+const introID = "intro"
 
 // tab is a step: the id its checks name, its tab's glyph and name, the file of its page, whether it has checks, and
 // its page's markdown, or, when the page could not be read, where it was looked for. Each glyph is two cells wide with
@@ -141,7 +147,6 @@ type Model struct {
 	step     int                                       // the selected step
 	inPane   bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
 	places   []string                                  // the check each step's cursor was on when it was left
-	moved    bool                                      // whether the person has changed the step
 	loaded   bool                                      // whether the checks have answered once
 	checking bool                                      // whether kit is running the checks
 	checks   []kit.Check
@@ -256,21 +261,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// take keeps the checks, or kit's refusal, and keeps the cursor on the check it was on. The first answer chooses where
-// the screen opens, unless the person has moved: on the first failed check, in the first step that has one, or on
-// the first step with checks when kit refused them.
+// take keeps the checks, or kit's refusal, and keeps the cursor on the check it was on. The step stays as it is.
 func (m *Model) take(msg checksMsg) {
 	m.checking = false
 	if msg.err != nil {
 		m.refusal = refusalOf(msg.err)
-		if !m.loaded && !m.moved {
-			for i, t := range m.tabs {
-				if t.checked {
-					m.step = i
-					break
-				}
-			}
-		}
 		m.fit()
 		return
 	}
@@ -283,30 +278,33 @@ func (m *Model) take(msg checksMsg) {
 			delete(m.deferred, c.ID)
 		}
 	}
-	if !m.loaded && !m.moved {
-		for i, c := range m.checks {
-			if !c.OK {
-				m.step, m.inPane, m.cursor = m.stepOf(c), true, i
-				break
-			}
-		}
-	}
 	m.loaded = true
 	m.fit()
 }
 
 // rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
-// what is typed, without regard to case.
+// what is typed, without regard to case. The intro's are the links to the failed checks, in the order of their steps.
 func (m Model) rows(step int) []int {
 	query := m.searches[m.tabs[step].id].Query
+	intro := m.isIntro(step)
 	var out []int
 	for i, c := range m.checks {
-		if m.stepOf(c) == step && (matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)) {
+		mine := m.stepOf(c) == step
+		if intro {
+			mine = !c.OK
+		}
+		if mine && (matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)) {
 			out = append(out, i)
 		}
 	}
+	if intro {
+		slices.SortStableFunc(out, func(a, b int) int { return m.stepOf(m.checks[a]) - m.stepOf(m.checks[b]) })
+	}
 	return out
 }
+
+// isIntro says whether the step is the intro.
+func (m Model) isIntro(step int) bool { return m.tabs[step].id == introID }
 
 // matches says whether a text holds what is typed in a search, without regard to case or escapes; anything holds
 // nothing typed.
@@ -356,8 +354,14 @@ func (m Model) find(step int, id string) int {
 	return 0
 }
 
-// hasRows says whether the selected step shows checks.
-func (m Model) hasRows() bool { return m.tabs[m.step].checked }
+// hasRows says whether the cursor moves over rows in the selected step: a step with checks, or the intro while it links
+// to a failed check.
+func (m Model) hasRows() bool {
+	return m.tabs[m.step].checked || m.isIntro(m.step) && len(m.rows(m.step)) > 0
+}
+
+// checked says whether the selected step shows checks.
+func (m Model) checked() bool { return m.tabs[m.step].checked }
 
 // setTabs takes the steps the pages make. The selected step, and each step's place and offset, go with its id; when
 // the selected step's id has no page, the first step is selected.
@@ -463,6 +467,8 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case !m.inPane:
 			m.down(1)
+		case m.onLink():
+			m.follow()
 		case choosing && m.choice == now:
 			return m, m.now()
 		case choosing:
@@ -482,7 +488,8 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // click takes a left click on the pane, on the screen line y: on a check's line, the cursor goes to that check and the
-// pane has the keyboard; on a page, the page has it. A … line, or a line that is no check's, does nothing.
+// pane has the keyboard; on a link in the intro, the screen goes to its check; on a page, the page has the keyboard. A
+// … line, or a line that is no check's, does nothing.
 func (m *Model) click(y int) {
 	r, h := y-paneTop, m.paneHeight()
 	switch {
@@ -490,11 +497,32 @@ func (m *Model) click(y int) {
 	case !m.hasRows():
 		m.inPane = true
 	default:
-		lines := m.stepLines()
+		lines := m.lines()
 		if k := pane.At(len(lines), h, m.offsets[m.step], r); k >= 0 && lines[k].row >= 0 {
 			m.cursor, m.inPane, m.choice = lines[k].row, true, now
+			if m.onLink() {
+				m.follow()
+			}
 		}
 	}
+}
+
+// onLink says whether the cursor is on a link in the intro, with the pane's keyboard.
+func (m Model) onLink() bool {
+	return m.inPane && !m.checked() && m.isIntro(m.step) && slices.Contains(m.rows(m.step), m.cursor)
+}
+
+// follow goes from the link under the cursor to its check: the check's step selected, the cursor on the check, and the
+// pane with the keyboard. A search on that step that hides the check is cleared.
+func (m *Model) follow() {
+	c := m.checks[m.cursor]
+	m.places[m.step] = c.ID
+	m.step = m.stepOf(c)
+	if !slices.Contains(m.rows(m.step), m.cursor) {
+		delete(m.searches, m.tabs[m.step].id)
+		m.offsets[m.step] = 0
+	}
+	m.inPane, m.choice = true, now
 }
 
 // back gives the bar the keyboard, and a step's rows go back to their top; a page keeps where it was scrolled to.
@@ -508,7 +536,7 @@ func (m *Model) back() {
 // choosing says whether the cursor is on a row that offers now and later: a failed check with a fix kit runs, in a
 // step with checks.
 func (m Model) choosing() bool {
-	if !m.hasRows() || !m.inPane || m.cursor >= len(m.checks) {
+	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
@@ -517,7 +545,7 @@ func (m Model) choosing() bool {
 
 // showOnly says whether the cursor is on a failed check whose fix kit shows and never runs.
 func (m Model) showOnly() bool {
-	if !m.hasRows() || !m.inPane || m.cursor >= len(m.checks) {
+	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
@@ -539,12 +567,12 @@ func (m *Model) choose(bar tabs.Bar) {
 		m.places[m.step] = m.cursorID()
 		m.step = bar.Selected
 		m.cursor = m.find(m.step, m.places[m.step])
-		m.moved, m.choice = true, now
+		m.choice = now
 	}
 	m.inPane = !bar.Focused
 }
 
-// up moves the cursor n rows up in a step with checks, and past its first row gives the bar the keyboard; on a page
+// up moves the cursor n rows up in a step with rows, and past its first row gives the bar the keyboard; on a page
 // it scrolls, and at the top gives the bar the keyboard.
 func (m *Model) up(n int) {
 	if !m.inPane {
@@ -567,7 +595,7 @@ func (m *Model) up(n int) {
 	m.choice = now
 }
 
-// down moves the cursor n rows down in a step with checks, and on a page scrolls; from the bar it gives the pane the
+// down moves the cursor n rows down in a step with rows, and on a page scrolls; from the bar it gives the pane the
 // keyboard first, which takes one of the n.
 func (m *Model) down(n int) {
 	if !m.hasRows() {
@@ -591,7 +619,7 @@ func (m *Model) down(n int) {
 	m.choice = now
 }
 
-// page moves the cursor n rows in a step with checks, or scrolls a page n lines, and never leaves the pane: it stops at
+// page moves the cursor n rows in a step with rows, or scrolls a page n lines, and never leaves the pane: it stops at
 // the first row and the last, and at the page's ends; on the bar it does nothing.
 func (m *Model) page(n int) {
 	switch {
@@ -607,7 +635,7 @@ func (m *Model) page(n int) {
 
 // scroll moves a page's pane n lines, never past its ends.
 func (m *Model) scroll(n int) {
-	start, _, _, _ := pane.Window(len(m.pageLines(m.step)), m.paneHeight(), m.offsets[m.step]+n)
+	start, _, _, _ := pane.Window(len(m.lines()), m.paneHeight(), m.offsets[m.step]+n)
 	m.offsets[m.step] = start
 }
 

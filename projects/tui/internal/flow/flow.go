@@ -9,10 +9,11 @@
 // panel the keyboard, and / or a click on the search, always on the screen's top right, gives the search the keyboard,
 // the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
 // and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
-// under the cursor. The sidebar shows from the start. Esc goes back one level: from the panel, then from the rows to
-// the bar; it leaves the sidebar as it is. Ctrl-c
-// quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with
-// 0. A stage's command has two minutes; past them it is a refusal, and quitting kills the commands still running.
+// under the cursor. On a screen as wide as roomy, the sidebar shows from the start; on a narrower one it starts hidden,
+// so a row's title has the room; once the person shows or hides it, it stays so for the session, through a resize. Esc
+// goes back one level: from the panel, then from the rows to the bar; it leaves the sidebar as it is. Ctrl-c quits with
+// 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's
+// command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
 
 import (
@@ -38,8 +39,9 @@ import (
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
-// whether the fetch is skipped, the filters backlog, underway, and changes take, and whether every stage opens with its
-// headers hidden, as they are shown otherwise.
+// whether the fetch is skipped, the filters backlog, underway, and changes take, whether every stage opens with its
+// headers hidden, as they are shown otherwise, and whether the sidebar starts hidden at every width, as if the person
+// had hidden it.
 type Options struct {
 	Stages    []string
 	Origin    Origin
@@ -86,6 +88,10 @@ type stage struct {
 var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
 	"changes": true, "builds": true, "releases": true}
 
+// roomy is the narrowest screen, in cells, the sidebar shows on from the start: on a narrower one it starts hidden,
+// since beside it a row's title would have a few cells.
+const roomy = 140
+
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
 const deadline = 2 * time.Minute
 
@@ -103,6 +109,7 @@ type Model struct {
 	inRows        bool                   // whether the rows have the keyboard, not the bar
 	inPanel       bool                   // whether the panel has the keyboard, before the rows or the bar
 	sidebar       bool                   // whether the sidebar, the panel and the legend, shows beside the rows
+	sideChosen    bool                   // whether the person showed or hid the sidebar, which a resize then keeps
 	sideOffset    int                    // the sidebar's first line, when it is taller than the pane
 	widest        int                    // the cells of the widest stage's panel or legend
 	me            string                 // the caller's login, once kit has said it, which the panels' mine and others match
@@ -154,7 +161,7 @@ func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
-	m.sidebar, m.asked = !o.NoSidebar, !o.NoSidebar
+	m.sideChosen = o.NoSidebar
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders}
@@ -168,14 +175,8 @@ func New(r kit.Runner, o Options) Model {
 }
 
 // Init starts the loading: every stage at once, so none waits on incoming's fetch, which can take as long as the
-// remotes do; the stages the fetch moves load again once it has fetched. The sidebar, shown from the start, asks kit
-// for the caller's login with them.
-func (m Model) Init() tea.Cmd {
-	if m.sidebar {
-		return tea.Batch(m.all(), m.whoami())
-	}
-	return m.all()
-}
+// remotes do; the stages the fetch moves load again once it has fetched.
+func (m Model) Init() tea.Cmd { return m.all() }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -188,6 +189,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		if !m.sideChosen && m.sidebar != (m.width >= roomy) {
+			// until the person chooses, the screen's width says whether the sidebar shows
+			return m, m.placeSidebar(m.width >= roomy)
+		}
 		m.rebuild()
 		m.fit()
 	case loadedMsg:
@@ -756,11 +761,21 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// showSidebar shows the sidebar beside the rows, or takes it away; the rows are laid out again for the width left, and
-// the panel loses the keyboard with it. Shown the first time, it asks kit for the caller's login.
+// showSidebar shows the sidebar beside the rows, or takes it away, as the person asks, which a resize then keeps; the
+// rows are laid out again for the width left, and the panel loses the keyboard with it. Shown the first time, it asks
+// kit for the caller's login.
 func (m *Model) showSidebar(on bool) tea.Cmd {
-	m.sidebar = on
+	m.sideChosen = true
 	m.inPanel = m.inPanel && on
+	return m.placeSidebar(on)
+}
+
+// placeSidebar shows the sidebar beside the rows, or takes it away, the rows laid out again for the width left; a
+// search that has the keyboard keeps it, as it stands on the screen either way. Shown the first time, it asks kit for
+// the caller's login.
+func (m *Model) placeSidebar(on bool) tea.Cmd {
+	m.sidebar = on
+	m.inPanel = m.inPanel && (on || len(m.stages) > 0 && m.stages[m.stage].view.Cursor == 0)
 	m.rebuild()
 	m.fit()
 	if on {

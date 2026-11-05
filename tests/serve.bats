@@ -49,7 +49,7 @@ call() {
   answer 1 | jq --exit-status '.result | .protocolVersion == "2025-06-18" and .serverInfo.name == "kit"
     and .capabilities == {tools: {listChanged: true}, resources: {listChanged: true}} and (.instructions | contains("kit://1st.md"))'
   answer 2 | jq --exit-status '.result == {}'
-  answer 3 | jq --exit-status '.result.tools | length == 11'
+  answer 3 | jq --exit-status '.result.tools | length == 17'
   serve '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1999-01-01","capabilities":{}}}'
   answer 1 | jq --exit-status '.result.protocolVersion == "2025-11-25"'
 }
@@ -88,9 +88,10 @@ call() {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'
   [ "$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')" = \
-    "check context flow help kinds lint packages syntax toolchains tools version" ]
+    "check context flow help kinds lint packages syntax toolchains tools version assign close gather settle unassign work" ]
   local verb
-  for verb in check context flow help kinds lint packages syntax toolchains tools version
+  for verb in check context flow help kinds lint packages syntax toolchains tools version \
+    assign close gather settle unassign work
   do
     answer 1 | jq --exit-status --arg verb "${verb}" --arg purpose "kit ${verb} $(cd "${kit_checkout}" && \
       sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "bin/kit-${verb}")" \
@@ -105,8 +106,18 @@ call() {
     | (.stage.enum | index("backlog") and index("releases")) and (has("no-fetch") | not) and .owner.type == "array"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
     | index("kit") and index("workflow")'
+  # the workflow tools act, and say how: none reads only, close, unassign, and settle are destructive, and each asks
+  # the forge
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .name]
+    == ["assign", "close", "gather", "settle", "unassign", "work"]'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.destructiveHint) | .name]
+    == ["close", "settle", "unassign"]'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .annotations.openWorldHint]
+    | all'
+  answer 1 | jq --exit-status '.result.tools[] | select(.name == "close") | .inputSchema.properties
+    | has("not-planned") and has("duplicate-of") and .reference.type == "array"'
   # the whole list fits in well under half the size it had when each description was the verb's whole page
-  [ "$(answer 1 | wc -c)" -lt 13000 ]
+  [ "$(answer 1 | wc -c)" -lt 20000 ]
 }
 
 @test "a tool runs its verb from typed arguments: context names a bash file's rule, and lint's finding comes back as an error" {
@@ -201,7 +212,8 @@ call() {
   [ ! -e .kit/rules/json.md ]
   [ "$(git rev-parse origin/main)" = "${seen}" ]
   answer 3 | jq --exit-status '.result.content[0].text | fromjson | .fetched == false'
-  answer 1 | jq --exit-status '[.result.tools[].annotations] | all(.readOnlyHint and (.destructiveHint | not))'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("assign", "close", "gather", "settle", "unassign",
+    "work") | not) | .annotations] | all(.readOnlyHint and (.destructiveHint | not))'
 }
 
 @test "kit.yml changed between messages is placed by the server, which tells the client the resources changed" {
@@ -227,7 +239,8 @@ call() {
   serve "$(modern 1 resources/list)" "$(modern 2 resources/read '{"uri":"kit://help/context"}')" \
     "$(modern 3 resources/read '{"uri":"kit://help/commit"}')"
   [ "$(answer 1 | jq --raw-output '[.result.resources[].uri | select(startswith("kit://help/"))] | join(" ")')" = \
-    "$(printf 'kit://help/%s ' check context flow help kinds lint packages syntax toolchains tools version | sed 's/ $//')" ]
+    "$(printf 'kit://help/%s ' check context flow help kinds lint packages syntax toolchains tools version \
+      assign close gather settle unassign work | sed 's/ $//')" ]
   answer 2 | jq --exit-status '.result.contents[0] | .mimeType == "text/plain"
     and (.text | startswith("kit context - prints the rules that govern a file")) and (.text | contains("Description"))
     and (.text | contains("\u001b") | not)'
@@ -242,7 +255,8 @@ call() {
     [[ ! -f .kit/workflow.md ]] || printf 'kit://workflow.md\n'
     for file in .kit/rules/*.md; do printf 'kit://rules/%s\n' "$(basename "${file}" .md)"; done
     for file in .kit/kinds/*.yml; do printf 'kit://kinds/%s\n' "$(basename "${file}" .yml)"; done
-    printf 'kit://help/%s\n' check context flow help kinds lint packages syntax toolchains tools version; } )
+    printf 'kit://help/%s\n' check context flow help kinds lint packages syntax toolchains tools version \
+      assign close gather settle unassign work; } )
   [ "$(answer 1 | jq --raw-output '.result.resources[].uri')" = "${expected}" ]
   [ "$(answer 2 | jq --raw-output '.result.contents[0].text')" = "$(cat .kit/rules/bash.md)" ]
   answer 2 | jq --exit-status '.result.contents[0].mimeType == "text/markdown"'

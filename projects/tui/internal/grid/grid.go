@@ -14,6 +14,7 @@ package grid
 
 import (
 	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -101,11 +102,15 @@ type Line struct {
 // triangles are, solid enough to show without bold; a row not selected has nothing there, so the selection scans.
 const Chosen = "▣"
 
-// gap is the cells between two columns; minFill the fewest a cell that wraps keeps when the other columns leave it
-// less, the row then clipped.
+// gap is the cells between two columns. The cell that wraps, the title, is the last to give up room: while it has less
+// than its widest text needs, every other column wider than capWidth gives up the cells past it, the widest first;
+// while it has fewer than minFill, they give up more, down to floorWidth; only then does the title have less, never
+// fewer than floorWidth, the row then clipped.
 const (
-	gap     = 2
-	minFill = 12
+	gap        = 2
+	minFill    = 12
+	capWidth   = 16
+	floorWidth = 6
 )
 
 // lead is the gutter before a row's lines; a line the row opens to starts under its first cell, and three cells in.
@@ -140,14 +145,14 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 	cells := width - len(lead)
 	var out []Line
 	for k, r := range rows {
-		left := fillWidth(r.Cells, widths, cells)
-		hides := Hides(r, widths, left)
+		fitted, left := fit(r.Cells, widths, cells)
+		hides := Hides(r, fitted, left)
 		opened := hides && open(r)
 		var lines []string
 		if opened {
-			lines = openLines(r.Cells, widths, left, cells, k == cursor)
+			lines = openLines(r.Cells, fitted, left, cells, k == cursor)
 		} else {
-			lines = []string{closedLine(r.Cells, widths, left, cells, k == cursor)}
+			lines = []string{closedLine(r.Cells, fitted, left, cells, k == cursor)}
 		}
 		mark := " "
 		switch {
@@ -198,9 +203,8 @@ func Header(rows []Row, names []string, width int, open bool) (lines []string, h
 	if shape == nil {
 		return nil, false
 	}
-	widths := headed(rows, names)
 	cells := width - len(lead)
-	left := fillWidth(shape, widths, cells)
+	widths, left := fit(shape, headed(rows, names), cells)
 	type column struct {
 		lines []string
 		width int
@@ -264,8 +268,7 @@ func HeaderAt(rows []Row, names []string, width, x int) int {
 			break
 		}
 	}
-	widths := headed(rows, names)
-	left := fillWidth(shape, widths, width-len(lead))
+	widths, left := fit(shape, headed(rows, names), width-len(lead))
 	at := len(lead)
 	for j, c := range shape {
 		w := left
@@ -284,13 +287,16 @@ func HeaderAt(rows []Row, names []string, width, x int) int {
 }
 
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
-// a text wider than the cells its column leaves it.
+// a text wider than the cells its column leaves it, the title's or one cut to give the title room.
 func Hides(r Row, widths []int, left int) bool {
 	if len(r.Detail) > 0 {
 		return true
 	}
-	for _, c := range r.Cells {
-		if len(c.Values) > 1 || c.Wrap && ansi.StringWidth(c.first()) > left {
+	for j, c := range r.Cells {
+		switch {
+		case len(c.Values) > 1, c.Wrap && ansi.StringWidth(c.first()) > left:
+			return true
+		case !c.Wrap && len(r.Cells) > 1 && j < len(widths) && widths[j] > 0 && ansi.StringWidth(c.first()) > widths[j]:
 			return true
 		}
 	}
@@ -300,16 +306,16 @@ func Hides(r Row, widths []int, left int) bool {
 // Opens says whether the row at k hides anything while it is closed, as Draw lays the rows out for a pane of so many
 // cells under the header's names, and so has ▸ before it and can open.
 func Opens(rows []Row, head []string, k, width int) bool {
-	widths := headed(rows, head)
-	return Hides(rows[k], widths, fillWidth(rows[k].Cells, widths, width-len(lead)))
+	widths, left := fit(rows[k].Cells, headed(rows, head), width-len(lead))
+	return Hides(rows[k], widths, left)
 }
 
 // LinkAt gives the link of the cell whose glyph, the first two cells of its text, a row's first line draws at the
 // column x, as Draw lays the rows out for a pane of so many cells under the header's names; nothing when no linked
 // glyph is there.
 func LinkAt(rows []Row, head []string, k, width, x int) string {
-	widths, r := headed(rows, head), rows[k].Cells
-	left := fillWidth(r, widths, width-len(lead))
+	r := rows[k].Cells
+	widths, left := fit(r, headed(rows, head), width-len(lead))
 	at := len(lead)
 	for j, c := range r {
 		w := left
@@ -339,7 +345,8 @@ func table(rows [][]Cell, width int) []string {
 	widths := columnWidths(wrap(rows))
 	lines := make([]string, len(rows))
 	for i, r := range rows {
-		lines[i] = closedLine(r, widths, fillWidth(r, widths, width), width, false)
+		fitted, left := fit(r, widths, width)
+		lines[i] = closedLine(r, fitted, left, width, false)
 	}
 	return lines
 }
@@ -365,7 +372,7 @@ func headed(rows []Row, head []string) []int {
 }
 
 // columnWidths gives each column's width over the rows of two cells or more: its widest value, or first value and
-// +N; for the cell that wraps, the widest it is on one line, which fillWidth takes as the most it needs.
+// +N; for the cell that wraps, the widest it is on one line, which fit takes as the most it needs.
 func columnWidths(rows []Row) []int {
 	var widths []int
 	for _, r := range rows {
@@ -392,31 +399,75 @@ func columnWidths(rows []Row) []int {
 	return widths
 }
 
-// fillWidth gives the cells a row's wrapping cell has: the width the other columns, and the gaps between them, leave,
-// but never fewer than minFill, and never more than its column's widest text needs, so a narrow text leaves the room
-// after the last column, not in the middle of the row. A row of one cell spans the width.
-func fillWidth(r []Cell, widths []int, width int) int {
+// fit lays a row's columns out in a width: each column but the title takes its widest need, and the title, the cell
+// that wraps, the width they and the gaps between them leave, never more than its widest text needs, so a narrow text
+// leaves the room after the last column, not in the middle of the row. While that leaves the title less than its text
+// needs, the other columns give up room, as capWidth and floorWidth say. It gives the columns' widths and the title's
+// cells. A row of one cell spans the width.
+func fit(r []Cell, widths []int, width int) ([]int, int) {
 	if len(r) == 1 {
-		return width
+		return widths, width
 	}
-	used, gaps, need := 0, -1, 0
+	gaps, need, wraps := -1, 0, false
 	for j, c := range r {
 		switch {
 		case c.Wrap:
-			gaps++
+			gaps, wraps = gaps+1, true
 			if j < len(widths) {
 				need = widths[j]
 			}
 		case j < len(widths) && widths[j] > 0:
-			used += widths[j]
 			gaps++
 		}
 	}
-	fill := max(width-used-gaps*gap, minFill)
+	room := width - gaps*gap
+	if !wraps || need == 0 || room-used(r, widths) >= need {
+		return widths, title(room-used(r, widths), need, minFill)
+	}
+	widths = slices.Clone(widths)
+	shrink(r, widths, room-need, capWidth)
+	if room-used(r, widths) < minFill {
+		shrink(r, widths, room-minFill, floorWidth)
+	}
+	return widths, title(room-used(r, widths), need, floorWidth)
+}
+
+// title gives the cells the title takes of those left: no more than it needs, when it needs any, and no fewer than
+// least, the row then clipped.
+func title(left, need, least int) int {
+	fill := max(left, least)
 	if need > 0 {
 		fill = min(fill, need)
 	}
 	return fill
+}
+
+// used gives the cells a row's columns but the title take, the gaps apart.
+func used(r []Cell, widths []int) int {
+	n := 0
+	for j, c := range r {
+		if !c.Wrap && j < len(widths) {
+			n += widths[j]
+		}
+	}
+	return n
+}
+
+// shrink narrows a row's columns but the title, the widest first, each to no fewer cells than least, until they take
+// no more than budget, or every one is down to least.
+func shrink(r []Cell, widths []int, budget, least int) {
+	for used(r, widths) > budget {
+		widest := -1
+		for j, c := range r {
+			if !c.Wrap && j < len(widths) && widths[j] > least && (widest < 0 || widths[j] > widths[widest]) {
+				widest = j
+			}
+		}
+		if widest < 0 {
+			return
+		}
+		widths[widest]--
+	}
 }
 
 // closedLine draws a closed row: each cell's first value, padded to its column, +N after it when it holds more, the
@@ -433,19 +484,21 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 			parts = append(parts, pane.Pad(dotted(pane.Clip(c.first(), left), c), left, false))
 		case j >= len(widths) || widths[j] == 0:
 		default:
-			v := dotted(c.first(), c)
+			more := c.more()
+			w := widths[j] - ansi.StringWidth(more)
+			v := dotted(pane.Clip(c.first(), w), c)
 			if len(parts) == 0 {
 				v = choose(v, chosen)
 			}
-			more := c.more()
-			parts = append(parts, pane.Pad(v, widths[j]-ansi.StringWidth(more), c.Right)+more)
+			parts = append(parts, pane.Pad(v, w, c.Right)+more)
 		}
 	}
 	return pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
 }
 
-// openLines draws an open row: as many lines as its tallest cell, each value on a line of its own in its column, and
-// the text that wraps wrapped in its; the chosen row's first cell is drawn as choose says, as a closed row's is.
+// openLines draws an open row: as many lines as its tallest cell, each value on a line of its own in its column, a value
+// wider than its column broken across lines in it, and the text that wraps wrapped in its; the chosen row's first cell
+// is drawn as choose says, as a closed row's is.
 func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 	if len(r) == 1 {
 		return wrapped(r[0], width)
@@ -453,10 +506,13 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 	columns := make([][]string, len(r))
 	height := 1
 	for j, c := range r {
-		if c.Wrap {
+		switch {
+		case c.Wrap:
 			columns[j] = wrapped(c, left)
-		} else {
-			columns[j] = c.Values
+		case j < len(widths) && widths[j] > 0:
+			for _, v := range c.Values {
+				columns[j] = append(columns[j], strings.Split(ansi.Wrap(v, widths[j], ""), "\n")...)
+			}
 		}
 		height = max(height, len(columns[j]))
 	}

@@ -14,8 +14,8 @@
 // selected tab, with ◃ in the gutter before the bar for the tabs it hides on the left and ▹ after those on the right, a tab at
 // either edge cut there. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
 // border runs through the number's cell. The selected tab, its lines, and the line under every tab are in the accent,
-// wherever the keyboard is; while the pane under the bar has it, the other tabs are dim. Widths are terminal cells, so
-// a two-cell glyph never pushes the line past the edge.
+// wherever the keyboard is; while the pane under the bar has it, the other tabs are dim, all but a count that wants
+// attention. Widths are terminal cells, so a two-cell glyph never pushes the line past the edge.
 //
 // The bar holds no state of its own: a screen builds it from its own, each time, and reads back what Update chose. Left
 // and right move along it while it has the keyboard, and stop at its ends; a number, 1 to 9 or 0 for the tenth, typed,
@@ -63,7 +63,8 @@ type Tab struct {
 // count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
-// stage's group has one; none is the accent.
+// stage's group has one; none is the accent. Alert says, by index, which tabs' counts want attention, as a step's
+// failed checks do.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
@@ -75,6 +76,7 @@ type Bar struct {
 	MenuOpen bool
 	Joined   bool
 	Color    string
+	Alert    []bool
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -140,8 +142,9 @@ func Marker(i int, selected bool) string {
 }
 
 // label gives a tab's label on the middle line, as two ends: its glyph and a space, when it has one, and its name, in
-// the accent when selected; then, right-aligned in the tab, its count, dim, and the menu's glyph after a space on the
-// selected tab, when the bar has menus, its count blank while the menu is open. Its number is on the line above.
+// the accent when selected; then, right-aligned in the tab, its count, dim, or bold and red when it wants attention,
+// and the menu's glyph after a space on the selected tab, when the bar has menus, its count blank while the menu is
+// open. Its number is on the line above.
 func (b Bar) label(i int) (name, end string) {
 	t := b.Tabs[i]
 	if t.Glyph != "" {
@@ -154,6 +157,9 @@ func (b Bar) label(i int) (name, end string) {
 		name += t.Name
 	}
 	end = style.Off(t.Count)
+	if b.alert(i) {
+		end = style.Loss(t.Count)
+	}
 	if b.Menus && i == b.Selected {
 		glyph := tint(Menu)
 		if b.MenuOpen {
@@ -262,7 +268,8 @@ func (b Bar) View() string {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
 		cells := l.parts[i] - 1
 		name, end := b.label(i)
-		label := pane.Pad(" "+name, cells-2-ansi.StringWidth(end), false) + end + " "
+		head := pane.Pad(" "+name, cells-2-ansi.StringWidth(end), false)
+		label := head + end + " "
 		if i == b.Selected {
 			cell(mark(cmp.Or(Marker(i, true), "╭")), mark("│"), curve("╯", i == 0))
 			cell(mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
@@ -276,7 +283,12 @@ func (b Bar) View() string {
 			number = style.Off("─")
 		}
 		cell(number, " ", mark(strings.Repeat("─", cells)))
-		cell(style.Off(top(cells-1)), b.dim(label), "")
+		dimmed := b.dim(label)
+		if b.alert(i) {
+			// a count that wants attention stays bold and red, wherever the keyboard is
+			dimmed = b.dim(head) + end + " "
+		}
+		cell(style.Off(top(cells-1)), dimmed, "")
 		switch {
 		case i+1 == b.Selected:
 			cell(style.Off("╴"), " ", mark("─"))
@@ -332,6 +344,9 @@ func joinDown(line string, width int) string {
 // top gives the line over a tab, so many cells of it, never fewer than two, as no tab is narrower than four: it starts
 // with a half line, ╶, apart from the number before it.
 func top(cells int) string { return "╶" + strings.Repeat("─", cells-1) }
+
+// alert says whether a tab's count wants attention.
+func (b Bar) alert(i int) bool { return i < len(b.Alert) && b.Alert[i] }
 
 // dim draws what a tab other than the selected one draws dim, its own colors stripped, while the pane under the bar has
 // the keyboard; as it is while the bar has it.

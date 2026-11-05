@@ -407,3 +407,27 @@ func TestNumbersAreWhereTheNumbersAreDrawn(t *testing.T) {
 		t.Error("an empty bar has numbers")
 	}
 }
+
+// A count that wants attention is bold and red, not dim, on any tab, and stays so while the pane has the keyboard and
+// the other tabs are dim; the tabs lie where they lie without it.
+func TestACountThatWantsAttentionStandsOut(t *testing.T) {
+	for _, focused := range []bool{true, false} {
+		b := stages(0, 120)
+		b.Focused, b.Alert = focused, []bool{false, false, true}
+		got := b.View()
+		if !strings.Contains(got, style.Loss("2")) || strings.Contains(got, style.Off("2")) {
+			t.Errorf("focused %v: incoming's count is not red: %q", focused, got)
+		}
+		without := stages(0, 120)
+		without.Focused = focused
+		if plain(b) != plain(without) {
+			t.Errorf("focused %v: the alert moved the tabs:\n%s", focused, plain(b))
+		}
+	}
+	// the selected tab's count wants attention too
+	b := stages(2, 120)
+	b.Alert = []bool{false, false, true}
+	if !strings.Contains(b.View(), style.Loss("2")) {
+		t.Errorf("the selected tab's count is not red: %q", b.View())
+	}
+}

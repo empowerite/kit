@@ -2,12 +2,12 @@
   ➀╶─────────────────────╴➋╶──────────────────────╮➂╶──────────────────╮➃╶───────────────────────╮➄╶────────────────────
     🎫 backlog         3  │ 🛫 underway       4 ⋮ │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes         ▹
   ────────────────────────╯                       ╰────────────────────╰─────────────────────────╰─────────────────────┐
-    id  source     assignees            age  change  state             where     fork    pushed  by     title          │
+    id  source     assignees         age  change  state             where     fork    pushed  by     title             │
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
- ▸  #1  🐙 github  👤 jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here           📤 60m         🎫 The first … │
- ▸  #8  🐙 github                        2d  🔀 #4   🔥 failing:gate   👤 bob    🍴 bob  📤 25h  👤 cy  🎫 Lint the m… │
- ▸  #8  🐙 github                        2d  🔀 #11  🔨 draft          🌱 local          📤  2h         🎫 Lint the m… │
- ▸ #31  🐙 github  👤 ada                3h  🔀 #12  💬 comments:open  👤 ada                           🎫 kit commit… │
+ ▸  #1  🐙 github  👤 jeffrey-agui…   8d  🔀 #2   🏁 ready          🌿 here           📤 60m         🎫 The first rel… │
+ ▸  #8  🐙 github                     2d  🔀 #4   🔥 failing:gate   👤 bob    🍴 bob  📤 25h  👤 cy  🎫 Lint the modu… │
+ ▸  #8  🐙 github                     2d  🔀 #11  🔨 draft          🌱 local          📤  2h         🎫 Lint the modu… │
+ ▸ #31  🐙 github  👤 ada             3h  🔀 #12  💬 comments:open  👤 ada                           🎫 kit commit, k… │
                                                                                                                        │
                                                                                                                        │
                                                                                                                        │

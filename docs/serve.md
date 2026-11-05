@@ -1,8 +1,8 @@
 # Serve
 
-`kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's read-only verbs to an agent as
-tools, and the kit's files as resources. It reads requests on stdin and answers on stdout, in the repository it
-starts in, and does not open a network port.
+`kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's read-only verbs and its workflow
+verbs to an agent as tools, and the kit's files as resources. It reads requests on stdin and answers on stdout, in
+the repository it starts in, and does not open a network port.
 
 A tool is its verb, with typed input. Each flag, option, and operand of the verb is a property of the tool's input
 schema, built from the verb's own usage lines. So an agent calls a tool without knowing the verb's grammar:
@@ -15,7 +15,7 @@ The server turns those arguments into the verb's words, here `kit context README
 
 ## What it offers
 
-The tools are the verbs that read and report, and do not change anything:
+Most tools are the verbs that read and report, and do not change anything:
 
 | Tool | Runs |
 | --- | --- |
@@ -30,6 +30,22 @@ The tools are the verbs that read and report, and do not change anything:
 | `toolchains` | `kit toolchains` |
 | `tools` | `kit tools` |
 | `version` | `kit version` |
+
+The workflow tools act on issues and pull requests, as the same verbs do in a terminal:
+
+| Tool | Runs | Destructive |
+| --- | --- | --- |
+| `assign` | `kit assign` | no |
+| `close` | `kit close` | yes: it closes issues |
+| `gather` | `kit gather` | no |
+| `settle` | `kit settle` | yes: it closes issues, or takes people off them |
+| `unassign` | `kit unassign` | yes: it takes people off issues |
+| `work` | `kit work` | no |
+
+Each says so in its annotations: `readOnlyHint` is false, `destructiveHint` is true where the table says yes,
+`idempotentHint` is true for all but `gather`, which creates an issue each time, and `openWorldHint` is true, as each
+asks the code forge. A client can then ask before it calls one. `work` is the one tool that writes the repository: it
+makes a branch, a worktree, which it places `.kit/` in, and a draft pull request.
 
 Each tool is described and typed from the verb's header, by the functions `kit help` and `kit syntax` use. So the
 help, the syntax, and the server cannot drift apart.
@@ -52,7 +68,7 @@ help, the syntax, and the server cannot drift apart.
   The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
   names its exit status.
 
-Every tool carries `readOnlyHint`, and it holds:
+Every other tool carries `readOnlyHint`, and it holds:
 
 - A call does not place anything under `.kit/`. The server places `.kit/` when it starts, and again before a
   message when `kit.yml` changed since.
@@ -69,11 +85,11 @@ Every tool carries `readOnlyHint`, and it holds:
 A tool's verb still writes the kit's own records, which git never sees: its line in `.kit/logs/`, the context log,
 and a toolchain's detection cache under `.kit/cache/`.
 
-`flow` asks the code forge over the network, and says so in its `openWorldHint`.
+`flow` asks the code forge over the network, and says so in its `openWorldHint`, as the workflow tools do.
 
 The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
-already editing, which the agent can do by itself. The workflow verbs, `commit`, `issue`, and `submit`, are not tools
-either; an agent runs them in its shell.
+already editing, which the agent can do by itself. `commit` and `submit` are not tools either; an agent runs them in
+its shell, in the worktree it works in.
 
 The resources are the kit's files under `.kit/`, each as the repository has it, and each tool's help page:
 
