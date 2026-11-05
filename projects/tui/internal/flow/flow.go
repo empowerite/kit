@@ -231,6 +231,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.openMenu()
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
+		case len(m.stages) > 0 && grouping(msg) && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() &&
+			msg.X < m.paneWidth():
+			m.groupClick(msg.X, msg.Y, msg.Mod&tea.ModShift != 0)
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -240,7 +243,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
 			return m, m.clickPanel(msg.Y)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
-			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0)
+			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -388,13 +391,38 @@ func (m *Model) clickPanel(line int) tea.Cmd {
 	return nil
 }
 
+// grouping says whether a click groups rather than sorts or selects: with ctrl or option held, or with the right
+// button, as a terminal on macOS may send ctrl with a click.
+func grouping(msg tea.MouseClickMsg) bool {
+	return msg.Mod&(tea.ModCtrl|tea.ModAlt) != 0 || msg.Button == tea.MouseRight
+}
+
+// groupClick takes a click that groups, as grouping says: on a column's name in the header, the rows group by it, as
+// clickHeader says; on a group's heading, they no longer group by its column, the other groups kept.
+func (m *Model) groupClick(x, y int, nest bool) {
+	if y < m.rowsTop() {
+		m.clickHeader(x, y, nest, true)
+		return
+	}
+	lines, s := m.lines(m.stage), &m.stages[m.stage]
+	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
+	if k < 0 || lines[k].row < 0 {
+		return
+	}
+	p := m.panel(m.stage)
+	if column := p.Heading(m.rows(m.stage)[lines[k].row]); column != "" {
+		m.setPanel(p.Grouped(column, true))
+	}
+}
+
 // clickHeader takes a click on the header, which is no row: on its gutter it opens the header, or closes it, when it
 // hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a shift-click asks, by it
-// after the others, as the panel's Sorted says; elsewhere it does nothing.
-func (m *Model) clickHeader(x, y int, also bool) {
+// after the others, as the panel's Sorted says; with group, a name groups the rows by its column alone, or, with also,
+// within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
+func (m *Model) clickHeader(x, y int, also, group bool) {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
-	if _, hides := m.header(); hides && y == paneTop && x >= 0 && x < 3 {
+	if _, hides := m.header(); hides && !group && y == paneTop && x >= 0 && x < 3 {
 		s.headed = !s.headed
 		m.fit()
 		return
@@ -404,7 +432,13 @@ func (m *Model) clickHeader(x, y int, also bool) {
 		return
 	}
 	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x); j >= 0 {
-		m.setPanel(m.panel(m.stage).Sorted(m.shownColumns(m.stage)[j], also))
+		column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
+		if group {
+			p = p.Grouped(column, also)
+		} else {
+			p = p.Sorted(column, also)
+		}
+		m.setPanel(p)
 	}
 }
 
@@ -1043,7 +1077,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	if y < m.rowsTop() {
-		m.clickHeader(x, y, false)
+		m.clickHeader(x, y, false, false)
 		return nil
 	}
 	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())

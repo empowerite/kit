@@ -497,3 +497,20 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		t.Errorf("g on state: %q\n%s", q.Group, strings.Join(lines, "\n"))
 	}
 }
+
+// Heading names the column whose group a row heads, at its depth, and nothing for a row that heads none.
+func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
+	p := Panel{Group: []string{"source", "who"}, Groupable: map[string]bool{"source": true, "who": true}}
+	rows := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
+		[]string{"source", "who"})
+	var got []string
+	for _, r := range rows {
+		got = append(got, p.Heading(r))
+	}
+	if !slices.Equal(got, []string{"source", "who", ""}) {
+		t.Errorf("the headings: %q", got)
+	}
+	if h := (Panel{Group: []string{"source"}}).Heading(rows[1]); h != "" {
+		t.Errorf("a heading deeper than the groups: %q", h)
+	}
+}

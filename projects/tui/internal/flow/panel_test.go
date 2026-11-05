@@ -509,3 +509,36 @@ func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
 		t.Errorf("g twice: %q", p.Group)
 	}
 }
+
+// A click on a column's name with ctrl or option held, or with the right button, as macOS may send a ctrl-click,
+// groups the rows by it alone; with shift too, within the groups there are. The same click on a group's heading stops
+// grouping by its column alone, the other groups kept; on a row, it does nothing.
+func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
+	heading := func(text string) int {
+		return slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, text) })
+	}
+	group := func() []string { return m.panel(m.stage).Group }
+	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
+		t.Fatalf("a ctrl-click on source: %q\n%s", group(), view(m))
+	}
+	nest := tea.MouseClickMsg{X: at("assignees"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModAlt | tea.ModShift}
+	if m = drive(m, nest); !slices.Equal(group(), []string{"source", "assignees"}) {
+		t.Fatalf("a shift-option-click on assignees: %q\n%s", group(), view(m))
+	}
+	before := group()
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("#1"), Button: tea.MouseRight}); !slices.Equal(group(), before) {
+		t.Errorf("a right-click on a row: %q", group())
+	}
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("assignees · "), Button: tea.MouseRight}); !slices.Equal(group(), []string{"source"}) {
+		t.Fatalf("a right-click on an assignees heading: %q\n%s", group(), view(m))
+	}
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("source · "), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
+		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
+	}
+	// a plain click on a name still sorts, and groups nothing
+	if m = drive(m, testkit.Click(at("age"), paneTop)); len(group()) != 0 || len(m.panel(m.stage).Sort) != 1 {
+		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).Sort)
+	}
+}

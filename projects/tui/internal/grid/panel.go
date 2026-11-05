@@ -143,6 +143,18 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 	return p
 }
 
+// Heading gives the column whose group a row heads, as group draws the headings, or nothing for a row that heads no
+// group.
+func (p Panel) Heading(r Row) string {
+	if !r.Aside || !strings.HasPrefix(r.Key, "group\x00") {
+		return ""
+	}
+	if depth := strings.Count(r.Key, "\x00") - 1; depth < len(p.Group) {
+		return p.Group[depth]
+	}
+	return ""
+}
+
 // group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
 // in their values' order and the rows in each as they came: a heading, an aside, is the column's name and the value,
 // dim, indented by its depth, and how many rows it heads. A row groups by a cell's first value, or under none when the
