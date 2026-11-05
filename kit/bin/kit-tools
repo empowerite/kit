@@ -142,15 +142,15 @@ join() {
 }
 
 # layers holds what this run acts on, in order: toolchain/<name> for the chosen toolchain, unless ambient, then
-# toolchain/brew where brew fills in for it, then dependencies/<name> for each usable dependency provider. dirs holds
-# the toolchain's directories, joined by colons, found only where a dependency provider's manifest and lock are here.
-# toolchain_pinned names what the chosen toolchain pins, so brew filling in leaves those tools to it.
-dirs=''
+# toolchain/brew where brew fills in for it, then dependencies/<name> for each usable dependency provider.
+# toolchain_dirs holds the toolchain's directories, joined by colons, found only where a dependency provider's manifest
+# and lock are here. toolchain_pinned names what the chosen toolchain pins, so brew filling in leaves those tools to it.
+toolchain_dirs=''
 for provider in $(dependencies:providers)
 do
   if dependencies:locked "${provider}"
   then
-    dirs=$(dependencies:toolchain-dirs)
+    toolchain_dirs=$(dependencies:toolchain-dirs)
     break
   fi
 done
@@ -167,7 +167,7 @@ fi
 while IFS= read -r provider
 do
   [[ -z "${provider}" ]] || layers+=("dependencies/${provider}")
-done < <(dependencies:usable "${dirs}")
+done < <(dependencies:usable "${toolchain_dirs}")
 # several is true when more than one table is drawn, so each is headed by the name of what it lists.
 several=false
 (( ${#layers[@]} + $([[ "${chosen}" == ambient ]] && echo 1 || echo 0) < 2 )) || several=true
@@ -179,7 +179,7 @@ call() {
   shift
   if [[ "${layer}" == toolchain/* ]]
   then toolchain:call "${layer#*/}" "$@"
-  else PATH="${dirs:+${dirs}:}${PATH}" dependencies:call "${layer#*/}" "$@"
+  else PATH="${toolchain_dirs:+${toolchain_dirs}:}${PATH}" dependencies:call "${layer#*/}" "$@"
   fi
 }
 
