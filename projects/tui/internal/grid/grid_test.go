@@ -393,7 +393,7 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	}
 	// by age, then id: the two of 60m by id
 	byAge := p.Sorted("age", false).Sorted("id", true)
-	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲1" || byAge.Mark("id") != "▲2" {
+	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲₁" || byAge.Mark("id") != "▲₂" {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
 	// a click on a key among several sorts by it alone, as it was; a third click on a column stops it
@@ -414,8 +414,8 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	q, _ = q.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	q, _ = q.Update(tea.KeyPressMsg{Code: 'S', Text: "S"})
-	if lines, _ := q.Lines(); len(q.Sort) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲1") ||
-		!strings.HasSuffix(ansi.Strip(lines[4]), "age ▲2") {
+	if lines, _ := q.Lines(); len(q.Sort) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲₁") ||
+		!strings.HasSuffix(ansi.Strip(lines[4]), "age ▲₂") {
 		t.Errorf("s then S: %+v\n%s", q.Sort, strings.Join(lines, "\n"))
 	}
 	if natural("a2", "a10") >= 0 || natural("B", "a") <= 0 || natural("ab", "abc") >= 0 || natural("x", "x") != 0 {

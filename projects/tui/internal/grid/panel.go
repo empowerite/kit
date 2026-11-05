@@ -97,7 +97,7 @@ func (p Panel) Sorted(column string, also bool) Panel {
 }
 
 // Mark gives what stands after a column's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
-// among the keys when there are several; nothing where it does not.
+// among the keys, as a subscript, when there are several; nothing where it does not.
 func (p Panel) Mark(column string) string {
 	for k, s := range p.Sort {
 		if s.Column != column {
@@ -108,11 +108,16 @@ func (p Panel) Mark(column string) string {
 			mark = "▼"
 		}
 		if len(p.Sort) > 1 {
-			mark += strconv.Itoa(k + 1)
+			mark += subscript(k + 1)
 		}
 		return mark
 	}
 	return ""
+}
+
+// subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
+func subscript(n int) string {
+	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
 }
 
 // Grouped gives the panel grouping the rows by the column too, innermost, or no longer when it does; a column that
@@ -280,8 +285,12 @@ func (p Panel) Lines() (lines []string, at []int) {
 			if mark := p.Mark(c.column); mark != "" {
 				line += " " + style.Tint(mark)
 			}
-			if slices.Contains(p.Group, c.column) {
-				line += " " + style.Tint(Grouping)
+			if k := slices.Index(p.Group, c.column); k >= 0 {
+				mark := Grouping
+				if len(p.Group) > 1 {
+					mark += subscript(k + 1)
+				}
+				line += " " + style.Tint(mark)
 			}
 		default:
 			if c.show == All {
@@ -412,8 +421,8 @@ func (p Panel) Width() int {
 
 // Filter gives the rows the panel lets through: those whose text has the search, without regard to case, and that
 // belong to the caller or not, as Show says, sorted by its keys, each with its cells in its order and without the
-// hidden columns'. columns names each cell's column, in the stage's order. While the search or Show narrows the rows, an aside that
-// heads none of them is left out with them.
+// hidden columns'. columns names each cell's column, in the stage's order. While the search or Show narrows the rows,
+// an aside that heads none of them is left out with them.
 func (p Panel) Filter(rows []Row, columns []string) []Row {
 	query := strings.ToLower(p.Query)
 	var out []Row

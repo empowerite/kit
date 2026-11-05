@@ -430,7 +430,7 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 		t.Errorf("again, the oldest first: %s\n%s", order(), view(m))
 	}
 	shift := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); !strings.Contains(lines(m)[paneTop], "source ▲2") || !strings.Contains(lines(m)[paneTop], "age ▼1") {
+	if m = drive(m, shift); !strings.Contains(lines(m)[paneTop], "source ▲₂") || !strings.Contains(lines(m)[paneTop], "age ▼₁") {
 		t.Errorf("a shift-click on source:\n%s", view(m))
 	}
 	// builds' commit does not sort

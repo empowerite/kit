@@ -381,10 +381,15 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
-	if m = drive(m, press(':')); m.enabled(7) || m.enabled(8) {
-		t.Errorf("open %v, clear %v, with nothing selected", m.enabled(7), m.enabled(8))
+	if m = drive(m, press(':')); m.enabled(7) || !m.enabled(8) || m.enabled(9) {
+		t.Errorf("open %v, select all %v, clear %v, with nothing selected", m.enabled(7), m.enabled(8), m.enabled(9))
 	}
-	m = drive(m, esc, press(tea.KeySpace), up, press(tea.KeySpace))
+	// select all selects every row, and is then dim
+	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || m.enabled(8) {
+		t.Errorf("select all: %d selected", m.selected())
+	}
+	m = drive(m, press(':'), typed("c")[0], press(tea.KeyEnter))
+	m = drive(m, press(tea.KeySpace), up, press(tea.KeySpace))
 	browsed = nil
 	m = drive(m, press(':'), typed("o")[0], press(tea.KeyEnter))
 	if len(browsed) != 2 || !strings.HasSuffix(browsed[0], "/issues/46") && !strings.HasSuffix(browsed[1], "/issues/46") {

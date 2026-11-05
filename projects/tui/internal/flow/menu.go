@@ -20,13 +20,15 @@ import (
 
 // The glyphs beside the tab's menu's items, the stage loaded again, every row expanded and every row collapsed, all
 // the way down and up as ▾ and ▸ are one row's, the headers shown, two cells wide as the others, the selected rows'
-// pages opened, and the selection swept away; and beside the app's menu's own, every stage loaded again.
+// pages opened, every row selected, and the selection swept away; and beside the app's menu's own, every stage loaded
+// again.
 const (
 	Expand   = "⏬"
 	Collapse = "⏫"
 	Checked  = "✅"
 	Reload   = "🔄"
 	Browse   = "🌐"
+	Every    = "📋"
 	Sweep    = "🧹"
 )
 
@@ -35,7 +37,7 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
 // expanded, every row collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the
-// rows selected: each one's page opened, and none selected.
+// rows selected: each one's page opened, every row selected, and none.
 func (m Model) tabItems() []shell.Item {
 	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
@@ -43,7 +45,7 @@ func (m Model) tabItems() []shell.Item {
 	}
 	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand All"},
 		{Glyph: Collapse, Name: "Collapse All"}, {}, {Glyph: headers, Name: "Show Headers"}, {},
-		{Glyph: Browse, Name: "Open Selected"}, {Glyph: Sweep, Name: "Clear Selection"}}
+		{Glyph: Browse, Name: "Open Selected"}, {Glyph: Every, Name: "Select All"}, {Glyph: Sweep, Name: "Clear Selection"}}
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
@@ -111,6 +113,8 @@ func (m Model) enabled(k int) bool {
 		return len(columns[s.name]) > 0
 	case "Open Selected":
 		return len(m.pages()) > 0
+	case "Select All":
+		return m.selected() < counted(m.rows(m.stage))
 	case "Clear Selection":
 		return m.selected() > 0
 	case "":
@@ -162,6 +166,13 @@ func (m *Model) pick(k int) tea.Cmd {
 			cmds = append(cmds, m.openPage(page))
 		}
 		return tea.Batch(cmds...)
+	case "Select All":
+		for _, r := range rows {
+			if !r.Aside {
+				s.picked[r.Key] = true
+			}
+		}
+		return nil
 	case "Clear Selection":
 		clear(s.picked)
 		return nil
