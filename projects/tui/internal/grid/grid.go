@@ -158,7 +158,8 @@ func (c Cell) more() string {
 // over: each row's lines, closed, or open when open says so, the cursor's row, an index into the rows, on a band, and
 // each row selected, as one of several, with what picked gives for it, drawn, in the gutter's first cell of its first
 // line: Chosen in a color, or nothing for a row not selected. picked may be nil. A row opens only when it hides
-// something.
+// something. A group's heading stands two cells further out than a row, its ▾ or ▸ where a row's own stands, so the
+// rows under it stand in from it.
 func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
@@ -186,7 +187,10 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 		}
 		for n, l := range lines {
 			g := "   "
-			if n == 0 {
+			switch {
+			case Heads(r):
+				g = " "
+			case n == 0:
 				g = selected + mark + " "
 			}
 			out = append(out, Line{k, g + l})

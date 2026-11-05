@@ -651,3 +651,26 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 		t.Fatalf("a second click on the heading: %d rows", len(m.rows(m.stage)))
 	}
 }
+
+// The rows under a group's heading stand in from it, whether the rows group on their own or by a column the person
+// chose: the heading's ▾ two cells left of its rows' ▸, and a heading nested under another two cells in from it.
+func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
+	// column gives the cell a line of the pane draws its first glyph of the kind at
+	column := func(m Model, has, glyph string) int {
+		k := slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, has) })
+		if k < 0 {
+			t.Fatalf("no line has %q:\n%s", has, view(m))
+		}
+		before, _, _ := strings.Cut(lines(m)[k], glyph)
+		return ansi.StringWidth(before)
+	}
+	if h, r := column(m, "github source", grid.Unfolded), column(m, "#46", "▸"); r != h+2 {
+		t.Errorf("grouped on its own, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
+	}
+	m.setPanel(m.panel(m.stage).Keep("source").Grouped("source", false).Grouped("assignees", true))
+	outer, inner := column(m, "github source", grid.Unfolded), column(m, "jeffrey-aguilera assignees", grid.Unfolded)
+	if r := column(m, "#46", "▸"); inner != outer+2 || r != inner+2 {
+		t.Errorf("grouped by hand, the headings' ▾ at %d and %d, a row's ▸ at %d:\n%s", outer, inner, r, view(m))
+	}
+}

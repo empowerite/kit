@@ -4,7 +4,7 @@
   ╵                  ╰────────────────────╰────────┐ Default ▾
       id  assignees  age  branch      title        │
    ─────────────────────────────────────────────── │ columns
-   ▾ 🐙 github source  3                           │ ☑ id
+ ▾ 🐙 github source  3                             │ ☑ id
    ▸ #45              2h              🎫 kit flow… │ ☑ source ▤
    ▸ #46  👤 jeffr…   2d  🌿 46-a-n…  🎫 A noun l… │ ☑ assignees
    ▸  #7  👤 ada +1  40d              🎫 Fix the … │ ☑ age
