@@ -48,7 +48,7 @@ remedy=$(printf '%s\n' \
   "Link an open issue of this repository to [the ${noun}](${url}):" "" \
   "1. add a line \`Closes <reference>\` to its description for each open issue it resolves, #7 or AB#4521" \
   "2. re-run the check: linking fires no event, so it does not re-run on its own" "" \
-  "\`kit issue <N>\` makes this link when it starts the work.")
+  "\`kit work <N>\` makes this link when it starts the work.")
 # The author is asked for only when a login is exempt, so a repository with none makes no extra call.
 readarray -t exempt < <(yaml:list "$(settings:file)" linked_exempt)
 if (( ${#exempt[@]} > 0 ))

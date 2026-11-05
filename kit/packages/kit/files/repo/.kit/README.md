@@ -32,7 +32,7 @@ edited. It and `.gitignore` are kit's too, and have no write bit either.
 `log_days` days as `kit.yml` sets it, 14 when it does not.
 
 A fresh clone or worktree has none of these until something runs `kit hydrate`. Every kit command that reads a
-rule runs it first. `kit issue` runs it in the worktree it makes, and a `mise.toml` with the kit's `enter` hook runs
+rule runs it first. `kit work` runs it in the worktree it makes, and a `mise.toml` with the kit's `enter` hook runs
 it on `cd`. A file deleted, a link an editor's save replaced, or a copy given its write bit back is set right the
 same way.
 

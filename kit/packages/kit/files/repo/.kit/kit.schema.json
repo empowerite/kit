@@ -54,7 +54,7 @@
     },
     "require_signing": {
       "type": "boolean",
-      "description": "When true, kit issue fails before writing anything if git has no signing key configured."
+      "description": "When true, kit work fails before writing anything if git has no signing key configured."
     },
     "log_days": {
       "type": "integer",
@@ -147,7 +147,7 @@
       "properties": {
         "branch": {
           "type": "string",
-          "description": "The pattern for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit issue gives a branch."
+          "description": "The pattern for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit work gives a branch."
         },
         "commit_subject": {
           "type": "string",

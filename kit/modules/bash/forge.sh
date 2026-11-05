@@ -7,7 +7,7 @@
 # provider, forge/<name>.sh beside it, whose functions are named forge/<name>:<call>.
 #
 # A repository has one primary remote: the `primary` setting in kit.yml, else origin. Ahead and behind, the default
-# branch, pull requests, builds, releases, and issues are all read from it. kit issue and kit submit still fetch from
+# branch, pull requests, builds, releases, and issues are all read from it. kit work and kit submit still fetch from
 # and push to origin. Each remote has a code forge, or none. The first answer wins:
 #
 #   1. for the primary, the `forge` setting in kit.yml

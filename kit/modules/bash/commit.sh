@@ -61,13 +61,13 @@ commit:branch() {
   branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   if [[ -z "${branch}" ]]
   then
-    error "no branch is checked out here, so there is nothing to commit to; run: kit issue <N>"
+    error "no branch is checked out here, so there is nothing to commit to; run: kit work <N>"
     return 1
   fi
   if [[ "$(git rev-parse --show-toplevel)" == "$(git:main-root)" ]]
   then
     error "refusing to commit on ${branch}: this is the root checkout, the human's desk; work in a worktree:" \
-      "kit issue <N>"
+      "kit work <N>"
     return 1
   fi
   default_branch=$(git:default-branch)

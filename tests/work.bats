@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# issue.bats - kit issue through a fake of the forge's tool: the worktree it makes is hydrated before the start commit
+# work.bats - kit work through a fake of the forge's tool: the worktree it makes is hydrated before the start commit
 # ----------------------------------------------------------------------------------------------------------------------
 # The world is forge-conformance.bats's: issue 7 "Fix the thing", assigned to bob, with the branch 7-fix-the-thing
 # already on origin, as the forge makes it, and change 3 open on it. origin is a bare repository beside the test's,
@@ -35,12 +35,12 @@ world() {
   route 'pr view 3 --json *' pr.json
 }
 
-@test "kit issue makes the worktree, hydrates it, and the start commit carries nothing kit placed" {
+@test "kit work makes the worktree, hydrates it, and the start commit carries nothing kit placed" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   printf 'forge: github\n' >> kit.yml
   git add --all && git commit --quiet --message init
   world
-  run "${kit_checkout}/bin/kit" issue 7
+  run "${kit_checkout}/bin/kit" work 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"Hydrating "*"worktrees/7-fix-the-thing"* ]]
   [ -d worktrees/7-fix-the-thing ]
@@ -78,33 +78,33 @@ world() {
   [ "$(grep -c 'grep.*kit\.yml' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
 }
 
-@test "kit issue with nothing is refused: a reference or a title, and no prompt remains" {
-  run "${kit_checkout}/bin/kit" issue </dev/null
+@test "kit work with nothing is refused: a reference or a title, and no prompt remains" {
+  run "${kit_checkout}/bin/kit" work </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit issue needs <reference> or --title; run: kit help issue"* ]]
+  [[ "$output" == *"kit work needs <reference> or --title; run: kit help work"* ]]
   [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   # the module takes the title as an argument, and reads nothing the argument check left behind
   [ "$(grep -c syntax_ "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
-  run "${kit_checkout}/bin/kit" issue 7 --title 'Fix the thing'
+  run "${kit_checkout}/bin/kit" work 7 --title 'Fix the thing'
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<reference> cannot be combined with --title; run: kit help issue"* ]]
+  [[ "$output" == *"<reference> cannot be combined with --title; run: kit help work"* ]]
 }
 
-@test "kit issue --title creates the issue and starts it in one step" {
+@test "kit work --title creates the issue and starts it in one step" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   printf 'forge: github\n' >> kit.yml
   git add --all && git commit --quiet --message init
   world
   fixture created.txt <<<'https://github.com/empowerite/example/issues/7'
   route 'issue create --title Fix the thing *' created.txt
-  run "${kit_checkout}/bin/kit" issue --title 'Fix the thing'
+  run "${kit_checkout}/bin/kit" work --title 'Fix the thing'
   [ "$status" -eq 0 ]
   [[ "$output" == *"Created #7: Fix the thing"* ]]
   [ -d worktrees/7-fix-the-thing ]
   [ "$(git -C worktrees/7-fix-the-thing log --format=%s -1)" = "#7 start: Fix the thing" ]
 }
 
-@test "kit issue sweeps the desk's uncommitted work into the worktree, and leaves the desk and the stash clean" {
+@test "kit work sweeps the desk's uncommitted work into the worktree, and leaves the desk and the stash clean" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   printf 'forge: github\n' >> kit.yml
   printf 'notes\n' > notes.txt
@@ -112,7 +112,7 @@ world() {
   world
   printf 'mine\n' > notes.txt
   printf 'scratch\n' > scratch.txt
-  run "${kit_checkout}/bin/kit" issue 7
+  run "${kit_checkout}/bin/kit" work 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"Sweeping the uncommitted work on main into the worktree"* ]]
   [[ "$output" == *"Swept the work into "*"worktrees/7-fix-the-thing, uncommitted"* ]]
@@ -135,7 +135,7 @@ world() {
   git push --quiet --force origin theirs:7-fix-the-thing
   git switch --quiet main && git branch --quiet --delete --force theirs
   printf 'mine\n' > notes.txt
-  run "${kit_checkout}/bin/kit" issue 7
+  run "${kit_checkout}/bin/kit" work 7
   [ "$status" -eq 1 ]
   stash=$(git rev-parse 'stash@{0}')
   [[ "$output" == *"the swept work conflicts in "*"worktrees/7-fix-the-thing. It is kept in the stash: "* ]]

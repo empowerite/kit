@@ -31,7 +31,7 @@ What else kit provides:
 
 - `.kit/1st.md`, the file every agent reads first, and a rule file for each kind of file that has one. Style, how a
   file looks, is optional: one style package per kind of file.
-- `kit issue`, which turns an issue into a worktree, a linked branch, and a draft pull request.
+- `kit work`, which turns an issue into a worktree, a linked branch, and a draft pull request.
 - `kit toolchains`, which lists the toolchains kit finds where it runs, and `kit tools`, which installs and
   updates the tools the chosen one pins, and the packages npm or uv pins on top, and runs commands with them.
 - `kit flow`, which draws where the work stands in eight stages: backlog, underway, desk, worktrees,
@@ -102,7 +102,7 @@ Requirements:
   - `shellcheck`, which the bash rule runs
   - `actionlint`, which the workflows rule runs
   - `markdownlint-cli2`, which the markdown style runs, with the `style/markdown` package
-- For `kit issue`, `kit flow`, `kit tidy`, `kit linked`, and `kit release`: the code forge's command-line tool, `gh`
+- For `kit work`, `kit flow`, `kit tidy`, `kit linked`, and `kit release`: the code forge's command-line tool, `gh`
   for GitHub or `glab` for GitLab. The code forge is the service that hosts the repository. `kit commit` uses it
   too, to close an issue its subject names, and `kit policy` uses it in CI to read the pull request.
 - For an Azure DevOps tracker: `az`, the Azure CLI.
@@ -150,7 +150,7 @@ and shows the fix for each problem. Then it walks you through how work flows, th
    `kit generate` rewrites a region from its command, and `kit check` fails when one is stale. Your own files can
    hold regions too; see [docs/generate.md](docs/generate.md).
 2. Commit what `install` wrote. A person makes this commit by hand: `kit commit` refuses to run at the desk, and
-   the Claude Code and Gemini CLI adapters deny an agent `git commit`. Or start an issue with `kit issue`, which
+   the Claude Code and Gemini CLI adapters deny an agent `git commit`. Or start an issue with `kit work`, which
    sweeps the uncommitted work into the new worktree, and run `kit commit` there.
 3. Give the repository a gate, the command that CI runs. kit takes the first of these:
    - any command, set as `gate` in `kit.yml`
@@ -177,7 +177,7 @@ Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. So the `agents/
 `kit packages` lists the packages, and `kit packages add` and `kit packages remove` change which are active. The
 package format is in [docs/packages.md](docs/packages.md).
 
-kit works with no package at all. The workflow verbs (`kit flow`, `kit issue`, `kit commit`, `kit submit`,
+kit works with no package at all. The workflow verbs (`kit flow`, `kit work`, `kit commit`, `kit submit`,
 `kit rebase`, `kit tidy`, `kit release`) and the checks that read `kit.yml` (`kit gate`, `kit policy`, `kit check`)
 run in a repository that has none. What needs the `kit` package is its kinds, rules, and templates: without them,
 `kit context` does not name any rule, `kit kinds` does not list any kind, `kit lint` does not govern any file, and
@@ -241,9 +241,9 @@ a `mise.ci.toml`.
 Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the `workflow` package:
 
 1. Start from an issue. A change without an issue has not started.
-2. Run `kit issue <N>`. It creates `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens
+2. Run `kit work <N>`. It creates `worktrees/<N>-<slug>`, links the branch to the issue under Development, and opens
    a draft pull request. It never switches the branch of the checkout you run it from. For an issue in another
-   tracker, use that tracker's reference, such as `kit issue AB#4521` for an Azure DevOps work item; see
+   tracker, use that tracker's reference, such as `kit work AB#4521` for an Azure DevOps work item; see
    [docs/trackers.md](docs/trackers.md).
 3. Work in that worktree. Commits are signed. A commit's subject starts with its issue's reference, as in
    `#<N> <subject>`, and the policy requires it.

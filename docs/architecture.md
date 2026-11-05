@@ -124,8 +124,8 @@ in place.
 
 Work starts from an issue:
 
-1. `kit issue <N>` creates `worktrees/<N>-<slug>`, hydrated, a branch linked to the issue, a start commit, and a
-   draft pull request. If the desk has uncommitted work, `kit issue` moves it into the new worktree and says so.
+1. `kit work <N>` creates `worktrees/<N>-<slug>`, hydrated, a branch linked to the issue, a start commit, and a
+   draft pull request. If the desk has uncommitted work, `kit work` moves it into the new worktree and says so.
    Then, when the desk is on the default branch, it also fast-forwards it. It does not change anything else on the
    desk.
 2. In the worktree:
@@ -143,7 +143,7 @@ commands that replace raw git commands.
 
 `kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees, changes,
 builds, incoming, releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit flow
-<stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit issue <N>` is a pick,
+<stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit work <N>` is a pick,
 not a search. underway shows the rest of the open issues: who works on each, and where.
 
 ### Code forges, seams, and providers
@@ -207,7 +207,7 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | Claim | Verified by |
 | --- | --- |
 | A delivered file matches the release | `kit check`, in `kit ci` beside the gate and locally, against the release's files and the version `kit.yml` declares |
-| A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit issue` creates the link when it starts the work |
+| A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit work` creates the link when it starts the work |
 | The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
 | Branch names, commit subjects, and pull request titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
 | The gate ran with the pinned tools | `kit tools install`, then the gate run through the chosen toolchain, locally and in CI |
@@ -217,7 +217,7 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
 | A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
 | The forbidden git commands were not used | no check; the deny list prevents them where the harness has one (Claude Code, Gemini CLI), and elsewhere this rests on the report in the pull request body, which `kit ci` does not verify |
-| The desk was not changed | no check; `kit rebase` refuses the root checkout and `kit issue` never switches its branch, and the deny lists refuse a few raw git commands where a harness has one |
+| The desk was not changed | no check; `kit rebase` refuses the root checkout and `kit work` never switches its branch, and the deny lists refuse a few raw git commands where a harness has one |
 
 No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds
 of file they handle. The rest is the report in the pull request body, which the integrity rules in `.kit/1st.md`

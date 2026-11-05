@@ -26,7 +26,7 @@ kit is a starting point. Each part below is something teams change first, and en
 
 ## Primary and forges
 
-`primary:` names the remote kit reads pull requests, builds, and issues from; the default is `origin`. `kit issue`
+`primary:` names the remote kit reads pull requests, builds, and issues from; the default is `origin`. `kit work`
 and `kit submit` push to `origin` either way. `forges:` names the code forge of a remote whose host does not say
 it, such as a GitLab you host yourself.
 

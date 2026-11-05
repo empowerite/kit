@@ -119,8 +119,8 @@ setup() {
   [ "$output" = "1  | 1" ]
   run kit-bash 'syntax:match commit --message m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
   [ "$output" = "0 a.txt | 1" ]
-  run kit-bash 'syntax:match issue --title a --title b; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 --title is given twice; run: kit help issue" ]
+  run kit-bash 'syntax:match work --title a --title b; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --title is given twice; run: kit help work" ]
   run kit-bash 'syntax:match commit --message a --message b; echo "$? ${syntax_options[--message]}"'
   [ "$output" = $'0 a\nb' ]
 }

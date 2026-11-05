@@ -22,9 +22,9 @@ func TestHeadingsAreBoldAndSetApartByOneBlankLine(t *testing.T) {
 }
 
 func TestInlineCodeIsInTheAccentAndStrongIsBold(t *testing.T) {
-	lines := render("Run `kit flow` **now**, then `kit issue`.", 80)
+	lines := render("Run `kit flow` **now**, then `kit work`.", 80)
 	want := "Run " + style.Mark("kit") + " " + style.Mark("flow") + " " + style.Label("now") + ", then " +
-		style.Mark("kit") + " " + style.Mark("issue") + "."
+		style.Mark("kit") + " " + style.Mark("work") + "."
 	if len(lines) != 1 || lines[0] != want {
 		t.Errorf("got %q\nwant %q", lines, want)
 	}

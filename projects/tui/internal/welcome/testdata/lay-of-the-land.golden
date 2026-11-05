@@ -12,7 +12,7 @@
 
    Underway
 
-   kit issue <N> makes a worktree for issue N, on a branch of its own, and the issue is underway. You commit there with
+   kit work <N> makes a worktree for issue N, on a branch of its own, and the issue is underway. You commit there with
    kit commit, which runs the checks a commit's rule requires.
 
    • kit submit pushes the branch and opens the pull request.

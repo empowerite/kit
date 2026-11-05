@@ -841,7 +841,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 		}
 	}
 	// the issue's page is its title's glyph's, not a line of its own, and nothing says how to start it
-	if strings.Contains(v, "https://") || strings.Contains(v, "kit issue 45") ||
+	if strings.Contains(v, "https://") || strings.Contains(v, "kit work 45") ||
 		m.rows(0)[0].Cells[4].Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
 	}

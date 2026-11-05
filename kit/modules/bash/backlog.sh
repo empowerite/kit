@@ -5,7 +5,7 @@
 #
 # The backlog stage of kit flow is the pick: the open issues of the repository on its forge, as forge:open-issues
 # folds them, less the ones an open pull request closes. The underway stage lists those. An issue with a branch for it
-# on the primary remote is claimed, and its row says so; one with neither is for the next kit issue <N>. The flags are
+# on the primary remote is claimed, and its row says so; one with neither is for the next kit work <N>. The flags are
 # kit flow's: --mine is the issues assigned to the caller, --others the rest, unassigned ones included,
 # --owner=<login> the named assignees', --all every one. --today keeps only the issues opened in the last 24 hours,
 # whichever of those is chosen.

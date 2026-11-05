@@ -1,8 +1,8 @@
 {
-  "verb": "issue",
-  "purpose": "starts or resumes an issue",
+  "verb": "work",
+  "purpose": "starts or resumes work on issues",
   "usage": [
-    "kit issue (<reference>… | --title <text>)"
+    "kit work (<reference>… | --title <text>)"
   ],
   "syntax": [
     [

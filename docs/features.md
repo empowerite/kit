@@ -76,7 +76,7 @@ An agent works from an issue to a merged pull request, in a worktree of its own.
 root checkout on the human's machine. The human at the desk is not bound by these limits. The `workflow` package
 delivers these steps to agents as `.kit/workflow.md`; a repository that leaves it out writes its own in `AGENTS.md`.
 
-1. `kit issue <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
+1. `kit work <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
 2. `kit commit` commits what is staged, after the checks a commit's rule requires: the linters over the staged paths,
    no path the kit placed, and a subject the policy allows. It supplies the issue's reference from the branch, and
@@ -112,7 +112,7 @@ document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
 A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
 primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
-builds, releases, and issues are read from it. `kit issue` and `kit submit` still fetch from and push to `origin`,
+builds, releases, and issues are read from it. `kit work` and `kit submit` still fetch from and push to `origin`,
 whatever the primary is. Each remote has a code forge, or none:
 
 1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins

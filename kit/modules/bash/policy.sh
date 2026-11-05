@@ -57,7 +57,7 @@ declare -g policy_rego=.kit/policy
 
 # The kit's defaults follow the workflow in .kit/1st.md:
 #
-#   - a branch is <key>-<slug>, as kit issue makes it
+#   - a branch is <key>-<slug>, as kit work makes it
 #   - a commit subject starts with its issue's reference, #7 or AB#4521
 #   - a change title is one line of at most 120 characters
 declare -gr policy_default_branch='^[a-z0-9]+-[a-z0-9][a-z0-9-]*$'

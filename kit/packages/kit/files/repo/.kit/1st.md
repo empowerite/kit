@@ -25,7 +25,7 @@ They type, review, and leave work in progress there. It usually has `main` check
 no worktree has checked out.
 
 An agent never checks out, resets, rebases, or otherwise changes the desk in place. An agent works in a worktree,
-which `kit issue` makes. Work reaches the default branch only through a merged pull request.
+which `kit work` makes. Work reaches the default branch only through a merged pull request.
 
 ## The workflow
 
@@ -45,7 +45,7 @@ Elsewhere, this rule is the only thing that stops it.
   staged paths, refuses a path the kit placed, and holds the subject to the policy before the commit exists.
 - `kit submit`, never `git push`. `kit submit` commits what is staged the same way, then pushes the branch. It never
   forces: when origin has moved, it names `kit rebase`.
-- `kit issue`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
+- `kit work`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
 - An agent never switches or resets the desk. `git checkout main`, `git switch main`, `git reset --hard`, and
   `git push --force` are on the same deny list. It names `main` literally.
@@ -124,7 +124,7 @@ The repository commits the declaration, and every worktree holds the text:
   and without the write bit like the rest.
 
 The installed release contains the code. You run it through the kit CLI, `kit` on `PATH`. The workflow commands
-are `kit issue`, `kit commit`, `kit submit`, `kit rebase`, `kit tidy`, `kit flow`,
+are `kit work`, `kit commit`, `kit submit`, `kit rebase`, `kit tidy`, `kit flow`,
 `kit context`, `kit new file`, `kit lint`, `kit gate`, and `kit hydrate`. Run them exactly as written here, and in
 no other way.
 

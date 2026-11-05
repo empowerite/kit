@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# kit-issue - starts or resumes an issue (kit verb: workflow)
+# kit-work - starts or resumes work on issues (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit issue (<reference>… | --title <text>)
+# kit work (<reference>… | --title <text>)
 #
-# Starts work on an issue, or resumes it. kit issue makes each of these, and reuses any that already exists:
+# Starts work on issues, or resumes it. kit work makes each of these, and reuses any that already exists:
 #
 #   - a branch linked to the issue
 #   - a worktree for the branch, hydrated: what the kit delivers under .kit/ is in place
@@ -14,8 +14,8 @@
 #   --title <text>   creates an issue with that title, then starts it
 #
 # 7 and #7 name an issue on the forge, the service that hosts the repository: GitHub or GitLab. AB#4521 names an
-# Azure DevOps work item, when kit.yml declares that tracker. kit issue asks nothing itself; kit tui asks for the
-# title when kit issue is given neither.
+# Azure DevOps work item, when kit.yml declares that tracker. kit work asks nothing itself; kit tui asks for the
+# title when kit work is given neither.
 #
 # Exits 0 when the work is started or resumed, 1 on a refusal, and 2 on a usage error or a reference no declared
 # tracker reads.
@@ -28,7 +28,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use issue
 
-guard:arguments issue "$@" || exit $?
+guard:arguments work "$@" || exit $?
 # shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
 if [[ -n "${syntax_options[--title]+x}" ]]
 then

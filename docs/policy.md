@@ -112,7 +112,7 @@ Edit the fixture to test a rule against facts that the repository does not have.
 
 | Subject | Checks | Default |
 | --- | --- | --- |
-| `branch` | the branch's name | `^[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, the form `kit issue` creates |
+| `branch` | the branch's name | `^[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, the form `kit work` creates |
 | `commit_subject` | every commit's subject past the fork | `^([A-Z]+)?#[0-9]+ [^ ]`, starting with its issue's reference |
 | `change_title` | the open change's title | `^[^[:cntrl:]]{1,120}$`, one line of at most 120 characters |
 

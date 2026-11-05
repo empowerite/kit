@@ -9,7 +9,7 @@ repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGEN
 ## From an issue to a merged pull request
 
 1. Start from an issue. A change without an issue has not started.
-2. `kit issue <N>` creates the following, and never switches the checkout you run it from:
+2. `kit work <N>` creates the following, and never switches the checkout you run it from:
    - the worktree `worktrees/<N>-<slug>`, hydrated: what the kit delivers under `.kit/` is in place before your
      first command there
    - a branch, linked to the issue under Development
@@ -37,7 +37,7 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 1. `cd` into the worktree named in the task. Confirm that `git rev-parse --abbrev-ref HEAD` prints a branch name
    that begins with the issue's key and a dash: `7-` for `#7`, `ab4521-` for `AB#4521`.
 2. Run every command from there. Never touch the root checkout.
-3. Never run `kit issue`, create a branch, or create a worktree. These were done before the handoff.
+3. Never run `kit work`, create a branch, or create a worktree. These were done before the handoff.
 4. Implement what the issue asks and nothing else.
 5. Push as you go.
 6. Before you call anything done, run `kit gate`: the repository's gate (its own CI command, such as `just ci`)

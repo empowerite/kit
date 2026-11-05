@@ -10,7 +10,7 @@ An issue waits in the backlog until someone takes it. `kit flow backlog` lists t
 
 ## Underway
 
-`kit issue <N>` makes a worktree for issue N, on a branch of its own, and the issue is underway. You commit there
+`kit work <N>` makes a worktree for issue N, on a branch of its own, and the issue is underway. You commit there
 with `kit commit`, which runs the checks a commit's rule requires.
 
 - `kit submit` pushes the branch and opens the pull request.

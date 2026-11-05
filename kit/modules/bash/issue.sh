@@ -275,7 +275,7 @@ issue:start() {
   if [[ "${desk}" == "${main_root}" ]] && ! git:clean "${desk}"
   then
     step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
-    stash=$(issue:sweep-push "${desk}" "kit issue ${primary} → ${branch}") || return
+    stash=$(issue:sweep-push "${desk}" "kit work ${primary} → ${branch}") || return
   fi
   wt=$(issue:worktree "${main_root}" "${branch}") || return
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \

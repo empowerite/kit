@@ -15,7 +15,7 @@ Work starts from an issue. An open issue with no pull request yet waits in the b
 
 ## Underway
 
-`kit issue <N>` starts issue N. It makes a branch linked to the issue, a worktree for it, and a draft pull request.
+`kit work <N>` starts issue N. It makes a branch linked to the issue, a worktree for it, and a draft pull request.
 The issue is then underway.
 
 `kit flow underway`
@@ -32,7 +32,7 @@ A worktree is a checkout of its own, under `worktrees/`, on the issue's branch. 
 
 ## The pull request
 
-`kit issue` opened it as a draft. Mark it ready for review when the work is done. A person merges it. Nothing
+`kit work` opened it as a draft. Mark it ready for review when the work is done. A person merges it. Nothing
 reaches the default branch any other way.
 
 `kit flow changes`

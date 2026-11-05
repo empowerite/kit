@@ -5,7 +5,7 @@ the repository, GitHub or GitLab) or a separate system such as Azure DevOps. The
 reference selects its tracker:
 
 ```sh
-kit issue AB#4521
+kit work AB#4521
 ```
 
 The workflow commands look up issues through one seam, `kit/modules/bash/tracker.sh`;
@@ -41,12 +41,12 @@ and the error lists the known prefixes.
 
 ## Commands
 
-- `kit issue 7`, `kit issue AB#4521`, or both, primary first:
+- `kit work 7`, `kit work AB#4521`, or both, primary first:
   - Each issue is assigned to the caller as its tracker knows the caller. For Azure DevOps, that is the
     identity `az` is signed in as.
   - The branch name starts with the reference's key: `7-<slug>` or `ab4521-<slug>`.
   - The code forge links a branch to one of its own issues and closes the issue on merge. For any other issue, and
-    for every secondary issue, `kit issue` adds a `Closes <reference>` line to the body of the change (the
+    for every secondary issue, `kit work` adds a `Closes <reference>` line to the body of the change (the
     pull request or merge request). GitHub's Azure Boards integration reads that line as a link.
 - `kit linked` passes when the code forge reports that the change closes an open issue of the repository. It also
   passes when the change's body names an open issue of a declared tracker with a closing keyword:

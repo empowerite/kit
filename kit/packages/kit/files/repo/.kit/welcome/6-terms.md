@@ -12,7 +12,7 @@ Your root checkout, where you cloned the repository. It is yours; agents never c
 
 ## worktree
 
-A checkout of its own, under `worktrees/`, on one issue's branch. `kit issue` makes one for each issue.
+A checkout of its own, under `worktrees/`, on one issue's branch. `kit work` makes one for each issue.
 
 `kit flow worktrees`
 
@@ -26,7 +26,7 @@ it through its command-line tool, `gh` or `glab`.
 ## remote and primary
 
 A remote is another copy of the repository, as git names it. The primary is the remote kit reads pull requests,
-builds, and issues from: `primary` in `kit.yml`, else `origin`. `kit issue` and `kit submit` push to `origin`.
+builds, and issues from: `primary` in `kit.yml`, else `origin`. `kit work` and `kit submit` push to `origin`.
 
 `git remote --verbose`
 

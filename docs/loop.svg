@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 500" width="1040" height="500" role="img"
   aria-labelledby="title desc">
   <title id="title">The loop: an issue becomes a worktree and a draft pull request, the gate holds it, a human merges</title>
-  <desc id="desc">The desk is the root checkout and stays the human's. kit issue makes a worktree per issue with a
+  <desc id="desc">The desk is the root checkout and stays the human's. kit work makes a worktree per issue with a
     linked branch and a draft pull request. Work happens there under kit context, kit lint, and kit rebase. The
     delivered CI job runs the gate, kit check, kit linked, and kit policy. A human merges, and kit tidy sweeps.
     kit flow draws the whole picture.</desc>
@@ -38,7 +38,7 @@
   <!-- worktree -->
   <rect class="box" x="380" y="40" width="300" height="250" fill="#dcfce7"/>
   <text class="h" x="396" y="68">The worktree</text>
-  <text class="m" x="396" y="92">kit issue &lt;N&gt;</text>
+  <text class="m" x="396" y="92">kit work &lt;N&gt;</text>
   <text class="d" x="396" y="112">worktrees/&lt;N&gt;-&lt;slug&gt;, a branch linked under</text>
   <text class="d" x="396" y="128">Development, a start commit, a draft pull request.</text>
   <line x1="396" y1="144" x2="664" y2="144" stroke="#4ade80" stroke-width="1"/>
@@ -86,7 +86,7 @@
 
   <!-- edges -->
   <path class="edge" d="M 324 250 C 350 250, 350 92, 376 92"/>
-  <text class="lbl" x="300" y="196">kit issue</text>
+  <text class="lbl" x="300" y="196">kit work</text>
   <path class="edge" d="M 680 165 L 732 165"/>
   <text class="lbl" x="686" y="158">push</text>
   <path class="edge" d="M 876 290 C 876 320, 700 320, 684 380"/>

@@ -6,7 +6,7 @@ file holds:
 
 - The workflow:
   - an issue first
-  - `kit issue <N>` for the worktree, the branch, and the draft pull request
+  - `kit work <N>` for the worktree, the branch, and the draft pull request
   - `kit commit`, `kit submit`, and `kit rebase` in the worktree
   - the pull request marked ready for review, with the report in its body: what changed, what was checked and how,
     and what was left out and why

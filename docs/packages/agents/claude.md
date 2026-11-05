@@ -22,7 +22,7 @@ are.
 | `git commit` | `kit commit` |
 | `git push` | `kit submit` |
 | `git rebase` | `kit rebase` |
-| `git worktree add`, `git checkout -b`, `git switch -c` | `kit issue` |
+| `git worktree add`, `git checkout -b`, `git switch -c` | `kit work` |
 | `git worktree remove`, `git branch -D` | `kit tidy` |
 | `git checkout main`, `git switch main`, `git reset --hard` | none: an agent leaves the desk as it is |
 | `git push --force`, `git push -f` | none: `kit submit` never forces |

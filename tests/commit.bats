@@ -2,7 +2,7 @@
 # commit.bats - kit commit and kit submit: the checks a commit's rule requires, then git, in a worktree only
 # ----------------------------------------------------------------------------------------------------------------------
 # The world is a consumer: origin is a bare repository beside the desk, the desk has the kit installed and its start
-# commit on main, and the work happens in worktrees/7-fix-the-thing, the branch kit issue would make for issue 7.
+# commit on main, and the work happens in worktrees/7-fix-the-thing, the branch kit work would make for issue 7.
 # No forge is involved: the policy's defaults and the branch name are what judge a subject.
 
 bats_require_minimum_version 1.5.0
