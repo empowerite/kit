@@ -77,13 +77,13 @@ forge/gitlab:issue-state() {
   forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output 'if .state == "closed" then "CLOSED" else "OPEN" end'
 }
 
-forge/gitlab:issue-unassign() {
-  glab issue update "$1" --assignee "-$2" >/dev/null 2>&1
-}
-
 forge/gitlab:issue-title() {
   forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output '.title' \
     || { error "run: glab auth status (the title of #$1 could not be read)"; return 1; }
+}
+
+forge/gitlab:issue-unassign() {
+  glab issue update "$1" --assignee "-$2" >/dev/null 2>&1
 }
 
 # GitLab has no command that creates a branch for an issue. This creates the branch the issue page would:
@@ -195,13 +195,13 @@ forge/gitlab:pr-here() {
   printf '%s\n' "${number}"
 }
 
-forge/gitlab:pr-set-body() {
-  forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
-}
-
 forge/gitlab:pr-last-for-branch() {
   forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
     | jq --raw-output '.[0].iid // empty' || true
+}
+
+forge/gitlab:pr-set-body() {
+  forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
 }
 
 forge/gitlab:pr-state() {

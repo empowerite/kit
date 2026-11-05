@@ -58,14 +58,14 @@ forge/github:issue-state() {
   gh issue view "$1" --json state --jq .state 2>/dev/null
 }
 
-forge/github:issue-unassign() {
-  gh issue edit "$1" --remove-assignee "$2" >/dev/null 2>&1
-}
-
 forge/github:issue-title() {
   local title
   forge/github:ask title "the title of #$1" issue view "$1" --json title --jq '.title' || return 1
   printf '%s\n' "${title}"
+}
+
+forge/github:issue-unassign() {
+  gh issue edit "$1" --remove-assignee "$2" >/dev/null 2>&1
 }
 
 # gh issue develop names the branch <N>-<slug>, links it to the issue under Development, and pushes it.
@@ -197,12 +197,12 @@ forge/github:pr-here() {
   printf '%s\n' "${number}"
 }
 
-forge/github:pr-set-body() {
-  gh pr edit "$1" --body "$2" >/dev/null
-}
-
 forge/github:pr-last-for-branch() {
   gh pr list --head "$1" --state all --json number --jq '.[0].number // empty' 2>/dev/null || true
+}
+
+forge/github:pr-set-body() {
+  gh pr edit "$1" --body "$2" >/dev/null
 }
 
 forge/github:pr-state() {

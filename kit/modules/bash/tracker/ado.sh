@@ -26,6 +26,8 @@ tracker/ado:assign() {
   az boards work-item update --id "$1" --assigned-to "$2" --org "${org}" --output none 2>/dev/null
 }
 
+tracker/ado:assignees() { tracker/ado:read "$1" '.fields["System.AssignedTo"].uniqueName // ""'; }
+
 tracker/ado:close() {
   local org state
   org=$(tracker/ado:organization) || return 1
@@ -46,8 +48,6 @@ tracker/ado:comment() {
   org=$(tracker/ado:organization) || return 1
   az boards work-item update --id "$1" --discussion "$2" --org "${org}" --output none 2>/dev/null
 }
-
-tracker/ado:assignees() { tracker/ado:read "$1" '.fields["System.AssignedTo"].uniqueName // ""'; }
 
 tracker/ado:create() {
   local org project type item
