@@ -519,8 +519,8 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		}
 		got = append(got, text)
 	}
-	want := []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▾ state · ready  2", "  ▾ who · ada  1", "#3",
-		"  ▾ who · none  1", "#2", "gone"}
+	want := []string{"▾ draft state  1", "  ▾ bob who  1", "#1", "▾ ready state  2", "  ▾ ada who  1", "#3",
+		"  ▾ none who  1", "#2", "gone"}
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -567,12 +567,12 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
 	p := Panel{Columns: columns, Groupable: groupable}
 	got, auto := p.group(rows, columns)
-	want := []string{"▾ source · github, where · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
-	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 0 {
+	want := []string{"▾ github source, here where  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
+	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
 		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// the panel's order joins the values; a hidden column and one kept do not group
-	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "▾ where · here, source · github  3" {
+	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "▾ here where, github source  3" {
 		t.Errorf("in the panel's order: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable, Hidden: map[string]bool{"source": true}, Kept: map[string]bool{"where": true}}).group(rows, columns); len(got) != 3 || auto != nil {
@@ -582,14 +582,14 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	p.Group = []string{"state"}
 	got, auto = p.group(rows, columns)
 	// the column the person groups by stays in the cells, which the panel's hide then leaves out
-	want = []string{"▾ state · draft, source · github, where · here  2", "#1||draft||ada", "#2||draft||", "▾ state · ready  1",
+	want = []string{"▾ draft state, github source, here where  2", "#1||draft||ada", "#2||draft||", "▾ ready state  1",
 		"#3|github|ready|here|bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
 		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// two values in a cell, or one row alone, do not group
 	rows[0].Cells[3].Values = []string{"here", "there"}
-	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "▾ source · github  3" {
+	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "▾ github source  3" {
 		t.Errorf("several values: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable}).group(rows[:1], columns); len(got) != 1 || auto != nil {
@@ -706,13 +706,13 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		return out
 	}
 	ready := "group\x00ready"
-	want := []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▸ state · ready  2", "gone"}
+	want := []string{"▾ draft state  1", "  ▾ bob who  1", "#1", "▸ ready state  2", "gone"}
 	if got := texts(p.Close(ready, true)); !slices.Equal(got, want) {
 		t.Errorf("ready folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a nested heading folds only its own rows
-	want = []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▾ state · ready  2", "  ▸ who · ada  1",
-		"  ▾ who · none  1", "#2", "gone"}
+	want = []string{"▾ draft state  1", "  ▾ bob who  1", "#1", "▾ ready state  2", "  ▸ ada who  1",
+		"  ▾ none who  1", "#2", "gone"}
 	if got := texts(p.Close(ready+"\x00ada", true)); !slices.Equal(got, want) {
 		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}

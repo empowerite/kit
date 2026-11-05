@@ -2,12 +2,12 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶───────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 de ▹
   ╵                  ╰────────────────────╰────────┐ Default ▾
-    id  assignees   age  branch       title        │
+      id  assignees  age  branch      title        │
    ─────────────────────────────────────────────── │ columns
-   ▾ source · 🐙 github  3                         │ ☑ id
- ▸ #45               2h               🎫 kit flow… │ ☑ source ▤
- ▸ #46  👤 jeffre…   2d  🌿 46-a-no…  🎫 A noun l… │ ☑ assignees
- ▸  #7  👤 ada  +1  40d               🎫 Fix the … │ ☑ age
+   ▾ 🐙 github source  3                           │ ☑ id
+   ▸ #45              2h              🎫 kit flow… │ ☑ source ▤
+   ▸ #46  👤 jeffr…   2d  🌿 46-a-n…  🎫 A noun l… │ ☑ assignees
+   ▸  #7  👤 ada +1  40d              🎫 Fix the … │ ☑ age
                                                    │ ☑ branch
                                                    │ ☑ title
                                                    │

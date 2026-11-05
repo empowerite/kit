@@ -187,12 +187,12 @@ func (p Panel) Keep(column string) Panel {
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
-// one a column the person groups by. The heading over every row, when the rows group on their own and the person
-// groups by nothing, heads them all alike, and is no level.
+// one a column the person groups by, and one the heading over every row, when the rows group on their own and the
+// person groups by nothing, so the rows under it stand in as they do under a heading the person chose.
 func Levels(rows []Row) int {
 	n := 0
 	for _, r := range rows {
-		if Heads(r) && r.Key != overAll {
+		if Heads(r) {
 			n = max(n, strings.Count(r.Key, "\x00"))
 		}
 	}
@@ -237,13 +237,13 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
-// in their values' order and the rows in each as they came: a heading, an aside, is the column's name and the value,
+// in their values' order and the rows in each as they came: a heading, an aside, is the value and the column's name,
 // dim, indented by its depth, and how many rows it heads. A row groups by a cell's first value, or under none when the
 // cell has none. A row of one cell, as a heading, has no value: those follow the groups.
 //
 // Under each heading, the walk goes on along the columns that can group, in the panel's order: one whose value is the
 // same on every row the heading heads, as their sort key says, one value on each and none blank, groups them on its
-// own. Its value joins the heading, after a dot, and its cell is blank in those rows, so the value is said once; a
+// own. Its value joins the heading, after a comma, and its cell is blank in those rows, so the value is said once; a
 // heading under it says it no more. Without a column the person chose, the rows group on their own under one heading
 // over every row, their values alone. A heading over one row is not worth it: a group of one row, or a stage of one,
 // does not group on its own. A column hidden, or kept as a column, never does. It gives the columns that group on
@@ -323,7 +323,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 				return slices.ContainsFunc(auto[:depth], func(above []int) bool { return slices.Contains(above, x) })
 			}))
 			took = append(took, auto[depth]...)
-			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + columns[j] + " · " + value(r, j)
+			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + value(r, j) + " " + columns[j]
 			if len(auto[depth]) > 0 {
 				heading += ", " + joined(r, columns, auto[depth])
 			}
@@ -424,13 +424,13 @@ func constant(rows []Row, columns []int) []int {
 	return out
 }
 
-// joined gives each column a row groups by on its own, at the indexes, as a heading says it: the column's name and
-// the row's value in it, without its style, a dot between them, as a heading of a column the person chose says them,
-// and a comma between columns.
+// joined gives each column a row groups by on its own, at the indexes, as a heading says it: the row's value in it,
+// without its style, and the column's name, as a heading of a column the person chose says them, and a comma between
+// columns.
 func joined(r Row, names []string, columns []int) string {
 	var values []string
 	for _, j := range columns {
-		values = append(values, names[j]+" · "+ansi.Strip(r.Cells[j].first()))
+		values = append(values, ansi.Strip(r.Cells[j].first())+" "+names[j])
 	}
 	return strings.Join(values, ", ")
 }

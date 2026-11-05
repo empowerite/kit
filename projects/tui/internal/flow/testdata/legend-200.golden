@@ -2,12 +2,12 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶─────────────────╮➅╶────────────────╮➆╶──────────────────╮➇╶──────────────────╮         
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds     4 │  🛬 incoming     6 │  📦 releases     3 │         
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────╰────────────────────╰────────────────────╰────────┐ Default ▾
-    id  assignees            age  branch              title                                                                                                                │
+      id  assignees            age  branch              title                                                                                                              │
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │ columns
-   ▾ source · 🐙 github  3                                                                                                                                                 │ ☑ id
-   #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it           │ ☑ source ▤
-   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                             │ ☑ assignees
- ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                                                                                                     │ ☑ age
+   ▾ 🐙 github source  3                                                                                                                                                   │ ☑ id
+     #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it         │ ☑ source ▤
+     #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                           │ ☑ assignees
+   ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                                                                                                   │ ☑ age
                                                                                                                                                                            │ ☑ branch
                                                                                                                                                                            │ ☑ title
                                                                                                                                                                            │

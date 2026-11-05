@@ -2,12 +2,12 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶────────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ Default ▾
-    id  assignees         age  branch            title                                     │
+      id  assignees         age  branch            title                                   │
    ─────────────────────────────────────────────────────────────────────────────────────── │ columns
-   ▾ source · 🐙 github  3                                                                 │ ☑ id
- ▸ #45                     2h                    🎫 kit flow is the one picture: five sta… │ ☑ source ▤
- ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb acts  │ ☑ assignees
- ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing                          │ ☑ age
+   ▾ 🐙 github source  3                                                                   │ ☑ id
+   ▸ #45                     2h                    🎫 kit flow is the one picture: five s… │ ☑ source ▤
+   ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb ac… │ ☑ assignees
+   ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing                        │ ☑ age
                                                                                            │ ☑ branch
                                                                                            │ ☑ title
                                                                                            │

@@ -236,12 +236,13 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it. #45 stands under the
-	// heading over every row
-	if m = drive(m, testkit.Click(1, m.rowsTop()+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
+	// heading over every row, two cells in
+	gutter := m.indent(0) + 1
+	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(1, m.rowsTop()+1)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
@@ -453,11 +454,11 @@ func TestGInThePanelGroupsTheRows(t *testing.T) {
 	count := m.count(m.stage)
 	// down to state, the sixth column: id, source, assignees, age, change, state
 	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), typed("g")...)...)
-	if v := view(m); !slices.Equal(m.panel(m.stage).Group, []string{"state"}) || !strings.Contains(v, "state · 🏁 ready  1") ||
-		!strings.Contains(v, "state · 🔨 draft  1") || m.count(m.stage) != count {
+	if v := view(m); !slices.Equal(m.panel(m.stage).Group, []string{"state"}) || !strings.Contains(v, "🏁 ready state  1") ||
+		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count {
 		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Group, m.count(m.stage), v)
 	}
-	if !strings.Contains(m.View().Content, style.Off(grid.Unfolded+" state · 🏁 ready  1")) {
+	if !strings.Contains(m.View().Content, style.Off(grid.Unfolded+" 🏁 ready state  1")) {
 		t.Error("a group's heading is not dim")
 	}
 	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
@@ -524,7 +525,9 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	m.setPanel(m.panel(m.stage).Keep("source")) // the source, one tracker's on every row, kept a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	heading := func(text string) int {
-		return slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, text) })
+		return slices.IndexFunc(lines(m), func(l string) bool {
+			return strings.Contains(l, grid.Unfolded) && strings.Contains(l, text)
+		})
 	}
 	group := func() []string { return m.panel(m.stage).Group }
 	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
@@ -538,10 +541,10 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("#1"), Button: tea.MouseRight}); !slices.Equal(group(), before) {
 		t.Errorf("a right-click on a row: %q", group())
 	}
-	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("assignees · "), Button: tea.MouseRight}); !slices.Equal(group(), []string{"source"}) {
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading(" assignees"), Button: tea.MouseRight}); !slices.Equal(group(), []string{"source"}) {
 		t.Fatalf("a right-click on an assignees heading: %q\n%s", group(), view(m))
 	}
-	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("source · "), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading(" source"), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
 	// a plain click on a name still sorts, and groups nothing
@@ -564,7 +567,7 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 			headings++
 		}
 	}
-	if headings == 0 || !strings.Contains(view(m), "change · ") {
+	if headings == 0 || !strings.Contains(view(m), " change  ") {
 		t.Errorf("no heading per change:\n%s", view(m))
 	}
 }
@@ -581,7 +584,7 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != grid.Unfolded+" source · "+GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
+	if got := heading(m); got != grid.Unfolded+" "+GitHub+" github source  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
 		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
 	}
 	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {

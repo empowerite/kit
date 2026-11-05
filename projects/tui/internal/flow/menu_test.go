@@ -313,15 +313,16 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	defer func(was []string) { columns["backlog"] = was }(columns["backlog"])
 	columns["backlog"] = long
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
-	closed := m.rowsTop()
-	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], " "+style.Off("▸")) || closed != paneTop+2 {
+	// the header stands in as the rows do, under the heading over every row
+	closed, in := m.rowsTop(), strings.Repeat(" ", m.indent(0))
+	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+" "+style.Off("▸")) || closed != paneTop+2 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(1, paneTop)); !m.stages[0].headed || m.rowsTop() <= closed ||
-		!strings.HasPrefix(lines(m)[paneTop], " ▾") || m.inRows {
+	if m = drive(m, testkit.Click(len(in)+1, paneTop)); !m.stages[0].headed || m.rowsTop() <= closed ||
+		!strings.HasPrefix(lines(m)[paneTop], in+" ▾") || m.inRows {
 		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(1, paneTop)); m.stages[0].headed {
+	if m = drive(m, testkit.Click(len(in)+1, paneTop)); m.stages[0].headed {
 		t.Error("a second click did not close it")
 	}
 	// Expand All opens it with the rows, and Collapse All closes it, each enabled for the header alone too
@@ -340,7 +341,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	}
 	// a click on the header off its gutter, or on its rule, does nothing
 	before := m.stages[0].cursor
-	if m = drive(m, down, testkit.Click(10, paneTop), testkit.Click(1, paneTop+1)); m.stages[0].headed ||
+	if m = drive(m, down, testkit.Click(12, paneTop), testkit.Click(len(in)+1, paneTop+1)); m.stages[0].headed ||
 		m.stages[0].cursor != before+1 {
 		t.Error("a click on the header's names or rule did something")
 	}
