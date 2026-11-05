@@ -184,6 +184,43 @@ JSON
   done
 }
 
+@test "every provider unassigns, closes, comments on, and nests issues, and reads a change's state, in its own tool's words" {
+  world github
+  route gh 'issue edit 7 --remove-assignee bob' '!0'
+  route gh 'issue edit 7 --add-sub-issue 9' '!0'
+  route gh 'issue close 7 *' '!0'
+  route gh 'issue comment 7 *' '!0'
+  fixture pr-state.json <<<'{"state": "MERGED", "mergeCommit": {"oid": "abc123"}}'
+  route gh 'pr view 5 --json state,mergeCommit*' pr-state.json
+  call issue-unassign 7 bob
+  call issue-close 7 not-planned
+  call issue-close 7 duplicate 9
+  call issue-comment 7 "Moved on"
+  call issue-add-sub 7 9
+  run call pr-state 5
+  [ "$output" = $'MERGED\tabc123' ]
+  run grep '^issue ' "${FAKE_DIR}/gh.calls"
+  [ "$output" = $'issue edit 7 --remove-assignee bob\nissue close 7 --reason not planned\nissue close 7 --reason duplicate --duplicate-of 9\nissue comment 7 --body Moved on\nissue edit 7 --add-sub-issue 9' ]
+  world gitlab
+  local p='projects/empowerite%2Fexample'
+  route glab 'issue update 7 --assignee -bob' '!0'
+  route glab 'issue close 7' '!0'
+  route glab 'issue note 7 *' '!0'
+  route glab "api ${p}/issues/7/links --method POST*" '!0'
+  fixture mr-merged.json <<<'{"iid": 3, "state": "merged", "merge_commit_sha": "def456"}'
+  route glab "api ${p}/merge_requests/4" mr-merged.json
+  : > "${FAKE_DIR}/glab.calls"
+  call issue-unassign 7 bob
+  call issue-close 7 not-planned
+  call issue-close 7 duplicate 9
+  call issue-comment 7 "Moved on"
+  call issue-add-sub 7 9
+  run call pr-state 4
+  [ "$output" = $'MERGED\tdef456' ]
+  run grep -v '^api user\|^api projects/empowerite%2Fexample/merge_requests/4$' "${FAKE_DIR}/glab.calls"
+  [ "$output" = $'issue update 7 --assignee -bob\nissue close 7\nissue note 7 --message /duplicate #9\nissue note 7 --message Moved on\napi projects/empowerite%2Fexample/issues/7/links --method POST --raw-field target_project_id=empowerite/example --raw-field target_issue_iid=9' ]
+}
+
 @test "every provider finds, opens, and reads a change by its branch the same way" {
   for forge in github gitlab
   do

@@ -39,8 +39,12 @@
 #   state <id>              OPEN or CLOSED
 #   assignees <id>          the assignees' logins, space-separated
 #   assign <id> <login>     adds the assignee
+#   unassign <id> <login>   removes the assignee
+#   close <id> <reason> [<other-id>]  closes the issue: completed, not-planned, or duplicate of the other issue in
+#                           the same tracker
+#   comment <id> <text>     adds a comment
 #   me                      the caller's login in this tracker, which can differ from the forge login
-#   create <title>          the number of the issue it creates
+#   create <title> [<body>] the number of the issue it creates
 #   url <id>                the issue's browser URL
 #
 # see: docs/trackers.md

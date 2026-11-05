@@ -60,7 +60,7 @@ and the error lists the known prefixes.
 | Provider | Tool | Fields | Closed when the state is |
 | --- | --- | --- | --- |
 | `forge` | the code forge's own, through `kit/modules/bash/forge.sh` | none | the code forge's closed state |
-| `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`) | Closed, Done, or Removed |
+| `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`), `closed_state` (default `Closed`), `removed_state` (default `Removed`) | Closed, Done, or Removed |
 
 A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 
@@ -70,8 +70,11 @@ A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 | `state <id>` | `OPEN` or `CLOSED` |
 | `assignees <id>` | the assignees' logins, space-separated |
 | `assign <id> <login>` | nothing; adds the assignee |
+| `unassign <id> <login>` | nothing; removes the assignee |
+| `close <id> <reason> [<other-id>]` | nothing; closes the issue as `completed`, `not-planned`, or `duplicate` of the other issue in the same tracker |
+| `comment <id> <text>` | nothing; adds a comment |
 | `me` | the caller's login in this tracker, which can differ from the code forge's |
-| `create <title>` | the number of the issue it creates |
+| `create <title> [<body>]` | the number of the issue it creates |
 | `url <id>` | the issue's browser URL |
 
 `tests/tracker.bats` tests the Azure DevOps provider against a fake `az`. It cannot prove that a real organization's

@@ -9,13 +9,19 @@ tracker/forge:assign()    { forge:issue-assign "$1" "$2"; }
 
 tracker/forge:assignees() { forge:issue-assignees "$1"; }
 
-tracker/forge:create()    { forge:issue-create "$1"; }
+tracker/forge:close()     { forge:issue-close "$1" "$2" "${3:-}"; }
+
+tracker/forge:comment()   { forge:issue-comment "$1" "$2"; }
+
+tracker/forge:create()    { forge:issue-create "$1" "${2:-}"; }
 
 tracker/forge:me()        { forge:me; }
 
 tracker/forge:state()     { forge:issue-state "$1"; }
 
 tracker/forge:title()     { forge:issue-title "$1"; }
+
+tracker/forge:unassign()  { forge:issue-unassign "$1" "$2"; }
 
 tracker/forge:url() {
   local repo_url

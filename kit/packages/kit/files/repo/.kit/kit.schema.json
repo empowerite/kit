@@ -136,6 +136,14 @@
           "type": {
             "type": "string",
             "description": "ado: the type of a new work item. Default: Task."
+          },
+          "closed_state": {
+            "type": "string",
+            "description": "ado: the state kit close --completed sets. Default: Closed."
+          },
+          "removed_state": {
+            "type": "string",
+            "description": "ado: the state a work item closed as not planned or a duplicate is set to. Default: Removed."
           }
         }
       }

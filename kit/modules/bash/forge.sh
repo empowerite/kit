@@ -42,11 +42,15 @@
 #   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
-#   issue-create <title>          the number of the issue it creates
+#   issue-create <title> [<body>] the number of the issue it creates
 #   issue-title <n>               the issue's title
 #   issue-state <n>               OPEN or CLOSED
 #   issue-assignees <n>           the assignees' logins, space-separated
 #   issue-assign <n> <login>      adds the assignee
+#   issue-unassign <n> <login>    removes the assignee
+#   issue-close <n> <reason> [<m>]  closes the issue: completed, not-planned, or duplicate of issue <m>
+#   issue-comment <n> <text>      adds a comment
+#   issue-add-sub <n> <m>         puts issue <m> under issue <n>: a sub-issue on GitHub, a linked item on GitLab
 #   branch-for-issue <n>          the branch an open pull request for issue <n> is on, or nothing
 #   link-branch <n> <default>     makes a branch linked to the issue, from <default>, pushed to the forge
 #   pr-for-branch <branch>        the number of the open pull request on the branch, or nothing
@@ -55,6 +59,7 @@
 #   pr-body <n>                   the pull request's body
 #   pr-set-body <n> <body>        replaces it
 #   pr-author <n>                 the login of the change's author, as the forge shows it: dependabot[bot]
+#   pr-state <n>                  MERGED, CLOSED, or OPEN, a tab, and the merge commit when it is merged
 #   pr-state-for-branch <branch>  MERGED, CLOSED, or OPEN for the latest pull request on the branch, or nothing
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
@@ -247,6 +252,10 @@ forge:issue-title()         { forge:call issue-title "$@"; }
 forge:issue-state()         { forge:call issue-state "$@"; }
 forge:issue-assignees()     { forge:call issue-assignees "$@"; }
 forge:issue-assign()        { forge:changing issue-assign "$@"; }
+forge:issue-unassign()      { forge:changing issue-unassign "$@"; }
+forge:issue-close()         { forge:changing issue-close "$@"; }
+forge:issue-comment()       { forge:changing issue-comment "$@"; }
+forge:issue-add-sub()       { forge:changing issue-add-sub "$@"; }
 forge:branch-for-issue()    { forge:call branch-for-issue "$@"; }
 forge:link-branch()         { forge:changing link-branch "$@"; }
 forge:pr-for-branch()       { forge:call pr-for-branch "$@"; }
@@ -255,6 +264,7 @@ forge:pr-title()            { forge:call pr-title "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
 forge:pr-set-body()         { forge:changing pr-set-body "$@"; }
 forge:pr-author()           { forge:call pr-author "$@"; }
+forge:pr-state()            { forge:call pr-state "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }
 forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }

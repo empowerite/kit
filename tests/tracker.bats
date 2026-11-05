@@ -73,6 +73,9 @@ JSON
   route az 'boards work-item update --id 4521 --assigned-to ada@example.com *' '!0'
   route az 'boards work-item create --title New work --type Task --project Claims Team *' created.json
   route az 'account show*' me.txt
+  route az 'boards work-item update --id 4521 --assigned-to  *' '!0'
+  route az 'boards work-item update --id 4521 --state *' '!0'
+  route az 'boards work-item update --id 4521 --discussion *' '!0'
   run in_tracker tracker:of 'AB#4521' title
   [ "$output" = "Fix the claim form" ]
   run in_tracker tracker:of 'AB#4521' state
@@ -89,6 +92,15 @@ JSON
   [ "$output" = "4600" ]
   run in_tracker tracker:of 'AB#4521' url
   [ "$output" = "https://dev.azure.com/example/Claims%20Team/_workitems/edit/4521" ]
+  # unassigning someone not assigned changes nothing; closing sets the closing state, a duplicate after a comment
+  : > "${FAKE_DIR}/az.calls"
+  in_tracker tracker:of 'AB#4521' unassign carol@example.com
+  in_tracker tracker:of 'AB#4521' unassign bob@example.com
+  in_tracker tracker:of 'AB#4521' close completed
+  in_tracker tracker:of 'AB#4521' close not-planned
+  in_tracker tracker:of 'AB#4521' close duplicate 4522
+  run grep -o 'update --id 4521 --[a-z-]* [^-]*' "${FAKE_DIR}/az.calls"
+  [ "$output" = $'update --id 4521 --assigned-to  \nupdate --id 4521 --state Closed \nupdate --id 4521 --state Removed \nupdate --id 4521 --discussion Duplicate of AB#4522 \nupdate --id 4521 --state Removed ' ]
 }
 
 @test "a tracker record without its organization is refused with the setting to add" {

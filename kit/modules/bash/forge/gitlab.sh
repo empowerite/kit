@@ -29,6 +29,15 @@ forge/gitlab:branch-for-issue() {
     || true
 }
 
+# forge/gitlab:issue-add-sub links the second issue to the first as a related item: GitLab gives an issue no
+# sub-issues.
+forge/gitlab:issue-add-sub() {
+  local project
+  project=$(forge/gitlab:project) || return 1
+  forge/gitlab:api "issues/$1/links" --method POST --raw-field "target_project_id=${project}" \
+    --raw-field "target_issue_iid=$2" >/dev/null 2>&1
+}
+
 forge/gitlab:issue-assign() {
   glab issue update "$1" --assignee "+$2" >/dev/null 2>&1
 }
@@ -37,9 +46,24 @@ forge/gitlab:issue-assignees() {
   forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output '[.assignees[]?.username] | join(" ")'
 }
 
+# forge/gitlab:issue-close closes the issue. GitLab keeps no reason, so completed and not planned close it alike; a
+# duplicate is closed by the /duplicate quick action, which links it to the original.
+forge/gitlab:issue-close() {
+  if [[ "$2" == duplicate ]]
+  then
+    glab issue note "$1" --message "/duplicate #$3" >/dev/null 2>&1
+  else
+    glab issue close "$1" >/dev/null 2>&1
+  fi
+}
+
+forge/gitlab:issue-comment() {
+  glab issue note "$1" --message "$2" >/dev/null 2>&1
+}
+
 forge/gitlab:issue-create() {
   local number
-  number=$(glab issue create --title "$1" --description "" --yes 2>/dev/null \
+  number=$(glab issue create --title "$1" --description "${2:-}" --yes 2>/dev/null \
     | sed -n 's@.*/-/issues/\([0-9]*\).*@\1@p' | tail -n 1)
   if [[ ! "${number}" =~ ^[0-9]+$ ]]
   then
@@ -51,6 +75,10 @@ forge/gitlab:issue-create() {
 
 forge/gitlab:issue-state() {
   forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output 'if .state == "closed" then "CLOSED" else "OPEN" end'
+}
+
+forge/gitlab:issue-unassign() {
+  glab issue update "$1" --assignee "-$2" >/dev/null 2>&1
 }
 
 forge/gitlab:issue-title() {
@@ -169,6 +197,13 @@ forge/gitlab:pr-here() {
 
 forge/gitlab:pr-set-body() {
   forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
+}
+
+forge/gitlab:pr-state() {
+  forge/gitlab:api "merge_requests/$1" 2>/dev/null \
+    | jq --raw-output '"\(.state | if . == "merged" then "MERGED" elif . == "closed" then "CLOSED" else "OPEN" end
+        )\t\(.merge_commit_sha // .squash_commit_sha // "")"' \
+    || { error "run: glab auth status (merge request !$1 could not be read)"; return 1; }
 }
 
 forge/gitlab:pr-state-for-branch() {

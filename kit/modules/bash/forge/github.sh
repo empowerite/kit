@@ -18,6 +18,11 @@ forge/github:branch-for-issue() {
     --jq "[.[] | select(.headRefName | test(\"^$1-\"))] | .[0].headRefName // empty" 2>/dev/null || true
 }
 
+# forge/github:issue-add-sub makes the second issue a sub-issue of the first, as the issue page's Relationships do.
+forge/github:issue-add-sub() {
+  gh issue edit "$1" --add-sub-issue "$2" >/dev/null 2>&1
+}
+
 forge/github:issue-assign() {
   gh issue edit "$1" --add-assignee "$2" >/dev/null 2>&1
 }
@@ -26,9 +31,21 @@ forge/github:issue-assignees() {
   gh issue view "$1" --json assignees --jq '[.assignees[].login] | join(" ")' 2>/dev/null
 }
 
+# forge/github:issue-close closes the issue with GitHub's reason: completed, not planned, or duplicate of the third
+# argument.
+forge/github:issue-close() {
+  local -a how=(--reason "${2//-/ }")
+  [[ "$2" != duplicate ]] || how+=(--duplicate-of "$3")
+  gh issue close "$1" "${how[@]}" >/dev/null 2>&1
+}
+
+forge/github:issue-comment() {
+  gh issue comment "$1" --body "$2" >/dev/null 2>&1
+}
+
 forge/github:issue-create() {
   local number
-  number=$(gh issue create --title "$1" --body "" 2>/dev/null | sed -n 's@.*/issues/@@p')
+  number=$(gh issue create --title "$1" --body "${2:-}" 2>/dev/null | sed -n 's@.*/issues/@@p')
   if [[ ! "${number}" =~ ^[0-9]+$ ]]
   then
     error "run: gh auth status (the issue could not be created)"
@@ -39,6 +56,10 @@ forge/github:issue-create() {
 
 forge/github:issue-state() {
   gh issue view "$1" --json state --jq .state 2>/dev/null
+}
+
+forge/github:issue-unassign() {
+  gh issue edit "$1" --remove-assignee "$2" >/dev/null 2>&1
 }
 
 forge/github:issue-title() {
@@ -178,6 +199,11 @@ forge/github:pr-here() {
 
 forge/github:pr-set-body() {
   gh pr edit "$1" --body "$2" >/dev/null
+}
+
+forge/github:pr-state() {
+  gh pr view "$1" --json state,mergeCommit --jq '"\(.state)\t\(.mergeCommit.oid // "")"' 2>/dev/null \
+    || { error "run: gh auth status (pull request #$1 could not be read)"; return 1; }
 }
 
 forge/github:pr-state-for-branch() {
