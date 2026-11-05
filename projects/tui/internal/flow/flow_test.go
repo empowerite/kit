@@ -619,16 +619,46 @@ func TestTheSidebarStartsHiddenOnANarrowScreenAndKeepsThePersonsChoice(t *testin
 	}
 }
 
-// at80 gives the keys bar as a screen of 80 columns draws it, as internal/shell's KeysLine fits it.
-func at80(keys string) string { return shell.KeysLine(strings.Split(keys, " · "), 79) }
+// at80 gives the keys bar as a screen of 80 columns draws it, from the bar as wide as it takes.
+func at80(keys string) string { return fit(keys, 79) }
 
-// The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: esc first,
-// then the menus, the search, the sidebar, and the panel, then the keys of the part the keyboard is in.
+// fit gives the keys bar in the room a screen has for it, from the bar as wide as it takes: whole controls dropped from
+// the screen's end, … in their place, until it fits, and the last alone clipped.
+func fit(keys string, room int) string {
+	segments := strings.Split(keys, " │ ")
+	for k := 0; k < len(segments); k++ {
+		line := strings.Join(segments[k:], " │ ")
+		if k > 0 {
+			line = "… │ " + line
+		}
+		if ansi.StringWidth(line) <= room || k == len(segments)-1 {
+			return ansi.Truncate(line, room, "…")
+		}
+	}
+	return ""
+}
+
+// The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: the screen's
+// keys, the stages' bar's, then the rows', each control's between rules; the sidebar hidden, which ? shows.
 const (
-	barKeys = "= menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
-	opens   = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · → open"
-	closes  = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · ← close"
+	screenKeys = "= menu · / search · ? show sidebar · ⇥ sidebar │ "
+	barKeys    = screenKeys + "←→ tab · ↓ rows · 1-8 jump · : tab menu"
+	inRows     = screenKeys + "1-8 jump · : tab menu │ esc tabs · ↑↓ move · ␣ select · ⇧↑↓ select · ⌃A all"
+	opens      = inRows + " · → open"
+	closes     = inRows + " · ← close"
 )
+
+// sidebarBar gives the keys bar for the screen as it is: ? hides the sidebar while it shows, and in rows more than the
+// pane shows, the page keys move a page at a time.
+func sidebarBar(m Model, keys string) string {
+	if m.sidebar {
+		keys = strings.Replace(keys, "? show sidebar", "? hide sidebar", 1)
+	}
+	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
+		keys = strings.Replace(keys, "↑↓ move · ", "↑↓ move · ⇞⇟ page · ", 1)
+	}
+	return keys
+}
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	for _, c := range []struct {
@@ -649,11 +679,10 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
 					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
-					// a bar too narrow for every key keeps esc, then …, then the last keys that fit
-					want := shell.KeysLine(strings.Split(c.keys, " · "), width-1)
+					// a bar too narrow for every key drops the screen's, then the next control's, … in their place
+					want := fit(sidebarBar(m, c.keys), width-1)
 					got := lines(m)
-					if len(got) != height || got[height-1] != " "+want ||
-						strings.HasPrefix(c.keys, "esc") && !strings.HasPrefix(want, "esc back") {
+					if len(got) != height || got[height-1] != " "+want {
 						t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got),
 							got[len(got)-1])
 					}
@@ -661,10 +690,10 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 			})
 		}
 	}
-	// at a width too narrow for it, the bar keeps the last keys that fit, after …, never wrapped
+	// at a width too narrow for it, the bar keeps the stages' bar's keys, after …, clipped, never wrapped
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
-	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … · ") || ansi.StringWidth(got[11]) > 30 ||
-		!strings.HasSuffix(got[11], "1-9 jump") {
+	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab · ↓ rows · ") ||
+		ansi.StringWidth(got[11]) > 30 || !strings.HasSuffix(got[11], "…") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
 }
@@ -905,7 +934,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(opens) {
+	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(sidebarBar(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -1045,7 +1074,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
 	got := lines(m)
-	if len(got) != 10 || got[9] != " "+at80(closes) {
+	if len(got) != 10 || got[9] != " "+at80(sidebarBar(m, closes)) {
 		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)
@@ -1067,7 +1096,7 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 	before := lines(m)
 	m = drive(m, press('?'))
 	got, pw := lines(m), m.paneWidth()
-	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+barKeys {
+	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+sidebarBar(m, barKeys) {
 		t.Errorf("the title or the keys moved under the sidebar:\n%s", view(m))
 	}
 	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+2 {

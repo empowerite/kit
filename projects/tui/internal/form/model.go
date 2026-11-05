@@ -18,6 +18,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
@@ -143,51 +144,59 @@ func (m Model) View() tea.View {
 		room = max(1, m.height-2) // the gap and the keys bar under the form
 	}
 	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at, live.Dim), "\n"), "\n")
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
+	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, m.keys().Line(m.width)), "\n"))
 	v.AltScreen = true
 	return v
 }
 
-// keys gives the keys bar, which fits 80 columns, naming the keys the focused field takes and no other: the arrows
-// across a row of options, the space where it toggles, backspace where it erases or clears, and the page keys on a
-// list. Enter takes the next field, or runs on the command line, and esc goes back to the palette or cancels. Tab,
-// which moves as down and up do, is left out for the room. Shift-Enter is named only where the terminal answered
-// Bubble Tea's ask for the kitty keyboard protocol; elsewhere, Terminal.app among them, it arrives as Enter, and the
-// way to run is Enter on the command line.
-func (m Model) keys() string {
-	end := "esc cancel"
+// keys gives the path to the keyboard, which the keys bar is drawn from: the form, whose esc goes back to the palette
+// or cancels, up and down move between fields, and enter takes the next field; and the field under the keyboard, with
+// the keys its kind takes: the arrows across a row of options, the space where it toggles, backspace where it erases
+// or clears, and the page keys on a list. On the command line, enter runs. Tab, which moves as down and up do, is left
+// unnamed. Shift-Enter is named only where the terminal answered Bubble Tea's ask for the kitty keyboard protocol;
+// elsewhere, Terminal.app among them, it arrives as Enter, and the way to run is Enter on the command line.
+func (m Model) keys() shell.Path {
+	end := "cancel"
 	if m.back {
-		end = "esc back"
+		end = "back"
+	}
+	form := shell.Segment{Takes: []string{"tab", "shift+tab"}, Bindings: []shell.Binding{
+		shell.Bind("esc", end), shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⏎", "next", "enter")}}
+	if m.shift {
+		form.Bindings = append(form.Bindings, shell.Bind("⇧⏎", "run", "shift+enter"))
 	}
 	if m.focus >= len(m.fields) {
-		return strings.Join([]string{"↑ move", "⏎ run", end}, " · ")
+		// the command line is the last: up moves back, down has nowhere to go, and enter runs
+		return shell.Path{form, {Takes: []string{"down"}, Bindings: []shell.Binding{shell.Bind("↑", "move", "up"),
+			shell.Bind("⏎", "run", "enter", "shift+enter")}}}
 	}
-	f := m.fields[m.focus]
-	keys := []string{"↑↓ move"}
-	switch f.Kind {
+	var field shell.Segment
+	switch f := m.fields[m.focus]; f.Kind {
 	case Toggle:
 		if !f.Required {
-			keys = append(keys, "␣ toggle")
+			field.Bindings = append(field.Bindings, shell.Bind("␣", "toggle", "space"))
 		}
 	case AnyOf:
-		keys = append(keys, "←→ option", "␣ toggle")
+		field.Bindings = append(field.Bindings, shell.Bind("←→", "option", "left", "right"),
+			shell.Bind("␣", "toggle", "space"))
 	case OneOf:
-		keys = append(keys, "←→ choose")
+		field.Bindings = append(field.Bindings, shell.Bind("←→", "choose", "left", "right"))
 		if !f.Required {
-			keys = append(keys, "⌫ clear")
+			field.Bindings = append(field.Bindings, shell.Bind("⌫", "clear", "backspace"))
 		}
 	case Text, Lines, Wildcard:
-		keys = append(keys, "⌫ erase")
+		field.Types = true
+		field.Bindings = append(field.Bindings, shell.Bind("⌫", "erase", "backspace"))
 	case Pick:
-		keys = append(keys, "⇞⇟ page", "⌫ erase")
+		field.Types = true
+		field.Bindings = append(field.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"),
+			shell.Bind("⌫", "erase", "backspace"))
 	case PickMany:
-		keys = append(keys, "⇞⇟ page", "␣ toggle", "⌫ erase")
+		field.Types = true
+		field.Bindings = append(field.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"),
+			shell.Bind("␣", "toggle", "space"), shell.Bind("⌫", "erase", "backspace"))
 	}
-	keys = append(keys, "⏎ next")
-	if m.shift {
-		keys = append(keys, "⇧⏎ run")
-	}
-	return strings.Join(append(keys, end), " · ")
+	return shell.Path{form, field}
 }
 
 // key takes a key press.

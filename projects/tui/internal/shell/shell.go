@@ -39,12 +39,12 @@ const (
 // The glyphs beside the app's menu's items: the picture, the welcome, the help, the tutorials, the settings, and
 // goodbye.
 const (
-	Map      = "🧭"
-	Home     = "🏠"
-	Asking   = "❓"
-	Learn    = "🎓"
-	Settings = "🔧"
-	Leave    = "👋"
+	Map       = "🧭"
+	Home      = "🏠"
+	Asking    = "❓"
+	Learn     = "🎓"
+	Configure = "🔧"
+	Leave     = "👋"
 )
 
 // Item is one line of a menu: a glyph, which may be none, and the name it is chosen by; a line with no name is the
@@ -83,34 +83,8 @@ type SwitchMsg struct{ Screen Screen }
 // Switch gives the command that asks for the screen.
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
-// Keys is the keys bar while a menu is open.
-const Keys = "esc close · ↑↓ move · ⏎ choose"
-
-// KeysLine gives a keys bar's keys, in the order every screen keeps, for a line so wide: esc first, where it acts, then
-// the menus, then the search and the sidebar, then the keys of each part the keyboard is in, the deepest last, as
-// the screen gives them. Keys too many for the line keep esc, then …, then as many of the last as fit, as the deepest
-// part's are the ones that act where the keyboard is.
-func KeysLine(keys []string, width int) string {
-	line := strings.Join(keys, " · ")
-	if ansi.StringWidth(line) <= width || len(keys) == 0 {
-		return line
-	}
-	var head []string
-	if strings.HasPrefix(keys[0], "esc ") {
-		head, keys = []string{keys[0]}, keys[1:]
-	}
-	head = append(head, "…")
-	used := ansi.StringWidth(strings.Join(head, " · "))
-	k := len(keys)
-	for k > 0 && used+3+ansi.StringWidth(keys[k-1]) <= width {
-		used += 3 + ansi.StringWidth(keys[k-1])
-		k--
-	}
-	return strings.Join(append(head, keys[k:]...), " · ")
-}
-
 // Items gives the menu's lines, top to bottom: the screen's own items and a rule, when it has any; kit's screens; a
-// rule; the settings, which kittui does not have yet; a rule; and quit.
+// rule; the settings; a rule; and quit.
 func (m Menu) Items() []Item {
 	var items []Item
 	if len(m.Own) > 0 {
@@ -119,14 +93,17 @@ func (m Menu) Items() []Item {
 	for _, s := range screens {
 		items = append(items, s.item)
 	}
-	return append(items, Item{}, Item{Settings, "Settings…"}, Item{}, Item{Leave, "Quit"})
+	return append(items, Item{}, settingsItem, Item{}, Item{Leave, "Quit"})
 }
 
+// settingsItem is the menu's line that opens the Settings dialog.
+var settingsItem = Item{Configure, "Settings…"}
+
 // enabled says whether the menu's line k does something: the screen's own items, a screen other than the one it is
-// on but the tutorials, and quit; the settings and the rules never do.
+// on but the tutorials, the settings, and quit; the rules never do.
 func (m Menu) enabled(k int) bool {
 	item := m.Items()[k]
-	if item.Name == "Quit" || slices.Contains(m.Own, item) && item.Name != "" {
+	if item.Name == "Quit" || item == settingsItem || slices.Contains(m.Own, item) && item.Name != "" {
 		return true
 	}
 	for _, s := range screens {
@@ -150,6 +127,9 @@ func (m Menu) choice(k int) Choice {
 	}
 	if item.Name == "Quit" {
 		return Choice{Quit: true}
+	}
+	if item == settingsItem {
+		return Choice{Screen: SettingsScreen}
 	}
 	return Choice{Own: item.Name}
 }

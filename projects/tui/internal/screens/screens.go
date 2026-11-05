@@ -20,7 +20,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
-// Model is kittui's root: the screens made so far, by name, and the one shown.
+// Model is kittui's root: the screens made so far, by name, and the one shown; kittui's settings, and the dialog that
+// changes them.
 type Model struct {
 	runner   kit.Runner
 	here     shell.Screen
@@ -28,11 +29,15 @@ type Model struct {
 	size     *tea.WindowSizeMsg
 	keyboard *tea.KeyboardEnhancementsMsg // what the terminal said of its keyboard, for a screen made after it said so
 	refusal  string                       // kit's line, when a screen asked for could not open, until the next key
+	settings shell.Settings
+	dialog   shell.SettingsDialog
 }
 
-// New gives the root showing the screen first, made already, as kittui opened on it.
+// New gives the root showing the screen first, made already, as kittui opened on it, with the settings kittui's file
+// keeps.
 func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
-	return Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m}}
+	return Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
+		settings: shell.LoadSettings(shell.SettingsFile())}
 }
 
 // Shown gives the screen shown, as the program ended on it.
@@ -50,20 +55,38 @@ func (m Model) Close() {
 // Init starts the screen shown.
 func (m Model) Init() tea.Cmd { return tag(m.here, m.made[m.here].Init()) }
 
-// Update takes a message: a screen's ask for another, shown in its place; an answer to what a screen started, for
-// that screen; and anything else for the screen shown.
+// Update takes a message: a screen's ask for another, shown in its place, or for the Settings dialog, opened over it;
+// an answer to what a screen started, for that screen; while the dialog is open, a key for it, and a click nowhere;
+// and anything else for the screen shown, the terminal's size as the screen has it.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case shell.SwitchMsg:
+		if msg.Screen == shell.SettingsScreen {
+			m.dialog = shell.SettingsDialog{Open: true}
+			return m, nil
+		}
 		return m.show(msg.Screen)
 	case tagged:
 		return m.deliver(msg.to, msg.msg)
 	case tea.WindowSizeMsg:
 		m.size = &msg
+		return m.deliver(m.here, m.sized())
 	case tea.KeyboardEnhancementsMsg:
 		m.keyboard = &msg
 	case tea.KeyPressMsg:
 		m.refusal = ""
+		if m.dialog.Open && msg.String() != "ctrl+c" {
+			shown := m.settings.KeysBar
+			if m.dialog, m.settings = m.dialog.Key(msg, m.settings); m.settings.KeysBar != shown && m.size != nil {
+				// the keys bar shown or hidden: the screen has its line, or gives it back
+				return m.deliver(m.here, m.sized())
+			}
+			return m, nil
+		}
+	case tea.MouseMsg:
+		if m.dialog.Open {
+			return m, nil
+		}
 	}
 	return m.deliver(m.here, msg)
 }
@@ -85,7 +108,7 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 	if _, ok := m.made[to]; ok {
 		m.here = to
 		if m.size != nil {
-			return m.deliver(to, *m.size)
+			return m.deliver(to, m.sized())
 		}
 		return m, nil
 	}
@@ -100,7 +123,7 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 	m.made[to], m.here = s, to
 	cmds := []tea.Cmd{tag(to, s.Init())}
 	if m.size != nil {
-		_, cmd := m.deliver(to, *m.size)
+		_, cmd := m.deliver(to, m.sized())
 		cmds = append(cmds, cmd)
 	}
 	if m.keyboard != nil {
@@ -123,14 +146,46 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 	return nil, &kit.ExitError{Code: 1, Stderr: "kit has no " + string(to) + " yet"}
 }
 
-// View draws the screen shown, with kit's line on its last line when a screen asked for could not open.
+// sized gives the terminal's size as the screen shown has it: a line taller while the keys bar is hidden, as the screen
+// draws its keys bar on the line under the terminal's last, which View drops.
+func (m Model) sized() tea.WindowSizeMsg {
+	size := *m.size
+	if !m.settings.KeysBar && size.Height > 0 {
+		size.Height++
+	}
+	return size
+}
+
+// noticing is a screen that says, in place of its keys, what it did or why it did not.
+type noticing interface{ Noticing() bool }
+
+// View draws the screen shown. While the keys bar is hidden, the screen's last line, its keys, is dropped; a screen's
+// notice in their place is kept on the last line, over the line above it. The Settings dialog, while open, is over the
+// screen, its keys on the keys bar; kit's line is on the last line when a screen asked for could not open.
 func (m Model) View() tea.View {
 	v := m.made[m.here].View()
-	if m.refusal != "" {
-		lines := strings.Split(v.Content, "\n")
-		lines[len(lines)-1] = " " + style.Refusal(style.Excluded+" "+m.refusal)
-		v.Content = strings.Join(lines, "\n")
+	lines := strings.Split(v.Content, "\n")
+	if !m.settings.KeysBar && m.size != nil && m.size.Height > 0 && len(lines) > 1 {
+		last := len(lines) - 1
+		if n, ok := m.made[m.here].(noticing); ok && n.Noticing() {
+			last--
+		}
+		lines = append(lines[:last], lines[last+1:]...)
 	}
+	width := 0
+	if m.size != nil {
+		width = m.size.Width
+	}
+	if m.dialog.Open {
+		lines = m.dialog.Overlay(lines, m.settings, width)
+		if m.settings.KeysBar {
+			lines[len(lines)-1] = shell.Path{m.dialog.Keys()}.Line(width)
+		}
+	}
+	if m.refusal != "" {
+		lines[len(lines)-1] = " " + style.Refusal(style.Excluded+" "+m.refusal)
+	}
+	v.Content = strings.Join(lines, "\n")
 	return v
 }
 

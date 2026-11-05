@@ -111,7 +111,7 @@ func TestAFormOpenedLaterKnowsWhatTheTerminalSaidOfItsKeyboard(t *testing.T) {
 	}
 	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}, press(tea.KeyDown),
 		press(tea.KeyEnter))
-	if !m.InForm() || !strings.Contains(m.View().Content, "⇧⏎ run") {
+	if !m.InForm() || !strings.Contains(ansi.Strip(m.View().Content), "⇧⏎ run") {
 		t.Errorf("the form does not name shift-Enter:\n%s", m.View().Content)
 	}
 }

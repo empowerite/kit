@@ -26,12 +26,14 @@ package tabs
 
 import (
 	"cmp"
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -113,6 +115,27 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 		}
 	}
 	return b, false
+}
+
+// Keys gives the bar's segment of the keys bar: while it has the keyboard, left and right move along it, and down, when
+// it says what down enters, enters it; a tab's number selects it from anywhere; and where the bar has menus, : or ;
+// drops the selected tab's down, as the screen takes it.
+func (b Bar) Keys(down string) shell.Segment {
+	var s shell.Segment
+	if len(b.Tabs) == 0 {
+		return s
+	}
+	if b.Focused {
+		s.Bindings = append(s.Bindings, shell.Bind("←→", "tab", "left", "right"))
+		if down != "" {
+			s.Bindings = append(s.Bindings, shell.Bind("↓", down, "down"))
+		}
+	}
+	s.Bindings = append(s.Bindings, shell.Bind(fmt.Sprintf("1-%d", min(len(b.Tabs), 9)), "jump", shell.Digits...))
+	if b.Menus {
+		s.Bindings = append(s.Bindings, shell.Bind(":", "tab menu", ":", ";"))
+	}
+	return s
 }
 
 // number gives the tab a key names, from 0: 1 to 9, and 0 for the tenth, typed or on the keypad, alone or with alt or

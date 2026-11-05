@@ -656,6 +656,36 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	return p, true
 }
 
+// Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
+// there are some; a column's line shows or hides it with space or enter, sorts by it with s, groups by it with g where
+// the column can group, or keeps it a column where the rows group by it on their own, and orders it among the others
+// with shift and up or down; a choice of whose rows show is taken with space or enter.
+// The views' dropdown takes keys its screen says.
+func (p Panel) Keys(recalls bool) shell.Segment {
+	controls := p.controls()
+	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
+	case c.search:
+		return shell.SearchKeys(recalls)
+	case c.view:
+		return shell.Segment{}
+	case c.column != "":
+		toggle := "hide"
+		if p.Hidden[c.column] {
+			toggle = "show"
+		}
+		s := shell.Segment{Bindings: []shell.Binding{shell.Bind("␣", toggle, "space", "enter"),
+			shell.Bind("s", "sort", "s", "S")}}
+		switch {
+		case slices.Contains(p.Auto, c.column) && !slices.Contains(p.Group, c.column):
+			s.Bindings = append(s.Bindings, shell.Bind("g", "ungroup", "g", "G"))
+		case p.Groupable[c.column]:
+			s.Bindings = append(s.Bindings, shell.Bind("g", "group", "g", "G"))
+		}
+		return s.With(shell.Bind("⇧↑↓", "order", "shift+up", "shift+down"))
+	}
+	return shell.Segment{Bindings: []shell.Binding{shell.Bind("␣", "choose", "space", "enter")}}
+}
+
 // Click takes a click on a line of the panel, as Lines numbers them, and says whether it fell on a control: the
 // control is then under the keyboard, and a checkbox or a choice is acted on as space does.
 func (p Panel) Click(line int) (Panel, bool) {

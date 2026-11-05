@@ -42,19 +42,17 @@ func TestABandRunsTheWholeLine(t *testing.T) {
 }
 
 // The bar is one dim line after a space, clipped to the width with …, and nothing at all on a screen of one column.
-func TestTheBarFitsItsLine(t *testing.T) {
-	keys := "↑↓ move · ⏎ next · esc back"
-	if got := ansi.Strip(Bar(keys, 80)); got != " "+keys {
-		t.Errorf("at 80: %q", got)
+// A key on the keys bar and what it does are drawn brighter in the control the keyboard is in than in the controls
+// around it, and say the same either way.
+func TestTheBarsKeysAreBrighterWhereTheKeyboardIs(t *testing.T) {
+	for name, draw := range map[string]func(string, bool) string{"key": BarKey, "does": BarDoes} {
+		if here, around := draw("move", true), draw("move", false); here == around || ansi.Strip(here) != "move" ||
+			ansi.Strip(around) != "move" {
+			t.Errorf("the %s: %q where the keyboard is, %q around it", name, here, around)
+		}
 	}
-	if got := ansi.Strip(Bar(keys, 12)); ansi.StringWidth(got) != 12 || !strings.HasSuffix(got, "…") {
-		t.Errorf("at 12: %q", got)
-	}
-	if Bar(keys, 1) != "" || Bar(keys, 0) != "" {
-		t.Errorf("at one column or none: %q %q", Bar(keys, 1), Bar(keys, 0))
-	}
-	if !strings.Contains(Bar(keys, 80), Off(keys)) {
-		t.Error("the bar is not dim")
+	if BarDoes("move", false) != Off("move") || ansi.Strip(BarRule(" │ ")) != " │ " {
+		t.Error("what a key does around the keyboard is not dim, or the rule says something else")
 	}
 }
 

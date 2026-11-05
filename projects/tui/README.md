@@ -38,7 +38,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
-- `internal/style/` is the look: one accent color, the glyphs, and the keys bar. It honors `NO_COLOR`.
+- `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
+  and kittui's settings file, and the keys bar. A screen never writes its keys bar. It gives the path from the
+  screen to the control that has the keyboard, and each control on the path names the keys it answers. A deeper
+  control hides an ancestor's key for a press it takes. The bar draws each control's keys between rules, and drops
+  whole controls from the screen's end when the line is too narrow.
+- `internal/style/` is the look: one accent color, the glyphs, and the keys bar's styles. It honors `NO_COLOR`.
 - `internal/testkit/` holds what the tests share. Only tests import it.
 
 ## Testing

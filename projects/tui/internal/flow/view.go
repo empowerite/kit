@@ -55,7 +55,7 @@ func (m Model) View() tea.View {
 	lines := append([]string{pane.Clip(m.title(), m.titleWidth())}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.float(m.side(m.overlay(append(lines, ""))))
-	bottom := style.Bar(shell.KeysLine(m.keys(), m.width-1), m.width)
+	bottom := m.keys().Line(m.width)
 	switch {
 	case m.notice != "" && m.noted:
 		bottom = " " + pane.Clip(m.notice, m.width-1)
@@ -135,62 +135,100 @@ func (m Model) paneWidth() int {
 	return m.width - 2
 }
 
-// keys gives the keys bar's keys for where the keyboard is, in the order every screen keeps, as internal/shell's
-// KeysLine lays them out: esc first, where it goes back or closes, then the menus, = for the app's and : for the tab's,
-// ; too, which the bar does not name; then the search and the sidebar, and tab into the panel; then the keys of the
-// part the keyboard is in. On the bar, left and right along the tabs, down into the rows, and the numbers; in the rows,
-// up and down, a page at a time, space to select a row, and right to open a row that opens or left to close it. An
-// open menu has its own keys alone, and so has the search; the panel, off its search, has the menus and its own.
-func (m Model) keys() []string {
-	if m.viewMenu || m.recent.Open {
-		return strings.Split(shell.Keys, " · ")
-	}
-	if m.ask != nil {
-		_, keys := m.askKeys()
-		return strings.Split(keys, " · ")
-	}
+// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? shows or hides the sidebar
+// and tab gives it the keyboard; the stages' bar; and the part the keyboard is in, the rows or the sidebar and its
+// control under the keyboard. An open menu or dialog takes every press, and is the path alone.
+func (m Model) keys() shell.Path {
 	switch {
-	case m.menu || m.appMenu.Open:
-		return strings.Split(shell.Keys, " · ")
-	case m.inPanel && (!m.sidebar || m.panel(m.stage).Cursor == 0) && m.panel(m.stage).Recall:
-		return strings.Split(shell.RecallKeys, " · ")
-	case m.inPanel && (!m.sidebar || m.panel(m.stage).Cursor == 0):
-		return strings.Split(shell.SearchKeys, " · ")
-	case m.inPanel && m.panel(m.stage).OnView():
-		return []string{"esc back", "= menu", ": tab menu", "↑↓ move", "⏎ views", "type to rename", "⌃S save"}
+	case m.ask != nil:
+		_, keys := m.askKeys()
+		return shell.Path{shell.DialogKeys(keys)}
+	case m.viewMenu, m.recent.Open, m.menu, m.appMenu.Open:
+		return shell.Path{shell.MenuKeys()}
+	}
+	if len(m.stages) == 0 {
+		return shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()))}
+	}
+	path := shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()), shell.Bind("⇥", "sidebar", "tab")),
+		m.bar().Keys("rows")}
+	switch {
 	case m.inPanel:
-		return []string{"esc back", "= menu", ": tab menu", "↑↓ move", "space toggle", "⇧↑↓ order", "s sort", "g group"}
+		return append(path, m.sidebarKeys(), m.controlKeys())
+	case m.inRows:
+		return append(path, m.rowKeys())
 	}
-	var keys []string
+	return path
+}
+
+// sidebarDoes says what ? does: shows the sidebar, or hides it.
+func (m Model) sidebarDoes() string {
+	if m.sidebar {
+		return "hide sidebar"
+	}
+	return "show sidebar"
+}
+
+// sidebarKeys gives the segment of the sidebar while it has the keyboard: tab gives the keyboard back to the rows or the
+// bar, as they had it, and so does esc, unnamed; up and down move between its controls, and a page at a time scrolls
+// it, while it shows. It takes every other press, but the menus', the search's, and a stage's number.
+func (m Model) sidebarKeys() shell.Segment {
+	back := "tabs"
 	if m.inRows {
-		keys = append(keys, "esc back")
+		back = "rows"
 	}
-	keys = append(keys, "= menu")
-	if len(m.stages) > 0 {
-		keys = append(keys, ": tab menu")
+	s := shell.Segment{Owns: true, Passes: append([]string{"=", ":", ";", "/"}, shell.Digits...),
+		Takes: []string{"esc"}, Bindings: []shell.Binding{shell.Bind("⇥", back, "tab")}}
+	if m.sidebar {
+		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", "up", "down"))
+		if n, h := m.scrolled(); n > h {
+			s.Bindings = append(s.Bindings, shell.Bind("⇞⇟", "scroll", "pgup", "pgdown"))
+		}
 	}
-	keys = append(keys, "/ search", "? sidebar")
-	if len(m.stages) > 0 {
-		keys = append(keys, "⇥ panel")
+	return s
+}
+
+// controlKeys gives the segment of the sidebar's control under the keyboard: the panel's own; on the views' dropdown,
+// enter or space drops the views down, ctrl+s saves the panel as the view named, and what is typed renames it, = : and
+// ; apart, which the menus take; esc stops a rename.
+func (m Model) controlKeys() shell.Segment {
+	p := m.panel(m.stage)
+	if !p.OnView() {
+		return p.Keys(len(m.recent.Items) > 0)
 	}
-	if !m.inRows {
-		return append(keys, "←→ tab", "↓ rows", "1-9 jump")
+	s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"},
+		Bindings: []shell.Binding{shell.Bind("⏎", "views", "enter", "space"), shell.Bind("⌃S", "save", "ctrl+s"),
+			shell.Bind("", "type to rename")}}
+	if m.stages[m.stage].renaming {
+		s.Bindings = append(s.Bindings, shell.Bind("esc", "cancel"))
 	}
-	keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
+	return s
+}
+
+// rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard; up and down move,
+// a page at a time too while the rows are more than the pane shows; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
+// opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
+func (m Model) rowKeys() shell.Segment {
+	seg := shell.Segment{Takes: []string{"left", "right"}, Bindings: []shell.Binding{
+		shell.Bind("esc", "tabs"), shell.Bind("↑↓", "move", "up", "down")}}
+	if len(m.lines(m.stage)) > m.rowsHeight() {
+		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
+	}
+	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
+		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
 	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.cursor < len(rows) && grid.Heads(rows[s.cursor]) {
-		if s.view.Closed[rows[s.cursor].Key] {
-			return append(keys, "→ unfold")
-		}
-		return append(keys, "← fold")
+	switch {
+	case s.cursor >= len(rows):
+	case grid.Heads(rows[s.cursor]) && s.view.Closed[rows[s.cursor].Key]:
+		seg.Bindings = append(seg.Bindings, shell.Bind("→", "unfold", "right"))
+	case grid.Heads(rows[s.cursor]):
+		seg.Bindings = append(seg.Bindings, shell.Bind("←", "fold", "left"))
+	case !grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)):
+	case s.open[rows[s.cursor].Key]:
+		seg.Bindings = append(seg.Bindings, shell.Bind("←", "close", "left"))
+	default:
+		seg.Bindings = append(seg.Bindings, shell.Bind("→", "open", "right"))
 	}
-	if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
-		if s.open[rows[s.cursor].Key] {
-			return append(keys, "← close")
-		}
-		return append(keys, "→ open")
-	}
-	return keys
+	return seg
 }
 
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; and origin's
@@ -496,3 +534,7 @@ func (m Model) indent(i int) int { return 2 * m.shown(i).levels }
 
 // gridWidth gives the cells a stage's rows are laid out in: the pane's, less their indent.
 func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
+
+// Noticing says whether the keys bar's line says what was done, or why not, in place of the keys, until a key: kittui
+// keeps it on the screen while the keys bar is hidden.
+func (m Model) Noticing() bool { return m.notice != "" }

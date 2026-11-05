@@ -22,21 +22,6 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar names only the keys that act where the keyboard is, in the order every screen keeps, as internal/shell's
-// KeysLine lays them out: esc first, where it goes back, then the menu and the search, then the keys of the part the
-// keyboard is in. On the bar over a step with checks or the intro with links, and over a page; on a check's row that
-// offers no fix, on a row that offers now and later, on a row whose fix kit only shows; on a link in the intro; and in
-// a page.
-const (
-	stepKeys   = "= menu · / search · ←→ tab · ↓ checks · 1-9 jump"
-	pageKeys   = "= menu · / search · ←→ tab · ↓ page · 1-9 jump"
-	rowKeys    = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page"
-	choiceKeys = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose"
-	showKeys   = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · l later"
-	linkKeys   = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · ⏎ go to the check"
-	scrollKeys = "esc back · = menu · / search · ↑↓ scroll · pgup/pgdn page"
-)
-
 // fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
 // right under the bar, which is open there to the selected tab.
 const (
@@ -68,8 +53,7 @@ func (m Model) View() tea.View {
 	lines = append(lines, m.pane()...)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
-	keys := shell.KeysLine(strings.Split(m.keys(), " · "), m.width-1)
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(keys, m.width)), "\n"))
+	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, m.keys().Line(m.width)), "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
@@ -100,29 +84,51 @@ func (m Model) title() string {
 	return title + " · " + Repository + " " + style.Repo(m.repo)
 }
 
-// keys gives the keys bar for where the keyboard is.
-func (m Model) keys() string {
-	switch {
-	case m.appMenu.Open, m.recent.Open:
-		return shell.Keys
-	case m.recalls():
-		return shell.RecallKeys
-	case m.search().Focused:
-		return shell.SearchKeys
-	case !m.inPane && m.hasRows():
-		return stepKeys
-	case !m.inPane:
-		return pageKeys
-	case !m.hasRows():
-		return scrollKeys
-	case !m.checked():
-		return linkKeys
-	case m.choosing():
-		return choiceKeys
-	case m.showOnly():
-		return showKeys
+// keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
+// the step's checks or its page; and the pane while it has the keyboard, or the search, which takes every press while
+// it has it. An open menu takes every press, and is the path alone.
+func (m Model) keys() shell.Path {
+	if m.appMenu.Open || m.recent.Open {
+		return shell.Path{shell.MenuKeys()}
 	}
-	return rowKeys
+	down := "page"
+	if m.hasRows() {
+		down = "checks"
+	}
+	path := shell.Path{shell.ScreenKeys(), m.bar().Keys(down)}
+	switch {
+	case m.search().Focused:
+		search := shell.SearchKeys(m.recalls())
+		search.Owns = true
+		search.Bindings = append([]shell.Binding{shell.Bind("esc", "back", "esc", "tab", "enter")}, search.Bindings...)
+		return append(path, search)
+	case m.inPane:
+		return append(path, m.paneKeys())
+	}
+	return path
+}
+
+// paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard; up and down move
+// between the rows, or scroll a page with none, a page at a time too; enter on a link goes to its check; and on a
+// check whose fix kit runs, left and right choose now or later, n and l take one at once, and enter the one chosen; on
+// one whose fix kit only shows, l takes later.
+func (m Model) paneKeys() shell.Segment {
+	move := "move"
+	if !m.hasRows() {
+		move = "scroll"
+	}
+	s := shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "tabs"), shell.Bind("↑↓", move, "up", "down"),
+		shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
+	switch {
+	case m.onLink():
+		s.Bindings = append(s.Bindings, shell.Bind("⏎", "go to the check", "enter"))
+	case m.choosing():
+		s.Bindings = append(s.Bindings, shell.Bind("←→", "now or later", "left", "right"), shell.Bind("n", "now"),
+			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
+	case m.showOnly():
+		s.Bindings = append(s.Bindings, shell.Bind("l", "later"))
+	}
+	return s
 }
 
 // count gives the count of a step with checks: … while the checks first run, ! when kit refused them, else how many

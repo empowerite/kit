@@ -405,21 +405,6 @@ func verbs(rows []row) int {
 // app's menu is open it is the menu's.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	esc, turn := "esc quit", "→ pages"
-	if m.search.Query != "" {
-		esc = "esc clear"
-	}
-	if m.showPages {
-		turn = "← purposes"
-	}
-	recall := ""
-	if len(m.recent.Items) > 0 {
-		recall = " · ⌃R recent"
-	}
-	keys := esc + " · = menu · type to search" + recall + " · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · " + turn + " · ⏎ open"
-	if m.appMenu.Open || m.recent.Open {
-		keys = shell.Keys
-	}
 	top := m.top()
 	widest := m.widest()
 	rows := m.rows()
@@ -486,11 +471,33 @@ func (m Model) View() tea.View {
 	}
 	drawn = m.recent.Overlay(drawn, m.recallAt(), m.width)
 	drawn = m.appMenu.Overlay(drawn, m.width)
-	keys = shell.KeysLine(strings.Split(keys, " · "), m.width-1)
-	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, style.Bar(keys, m.width)), "\n"))
+	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, m.keys().Line(m.width)), "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, which esc quits; the verbs' list,
+// whose keys move, open the verb under the cursor, and turn to the verbs' pages and back; and the search, which always
+// has the keyboard, = and / apart: esc clears what it has typed. An open menu takes every press, and is the path alone.
+func (m Model) keys() shell.Path {
+	if m.appMenu.Open || m.recent.Open {
+		return shell.Path{shell.MenuKeys()}
+	}
+	turn := shell.Bind("→", "pages", "right")
+	if m.showPages {
+		turn = shell.Bind("←", "purposes", "left")
+	}
+	list := shell.Segment{Takes: []string{"left", "right", "home", "end"}, Bindings: []shell.Binding{
+		shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown"),
+		shell.Bind("⇧↑↓", "group", "shift+up", "shift+down"), turn, shell.Bind("⏎", "open", "enter"),
+	}}
+	search := shell.SearchKeys(len(m.recent.Items) > 0)
+	search.Passes, search.Takes = []string{"="}, append(search.Takes, "/")
+	if m.search.Query != "" {
+		search.Bindings = append([]shell.Binding{shell.Bind("esc", "clear")}, search.Bindings...)
+	}
+	return shell.Path{shell.ScreenKeys(shell.Bind("esc", "quit")), list, search}
 }
 
 // page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the

@@ -102,13 +102,27 @@ func Band(line string, width int) string {
 	return open + strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+open) + end
 }
 
-// Bar draws the keys bar every screen ends with: one dim line, clipped to the width with …, never wrapped.
-func Bar(keys string, width int) string {
-	if width < 2 {
-		return ""
+// BarKey draws a key on the keys bar: bold, and in the accent color too in the control the keyboard is in, so the
+// keys that act where it is are the first the eye finds.
+func BarKey(s string, here bool) string {
+	if here {
+		return mark.Render(s)
 	}
-	return " " + Off(ansi.Truncate(keys, width-1, "…"))
+	return label.Render(s)
 }
+
+// BarDoes draws what a key on the keys bar does: plain in the control the keyboard is in, dim in the controls around
+// it.
+func BarDoes(s string, here bool) string {
+	if here {
+		return s
+	}
+	return off.Render(s)
+}
+
+// BarRule draws the rule on the keys bar between the keys of one control and the next: in the accent color, so the
+// controls stand apart where the dots between their keys, dim, do not.
+func BarRule(s string) string { return tint.Render(s) }
 
 // Bottom puts the bar on the screen's last line: the lines above it cut or padded to the height less the bar. A
 // height of zero, not yet known, draws the lines, a gap, and the bar.

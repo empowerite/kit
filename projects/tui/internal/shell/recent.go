@@ -15,9 +15,6 @@ import (
 // searches to recall: a click on it, or ctrl+r, drops them down.
 const Recall = "▾"
 
-// RecallKeys is the keys bar while the search has the keyboard and there are searches to recall.
-const RecallKeys = SearchKeys + " · ⌃R recent"
-
 // recentMost is how many searches kittui remembers.
 const recentMost = 20
 

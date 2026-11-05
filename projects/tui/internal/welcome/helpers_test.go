@@ -118,3 +118,17 @@ func calls(t *testing.T, path string) []string {
 	}
 	return strings.Split(strings.TrimSpace(string(got)), "\n")
 }
+
+// The keys bar in each place the keyboard can be, as the path to it draws it: on the bar over a step with checks or
+// the intro with links, and over a page; on a check's row that offers no fix, on a row that offers now and later, on
+// a row whose fix kit only shows; on a link in the intro; and in a page.
+const (
+	stepKeys   = "= menu · / search │ ←→ tab · ↓ checks · 1-7 jump"
+	pageKeys   = "= menu · / search │ ←→ tab · ↓ page · 1-7 jump"
+	paneKeys   = "= menu · / search │ 1-7 jump │ esc tabs · ↑↓ move · ⇞⇟ page"
+	rowKeys    = paneKeys
+	choiceKeys = paneKeys + " · ←→ now or later · n now · l later · ⏎ choose"
+	showKeys   = paneKeys + " · l later"
+	linkKeys   = paneKeys + " · ⏎ go to the check"
+	scrollKeys = "= menu · / search │ 1-7 jump │ esc tabs · ↑↓ scroll · ⇞⇟ page"
+)

@@ -24,6 +24,8 @@ func key(s string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "esc":
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	}
 	return tea.KeyPressMsg{Code: rune(s[0]), Text: s}
 }
@@ -37,9 +39,9 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	if got := strings.Join(names, "|"); got != "Refresh All||Welcome|Tutorials|Help|Flow||Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
-	// its own, another screen, and quit do something; the screen it is on, the tutorials, the settings, and the
-	// rules do not
-	for k, want := range []bool{true, false, false, false, true, true, false, false, false, true} {
+	// its own, another screen, the settings, and quit do something; the screen it is on, the tutorials, and the rules
+	// do not
+	for k, want := range []bool{true, false, false, false, true, true, false, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
@@ -54,7 +56,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 2}, {"down", 7}, {"down", 7}, {"up", 2}, {"w", 0}, {"q", 7}, {"z", 7}} {
+	}{{"down", 2}, {"down", 5}, {"down", 7}, {"down", 7}, {"up", 5}, {"w", 0}, {"q", 7}, {"z", 7}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -66,6 +68,11 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 		t.Errorf("h: open %v, %+v", m.Open, c)
 	} else if m, c = m.Key(key("enter")); c != (Choice{Screen: Help}) || m.Open {
 		t.Errorf("help: open %v, %+v", m.Open, c)
+	}
+	if m, c := m.Opened().Key(key("s")); !m.Open || c != (Choice{}) {
+		t.Errorf("s: open %v, %+v", m.Open, c)
+	} else if _, c = m.Key(key("enter")); c != (Choice{Screen: SettingsScreen}) {
+		t.Errorf("settings: %+v", c)
 	}
 	own := Menu{Here: Help, Own: []Item{{"", "Mine"}}}.Opened()
 	if _, c := own.Key(key("enter")); c != (Choice{Own: "Mine"}) {
@@ -165,28 +172,6 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 	}
 	if at := SearchAt(80, nil, true); at != 80-1-Typing-3 || SearchAt(5, nil, true) != 0 {
 		t.Errorf("in use with no number at %d", at)
-	}
-}
-
-// The keys bar keeps esc first; when the keys do not fit, an ellipsis stands for the ones nearest esc and the
-// rightmost keys, the ones the screen in front added, stay.
-func TestTheKeysBarKeepsEscAndTheRightmostKeys(t *testing.T) {
-	keys := []string{"esc back", "= menu", "/ search", "↑↓ move", "␣ select"}
-	for _, c := range []struct {
-		keys  []string
-		width int
-		want  string
-	}{
-		{keys, 80, "esc back · = menu · / search · ↑↓ move · ␣ select"},
-		{keys, 33, "esc back · … · ↑↓ move · ␣ select"},
-		{keys, 32, "esc back · … · ␣ select"},
-		{keys, 10, "esc back · …"},
-		{keys[1:], 25, "… · ↑↓ move · ␣ select"},
-		{nil, 10, ""},
-	} {
-		if got := KeysLine(c.keys, c.width); got != c.want {
-			t.Errorf("%v at %d: %q, want %q", c.keys, c.width, got, c.want)
-		}
 	}
 }
 

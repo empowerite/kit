@@ -248,7 +248,8 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	const bar = " esc quit · = menu · type to search · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · → pages · ⏎ open"
+	// the screen's keys, the list's, then the search's, which has the keyboard
+	const bar = " = menu · esc quit │ ↑↓ move · ⇞⇟ page · ⇧↑↓ group · → pages · ⏎ open │ type to search"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -267,8 +268,8 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 				}
 			}
 		}
-		// with something typed, esc clears it rather than quitting, and the bar says so
-		cleared := " esc clear" + strings.TrimPrefix(bar, " esc quit")
+		// with something typed, esc clears it rather than quitting, and the bar says so, where the search's keys are
+		cleared := strings.Replace(strings.Replace(bar, " · esc quit", "", 1), "│ type", "│ esc clear · type", 1)
 		for name, text := range map[string]string{"filtered": "co", "empty": "zz"} {
 			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, search(text)...)...)
 			for _, refused := range []bool{false, true} {
@@ -283,14 +284,14 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 			}
 		}
 	}
-	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps esc, then the rightmost keys
+	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps the search's keys alone
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
 		!strings.Contains(lines[11], "← purposes") {
 		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
 	}
 	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 40, Height: 12})
-	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || !strings.HasPrefix(lines[11], " esc quit · … · ") {
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " … │ type to search" {
 		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
 	}
 	// a height not yet known draws everything, then the bar
@@ -616,7 +617,7 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
 	m, _ = testkit.Drive(m, nil, append(testkit.Typed("co"), tea.KeyPressMsg{Code: '=', Text: "="})...)
 	if v := stripANSI(m.View().Content); !m.appMenu.Open || !strings.Contains(v, "Welcome") ||
-		!strings.HasSuffix(v, shell.Keys) || m.search.Query != "co" {
+		!strings.HasSuffix(v, shell.Path{shell.MenuKeys()}.String()) || m.search.Query != "co" {
 		t.Fatalf("= did not drop the app's menu down:\n%s", v)
 	}
 	// while the menu has the keyboard, the search shows no cursor

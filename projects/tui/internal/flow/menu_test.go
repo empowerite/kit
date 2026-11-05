@@ -31,7 +31,7 @@ func openRows(m Model) int {
 
 func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press(':'))
-	if !m.menu || m.appMenu.Open || lines(m)[23] != " "+shell.Keys ||
+	if !m.menu || m.appMenu.Open || lines(m)[23] != " "+menuKeys ||
 		!strings.Contains(view(m), "│ "+Expand+" Expand All ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
@@ -97,7 +97,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	m := loaded(t, options(), press('='))
 	if !m.appMenu.Open || m.menu || !strings.HasPrefix(lines(m)[shell.Top], "╭╴"+shell.App+"╶") ||
 		!strings.Contains(view(m), "│ "+Reload+" Refresh All │") || !strings.Contains(view(m), "Welcome") ||
-		lines(m)[23] != " "+shell.Keys {
+		lines(m)[23] != " "+menuKeys {
 		t.Fatalf("= did not drop the app's menu down:\n%s", view(m))
 	}
 	if m = drive(m, esc); m.appMenu.Open {

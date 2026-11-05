@@ -112,3 +112,47 @@ func TestWhatAScreenStartsIsTaggedForIt(t *testing.T) {
 		t.Errorf("the batch: %#v", batch)
 	}
 }
+
+// Settings… in the app's menu opens the dialog over the screen, which takes the keys: space hides the keys bar, which
+// the screen's last line then shows no more, its height the same, and kittui's file keeps it hidden for the next
+// screen, and the next run; space again shows it.
+func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
+	m := help(t)
+	bar := func(m Model) string {
+		lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+		if len(lines) != 30 {
+			t.Fatalf("%d lines", len(lines))
+		}
+		return lines[29]
+	}
+	if !strings.Contains(bar(m), "= menu") {
+		t.Fatalf("the keys bar is not shown: %q", bar(m))
+	}
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
+	if v := ansi.Strip(m.View().Content); !m.dialog.Open || !strings.Contains(v, "╭─ Settings ") ||
+		bar(m) != " esc close · ↑↓ move · ␣ toggle" {
+		t.Fatalf("the dialog is not open over the screen:\n%s", v)
+	}
+	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.dialog.Open || m.settings.KeysBar || strings.Contains(bar(m), "= menu") {
+		t.Errorf("the keys bar was not hidden: open %v, shown %v, last line %q", m.dialog.Open, m.settings.KeysBar,
+			bar(m))
+	}
+	if shell.LoadSettings(shell.SettingsFile()).KeysBar {
+		t.Error("the file does not keep the keys bar hidden")
+	}
+	// the next screen shown has the line too, and so has the next run
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Welcome})
+	if strings.Contains(bar(m), "= menu") {
+		t.Errorf("the welcome draws the keys bar: %q", bar(m))
+	}
+	if New(m.runner, shell.Help, m.made[shell.Help]).settings.KeysBar {
+		t.Error("the next run shows the keys bar")
+	}
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen}, tea.KeyPressMsg{Code: tea.KeySpace,
+		Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if !strings.Contains(bar(m), "= menu") {
+		t.Errorf("the keys bar is not shown again: %q", bar(m))
+	}
+	m.Close()
+}

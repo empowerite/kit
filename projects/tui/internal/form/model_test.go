@@ -266,7 +266,7 @@ func TestShiftEnterRunsFromAnywhere(t *testing.T) {
 func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T) {
 	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
-	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasSuffix(bar, "⏎ next · esc back") {
+	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasPrefix(bar, " esc back · ↑↓ move · ⏎ next │ ") {
 		t.Errorf("a terminal that said nothing of its keyboard, as Terminal.app: %q", bar)
 	}
 	m, _ = drive(t, m, tea.KeyboardEnhancementsMsg{})
@@ -274,7 +274,7 @@ func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T)
 		t.Errorf("a terminal that answered with no flags: %q", bar)
 	}
 	m, _ = drive(t, m, disambiguates)
-	if bar := screen(m)[29]; !strings.HasSuffix(bar, "⏎ next · ⇧⏎ run · esc back") {
+	if bar := screen(m)[29]; !strings.HasPrefix(bar, " esc back · ↑↓ move · ⏎ next · ⇧⏎ run │ ") {
 		t.Errorf("a terminal that tells them apart: %q", bar)
 	}
 }
@@ -386,8 +386,7 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " ↑↓ move · ") ||
-		!strings.HasSuffix(bar, "⏎ next · ⇧⏎ run · esc back") {
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back · ↑↓ move · ⏎ next · ⇧⏎ run │ ") {
 		t.Errorf("with the way back, the first line %q, the last %q", lines[0], bar)
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
@@ -395,15 +394,16 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	}
 	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasSuffix(lines[len(lines)-1], "esc cancel") {
+	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " esc cancel · ") {
 		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
 	}
 }
 
 func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
-	const text = " ↑↓ move · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
-	const many = " ↑↓ move · ⇞⇟ page · ␣ toggle · ⌫ erase · ⏎ next · ⇧⏎ run · esc back"
-	const command = " ↑ move · ⏎ run · esc back"
+	// the form's keys, then the field's; too narrow for both, the field's alone
+	const text = " esc back · ↑↓ move · ⏎ next · ⇧⏎ run │ ⌫ erase"
+	const many = " … │ ⇞⇟ page · ␣ toggle · ⌫ erase"
+	const command = " esc back │ ↑ move · ⏎ run"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
 	for _, height := range []int{40, 12, 7, 3, 2, 1} {
 		for _, c := range []struct {
@@ -411,7 +411,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			a       Answers
 			keys    []string
 			command bool   // the keyboard on the command line, with a long refusal under it
-			want    string // the bar, before it is clipped to the width
+			want    string // the bar, at 50 columns
 		}{
 			{"commit", Answers{}, []string{"right", "down"}, false, text}, // --message's lines, with their hint
 			{"lint", Answers{}, []string{"down"}, false, many},            // a list of 3000 rows, with its count
@@ -429,8 +429,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 				m.focus, m.refusal = len(m.fields), long
 				m.enter()
 			}
-			want := " " + ansi.Truncate(c.want[1:], 49, "…")
-			if lines := screen(m); len(lines) != height || lines[height-1] != want {
+			if lines := screen(m); len(lines) != height || lines[height-1] != c.want {
 				t.Errorf("%s %v at %d: %d lines, the last %q", c.verb, c.keys, height, len(lines), lines[len(lines)-1])
 			}
 		}
@@ -461,7 +460,7 @@ func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 		m := New(spec, fields, testkit.Runner(t, "kit"), true)
 		for i, f := range m.fields {
 			m.focus = i
-			bar := m.keys()
+			bar := m.keys().String()
 			across := f.Kind == AnyOf || f.Kind == OneOf
 			space := f.Kind == AnyOf || f.Kind == PickMany || f.Kind == Toggle && !f.Required
 			erase := f.Kind == Text || f.Kind == Lines || f.Kind == Wildcard || f.Kind == Pick || f.Kind == PickMany ||
@@ -478,7 +477,7 @@ func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 			}
 		}
 		m.focus = len(m.fields)
-		if bar := m.keys(); bar != "↑ move · ⏎ run · esc back" {
+		if bar := m.keys().String(); bar != "esc back │ ↑ move · ⏎ run" {
 			t.Errorf("%s on the command line: %q", verb, bar)
 		}
 	}
@@ -612,7 +611,7 @@ func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
 			t.Errorf("%v: rows %q, want %d from %s", c.keys, drawn, c.shown, path(c.first))
 		}
 		// the window takes ten lines whatever it shows, so the screen keeps its height and the bar its line
-		if len(lines) != 40 || !strings.HasPrefix(lines[39], " ↑↓ move · ⇞⇟ page") {
+		if len(lines) != 40 || !strings.Contains(lines[39], "│ ⇞⇟ page · ") {
 			t.Errorf("%v: %d lines, the last %q", c.keys, len(lines), lines[len(lines)-1])
 		}
 	}
@@ -635,7 +634,7 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 				m, _ = drive(t, m, tea.KeyPressMsg{Code: k})
 			}
 			lines := screen(m)
-			if len(lines) != height || !strings.HasPrefix(lines[height-1], " ↑↓ move · ⇞⇟ page") ||
+			if len(lines) != height || !strings.Contains(lines[height-1], "│ ⇞⇟ page · ") ||
 				strings.TrimSpace(lines[0]) != "‹ verbs" {
 				t.Fatalf("at %d: %d lines, the first %q, the last %q", height, len(lines), lines[0],
 					lines[len(lines)-1])

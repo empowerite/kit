@@ -118,6 +118,33 @@ func Typed(text string) []tea.Msg {
 	return msgs
 }
 
+// Press gives the key press Bubble Tea names so, as a keys bar's binding names its presses: a named key, with ctrl+ or
+// shift+ before it, or a character, typed.
+func Press(name string) tea.KeyPressMsg {
+	var mod tea.KeyMod
+	for prefix, m := range map[string]tea.KeyMod{"ctrl+": tea.ModCtrl, "shift+": tea.ModShift} {
+		if rest, ok := strings.CutPrefix(name, prefix); ok && rest != "" {
+			name, mod = rest, mod|m
+		}
+	}
+	codes := map[string]rune{"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,
+		"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "space": tea.KeySpace,
+		"backspace": tea.KeyBackspace, "pgup": tea.KeyPgUp, "pgdown": tea.KeyPgDown, "home": tea.KeyHome,
+		"end": tea.KeyEnd}
+	if code, ok := codes[name]; ok {
+		k := tea.KeyPressMsg{Code: code, Mod: mod}
+		if code == tea.KeySpace {
+			k.Text = " "
+		}
+		return k
+	}
+	r := []rune(name)[0]
+	if mod != 0 {
+		return tea.KeyPressMsg{Code: r, Mod: mod}
+	}
+	return tea.KeyPressMsg{Code: r, Text: name}
+}
+
 // Click gives a left click on a cell of the screen.
 func Click(x, y int) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft} }
 
