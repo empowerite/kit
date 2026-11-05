@@ -378,8 +378,9 @@ func (m *Model) viewMenuClick(x, y int) {
 	m.viewMenu = false
 }
 
-// viewClick takes a click on the dropdown's line: on 💾, at the line's right end, it saves; anywhere else on it, the
-// dropdown takes the keyboard and drops the views down.
+// viewClick takes a click on the dropdown's line: on 💾, at the line's right end, it saves; on ▾, or past it, the
+// dropdown takes the keyboard and drops the views down; on the name, the dropdown takes the keyboard, so what is typed
+// renames the view.
 func (m *Model) viewClick(x int) tea.Cmd {
 	p := m.panel(m.stage)
 	if p.Changed && x >= m.width-3 {
@@ -387,6 +388,19 @@ func (m *Model) viewClick(x int) tea.Cmd {
 	}
 	// the dropdown is the control after the search
 	m.inPanel, m.stages[m.stage].view.Cursor = true, 1
+	if x < m.dropAt() {
+		return nil
+	}
 	cmd, _ := m.viewKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	return cmd
+}
+
+// dropAt gives the screen column of the dropdown's ▾, after the name as the panel draws it.
+func (m Model) dropAt() int {
+	p := m.panel(m.stage)
+	name := p.View
+	if p.Naming {
+		name += "▏"
+	}
+	return m.width - m.sideWidth() + ansi.StringWidth(name) + 1
 }

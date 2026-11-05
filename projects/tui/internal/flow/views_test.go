@@ -174,15 +174,24 @@ func TestClicksOpenTheViewsChooseOneAndSave(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "views.json")
 	m := onDropdown(t, file)
 	y := m.viewRow()
-	if m = drive(m, testkit.Click(m.width-m.sideWidth()+4, y)); !m.viewMenu {
-		t.Fatalf("a click on the dropdown did not open it:\n%s", view(m))
+	// a click on the name puts the keyboard there, to type a new one, and opens nothing
+	m = drive(m, esc)
+	if m = drive(m, testkit.Click(m.width-m.sideWidth()+2, y)); m.viewMenu || !m.inPanel || !m.panel(0).OnView() {
+		t.Fatalf("a click on the name: menu %v, on the dropdown %v", m.viewMenu, m.panel(0).OnView())
+	}
+	if m = drive(m, typed("Q")...); m.stages[0].naming != "Q" {
+		t.Fatalf("typing after a click on the name: %q", m.stages[0].naming)
+	}
+	m = drive(m, esc)
+	if m = drive(m, testkit.Click(m.dropAt(), y)); !m.viewMenu {
+		t.Fatalf("a click on ▾ did not open it:\n%s", raw(m))
 	}
 	box, top, left := m.viewBox()
 	if m = drive(m, testkit.Click(left+3, top+3)); m.viewMenu || m.stages[0].viewName != "Minimal" {
 		t.Fatalf("a click on Minimal: menu %v, view %q\n%v", m.viewMenu, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
-	m = drive(m, testkit.Click(m.width-m.sideWidth()+4, y))
+	m = drive(m, testkit.Click(m.dropAt(), y))
 	if m = drive(m, testkit.Click(1, 20)); m.viewMenu || m.stages[0].viewName != "Minimal" {
 		t.Errorf("a click off the menu: menu %v", m.viewMenu)
 	}
