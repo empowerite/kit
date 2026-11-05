@@ -130,7 +130,7 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 	}
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
 	if v := ansi.Strip(m.View().Content); !m.dialog.Open || !strings.Contains(v, "╭─ Settings ") ||
-		bar(m) != " esc close · ↑↓ move · ␣ toggle" {
+		bar(m) != " esc close  ↑↓ move  ␣ toggle" {
 		t.Fatalf("the dialog is not open over the screen:\n%s", v)
 	}
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})

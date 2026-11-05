@@ -28,7 +28,7 @@ func anyOf(t *testing.T) (Model, int) {
 func TestAnAnyOfRowNamesItsKeysAndDrawsTheCursorAndWhatIsOn(t *testing.T) {
 	m, i := anyOf(t)
 	m = focusOn(m, i)
-	if bar := m.keys().String(); !strings.Contains(bar, "←→ option · ␣ toggle") {
+	if bar := m.keys().String(); !strings.Contains(bar, "←→ option  ␣ toggle") {
 		t.Errorf("the any-of row's keys: %q", bar)
 	}
 	m = send(m, key("right"), key("space"))

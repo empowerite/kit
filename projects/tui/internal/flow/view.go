@@ -168,16 +168,17 @@ func (m Model) sidebarDoes() string {
 	return "show sidebar"
 }
 
-// sidebarKeys gives the segment of the sidebar while it has the keyboard: tab gives the keyboard back to the rows or the
-// bar, as they had it, and so does esc, unnamed; up and down move between its controls, and a page at a time scrolls
-// it, while it shows. It takes every other press, but the menus', the search's, and a stage's number.
+// sidebarKeys gives the segment of the sidebar while it has the keyboard: tab or esc gives the keyboard back to the
+// rows or the bar, as they had it, named by the stage the bar has selected; up and down move between its controls, and
+// a page at a time scrolls it, while it shows. It takes every other press, but the menus', the search's, and a stage's
+// number.
 func (m Model) sidebarKeys() shell.Segment {
-	back := "tabs"
+	back := m.stages[m.stage].name
 	if m.inRows {
 		back = "rows"
 	}
 	s := shell.Segment{Owns: true, Passes: append([]string{"=", ":", ";", "/"}, shell.Digits...),
-		Takes: []string{"esc"}, Bindings: []shell.Binding{shell.Bind("⇥", back, "tab")}}
+		Bindings: []shell.Binding{shell.Bind("⇥", back, "tab"), shell.Bind("esc", back)}}
 	if m.sidebar {
 		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", "up", "down"))
 		if n, h := m.scrolled(); n > h {
@@ -204,12 +205,13 @@ func (m Model) controlKeys() shell.Segment {
 	return s
 }
 
-// rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard; up and down move,
+// rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
+// stage it has selected; up and down move,
 // a page at a time too while the rows are more than the pane shows; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
 // opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
 func (m Model) rowKeys() shell.Segment {
 	seg := shell.Segment{Takes: []string{"left", "right"}, Bindings: []shell.Binding{
-		shell.Bind("esc", "tabs"), shell.Bind("↑↓", "move", "up", "down")}}
+		shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(m.lines(m.stage)) > m.rowsHeight() {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
 	}

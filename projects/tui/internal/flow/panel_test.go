@@ -19,10 +19,10 @@ import (
 
 // panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard
 // from the bar: the sidebar's keys, then the search's, which hides every key of the screen's and the bar's it types.
-const panelKeys = "⇥ tabs · ↑↓ move · ⇞⇟ scroll │ type to search"
+const panelKeys = "⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ type to search"
 
 // searchKeys is the keys bar while the search has the keyboard, the sidebar hidden, from the bar.
-const searchKeys = "⇥ tabs │ type to search"
+const searchKeys = "⇥/esc backlog │ type to search"
 
 // menuKeys is the keys bar while a menu is open.
 var menuKeys = shell.Path{shell.MenuKeys()}.String()

@@ -90,8 +90,10 @@ func (s Segment) takes(press string) bool {
 // typing says whether a press types a character: a single one, or the space.
 func typing(press string) bool { return press == "space" || utf8.RuneCountInString(press) == 1 }
 
-// The keys bar's separators: a dot, dim, between the keys of one control, and a rule between one control and the next.
+// The keys bar's separators: two spaces between the keys of one control, which the keys' color sets apart, and a rule
+// between one control and the next. A dialog's keys, on its bottom edge, have a dot between them.
 const (
+	gap  = "  "
 	dot  = " · "
 	rule = " │ "
 	cut  = "…"
@@ -107,7 +109,7 @@ func (p Path) Line(width int) string {
 	var segments [][]Binding
 	for _, s := range p.Shown() {
 		if len(s) > 0 {
-			segments = append(segments, s)
+			segments = append(segments, merged(s))
 		}
 	}
 	room := width - 1
@@ -137,17 +139,32 @@ func (p Path) Line(width int) string {
 	return " " + ansi.Truncate(line, room, cut)
 }
 
+// merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by /,
+// as tab and esc both leave the sidebar: ⇥/esc rows. A key a deeper control takes is gone from the run already.
+func merged(s []Binding) []Binding {
+	var out []Binding
+	for _, b := range s {
+		if k := len(out) - 1; k >= 0 && b.Does != "" && b.Key != "" && out[k].Does == b.Does && out[k].Key != "" {
+			out[k].Key += "/" + b.Key
+			out[k].Presses = append(slices.Clone(out[k].Presses), b.Presses...)
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
 // plainSegment gives a segment's keys as the bar draws them, without their styles, to measure.
 func plainSegment(s []Binding) string {
 	var keys []string
 	for _, b := range s {
 		keys = append(keys, strings.TrimSpace(b.Key+" "+b.Does))
 	}
-	return strings.Join(keys, dot)
+	return strings.Join(keys, gap)
 }
 
-// drawSegment draws a segment's keys, each key bold and what it does after it, the dots between them dim; here says the
-// keyboard is in its control, whose keys are drawn brighter.
+// drawSegment draws a segment's keys, each key bold and what it does after it; here says the keyboard is in its
+// control, whose keys are drawn brighter.
 func drawSegment(s []Binding, here bool) string {
 	var keys []string
 	for _, b := range s {
@@ -160,7 +177,7 @@ func drawSegment(s []Binding, here bool) string {
 			keys = append(keys, style.BarKey(b.Key, here)+" "+style.BarDoes(b.Does, here))
 		}
 	}
-	return strings.Join(keys, style.Off(dot))
+	return strings.Join(keys, gap)
 }
 
 // Digits are the presses that select a tab by its number: 1 to 9, and 0 for the tenth.

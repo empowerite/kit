@@ -17,7 +17,7 @@ var rows = Segment{Bindings: []Binding{Bind("↑↓", "move", "up", "down"), Bin
 
 func TestEachControlsKeysStandBetweenRules(t *testing.T) {
 	path := Path{ScreenKeys(Bind("?", "sidebar")), {}, rows}
-	if got := ansi.Strip(path.Line(80)); got != " = menu · / search · ? sidebar │ ↑↓ move · ␣ select" {
+	if got := ansi.Strip(path.Line(80)); got != " = menu  / search  ? sidebar │ ↑↓ move  ␣ select" {
 		t.Errorf("the bar: %q", got)
 	}
 	// the keys where the keyboard is are bright, and the screen's dim
@@ -38,9 +38,9 @@ func TestADeeperControlHidesTheKeysItTakes(t *testing.T) {
 		{"a press it takes unnamed", Path{ScreenKeys(), {Takes: []string{"/"}, Bindings: []Binding{Bind("x", "ex")}}},
 			"= menu │ x ex"},
 		{"what types", Path{ScreenKeys(Bind("esc", "quit")), SearchKeys(true)},
-			"esc quit │ type to search · ⌃R recent"},
+			"esc quit │ type to search  ⌃R recent"},
 		{"every press", Path{ScreenKeys(Bind("1-9", "jump", Digits...)), MenuKeys()},
-			"esc close · ↑↓ move · ⏎ choose"},
+			"esc close  ↑↓ move  ⏎ choose"},
 		{"every press but those let through", Path{ScreenKeys(Bind("1-9", "jump", Digits...)),
 			{Owns: true, Passes: Digits, Bindings: []Binding{Bind("x", "ex")}}}, "1-9 jump │ x ex"},
 		{"through two that own", Path{ScreenKeys(Bind("1-9", "jump", Digits...)),
@@ -58,10 +58,11 @@ func TestTooNarrowTheBarDropsWholeControlsFromTheScreensEnd(t *testing.T) {
 		width int
 		want  string
 	}{
-		{80, " = menu · / search │ ←→ tab │ ↑↓ move · ␣ select"},
-		{47, " … │ ←→ tab │ ↑↓ move · ␣ select"},
-		{30, " … │ ↑↓ move · ␣ select"},
-		{20, " … │ ↑↓ move · ␣ se…"},
+		{80, " = menu  / search │ ←→ tab │ ↑↓ move  ␣ select"},
+		{46, " = menu  / search │ ←→ tab │ ↑↓ move  ␣ select"},
+		{45, " … │ ←→ tab │ ↑↓ move  ␣ select"},
+		{30, " … │ ↑↓ move  ␣ select"},
+		{20, " … │ ↑↓ move  ␣ sel…"},
 		{1, ""},
 	} {
 		if got := ansi.Strip(path.Line(c.width)); got != c.want {
@@ -87,10 +88,24 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 		!strings.Contains(v, style.Unpicked+" Keys bar") || !strings.Contains(v, "esc close · ↑↓ move · ␣ toggle") {
 		t.Errorf("the dialog:\n%s", v)
 	}
-	if got := (Path{ScreenKeys(), d.Keys()}).String(); got != "esc close · ↑↓ move · ␣ toggle" {
+	if got := (Path{ScreenKeys(), d.Keys()}).String(); got != "esc close  ↑↓ move  ␣ toggle" {
 		t.Errorf("the dialog's keys: %q", got)
 	}
 	if d, _ = d.Key(key("esc"), s); d.Open {
 		t.Error("esc did not close the dialog")
+	}
+}
+
+// Keys of one control that do the same thing are drawn as one, joined by /, and a key a deeper control takes leaves the
+// others standing.
+func TestKeysThatDoTheSameThingAreDrawnAsOne(t *testing.T) {
+	sidebar := Segment{Bindings: []Binding{Bind("⇥", "backlog", "tab"), Bind("esc", "backlog"), Bind("↑↓", "move",
+		"up", "down")}}
+	if got := (Path{sidebar}).String(); got != "⇥/esc backlog  ↑↓ move" {
+		t.Errorf("the sidebar: %q", got)
+	}
+	renaming := Segment{Bindings: []Binding{Bind("esc", "cancel")}}
+	if got := (Path{sidebar, renaming}).String(); got != "⇥ backlog  ↑↓ move │ esc cancel" {
+		t.Errorf("under a rename: %q", got)
 	}
 }

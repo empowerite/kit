@@ -116,7 +116,7 @@ func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
 	if !strings.Contains(view, " "+style.Off("WORKFLOW")+"\n") {
 		t.Errorf("the heading is not dimmed on a line of its own:\n%s", view)
 	}
-	if bar := last(m); !strings.Contains(bar, "↑↓ move · ⇞⇟ page · ⇧↑↓ group") {
+	if bar := last(m); !strings.Contains(bar, "↑↓ move  ⇞⇟ page  ⇧↑↓ group") {
 		t.Errorf("the keys do not say what shift does: %q", bar)
 	}
 }
@@ -249,7 +249,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	// the screen's keys, the list's, then the search's, which has the keyboard
-	const bar = " = menu · esc quit │ ↑↓ move · ⇞⇟ page · ⇧↑↓ group · → pages · ⏎ open │ type to search"
+	const bar = " = menu  esc quit │ ↑↓ move  ⇞⇟ page  ⇧↑↓ group  → pages  ⏎ open │ type to search"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -269,7 +269,7 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 			}
 		}
 		// with something typed, esc clears it rather than quitting, and the bar says so, where the search's keys are
-		cleared := strings.Replace(strings.Replace(bar, " · esc quit", "", 1), "│ type", "│ esc clear · type", 1)
+		cleared := strings.Replace(strings.Replace(bar, "  esc quit", "", 1), "│ type", "│ esc clear  type", 1)
 		for name, text := range map[string]string{"filtered": "co", "empty": "zz"} {
 			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, search(text)...)...)
 			for _, refused := range []bool{false, true} {

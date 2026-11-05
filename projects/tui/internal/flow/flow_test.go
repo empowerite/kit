@@ -641,21 +641,22 @@ func fit(keys string, room int) string {
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: the screen's
 // keys, the stages' bar's, then the rows', each control's between rules; the sidebar hidden, which ? shows.
 const (
-	screenKeys = "= menu · / search · ? show sidebar · ⇥ sidebar │ "
-	barKeys    = screenKeys + "←→ tab · ↓ rows · 1-8 jump · : tab menu"
-	inRows     = screenKeys + "1-8 jump · : tab menu │ esc tabs · ↑↓ move · ␣ select · ⇧↑↓ select · ⌃A all"
-	opens      = inRows + " · → open"
-	closes     = inRows + " · ← close"
+	screenKeys = "= menu  / search  ? show sidebar  ⇥ sidebar │ "
+	barKeys    = screenKeys + "←→ tab  ↓ rows  1-8 jump  : tab menu"
+	inRows     = screenKeys + "1-8 jump  : tab menu │ esc STAGE  ↑↓ move  ␣/⇧↑↓ select  ⌃A all"
+	opens      = inRows + "  → open"
+	closes     = inRows + "  ← close"
 )
 
-// sidebarBar gives the keys bar for the screen as it is: ? hides the sidebar while it shows, and in rows more than the
-// pane shows, the page keys move a page at a time.
+// sidebarBar gives the keys bar for the screen as it is: ? hides the sidebar while it shows; esc in the rows names the
+// stage selected, as STAGE stands for; and in rows more than the pane shows, the page keys move a page at a time.
 func sidebarBar(m Model, keys string) string {
+	keys = strings.Replace(keys, "STAGE", m.stages[m.stage].name, 1)
 	if m.sidebar {
 		keys = strings.Replace(keys, "? show sidebar", "? hide sidebar", 1)
 	}
 	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
-		keys = strings.Replace(keys, "↑↓ move · ", "↑↓ move · ⇞⇟ page · ", 1)
+		keys = strings.Replace(keys, "↑↓ move  ", "↑↓ move  ⇞⇟ page  ", 1)
 	}
 	return keys
 }
@@ -692,7 +693,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	}
 	// at a width too narrow for it, the bar keeps the stages' bar's keys, after …, clipped, never wrapped
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
-	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab · ↓ rows · ") ||
+	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab  ↓ rows  ") ||
 		ansi.StringWidth(got[11]) > 30 || !strings.HasSuffix(got[11], "…") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
