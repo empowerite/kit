@@ -49,7 +49,8 @@ const (
 // says. Beside the groups the person chose, the rows group on their own by each groupable column whose value is the
 // same on every row of a group, as group says; Auto names the columns that do so now, as Filtered gave them, AutoAt
 // the level of the headings each is said at, from 1, as Said gives it, and Kept
-// those the person keeps as columns, which never do, a new map as Hidden is. Views says whether the panel offers a
+// those the person keeps as columns, which never do, a new map as Hidden is. Recall says whether there are searches to
+// recall, which the search, with the keyboard, offers with its Recall glyph. Views says whether the panel offers a
 // dropdown of named views under its search: View is the name it shows, Naming whether the person is typing a new one,
 // and Changed whether the panel differs from the view, which shows Save. Fill is the cells the control under the
 // keyboard is drawn inverse across, at least.
@@ -64,6 +65,7 @@ type Panel struct {
 	Groupable map[string]bool
 	Auto      []string
 	AutoAt    map[string]int
+	Recall    bool
 	Views     bool
 	View      string
 	Naming    bool
@@ -470,7 +472,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 		var line string
 		switch {
 		case c.search:
-			line = shell.SearchLine(p.Query, p.Focused && p.Cursor == k)
+			line = shell.RecallLine(p.Query, p.Focused && p.Cursor == k, p.Recall)
 		case c.view:
 			add("", -1)
 			line = p.viewLine(p.Focused && p.Cursor == k)

@@ -51,6 +51,7 @@ type Options struct {
 	NoSidebar bool
 	Views     string // the file the person's views are kept in; none keeps them for the session alone
 	NoViews   bool   // whether the panels offer no dropdown of views, as a test of the panel alone asks
+	History   string // the file the searches are remembered in; none remembers them for the session alone
 }
 
 // loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
@@ -130,6 +131,7 @@ type Model struct {
 	viewAt        int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages open with their headers hidden
 	noViews       bool                   // whether the panels offer no dropdown of views
+	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
@@ -158,7 +160,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	if err != nil {
 		return Model{}, err
 	}
-	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Views: viewsFile()}
+	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Views: viewsFile(), History: shell.RecentFile()}
 	for _, word := range words {
 		if word == "--no-fetch" {
 			o.NoFetch = true
@@ -177,6 +179,7 @@ func New(r kit.Runner, o Options) Model {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.sideChosen = o.NoSidebar
 	m.noHeaders, m.viewsPath, m.noViews = o.NoHeaders, o.Views, o.NoViews
+	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
 	if m.saved, err = readViews(o.Views); err != nil {
 		m.notice = fmt.Sprintf("%s %s does not read as views, and is left as it is: %v", Failed, o.Views, err)
@@ -261,6 +264,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.viewMenu {
 			m.viewMenuClick(msg.X, msg.Y)
+			return m, nil
+		}
+		if m.recent.Open {
+			var query string
+			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
+				p := m.panel(m.stage)
+				p.Query = query
+				m.setPanel(p)
+			}
+			return m, nil
+		}
+		if msg.Y == 0 && len(m.stages) > 0 && m.inPanel && msg.X == m.recallAt() &&
+			m.panel(m.stage).Recall && m.panel(m.stage).Cursor == 0 {
+			m.recent = m.recent.Opened()
 			return m, nil
 		}
 		switch side := m.paneWidth() + 1; {
@@ -366,6 +383,7 @@ func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
 	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
 	s := m.stages[i]
+	p.Recall = len(m.recent.Items) > 0
 	p.Views, p.View, p.Naming = !m.noViews && len(columns[s.name]) > 0, s.viewName, s.renaming
 	if s.renaming {
 		p.View = s.naming
@@ -701,6 +719,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.viewMenu {
 		return m.viewMenuKey(k)
 	}
+	if m.recent.Open {
+		var query string
+		if m.recent, query = m.recent.Key(k); query != "" {
+			p := m.panel(m.stage)
+			p.Query = query
+			m.setPanel(p)
+		}
+		return m, nil
+	}
 	if m.appMenu.Open {
 		return m.appKey(k)
 	}
@@ -766,6 +793,34 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // takes selects a stage, and gives the bar the keyboard. While the sidebar is hidden the search stands alone: down and
 // a page at a time have nothing to move to.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if len(m.stages) == 0 {
+		return m.panelKeys(k)
+	}
+	before := m.panel(m.stage)
+	searching := before.Focused && before.Cursor == 0
+	if searching && k.String() == "ctrl+r" {
+		m.recent = m.recent.Opened()
+		return m, nil
+	}
+	next, cmd := m.panelKeys(k)
+	if after := next.(Model); searching && (!after.inPanel || after.panel(after.stage).Cursor != 0) {
+		// the search gave up the keyboard: what was typed is remembered
+		after.recent = after.recent.Remember(before.Query)
+		return after, cmd
+	}
+	return next, cmd
+}
+
+// recallAt gives the screen column of the search's Recall glyph, as the title line draws it; -1 with no stage.
+func (m Model) recallAt() int {
+	if len(m.stages) == 0 {
+		return -1
+	}
+	return shell.RecallAt(m.searchAt(), m.panel(m.stage).Query)
+}
+
+// panelKeys takes a key while the panel has the keyboard, as panelKey says.
+func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	h := max(1, m.sideHeight()-3)
 	if m.panel(m.stage).OnView() {
 		// the dropdown takes its keys first: esc stops a rename before it leaves the panel

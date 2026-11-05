@@ -47,6 +47,7 @@ type Model struct {
 	verbs         []kit.Verb
 	runner        kit.Runner
 	search        shell.Search // the search, internal/shell's, which has the keyboard and narrows the verbs to its text
+	recent        shell.Recent // the searches remembered, every screen's, and their dropdown
 	cursor        int
 	pages         map[string]string // the pages kit gave, by verb
 	asked         map[string]bool   // the verbs whose page is on its way
@@ -175,6 +176,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 			return m, m.chose(c)
+		case m.recent.Open:
+			var query string
+			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
+				m = m.typed(query)
+			}
+		case msg.Y == 0 && len(m.recent.Items) > 0 && msg.X == m.recallAt():
+			m.recent = m.recent.Opened()
 		case shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
 		}
@@ -185,7 +193,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appMenu, c = m.appMenu.Key(msg)
 			return m, m.chose(c)
 		}
+		if m.recent.Open && msg.String() != "ctrl+c" {
+			var query string
+			if m.recent, query = m.recent.Key(msg); query != "" {
+				m = m.typed(query)
+			}
+			return m, m.page()
+		}
 		switch msg.String() {
+		case "ctrl+r":
+			m.recent = m.recent.Opened()
 		case "=":
 			m.appMenu = m.appMenu.Opened()
 		case "/":
@@ -204,6 +221,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(visible) {
 				verb := visible[m.cursor].Name
 				m.refusal = ""
+				m.recent = m.recent.Remember(m.search.Query)
 				return m, func() tea.Msg { return OpenMsg{Verb: verb} }
 			}
 		case "right":
@@ -256,6 +274,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, nil
 }
+
+// Remembering gives the palette remembering its searches in the file, as every screen of kittui does: one is
+// remembered when a verb opens with it typed, and ctrl+r, or a click on the search's Recall glyph, drops them down.
+func (m Model) Remembering(path string) Model {
+	m.recent = shell.Recent{Path: path}.Loaded()
+	return m
+}
+
+// recallAt gives the screen column of the search's Recall glyph.
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt(), m.search.Query) }
 
 // typed puts the text in the search; a text that differs puts the cursor on the first verb it leaves and clears kit's
 // line about a verb that did not open.
@@ -338,7 +366,7 @@ func (m Model) widest() int {
 // verb did not open; and a gap.
 func (m Model) top() []string {
 	title, at := shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
-	search := shell.SearchLine(m.search.Query, m.search.Focused && !m.appMenu.Open)
+	search := shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
 	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + search}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
@@ -384,8 +412,12 @@ func (m Model) View() tea.View {
 	if m.showPages {
 		turn = "← purposes"
 	}
-	keys := esc + " · = menu · type to search · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · " + turn + " · ⏎ open"
-	if m.appMenu.Open {
+	recall := ""
+	if len(m.recent.Items) > 0 {
+		recall = " · ⌃R recent"
+	}
+	keys := esc + " · = menu · type to search" + recall + " · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · " + turn + " · ⏎ open"
+	if m.appMenu.Open || m.recent.Open {
 		keys = shell.Keys
 	}
 	top := m.top()
@@ -452,6 +484,7 @@ func (m Model) View() tea.View {
 	for _, l := range append(top, list...) {
 		drawn = append(drawn, pane.Clip(l, m.width))
 	}
+	drawn = m.recent.Overlay(drawn, m.recallAt(), m.width)
 	drawn = m.appMenu.Overlay(drawn, m.width)
 	keys = shell.KeysLine(strings.Split(keys, " · "), m.width-1)
 	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, style.Bar(keys, m.width)), "\n"))

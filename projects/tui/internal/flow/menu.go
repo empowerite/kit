@@ -300,6 +300,7 @@ func (m Model) overlay(lines []string) []string {
 		box, top, left := m.viewBox()
 		lines = shell.Over(lines, box, top, left)
 	}
+	lines = m.recent.Overlay(lines, m.recallAt(), m.width)
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }
 

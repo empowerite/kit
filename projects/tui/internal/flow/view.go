@@ -142,7 +142,7 @@ func (m Model) paneWidth() int {
 // up and down, a page at a time, space to select a row, and right to open a row that opens or left to close it. An
 // open menu has its own keys alone, and so has the search; the panel, off its search, has the menus and its own.
 func (m Model) keys() []string {
-	if m.viewMenu {
+	if m.viewMenu || m.recent.Open {
 		return strings.Split(shell.Keys, " · ")
 	}
 	if m.ask != nil {
@@ -152,6 +152,8 @@ func (m Model) keys() []string {
 	switch {
 	case m.menu || m.appMenu.Open:
 		return strings.Split(shell.Keys, " · ")
+	case m.inPanel && (!m.sidebar || m.panel(m.stage).Cursor == 0) && m.panel(m.stage).Recall:
+		return strings.Split(shell.RecallKeys, " · ")
 	case m.inPanel && (!m.sidebar || m.panel(m.stage).Cursor == 0):
 		return strings.Split(shell.SearchKeys, " · ")
 	case m.inPanel && m.panel(m.stage).OnView():

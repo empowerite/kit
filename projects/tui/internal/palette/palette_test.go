@@ -674,3 +674,30 @@ func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
 		t.Errorf("down and enter in the search: %v, search %q", produced, m.search.Query)
 	}
 }
+
+// A search a verb opens with is remembered, as on every screen; ctrl+r or a click on ▾ drops the searches down, and
+// choosing one types it.
+func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
+	m := open(t).Remembering(filepath.Join(t.TempDir(), "search-history.json"))
+	m, _ = drive(m, append(search("co"), tea.KeyPressMsg{Code: tea.KeyEnter})...)
+	if !slices.Equal(m.recent.Items, []string{"co"}) {
+		t.Fatalf("remembered: %q", m.recent.Items)
+	}
+	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); !m.recent.Open || !strings.Contains(lines[0], shell.Recall) ||
+		!strings.Contains(lines[len(lines)-1], "esc close") {
+		t.Fatalf("ctrl+r: open %v\n%s", m.recent.Open, stripANSI(m.View().Content))
+	}
+	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter}); m.recent.Open || m.search.Query != "co" {
+		t.Errorf("choosing co: %q", m.search.Query)
+	}
+	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); !strings.Contains(lines[len(lines)-1], "⌃R recent") {
+		t.Errorf("the keys: %q", lines[len(lines)-1])
+	}
+	m, _ = drive(m, testkit.Click(m.recallAt(), 0))
+	_, left := m.recent.Box(m.recallAt(), m.width)
+	if m, _ = drive(m, testkit.Click(left+3, 1)); m.recent.Open || m.search.Query != "co" {
+		t.Errorf("a click on co: open %v, %q", m.recent.Open, m.search.Query)
+	}
+}

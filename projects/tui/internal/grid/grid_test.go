@@ -660,7 +660,7 @@ func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	}
 	p.Focused, p.Cursor, p.Naming, p.Changed, p.View = true, 1, true, true, "Mine"
 	lines, _ = p.Lines()
-	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor(ViewGlyph+" Mine▏ ▾")[:8]) ||
+	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor(ViewGlyph + " Mine▏ ▾")[:8]) ||
 		!strings.HasSuffix(lines[2], Save) || ansi.StringWidth(lines[2]) != 24 {
 		t.Errorf("renamed under the keyboard, changed: %q", lines[2])
 	}

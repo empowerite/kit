@@ -10,6 +10,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/form"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/palette"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
 
@@ -34,7 +35,7 @@ func Open(r kit.Runner, verb string, words []string) (Model, error) {
 		if err != nil {
 			return m, err
 		}
-		m.palette, m.hasPalette = palette.New(verbs, r), true
+		m.palette, m.hasPalette = palette.New(verbs, r).Remembering(shell.RecentFile()), true
 		return m, nil
 	}
 	spec, err := r.Spec(verb)

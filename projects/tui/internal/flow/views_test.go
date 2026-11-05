@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -214,5 +215,44 @@ func TestAViewsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/somewhere")
 	if got := viewsFile(); got != "/somewhere/kit/views.json" {
 		t.Errorf("under XDG_CONFIG_HOME: %q", got)
+	}
+}
+
+// A search that gives up the keyboard with something typed is remembered, in the file every screen shares; with the
+// keyboard again, ctrl+r or a click on ▾ drops the searches down, and choosing one puts it in the search.
+func TestASearchIsRememberedAndRecalled(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "search-history.json")
+	o := options()
+	o.History = file
+	m := loaded(t, o, tea.WindowSizeMsg{Width: 140, Height: 30})
+	m = drive(m, append(typed("/fix"), esc)...)
+	if data, err := os.ReadFile(file); err != nil || !strings.Contains(string(data), `"fix"`) {
+		t.Fatalf("the search was not remembered: %s, %v", data, err)
+	}
+	m = drive(m, append(typed("/"), press(tea.KeyBackspace), press(tea.KeyBackspace), press(tea.KeyBackspace))...)
+	if top := strings.Split(raw(m), "\n")[0]; !strings.Contains(top, shell.Recall) ||
+		!strings.Contains(lines(m)[len(lines(m))-1], "⌃R recent") {
+		t.Fatalf("no recall with the keyboard on the search: %q", top)
+	}
+	m = drive(m, tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	if !m.recent.Open || !strings.Contains(raw(m), "fix") || !strings.Contains(lines(m)[len(lines(m))-1], "esc close") {
+		t.Fatalf("ctrl+r did not drop the searches down:\n%s", view(m))
+	}
+	if m = drive(m, press(tea.KeyEnter)); m.recent.Open || m.panel(m.stage).Query != "fix" {
+		t.Errorf("choosing fix: %q", m.panel(m.stage).Query)
+	}
+	// a click on ▾ opens it; a click on a search chooses it; one elsewhere closes it
+	m = drive(m, press(tea.KeyBackspace))
+	m = drive(m, testkit.Click(m.recallAt(), 0))
+	if !m.recent.Open {
+		t.Fatalf("a click on ▾ did not open the searches:\n%s", view(m))
+	}
+	box, left := m.recent.Box(m.recallAt(), m.width)
+	if m = drive(m, testkit.Click(left+3, 1)); m.recent.Open || m.panel(m.stage).Query != "fix" {
+		t.Errorf("a click on fix: %q %v", m.panel(m.stage).Query, box)
+	}
+	m = drive(m, testkit.Click(m.recallAt(), 0), testkit.Click(1, 20))
+	if m.recent.Open {
+		t.Error("a click off the searches left them open")
 	}
 }

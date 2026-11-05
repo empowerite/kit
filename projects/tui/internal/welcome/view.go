@@ -62,10 +62,12 @@ type line struct {
 // View draws the screen on the alternate screen, with the mouse on for the bar.
 func (m Model) View() tea.View {
 	at := m.searchAt()
-	title := pane.Pad(pane.Clip(m.title(), at-2), at, false) + shell.SearchLine(m.search().Query, m.search().Focused)
+	title := pane.Pad(pane.Clip(m.title(), at-2), at, false) +
+		shell.RecallLine(m.search().Query, m.search().Focused, len(m.recent.Items) > 0)
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
-	lines = m.appMenu.Overlay(append(lines, ""), m.width)
+	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
+	lines = m.appMenu.Overlay(lines, m.width)
 	keys := shell.KeysLine(strings.Split(m.keys(), " · "), m.width-1)
 	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
@@ -101,8 +103,10 @@ func (m Model) title() string {
 // keys gives the keys bar for where the keyboard is.
 func (m Model) keys() string {
 	switch {
-	case m.appMenu.Open:
+	case m.appMenu.Open, m.recent.Open:
 		return shell.Keys
+	case m.recalls():
+		return shell.RecallKeys
 	case m.search().Focused:
 		return shell.SearchKeys
 	case !m.inPane && m.hasRows():

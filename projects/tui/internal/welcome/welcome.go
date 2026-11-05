@@ -160,12 +160,17 @@ type Model struct {
 	height   int
 	appMenu  shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
 	searches map[string]shell.Search // each step's search, internal/shell's, by the step's id
+	recent   shell.Recent            // the searches remembered, every screen's, and their dropdown
 
 	interrupted bool
 }
 
 // Open opens the screen in the directory the runner names, with owner/repo read from git.
-func Open(r kit.Runner) Model { return New(r, readRepo(r.Dir)) }
+func Open(r kit.Runner) Model {
+	m := New(r, readRepo(r.Dir))
+	m.recent = shell.Recent{Path: shell.RecentFile()}.Loaded()
+	return m
+}
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
@@ -244,8 +249,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 			return m, m.chose(c)
+		case m.recent.Open && msg.Button == tea.MouseLeft:
+			var query string
+			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
+				s := m.search()
+				s.Query = query
+				m.setSearch(s)
+			}
+			return m, nil
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
+			return m, nil
+		case msg.Button == tea.MouseLeft && msg.Y == shell.Top && m.recalls() && msg.X == m.recallAt():
+			m.recent = m.recent.Opened()
 			return m, nil
 		case msg.Button == tea.MouseLeft && msg.Y == shell.Top && msg.X >= m.searchAt():
 			m.focusSearch(true)
@@ -336,6 +352,12 @@ func (m *Model) focusSearch(focused bool) {
 	m.setSearch(s)
 }
 
+// recalls says whether the search, with the keyboard, offers searches to recall.
+func (m Model) recalls() bool { return m.search().Focused && len(m.recent.Items) > 0 }
+
+// recallAt gives the screen column of the search's Recall glyph.
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt(), m.search().Query) }
+
 // searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's, over the
 // steps' numbers.
 func (m Model) searchAt() int { return shell.SearchAt(m.width, m.bar().Numbers(), m.search().InUse()) }
@@ -424,9 +446,26 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
 	}
+	if m.recent.Open {
+		var query string
+		if m.recent, query = m.recent.Key(k); query != "" {
+			s := m.search()
+			s.Query = query
+			m.setSearch(s)
+		}
+		return m, nil
+	}
 	if s := m.search(); s.Focused {
-		// the search has the keyboard: what it does not take, as the arrows, is nobody's
+		// the search has the keyboard: what it does not take, as the arrows, is nobody's; ctrl+r drops the searches
+		// remembered down, and what was typed is remembered when the search gives up the keyboard
+		if k.String() == "ctrl+r" {
+			m.recent = m.recent.Opened()
+			return m, nil
+		}
 		s, _ = s.Key(k)
+		if !s.Focused {
+			m.recent = m.recent.Remember(s.Query)
+		}
 		m.setSearch(s)
 		return m, nil
 	}
