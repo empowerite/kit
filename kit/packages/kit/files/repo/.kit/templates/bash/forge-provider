@@ -1,10 +1,14 @@
 «head»
 forge/«stem»:branch-for-issue()«call_branch_for_issue…= { error "not written yet"; return 1; }»
+forge/«stem»:issue-add-sub()«call_issue_add_sub…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-assign()«call_issue_assign…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-assignees()«call_issue_assignees…= { error "not written yet"; return 1; }»
+forge/«stem»:issue-close()«call_issue_close…= { error "not written yet"; return 1; }»
+forge/«stem»:issue-comment()«call_issue_comment…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-create()«call_issue_create…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-state()«call_issue_state…= { error "not written yet"; return 1; }»
 forge/«stem»:issue-title()«call_issue_title…= { error "not written yet"; return 1; }»
+forge/«stem»:issue-unassign()«call_issue_unassign…= { error "not written yet"; return 1; }»
 forge/«stem»:link-branch()«call_link_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:me()«call_me…= { error "not written yet"; return 1; }»
 forge/«stem»:noun()«call_noun…= { error "not written yet"; return 1; }»
@@ -16,7 +20,9 @@ forge/«stem»:pr-closing-issues()«call_pr_closing_issues…= { error "not writ
 forge/«stem»:pr-create()«call_pr_create…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-for-branch()«call_pr_for_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-here()«call_pr_here…= { error "not written yet"; return 1; }»
+forge/«stem»:pr-last-for-branch()«call_pr_last_for_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-set-body()«call_pr_set_body…= { error "not written yet"; return 1; }»
+forge/«stem»:pr-state()«call_pr_state…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-state-for-branch()«call_pr_state_for_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-title()«call_pr_title…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-url()«call_pr_url…= { error "not written yet"; return 1; }»
