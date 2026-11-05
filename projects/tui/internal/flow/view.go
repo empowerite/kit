@@ -52,7 +52,7 @@ type line struct {
 // the keys bar on the last line, the panel's search, the rule under the bar, and the sidebar while ? shows it; on the
 // alternate screen, with the mouse on for the bar. A screen too short for all of them keeps the bar, and cuts the rest from the bottom.
 func (m Model) View() tea.View {
-	lines := append([]string{" " + pane.Clip(m.title(), m.titleWidth()-1)}, strings.Split(m.bar().View(), "\n")...)
+	lines := append([]string{pane.Clip(m.title(), m.titleWidth())}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.side(m.overlay(append(lines, "")))
 	bottom := style.Bar(m.keys(), m.width)

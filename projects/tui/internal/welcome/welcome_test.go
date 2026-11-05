@@ -418,8 +418,8 @@ func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
 	m, _ := loaded(t)
 	want := "❌ kit welcome refuses for the test; run: kit help welcome"
-	if m.step != basics || !strings.Contains(view(m), "   "+want) || !strings.Contains(view(m), "🧱 basics  !") ||
-		!strings.Contains(view(m), "🔧 setup  !") {
+	if m.step != basics || !strings.Contains(view(m), "   "+want) || !strings.Contains(strings.Join(strings.Fields(view(m)), " "), "🧱 basics !") ||
+		!strings.Contains(strings.Join(strings.Fields(view(m)), " "), "🔧 setup !") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	if !strings.Contains(m.View().Content, style.Refusal(want)) {
@@ -672,7 +672,7 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
 	// at 120 columns the eight do not fit: the bar scrolls to the last, whole, no name cut
-	if !strings.HasPrefix(labels, tabs.Before) || strings.Contains(labels, tabs.After) || strings.Contains(labels, "…") {
+	if !strings.HasPrefix(labels, " "+tabs.Before) || strings.Contains(labels, tabs.After) || strings.Contains(labels, "…") {
 		t.Errorf("labels %q", labels)
 	}
 }
@@ -728,7 +728,7 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 		if !strings.Contains(lines[2], c.label) {
 			t.Errorf("step %d is not in view:\n%s", m.step, lines[2])
 		}
-		if strings.HasPrefix(lines[2], tabs.Before) != c.start || strings.HasSuffix(lines[2], tabs.After) != c.finish {
+		if strings.HasPrefix(lines[2], " "+tabs.Before) != c.start || strings.HasSuffix(lines[2], tabs.After) != c.finish {
 			t.Errorf("step %d's ends:\n%s", m.step, lines[2])
 		}
 		for _, l := range lines {
@@ -762,11 +762,11 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 			t.Errorf("repoOf(%q) = %q, want %q", url, got, want)
 		}
 	}
-	if m, _ := fake(t); !strings.HasPrefix(view(m), " "+shell.App+" kit welcome · 📚 empowerite/kit ") ||
+	if m, _ := fake(t); !strings.HasPrefix(view(m), "  "+shell.App+" kit welcome · 📚 empowerite/kit ") ||
 		!strings.HasSuffix(strings.Split(view(m), "\n")[0], shell.Find+" search") {
 		t.Errorf("title:\n%s", view(m))
 	}
-	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got, " "+shell.App+" kit welcome ") ||
+	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got, "  "+shell.App+" kit welcome ") ||
 		strings.Contains(got, "·") {
 		t.Errorf("title without a repository:\n%s", got)
 	}

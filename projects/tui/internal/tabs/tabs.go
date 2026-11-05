@@ -11,8 +11,8 @@
 // over │, and under that a curve, ╯ and ╰, to the line under the tab beside it, or a half line, ╵, at either end of the
 // bar. A number stays where it is, selected or not. When every tab fits whole, they share the line in proportion to
 // their widths; when they do not, the bar is wider than the screen, and the view scrolls sideways to center the
-// selected tab, with ◃ before the tabs it hides on the left and ▹ after those on the right, a tab at either edge cut
-// there. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
+// selected tab, with ◃ in the gutter before the bar for the tabs it hides on the left and ▹ after those on the right, a tab at
+// either edge cut there. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
 // border runs through the number's cell. The selected tab, its lines, and the line under every tab are in the accent,
 // wherever the keyboard is; while the pane under the bar has it, the other tabs are dim. Widths are terminal cells, so
 // a two-cell glyph never pushes the line past the edge.
@@ -179,8 +179,12 @@ func (b Bar) wants(i int) int {
 	return n + 1
 }
 
-// screen gives the cells of the screen the line takes: all but the margin before it.
-func (b Bar) screen() int { return max(1, b.Width-1) }
+// Gutter is the cells before the bar on each of its lines, which ◃ stands in the second of when tabs are hidden on
+// the left, as a row's ▸ stands under it.
+const Gutter = 2
+
+// screen gives the cells of the screen the line takes: all but the gutter before it.
+func (b Bar) screen() int { return max(1, b.Width-Gutter) }
 
 // layout is the bar laid out on its canvas: where each tab's part starts, its cells, the cell between it and the next
 // among them, the canvas's width, and the cells scrolled past on its left.
@@ -234,7 +238,7 @@ func share(cells int, wants []int) []int {
 	return out
 }
 
-// View draws the bar's three lines as the screen shows them, each after a margin of one cell, as the package says.
+// View draws the bar's three lines as the screen shows them, each after the gutter, as the package says.
 func (b Bar) View() string {
 	if len(b.Tabs) == 0 {
 		return ""
@@ -283,11 +287,11 @@ func (b Bar) View() string {
 			cell(style.Off("╮"), style.Off("│"), style.Off("╰"))
 		}
 	}
-	// shown gives a line as the view shows it, after the margin, the triangles on the middle line
+	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line
 	shown := func(line string, middle bool) string {
-		margin, rest := " ", pane.Pad(pane.Cells(line, l.scroll, l.scroll+w), w, false)
+		margin, rest := strings.Repeat(" ", Gutter), pane.Pad(pane.Cells(line, l.scroll, l.scroll+w), w, false)
 		if middle && l.scroll > 0 {
-			margin, rest = Before, " "+pane.Pad(pane.Cells(rest, 1, w), w-1, false)
+			margin = strings.Repeat(" ", Gutter-1) + Before
 		}
 		if middle && l.scroll+w < l.width {
 			rest = pane.Pad(pane.Cells(rest, 0, w-2), w-2, false) + " " + After
@@ -298,7 +302,7 @@ func (b Bar) View() string {
 	}
 	bottom := shown(under.String(), false)
 	if b.Joined {
-		bottom = joinDown(bottom, w+1)
+		bottom = joinDown(bottom, w+Gutter)
 	}
 	return shown(over.String(), false) + "\n" + shown(tabs.String(), true) + "\n" + bottom
 }
@@ -348,11 +352,8 @@ func (b Bar) MenuAt() int {
 	}
 	l, w := b.layout(), b.screen()
 	// the glyph ends the label but its trailing space, after the tab's number cell
-	x := 1 + l.at[b.Selected] + l.parts[b.Selected] - 2 - ansi.StringWidth(Menu) - l.scroll
-	first, last := 1, w
-	if l.scroll > 0 {
-		first++
-	}
+	x := Gutter + l.at[b.Selected] + l.parts[b.Selected] - 2 - ansi.StringWidth(Menu) - l.scroll
+	first, last := Gutter, Gutter+w-1
 	if l.scroll+w < l.width {
 		last -= 2
 	}
@@ -371,7 +372,7 @@ func (b Bar) Numbers() []int {
 	l, w := b.layout(), b.screen()
 	var out []int
 	for i := range min(len(b.Tabs), 10) {
-		if x := 1 + l.at[i] - l.scroll; x >= 1 && x <= w {
+		if x := Gutter + l.at[i] - l.scroll; x >= Gutter && x < Gutter+w {
 			out = append(out, x)
 		}
 	}
@@ -385,14 +386,14 @@ func (b Bar) hit(x int) int {
 	l, w := b.layout(), b.screen()
 	var at int
 	switch {
-	case x == 0 && l.scroll > 0:
+	case x < Gutter && l.scroll > 0:
 		return max(b.Selected-1, 0)
-	case x == w && l.scroll+w < l.width:
+	case x == Gutter+w-1 && l.scroll+w < l.width:
 		return min(b.Selected+1, len(b.Tabs)-1)
-	case x < 1 || x > w:
+	case x < Gutter || x >= Gutter+w:
 		return -1
 	default:
-		at = x - 1 + l.scroll
+		at = x - Gutter + l.scroll
 	}
 	hit := 0
 	for i, start := range l.at {

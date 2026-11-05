@@ -89,7 +89,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	m := Menu{Here: Flow}.Opened()
 	screen := strings.Split(strings.Repeat(strings.Repeat("x", 60)+"\n", 20), "\n")
 	drawn := m.Overlay(screen, 60)
-	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[2]), "│ "+Home+" Welcome") ||
+	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭╴"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[2]), "│ "+Home+" Welcome") ||
 		ansi.StringWidth(drawn[3]) != 60 {
 		t.Errorf("the menu over the screen:\n%s", ansi.Strip(strings.Join(drawn, "\n")))
 	}
@@ -109,7 +109,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if !OnApp(At, Top) || !OnApp(0, Top) || OnApp(At, Top+1) || OnApp(5, Top) {
 		t.Error("OnApp")
 	}
-	if Title("kit", false) != style.Tint(App)+" kit" || Title("kit", true) != style.Menu(App)+" kit" {
+	if Title("kit", false) != "  "+style.Tint(App)+" kit" || Title("kit", true) != "  "+style.Menu(App)+" kit" {
 		t.Errorf("the title: %q %q", Title("kit", false), Title("kit", true))
 	}
 }

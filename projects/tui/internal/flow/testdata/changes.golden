@@ -1,7 +1,7 @@
- ≡ kit flow · 📚 empowerite/kit                                       🔎 search
- ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶───
-◃   🌿 worktrees         4  │ 🔀 changes       3 ⋮ │  🏭 builds         4 │    ▹
- ╰──────────────────────────╯                      ╰──────────────────────╰────┐
+  ≡ kit flow · 📚 empowerite/kit                                      🔎 search
+  ╮➃╶───────────────────────╴➎╶─────────────────────╮➅╶────────────────────╮➆╶──
+ ◃│  🌿 worktrees         4  │ 🔀 changes       3 ⋮ │  🏭 builds         4 │   ▹
+  ╰──────────────────────────╯                      ╰──────────────────────╰───┐
  ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 ready          8d  ✅ 1 / 1 3… │
  ▸ 🔀 #3  A spike on …  👤 ada               🔨 draft         90m  🏃 0 / 2  … │
  ▸ 🔀 #4  Lint every …  👤 bob               🔥 failing:gate  25h  ❌ lint fa… │

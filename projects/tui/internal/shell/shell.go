@@ -17,10 +17,11 @@ import (
 // App is the glyph before every screen's title, which drops the app's menu down: three bars, a hamburger.
 const App = "≡"
 
-// Top is the screen line the title is on, and the app's menu's box starts on; At is App's column on it.
+// Top is the screen line the title is on, and the app's menu's box starts on; At is App's column on it, after the
+// gutter every line of a screen keeps before it, as the tab bar does.
 const (
 	Top = 0
-	At  = 1
+	At  = 2
 )
 
 // Screen names one of kit's screens, which the app's menu moves between.
@@ -191,13 +192,14 @@ func (m Menu) Overlay(lines []string, room int) []string {
 	return Over(lines, box, Top, left)
 }
 
-// Title gives a screen's title line: App, tinted, or in the menu's color while the menu is open, then the label.
+// Title gives a screen's title line: the gutter, App, tinted, or in the menu's color while the menu is open, then the
+// label.
 func Title(label string, open bool) string {
 	glyph := style.Tint(App)
 	if open {
 		glyph = style.Menu(App)
 	}
-	return glyph + " " + label
+	return strings.Repeat(" ", At) + glyph + " " + label
 }
 
 // Move gives the item from k on, by step, that is enabled, stopping at the first and the last; k itself when none

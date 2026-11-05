@@ -86,8 +86,8 @@ func TestTheBarIsThreeLinesWithinTheScreenAndKeepsEveryNumberWhenItFits(t *testi
 }
 
 func TestEveryTabIsWholeAndTheyShareTheLineInProportionWhenTheyFit(t *testing.T) {
-	want := " │ 🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
-		"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │"
+	want := "  │ 🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2 │  💻 desk     1 │  🌿 worktrees      4 │  " +
+		"🔀 changes     3 │  🏭 builds     4 │  📦 releases      3 │"
 	if got := row(stages(0, 170), 1); got != want {
 		t.Errorf("at 170:\n got %q\nwant %q", got, want)
 	}
@@ -115,22 +115,22 @@ func TestShareGivesEachItsProportion(t *testing.T) {
 // runs on.
 func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	want := []string{
-		" ➀╶───────────────────╮➁╶────────────────────╮➂╶───────────────────╴➍╶──────────────╮➄╶────────────────────╮" +
-			"➅╶──────────────────╮➆╶────────────────╮➇╶───────────────────╮",
-		"   🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
-			"🔀 changes      3 │  🏭 builds     4 │  📦 releases      3 │",
-		" ─────────────────────╰──────────────────────╰──────────────────────╯               ╰──────────────────────╰" +
-			"────────────────────╰──────────────────╰─────────────────────╵",
+		"  ➀╶───────────────────╮➁╶────────────────────╮➂╶───────────────────╴➍╶──────────────╮➄╶────────────────────╮" +
+			"➅╶─────────────────╮➆╶────────────────╮➇╶───────────────────╮",
+		"    🎫 backlog      15 │  🛫 underway      58 │  🛬 incoming      2  │ 💻 desk     1 │  🌿 worktrees      4 │  " +
+			"🔀 changes     3 │  🏭 builds     4 │  📦 releases      3 │",
+		"  ─────────────────────╰──────────────────────╰──────────────────────╯               ╰──────────────────────╰" +
+			"───────────────────╰──────────────────╰─────────────────────╵",
 	}
 	b := stages(3, 170)
 	if got := strings.Split(plain(b), "\n"); !slices.Equal(got, want) {
 		t.Errorf("the bar:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	// the first tab and the last have the same edges, the first's before it, in the margin, each over a half line where
-	// no tab is beside it
+	// the first tab and the last have the same edges, the first's after the gutter, each over a half line where no tab
+	// is beside it
 	first, last := strings.Split(plain(stages(0, 170)), "\n"), strings.Split(plain(stages(7, 170)), "\n")
 	for k, edge := range []string{"➊", "│", "╵"} {
-		if !strings.HasPrefix(first[k], " "+edge) {
+		if !strings.HasPrefix(first[k], "  "+edge) {
 			t.Errorf("the first tab's line %d does not start with %s: %q", k, edge, first[k])
 		}
 	}
@@ -147,16 +147,16 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	}
 }
 
-// A screen too narrow for every tab scrolls to center the selected one, with ◃ where tabs are hidden before it and ▹
-// where they are hidden after it, a tab at either edge cut there.
+// A screen too narrow for every tab scrolls to center the selected one, with ◃ in the gutter where tabs are hidden
+// before it and ▹ where they are hidden after it, a tab at either edge cut there.
 func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
-	if got, want := row(stages(5, 40), 1), "◃ ktrees 4  │ 🔀 changes 3 │  🏭 build ▹"; got != want {
+	if got, want := row(stages(5, 40), 1), " ◃rktrees 4  │ 🔀 changes 3 │  🏭 buil ▹"; got != want {
 		t.Errorf("at 40, tab 5:\n got %q\nwant %q", got, want)
 	}
-	if got := row(stages(0, 40), 1); strings.HasPrefix(got, Before) || !strings.HasSuffix(got, After) {
+	if got := row(stages(0, 40), 1); strings.HasPrefix(got, " "+Before) || !strings.HasSuffix(got, After) {
 		t.Errorf("at 40, tab 0: %q", got)
 	}
-	if got := row(stages(7, 40), 1); !strings.HasPrefix(got, Before) || strings.HasSuffix(got, After) {
+	if got := row(stages(7, 40), 1); !strings.HasPrefix(got, " "+Before) || strings.HasSuffix(got, After) {
 		t.Errorf("at 40, tab 7: %q", got)
 	}
 	// a click on a triangle selects the tab before the selected one, or after it, at any width, which then shows,
@@ -288,7 +288,7 @@ func TestTheBarsEdges(t *testing.T) {
 	}
 	// a tab without a glyph has its name under its number
 	bare := Bar{Selected: 1, Width: 40, Tabs: []Tab{{"", "nonesuch", "!"}, {"🎫", "backlog", "3"}}}
-	if got := plain(bare); !strings.HasPrefix(got, " ➀╶") || !strings.HasPrefix(row(bare, 1), "   nonesuch     !  │") {
+	if got := plain(bare); !strings.HasPrefix(got, "  ➀╶") || !strings.HasPrefix(row(bare, 1), "    nonesuch     !  │") {
 		t.Errorf("a tab without a glyph: %q", got)
 	}
 }

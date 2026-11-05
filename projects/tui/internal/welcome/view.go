@@ -59,7 +59,7 @@ type line struct {
 // View draws the screen on the alternate screen, with the mouse on for the bar.
 func (m Model) View() tea.View {
 	at := m.searchAt()
-	title := pane.Pad(" "+pane.Clip(m.title(), at-3), at, false) + shell.SearchLine(m.search().Query, m.search().Focused)
+	title := pane.Pad(pane.Clip(m.title(), at-2), at, false) + shell.SearchLine(m.search().Query, m.search().Focused)
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.appMenu.Overlay(append(lines, ""), m.width)

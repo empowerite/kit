@@ -327,7 +327,7 @@ func (m Model) widest() int {
 // top gives the lines over the tree: the title, as internal/shell draws it, after the app's menu's glyph, with the
 // search on its right; kit's line under it when a verb did not open; and a gap.
 func (m Model) top() []string {
-	title, at := " "+shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
+	title, at := shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
 	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + shell.SearchLine(m.search.Query, m.search.Focused)}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {

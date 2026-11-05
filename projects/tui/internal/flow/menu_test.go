@@ -85,7 +85,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 // kittui to show it in the picture's place, and quit ends the picture with 0.
 func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	m := loaded(t, options(), press('='))
-	if !m.appMenu.Open || m.menu || !strings.HasPrefix(lines(m)[shell.Top], "╭"+shell.App+"╶") ||
+	if !m.appMenu.Open || m.menu || !strings.HasPrefix(lines(m)[shell.Top], "╭╴"+shell.App+"╶") ||
 		!strings.Contains(view(m), "│ "+Reload+" Refresh All │") || !strings.Contains(view(m), "Welcome") ||
 		lines(m)[23] != " "+shell.Keys {
 		t.Fatalf("= did not drop the app's menu down:\n%s", view(m))
