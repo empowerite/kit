@@ -56,6 +56,13 @@ func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 
+// atBasics opens the screen as loaded does, then follows the intro's first link, to jq, the first failed check under
+// basics, as a newcomer would. Then it sends the messages.
+func atBasics(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
+	t.Helper()
+	return loaded(t, append([]tea.Msg{down, enter}, msgs...)...)
+}
+
 // repoWith makes a git repository with the pages under .kit/welcome, and gives the fake runner in it.
 func repoWith(t *testing.T, pages map[string]string) kit.Runner {
 	t.Helper()

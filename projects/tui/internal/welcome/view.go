@@ -24,14 +24,16 @@ const (
 
 // The keys bar names only the keys that act where the keyboard is, in the order every screen keeps, as internal/shell's
 // KeysLine lays them out: esc first, where it goes back, then the menu and the search, then the keys of the part the
-// keyboard is in. On the bar over a step with checks, and over a page; on a check's row that offers no fix, on a row
-// that offers now and later, on a row whose fix kit only shows; and in a page.
+// keyboard is in. On the bar over a step with checks or the intro with links, and over a page; on a check's row that
+// offers no fix, on a row that offers now and later, on a row whose fix kit only shows; on a link in the intro; and in
+// a page.
 const (
 	stepKeys   = "= menu · / search · ←→ tab · ↓ checks · 1-9 jump"
 	pageKeys   = "= menu · / search · ←→ tab · ↓ page · 1-9 jump"
 	rowKeys    = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page"
 	choiceKeys = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose"
 	showKeys   = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · l later"
+	linkKeys   = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · ⏎ go to the check"
 	scrollKeys = "esc back · = menu · / search · ↑↓ scroll · pgup/pgdn page"
 )
 
@@ -71,12 +73,14 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, and the keyboard on
-// it unless the pane has it.
+// bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, the count in red
+// when a check failed or kit refused them, and the keyboard on it unless the pane has it.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Width: m.width, Row: 1}
 	for i, t := range m.tabs {
-		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: t.glyph, Name: t.name, Count: m.count(i)})
+		count := m.count(i)
+		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: t.glyph, Name: t.name, Count: count})
+		b.Alert = append(b.Alert, count != "" && count != "…")
 	}
 	return b
 }
@@ -107,6 +111,8 @@ func (m Model) keys() string {
 		return pageKeys
 	case !m.hasRows():
 		return scrollKeys
+	case !m.checked():
+		return linkKeys
 	case m.choosing():
 		return choiceKeys
 	case m.showOnly():
@@ -142,12 +148,8 @@ func (m Model) count(i int) string {
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var texts []string
-	if m.hasRows() {
-		for _, l := range m.stepLines() {
-			texts = append(texts, l.text)
-		}
-	} else {
-		texts = m.pageLines(m.step)
+	for _, l := range m.lines() {
+		texts = append(texts, l.text)
 	}
 	out := pane.Lines(texts, m.offsets[m.step], h, "", lead)
 	for k := range out {
@@ -155,6 +157,87 @@ func (m Model) pane() []string {
 	}
 	for len(out) < h {
 		out = append(out, "")
+	}
+	return out
+}
+
+// lines gives the selected step's lines: a step with checks has its page and its checks, the intro its page and what
+// the checks found, and any other step its page.
+func (m Model) lines() []line {
+	switch {
+	case m.checked():
+		return m.stepLines()
+	case m.isIntro(m.step):
+		return m.introLines()
+	}
+	var out []line
+	for _, l := range m.pageLines(m.step) {
+		out = append(out, line{-1, l})
+	}
+	return out
+}
+
+// introLines gives the intro's lines: its page, then what the checks found. That is checking… until they first
+// answer; then ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its
+// line, and the glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it
+// does a step's checks. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run
+// again.
+func (m Model) introLines() []line {
+	w := m.width - 1
+	var out []line
+	for _, l := range m.pageLines(m.step) {
+		out = append(out, line{-1, l})
+	}
+	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	add(-1, "")
+	if m.refusal != "" {
+		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {
+			add(-1, lead+style.Refusal(l))
+		}
+		if m.loaded {
+			add(-1, "")
+		}
+	}
+	if !m.loaded {
+		if m.checking && m.refusal == "" {
+			add(-1, lead+style.Off("checking…"))
+		}
+		return out
+	}
+	failed := 0
+	for _, c := range m.checks {
+		if !c.OK {
+			failed++
+		}
+	}
+	if failed == 0 {
+		add(-1, lead+Passed+" "+style.Label("all checks pass"))
+	} else {
+		head := strconv.Itoa(failed) + " checks need you"
+		if failed == 1 {
+			head = "1 check needs you"
+		}
+		add(-1, lead+style.Label(head))
+		rows := m.rows(m.step)
+		for _, i := range rows {
+			c := m.checks[i]
+			t := m.tabs[m.stepOf(c)]
+			start, text := lead, c.Line
+			if m.inPane && i == m.cursor {
+				start, text = focus, style.Chosen(c.Line)
+			}
+			if m.deferred[c.ID] {
+				text += style.Off(" · later")
+			}
+			add(i, start+Failed+" "+text+" "+style.Tint("→ "+t.glyph+" "+t.name))
+		}
+		if len(rows) == 0 {
+			add(-1, lead+style.Off("no check matches the search"))
+		}
+	}
+	if m.checking {
+		add(-1, "")
+		add(-1, lead+style.Off("checking…"))
 	}
 	return out
 }
@@ -300,14 +383,14 @@ func button(name string, highlighted bool) string {
 	return style.Off(" " + name + " ")
 }
 
-// fit keeps the pane's offset within its lines, and in a step with checks scrolls so the row under the cursor shows,
+// fit keeps the pane's offset within its lines, and in a step with rows scrolls so the row under the cursor shows,
 // whole when it fits.
 func (m *Model) fit() {
 	if !m.hasRows() {
 		m.scroll(0)
 		return
 	}
-	lines, h := m.stepLines(), m.paneHeight()
+	lines, h := m.lines(), m.paneHeight()
 	o := &m.offsets[m.step]
 	*o, _, _, _ = pane.Window(len(lines), h, *o)
 	if !m.inPane {

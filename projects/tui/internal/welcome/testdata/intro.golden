@@ -6,6 +6,12 @@
 
    kit welcome walks you through your first hour with kit, one step at a time.
 
+   5 checks need you
+   ❌ jq is not installed → 🧱 basics
+   ❌ brew is installed but not on PATH → 🧱 basics
+   ❌ several toolchains are usable for the project: mise, brew; choose one → 🧰 toolchains
+   ❌ gh is not logged in to github.com → 🔧 setup
+   ❌ kit check finds 2 differences from the release → 🔧 setup
 
 
 
@@ -21,10 +27,4 @@
 
 
 
-
-
-
-
-
-
- = menu · / search · ←→ tab · ↓ page · 1-9 jump
+ = menu · / search · ←→ tab · ↓ checks · 1-9 jump

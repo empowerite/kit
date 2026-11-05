@@ -17,8 +17,8 @@
 // and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row
 // with choices, left and right move between now and later. Esc gives the bar the keyboard back. Ctrl-c quits with 130
 // from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. The screen
-// opens on the intro while the checks run, and stays there when they answer. A step with a failed check has its count
-// in red on the bar, from every step.
+// opens on the intro while the checks run, and stays there when they answer. A step with failed checks counts them in
+// red on the bar, which every step shows.
 package welcome
 
 import (
@@ -509,7 +509,7 @@ func (m *Model) click(y int) {
 
 // onLink says whether the cursor is on a link in the intro, with the pane's keyboard.
 func (m Model) onLink() bool {
-	return m.inPane && !m.checked() && m.isIntro(m.step) && slices.Contains(m.rows(m.step), m.cursor)
+	return m.inPane && m.isIntro(m.step) && slices.Contains(m.rows(m.step), m.cursor)
 }
 
 // follow goes from the link under the cursor to its check: the check's step selected, the cursor on the check, and the
