@@ -184,9 +184,9 @@ func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
 	}
 }
 
-// The legend takes no more than two fifths of the screen, the rows have the rest, and no line passes the edge; esc
+// The legend takes no more than two fifths of the screen, the rows have the rest, and no line passes the edge; ? again
 // takes it away, and the rows have the width again.
-func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
+func TestTheLegendIsNarrowAndQuestionTakesItAway(t *testing.T) {
 	for _, width := range []int{40, 80, 120} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 30}, press('?'))
 		if lw := m.sidebarWidth(); lw == 0 || lw > (width-3)*2/5 || m.paneWidth()+lw+3 != width {
@@ -197,8 +197,8 @@ func TestTheLegendIsNarrowAndEscTakesItAway(t *testing.T) {
 				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
 			}
 		}
-		if m = drive(m, press(tea.KeyEscape)); m.sidebar || m.paneWidth() != width-2 || strings.Contains(view(m), "legend") {
-			t.Errorf("at %d, esc left the legend: %v, rows of %d", width, m.sidebar, m.paneWidth())
+		if m = drive(m, press('?')); m.sidebar || m.paneWidth() != width-2 || strings.Contains(view(m), "legend") {
+			t.Errorf("at %d, ? left the legend: %v, rows of %d", width, m.sidebar, m.paneWidth())
 		}
 	}
 }

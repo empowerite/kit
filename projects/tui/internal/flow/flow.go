@@ -9,7 +9,8 @@
 // panel the keyboard, and / or a click on the search, always on the screen's top right, gives the search the keyboard,
 // the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
 // and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
-// under the cursor. Esc goes back one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c
+// under the cursor. The sidebar shows from the start. Esc goes back one level: from the panel, then from the rows to
+// the bar; it leaves the sidebar as it is. Ctrl-c
 // quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with
 // 0. A stage's command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
@@ -45,6 +46,7 @@ type Options struct {
 	NoFetch   bool
 	Filters   []string
 	NoHeaders bool
+	NoSidebar bool
 }
 
 // loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
@@ -152,6 +154,7 @@ func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.sidebar, m.asked = !o.NoSidebar, !o.NoSidebar
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders}
@@ -165,8 +168,14 @@ func New(r kit.Runner, o Options) Model {
 }
 
 // Init starts the loading: every stage at once, so none waits on incoming's fetch, which can take as long as the
-// remotes do; the stages the fetch moves load again once it has fetched.
-func (m Model) Init() tea.Cmd { return m.all() }
+// remotes do; the stages the fetch moves load again once it has fetched. The sidebar, shown from the start, asks kit
+// for the caller's login with them.
+func (m Model) Init() tea.Cmd {
+	if m.sidebar {
+		return tea.Batch(m.all(), m.whoami())
+	}
+	return m.all()
+}
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -614,6 +623,11 @@ func (m *Model) askMe() tea.Cmd {
 		return nil
 	}
 	m.asked = true
+	return m.whoami()
+}
+
+// whoami asks kit for the caller's login.
+func (m Model) whoami() tea.Cmd {
 	r, ctx, limit := m.runner, m.ctx, m.limit
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, limit)
@@ -656,10 +670,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		return m, m.enterPanel(true)
 	case "esc":
-		switch {
-		case m.sidebar:
-			m.showSidebar(false)
-		case m.inRows:
+		if m.inRows {
 			s := &m.stages[m.stage]
 			s.cursor, s.offset, m.inRows = 0, 0, false
 		}

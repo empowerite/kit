@@ -147,7 +147,7 @@ func (m Model) keys() []string {
 		return []string{"esc back", "= menu", ": tab menu", "↑↓ move", "space toggle", "⇧↑↓ order", "s sort", "g group"}
 	}
 	var keys []string
-	if m.inRows || m.sidebar {
+	if m.inRows {
 		keys = append(keys, "esc back")
 	}
 	keys = append(keys, "= menu")

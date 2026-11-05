@@ -41,9 +41,9 @@ func bare() Options {
 	return o
 }
 
-// options gives the eight stages and origin as a test knows them.
+// options gives the eight stages and origin as a test knows them, the sidebar hidden until the test shows it with ?.
 func options() Options {
-	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}}
+	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoSidebar: true}
 }
 
 // drive sends the messages, running every command each update returns and feeding its messages back, a batch's
@@ -236,7 +236,7 @@ func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
 func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
+	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}, NoSidebar: true})
 	batch, ok := m.Init()().(tea.BatchMsg)
 	if !ok || len(batch) != 2 {
 		t.Fatalf("Init did not start both: %T", m.Init()())
@@ -546,26 +546,39 @@ func TestQuitCodes(t *testing.T) {
 	}
 }
 
-func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
+// Esc walks back from the rows to the bar and leaves the sidebar as it is: only ? or a click on the rule beside the
+// rows takes it away.
+func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheSidebar(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, down, press('?'))
 	if !m.sidebar || !strings.Contains(view(m), " "+grid.Search+" ") {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.sidebar || !m.inRows || m.find("worktrees").cursor != 1 {
-		t.Fatalf("esc with the legend on: legend %v, in rows %v, cursor %d", m.sidebar, m.inRows, m.find("worktrees").cursor)
+	if m = next.(Model); cmd != nil || !m.sidebar || m.inRows || m.stage != 3 || cursor(m) != "" {
+		t.Fatalf("esc in the rows: legend %v, in rows %v, stage %d\n%s", m.sidebar, m.inRows, m.stage, view(m))
 	}
-	if v := view(m); !strings.HasPrefix(cursor(m), Branch+" 42-settings") || strings.Contains(v, "legend") {
-		t.Errorf("esc with the legend on did not take it away and keep the rows as they were:\n%s", v)
+	// on the bar, esc does nothing
+	next, _ = m.Update(press(tea.KeyEscape))
+	if m = next.(Model); !m.sidebar || m.ctx.Err() != nil {
+		t.Errorf("esc on the bar: legend %v, context %v", m.sidebar, m.ctx.Err())
 	}
-	next, cmd = m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || m.inRows || m.stage != 3 || cursor(m) != "" {
-		t.Fatalf("esc in the rows: in rows %v, stage %d\n%s", m.inRows, m.stage, view(m))
+	if m = drive(m, press('?')); m.sidebar {
+		t.Error("? did not take the legend away")
 	}
-	// on the bar, esc takes the legend away, and then does nothing
-	m = loaded(t, options(), press('?'), press(tea.KeyEscape))
-	if m.sidebar || m.ctx.Err() != nil {
-		t.Errorf("esc on the bar with the legend on: legend %v, context %v", m.sidebar, m.ctx.Err())
+}
+
+// The sidebar shows from the start, and asks kit for the caller's login as the stages load.
+func TestTheSidebarShowsFromTheStart(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
+	batch, ok := m.Init()().(tea.BatchMsg)
+	if !ok || len(batch) != 2 || !m.sidebar {
+		t.Fatalf("Init: %T, sidebar %v", m.Init()(), m.sidebar)
+	}
+	m = drive(m, batch)
+	if got := calls(t, record); !slices.Contains(got, "flow --me") || !strings.Contains(view(m), "legend") {
+		t.Errorf("the calls %q, and the view:\n%s", got, view(m))
 	}
 }
 
@@ -575,10 +588,9 @@ func at80(keys string) string { return shell.KeysLine(strings.Split(keys, " · "
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: esc first,
 // then the menus, the search, the sidebar, and the panel, then the keys of the part the keyboard is in.
 const (
-	barKeys     = "= menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
-	sidebarKeys = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
-	opens       = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · → open"
-	closes      = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · ← close"
+	barKeys = "= menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
+	opens   = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · → open"
+	closes  = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · ← close"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -590,8 +602,8 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		{[]tea.Msg{right, right, right, down}, opens},
 		{[]tea.Msg{down, down, down, down}, opens},
 		{[]tea.Msg{right, right, right, down, right}, closes},
-		{[]tea.Msg{press('?')}, sidebarKeys},
-		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, sidebarKeys},
+		{[]tea.Msg{press('?')}, barKeys},
+		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, barKeys},
 	} {
 		for _, width := range []int{80, 120, 200} {
 			// each load is a model of its own, so the sizes load side by side
@@ -714,7 +726,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
-	m = loaded(t, Options{Stages: []string{"releases"}})
+	m = loaded(t, Options{Stages: []string{"releases"}, NoSidebar: true})
 	if first := lines(m)[0]; first != "  "+shell.App+" kit flow" {
 		t.Errorf("the title alone: %q", first)
 	}
@@ -935,7 +947,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, right)
+	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}, NoSidebar: true}, right)
 	if v := view(m); !strings.Contains(squeeze(v), "nonesuch !") ||
 		!strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
 		t.Errorf("the unknown stage:\n%s", v)
@@ -1016,7 +1028,7 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 	before := lines(m)
 	m = drive(m, press('?'))
 	got, pw := lines(m), m.paneWidth()
-	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+sidebarKeys {
+	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+barKeys {
 		t.Errorf("the title or the keys moved under the sidebar:\n%s", view(m))
 	}
 	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+2 {
