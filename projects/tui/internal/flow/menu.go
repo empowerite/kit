@@ -38,8 +38,8 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
 // expanded and every row collapsed, or, while rows are selected, the selected rows expanded and collapsed and the rows
-// not selected collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the rows
-// selected: each one's page opened, every row selected, and none.
+// not selected collapsed, a rule, the headers, checked while the selected stage shows them, a rule, every row selected
+// and none, a rule, and what acts on the rows selected: each one's page opened.
 func (m Model) tabItems() []shell.Item {
 	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
@@ -52,8 +52,8 @@ func (m Model) tabItems() []shell.Item {
 	}
 	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, folds...)
 	return append(items, shell.Item{}, shell.Item{Glyph: headers, Name: "Show Headers"}, shell.Item{},
-		shell.Item{Glyph: Browse, Name: "Open Selected"}, shell.Item{Glyph: Every, Name: "Select All"},
-		shell.Item{Glyph: Sweep, Name: "Clear Selection"})
+		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{},
+		shell.Item{Glyph: Browse, Name: "Open Selected"})
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.

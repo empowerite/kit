@@ -382,11 +382,15 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
-	if m = drive(m, press(':')); m.enabled(7) || !m.enabled(8) || m.enabled(9) {
-		t.Errorf("open %v, select all %v, clear %v, with nothing selected", m.enabled(7), m.enabled(8), m.enabled(9))
+	on := func(name string) bool {
+		return m.enabled(slices.IndexFunc(m.tabItems(), func(i shell.Item) bool { return i.Name == name }))
+	}
+	if m = drive(m, press(':')); on("Open Selected") || !on("Select All") || on("Clear Selection") {
+		t.Errorf("open %v, select all %v, clear %v, with nothing selected", on("Open Selected"), on("Select All"),
+			on("Clear Selection"))
 	}
 	// select all selects every row, and is then dim
-	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || m.enabled(9) {
+	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || on("Select All") {
 		t.Errorf("select all: %d selected", m.selected())
 	}
 	m = drive(m, press(':'), typed("c")[0], press(tea.KeyEnter))
