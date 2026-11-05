@@ -3,12 +3,13 @@
 // wraps, as a title. A closed row shows a cell's first value, with +N, right-aligned in the cell, when it holds more,
 // and its text cut with … where its column ends. An open row shows every value, one a line in its column, the text
 // wrapped in its column, then the lines it opens to. A row that hides anything, closed, has ▸ in the gutter before it,
-// and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks
-// the row, so the cell is not underlined as a chosen name is. A glyph whose link opens a page is underlined with dots.
-// A header can stand the columns' names over the rows, widening each column to its name.
-//
-// A panel beside the rows narrows them: a search, which keeps the rows whose text has it; a checkbox per column, which
-// shows or hides it; and, for rows that belong to people, a choice of every row, the caller's, or everyone else's.
+// and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks the
+// row, so the cell is not underlined as a chosen name is. A glyph whose link opens a page is underlined with dots. A
+// header can stand the columns' names over the rows, widening each column to its name; a click on a name sorts by it. A
+// row selected, one of several, has ✓ before its ▸.  A panel beside the rows narrows them: a search, which keeps the
+// rows whose text has it; a checkbox per column, which shows or hides it; and, for rows that belong to people, a choice
+// of every row, the caller's, or everyone else's. It also keeps the columns' order, the columns the rows sort by, and
+// those they group by, each group under a heading.
 package grid
 
 import (
@@ -96,6 +97,9 @@ type Line struct {
 	Text string
 }
 
+// Chosen marks a row selected, in the gutter before its ▸: a check mark, one cell wide.
+const Chosen = "✓"
+
 // gap is the cells between two columns; minFill the fewest a cell that wraps keeps when the other columns leave it
 // less, the row then clipped.
 const (
@@ -126,9 +130,10 @@ func (c Cell) more() string {
 }
 
 // Draw lays the rows out for a pane of so many cells, under the header's names, which widen the columns they stand
-// over: each row's lines, closed, or open when open says so, the cursor's row, an index into the rows, on a band. A
-// row opens only when it hides something.
-func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool) []Line {
+// over: each row's lines, closed, or open when open says so, the cursor's row, an index into the rows, on a band, and
+// each row picked says so, as several rows selected, with Chosen in the gutter's first cell, bold in the accent;
+// picked may be nil. A row opens only when it hides something.
+func Draw(rows []Row, head []string, width, cursor int, open, picked func(Row) bool) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
 	var out []Line
@@ -149,10 +154,14 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool) []L
 		case hides:
 			mark = style.Off("▸")
 		}
+		selected := " "
+		if picked != nil && picked(r) {
+			selected = style.Mark(Chosen)
+		}
 		for n, l := range lines {
 			g := lead
 			if n == 0 {
-				g = " " + mark + " "
+				g = selected + mark + " "
 			}
 			out = append(out, Line{k, g + l})
 		}

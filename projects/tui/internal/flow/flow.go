@@ -2,16 +2,16 @@
 // and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has the
 // keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
-// and left closes it, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops
-// the app's menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; ?
-// shows the sidebar beside the rows, the stage's panel over its legend, and again takes it away, as a click anywhere on
-// the rule beside the rows does; tab gives the panel the keyboard, and / or a click on the search, always on the
-// screen's top right, gives the search the keyboard, the sidebar shown or not. A click on a linked glyph, as an issue's
-// before its title, opens its page in the browser, and one on a glyph that names a row of another stage, as underway's
-// pull request, selects that stage with the row under the cursor. Esc goes back one level: from the panel, the sidebar
-// off, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that
-// reports it sends command-esc, quits with 0. A stage's command has two minutes; past them it is a refusal, and
-// quitting kills the commands still running.
+// and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
+// every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
+// menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; ? shows the sidebar beside the rows, the stage's
+// panel over its legend, and again takes it away, as a click anywhere on the rule beside the rows does; tab gives the
+// panel the keyboard, and / or a click on the search, always on the screen's top right, gives the search the keyboard,
+// the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
+// and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
+// under the cursor. Esc goes back one level: from the panel, the sidebar off, then from the rows to the bar. Ctrl-c
+// quits with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with
+// 0. A stage's command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
 
 import (
@@ -73,6 +73,7 @@ type stage struct {
 	open    map[string]bool    // the rows opened, by key
 	headers bool               // whether the names of its columns stand over its rows, as its tab's menu says
 	headed  bool               // whether its header is open, every line of names that take more than one
+	picked  map[string]bool    // the rows selected, by key, several at once, which the tab's menu acts on
 	view    grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
 	gen     int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
@@ -153,7 +154,7 @@ func New(r kit.Runner, o Options) Model {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: map[string]bool{}, headers: !o.NoHeaders}
+		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
@@ -406,6 +407,60 @@ func (m *Model) clickHeader(x, y int, also bool) {
 	}
 }
 
+// selectRow selects the row under the cursor, as one of several, or unselects it, while the rows have the keyboard;
+// with keep, it selects it whether it was or not, as shift with up or down selects as it moves. A heading is no row to
+// select.
+func (m *Model) selectRow(keep bool) {
+	if !m.inRows || len(m.stages) == 0 {
+		return
+	}
+	s, rows := &m.stages[m.stage], m.rows(m.stage)
+	if s.cursor >= len(rows) || rows[s.cursor].Aside {
+		return
+	}
+	key := rows[s.cursor].Key
+	if keep || !s.picked[key] {
+		s.picked[key] = true
+	} else {
+		delete(s.picked, key)
+	}
+}
+
+// selectAll selects every row the stage shows, or, when every one is, none.
+func (m *Model) selectAll() {
+	if len(m.stages) == 0 {
+		return
+	}
+	s, rows := &m.stages[m.stage], m.rows(m.stage)
+	all := m.selected() == counted(rows)
+	clear(s.picked)
+	if all {
+		return
+	}
+	for _, r := range rows {
+		if !r.Aside {
+			s.picked[r.Key] = true
+		}
+	}
+}
+
+// selectedRows gives the selected stage's rows that are selected, of those it shows.
+func (m Model) selectedRows() []row {
+	if len(m.stages) == 0 {
+		return nil
+	}
+	var out []row
+	for _, r := range m.rows(m.stage) {
+		if m.stages[m.stage].picked[r.Key] && !r.Aside {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// selected gives how many of the selected stage's rows shown are selected.
+func (m Model) selected() int { return len(m.selectedRows()) }
+
 // drag is the column whose line in the panel a press holds, and whether a drag has moved it since.
 type drag struct {
 	column string
@@ -575,6 +630,20 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.fit()
 	case "?":
 		return m, m.showSidebar(!m.sidebar)
+	case "space":
+		m.selectRow(false)
+	case "ctrl+a":
+		m.selectAll()
+	case "shift+up", "shift+down":
+		if m.inRows {
+			m.selectRow(true)
+			if k.String() == "shift+up" {
+				m.up(1)
+			} else {
+				m.down(1)
+			}
+			m.selectRow(true)
+		}
 	case "up":
 		m.up(1)
 	case "down":

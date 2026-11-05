@@ -38,7 +38,7 @@ func plain(lines []Line) []string {
 }
 
 func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *testing.T) {
-	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return false }))
+	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return false }, nil))
 	want := []string{
 		" ▸  #1  👤 ada +1   2h  a title long en…",
 		"   #22  👤 carol   40d  short",
@@ -50,7 +50,7 @@ func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *te
 }
 
 func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *testing.T) {
-	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return true }))
+	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return true }, nil))
 	want := []string{
 		" ▾  #1  👤 ada      2h  a title long",
 		"        👤 bob          enough to wrap",
@@ -63,7 +63,7 @@ func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *test
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a row that hides nothing never opens, and every line says which row it is of
-	lines := Draw(issues(), nil, 40, -1, func(Row) bool { return true })
+	lines := Draw(issues(), nil, 40, -1, func(Row) bool { return true }, nil)
 	if rows := []int{lines[0].Row, lines[2].Row, lines[3].Row, lines[5].Row}; !slices.Equal(rows, []int{0, 0, 1, 2}) {
 		t.Errorf("the lines' rows: %v", rows)
 	}
@@ -100,7 +100,7 @@ func TestLinkAtFindsTheLinkedGlyphUnderAColumn(t *testing.T) {
 
 // The band marks the cursor's row, so its first cell is bold in the accent and not underlined.
 func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
-	lines := Draw(issues(), nil, 40, 1, func(Row) bool { return false })
+	lines := Draw(issues(), nil, 40, 1, func(Row) bool { return false }, nil)
 	band, _, _ := strings.Cut(style.Band("x", 1), "x")
 	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
 	underlined, _, _ := strings.Cut(style.Chosen("#"), "#")
@@ -117,7 +117,7 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{style.Off("abc")}}, one("x")}}}
 	chosen, _, _ := strings.Cut(style.Mark("a"), "a")
 	dim, _, _ := strings.Cut(style.Off("a"), "a")
-	if got := Draw(rows, nil, 20, 0, func(Row) bool { return false })[0].Text; !strings.Contains(got, chosen+"a") ||
+	if got := Draw(rows, nil, 20, 0, func(Row) bool { return false }, nil)[0].Text; !strings.Contains(got, chosen+"a") ||
 		strings.Contains(got, dim) {
 		t.Errorf("a dim first cell under the cursor: %q", got)
 	}
@@ -125,8 +125,8 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 
 func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"a heading far too long for the pane"}, Wrap: true}}}}
-	closed := plain(Draw(rows, nil, 20, -1, func(Row) bool { return false }))
-	open := plain(Draw(rows, nil, 20, -1, func(Row) bool { return true }))
+	closed := plain(Draw(rows, nil, 20, -1, func(Row) bool { return false }, nil))
+	open := plain(Draw(rows, nil, 20, -1, func(Row) bool { return true }, nil))
 	if !slices.Equal(closed, []string{" ▸ a heading far to…"}) || len(open) != 2 || open[1] != "   long for the pane" {
 		t.Errorf("closed %q, open %q", closed, open)
 	}
@@ -233,7 +233,7 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	}
 	// a hidden column is left out of every row
 	p = Panel{Hidden: map[string]bool{"who": true}}
-	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }))
+	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }, nil))
 	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "   #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
 	}
@@ -268,7 +268,7 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 	}
 	closed, hides := Header(rows, names, 40, false)
 	plain := strip(closed)
-	drawn := ansi.Strip(Draw(rows, names, 40, -1, func(Row) bool { return false })[1].Text)
+	drawn := ansi.Strip(Draw(rows, names, 40, -1, func(Row) bool { return false }, nil)[1].Text)
 	// changes widens its column; fork is over no text, and left out; the title's name wraps, the header closed
 	if !hides || len(closed) != 1 || plain[0] != " ▸  id  changes  the title of the issue" || strings.Contains(plain[0], "fork") {
 		t.Fatalf("the closed header:\n%s", strings.Join(plain, "\n"))
@@ -318,13 +318,13 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 		{Key: "a", Cells: []Cell{one("#1"), {Values: []string{"short"}, Wrap: true}, one("ready")}},
 		{Key: "b", Cells: []Cell{one("#2"), {Values: []string{"shorter one"}, Wrap: true}, one("draft")}},
 	}
-	got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false })[0].Text)
+	got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text)
 	// the title column is as wide as the widest title, shorter one, even under minFill; the state stands after it
 	if got != "   #1  short        ready" {
 		t.Errorf("a short title: %q", got)
 	}
 	rows[1].Cells[1].Values[0] = "a title of thirty cells, wide."
-	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false })[0].Text); got != "   #1  short"+strings.Repeat(" ", 27)+"ready" {
+	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text); got != "   #1  short"+strings.Repeat(" ", 27)+"ready" {
 		t.Errorf("a title as wide as the longest: %q", got)
 	}
 }

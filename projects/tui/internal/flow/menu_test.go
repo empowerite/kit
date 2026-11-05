@@ -32,7 +32,7 @@ func openRows(m Model) int {
 func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	m := loaded(t, options(), right, right, right, press(':'))
 	if !m.menu || m.appMenu.Open || lines(m)[23] != " "+shell.Keys ||
-		!strings.Contains(view(m), "│ "+Expand+" Expand All   │") || strings.Contains(view(m), "Settings") {
+		!strings.Contains(view(m), "│ "+Expand+" Expand All ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
@@ -42,7 +42,8 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") ||
-		!strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) {
+		!strings.Contains(box[4], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
+		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; down
@@ -342,5 +343,63 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	if m = drive(m, down, testkit.Click(10, paneTop), testkit.Click(1, paneTop+1)); m.stages[0].headed ||
 		m.stages[0].cursor != before+1 {
 		t.Error("a click on the header's names or rule did something")
+	}
+}
+
+// In the rows, space selects the row under the cursor, ✓ in its gutter, and again unselects it; shift with up or down
+// selects as it moves; ctrl+a selects every row shown, and again none. A click puts the cursor on a row and selects
+// nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each
+// selected row's page, and clears the selection.
+func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24}, down, press(tea.KeySpace))
+	gutter := func(k int) string { return string([]rune(lines(m)[m.rowsTop()+k])[0]) }
+	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.HasPrefix(lines(m)[23], " 1 selected · ") {
+		t.Fatalf("space on the first row:\n%s", view(m))
+	}
+	if !strings.Contains(m.View().Content, style.Mark(grid.Chosen)) {
+		t.Error("the check mark is not in the accent")
+	}
+	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 || gutter(0) != " " {
+		t.Errorf("space again: %d selected", m.selected())
+	}
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+	if m.selected() != 2 || m.stages[0].cursor != 1 || gutter(1) != grid.Chosen {
+		t.Errorf("shift-down: %d selected, cursor %d\n%s", m.selected(), m.stages[0].cursor, view(m))
+	}
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}); m.selected() != 2 || m.stages[0].cursor != 0 {
+		t.Errorf("shift-up: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
+	}
+	ctrlA := tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
+	if m = drive(m, ctrlA); m.selected() != 3 {
+		t.Errorf("ctrl+a: %d selected", m.selected())
+	}
+	if m = drive(m, ctrlA); m.selected() != 0 {
+		t.Errorf("ctrl+a again: %d selected", m.selected())
+	}
+	// a click moves the cursor and selects nothing
+	if m = drive(m, testkit.Click(10, m.rowsTop()+2)); m.selected() != 0 || m.stages[0].cursor != 2 {
+		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
+	}
+	// the tab's menu: open selected and clear selection are dim with nothing selected
+	if m = drive(m, press(':')); m.enabled(7) || m.enabled(8) {
+		t.Errorf("open %v, clear %v, with nothing selected", m.enabled(7), m.enabled(8))
+	}
+	m = drive(m, esc, press(tea.KeySpace), up, press(tea.KeySpace))
+	browsed = nil
+	m = drive(m, press(':'), typed("o")[0], press(tea.KeyEnter))
+	if len(browsed) != 2 || !strings.HasSuffix(browsed[0], "/issues/46") && !strings.HasSuffix(browsed[1], "/issues/46") {
+		t.Errorf("open selected opened %q", browsed)
+	}
+	if m = drive(m, press(':'), typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.selected() != 0 || m.menu {
+		t.Errorf("clear selection: %d selected", m.selected())
+	}
+	// a group's heading is no row to select; off the rows, space selects nothing
+	m.setPanel(grid.Panel{Group: []string{"source"}, Groupable: groupable["backlog"]})
+	m.stages[0].cursor = 0
+	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
+		t.Errorf("space on a heading selected %d", m.selected())
+	}
+	if m = drive(m, esc, press(tea.KeySpace), ctrlA); m.selected() != 3 || m.inRows {
+		t.Errorf("off the rows: %d selected", m.selected())
 	}
 }

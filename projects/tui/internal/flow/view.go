@@ -131,12 +131,13 @@ func (m Model) paneWidth() int {
 	return m.width - 2
 }
 
-// keys gives the keys bar for where the keyboard is: only the keys that act there, ctrl-c left out, as the app's menu
-// has Quit: in a menu, in the panel, and in the search alone while the sidebar is hidden, their own; on the bar, left
-// and right along the tabs, down into the rows, and the numbers; in the rows, up and down and a page at a time; on a
-// row that opens, right to open it or left to close it; tab into the panel, = for the app's menu, and : for the tab's,
-// ; too, which the bar does not name; esc going back from the rows and from the sidebar. On a screen too narrow for
-// them, the keys spared names are left out before the bar is cut.
+// keys gives the keys bar for where the keyboard is: how many rows are selected, when some are, then only the keys that
+// act there, ctrl-c left out, as the app's menu has Quit: in a menu, in the panel, its keys to order, sort, and group
+// the columns among them, and in the search alone while the sidebar is hidden, their own; on the bar, left and right
+// along the tabs, down into the rows, and the numbers; in the rows, up and down, a page at a time, and space to select
+// a row; on a row that opens, right to open it or left to close it; tab into the panel, = for the app's menu, and : for
+// the tab's, ; too, which the bar does not name; esc going back from the rows and from the sidebar. On a screen too
+// narrow for them, the keys spared names are left out before the bar is cut.
 func (m Model) keys() string {
 	switch {
 	case m.menu || m.appMenu.Open:
@@ -147,8 +148,11 @@ func (m Model) keys() string {
 		return "↑↓ move · space toggle · ⇧↑↓ order · s sort · g group · type to search · esc back"
 	}
 	var keys []string
+	if n := m.selected(); n > 0 {
+		keys = append(keys, strconv.Itoa(n)+" selected")
+	}
 	if m.inRows {
-		keys = append(keys, "↑↓ move", "pgup/pgdn page")
+		keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
 		s, rows := m.stages[m.stage], m.rows(m.stage)
 		if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.paneWidth()) {
 			if s.open[rows[s.cursor].Key] {
@@ -171,8 +175,9 @@ func (m Model) keys() string {
 }
 
 // spared names the keys a narrow keys bar leaves out, the first first, until the rest fit: the numbers, which the
-// tabs show, a page at a time, the tab's menu, whose ⋮ the bar shows, and the search, which the title line shows.
-var spared = []string{"1-9 jump", "pgup/pgdn page", ": tab menu", "/ search"}
+// tabs show, a page at a time, selecting a row, the tab's menu, whose ⋮ the bar shows, and the search, which the
+// title line shows.
+var spared = []string{"1-9 jump", "pgup/pgdn page", "␣ select", ": tab menu", "/ search"}
 
 // fitKeys joins the keys, leaving out what spared names, in its order, until they fit so many cells.
 func fitKeys(keys []string, width int) string {
@@ -439,7 +444,8 @@ func (m Model) lines(i int) []line {
 	if m.inRows && i == m.stage && s.cursor < len(rows) {
 		chosen = s.cursor
 	}
-	drawn := grid.Draw(rows, m.names(i), m.paneWidth(), chosen, func(r row) bool { return s.open[r.Key] })
+	drawn := grid.Draw(rows, m.names(i), m.paneWidth(), chosen, func(r row) bool { return s.open[r.Key] },
+		func(r row) bool { return s.picked[r.Key] })
 	out := make([]line, len(drawn))
 	for k, l := range drawn {
 		out[k] = line{l.Row, l.Text}

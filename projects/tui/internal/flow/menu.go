@@ -8,6 +8,8 @@
 package flow
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -17,27 +19,31 @@ import (
 )
 
 // The glyphs beside the tab's menu's items, the stage loaded again, every row expanded and every row collapsed, all
-// the way down and up as ▾ and ▸ are one row's, and the headers shown, two cells wide as the others; and beside the
-// app's menu's own, every stage loaded again.
+// the way down and up as ▾ and ▸ are one row's, the headers shown, two cells wide as the others, the selected rows'
+// pages opened, and the selection swept away; and beside the app's menu's own, every stage loaded again.
 const (
 	Expand   = "⏬"
 	Collapse = "⏫"
 	Checked  = "✅"
 	Reload   = "🔄"
+	Browse   = "🌐"
+	Sweep    = "🧹"
 )
 
 // ownItems are the picture's own in the app's menu: every stage loaded again, reading the forge afresh.
 var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
-// expanded, every row collapsed, a rule, and the headers, checked while the selected stage shows them.
+// expanded, every row collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the
+// rows selected: each one's page opened, and none selected.
 func (m Model) tabItems() []shell.Item {
 	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
 		headers = Checked
 	}
 	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand All"},
-		{Glyph: Collapse, Name: "Collapse All"}, {}, {Glyph: headers, Name: "Show Headers"}}
+		{Glyph: Collapse, Name: "Collapse All"}, {}, {Glyph: headers, Name: "Show Headers"}, {},
+		{Glyph: Browse, Name: "Open Selected"}, {Glyph: Sweep, Name: "Clear Selection"}}
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
@@ -103,6 +109,10 @@ func (m Model) enabled(k int) bool {
 		return known[s.name]
 	case "Show Headers":
 		return len(columns[s.name]) > 0
+	case "Open Selected":
+		return len(m.pages()) > 0
+	case "Clear Selection":
+		return m.selected() > 0
 	case "":
 		return false
 	case "Expand All":
@@ -146,6 +156,15 @@ func (m *Model) pick(k int) tea.Cmd {
 		return nil
 	case "Refresh":
 		return m.refresh(s.name)
+	case "Open Selected":
+		var cmds []tea.Cmd
+		for _, page := range m.pages() {
+			cmds = append(cmds, m.openPage(page))
+		}
+		return tea.Batch(cmds...)
+	case "Clear Selection":
+		clear(s.picked)
+		return nil
 	}
 	m.inRows, m.inPanel = true, false
 	switch m.tabItems()[k].Name {
@@ -162,6 +181,21 @@ func (m *Model) pick(k int) tea.Cmd {
 	}
 	m.fit()
 	return nil
+}
+
+// pages gives the page each selected row of the selected stage leads to: its first cell's link that opens a page;
+// a row with none gives none.
+func (m Model) pages() []string {
+	var out []string
+	for _, r := range m.selectedRows() {
+		for _, c := range r.Cells {
+			if strings.Contains(c.Link, "://") {
+				out = append(out, c.Link)
+				break
+			}
+		}
+	}
+	return out
 }
 
 // refresh runs a stage's command again, reading the forge afresh, and shows it loading until it answers; on a stage

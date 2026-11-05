@@ -576,8 +576,8 @@ func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) 
 const (
 	barKeys     = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar"
 	sidebarKeys = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
-	opens       = "↑↓ move · pgup/pgdn page · → open · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
-	closes      = "↑↓ move · pgup/pgdn page · ← close · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
+	opens       = "↑↓ move · pgup/pgdn page · ␣ select · → open · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
+	closes      = "↑↓ move · pgup/pgdn page · ␣ select · ← close · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
