@@ -368,7 +368,7 @@ func (p Panel) Close(key string, closed bool) Panel {
 
 // Fold gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
 // the headings deeper than it, up to the next heading as shallow, or the rows of one cell that follow the groups. The
-// heading stays, its count the rows it hides.
+// heading stays, its count the rows it hides, and holds them in its Folded, which lay the columns out still.
 func (p Panel) Fold(rows []Row) []Row {
 	if len(p.Closed) == 0 {
 		return rows
@@ -381,6 +381,7 @@ func (p Panel) Fold(rows []Row) []Row {
 			level = strings.Count(r.Key, "\x00")
 		}
 		if closed > 0 && (level > closed || level == 0 && len(r.Cells) > 1) {
+			out[len(out)-1].Folded = append(out[len(out)-1].Folded, r)
 			continue
 		}
 		closed = 0

@@ -716,6 +716,20 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	if got := texts(p.Close(ready+"\x00ada", true)); !slices.Equal(got, want) {
 		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
+	// a closed heading holds the rows it folds away, which still lay out the header and the columns
+	every := Panel{Groupable: p.Groupable}.Grouped("state", false)
+	grouped, _ := every.group(rows, columns)
+	names := []string{"id", "state", "who"}
+	open, _ := Header(grouped, names, 60, false)
+	folded := every.Close("group\x00draft", true).Close(ready, true).Fold(grouped)
+	if shut, _ := Header(folded, names, 60, false); len(folded) != 3 || len(folded[1].Folded) != 2 ||
+		!slices.Equal(shut, open) || !slices.Equal(headed(folded, names), headed(grouped, names)) {
+		t.Errorf("every group closed: %d rows, %d folded under ready, header %q, was %q", len(folded),
+			len(folded[1].Folded), shut, open)
+	}
+	if HeaderAt(folded, names, 60, 3) != HeaderAt(grouped, names, 60, 3) {
+		t.Error("a click on the header of closed groups finds another column")
+	}
 	// unfolded again, every row is back, and the panel's map is never the one it was given
 	closed := p.Close(ready, true)
 	if q := closed.Close(ready, false); len(texts(q)) != 9 || !closed.Closed[ready] {

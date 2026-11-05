@@ -84,8 +84,9 @@ func digits(s string) int {
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
 // drawn closed; whether it is an aside, as a heading, which a screen does not count; the logins it belongs to, which
-// Show matches; and, for a group's heading, the columns whose value it says because the rows group by them on their
-// own.
+// Show matches; for a group's heading, the columns whose value it says because the rows group by them on their own;
+// and, for a heading whose group is closed, the rows it folds away, which are not drawn but still lay the columns and
+// the header out, so closing a group moves no column and leaves the header standing.
 type Row struct {
 	Key    string
 	Cells  []Cell
@@ -93,6 +94,21 @@ type Row struct {
 	Aside  bool
 	Owners []string
 	Says   []string
+	Folded []Row
+}
+
+// shapeOf gives the cells of the first row of two cells or more, among the rows and those they fold away: the columns
+// the header names; nothing when there is none.
+func shapeOf(rows []Row) []Cell {
+	for _, r := range rows {
+		if len(r.Cells) >= 2 {
+			return r.Cells
+		}
+		if shape := shapeOf(r.Folded); shape != nil {
+			return shape
+		}
+	}
+	return nil
 }
 
 // Line is one line the grid draws: the row it belongs to, an index into the rows drawn, and its text.
@@ -196,13 +212,7 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 // every line, with ▾. A column no row has text in is left out, as Draw leaves it. Rows of one cell alone, which span
 // the width, have no header. It says whether it hides lines while it is closed.
 func Header(rows []Row, names []string, width int, open bool) (lines []string, hides bool) {
-	var shape []Cell
-	for _, r := range rows {
-		if len(r.Cells) >= 2 {
-			shape = r.Cells
-			break
-		}
-	}
+	shape := shapeOf(rows)
 	if shape == nil {
 		return nil, false
 	}
@@ -264,13 +274,7 @@ func Header(rows []Row, names []string, width int, open bool) (lines []string, h
 // HeaderAt gives the column whose name the header draws at the column x of the screen, as an index into the rows'
 // cells, as Header lays the names out for a pane of so many cells; -1 off every name, or with no header.
 func HeaderAt(rows []Row, names []string, width, x int) int {
-	var shape []Cell
-	for _, r := range rows {
-		if len(r.Cells) >= 2 {
-			shape = r.Cells
-			break
-		}
-	}
+	shape := shapeOf(rows)
 	widths, left := fit(shape, headed(rows, names), width-len(lead))
 	at := len(lead)
 	for j, c := range shape {
@@ -374,11 +378,18 @@ func headed(rows []Row, head []string) []int {
 	return widths
 }
 
-// columnWidths gives each column's width over the rows of two cells or more: its widest value, or first value and
-// +N; for the cell that wraps, the widest it is on one line, which fit takes as the most it needs.
+// columnWidths gives each column's width over the rows of two cells or more, those a closed heading folds away too:
+// its widest value, or first value and +N; for the cell that wraps, the widest it is on one line, which fit takes as
+// the most it needs.
 func columnWidths(rows []Row) []int {
 	var widths []int
 	for _, r := range rows {
+		for j, w := range columnWidths(r.Folded) {
+			for len(widths) <= j {
+				widths = append(widths, 0)
+			}
+			widths[j] = max(widths[j], w)
+		}
 		if len(r.Cells) < 2 {
 			continue
 		}
