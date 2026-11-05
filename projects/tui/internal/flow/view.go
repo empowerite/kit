@@ -144,7 +144,7 @@ func (m Model) keys() string {
 	case m.inPanel && !m.sidebar:
 		return shell.SearchKeys
 	case m.inPanel:
-		return "↑↓ move · space toggle · ⇧↑↓ order · type to search · esc back"
+		return "↑↓ move · space toggle · ⇧↑↓ order · s sort · type to search · esc back"
 	}
 	var keys []string
 	if m.inRows {
@@ -266,12 +266,24 @@ func (m Model) sideLines() []string {
 	return panel
 }
 
-// names gives the names of a stage's columns that its panel shows, as its header stands them over its rows, which
-// widen its columns; none while its tab's menu hides its headers.
+// names gives the names of a stage's columns that its panel shows, in its order, as its header stands them over its
+// rows, which widen its columns, each that sorts the rows marked as the panel marks it; none while its tab's menu hides
+// its headers.
 func (m Model) names(i int) []string {
 	if !m.stages[i].headers {
 		return nil
 	}
+	p, names := m.filter(i), m.shownColumns(i)
+	for k, name := range names {
+		if mark := p.Mark(name); mark != "" {
+			names[k] += " " + mark
+		}
+	}
+	return names
+}
+
+// shownColumns gives the names of a stage's columns its panel shows, in its order, one a cell of its rows.
+func (m Model) shownColumns(i int) []string {
 	p := m.filter(i)
 	var names []string
 	for _, name := range p.Arrange(columns[m.stages[i].name]) {

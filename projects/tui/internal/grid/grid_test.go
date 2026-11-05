@@ -365,3 +365,76 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 		t.Error("Point on no line")
 	}
 }
+
+// Rows sort by the panel's keys, each in turn: by a cell's sort value when it has one, else its text, naturally, so
+// #7 comes before #31; descending reverses a key; rows alike keep their order, and a row of one cell its place. A click
+// sorts by a column alone, ▲, ▼, then not at all; a shift-click adds it after the others; a column that cannot sort
+// changes nothing.
+func TestThePanelSortsTheRows(t *testing.T) {
+	columns := []string{"id", "age"}
+	row := func(id, age, secs string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{age}, Sort: secs}}}
+	}
+	rows := []Row{row("#31", "2d", "172800"), row("#7", "60m", "3600"), {Key: "heading", Cells: []Cell{one("heading")}},
+		row("#100", "60m", "3600")}
+	keys := func(rows []Row) string {
+		var out []string
+		for _, r := range rows {
+			out = append(out, r.Key)
+		}
+		return strings.Join(out, " ")
+	}
+	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}
+	if got := keys(p.Sorted("id", false).order(rows, columns)); got != "#7 #31 heading #100" {
+		t.Errorf("by id: %s", got)
+	}
+	if got := keys(p.Sorted("id", false).Sorted("id", false).order(rows, columns)); got != "#100 #31 heading #7" {
+		t.Errorf("by id, descending: %s", got)
+	}
+	// by age, then id: the two of 60m by id
+	byAge := p.Sorted("age", false).Sorted("id", true)
+	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲1" || byAge.Mark("id") != "▲2" {
+		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
+	}
+	// a click on a key among several sorts by it alone, as it was; a third click on a column stops it
+	if got := byAge.Sorted("id", false); len(got.Sort) != 1 || got.Sort[0] != (SortKey{"id", true}) || got.Mark("id") != "▼" {
+		t.Errorf("a click on id among two keys: %+v", got.Sort)
+	}
+	if got := p.Sorted("id", false).Sorted("id", false).Sorted("id", false); len(got.Sort) != 0 || got.Mark("id") != "" {
+		t.Errorf("three clicks: %+v", got.Sort)
+	}
+	if got := byAge.Sorted("id", true).Sorted("id", true); len(got.Sort) != 1 || got.Sort[0].Column != "age" {
+		t.Errorf("two shift-clicks on id: %+v", got.Sort)
+	}
+	if got := p.Sorted("title", false); got.Sort != nil {
+		t.Errorf("a column that cannot sort: %+v", got.Sort)
+	}
+	// s and S in the panel, on a column's checkbox, do what a click and a shift-click do
+	q := Panel{Columns: columns, Sortable: p.Sortable, Focused: true, Cursor: 1}
+	q, _ = q.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
+	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	q, _ = q.Update(tea.KeyPressMsg{Code: 'S', Text: "S"})
+	if lines, _ := q.Lines(); len(q.Sort) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲1") ||
+		!strings.HasSuffix(ansi.Strip(lines[4]), "age ▲2") {
+		t.Errorf("s then S: %+v\n%s", q.Sort, strings.Join(lines, "\n"))
+	}
+	if natural("a2", "a10") >= 0 || natural("B", "a") <= 0 || natural("ab", "abc") >= 0 || natural("x", "x") != 0 {
+		t.Error("natural")
+	}
+}
+
+// HeaderAt finds the column whose name a cell of the header falls on, and none off the names.
+func TestHeaderAtFindsTheColumnUnderAName(t *testing.T) {
+	rows := []Row{{Cells: []Cell{one("#31"), one(""), one("ready"), {Values: []string{"a title"}, Wrap: true}}}}
+	names := []string{"id", "fork", "state", "title"}
+	header, _ := Header(rows, names, 40, false)
+	plain := ansi.Strip(header[0])
+	for name, want := range map[string]int{"id": 0, "state": 2, "title": 3} {
+		if got := HeaderAt(rows, names, 40, strings.Index(plain, name)); got != want {
+			t.Errorf("%s: column %d, want %d", name, got, want)
+		}
+	}
+	if HeaderAt(rows, names, 40, 1) != -1 || HeaderAt(rows, names, 40, 39) != -1 || HeaderAt(nil, names, 40, 5) != -1 {
+		t.Error("a column off the names")
+	}
+}

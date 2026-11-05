@@ -259,6 +259,20 @@ func tookCell(secs *int64) cell {
 	return number(took(secs))
 }
 
+// aged gives a cell that sorts by so many seconds, as an age or a duration does, its text being coarser.
+func aged(c cell, secs int64) cell {
+	c.Sort = strconv.FormatInt(max(secs, 0), 10)
+	return c
+}
+
+// agedOf gives a cell that sorts by seconds that may be missing, as aged does; a missing one sorts by its text.
+func agedOf(c cell, secs *int64) cell {
+	if secs == nil {
+		return c
+	}
+	return aged(c, *secs)
+}
+
 // ageOf gives an age that may be missing.
 func ageOf(secs *int64) string {
 	if secs == nil {
@@ -362,6 +376,37 @@ var columns = map[string][]string{
 	"releases":  {"version", "kind", "age", "latest"},
 }
 
+// sortable names each stage's columns that its rows can sort by, and groupable those that can group them: a value that
+// orders, and one that many rows share.
+var (
+	sortable = map[string]map[string]bool{
+		"backlog":   set("id", "source", "assignees", "age", "branch", "title"),
+		"underway":  set("id", "source", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"),
+		"desk":      set("branch", "ahead", "lines", "change", "state", "uncommitted"),
+		"worktrees": set("branch", "ahead", "lines", "change", "state", "uncommitted"),
+		"changes":   set("change", "title", "author", "state", "age", "checks", "threads", "branch"),
+		"builds":    set("workflow", "run", "event", "branch", "age", "took"),
+		"releases":  set("version", "kind", "age"),
+	}
+	groupable = map[string]map[string]bool{
+		"backlog":   set("source", "assignees"),
+		"underway":  set("source", "assignees", "state", "where", "fork", "by"),
+		"worktrees": set("state"),
+		"changes":   set("author", "state", "checks"),
+		"builds":    set("workflow", "event", "branch"),
+		"releases":  set("kind", "latest"),
+	}
+)
+
+// set gives the names as a set.
+func set(names ...string) map[string]bool {
+	out := map[string]bool{}
+	for _, n := range names {
+		out[n] = true
+	}
+	return out
+}
+
 // owned names the stages whose rows belong to people, which the panel lets through as every row, the caller's, or
 // everyone else's.
 var owned = map[string]bool{"backlog": true, "underway": true, "changes": true}
@@ -419,7 +464,7 @@ func (m Model) backlogRows(s stage) []row {
 	var rows []row
 	for _, i := range s.issues {
 		r := row{Key: "#" + strconv.Itoa(i.Number), Owners: i.Assignees}
-		r.Cells = []cell{number(r.Key), source(i.Source), owners(i.Assignees), dimNumber(ageOf(i.Age)),
+		r.Cells = []cell{number(r.Key), source(i.Source), owners(i.Assignees), agedOf(dimNumber(ageOf(i.Age)), i.Age),
 			dim(branchOf(i.Branch)),
 			linked(fill(Issue+" "+i.Title), m.origin.issue(i.Number, i.URL))}
 		rows = append(rows, r)
@@ -458,7 +503,7 @@ func (m Model) underwayRows(s stage) []row {
 			fork = dim(Fork + " " + u.PR.Fork)
 		}
 		if p := u.PR.Pushed; p != nil {
-			pushed = dim(Pushed + " " + fmt.Sprintf("%*s", widest, age(p.Age)))
+			pushed = aged(dim(Pushed+" "+fmt.Sprintf("%*s", widest, age(p.Age))), p.Age)
 			if p.By != "" && p.By != u.PR.Author {
 				by = dim(Owner + " " + p.By)
 			}
@@ -469,7 +514,7 @@ func (m Model) underwayRows(s stage) []row {
 		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
-			Cells: []cell{number(issue), source(u.Source), owners(u.Assignees), dimNumber(ageOf(u.Age)),
+			Cells: []cell{number(issue), source(u.Source), owners(u.Assignees), agedOf(dimNumber(ageOf(u.Age)), u.Age),
 				linked(text(Change+" "+pr), change), linked(text(state), page), where, fork, pushed, by,
 				linked(fill(Issue+" "+u.Title), m.origin.issue(u.Number, u.URL))}}
 		rows = append(rows, r)
@@ -731,7 +776,7 @@ func (m Model) changeRows(s stage) []row {
 		}
 		page := m.origin.pull(p.Number, "")
 		r := row{Key: ref(p), Owners: []string{p.Author}, Cells: []cell{linked(text(Change+" "+ref(p)), page),
-			fill(p.Title), dim(author), linked(text(stateGlyph(p.State)+" "+p.State), page), dimNumber(age(p.Age)),
+			fill(p.Title), dim(author), linked(text(stateGlyph(p.State)+" "+p.State), page), aged(dimNumber(age(p.Age)), p.Age),
 			text(p.Checks.cell()), text(threads), dim(branchOf(p.Branch))}}
 		for _, i := range p.Closes {
 			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),
@@ -761,8 +806,8 @@ func (m Model) buildRows(s stage) []row {
 			title = ""
 		}
 		r := row{Key: strconv.FormatInt(b.ID, 10), Cells: []cell{linked(text(runGlyph(b.State)), b.URL), text(b.Workflow),
-			dimNumber(number), dim(eventOf(b)), text(b.Branch), dim(b.SHA), fill(title), dimNumber(age(b.Age)),
-			tookCell(b.Took)}}
+			dimNumber(number), dim(eventOf(b)), text(b.Branch), dim(b.SHA), fill(title), aged(dimNumber(age(b.Age)), b.Age),
+			agedOf(tookCell(b.Took), b.Took)}}
 		if b.Attempt > 1 {
 			r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
 		}
@@ -809,7 +854,7 @@ func (m Model) releaseRows(s stage) []row {
 			latest = Latest + " latest"
 		}
 		kind := linked(text(kindGlyph(rel.Kind)+" "+rel.Kind), m.origin.release(rel.Tag, rel.URL))
-		r := row{Key: rel.Tag, Cells: []cell{text(rel.Version), kind, dimNumber(age(rel.Age)), text(latest)}}
+		r := row{Key: rel.Tag, Cells: []cell{text(rel.Version), kind, aged(dimNumber(age(rel.Age)), rel.Age), text(latest)}}
 		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
 		rows = append(rows, r)
 	}

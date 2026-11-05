@@ -238,6 +238,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.showSidebar(!m.sidebar)
 		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
 			return m, m.clickPanel(msg.Y)
+		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
+			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -319,7 +321,7 @@ func (m Model) panel(i int) grid.Panel {
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
-	p.Owned, p.Me = owned[s.name], m.me
+	p.Owned, p.Me, p.Sortable = owned[s.name], m.me, sortable[s.name]
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }
@@ -383,6 +385,25 @@ func (m *Model) clickPanel(line int) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// clickHeader takes a click on the header, which is no row: on its gutter it opens the header, or closes it, when it
+// hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a shift-click asks, by it
+// after the others, as the panel's Sorted says; elsewhere it does nothing.
+func (m *Model) clickHeader(x, y int, also bool) {
+	s := &m.stages[m.stage]
+	if _, hides := m.header(); hides && y == paneTop && x < 3 {
+		s.headed = !s.headed
+		m.fit()
+		return
+	}
+	lines, _ := m.header()
+	if y >= paneTop+len(lines)-1 {
+		return
+	}
+	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.paneWidth(), x); j >= 0 {
+		m.setPanel(m.panel(m.stage).Sorted(m.shownColumns(m.stage)[j], also))
+	}
 }
 
 // drag is the column whose line in the panel a press holds, and whether a drag has moved it since.
@@ -951,11 +972,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	if y < m.rowsTop() {
-		// the header is no row: a click on its gutter opens it, or closes it, when it hides lines; the rest is nothing
-		if _, hides := m.header(); hides && y == paneTop && x < 3 {
-			s.headed = !s.headed
-			m.fit()
-		}
+		m.clickHeader(x, y, false)
 		return nil
 	}
 	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())

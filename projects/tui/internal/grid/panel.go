@@ -4,6 +4,7 @@ package grid
 import (
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,17 +42,108 @@ const (
 // Me; while it is unknown they are dim, and cannot be chosen. Cursor is the control under the keyboard, Focused
 // whether the panel has it. Hidden holds the names of the columns hidden; the panel never changes the map it was
 // given, but gives a new one. Order is the order the named columns stand in, the rows' and the panel's checkboxes
-// alike, as Arrange says; none is the stage's own.
+// alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first; Sortable
+// names the columns that can be, which the stage says.
 type Panel struct {
-	Query   string
-	Columns []string
-	Hidden  map[string]bool
-	Order   []string
-	Show    Show
-	Owned   bool
-	Me      string
-	Cursor  int
-	Focused bool
+	Query    string
+	Columns  []string
+	Hidden   map[string]bool
+	Order    []string
+	Sort     []SortKey
+	Sortable map[string]bool
+	Show     Show
+	Owned    bool
+	Me       string
+	Cursor   int
+	Focused  bool
+}
+
+// SortKey is a column the rows sort by, and whether the larger come first.
+type SortKey struct {
+	Column string
+	Desc   bool
+}
+
+// Sorted gives the panel with the column sorting the rows alone, as a click on its name asks, or, with also, as one
+// more key after the others, as a shift-click does: a column not sorting sorts ascending, then descending, then not at
+// all. A column that cannot sort changes nothing.
+func (p Panel) Sorted(column string, also bool) Panel {
+	if !p.Sortable[column] {
+		return p
+	}
+	k := slices.IndexFunc(p.Sort, func(s SortKey) bool { return s.Column == column })
+	keys := slices.Clone(p.Sort)
+	if !also {
+		keys = nil
+		if k >= 0 {
+			keys = []SortKey{p.Sort[k]}
+		}
+		k = min(k, 0)
+	}
+	switch {
+	case k < 0:
+		keys = append(keys, SortKey{Column: column})
+	case !keys[k].Desc:
+		keys[k].Desc = true
+	default:
+		keys = slices.Delete(keys, k, k+1)
+	}
+	p.Sort = keys
+	return p
+}
+
+// Mark gives what stands after a column's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
+// among the keys when there are several; nothing where it does not.
+func (p Panel) Mark(column string) string {
+	for k, s := range p.Sort {
+		if s.Column != column {
+			continue
+		}
+		mark := "▲"
+		if s.Desc {
+			mark = "▼"
+		}
+		if len(p.Sort) > 1 {
+			mark += strconv.Itoa(k + 1)
+		}
+		return mark
+	}
+	return ""
+}
+
+// order sorts the rows by the panel's keys, each in turn, the rows alike on every key keeping their order; a row of
+// one cell, as a heading, stays where it is, the rows around it sorting in the places they hold.
+func (p Panel) order(rows []Row, columns []string) []Row {
+	if len(p.Sort) == 0 {
+		return rows
+	}
+	var places []int
+	var sorted []Row
+	for i, r := range rows {
+		if len(r.Cells) > 1 {
+			places, sorted = append(places, i), append(sorted, r)
+		}
+	}
+	slices.SortStableFunc(sorted, func(a, b Row) int {
+		for _, s := range p.Sort {
+			j := slices.Index(columns, s.Column)
+			if j < 0 || j >= len(a.Cells) || j >= len(b.Cells) {
+				continue
+			}
+			if c := natural(a.Cells[j].key(), b.Cells[j].key()); c != 0 {
+				if s.Desc {
+					return -c
+				}
+				return c
+			}
+		}
+		return 0
+	})
+	out := slices.Clone(rows)
+	for k, i := range places {
+		out[i] = sorted[k]
+	}
+	return out
 }
 
 // control is one of the panel's controls: the search, a column's checkbox, or a choice of Show.
@@ -98,6 +190,9 @@ func (p Panel) Lines() (lines []string, at []int) {
 			if p.Hidden[c.column] {
 				line = style.Off(Unticked) + " " + c.column
 			}
+			if mark := p.Mark(c.column); mark != "" {
+				line += " " + style.Tint(mark)
+			}
 		default:
 			if c.show == All {
 				add("", -1)
@@ -123,7 +218,8 @@ func (p Panel) Lines() (lines []string, at []int) {
 // Update takes a key while the panel has the keyboard, and says whether it changed anything: up and down move between
 // the controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back;
 // off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show; on a column's
-// checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone.
+// checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone, s sorts by
+// the column alone and S adds it to the sort, as Sorted says.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -137,6 +233,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		p.Query, _ = shell.Type(p.Query, k)
 	case k.Text == "/":
 		p.Cursor = 0
+	case c.column != "" && (k.Text == "s" || k.Text == "S"):
+		p = p.Sorted(c.column, k.Text == "S")
 	case c.column != "" && (key == "shift+up" || key == "shift+down"):
 		step := 1
 		if key == "shift+up" {
@@ -221,18 +319,21 @@ func (p Panel) Width() int {
 }
 
 // Filter gives the rows the panel lets through: those whose text has the search, without regard to case, and that
-// belong to the caller or not, as Show says, each without the hidden columns' cells. columns names each cell's column,
-// in order. While the search or Show narrows the rows, an aside that
+// belong to the caller or not, as Show says, sorted by its keys, each with its cells in its order and without the
+// hidden columns'. columns names each cell's column, in the stage's order. While the search or Show narrows the rows, an aside that
 // heads none of them is left out with them.
 func (p Panel) Filter(rows []Row, columns []string) []Row {
 	query := strings.ToLower(p.Query)
 	var out []Row
 	for _, r := range rows {
-		switch {
-		case r.Aside:
+		if r.Aside || p.matches(r, query) {
 			out = append(out, r)
-		case p.matches(r, query):
-			out = append(out, p.hide(r, columns))
+		}
+	}
+	out = p.order(out, columns)
+	for k, r := range out {
+		if !r.Aside {
+			out[k] = p.hide(r, columns)
 		}
 	}
 	if query == "" && p.Show == All {

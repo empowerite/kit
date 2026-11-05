@@ -12,8 +12,11 @@
 package grid
 
 import (
+	"cmp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -24,12 +27,56 @@ import (
 // Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right
 // is a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the
 // row is closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page:
-// a click on the glyph opens it.
+// a click on the glyph opens it. Sort is what the cell sorts by, as an age by its seconds; none sorts by its first
+// value's text, naturally, so #7 comes before #31.
 type Cell struct {
 	Values []string
 	Right  bool
 	Wrap   bool
 	Link   string
+	Sort   string
+}
+
+// key gives what a cell sorts and groups by: its sort value, else its first value's text without its styles.
+func (c Cell) key() string {
+	if c.Sort != "" {
+		return c.Sort
+	}
+	return ansi.Strip(c.first())
+}
+
+// natural compares two texts as a person reads them: each run of digits by its number, the rest without regard to
+// case, so 7 comes before 31 and a2 before a10.
+func natural(a, b string) int {
+	for a != "" && b != "" {
+		da, db := digits(a), digits(b)
+		switch {
+		case da > 0 && db > 0:
+			x, _ := strconv.ParseUint(a[:da], 10, 64)
+			y, _ := strconv.ParseUint(b[:db], 10, 64)
+			if x != y {
+				return cmp.Compare(x, y)
+			}
+			a, b = a[da:], b[db:]
+		default:
+			ra, na := utf8.DecodeRuneInString(a)
+			rb, nb := utf8.DecodeRuneInString(b)
+			if c := cmp.Compare(unicode.ToLower(ra), unicode.ToLower(rb)); c != 0 {
+				return c
+			}
+			a, b = a[na:], b[nb:]
+		}
+	}
+	return cmp.Compare(len(a), len(b))
+}
+
+// digits gives how many bytes of digits a text starts with.
+func digits(s string) int {
+	n := 0
+	for n < len(s) && s[n] >= '0' && s[n] <= '9' {
+		n++
+	}
+	return n
 }
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
@@ -194,6 +241,35 @@ func Header(rows []Row, names []string, width int, open bool) (lines []string, h
 		out[k] = g + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
 	}
 	return out, hides
+}
+
+// HeaderAt gives the column whose name the header draws at the column x of the screen, as an index into the rows'
+// cells, as Header lays the names out for a pane of so many cells; -1 off every name, or with no header.
+func HeaderAt(rows []Row, names []string, width, x int) int {
+	var shape []Cell
+	for _, r := range rows {
+		if len(r.Cells) >= 2 {
+			shape = r.Cells
+			break
+		}
+	}
+	widths := headed(rows, names)
+	left := fillWidth(shape, widths, width-len(lead))
+	at := len(lead)
+	for j, c := range shape {
+		w := left
+		if !c.Wrap {
+			if j >= len(widths) || widths[j] == 0 {
+				continue
+			}
+			w = widths[j]
+		}
+		if x >= at && x < at+w && j < len(names) && names[j] != "" {
+			return j
+		}
+		at += w + gap
+	}
+	return -1
 }
 
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or

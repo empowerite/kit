@@ -18,7 +18,7 @@ import (
 )
 
 // panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · type to search · esc back"
+const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · s sort · type to search · esc back"
 
 // typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
 func typed(text string) []tea.Msg {
@@ -411,5 +411,31 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 	m = drive(m, testkit.Click(x, line("state")), testkit.Drag(x, 0), testkit.Drag(2, 10), testkit.Release(2, 10))
 	if !slices.Equal(m.panel(m.stage).Order, before) {
 		t.Error("a drag over no column's line moved one")
+	}
+}
+
+// A click on a sortable column's name in the header sorts the rows by it, ▲ beside the name, and again ▼; a shift-click
+// adds a column after it; a click on a name that does not sort, as builds' commit, changes nothing.
+func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
+	order := func() string { return strings.Join(keys(m), " ") }
+	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+		t.Fatalf("a click on age: %s\n%s", order(), view(m))
+	}
+	if got := order(); got != "#45 #46 #7" {
+		t.Errorf("by age, the youngest first: %s", got)
+	}
+	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▼") || order() != "#7 #46 #45" {
+		t.Errorf("again, the oldest first: %s\n%s", order(), view(m))
+	}
+	shift := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModShift}
+	if m = drive(m, shift); !strings.Contains(lines(m)[paneTop], "source ▲2") || !strings.Contains(lines(m)[paneTop], "age ▼1") {
+		t.Errorf("a shift-click on source:\n%s", view(m))
+	}
+	// builds' commit does not sort
+	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); len(m.panel(m.stage).Sort) != 0 || m.stages[m.stage].name != "builds" {
+		t.Errorf("a click on commit sorted builds: %+v", m.panel(m.stage).Sort)
 	}
 }
