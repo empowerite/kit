@@ -70,16 +70,17 @@ func (m Model) View() tea.View {
 }
 
 // bar gives the stages' tab bar, from the screen's second line, as wide as barWidth says: each stage's glyph, name,
-// and count, the room for a count of n/m and the menu's glyph kept for each, the keyboard on it unless the rows or the
+// and count, the room for the widest count of n/m its rows allow and the menu's glyph kept for each, the keyboard on it unless the rows or the
 // panel have it, and the selected stage's group's color.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.barWidth(), Row: 1,
-		Reserve: len("xxx/yyy"), Menus: true, MenuOpen: m.menu, Joined: true}
+		Menus: true, MenuOpen: m.menu, Joined: true}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
+		b.Reserves = append(b.Reserves, m.reserve(i))
 	}
 	return b
 }
@@ -207,6 +208,15 @@ func (m Model) count(i int) string {
 		return strconv.Itoa(n) + "/" + strconv.Itoa(all)
 	}
 	return strconv.Itoa(n)
+}
+
+// reserve gives the cells a stage's count is laid out for: as wide as it can grow while the stage's rows stay what
+// they are, n/m with both as wide as the rows loaded, so a search or Show that narrows them moves no tab.
+func (m Model) reserve(i int) int {
+	if m.stages[i].loading || m.stages[i].refusal != "" {
+		return 1
+	}
+	return 2*len(strconv.Itoa(m.shown(i).all)) + 1
 }
 
 // counted gives how many of the rows are not asides.

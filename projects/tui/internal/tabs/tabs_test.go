@@ -431,3 +431,18 @@ func TestACountThatWantsAttentionStandsOut(t *testing.T) {
 		t.Errorf("the selected tab's count is not red: %q", b.View())
 	}
 }
+
+// Each tab's reserve keeps room for the count it may grow to, so a count that grows within it moves no tab, and a tab
+// with a small reserve stays narrow.
+func TestATabsOwnReserveKeepsItsCountsRoomAndNoMore(t *testing.T) {
+	b := Bar{Tabs: []Tab{{"🎫", "backlog", "3"}, {"🛫", "underway", "12"}}, Width: 200, Reserves: []int{3, 5}}
+	if got := []int{b.wants(0), b.wants(1)}; !slices.Equal(got, []int{ansi.StringWidth("🎫 backlog") + 1 + 3 + 1,
+		ansi.StringWidth("🛫 underway") + 1 + 5 + 1}) {
+		t.Errorf("wants: %v", got)
+	}
+	before := b.Numbers()
+	b.Tabs[0].Count, b.Tabs[1].Count = "2/3", "9/12"
+	if after := b.Numbers(); !slices.Equal(before, after) {
+		t.Errorf("a count within its reserve moved the tabs: %v, then %v", before, after)
+	}
+}

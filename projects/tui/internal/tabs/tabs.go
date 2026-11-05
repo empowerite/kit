@@ -57,7 +57,8 @@ type Tab struct {
 
 // Bar is the tab bar as a screen has it now: the tabs, the selected one, whether the bar has the keyboard, the
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
-// count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs.
+// count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs;
+// Reserves is the same for each tab, by index, beside it.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
 // the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
 // count blank. Joined says a line runs
@@ -72,6 +73,7 @@ type Bar struct {
 	Width    int
 	Row      int
 	Reserve  int
+	Reserves []int
 	Menus    bool
 	MenuOpen bool
 	Joined   bool
@@ -171,13 +173,18 @@ func (b Bar) label(i int) (name, end string) {
 	return name, end
 }
 
-// wants gives the cells a tab's label takes at least: its name, a space and its count, or the reserve when the count is
-// narrower, room for a space and the menu's glyph on every tab when the bar has menus, and a space after them.
+// wants gives the cells a tab's label takes at least: its name, a space and its count, or the bar's reserve or the
+// tab's own in Reserves when the count is narrower, room for a space and the menu's glyph on every tab when the bar
+// has menus, and a space after them.
 func (b Bar) wants(i int) int {
 	name, _ := b.label(i)
 	n := ansi.StringWidth(name)
-	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || b.Reserve > 0 {
-		n += 1 + max(count, b.Reserve)
+	reserve := b.Reserve
+	if i < len(b.Reserves) {
+		reserve = max(reserve, b.Reserves[i])
+	}
+	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || reserve > 0 {
+		n += 1 + max(count, reserve)
 	}
 	if b.Menus {
 		n += 1 + ansi.StringWidth(Menu)

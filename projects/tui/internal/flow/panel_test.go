@@ -167,9 +167,9 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 		t.Errorf("the empty search stayed at %d", glyphAt(m))
 	}
 	// on a screen too narrow for any number to leave the room, the search leaves it as far right as it can
-	m = drive(m, tea.WindowSizeMsg{Width: 24, Height: 24}, typed("/")[0])
-	if at := glyphAt(m); at != 24-1-shell.Typing-3 {
-		t.Errorf("at 24 columns, the search's glyph is at %d", at)
+	m = drive(m, tea.WindowSizeMsg{Width: 20, Height: 24}, typed("/")[0])
+	if at := glyphAt(m); at != 20-1-shell.Typing-3 {
+		t.Errorf("at 20 columns, the search's glyph is at %d", at)
 	}
 	m = drive(m, esc, tea.WindowSizeMsg{Width: 120, Height: 24})
 	if m = drive(m, press('?'), typed("/")[0], down); m.panel(0).Cursor != 1 || !m.sidebar ||

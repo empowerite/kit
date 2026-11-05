@@ -1,7 +1,7 @@
   ≡ kit flow · 📚 empowerite/kit                     🔎 search
-  ➊╶─────────────────────╮➁╶──────────────────────╮➂
-  │ 🎫 backlog       3 ⋮ │  🛫 underway         4  ▹ columns
-  ╵                      ╰────────────────────────╰┐ ☑ id
+  ➊╶─────────────────╮➁╶──────────────────╮➂╶───────
+  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 de ▹ columns
+  ╵                  ╰────────────────────╰────────┐ ☑ id
     id  assignees   age  branch       title        │ ☑ source ▤
    ─────────────────────────────────────────────── │ ☑ assignees
    source · 🐙 github  3                           │ ☑ age
