@@ -59,10 +59,12 @@ func selecting(t *testing.T) (Model, string) {
 	return m, record
 }
 
-func TestTheBacklogsActionsAreOfferedOnlyOnItsSelectedIssues(t *testing.T) {
+func TestTheBacklogsActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
 	m := loaded(t, options(), down)
-	if item(m, "Assign to Me") >= 0 {
-		t.Error("the actions are offered with nothing selected")
+	for _, name := range []string{"Start Local Work for Each", "Assign to Me", "Close as Not Planned", "Copy Links"} {
+		if k := item(m, name); k < 0 || m.enabled(k) {
+			t.Errorf("%s with nothing selected: line %d, not dim", name, k)
+		}
 	}
 	m, _ = selecting(t)
 	names := []string{"Start Local Work for Each", "Start Local Work Together…", "Add to Pull Request…", "Assign to Me",
@@ -202,5 +204,36 @@ func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 	next, cmd := m.Update(press(tea.KeyEnter))
 	if m = next.(Model); cmd == nil || !strings.Contains(ansi.Strip(lines(m)[len(lines(m))-1]), "copied 2 links") {
 		t.Errorf("copy links: %q", lines(m)[len(lines(m))-1])
+	}
+}
+
+// A menu taller than the screen's room scrolls with the keyboard: it ends above the keys bar, marks the items above
+// and below it, and a click picks the item it shows there.
+func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 16}, down)
+	m.stages[0].picked["#45"] = true
+	m = drive(m, press(':'))
+	box, _, first := m.menuBoxIn()
+	if len(box) != 16-1-menuTop || first != 0 || !strings.Contains(ansi.Strip(box[len(box)-1]), "▾") ||
+		strings.Contains(ansi.Strip(box[0]), "▴") {
+		t.Fatalf("the menu at the top: %d lines, first %d\n%s", len(box), first, view(m))
+	}
+	m.menuAt = item(m, "Open Selected")
+	box, left, first := m.menuBoxIn()
+	if first == 0 || !strings.Contains(ansi.Strip(box[0]), "▴") || strings.Contains(ansi.Strip(box[len(box)-1]), "▾") {
+		t.Errorf("the menu at the end: first %d\n%s", first, view(m))
+	}
+	// a click on the line that shows Assign to Me picks it
+	k := item(m, "Assign to Me")
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	if m = drive(m, testkit.Click(left+3, menuTop+1+k-first)); !slices.Equal(acted(t, record), []string{"assign #45"}) {
+		t.Errorf("a click on Assign to Me: %q", acted(t, record))
+	}
+	// a click on the box's bottom edge picks nothing
+	m = drive(m, press(':'))
+	box, left, _ = m.menuBoxIn()
+	if m = drive(m, testkit.Click(left+3, menuTop+len(box)-1)); m.menu || len(acted(t, record)) != 1 {
+		t.Errorf("a click on the edge: menu %v, calls %q", m.menu, acted(t, record))
 	}
 }

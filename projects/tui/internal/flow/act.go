@@ -29,10 +29,10 @@ const (
 	Twin   = "♊"
 )
 
-// actions gives the backlog's actions, in the tab's menu's order, while issues are selected there, and none
-// otherwise.
+// actions gives the backlog's actions, in the tab's menu's order, on backlog, and none elsewhere. They are there with
+// nothing selected too, dim, so the menu shows what selecting issues makes possible.
 func (m Model) actions() []shell.Item {
-	if len(m.stages) == 0 || m.stages[m.stage].name != "backlog" || m.selected() == 0 {
+	if len(m.stages) == 0 || m.stages[m.stage].name != "backlog" {
 		return nil
 	}
 	return []shell.Item{
@@ -93,10 +93,13 @@ func (m Model) mine() (numbers []int, lines []string) {
 }
 
 // acting says whether an item of the tab's menu is one of the backlog's actions, and whether it does anything now:
-// Add to Pull Request only while the caller has an open pull request to add to.
+// none while no issue is selected, and Add to Pull Request only while the caller has an open pull request to add to.
 func (m Model) acting(name string) (action, enabled bool) {
 	if !slices.ContainsFunc(m.actions(), func(i shell.Item) bool { return i.Name == name }) {
 		return false, false
+	}
+	if m.selected() == 0 {
+		return true, false
 	}
 	if name == "Add to Pull Request…" {
 		numbers, _ := m.mine()

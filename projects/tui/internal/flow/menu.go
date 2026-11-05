@@ -270,7 +270,15 @@ func (m *Model) refresh(name string) tea.Cmd {
 // menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's ⋮, and the column its
 // left edge is drawn at. The rows, not the bar, bound it, as the lines under the bar end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
-	return shell.Box(m.tabItems(), m.enabled, m.menuAt, tabs.Menu, m.bar().MenuAt(), m.paneWidth())
+	lines, left, _ = m.menuBoxIn()
+	return lines, left
+}
+
+// menuBoxIn gives the tab's menu's lines as menuBox does, and the first item they show: the box ends above the keys
+// bar, and a menu taller than the room scrolls with the keyboard.
+func (m Model) menuBoxIn() (lines []string, left, first int) {
+	return shell.BoxIn(m.tabItems(), m.enabled, m.menuAt, tabs.Menu, m.bar().MenuAt(), m.paneWidth(),
+		max(3, m.height-1-menuTop))
 }
 
 // menuTop is the screen line the tab's menu's box starts on: the bar's middle one, its top edge through the tab's
@@ -291,13 +299,13 @@ func (m Model) overlay(lines []string) []string {
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }
 
-// menuClick takes a left click while the tab's menu is open: on an item, it chooses it, and on one not enabled it
-// does nothing; anywhere else, it closes the menu.
+// menuClick takes a left click while the tab's menu is open: on an item it shows, it chooses it, and on one not
+// enabled it does nothing; anywhere else, it closes the menu.
 func (m *Model) menuClick(x, y int) tea.Cmd {
-	box, left := m.menuBox()
-	k := y - menuTop - 1
-	if x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(m.tabItems()) {
-		return m.pick(k)
+	box, left, first := m.menuBoxIn()
+	// the lines between the box's edges show the items from first on
+	if k := y - menuTop - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
+		return m.pick(first + k)
 	}
 	m.menu = false
 	return nil

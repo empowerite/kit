@@ -258,6 +258,20 @@ func NextItem(items []Item, enabled func(int) bool, k int, typed string) int {
 // would run past room that way, the column that puts the glyph two cells before the right corner instead, or nearer
 // when room ends there; and against room's right when no glyph is drawn, glyph -1.
 func Box(items []Item, enabled func(int) bool, at int, mark string, glyph, room int) (lines []string, left int) {
+	lines, left, _ = BoxIn(items, enabled, at, mark, glyph, room, len(items)+2)
+	return lines, left
+}
+
+// BoxIn gives a menu's lines as Box does, in no more than rows lines, and the first item they show. A menu taller than
+// that shows the items around the one under the keyboard, as many as fit, and a dim ▴ on its top edge while items
+// are above them, and a ▾ on its bottom edge while items are below.
+func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, room, rows int) (lines []string, left,
+	first int) {
+	shown := len(items)
+	if rows-2 < shown {
+		shown = max(1, rows-2)
+		first = min(max(0, at-shown/2), len(items)-shown)
+	}
 	names := make([]string, len(items))
 	for k, item := range items {
 		names[k] = item.Name
@@ -285,8 +299,23 @@ func Box(items []Item, enabled func(int) bool, at int, mark string, glyph, room 
 		}
 		top = slices.Concat(top[:c], []rune(mark), top[c+cells:])
 	}
-	lines = append(lines, style.Menu(string(top)))
+	more := func(edge []rune, glyph rune) string {
+		// the mark of more items sits two cells before the right corner, dim, in the edge's color either side
+		if len(edge) < 4 {
+			return style.Menu(string(edge))
+		}
+		k := len(edge) - 3
+		return style.Menu(string(edge[:k])) + style.Off(string(glyph)) + style.Menu(string(edge[k+1:]))
+	}
+	if first > 0 {
+		lines = append(lines, more(top, '▴'))
+	} else {
+		lines = append(lines, style.Menu(string(top)))
+	}
 	for k, item := range items {
+		if k < first || k >= first+shown {
+			continue
+		}
 		text := pane.Pad(" "+pane.Pad(item.Glyph, 2, false)+" "+item.Name+" ", inner, false)
 		switch {
 		case item.Name == "":
@@ -300,8 +329,13 @@ func Box(items []Item, enabled func(int) bool, at int, mark string, glyph, room 
 		}
 		lines = append(lines, style.Menu("│")+text+style.Menu("│"))
 	}
-	lines = append(lines, style.Menu("╰"+strings.Repeat("─", inner)+"╯"))
-	return lines, left
+	bottom := []rune("╰" + strings.Repeat("─", inner) + "╯")
+	if first+shown < len(items) {
+		lines = append(lines, more(bottom, '▾'))
+	} else {
+		lines = append(lines, style.Menu(string(bottom)))
+	}
+	return lines, left, first
 }
 
 // Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge and its keys, dim, on
