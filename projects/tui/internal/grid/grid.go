@@ -9,7 +9,8 @@
 // row selected, one of several, has ✓ before its ▸.  A panel beside the rows narrows them: a search, which keeps the
 // rows whose text has it; a checkbox per column, which shows or hides it; and, for rows that belong to people, a choice
 // of every row, the caller's, or everyone else's. It also keeps the columns' order, the columns the rows sort by, and
-// those they group by, each group under a heading.
+// those they group by, each group under a heading; a column whose value is the same on every row of a group groups it
+// on its own, its value said once in the heading.
 package grid
 
 import (

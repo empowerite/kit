@@ -2,12 +2,12 @@
   ➊╶─────────────────────╮➁╶──────────────────────╮➂╶──────────────────╮➃╶───────────────────────╮➄╶─────────────────────╮➅╶────────────────────╮➆╶──────────────────────╮➇╶
   │ 🎫 backlog       3 ⋮ │  🛫 underway         4 │  💻 desk         1 │  🌿 worktrees         4 │  🔀 changes         3 │  🏭 builds         4 │  🛬 incoming         6 │ ▹ columns
   ╵                      ╰────────────────────────╰────────────────────╰─────────────────────────╰───────────────────────╰──────────────────────╰────────────────────────╰─┐ ☑ id
-    id  source     assignees           age  branch              title                                                                                                      │ ☑ source
+    id  assignees            age  branch              title                                                                                                                │ ☑ source ▤
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │ ☑ assignees
-   #45  🐙 github                       2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it │ ☑ age
- ▸ #46  🐙 github  👤 jeffrey-aguile…   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                   │ ☑ branch
- ▸  #7  🐙 github  👤 ada          +1  40d                      🎫 Fix the thing                                                                                           │ ☑ title
-                                                                                                                                                                           │
+   🐙 github  3                                                                                                                                                            │ ☑ age
+   #45                        2h                      🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it           │ ☑ branch
+   #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                             │ ☑ title
+ ▸  #7  👤 ada           +1  40d                      🎫 Fix the thing                                                                                                     │
                                                                                                                                                                            │ show
                                                                                                                                                                            │ ⦿ all
                                                                                                                                                                            │ ⦾ mine

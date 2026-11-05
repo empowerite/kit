@@ -510,7 +510,8 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		{Key: "gone", Cells: []Cell{one("gone: x")}}}
 	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
 	var got []string
-	for _, r := range p.group(rows, columns) {
+	grouped, _ := p.group(rows, columns)
+	for _, r := range grouped {
 		text := r.Key
 		if r.Aside {
 			text = ansi.Strip(r.Cells[0].first())
@@ -525,7 +526,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	if q := p.Grouped("state", true); !slices.Equal(q.Group, []string{"who"}) || p.Grouped("id", false).Group[0] != "state" {
 		t.Errorf("ungrouping, or a column that cannot group: %q", q.Group)
 	}
-	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {
+	if got, _ := (Panel{}).group(rows, columns); len(got) != len(rows) {
 		t.Error("grouping by nothing changed the rows")
 	}
 	q := Panel{Columns: columns, Groupable: p.Groupable, Focused: true, Cursor: 2}
@@ -535,10 +536,84 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	}
 }
 
+// A column that can group, whose value is the same on every row, groups them on its own: without a group the person
+// chose, one heading over every row says the values, joined in the panel's order, and their cells are blank. Under a
+// group the person chose, the walk goes on in each group, the values joining its heading. A column blank on some rows,
+// one with several values, a group of one row, a hidden column, and one kept a column do not group on their own; g
+// on such a column in the panel keeps it, and the panel marks one grouping on its own with a dim ▤.
+func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
+	columns := []string{"id", "source", "state", "where", "who"}
+	row := func(id, state, where, who string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), one("github"), one(state), one(where), one(who)}}
+	}
+	groupable := map[string]bool{"source": true, "state": true, "where": true, "who": true}
+	texts := func(rows []Row) []string {
+		var out []string
+		for _, r := range rows {
+			text := r.Key
+			if r.Aside {
+				text = ansi.Strip(r.Cells[0].first())
+			}
+			for _, c := range r.Cells[1:] {
+				if !r.Aside {
+					text += "|" + c.first()
+				}
+			}
+			out = append(out, text)
+		}
+		return out
+	}
+	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
+	p := Panel{Columns: columns, Groupable: groupable}
+	got, auto := p.group(rows, columns)
+	want := []string{"github · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
+	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 0 {
+		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
+	}
+	// the panel's order joins the values; a hidden column and one kept do not group
+	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "here · github  3" {
+		t.Errorf("in the panel's order: %q", texts(got)[0])
+	}
+	if got, auto := (Panel{Groupable: groupable, Hidden: map[string]bool{"source": true}, Kept: map[string]bool{"where": true}}).group(rows, columns); len(got) != 3 || auto != nil {
+		t.Errorf("hidden and kept: %q, auto %q", texts(got), auto)
+	}
+	// under the groups the person chose, each group alone; one of one row does not group
+	p.Group = []string{"state"}
+	got, auto = p.group(rows, columns)
+	// the column the person groups by stays in the cells, which the panel's hide then leaves out
+	want = []string{"state · draft · github · here  2", "#1||draft||ada", "#2||draft||", "state · ready  1",
+		"#3|github|ready|here|bob"}
+	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
+		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
+	}
+	// two values in a cell, or one row alone, do not group
+	rows[0].Cells[3].Values = []string{"here", "there"}
+	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "github  3" {
+		t.Errorf("several values: %q", texts(got)[0])
+	}
+	if got, auto := (Panel{Groupable: groupable}).group(rows[:1], columns); len(got) != 1 || auto != nil {
+		t.Errorf("one row: %q", texts(got))
+	}
+	// the panel marks a column grouping on its own dim, and g on it keeps it a column
+	q := Panel{Columns: columns, Groupable: groupable, Auto: []string{"source"}, Cursor: 2}
+	if lines, _ := q.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping)) {
+		t.Errorf("source grouping on its own: %q", lines[4])
+	}
+	q.Focused = true
+	if q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"}); !q.Kept["source"] || len(q.Group) > 0 || len(q.Auto) > 0 {
+		t.Errorf("g on source: kept %v, group %q, auto %q", q.Kept, q.Group, q.Auto)
+	}
+	// a column shown again is kept a column
+	q = Panel{Columns: columns, Hidden: map[string]bool{"who": true}}
+	if q, _ = q.Click(len(columns) + 2); q.Hidden["who"] || !q.Kept["who"] {
+		t.Errorf("who shown: hidden %v, kept %v", q.Hidden, q.Kept)
+	}
+}
+
 // Heading names the column whose group a row heads, at its depth, and nothing for a row that heads none.
 func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	p := Panel{Group: []string{"source", "who"}, Groupable: map[string]bool{"source": true, "who": true}}
-	rows := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
+	rows, _ := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
 		[]string{"source", "who"})
 	var got []string
 	for _, r := range rows {

@@ -352,7 +352,10 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 // nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each
 // selected row's page, and clears the selection.
 func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24}, down, press(tea.KeySpace))
+	// the source kept a column, the rows stand under no heading
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24})
+	m.setPanel(m.panel(m.stage).Keep("source"))
+	m = drive(m, down, press(tea.KeySpace))
 	gutter := func(k int) string { return string([]rune(lines(m)[m.rowsTop()+k])[0]) }
 	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.rowsTop()-1], " 1 selected ") {
 		t.Fatalf("space on the first row:\n%s", view(m))

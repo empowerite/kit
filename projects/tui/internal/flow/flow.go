@@ -338,11 +338,11 @@ type meMsg struct {
 	err   error
 }
 
-// panel gives a stage's panel: what the person set in it, the columns it offers, whether its rows belong to people,
-// the caller's login, and whether it has the keyboard.
+// panel gives a stage's panel: what the person set in it, the columns it offers, those its rows group by on their own,
+// whether its rows belong to people, the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
-	p.Columns, p.Fill = m.offered(i), m.sideWidth()-1
+	p.Columns, p.Auto, p.Fill = m.offered(i), m.shown(i).auto, m.sideWidth()-1
 	return p
 }
 
@@ -1073,19 +1073,24 @@ func (m *Model) up(n int) {
 	m.fit()
 }
 
-// down moves the cursor n rows down; from the bar, it enters the rows, when the stage has any.
+// down moves the cursor n rows down; from the bar, it enters the rows, when the stage has any, past the headings of
+// groups over the row under the cursor, so it lands on a row.
 func (m *Model) down(n int) {
 	if len(m.stages) == 0 {
 		return
 	}
 	s := &m.stages[m.stage]
-	rows := len(m.rows(m.stage))
+	all := m.rows(m.stage)
+	rows := len(all)
 	if rows == 0 {
 		return
 	}
 	if !m.inRows {
 		m.inRows = true
 		n--
+		for s.cursor+n < rows-1 && grid.Heads(all[s.cursor+n]) {
+			n++
+		}
 	}
 	s.cursor = min(s.cursor+n, rows-1)
 	m.fit()

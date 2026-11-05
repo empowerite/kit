@@ -146,7 +146,8 @@ var band, _, _ = strings.Cut(style.Band("x", 1), "x")
 // is under the cursor.
 func cursor(m Model) string {
 	for _, l := range strings.Split(m.View().Content, "\n") {
-		if strings.HasPrefix(l, band) {
+		// under the headings of groups, the rows stand in
+		if strings.HasPrefix(strings.TrimLeft(l, " "), band) {
 			return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(l)), style.Focus+style.Opened))
 		}
 	}
@@ -1520,13 +1521,13 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
 	}
-	change, state := at(m, Change+" #4"), at(m, "🔥")
+	change, state, y := at(m, Change+" #4"), at(m, "🔥"), paneTop+m.find("underway").cursor
 	browsed = nil
-	if m = drive(m, testkit.Click(state, paneTop+1)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
+	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {
 		t.Fatalf("a click on the state: %v\n%s", browsed, view(m))
 	}
-	m = drive(m, testkit.Click(change, paneTop+1))
+	m = drive(m, testkit.Click(change, y))
 	if s := m.stages[m.stage]; s.name != "changes" || !m.inRows || m.rows(m.stage)[s.cursor].Key != "#4" ||
 		len(browsed) != 1 {
 		t.Fatalf("a click on the pull request: %s, row %d:\n%s", s.name, s.cursor, view(m))
@@ -1543,7 +1544,8 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
 	m = loaded(t, o, right)
-	if link := m.rows(1)[0].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
+	// the first row is the heading over every row, the source said once
+	if link := m.rows(1)[1].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
 		t.Errorf("without changes the pull request's glyph leads to %q", link)
 	}
 }
@@ -1561,17 +1563,24 @@ func init() {
 	}
 }
 
-// Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim, under the source
-// header; a source kittui has no glyph for by its name alone; and none at all leaves the column out, as an empty one.
+// Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim; a source kittui
+// has no glyph for by its name alone; and none at all leaves the column out, as an empty one. While one tracker holds
+// every issue, the source is said once, in the heading over the rows, and the column leaves them; kept a column, it
+// stands under the source header.
 func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for i, name := range []string{"backlog", "underway"} {
 		if i > 0 {
 			m = drive(m, right)
 		}
+		if l := lines(m); strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
+			strings.Count(view(m), GitHub+" github") != 1 {
+			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
+		}
+		m.setPanel(m.panel(m.stage).Keep("source"))
 		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
 			!strings.Contains(m.View().Content, style.Off(GitHub+" github")) {
-			t.Errorf("%s does not say the source:\n%s", name, view(m))
+			t.Errorf("%s kept as a column does not say the source:\n%s", name, view(m))
 		}
 	}
 	if source("gitlab").Values[0] != style.Off(GitLab+" gitlab") || source("AB#").Values[0] != style.Off("AB#") ||

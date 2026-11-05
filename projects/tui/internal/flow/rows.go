@@ -355,12 +355,14 @@ func (m Model) shown(i int) shown {
 	return r
 }
 
-// shown is a stage's rows as its panel lets them through, the columns its panel offers, and how many rows but the
-// asides it loaded, the panel apart.
+// shown is a stage's rows as its panel lets them through, the columns its panel offers, those its rows group by on
+// their own, how many levels of headings they stand under, and how many rows but the asides it loaded, the panel apart.
 type shown struct {
-	rows  []row
-	names []string
-	all   int
+	rows   []row
+	names  []string
+	auto   []string
+	levels int
+	all    int
 }
 
 // columns names each stage's columns, in the order its rows' cells come, for the panel's checkboxes; a column without
@@ -414,7 +416,8 @@ var owned = map[string]bool{"backlog": true, "underway": true, "changes": true}
 // build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them.
 func (m Model) build(i int) shown {
 	all, names := m.unfiltered(i), columns[m.stages[i].name]
-	return shown{m.filter(i).Filter(all, names), filled(all, names), counted(all)}
+	rows, auto := m.filter(i).Filtered(all, names)
+	return shown{rows, filled(all, names), auto, grid.Levels(rows), counted(all)}
 }
 
 // filled gives a stage's columns as its panel offers them: each named column that one of the rows loaded has a value

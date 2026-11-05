@@ -29,11 +29,13 @@ func typed(text string) []tea.Msg {
 	return out
 }
 
-// keys gives the backlog's rows' keys, as the panel lets them through.
+// keys gives the backlog's rows' keys, as the panel lets them through, without the headings of their groups.
 func keys(m Model) []string {
 	var out []string
 	for _, r := range m.rows(m.stage) {
-		out = append(out, r.Key)
+		if !grid.Heads(r) {
+			out = append(out, r.Key)
+		}
 	}
 	return out
 }
@@ -233,12 +235,13 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Cursor != 3 {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
-	// a click on the gutter of a row's first line opens it, from the panel; again closes it
-	if m = drive(m, testkit.Click(1, m.rowsTop())); m.inPanel || !m.inRows || m.stages[0].cursor != 0 ||
+	// a click on the gutter of a row's first line opens it, from the panel; again closes it. #45 stands under the
+	// heading over every row
+	if m = drive(m, testkit.Click(1, m.rowsTop()+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(1, m.rowsTop())); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(1, m.rowsTop()+1)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
@@ -316,17 +319,19 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 
 func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
-	first := lines(m)[m.rowsTop()]
+	// the first issue stands under the heading over every row, the source said once
+	y := m.rowsTop() + 1
+	first := lines(m)[y]
 	x := ansi.StringWidth(first[:strings.Index(first, Issue)])
 	browsed = nil
-	if m = drive(m, testkit.Click(x, m.rowsTop())); len(browsed) != 1 ||
+	if m = drive(m, testkit.Click(x, y)); len(browsed) != 1 ||
 		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
 		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
 	}
 	// a page the browser cannot open says why in place of the keys, until the next key
 	m.find("backlog").issues[0].URL = "https://refuse.example/45"
 	m.rebuild()
-	m = drive(m, testkit.Click(x, m.rowsTop()))
+	m = drive(m, testkit.Click(x, y))
 	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") {
 		t.Errorf("a page that did not open: %q", last)
 	}
@@ -418,6 +423,7 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 // adds a column after it; a click on a name that does not sort, as builds' commit, changes nothing.
 func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	m.setPanel(m.panel(m.stage).Keep("source")) // the source, one tracker's on every row, kept a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
 	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
@@ -515,6 +521,7 @@ func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
 // grouping by its column alone, the other groups kept; on a row, it does nothing.
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m.setPanel(m.panel(m.stage).Keep("source")) // the source, one tracker's on every row, kept a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	heading := func(text string) int {
 		return slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, text) })
@@ -559,5 +566,45 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 	}
 	if headings == 0 || !strings.Contains(view(m), "change · ") {
 		t.Errorf("no heading per change:\n%s", view(m))
+	}
+}
+
+// A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
+// tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
+// dim ▤. It follows the rows: a search that leaves one row ungroups it. g on the column in the panel keeps it a column
+// for the session.
+func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	heading := func(m Model) string {
+		if rows := m.rows(m.stage); len(rows) > 0 && grid.Heads(rows[0]) {
+			return ansi.Strip(rows[0].Cells[0].Values[0])
+		}
+		return ""
+	}
+	if got := heading(m); got != GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
+		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
+	}
+	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {
+		t.Errorf("the panel does not mark source dim:\n%s", strings.Join(lines, "\n"))
+	}
+	// a search that leaves one row: the source is a column again
+	p := m.panel(m.stage)
+	p.Query = "kit commit"
+	if m.setPanel(p); heading(m) != "" || len(m.panel(m.stage).Auto) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
+		t.Errorf("one row left still groups:\n%s", view(m))
+	}
+	p.Query = ""
+	m.setPanel(p)
+	// g on source in the panel keeps it a column, through a refresh of the rows
+	// the search, then id, then source
+	if m = drive(m, press(tea.KeyTab), down, down); m.panel(m.stage).Cursor != 2 {
+		t.Fatalf("the panel's cursor: %d", m.panel(m.stage).Cursor)
+	}
+	if m = drive(m, typed("g")[0]); heading(m) != "" || !m.panel(m.stage).Kept["source"] ||
+		len(m.panel(m.stage).Group) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
+		t.Errorf("g on source: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Group, view(m))
+	}
+	if m.rebuild(); heading(m) != "" {
+		t.Errorf("the rows built again group by source")
 	}
 }

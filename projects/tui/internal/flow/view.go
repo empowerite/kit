@@ -467,8 +467,9 @@ func (m Model) lines(i int) []line {
 	return out
 }
 
-// indent gives the cells a stage's rows, and its header, stand in by, under the headings of its groups: two a level.
-func (m Model) indent(i int) int { return 2 * len(m.filter(i).Group) }
+// indent gives the cells a stage's rows, and its header, stand in by, under the headings of its groups: two a level,
+// as internal/grid counts them.
+func (m Model) indent(i int) int { return 2 * m.shown(i).levels }
 
 // gridWidth gives the cells a stage's rows are laid out in: the pane's, less their indent.
 func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
