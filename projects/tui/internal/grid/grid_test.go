@@ -654,13 +654,13 @@ func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	for k, l := range lines {
 		plain[k] = strings.TrimRight(ansi.Strip(l), " ")
 	}
-	if !slices.Equal(plain[:5], []string{"🔎 search", "", ViewGlyph + " Default ▾", "", "columns"}) ||
+	if !slices.Equal(plain[:5], []string{"🔎 search", "", "Default ▾", "", "columns"}) ||
 		!slices.Equal(at[:5], []int{0, -1, 1, -1, -1}) || !p.ViewAt(2) || p.ViewAt(4) || p.OnView() {
 		t.Errorf("the dropdown: %q %v", plain[:5], at[:5])
 	}
 	p.Focused, p.Cursor, p.Naming, p.Changed, p.View = true, 1, true, true, "Mine"
 	lines, _ = p.Lines()
-	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor(ViewGlyph + " Mine▏ ▾")[:8]) ||
+	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor("Mine▏ ▾")[:8]) ||
 		!strings.HasSuffix(lines[2], Save) || ansi.StringWidth(lines[2]) != 24 {
 		t.Errorf("renamed under the keyboard, changed: %q", lines[2])
 	}

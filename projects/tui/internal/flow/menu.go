@@ -286,7 +286,7 @@ func (m Model) menuBoxIn() (lines []string, left, first int) {
 const menuTop = paneTop - 2
 
 // overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
-// backlog action asks, over the rows' top.
+// backlog action asks, over the rows' top. The menus that hang over the sidebar are drawn after it, by float.
 func (m Model) overlay(lines []string) []string {
 	if m.menu {
 		box, left := m.menuBox()
@@ -296,11 +296,6 @@ func (m Model) overlay(lines []string) []string {
 		box, left := m.askBox()
 		lines = shell.Over(lines, box, paneTop+1, left)
 	}
-	if m.viewMenu {
-		box, top, left := m.viewBox()
-		lines = shell.Over(lines, box, top, left)
-	}
-	lines = m.recent.Overlay(lines, m.recallAt(), m.width)
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }
 
@@ -314,4 +309,14 @@ func (m *Model) menuClick(x, y int) tea.Cmd {
 	}
 	m.menu = false
 	return nil
+}
+
+// float draws the menus that hang over the sidebar, once the sidebar is laid out beside the rows, which would clip
+// them: the panel's dropdown of views under it, and the searches remembered under the search's ▾.
+func (m Model) float(lines []string) []string {
+	if m.viewMenu {
+		box, top, left := m.viewBox()
+		lines = shell.Over(lines, box, top, left)
+	}
+	return m.recent.Overlay(lines, m.recallAt(), m.width)
 }

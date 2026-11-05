@@ -44,7 +44,7 @@ func shownNow(m Model) []string { return m.shownColumns(m.stage) }
 func TestTheDropdownStandsUnderTheSearchAndNamesTheView(t *testing.T) {
 	m := onDropdown(t, "")
 	got := sideText(m)
-	if len(got) < 5 || got[1] != "" || !strings.HasPrefix(got[2], grid.ViewGlyph+" Default ▾") || got[3] != "" ||
+	if len(got) < 5 || got[1] != "" || !strings.HasPrefix(got[2], "Default ▾") || got[3] != "" ||
 		got[4] != "columns" {
 		t.Errorf("the panel's first lines: %q", got[:5])
 	}
@@ -63,6 +63,10 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 	m = drive(m, press(tea.KeyEnter))
 	if !m.viewMenu {
 		t.Fatal("enter did not drop the views down")
+	}
+	// the menu is drawn, over the sidebar, whole
+	if drawn := raw(m); !strings.Contains(drawn, "Everything") || !strings.Contains(drawn, "Minimal") {
+		t.Fatalf("the views are not drawn:\n%s", drawn)
 	}
 	names := []string{}
 	for _, i := range m.viewItems() {
@@ -113,15 +117,18 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	p.Group, p.Kept = []string{"assignees"}, map[string]bool{"source": true}
 	m.setPanel(p)
 	m.stages[0].headers = false
-	// typing renames from the view's name; backspace takes one back; esc stops the rename
+	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
 	m = drive(m, typed("x")...)
-	if !m.stages[0].renaming || m.stages[0].naming != "Defaultx" || !strings.Contains(sideText(m)[2], "Defaultx▏") {
+	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.Contains(sideText(m)[2], "x▏") {
 		t.Fatalf("typing: %q", sideText(m)[2])
 	}
 	if m = drive(m, esc); m.stages[0].renaming || !m.inPanel {
 		t.Fatalf("esc did not stop the rename, or left the panel")
 	}
-	m = drive(m, slices.Repeat([]tea.Msg{press(tea.KeyBackspace)}, 7)...)
+	if m = drive(m, press(tea.KeyBackspace)); m.stages[0].naming != "Defaul" {
+		t.Fatalf("backspace first: %q", m.stages[0].naming)
+	}
+	m = drive(m, esc)
 	m = drive(m, typed("Triage")...)
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "saved the view Triage") || m.stages[0].viewName != "Triage" ||
@@ -235,7 +242,7 @@ func TestASearchIsRememberedAndRecalled(t *testing.T) {
 		t.Fatalf("no recall with the keyboard on the search: %q", top)
 	}
 	m = drive(m, tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
-	if !m.recent.Open || !strings.Contains(raw(m), "fix") || !strings.Contains(lines(m)[len(lines(m))-1], "esc close") {
+	if top := strings.Split(raw(m), "\n"); !m.recent.Open || !strings.Contains(top[1], "fix") || !strings.Contains(lines(m)[len(lines(m))-1], "esc close") {
 		t.Fatalf("ctrl+r did not drop the searches down:\n%s", view(m))
 	}
 	if m = drive(m, press(tea.KeyEnter)); m.recent.Open || m.panel(m.stage).Query != "fix" {

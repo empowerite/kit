@@ -608,11 +608,8 @@ func (p Panel) Click(line int) (Panel, bool) {
 	return p, true
 }
 
-// Viewed glyphs: the views' dropdown, and the save that stands at its right while the panel differs from its view.
-const (
-	ViewGlyph = "📑"
-	Save      = "💾"
-)
+// Save is the glyph that stands at the views' dropdown's right while the panel differs from its view.
+const Save = "💾"
 
 // viewLine draws the views' dropdown: the view's name, as typed while it is renamed, with a caret while the keyboard is
 // on it, and ▾; and Save at the line's right end, at Fill's last cells, while the panel differs from the view or the
@@ -622,7 +619,7 @@ func (p Panel) viewLine(under bool) string {
 	if under && p.Naming {
 		name += "▏"
 	}
-	text := ViewGlyph + " " + name + " ▾"
+	text := name + " ▾"
 	if under {
 		text = style.Cursor(pane.Pad(text, max(ansi.StringWidth(text), p.Fill-3), false))
 	}

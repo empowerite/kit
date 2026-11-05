@@ -229,7 +229,8 @@ func (m *Model) apply(v named) {
 }
 
 // viewKey takes a key while the keyboard is on the dropdown, and says whether it did: enter and space drop the views
-// down; ctrl+s saves; esc stops a rename; and what is typed renames the view, from its name.
+// down; ctrl+s saves; esc stops a rename; and what is typed renames the view: a letter first typed takes the name's
+// place, as in a field whose text is selected, and backspace first takes the name's last letter back.
 func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := &m.stages[m.stage]
 	switch key := k.String(); {
@@ -248,7 +249,10 @@ func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	case key == "backspace" || k.Text != "" && !strings.ContainsAny(k.Text, "=:;"):
 		if !s.renaming {
-			s.renaming, s.naming = true, s.viewName
+			s.renaming, s.naming = true, ""
+			if key == "backspace" {
+				s.naming = s.viewName
+			}
 		}
 		s.naming, _ = shell.Type(s.naming, k)
 		return nil, true
@@ -344,11 +348,11 @@ func (m *Model) chooseView(k int) {
 	}
 }
 
-// viewBox gives the dropdown's menu's lines, against the screen's right edge, under the dropdown's line, and the
-// screen line and column it is drawn from.
+// viewBox gives the dropdown's menu's lines, under the dropdown's line from its first column, or nearer the screen's
+// left when that would run past its edge, and the screen line and column it is drawn from.
 func (m Model) viewBox() (lines []string, top, left int) {
 	lines, left = shell.Box(m.viewItems(), m.viewEnabled, m.viewAt, "", -1, m.width)
-	return lines, m.viewRow() + 1, left
+	return lines, m.viewRow() + 1, min(m.width-m.sideWidth(), left)
 }
 
 // viewRow gives the screen line the dropdown is drawn on, as the sidebar is scrolled, or -1 when it is scrolled away.

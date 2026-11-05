@@ -54,7 +54,7 @@ type line struct {
 func (m Model) View() tea.View {
 	lines := append([]string{pane.Clip(m.title(), m.titleWidth())}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
-	lines = m.side(m.overlay(append(lines, "")))
+	lines = m.float(m.side(m.overlay(append(lines, ""))))
 	bottom := style.Bar(shell.KeysLine(m.keys(), m.width-1), m.width)
 	switch {
 	case m.notice != "" && m.noted:
