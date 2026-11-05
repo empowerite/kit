@@ -266,8 +266,7 @@ func wrap(rows [][]Cell) []Row {
 	return out
 }
 
-// headed gives the columns' widths, as columnWidths does, each named column with text in it widened to its name; the
-// text that wraps takes the width left, so its name never widens it.
+// headed gives the columns' widths, as columnWidths does, each named column with text in it widened to its name.
 func headed(rows []Row, head []string) []int {
 	widths := columnWidths(rows)
 	for j, name := range head {
@@ -279,7 +278,7 @@ func headed(rows []Row, head []string) []int {
 }
 
 // columnWidths gives each column's width over the rows of two cells or more: its widest value, or first value and
-// +N, a cell that wraps apart.
+// +N; for the cell that wraps, the widest it is on one line, which fillWidth takes as the most it needs.
 func columnWidths(rows []Row) []int {
 	var widths []int
 	for _, r := range rows {
@@ -291,6 +290,10 @@ func columnWidths(rows []Row) []int {
 				widths = append(widths, 0)
 			}
 			if c.Wrap {
+				// what the text that wraps needs, at most, to stand on one line
+				for _, v := range c.Values {
+					widths[j] = max(widths[j], ansi.StringWidth(v))
+				}
 				continue
 			}
 			widths[j] = max(widths[j], ansi.StringWidth(c.first()+c.more()))
@@ -303,25 +306,30 @@ func columnWidths(rows []Row) []int {
 }
 
 // fillWidth gives the cells a row's wrapping cell has: the width the other columns, and the gaps between them, leave,
-// but never fewer than minFill. A row of one cell spans the width.
+// but never fewer than minFill, and never more than its column's widest text needs, so a narrow text leaves the room
+// after the last column, not in the middle of the row. A row of one cell spans the width.
 func fillWidth(r []Cell, widths []int, width int) int {
 	if len(r) == 1 {
 		return width
 	}
-	used, gaps, wraps := 0, -1, false
+	used, gaps, need := 0, -1, 0
 	for j, c := range r {
 		switch {
 		case c.Wrap:
-			wraps = true
+			gaps++
+			if j < len(widths) {
+				need = widths[j]
+			}
 		case j < len(widths) && widths[j] > 0:
 			used += widths[j]
 			gaps++
 		}
 	}
-	if wraps {
-		gaps++
+	fill := max(width-used-gaps*gap, minFill)
+	if need > 0 {
+		fill = min(fill, need)
 	}
-	return max(width-used-gaps*gap, minFill)
+	return fill
 }
 
 // closedLine draws a closed row: each cell's first value, padded to its column, +N after it when it holds more, the

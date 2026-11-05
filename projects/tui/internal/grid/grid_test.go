@@ -310,3 +310,21 @@ func TestALinkToAPageIsDotted(t *testing.T) {
 		t.Error("a styled text, or a glyph alone")
 	}
 }
+
+// The text that wraps takes no more than its widest needs, minFill being the floor only of a text squeezed: a short
+// title leaves the room after the last column, so a column after it stands right after the title, not across the row.
+func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
+	rows := []Row{
+		{Key: "a", Cells: []Cell{one("#1"), {Values: []string{"short"}, Wrap: true}, one("ready")}},
+		{Key: "b", Cells: []Cell{one("#2"), {Values: []string{"shorter one"}, Wrap: true}, one("draft")}},
+	}
+	got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false })[0].Text)
+	// the title column is as wide as the widest title, shorter one, even under minFill; the state stands after it
+	if got != "   #1  short        ready" {
+		t.Errorf("a short title: %q", got)
+	}
+	rows[1].Cells[1].Values[0] = "a title of thirty cells, wide."
+	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false })[0].Text); got != "   #1  short"+strings.Repeat(" ", 27)+"ready" {
+		t.Errorf("a title as wide as the longest: %q", got)
+	}
+}
