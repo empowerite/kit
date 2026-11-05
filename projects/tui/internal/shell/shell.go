@@ -84,7 +84,30 @@ type SwitchMsg struct{ Screen Screen }
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
 // Keys is the keys bar while a menu is open.
-const Keys = "↑↓ move · ⏎ choose · esc close"
+const Keys = "esc close · ↑↓ move · ⏎ choose"
+
+// KeysLine gives a keys bar's keys, in the order every screen keeps, for a line so wide: esc first, where it acts, then
+// the menus, then the search and the sidebar, then the keys of each part the keyboard is in, the deepest last, as
+// the screen gives them. Keys too many for the line keep esc, then …, then as many of the last as fit, as the deepest
+// part's are the ones that act where the keyboard is.
+func KeysLine(keys []string, width int) string {
+	line := strings.Join(keys, " · ")
+	if ansi.StringWidth(line) <= width || len(keys) == 0 {
+		return line
+	}
+	var head []string
+	if strings.HasPrefix(keys[0], "esc ") {
+		head, keys = []string{keys[0]}, keys[1:]
+	}
+	head = append(head, "…")
+	used := ansi.StringWidth(strings.Join(head, " · "))
+	k := len(keys)
+	for k > 0 && used+3+ansi.StringWidth(keys[k-1]) <= width {
+		used += 3 + ansi.StringWidth(keys[k-1])
+		k--
+	}
+	return strings.Join(append(head, keys[k:]...), " · ")
+}
 
 // Items gives the menu's lines, top to bottom: the screen's own items and a rule, when it has any; kit's screens; a
 // rule; the settings, which kittui does not have yet; a rule; and quit.

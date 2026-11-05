@@ -353,7 +353,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24}, down, press(tea.KeySpace))
 	gutter := func(k int) string { return string([]rune(lines(m)[m.rowsTop()+k])[0]) }
-	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.HasPrefix(lines(m)[23], " 1 selected · ") {
+	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.rowsTop()-1], " 1 selected ") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
 	if !strings.Contains(m.View().Content, style.Tint(grid.Chosen)) {

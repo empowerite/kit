@@ -252,7 +252,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	const bar = " ↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · → pages · ⏎ open · = menu"
+	const bar = " esc quit · = menu · / search · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · → pages · ⏎ open"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -274,14 +274,14 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 			}
 		}
 	}
-	// the pages' bar names the way back, on the same line; at a narrow width the bar is clipped, never wrapped
+	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps esc, then the rightmost keys
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
 		!strings.Contains(lines[11], "← purposes") {
 		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
 	}
 	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 40, Height: 12})
-	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || !strings.HasSuffix(lines[11], "…") {
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || !strings.HasPrefix(lines[11], " esc quit · … · ") {
 		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
 	}
 	// a height not yet known draws everything, then the bar
@@ -480,7 +480,7 @@ func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
 			t.Fatalf("%s: the cursor on %d, want %d; drawn %q", c.key, m.cursor, c.cursor, drawn(m))
 		}
 		if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
-			!strings.HasPrefix(lines[11], " ↑↓ move · ⇞⇟ page") {
+			!strings.Contains(lines[11], " ⇞⇟ page") {
 			t.Errorf("%s: %d lines, the last %q", c.key, len(lines), lines[len(lines)-1])
 		}
 	}

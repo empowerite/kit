@@ -365,9 +365,9 @@ func verbs(rows []row) int {
 // moves it; while the search has the keyboard it is the search's, as on every screen.
 func (m Model) View() tea.View {
 	visible := m.Visible()
-	keys := "↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · → pages · ⏎ open · = menu"
+	keys := "esc quit · = menu · / search · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · → pages · ⏎ open"
 	if m.showPages {
-		keys = "↑↓ move · ⇞⇟ page · ⇧↑↓ group · / search · ← purposes · ⏎ open · = menu"
+		keys = "esc quit · = menu · / search · ↑↓ move · ⇞⇟ page · ⇧↑↓ group · ← purposes · ⏎ open"
 	}
 	switch {
 	case m.appMenu.Open:
@@ -440,6 +440,7 @@ func (m Model) View() tea.View {
 		drawn = append(drawn, pane.Clip(l, m.width))
 	}
 	drawn = m.appMenu.Overlay(drawn, m.width)
+	keys = shell.KeysLine(strings.Split(keys, " · "), m.width-1)
 	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion

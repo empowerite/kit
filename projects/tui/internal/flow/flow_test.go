@@ -569,15 +569,16 @@ func TestEscWalksBackFromTheLegendToTheRowsToTheBar(t *testing.T) {
 	}
 }
 
-// at80 gives the keys bar as a screen of 80 columns draws it, the keys spared names left out as it needs.
-func at80(keys string) string { return fitKeys(strings.Split(keys, " · "), 79) }
+// at80 gives the keys bar as a screen of 80 columns draws it, as internal/shell's KeysLine fits it.
+func at80(keys string) string { return shell.KeysLine(strings.Split(keys, " · "), 79) }
 
-// The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open.
+// The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: esc first,
+// then the menus, the search, the sidebar, and the panel, then the keys of the part the keyboard is in.
 const (
-	barKeys     = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar"
-	sidebarKeys = "←→ tab · ↓ rows · 1-9 jump · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
-	opens       = "↑↓ move · pgup/pgdn page · ␣ select · → open · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
-	closes      = "↑↓ move · pgup/pgdn page · ␣ select · ← close · ⇥ panel · = menu · : tab menu · / search · ? sidebar · esc back"
+	barKeys     = "= menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
+	sidebarKeys = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump"
+	opens       = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · → open"
+	closes      = "esc back · = menu · : tab menu · / search · ? sidebar · ⇥ panel · ↑↓ move · pgup/pgdn page · ␣ select · ← close"
 )
 
 func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
@@ -599,11 +600,11 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
 					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
-					// a bar too narrow for every key leaves out the ones spared names, never the way out
-					want := fitKeys(strings.Split(c.keys, " · "), width-1)
+					// a bar too narrow for every key keeps esc, then …, then the last keys that fit
+					want := shell.KeysLine(strings.Split(c.keys, " · "), width-1)
 					got := lines(m)
-					if len(got) != height || got[height-1] != " "+want || strings.Contains(want, "…") ||
-						!strings.Contains(want, "= menu") {
+					if len(got) != height || got[height-1] != " "+want ||
+						strings.HasPrefix(c.keys, "esc") && !strings.HasPrefix(want, "esc back") {
 						t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got),
 							got[len(got)-1])
 					}
@@ -611,9 +612,10 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 			})
 		}
 	}
-	// at a width too narrow for it, the bar is clipped, never wrapped
+	// at a width too narrow for it, the bar keeps the last keys that fit, after …, never wrapped
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
-	if got := lines(m); len(got) != 12 || !strings.HasSuffix(got[11], "…") || ansi.StringWidth(got[11]) != 30 {
+	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … · ") || ansi.StringWidth(got[11]) > 30 ||
+		!strings.HasSuffix(got[11], "1-9 jump") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
 }

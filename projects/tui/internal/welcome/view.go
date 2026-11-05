@@ -22,16 +22,17 @@ const (
 	Failed     = "❌" // a check that failed, and a refusal
 )
 
-// The keys bar names only the keys that act where the keyboard is: on the bar over a step with checks, and over a
-// page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
-// and in a page.
+// The keys bar names only the keys that act where the keyboard is, in the order every screen keeps, as internal/shell's
+// KeysLine lays them out: esc first, where it goes back, then the menu and the search, then the keys of the part the
+// keyboard is in. On the bar over a step with checks, and over a page; on a check's row that offers no fix, on a row
+// that offers now and later, on a row whose fix kit only shows; and in a page.
 const (
-	stepKeys   = "←→ tab · ↓ checks · 1-9 jump · / search · = menu"
-	pageKeys   = "←→ tab · ↓ page · 1-9 jump · / search · = menu"
-	rowKeys    = "↑↓ move · pgup/pgdn page · / search · esc back"
-	choiceKeys = "↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose · esc back"
-	showKeys   = "↑↓ move · pgup/pgdn page · l later · / search · esc back"
-	scrollKeys = "↑↓ scroll · pgup/pgdn page · / search · esc back"
+	stepKeys   = "= menu · / search · ←→ tab · ↓ checks · 1-9 jump"
+	pageKeys   = "= menu · / search · ←→ tab · ↓ page · 1-9 jump"
+	rowKeys    = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page"
+	choiceKeys = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · ←→ now or later · n now · l later · ⏎ choose"
+	showKeys   = "esc back · = menu · / search · ↑↓ move · pgup/pgdn page · l later"
+	scrollKeys = "esc back · = menu · / search · ↑↓ scroll · pgup/pgdn page"
 )
 
 // fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
@@ -63,7 +64,8 @@ func (m Model) View() tea.View {
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.appMenu.Overlay(append(lines, ""), m.width)
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(m.keys(), m.width)), "\n"))
+	keys := shell.KeysLine(strings.Split(m.keys(), " · "), m.width-1)
+	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, style.Bar(keys, m.width)), "\n"))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v

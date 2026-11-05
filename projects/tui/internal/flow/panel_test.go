@@ -17,8 +17,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · s sort · g group · type to search · esc back"
+// panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard.
+const panelKeys = shell.SearchKeys
 
 // typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
 func typed(text string) []tea.Msg {
@@ -138,7 +138,7 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	}
 	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(idle, 0)} {
 		m = drive(m, esc, enter)
-		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " type to search · esc back" {
+		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " "+shell.SearchKeys {
 			t.Fatalf("%v: in panel %v, sidebar %v, keys %q", enter, m.inPanel, m.sidebar, lines(m)[23])
 		}
 		numbers := m.bar().Numbers()

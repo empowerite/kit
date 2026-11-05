@@ -167,3 +167,25 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 		t.Errorf("in use with no number at %d", at)
 	}
 }
+
+// The keys bar keeps esc first; when the keys do not fit, an ellipsis stands for the ones nearest esc and the
+// rightmost keys, the ones the screen in front added, stay.
+func TestTheKeysBarKeepsEscAndTheRightmostKeys(t *testing.T) {
+	keys := []string{"esc back", "= menu", "/ search", "↑↓ move", "␣ select"}
+	for _, c := range []struct {
+		keys  []string
+		width int
+		want  string
+	}{
+		{keys, 80, "esc back · = menu · / search · ↑↓ move · ␣ select"},
+		{keys, 33, "esc back · … · ↑↓ move · ␣ select"},
+		{keys, 32, "esc back · … · ␣ select"},
+		{keys, 10, "esc back · …"},
+		{keys[1:], 25, "… · ↑↓ move · ␣ select"},
+		{nil, 10, ""},
+	} {
+		if got := KeysLine(c.keys, c.width); got != c.want {
+			t.Errorf("%v at %d: %q, want %q", c.keys, c.width, got, c.want)
+		}
+	}
+}

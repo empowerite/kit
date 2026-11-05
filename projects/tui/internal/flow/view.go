@@ -55,7 +55,7 @@ func (m Model) View() tea.View {
 	lines := append([]string{pane.Clip(m.title(), m.titleWidth())}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.side(m.overlay(append(lines, "")))
-	bottom := style.Bar(m.keys(), m.width)
+	bottom := style.Bar(shell.KeysLine(m.keys(), m.width-1), m.width)
 	if m.notice != "" {
 		bottom = " " + style.Refusal(pane.Clip(m.notice, m.width-1))
 	}
@@ -131,65 +131,45 @@ func (m Model) paneWidth() int {
 	return m.width - 2
 }
 
-// keys gives the keys bar for where the keyboard is: how many rows are selected, when some are, then only the keys that
-// act there, ctrl-c left out, as the app's menu has Quit: in a menu, in the panel, its keys to order, sort, and group
-// the columns among them, and in the search alone while the sidebar is hidden, their own; on the bar, left and right
-// along the tabs, down into the rows, and the numbers; in the rows, up and down, a page at a time, and space to select
-// a row; on a row that opens, right to open it or left to close it; tab into the panel, = for the app's menu, and : for
-// the tab's, ; too, which the bar does not name; esc going back from the rows and from the sidebar. On a screen too
-// narrow for them, the keys spared names are left out before the bar is cut.
-func (m Model) keys() string {
+// keys gives the keys bar's keys for where the keyboard is, in the order every screen keeps, as internal/shell's
+// KeysLine lays them out: esc first, where it goes back or closes, then the menus, = for the app's and : for the tab's,
+// ; too, which the bar does not name; then the search and the sidebar, and tab into the panel; then the keys of the
+// part the keyboard is in. On the bar, left and right along the tabs, down into the rows, and the numbers; in the rows,
+// up and down, a page at a time, space to select a row, and right to open a row that opens or left to close it. An
+// open menu has its own keys alone, and so has the search; the panel, off its search, has the menus and its own.
+func (m Model) keys() []string {
 	switch {
 	case m.menu || m.appMenu.Open:
-		return shell.Keys
-	case m.inPanel && !m.sidebar:
-		return shell.SearchKeys
+		return strings.Split(shell.Keys, " · ")
+	case m.inPanel && (!m.sidebar || m.panel(m.stage).Cursor == 0):
+		return strings.Split(shell.SearchKeys, " · ")
 	case m.inPanel:
-		return "↑↓ move · space toggle · ⇧↑↓ order · s sort · g group · type to search · esc back"
+		return []string{"esc back", "= menu", ": tab menu", "↑↓ move", "space toggle", "⇧↑↓ order", "s sort", "g group"}
 	}
 	var keys []string
-	if n := m.selected(); n > 0 {
-		keys = append(keys, strconv.Itoa(n)+" selected")
-	}
-	if m.inRows {
-		keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
-		s, rows := m.stages[m.stage], m.rows(m.stage)
-		if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
-			if s.open[rows[s.cursor].Key] {
-				keys = append(keys, "← close")
-			} else {
-				keys = append(keys, "→ open")
-			}
-		}
-	} else {
-		keys = append(keys, "←→ tab", "↓ rows", "1-9 jump")
-	}
-	if len(m.stages) > 0 {
-		keys = append(keys, "⇥ panel", "= menu", ": tab menu")
-	}
-	keys = append(keys, "/ search", "? sidebar")
 	if m.inRows || m.sidebar {
 		keys = append(keys, "esc back")
 	}
-	return fitKeys(keys, m.width-1)
-}
-
-// spared names the keys a narrow keys bar leaves out, the first first, until the rest fit: the numbers, which the
-// tabs show, a page at a time, selecting a row, the tab's menu, whose ⋮ the bar shows, and the search, which the
-// title line shows.
-var spared = []string{"1-9 jump", "pgup/pgdn page", "␣ select", ": tab menu", "/ search"}
-
-// fitKeys joins the keys, leaving out what spared names, in its order, until they fit so many cells.
-func fitKeys(keys []string, width int) string {
-	line := strings.Join(keys, " · ")
-	for _, key := range spared {
-		if ansi.StringWidth(line) <= width {
-			break
-		}
-		keys = slices.DeleteFunc(keys, func(k string) bool { return k == key })
-		line = strings.Join(keys, " · ")
+	keys = append(keys, "= menu")
+	if len(m.stages) > 0 {
+		keys = append(keys, ": tab menu")
 	}
-	return line
+	keys = append(keys, "/ search", "? sidebar")
+	if len(m.stages) > 0 {
+		keys = append(keys, "⇥ panel")
+	}
+	if !m.inRows {
+		return append(keys, "←→ tab", "↓ rows", "1-9 jump")
+	}
+	keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
+	s, rows := m.stages[m.stage], m.rows(m.stage)
+	if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
+		if s.open[rows[s.cursor].Key] {
+			return append(keys, "← close")
+		}
+		return append(keys, "→ open")
+	}
+	return keys
 }
 
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; and origin's
@@ -301,7 +281,7 @@ func (m Model) shownColumns(i int) []string {
 
 // header gives the lines that stand over the selected stage's rows while its tab's menu shows its headers, and whether
 // they hide lines while closed: the names of its columns the panel shows, as internal/grid lays them over the rows,
-// open or closed as the stage's header is, then a thin dim line under them; nothing while it loads, after a refusal,
+// open or closed as the stage's header is, then the rule under them, as rule draws it; nothing while it loads, after a refusal,
 // or when it has no rows in columns.
 func (m Model) header() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
@@ -318,7 +298,20 @@ func (m Model) header() (lines []string, hides bool) {
 	for k := range lines {
 		lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 	}
-	return append(lines, "   "+style.Off(strings.Repeat("─", max(0, m.paneWidth()-3)))), hides
+	return append(lines, m.rule()), hides
+}
+
+// rule gives the thin dim line under the header, across the pane after the gutter, with how many rows are selected,
+// in the accent, near its right end, when some are.
+func (m Model) rule() string {
+	width := max(0, m.paneWidth()-3)
+	n := m.selected()
+	if n == 0 {
+		return "   " + style.Off(strings.Repeat("─", width))
+	}
+	label := " " + strconv.Itoa(n) + " selected "
+	left := max(0, width-ansi.StringWidth(label)-1)
+	return "   " + style.Off(strings.Repeat("─", left)) + style.Tint(label) + style.Off("─")
 }
 
 // headerLines gives the header's lines alone.

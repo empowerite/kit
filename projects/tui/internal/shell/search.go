@@ -11,7 +11,7 @@ import (
 const Find = "🔎"
 
 // SearchKeys is the keys bar while the search has the keyboard.
-const SearchKeys = "type to search · esc back"
+const SearchKeys = "esc back · type to search"
 
 // Typing is the cells the search keeps at least for what is typed, while it is in use.
 const Typing = 10

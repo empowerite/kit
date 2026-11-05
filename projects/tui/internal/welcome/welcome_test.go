@@ -530,7 +530,7 @@ func TestTheKeysBarIsTheLastLineAtEveryHeight(t *testing.T) {
 		for _, width := range []int{120, 40} {
 			check := func(m Model, height int, how string) {
 				got := strings.Split(view(m), "\n")
-				if bar := ansi.Strip(style.Bar(m.keys(), width)); len(got) != height || got[height-1] != bar {
+				if bar := ansi.Strip(style.Bar(shell.KeysLine(strings.Split(m.keys(), " · "), width-1), width)); len(got) != height || got[height-1] != bar {
 					t.Errorf("after %v %s %d×%d: %d lines, the last %q", msgs, how, width, height, len(got),
 						got[len(got)-1])
 				}
