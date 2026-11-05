@@ -56,7 +56,10 @@ func (m Model) View() tea.View {
 	lines = append(lines, m.pane()...)
 	lines = m.side(m.overlay(append(lines, "")))
 	bottom := style.Bar(shell.KeysLine(m.keys(), m.width-1), m.width)
-	if m.notice != "" {
+	switch {
+	case m.notice != "" && m.noted:
+		bottom = " " + pane.Clip(m.notice, m.width-1)
+	case m.notice != "":
 		bottom = " " + style.Refusal(pane.Clip(m.notice, m.width-1))
 	}
 	lines = style.Bottom(lines, m.height, bottom)
@@ -138,6 +141,10 @@ func (m Model) paneWidth() int {
 // up and down, a page at a time, space to select a row, and right to open a row that opens or left to close it. An
 // open menu has its own keys alone, and so has the search; the panel, off its search, has the menus and its own.
 func (m Model) keys() []string {
+	if m.ask != nil {
+		_, keys := m.askKeys()
+		return strings.Split(keys, " · ")
+	}
 	switch {
 	case m.menu || m.appMenu.Open:
 		return strings.Split(shell.Keys, " · ")

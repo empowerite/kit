@@ -39,7 +39,7 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
 // expanded and every row collapsed, or, while rows are selected, the selected rows expanded and collapsed and the rows
 // not selected collapsed, a rule, the headers, checked while the selected stage shows them, a rule, every row selected
-// and none, a rule, and what acts on the rows selected: each one's page opened.
+// and none, a rule, and what acts on the rows selected: on backlog, the actions there, then each one's page opened.
 func (m Model) tabItems() []shell.Item {
 	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
@@ -51,9 +51,9 @@ func (m Model) tabItems() []shell.Item {
 			{Glyph: Collapse, Name: "Collapse Others"}}
 	}
 	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, folds...)
-	return append(items, shell.Item{}, shell.Item{Glyph: headers, Name: "Show Headers"}, shell.Item{},
-		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{},
-		shell.Item{Glyph: Browse, Name: "Open Selected"})
+	items = append(items, shell.Item{}, shell.Item{Glyph: headers, Name: "Show Headers"}, shell.Item{},
+		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
+	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
@@ -114,6 +114,9 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 func (m Model) enabled(k int) bool {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	_, hides := m.header()
+	if action, on := m.acting(m.tabItems()[k].Name); action {
+		return on
+	}
 	switch m.tabItems()[k].Name {
 	case "Refresh":
 		return known[s.name]
@@ -171,6 +174,9 @@ func (m *Model) pick(k int) tea.Cmd {
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	m.menu = false
+	if action, _ := m.acting(m.tabItems()[k].Name); action {
+		return m.act(m.tabItems()[k].Name)
+	}
 	switch m.tabItems()[k].Name {
 	case "Show Headers":
 		s.headers = !s.headers
@@ -271,11 +277,16 @@ func (m Model) menuBox() (lines []string, left int) {
 // glyph.
 const menuTop = paneTop - 2
 
-// overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title.
+// overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
+// backlog action asks, over the rows' top.
 func (m Model) overlay(lines []string) []string {
 	if m.menu {
 		box, left := m.menuBox()
 		lines = shell.Over(lines, box, menuTop, left)
+	}
+	if m.ask != nil {
+		box, left := m.askBox()
+		lines = shell.Over(lines, box, paneTop+1, left)
 	}
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }

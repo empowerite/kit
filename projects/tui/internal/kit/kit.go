@@ -244,6 +244,38 @@ func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte
 	return out, err
 }
 
+// Act runs a verb that changes something, kit <words>…, as the tab's menu asks, and gives what it printed, stdout and
+// stderr as they came, where kit says what it did. Kit's refusal is an ExitError whose line is the last kit marked
+// as failed, or its last line.
+func (r Runner) Act(ctx context.Context, words ...string) (string, error) {
+	cmd := grouped(ctx, r.Kit, words...)
+	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	cmd.Dir = r.Dir
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	err := cmd.Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return out.String(), nil
+	case errors.As(err, &exit):
+		return out.String(), &ExitError{Code: exit.ExitCode(), Stderr: refusal(out.String())}
+	default:
+		return out.String(), fmt.Errorf("%s: %w", r.Kit, err)
+	}
+}
+
+// refusal gives the line of kit's output that says why it failed: the last marked ❌, or else the last.
+func refusal(out string) string {
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	for k := len(lines) - 1; k >= 0; k-- {
+		if strings.HasPrefix(lines[k], "❌") {
+			return lines[k]
+		}
+	}
+	return lines[len(lines)-1]
+}
+
 // grouped gives the command kit runs as: in a process group of its own, sent SIGTERM when ctx ends, so what kit
 // started dies with it, and waited for waitDelay at most after that.
 func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {

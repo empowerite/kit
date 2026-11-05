@@ -400,7 +400,9 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	if len(browsed) != 2 || !strings.HasSuffix(browsed[0], "/issues/46") && !strings.HasSuffix(browsed[1], "/issues/46") {
 		t.Errorf("open selected opened %q", browsed)
 	}
-	if m = drive(m, press(':'), typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.selected() != 0 || m.menu {
+	m = drive(m, press(':'))
+	m.menuAt = item(m, "Clear Selection")
+	if m = drive(m, press(tea.KeyEnter)); m.selected() != 0 || m.menu {
 		t.Errorf("clear selection: %d selected", m.selected())
 	}
 	// a group's heading is no row to select; off the rows, space selects nothing

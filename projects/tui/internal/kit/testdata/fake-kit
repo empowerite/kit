@@ -9,7 +9,8 @@
 # read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
 # refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
 # that does not parse, and a match on the verb FAKE_KIT_MATCH_REFUSE names judges the words refused; one on the verb
-# FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set.
+# FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign
+# and close act: each says what it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1.
 
 set -o errexit -o nounset -o pipefail
 
@@ -148,6 +149,18 @@ case "${1:-}" in
     fi
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
     pwd -P >> "${FAKE_KIT_RECORD}"
+    ;;
+  (assign | close)
+    # a verb that acts says what it did on stderr; refused, its ❌ line is followed by another
+    if [[ "${FAKE_KIT_REFUSE:-}" == "$1" ]]
+    then
+      echo "→ kit $1 runs" >&2
+      echo "❌ kit $1 refuses for the test" >&2
+      echo "  and says more" >&2
+      exit 1
+    fi
+    echo "out $*"
+    echo "✅ kit $* done" >&2
     ;;
   (*)
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"

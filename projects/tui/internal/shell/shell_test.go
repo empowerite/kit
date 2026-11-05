@@ -189,3 +189,29 @@ func TestTheKeysBarKeepsEscAndTheRightmostKeys(t *testing.T) {
 		}
 	}
 }
+
+// A dialog is a box with its title on the top edge, its keys dim on the bottom one, and its lines inside, every line as
+// wide as the others; a line too long for the room is clipped.
+func TestADialogBoxesItsLinesUnderItsTitleOverItsKeys(t *testing.T) {
+	lines := Dialog("Close these?", []string{"#45 one", "#46 two"}, "esc no · ⏎ yes", 60)
+	plain := make([]string, len(lines))
+	for k, l := range lines {
+		plain[k] = ansi.Strip(l)
+	}
+	if len(lines) != 4 || !strings.HasPrefix(plain[0], "╭─ Close these? ") || !strings.HasSuffix(plain[0], "╮") ||
+		plain[1] != "│ #45 one          │" || !strings.HasPrefix(plain[3], "╰─ esc no · ⏎ yes ") ||
+		!strings.Contains(lines[3], style.Off("esc no · ⏎ yes")) {
+		t.Errorf("the dialog:\n%s", strings.Join(plain, "\n"))
+	}
+	for _, l := range plain {
+		if ansi.StringWidth(l) != ansi.StringWidth(plain[0]) {
+			t.Errorf("a line of another width: %q", l)
+		}
+	}
+	narrow := Dialog("A title far too long", []string{"a line far too long for the room"}, "esc", 16)
+	for _, l := range narrow {
+		if w := ansi.StringWidth(l); w != 16 {
+			t.Errorf("narrow: a line of %d cells: %q", w, ansi.Strip(l))
+		}
+	}
+}

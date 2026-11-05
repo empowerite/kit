@@ -349,3 +349,26 @@ func TestRootIsKitRoot(t *testing.T) {
 		t.Errorf("Root: %q, %v", root, err)
 	}
 }
+
+// Act runs a verb that acts and gives everything kit printed; a refusal is kit's ❌ line, even with lines after it.
+func TestActGivesWhatKitSaidAndItsRefusal(t *testing.T) {
+	r := fake(t, "")
+	out, err := r.Act(context.Background(), "assign", "#7")
+	if err != nil || !strings.Contains(out, "out assign #7") || !strings.Contains(out, "✅ kit assign #7 done") {
+		t.Fatalf("assign: %q, %v", out, err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "close")
+	out, err = r.Act(context.Background(), "close", "--not-planned", "#7")
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != 1 || err.Error() != "kit close refuses for the test" ||
+		!strings.Contains(out, "and says more") {
+		t.Errorf("close: %q, %v", out, err)
+	}
+	if refusal("→ a step\n  the last word") != "  the last word" {
+		t.Error("a refusal with no ❌ line is not the last line")
+	}
+	if _, err = (Runner{Kit: filepath.Join(t.TempDir(), "none")}).Act(context.Background(), "assign"); err == nil ||
+		errors.As(err, &exit) {
+		t.Errorf("a kit that is not there: %v", err)
+	}
+}

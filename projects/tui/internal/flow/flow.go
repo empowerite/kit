@@ -115,7 +115,9 @@ type Model struct {
 	me            string                 // the caller's login, once kit has said it, which the panels' mine and others match
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
-	notice        string                 // why a page did not open, in place of the keys until the next key
+	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
+	noted         bool                   // whether the notice says what was done, rather than why it was not
+	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
@@ -210,8 +212,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case browsedMsg:
 		if msg.err != nil {
-			m.notice = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err)
+			m.notice, m.noted = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
+	case actedMsg:
+		return m, m.acted(msg)
 	case tea.KeyPressMsg:
 		m.notice = ""
 		return m.key(msg)
@@ -234,6 +238,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
+		if m.ask != nil {
+			return m, nil
+		}
 		switch side := m.paneWidth() + 1; {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
 			var c shell.Choice
@@ -242,7 +249,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.menu && msg.Button == tea.MouseLeft:
 			return m, m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
-			m.openMenu()
+			return m, m.dropDown(false)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
 		case len(m.stages) > 0 && grouping(msg) && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() &&
@@ -276,13 +283,18 @@ func (m Model) onMenu(x, y int) bool {
 	return at >= 0 && y == m.bar().Row+1 && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
 }
 
-// dropDown drops a menu down: the app's, or the selected tab's.
-func (m *Model) dropDown(app bool) {
+// dropDown drops a menu down: the app's, or the selected tab's, which on backlog asks kit for the caller's login the
+// first time, as Add to Pull Request needs it even while the sidebar, which asks too, is hidden.
+func (m *Model) dropDown(app bool) tea.Cmd {
 	if app {
 		m.appMenu = m.appMenu.Opened()
-		return
+		return nil
 	}
 	m.openMenu()
+	if !m.menu || m.stages[m.stage].name != "backlog" {
+		return nil
+	}
+	return m.askMe()
 }
 
 // menuFor says whether a key drops a menu down, and whether it is the app's: = the app's, and : or ; the tab's.
@@ -652,6 +664,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+esc", "super+esc":
 		return m, m.quit()
 	}
+	if m.ask != nil {
+		return m.askKey(k)
+	}
 	if m.appMenu.Open {
 		return m.appKey(k)
 	}
@@ -662,8 +677,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.panelKey(k)
 	}
 	if menu, app := menuFor(k); menu {
-		m.dropDown(app)
-		return m, nil
+		return m, m.dropDown(app)
 	}
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)
@@ -739,8 +753,7 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	before := m.panel(m.stage)
 	if menu, app := menuFor(k); menu && before.Cursor != 0 {
 		// off the search, the menus' keys drop them down, as they do from the rows
-		m.dropDown(app)
-		return m, nil
+		return m, m.dropDown(app)
 	}
 	if p, ok := before.Update(k); ok {
 		m.setPanel(p)

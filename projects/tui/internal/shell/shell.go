@@ -304,6 +304,27 @@ func Box(items []Item, enabled func(int) bool, at int, mark string, glyph, room 
 	return lines, left
 }
 
+// Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge and its keys, dim, on
+// the bottom one, around its lines, each a cell in from either side; no wider than width, a line too long clipped.
+func Dialog(title string, body []string, keys string, width int) []string {
+	inner := max(pane.Width(body)+2, ansi.StringWidth(title)+4, ansi.StringWidth(keys)+4)
+	inner = max(4, min(inner, width-2))
+	edge := func(left, text, right string, dim bool) string {
+		text = ansi.Truncate(text, inner-3, "…")
+		fill := strings.Repeat("─", max(0, inner-3-ansi.StringWidth(text)))
+		if dim {
+			return style.Menu(left+"─ ") + style.Off(text) + style.Menu(" "+fill+right)
+		}
+		return style.Menu(left + "─ " + text + " " + fill + right)
+	}
+	lines := []string{edge("╭", title, "╮", false)}
+	for _, l := range body {
+		lines = append(lines, style.Menu("│")+" "+pane.Pad(ansi.Truncate(l, inner-2, "…"), inner-2, false)+" "+
+			style.Menu("│"))
+	}
+	return append(lines, edge("╰", keys, "╯", true))
+}
+
 // Over draws a box over the screen's lines, from the line top and the column left; what the box covers is hidden, and
 // what is beside it stays in its columns, a two-cell glyph the box cuts in half giving way to a space.
 func Over(lines, box []string, top, left int) []string {

@@ -8,12 +8,27 @@
 # nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
 # --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
-# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1.
+# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. The verbs that act,
+# assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
+# FAKE_FLOW_REFUSE names refuses with exit 1.
 
 set -o errexit -o nounset -o pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 [[ -z "${FAKE_FLOW_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_FLOW_CALLS}"
+
+case "${1:-}" in
+  (assign | unassign | close | gather | work)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == "$1" ]]
+    then
+      echo "❌ kit $1 refuses for the test; run: kit help $1" >&2
+      exit 1
+    fi
+    echo "→ kit $1 runs" >&2
+    echo "✅ kit $*" >&2
+    exit 0
+    ;;
+esac
 
 if [[ "${1:-}" != flow ]]
 then
