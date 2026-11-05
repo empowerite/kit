@@ -13,7 +13,7 @@ import (
 )
 
 // issue is one of backlog's, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
-// Branch is the one started for it on origin, or empty.
+// Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it.
 type issue struct {
 	Number    int      `json:"number"`
 	Title     string   `json:"title"`
@@ -21,6 +21,7 @@ type issue struct {
 	Age       *int64   `json:"age"`
 	Branch    string   `json:"branch"`
 	URL       string   `json:"url"`
+	Source    string   `json:"source"`
 }
 
 // commit is one commit: its short hash and its subject.
@@ -33,13 +34,15 @@ type commit struct {
 // issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
 // Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
 // owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how long ago
-// and by whom, when the forge says. The URLs are kit's when it prints them.
+// and by whom, when the forge says. Source is the tracker that holds the issue. The URLs are kit's when it prints
+// them.
 type underway struct {
 	Number    int      `json:"number"`
 	Title     string   `json:"title"`
 	Assignees []string `json:"assignees"`
 	Age       *int64   `json:"age"`
 	URL       string   `json:"url"`
+	Source    string   `json:"source"`
 	PR        struct {
 		Number int    `json:"number"`
 		Title  string `json:"title"`
@@ -264,6 +267,18 @@ func ageOf(secs *int64) string {
 	return age(*secs)
 }
 
+// sources gives each tracker's glyph by the source kit names it by, the code forges' own.
+var sources = map[string]string{"github": GitHub, "gitlab": GitLab}
+
+// source gives the cell of the tracker that holds an issue: its glyph and the source kit names, dim; the name alone for
+// a source kittui has no glyph for; nothing when kit names none.
+func source(name string) cell {
+	if glyph, ok := sources[name]; ok {
+		return dim(glyph + " " + name)
+	}
+	return dim(name)
+}
+
 // owners gives the assignees' cell: each after its glyph, dim, a value of its own, so a closed row shows the first and
 // how many more; empty for none.
 func owners(logins []string) cell {
@@ -338,8 +353,8 @@ type shown struct {
 // a name, as a glyph's, has none. A stage without columns, as incoming, whose rows are commits and branches, has only
 // the search. An issue's column is its id, the reference its tracker gives it, which need not be a number.
 var columns = map[string][]string{
-	"backlog":   {"id", "assignees", "age", "branch", "title"},
-	"underway":  {"id", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"},
+	"backlog":   {"id", "source", "assignees", "age", "branch", "title"},
+	"underway":  {"id", "source", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"},
 	"desk":      {"branch", "ahead", "lines", "change", "state", "uncommitted"},
 	"worktrees": {"branch", "ahead", "lines", "change", "state", "uncommitted"},
 	"changes":   {"change", "title", "author", "state", "age", "checks", "threads", "branch"},
@@ -398,13 +413,14 @@ func (m Model) unfiltered(i int) []row {
 	return nil
 }
 
-// backlogRows draws each issue: number, assignees, age, branch, title, its glyph leading to the issue's page; open,
-// every assignee and the title wrapped. An issue belongs to its assignees.
+// backlogRows draws each issue: number, source, assignees, age, branch, title, its glyph leading to the issue's page;
+// open, every assignee and the title wrapped. An issue belongs to its assignees.
 func (m Model) backlogRows(s stage) []row {
 	var rows []row
 	for _, i := range s.issues {
 		r := row{Key: "#" + strconv.Itoa(i.Number), Owners: i.Assignees}
-		r.Cells = []cell{number(r.Key), owners(i.Assignees), dimNumber(ageOf(i.Age)), dim(branchOf(i.Branch)),
+		r.Cells = []cell{number(r.Key), source(i.Source), owners(i.Assignees), dimNumber(ageOf(i.Age)),
+			dim(branchOf(i.Branch)),
 			linked(fill(Issue+" "+i.Title), m.origin.issue(i.Number, i.URL))}
 		rows = append(rows, r)
 	}
@@ -412,9 +428,9 @@ func (m Model) backlogRows(s stage) []row {
 }
 
 // underwayRows draws each issue underway beside the pull request that closes it, oldest first as kit prints them:
-// number, assignees, age, the pull request's number and state, where the work is, the fork its branch is in, when
-// last pushed, its age right-aligned after the glyph, by whom when not the author, and the title. Where is here when
-// a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
+// number, source, assignees, age, the pull request's number and state, where the work is, the fork its branch is in,
+// when last pushed, its age right-aligned after the glyph, by whom when not the author, and the title. Where is here
+// when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
 // it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
 // the picture; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
 // title wrapped; the pull request's title is under changes, and the checkout's path under desk or worktrees. A row
@@ -453,7 +469,7 @@ func (m Model) underwayRows(s stage) []row {
 		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
 		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
-			Cells: []cell{number(issue), owners(u.Assignees), dimNumber(ageOf(u.Age)),
+			Cells: []cell{number(issue), source(u.Source), owners(u.Assignees), dimNumber(ageOf(u.Age)),
 				linked(text(Change+" "+pr), change), linked(text(state), page), where, fork, pushed, by,
 				linked(fill(Issue+" "+u.Title), m.origin.issue(u.Number, u.URL))}}
 		rows = append(rows, r)

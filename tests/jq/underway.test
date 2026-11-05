@@ -23,3 +23,8 @@ import "underway" as underway; underway::rows({}; []) | map(.pr)
 import "underway" as underway; [underway::by_owners(["ada"]; false), underway::by_owners(["ada"]; true), underway::by_owners([]; false)] | map(map(.number))
 [{"number": 1, "assignees": [], "pr": {"author": "ada"}}, {"number": 2, "assignees": ["ada"], "pr": {"author": "bob"}}, {"number": 3, "assignees": ["cy"], "pr": {"author": "bob"}}]
 [[1,2],[3],[1,2,3]]
+
+# A row carries the source of its issue, the tracker that holds it, or null when the change's document gives none.
+import "underway" as underway; underway::rows({}; []) | map(.source)
+[{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "source": "github"}, {"number": 8, "age": 8}]}]
+["github",null]

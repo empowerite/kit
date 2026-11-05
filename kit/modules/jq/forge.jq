@@ -13,8 +13,8 @@
 #   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
 #   checks      {state, passed, total, failing, took}
 #   unresolved  the number of unresolved review threads
-#   closes      [{number, title, assignees, age}] of the issues it closes, the assignees as logins, so a change's
-#               issues are drawn as the backlog stage draws an issue without a second call to the forge
+#   closes      [{number, title, assignees, age, source}] of the issues it closes, the assignees as logins, so a
+#               change's issues are drawn as the backlog stage draws an issue without a second call to the forge
 #
 # see: modules/bash/forge.sh, modules/bash/forge/github.sh, modules/bash/forge/gitlab.sh
 
@@ -52,14 +52,14 @@ def state:
 
 # document($now) reads {number, ref, branch, fork, title, author, createdAt, pushed, draft, conflicted, approval, runs,
 # unresolved, closes} and gives the document. pushed is {at, by}, or null, and comes out with its age in place of at.
-# Each of closes is {number, title, assignees, createdAt}, and comes out with its age; an issue an older answer gives
-# without a time has a null age.
+# Each of closes is {number, title, assignees, createdAt, source}, and comes out with its age; an issue an older answer
+# gives without a time has a null age, and one without a source a null source.
 def document($now):
   (.runs | checks($now)) as $checks
   | { number, ref, branch, fork: (.fork // null), title, author, createdAt, age: ($now - (.createdAt | epoch)),
       pushed: (if .pushed == null then null else {age: ($now - (.pushed.at | epoch)), by: (.pushed.by // null)} end),
       state: (. + {checks: $checks} | state), checks: $checks, unresolved,
-      closes: [.closes[] | { number, title, assignees: (.assignees // []),
+      closes: [.closes[] | { number, title, assignees: (.assignees // []), source: (.source // null),
                              age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }] };
 
 # github_runs reads a commit's status check contexts, CheckRun and StatusContext alike, and gives its runs.
@@ -93,7 +93,7 @@ def github_prs($now):
       runs: ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] | github_runs),
       unresolved: ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length),
       closes: [.closingIssuesReferences.nodes[]
-               | { number, title, createdAt,
+               | { number, title, createdAt, source: "github",
                    assignees: (if .repository.nameWithOwner == $repository.nameWithOwner
                                then $assigned["\(.number)"] // [] else [] end) }] }
   | document($now);
@@ -130,23 +130,26 @@ def gitlab_pr($now; $jobs; $discussions; $closes; $fork):
     approval: ((.detailed_merge_status // "") == "not_approved"),
     runs: ($jobs | gitlab_runs),
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),
-    closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], createdAt: .created_at }] }
+    closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], createdAt: .created_at,
+                           source: "gitlab" }] }
   | document($now);
 
-# issue($now) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue document kit
-# backlog draws: those, ref, and age in seconds.
-def issue($now):
-  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch))};
+# issue($now; $source) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue
+# document kit backlog draws: those, ref, age in seconds, and source, the tracker that holds it: the code forge's own,
+# github or gitlab, for now.
+def issue($now; $source):
+  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch)), source: $source};
 
 # github_issues($now) reads gh issue list's JSON, the answer to forge/github:open-issues, and gives one document per
 # open issue, oldest first.
 def github_issues($now):
-  sort_by(.createdAt, .number)[] | {number, title, assignees: [.assignees[].login], createdAt} | issue($now);
+  sort_by(.createdAt, .number)[] | {number, title, assignees: [.assignees[].login], createdAt}
+  | issue($now; "github");
 
 # gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents.
 def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
-  | issue($now);
+  | issue($now; "gitlab");
 
 # release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without
 # release/), tag, name, kind (release, pre-release, or draft), latest, at (when it was published, or made, for a

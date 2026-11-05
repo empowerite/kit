@@ -816,7 +816,9 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 }
 
 func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24}, down, toggle)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.setPanel(grid.Panel{Hidden: map[string]bool{"source": true}}) // the source column has a test of its own
+	m = drive(m, down, toggle)
 	v := view(m)
 	for _, want := range []string{"#45", "#46  👤 jeffrey-aguilera   2d  " + Branch + " 46-a-noun-lists  " + Issue,
 		"#7  👤 ada           +1  40d", "interactive on a", "listing verbs fold into"} {
@@ -1346,6 +1348,7 @@ func TestTookIsToTheSecond(t *testing.T) {
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), right)
+	m.setPanel(grid.Panel{Hidden: map[string]bool{"source": true}}) // the source column has a test of its own
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
@@ -1498,7 +1501,7 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
 	m = loaded(t, o, right)
-	if link := m.rows(1)[0].Cells[3].Link; link != "https://github.com/empowerite/kit/pull/2" {
+	if link := m.rows(1)[0].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
 		t.Errorf("without changes the pull request's glyph leads to %q", link)
 	}
 }
@@ -1513,5 +1516,32 @@ func init() {
 			return errors.New("no browser for the test")
 		}
 		return nil
+	}
+}
+
+// Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim, under the source
+// header; a source kittui has no glyph for by its name alone; and none at all leaves the column out, as an empty one.
+func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	for i, name := range []string{"backlog", "underway"} {
+		if i > 0 {
+			m = drive(m, right)
+		}
+		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
+			!strings.Contains(m.View().Content, style.Off(GitHub+" github")) {
+			t.Errorf("%s does not say the source:\n%s", name, view(m))
+		}
+	}
+	if source("gitlab").Values[0] != style.Off(GitLab+" gitlab") || source("AB#").Values[0] != style.Off("AB#") ||
+		len(source("").Values) != 0 {
+		t.Errorf("the source cells: %q %q %q", source("gitlab").Values, source("AB#").Values, source("").Values)
+	}
+	s := m.find("underway")
+	for k := range s.under {
+		s.under[k].Source = ""
+	}
+	m.rebuild()
+	if strings.Contains(lines(m)[paneTop], "source") {
+		t.Errorf("a column no issue has a source in has a header:\n%s", view(m))
 	}
 }

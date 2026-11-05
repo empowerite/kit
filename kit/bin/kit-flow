@@ -78,14 +78,15 @@
 # --json prints an array with one {path, status} per desk.
 #
 # Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
-# issue first. Its owner flags match the pull request's author or the issue's assignees. A row's JSON is {number,
-# title, assignees, age, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
+# issue first. Its owner flags match the pull request's author or the issue's assignees. A row's JSON is {number, title,
+# assignees, age, source, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
 # is the owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a
 # namespace's path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not
-# tell it cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head
-# pipeline's. here is true when a checkout on this desk has the branch, and worktree is that checkout's path, or null.
-# local is true when the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same
-# fork and pushed.
+# tell it cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head pipeline's.
+# here is true when a checkout on this desk has the branch, and worktree is that checkout's path, or null. local is true
+# when the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same fork and pushed.
+# source names the tracker that holds an issue, under backlog and underway, and each issue a change closes: github or
+# gitlab, the code forge's own; trackers kit.yml declares add their own.
 #
 # incoming's JSON is {fetched, primary, remotes}. Each remote is {name, forge, host, default, commits, branches, tags}:
 # forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds error,
@@ -110,6 +111,8 @@
 # backlog:
 #
 #   🎫  an issue: its number and title
+#   🐙  on GitHub: the tracker that holds an issue
+#   🦊  on GitLab: the tracker that holds an issue
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
 #   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
@@ -125,6 +128,8 @@
 #   🍴  a fork's owner: the pull request's branch is in their repository
 #   📤  the last push: how long ago
 #   🎫  an issue: its number and title
+#   🐙  on GitHub: the tracker that holds an issue
+#   🦊  on GitLab: the tracker that holds an issue
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # desk:

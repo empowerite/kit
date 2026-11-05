@@ -179,14 +179,14 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), tab, down, down, press(tea.KeySpace))
+	m := loaded(t, options(), tab, down, down, down, press(tea.KeySpace))
 	if m.me != "ada" {
 		t.Fatalf("the caller's login: %q", m.me)
 	}
 	if strings.Contains(drawn(m), Owner) || !strings.Contains(view(m), grid.Unticked+" assignees") {
 		t.Errorf("assignees hidden:\n%s", view(m))
 	}
-	// the controls: the search, five columns, then all, mine, and others
+	// the controls: the search, six columns, then all, mine, and others
 	for range 5 {
 		m = drive(m, down)
 	}
@@ -197,9 +197,9 @@ func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T)
 		t.Errorf("others: %v", keys(m))
 	}
 	// underway's rows belong to the pull request's author too, so ada's pull request on #8 is mine; mine is past
-	// underway's ten named columns
+	// underway's eleven named columns
 	m = drive(m, esc, right)
-	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 12)...)...)
+	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 13)...)...)
 	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#8 #11", "#31 #12"}) {
 		t.Errorf("underway, mine: %v\n%s", keys(m), view(m))
 	}
@@ -225,12 +225,12 @@ func TestMineAndOthersStayDimWhenKitCannotSayWhoTheCallerIs(t *testing.T) {
 func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), press('?'))
 	x := m.paneWidth() + 3
-	// the side's lines: the search, a gap, columns, then number and assignees
-	if m = drive(m, testkit.Click(x, 4)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
+	// the side's lines: the search, a gap, columns, then number, source, and assignees
+	if m = drive(m, testkit.Click(x, 5)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
 		strings.Contains(drawn(m), Owner) {
 		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
 	}
-	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Cursor != 2 {
+	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Cursor != 3 {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it
@@ -282,10 +282,13 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	if m = drive(m, testkit.Click(x, h-1)); m.sideOffset == 0 || strings.Contains(view(m), Failed+" failed") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
-	if m = drive(m, testkit.Click(x, h-1)); !strings.Contains(view(m), Failed+" failed") {
+	for range 2 {
+		m = drive(m, testkit.Click(x, h-1))
+	}
+	if !strings.Contains(view(m), Failed+" failed") {
 		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
 	}
-	if m = drive(m, testkit.Click(x, 1), testkit.Click(x, 1)); m.sideOffset != 0 {
+	if m = drive(m, testkit.Click(x, 1), testkit.Click(x, 1), testkit.Click(x, 1)); m.sideOffset != 0 {
 		t.Errorf("a click on … above: offset %d", m.sideOffset)
 	}
 	// with the panel's keyboard, page down and up scroll it; down past the last control scrolls on, and up brings
@@ -296,12 +299,12 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	if m = drive(m, press(tea.KeyPgUp)); m.sideOffset != 0 {
 		t.Errorf("page up in the panel: offset %d", m.sideOffset)
 	}
-	m = drive(m, slices.Repeat([]tea.Msg{down}, 8)...)
+	m = drive(m, slices.Repeat([]tea.Msg{down}, 9)...)
 	at := m.sideOffset
 	if m = drive(m, down); m.sideOffset != at+1 {
 		t.Errorf("down past the last control: offset %d, was %d", m.sideOffset, at)
 	}
-	if m = drive(m, slices.Repeat([]tea.Msg{up}, 8)...); m.sideOffset != 0 {
+	if m = drive(m, slices.Repeat([]tea.Msg{up}, 9)...); m.sideOffset != 0 {
 		t.Errorf("up to the search: offset %d", m.sideOffset)
 	}
 	// another stage starts at the sidebar's top

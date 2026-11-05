@@ -19,6 +19,8 @@ const (
 const (
 	Repository = "📚" // the repository
 	Issue      = "🎫" // an issue
+	GitHub     = "🐙" // on GitHub
+	GitLab     = "🦊" // on GitLab
 	InFlight   = "🛫" // underway
 	Desk       = "💻" // the desk
 	Branch     = "🌿" // a branch or a worktree
@@ -53,6 +55,8 @@ var title = entry{Repository, "the repository"}
 var legends = map[string][]entry{
 	"backlog": {
 		{Issue, "an issue"},
+		{GitHub, "on GitHub"},
+		{GitLab, "on GitLab"},
 		{Owner, "assignees or author"},
 		{Branch, "a branch or a worktree"},
 		{Failed, "failed"},
@@ -67,6 +71,8 @@ var legends = map[string][]entry{
 		{Fork, "a fork's owner"},
 		{Pushed, "the last push"},
 		{Issue, "an issue"},
+		{GitHub, "on GitHub"},
+		{GitLab, "on GitLab"},
 		{Failed, "failed"},
 	},
 	"desk": {

@@ -1,5 +1,5 @@
 [
-  {"number": 45, "title": "kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it", "assignees": [], "age": 7200, "branch": null},
-  {"number": 46, "title": "A noun lists, a noun with a verb acts", "assignees": ["jeffrey-aguilera"], "age": 172800, "branch": "46-a-noun-lists"},
-  {"number": 7, "title": "Fix the thing", "assignees": ["ada", "bob"], "age": 3456000, "branch": null}
+  {"source": "github", "number": 45, "title": "kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it", "assignees": [], "age": 7200, "branch": null},
+  {"source": "github", "number": 46, "title": "A noun lists, a noun with a verb acts", "assignees": ["jeffrey-aguilera"], "age": 172800, "branch": "46-a-noun-lists"},
+  {"source": "github", "number": 7, "title": "Fix the thing", "assignees": ["ada", "bob"], "age": 3456000, "branch": null}
 ]

@@ -2,23 +2,23 @@
   ➊╶─────────────────────╮➁╶──────────────────────╮➂
   │ 🎫 backlog       3 ⋮ │  🛫 underway         4  ▹ columns
   ╵                      ╰────────────────────────╰┐ ☑ id
-    id  assignees            age  branch         … │ ☑ assignees
-   ─────────────────────────────────────────────── │ ☑ age
- ▸ #45                        2h                 … │ ☑ branch
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-li… │ ☑ title
- ▸  #7  👤 ada           +1  40d                 … │
+    id  source     assignees            age  bran… │ ☑ source
+   ─────────────────────────────────────────────── │ ☑ assignees
+ ▸ #45  🐙 github                        2h      … │ ☑ age
+ ▸ #46  🐙 github  👤 jeffrey-aguilera   2d  🌿 4… │ ☑ branch
+ ▸  #7  🐙 github  👤 ada           +1  40d      … │ ☑ title
+                                                   │
                                                    │ show
                                                    │ ⦿ all
                                                    │ ⦾ mine
-                                                   │ ⦾ others
-                                                   ▸
-                                                   ╷ legend
+                                                   ▸ ⦾ others
+                                                   ╷
+                                                   │ legend
                                                    │ 🎫 an issue 🔗
+                                                   │ 🐙 on GitHub
+                                                   │ 🦊 on GitLab
                                                    │ 👤 assignees or author
                                                    │ 🌿 a branch or a worktree
                                                    │ ❌ failed
-                                                   │
-                                                   │
-                                                   │
                                                    │
  ←→ tab · ↓ rows · ⇥ panel · = menu · / search · ? sidebar · esc back
