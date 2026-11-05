@@ -18,7 +18,7 @@ import (
 )
 
 // panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "↑↓ move · space toggle · type to search · esc back"
+const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · type to search · esc back"
 
 // typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
 func typed(text string) []tea.Msg {
@@ -226,7 +226,7 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), press('?'))
 	x := m.paneWidth() + 3
 	// the side's lines: the search, a gap, columns, then number, source, and assignees
-	if m = drive(m, testkit.Click(x, 5)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
+	if m = drive(m, testkit.Click(x, 5), testkit.Release(x, 5)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
 		strings.Contains(drawn(m), Owner) {
 		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
 	}
@@ -363,4 +363,53 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 		t.Errorf("the wheel on the bar scrolled the rows")
 	}
 	loaded(t, Options{}, turn(tea.MouseWheelDown))
+}
+
+// In the panel, shift with up or down moves a column, and a drag of its line moves it as far as the mouse goes; the
+// header and the rows follow. A press on a column's line toggles nothing until the release, and a drag never does.
+func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, right, right, right, press('?'))
+	x := m.paneWidth() + 3
+	line := func(name string) int {
+		for y, l := range lines(m) {
+			if strings.HasSuffix(strings.TrimRight(l, " "), grid.Ticked+" "+name) {
+				return y
+			}
+		}
+		t.Fatalf("no %s in the panel:\n%s", name, view(m))
+		return -1
+	}
+	// branch, the first column, moves down a place: ahead first, in the header and in the rows
+	m = drive(m, tab, down, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+	if l := lines(m); !strings.HasPrefix(strings.TrimSpace(l[paneTop]), "ahead") || line("branch") <= line("ahead") ||
+		!strings.Contains(l[m.rowsTop()], "↑266 ↓0  🌿 1-the-first-release") {
+		t.Fatalf("shift-down on branch:\n%s", view(m))
+	}
+	// a drag of state's line onto lines' puts state where lines was, toggling nothing
+	from, to := line("state"), line("lines")
+	m = drive(m, testkit.Click(x, from), testkit.Drag(x, to), testkit.Release(x, to))
+	if line("state") != to || len(m.panel(m.stage).Hidden) != 0 || !strings.Contains(lines(m)[paneTop], "state") ||
+		strings.Index(lines(m)[paneTop], "state") > strings.Index(lines(m)[paneTop], "lines") {
+		t.Errorf("a drag of state onto lines:\n%s", view(m))
+	}
+	// a press and a release on the same line toggle; a press released elsewhere does not
+	at := line("ahead")
+	if m = drive(m, testkit.Click(x, at)); m.panel(m.stage).Hidden["ahead"] {
+		t.Error("the press alone toggled ahead")
+	}
+	if m = drive(m, testkit.Release(x, at)); !m.panel(m.stage).Hidden["ahead"] {
+		t.Error("the release did not toggle ahead")
+	}
+	if m = drive(m, testkit.Click(x, at), testkit.Release(x, at+5)); !m.panel(m.stage).Hidden["ahead"] {
+		t.Error("a release off its line toggled ahead")
+	}
+	// a drag that never held a column, or over a line that draws none, moves nothing
+	before := m.panel(m.stage).Order
+	if m = drive(m, testkit.Drag(x, to), testkit.Release(x, to)); !slices.Equal(m.panel(m.stage).Order, before) {
+		t.Error("a drag with nothing held moved a column")
+	}
+	m = drive(m, testkit.Click(x, line("state")), testkit.Drag(x, 0), testkit.Drag(2, 10), testkit.Release(2, 10))
+	if !slices.Equal(m.panel(m.stage).Order, before) {
+		t.Error("a drag over no column's line moved one")
+	}
 }

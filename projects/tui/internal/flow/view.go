@@ -144,7 +144,7 @@ func (m Model) keys() string {
 	case m.inPanel && !m.sidebar:
 		return shell.SearchKeys
 	case m.inPanel:
-		return "↑↓ move · space toggle · type to search · esc back"
+		return "↑↓ move · space toggle · ⇧↑↓ order · type to search · esc back"
 	}
 	var keys []string
 	if m.inRows {
@@ -272,10 +272,10 @@ func (m Model) names(i int) []string {
 	if !m.stages[i].headers {
 		return nil
 	}
-	hidden := m.filter(i).Hidden
+	p := m.filter(i)
 	var names []string
-	for _, name := range columns[m.stages[i].name] {
-		if name == "" || !hidden[name] {
+	for _, name := range p.Arrange(columns[m.stages[i].name]) {
+		if name == "" || !p.Hidden[name] {
 			names = append(names, name)
 		}
 	}

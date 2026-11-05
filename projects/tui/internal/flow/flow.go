@@ -109,6 +109,7 @@ type Model struct {
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
+	drag          drag                   // the column a press on its line in the panel holds, until the release
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -213,6 +214,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight():
 			m.scrollRows(d * wheel)
 		}
+	case tea.MouseMotionMsg:
+		m.dragTo(msg.X, msg.Y)
+	case tea.MouseReleaseMsg:
+		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
 		switch side := m.paneWidth() + 1; {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
@@ -364,12 +369,78 @@ func (m *Model) clickPanel(line int) tea.Cmd {
 	case below && line == end-start+btoi(above):
 		m.scrollSide(max(1, h-2))
 	case k >= 0:
-		if p, ok := m.panel(m.stage).Click(k + 1); ok {
+		p := m.panel(m.stage)
+		if column := p.ColumnAt(k + 1); column != "" {
+			// a column's line is held, to drag or to toggle on the release; it takes the keyboard now
+			p, _ = p.Point(k + 1)
+			m.inPanel, m.drag = true, drag{column: column}
+			m.setPanel(p)
+			return nil
+		}
+		if p, ok := p.Click(k + 1); ok {
 			m.inPanel = true
 			m.setPanel(p)
 		}
 	}
 	return nil
+}
+
+// drag is the column whose line in the panel a press holds, and whether a drag has moved it since.
+type drag struct {
+	column string
+	moved  bool
+}
+
+// panelLine gives the line of the panel, as its Lines numbers them, that a screen cell falls on: the search's, 0, on
+// the title line, else one of the lines under it as the sidebar is scrolled; -1 off the sidebar, or on a … line.
+func (m Model) panelLine(x, y int) int {
+	switch {
+	case !m.sidebar || len(m.stages) == 0 || x < m.width-m.sideWidth():
+		return -1
+	case y == 0:
+		return 0
+	}
+	n, h := m.scrolled()
+	start, end, above, below := pane.Window(n, h, m.sideOffset)
+	if line := y - 1; above && line == 0 || below && line == end-start+btoi(above) {
+		return -1
+	}
+	if k := pane.At(n, h, m.sideOffset, y-1); k >= 0 {
+		return k + 1
+	}
+	return -1
+}
+
+// dragTo moves the column held, while the mouse drags it, to where the column whose line it is over stands, the
+// keyboard with it; over any other line it moves nothing.
+func (m *Model) dragTo(x, y int) {
+	if m.drag.column == "" {
+		return
+	}
+	line := m.panelLine(x, y)
+	p := m.panel(m.stage)
+	at := p.ColumnAt(line)
+	if at == "" || at == m.drag.column {
+		return
+	}
+	p, _ = p.Move(m.drag.column, at).Point(line)
+	m.drag.moved = true
+	m.setPanel(p)
+}
+
+// release ends a hold on a column's line: a hold no drag moved, released on the line it began on, toggles the column's
+// checkbox, as a click on any other control acts on it.
+func (m *Model) release(x, y int) {
+	held := m.drag
+	m.drag = drag{}
+	if held.column == "" || held.moved {
+		return
+	}
+	line := m.panelLine(x, y)
+	if p := m.panel(m.stage); p.ColumnAt(line) == held.column {
+		p, _ = p.Click(line)
+		m.setPanel(p)
+	}
 }
 
 // scrolled gives how many of the sidebar's lines scroll, all but the search on the screen's first line, and the lines

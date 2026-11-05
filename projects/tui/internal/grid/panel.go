@@ -3,6 +3,7 @@ package grid
 
 import (
 	"maps"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -39,11 +40,13 @@ const (
 // and, when the rows belong to people, a radio button per choice of Show. Mine and others need the caller's login,
 // Me; while it is unknown they are dim, and cannot be chosen. Cursor is the control under the keyboard, Focused
 // whether the panel has it. Hidden holds the names of the columns hidden; the panel never changes the map it was
-// given, but gives a new one.
+// given, but gives a new one. Order is the order the named columns stand in, the rows' and the panel's checkboxes
+// alike, as Arrange says; none is the stage's own.
 type Panel struct {
 	Query   string
 	Columns []string
 	Hidden  map[string]bool
+	Order   []string
 	Show    Show
 	Owned   bool
 	Me      string
@@ -61,7 +64,7 @@ type control struct {
 // controls gives the panel's controls, in order.
 func (p Panel) controls() []control {
 	out := []control{{search: true}}
-	for _, c := range p.Columns {
+	for _, c := range p.Arrange(p.Columns) {
 		if c != "" {
 			out = append(out, control{column: c})
 		}
@@ -119,7 +122,8 @@ func (p Panel) Lines() (lines []string, at []int) {
 
 // Update takes a key while the panel has the keyboard, and says whether it changed anything: up and down move between
 // the controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back;
-// off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show.
+// off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show; on a column's
+// checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -133,6 +137,15 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		p.Query, _ = shell.Type(p.Query, k)
 	case k.Text == "/":
 		p.Cursor = 0
+	case c.column != "" && (key == "shift+up" || key == "shift+down"):
+		step := 1
+		if key == "shift+up" {
+			step = -1
+		}
+		if next := p.Cursor + step; next >= 1 && next < len(controls) && controls[next].column != "" {
+			p = p.Move(c.column, controls[next].column)
+			p.Cursor = next
+		}
 	case !c.search && (key == "space" || key == "enter"):
 		p = p.act(c)
 	default:
@@ -152,6 +165,25 @@ func (p Panel) Click(line int) (Panel, bool) {
 	if c := p.controls()[p.Cursor]; !c.search {
 		p = p.act(c)
 	}
+	return p, true
+}
+
+// ColumnAt gives the name of the column whose checkbox a line of the panel, as Lines numbers them, draws, or nothing.
+func (p Panel) ColumnAt(line int) string {
+	_, at := p.Lines()
+	if line < 0 || line >= len(at) || at[line] < 0 {
+		return ""
+	}
+	return p.controls()[at[line]].column
+}
+
+// Point puts the keyboard on the control a line of the panel draws, acting on nothing, and says whether one is there.
+func (p Panel) Point(line int) (Panel, bool) {
+	_, at := p.Lines()
+	if line < 0 || line >= len(at) || at[line] < 0 {
+		return p, false
+	}
+	p.Cursor = at[line]
 	return p, true
 }
 
@@ -253,17 +285,68 @@ func owned(r Row, login string) bool {
 	return false
 }
 
-// hide gives the row without the hidden columns' cells; a row of one cell spans the columns, and keeps it.
+// hide gives the row with its cells in the panel's order, without the hidden columns' cells; a row of one cell spans
+// the columns, and keeps it.
 func (p Panel) hide(r Row, columns []string) Row {
-	if len(r.Cells) < 2 || len(p.Hidden) == 0 {
+	if len(r.Cells) < 2 || len(p.Hidden) == 0 && len(p.Order) == 0 {
 		return r
 	}
 	var cells []Cell
-	for j, c := range r.Cells {
-		if j >= len(columns) || !p.Hidden[columns[j]] {
-			cells = append(cells, c)
+	for _, j := range p.arrangement(columns) {
+		if j < len(r.Cells) && (j >= len(columns) || !p.Hidden[columns[j]]) {
+			cells = append(cells, r.Cells[j])
 		}
+	}
+	for j := len(columns); j < len(r.Cells); j++ {
+		cells = append(cells, r.Cells[j])
 	}
 	r.Cells = cells
 	return r
+}
+
+// arrangement gives the order the columns stand in, as indexes into them: a column without a name keeps its place, and
+// the named ones fill the other places, those in Order first, in its order, then the rest, in theirs.
+func (p Panel) arrangement(columns []string) []int {
+	var named []int
+	for _, name := range p.Order {
+		if j := slices.Index(columns, name); j >= 0 && name != "" && !slices.Contains(named, j) {
+			named = append(named, j)
+		}
+	}
+	for j, name := range columns {
+		if name != "" && !slices.Contains(named, j) {
+			named = append(named, j)
+		}
+	}
+	out := make([]int, len(columns))
+	for j, name := range columns {
+		if name == "" {
+			out[j] = j
+			continue
+		}
+		out[j], named = named[0], named[1:]
+	}
+	return out
+}
+
+// Arrange gives the columns' names in the panel's order, as the rows' cells stand once it lets them through.
+func (p Panel) Arrange(columns []string) []string {
+	out := make([]string, len(columns))
+	for k, j := range p.arrangement(columns) {
+		out[k] = columns[j]
+	}
+	return out
+}
+
+// Move gives the panel with the column named moving to where the column named at stands, the columns between shifting
+// one place toward where it was; the order then names every column the panel offers.
+func (p Panel) Move(name, at string) Panel {
+	order := slices.DeleteFunc(p.Arrange(p.Columns), func(c string) bool { return c == "" })
+	from, to := slices.Index(order, name), slices.Index(order, at)
+	if from < 0 || to < 0 || from == to {
+		return p
+	}
+	order = slices.Delete(order, from, from+1)
+	p.Order = slices.Insert(order, to, name)
+	return p
 }

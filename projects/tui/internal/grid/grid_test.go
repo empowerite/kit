@@ -328,3 +328,40 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 		t.Errorf("a title as wide as the longest: %q", got)
 	}
 }
+
+// The panel orders the named columns as Order says, a column without a name keeping its place, and the rows' cells
+// follow; Move takes a column to another's place; shift with up or down moves the column under the keyboard, the
+// keyboard with it, and stops at the columns' ends.
+func TestThePanelOrdersTheColumns(t *testing.T) {
+	columns := []string{"", "a", "b", "c"}
+	p := Panel{Columns: columns, Order: []string{"c", "a"}}
+	if got := p.Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
+		t.Errorf("arranged: %q", got)
+	}
+	r := p.hide(Row{Cells: []Cell{one("0"), one("A"), one("B"), one("C")}}, columns)
+	if got := r.Cells[1].first() + r.Cells[2].first() + r.Cells[3].first(); r.Cells[0].first() != "0" || got != "CAB" {
+		t.Errorf("the row's cells: %q", got)
+	}
+	if got := (Panel{Columns: columns}).Move("c", "a").Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
+		t.Errorf("c moved to a: %q", got)
+	}
+	if got := (Panel{Columns: columns}).Move("a", "nonesuch"); got.Order != nil {
+		t.Errorf("a move to no column: %q", got.Order)
+	}
+	shift := func(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Mod: tea.ModShift} }
+	q := Panel{Columns: columns, Focused: true, Cursor: 1}
+	if q, _ = q.Update(shift(tea.KeyDown)); q.Cursor != 2 || !slices.Equal(q.Arrange(columns), []string{"", "b", "a", "c"}) {
+		t.Errorf("shift-down: cursor %d, %q", q.Cursor, q.Arrange(columns))
+	}
+	q, _ = q.Update(shift(tea.KeyUp))
+	if q, _ = q.Update(shift(tea.KeyUp)); q.Cursor != 1 || q.Arrange(columns)[1] != "a" {
+		t.Errorf("shift-up past the first column: cursor %d, %q", q.Cursor, q.Arrange(columns))
+	}
+	// on a line that draws no column there is none to hold
+	if p.ColumnAt(0) != "" || p.ColumnAt(99) != "" {
+		t.Error("a column where none is")
+	}
+	if _, ok := p.Point(-1); ok {
+		t.Error("Point on no line")
+	}
+}

@@ -121,6 +121,14 @@ func Typed(text string) []tea.Msg {
 // Click gives a left click on a cell of the screen.
 func Click(x, y int) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft} }
 
+// Release gives the release of the left button over a cell of the screen, which ends a click or a drag.
+func Release(x, y int) tea.MouseReleaseMsg {
+	return tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft}
+}
+
+// Drag gives the mouse moving over a cell of the screen with the left button held.
+func Drag(x, y int) tea.MouseMotionMsg { return tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft} }
+
 // Column gives the cell of a line where the rune first starts, or -1 when the line lacks it.
 func Column(line string, r rune) int {
 	k := strings.IndexRune(line, r)
