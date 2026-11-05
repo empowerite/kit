@@ -346,7 +346,8 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	}
 }
 
-// In the rows, space selects the row under the cursor, ✓ in its gutter, and again unselects it; shift with up or down
+// In the rows, space selects the row under the cursor, * in its gutter in the tab's group's color, and again unselects
+// it; shift with up or down
 // selects as it moves; ctrl+a selects every row shown, and again none. A click puts the cursor on a row and selects
 // nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each
 // selected row's page, and clears the selection.
@@ -356,8 +357,8 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.rowsTop()-1], " 1 selected ") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
-	if !strings.Contains(m.View().Content, style.Tint(grid.Chosen)) {
-		t.Error("the selection's bar is not in the accent")
+	if marked, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, marked(grid.Chosen)) {
+		t.Error("the selection's mark is not in the tab's group's color")
 	}
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 || gutter(0) != " " {
 		t.Errorf("space again: %d selected", m.selected())

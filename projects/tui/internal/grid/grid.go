@@ -97,9 +97,9 @@ type Line struct {
 	Text string
 }
 
-// Chosen marks a row selected, in the gutter before its ▸ and on every line of it: a heavy bar, one cell wide, which
-// rows selected one after another join into one.
-const Chosen = "┃"
+// Chosen marks a row selected, in the gutter before its ▸ on its first line: an asterisk, one cell wide in every
+// terminal, as mutt and tig mark what is tagged.
+const Chosen = "*"
 
 // gap is the cells between two columns; minFill the fewest a cell that wraps keeps when the other columns leave it
 // less, the row then clipped.
@@ -132,10 +132,10 @@ func (c Cell) more() string {
 
 // Draw lays the rows out for a pane of so many cells, under the header's names, which widen the columns they stand
 // over: each row's lines, closed, or open when open says so, the cursor's row, an index into the rows, on a band, and
-// each row picked says so, as several rows selected, with Chosen in the gutter's first cell of each of its lines, in the
-// accent;
-// picked may be nil. A row opens only when it hides something.
-func Draw(rows []Row, head []string, width, cursor int, open, picked func(Row) bool) []Line {
+// each row selected, as one of several, with what picked gives for it, drawn, in the gutter's first cell of its first
+// line: Chosen in a color, or nothing for a row not selected. picked may be nil. A row opens only when it hides
+// something.
+func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
 	var out []Line
@@ -157,11 +157,11 @@ func Draw(rows []Row, head []string, width, cursor int, open, picked func(Row) b
 			mark = style.Off("▸")
 		}
 		selected := " "
-		if picked != nil && picked(r) {
-			selected = style.Tint(Chosen)
+		if picked != nil && picked(r) != "" {
+			selected = picked(r)
 		}
 		for n, l := range lines {
-			g := selected + "  "
+			g := "   "
 			if n == 0 {
 				g = selected + mark + " "
 			}
@@ -169,7 +169,7 @@ func Draw(rows []Row, head []string, width, cursor int, open, picked func(Row) b
 		}
 		if opened {
 			for _, d := range table(r.Detail, cells-len(under)+len(lead)) {
-				out = append(out, Line{k, selected + under[1:] + d})
+				out = append(out, Line{k, under + d})
 			}
 		}
 	}

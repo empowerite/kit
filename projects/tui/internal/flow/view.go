@@ -440,8 +440,14 @@ func (m Model) lines(i int) []line {
 	if m.inRows && i == m.stage && s.cursor < len(rows) {
 		chosen = s.cursor
 	}
+	marked, _ := style.In(stageColors[s.name])
 	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, func(r row) bool { return s.open[r.Key] },
-		func(r row) bool { return s.picked[r.Key] })
+		func(r row) string {
+			if s.picked[r.Key] {
+				return marked(grid.Chosen)
+			}
+			return ""
+		})
 	out := make([]line, len(drawn))
 	indent := strings.Repeat(" ", m.indent(i))
 	for k, l := range drawn {
