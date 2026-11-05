@@ -158,6 +158,20 @@ func TestTheIntroFollowsTheChecksAsTheyRunAgain(t *testing.T) {
 	if got := view(m); !strings.Contains(got, "the release → 🔧 setup\n\n   checking…\n") {
 		t.Errorf("no checking under the links:\n%s", got)
 	}
+	basicsChecking := "add it to your shell profile to keep it\n\n   checking…\n"
+	if got := view(drive(m, press('2'))); !strings.Contains(got, basicsChecking) {
+		t.Errorf("no checking under basics' checks:\n%s", got)
+	}
+	// a refusal when they run again comes first, over what they last found
+	m = drive(m, checksMsg{err: errors.New("kit welcome refuses")}, press('1'))
+	if got := view(m); !strings.Contains(got, "\n   ❌ kit welcome refuses\n\n   4 checks need you\n") {
+		t.Errorf("no refusal over the links:\n%s", got)
+	}
+	// a check left for later says so in its link
+	m, _ = atBasics(t, press('l'), press('1'))
+	if got := view(m); !strings.Contains(got, "\n   ❌ jq is not installed · later → 🧱 basics\n") {
+		t.Errorf("jq's link does not say it is left for later:\n%s", got)
+	}
 }
 func TestItOpensOnTheIntroWhenEveryCheckPasses(t *testing.T) {
 	m, _ := fake(t)
@@ -190,7 +204,8 @@ func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	if got := view(m); !strings.Contains(got, "\n   checking…\n") || strings.Contains(m.View().Content, style.Loss("…")) {
+	if got := view(m); !strings.Contains(got, "\n   checking…\n") ||
+		strings.Contains(m.View().Content, style.Loss("…")) {
 		t.Errorf("the intro does not say it is checking, or … is red:\n%s", got)
 	}
 	// a count is right-aligned in its tab, so the spaces before it are folded to one
