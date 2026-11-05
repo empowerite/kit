@@ -78,7 +78,7 @@
 # --json prints an array with one {path, status} per desk.
 #
 # Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
-# issue first. Its owner flags match the pull request's author or the issue's assignees. A row's JSON is {number, title,
+# issue first. Its owner flags match the issue's assignees. A row's JSON is {number, title,
 # assignees, age, source, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
 # is the owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a
 # namespace's path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not

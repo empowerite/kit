@@ -345,10 +345,10 @@ fake-tui() {
   # the ages count seconds from now, so they are left out of the comparison
   [ "$(jq -c '.changes | del(.. | .age?)' <<<"$output")" \
     = "$("${kit_root}/bin/kit" flow changes --json | jq -c 'del(.. | .age?)')" ]
-  # the filters reach the backlog and the changes
+  # the filters reach the backlog and the changes; underway's #7 is bob's, though ada opened its change
   run "${kit_root}/bin/kit" flow --no-fetch --mine --json
   [ "$(jq -c '[(.backlog | map(.number)), (.underway | map(.number)), (.changes | map(.number))]' <<<"$output")" \
-    = '[[11],[7],[3]]' ]
+    = '[[11],[],[3]]' ]
   run "${kit_root}/bin/kit" flow --no-fetch --owner=nobody --json
   [ "$(jq -c '[.backlog, .underway, .changes]' <<<"$output")" = '[[],[],[]]' ]
 }

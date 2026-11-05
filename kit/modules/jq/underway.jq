@@ -21,9 +21,9 @@ def rows($worktrees; $branches):
         worktree: ($worktrees[$pr.branch] // null) } ]
   | sort_by(-(.age // 0), .number, .pr.number);
 
-# by_owners($logins; $except) reads rows and keeps those whose change one of $logins opened, or whose issue one of
-# them is assigned; with $except, those neither. With no login, it keeps every row.
+# by_owners($logins; $except) reads rows and keeps those whose issue one of $logins is assigned; with $except, the
+# others, an issue no one is assigned among them. Who opened the change does not count: its author has a column of its
+# own. With no login, it keeps every row.
 def by_owners($logins; $except):
   if ($logins | length) == 0 then .
-  else map(select((((.pr.author as $a | $logins | index($a)) != null)
-                   or (.assignees | any(. as $x | $logins | index($x) != null))) != $except)) end;
+  else map(select((.assignees | any(. as $x | $logins | index($x) != null)) != $except)) end;

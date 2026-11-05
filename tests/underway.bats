@@ -139,21 +139,22 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "${lines[0]}" == " #7  👤 bob  "*"d  🔀 #3 🔨 draft  🌿 here                        🎫 Fix the thing" ]]
 }
 
-@test "the owner flags match the pull request's author or the issue's assignees" {
+@test "the owner flags match the issue's assignees, not who opened the pull request" {
   run kit flow underway --mine --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,3],[11,5]]' ]
+  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[11,5]]' ]
   run kit flow underway --others --json
-  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,5]]' ]
+  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,3],[7,5]]' ]
   run kit flow underway --owner=bob --json
   [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,3],[7,5]]' ]
   run kit flow underway --owner=cy --json
-  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[[7,5],[11,5]]' ]
+  # cy opened #5 and is assigned nothing
+  [ "$(jq -c 'map([.number, .pr.number])' <<<"$output")" = '[]' ]
   run kit flow underway --all --json
   [ "$(jq 'length' <<<"$output")" -eq 3 ]
   # --mine alone leaves the assignee column out, as the backlog does
   run kit flow underway --mine
-  [[ "${lines[0]}" == " #7  "*"d  🔀 #3 🔨 draft  🌿 here  🎫 Fix the thing" ]]
+  [[ "${lines[0]}" == "#11  "*"d  🔀 #5 🏁 ready  "*"🎫 Third thing" ]]
   run kit flow underway --mine --all
   [ "$status" -eq 2 ]
 }

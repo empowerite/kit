@@ -21,7 +21,7 @@
 # 🌱 local means the desk has the branch and no checkout has it. Otherwise the cell names the pull request's author,
 # whose desk the work is on. 🍴 names the owner of the fork the branch lives in, 📤 the age of the branch's last
 # push, and the 👤 after it who pushed, when that is not the author; each is blank when the forge does not tell it.
-# The owner flags are kit flow's, and match the pull request's author or the issue's assignees.
+# The owner flags are kit flow's, and match the issue's assignees; who opened the change does not count.
 #
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/changes.sh, modules/jq/underway.jq
 
@@ -46,7 +46,7 @@ underway:branches() {
 
 # underway:documents [--all | [--mine] [--others] [--owner=<login>…]] prints the rows the flags choose as one JSON
 # array, the oldest issue first: {number, title, assignees, age, pr, here, local, worktree} each. The owner flags
-# combine as flow:filter says, and match the pull request's author or the issue's assignees.
+# combine as flow:filter says, and match the issue's assignees.
 underway:documents() {
   local filter prs except=false
   local -a selection=()

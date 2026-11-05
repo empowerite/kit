@@ -19,10 +19,10 @@ import "underway" as underway; underway::rows({}; []) | map(.pr)
 [{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "fork": "cy", "pushed": {"age": 60, "by": "dee"}, "ref": "#3", "age": 5, "closes": [{"number": 7, "title": "Seven", "age": 9}]}, {"number": 4, "title": "Also", "author": "ada", "state": "draft", "branch": "8-also", "fork": null, "pushed": null, "closes": [{"number": 8, "title": "Eight", "age": 8}]}]
 [{"number":3,"title":"Fix","author":"ada","state":"draft","branch":"7-fix","fork":"cy","pushed":{"age":60,"by":"dee"}},{"number":4,"title":"Also","author":"ada","state":"draft","branch":"8-also","fork":null,"pushed":null}]
 
-# Logins keep the rows whose change one of them opened or whose issue one of them is assigned; except, the others.
+# Logins keep the rows whose issue one of them is assigned, whoever opened the change; except, the others.
 import "underway" as underway; [underway::by_owners(["ada"]; false), underway::by_owners(["ada"]; true), underway::by_owners([]; false)] | map(map(.number))
 [{"number": 1, "assignees": [], "pr": {"author": "ada"}}, {"number": 2, "assignees": ["ada"], "pr": {"author": "bob"}}, {"number": 3, "assignees": ["cy"], "pr": {"author": "bob"}}]
-[[1,2],[3],[1,2,3]]
+[[2],[1,3],[1,2,3]]
 
 # A row carries the source of its issue, the tracker that holds it, or null when the change's document gives none.
 import "underway" as underway; underway::rows({}; []) | map(.source)

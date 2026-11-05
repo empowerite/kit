@@ -198,11 +198,11 @@ func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T)
 	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(keys(m), []string{"#45", "#46"}) {
 		t.Errorf("others: %v", keys(m))
 	}
-	// underway's rows belong to the pull request's author too, so ada's pull request on #8 is mine; mine is past
-	// underway's eleven named columns
+	// underway's rows belong to the issue's assignees alone, so #8, which ada's pull request closes, is not mine; mine
+	// is past underway's eleven named columns
 	m = drive(m, esc, right)
 	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 13)...)...)
-	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#8 #11", "#31 #12"}) {
+	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#31 #12"}) {
 		t.Errorf("underway, mine: %v\n%s", keys(m), view(m))
 	}
 	// kit is asked once, whichever way the side shows

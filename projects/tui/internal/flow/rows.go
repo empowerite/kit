@@ -484,7 +484,7 @@ func (m Model) backlogRows(s stage) []row {
 // it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
 // the picture; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
 // title wrapped; the pull request's title is under changes, and the checkout's path under desk or worktrees. A row
-// belongs to the issue's assignees and the pull request's author.
+// belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
 func (m Model) underwayRows(s stage) []row {
 	var rows []row
 	widest := 0
@@ -518,7 +518,7 @@ func (m Model) underwayRows(s stage) []row {
 			change = jumpTo("changes", m.pullKey(u.PR.Number))
 		}
 		state := stateGlyph(u.PR.State) + " " + u.PR.State
-		r := row{Key: issue + " " + pr, Owners: append(slices.Clone(u.Assignees), u.PR.Author),
+		r := row{Key: issue + " " + pr, Owners: u.Assignees,
 			Cells: []cell{number(issue), source(u.Source), owners(u.Assignees), agedOf(dimNumber(ageOf(u.Age)), u.Age),
 				linked(text(Change+" "+pr), change), linked(text(state), page), where, fork, pushed, by,
 				linked(fill(Issue+" "+u.Title), m.origin.issue(u.Number, u.URL))}}
