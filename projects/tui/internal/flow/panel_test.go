@@ -457,7 +457,7 @@ func TestGInThePanelGroupsTheRows(t *testing.T) {
 		!strings.Contains(v, "state · 🔨 draft  1") || m.count(m.stage) != count {
 		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Group, m.count(m.stage), v)
 	}
-	if !strings.Contains(m.View().Content, style.Off("state · 🏁 ready  1")) {
+	if !strings.Contains(m.View().Content, style.Off(grid.Unfolded+" state · 🏁 ready  1")) {
 		t.Error("a group's heading is not dim")
 	}
 	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
@@ -581,7 +581,7 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != "source · "+GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
+	if got := heading(m); got != grid.Unfolded+" source · "+GitHub+" github  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
 		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
 	}
 	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {
@@ -606,5 +606,40 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	if m.rebuild(); heading(m) != "" {
 		t.Errorf("the rows built again group by source")
+	}
+}
+
+// A group's heading folds its rows away and unfolds them: left on it folds, right unfolds, the cursor staying on the
+// heading, and a click anywhere on it does either; ▾ turns ▸, the keys say which, and the tab's count stays the rows
+// the panel lets through, folded or not.
+func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	count, rows := m.count(m.stage), len(m.rows(m.stage))
+	// down lands past the heading on a row; up puts the cursor on the heading
+	m = drive(m, down, up)
+	if m.stages[m.stage].cursor != 0 || !grid.Heads(m.rows(m.stage)[0]) {
+		t.Fatalf("the cursor is not on the heading: %d", m.stages[m.stage].cursor)
+	}
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← fold") {
+		t.Errorf("the keys on an open heading: %q", last)
+	}
+	m = drive(m, left)
+	heading := ansi.Strip(m.rows(m.stage)[0].Cells[0].Values[0])
+	if len(m.rows(m.stage)) != 1 || !strings.HasPrefix(heading, grid.Folded+" ") || m.count(m.stage) != count ||
+		m.stages[m.stage].cursor != 0 {
+		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
+	}
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ unfold") {
+		t.Errorf("the keys on a folded heading: %q", last)
+	}
+	if m = drive(m, right); len(m.rows(m.stage)) != rows {
+		t.Fatalf("right on the heading: %d rows", len(m.rows(m.stage)))
+	}
+	// a click on the heading's line, past its text, folds it, and another unfolds it
+	if m = drive(m, testkit.Click(40, m.rowsTop())); len(m.rows(m.stage)) != 1 {
+		t.Fatalf("a click on the heading: %d rows\n%s", len(m.rows(m.stage)), view(m))
+	}
+	if m = drive(m, testkit.Click(40, m.rowsTop())); len(m.rows(m.stage)) != rows {
+		t.Fatalf("a second click on the heading: %d rows", len(m.rows(m.stage)))
 	}
 }

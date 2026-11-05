@@ -4,7 +4,7 @@
   ────────────────────╯                   ╰────────────────╰─────────────────────╰───────────────────╰─────────────────┐
     id  assignees         age  change  state             where     fork    pushed  by     title                        │
    ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
-   source · 🐙 github  4                                                                                               │
+   ▾ source · 🐙 github  4                                                                                             │
  ▾  #1  👤 jeffrey-        8d  🔀 #2   🏁 ready          🌿 here           📤 60m         🎫 The first release,        │
         aguilera                                                                          v0.1.0: the kit verbs, the   │
                                                                                           picture, and the forge seam  │

@@ -50,8 +50,8 @@ func TestRecentRemembersTheNewestFirstOnceAndKeepsThemInTheFile(t *testing.T) {
 	}
 }
 
-// The dropdown opens on the newest, moves, chooses, and closes; it hangs from the Recall glyph after the search, which
-// shows only while the search has the keyboard and there are searches to recall.
+// The dropdown opens on the newest, moves, chooses, and closes; it hangs from the Recall glyph against the search's 🔎,
+// before what is typed, which shows only while the search has the keyboard and there are searches to recall.
 func TestTheDropdownRecallsASearch(t *testing.T) {
 	r := Recent{Items: []string{"one", "two"}}
 	if (Recent{}).Opened().Open {
@@ -71,11 +71,11 @@ func TestTheDropdownRecallsASearch(t *testing.T) {
 	if r, got := r.Key(key(tea.KeyEscape)); got != "" || r.Open {
 		t.Errorf("esc: %q, open %v", got, r.Open)
 	}
-	if RecallLine("ab", true, true) != SearchLine("ab", true)+" "+Recall || RecallLine("ab", false, true) != SearchLine("ab", false) ||
+	if ansi.Strip(RecallLine("ab", true, true)) != Find+Recall+" ab▏" || RecallLine("ab", false, true) != SearchLine("ab", false) ||
 		RecallLine("ab", true, false) != SearchLine("ab", true) {
 		t.Error("the recall glyph shows when it should not, or not when it should")
 	}
-	at := RecallAt(40, "ab")
+	at := RecallAt(40)
 	if line := strings.Repeat(" ", 40) + RecallLine("ab", true, true); ansi.Cut(line, at, at+1) != Recall {
 		t.Errorf("the glyph is not at %d: %q", at, line)
 	}

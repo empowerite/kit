@@ -44,9 +44,9 @@ func shownNow(m Model) []string { return m.shownColumns(m.stage) }
 func TestTheDropdownStandsUnderTheSearchAndNamesTheView(t *testing.T) {
 	m := onDropdown(t, "")
 	got := sideText(m)
-	if len(got) < 5 || got[1] != "" || !strings.HasPrefix(got[2], "Default ▾") || got[3] != "" ||
-		got[4] != "columns" {
-		t.Errorf("the panel's first lines: %q", got[:5])
+	if len(got) < 6 || got[1] != "" || got[2] != "" || !strings.HasPrefix(got[3], "Default ▾") || got[4] != "" ||
+		got[5] != "columns" {
+		t.Errorf("the panel's first lines: %q", got[:6])
 	}
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "⏎ views") || !strings.Contains(last, "⌃S save") {
 		t.Errorf("the keys on the dropdown: %q", last)
@@ -83,20 +83,33 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 		m.panel(0).Changed {
 		t.Fatalf("Minimal: %q, changed %v", shownNow(m), m.panel(0).Changed)
 	}
-	// a column shown again differs from Minimal: 💾 at the dropdown's right
+	// a column shown again differs from Minimal: the dropdown names no view, and 💾 Save, dim, stands at its right
 	m.setPanel(m.panel(0).Keep("age"))
 	p := m.panel(0)
 	p.Hidden = map[string]bool{"source": true, "assignees": true, "branch": true}
 	m.setPanel(p)
-	if !m.panel(0).Changed || !strings.HasSuffix(sideText(m)[2], grid.Save) {
-		t.Errorf("a change does not show save: %q", sideText(m)[2])
+	if q := m.panel(0); !q.Changed || q.Savable || q.View != "" || !strings.HasPrefix(sideText(m)[3], grid.Unnamed+" ▾") ||
+		!strings.HasSuffix(sideText(m)[3], grid.Saving) {
+		t.Errorf("a change does not show save, or names a view: %q", sideText(m)[3])
 	}
-	// saving over a stage's own view is refused; the change stays
+	if at := m.width - m.sideWidth() + len(grid.Unnamed) + 1; m.dropAt() != at {
+		t.Errorf("▾ after unnamed at %d, not %d", m.dropAt(), at)
+	}
+	// saving with no name is refused, as is saving over a stage's own view; the change stays
+	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "a view needs a name") || !m.panel(0).Changed {
+		t.Errorf("save with no name: %q", last)
+	}
+	m = drive(m, typed("Minimal")...)
+	if m.panel(0).Savable {
+		t.Error("a stage's own name can be saved")
+	}
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "Minimal is the stage's own and does not change") ||
 		!m.panel(0).Changed {
 		t.Errorf("save over Minimal: %q", last)
 	}
+	m = drive(m, esc)
 	// the menu's keys: up, a letter to the next view it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
 	if m = drive(m, up, up, typed("m")[0]); m.viewAt != 2 {
@@ -119,13 +132,15 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	m.stages[0].headers = false
 	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
 	m = drive(m, typed("x")...)
-	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.Contains(sideText(m)[2], "x▏") {
-		t.Fatalf("typing: %q", sideText(m)[2])
+	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.Contains(sideText(m)[3], "x▏") ||
+		!m.panel(0).Savable {
+		t.Fatalf("typing: %q", sideText(m)[3])
 	}
 	if m = drive(m, esc); m.stages[0].renaming || !m.inPanel {
 		t.Fatalf("esc did not stop the rename, or left the panel")
 	}
-	if m = drive(m, press(tea.KeyBackspace)); m.stages[0].naming != "Defaul" {
+	// the panel differs from Default, so the dropdown names none, and backspace first has nothing to take back
+	if m = drive(m, press(tea.KeyBackspace)); m.stages[0].naming != "" || m.panel(0).Savable {
 		t.Fatalf("backspace first: %q", m.stages[0].naming)
 	}
 	m = drive(m, esc)
@@ -151,10 +166,16 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 		t.Errorf("the menu: %+v, at %d", items, m.viewAt)
 	}
 	m = drive(m, esc)
-	// changed and saved again under its own name, it is overwritten
+	// changed, the dropdown names no view, and nothing is saved until a name is typed; saved again under its own name,
+	// it is overwritten
 	p = m.panel(0)
 	p.Hidden = nil
 	m.setPanel(p)
+	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if data, _ = os.ReadFile(file); !strings.Contains(string(data), "branch") {
+		t.Error("a change was saved with no name")
+	}
+	m = drive(m, typed("Triage")...)
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "branch") {
 		t.Errorf("overwritten: %s", data)

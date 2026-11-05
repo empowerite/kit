@@ -519,8 +519,8 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		}
 		got = append(got, text)
 	}
-	want := []string{"state · draft  1", "  who · bob  1", "#1", "state · ready  2", "  who · ada  1", "#3",
-		"  who · none  1", "#2", "gone"}
+	want := []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▾ state · ready  2", "  ▾ who · ada  1", "#3",
+		"  ▾ who · none  1", "#2", "gone"}
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -567,12 +567,12 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
 	p := Panel{Columns: columns, Groupable: groupable}
 	got, auto := p.group(rows, columns)
-	want := []string{"source · github, where · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
+	want := []string{"▾ source · github, where · here  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 0 {
 		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// the panel's order joins the values; a hidden column and one kept do not group
-	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "where · here, source · github  3" {
+	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "▾ where · here, source · github  3" {
 		t.Errorf("in the panel's order: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable, Hidden: map[string]bool{"source": true}, Kept: map[string]bool{"where": true}}).group(rows, columns); len(got) != 3 || auto != nil {
@@ -582,14 +582,14 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	p.Group = []string{"state"}
 	got, auto = p.group(rows, columns)
 	// the column the person groups by stays in the cells, which the panel's hide then leaves out
-	want = []string{"state · draft, source · github, where · here  2", "#1||draft||ada", "#2||draft||", "state · ready  1",
+	want = []string{"▾ state · draft, source · github, where · here  2", "#1||draft||ada", "#2||draft||", "▾ state · ready  1",
 		"#3|github|ready|here|bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
 		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// two values in a cell, or one row alone, do not group
 	rows[0].Cells[3].Values = []string{"here", "there"}
-	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "source · github  3" {
+	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "▾ source · github  3" {
 		t.Errorf("several values: %q", texts(got)[0])
 	}
 	if got, auto := (Panel{Groupable: groupable}).group(rows[:1], columns); len(got) != 1 || auto != nil {
@@ -645,8 +645,9 @@ func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	}
 }
 
-// The views' dropdown stands under the search, a gap either side of it, before the columns: the view's name and ▾,
-// a caret while it is renamed under the keyboard, inverse there, and Save at the line's right while the panel differs.
+// The views' dropdown stands under the search, two lines of gap above it and one under it, before the columns: the
+// view's name and ▾, a caret while it is renamed under the keyboard, inverse there, and 💾 Save at the line's right
+// while the panel differs, its word dim while there is no name to save under; with no name, unnamed stands dim.
 func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	p := Panel{Columns: []string{"id", "title"}, Views: true, View: "Default", Fill: 24}
 	lines, at := p.Lines()
@@ -654,16 +655,24 @@ func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	for k, l := range lines {
 		plain[k] = strings.TrimRight(ansi.Strip(l), " ")
 	}
-	if !slices.Equal(plain[:5], []string{"🔎 search", "", "Default ▾", "", "columns"}) ||
-		!slices.Equal(at[:5], []int{0, -1, 1, -1, -1}) || !p.ViewAt(2) || p.ViewAt(4) || p.OnView() {
-		t.Errorf("the dropdown: %q %v", plain[:5], at[:5])
+	if !slices.Equal(plain[:6], []string{"🔎 search", "", "", "Default ▾", "", "columns"}) ||
+		!slices.Equal(at[:6], []int{0, -1, -1, 1, -1, -1}) || !p.ViewAt(3) || p.ViewAt(5) || p.OnView() {
+		t.Errorf("the dropdown: %q %v", plain[:6], at[:6])
 	}
-	p.Focused, p.Cursor, p.Naming, p.Changed, p.View = true, 1, true, true, "Mine"
+	p.Focused, p.Cursor, p.Naming, p.Changed, p.Savable, p.View = true, 1, true, true, true, "Mine"
 	lines, _ = p.Lines()
-	if !p.OnView() || !strings.HasPrefix(lines[2], style.Cursor("Mine▏ ▾")[:8]) ||
-		!strings.HasSuffix(lines[2], Save) || ansi.StringWidth(lines[2]) != 24 {
-		t.Errorf("renamed under the keyboard, changed: %q", lines[2])
+	if !p.OnView() || !strings.HasPrefix(lines[3], style.Cursor("Mine▏ ▾")[:8]) ||
+		!strings.HasSuffix(lines[3], Saving) || ansi.StringWidth(lines[3]) != 24 {
+		t.Errorf("renamed under the keyboard, changed: %q", lines[3])
 	}
+	// changed with no name: unnamed, dim, and the button's word dim
+	p.Focused, p.Naming, p.Savable, p.View = false, false, false, ""
+	lines, _ = p.Lines()
+	if !strings.HasPrefix(lines[3], style.Off(Unnamed)+" ▾") || !strings.HasSuffix(lines[3], Save+" "+style.Off(SaveText)) ||
+		ansi.StringWidth(lines[3]) != 24 {
+		t.Errorf("changed, no name: %q", lines[3])
+	}
+	p.Focused, p.View, p.Savable = true, "Mine", true
 	// the dropdown's keys are its screen's, but up and down
 	if _, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); ok {
 		t.Error("the panel took enter on the dropdown")
@@ -671,7 +680,45 @@ func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.Cursor != 2 {
 		t.Errorf("down from the dropdown: %d", q.Cursor)
 	}
-	if q, ok := p.Click(2); !ok || q.Cursor != 1 || q.Show != p.Show {
+	if q, ok := p.Click(3); !ok || q.Cursor != 1 || q.Show != p.Show {
 		t.Errorf("a click on the dropdown: %d", q.Cursor)
+	}
+}
+
+// A group's heading folds its rows away, and the headings under it, up to the next heading as shallow; its ▾ turns ▸,
+// and its count stays the rows it heads. The rows of one cell after the groups never fold.
+func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
+	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
+		{Key: "gone", Cells: []Cell{one("gone: x")}}}
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
+	texts := func(p Panel) []string {
+		grouped, _ := p.group(rows, columns)
+		var out []string
+		for _, r := range p.Fold(grouped) {
+			text := r.Key
+			if r.Aside {
+				text = ansi.Strip(r.Cells[0].first())
+			}
+			out = append(out, text)
+		}
+		return out
+	}
+	ready := "group\x00ready"
+	want := []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▸ state · ready  2", "gone"}
+	if got := texts(p.Close(ready, true)); !slices.Equal(got, want) {
+		t.Errorf("ready folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// a nested heading folds only its own rows
+	want = []string{"▾ state · draft  1", "  ▾ who · bob  1", "#1", "▾ state · ready  2", "  ▸ who · ada  1",
+		"  ▾ who · none  1", "#2", "gone"}
+	if got := texts(p.Close(ready+"\x00ada", true)); !slices.Equal(got, want) {
+		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// unfolded again, every row is back, and the panel's map is never the one it was given
+	closed := p.Close(ready, true)
+	if q := closed.Close(ready, false); len(texts(q)) != 9 || !closed.Closed[ready] {
+		t.Errorf("unfolded: %q, the closed panel's map %v", texts(q), closed.Closed)
 	}
 }

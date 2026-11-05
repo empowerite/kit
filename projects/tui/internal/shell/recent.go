@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// Recall is the glyph after the search while it has the keyboard and there are searches to recall: a click on it, or
-// ctrl+r, drops them down.
+// Recall is the glyph right after the search's 🔎, before what is typed, while it has the keyboard and there are
+// searches to recall: a click on it, or ctrl+r, drops them down.
 const Recall = "▾"
 
 // RecallKeys is the keys bar while the search has the keyboard and there are searches to recall.
@@ -138,16 +138,16 @@ func (r Recent) Click(x, y, glyph, room int) (Recent, string) {
 }
 
 // RecallLine draws a search as SearchLine does, and, while it has the keyboard and there are searches to recall,
-// Recall after it.
+// Recall against its 🔎, so the glyph that recalls a search stands with the glyph that says it is one.
 func RecallLine(query string, focused, recall bool) string {
 	if focused && recall {
-		return SearchLine(query, true) + " " + Recall
+		return Find + Recall + " " + query + "▏"
 	}
 	return SearchLine(query, focused)
 }
 
-// RecallAt gives the screen column of the Recall glyph after a search that starts at the column at and has the
-// keyboard.
-func RecallAt(at int, query string) int {
-	return at + ansi.StringWidth(SearchLine(query, true)) + 1
+// RecallAt gives the screen column of the Recall glyph of a search that starts at the column at and has the keyboard:
+// the cell after its 🔎.
+func RecallAt(at int) int {
+	return at + ansi.StringWidth(Find)
 }

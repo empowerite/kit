@@ -283,7 +283,7 @@ func (m Model) Remembering(path string) Model {
 }
 
 // recallAt gives the screen column of the search's Recall glyph.
-func (m Model) recallAt() int { return shell.RecallAt(m.searchAt(), m.search.Query) }
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // typed puts the text in the search; a text that differs puts the cursor on the first verb it leaves and clears kit's
 // line about a verb that did not open.

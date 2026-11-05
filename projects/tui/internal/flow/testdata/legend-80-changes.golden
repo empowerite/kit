@@ -1,12 +1,13 @@
   ≡ kit flow · 📚 empowerite/kit                     🔎 search
   ──────────────╴➎╶─────────────────╮➅╶─────────────
- ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ Default ▾
-  ───────────────╯                  ╰──────────────┐
- ▸ change  title   author  state   age  checks  t… │ columns
-   ─────────────────────────────────────────────── │ ☑ change
- ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ title
- ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ author
- ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ state
+ ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹
+  ───────────────╯                  ╰──────────────┐ Default ▾
+ ▸ change  title   author  state   age  checks  t… │
+   ─────────────────────────────────────────────── │ columns
+ ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ change
+ ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ title
+ ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ author
+                                                   │ ☑ state
                                                    │ ☑ age
                                                    │ ☑ checks
                                                    │ ☑ threads
@@ -14,9 +15,9 @@
                                                    │
                                                    │ show
                                                    │ ⦿ all
-                                                   │ ⦾ mine
-                                                   ▸ ⦾ others
-                                                   ╷
+                                                   ▸ ⦾ mine
+                                                   ╷ ⦾ others
+                                                   │
                                                    │ legend
                                                    │ 🔀 a pull request 🔗
                                                    │ 👤 assignees or author
@@ -27,6 +28,5 @@
                                                    │ 💬 threads unresolved
                                                    │ 🛫 underway
                                                    │ 🎫 an issue
-                                                   │
-                                                   │ … 10 more
+                                                   │ … 11 more
  … · : tab menu · / search · ? sidebar · ⇥ panel · ←→ tab · ↓ rows · 1-9 jump

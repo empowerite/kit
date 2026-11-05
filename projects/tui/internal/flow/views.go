@@ -3,9 +3,10 @@
 // its own, which never change: Everything, every column; Default, the stage as it opens; and Minimal, the few columns
 // that say what a row is. The person saves others, per stage, in a file of their own, under ~/.config/kit/, so their
 // views follow them to every repository. The panel's dropdown, under its search, names the view; enter, or a click on
-// it, drops down the views to choose from; typing renames it; and once the panel differs from the view, or the name
-// was changed, 💾 stands at its right, and ctrl+s or a click on it saves the panel under the name, a view of the
-// person's own overwritten, a stage's own refused for a name of their own.
+// it, drops down the views to choose from; typing renames it. Once the panel differs from the view, the dropdown names
+// none, as the panel is no longer the view, and 💾 Save stands at its right, dim until a name is typed; it stands there
+// too once the name was changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own
+// overwritten, a stage's own refused for a name of their own, and no name refused.
 package flow
 
 import (
@@ -197,6 +198,19 @@ func (m Model) changed(i int) bool {
 	return !m.same(i, m.current(i), m.chosen(i))
 }
 
+// viewShown gives the name a stage's dropdown shows: as typed while the person renames the view; none once the panel
+// differs from its view; else the view's.
+func (m Model) viewShown(i int) string {
+	s := m.stages[i]
+	switch {
+	case s.renaming:
+		return s.naming
+	case !m.same(i, m.current(i), m.chosen(i)):
+		return ""
+	}
+	return s.viewName
+}
+
 // apply sets the selected stage's panel as the view keeps it, its search and cursor as they are, and names the view.
 func (m *Model) apply(v named) {
 	s := &m.stages[m.stage]
@@ -230,7 +244,7 @@ func (m *Model) apply(v named) {
 
 // viewKey takes a key while the keyboard is on the dropdown, and says whether it did: enter and space drop the views
 // down; ctrl+s saves; esc stops a rename; and what is typed renames the view: a letter first typed takes the name's
-// place, as in a field whose text is selected, and backspace first takes the name's last letter back.
+// place, as in a field whose text is selected, and backspace first takes the last letter of the name shown back.
 func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := &m.stages[m.stage]
 	switch key := k.String(); {
@@ -251,7 +265,7 @@ func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		if !s.renaming {
 			s.renaming, s.naming = true, ""
 			if key == "backspace" {
-				s.naming = s.viewName
+				s.naming = m.viewShown(m.stage)
 			}
 		}
 		s.naming, _ = shell.Type(s.naming, k)
@@ -265,10 +279,7 @@ func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // is in place of the keys.
 func (m *Model) saveView() tea.Cmd {
 	s := &m.stages[m.stage]
-	name := s.viewName
-	if s.renaming {
-		name = strings.TrimSpace(s.naming)
-	}
+	name := strings.TrimSpace(m.viewShown(m.stage))
 	switch {
 	case name == "":
 		m.notice, m.noted = Failed+" a view needs a name: type one, then save", false
@@ -378,12 +389,12 @@ func (m *Model) viewMenuClick(x, y int) {
 	m.viewMenu = false
 }
 
-// viewClick takes a click on the dropdown's line: on 💾, at the line's right end, it saves; on ▾, or past it, the
+// viewClick takes a click on the dropdown's line: on 💾 Save, at the line's right end, it saves, or says why not; on ▾, or past it, the
 // dropdown takes the keyboard and drops the views down; on the name, the dropdown takes the keyboard, so what is typed
 // renames the view.
 func (m *Model) viewClick(x int) tea.Cmd {
 	p := m.panel(m.stage)
-	if p.Changed && x >= m.width-3 {
+	if p.Changed && x >= m.width-1-ansi.StringWidth(grid.Saving) {
 		return m.saveView()
 	}
 	// the dropdown is the control after the search
@@ -399,8 +410,11 @@ func (m *Model) viewClick(x int) tea.Cmd {
 func (m Model) dropAt() int {
 	p := m.panel(m.stage)
 	name := p.View
-	if p.Naming {
+	switch {
+	case p.Naming:
 		name += "▏"
+	case name == "":
+		name = grid.Unnamed
 	}
 	return m.width - m.sideWidth() + ansi.StringWidth(name) + 1
 }

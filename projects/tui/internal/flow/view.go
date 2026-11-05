@@ -178,6 +178,12 @@ func (m Model) keys() []string {
 	}
 	keys = append(keys, "↑↓ move", "pgup/pgdn page", "␣ select")
 	s, rows := m.stages[m.stage], m.rows(m.stage)
+	if s.cursor < len(rows) && grid.Heads(rows[s.cursor]) {
+		if s.view.Closed[rows[s.cursor].Key] {
+			return append(keys, "→ unfold")
+		}
+		return append(keys, "← fold")
+	}
 	if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
 		if s.open[rows[s.cursor].Key] {
 			return append(keys, "← close")
@@ -210,7 +216,7 @@ func (m Model) count(i int) string {
 	case s.name == "incoming" && s.in != nil && !s.in.Fetched:
 		return ""
 	}
-	n, all := counted(m.rows(i)), m.shown(i).all
+	n, all := m.shown(i).passed, m.shown(i).all
 	if n != all {
 		return strconv.Itoa(n) + "/" + strconv.Itoa(all)
 	}

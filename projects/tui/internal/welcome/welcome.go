@@ -356,7 +356,7 @@ func (m *Model) focusSearch(focused bool) {
 func (m Model) recalls() bool { return m.search().Focused && len(m.recent.Items) > 0 }
 
 // recallAt gives the screen column of the search's Recall glyph.
-func (m Model) recallAt() int { return shell.RecallAt(m.searchAt(), m.search().Query) }
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's, over the
 // steps' numbers.

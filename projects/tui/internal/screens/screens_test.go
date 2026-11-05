@@ -17,9 +17,11 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
-// help gives the root on the help's palette, over the kit package's fake kit, at 120×30.
+// help gives the root on the help's palette, over the kit package's fake kit, at 120×30, its searches remembered in
+// a directory of the test's own, never the person's.
 func help(t *testing.T) Model {
 	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	r := testkit.Runner(t, "kit")
 	p, err := app.OpenHelp(r, "")
 	if err != nil {

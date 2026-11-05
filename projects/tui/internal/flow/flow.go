@@ -384,11 +384,11 @@ func (m Model) panel(i int) grid.Panel {
 	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
 	s := m.stages[i]
 	p.Recall = len(m.recent.Items) > 0
-	p.Views, p.View, p.Naming = !m.noViews && len(columns[s.name]) > 0, s.viewName, s.renaming
-	if s.renaming {
-		p.View = s.naming
-	}
+	p.Views, p.Naming = !m.noViews && len(columns[s.name]) > 0, s.renaming
+	p.View = m.viewShown(i)
 	p.Changed = p.Views && m.changed(i)
+	name := strings.TrimSpace(p.View)
+	p.Savable = p.Changed && name != "" && !builtin(name)
 	return p
 }
 
@@ -816,7 +816,7 @@ func (m Model) recallAt() int {
 	if len(m.stages) == 0 {
 		return -1
 	}
-	return shell.RecallAt(m.searchAt(), m.panel(m.stage).Query)
+	return shell.RecallAt(m.searchAt())
 }
 
 // panelKeys takes a key while the panel has the keyboard, as panelKey says.
@@ -1191,13 +1191,18 @@ func (m *Model) down(n int) {
 	m.fit()
 }
 
-// open opens the row under the cursor, or closes it; a leaf stays as it is.
+// open opens the row under the cursor, or closes it; a leaf stays as it is. On a group's heading, it unfolds the
+// group's rows under it, or folds them away, the cursor staying on the heading.
 func (m *Model) open(open bool) {
 	if !m.inRows || len(m.stages) == 0 {
 		return
 	}
 	s := &m.stages[m.stage]
 	rows := m.rows(m.stage)
+	if s.cursor < len(rows) && grid.Heads(rows[s.cursor]) {
+		m.setPanel(s.view.Close(rows[s.cursor].Key, !open))
+		return
+	}
 	if s.cursor >= len(rows) || !grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
 		return
 	}
@@ -1239,6 +1244,9 @@ func (m *Model) click(x, y int) tea.Cmd {
 	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel = row, true, false
 	switch {
+	case grid.Heads(rows[row]):
+		// a click anywhere on a group's heading folds its rows away, or unfolds them
+		m.open(s.view.Closed[rows[row].Key])
 	case strings.HasPrefix(link, jumps):
 		m.fit()
 		m.jump(strings.TrimPrefix(link, jumps))

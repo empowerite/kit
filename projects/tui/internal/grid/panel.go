@@ -51,9 +51,11 @@ const (
 // the level of the headings each is said at, from 1, as Said gives it, and Kept
 // those the person keeps as columns, which never do, a new map as Hidden is. Recall says whether there are searches to
 // recall, which the search, with the keyboard, offers with its Recall glyph. Views says whether the panel offers a
-// dropdown of named views under its search: View is the name it shows, Naming whether the person is typing a new one,
-// and Changed whether the panel differs from the view, which shows Save. Fill is the cells the control under the
-// keyboard is drawn inverse across, at least.
+// dropdown of named views under its search: View is the name it shows, none once the panel differs from its view,
+// Naming whether the person is typing a new one, Changed whether the panel differs from the view or the name was
+// changed, which shows Save, and Savable whether there is a name to save it under, without which Save is dim. Closed
+// holds the keys of the groups' headings whose rows are folded away under them, as Fold says, a new map as Hidden is.
+// Fill is the cells the control under the keyboard is drawn inverse across, at least.
 type Panel struct {
 	Query     string
 	Columns   []string
@@ -70,6 +72,8 @@ type Panel struct {
 	View      string
 	Naming    bool
 	Changed   bool
+	Savable   bool
+	Closed    map[string]bool
 	Kept      map[string]bool
 	Fill      int
 	Show      Show
@@ -281,7 +285,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		if len(took) == 0 {
 			return rows, nil
 		}
-		heading := joined(grouped[0], columns, took) + "  " + strconv.Itoa(len(grouped))
+		heading := p.fold(overAll) + " " + joined(grouped[0], columns, took) + "  " + strconv.Itoa(len(grouped))
 		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true,
 			Says: names(columns, took)}}
 		for _, r := range grouped {
@@ -319,7 +323,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 				return slices.ContainsFunc(auto[:depth], func(above []int) bool { return slices.Contains(above, x) })
 			}))
 			took = append(took, auto[depth]...)
-			heading := strings.Repeat("  ", depth) + columns[j] + " · " + value(r, j)
+			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + columns[j] + " · " + value(r, j)
 			if len(auto[depth]) > 0 {
 				heading += ", " + joined(r, columns, auto[depth])
 			}
@@ -330,6 +334,62 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		out = append(out, blank(r, slices.Concat(auto...)))
 	}
 	return append(out, rest...), names(columns, took)
+}
+
+// Unfolded and Folded are the glyphs before a group's heading: its rows shown under it, or folded away.
+const (
+	Unfolded = "▾"
+	Folded   = "▸"
+)
+
+// fold gives the glyph before the heading of a key: Folded while its group is closed, Unfolded while it is open.
+func (p Panel) fold(key string) string {
+	if p.Closed[key] {
+		return Folded
+	}
+	return Unfolded
+}
+
+// Close gives the panel with the group a heading's key names closed, its rows folded away under the heading, or open
+// again.
+func (p Panel) Close(key string, closed bool) Panel {
+	c := maps.Clone(p.Closed)
+	if c == nil {
+		c = map[string]bool{}
+	}
+	if closed {
+		c[key] = true
+	} else {
+		delete(c, key)
+	}
+	p.Closed = c
+	return p
+}
+
+// Fold gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
+// the headings deeper than it, up to the next heading as shallow, or the rows of one cell that follow the groups. The
+// heading stays, its count the rows it hides.
+func (p Panel) Fold(rows []Row) []Row {
+	if len(p.Closed) == 0 {
+		return rows
+	}
+	var out []Row
+	closed := 0 // the level of the closed heading the rows stand under, or none
+	for _, r := range rows {
+		level := 0
+		if Heads(r) {
+			level = strings.Count(r.Key, "\x00")
+		}
+		if closed > 0 && (level > closed || level == 0 && len(r.Cells) > 1) {
+			continue
+		}
+		closed = 0
+		out = append(out, r)
+		if level > 0 && p.Closed[r.Key] {
+			closed = level
+		}
+	}
+	return out
 }
 
 // walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: each that can
@@ -475,6 +535,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 			line = shell.RecallLine(p.Query, p.Focused && p.Cursor == k, p.Recall)
 		case c.view:
 			add("", -1)
+			add("", -1)
 			line = p.viewLine(p.Focused && p.Cursor == k)
 			add(line, k)
 			continue
@@ -608,25 +669,44 @@ func (p Panel) Click(line int) (Panel, bool) {
 	return p, true
 }
 
-// Save is the glyph that stands at the views' dropdown's right while the panel differs from its view.
-const Save = "💾"
+// Save is the glyph of the button at the views' dropdown's right while the panel differs from its view, SaveText the
+// word after it, and Saving the two, as the button draws them.
+const (
+	Save     = "💾"
+	SaveText = "Save"
+	Saving   = Save + " " + SaveText
+)
+
+// Unnamed stands, dim, in place of the view's name while the dropdown names none: the panel differs from its view, and
+// nothing is typed.
+const Unnamed = "unnamed"
 
 // viewLine draws the views' dropdown: the view's name, as typed while it is renamed, with a caret while the keyboard is
-// on it, and ▾; and Save at the line's right end, at Fill's last cells, while the panel differs from the view or the
-// name was changed. Under the keyboard, the line is inverse up to Save.
+// on it, or Unnamed, dim, while it has none, and ▾; and the Saving button at the line's right end, at Fill's last
+// cells, while the panel differs from the view or the name was changed, its word dim while there is no name to save
+// it under: an emoji draws in its own colors, which no dimming changes. Under the keyboard, the line is inverse up to
+// the button.
 func (p Panel) viewLine(under bool) string {
 	name := p.View
-	if under && p.Naming {
+	switch {
+	case under && p.Naming:
 		name += "▏"
+	case name == "":
+		name = style.Off(Unnamed)
 	}
 	text := name + " ▾"
+	button := ansi.StringWidth(Saving)
 	if under {
-		text = style.Cursor(pane.Pad(text, max(ansi.StringWidth(text), p.Fill-3), false))
+		text = style.Cursor(pane.Pad(ansi.Strip(text), max(ansi.StringWidth(text), p.Fill-button-1), false))
 	}
 	if !p.Changed {
 		return text
 	}
-	return pane.Pad(text, max(ansi.StringWidth(text)+1, p.Fill-2), false) + Save
+	word := SaveText
+	if !p.Savable {
+		word = style.Off(word)
+	}
+	return pane.Pad(text, max(ansi.StringWidth(text)+1, p.Fill-button), false) + Save + " " + word
 }
 
 // OnView says whether the views' dropdown is under the keyboard.
