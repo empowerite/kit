@@ -386,7 +386,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("open %v, select all %v, clear %v, with nothing selected", m.enabled(7), m.enabled(8), m.enabled(9))
 	}
 	// select all selects every row, and is then dim
-	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || m.enabled(8) {
+	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || m.enabled(9) {
 		t.Errorf("select all: %d selected", m.selected())
 	}
 	m = drive(m, press(':'), typed("c")[0], press(tea.KeyEnter))
@@ -410,7 +410,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	}
 }
 
-// With rows selected, the tab's menu expands and collapses the selected rows alone.
+// With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
 func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, press(tea.KeySpace), press(':'))
 	if m.tabItems()[2].Name != "Expand Selected" || m.tabItems()[3].Name != "Collapse Selected" || m.enabled(3) {
@@ -424,5 +424,18 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	}
 	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
 		t.Errorf("collapse selected left %d open", openRows(m))
+	}
+	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
+	s, rows := &m.stages[m.stage], m.rows(m.stage)
+	s.open[rows[0].Key], s.open[rows[1].Key] = true, true
+	if m = drive(m, press(':')); m.tabItems()[4].Name != "Collapse Others" || !m.enabled(4) {
+		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[4], m.enabled(4))
+	}
+	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
+		!m.stages[m.stage].open[rows[0].Key] || m.menu {
+		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].open[rows[0].Key])
+	}
+	if m = drive(m, press(':')); m.enabled(4) {
+		t.Error("collapse others with no row not selected open is not dim")
 	}
 }

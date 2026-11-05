@@ -8,6 +8,7 @@
 package flow
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -36,19 +37,23 @@ const (
 var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
-// expanded, every row collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the
-// rows selected: each one's page opened, every row selected, and none.
+// expanded and every row collapsed, or, while rows are selected, the selected rows expanded and collapsed and the rows
+// not selected collapsed, a rule, the headers, checked while the selected stage shows them, a rule, and the rows
+// selected: each one's page opened, every row selected, and none.
 func (m Model) tabItems() []shell.Item {
-	headers, which := "", "All"
+	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
 		headers = Checked
 	}
+	folds := []shell.Item{{Glyph: Expand, Name: "Expand All"}, {Glyph: Collapse, Name: "Collapse All"}}
 	if m.selected() > 0 {
-		which = "Selected"
+		folds = []shell.Item{{Glyph: Expand, Name: "Expand Selected"}, {Glyph: Collapse, Name: "Collapse Selected"},
+			{Glyph: Collapse, Name: "Collapse Others"}}
 	}
-	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand " + which},
-		{Glyph: Collapse, Name: "Collapse " + which}, {}, {Glyph: headers, Name: "Show Headers"}, {},
-		{Glyph: Browse, Name: "Open Selected"}, {Glyph: Every, Name: "Select All"}, {Glyph: Sweep, Name: "Clear Selection"}}
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, folds...)
+	return append(items, shell.Item{}, shell.Item{Glyph: headers, Name: "Show Headers"}, shell.Item{},
+		shell.Item{Glyph: Browse, Name: "Open Selected"}, shell.Item{Glyph: Every, Name: "Select All"},
+		shell.Item{Glyph: Sweep, Name: "Clear Selection"})
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
@@ -122,6 +127,8 @@ func (m Model) enabled(k int) bool {
 		return m.selected() > 0
 	case "":
 		return false
+	case "Collapse Others":
+		return slices.ContainsFunc(rows, func(r row) bool { return s.open[r.Key] && !s.picked[r.Key] })
 	case "Expand Selected", "Collapse Selected":
 		for j, r := range rows {
 			opens := grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage))
@@ -191,6 +198,15 @@ func (m *Model) pick(k int) tea.Cmd {
 		for j, r := range rows {
 			if s.picked[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
 				s.open[r.Key] = m.tabItems()[k].Name == "Expand Selected"
+			}
+		}
+		m.inRows, m.inPanel = true, false
+		m.fit()
+		return nil
+	case "Collapse Others":
+		for _, r := range rows {
+			if !s.picked[r.Key] {
+				delete(s.open, r.Key)
 			}
 		}
 		m.inRows, m.inPanel = true, false
