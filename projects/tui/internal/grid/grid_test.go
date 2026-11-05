@@ -352,6 +352,43 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 	}
 }
 
+// The title is the last column to give up room: while it has less than its text needs, a column wider than capWidth
+// is cut at it, the widest first; while it has fewer than minFill, the columns are cut further, down to floorWidth; a
+// column cut hides its text, so the row opens to it, broken across lines in its column.
+func TestTheTitleIsTheLastToGiveUpRoom(t *testing.T) {
+	branch := strings.Repeat("b", 30)
+	cells := []Cell{one("#1"), one(branch), {Values: []string{strings.Repeat("t", 40)}, Wrap: true}}
+	widths := columnWidths([]Row{{Cells: cells}})
+	// room for everything: nothing is cut
+	if got, left := fit(cells, widths, 2+2+30+2+40); !slices.Equal(got, widths) || left != 40 {
+		t.Errorf("room for all: %v, title %d", got, left)
+	}
+	// the title short of its need: the branch gives up what is past the cap first
+	if got, left := fit(cells, widths, 2+2+30+2+30); got[1] != 30-10 || left != 40 {
+		t.Errorf("ten cells short: %v, title %d", got, left)
+	}
+	if got, left := fit(cells, widths, 2+2+30+2+20); got[1] != capWidth || left != 20+30-capWidth {
+		t.Errorf("past the cap: %v, title %d", got, left)
+	}
+	// short of minFill even so: the branch gives up more, down to the floor, and only then the title
+	if got, left := fit(cells, widths, 2+2+capWidth+2+minFill-4); got[1] != capWidth-4 || left != minFill {
+		t.Errorf("under minFill: %v, title %d", got, left)
+	}
+	if got, left := fit(cells, widths, 2+2+floorWidth+2+4); got[1] != floorWidth || left != floorWidth {
+		t.Errorf("past the floor: %v, title %d", got, left)
+	}
+	rows := []Row{{Key: "a", Cells: cells}}
+	width := len(lead) + 2 + 2 + capWidth + 2 + 40
+	closed := ansi.Strip(Draw(rows, nil, width, -1, func(Row) bool { return false }, nil)[0].Text)
+	if !strings.Contains(closed, strings.Repeat("b", capWidth-1)+"…  "+strings.Repeat("t", 40)) || !Opens(rows, nil, 0, width) {
+		t.Errorf("the branch cut at the cap: %q", closed)
+	}
+	open := Draw(rows, nil, width, -1, func(Row) bool { return true }, nil)
+	if len(open) != 2 || !strings.Contains(open[1].Text, strings.Repeat("b", 30-capWidth)) {
+		t.Errorf("the row open does not break the branch across lines: %v", open)
+	}
+}
+
 // The panel orders the named columns as Order says, a column without a name keeping its place, and the rows' cells
 // follow; Move takes a column to another's place; shift with up or down moves the column under the keyboard, the
 // keyboard with it, and stops at the columns' ends.

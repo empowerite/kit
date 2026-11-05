@@ -511,7 +511,7 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			columns[j] = wrapped(c, left)
 		case j < len(widths) && widths[j] > 0:
 			for _, v := range c.Values {
-				columns[j] = append(columns[j], strings.Split(ansi.Wrap(v, widths[j], ""), "\n")...)
+				columns[j] = append(columns[j], broken(v, widths[j])...)
 			}
 		}
 		height = max(height, len(columns[j]))
@@ -540,6 +540,20 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			parts = append(parts, pane.Pad(v, w, c.Right))
 		}
 		out[k] = pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
+	}
+	return out
+}
+
+// broken gives a value in lines of so many cells: broken at spaces, after a dash or a slash, and inside a word only
+// where one is wider. The dash or the slash a line breaks after may stand past the limit ansi.Wordwrap is given, so it
+// is given one cell less.
+func broken(v string, width int) []string {
+	if ansi.StringWidth(v) <= width {
+		return []string{v}
+	}
+	var out []string
+	for _, l := range strings.Split(ansi.Wordwrap(v, max(width-1, 1), "-/"), "\n") {
+		out = append(out, strings.Split(ansi.Hardwrap(l, max(width, 1), true), "\n")...)
 	}
 	return out
 }

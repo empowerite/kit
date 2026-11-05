@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
@@ -567,18 +568,43 @@ func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheSidebar(t *testing.T) {
 	}
 }
 
-// The sidebar shows from the start, and asks kit for the caller's login as the stages load.
-func TestTheSidebarShowsFromTheStart(t *testing.T) {
+// On a screen as wide as roomy the sidebar shows from the start, and asks kit for the caller's login; on a narrower one
+// it starts hidden, and a resize shows or hides it until the person does.
+func TestTheSidebarShowsFromTheStartOnAWideScreen(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
 	batch, ok := m.Init()().(tea.BatchMsg)
-	if !ok || len(batch) != 2 || !m.sidebar {
+	if !ok || len(batch) != 2 || m.sidebar {
 		t.Fatalf("Init: %T, sidebar %v", m.Init()(), m.sidebar)
 	}
-	m = drive(m, batch)
-	if got := calls(t, record); !slices.Contains(got, "flow --me") || !strings.Contains(view(m), "legend") {
-		t.Errorf("the calls %q, and the view:\n%s", got, view(m))
+	m = drive(m, batch, tea.WindowSizeMsg{Width: roomy, Height: 24})
+	if got := calls(t, record); !m.sidebar || !slices.Contains(got, "flow --me") || !strings.Contains(view(m), "legend") {
+		t.Errorf("at %d: sidebar %v, the calls %q, and the view:\n%s", roomy, m.sidebar, got, view(m))
+	}
+	if m = drive(m, tea.WindowSizeMsg{Width: roomy - 1, Height: 24}); m.sidebar {
+		t.Errorf("at %d the sidebar still shows", roomy-1)
+	}
+	if m = drive(m, tea.WindowSizeMsg{Width: 200, Height: 24}); !m.sidebar {
+		t.Error("at 200 the sidebar does not show again")
+	}
+}
+
+// On a narrow screen the sidebar starts hidden, so a row's title has the room; ? shows it, and once the person has
+// shown or hidden it, a resize keeps it so.
+func TestTheSidebarStartsHiddenOnANarrowScreenAndKeepsThePersonsChoice(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	m := loaded(t, Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}},
+		tea.WindowSizeMsg{Width: 80, Height: 24})
+	if got := calls(t, record); m.sidebar || slices.Contains(got, "flow --me") || strings.Contains(view(m), "legend") {
+		t.Fatalf("at 80: sidebar %v, the calls %q", m.sidebar, got)
+	}
+	if m = drive(m, press('?'), tea.WindowSizeMsg{Width: 200, Height: 24}, tea.WindowSizeMsg{Width: 80, Height: 24}); !m.sidebar {
+		t.Error("? showed the sidebar, and a resize took it away")
+	}
+	if m = drive(m, press('?'), tea.WindowSizeMsg{Width: 200, Height: 24}); m.sidebar {
+		t.Error("? hid the sidebar, and a resize showed it")
 	}
 }
 
@@ -816,8 +842,9 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, toggle)
 	v := view(m)
+	// the checks of the failing one are cut at the cap, to give the title room
 	for _, want := range []string{Change + " #2", "👤 jeffrey-aguilera", "🏁 ready", Passed + " 1 / 1 3m",
-		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing 1 / 2 95s",
+		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing…",
 		"#1  👤 jeffrey-aguilera  " + InFlight + " in flight  8d  " + Issue + " The first release, v0.1.0"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the changes lack %q:\n%s", want, v)
@@ -834,8 +861,9 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m.setPanel(grid.Panel{Hidden: map[string]bool{"source": true}}) // the source column has a test of its own
 	m = drive(m, down, toggle)
 	v := view(m)
-	for _, want := range []string{"#45", "#46  👤 jeffrey-aguilera   2d  " + Branch + " 46-a-noun-lists  " + Issue,
-		"#7  👤 ada           +1  40d", "interactive on a", "listing verbs fold into"} {
+	// the title has what the other columns leave, each cut at its cap to give it more
+	for _, want := range []string{"#45", "#46  👤 jeffrey-agui…   2d  " + Branch + " 46-a-noun-li…  " + Issue,
+		"#7  👤 ada        +1  40d", "interactive on a terminal,", "and the listing verbs fold"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -1368,7 +1396,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
-		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
+		{"#1  " + Owner + " jeffrey-agui…", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
 			Issue + " The first release"},
 		{"#8", "2d", Change + " #4 ", "🔥 failing:gate", Owner + " bob", Fork + " bob", Pushed + " 25h", Owner + " cy",
 			Issue + " Lint the modules"},
@@ -1405,7 +1433,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// here is plain; another's desk and the assignees are dim; a long title is clipped
 	c := m.View().Content
 	if !strings.Contains(c, style.Off(Owner+" bob")) || strings.Contains(c, style.Off(Desk+" here")) ||
-		!strings.Contains(c, style.Off(Owner+" jeffrey-aguilera")) || !strings.HasSuffix(rows[3], "…") {
+		!strings.Contains(c, pane.Clip(style.Off(Owner+" jeffrey-aguilera"), 16)) || !strings.HasSuffix(rows[3], "…") {
 		t.Errorf("the where cells or the title:\n%s", strings.Join(rows, "\n"))
 	}
 	// the row here opens to the issue's title wrapped in its column and the worktree; the pull request's title is
@@ -1413,7 +1441,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release,", "v0.1.0: the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
+		"The first release, v0.1.0:", "the kit verbs, the picture,", "and the forge seam on GitHub", "and GitLab",
 		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {
 		t.Errorf("the open row repeats the pull request:\n%s", v)

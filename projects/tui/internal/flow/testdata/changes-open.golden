@@ -4,9 +4,9 @@
   ╰──────────────────────────╯                      ╰──────────────────────╰───┐
    change  title         author    state     age  checks    threads   branch   │
    ─────────────────────────────────────────────────────────────────────────── │
- ▾ 🔀 #2   The first     👤        🏁 ready   8d  ✅ 1 / 1            🌿 1-    │
-           release,      jeffrey-                 3m                  the-firs │
-           v0.1.0        aguilera                                     t-       │
+ ▾ 🔀 #2   The first     👤        🏁 ready   8d  ✅ 1 /              🌿 1-    │
+           release,      jeffrey-                 1 3m                the-     │
+           v0.1.0        aguilera                                     first-   │
                                                                       release- │
                                                                       v0-1-0   │
       #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0  │
