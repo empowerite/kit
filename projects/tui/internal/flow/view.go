@@ -144,7 +144,7 @@ func (m Model) keys() string {
 	case m.inPanel && !m.sidebar:
 		return shell.SearchKeys
 	case m.inPanel:
-		return "↑↓ move · space toggle · ⇧↑↓ order · s sort · type to search · esc back"
+		return "↑↓ move · space toggle · ⇧↑↓ order · s sort · g group · type to search · esc back"
 	}
 	var keys []string
 	if m.inRows {

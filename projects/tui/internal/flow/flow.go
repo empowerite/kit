@@ -321,7 +321,7 @@ func (m Model) panel(i int) grid.Panel {
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
-	p.Owned, p.Me, p.Sortable = owned[s.name], m.me, sortable[s.name]
+	p.Owned, p.Me, p.Sortable, p.Groupable = owned[s.name], m.me, sortable[s.name], groupable[s.name]
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }

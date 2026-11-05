@@ -18,7 +18,7 @@ import (
 )
 
 // panelKeys is the keys bar while the panel has the keyboard.
-const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · s sort · type to search · esc back"
+const panelKeys = "↑↓ move · space toggle · ⇧↑↓ order · s sort · g group · type to search · esc back"
 
 // typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
 func typed(text string) []tea.Msg {
@@ -437,5 +437,25 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
 	if m = drive(m, testkit.Click(at("commit"), paneTop)); len(m.panel(m.stage).Sort) != 0 || m.stages[m.stage].name != "builds" {
 		t.Errorf("a click on commit sorted builds: %+v", m.panel(m.stage).Sort)
+	}
+}
+
+// g in the side panel, on a groupable column's line, groups the stage's rows by it under dim headings, which its tab
+// does not count; on a column that cannot group, as id, it does nothing.
+func TestGInThePanelGroupsTheRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
+	count := m.count(m.stage)
+	// down to state, the sixth column: id, source, assignees, age, change, state
+	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), typed("g")...)...)
+	if v := view(m); !slices.Equal(m.panel(m.stage).Group, []string{"state"}) || !strings.Contains(v, "state · 🏁 ready  1") ||
+		!strings.Contains(v, "state · 🔨 draft  1") || m.count(m.stage) != count {
+		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Group, m.count(m.stage), v)
+	}
+	if !strings.Contains(m.View().Content, style.Off("state · 🏁 ready  1")) {
+		t.Error("a group's heading is not dim")
+	}
+	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
+	if m = drive(m, typed("g")...); len(m.panel(m.stage).Group) != 1 {
+		t.Errorf("g on id: %q", m.panel(m.stage).Group)
 	}
 }

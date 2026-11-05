@@ -438,3 +438,39 @@ func TestHeaderAtFindsTheColumnUnderAName(t *testing.T) {
 		t.Error("a column off the names")
 	}
 }
+
+// Grouping puts the rows under a dim heading per value, the groups in their values' order, the rows in each as they
+// sorted; a second column nests under the first; a cell with no value groups under none; a row of one cell follows
+// the groups. g on a groupable column's line groups by it, ▤ beside its name, and again stops; a column that cannot
+// group changes nothing.
+func TestThePanelGroupsTheRows(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
+	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
+		{Key: "gone", Cells: []Cell{one("gone: x")}}}
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state").Grouped("who")
+	var got []string
+	for _, r := range p.group(rows, columns) {
+		text := r.Key
+		if r.Aside {
+			text = ansi.Strip(r.Cells[0].first())
+		}
+		got = append(got, text)
+	}
+	want := []string{"state · draft  1", "  who · bob  1", "#1", "state · ready  2", "  who · ada  1", "#3",
+		"  who · none  1", "#2", "gone"}
+	if !slices.Equal(got, want) {
+		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if q := p.Grouped("state"); !slices.Equal(q.Group, []string{"who"}) || p.Grouped("id").Group[0] != "state" {
+		t.Errorf("ungrouping, or a column that cannot group: %q", q.Group)
+	}
+	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {
+		t.Error("grouping by nothing changed the rows")
+	}
+	q := Panel{Columns: columns, Groupable: p.Groupable, Focused: true, Cursor: 2}
+	q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
+	if lines, _ := q.Lines(); !slices.Equal(q.Group, []string{"state"}) || !strings.HasSuffix(ansi.Strip(lines[4]), "state "+Grouping) {
+		t.Errorf("g on state: %q\n%s", q.Group, strings.Join(lines, "\n"))
+	}
+}

@@ -27,9 +27,10 @@ const (
 // shows names each choice of Show, as the panel draws it.
 var shows = []string{"all", "mine", "others"}
 
-// The glyphs the panel draws: the search, a checkbox off and on, and a radio button off and on. Each is one cell wide
-// in every terminal, as Unicode fixes its width, but the search, which is two.
+// The glyphs the panel draws: a column the rows are grouped by, the search, a checkbox off and on, and a radio button
+// off and on. Each is one cell wide in every terminal, as Unicode fixes its width, but the search, which is two.
 const (
+	Grouping = "▤"
 	Search   = shell.Find
 	Unticked = "☐"
 	Ticked   = "☑"
@@ -42,20 +43,23 @@ const (
 // Me; while it is unknown they are dim, and cannot be chosen. Cursor is the control under the keyboard, Focused
 // whether the panel has it. Hidden holds the names of the columns hidden; the panel never changes the map it was
 // given, but gives a new one. Order is the order the named columns stand in, the rows' and the panel's checkboxes
-// alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first; Sortable
-// names the columns that can be, which the stage says.
+// alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first, and Group
+// the columns they group by, the outermost first; Sortable and Groupable name the columns that can, which the stage
+// says.
 type Panel struct {
-	Query    string
-	Columns  []string
-	Hidden   map[string]bool
-	Order    []string
-	Sort     []SortKey
-	Sortable map[string]bool
-	Show     Show
-	Owned    bool
-	Me       string
-	Cursor   int
-	Focused  bool
+	Query     string
+	Columns   []string
+	Hidden    map[string]bool
+	Order     []string
+	Sort      []SortKey
+	Sortable  map[string]bool
+	Group     []string
+	Groupable map[string]bool
+	Show      Show
+	Owned     bool
+	Me        string
+	Cursor    int
+	Focused   bool
 }
 
 // SortKey is a column the rows sort by, and whether the larger come first.
@@ -109,6 +113,89 @@ func (p Panel) Mark(column string) string {
 		return mark
 	}
 	return ""
+}
+
+// Grouped gives the panel grouping the rows by the column too, innermost, or no longer when it does; a column that
+// cannot group changes nothing.
+func (p Panel) Grouped(column string) Panel {
+	if !p.Groupable[column] {
+		return p
+	}
+	if k := slices.Index(p.Group, column); k >= 0 {
+		p.Group = slices.Delete(slices.Clone(p.Group), k, k+1)
+		return p
+	}
+	p.Group = append(slices.Clone(p.Group), column)
+	return p
+}
+
+// group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
+// in their values' order and the rows in each as they came: a heading, an aside, is the column's name and the value,
+// dim, indented by its depth, and how many rows it heads. A row groups by a cell's first value, or under none when the
+// cell has none. A row of one cell, as a heading, has no value: those follow the groups.
+func (p Panel) group(rows []Row, columns []string) []Row {
+	var at []int
+	for _, name := range p.Group {
+		if j := slices.Index(columns, name); j >= 0 {
+			at = append(at, j)
+		}
+	}
+	if len(at) == 0 {
+		return rows
+	}
+	value := func(r Row, j int) string {
+		if j < len(r.Cells) && r.Cells[j].key() != "" {
+			return r.Cells[j].key()
+		}
+		return "none"
+	}
+	// same says whether two rows share their values down to a depth
+	same := func(a, b Row, depth int) bool {
+		for _, j := range at[:depth+1] {
+			if value(a, j) != value(b, j) {
+				return false
+			}
+		}
+		return true
+	}
+	var grouped, rest []Row
+	for _, r := range rows {
+		if len(r.Cells) > 1 {
+			grouped = append(grouped, r)
+		} else {
+			rest = append(rest, r)
+		}
+	}
+	slices.SortStableFunc(grouped, func(a, b Row) int {
+		for _, j := range at {
+			if c := natural(value(a, j), value(b, j)); c != 0 {
+				return c
+			}
+		}
+		return 0
+	})
+	var out []Row
+	for i, r := range grouped {
+		for depth, j := range at {
+			if i > 0 && same(grouped[i-1], r, depth) {
+				continue
+			}
+			n, key := 0, "group"
+			for _, s := range grouped[i:] {
+				if !same(s, r, depth) {
+					break
+				}
+				n++
+			}
+			for _, x := range at[:depth+1] {
+				key += "\x00" + value(r, x)
+			}
+			heading := strings.Repeat("  ", depth) + columns[j] + " · " + value(r, j) + "  " + strconv.Itoa(n)
+			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true})
+		}
+		out = append(out, r)
+	}
+	return append(out, rest...)
 }
 
 // order sorts the rows by the panel's keys, each in turn, the rows alike on every key keeping their order; a row of
@@ -193,6 +280,9 @@ func (p Panel) Lines() (lines []string, at []int) {
 			if mark := p.Mark(c.column); mark != "" {
 				line += " " + style.Tint(mark)
 			}
+			if slices.Contains(p.Group, c.column) {
+				line += " " + style.Tint(Grouping)
+			}
 		default:
 			if c.show == All {
 				add("", -1)
@@ -219,7 +309,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 // the controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back;
 // off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show; on a column's
 // checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone, s sorts by
-// the column alone and S adds it to the sort, as Sorted says.
+// the column alone and S adds it to the sort, as Sorted says, and g groups by it, or no longer, as Grouped says.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -235,6 +325,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 		p.Cursor = 0
 	case c.column != "" && (k.Text == "s" || k.Text == "S"):
 		p = p.Sorted(c.column, k.Text == "S")
+	case c.column != "" && k.Text == "g":
+		p = p.Grouped(c.column)
 	case c.column != "" && (key == "shift+up" || key == "shift+down"):
 		step := 1
 		if key == "shift+up" {
@@ -330,16 +422,16 @@ func (p Panel) Filter(rows []Row, columns []string) []Row {
 			out = append(out, r)
 		}
 	}
-	out = p.order(out, columns)
+	if query != "" || p.Show != All {
+		out = dropBare(out)
+	}
+	out = p.group(p.order(out, columns), columns)
 	for k, r := range out {
 		if !r.Aside {
 			out[k] = p.hide(r, columns)
 		}
 	}
-	if query == "" && p.Show == All {
-		return out
-	}
-	return dropBare(out)
+	return out
 }
 
 // dropBare leaves out each aside that heads no row: one the next aside, or the end, follows at once.
