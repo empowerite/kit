@@ -44,6 +44,26 @@ func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
 	}
 }
 
+// Back from a verb's form, the palette's search has the keyboard again, with what was typed before it opened.
+func TestBackFromAFormTheSearchHasTheKeyboardWithWhatWasTyped(t *testing.T) {
+	m, err := Open(testkit.Runner(t, "kit"), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter))...)
+	if !m.InForm() {
+		t.Fatalf("sub and enter did not open a form:\n%s", m.View().Content)
+	}
+	m = drive(m, press(tea.KeyEscape))
+	if m.InForm() || !strings.Contains(ansi.Strip(m.View().Content), "sub▏") {
+		t.Fatalf("back in the palette, the search is not as it was:\n%s", ansi.Strip(m.View().Content))
+	}
+	m = drive(m, testkit.Typed("mit")...)
+	if visible := m.palette.Visible(); len(visible) != 1 || visible[0].Name != "submit" {
+		t.Errorf("submit typed after coming back: %v", visible)
+	}
+}
+
 func TestAResizeWhileTheFormIsOpenReachesThePaletteUnderIt(t *testing.T) {
 	m, err := Open(testkit.Runner(t, "kit"), "", nil)
 	if err != nil {
