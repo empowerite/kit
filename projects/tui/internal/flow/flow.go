@@ -220,7 +220,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.paneWidth())
 			return m, m.chose(c)
 		case m.menu && msg.Button == tea.MouseLeft:
-			m.menuClick(msg.X, msg.Y)
+			return m, m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			m.openMenu()
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):

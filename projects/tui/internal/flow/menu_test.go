@@ -36,25 +36,26 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
-	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on expand all, and collapse
+	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, and collapse
 	// all, with no row open, is dim
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
-		!strings.Contains(box[2], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) {
+		!strings.Contains(box[1], " "+Reload+" Refresh") ||
+		!strings.Contains(box[4], style.Off(" "+Collapse+" Collapse All ")) || box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; down
-	// passes collapse all by while it is dim
+	// passes the rule, and collapse all while it is dim
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 0}, {"E", 0}, {"z", 0}} {
+	}{{"c", 0}, {"E", 2}, {"z", 2}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
 	}
-	if m = drive(m, down, up); m.menuAt != 0 {
+	if m = drive(m, down, up); m.menuAt != 2 {
 		t.Errorf("up and down moved to a dim item: %d", m.menuAt)
 	}
 	// enter on expand all expands every worktree row that hides something; the menu closes
@@ -62,19 +63,22 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf("expand all: menu %v, open %d", m.menu, openRows(m))
 	}
 	opened := openRows(m)
-	// now expand all is dim and the keyboard starts on collapse all, which space chooses; ; drops it down too
-	if m = drive(m, press(';')); !m.menu || m.menuAt != 1 || m.enabled(0) {
-		t.Errorf("with every row expanded the keyboard is on %d", m.menuAt)
+	// now expand all is dim, and c finds collapse all, which space chooses; ; drops the menu down too
+	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 3 || m.enabled(2) {
+		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
-	// up passes the dim expand all by, and down the rule, to show headers
-	if m = drive(m, up, down); m.menuAt != 3 {
+	// down passes the rule to show headers; up passes the dim expand all and the rule to refresh
+	if m = drive(m, down); m.menuAt != 5 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
-	if m = drive(m, up, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
+	if m = drive(m, up, up); m.menuAt != 0 {
+		t.Errorf("up past expand all: item %d", m.menuAt)
+	}
+	if m = drive(m, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
 		t.Errorf("collapse all: open %d", openRows(m))
 	}
+	m = drive(m, press(':'), typed("e")[0], press(tea.KeyEnter))
 	// esc, :, and ; close it, choosing nothing, and = does not
-	m = drive(m, press(':'), press(tea.KeyEnter))
 	for _, closing := range []tea.Msg{esc, press(':'), press(';')} {
 		if m = drive(m, press(':'), closing); m.menu || openRows(m) != opened {
 			t.Errorf("%v did not close the menu alone: menu %v", closing, m.menu)
@@ -122,16 +126,17 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	}
 }
 
-// On incoming, where no row hides anything, every item is dim: the keyboard is on none of them, moves to none, and
-// enter does nothing.
-func TestTheMenuOfAStageWithNothingToOpenHasNothingEnabled(t *testing.T) {
+// On incoming, where no row hides anything and no column has a name, refresh alone is enabled: the keyboard is on it,
+// and the rest, dim, are never under it.
+func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m = drive(m, press(':'), down, up, typed("e")[0], press(tea.KeyEnter)); !m.menu || m.menuAt != -1 {
+	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.menu || m.menuAt != 0 || m.enabled(2) || m.enabled(3) ||
+		m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
-	// nothing is drawn under the keyboard, even when the keyboard was left on an item the rows no longer let do
-	// anything
-	for _, at := range []int{-1, 0} {
+	// nothing is drawn under the keyboard on a dim item, even when the keyboard was left on one the rows no longer
+	// let do anything
+	for _, at := range []int{-1, 2} {
 		m.menuAt = at
 		if box, _ := m.menuBox(); strings.Contains(strings.Join(box, "\n"), style.Cursor(" ")[:4]) {
 			t.Errorf("with the keyboard on %d, a dim item is drawn under it: %q", at, box)
@@ -146,16 +151,16 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
 	}
 	_, left := m.menuBox()
-	// a click on collapse all while it is dim does nothing, and leaves the menu open
-	for _, y := range []int{menuTop + 2} {
+	// a click on the rule, or on collapse all while it is dim, does nothing, and leaves the menu open
+	for _, y := range []int{menuTop + 2, menuTop + 4} {
 		if m = drive(m, testkit.Click(left+2, y)); !m.menu || openRows(m) != 0 {
 			t.Errorf("a click on line %d: menu %v, open %d", y, m.menu, openRows(m))
 		}
 	}
-	if m = drive(m, testkit.Click(left+2, menuTop+1)); m.menu || openRows(m) == 0 {
+	if m = drive(m, testkit.Click(left+2, menuTop+3)); m.menu || openRows(m) == 0 {
 		t.Errorf("a click on expand all: menu %v, open %d", m.menu, openRows(m))
 	}
-	if m = drive(m, glyph, testkit.Click(left+2, menuTop+2)); m.menu || openRows(m) != 0 {
+	if m = drive(m, glyph, testkit.Click(left+2, menuTop+4)); m.menu || openRows(m) != 0 {
 		t.Errorf("a click on collapse all: menu %v, open %d", m.menu, openRows(m))
 	}
 	// a click off the menu closes it, and does nothing else
@@ -232,7 +237,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: paneTop + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
-	m := loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
+	m := loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
 	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[m.rowsTop()], " "+style.Opened) {
 		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
 	}
@@ -240,7 +245,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
-	m = loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
+	m = loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
 	if m = drive(m, testkit.Click(1, m.rowsTop())); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
@@ -253,12 +258,12 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 11}, right, right, right, press(':'))
 	box, _ := m.menuBox()
-	if !strings.Contains(ansi.Strip(box[4]), Checked+"  Show Headers") || m.rowsTop() == paneTop {
-		t.Fatalf("the menu as the stage opens: %q", ansi.Strip(box[4]))
+	if !strings.Contains(ansi.Strip(box[6]), Checked+" Show Headers") || m.rowsTop() == paneTop {
+		t.Fatalf("the menu as the stage opens: %q", ansi.Strip(box[6]))
 	}
 	m = drive(m, typed("s")[0], press(tea.KeyEnter))
 	if box, _ = drive(m, press(':')).menuBox(); m.stages[m.stage].headers || m.rowsTop() != paneTop ||
-		!strings.Contains(ansi.Strip(box[4]), "    Show Headers") {
+		!strings.Contains(ansi.Strip(box[6]), "    Show Headers") {
 		t.Fatalf("show headers did not hide them:\n%s", view(m))
 	}
 	m = drive(m, press(':'), typed("s")[0], press(tea.KeyEnter))
@@ -268,8 +273,8 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") || m.rowsTop() <= paneTop {
 		t.Fatalf("the headers:\n%s", view(m))
 	}
-	if m = drive(m, press(':')); !strings.Contains(ansi.Strip(m.tabItems()[3].Glyph), Checked) {
-		t.Errorf("show headers is not checked: %+v", m.tabItems()[3])
+	if m = drive(m, press(':')); !strings.Contains(ansi.Strip(m.tabItems()[5].Glyph), Checked) {
+		t.Errorf("show headers is not checked: %+v", m.tabItems()[5])
 	}
 	m = drive(m, esc)
 	// the header stays while the rows scroll under it
@@ -294,7 +299,7 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 		t.Errorf("changes lost its headers with the worktrees'")
 	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m.stages[m.stage].name != "incoming" || m.enabled(3) {
+	if m.stages[m.stage].name != "incoming" || m.enabled(5) {
 		t.Errorf("%s offers headers", m.stages[m.stage].name)
 	}
 }
@@ -320,13 +325,13 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	}
 	// Expand All opens it with the rows, and Collapse All closes it, each enabled for the header alone too
 	m = drive(m, press(':'))
-	if !m.enabled(0) || m.enabled(1) {
-		t.Errorf("expand all %v, collapse all %v, over a closed header", m.enabled(0), m.enabled(1))
+	if !m.enabled(2) || m.enabled(3) {
+		t.Errorf("expand all %v, collapse all %v, over a closed header", m.enabled(2), m.enabled(3))
 	}
-	if m = drive(m, press(tea.KeyEnter)); !m.stages[0].headed {
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].headed {
 		t.Error("expand all left the header closed")
 	}
-	if m = drive(m, press(':')); !m.enabled(1) {
+	if m = drive(m, press(':')); !m.enabled(3) {
 		t.Error("collapse all is dim over an open header")
 	}
 	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); m.stages[0].headed || m.rowsTop() != closed {

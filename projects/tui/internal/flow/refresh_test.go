@@ -98,3 +98,25 @@ func TestRefreshAllReadsTheForgeAfreshAndTheFetchsReloadsDoNot(t *testing.T) {
 		t.Errorf("Refresh All ran %q, not %q", got, want)
 	}
 }
+
+// The tab's menu's Refresh runs its stage again, reading the forge afresh; on backlog, underway, or changes, which
+// share kit's one read of the open issues and pull requests, it runs all three afresh, so they stay one snapshot.
+func TestRefreshInTheTabsMenuRunsItsStageAndTheStagesThatShareItsRead(t *testing.T) {
+	for _, c := range []struct {
+		stage string
+		want  []string
+	}{
+		{"changes", []string{"flow backlog --json --fresh", "flow changes --json --fresh", "flow underway --json --fresh"}},
+		{"builds", []string{"flow builds --json"}},
+	} {
+		record := filepath.Join(t.TempDir(), "calls")
+		m := to(t, loaded(t, options()), c.stage)
+		t.Setenv("FAKE_FLOW_CALLS", record)
+		m = drive(m, press(':'), press(tea.KeyEnter))
+		got := calls(t, record)
+		slices.Sort(got)
+		if !slices.Equal(got, c.want) || m.menu {
+			t.Errorf("refresh on %s ran %q, not %q", c.stage, got, c.want)
+		}
+	}
+}

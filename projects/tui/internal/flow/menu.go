@@ -16,27 +16,28 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// The glyphs beside the tab's menu's items, every row expanded and every row collapsed, all the way down and up as ▾
-// and ▸ are one row's, and the headers shown; and beside the app's menu's own, every stage loaded again.
+// The glyphs beside the tab's menu's items, the stage loaded again, every row expanded and every row collapsed, all
+// the way down and up as ▾ and ▸ are one row's, and the headers shown, two cells wide as the others; and beside the
+// app's menu's own, every stage loaded again.
 const (
 	Expand   = "⏬"
 	Collapse = "⏫"
-	Checked  = "✓"
+	Checked  = "✅"
 	Reload   = "🔄"
 )
 
 // ownItems are the picture's own in the app's menu: every stage loaded again, reading the forge afresh.
 var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
-// tabItems gives the tab's menu's lines, top to bottom: every row that hides something expanded, every row collapsed,
-// a rule, and the headers, checked while the selected stage shows them.
+// tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
+// expanded, every row collapsed, a rule, and the headers, checked while the selected stage shows them.
 func (m Model) tabItems() []shell.Item {
 	headers := ""
 	if len(m.stages) > 0 && m.stages[m.stage].headers {
 		headers = Checked
 	}
-	return []shell.Item{{Glyph: Expand, Name: "Expand All"}, {Glyph: Collapse, Name: "Collapse All"}, {},
-		{Glyph: headers, Name: "Show Headers"}}
+	return []shell.Item{{Glyph: Reload, Name: "Refresh"}, {}, {Glyph: Expand, Name: "Expand All"},
+		{Glyph: Collapse, Name: "Collapse All"}, {}, {Glyph: headers, Name: "Show Headers"}}
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
@@ -54,7 +55,7 @@ func (m Model) menuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "down":
 		m.menuAt = shell.Move(m.tabItems(), m.enabled, m.menuAt, 1)
 	case "enter", "space":
-		m.pick(m.menuAt)
+		return m, m.pick(m.menuAt)
 	case "esc", ":", ";":
 		m.menu = false
 	default:
@@ -98,6 +99,8 @@ func (m Model) enabled(k int) bool {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	_, hides := m.header()
 	switch m.tabItems()[k].Name {
+	case "Refresh":
+		return known[s.name]
 	case "Show Headers":
 		return len(columns[s.name]) > 0
 	case "":
@@ -127,18 +130,22 @@ func (m Model) enabled(k int) bool {
 }
 
 // pick does what the tab's menu's item at k says to the selected stage's rows, closes the menu, and gives the rows
-// the keyboard, so left and right go on from there; show headers shows them over the rows, or hides them, and leaves
-// the keyboard where it was. An item that is not enabled does nothing, and leaves the menu open.
-func (m *Model) pick(k int) {
+// the keyboard, so left and right go on from there; refresh runs the stage again, as refresh says, and show headers
+// shows them over the rows, or hides them, each leaving the keyboard where it was. An item that is not enabled does
+// nothing, and leaves the menu open. It gives what refresh runs.
+func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
-		return
+		return nil
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	m.menu = false
-	if m.tabItems()[k].Name == "Show Headers" {
+	switch m.tabItems()[k].Name {
+	case "Show Headers":
 		s.headers = !s.headers
 		m.fit()
-		return
+		return nil
+	case "Refresh":
+		return m.refresh(s.name)
 	}
 	m.inRows, m.inPanel = true, false
 	switch m.tabItems()[k].Name {
@@ -154,6 +161,23 @@ func (m *Model) pick(k int) {
 		s.headed = false
 	}
 	m.fit()
+	return nil
+}
+
+// refresh runs a stage's command again, reading the forge afresh, and shows it loading until it answers; on a stage
+// that shares kit's one read of the open issues and pull requests, every stage in the picture that shares it, so they
+// stay one snapshot.
+func (m *Model) refresh(name string) tea.Cmd {
+	if !shared[name] {
+		return m.restart(name)
+	}
+	var cmds []tea.Cmd
+	for _, s := range m.stages {
+		if shared[s.name] {
+			cmds = append(cmds, m.restart(s.name))
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 // menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's ⋮, and the column its
@@ -177,12 +201,12 @@ func (m Model) overlay(lines []string) []string {
 
 // menuClick takes a left click while the tab's menu is open: on an item, it chooses it, and on one not enabled it
 // does nothing; anywhere else, it closes the menu.
-func (m *Model) menuClick(x, y int) {
+func (m *Model) menuClick(x, y int) tea.Cmd {
 	box, left := m.menuBox()
 	k := y - menuTop - 1
 	if x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(m.tabItems()) {
-		m.pick(k)
-		return
+		return m.pick(k)
 	}
 	m.menu = false
+	return nil
 }
