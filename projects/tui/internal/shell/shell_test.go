@@ -34,17 +34,17 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Refresh All||Flow|Welcome|Help|Tutorials||Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Refresh All||Welcome|Tutorials|Help|Flow||Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, and quit do something; the screen it is on, the tutorials, the settings, and the
 	// rules do not
-	for k, want := range []bool{true, false, true, false, true, false, false, false, false, true} {
+	for k, want := range []bool{true, false, false, false, true, true, false, false, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[0].Name != "Flow" || m.At != 0 || !m.Open {
+	if (Menu{}).Items()[0].Name != "Welcome" || m.At != 0 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard: %+v", m)
 	}
 }
@@ -54,7 +54,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 2}, {"down", 7}, {"down", 7}, {"up", 2}, {"w", 1}, {"q", 7}, {"z", 7}} {
+	}{{"down", 2}, {"down", 7}, {"down", 7}, {"up", 2}, {"w", 0}, {"q", 7}, {"z", 7}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -89,7 +89,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	m := Menu{Here: Flow}.Opened()
 	screen := strings.Split(strings.Repeat(strings.Repeat("x", 60)+"\n", 20), "\n")
 	drawn := m.Overlay(screen, 60)
-	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭╴"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[2]), "│ "+Home+" Welcome") ||
+	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭╴"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[1]), "│ "+Home+" Welcome") ||
 		ansi.StringWidth(drawn[3]) != 60 {
 		t.Errorf("the menu over the screen:\n%s", ansi.Strip(strings.Join(drawn, "\n")))
 	}
@@ -97,10 +97,10 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 		t.Errorf("a closed menu drew: %q", got)
 	}
 	// a click on welcome chooses it; on flow, where it is, nothing, the menu open; off the box, it closes
-	if m, c := m.Click(3, Top+2, 60); c != (Choice{Screen: Welcome}) || m.Open {
+	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
-	if m, c := m.Click(3, Top+1, 60); c != (Choice{}) || !m.Open {
+	if m, c := m.Click(3, Top+4, 60); c != (Choice{}) || !m.Open {
 		t.Errorf("a click on flow: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {

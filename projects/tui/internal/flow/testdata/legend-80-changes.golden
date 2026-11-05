@@ -2,11 +2,11 @@
   ────────────╴➎╶─────────────────────╮➅╶───────────
  ◃s         4  │ 🔀 changes       3 ⋮ │  🏭 builds ▹ columns
   ─────────────╯                      ╰────────────┐ ☑ change
- ▸ 🔀 #2  The first r…  👤 jeffrey-aguilera  🏁 r… │ ☑ title
- ▸ 🔀 #3  A spike on …  👤 ada               🔨 d… │ ☑ author
- ▸ 🔀 #4  Lint every …  👤 bob               🔥 f… │ ☑ state
-                                                   │ ☑ age
-                                                   │ ☑ checks
+   change  title         author               sta… │ ☑ title
+   ─────────────────────────────────────────────── │ ☑ author
+ ▸ 🔀 #2   The first r…  👤 jeffrey-aguilera  🏁 … │ ☑ state
+ ▸ 🔀 #3   A spike on …  👤 ada               🔨 … │ ☑ age
+ ▸ 🔀 #4   Lint every …  👤 bob               🔥 … │ ☑ checks
                                                    │ ☑ threads
                                                    │ ☑ branch
                                                    │

@@ -2,11 +2,11 @@
   ➊╶─────────────────────╮➁╶──────────────────────╮➂
   │ 🎫 backlog       3 ⋮ │  🛫 underway         4  ▹ columns
   ╵                      ╰────────────────────────╰┐ ☑ id
- ▸ #45                        2h                 … │ ☑ assignees
- ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-li… │ ☑ age
- ▸  #7  👤 ada           +1  40d                 … │ ☑ branch
-                                                   │ ☑ title
-                                                   │
+    id  assignees            age  branch         … │ ☑ assignees
+   ─────────────────────────────────────────────── │ ☑ age
+ ▸ #45                        2h                 … │ ☑ branch
+ ▸ #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-li… │ ☑ title
+ ▸  #7  👤 ada           +1  40d                 … │
                                                    │ show
                                                    │ ⦿ all
                                                    │ ⦾ mine

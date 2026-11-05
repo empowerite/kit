@@ -234,11 +234,11 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it
-	if m = drive(m, testkit.Click(1, paneTop)); m.inPanel || !m.inRows || m.stages[0].cursor != 0 ||
+	if m = drive(m, testkit.Click(1, m.rowsTop())); m.inPanel || !m.inRows || m.stages[0].cursor != 0 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(1, paneTop)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(1, m.rowsTop())); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
@@ -313,17 +313,17 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 
 func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
-	first := lines(m)[paneTop]
+	first := lines(m)[m.rowsTop()]
 	x := ansi.StringWidth(first[:strings.Index(first, Issue)])
 	browsed = nil
-	if m = drive(m, testkit.Click(x, paneTop)); len(browsed) != 1 ||
+	if m = drive(m, testkit.Click(x, m.rowsTop())); len(browsed) != 1 ||
 		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
 		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
 	}
 	// a page the browser cannot open says why in place of the keys, until the next key
 	m.find("backlog").issues[0].URL = "https://refuse.example/45"
 	m.rebuild()
-	m = drive(m, testkit.Click(x, paneTop))
+	m = drive(m, testkit.Click(x, m.rowsTop()))
 	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") {
 		t.Errorf("a page that did not open: %q", last)
 	}

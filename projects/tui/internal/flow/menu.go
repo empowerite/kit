@@ -92,20 +92,29 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 }
 
 // enabled says whether the tab's menu's line k does something to the selected stage's rows now: expand all while a
-// row that hides something is collapsed, collapse all while one of its rows is expanded, and show headers on a stage
-// whose rows have columns; the rule never does.
+// row that hides something is collapsed, or the header is, collapse all while one of its rows is expanded, or the
+// header is, and show headers on a stage whose rows have columns; the rule never does.
 func (m Model) enabled(k int) bool {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
+	_, hides := m.header()
 	switch m.tabItems()[k].Name {
 	case "Show Headers":
 		return len(columns[s.name]) > 0
 	case "":
 		return false
+	case "Expand All":
+		if hides && !s.headed {
+			return true
+		}
+	case "Collapse All":
+		if hides && s.headed {
+			return true
+		}
 	}
 	for j, r := range rows {
 		switch m.tabItems()[k].Name {
 		case "Expand All":
-			if !s.open[r.Key] && grid.Opens(rows, j, m.paneWidth()) {
+			if !s.open[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.paneWidth()) {
 				return true
 			}
 		case "Collapse All":
@@ -135,12 +144,14 @@ func (m *Model) pick(k int) {
 	switch m.tabItems()[k].Name {
 	case "Expand All":
 		for j, r := range rows {
-			if grid.Opens(rows, j, m.paneWidth()) {
+			if grid.Opens(rows, m.names(m.stage), j, m.paneWidth()) {
 				s.open[r.Key] = true
 			}
 		}
+		_, s.headed = m.header()
 	case "Collapse All":
 		clear(s.open)
+		s.headed = false
 	}
 	m.fit()
 }

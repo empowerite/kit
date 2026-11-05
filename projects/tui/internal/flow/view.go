@@ -150,7 +150,7 @@ func (m Model) keys() string {
 	if m.inRows {
 		keys = append(keys, "↑↓ move", "pgup/pgdn page")
 		s, rows := m.stages[m.stage], m.rows(m.stage)
-		if s.cursor < len(rows) && grid.Opens(rows, s.cursor, m.paneWidth()) {
+		if s.cursor < len(rows) && grid.Opens(rows, m.names(m.stage), s.cursor, m.paneWidth()) {
 			if s.open[rows[s.cursor].Key] {
 				keys = append(keys, "← close")
 			} else {
@@ -266,42 +266,58 @@ func (m Model) sideLines() []string {
 	return panel
 }
 
-// header gives the lines that stand over the selected stage's rows while its tab's menu shows its headers: the names of
-// its columns the panel shows, as internal/grid lays them over the rows, then a thin dim line under them; nothing
-// while it loads, after a refusal, or when it has no rows in columns.
-func (m Model) header() []string {
-	if len(m.stages) == 0 {
+// names gives the names of a stage's columns that its panel shows, as its header stands them over its rows, which
+// widen its columns; none while its tab's menu hides its headers.
+func (m Model) names(i int) []string {
+	if !m.stages[i].headers {
 		return nil
 	}
-	s := m.stages[m.stage]
-	if !s.headers || s.loading || s.refusal != "" {
-		return nil
-	}
-	hidden := m.panel(m.stage).Hidden
+	hidden := m.filter(i).Hidden
 	var names []string
-	for _, name := range columns[s.name] {
+	for _, name := range columns[m.stages[i].name] {
 		if name == "" || !hidden[name] {
 			names = append(names, name)
 		}
 	}
-	lines := grid.Header(m.rows(m.stage), names, m.paneWidth())
-	if len(lines) == 0 {
-		return nil
+	return names
+}
+
+// header gives the lines that stand over the selected stage's rows while its tab's menu shows its headers, and whether
+// they hide lines while closed: the names of its columns the panel shows, as internal/grid lays them over the rows,
+// open or closed as the stage's header is, then a thin dim line under them; nothing while it loads, after a refusal,
+// or when it has no rows in columns.
+func (m Model) header() (lines []string, hides bool) {
+	if len(m.stages) == 0 {
+		return nil, false
 	}
-	return append(lines, "   "+style.Off(strings.Repeat("─", max(0, m.paneWidth()-3))))
+	s := m.stages[m.stage]
+	if !s.headers || s.loading || s.refusal != "" {
+		return nil, false
+	}
+	lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.paneWidth(), s.headed)
+	if len(lines) == 0 {
+		return nil, false
+	}
+	return append(lines, "   "+style.Off(strings.Repeat("─", max(0, m.paneWidth()-3)))), hides
+}
+
+// headerLines gives the header's lines alone.
+func (m Model) headerLines() []string {
+	lines, _ := m.header()
+	return lines
 }
 
 // rowsTop gives the screen line the rows start on: the pane's first, or the one under the header.
-func (m Model) rowsTop() int { return paneTop + len(m.header()) }
+func (m Model) rowsTop() int { return paneTop + len(m.headerLines()) }
 
 // rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's, which do not.
-func (m Model) rowsHeight() int { return max(1, m.paneHeight()-len(m.header())) }
+func (m Model) rowsHeight() int { return max(1, m.paneHeight()-len(m.headerLines())) }
 
 // pane gives the pane's lines, as many as it has, each as wide as the pane: the header, when shown, then the selected
 // stage's rows from its offset on.
 func (m Model) pane() []string {
 	h := m.rowsHeight()
-	out := m.header()
+	out := m.headerLines()
 	switch {
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
@@ -411,7 +427,7 @@ func (m Model) lines(i int) []line {
 	if m.inRows && i == m.stage && s.cursor < len(rows) {
 		chosen = s.cursor
 	}
-	drawn := grid.Draw(rows, m.paneWidth(), chosen, func(r row) bool { return s.open[r.Key] })
+	drawn := grid.Draw(rows, m.names(i), m.paneWidth(), chosen, func(r row) bool { return s.open[r.Key] })
 	out := make([]line, len(drawn))
 	for k, l := range drawn {
 		out[k] = line{l.Row, l.Text}

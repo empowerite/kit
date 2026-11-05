@@ -56,8 +56,8 @@ var screens = []struct {
 	item   Item
 	screen Screen
 }{
-	{Item{Map, "Flow"}, Flow}, {Item{Home, "Welcome"}, Welcome}, {Item{Asking, "Help"}, Help},
-	{Item{Learn, "Tutorials"}, Tutorials},
+	{Item{Home, "Welcome"}, Welcome}, {Item{Learn, "Tutorials"}, Tutorials}, {Item{Asking, "Help"}, Help},
+	{Item{Map, "Flow"}, Flow},
 }
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come

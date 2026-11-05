@@ -4,7 +4,8 @@
 // and its text cut with … where its column ends. An open row shows every value, one a line in its column, the text
 // wrapped in its column, then the lines it opens to. A row that hides anything, closed, has ▸ in the gutter before it,
 // and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks
-// the row, so the cell is not underlined as a chosen name is.
+// the row, so the cell is not underlined as a chosen name is. A glyph whose link opens a page is underlined with dots.
+// A header can stand the columns' names over the rows, widening each column to its name.
 //
 // A panel beside the rows narrows them: a search, which keeps the rows whose text has it; a checkbox per column, which
 // shows or hides it; and, for rows that belong to people, a choice of every row, the caller's, or everyone else's.
@@ -77,10 +78,11 @@ func (c Cell) more() string {
 	return " " + style.Off("+"+strconv.Itoa(len(c.Values)-1))
 }
 
-// Draw lays the rows out for a pane of so many cells: each row's lines, closed, or open when open says so, the cursor's
-// row, an index into the rows, on a band. A row opens only when it hides something.
-func Draw(rows []Row, width, cursor int, open func(Row) bool) []Line {
-	widths := columnWidths(rows)
+// Draw lays the rows out for a pane of so many cells, under the header's names, which widen the columns they stand
+// over: each row's lines, closed, or open when open says so, the cursor's row, an index into the rows, on a band. A
+// row opens only when it hides something.
+func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool) []Line {
+	widths := headed(rows, head)
 	cells := width - len(lead)
 	var out []Line
 	for k, r := range rows {
@@ -121,11 +123,13 @@ func Draw(rows []Row, width, cursor int, open func(Row) bool) []Line {
 	return out
 }
 
-// Header draws the names over the rows' columns, as Draw lays the rows out for a pane of so many cells: each name in
-// its column, after the gutter, bold, right-aligned over a number, and wrapped in its column when wider, a word wider
-// than the column broken in it; as many lines as the tallest name takes. A column no row has text in is left out, as
-// Draw leaves it. Rows of one cell alone, which span the width, have no header.
-func Header(rows []Row, names []string, width int) []string {
+// Header draws the names over the rows' columns, as Draw lays the rows out under them for a pane of so many cells:
+// each name in its column, bold, right-aligned over a number, and wrapped in its column when wider, as only the text
+// that wraps can be, since a name widens any other column to fit it, a word wider than the column broken in it. Like a
+// row, it shows its first line alone, with ▸ in the gutter before it, when it is closed and its names take more; open,
+// every line, with ▾. A column no row has text in is left out, as Draw leaves it. Rows of one cell alone, which span
+// the width, have no header. It says whether it hides lines while it is closed.
+func Header(rows []Row, names []string, width int, open bool) (lines []string, hides bool) {
 	var shape []Cell
 	for _, r := range rows {
 		if len(r.Cells) >= 2 {
@@ -134,9 +138,9 @@ func Header(rows []Row, names []string, width int) []string {
 		}
 	}
 	if shape == nil {
-		return nil
+		return nil, false
 	}
-	widths := columnWidths(rows)
+	widths := headed(rows, names)
 	cells := width - len(lead)
 	left := fillWidth(shape, widths, cells)
 	type column struct {
@@ -165,6 +169,14 @@ func Header(rows []Row, names []string, width int) []string {
 		columns = append(columns, column{lines, w, c.Right})
 		height = max(height, len(lines))
 	}
+	hides = height > 1
+	mark := " "
+	switch {
+	case hides && open:
+		mark = "▾"
+	case hides:
+		mark, height = style.Off("▸"), 1
+	}
 	out := make([]string, height)
 	for k := range height {
 		var parts []string
@@ -175,9 +187,13 @@ func Header(rows []Row, names []string, width int) []string {
 			}
 			parts = append(parts, pane.Pad(v, c.width, c.right))
 		}
-		out[k] = lead + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
+		g := lead
+		if k == 0 {
+			g = " " + mark + " "
+		}
+		out[k] = g + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
 	}
-	return out
+	return out, hides
 }
 
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
@@ -195,16 +211,17 @@ func Hides(r Row, widths []int, left int) bool {
 }
 
 // Opens says whether the row at k hides anything while it is closed, as Draw lays the rows out for a pane of so many
-// cells, and so has ▸ before it and can open.
-func Opens(rows []Row, k, width int) bool {
-	widths := columnWidths(rows)
+// cells under the header's names, and so has ▸ before it and can open.
+func Opens(rows []Row, head []string, k, width int) bool {
+	widths := headed(rows, head)
 	return Hides(rows[k], widths, fillWidth(rows[k].Cells, widths, width-len(lead)))
 }
 
 // LinkAt gives the link of the cell whose glyph, the first two cells of its text, a row's first line draws at the
-// column x, as Draw lays the rows out for a pane of so many cells; nothing when no linked glyph is there.
-func LinkAt(rows []Row, k, width, x int) string {
-	widths, r := columnWidths(rows), rows[k].Cells
+// column x, as Draw lays the rows out for a pane of so many cells under the header's names; nothing when no linked
+// glyph is there.
+func LinkAt(rows []Row, head []string, k, width, x int) string {
+	widths, r := headed(rows, head), rows[k].Cells
 	left := fillWidth(r, widths, width-len(lead))
 	at := len(lead)
 	for j, c := range r {
@@ -247,6 +264,18 @@ func wrap(rows [][]Cell) []Row {
 		out[i].Cells = r
 	}
 	return out
+}
+
+// headed gives the columns' widths, as columnWidths does, each named column with text in it widened to its name; the
+// text that wraps takes the width left, so its name never widens it.
+func headed(rows []Row, head []string) []int {
+	widths := columnWidths(rows)
+	for j, name := range head {
+		if j < len(widths) && widths[j] > 0 {
+			widths[j] = max(widths[j], ansi.StringWidth(name))
+		}
+	}
+	return widths
 }
 
 // columnWidths gives each column's width over the rows of two cells or more: its widest value, or first value and
@@ -306,10 +335,10 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 	for j, c := range r {
 		switch {
 		case c.Wrap:
-			parts = append(parts, pane.Pad(pane.Clip(c.first(), left), left, false))
+			parts = append(parts, pane.Pad(dotted(pane.Clip(c.first(), left), c), left, false))
 		case j >= len(widths) || widths[j] == 0:
 		default:
-			v := c.first()
+			v := dotted(c.first(), c)
 			if len(parts) == 0 {
 				v = choose(v, chosen)
 			}
@@ -351,6 +380,9 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			if k < len(columns[j]) {
 				v = columns[j][k]
 			}
+			if k == 0 {
+				v = dotted(v, c)
+			}
 			if k == 0 && len(parts) == 0 {
 				v = choose(v, chosen)
 			}
@@ -371,6 +403,20 @@ func wrapped(c Cell, width int) []string {
 		out = []string{""}
 	}
 	return out
+}
+
+// dotted underlines a cell's glyph, its text up to the first space, with a dotted line when the cell's link opens a
+// page, a URL, as a terminal that draws underline styles shows it; another draws a plain underline, or none. A link to
+// a row of another stage is no URL, and its glyph stays as it is; so does a text that opens with a style of its own.
+func dotted(v string, c Cell) string {
+	if !strings.Contains(c.Link, "://") || v == "" || strings.HasPrefix(v, "\x1b") {
+		return v
+	}
+	glyph, rest, spaced := strings.Cut(v, " ")
+	if spaced {
+		rest = " " + rest
+	}
+	return "\x1b[4:4m" + glyph + "\x1b[4:0m" + rest
 }
 
 // choose draws the chosen row's first cell: bold in the accent, its own styles, as dim, giving way, since the accent

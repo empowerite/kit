@@ -38,7 +38,7 @@ func plain(lines []Line) []string {
 }
 
 func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *testing.T) {
-	got := plain(Draw(issues(), 40, -1, func(Row) bool { return false }))
+	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return false }))
 	want := []string{
 		" ▸  #1  👤 ada +1   2h  a title long en…",
 		"   #22  👤 carol   40d  short",
@@ -50,7 +50,7 @@ func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *te
 }
 
 func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *testing.T) {
-	got := plain(Draw(issues(), 40, -1, func(Row) bool { return true }))
+	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return true }))
 	want := []string{
 		" ▾  #1  👤 ada      2h  a title long",
 		"        👤 bob          enough to wrap",
@@ -63,7 +63,7 @@ func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *test
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a row that hides nothing never opens, and every line says which row it is of
-	lines := Draw(issues(), 40, -1, func(Row) bool { return true })
+	lines := Draw(issues(), nil, 40, -1, func(Row) bool { return true })
 	if rows := []int{lines[0].Row, lines[2].Row, lines[3].Row, lines[5].Row}; !slices.Equal(rows, []int{0, 0, 1, 2}) {
 		t.Errorf("the lines' rows: %v", rows)
 	}
@@ -71,8 +71,8 @@ func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *test
 
 func TestOpensSaysWhichRowsHideSomethingAtTheWidth(t *testing.T) {
 	rows := issues()
-	if !Opens(rows, 0, 40) || Opens(rows, 1, 40) || !Opens(rows, 2, 40) {
-		t.Errorf("at 40: %v %v %v", Opens(rows, 0, 40), Opens(rows, 1, 40), Opens(rows, 2, 40))
+	if !Opens(rows, nil, 0, 40) || Opens(rows, nil, 1, 40) || !Opens(rows, nil, 2, 40) {
+		t.Errorf("at 40: %v %v %v", Opens(rows, nil, 0, 40), Opens(rows, nil, 1, 40), Opens(rows, nil, 2, 40))
 	}
 	// a cell with nothing in it opens to one empty line
 	if got := wrapped(Cell{Wrap: true}, 10); len(got) != 1 || got[0] != "" {
@@ -89,18 +89,18 @@ func TestLinkAtFindsTheLinkedGlyphUnderAColumn(t *testing.T) {
 	title := len(lead) + 3 + gap + ansi.StringWidth("👤 ada +1") + gap + 3 + gap
 	for x, want := range map[int]string{title: "https://example/1", title + 1: "https://example/1", title + 2: "",
 		len(lead) + 1: "https://example/number", len(lead): "", 0: ""} {
-		if got := LinkAt(rows, 0, 40, x); got != want {
+		if got := LinkAt(rows, nil, 0, 40, x); got != want {
 			t.Errorf("at %d: %q, want %q", x, got, want)
 		}
 	}
-	if got := LinkAt(rows, 3, 40, len(lead)); got != "https://example/span" {
+	if got := LinkAt(rows, nil, 3, 40, len(lead)); got != "https://example/span" {
 		t.Errorf("a span's glyph: %q", got)
 	}
 }
 
 // The band marks the cursor's row, so its first cell is bold in the accent and not underlined.
 func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
-	lines := Draw(issues(), 40, 1, func(Row) bool { return false })
+	lines := Draw(issues(), nil, 40, 1, func(Row) bool { return false })
 	band, _, _ := strings.Cut(style.Band("x", 1), "x")
 	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
 	underlined, _, _ := strings.Cut(style.Chosen("#"), "#")
@@ -117,7 +117,7 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{style.Off("abc")}}, one("x")}}}
 	chosen, _, _ := strings.Cut(style.Mark("a"), "a")
 	dim, _, _ := strings.Cut(style.Off("a"), "a")
-	if got := Draw(rows, 20, 0, func(Row) bool { return false })[0].Text; !strings.Contains(got, chosen+"a") ||
+	if got := Draw(rows, nil, 20, 0, func(Row) bool { return false })[0].Text; !strings.Contains(got, chosen+"a") ||
 		strings.Contains(got, dim) {
 		t.Errorf("a dim first cell under the cursor: %q", got)
 	}
@@ -125,8 +125,8 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 
 func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"a heading far too long for the pane"}, Wrap: true}}}}
-	closed := plain(Draw(rows, 20, -1, func(Row) bool { return false }))
-	open := plain(Draw(rows, 20, -1, func(Row) bool { return true }))
+	closed := plain(Draw(rows, nil, 20, -1, func(Row) bool { return false }))
+	open := plain(Draw(rows, nil, 20, -1, func(Row) bool { return true }))
 	if !slices.Equal(closed, []string{" ▸ a heading far to…"}) || len(open) != 2 || open[1] != "   long for the pane" {
 		t.Errorf("closed %q, open %q", closed, open)
 	}
@@ -233,7 +233,7 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	}
 	// a hidden column is left out of every row
 	p = Panel{Hidden: map[string]bool{"who": true}}
-	got := plain(Draw(p.Filter(issues(), columns), 40, -1, func(Row) bool { return false }))
+	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }))
 	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "   #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
 	}
@@ -249,38 +249,64 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	}
 }
 
-// The header stands each name in its column, as Draw lays the rows out: over a number right-aligned, over the text
-// that wraps at its start, wrapped in its column when wider, and left out over a column no row has text in; rows of
-// one cell have none.
+// The header stands each name in its column, as Draw lays the rows out under it: over a number right-aligned, over
+// the text that wraps at its start, and left out over a column no row has text in. A name widens its column, which
+// the rows then take too; one over the text that wraps, which takes the width left, wraps in it, and the header shows
+// its first line alone, with ▸ before it, until it is open, with ▾. Rows of one cell have none.
 func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 	rows := []Row{
 		{Key: "a", Cells: []Cell{{Values: []string{"#1"}, Right: true}, one(""), one("🔀 #2"), {Values: []string{"a title"}, Wrap: true}}},
 		{Key: "b", Cells: []Cell{{Values: []string{"#31"}, Right: true}, one(""), one("🔀 #12"), {Values: []string{"another"}, Wrap: true}}},
 	}
-	header := Header(rows, []string{"id", "fork", "changes", "title"}, 40)
-	plain := make([]string, len(header))
-	for k, l := range header {
-		plain[k] = ansi.Strip(l)
-	}
-	drawn := ansi.Strip(Draw(rows, 40, -1, func(Row) bool { return false })[1].Text)
-	// "changes" is wider than its column, "🔀 #12", and breaks in it; "fork" is over no text, and left out
-	if len(header) != 2 || plain[0] != "    id  change  title" || plain[1] != "        s" || strings.Contains(plain[0], "fork") {
-		t.Fatalf("the header:\n%s", strings.Join(plain, "\n"))
-	}
-	for _, name := range []string{"id", "change", "title"} {
-		at := strings.Index(plain[0], name)
-		under := map[string]string{"id": "#31", "change": "🔀", "title": "another"}[name]
-		if name == "id" {
-			at += len(name) - len(under)
+	names := []string{"id", "fork", "changes", "the title of the issue it closes"}
+	strip := func(lines []string) []string {
+		out := make([]string, len(lines))
+		for k, l := range lines {
+			out[k] = ansi.Strip(l)
 		}
-		if ansi.StringWidth(plain[0][:at]) != ansi.StringWidth(drawn[:strings.Index(drawn, under)]) {
+		return out
+	}
+	closed, hides := Header(rows, names, 40, false)
+	plain := strip(closed)
+	drawn := ansi.Strip(Draw(rows, names, 40, -1, func(Row) bool { return false })[1].Text)
+	// changes widens its column; fork is over no text, and left out; the title's name wraps, the header closed
+	if !hides || len(closed) != 1 || plain[0] != " ▸  id  changes  the title of the issue" || strings.Contains(plain[0], "fork") {
+		t.Fatalf("the closed header:\n%s", strings.Join(plain, "\n"))
+	}
+	for name, under := range map[string]string{"changes": "🔀", "the": "another"} {
+		if ansi.StringWidth(plain[0][:strings.Index(plain[0], name)]) != ansi.StringWidth(drawn[:strings.Index(drawn, under)]) {
 			t.Errorf("%s does not stand over its column:\n%s\n%s", name, plain[0], drawn)
 		}
 	}
-	if !strings.Contains(header[0], style.Label("id")) {
-		t.Errorf("the names are not bold: %q", header[0])
+	if !strings.HasSuffix(plain[0][:strings.Index(plain[0], "  changes")], "id") ||
+		ansi.StringWidth(plain[0][:strings.Index(plain[0], "id")])+2 != ansi.StringWidth(drawn[:strings.Index(drawn, "#31")])+3 {
+		t.Errorf("id is not right-aligned over #31:\n%s\n%s", plain[0], drawn)
 	}
-	if got := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40); got != nil {
+	if !strings.Contains(closed[0], style.Label("id")) || !strings.Contains(closed[0], style.Off("▸")) {
+		t.Errorf("the names are not bold, or ▸ not dim: %q", closed[0])
+	}
+	open, _ := Header(rows, names, 40, true)
+	if plain := strip(open); len(open) != 2 || !strings.HasPrefix(plain[0], " ▾  id") || !strings.HasPrefix(plain[1], "     ") ||
+		!strings.HasSuffix(plain[1], "it closes") {
+		t.Errorf("the open header:\n%s", strings.Join(plain, "\n"))
+	}
+	if got, hides := Header(rows, names[:3], 40, false); hides || strings.HasPrefix(ansi.Strip(got[0]), " ▸") {
+		t.Errorf("a header of one line: %q", got)
+	}
+	if got, _ := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40, false); got != nil {
 		t.Errorf("rows of one cell have a header: %q", got)
+	}
+}
+
+// A glyph whose link opens a page is underlined with dots; one that leads to a row of another stage is not.
+func TestALinkToAPageIsDotted(t *testing.T) {
+	page := Cell{Values: []string{"🎫 a title"}, Link: "https://example/1", Wrap: true}
+	row := Cell{Values: []string{"🔀 #2"}, Link: "kittui:changes/#2"}
+	got := closedLine([]Cell{one("x"), row, page}, []int{1, 5, 0}, 12, 40, false)
+	if !strings.Contains(got, "\x1b[4:4m🎫\x1b[4:0m a title") || strings.Contains(got, "\x1b[4:4m🔀") {
+		t.Errorf("the links: %q", got)
+	}
+	if dotted("\x1b[2m🎫\x1b[m", page) != "\x1b[2m🎫\x1b[m" || dotted("🎫", page) != "\x1b[4:4m🎫\x1b[4:0m" {
+		t.Error("a styled text, or a glyph alone")
 	}
 }

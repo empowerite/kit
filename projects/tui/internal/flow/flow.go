@@ -37,12 +37,14 @@ import (
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
-// whether the fetch is skipped, and the filters backlog, underway, and changes take.
+// whether the fetch is skipped, the filters backlog, underway, and changes take, and whether every stage opens with its
+// headers hidden, as they are shown otherwise.
 type Options struct {
-	Stages  []string
-	Origin  Origin
-	NoFetch bool
-	Filters []string
+	Stages    []string
+	Origin    Origin
+	NoFetch   bool
+	Filters   []string
+	NoHeaders bool
 }
 
 // loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
@@ -70,6 +72,7 @@ type stage struct {
 	offset  int                // the first line of the pane
 	open    map[string]bool    // the rows opened, by key
 	headers bool               // whether the names of its columns stand over its rows, as its tab's menu says
+	headed  bool               // whether its header is open, every line of names that take more than one
 	view    grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
 	gen     int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx     context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
@@ -149,7 +152,7 @@ func New(r kit.Runner, o Options) Model {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: map[string]bool{}}
+		s := stage{name: name, loading: true, open: map[string]bool{}, headers: !o.NoHeaders}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
@@ -207,7 +210,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.X > m.paneWidth()+1 && m.sidebar:
 			m.scrollSide(d)
-		case msg.X < m.paneWidth() && msg.Y >= m.rowsTop() && msg.Y < paneTop+m.paneHeight():
+		case msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight():
 			m.scrollRows(d * wheel)
 		}
 	case tea.MouseClickMsg:
@@ -859,7 +862,7 @@ func (m *Model) open(open bool) {
 	}
 	s := &m.stages[m.stage]
 	rows := m.rows(m.stage)
-	if s.cursor >= len(rows) || !grid.Opens(rows, s.cursor, m.paneWidth()) {
+	if s.cursor >= len(rows) || !grid.Opens(rows, m.names(m.stage), s.cursor, m.paneWidth()) {
 		return
 	}
 	s.open[rows[s.cursor].Key] = open
@@ -876,6 +879,14 @@ func (m *Model) click(x, y int) tea.Cmd {
 		return nil
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
+	if y < m.rowsTop() {
+		// the header is no row: a click on its gutter opens it, or closes it, when it hides lines; the rest is nothing
+		if _, hides := m.header(); hides && y == paneTop && x < 3 {
+			s.headed = !s.headed
+			m.fit()
+		}
+		return nil
+	}
 	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
 	if y == m.rowsTop() && m.head(lines, m.rowsHeight()) != "" {
 		// the pinned line is the first of the row under the cursor, in place of the … above
@@ -888,7 +899,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 	row, first := lines[k].row, k == 0 || lines[k-1].row != lines[k].row
 	link := ""
 	if first {
-		link = grid.LinkAt(rows, row, m.paneWidth(), x)
+		link = grid.LinkAt(rows, m.names(m.stage), row, m.paneWidth(), x)
 	}
 	toggle := first && link == "" && (x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel = row, true, false

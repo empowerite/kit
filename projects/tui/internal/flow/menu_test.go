@@ -233,7 +233,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	wheel := tea.MouseWheelMsg{X: 10, Y: paneTop + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
 	m := loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
-	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[paneTop], " "+style.Opened) {
+	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[m.rowsTop()], " "+style.Opened) {
 		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
 	}
 	opened := openRows(m)
@@ -241,21 +241,27 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
 	m = loaded(t, options(), size, right, right, right, press(':'), press(tea.KeyEnter), wheel)
-	if m = drive(m, testkit.Click(1, paneTop)); openRows(m) != opened-1 {
+	if m = drive(m, testkit.Click(1, m.rowsTop())); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
 }
 
-// Show Headers, in the tab's menu, stands the names of the stage's columns over its rows, checked while it does: a
-// header that never scrolls, a thin dim line under it, and no row of its own, so a click on it chooses nothing. Each
-// stage keeps its own; incoming, whose rows are no columns, has none to show.
+// Show Headers, in the tab's menu, stands the names of the stage's columns over its rows, as every stage opens, checked
+// while it does: a header that never scrolls, a thin dim line under it, and no row of its own, so a click on it
+// chooses nothing. Choosing it again hides them. Each stage keeps its own; incoming, whose rows are no columns, has
+// none to show.
 func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, press(':'))
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 11}, right, right, right, press(':'))
 	box, _ := m.menuBox()
-	if !strings.Contains(ansi.Strip(box[4]), "    Show Headers") || m.rowsTop() != paneTop {
-		t.Fatalf("the menu before: %q", ansi.Strip(box[4]))
+	if !strings.Contains(ansi.Strip(box[4]), Checked+"  Show Headers") || m.rowsTop() == paneTop {
+		t.Fatalf("the menu as the stage opens: %q", ansi.Strip(box[4]))
 	}
 	m = drive(m, typed("s")[0], press(tea.KeyEnter))
+	if box, _ = drive(m, press(':')).menuBox(); m.stages[m.stage].headers || m.rowsTop() != paneTop ||
+		!strings.Contains(ansi.Strip(box[4]), "    Show Headers") {
+		t.Fatalf("show headers did not hide them:\n%s", view(m))
+	}
+	m = drive(m, press(':'), typed("s")[0], press(tea.KeyEnter))
 	drawn := lines(m)
 	if !m.stages[m.stage].headers || m.menu || !strings.Contains(drawn[paneTop], "branch") ||
 		!strings.Contains(drawn[paneTop], "uncommitted") || !strings.HasPrefix(drawn[m.rowsTop()-1], "   ───") ||
@@ -282,12 +288,54 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	if strings.Contains(lines(m)[paneTop], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
-	// the stage beside has none, and incoming cannot show them
-	if m = drive(m, esc, right); m.rowsTop() != paneTop {
-		t.Errorf("changes shows the worktrees' headers")
+	// the stage beside keeps its own: hidden here, still shown there
+	m = drive(m, esc, press(':'), typed("s")[0], press(tea.KeyEnter))
+	if m = drive(m, right); m.rowsTop() == paneTop {
+		t.Errorf("changes lost its headers with the worktrees'")
 	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
 	if m.stages[m.stage].name != "incoming" || m.enabled(3) {
 		t.Errorf("%s offers headers", m.stages[m.stage].name)
+	}
+}
+
+// A header whose names take more than a line shows its first alone, with ▸ before it, until it is opened: by a click
+// on its gutter, as a row's, or by Expand All, which Collapse All undoes; the rows then start under every line of it.
+func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
+	long := slices.Clone(columns["backlog"])
+	long[len(long)-1] = "the title of the issue, as its tracker gives it, in full"
+	defer func(was []string) { columns["backlog"] = was }(columns["backlog"])
+	columns["backlog"] = long
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
+	closed := m.rowsTop()
+	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], " "+style.Off("▸")) || closed != paneTop+2 {
+		t.Fatalf("the closed header:\n%s", view(m))
+	}
+	if m = drive(m, testkit.Click(1, paneTop)); !m.stages[0].headed || m.rowsTop() <= closed ||
+		!strings.HasPrefix(lines(m)[paneTop], " ▾") || m.inRows {
+		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
+	}
+	if m = drive(m, testkit.Click(1, paneTop)); m.stages[0].headed {
+		t.Error("a second click did not close it")
+	}
+	// Expand All opens it with the rows, and Collapse All closes it, each enabled for the header alone too
+	m = drive(m, press(':'))
+	if !m.enabled(0) || m.enabled(1) {
+		t.Errorf("expand all %v, collapse all %v, over a closed header", m.enabled(0), m.enabled(1))
+	}
+	if m = drive(m, press(tea.KeyEnter)); !m.stages[0].headed {
+		t.Error("expand all left the header closed")
+	}
+	if m = drive(m, press(':')); !m.enabled(1) {
+		t.Error("collapse all is dim over an open header")
+	}
+	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); m.stages[0].headed || m.rowsTop() != closed {
+		t.Errorf("collapse all left the header open:\n%s", view(m))
+	}
+	// a click on the header off its gutter, or on its rule, does nothing
+	before := m.stages[0].cursor
+	if m = drive(m, down, testkit.Click(10, paneTop), testkit.Click(1, paneTop+1)); m.stages[0].headed ||
+		m.stages[0].cursor != before+1 {
+		t.Error("a click on the header's names or rule did something")
 	}
 }

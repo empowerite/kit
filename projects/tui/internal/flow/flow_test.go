@@ -34,6 +34,13 @@ func runner(t *testing.T) kit.Runner {
 	return testkit.Runner(t, "flow")
 }
 
+// bare gives the options, every stage's headers hidden, for a test of how the rows alone take the pane.
+func bare() Options {
+	o := options()
+	o.NoHeaders = true
+	return o
+}
+
 // options gives the eight stages and origin as a test knows them.
 func options() Options {
 	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}}
@@ -285,18 +292,18 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 // and again closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	click := testkit.Click
-	m := loaded(t, options(), right, right, right)
+	m := loaded(t, bare(), right, right, right)
 	// the screen line the row is drawn on, as the person sees it
-	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "42-settings") }); y != paneTop+1 {
-		t.Fatalf("the second row is drawn on line %d, not %d", y, paneTop+1)
+	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "42-settings") }); y != m.rowsTop()+1 {
+		t.Fatalf("the second row is drawn on line %d, not %d", y, m.rowsTop()+1)
 	}
-	if m = drive(m, click(6, paneTop+1)); !m.inRows || m.find("worktrees").cursor != 1 {
+	if m = drive(m, click(6, m.rowsTop()+1)); !m.inRows || m.find("worktrees").cursor != 1 {
 		t.Fatalf("a click on the second row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
 	}
-	if m = drive(m, click(6, paneTop+1)); !strings.Contains(view(m), style.Opened+" "+Branch+" 42-settings") {
+	if m = drive(m, click(6, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" "+Branch+" 42-settings") {
 		t.Errorf("a click on the row under the cursor did not open it:\n%s", view(m))
 	}
-	if m = drive(m, click(6, paneTop+1)); strings.Contains(view(m), style.Opened) {
+	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a second click did not close it:\n%s", view(m))
 	}
 	if m = drive(m, click(6, paneTop)); m.find("worktrees").cursor != 0 || m.stage != 3 {
@@ -314,7 +321,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
+	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
 	if m.find("worktrees").cursor != 2 || !strings.Contains(lines(m)[paneTop], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").cursor, view(m))
 	}
@@ -838,7 +845,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
 	got := lines(m)
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
@@ -981,7 +988,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
 	got := lines(m)
 	if len(got) != 10 || got[9] != " "+at80(closes) {
 		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
@@ -1049,8 +1056,8 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 }
 
 func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *testing.T) {
-	m := loaded(t, options(), right, right, right)
-	rows := lines(m)[4:7]
+	m := loaded(t, bare(), right, right, right)
+	rows := lines(m)[m.rowsTop() : m.rowsTop()+3]
 	for i, want := range [][]string{
 		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2  🏁 ready", "3 uncommitted"},
 		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
@@ -1078,8 +1085,8 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 }
 
 func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
-	m := loaded(t, options(), right, right)
-	pane := lines(m)[4:]
+	m := loaded(t, bare(), right, right)
+	pane := lines(m)[m.rowsTop():]
 	for _, text := range []string{Desk + " main", "↑12 ↓1", "2 uncommitted"} {
 		if !strings.Contains(pane[0], text) {
 			t.Errorf("the desk's row lacks %q: %q", text, pane[0])
@@ -1190,7 +1197,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
 	// worktrees is the fourth stage; its first row, opened, is taller than a pane on a short screen
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, toggle)
 	if m.stage != 3 || m.find("worktrees").cursor != 0 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
@@ -1233,11 +1240,11 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 
 func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between incoming and releases
-	m := loaded(t, options(), right, right, right, right, right)
+	m := loaded(t, bare(), right, right, right, right, right)
 	if m.stages[m.stage].name != "builds" || !shows(m, Build, "4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}
-	rows := lines(m)[4:8]
+	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
 		{Running + "  release    #7  tag       release/0.1.0  1a2b3c4", "5m", "…"},
 		{Failed + "  kit      #160  push      main           8e817bf  #45 status: the builds", "2h", "4m 02s"},
@@ -1338,11 +1345,11 @@ func TestTookIsToTheSecond(t *testing.T) {
 
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
-	m := loaded(t, options(), right)
+	m := loaded(t, bare(), right)
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
-	rows := lines(m)[4:8]
+	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
 		{"#1  " + Owner + " jeffrey-aguilera", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
 			Issue + " The first release"},
@@ -1421,7 +1428,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		strings.Contains(v, Desk+" /") {
 		t.Errorf("the open row elsewhere:\n%s", v)
 	}
-	if s := m.find("underway"); s.open["#8 #4"] || grid.Opens(m.rows(1), s.cursor, m.paneWidth()) {
+	if s := m.find("underway"); s.open["#8 #4"] || grid.Opens(m.rows(1), nil, s.cursor, m.paneWidth()) {
 		t.Errorf("a row elsewhere with a short title opens: %v", s.open)
 	}
 	// the URLs kit prints win, as a merge request's on GitLab
@@ -1464,7 +1471,7 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 // A click on underway's pull request glyph selects changes, the cursor on that pull request's row; a click on its
 // state's glyph opens its page; without changes in the picture, the pull request's glyph opens the page too.
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
-	m := loaded(t, options(), right, down, down)
+	m := loaded(t, bare(), right, down, down)
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
 	}
