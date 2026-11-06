@@ -932,8 +932,9 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
 	m = drive(m, down, toggle)
 	v := view(m)
-	// the title has what the other columns leave, each drawn without the glyph every row shares
-	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  46-a-noun-lists  A noun lists",
+	// the title has what the other columns leave, each drawn without the glyph every row shares, and the branch, which one
+	// row alone has, with its own
+	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  A noun lists",
 		"#7  ada           +1  40d", "five stages, interactive on a", "terminal, and the listing"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
@@ -1174,7 +1175,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 	m := loaded(t, bare(), right, right, right)
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+3]
 	for i, want := range [][]string{
-		{" 1-the-first-release-v0-1-0", "↑266 ↓0", "#2  ready", "3 uncommitted"},
+		{" 1-the-first-release-v0-1-0", "↑266 ↓0", "#2  🏁 ready", "3 uncommitted"},
 		{" 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
 		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
 	} {
@@ -1216,7 +1217,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	}
 	m = drive(m, down, toggle)
 	v := view(m)
-	order := []string{style.Opened + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
+	order := []string{style.Opened + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
 		"c0ffeea #45 status: the goldens", "c0ffeeb #45 status: the eleventh", "… and 1 more"}
 	at := -1
 	for _, want := range order {
@@ -1232,7 +1233,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	// a desk on a branch with a pull request shows it, as a worktree does
 	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
 	m.rebuild()
-	if !strings.Contains(view(m), "#2  ready") {
+	if !strings.Contains(view(m), "#2  🏁 ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
 	}
 	// its pull request's glyph leads to its row under changes, and its state's to its page

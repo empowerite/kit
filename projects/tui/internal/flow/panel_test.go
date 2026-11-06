@@ -718,13 +718,13 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 		!strings.Contains(presetText(m), "assignees: ¬@me") {
 		t.Errorf("exclude: %v, %q", keys(m), presetText(m))
 	}
-	// auto draws the logins without the glyph they all share, and says so; glyph+text, pinned, draws it again
-	if strings.Contains(drawn(m), Owner) || !strings.Contains(view(m), "auto text") {
+	// auto keeps the glyph of the one row with a login, as no other row shares it, and says so; text, pinned, drops it
+	if !strings.Contains(drawn(m), Owner) || !strings.Contains(view(m), "auto glyph+text") {
 		t.Errorf("assignees drawn by auto:\n%s", view(m))
 	}
-	x, y := popLineAt(t, m, "glyph+text")
-	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "glyph+text" || !strings.Contains(drawn(m), Owner) {
-		t.Errorf("a click on glyph+text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
+	x, y := popLineAt(t, m, "text")
+	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
+		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
 	// esc closes it; the editor has the keyboard, and marks the field sorted and filtered
 	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ▲ ⊘") {

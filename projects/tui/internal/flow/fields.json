@@ -71,7 +71,7 @@
       "stage": "desk", "record": ".",
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "💻", "renderings": ["checkout", "name", "text"], "placement": "column"},
+         "glyph": "💻", "renderings": ["checkout", "name"], "placement": "column"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
@@ -98,7 +98,7 @@
       "stage": "worktrees", "record": ".worktrees[]",
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "🌿", "renderings": ["checkout", "name", "text"], "placement": "column"},
+         "glyph": "🌿", "renderings": ["checkout", "name"], "placement": "column"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,

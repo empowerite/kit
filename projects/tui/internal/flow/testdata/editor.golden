@@ -5,8 +5,8 @@
    unnamed ▾ ●  assignees: @me                                                     💾 Save │ columns
      id  age ▼  title                                                                      │ ☑ id
    ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ age ▼                   
- ▾ github source  1                                                                        │ ☑ branch
-     #7    40d  Fix the thing                                                              │ ☑ title
+ ▾ 🐙 github source  1                                                                     │ ☑ branch
+     #7    40d  🎫 Fix the thing                                                           │ ☑ title
                                                                                            │ hidden
                                                                                            │ ☐ assignees ⊘
                                                                                            │

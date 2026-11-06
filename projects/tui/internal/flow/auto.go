@@ -74,10 +74,14 @@ func automatic(fields []placed, vs map[string][]value, width int) map[string]str
 }
 
 // sharesGlyph says whether every value the rows hold in a field draws the same glyph, so the glyph says nothing the
-// value does not: a row that holds none draws none, and does not count, and with no value there is none to share.
+// value does not: a row that holds none draws none, and does not count. Two rows at least must share it: the glyph of
+// a row alone, as the desk's, says what the row is, which nothing beside it says.
 func (f field) sharesGlyph(vs []value) bool {
-	seen := ""
+	seen, rows := "", 0
 	for _, v := range vs {
+		if len(v.Raw) > 0 {
+			rows++
+		}
 		for _, r := range v.Raw {
 			g := f.glyphOf(r)
 			if g == "" || seen != "" && g != seen {
@@ -86,5 +90,5 @@ func (f field) sharesGlyph(vs []value) bool {
 			seen = g
 		}
 	}
-	return seen != ""
+	return seen != "" && rows > 1
 }

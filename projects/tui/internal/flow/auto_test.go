@@ -64,9 +64,13 @@ func TestAGlyphEveryRowSharesIsDropped(t *testing.T) {
 	if got := automatic(fields, map[string][]value{"source": sources("github", "gitlab")}, 200); got["source"] != "glyph+text" {
 		t.Errorf("github and gitlab: %v", got)
 	}
-	// a row without a value draws no glyph, and does not count; no value at all leaves the field's first
-	if got := automatic(fields, map[string][]value{"source": {{}, some("gitlab")}}, 200); got["source"] != "text" {
-		t.Errorf("gitlab and a row without a source: %v", got)
+	// a row without a value draws no glyph, and does not count; one row alone shares its glyph with none, and keeps it;
+	// no value at all leaves the field's first
+	if got := automatic(fields, map[string][]value{"source": {{}, some("gitlab"), some("gitlab")}}, 200); got["source"] != "text" {
+		t.Errorf("gitlab twice and a row without a source: %v", got)
+	}
+	if got := automatic(fields, map[string][]value{"source": {{}, some("gitlab")}}, 200); got["source"] != "glyph+text" {
+		t.Errorf("gitlab once and a row without a source: %v", got)
 	}
 	if got := automatic(fields, map[string][]value{"source": {{}, {}}}, 200); got["source"] != "glyph+text" {
 		t.Errorf("no source: %v", got)

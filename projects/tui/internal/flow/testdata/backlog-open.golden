@@ -3,16 +3,16 @@
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     ▹
   ╵                  ╰────────────────────╰────────────────╰───────────────────┐
    Default ▾                                                                   │
-      id  assignees         age  branch           title                        │
+      id  assignees         age  branch            title                       │
    ─────────────────────────────────────────────────────────────────────────── │
  ▾ github source  3                                                            │
-   ▾ #45                     2h                   kit flow is the one picture: │
-                                                  five stages, interactive on  │
-                                                  a terminal, and the listing  │
-                                                  verbs fold into it           │
-   ▸ #46  jeffrey-aguilera   2d  46-a-noun-lists  A noun lists, a noun with a… │
-   ▸  #7  ada           +1  40d                   Fix the thing                ◂
-                                                                               ╷
+   ▾ #45                     2h                    kit flow is the one         │
+                                                   picture: five stages,       │
+                                                   interactive on a terminal,  │
+                                                   and the listing verbs fold  │
+                                                   into it                     │
+   ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  A noun lists, a noun with … ◂
+   ▸  #7  ada           +1  40d                    Fix the thing               ╷
                                                                                │
                                                                                │
                                                                                │
