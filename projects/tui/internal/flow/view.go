@@ -4,6 +4,7 @@
 package flow
 
 import (
+	"cmp"
 	"slices"
 	"strconv"
 	"strings"
@@ -73,7 +74,7 @@ func (m Model) View() tea.View {
 // and count, the room for the widest count of n/m its rows allow and the menu's glyph kept for each, the keyboard on it unless the rows or the
 // panel have it, and the selected stage's group's color.
 func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel, Width: m.barWidth(), Row: 1,
+	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Width: m.barWidth(), Row: 1,
 		Menus: true, MenuOpen: m.menu, Joined: true}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
@@ -136,24 +137,31 @@ func (m Model) paneWidth() int {
 }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? shows or hides the sidebar
-// and tab gives it the keyboard; the stages' bar; and the part the keyboard is in, the rows or the sidebar and its
-// control under the keyboard. An open menu or dialog takes every press, and is the path alone.
+// and tab gives it the keyboard; the stages' bar, whose down reaches the preset line, or the rows where the stage has
+// none; and the part the keyboard is in, the preset line, the rows, or the sidebar and its control under the keyboard.
+// An open menu or dialog takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	switch {
 	case m.ask != nil:
 		_, keys := m.askKeys()
 		return shell.Path{shell.DialogKeys(keys)}
-	case m.viewMenu, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	if len(m.stages) == 0 {
 		return shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()))}
 	}
+	down := "rows"
+	if m.presets(m.stage) {
+		down = "preset"
+	}
 	path := shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()), shell.Bind("⇥", "sidebar", "tab")),
-		m.bar().Keys("rows")}
+		m.bar().Keys(down)}
 	switch {
 	case m.inPanel:
-		return append(path, m.sidebarKeys(), m.controlKeys())
+		return append(path, m.sidebarKeys(), m.panel(m.stage).Keys(len(m.recent.Items) > 0))
+	case m.onPreset:
+		return append(path, m.presetKeys())
 	case m.inRows:
 		return append(path, m.rowKeys())
 	}
@@ -169,13 +177,16 @@ func (m Model) sidebarDoes() string {
 }
 
 // sidebarKeys gives the segment of the sidebar while it has the keyboard: tab or esc gives the keyboard back to the
-// rows or the bar, as they had it, named by the stage the bar has selected; up and down move between its controls, and
-// a page at a time scrolls it, while it shows. It takes every other press, but the menus', the search's, and a stage's
-// number.
+// rows, the preset line, or the bar, as they had it, the bar named by the stage it has selected; up and down move
+// between its controls, and a page at a time scrolls it, while it shows. It takes every other press, but the menus',
+// the search's, and a stage's number.
 func (m Model) sidebarKeys() shell.Segment {
 	back := m.stages[m.stage].name
-	if m.inRows {
+	switch {
+	case m.inRows:
 		back = "rows"
+	case m.onPreset:
+		back = "preset"
 	}
 	s := shell.Segment{Owns: true, Passes: append([]string{"=", ":", ";", "/"}, shell.Digits...),
 		Bindings: []shell.Binding{shell.Bind("⇥", back, "tab"), shell.Bind("esc", back)}}
@@ -188,21 +199,26 @@ func (m Model) sidebarKeys() shell.Segment {
 	return s
 }
 
-// controlKeys gives the segment of the sidebar's control under the keyboard: the panel's own; on the views' dropdown,
-// enter or space drops the views down, ctrl+s saves the panel as the view named, and what is typed renames it, = : and
-// ; apart, which the menus take; esc stops a rename.
-func (m Model) controlKeys() shell.Segment {
-	p := m.panel(m.stage)
-	if !p.OnView() {
-		return p.Keys(len(m.recent.Items) > 0)
-	}
-	s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"},
-		Bindings: []shell.Binding{shell.Bind("⏎", "views", "enter", "space"), shell.Bind("⌃S", "save", "ctrl+s"),
-			shell.Bind("", "type to rename")}}
+// presetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard,
+// named by the stage it has selected, and down the rows, when the stage has some; enter or space drops the presets
+// down; ctrl+s saves the panel under the name shown while 💾 does; and what is typed renames it, = : and ; apart, which
+// the menus take, and esc stops a rename.
+func (m Model) presetKeys() shell.Segment {
+	s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
+	name := m.stages[m.stage].name
 	if m.stages[m.stage].renaming {
-		s.Bindings = append(s.Bindings, shell.Bind("esc", "cancel"))
+		s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", "cancel"))
+	} else {
+		s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", name))
 	}
-	return s
+	if len(m.rows(m.stage)) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
+	}
+	s.Bindings = append(s.Bindings, shell.Bind("⏎", "presets", "enter", "space"))
+	if m.changed(m.stage) {
+		s.Bindings = append(s.Bindings, shell.Bind("⌃S", "save", "ctrl+s"))
+	}
+	return s.With(shell.Bind("", "type to rename"))
 }
 
 // rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
@@ -386,20 +402,31 @@ func (m Model) rule() string {
 	return "   " + style.Off(strings.Repeat("─", left)) + style.Tint(label) + style.Off("─")
 }
 
-// headerLines gives the header's lines alone.
+// headerLines gives the lines over the rows, which do not scroll: the preset line, where the stage has one, then the
+// header, when shown.
 func (m Model) headerLines() []string {
 	lines, _ := m.header()
+	if m.presets(m.stage) {
+		return append([]string{m.presetLine()}, lines...)
+	}
 	return lines
 }
 
-// rowsTop gives the screen line the rows start on: the pane's first, or the one under the header.
-func (m Model) rowsTop() int { return paneTop + len(m.headerLines()) }
+// headTop gives the screen line the header starts on: the pane's first, or the one under the preset line.
+func (m Model) headTop() int { return paneTop + btoi(m.presets(m.stage)) }
 
-// rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's, which do not.
-func (m Model) rowsHeight() int { return max(1, m.paneHeight()-len(m.headerLines())) }
+// rowsTop gives the screen line the rows start on: the pane's first, or the one under the preset line and the header.
+func (m Model) rowsTop() int {
+	lines, _ := m.header()
+	return m.headTop() + len(lines)
+}
 
-// pane gives the pane's lines, as many as it has, each as wide as the pane: the header, when shown, then the selected
-// stage's rows from its offset on.
+// rowsHeight gives the lines the rows have, which scroll: the pane's, less the preset line's and the header's, which do
+// not.
+func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-paneTop)) }
+
+// pane gives the pane's lines, as many as it has, each as wide as the pane: the preset line and the header, when
+// shown, then the selected stage's rows from its offset on.
 func (m Model) pane() []string {
 	h := m.rowsHeight()
 	out := m.headerLines()
@@ -542,3 +569,90 @@ func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
 // Noticing says whether the keys bar's line says what was done, or why not, in place of the keys, until a key: kittui
 // keeps it on the screen while the keys bar is hidden.
 func (m Model) Noticing() bool { return m.notice != "" }
+
+// lead is what stands before the preset line's name: the gutter the rows' marks and folds take.
+const lead = "   "
+
+// presets says whether a stage's table has a preset line: one with columns, the views of which it names.
+func (m Model) presets(i int) bool {
+	return !m.noPresets && i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0
+}
+
+// presetName gives the name the preset line shows, without its styles, and whether it is Unnamed: as typed while the
+// view is renamed, with a caret while the line has the keyboard; else the view's, or Unnamed while it names none.
+func (m Model) presetName() (string, bool) {
+	name := m.viewShown(m.stage)
+	switch {
+	case m.stages[m.stage].renaming && m.onPreset && !m.inPanel:
+		return name + "▏", false
+	case name == "":
+		return Unnamed, true
+	}
+	return name, false
+}
+
+// dropEnd gives the screen column after the preset line's ▾, before which a click drops the presets down.
+func (m Model) dropEnd() int {
+	name, _ := m.presetName()
+	return len(lead) + ansi.StringWidth(name) + 2
+}
+
+// presetLine draws the line on top of the selected stage's table, as wide as the pane: the view's name, Unnamed dim
+// while it names none, and ▾, inverse while the line has the keyboard; Differs, in the accent, while the table differs
+// from every view; a chip per filter the panel sets, as chips gives them, clipped where the line is short; and Saving
+// at the line's right end while the table differs or the name was changed, its word dim while there is no name to save
+// it under: an emoji draws in its own colors, which no dimming changes.
+func (m Model) presetLine() string {
+	i := m.stage
+	name, unnamed := m.presetName()
+	if unnamed {
+		name = style.Off(name)
+	}
+	text := name + " ▾"
+	if m.onPreset && !m.inPanel {
+		text = style.Cursor(ansi.Strip(text))
+	}
+	text = lead + text
+	is, changed, savable := m.standing(i)
+	if is == "" {
+		text += " " + style.Tint(Differs)
+	}
+	button, width := "", m.paneWidth()
+	if changed {
+		word := SaveText
+		if !savable {
+			word = style.Off(word)
+		}
+		button = Save + " " + word
+	}
+	if chips := m.chips(i); len(chips) > 0 {
+		room := width - ansi.StringWidth(text) - 2 - ansi.StringWidth(button) - 1
+		if room > 1 {
+			text += "  " + ansi.Truncate(strings.Join(chips, "  "), room, "…")
+		}
+	}
+	if button == "" {
+		return text
+	}
+	return pane.Pad(text, max(ansi.StringWidth(text)+1, width-ansi.StringWidth(Saving)), false) + button
+}
+
+// chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the
+// values it lets through, or, ¬ before each, those it holds back, in the accent.
+func (m Model) chips(i int) []string {
+	var out []string
+	for _, f := range fieldsOf(m.stages[i].name) {
+		filter := m.stages[i].view.Field(f.ID).Filter
+		if len(filter.Values) == 0 {
+			continue
+		}
+		values := slices.Clone(filter.Values)
+		if filter.Exclude {
+			for k := range values {
+				values[k] = "¬" + values[k]
+			}
+		}
+		out = append(out, style.Tint(cmp.Or(f.Label, f.ID)+": "+strings.Join(values, ", ")))
+	}
+	return out
+}

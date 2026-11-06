@@ -718,43 +718,20 @@ func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	}
 }
 
-// The views' dropdown stands under the search, two lines of gap above it and one under it, before the columns: the
-// view's name and ▾, a caret while it is renamed under the keyboard, inverse there, and 💾 Save at the line's right
-// while the panel differs, its word dim while there is no name to save under; with no name, unnamed stands dim.
-func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
-	p := Panel{Columns: []string{"id", "title"}, Views: true, View: "Default", Fill: 24}
+// Under the search, after a line of gap, the columns start: the panel has no control between them.
+func TestTheColumnsStandUnderTheSearch(t *testing.T) {
+	p := Panel{Columns: []string{"id", "title"}, Fill: 24}
 	lines, at := p.Lines()
 	plain := make([]string, len(lines))
 	for k, l := range lines {
 		plain[k] = strings.TrimRight(ansi.Strip(l), " ")
 	}
-	if !slices.Equal(plain[:6], []string{"🔎 search", "", "", "Default ▾", "", "columns"}) ||
-		!slices.Equal(at[:6], []int{0, -1, -1, 1, -1, -1}) || !p.ViewAt(3) || p.ViewAt(5) || p.OnView() {
-		t.Errorf("the dropdown: %q %v", plain[:6], at[:6])
+	if !slices.Equal(plain[:4], []string{"🔎 search", "", "columns", Ticked + " id"}) ||
+		!slices.Equal(at[:4], []int{0, -1, -1, 1}) {
+		t.Errorf("the panel's first lines: %q %v", plain[:4], at[:4])
 	}
-	p.Focused, p.Cursor, p.Naming, p.Changed, p.Savable, p.View = true, 1, true, true, true, "Mine"
-	lines, _ = p.Lines()
-	if !p.OnView() || !strings.HasPrefix(lines[3], style.Cursor("Mine▏ ▾")[:8]) ||
-		!strings.HasSuffix(lines[3], Saving) || ansi.StringWidth(lines[3]) != 24 {
-		t.Errorf("renamed under the keyboard, changed: %q", lines[3])
-	}
-	// changed with no name: unnamed, dim, and the button's word dim
-	p.Focused, p.Naming, p.Savable, p.View = false, false, false, ""
-	lines, _ = p.Lines()
-	if !strings.HasPrefix(lines[3], style.Off(Unnamed)+" ▾") || !strings.HasSuffix(lines[3], Save+" "+style.Off(SaveText)) ||
-		ansi.StringWidth(lines[3]) != 24 {
-		t.Errorf("changed, no name: %q", lines[3])
-	}
-	p.Focused, p.View, p.Savable = true, "Mine", true
-	// the dropdown's keys are its screen's, but up and down
-	if _, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); ok {
-		t.Error("the panel took enter on the dropdown")
-	}
-	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.Cursor != 2 {
-		t.Errorf("down from the dropdown: %d", q.Cursor)
-	}
-	if q, ok := p.Click(3); !ok || q.Cursor != 1 || q.Showing() != p.Showing() {
-		t.Errorf("a click on the dropdown: %d", q.Cursor)
+	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.ColumnAt(3) != "id" || q.Cursor != 1 {
+		t.Errorf("down from the search: %d", q.Cursor)
 	}
 }
 

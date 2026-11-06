@@ -1,25 +1,22 @@
   ≡ kit flow · 📚 empowerite/kit                                                             🔎 search
   ────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────╮➆╶──────────────
- ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹
-  ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ Default ▾
-   change  title         author      state       age  checks      threads      branch      │
-   ─────────────────────────────────────────────────────────────────────────────────────── │ columns
- ▸ 🔀 #2   The first r…  👤 jeffre…  🏁 ready     8d  ✅ 1 / 1 …               🌿 1-the-f… │ ☑ change
- ▸ 🔀 #3   A spike on …  👤 ada      🔨 draft    90m  🏃 0 / 2    💬 2 unres…  🌿 3-a-spi… │ ☑ title
- ▸ 🔀 #4   Lint every …  👤 bob      🔥 failin…  25h  ❌ lint f…               🌿 4-lint-… │ ☑ author
-                                                                                           │ ☑ state
-                                                                                           │ ☑ age
-                                                                                           │ ☑ checks
-                                                                                           │ ☑ threads
+ ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ columns
+  ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ ☑ change
+   Default ▾                                                                               │ ☑ title
+   change  title         author      state       age  checks      threads      branch      │ ☑ author
+   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ state
+ ▸ 🔀 #2   The first r…  👤 jeffre…  🏁 ready     8d  ✅ 1 / 1 …               🌿 1-the-f… │ ☑ age
+ ▸ 🔀 #3   A spike on …  👤 ada      🔨 draft    90m  🏃 0 / 2    💬 2 unres…  🌿 3-a-spi… │ ☑ checks
+ ▸ 🔀 #4   Lint every …  👤 bob      🔥 failin…  25h  ❌ lint f…               🌿 4-lint-… │ ☑ threads
                                                                                            │ ☑ branch
                                                                                            │
                                                                                            │ show
                                                                                            │ ⦿ all
-                                                                                           ▸ ⦾ mine
-                                                                                           ╷ ⦾ others
+                                                                                           │ ⦾ mine
+                                                                                           │ ⦾ others
                                                                                            │
-                                                                                           │ legend
-                                                                                           │ 🔀 a pull request 🔗
+                                                                                           ▸ legend
+                                                                                           ╷ 🔀 a pull request 🔗
                                                                                            │ 👤 assignees or author
                                                                                            │ 🌿 a branch or a worktree
                                                                                            │ 🏃 running
@@ -28,5 +25,8 @@
                                                                                            │ 💬 threads unresolved
                                                                                            │ 🛫 underway
                                                                                            │ 🎫 an issue
-                                                                                           │ … 11 more
- = menu  / search  ? hide sidebar  ⇥ sidebar │ ←→ tab  ↓ rows  1-8 jump  : tab menu
+                                                                                           │
+                                                                                           │ state 🔗
+                                                                                           │ 🔨 draft
+                                                                                           │ … 8 more
+ = menu  / search  ? hide sidebar  ⇥ sidebar │ ←→ tab  ↓ preset  1-8 jump  : tab menu

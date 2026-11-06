@@ -27,8 +27,8 @@ var fieldsJSON []byte
 var catalog = readCatalog(fieldsJSON)
 
 // stageFields is one stage's part of the catalog: the stage; the record its rows are read from, as jq names it in kit
-// flow <stage> --json; its fields, in the order its columns stand; and its own presets, in the order its dropdown lists
-// them.
+// flow <stage> --json; its fields, in the order its columns stand; and its own presets, in the order its preset line
+// lists them.
 type stageFields struct {
 	Stage   string   `json:"stage"`
 	Record  string   `json:"record"`

@@ -1,25 +1,22 @@
   ≡ kit flow · 📚 empowerite/kit                     🔎 search
   ──────────────╴➎╶─────────────────╮➅╶─────────────
- ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹
-  ───────────────╯                  ╰──────────────┐ Default ▾
- ▸ change  title   author  state   age  checks  t… │
-   ─────────────────────────────────────────────── │ columns
- ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ change
- ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ title
- ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ author
-                                                   │ ☑ state
-                                                   │ ☑ age
-                                                   │ ☑ checks
-                                                   │ ☑ threads
+ ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ columns
+  ───────────────╯                  ╰──────────────┐ ☑ change
+   Default ▾                                       │ ☑ title
+ ▸ change  title   author  state   age  checks  t… │ ☑ author
+   ─────────────────────────────────────────────── │ ☑ state
+ ▸ 🔀 #2   The f…  👤 je…  🏁 re…   8d  ✅ 1 …   … │ ☑ age
+ ▸ 🔀 #3   A spi…  👤 ada  🔨 dr…  90m  🏃 0 …  …  │ ☑ checks
+ ▸ 🔀 #4   Lint …  👤 bob  🔥 fa…  25h  ❌ li…   … │ ☑ threads
                                                    │ ☑ branch
                                                    │
                                                    │ show
                                                    │ ⦿ all
-                                                   ▸ ⦾ mine
-                                                   ╷ ⦾ others
+                                                   │ ⦾ mine
+                                                   │ ⦾ others
                                                    │
-                                                   │ legend
-                                                   │ 🔀 a pull request 🔗
+                                                   ▸ legend
+                                                   ╷ 🔀 a pull request 🔗
                                                    │ 👤 assignees or author
                                                    │ 🌿 a branch or a worktree
                                                    │ 🏃 running
@@ -28,5 +25,8 @@
                                                    │ 💬 threads unresolved
                                                    │ 🛫 underway
                                                    │ 🎫 an issue
-                                                   │ … 11 more
- … │ ←→ tab  ↓ rows  1-8 jump  : tab menu
+                                                   │
+                                                   │ state 🔗
+                                                   │ 🔨 draft
+                                                   │ … 8 more
+ … │ ←→ tab  ↓ preset  1-8 jump  : tab menu

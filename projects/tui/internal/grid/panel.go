@@ -101,12 +101,9 @@ const (
 // says. Owner is the field that names the people the rows belong to, whose filter the choice of Show sets, none when
 // they belong to nobody; mine and others need the caller's login, Me; while it is unknown they are dim, and cannot be
 // chosen. Cursor is the control under the keyboard, Focused whether the panel has it. Recall says whether there are
-// searches to recall, which the search, with the keyboard, offers with its Recall glyph. Views says whether the panel
-// offers a dropdown of named views under its search: View is the name it shows, none once the panel differs from its
-// view, Naming whether the person is typing a new one, Changed whether the panel differs from the view or the name was
-// changed, which shows Save, and Savable whether there is a name to save it under, without which Save is dim. Closed
-// holds the keys of the groups' headings whose rows are folded away under them, as Close says, a new map as Fields is.
-// Fill is the cells the control under the keyboard is drawn inverse across, at least.
+// searches to recall, which the search, with the keyboard, offers with its Recall glyph. Closed holds the keys of the
+// groups' headings whose rows are folded away under them, as Close says, a new map as Fields is. Fill is the cells the
+// control under the keyboard is drawn inverse across, at least.
 type Panel struct {
 	Query     string
 	Columns   []string
@@ -117,11 +114,6 @@ type Panel struct {
 	Auto      []string
 	AutoAt    map[string]int
 	Recall    bool
-	Views     bool
-	View      string
-	Naming    bool
-	Changed   bool
-	Savable   bool
 	Closed    map[string]bool
 	Fill      int
 	Owner     string
@@ -688,7 +680,6 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 // control is one of the panel's controls: the search, a column's checkbox, or a choice of Show.
 type control struct {
 	search bool
-	view   bool
 	column string
 	show   Show
 }
@@ -696,9 +687,6 @@ type control struct {
 // controls gives the panel's controls, in order.
 func (p Panel) controls() []control {
 	out := []control{{search: true}}
-	if p.Views {
-		out = append(out, control{view: true})
-	}
 	for _, c := range p.Arrange(p.Columns) {
 		if c != "" {
 			out = append(out, control{column: c})
@@ -725,12 +713,6 @@ func (p Panel) Lines() (lines []string, at []int) {
 		switch {
 		case c.search:
 			line = shell.RecallLine(p.Query, p.Focused && p.Cursor == k, p.Recall)
-		case c.view:
-			add("", -1)
-			add("", -1)
-			line = p.viewLine(p.Focused && p.Cursor == k)
-			add(line, k)
-			continue
 		case c.column != "":
 			if controls[k-1].column == "" {
 				add("", -1)
@@ -809,10 +791,6 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
 	c := controls[p.Cursor]
-	if key := k.String(); c.view && key != "up" && key != "down" {
-		// the dropdown's keys are its screen's to take: it opens the views, names one, and saves it
-		return p, false
-	}
 	switch key := k.String(); {
 	case key == "up":
 		p.Cursor = max(p.Cursor-1, 0)
@@ -851,14 +829,11 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 // there are some; a column's line shows or hides it with space or enter, sorts by it with s, groups by it with g where
 // the column can group, or stops the folding where the rows group by it on their own, and orders it among the others
 // with shift and up or down; a choice of whose rows show is taken with space or enter.
-// The views' dropdown takes keys its screen says.
 func (p Panel) Keys(recalls bool) shell.Segment {
 	controls := p.controls()
 	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
 	case c.search:
 		return shell.SearchKeys(recalls)
-	case c.view:
-		return shell.Segment{}
 	case c.column != "":
 		toggle := "hide"
 		if p.Fields[c.column].Placement == Hidden {
@@ -885,62 +860,10 @@ func (p Panel) Click(line int) (Panel, bool) {
 		return p, false
 	}
 	p.Cursor = at[line]
-	if c := p.controls()[p.Cursor]; !c.search && !c.view {
+	if c := p.controls()[p.Cursor]; !c.search {
 		p = p.act(c)
 	}
 	return p, true
-}
-
-// Save is the glyph of the button at the views' dropdown's right while the panel differs from its view, SaveText the
-// word after it, and Saving the two, as the button draws them.
-const (
-	Save     = "💾"
-	SaveText = "Save"
-	Saving   = Save + " " + SaveText
-)
-
-// Unnamed stands, dim, in place of the view's name while the dropdown names none: the panel differs from its view, and
-// nothing is typed.
-const Unnamed = "unnamed"
-
-// viewLine draws the views' dropdown: the view's name, as typed while it is renamed, with a caret while the keyboard is
-// on it, or Unnamed, dim, while it has none, and ▾; and the Saving button at the line's right end, at Fill's last
-// cells, while the panel differs from the view or the name was changed, its word dim while there is no name to save
-// it under: an emoji draws in its own colors, which no dimming changes. Under the keyboard, the line is inverse up to
-// the button.
-func (p Panel) viewLine(under bool) string {
-	name := p.View
-	switch {
-	case under && p.Naming:
-		name += "▏"
-	case name == "":
-		name = style.Off(Unnamed)
-	}
-	text := name + " ▾"
-	button := ansi.StringWidth(Saving)
-	if under {
-		text = style.Cursor(pane.Pad(ansi.Strip(text), max(ansi.StringWidth(text), p.Fill-button-1), false))
-	}
-	if !p.Changed {
-		return text
-	}
-	word := SaveText
-	if !p.Savable {
-		word = style.Off(word)
-	}
-	return pane.Pad(text, max(ansi.StringWidth(text)+1, p.Fill-button), false) + Save + " " + word
-}
-
-// OnView says whether the views' dropdown is under the keyboard.
-func (p Panel) OnView() bool {
-	controls := p.controls()
-	return p.Cursor >= 0 && p.Cursor < len(controls) && controls[p.Cursor].view
-}
-
-// ViewAt says whether a line of the panel, as Lines numbers them, is the views' dropdown's.
-func (p Panel) ViewAt(line int) bool {
-	_, at := p.Lines()
-	return line >= 0 && line < len(at) && at[line] >= 0 && p.controls()[at[line]].view
 }
 
 // ColumnAt gives the name of the column whose checkbox a line of the panel, as Lines numbers them, draws, or nothing.

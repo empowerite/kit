@@ -43,17 +43,17 @@ func bare() Options {
 }
 
 // options gives the eight stages and origin as a test knows them, the sidebar hidden until the test shows it with ?,
-// and the panels without their dropdown of views, which views_test.go tests.
+// and the tables without their preset line, which views_test.go tests, so down from the bar enters the rows.
 func options() Options {
 	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoSidebar: true,
-		NoViews: true}
+		NoPresets: true}
 }
 
-// viewing gives the options with the panels' dropdown of views, their presets kept in the file named, or for the test
-// alone when it is empty.
+// viewing gives the options with the tables' preset line, their presets kept in the file named, or for the test alone
+// when it is empty.
 func viewing(file string) Options {
 	o := options()
-	o.NoViews, o.Presets = false, file
+	o.NoPresets, o.Presets = false, file
 	return o
 }
 

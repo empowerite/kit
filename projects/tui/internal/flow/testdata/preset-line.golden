@@ -1,0 +1,24 @@
+  ≡ kit flow · 📚 empowerite/kit                                      🔎 search
+  ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
+  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     ▹
+  ╵                  ╰────────────────────╰────────────────╰───────────────────┐
+   unnamed ▾ ●  source: ¬gitlab  assignees: ¬@me                       💾 Save │
+      id  assignees         age  branch            title                       │
+   ─────────────────────────────────────────────────────────────────────────── │
+ ▾ 🐙 github source  3                                                         │
+   ▸ #45                     2h                    🎫 kit flow is the one pic… │
+   ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun wi… │
+   ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing            │
+                                                                               │
+                                                                               │
+                                                                               ◂
+                                                                               ╷
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+                                                                               │
+ … │ : tab menu │ ↑/esc backlog  ↓ rows  ⏎ presets  ⌃S save  type to rename

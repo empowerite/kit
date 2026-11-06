@@ -50,7 +50,7 @@ type Options struct {
 	NoHeaders bool
 	NoSidebar bool
 	Presets   string // the file the person's presets are kept in; none keeps them for the session alone
-	NoViews   bool   // whether the panels offer no dropdown of views, as a test of the panel alone asks
+	NoPresets bool   // whether the stages' tables have no preset line, as a test of the rows alone asks
 	History   string // the file the searches are remembered in; none remembers them for the session alone
 }
 
@@ -81,7 +81,7 @@ type stage struct {
 	headers bool            // whether the names of its columns stand over its rows, as its tab's menu says
 	headed  bool            // whether its header is open, every line of names that take more than one
 	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
-	// the view its panel's dropdown names, and the name typed over it while the person renames it
+	// the view its preset line was last set to, and the name typed over it while the person renames it
 	viewName string
 	naming   string
 	renaming bool
@@ -114,7 +114,8 @@ type Model struct {
 	stages        []stage
 	stage         int                    // the selected stage
 	inRows        bool                   // whether the rows have the keyboard, not the bar
-	inPanel       bool                   // whether the panel has the keyboard, before the rows or the bar
+	onPreset      bool                   // whether the preset line has the keyboard, not the bar or the rows
+	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
 	sidebar       bool                   // whether the sidebar, the panel and the legend, shows beside the rows
 	sideChosen    bool                   // whether the person showed or hid the sidebar, which a resize then keeps
 	sideOffset    int                    // the sidebar's first line, when it is taller than the pane
@@ -127,10 +128,10 @@ type Model struct {
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
-	viewMenu      bool                   // whether the panel's dropdown of views is open
-	viewAt        int                    // the line of that menu under the keyboard
+	presetMenu    bool                   // whether the preset line's menu of views is open
+	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages open with their headers hidden
-	noViews       bool                   // whether the panels offer no dropdown of views
+	noPresets     bool                   // whether the stages' tables have no preset line
 	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
@@ -178,7 +179,7 @@ func New(r kit.Runner, o Options) Model {
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.sideChosen = o.NoSidebar
-	m.noHeaders, m.presetsPath, m.noViews = o.NoHeaders, o.Presets, o.NoViews
+	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
 	if m.saved, m.notice, err = readPresets(o.Presets); err != nil {
@@ -266,8 +267,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.ask != nil {
 			return m, nil
 		}
-		if m.viewMenu {
-			m.viewMenuClick(msg.X, msg.Y)
+		if m.presetMenu {
+			m.presetMenuClick(msg.X, msg.Y)
 			return m, nil
 		}
 		if m.recent.Open {
@@ -306,6 +307,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.showSidebar(!m.sidebar)
 		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
 			return m, m.clickPanel(msg.X, msg.Y)
+		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == paneTop && msg.X < m.paneWidth():
+			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
 			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false)
 		default:
@@ -386,13 +389,7 @@ type meMsg struct {
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
 	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
-	s := m.stages[i]
 	p.Recall = len(m.recent.Items) > 0
-	p.Views, p.Naming = !m.noViews && len(fieldsOf(s.name)) > 0, s.renaming
-	p.View = m.viewShown(i)
-	p.Changed = p.Views && m.changed(i)
-	name := strings.TrimSpace(p.View)
-	p.Savable = p.Changed && name != "" && !m.builtin(i, name)
 	return p
 }
 
@@ -452,9 +449,6 @@ func (m *Model) clickPanel(x, line int) tea.Cmd {
 		m.scrollSide(max(1, h-2))
 	case k >= 0:
 		p := m.panel(m.stage)
-		if p.ViewAt(k + 1) {
-			return m.viewClick(x)
-		}
 		if column := p.ColumnAt(k + 1); column != "" {
 			// a column's line is held, to drag or to toggle on the release; it takes the keyboard now
 			p, _ = p.Point(k + 1)
@@ -494,20 +488,23 @@ func (m *Model) groupClick(x, y int, nest bool) {
 	}
 }
 
-// clickHeader takes a click on the header, which is no row: on its gutter it opens the header, or closes it, when it
-// hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a shift-click asks, by it
-// after the others, as the panel's Sorted says; with group, a name groups the rows by its column alone, or, with also,
-// within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
+// clickHeader takes a click on the header, which is no row, under the preset line: on its gutter it opens the header,
+// or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a
+// shift-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
+// column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group bool) {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
-	if _, hides := m.header(); hides && !group && y == paneTop && x >= 0 && x < 3 {
+	if y < m.headTop() {
+		return
+	}
+	if _, hides := m.header(); hides && !group && y == m.headTop() && x >= 0 && x < 3 {
 		s.headed = !s.headed
 		m.fit()
 		return
 	}
 	lines, _ := m.header()
-	if y >= paneTop+len(lines)-1 {
+	if y >= m.headTop()+len(lines)-1 {
 		return
 	}
 	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x); j >= 0 {
@@ -708,7 +705,8 @@ func (m Model) whoami() tea.Cmd {
 }
 
 // key takes a key press: the quitting keys, the open menu's while one is open, the panel's while it has the keyboard,
-// = for the app's menu and : or ; for the tab's, the bar's, then the rows' and the sidebar's.
+// the preset line's while it has it, = for the app's menu and : or ; for the tab's, the bar's, then the rows' and the
+// sidebar's. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -720,8 +718,8 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.ask != nil {
 		return m.askKey(k)
 	}
-	if m.viewMenu {
-		return m.viewMenuKey(k)
+	if m.presetMenu {
+		return m.presetMenuKey(k)
 	}
 	if m.recent.Open {
 		var query string
@@ -740,6 +738,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.inPanel {
 		return m.panelKey(k)
+	}
+	if m.onPreset {
+		if cmd, ok := m.presetKey(k); ok {
+			return m, cmd
+		}
 	}
 	if menu, app := menuFor(k); menu {
 		return m, m.dropDown(app)
@@ -778,6 +781,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "up":
 		m.up(1)
 	case "down":
+		if !m.inRows && m.presets(m.stage) {
+			// from the bar, down reaches the preset line first
+			m.onPreset = true
+			return m, nil
+		}
 		m.down(1)
 	case "pgup":
 		m.page(-1)
@@ -826,12 +834,6 @@ func (m Model) recallAt() int {
 // panelKeys takes a key while the panel has the keyboard, as panelKey says.
 func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	h := max(1, m.sideHeight()-3)
-	if m.panel(m.stage).OnView() {
-		// the dropdown takes its keys first: esc stops a rename before it leaves the panel
-		if cmd, ok := m.viewKey(k); ok {
-			return m, cmd
-		}
-	}
 	switch k.String() {
 	case "tab", "esc":
 		m.inPanel = false
@@ -901,7 +903,7 @@ func (m *Model) choose(bar tabs.Bar) {
 	if bar.Selected != m.stage {
 		m.sideOffset = 0
 	}
-	m.stage, m.inRows, m.inPanel = bar.Selected, !bar.Focused, false
+	m.stage, m.inRows, m.inPanel, m.onPreset = bar.Selected, !bar.Focused, false, false
 	m.fit()
 }
 
@@ -1165,7 +1167,9 @@ func (m *Model) up(n int) {
 	}
 	s := &m.stages[m.stage]
 	if s.cursor-n < 0 {
+		// past the first row, the preset line has the keyboard, or the bar when the stage has none
 		s.cursor, s.offset, m.inRows = 0, 0, false
+		m.onPreset = m.presets(m.stage)
 	} else {
 		s.cursor -= n
 	}
@@ -1246,7 +1250,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
 	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
-	s.cursor, m.inRows, m.inPanel = row, true, false
+	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case grid.Heads(rows[row]):
 		// a click anywhere on a group's heading folds its rows away, or unfolds them
