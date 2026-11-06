@@ -200,8 +200,7 @@ func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 // preset that sets it alike.
 func TestAPresetSetsThePanel(t *testing.T) {
 	fields := fieldsOf("backlog")
-	yes := true
-	p := preset{Name: "Triage", Headers: &yes, Fields: map[string]setting{
+	p := preset{Name: "Triage", Fields: map[string]setting{
 		"title":     {Placement: placeColumn, Position: 1},
 		"id":        {Placement: placeColumn, Position: 2},
 		"source":    {Placement: placeGroup, Depth: 1},
@@ -216,8 +215,8 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		g.Showing() != grid.Others || !g.Fold || g.Field("branch").Rendering != "text" {
 		t.Errorf("the panel: %q %+v", got, g.Fields)
 	}
-	back := presetOf(g, fields, true)
-	if !reflect.DeepEqual(presetOf(back.panel(fields, grid.Panel{}), fields, true), back) || *back.Headers != true ||
+	back := presetOf(g, fields)
+	if !reflect.DeepEqual(presetOf(back.panel(fields, grid.Panel{}), fields), back) ||
 		back.Fields["source"] != (setting{Placement: placeGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}

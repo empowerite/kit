@@ -2,12 +2,12 @@
   ──────────────╴➎╶─────────────────╮➅╶─────────────
  ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ group by
   ───────────────╯                  ╰──────────────┐ columns
-   Default ▾                                       │ ☑ change
- ▸ change  title   author  state  age  checks  th… │ ☑ title
-   ─────────────────────────────────────────────── │ ☑ author
- ▸ #2      The f…  jeffr…  🏁      8d  ✅        … │ ☑ state
- ▸ #3      A spi…  ada     🔨     90m  🏃      💬… │ ☑ age
- ▸ #4      Lint …  bob     🔥     25h  ❌        … │ ☑ checks
+ ▸ change  title   author  state  age  checks  th… │ ☑ change
+   Default ▾ ───────────────────────────────────── │ ☑ title
+ ▸ 🔀 #2   The f…  jeffr…  🏁      8d  ✅        … │ ☑ author
+ ▸ 🔀 #3   A spi…  ada     🔨     90m  🏃      💬… │ ☑ state
+ ▸ 🔀 #4   Lint …  bob     🔥     25h  ❌        … │ ☑ age
+                                                   │ ☑ checks
                                                    │ ☑ threads
                                                    │ ☑ branch
                                                    │ hidden

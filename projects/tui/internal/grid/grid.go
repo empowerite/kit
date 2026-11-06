@@ -339,7 +339,7 @@ func Opens(rows []Row, head []string, k, width int) bool {
 
 // LinkAt gives the link of the cell whose first word, its glyph where it draws one, a row's first line draws at the
 // column x, as Draw lays the rows out for a pane of so many cells under the header's names; nothing when no linked
-// word is there. A field drawn without its glyph, since every row shares it, leads from its value's first word.
+// word is there. A cell that draws no glyph, as a reference, leads from its first word.
 func LinkAt(rows []Row, head []string, k, width, x int) string {
 	r := rows[k].Cells
 	widths, left := fit(r, headed(rows, head), width-len(lead))

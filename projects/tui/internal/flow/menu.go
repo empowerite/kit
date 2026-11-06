@@ -20,9 +20,9 @@ import (
 )
 
 // The glyphs beside the tab's menu's items, the stage loaded again, every row expanded and every row collapsed, all
-// the way down and up as ▾ and ▸ are one row's, the headers shown, two cells wide as the others, the selected rows'
-// pages opened, every row selected, and the selection swept away; and beside the app's menu's own, every stage loaded
-// again.
+// the way down and up as ▾ and ▸ are one row's, the selected rows' pages opened, every row selected, and the selection
+// swept away; beside the presets' menu's, the one the table stands as, two cells wide as the others; and beside the
+// app's menu's own, every stage loaded again.
 const (
 	Expand   = "⏬"
 	Collapse = "⏫"
@@ -38,20 +38,16 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
 // expanded and every row collapsed, or, while rows are selected, the selected rows expanded and collapsed and the rows
-// not selected collapsed, a rule, the headers, checked while the selected stage shows them, a rule, every row selected
-// and none, a rule, and what acts on the rows selected: on backlog, the actions there, then each one's page opened.
+// not selected collapsed, a rule, every row selected and none, a rule, and what acts on the rows selected: on backlog,
+// the actions there, then each one's page opened.
 func (m Model) tabItems() []shell.Item {
-	headers := ""
-	if len(m.stages) > 0 && m.stages[m.stage].headers {
-		headers = Checked
-	}
 	folds := []shell.Item{{Glyph: Expand, Name: "Expand All"}, {Glyph: Collapse, Name: "Collapse All"}}
 	if m.selected() > 0 {
 		folds = []shell.Item{{Glyph: Expand, Name: "Expand Selected"}, {Glyph: Collapse, Name: "Collapse Selected"},
 			{Glyph: Collapse, Name: "Collapse Others"}}
 	}
 	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, folds...)
-	items = append(items, shell.Item{}, shell.Item{Glyph: headers, Name: "Show Headers"}, shell.Item{},
+	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
 }
@@ -108,9 +104,9 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 	return nil
 }
 
-// enabled says whether the tab's menu's line k does something to the selected stage's rows now: expand all while a
-// row that hides something is collapsed, or the header is, collapse all while one of its rows is expanded, or the
-// header is, and show headers on a stage whose rows have columns; the rule never does.
+// enabled says whether the tab's menu's line k does something to the selected stage's rows now: expand all while a row
+// that hides something is collapsed, or the header is, collapse all while one of its rows is expanded, or the header
+// is; the rule never does.
 func (m Model) enabled(k int) bool {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
 	_, hides := m.header()
@@ -120,8 +116,6 @@ func (m Model) enabled(k int) bool {
 	switch m.tabItems()[k].Name {
 	case "Refresh":
 		return known[s.name]
-	case "Show Headers":
-		return len(fieldsOf(s.name)) > 0
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
@@ -164,10 +158,9 @@ func (m Model) enabled(k int) bool {
 	return false
 }
 
-// pick does what the tab's menu's item at k says to the selected stage's rows, closes the menu, and gives the rows
-// the keyboard, so left and right go on from there; refresh runs the stage again, as refresh says, and show headers
-// shows them over the rows, or hides them, each leaving the keyboard where it was. An item that is not enabled does
-// nothing, and leaves the menu open. It gives what refresh runs.
+// pick does what the tab's menu's item at k says to the selected stage's rows, closes the menu, and gives the rows the
+// keyboard, so left and right go on from there; refresh runs the stage again, as refresh says, leaving the keyboard
+// where it was. An item that is not enabled does nothing, and leaves the menu open. It gives what refresh runs.
 func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
 		return nil
@@ -178,11 +171,6 @@ func (m *Model) pick(k int) tea.Cmd {
 		return m.act(m.tabItems()[k].Name)
 	}
 	switch m.tabItems()[k].Name {
-	case "Show Headers":
-		s.headers = !s.headers
-		m.rebuild()
-		m.fit()
-		return nil
 	case "Refresh":
 		return m.refresh(s.name)
 	case "Open Selected":

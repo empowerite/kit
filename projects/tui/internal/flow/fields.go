@@ -72,15 +72,14 @@ type enumValue struct {
 	Glyph string `json:"glyph"`
 }
 
-// preset is a stage's panel as a preset keeps it, one of the stage's own or one the person saved: its name; whether the
-// header shows, or, when it says nothing, as the screen opens; whether it folds, a value every row of a group shares
-// said once, in the group's heading, or, when it says nothing, as it does; and what it says of each field it names, by
-// id. A field it does not name takes the catalog's placement, and no sort, filter, or rendering.
+// preset is a stage's panel as a preset keeps it, one of the stage's own or one the person saved: its name; whether it
+// folds, a value every row of a group shares said once, in the group's heading, or, when it says nothing, as it does;
+// and what it says of each field it names, by id. A field it does not name takes the catalog's placement, and no sort,
+// filter, or rendering.
 type preset struct {
-	Name    string             `json:"name"`
-	Headers *bool              `json:"headers,omitempty"`
-	Fold    *bool              `json:"fold,omitempty"`
-	Fields  map[string]setting `json:"fields,omitempty"`
+	Name   string             `json:"name"`
+	Fold   *bool              `json:"fold,omitempty"`
+	Fields map[string]setting `json:"fields,omitempty"`
 }
 
 // setting is what a preset says of one field, three things apart: its placement, a column at a position, from 1, a
@@ -441,9 +440,13 @@ func (f field) drawnBy(pinned string) string {
 
 // draw gives a field's cells from the values the rows hold in it, as the rendering pinned draws them, when it is one of
 // the field's, else its first: each dim where the field is, the field's alignment, each row's link, and what each
-// sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim.
+// sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim. A link leads from
+// the glyph, so a field drawn without its glyph, which another of its renderings draws, has none: its text is no
+// button. A field none of whose renderings draws a glyph, as a reference, leads from its text.
 func (f field) draw(vs []value, pinned string) []cell {
-	out := renderers[f.drawnBy(pinned)](f, vs)
+	rendering := f.drawnBy(pinned)
+	links := glyphed[rendering] || !slices.ContainsFunc(f.Renderings, func(r string) bool { return glyphed[r] })
+	out := renderers[rendering](f, vs)
 	for k, v := range vs {
 		c := &out[k]
 		if f.Dim {
@@ -456,7 +459,10 @@ func (f field) draw(vs []value, pinned string) []cell {
 		if len(v.Raw) == 0 && v.Else != "" {
 			c.Values = []string{style.Off(v.Else)}
 		}
-		c.Right, c.Wrap, c.Link, c.Raw = f.Right, f.Wrap, v.Link, v.Raw
+		c.Right, c.Wrap, c.Raw = f.Right, f.Wrap, v.Raw
+		if links {
+			c.Link = v.Link
+		}
 	}
 	return out
 }

@@ -20,7 +20,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
           "branch": {"placement": "hidden"}}}
       ]
@@ -61,7 +61,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
           "where": {"placement": "hidden"}, "fork": {"placement": "hidden"}, "pushed": {"placement": "hidden"},
           "by": {"placement": "hidden"}}}
@@ -90,7 +90,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
       ]
     },
@@ -117,7 +117,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
       ]
     },
@@ -151,7 +151,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "author": {"placement": "hidden"}, "age": {"placement": "hidden"}, "checks": {"placement": "hidden"},
           "threads": {"placement": "hidden"}, "branch": {"placement": "hidden"}}}
       ]
@@ -184,7 +184,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "run": {"placement": "hidden"}, "event": {"placement": "hidden"}, "branch": {"placement": "hidden"},
           "commit": {"placement": "hidden"}, "took": {"placement": "hidden"}}}
       ]
@@ -205,7 +205,7 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "headers": true, "fields": {
+        {"name": "Compact", "fields": {
           "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}}}
       ]
     }

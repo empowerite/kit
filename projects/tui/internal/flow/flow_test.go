@@ -320,7 +320,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	}
 	// esc gives the bar the keyboard back, and right moves again, onto the next stage's first row
 	m = drive(m, esc, right, down)
-	if m.stage != 4 || !strings.HasPrefix(cursor(m), "#2") {
+	if m.stage != 4 || !strings.HasPrefix(cursor(m), "🔀 #2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
 	// from changes, five to the right stops at the end: builds, incoming, releases, and there
@@ -914,7 +914,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, toggle)
 	v := view(m)
 	// the checks of the failing one are cut at the cap, to give the title room
-	for _, want := range []string{style.Opened + " #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
+	for _, want := range []string{style.Opened + " 🔀 #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
 		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing…",
 		"#1  👤 jeffrey-aguilera  " + InFlight + " in flight  8d  " + Issue + " The first release, v0.1.0"} {
 		if !strings.Contains(v, want) {
@@ -932,10 +932,10 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
 	m = drive(m, down, toggle)
 	v := view(m)
-	// the title has what the other columns leave, each drawn without the glyph every row shares, and the branch, which one
-	// row alone has, with its own
-	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  A noun lists",
-		"#7  ada           +1  40d", "five stages, interactive on a", "terminal, and the listing"} {
+	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
+	// one row alone has, with its own
+	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
+		"#7  ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -1593,7 +1593,7 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
 	}
-	change, state, y := at(m, "#4"), at(m, "🔥"), paneTop+m.find("underway").cursor
+	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), paneTop+m.find("underway").cursor
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {

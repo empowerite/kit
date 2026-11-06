@@ -39,9 +39,9 @@ import (
 )
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
-// whether the fetch is skipped, the filters backlog, underway, and changes take, whether every stage opens with its
-// headers hidden, as they are shown otherwise, and whether the sidebar starts hidden at every width, as if the person
-// had hidden it.
+// whether the fetch is skipped, the filters backlog, underway, and changes take, whether every stage's headers are
+// hidden, as a test of the rows alone asks, and whether the sidebar starts hidden at every width, as if the person had
+// hidden it.
 type Options struct {
 	Stages    []string
 	Origin    Origin
@@ -78,7 +78,6 @@ type stage struct {
 	cursor  int             // the row under the cursor, kept while another stage is shown
 	offset  int             // the first line of the pane
 	open    map[string]bool // the rows opened, by key
-	headers bool            // whether the names of its columns stand over its rows, as its tab's menu says
 	headed  bool            // whether its header is open, every line of names that take more than one
 	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
 	// the view its preset line was last set to, and the name typed over it while the person renames it
@@ -130,7 +129,7 @@ type Model struct {
 	presetsPath   string                 // that file, or none
 	presetMenu    bool                   // whether the preset line's menu of views is open
 	presetAt      int                    // the line of that menu under the keyboard
-	noHeaders     bool                   // whether the stages open with their headers hidden
+	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
 	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
@@ -191,7 +190,7 @@ func New(r kit.Runner, o Options) Model {
 	m.noted = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders,
+		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{},
 			viewName: Opening}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
@@ -319,7 +318,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.showSidebar(!m.sidebar)
 		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
 			return m, m.clickPanel(msg.X, msg.Y)
-		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == paneTop && msg.X < m.paneWidth():
+		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
 			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, double)
@@ -512,25 +511,25 @@ type unsort struct {
 	keys   []grid.SortKey
 }
 
-// clickHeader takes a click on the header, which is no row, under the preset line: on its gutter it opens the header,
-// or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a
-// option-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
-// column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
-// The second click of a double click on a name, as double says, sorts nothing: the sort goes back to what it was before
-// the first click changed it, and the field's popover opens under the name.
+// clickHeader takes a click on the header, which is no row, above its rule, the preset line: on its gutter it opens the
+// header, or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as
+// a option-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
+// column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing. The
+// second click of a double click on a name, as double says, sorts nothing: the sort goes back to what it was before the
+// first click changed it, and the field's popover opens under the name.
 func (m *Model) clickHeader(x, y int, also, group, double bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
-	if y < m.headTop() {
+	if y < paneTop {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && y == m.headTop() && x >= 0 && x < 3 {
+	if _, hides := m.header(); hides && !group && y == paneTop && x >= 0 && x < 3 {
 		s.headed = !s.headed
 		m.fit()
 		return nil
 	}
 	lines, _ := m.header()
-	if y >= m.headTop()+len(lines)-1 {
+	if y >= paneTop+len(lines)-1 {
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)

@@ -153,10 +153,10 @@ func TestATableShortOfWidthStepsDownFromTheRightmostColumn(t *testing.T) {
 	}
 }
 
-// The screen draws the choice: a glyph backlog's rows all share is gone from them, and from the group's heading; a
-// search that matched a glyph's word still lets its rows through once the field is drawn without it; and changes at
-// 80 columns draws its checks by their glyph, while at 160 it has the width for their counts. A rendering pinned in
-// the popover draws the glyph again.
+// The screen draws the choice: a glyph backlog's rows all share is gone from them, and from the group's heading, but
+// the title's, which leads to the issue's page, stays; a search that matched a glyph's word still lets its rows
+// through once the field is drawn without it; and changes at 80 columns draws its checks by their glyph, while at 160
+// it has the width for their counts. A rendering pinned in the popover draws the glyph again.
 func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 24})
 	var pane []string
@@ -164,24 +164,25 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 		pane = append(pane, ansi.Strip(l.text))
 	}
 	text := strings.Join(pane, "\n")
-	if strings.Contains(text, Issue) || strings.Contains(text, GitHub) || !strings.Contains(text, "github source") {
-		t.Errorf("backlog keeps a glyph every row shares:\n%s", text)
+	if !strings.Contains(text, Issue+" Fix the thing") || strings.Contains(text, GitHub) ||
+		!strings.Contains(text, "github source") {
+		t.Errorf("backlog keeps a glyph every row shares, or drops the title's:\n%s", text)
 	}
-	if got := m.shown(0).drawn; got["source"] != "text" || got["title"] != "text" || got["id"] != "text" {
+	if got := m.shown(0).drawn; got["source"] != "text" || got["title"] != "glyph+text" || got["id"] != "text" {
 		t.Errorf("backlog's renderings: %v", got)
 	}
-	// a search for 🎫, which the titles no longer draw, still lets every row through
+	// a search for 🐙, which the sources no longer draw, still lets every row through
 	p := m.panel(0)
-	p.Query = Issue
+	p.Query = GitHub
 	m.setPanel(p)
 	if n := m.shown(0).passed; n != 3 {
-		t.Errorf("a search for the titles' glyph lets %d rows through", n)
+		t.Errorf("a search for the sources' glyph lets %d rows through", n)
 	}
-	// pinned, the title draws its glyph again
+	// pinned, the source draws its glyph again
 	p.Query = ""
-	m.setPanel(p.Rendered("title", "glyph+text"))
-	if !strings.Contains(raw(m), Issue+" Fix the thing") {
-		t.Errorf("title pinned to glyph+text:\n%s", raw(m))
+	m.setPanel(p.Rendered("source", "glyph+text"))
+	if !strings.Contains(raw(m), GitHub+" github") {
+		t.Errorf("source pinned to glyph+text:\n%s", raw(m))
 	}
 	changes := slices.Index(eight, "changes")
 	at := func(width int) map[string]string {

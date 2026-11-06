@@ -68,7 +68,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 3 || m.enabled(2) {
 		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
-	// down passes the rule to show headers; up passes the dim expand all and the rule to refresh
+	// down passes the rule to select all; up passes the dim expand all and the rule to refresh
 	if m = drive(m, down); m.menuAt != 5 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
@@ -127,12 +127,11 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	}
 }
 
-// On incoming, where no row hides anything and no column has a name, refresh alone is enabled: the keyboard is on it,
-// and the rest, dim, are never under it.
+// On incoming, where no row hides anything, refresh is the first enabled: the keyboard is on it, and expand all and
+// collapse all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.menu || m.menuAt != 0 || m.enabled(2) || m.enabled(3) ||
-		m.enabled(5) {
+	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.menu || m.menuAt != 0 || m.enabled(2) || m.enabled(3) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
 	// nothing is drawn under the keyboard on a dim item, even when the keyboard was left on one the rows no longer
@@ -252,32 +251,20 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	}
 }
 
-// Show Headers, in the tab's menu, stands the names of the stage's columns over its rows, as every stage opens, checked
-// while it does: a header that never scrolls, a thin dim line under it, and no row of its own, so a click on it
-// chooses nothing. Choosing it again hides them. Each stage keeps its own; incoming, whose rows are no columns, has
-// none to show.
-func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 11}, right, right, right, press(':'))
-	box, _ := m.menuBox()
-	if !strings.Contains(ansi.Strip(box[6]), Checked+" Show Headers") || m.rowsTop() == paneTop {
-		t.Fatalf("the menu as the stage opens: %q", ansi.Strip(box[6]))
+// The names of the stage's columns stand over its rows, as every stage with columns draws them, and the tab's menu
+// has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
+// on it chooses nothing. Incoming, whose rows are no columns, has none.
+func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 11}, right, right, right)
+	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
+		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
-	m = drive(m, typed("s")[0], press(tea.KeyEnter))
-	if box, _ = drive(m, press(':')).menuBox(); m.stages[m.stage].headers || m.rowsTop() != paneTop ||
-		!strings.Contains(ansi.Strip(box[6]), "    Show Headers") {
-		t.Fatalf("show headers did not hide them:\n%s", view(m))
-	}
-	m = drive(m, press(':'), typed("s")[0], press(tea.KeyEnter))
 	drawn := lines(m)
-	if !m.stages[m.stage].headers || m.menu || !strings.Contains(drawn[paneTop], "branch") ||
-		!strings.Contains(drawn[paneTop], "uncommitted") || !strings.HasPrefix(drawn[m.rowsTop()-1], "   ───") ||
+	if !strings.Contains(drawn[paneTop], "branch") || !strings.Contains(drawn[paneTop], "uncommitted") ||
+		!strings.HasPrefix(drawn[m.rowsTop()-1], "   ───") ||
 		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") || m.rowsTop() <= paneTop {
 		t.Fatalf("the headers:\n%s", view(m))
 	}
-	if m = drive(m, press(':')); !strings.Contains(ansi.Strip(m.tabItems()[5].Glyph), Checked) {
-		t.Errorf("show headers is not checked: %+v", m.tabItems()[5])
-	}
-	m = drive(m, esc)
 	// the header stays while the rows scroll under it
 	header := drawn[paneTop:m.rowsTop()]
 	m = drive(m, down, down, down, down, down, down)
@@ -294,14 +281,9 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	if strings.Contains(lines(m)[paneTop], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
-	// the stage beside keeps its own: hidden here, still shown there
-	m = drive(m, esc, press(':'), typed("s")[0], press(tea.KeyEnter))
-	if m = drive(m, right); m.rowsTop() == paneTop {
-		t.Errorf("changes lost its headers with the worktrees'")
-	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m.stages[m.stage].name != "incoming" || m.enabled(5) {
-		t.Errorf("%s offers headers", m.stages[m.stage].name)
+	if m.stages[m.stage].name != "incoming" || m.rowsTop() != paneTop {
+		t.Errorf("%s has a header:\n%s", m.stages[m.stage].name, view(m))
 	}
 }
 

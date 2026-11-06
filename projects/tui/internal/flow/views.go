@@ -1,13 +1,13 @@
-// Named views: a stage's panel as it is set, each field's placement, sort, filter, and rendering, whether it folds, and
-// whether its headers stand over the rows, kept under a name as a preset. Every stage with columns has its own views,
-// the presets the field catalog gives it, which never change: Default, the stage as it opens, and Compact, the few
-// columns that say what a row is. The person saves others, per stage, in a file of their own, presets.json under
-// ~/.config/kit/, so their views follow them to every repository; one they named as a stage's own was named before the
-// stage had it, and stays theirs. The preset line, on top of the stage's table, names the view the table is set as;
-// enter, or a click on the name, drops down the views to choose from; typing renames it. Once the table differs from
-// every view, the line names none, and a mark says so, and 💾 Save stands at its right, dim until a name is typed; it
-// stands there too once the name was changed. ctrl+s or a click on it saves the panel under the name, a view of the
-// person's own overwritten, a stage's own refused for a name of their own, and no name refused.
+// Named views: a stage's panel as it is set, each field's placement, sort, filter, and rendering, and whether it folds,
+// kept under a name as a preset. Every stage with columns has its own views, the presets the field catalog gives it,
+// which never change: Default, the stage as it opens, and Compact, the few columns that say what a row is. The person
+// saves others, per stage, in a file of their own, presets.json under ~/.config/kit/, so their views follow them to
+// every repository; one they named as a stage's own was named before the stage had it, and stays theirs. The preset
+// line, the rule under the stage's header, names the view the table is set as; enter, or a click on the name, drops
+// down the views to choose from; typing renames it. Once the table differs from every view, the line names none, and a
+// mark says so, and 💾 Save stands at its right, dim until a name is typed; it stands there too once the name was
+// changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own overwritten, a stage's
+// own refused for a name of their own, and no name refused.
 package flow
 
 import (
@@ -45,17 +45,16 @@ const (
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
 // columns hidden, their order, the sort's keys, the groups, the columns kept from grouping on their own, whose rows it
-// shows, whether the headers show, and whether it folds, when it does not.
+// shows, and whether it folds, when it does not. It said whether the headers showed, which they now always do.
 type named struct {
-	Name    string    `json:"name"`
-	Hidden  []string  `json:"hidden,omitempty"`
-	Order   []string  `json:"order,omitempty"`
-	Sort    []sortKey `json:"sort,omitempty"`
-	Group   []string  `json:"group,omitempty"`
-	Kept    []string  `json:"kept,omitempty"`
-	Show    string    `json:"show,omitempty"`
-	Headers bool      `json:"headers"`
-	Fold    *bool     `json:"fold,omitempty"`
+	Name   string    `json:"name"`
+	Hidden []string  `json:"hidden,omitempty"`
+	Order  []string  `json:"order,omitempty"`
+	Sort   []sortKey `json:"sort,omitempty"`
+	Group  []string  `json:"group,omitempty"`
+	Kept   []string  `json:"kept,omitempty"`
+	Show   string    `json:"show,omitempty"`
+	Fold   *bool     `json:"fold,omitempty"`
 }
 
 // sortKey is one of a view's sort keys: a column, and whether the larger come first.
@@ -173,22 +172,13 @@ func writePresets(path string, stages map[string][]preset) error {
 	return os.Rename(tmp, path)
 }
 
-// builtins gives a stage's own views, its presets in the catalog, in the catalog's order, each with its headers as the
-// screen opens them where it says nothing; a stage without columns has Default alone, as it opens.
+// builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
+// Default alone, as it opens.
 func (m Model) builtins(i int) []preset {
-	headers := !m.noHeaders
-	s := catalog[m.stages[i].name]
-	if s == nil {
-		return []preset{{Name: Opening, Headers: &headers}}
+	if s := catalog[m.stages[i].name]; s != nil {
+		return slices.Clone(s.Presets)
 	}
-	var out []preset
-	for _, p := range s.Presets {
-		if p.Headers == nil {
-			p.Headers = &headers
-		}
-		out = append(out, p)
-	}
-	return out
+	return []preset{{Name: Opening}}
 }
 
 // panel gives a stage's panel set as a preset says, of the stage's fields, the rest of it as p has it: each field placed,
@@ -235,13 +225,12 @@ func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
 	return p
 }
 
-// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed, with the headers as they are: of
-// each field, what differs from what a preset that names none of them says. A column's position is said only while
+// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed: of each field, what differs from what a preset that names none of them says. A column's position is said only while
 // the columns stand in another order than the stage's, and then for every column, from 1; a group's depth and a sort's
 // priority are numbered from 1, the outermost and the first first.
-func presetOf(p grid.Panel, fields []field, headers bool) preset {
+func presetOf(p grid.Panel, fields []field) preset {
 	fold := p.Fold
-	out := preset{Headers: &headers, Fold: &fold}
+	out := preset{Fold: &fold}
 	var ids []string
 	for _, f := range fields {
 		if f.Label != "" {
@@ -292,7 +281,7 @@ func presetOf(p grid.Panel, fields []field, headers bool) preset {
 // preset gives a view of views.json as a preset of the stage's: each column's label, or its id, as the field's id,
 // the catalog's; the columns hidden, those it groups by, outermost first, and those it sorts by, first first, as their
 // placements and sorts; the columns' order as their positions; whose rows it shows as the filter on the field that
-// owns them: mine as the caller alone, others as anyone but the caller; and the headers, and whether it folds. The
+// owns them: mine as the caller alone, others as anyone but the caller; and whether it folds, the headers aside. The
 // columns it kept from grouping on their own are dropped, as the person no longer keeps a column so; it folds, or does
 // not, as a whole. It gives the labels the catalog does not know, each once, which are dropped.
 func (v named) preset(stage string) (preset, []string) {
@@ -347,7 +336,7 @@ func (v named) preset(stage string) (preset, []string) {
 	case "others":
 		p = p.Shown(grid.Others)
 	}
-	out := presetOf(p, fields, v.Headers)
+	out := presetOf(p, fields)
 	out.Name = v.Name
 	return out, dropped
 }
@@ -374,20 +363,14 @@ func (m Model) chosen(i int) preset {
 // current gives a stage's panel as a view would keep it.
 func (m Model) current(i int) preset {
 	s := m.stages[i]
-	return presetOf(s.view, fieldsOf(s.name), s.headers)
+	return presetOf(s.view, fieldsOf(s.name))
 }
 
 // same says whether two views set a stage's panel alike, their names apart: each field placed, sorted, filtered, and
-// drawn alike, folding alike, and the headers alike, a view that says nothing of them as the screen opens them.
+// drawn alike, and folding alike.
 func (m Model) same(i int, a, b preset) bool {
 	fields := fieldsOf(m.stages[i].name)
-	normal := func(v preset) preset {
-		headers := !m.noHeaders
-		if v.Headers != nil {
-			headers = *v.Headers
-		}
-		return presetOf(v.panel(fields, grid.Panel{}), fields, headers)
-	}
+	normal := func(v preset) preset { return presetOf(v.panel(fields, grid.Panel{}), fields) }
 	return reflect.DeepEqual(normal(a), normal(b))
 }
 
@@ -446,10 +429,6 @@ func (m Model) viewShown(i int) string {
 func (m *Model) apply(v preset) {
 	s := &m.stages[m.stage]
 	p := v.panel(fieldsOf(s.name), s.view)
-	s.headers = !m.noHeaders
-	if v.Headers != nil {
-		s.headers = *v.Headers
-	}
 	s.viewName, s.renaming, s.naming = v.Name, false, ""
 	m.setPanel(p)
 }
@@ -590,7 +569,7 @@ func (m *Model) choosePreset(k int) {
 // the screen's left when that would run past its edge, and the screen line and column it is drawn from.
 func (m Model) presetBox() (lines []string, top, left int) {
 	lines, _ = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, m.width)
-	return lines, paneTop + 1, max(0, min(len(lead)-1, m.width-ansi.StringWidth(lines[0])))
+	return lines, m.presetTop() + 1, max(0, min(len(lead)-1, m.width-ansi.StringWidth(lines[0])))
 }
 
 // presetMenuClick takes a click while the presets' menu is open: on a view, it chooses it; anywhere else, it closes the

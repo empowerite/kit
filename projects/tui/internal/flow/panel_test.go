@@ -310,13 +310,14 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	}
 }
 
-// A title drawn without its glyph, as every row shares it, leads to the issue's page from its first word.
-func TestAClickOnATitlesFirstWordOpensTheIssuesPage(t *testing.T) {
+// A title's glyph leads to the issue's page, so it stays though every row shares it; drawn without it, as a preset may
+// pin, its words lead nowhere.
+func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
 	// the first issue stands under the heading over every row, the source said once
 	y := m.rowsTop() + 1
 	first := lines(m)[y]
-	x := ansi.StringWidth(first[:strings.Index(first, "kit flow is")])
+	x := ansi.StringWidth(first[:strings.Index(first, Issue+" kit flow is")])
 	browsed = nil
 	if m = drive(m, testkit.Click(x, y)); len(browsed) != 1 ||
 		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
@@ -331,6 +332,14 @@ func TestAClickOnATitlesFirstWordOpensTheIssuesPage(t *testing.T) {
 	}
 	if m = drive(m, down); m.notice != "" || strings.Contains(lines(m)[23], "could not open") {
 		t.Errorf("the next key kept the notice: %q", lines(m)[23])
+	}
+	// pinned to its text, the title's first word is no button
+	m = drive(m, up)
+	m.setPanel(m.panel(0).Rendered("title", "text"))
+	first = lines(m)[y]
+	browsed = nil
+	if m = drive(m, testkit.Click(ansi.StringWidth(first[:strings.Index(first, "kit flow is")]), y)); len(browsed) != 0 {
+		t.Errorf("a click on the title's first word, drawn without its glyph: %v", browsed)
 	}
 }
 

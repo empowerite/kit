@@ -2,12 +2,12 @@
   ────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────╮➆╶──────────────
  ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ group by
   ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ columns
-   Default ▾                                                                               │ ☑ change
-   change  title         author         state  age  checks  threads         branch         │ ☑ title
-   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ author
- ▸ #2      The first r…  jeffrey-agui…  🏁      8d  ✅                      1-the-first-r… │ ☑ state
- ▸ #3      A spike on …  ada            🔨     90m  🏃      💬 2 unresolv…  3-a-spike      │ ☑ age
- ▸ #4      Lint every …  bob            🔥     25h  ❌                      4-lint-every-… │ ☑ checks
+   change  title         author         state  age  checks  threads         branch         │ ☑ change
+   Default ▾ ───────────────────────────────────────────────────────────────────────────── │ ☑ title
+ ▸ 🔀 #2   The first r…  jeffrey-agui…  🏁      8d  ✅                      1-the-first-r… │ ☑ author
+ ▸ 🔀 #3   A spike on …  ada            🔨     90m  🏃      💬 2 unresolv…  3-a-spike      │ ☑ state
+ ▸ 🔀 #4   Lint every …  bob            🔥     25h  ❌                      4-lint-every-… │ ☑ age
+                                                                                           │ ☑ checks
                                                                                            │ ☑ threads
                                                                                            │ ☑ branch
                                                                                            │ hidden

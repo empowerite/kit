@@ -340,10 +340,10 @@ func (m Model) sideLines() []string {
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
-// rows, which widen its columns, each that sorts the rows marked as the panel marks it; none while its tab's menu hides
-// its headers.
+// rows, which widen its columns, each that sorts the rows marked as the panel marks it; none while the headers are
+// hidden, as a test of the rows alone asks.
 func (m Model) names(i int) []string {
-	if !m.stages[i].headers {
+	if m.noHeaders {
 		return nil
 	}
 	p, names := m.filter(i), m.shownColumns(i)
@@ -369,69 +369,67 @@ func (m Model) shownColumns(i int) []string {
 	return names
 }
 
-// header gives the lines that stand over the selected stage's rows while its tab's menu shows its headers, and whether
-// they hide lines while closed: the names of its columns the panel shows, as internal/grid lays them over the rows,
-// open or closed as the stage's header is, then the rule under them, as rule draws it; nothing while it loads, after a refusal,
-// or when it has no rows in columns.
+// header gives the lines that stand over the selected stage's rows, which do not scroll, and whether they hide lines
+// while closed: the names of its columns the panel shows, as internal/grid lays them over the rows, open or closed as
+// the stage's header is, then the rule under them, as rule draws it, which is the stage's preset line where it has
+// one. While it loads, after a refusal, or when its rows have no columns, there are no names, and the rule stands
+// alone where the stage has a preset line, else nothing does.
 func (m Model) header() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
-	s := m.stages[m.stage]
-	if !s.headers || s.loading || s.refusal != "" {
-		return nil, false
+	if s := m.stages[m.stage]; !m.noHeaders && !s.loading && s.refusal == "" {
+		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.headed)
+		for k := range lines {
+			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
+		}
 	}
-	lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.headed)
-	if len(lines) == 0 {
+	if len(lines) == 0 && !m.presets(m.stage) {
 		return nil, false
-	}
-	for k := range lines {
-		lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 	}
 	return append(lines, m.rule()), hides
 }
 
-// rule gives the thin dim line under the header, across the pane after the gutter, with how many rows are selected,
-// in the accent, near its right end, when some are.
+// rule gives the line under the header, as wide as the pane: the preset line, where the stage has one, as presetLine
+// draws it, else the gutter; a thin dim line; and at its right end, how many rows are selected, in the accent, when
+// some are, then Saving, as presetLine gives it. The preset line's chips are clipped first where the line is short.
 func (m Model) rule() string {
-	width := max(0, m.paneWidth()-3)
-	n := m.selected()
-	if n == 0 {
-		return "   " + style.Off(strings.Repeat("─", width))
+	width, right := m.paneWidth(), ""
+	if n := m.selected(); n > 0 {
+		right = style.Tint(" "+strconv.Itoa(n)+" selected ") + style.Off("─")
 	}
-	label := " " + strconv.Itoa(n) + " selected "
-	left := max(0, width-ansi.StringWidth(label)-1)
-	return "   " + style.Off(strings.Repeat("─", left)) + style.Tint(label) + style.Off("─")
-}
-
-// headerLines gives the lines over the rows, which do not scroll: the preset line, where the stage has one, then the
-// header, when shown.
-func (m Model) headerLines() []string {
-	lines, _ := m.header()
+	left, button := lead, ""
 	if m.presets(m.stage) {
-		return append([]string{m.presetLine()}, lines...)
+		left, button = m.presetLine(width - ansi.StringWidth(right))
+		left += " "
 	}
-	return lines
+	if button != "" {
+		right += " " + button
+	}
+	fill := max(1, width-ansi.StringWidth(left)-ansi.StringWidth(right))
+	return ansi.Truncate(left+style.Off(strings.Repeat("─", fill))+right, width, "")
 }
 
-// headTop gives the screen line the header starts on: the pane's first, or the one under the preset line.
-func (m Model) headTop() int { return paneTop + btoi(m.presets(m.stage)) }
+// presetTop gives the screen line the preset line is drawn on, the rule under the header.
+func (m Model) presetTop() int {
+	lines, _ := m.header()
+	return paneTop + len(lines) - 1
+}
 
-// rowsTop gives the screen line the rows start on: the pane's first, or the one under the preset line and the header.
+// rowsTop gives the screen line the rows start on: the pane's first, or the one under the header and its rule.
 func (m Model) rowsTop() int {
 	lines, _ := m.header()
-	return m.headTop() + len(lines)
+	return paneTop + len(lines)
 }
 
-// rowsHeight gives the lines the rows have, which scroll: the pane's, less the preset line's and the header's, which do
-// not.
+// rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's and its rule's, which do not.
 func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-paneTop)) }
 
-// pane gives the pane's lines, as many as it has, each as wide as the pane: the preset line and the header, when
-// shown, then the selected stage's rows from its offset on.
+// pane gives the pane's lines, as many as it has, each as wide as the pane: the header and its rule, when shown, then
+// the selected stage's rows from its offset on.
 func (m Model) pane() []string {
 	h := m.rowsHeight()
-	out := m.headerLines()
+	out, _ := m.header()
 	switch {
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
@@ -599,18 +597,19 @@ func (m Model) dropEnd() int {
 	return len(lead) + ansi.StringWidth(name) + 2
 }
 
-// presetLine draws the line on top of the selected stage's table, as wide as the pane: the view's name, Unnamed dim
-// while it names none, and ▾, inverse while the line has the keyboard; Differs, in the accent, while the table differs
-// from every view; a chip per filter the panel sets, as chips gives them, clipped where the line is short; and Saving
-// at the line's right end while the table differs or the name was changed, its word dim while there is no name to save
-// it under: an emoji draws in its own colors, which no dimming changes.
-func (m Model) presetLine() string {
+// presetLine gives the preset line, the left of the rule under the table's header, in so many cells, and the button
+// at the rule's right end: the view's name, after the gutter, Unnamed dim while it names none, and ▾, inverse while
+// the line has the keyboard; Differs, in the accent, while the table differs from every view; and a chip per filter
+// the panel sets, as chips gives them, clipped to leave a cell of the rule and the button. The button is Saving while
+// the table differs or the name was changed, its word dim while there is no name to save it under: an emoji draws in
+// its own colors, which no dimming changes.
+func (m Model) presetLine(room int) (text, button string) {
 	i := m.stage
 	name, unnamed := m.presetName()
 	if unnamed {
 		name = style.Off(name)
 	}
-	text := name + " ▾"
+	text = name + " ▾"
 	if m.onPreset && !m.inPanel {
 		text = style.Cursor(ansi.Strip(text))
 	}
@@ -619,7 +618,6 @@ func (m Model) presetLine() string {
 	if is == "" {
 		text += " " + style.Tint(Differs)
 	}
-	button, width := "", m.paneWidth()
 	if changed {
 		word := SaveText
 		if !savable {
@@ -628,15 +626,13 @@ func (m Model) presetLine() string {
 		button = Save + " " + word
 	}
 	if chips := m.chips(i); len(chips) > 0 {
-		room := width - ansi.StringWidth(text) - 2 - ansi.StringWidth(button) - 1
-		if room > 1 {
-			text += "  " + ansi.Truncate(strings.Join(chips, "  "), room, "…")
+		// past the two spaces before the chips: a space and a cell of the rule, and a space and the button
+		left := room - ansi.StringWidth(text) - 2 - 2 - ansi.StringWidth(button) - btoi(button != "")
+		if left > 1 {
+			text += "  " + ansi.Truncate(strings.Join(chips, "  "), left, "…")
 		}
 	}
-	if button == "" {
-		return text
-	}
-	return pane.Pad(text, max(ansi.StringWidth(text)+1, width-ansi.StringWidth(Saving)), false) + button
+	return text, button
 }
 
 // chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the

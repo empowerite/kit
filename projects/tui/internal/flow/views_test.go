@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -31,10 +32,11 @@ func onDropdown(t *testing.T, file string) Model {
 	return m
 }
 
-// presetText gives the preset line as the screen draws it, without its escapes, the rule and the sidebar after it
-// apart.
+// presetText gives the preset line as the screen draws it, the rule under the header, without its escapes, its run of
+// ─ and the sidebar after it apart.
 func presetText(m Model) string {
-	return strings.TrimRight(ansi.Truncate(ansi.Strip(lines(m)[paneTop]), m.paneWidth(), ""), " ")
+	line := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), "")
+	return strings.TrimRight(regexp.MustCompile(` ?─+ ?`).ReplaceAllString(line, " "), " ")
 }
 
 // shown gives the columns a stage's panel shows.
@@ -43,11 +45,21 @@ func shownNow(m Model) []string { return m.shownColumns(m.stage) }
 // keysOf gives the keys bar as the screen draws it, without its escapes.
 func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 
-func TestThePresetLineStandsOnTopOfTheTableAndNamesTheView(t *testing.T) {
+// The preset line is the rule under the header, so it takes no line of the rows: the names of the columns stand on
+// the pane's first line, the line under them names the view, and the rows start under it.
+func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != "   Default ▾" || m.headTop() != paneTop+1 {
-		t.Errorf("the preset line: %q", got)
+	if got := presetText(m); got != "   Default ▾" || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
+		!strings.Contains(lines(m)[paneTop], "assignees") {
+		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
+	// selected rows are counted at its right end
+	m.stages[0].picked[m.rows(0)[1].Key] = true
+	if got := ansi.Strip(lines(m)[m.presetTop()]); !strings.HasPrefix(got, "   Default ▾ ─") ||
+		!strings.Contains(got, "─ 1 selected ─") {
+		t.Errorf("one row selected: %q", got)
+	}
+	m.stages[0].picked = map[string]bool{}
 	if !strings.Contains(keysOf(m), "↓ preset") {
 		t.Errorf("down on the bar does not say it reaches the preset line: %q", keysOf(m))
 	}
@@ -65,11 +77,6 @@ func TestThePresetLineStandsOnTopOfTheTableAndNamesTheView(t *testing.T) {
 	}
 	if strings.Contains(keys, "⌃S save") {
 		t.Errorf("save is named while the table is its view: %q", keys)
-	}
-	// the column names hidden, the line stays, the table no longer its view
-	m.stages[0].headers = false
-	if got := presetText(m); !strings.HasPrefix(got, "   "+Unnamed+" ▾ "+Differs) || m.rowsTop() != paneTop+1 {
-		t.Errorf("the preset line without the headers: %q", got)
 	}
 	// a stage with no columns has no preset line, and down on the bar says it reaches the rows
 	m = drive(m, esc, press('7'))
@@ -205,7 +212,6 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	p = p.Grouped("assignees", false)
 	p.Fold = false
 	m.setPanel(p)
-	m.stages[0].headers = false
 	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
 	m = drive(m, typed("x")...)
 	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.HasPrefix(presetText(m), "   x▏ ▾") ||
@@ -234,7 +240,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending
 	want := map[string]setting{"branch": {Placement: placeHidden}, "age": {Sort: "desc", Priority: 1},
 		"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}}}
-	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) || *v.Headers || *v.Fold {
+	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) || *v.Fold {
 		t.Errorf("the view kept: %s", data)
 	}
 	// the menu lists it after a rule
@@ -261,7 +267,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	n = drive(n, press(tea.KeyEnter))
 	n.presetAt = 3
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
-		n.stages[0].headers || len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
+		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		n.panel(0).Fold {
 		t.Errorf("Triage in another session: %+v", n.panel(0))
 	}
@@ -271,12 +277,12 @@ func TestClicksOpenThePresetsChooseOneAndSave(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// a click on the line past the name gives it the keyboard, and opens nothing
-	if m = drive(m, testkit.Click(m.dropEnd()+4, paneTop)); m.presetMenu || !m.onPreset {
+	if m = drive(m, testkit.Click(m.dropEnd()+4, m.presetTop())); m.presetMenu || !m.onPreset {
 		t.Fatalf("a click past ▾: menu %v, on the line %v", m.presetMenu, m.onPreset)
 	}
 	m = drive(m, esc)
 	// a click on the name drops the presets down, as one on ▾ does
-	if m = drive(m, testkit.Click(len(lead)+1, paneTop)); !m.presetMenu || !m.onPreset {
+	if m = drive(m, testkit.Click(len(lead)+1, m.presetTop())); !m.presetMenu || !m.onPreset {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetMenu, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetBox()
@@ -284,7 +290,7 @@ func TestClicksOpenThePresetsChooseOneAndSave(t *testing.T) {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetMenu, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
-	m = drive(m, testkit.Click(m.dropEnd()-1, paneTop))
+	m = drive(m, testkit.Click(m.dropEnd()-1, m.presetTop()))
 	if !m.presetMenu {
 		t.Fatalf("a click on ▾ did not open it:\n%s", raw(m))
 	}
@@ -293,7 +299,7 @@ func TestClicksOpenThePresetsChooseOneAndSave(t *testing.T) {
 	}
 	// with a name of its own, a click on 💾 saves
 	m.stages[0].renaming, m.stages[0].naming = true, "Mine"
-	if m = drive(m, testkit.Click(m.paneWidth()-2, paneTop)); m.stages[0].viewName != "Mine" {
+	if m = drive(m, testkit.Click(m.paneWidth()-2, m.presetTop())); m.stages[0].viewName != "Mine" {
 		t.Errorf("a click on save: view %q, %q", m.stages[0].viewName, keysOf(m))
 	}
 	if _, err := os.Stat(file); err != nil {
@@ -428,10 +434,10 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 {
 		t.Fatalf("presets.json: %s, %v", data, err)
 	}
-	yes, no := true, false
+	yes := true
 	want := map[string][]preset{
 		"backlog": {
-			{Name: "Mine", Headers: &yes, Fold: &yes, Fields: map[string]setting{
+			{Name: "Mine", Fold: &yes, Fields: map[string]setting{
 				"title":     {Placement: placeColumn, Position: 1},
 				"id":        {Placement: placeColumn, Position: 2},
 				"source":    {Placement: placeColumn, Position: 3},
@@ -439,13 +445,13 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 				"age":       {Placement: placeColumn, Position: 5, Sort: "desc", Priority: 1},
 				"branch":    {Placement: placeHidden},
 			}},
-			{Name: "Others", Headers: &no, Fold: &yes, Fields: map[string]setting{
+			{Name: "Others", Fold: &yes, Fields: map[string]setting{
 				"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}},
 			}},
-			{Name: "All", Headers: &yes, Fold: &yes},
+			{Name: "All", Fold: &yes},
 		},
 		"changes": {
-			{Name: "Authors", Headers: &yes, Fold: &yes, Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
+			{Name: "Authors", Fold: &yes, Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
 		},
 	}
 	if !reflect.DeepEqual(kept.Stages, want) || !reflect.DeepEqual(m.saved, want) {

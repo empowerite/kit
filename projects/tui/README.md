@@ -39,9 +39,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
   `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
   and leaves the old file as it is.
-  - A line on top of each table names the preset the table is set as, with a chip per filter, and 💾 Save once the
-    table differs from every preset. ↓ from the tabs reaches that line, ⏎ on it lists the presets, typing renames,
-    and ⌃S saves.
+  - The column names always stand over the rows. The rule under them is the preset line: it names the preset the
+    table is set as, with a chip per filter, and, at its right end, how many rows are selected and 💾 Save once the
+    table differs from every preset. It takes no line of the rows. ↓ from the tabs reaches it, ⏎ on it lists the
+    presets, typing renames, and ⌃S saves.
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
     or shows it again.
@@ -51,8 +52,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     with ⌥ adds it after the other sort keys. With ⌃, or the right button, it groups by it alone, and with ⌥⌃ nests
     it within the groups. Shift is not used, because many terminals keep it for their own selection.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
-    steps down to its next, shorter rendering, from the rightmost column leftward. The title never steps, and a
-    rendering pinned always wins.
+    steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
+    another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
+    never steps, and a rendering pinned always wins.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.

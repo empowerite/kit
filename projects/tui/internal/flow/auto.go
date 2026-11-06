@@ -20,12 +20,13 @@ type placed struct {
 
 // automatic gives the rendering each field is drawn by, by id, for the values the rows shown hold in it, by id, one a
 // row, and the cells the rows are laid out in; the fields that stand as columns come in the order they stand. A field
-// whose preset pins one of its renderings is drawn by it. Else its renderings are taken in order, and two rules choose
-// among them. A glyph every row shares says nothing: where each value the rows hold in the field draws the same
-// glyph, the field drops its renderings that draw one, unless every one does. And a table short of width steps down:
-// while the columns do not fit, as grid.Fits says, each column, from the rightmost leftward and a step each in turn,
-// takes its next rendering that is narrower, until they fit or none can step. The column that wraps takes what is left,
-// as it always does, and never steps.
+// whose preset pins one of its renderings is drawn by it. Else its renderings are taken in order, and three rules
+// choose among them. A glyph that leads somewhere is a button: where a value the rows hold in the field links, the
+// field keeps to its renderings that draw a glyph, when it has one. Else a glyph every row shares says nothing: where
+// each value the rows hold in the field draws the same glyph, the field drops its renderings that draw one, unless
+// every one does. And a table short of width steps down: while the columns do not fit, as grid.Fits says, each column,
+// from the rightmost leftward and a step each in turn, takes its next rendering that is narrower, until they fit or
+// none can step. The column that wraps takes what is left, as it always does, and never steps.
 func automatic(fields []placed, vs map[string][]value, width int) map[string]string {
 	out, ladders := map[string]string{}, map[string][]string{}
 	for _, f := range fields {
@@ -34,8 +35,12 @@ func automatic(fields []placed, vs map[string][]value, width int) map[string]str
 			continue
 		}
 		ladder := f.Renderings
-		if plain := slices.DeleteFunc(slices.Clone(ladder), func(r string) bool { return glyphed[r] }); len(plain) > 0 &&
-			f.sharesGlyph(vs[f.ID]) {
+		drawing := slices.DeleteFunc(slices.Clone(ladder), func(r string) bool { return !glyphed[r] })
+		plain := slices.DeleteFunc(slices.Clone(ladder), func(r string) bool { return glyphed[r] })
+		switch {
+		case len(drawing) > 0 && links(vs[f.ID]):
+			ladder = drawing
+		case len(plain) > 0 && f.sharesGlyph(vs[f.ID]):
 			ladder = plain
 		}
 		out[f.ID], ladders[f.ID] = ladder[0], ladder[1:]
@@ -91,4 +96,9 @@ func (f field) sharesGlyph(vs []value) bool {
 		}
 	}
 	return seen != "" && rows > 1
+}
+
+// links says whether a value the rows hold leads somewhere, a page or another stage's row, from its glyph.
+func links(vs []value) bool {
+	return slices.ContainsFunc(vs, func(v value) bool { return v.Link != "" })
 }
