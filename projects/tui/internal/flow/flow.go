@@ -136,7 +136,8 @@ type Model struct {
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
-	drag          drag                   // the column a press on its line in the panel holds, until the release
+	drag          drag                   // the field a press on its line in the panel holds, until the release
+	pop           popover                // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -266,6 +267,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
 		if m.ask != nil {
+			return m, nil
+		}
+		if m.pop.open {
+			m.popClick(msg.X, msg.Y)
 			return m, nil
 		}
 		if m.presetMenu {
@@ -703,9 +708,9 @@ func (m Model) whoami() tea.Cmd {
 	}
 }
 
-// key takes a key press: the quitting keys, the open menu's while one is open, the panel's while it has the keyboard,
-// the preset line's while it has it, = for the app's menu and : or ; for the tab's, the bar's, then the rows' and the
-// sidebar's. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
+// key takes a key press: the quitting keys, a field's popover's while it is open, the open menu's while one is open, the
+// panel's while it has the keyboard, the preset line's while it has it, = for the app's menu and : or ; for the tab's,
+// the bar's, then the rows' and the sidebar's. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -716,6 +721,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.ask != nil {
 		return m.askKey(k)
+	}
+	if m.pop.open {
+		return m.popKey(k)
 	}
 	if m.presetMenu {
 		return m.presetMenuKey(k)
@@ -851,6 +859,10 @@ func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	before := m.panel(m.stage)
+	if field := before.Under(); field != "" && k.String() == "enter" {
+		// enter on a field's line opens its popover, beside the line
+		return m, m.openPopover(field, m.width-1, m.fieldLineAt(), false)
+	}
 	if menu, app := menuFor(k); menu && before.Cursor != 0 {
 		// off the search, the menus' keys drop them down, as they do from the rows
 		return m, m.dropDown(app)

@@ -37,7 +37,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   with a chip per filter, and 💾 Save once the table differs from every preset. ↓ from the tabs reaches that line, and
   ⏎ on it lists the presets. The person's presets are kept in `~/.config/kit/presets.json`. The sidebar is the field
   editor: under the search, each field in one of three sections, group by, columns, and hidden. ⇧↑↓ or a drag moves a
-  field within its section, or across a heading into the next, and space hides a field or shows it again.
+  field within its section, or across a heading into the next, and space hides a field or shows it again. ⏎ on a field
+  opens its popover: its sort, the checklist of values its filter lets through or holds back, for an enum or a person,
+  and its rendering. What it sets applies at once.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.

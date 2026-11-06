@@ -139,12 +139,14 @@ func (m Model) paneWidth() int {
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? shows or hides the sidebar
 // and tab gives it the keyboard; the stages' bar, whose down reaches the preset line, or the rows where the stage has
 // none; and the part the keyboard is in, the preset line, the rows, or the sidebar and its control under the keyboard.
-// An open menu or dialog takes every press, and is the path alone.
+// An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	switch {
 	case m.ask != nil:
 		_, keys := m.askKeys()
 		return shell.Path{shell.DialogKeys(keys)}
+	case m.pop.open:
+		return shell.Path{m.popKeys()}
 	case m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}

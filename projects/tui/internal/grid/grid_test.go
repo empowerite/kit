@@ -170,10 +170,12 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	if got, _ := plainLines(q); !slices.Equal(got[2:5], []string{"group by", "☑ state ▤", "columns"}) {
 		t.Errorf("state grouped: %q", got)
 	}
-	// with the keyboard, a dim hint under the editor says how a field moves; the width keeps room for it
+	// with the keyboard, dim hints under the editor say how a field moves, and what enter on it opens; the width keeps
+	// room for them
 	p.Focused = true
-	if got, _ := plainLines(p); got[len(got)-1] != "⇧↑↓  move, or drag" || p.Width() != ansi.StringWidth("☐ "+Folds) {
-		t.Errorf("the hint: %q, width %d", got[len(got)-1], p.Width())
+	if got, _ := plainLines(p); !slices.Equal(got[len(got)-2:], []string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw"}) ||
+		p.Width() != ansi.StringWidth("⏎    sort, filter, draw") {
+		t.Errorf("the hints: %q, width %d", got[len(got)-2:], p.Width())
 	}
 	// a stage with no field that has a label has the search alone
 	if got, _ := plainLines(Panel{Columns: []string{""}}); len(got) != 1 {
@@ -882,5 +884,35 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	closed := p.Close(ready, true)
 	if q := closed.Close(ready, false); len(texts(q)) != 9 || !closed.Closed[ready] {
 		t.Errorf("unfolded: %q, the closed panel's map %v", texts(q), closed.Closed)
+	}
+}
+
+// A field's popover sets its sort, its filter, and its rendering apart: SortedAs keeps a key's place among the keys in
+// a new direction, adds one after the others, and takes one away; a field that cannot sort changes nothing. The
+// panel's map is never the one it was given.
+func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
+	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age", false).Sorted("id", true)
+	given := p.Fields
+	if q := p.SortedAs("age", Descending); q.Mark("age") != "▼₁" || q.Mark("id") != "▲₂" || given["age"].Sort != Ascending {
+		t.Errorf("age descending: %q %q", q.Mark("age"), q.Mark("id"))
+	}
+	if q := p.SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
+		t.Errorf("age off: %+v", q.SortKeys())
+	}
+	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "▲₂" {
+		t.Errorf("age back on: %q", q.Mark("age"))
+	}
+	if q := p.SortedAs("title", Ascending); len(q.SortKeys()) != 2 {
+		t.Errorf("title, which cannot sort: %+v", q.SortKeys())
+	}
+	if q := p.SortedBy(nil); len(q.SortKeys()) != 0 {
+		t.Errorf("sorted by nothing: %+v", q.SortKeys())
+	}
+	values := []string{Caller}
+	q := p.FilteredBy("who", Filter{Values: values, Exclude: true}).Rendered("who", "text")
+	values[0] = "bob"
+	if f := q.Field("who"); !slices.Equal(f.Filter.Values, []string{Caller}) || !f.Filter.Exclude ||
+		f.Rendering != "text" || !q.Filtering() || p.Filtering() {
+		t.Errorf("who's filter and rendering: %+v", f)
 	}
 }

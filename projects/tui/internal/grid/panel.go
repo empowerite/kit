@@ -296,6 +296,48 @@ func (p Panel) Sorted(column string, also bool) Panel {
 	return p.sortedBy(keys)
 }
 
+// SortedAs gives the panel with a field sorting the rows as d says, as its popover asks: a field already among the keys
+// keeps its place among them, in the new direction, or leaves them for Unsorted; one not among them comes after the
+// others. A field that cannot sort changes nothing.
+func (p Panel) SortedAs(id string, d Direction) Panel {
+	if !p.Sortable[id] {
+		return p
+	}
+	keys := p.SortKeys()
+	k := slices.IndexFunc(keys, func(s SortKey) bool { return s.Column == id })
+	switch {
+	case d == Unsorted && k >= 0:
+		keys = slices.Delete(keys, k, k+1)
+	case d == Unsorted:
+	case k >= 0:
+		keys[k].Desc = d == Descending
+	default:
+		keys = append(keys, SortKey{Column: id, Desc: d == Descending})
+	}
+	return p.sortedBy(keys)
+}
+
+// SortedBy gives the panel sorting the rows by the keys alone, in their order, as they were before a click changed them.
+func (p Panel) SortedBy(keys []SortKey) Panel { return p.sortedBy(keys) }
+
+// FilteredBy gives the panel with the filter on a field, by id, as f says.
+func (p Panel) FilteredBy(id string, f Filter) Panel {
+	return p.with(func(fields map[string]Field) {
+		g := fields[id]
+		g.Filter = Filter{Values: slices.Clone(f.Values), Exclude: f.Exclude}
+		fields[id] = g
+	})
+}
+
+// Rendered gives the panel with a field drawn by the rendering named, or by its first for none.
+func (p Panel) Rendered(id, rendering string) Panel {
+	return p.with(func(fields map[string]Field) {
+		g := fields[id]
+		g.Rendering = rendering
+		fields[id] = g
+	})
+}
+
 // Mark gives what stands after a column's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
 // among the keys, as a subscript, when there are several; nothing where it does not.
 func (p Panel) Mark(column string) string {
@@ -846,9 +888,10 @@ func (p Panel) Lines() (lines []string, at []int) {
 	return lines, at
 }
 
-// hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves.
+// hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
+// popover sets.
 func (p Panel) hints() []string {
-	return []string{"⇧↑↓  move, or drag"}
+	return []string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw"}
 }
 
 // Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
@@ -889,8 +932,9 @@ func (p Panel) Under() string {
 }
 
 // Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
-// there are some; a field's line hides it, or shows it, with space, and moves it with shift and up or down, where it
-// can move that way; whether the panel folds toggles with space or enter.
+// there are some; a field's line hides it, or shows it, with space, moves it with shift and up or down, where it can
+// move that way, and opens its popover with enter, which the screen draws; whether the panel folds toggles with space
+// or enter.
 func (p Panel) Keys(recalls bool) shell.Segment {
 	controls := p.controls()
 	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
@@ -913,7 +957,7 @@ func (p Panel) Keys(recalls bool) shell.Segment {
 		if len(moves) > 0 {
 			s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "move", moves...))
 		}
-		return s
+		return s.With(shell.Bind("⏎", "options", "enter"))
 	}
 	does := "fold"
 	if p.Fold {

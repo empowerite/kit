@@ -5,6 +5,7 @@ package flow
 
 import (
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -21,7 +22,7 @@ import (
 
 // panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard
 // from the bar: the sidebar's keys, then the search's, which hides every key of the screen's and the bar's it types.
-const panelKeys = "⇥/esc backlog  ↑↓ move │ type to search"
+const panelKeys = "⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ type to search"
 
 // searchKeys is the keys bar while the search has the keyboard, the sidebar hidden, from the bar.
 const searchKeys = "⇥/esc backlog │ type to search"
@@ -668,5 +669,85 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	outer, inner := column(m, "github source", grid.Unfolded), column(m, "jeffrey-aguilera assignees", grid.Unfolded)
 	if r := column(m, "#46", "▸"); inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d and %d, a row's ▸ at %d:\n%s", outer, inner, r, view(m))
+	}
+}
+
+// popLineAt gives the screen line of the popover's line that has the text, after its glyph, and a column inside it.
+func popLineAt(t *testing.T, m Model, text string) (x, y int) {
+	t.Helper()
+	box, top, left := m.popBox()
+	for k, l := range box {
+		if strings.Contains(ansi.Strip(l), " "+text+" ") {
+			return left + 3, top + k
+		}
+	}
+	t.Fatalf("the popover has no %q:\n%s", text, view(m))
+	return -1, -1
+}
+
+// Enter on a field's line in the editor opens its popover, which has the keyboard: up and down move between the lines
+// that act, past the headings; space takes a sort or a rendering, and toggles a value of the filter, or its mode; each
+// applies at once, the rows, the editor's marks, and the preset line's mark and chips following it. Esc closes it, and
+// the editor has the keyboard again. A click on a line acts on it, and a click off the box closes it.
+func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
+	m := loaded(t, viewing(""), tab, down, down, down, press(tea.KeyEnter))
+	if !m.pop.open || m.pop.field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
+		t.Fatalf("enter on assignees:\n%s", view(m))
+	}
+	// off is taken, so space on it is not named
+	if keys := m.keys().String(); keys != "esc close  ↑↓ move" {
+		t.Errorf("the popover's keys on off: %q", keys)
+	}
+	if m = drive(m, down, press(tea.KeySpace)); len(m.panel(0).SortKeys()) != 1 || m.panel(0).Mark("assignees") != "▲" ||
+		!strings.Contains(view(m), "sort, key 1 of 1") || !strings.Contains(presetText(m), Differs) {
+		t.Errorf("▲ ascending: %+v\n%s", m.panel(0).SortKeys(), view(m))
+	}
+	// @me, the caller, is ada; checked, only her issue shows, and the preset line has its chip
+	m = drive(m, down, down, down)
+	if keys := m.keys().String(); keys != "esc close  ↑↓ move  ␣ toggle" || !strings.Contains(view(m), "@me ada") {
+		t.Errorf("the popover's keys on @me: %q", keys)
+	}
+	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#7"}) ||
+		!strings.Contains(presetText(m), "assignees: @me") {
+		t.Errorf("@me: %v, %q", keys(m), presetText(m))
+	}
+	// the mode, above it, holds back the values checked
+	if m = drive(m, up, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#45", "#46"}) ||
+		!strings.Contains(presetText(m), "assignees: ¬@me") {
+		t.Errorf("exclude: %v, %q", keys(m), presetText(m))
+	}
+	// the rendering text draws the logins without their glyph
+	x, y := popLineAt(t, m, "text")
+	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
+		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
+	}
+	// esc closes it; the editor has the keyboard, and marks the field sorted and filtered
+	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ▲ ⊘") {
+		t.Errorf("esc: open %v, in panel %v\n%s", m.pop.open, m.inPanel, view(m))
+	}
+	// a click off the box closes it, acting on nothing
+	m = drive(m, press(tea.KeyEnter))
+	before := m.panel(0).Fields
+	if m = drive(m, testkit.Click(2, m.rowsTop())); m.pop.open || !reflect.DeepEqual(m.panel(0).Fields, before) {
+		t.Errorf("a click off the popover: open %v", m.pop.open)
+	}
+	// an enum's values are the catalog's, with their glyphs, then none
+	m = drive(m, append([]tea.Msg{esc, esc, right, tab}, slices.Repeat([]tea.Msg{down}, 6)...)...)
+	m = drive(m, press(tea.KeyEnter))
+	if v := view(m); m.pop.field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
+		!strings.Contains(v, grid.Unticked+" 🏁 ready") || !strings.Contains(v, grid.Unticked+" none") {
+		t.Errorf("state's popover:\n%s", v)
+	}
+}
+
+// Without the caller's login, @me stands alone, and checked lets no row through.
+func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
+	t.Setenv("FAKE_FLOW_REFUSE", "me")
+	m := loaded(t, options(), tab, down, down, down, press(tea.KeyEnter), down, down, down, down)
+	if m.me != "" || !strings.Contains(view(m), grid.Unticked+" @me ") || strings.Contains(view(m), "@me ada") {
+		t.Fatalf("@me without a login: %q\n%s", m.me, view(m))
+	}
+	if m = drive(m, press(tea.KeySpace)); len(keys(m)) != 0 || !strings.Contains(view(m), "no row matches the panel") {
+		t.Errorf("@me checked without a login: %v", keys(m))
 	}
 }

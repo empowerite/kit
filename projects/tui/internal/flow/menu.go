@@ -312,10 +312,14 @@ func (m *Model) menuClick(x, y int) tea.Cmd {
 }
 
 // float draws the menus that hang over the sidebar, once the sidebar is laid out beside the rows, which would clip
-// them: the presets' menu under the preset line, and the searches remembered under the search's ▾.
+// them: the presets' menu under the preset line, a field's popover, and the searches remembered under the search's ▾.
 func (m Model) float(lines []string) []string {
 	if m.presetMenu {
 		box, top, left := m.presetBox()
+		lines = shell.Over(lines, box, top, left)
+	}
+	if m.pop.open {
+		box, top, left := m.popBox()
 		lines = shell.Over(lines, box, top, left)
 	}
 	return m.recent.Overlay(lines, m.recallAt(), m.width)

@@ -1,12 +1,15 @@
 // Every stage's screen at 80×24, closed and with its first row open, is pinned as a golden file without its escapes,
 // its preset line over its table; underway's and builds' are at 120×24, the common width. So is the bar at 120 columns,
 // with the legend and without, and the legend at 80, scrolled to changes; and backlog's preset line once its table
-// differs from every view, filtered to the others' issues and to those not on GitLab, under the keyboard.
+// differs from every view, filtered to the others' issues and to those not on GitLab, under the keyboard; and, at 120
+// columns, the sidebar's field editor with a field in each section, and with assignees' popover open over it, @me
+// checked.
 package flow
 
 import (
 	"maps"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -52,4 +55,11 @@ func TestGoldenViews(t *testing.T) {
 	p.Fields["source"] = source
 	m.setPanel(p)
 	testkit.Golden(t, filepath.Join("testdata", "preset-line.golden"), raw(drive(m, down)))
+	// the field editor in the sidebar: source grouped, age sorted descending, and assignees filtered to @me and hidden
+	shiftUp, enter, space := testkit.Press("shift+up"), press(tea.KeyEnter), press(tea.KeySpace)
+	golden("editor.golden", append(append([]tea.Msg{tab, down, down, shiftUp, shiftUp, down, down, enter},
+		slices.Repeat([]tea.Msg{down}, 4)...), space, esc, space, up, up, up, enter, down, down, space, esc)...)
+	// the field editor in the sidebar, backlog's assignees' popover open over it, @me checked
+	golden("popover.golden", append([]tea.Msg{tab, down, down, down, press(tea.KeyEnter)},
+		append(slices.Repeat([]tea.Msg{down}, 4), press(tea.KeySpace))...)...)
 }
