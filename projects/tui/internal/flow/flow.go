@@ -138,6 +138,8 @@ type Model struct {
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
 	drag          drag                   // the field a press on its line in the panel holds, until the release
 	pop           popover                // a field's popover, which has the keyboard while it is open
+	clicks        shell.Clicks           // the clicks so far, which tell a double click
+	undo          unsort                 // the sort a click on a column's name changed, which a double click restores
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -266,6 +268,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
+		var double bool
+		if m.clicks, double = m.clicks.Click(msg); !double {
+			m.undo = unsort{}
+		}
 		if m.ask != nil {
 			return m, nil
 		}
@@ -316,7 +322,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == paneTop && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
-			m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false)
+			return m, m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false, double)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -481,7 +487,7 @@ func grouping(msg tea.MouseClickMsg) bool {
 // clickHeader says; on a group's heading, they no longer group by its column, the other groups kept.
 func (m *Model) groupClick(x, y int, nest bool) {
 	if y < m.rowsTop() {
-		m.clickHeader(x, y, nest, true)
+		m.clickHeader(x, y, nest, true, false)
 		return
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
@@ -495,34 +501,54 @@ func (m *Model) groupClick(x, y int, nest bool) {
 	}
 }
 
+// unsort is the sort a click on a column's name changed: the column, and the keys before the click.
+type unsort struct {
+	column string
+	keys   []grid.SortKey
+}
+
 // clickHeader takes a click on the header, which is no row, under the preset line: on its gutter it opens the header,
 // or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a
 // shift-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
 // column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
-func (m *Model) clickHeader(x, y int, also, group bool) {
+// The second click of a double click on a name, as double says, sorts nothing: the sort goes back to what it was before
+// the first click changed it, and the field's popover opens under the name.
+func (m *Model) clickHeader(x, y int, also, group, double bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
 	if y < m.headTop() {
-		return
+		return nil
 	}
 	if _, hides := m.header(); hides && !group && y == m.headTop() && x >= 0 && x < 3 {
 		s.headed = !s.headed
 		m.fit()
-		return
+		return nil
 	}
 	lines, _ := m.header()
 	if y >= m.headTop()+len(lines)-1 {
-		return
+		return nil
 	}
-	if j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x); j >= 0 {
-		column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
-		if group {
-			p = p.Grouped(column, also)
-		} else {
-			p = p.Sorted(column, also)
+	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
+	if j < 0 {
+		return nil
+	}
+	column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
+	switch {
+	case group:
+		p = p.Grouped(column, also)
+	case double && column != "":
+		if m.undo.column == column {
+			p = p.SortedBy(m.undo.keys)
 		}
+		m.undo = unsort{}
 		m.setPanel(p)
+		return m.openPopover(column, x+m.indent(m.stage), y, true)
+	default:
+		m.undo = unsort{column: column, keys: p.SortKeys()}
+		p = p.Sorted(column, also)
 	}
+	m.setPanel(p)
+	return nil
 }
 
 // selectRow selects the row under the cursor, as one of several, or unselects it, while the rows have the keyboard;
@@ -1240,8 +1266,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	if y < m.rowsTop() {
-		m.clickHeader(x, y, false, false)
-		return nil
+		return m.clickHeader(x, y, false, false, false)
 	}
 	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
 	if y == m.rowsTop() && m.head(lines, m.rowsHeight()) != "" {

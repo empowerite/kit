@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -87,10 +88,20 @@ func (m Model) toggleKey() tea.KeyPressMsg {
 	return right
 }
 
-// loaded opens the screen at 120×24, the common width, and loads every stage, then sends the messages.
+// loaded opens the screen at 120×24, the common width, and loads every stage, then sends the messages. Its clicks read
+// a clock that moves a second each time it is read, so no two clicks make a double click unless the test sets the
+// clock.
 func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 	t.Helper()
 	m := New(runner(t), o)
+	var mu sync.Mutex
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	m.clicks.Now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		now = now.Add(time.Second)
+		return now
+	}
 	first := []tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 24}}
 	if cmd := m.Init(); cmd != nil {
 		first = append(first, cmd())

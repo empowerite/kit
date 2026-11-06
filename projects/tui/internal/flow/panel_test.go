@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -749,5 +750,53 @@ func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 	}
 	if m = drive(m, press(tea.KeySpace)); len(keys(m)) != 0 || !strings.Contains(view(m), "no row matches the panel") {
 		t.Errorf("@me checked without a login: %v", keys(m))
+	}
+}
+
+// A double click on a column's name opens its field's popover under the name: the first click sorted, as a click does,
+// and the second puts the sort back as it was before the first, shift-clicks too. Two clicks further apart than
+// shell.DoubleClick, or on two names, are two clicks, each sorting. The clock is the test's.
+func TestADoubleClickOnAColumnsNameOpensItsPopover(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
+	unfold(&m)
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	m.clicks.Now = func() time.Time { return now }
+	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
+	click := func(name string, after time.Duration, mod tea.KeyMod) {
+		now = now.Add(after)
+		m = drive(m, tea.MouseClickMsg{X: at(name), Y: paneTop, Button: tea.MouseLeft, Mod: mod})
+	}
+	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
+	click("age", 0, 0)
+	if len(sorts()) != 1 || m.pop.open {
+		t.Fatalf("one click on age: %+v, popover %v", sorts(), m.pop.open)
+	}
+	click("age", 500*time.Millisecond, 0)
+	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) || m.pop.open {
+		t.Fatalf("a second click, later: %+v, popover %v", sorts(), m.pop.open)
+	}
+	// the first click of a double click stops the sort; the second puts it back, descending, and opens age's popover
+	click("age", time.Second, 0)
+	if len(sorts()) != 0 {
+		t.Fatalf("a third click on age: %+v", sorts())
+	}
+	click("age", 100*time.Millisecond, 0)
+	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) || !m.pop.open || m.pop.field != "age" || !strings.Contains(view(m), "╭─ age ") {
+		t.Fatalf("a double click on age: %+v, popover %+v\n%s", sorts(), m.pop, view(m))
+	}
+	if _, top, _ := m.popBox(); top != paneTop+1 {
+		t.Errorf("the popover is not under the name: %d", top)
+	}
+	// with age sorting alone, a shift-double-click on source leaves age the one key, and opens source's popover
+	m = drive(m, esc)
+	click("age", time.Second, 0)
+	click("age", time.Second, 0)
+	click("source", 10*time.Millisecond, tea.ModShift)
+	if len(sorts()) != 2 || m.pop.open {
+		t.Fatalf("a shift-click on source after a click on age: %+v, popover %v", sorts(), m.pop.open)
+	}
+	click("source", 10*time.Millisecond, tea.ModShift)
+	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.pop.field != "source" {
+		t.Errorf("a shift-double-click on source: %+v, popover %+v", sorts(), m.pop)
 	}
 }

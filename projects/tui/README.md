@@ -39,17 +39,18 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   editor: under the search, each field in one of three sections, group by, columns, and hidden. ⇧↑↓ or a drag moves a
   field within its section, or across a heading into the next, and space hides a field or shows it again. ⏎ on a field
   opens its popover: its sort, the checklist of values its filter lets through or holds back, for an enum or a person,
-  and its rendering. What it sets applies at once.
+  and its rendering. What it sets applies at once. A double click on a column's name opens the same popover, and puts
+  back the sort the first click of it changed.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
-  and kittui's settings file, and the keys bar. A screen never writes its keys bar. It gives the path from the
-  screen to the control that has the keyboard, and each control on the path names the keys it answers. A deeper
-  control hides an ancestor's key for a press it takes. The bar draws each control's keys between rules, and drops
-  whole controls from the screen's end when the line is too narrow.
+  and kittui's settings file, the double clicks Bubble Tea does not report, and the keys bar. A screen never writes its
+  keys bar. It gives the path from the screen to the control that has the keyboard, and each control on the path names
+  the keys it answers. A deeper control hides an ancestor's key for a press it takes. The bar draws each control's keys
+  between rules, and drops whole controls from the screen's end when the line is too narrow.
 - `internal/style/` is the look: one accent color, the glyphs, and the keys bar's styles. It honors `NO_COLOR`.
 - `internal/testkit/` holds what the tests share. Only tests import it.
 
