@@ -454,8 +454,9 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	}
 }
 
-// g in the side panel, on a groupable column's line, groups the stage's rows by it under dim headings, which its tab
-// does not count; on a column that cannot group, as id, it does nothing.
+// g in the side panel, on a groupable column's line, groups the stage's rows by it under headings, which its tab does
+// not count, each its value as the rows draw it and the column's name and the count dim; on a column that cannot
+// group, as id, it does nothing.
 func TestGInThePanelGroupsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
 	count := m.count(m.stage)
@@ -465,8 +466,9 @@ func TestGInThePanelGroupsTheRows(t *testing.T) {
 		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count {
 		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Group, m.count(m.stage), v)
 	}
-	if !strings.Contains(m.View().Content, style.Off(grid.Unfolded+" 🏁 ready state  1")) {
-		t.Error("a group's heading is not dim")
+	if want := style.Off(grid.Unfolded) + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
+		m.View().Content, want) {
+		t.Error("a group's heading does not draw its value plain, and its column and count dim")
 	}
 	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
 	if m = drive(m, typed("g")...); len(m.panel(m.stage).Group) != 1 {

@@ -237,8 +237,8 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
-// in their values' order and the rows in each as they came: a heading, an aside, is the value and the column's name,
-// dim, indented by its depth, and how many rows it heads. A row groups by a cell's first value, or under none when the
+// in their values' order and the rows in each as they came: a heading, an aside, is the value, as the rows draw it,
+// and the column's name, dim, indented by its depth, and how many rows it heads, dim. A row groups by a cell's first value, or under none when the
 // cell has none. A row of one cell, as a heading, has no value: those follow the groups.
 //
 // Under each heading, the walk goes on along the columns that can group, in the panel's order: one whose value is the
@@ -285,8 +285,9 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		if len(took) == 0 {
 			return rows, nil
 		}
-		heading := p.fold(overAll) + " " + joined(grouped[0], columns, took) + "  " + strconv.Itoa(len(grouped))
-		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true,
+		heading := style.Off(p.fold(overAll)) + " " + joined(grouped[0], columns, took) + "  " +
+			style.Off(strconv.Itoa(len(grouped)))
+		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true,
 			Says: names(columns, took)}}
 		for _, r := range grouped {
 			out = append(out, blank(r, took))
@@ -323,12 +324,13 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 				return slices.ContainsFunc(auto[:depth], func(above []int) bool { return slices.Contains(above, x) })
 			}))
 			took = append(took, auto[depth]...)
-			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + value(r, j) + " " + columns[j]
+			heading := strings.Repeat("  ", depth) + style.Off(p.fold(key)) + " " + value(r, j) + " " +
+				style.Off(columns[j])
 			if len(auto[depth]) > 0 {
-				heading += ", " + joined(r, columns, auto[depth])
+				heading += style.Off(",") + " " + joined(r, columns, auto[depth])
 			}
-			heading += "  " + strconv.Itoa(n)
-			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{style.Off(heading)}, Wrap: true}}, Aside: true,
+			heading += "  " + style.Off(strconv.Itoa(n))
+			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true,
 				Says: names(columns, auto[depth])})
 		}
 		out = append(out, blank(r, slices.Concat(auto...)))
@@ -431,9 +433,9 @@ func constant(rows []Row, columns []int) []int {
 func joined(r Row, names []string, columns []int) string {
 	var values []string
 	for _, j := range columns {
-		values = append(values, ansi.Strip(r.Cells[j].first())+" "+names[j])
+		values = append(values, ansi.Strip(r.Cells[j].first())+" "+style.Off(names[j]))
 	}
-	return strings.Join(values, ", ")
+	return strings.Join(values, style.Off(",")+" ")
 }
 
 // blank gives the row with its cells in the columns blank, their values said by the heading over it.
