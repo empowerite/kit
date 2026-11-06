@@ -1,25 +1,25 @@
   ≡ kit flow · 📚 empowerite/kit                                                             🔎 search
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶────────
-  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ columns
-  ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ ☑ id
-   Default ▾                                                                               │ ☑ source ▤
-      id  assignees         age  branch            title                                   │ ☑ assignees
-   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ age
- ▾ 🐙 github source  3                                                                     │ ☑ branch
-   ▸ #45                     2h                    🎫 kit flow is the one picture: five s… │ ☑ title
-   ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb ac… │
-   ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing                        │ show
-                                                                                           │ ⦿ all
-                                                                                           │ ⦾ mine
-                                                                                           │ ⦾ others
+  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
+  ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ columns
+   Default ▾                                                                               │ ☑ id
+      id  assignees         age  branch            title                                   │ ☑ source ▤
+   ─────────────────────────────────────────────────────────────────────────────────────── │ ☑ assignees
+ ▾ 🐙 github source  3                                                                     │ ☑ age
+   ▸ #45                     2h                    🎫 kit flow is the one picture: five s… │ ☑ branch
+   ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb ac… │ ☑ title
+   ▸  #7  👤 ada        +1  40d                    🎫 Fix the thing                        │ hidden
+                                                                                           │
+                                                                                           │ ☑ fold shared values
                                                                                            │
                                                                                            │ legend
                                                                                            │ 🎫 an issue 🔗
-                                                                                           ▸ 🐙 on GitHub
-                                                                                           ╷ 🦊 on GitLab
-                                                                                           │ 👤 assignees or author
+                                                                                           │ 🐙 on GitHub
+                                                                                           ▸ 🦊 on GitLab
+                                                                                           ╷ 👤 assignees or author
                                                                                            │ 🌿 a branch or a worktree
                                                                                            │ ❌ failed
+                                                                                           │
                                                                                            │
                                                                                            │
                                                                                            │

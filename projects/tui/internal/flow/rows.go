@@ -329,7 +329,7 @@ func laid(stage string, records []record, pinned func(id string) string) []row {
 // it loads or after a refusal.
 func (m Model) rows(i int) []row { return m.shown(i).rows }
 
-// offered gives the columns a stage's panel offers a checkbox for, as filled says, kept as its rows are.
+// offered gives the columns a stage's panel lists in its editor, as filled says, kept as its rows are.
 func (m Model) offered(i int) []string { return m.shown(i).names }
 
 // shown gives a stage's rows as its panel lets them through, built once for what the stages hold, the width, and the
@@ -368,7 +368,7 @@ func (m Model) build(i int) shown {
 }
 
 // filled gives a stage's columns as its panel offers them: each named column that one of the rows loaded has a value
-// in, and no name for the rest, as backlog's branch while no issue has one, since a checkbox there would hide nothing.
+// in, and no name for the rest, as backlog's branch while no issue has one, since a line there would hide nothing.
 func filled(rows []row, names []string) []string {
 	out := make([]string, len(names))
 	for _, r := range rows {

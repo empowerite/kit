@@ -51,9 +51,9 @@ func TestThePresetLineStandsOnTopOfTheTableAndNamesTheView(t *testing.T) {
 	if !strings.Contains(keysOf(m), "↓ preset") {
 		t.Errorf("down on the bar does not say it reaches the preset line: %q", keysOf(m))
 	}
-	// the sidebar under the search starts with the columns
+	// the sidebar under the search starts with the field editor
 	side, _ := m.panel(0).Lines()
-	if got := ansi.Strip(side[2]); got != "columns" || ansi.Strip(side[1]) != "" {
+	if got := ansi.Strip(side[2]); got != "group by" || ansi.Strip(side[1]) != "" {
 		t.Errorf("the sidebar's first lines: %q", side[:3])
 	}
 	m = drive(m, down)

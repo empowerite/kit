@@ -5,6 +5,7 @@ package flow
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +14,7 @@ import (
 )
 
 func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
+	shiftUp := testkit.Press("shift+up")
 	for _, c := range []struct {
 		where   string
 		msgs    []tea.Msg
@@ -26,6 +28,13 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 		{"in the sidebar's search, typed", append([]tea.Msg{press(tea.KeyTab)}, typed("o")...), false},
 		{"on the sidebar's first column", []tea.Msg{press(tea.KeyTab), down}, false},
 		{"on the sidebar's second column", []tea.Msg{press(tea.KeyTab), down, down}, false},
+		{"on a group in the sidebar's editor", []tea.Msg{press(tea.KeyTab), down, down, shiftUp, shiftUp}, false},
+		{"on the last column in the sidebar's editor", append([]tea.Msg{press(tea.KeyTab)},
+			slices.Repeat([]tea.Msg{down}, 6)...), false},
+		{"on a hidden field in the sidebar's editor", []tea.Msg{press(tea.KeyTab), down, down, down,
+			press(tea.KeySpace)}, false},
+		{"on the sidebar's box for folding", append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 7)...),
+			false},
 		{"in the search, the sidebar hidden", typed("/"), false},
 		{"in the rows, then the sidebar", []tea.Msg{down, press(tea.KeyTab), down}, false},
 		{"on the bar, over a preset line", nil, true},

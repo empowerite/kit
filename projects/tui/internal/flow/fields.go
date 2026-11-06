@@ -137,7 +137,7 @@ func fieldsOf(stage string) []field {
 }
 
 // columnsOf gives the names the panel knows a stage's columns by, in the order they stand: each field's id, and none
-// for a field without a label, which the panel offers no checkbox for, never moves, and never sorts or groups by.
+// for a field without a label, which the panel's editor never lists nor moves, and never sorts or groups by.
 func columnsOf(stage string) []string {
 	var out []string
 	for _, f := range fieldsOf(stage) {
@@ -157,6 +157,17 @@ func labelOf(stage, id string) string {
 		return fieldsOf(stage)[k].Label
 	}
 	return id
+}
+
+// labelsOf gives the label of each of a stage's fields that has one, by its id, as the panel lists them.
+func labelsOf(stage string) map[string]string {
+	out := map[string]string{}
+	for _, f := range fieldsOf(stage) {
+		if f.Label != "" {
+			out[f.ID] = f.Label
+		}
+	}
+	return out
 }
 
 // able gives the ids of a stage's fields that can, as can says, as a set.

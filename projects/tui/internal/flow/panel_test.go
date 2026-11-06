@@ -1,5 +1,6 @@
-// The panel beside the rows, driven as the person drives it: tab and / give it the keyboard, shell.Typing narrows the rows,
-// space hides a column or picks whose rows show, and a click acts on a control. A click on a row's gutter opens it.
+// The panel beside the rows, driven as the person drives it: tab and / give it the keyboard, typing narrows the rows,
+// space hides a field, shift with an arrow or a drag moves one, and a click acts on a control. A click on a row's
+// gutter opens it.
 package flow
 
 import (
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -19,7 +21,7 @@ import (
 
 // panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard
 // from the bar: the sidebar's keys, then the search's, which hides every key of the screen's and the bar's it types.
-const panelKeys = "⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ type to search"
+const panelKeys = "⇥/esc backlog  ↑↓ move │ type to search"
 
 // searchKeys is the keys bar while the search has the keyboard, the sidebar hidden, from the bar.
 const searchKeys = "⇥/esc backlog │ type to search"
@@ -185,61 +187,42 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	}
 }
 
-func TestThePanelHidesAColumnAndShowsTheCallersRowsOrEveryoneElses(t *testing.T) {
+// Space on a field's line in the editor hides it, and it stands under hidden, the keyboard with it; again shows it
+// where it stood. Kit is asked for the caller's login once, whichever way the sidebar shows.
+func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
+	// the search, then id, source, and assignees, under columns
 	m := loaded(t, options(), tab, down, down, down, press(tea.KeySpace))
 	if m.me != "ada" {
 		t.Fatalf("the caller's login: %q", m.me)
 	}
-	if strings.Contains(drawn(m), Owner) || !strings.Contains(view(m), grid.Unticked+" assignees") {
+	side, _ := m.panel(0).Lines()
+	at := slices.Index(side, style.Cursor(pane.Pad(grid.Unticked+" assignees", m.sideWidth()-1, false)))
+	if strings.Contains(drawn(m), Owner) || at < 0 || ansi.Strip(side[at-1]) != "hidden" || m.panel(0).Under() != "assignees" {
 		t.Errorf("assignees hidden:\n%s", view(m))
 	}
-	// the controls: the search, six columns, then all, mine, and others
-	for range 5 {
-		m = drive(m, down)
+	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show  ⇧↑↓ move") {
+		t.Errorf("the keys on a hidden field: %q", keys)
 	}
-	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#7"}) {
-		t.Errorf("mine: %v\n%s", keys(m), view(m))
+	if m = drive(m, press(tea.KeySpace)); !strings.Contains(drawn(m), Owner) || shownNow(m)[2] != "assignees" {
+		t.Errorf("assignees shown again: %q\n%s", shownNow(m), view(m))
 	}
-	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(keys(m), []string{"#45", "#46"}) {
-		t.Errorf("others: %v", keys(m))
-	}
-	// underway's rows belong to the issue's assignees alone, so #8, which ada's pull request closes, is not mine; mine
-	// is past underway's eleven named columns
-	m = drive(m, esc, right)
-	m = drive(m, append([]tea.Msg{tab}, slices.Repeat([]tea.Msg{down}, 13)...)...)
-	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#31 #12"}) {
-		t.Errorf("underway, mine: %v\n%s", keys(m), view(m))
-	}
-	// kit is asked once, whichever way the side shows
 	m = drive(m, press('?'), press('?'), esc, tab)
 	if n := strings.Count(strings.Join(calls(t, record), "\n"), "flow --me"); n != 1 {
 		t.Errorf("kit flow --me ran %d times", n)
 	}
 }
 
-func TestMineAndOthersStayDimWhenKitCannotSayWhoTheCallerIs(t *testing.T) {
-	t.Setenv("FAKE_FLOW_REFUSE", "me")
-	m := loaded(t, options(), tab)
-	if m.me != "" || !strings.Contains(m.View().Content, style.Off(grid.Unpicked+" mine")) {
-		t.Fatalf("mine without a login: %q\n%s", m.me, view(m))
-	}
-	m = drive(m, slices.Repeat([]tea.Msg{down}, 7)...)
-	if m = drive(m, press(tea.KeySpace)); len(keys(m)) != 3 {
-		t.Errorf("mine was picked without a login: %v", keys(m))
-	}
-}
-
 func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), press('?'))
 	x := m.paneWidth() + 3
-	// the side's lines: the search, a gap, columns, then number, source, and assignees
-	if m = drive(m, testkit.Click(x, 5), testkit.Release(x, 5)); !m.inPanel || m.panel(0).Field("assignees").Placement != grid.Hidden ||
+	// the side's lines: the search, a gap, group by, columns, then id, source, and assignees
+	if m = drive(m, testkit.Click(x, 6), testkit.Release(x, 6)); !m.inPanel || m.panel(0).Field("assignees").Placement != grid.Hidden ||
 		strings.Contains(drawn(m), Owner) {
 		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
 	}
-	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Cursor != 3 {
+	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Under() != "assignees" {
 		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
 	}
 	// a click on the gutter of a row's first line opens it, from the panel; again closes it. #45 stands under the
@@ -456,59 +439,61 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	}
 }
 
-// g in the side panel, on a groupable column's line, groups the stage's rows by it under headings, which its tab does
-// not count, each its value as the rows draw it and the column's name and the count dim; on a column that cannot
-// group, as id, it does nothing.
-func TestGInThePanelGroupsTheRows(t *testing.T) {
+// A groupable field moved up from the first column, by shift and up in the editor, groups the stage's rows by it under
+// headings, which its tab does not count, each its value as the rows draw it and the field's name and the count dim; a
+// field that cannot group, as id, stays the first column.
+func TestAFieldMovedIntoTheGroupsGroupsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
 	count := m.count(m.stage)
-	// down to state, the sixth column: id, source, assignees, age, change, state
-	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), typed("g")...)...)
+	shiftUp := tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	// down to state, the sixth column: id, source, assignees, age, change, state; up past the five before it
+	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), slices.Repeat([]tea.Msg{shiftUp}, 6)...)...)
 	if v := view(m); !slices.Equal(m.panel(m.stage).Groups(), []string{"state"}) || !strings.Contains(v, "🏁 ready state  1") ||
-		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count {
-		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Groups(), m.count(m.stage), v)
+		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count || m.panel(m.stage).Under() != "state" {
+		t.Fatalf("state up into the groups: %q, count %s\n%s", m.panel(m.stage).Groups(), m.count(m.stage), v)
 	}
 	if want := style.Off(grid.Unfolded) + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
 		m.View().Content, want) {
 		t.Error("a group's heading does not draw its value plain, and its column and count dim")
 	}
-	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
-	if m = drive(m, typed("g")...); len(m.panel(m.stage).Groups()) != 1 {
-		t.Errorf("g on id: %q", m.panel(m.stage).Groups())
+	m = drive(m, down)
+	if m = drive(m, shiftUp); m.panel(m.stage).Under() != "id" || len(m.panel(m.stage).Groups()) != 1 {
+		t.Errorf("shift-up on id: %q", m.panel(m.stage).Groups())
 	}
 }
 
-// In the side panel a column toggles only by space, or a click on its checkbox: a click on its name takes the keyboard,
-// to sort or group by it, and toggles nothing. The control under the keyboard is inverse across the panel but a cell.
+// In the side panel a field toggles only by space, or a click on its box: a click on its label takes the keyboard, and
+// toggles nothing. The control under the keyboard is inverse across the panel but a cell.
 func TestAClickOnAColumnsNameTogglesNothing(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, press('?'))
 	box := m.paneWidth() + 3
-	m = drive(m, testkit.Click(box+3, 4), testkit.Release(box+3, 4))
-	if p := m.panel(0); len(hiddenOf(p)) != 0 || !m.inPanel || p.ColumnAt(4) != "source" {
+	m = drive(m, testkit.Click(box+3, 5), testkit.Release(box+3, 5))
+	if p := m.panel(0); len(hiddenOf(p)) != 0 || !m.inPanel || p.FieldAt(5) != "source" {
 		t.Errorf("a click on source's name: hidden %v, in panel %v", hiddenOf(p), m.inPanel)
 	}
 	lines, _ := m.panel(0).Lines()
-	if got := ansi.StringWidth(lines[4]); got != m.sideWidth()-1 || !strings.HasPrefix(lines[4], style.Cursor(grid.Ticked)[:4]) {
-		t.Errorf("the control under the keyboard is %d cells inverse, not %d: %q", got, m.sideWidth()-1, lines[4])
+	if got := ansi.StringWidth(lines[5]); got != m.sideWidth()-1 || !strings.HasPrefix(lines[5], style.Cursor(grid.Ticked)[:4]) {
+		t.Errorf("the control under the keyboard is %d cells inverse, not %d: %q", got, m.sideWidth()-1, lines[5])
 	}
-	if m = drive(m, testkit.Click(box, 4), testkit.Release(box, 4)); m.panel(0).Field("source").Placement != grid.Hidden {
+	if m = drive(m, testkit.Click(box, 5), testkit.Release(box, 5)); m.panel(0).Field("source").Placement != grid.Hidden {
 		t.Error("a click on source's checkbox did not toggle it")
 	}
 }
 
-// g groups by a column alone, G within the groups there are; a grouped column leaves the header and the rows, whose
-// heading names its value, and the rows and the header stand in two cells a level, a click on a name finding its
-// column there.
-func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
+// A field moved into the groups groups the rows by it, at the last depth, within the groups there are; a grouped
+// column leaves the header and the rows, whose heading names its value, and the rows and the header stand in two cells
+// a level, a click on a name finding its column there.
+func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
-	// down to source, then to assignees: g on each groups by it alone; G nests
-	m = drive(m, down, down, typed("g")[0], down, typed("g")[0])
-	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"assignees"}) {
-		t.Fatalf("g on source, then g on assignees: %q", got)
+	shiftUp := tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	// down to source, up into the groups; then down to assignees, under it and id, and up after it
+	m = drive(m, down, down, shiftUp, shiftUp)
+	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source"}) {
+		t.Fatalf("source up into the groups: %q", got)
 	}
-	m = drive(m, up, typed("G")[0])
-	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"assignees", "source"}) {
-		t.Fatalf("G on source: %q", got)
+	m = drive(m, down, down, shiftUp, shiftUp)
+	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source", "assignees"}) {
+		t.Fatalf("assignees up into the groups: %q", got)
 	}
 	header := ansi.Cut(lines(m)[paneTop], 0, m.paneWidth())
 	if strings.Contains(header, "source") || strings.Contains(header, "assignees") || !strings.HasPrefix(header, strings.Repeat(" ", 4+3)) {
@@ -585,8 +570,8 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 
 // A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
 // tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
-// dim ▤. It follows the rows: a search that leaves one row ungroups it. g on the column in the panel stops the panel
-// folding, so it is a column again.
+// dim ▤. It follows the rows: a search that leaves one row ungroups it. The panel's box for folding, the last of its
+// controls, stops it, so it is a column again.
 func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	heading := func(m Model) string {
@@ -609,14 +594,13 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// g on source in the panel stops the folding, through a refresh of the rows
-	// the search, then id, then source
-	if m = drive(m, press(tea.KeyTab), down, down); m.panel(m.stage).Cursor != 2 {
+	// space on the box for folding stops it, through a refresh of the rows: the search, eleven fields, then the box
+	if m = drive(m, append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 12)...)...); m.panel(m.stage).Under() != "" {
 		t.Fatalf("the panel's cursor: %d", m.panel(m.stage).Cursor)
 	}
-	if m = drive(m, typed("g")[0]); heading(m) != "" || m.panel(m.stage).Fold ||
+	if m = drive(m, press(tea.KeySpace)); heading(m) != "" || m.panel(m.stage).Fold ||
 		len(m.panel(m.stage).Groups()) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
-		t.Errorf("g on source: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
+		t.Errorf("space on the box: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
 	if m.rebuild(); heading(m) != "" {
 		t.Errorf("the rows built again group by source")

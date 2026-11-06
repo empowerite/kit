@@ -120,7 +120,7 @@ type Model struct {
 	sideChosen    bool                   // whether the person showed or hid the sidebar, which a resize then keeps
 	sideOffset    int                    // the sidebar's first line, when it is taller than the pane
 	widest        int                    // the cells of the widest stage's panel or legend
-	me            string                 // the caller's login, once kit has said it, which the panels' mine and others match
+	me            string                 // the caller's login, once kit has said it, which a filter's @me matches
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
@@ -197,7 +197,8 @@ func New(r kit.Runner, o Options) Model {
 			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p preset) bool { return p.Name == Opening })].panel(c.Fields, s.view)
 		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name), Owner: ownerOf(name)}.Width())
+		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name),
+			Labels: labelsOf(name), Groupable: groupableOf(name)}.Width())
 	}
 	return m
 }
@@ -399,6 +400,7 @@ func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
 	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
+	p.Labels = labelsOf(s.name)
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }
@@ -449,10 +451,10 @@ func (m *Model) clickPanel(x, line int) tea.Cmd {
 		m.scrollSide(max(1, h-2))
 	case k >= 0:
 		p := m.panel(m.stage)
-		if column := p.ColumnAt(k + 1); column != "" {
-			// a column's line is held, to drag or to toggle on the release; it takes the keyboard now
+		if field := p.FieldAt(k + 1); field != "" {
+			// a field's line is held, to drag or to toggle on the release; it takes the keyboard now
 			p, _ = p.Point(k + 1)
-			m.inPanel, m.drag = true, drag{column: column}
+			m.inPanel, m.drag = true, drag{field: field}
 			m.setPanel(p)
 			return nil
 		}
@@ -572,10 +574,10 @@ func (m Model) selectedRows() []row {
 // selected gives how many of the selected stage's rows shown are selected.
 func (m Model) selected() int { return len(m.selectedRows()) }
 
-// drag is the column whose line in the panel a press holds, and whether a drag has moved it since.
+// drag is the field whose line in the panel a press holds, and whether a drag has moved it since.
 type drag struct {
-	column string
-	moved  bool
+	field string
+	moved bool
 }
 
 // panelLine gives the line of the panel, as its Lines numbers them, that a screen cell falls on: the search's, 0, on
@@ -598,34 +600,31 @@ func (m Model) panelLine(x, y int) int {
 	return -1
 }
 
-// dragTo moves the column held, while the mouse drags it, to where the column whose line it is over stands, the
-// keyboard with it; over any other line it moves nothing.
+// dragTo moves the field held, while the mouse drags it, as the panel's Dropped says: over another field's line, to
+// where that field stands, and over a section's heading, to the top of that section, across the editor's sections as
+// shift with up or down moves it, the keyboard with it; over any other line it moves nothing.
 func (m *Model) dragTo(x, y int) {
-	if m.drag.column == "" {
+	if m.drag.field == "" {
 		return
 	}
-	line := m.panelLine(x, y)
-	p := m.panel(m.stage)
-	at := p.ColumnAt(line)
-	if at == "" || at == m.drag.column {
-		return
+	if p, ok := m.panel(m.stage).Dropped(m.drag.field, m.panelLine(x, y)); ok {
+		m.drag.moved = true
+		m.setPanel(p)
+		m.fitSide()
 	}
-	p, _ = p.Move(m.drag.column, at).Point(line)
-	m.drag.moved = true
-	m.setPanel(p)
 }
 
-// release ends a hold on a column's line: a hold no drag moved, released on the checkbox of the line it began on,
-// toggles it, as a click on any other control acts on it; released on the column's name, which takes the keyboard to
-// sort or group by it, it toggles nothing.
+// release ends a hold on a field's line: a hold no drag moved, released on the box of the line it began on, toggles
+// it, as a click on any other control acts on it; released on the field's label, which takes the keyboard, it toggles
+// nothing.
 func (m *Model) release(x, y int) {
 	held := m.drag
 	m.drag = drag{}
-	if held.column == "" || held.moved || x > m.width-m.sideWidth()+1 {
+	if held.field == "" || held.moved || x > m.width-m.sideWidth()+1 {
 		return
 	}
 	line := m.panelLine(x, y)
-	if p := m.panel(m.stage); p.ColumnAt(line) == held.column {
+	if p := m.panel(m.stage); p.FieldAt(line) == held.field {
 		p, _ = p.Click(line)
 		m.setPanel(p)
 	}

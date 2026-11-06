@@ -1,6 +1,7 @@
 package grid
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -9,8 +10,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
+
+// first gives the first of two values, as the rows of group.
+func first(rows []Row, _ []string) []Row { return rows }
 
 // one gives a cell of one value.
 func one(s string) Cell { return Cell{Values: []string{s}} }
@@ -132,58 +137,52 @@ func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	}
 }
 
-func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
-	p := Panel{Columns: []string{"number", "who", "", "title"}, Fields: map[string]Field{"who": {Placement: Hidden}},
-		Owner: "who"}
+// plainLines gives the panel's lines without their escapes, and what each draws.
+func plainLines(p Panel) ([]string, []int) {
 	lines, at := p.Lines()
-	want := []string{"🔎 search", "", "columns", "☑ number", "☐ who", "☑ title", "", "show", "⦿ all", "⦾ mine", "⦾ others"}
-	got := make([]string, len(lines))
 	for i, l := range lines {
-		got[i] = ansi.Strip(l)
+		lines[i] = strings.TrimRight(ansi.Strip(l), " ")
 	}
-	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, 1, 2, 3, -1, -1, 4, 5, 6}) {
+	return lines, at
+}
+
+// Under the search, the field editor lists each field with a label, by it, once, in its section: the groups by depth,
+// the columns by position, the hidden in the stage's order, each section under its dim heading, an empty one's too. A
+// field's line marks its sort, its group, and a filter on it; whether the panel folds is a box of its own after them.
+func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
+	p := Panel{Columns: []string{"number", "who", "", "state", "title"}, Labels: map[string]string{"number": "#"},
+		Groupable: map[string]bool{"state": true, "who": true}, Sortable: map[string]bool{"number": true},
+		Fields: map[string]Field{"who": {Placement: Hidden, Filter: Filter{Values: []string{Caller}}},
+			"title": {Position: 1}, "number": {Sort: Descending, Priority: 1}}, Owner: "who"}
+	got, at := plainLines(p)
+	want := []string{"🔎 search", "", "group by", "columns", "☑ title", "☑ # ▼", "☑ state", "hidden", "☐ who ⊘", "",
+		"☐ " + Folds}
+	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, -1, 1, 2, 3, -1, 4, -1, 5}) {
 		t.Errorf("the panel:\n%s\n%v", strings.Join(got, "\n"), at)
 	}
-	// what is selected is bold in the accent, a ticked column as the picked choice; the others' boxes are dim
-	if lines[3] != style.Mark("☑ number") || lines[4] != style.Off("☐")+" who" || lines[8] != style.Mark("⦿ all") {
-		t.Errorf("the selected controls are not marked: %q", lines[3:9])
+	// a column and a group are ticked, bold in the accent; a hidden field's box is dim; the marks are in the accent
+	lines, _ := p.Lines()
+	if lines[4] != style.Mark("☑ title") || lines[8] != style.Off("☐")+" who "+style.Tint(Filtered) ||
+		lines[2] != style.Off("group by") {
+		t.Errorf("the controls are not marked: %q", lines[2:9])
 	}
-	// without the caller's login, mine and others are dim, and cannot be chosen
-	if !strings.Contains(lines[9], style.Off("⦾ mine")) {
-		t.Errorf("mine is not dim without a login: %q", lines[9])
+	q := p.Grouped("state", false)
+	if got, _ := plainLines(q); !slices.Equal(got[2:5], []string{"group by", "☑ state ▤", "columns"}) {
+		t.Errorf("state grouped: %q", got)
 	}
-	if q, ok := p.Click(9); !ok || q.Showing() != All || q.Filtering() {
-		t.Errorf("mine was chosen without a login: %v, %v", q.Showing(), ok)
+	// with the keyboard, a dim hint under the editor says how a field moves; the width keeps room for it
+	p.Focused = true
+	if got, _ := plainLines(p); got[len(got)-1] != "⇧↑↓  move, or drag" || p.Width() != ansi.StringWidth("☐ "+Folds) {
+		t.Errorf("the hint: %q, width %d", got[len(got)-1], p.Width())
 	}
-	// the width keeps room for the hints the panel shows with the keyboard
-	if p.Width() != ansi.StringWidth("⇧↑↓  order, or drag") {
-		t.Errorf("width %d", p.Width())
-	}
-	// with the keyboard, dim hints under the columns say what a column's keys do, the sort's and the groups' only
-	// where a column can sort or group
-	p.Focused, p.Cursor = true, 0
-	for _, c := range []struct {
-		sortable, groupable map[string]bool
-		want                []string
-	}{
-		{nil, nil, []string{"", "⇧↑↓  order, or drag"}},
-		{map[string]bool{"number": true}, map[string]bool{"who": true},
-			[]string{"", "s/S  sort, then by", "g/G  group, within", "⇧↑↓  order, or drag"}},
-	} {
-		p.Sortable, p.Groupable = c.sortable, c.groupable
-		lines, at := p.Lines()
-		got := make([]string, len(c.want))
-		for i := range got {
-			got[i] = ansi.Strip(lines[6+i])
-		}
-		if !slices.Equal(got, c.want) || at[6] != -1 || ansi.Strip(lines[7+len(c.want)]) != "show" {
-			t.Errorf("the hints: %q", got)
-		}
+	// a stage with no field that has a label has the search alone
+	if got, _ := plainLines(Panel{Columns: []string{""}}); len(got) != 1 {
+		t.Errorf("no field: %q", got)
 	}
 }
 
 func TestThePanelTakesKeysAndClicks(t *testing.T) {
-	p := Panel{Columns: []string{"number", "who"}, Owner: "who", Me: "ada"}.Find()
+	p := Panel{Columns: []string{"number", "who"}, Groupable: map[string]bool{"who": true}}.Find()
 	key := func(code rune, text string) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Text: text} }
 	for _, r := range "ad" {
 		p, _ = p.Update(key(r, string(r)))
@@ -199,27 +198,39 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	p.Fields = given
 	p, _ = p.Update(key(tea.KeyDown, ""))
 	p, _ = p.Update(key(tea.KeyDown, ""))
-	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Hidden || len(given) > 0 {
+	if p.Under() != "who" {
+		t.Fatalf("down twice: %q", p.Under())
+	}
+	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Hidden || len(given) > 0 || p.Under() != "who" {
 		t.Errorf("space did not hide who, or changed the given map: %v %v", p.Fields, given)
 	}
-	// up stops at the search, down at mine and others' last
+	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Column {
+		t.Errorf("space did not show who: %v", p.Fields)
+	}
+	// enter on a field is not the panel's; down stops at whether it folds, and space or enter toggles it
+	if _, ok := p.Update(key(tea.KeyEnter, "")); ok {
+		t.Error("enter on a field was taken")
+	}
 	for range 10 {
 		p, _ = p.Update(key(tea.KeyDown, ""))
 	}
-	// others is the filter on who: anyone but the caller
-	if p, _ = p.Update(key(tea.KeyEnter, "")); p.Showing() != Others ||
-		!slices.Equal(p.Field("who").Filter.Values, []string{Caller}) || !p.Field("who").Filter.Exclude {
-		t.Errorf("enter on the last control: show %v, filter %+v", p.Showing(), p.Field("who").Filter)
+	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Fold || p.Under() != "" {
+		t.Errorf("enter on the last control: fold %v", p.Fold)
 	}
 	if q, ok := p.Click(1); ok || q.Cursor != p.Cursor {
 		t.Errorf("a click on a gap was taken")
 	}
-	// with the keyboard, the hints under the columns push the show choices down: a gap, the order's hint, a gap
-	if q, ok := p.Click(9); !ok || q.Showing() != All || q.Filtering() || q.Cursor != 3 {
-		t.Errorf("a click on all: show %v, cursor %d", q.Showing(), q.Cursor)
+	// a click on a field acts as space does: number's line, under the headings of the groups and the columns
+	if q, ok := p.Click(4); !ok || q.Field("number").Placement != Hidden || q.Under() != "number" {
+		t.Errorf("a click on number: %+v, under %q", q.Field("number"), q.Under())
 	}
 	if _, ok := p.Update(key('x', "x")); ok {
 		t.Error("a letter off the search was taken")
+	}
+	// s and g are no longer the panel's
+	p.Cursor = 1
+	if _, ok := p.Update(key('g', "g")); ok {
+		t.Error("g was taken")
 	}
 	// / off the search goes to it; on it, / is typed
 	if p, _ = p.Update(key('/', "/")); p.Cursor != 0 {
@@ -227,6 +238,98 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	}
 	if p, _ = p.Update(key('/', "/")); !strings.HasSuffix(p.Query, "/") {
 		t.Errorf("/ on the search: %q", p.Query)
+	}
+}
+
+// Shift with up or down moves the field under the keyboard a place, the keyboard with it: within its section, a column
+// changes position and a group depth; across a heading, its placement, a column up into the groups' last depth where
+// it can group, and down into the hidden, a group down into the first column, a hidden field up into the last column.
+// The keys bar names the move only where the field can move.
+func TestShiftWithAnArrowMovesAFieldAcrossTheSections(t *testing.T) {
+	columns := []string{"id", "state", "who", "title"}
+	p := Panel{Columns: columns, Groupable: map[string]bool{"state": true, "who": true}, Focused: true}
+	shift := func(p Panel, code rune) Panel {
+		p, _ = p.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModShift})
+		return p
+	}
+	sections := func(p Panel) string {
+		return fmt.Sprintf("%v %v %v", p.section(Group), p.section(Column), p.section(Hidden))
+	}
+	p.Cursor = 2 // state
+	if p = shift(p, tea.KeyUp); sections(p) != "[] [state id who title] []" || p.Under() != "state" {
+		t.Fatalf("shift-up on state: %s, under %q", sections(p), p.Under())
+	}
+	if p = shift(p, tea.KeyUp); sections(p) != "[state] [id who title] []" || p.Under() != "state" {
+		t.Fatalf("shift-up on the first column: %s", sections(p))
+	}
+	if q := shift(p, tea.KeyUp); sections(q) != sections(p) {
+		t.Errorf("shift-up on the first group: %s", sections(q))
+	}
+	p.Cursor = 3 // who, the second column, up into the groups' last depth
+	p = shift(shift(p, tea.KeyUp), tea.KeyUp)
+	if sections(p) != "[state who] [id title] []" || p.Field("who").Depth != 2 {
+		t.Fatalf("who up twice: %s", sections(p))
+	}
+	if p = shift(p, tea.KeyUp); sections(p) != "[who state] [id title] []" || p.Field("state").Depth != 2 {
+		t.Fatalf("who up a depth: %s", sections(p))
+	}
+	p.Cursor = 2 // state, the last group, down into the first column
+	if p = shift(p, tea.KeyDown); sections(p) != "[who] [state id title] []" || p.Field("state").Placement != Column {
+		t.Fatalf("state down: %s", sections(p))
+	}
+	// id cannot group: up from the first column it stays
+	p.Cursor = 3
+	if p = shift(p, tea.KeyUp); sections(p) != "[who] [id state title] []" {
+		t.Fatalf("id up: %s", sections(p))
+	}
+	if q := shift(p, tea.KeyUp); sections(q) != sections(p) || slices.ContainsFunc(q.Keys(false).Bindings,
+		func(b shell.Binding) bool { return slices.Contains(b.Presses, "shift+up") }) {
+		t.Errorf("id, which cannot group, up from the first column: %s, keys %+v", sections(q), q.Keys(false))
+	}
+	// the last column down is hidden, and keeps its position; a hidden field up is the last column
+	p.Cursor = 4
+	if p = shift(p, tea.KeyDown); sections(p) != "[who] [id state] [title]" || p.Under() != "title" {
+		t.Fatalf("title down: %s", sections(p))
+	}
+	if keys := p.Keys(false); keys.Bindings[0].Does != "show" || !slices.Equal(keys.Bindings[1].Presses, []string{"shift+up"}) {
+		t.Errorf("the keys of a hidden field: %+v", keys)
+	}
+	if p = shift(p, tea.KeyUp); sections(p) != "[who] [id state title] []" {
+		t.Fatalf("title up: %s", sections(p))
+	}
+	// a field no row fills, which the editor does not list, never moves
+	if _, ok := p.Moved("nonesuch", Column, 0); ok {
+		t.Error("a field not listed moved")
+	}
+}
+
+// A field's line dragged onto another's moves to where it stands, as shift with an arrow does, across the sections too;
+// onto a section's heading, to the top of that section, an empty one's too.
+func TestADraggedFieldMovesWhereItIsDropped(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	p := Panel{Columns: columns, Groupable: map[string]bool{"state": true, "who": true}}
+	line := func(p Panel, text string) int {
+		got, _ := plainLines(p)
+		return slices.IndexFunc(got, func(l string) bool { return strings.HasSuffix(l, text) })
+	}
+	q, ok := p.Dropped("who", line(p, "group by"))
+	if !ok || !slices.Equal(q.Groups(), []string{"who"}) || q.Under() != "who" {
+		t.Fatalf("who onto group by: %q", q.Groups())
+	}
+	if q, _ = q.Dropped("state", line(q, "☑ who ▤")); !slices.Equal(q.Groups(), []string{"state", "who"}) {
+		t.Errorf("state onto who: %q", q.Groups())
+	}
+	if q, _ = q.Dropped("id", line(q, "hidden")); q.Field("id").Placement != Hidden {
+		t.Errorf("id onto hidden: %+v", q.Field("id"))
+	}
+	if q, _ = q.Dropped("who", line(q, "☐ id")); q.Field("who").Placement != Hidden || len(q.Groups()) != 1 {
+		t.Errorf("who onto id, hidden: %+v %q", q.Field("who"), q.Groups())
+	}
+	if _, ok := q.Dropped("state", line(q, "☑ state ▤")); ok {
+		t.Error("state onto itself moved")
+	}
+	if _, ok := q.Dropped("state", 0); ok {
+		t.Error("state onto the search moved")
 	}
 }
 
@@ -414,7 +517,7 @@ func TestTheTitleIsTheLastToGiveUpRoom(t *testing.T) {
 }
 
 // The panel orders the named columns as Order says, a column without a name keeping its place, and the rows' cells
-// follow; Move takes a column to another's place; shift with up or down moves the column under the keyboard, the
+// follow; Moved takes a column to another's place; shift with up or down moves the column under the keyboard, the
 // keyboard with it, and stops at the columns' ends.
 func TestThePanelOrdersTheColumns(t *testing.T) {
 	columns := []string{"", "a", "b", "c"}
@@ -426,15 +529,15 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 	if got := r.Cells[1].first() + r.Cells[2].first() + r.Cells[3].first(); r.Cells[0].first() != "0" || got != "CAB" {
 		t.Errorf("the row's cells: %q", got)
 	}
-	if got := (Panel{Columns: columns}).Move("c", "a").Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
-		t.Errorf("c moved to a: %q", got)
+	if got, _ := (Panel{Columns: columns}).Moved("c", Column, 0); !slices.Equal(got.Arrange(columns), []string{"", "c", "a", "b"}) {
+		t.Errorf("c moved to a: %q", got.Arrange(columns))
 	}
-	if got := (Panel{Columns: columns}).Move("a", "nonesuch"); got.Fields != nil {
-		t.Errorf("a move to no column: %v", got.Fields)
+	if got, ok := (Panel{Columns: columns}).Moved("nonesuch", Column, 0); ok || got.Fields != nil {
+		t.Errorf("a move of no column: %v", got.Fields)
 	}
 	// a hidden column keeps its place, and stands there shown again
-	hidden := (Panel{Columns: columns}).Move("c", "a").Placed("a", Hidden).Placed("a", Column)
-	if got := hidden.Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
+	moved, _ := (Panel{Columns: columns}).Moved("c", Column, 0)
+	if got := moved.Placed("a", Hidden).Placed("a", Column).Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
 		t.Errorf("a hidden and shown again: %q", got)
 	}
 	shift := func(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Mod: tea.ModShift} }
@@ -447,7 +550,7 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 		t.Errorf("shift-up past the first column: cursor %d, %q", q.Cursor, q.Arrange(columns))
 	}
 	// on a line that draws no column there is none to hold
-	if p.ColumnAt(0) != "" || p.ColumnAt(99) != "" {
+	if p.FieldAt(0) != "" || p.FieldAt(99) != "" {
 		t.Error("a column where none is")
 	}
 	if _, ok := p.Point(-1); ok {
@@ -503,15 +606,6 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	if got := p.Sorted("title", false); got.SortKeys() != nil {
 		t.Errorf("a column that cannot sort: %+v", got.SortKeys())
 	}
-	// s and S in the panel, on a column's checkbox, do what a click and a shift-click do
-	q := Panel{Columns: columns, Sortable: p.Sortable, Focused: true, Cursor: 1}
-	q, _ = q.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
-	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyDown})
-	q, _ = q.Update(tea.KeyPressMsg{Code: 'S', Text: "S"})
-	if lines, _ := q.Lines(); len(q.SortKeys()) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲₁") ||
-		!strings.HasSuffix(ansi.Strip(lines[4]), "age ▲₂") {
-		t.Errorf("s then S: %+v\n%s", q.SortKeys(), strings.Join(lines, "\n"))
-	}
 	if natural("a2", "a10") >= 0 || natural("B", "a") <= 0 || natural("ab", "abc") >= 0 || natural("x", "x") != 0 {
 		t.Error("natural")
 	}
@@ -535,8 +629,8 @@ func TestHeaderAtFindsTheColumnUnderAName(t *testing.T) {
 
 // Grouping puts the rows under a dim heading per value, the groups in their values' order, the rows in each as they
 // sorted; a second column nests under the first; a cell with no value groups under none; a row of one cell follows
-// the groups. g on a groupable column's line groups by it, ▤ beside its name, and again stops; a column that cannot
-// group changes nothing.
+// the groups. A groupable column moved into the groups groups them, ▤ beside its name; a column that cannot group
+// changes nothing.
 func TestThePanelGroupsTheRows(t *testing.T) {
 	columns := []string{"id", "state", "who"}
 	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
@@ -576,9 +670,10 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		t.Error("grouping by nothing changed the rows")
 	}
 	q := Panel{Columns: columns, Groupable: p.Groupable, Focused: true, Cursor: 2}
-	q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
-	if lines, _ := q.Lines(); !slices.Equal(q.Groups(), []string{"state"}) || !strings.HasSuffix(ansi.Strip(lines[4]), "state "+Grouping) {
-		t.Errorf("g on state: %q\n%s", q.Groups(), strings.Join(lines, "\n"))
+	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift})
+	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift})
+	if lines, _ := q.Lines(); !slices.Equal(q.Groups(), []string{"state"}) || !strings.HasSuffix(ansi.Strip(lines[3]), "state "+Grouping) {
+		t.Errorf("state moved up into the groups: %q\n%s", q.Groups(), strings.Join(lines, "\n"))
 	}
 }
 
@@ -586,8 +681,8 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 // a group the person chose, one heading over every row says the values, joined in the panel's order, and their cells
 // are blank. Under a group the person chose, the walk goes on in each group, the values joining its heading. A column
 // blank on some rows, one with several values, a group of one row, and a hidden column do not group on their own, nor
-// does any while the panel does not fold; g on such a column in the panel stops the folding, and the panel marks one
-// grouping on its own with a dim ▤.
+// does any while the panel does not fold; the panel's box for folding stops it, and the panel marks a column grouping on
+// its own with a dim ▤.
 // The rows group by a cell's sort key, its raw value, and the heading says the value as the rows draw it, or as the
 // cell's Head says it where the rows draw more than they group by.
 func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
@@ -641,8 +736,8 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// the panel's order joins the values; a hidden column does not group, nor does any while the panel does not fold
-	if got, _ := p.Move("where", "source").group(rows, columns); texts(got)[0] != "▾ here where, github source  3" {
-		t.Errorf("in the panel's order: %q", texts(got)[0])
+	if moved, _ := p.Moved("where", Column, 0); texts(first(moved.group(rows, columns)))[0] != "▾ here where, github source  3" {
+		t.Errorf("in the panel's order: %q", texts(first(moved.group(rows, columns)))[0])
 	}
 	if got, auto := p.Placed("source", Hidden).group(rows, columns); texts(got)[0] != "▾ here where  3" ||
 		!slices.Equal(auto, []string{"where"}) {
@@ -668,10 +763,10 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	if got, auto := (Panel{Groupable: groupable, Fold: true}).group(rows[:1], columns); len(got) != 1 || auto != nil {
 		t.Errorf("one row: %q", texts(got))
 	}
-	// the panel marks a column grouping on its own dim, and g on it stops the folding
-	q := Panel{Columns: columns, Groupable: groupable, Fold: true, Auto: []string{"source"}, Cursor: 2}
-	if lines, _ := q.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping)) {
-		t.Errorf("source grouping on its own: %q", lines[4])
+	// the panel marks a column grouping on its own dim, and its box for folding stops the folding
+	q := Panel{Columns: columns, Groupable: groupable, Fold: true, Auto: []string{"source"}}
+	if lines, _ := q.Lines(); !strings.HasSuffix(lines[5], " "+style.Off(Grouping)) {
+		t.Errorf("source grouping on its own: %q", lines[5])
 	}
 	// the headings say which columns they group by on their own, at which level; with more than one column grouping,
 	// the panel numbers each by its level, the person's and the rows' own alike
@@ -686,17 +781,20 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	}
 	n := Panel{Columns: columns, Groupable: groupable, Fields: map[string]Field{"state": {Placement: Group, Depth: 1}},
 		Auto: []string{"source"}, AutoAt: map[string]int{"source": 1}}
-	if lines, _ := n.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping+"₁")) ||
-		!strings.HasSuffix(lines[5], " "+style.Tint(Grouping+"₁")) {
-		t.Errorf("numbered by level: %q %q", lines[4], lines[5])
+	if lines, _ := n.Lines(); !strings.HasSuffix(lines[6], " "+style.Off(Grouping+"₁")) ||
+		!strings.HasSuffix(lines[3], " "+style.Tint(Grouping+"₁")) {
+		t.Errorf("numbered by level: %q %q", lines[6], lines[3])
 	}
-	q.Focused = true
-	if q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"}); q.Fold || len(q.Groups()) > 0 || len(q.Auto) > 0 {
-		t.Errorf("g on source: fold %v, group %q, auto %q", q.Fold, q.Groups(), q.Auto)
+	q.Focused, q.Cursor = true, len(q.controls())-1
+	if q.Keys(false).Bindings[0].Does != "unfold" {
+		t.Errorf("the keys on the box for folding: %+v", q.Keys(false))
+	}
+	if q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}); q.Fold || len(q.Groups()) > 0 || len(q.Auto) > 0 {
+		t.Errorf("space on the box for folding: fold %v, group %q, auto %q", q.Fold, q.Groups(), q.Auto)
 	}
 	// a column shown again is a column
 	q = Panel{Columns: columns, Fields: map[string]Field{"who": {Placement: Hidden}}}
-	if q, _ = q.Click(len(columns) + 2); q.Field("who").Placement != Column {
+	if q, _ = q.Click(len(columns) + 4); q.Field("who").Placement != Column {
 		t.Errorf("who shown: %+v", q.Field("who"))
 	}
 }
@@ -718,7 +816,7 @@ func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	}
 }
 
-// Under the search, after a line of gap, the columns start: the panel has no control between them.
+// Under the search, after a line of gap, the field editor starts: the panel has no control between them.
 func TestTheColumnsStandUnderTheSearch(t *testing.T) {
 	p := Panel{Columns: []string{"id", "title"}, Fill: 24}
 	lines, at := p.Lines()
@@ -726,11 +824,11 @@ func TestTheColumnsStandUnderTheSearch(t *testing.T) {
 	for k, l := range lines {
 		plain[k] = strings.TrimRight(ansi.Strip(l), " ")
 	}
-	if !slices.Equal(plain[:4], []string{"🔎 search", "", "columns", Ticked + " id"}) ||
-		!slices.Equal(at[:4], []int{0, -1, -1, 1}) {
-		t.Errorf("the panel's first lines: %q %v", plain[:4], at[:4])
+	if !slices.Equal(plain[:5], []string{"🔎 search", "", "group by", "columns", Ticked + " id"}) ||
+		!slices.Equal(at[:5], []int{0, -1, -1, -1, 1}) {
+		t.Errorf("the panel's first lines: %q %v", plain[:5], at[:5])
 	}
-	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.ColumnAt(3) != "id" || q.Cursor != 1 {
+	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.FieldAt(4) != "id" || q.Cursor != 1 {
 		t.Errorf("down from the search: %d", q.Cursor)
 	}
 }

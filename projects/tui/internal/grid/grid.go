@@ -7,11 +7,10 @@
 // row, so the cell is not underlined as a chosen name is. A glyph whose link opens a page is underlined with dots. A
 // header can stand the columns' names over the rows, widening each column to its name; a click on a name sorts by it. A
 // row selected, one of several, has ✓ before its ▸.  A panel beside the rows narrows them: a search, which keeps the
-// rows whose text has it; a checkbox per column, which shows or hides it; and, for rows that belong to people, a choice
-// of every row, the caller's, or everyone else's, which is the filter on the field that names them. It keeps, per
-// field, its placement, as a column at a position, a group at a depth, or hidden, its sort, and its filter, each group
-// under a heading; while it folds, a column whose value is the same on every row of a group groups it on its own, its
-// value said once in the heading.
+// rows whose text has it, and a field editor, each field in one of three sections, the groups, the columns, and the
+// hidden, moved within its section or across into the next. It keeps, per field, its placement, as a column at a
+// position, a group at a depth, or hidden, its sort, and its filter, each group under a heading; while it folds, a
+// column whose value is the same on every row of a group groups it on its own, its value said once in the heading.
 package grid
 
 import (
