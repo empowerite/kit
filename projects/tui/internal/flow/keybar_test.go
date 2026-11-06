@@ -41,6 +41,8 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 			down, down, down}, false},
 		{"in a field's popover, on a rendering not taken", append([]tea.Msg{press(tea.KeyTab), down, down, down,
 			press(tea.KeyEnter)}, slices.Repeat([]tea.Msg{down}, 20)...), false},
+		{"in a field's popover, on auto, a rendering pinned", append(append([]tea.Msg{press(tea.KeyTab), down, down, down,
+			press(tea.KeyEnter)}, slices.Repeat([]tea.Msg{down}, 20)...), press(tea.KeySpace), up, up), false},
 		{"in the search, the sidebar hidden", typed("/"), false},
 		{"in the rows, then the sidebar", []tea.Msg{down, press(tea.KeyTab), down}, false},
 		{"on the bar, over a preset line", nil, true},

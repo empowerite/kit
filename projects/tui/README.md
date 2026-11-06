@@ -32,15 +32,25 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/palette/` is the list of verbs that bare `kit` opens.
 - `internal/form/` turns a verb's grammar into form fields, and the fields back into a command line.
 - `internal/syntax/` decodes the grammar `kit syntax` prints.
-- `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` declares each stage's
-  fields and its own presets, Default and Compact. A line on top of each table names the preset the table is set as,
-  with a chip per filter, and 💾 Save once the table differs from every preset. ↓ from the tabs reaches that line, and
-  ⏎ on it lists the presets. The person's presets are kept in `~/.config/kit/presets.json`. The sidebar is the field
-  editor: under the search, each field in one of three sections, group by, columns, and hidden. ⇧↑↓ or a drag moves a
-  field within its section, or across a heading into the next, and space hides a field or shows it again. ⏎ on a field
-  opens its popover: its sort, the checklist of values its filter lets through or holds back, for an enum or a person,
-  and its rendering. What it sets applies at once. A double click on a column's name opens the same popover, and puts
-  back the sort the first click of it changed.
+- `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
+  declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter
+  by, and its renderings in order, and the stage's own presets, Default and Compact. The renderers are Go functions,
+  registered by name. A preset says, per field by id, its placement, its sort, its filter, and the rendering it pins.
+  The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
+  `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
+  and leaves the old file as it is.
+  - A line on top of each table names the preset the table is set as, with a chip per filter, and 💾 Save once the
+    table differs from every preset. ↓ from the tabs reaches that line, ⏎ on it lists the presets, typing renames,
+    and ⌃S saves.
+  - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
+    hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
+    or shows it again.
+  - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
+    enum or a person, and its rendering. What it sets applies at once. A double click on a column's name opens the
+    same popover, and puts back the sort the first click of it changed.
+  - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
+    steps down to its next, shorter rendering, from the rightmost column leftward. The title never steps, and a
+    rendering pinned always wins.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.
