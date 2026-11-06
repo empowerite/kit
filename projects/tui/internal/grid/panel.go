@@ -269,7 +269,7 @@ func (p Panel) Filtering() bool {
 }
 
 // Sorted gives the panel with the column sorting the rows alone, as a click on its name asks, or, with also, as one
-// more key after the others, as a shift-click does: a column not sorting sorts ascending, then descending, then not at
+// more key after the others, as an option-click does: a column not sorting sorts ascending, then descending, then not at
 // all. A column that cannot sort changes nothing.
 func (p Panel) Sorted(column string, also bool) Panel {
 	if !p.Sortable[column] {
@@ -377,7 +377,7 @@ func subscript(n int) string {
 }
 
 // Grouped gives the panel grouping the rows by the column alone, as a ctrl-click on its name asks, or, with nest, as a
-// shift-ctrl-click asks, within the groups it has, innermost; a column it groups by already, it no longer does, alone or among the others, and it is a column
+// ctrl-option-click asks, within the groups it has, innermost; a column it groups by already, it no longer does, alone or among the others, and it is a column
 // again. A column that cannot group changes nothing.
 func (p Panel) Grouped(column string, nest bool) Panel {
 	if !p.Groupable[column] {
@@ -890,10 +890,15 @@ func (p Panel) Lines() (lines []string, at []int) {
 }
 
 // hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
-// popover sets.
+// popover sets; then what a click on a column's name in the header does, alone and with option, ctrl, or both, and two.
 func (p Panel) hints() []string {
-	return []string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw"}
+	return append([]string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw", ""}, Clicks...)
 }
+
+// Clicks say what a click on a column's name in the header does: sort by it alone, or after the others with option;
+// group by it alone with ctrl, or within the groups with both; and two open its field's popover.
+var Clicks = []string{"click     sort", "⌥ click   add a sort", "⌃ click   group", "⌥⌃ click  nest a group",
+	"2× click  options"}
 
 // Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
 // controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back; off it,

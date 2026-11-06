@@ -14,11 +14,11 @@
                                                                                            ▸
                                                                                            ╷ ⇧↑↓  move, or drag
                                                                                            │ ⏎    sort, filter, draw
-                                                                                           │
-                                                                                           │ legend
-                                                                                           │ 🎫 an issue 🔗
-                                                                                           │ 🐙 on GitHub
-                                                                                           │ 🦊 on GitLab
-                                                                                           │ 👤 assignees or author
-                                                                                           │ … 2 more
+                                                                                           │ 
+                                                                                           │ click     sort
+                                                                                           │ ⌥ click   add a sort
+                                                                                           │ ⌃ click   group
+                                                                                           │ ⌥⌃ click  nest a group
+                                                                                           │ 2× click  options
+                                                                                           │ … 8 more
  = menu  / search │ 1-8 jump  : tab menu │ ⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ ␣ hide  ⇧↑↓ move  ⏎ options

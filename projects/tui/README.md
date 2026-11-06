@@ -47,7 +47,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     or shows it again.
   - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
     enum or a person, and its rendering. What it sets applies at once. A double click on a column's name opens the
-    same popover, and puts back the sort the first click of it changed.
+    same popover, and puts back the sort the first click of it changed. A click on the name sorts by it alone, and
+    with ⌥ adds it after the other sort keys. With ⌃, or the right button, it groups by it alone, and with ⌥⌃ nests
+    it within the groups. Shift is not used, because many terminals keep it for their own selection.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. The title never steps, and a
     rendering pinned always wins.

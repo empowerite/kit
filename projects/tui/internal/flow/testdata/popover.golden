@@ -1,14 +1,11 @@
   ≡ kit flow · 📚 empowerite/kit                                                             🔎 search
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶────────
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
-  ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ columns
-   unnamed ▾ ●  assignees: @me                                                     💾 Save │ ☑ id
-   id  source     assignees  age  title                                                    │ ☑ source
-   ─────────────────────────────────────────────────────────────────────────────────╭─ assignees ──────────────────────╮
- ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  │ sort                             │
-                                                                                    │ ⦿ off                            │
-                                                                                    │ ⦾ ▲ ascending                    │
-                                                                                    │ ⦾ ▼ descending                   │
+  ╵                  ╰────────────────────╰────────────────╰─────────────────────╰──╭─ assignees ──────────────────────╮
+   unnamed ▾ ●  assignees: @me                                                      │ sort                             │
+   id  source     assignees  age  title                                             │ ⦿ off                            │
+   ─────────────────────────────────────────────────────────────────────────────────│ ⦾ ▲ ascending                    │
+ ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  │ ⦾ ▼ descending                   │
                                                                                     │ filter                           │
                                                                                     │ ⦿ include  ⦾ exclude             │
                                                                                     │ ☑ @me ada                        │
@@ -20,5 +17,8 @@
                                                                                     │ ⦿ auto glyph+text                │
                                                                                     │ ⦾ glyph+text                     │
                                                                                     │ ⦾ text                           │
+                                                                                    │ on its name                      │
+                                                                                    │ click sorts · ⌥ adds             │
+                                                                                    │ ⌃ groups · ⌥⌃ nests              │
                                                                                     ╰─ esc close · ↑↓ move · ␣ toggle ─╯
  esc close  ↑↓ move  ␣ toggle

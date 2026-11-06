@@ -310,7 +310,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appMenu = m.appMenu.Opened()
 		case len(m.stages) > 0 && grouping(msg) && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() &&
 			msg.X < m.paneWidth():
-			m.groupClick(msg.X, msg.Y, msg.Mod&tea.ModShift != 0)
+			m.groupClick(msg.X, msg.Y, extends(msg))
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -322,7 +322,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == paneTop && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
-			return m, m.clickHeader(msg.X, msg.Y, msg.Mod&tea.ModShift != 0, false, double)
+			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, double)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -477,11 +477,16 @@ func (m *Model) clickPanel(x, line int) tea.Cmd {
 	return nil
 }
 
-// grouping says whether a click groups rather than sorts or selects: with ctrl or option held, or with the right
-// button, as a terminal on macOS may send ctrl with a click.
+// grouping says whether a click groups rather than sorts or selects: with ctrl held, or with the right button, as a
+// terminal on macOS may send ctrl with a click.
 func grouping(msg tea.MouseClickMsg) bool {
-	return msg.Mod&(tea.ModCtrl|tea.ModAlt) != 0 || msg.Button == tea.MouseRight
+	return msg.Mod&tea.ModCtrl != 0 || msg.Button == tea.MouseRight
 }
+
+// extends says whether a click on a column's name adds to the sort or the groups the rows have, rather than replacing
+// them: with option held. Shift would say it in a desktop's table, but a terminal often keeps shift and a click for its
+// own selection, and never sends it.
+func extends(msg tea.MouseClickMsg) bool { return msg.Mod&tea.ModAlt != 0 }
 
 // groupClick takes a click that groups, as grouping says: on a column's name in the header, the rows group by it, as
 // clickHeader says; on a group's heading, they no longer group by its column, the other groups kept.
@@ -509,7 +514,7 @@ type unsort struct {
 
 // clickHeader takes a click on the header, which is no row, under the preset line: on its gutter it opens the header,
 // or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as a
-// shift-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
+// option-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
 // column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing.
 // The second click of a double click on a name, as double says, sorts nothing: the sort goes back to what it was before
 // the first click changed it, and the field's popover opens under the name.

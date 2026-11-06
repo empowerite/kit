@@ -431,9 +431,14 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▼") || order() != "#7 #46 #45" {
 		t.Errorf("again, the oldest first: %s\n%s", order(), view(m))
 	}
+	option := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModAlt}
+	if m = drive(m, option); !strings.Contains(lines(m)[paneTop], "source ▲₂") || !strings.Contains(lines(m)[paneTop], "age ▼₁") {
+		t.Errorf("an option-click on source:\n%s", view(m))
+	}
+	// shift, which a terminal often keeps for its own selection, adds nothing: the click sorts by source alone
 	shift := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); !strings.Contains(lines(m)[paneTop], "source ▲₂") || !strings.Contains(lines(m)[paneTop], "age ▼₁") {
-		t.Errorf("a shift-click on source:\n%s", view(m))
+	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 1 {
+		t.Errorf("a shift-click on source: %+v", m.panel(m.stage).SortKeys())
 	}
 	// builds' commit does not sort
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
@@ -532,9 +537,9 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
 		t.Fatalf("a ctrl-click on source: %q\n%s", group(), view(m))
 	}
-	nest := tea.MouseClickMsg{X: at("assignees"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModAlt | tea.ModShift}
+	nest := tea.MouseClickMsg{X: at("assignees"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModAlt | tea.ModCtrl}
 	if m = drive(m, nest); !slices.Equal(group(), []string{"source", "assignees"}) {
-		t.Fatalf("a shift-option-click on assignees: %q\n%s", group(), view(m))
+		t.Fatalf("a ctrl-option-click on assignees: %q\n%s", group(), view(m))
 	}
 	before := group()
 	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("#1"), Button: tea.MouseRight}); !slices.Equal(group(), before) {
@@ -791,15 +796,15 @@ func TestADoubleClickOnAColumnsNameOpensItsPopover(t *testing.T) {
 	if _, top, _ := m.popBox(); top != paneTop+1 {
 		t.Errorf("the popover is not under the name: %d", top)
 	}
-	// with age sorting alone, a shift-double-click on source leaves age the one key, and opens source's popover
+	// with age sorting alone, an option-double-click on source leaves age the one key, and opens source's popover
 	m = drive(m, esc)
 	click("age", time.Second, 0)
 	click("age", time.Second, 0)
-	click("source", 10*time.Millisecond, tea.ModShift)
+	click("source", 10*time.Millisecond, tea.ModAlt)
 	if len(sorts()) != 2 || m.pop.open {
-		t.Fatalf("a shift-click on source after a click on age: %+v, popover %v", sorts(), m.pop.open)
+		t.Fatalf("an option-click on source after a click on age: %+v, popover %v", sorts(), m.pop.open)
 	}
-	click("source", 10*time.Millisecond, tea.ModShift)
+	click("source", 10*time.Millisecond, tea.ModAlt)
 	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.pop.field != "source" {
 		t.Errorf("a shift-double-click on source: %+v, popover %+v", sorts(), m.pop)
 	}
