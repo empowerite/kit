@@ -320,7 +320,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	}
 	// esc gives the bar the keyboard back, and right moves again, onto the next stage's first row
 	m = drive(m, esc, right, down)
-	if m.stage != 4 || !strings.HasPrefix(cursor(m), Change+" #2") {
+	if m.stage != 4 || !strings.HasPrefix(cursor(m), "#2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
 	// from changes, five to the right stops at the end: builds, incoming, releases, and there
@@ -342,7 +342,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(6, m.rowsTop()+1)); !m.inRows || m.find("worktrees").cursor != 1 {
 		t.Fatalf("a click on the second row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
 	}
-	if m = drive(m, click(6, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" "+Branch+" 42-settings") {
+	if m = drive(m, click(6, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" 42-settings") {
 		t.Errorf("a click on the row under the cursor did not open it:\n%s", view(m))
 	}
 	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
@@ -402,11 +402,11 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 		t.Fatalf("on the bar, a row has the focus:\n%s", view(m))
 	}
 	m = drive(m, down)
-	if !m.inRows || !strings.HasPrefix(cursor(m), Branch+" 1-the-first-release") {
+	if !m.inRows || !strings.HasPrefix(cursor(m), "1-the-first-release") {
 		t.Fatalf("down did not enter the rows:\n%s", view(m))
 	}
 	m = drive(m, down)
-	if !strings.HasPrefix(cursor(m), Branch+" 42-settings") {
+	if !strings.HasPrefix(cursor(m), "42-settings") {
 		t.Errorf("down once more:\n%s", view(m))
 	}
 	m = drive(m, down, down, down)
@@ -914,7 +914,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, toggle)
 	v := view(m)
 	// the checks of the failing one are cut at the cap, to give the title room
-	for _, want := range []string{Change + " #2", "👤 jeffrey-aguilera", "🏁 ready", Passed + " 1 / 1 3m",
+	for _, want := range []string{style.Opened + " #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
 		"🔨 draft", Running + " 0 / 2", Threads + " 2 unresolved", "🔥 failing:gate", Failed + " lint failing…",
 		"#1  👤 jeffrey-aguilera  " + InFlight + " in flight  8d  " + Issue + " The first release, v0.1.0"} {
 		if !strings.Contains(v, want) {
@@ -932,9 +932,9 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
 	m = drive(m, down, toggle)
 	v := view(m)
-	// the title has what the other columns leave, each cut at its cap to give it more
-	for _, want := range []string{"#45", "#46  👤 jeffrey-agui…   2d  " + Branch + " 46-a-noun-li…  " + Issue,
-		"#7  👤 ada        +1  40d", "interactive on a terminal,", "and the listing verbs fold"} {
+	// the title has what the other columns leave, each drawn without the glyph every row shares
+	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  46-a-noun-lists  A noun lists",
+		"#7  ada           +1  40d", "five stages, interactive on a", "terminal, and the listing"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -969,7 +969,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
-	if !strings.Contains(got[4], "… 2 above") || !strings.Contains(got[5], Branch+" worktrees/spike") || !strings.HasPrefix(cursor(m), Branch+" worktrees/spike") ||
+	if !strings.Contains(got[4], "… 2 above") || !strings.Contains(got[5], "worktrees/spike") || !strings.HasPrefix(cursor(m), "worktrees/spike") ||
 		!strings.Contains(got[6], Gone+" gone:") || strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
 	}
@@ -986,7 +986,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	}
 	// a page never leaves the rows: up past the first row stays on it, at the top
 	m = drive(m, press(tea.KeyPgUp))
-	if !m.inRows || m.find("worktrees").cursor != 0 || !strings.Contains(view(m), Branch+" 1-the-first-release") {
+	if !m.inRows || m.find("worktrees").cursor != 0 || !strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("page up past the first row left it, or the top:\n%s", view(m))
 	}
 	// on the bar, a page does nothing
@@ -1110,7 +1110,7 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	}
 	v := view(m)
 	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 4 more") ||
-		!strings.Contains(v, style.Opened+" "+Branch+" 42-settings") {
+		!strings.Contains(v, style.Opened+" 42-settings") {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
@@ -1150,12 +1150,12 @@ func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
 			t.Errorf("line %d has %q, not the rule, before the sidebar:\n%s", k, cell, view(m))
 		}
 	}
-	if !strings.Contains(view(m), " "+grid.Search+" ") || !strings.Contains(view(m), Branch+" 1-the-first-release") {
+	if !strings.Contains(view(m), " "+grid.Search+" ") || !strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("the legend is not beside the rows:\n%s", view(m))
 	}
 	// the keys move in the rows while the legend is on
 	m = drive(m, down, down)
-	if !m.inRows || m.find("worktrees").cursor != 1 || !strings.HasPrefix(cursor(m), Branch+" 42-settings") {
+	if !m.inRows || m.find("worktrees").cursor != 1 || !strings.HasPrefix(cursor(m), "42-settings") {
 		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.find("worktrees").cursor, view(m))
 	}
 	m = drive(m, up, up, press('?'))
@@ -1174,8 +1174,8 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 	m := loaded(t, bare(), right, right, right)
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+3]
 	for i, want := range [][]string{
-		{Branch + " 1-the-first-release-v0-1-0", "↑266 ↓0", Change + " #2  🏁 ready", "3 uncommitted"},
-		{Branch + " 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
+		{" 1-the-first-release-v0-1-0", "↑266 ↓0", "#2  ready", "3 uncommitted"},
+		{" 42-settings", "↑3 ↓1", "no pull request yet", "clean"},
 		{"worktrees/spike " + Detached + " detached", "↑0 ↓0", "1 uncommitted"},
 	} {
 		for _, text := range want {
@@ -1202,7 +1202,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	m := loaded(t, bare(), right, right)
 	pane := lines(m)[m.rowsTop():]
-	for _, text := range []string{Desk + " main", "↑12 ↓1", "2 uncommitted"} {
+	for _, text := range []string{" main", "↑12 ↓1", "2 uncommitted"} {
 		if !strings.Contains(pane[0], text) {
 			t.Errorf("the desk's row lacks %q: %q", text, pane[0])
 		}
@@ -1216,7 +1216,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	}
 	m = drive(m, down, toggle)
 	v := view(m)
-	order := []string{style.Opened + " " + Desk + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
+	order := []string{style.Opened + " main", " M kit.yml", "?? scratch.txt", "c0ffee1 #45 status: the desk",
 		"c0ffeea #45 status: the goldens", "c0ffeeb #45 status: the eleventh", "… and 1 more"}
 	at := -1
 	for _, want := range order {
@@ -1232,7 +1232,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 	// a desk on a branch with a pull request shows it, as a worktree does
 	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
 	m.rebuild()
-	if !strings.Contains(view(m), Change+" #2  🏁 ready") {
+	if !strings.Contains(view(m), "#2  ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
 	}
 	// its pull request's glyph leads to its row under changes, and its state's to its page
@@ -1319,7 +1319,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	bare := func(s string) string {
 		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
 	}
-	head := style.Opened + " " + Branch + " 1-the-first-release"
+	head := style.Opened + " 1-the-first-release"
 	seen := map[string]bool{}
 	for k := 0; k < 20 && m.find("worktrees").cursor == 0; k++ {
 		for _, l := range lines(m) {
@@ -1462,6 +1462,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), right)
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
+	asCatalog(&m, m.stage)                                     // auto_test has what the screen chooses
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
@@ -1591,7 +1592,7 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
 	}
-	change, state, y := at(m, Change+" #4"), at(m, "🔥"), paneTop+m.find("underway").cursor
+	change, state, y := at(m, "#4"), at(m, "🔥"), paneTop+m.find("underway").cursor
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {
@@ -1636,20 +1637,20 @@ func init() {
 // Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim; a source kittui
 // has no glyph for by its name alone; and none at all leaves the column out, as an empty one. While one tracker holds
 // every issue, the source is said once, in the heading over the rows, and the column leaves them; kept a column, it
-// stands under the source header.
+// stands under the source header. Either way, the glyph every row shares is left out.
 func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for i, name := range []string{"backlog", "underway"} {
 		if i > 0 {
 			m = drive(m, right)
 		}
-		if l := lines(m); strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
-			strings.Count(view(m), GitHub+" github") != 1 {
+		if l := lines(m); strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
+			strings.Count(view(m), "github") != 1 || strings.Contains(view(m), GitHub) {
 			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
 		}
 		unfold(&m)
-		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
-			!strings.Contains(m.View().Content, style.Off(GitHub+" github")) {
+		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
+			!strings.Contains(m.View().Content, style.Off("github")) || strings.Contains(view(m), GitHub) {
 			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
 	}

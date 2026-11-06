@@ -52,7 +52,8 @@
         {"id": "fork", "label": "fork", "type": "person", "path": ".pr.fork", "sort": true, "group": true,
          "filter": true, "glyph": "🍴", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
         {"id": "pushed", "label": "pushed", "type": "time", "path": ".pr.pushed.age", "sort": true, "glyph": "📤",
-         "renderings": ["glyph+age", "age"], "dim": true, "placement": "column"},
+         "renderings": ["glyph+age", "age"], "dim": true,
+         "right": true, "placement": "column"},
         {"id": "by", "label": "by", "type": "person", "path": ".pr.pushed.by", "sort": true, "group": true,
          "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
@@ -70,7 +71,7 @@
       "stage": "desk", "record": ".",
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "💻", "renderings": ["checkout", "text"], "placement": "column"},
+         "glyph": "💻", "renderings": ["checkout", "name", "text"], "placement": "column"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
@@ -97,7 +98,7 @@
       "stage": "worktrees", "record": ".worktrees[]",
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "🌿", "renderings": ["checkout", "text"], "placement": "column"},
+         "glyph": "🌿", "renderings": ["checkout", "name", "text"], "placement": "column"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,

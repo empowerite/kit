@@ -65,7 +65,7 @@ const (
 // in the stage's order; a field grouped or hidden keeps its own, so it stands where it was once it is a column again.
 // Its sort: none, or a direction at a Priority, from 1, the first key first; sorting a grouped field orders its groups.
 // Its filter, which a row's raw values in it must pass. And the rendering it pins, which draws it, none for the
-// field's first.
+// one the rows and the width choose.
 type Field struct {
 	Placement Placement
 	Position  int
@@ -329,7 +329,8 @@ func (p Panel) FilteredBy(id string, f Filter) Panel {
 	})
 }
 
-// Rendered gives the panel with a field drawn by the rendering named, or by its first for none.
+// Rendered gives the panel with a field drawn by the rendering named, or, for none, by the one the rows and the width
+// choose.
 func (p Panel) Rendered(id, rendering string) Panel {
 	return p.with(func(fields map[string]Field) {
 		g := fields[id]

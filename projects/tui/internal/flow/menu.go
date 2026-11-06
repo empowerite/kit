@@ -180,6 +180,7 @@ func (m *Model) pick(k int) tea.Cmd {
 	switch m.tabItems()[k].Name {
 	case "Show Headers":
 		s.headers = !s.headers
+		m.rebuild()
 		m.fit()
 		return nil
 	case "Refresh":

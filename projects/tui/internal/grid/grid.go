@@ -4,13 +4,14 @@
 // and its text cut with … where its column ends. An open row shows every value, one a line in its column, the text
 // wrapped in its column, then the lines it opens to. A row that hides anything, closed, has ▸ in the gutter before it,
 // and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks the
-// row, so the cell is not underlined as a chosen name is. A glyph whose link opens a page is underlined with dots. A
-// header can stand the columns' names over the rows, widening each column to its name; a click on a name sorts by it. A
-// row selected, one of several, has ✓ before its ▸.  A panel beside the rows narrows them: a search, which keeps the
-// rows whose text has it, and a field editor, each field in one of three sections, the groups, the columns, and the
-// hidden, moved within its section or across into the next. It keeps, per field, its placement, as a column at a
-// position, a group at a depth, or hidden, its sort, and its filter, each group under a heading; while it folds, a
-// column whose value is the same on every row of a group groups it on its own, its value said once in the heading.
+// row, so the cell is not underlined as a chosen name is. A glyph, or a first word, whose link opens a page is
+// underlined with dots. A header can stand the columns' names over the rows, widening each column to its name; a click
+// on a name sorts by it. A row selected, one of several, has ✓ before its ▸. A panel beside the rows narrows them: a
+// search, which keeps the rows whose text has it, and a field editor, each field in one of three sections, the groups,
+// the columns, and the hidden, moved within its section or across into the next. It keeps, per field, its placement, as
+// a column at a position, a group at a depth, or hidden, its sort, and its filter, each group under a heading; while it
+// folds, a column whose value is the same on every row of a group groups it on its own, its value said once in the
+// heading.
 package grid
 
 import (
@@ -27,13 +28,14 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right
-// is a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the
-// row is closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page:
-// a click on the glyph opens it. Raw is what the cell sorts, groups, and filters by, its raw values, unstyled, as an
-// age by its seconds and assignees by their logins; it sorts and groups by the first, and with none by its first
-// value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the value, for a cell that
-// draws more than it groups by, as checks their counts beside their state; none says the cell's first value.
+// Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right is
+// a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the row is
+// closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page, or its
+// first word, where it draws no glyph: a click on it opens it. Raw is what the cell sorts, groups, and filters by, its
+// raw values, unstyled, as an age by its seconds and assignees by their logins; it sorts and groups by the first, and
+// with none by its first value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the
+// value, for a cell that draws more than it groups by, as checks their counts beside their state; none says the cell's
+// first value.
 type Cell struct {
 	Values []string
 	Right  bool
@@ -335,9 +337,9 @@ func Opens(rows []Row, head []string, k, width int) bool {
 	return Hides(rows[k], widths, left)
 }
 
-// LinkAt gives the link of the cell whose glyph, the first two cells of its text, a row's first line draws at the
+// LinkAt gives the link of the cell whose first word, its glyph where it draws one, a row's first line draws at the
 // column x, as Draw lays the rows out for a pane of so many cells under the header's names; nothing when no linked
-// glyph is there.
+// word is there. A field drawn without its glyph, since every row shares it, leads from its value's first word.
 func LinkAt(rows []Row, head []string, k, width, x int) string {
 	r := rows[k].Cells
 	widths, left := fit(r, headed(rows, head), width-len(lead))
@@ -357,7 +359,8 @@ func LinkAt(rows []Row, head []string, k, width, x int) string {
 		if c.Right {
 			start += w - ansi.StringWidth(c.first()+c.more())
 		}
-		if c.Link != "" && x >= start && x < start+2 {
+		word, _, _ := strings.Cut(ansi.Strip(c.first()), " ")
+		if c.Link != "" && x >= start && x < start+min(ansi.StringWidth(word), w) {
 			return c.Link
 		}
 		at += w + gap
@@ -397,8 +400,7 @@ func headed(rows []Row, head []string) []int {
 }
 
 // columnWidths gives each column's width over the rows of two cells or more, those a closed heading folds away too:
-// its widest value, or first value and +N; for the cell that wraps, the widest it is on one line, which fit takes as
-// the most it needs.
+// the most any of its cells needs, as need says.
 func columnWidths(rows []Row) []int {
 	var widths []int
 	for _, r := range rows {
@@ -415,20 +417,52 @@ func columnWidths(rows []Row) []int {
 			for len(widths) <= j {
 				widths = append(widths, 0)
 			}
-			if c.Wrap {
-				// what the text that wraps needs, at most, to stand on one line
-				for _, v := range c.Values {
-					widths[j] = max(widths[j], ansi.StringWidth(v))
-				}
-				continue
-			}
-			widths[j] = max(widths[j], ansi.StringWidth(c.first()+c.more()))
-			for _, v := range c.Values {
-				widths[j] = max(widths[j], ansi.StringWidth(v))
-			}
+			widths[j] = max(widths[j], c.need())
 		}
 	}
 	return widths
+}
+
+// need gives the cells a cell takes in its column: its widest value, or its first value and +N; for the cell that
+// wraps, the widest it is on one line, which fit takes as the most it needs.
+func (c Cell) need() int {
+	n := 0
+	if !c.Wrap {
+		n = ansi.StringWidth(c.first() + c.more())
+	}
+	for _, v := range c.Values {
+		n = max(n, ansi.StringWidth(v))
+	}
+	return n
+}
+
+// Need gives the cells a column of these cells takes, as Draw lays it out: its widest value, or first value and +N,
+// widened to the name the header stands over it; none for a column no cell has text in, which Draw leaves out.
+func Need(cells []Cell, name string) int {
+	n := 0
+	for _, c := range cells {
+		n = max(n, c.need())
+	}
+	if n > 0 {
+		n = max(n, ansi.StringWidth(name))
+	}
+	return n
+}
+
+// Fits says whether columns that need so many cells each stand in a pane of so many cells, a gap between each two,
+// with, when one of them wraps, minFill cells left for it: as fit lays them out without giving up room. A column that
+// needs none is left out, as Draw leaves it.
+func Fits(needs []int, wraps bool, width int) bool {
+	n, used := 0, 0
+	for _, w := range needs {
+		if w > 0 {
+			n, used = n+1, used+w
+		}
+	}
+	if wraps {
+		n, used = n+1, used+minFill
+	}
+	return used+max(n-1, 0)*gap <= width
 }
 
 // fit lays a row's columns out in a width: each column but the title takes its widest need, and the title, the cell
@@ -602,9 +636,10 @@ func wrapped(c Cell, width int) []string {
 	return out
 }
 
-// dotted underlines a cell's glyph, its text up to the first space, with a dotted line when the cell's link opens a
-// page, a URL, as a terminal that draws underline styles shows it; another draws a plain underline, or none. A link to
-// a row of another stage is no URL, and its glyph stays as it is; so does a text that opens with a style of its own.
+// dotted underlines a cell's glyph, or first word, its text up to the first space, with a dotted line when the cell's
+// link opens a page, a URL, as a terminal that draws underline styles shows it; another draws a plain underline, or
+// none. A link to a row of another stage is no URL, and its glyph stays as it is; so does a text that opens with a
+// style of its own.
 func dotted(v string, c Cell) string {
 	if !strings.Contains(c.Link, "://") || v == "" || strings.HasPrefix(v, "\x1b") {
 		return v

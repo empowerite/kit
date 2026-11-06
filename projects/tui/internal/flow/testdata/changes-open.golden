@@ -3,16 +3,16 @@
  ◃    1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 inc ▹
   ──────╰──────────────────────╯                  ╰──────────────────╰─────────┐
    Default ▾                                                                   │
-   change  title         author    state     age  checks    threads   branch   │
+   change  title         author     state  age  checks  threads     branch     │
    ─────────────────────────────────────────────────────────────────────────── │
- ▾ 🔀 #2   The first     👤        🏁 ready   8d  ✅ 1 /              🌿 1-    │
-           release,      jeffrey-                 1 3m                the-     │
-           v0.1.0        aguilera                                     first-   │
-                                                                      release- │
-                                                                      v0-1-0   │
+ ▾ #2      The first     jeffrey-   🏁      8d  ✅                  1-the-     │
+           release,      aguilera                                   first-     │
+           v0.1.0                                                   release-   │
+                                                                    v0-1-0     │
       #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0  │
- ▸ 🔀 #3   A spike on …  👤 ada    🔨 draft  90m  🏃 0 / 2  💬 2 un…  🌿 3-a-… ◂
- ▸ 🔀 #4   Lint every …  👤 bob    🔥 fail…  25h  ❌ lint…            🌿 4-li… ╷
+ ▸ #3      A spike on …  ada        🔨     90m  🏃      💬 2 unre…  3-a-spike  │
+ ▸ #4      Lint every …  bob        🔥     25h  ❌                  4-lint-ev… ◂
+                                                                               ╷
                                                                                │
                                                                                │
                                                                                │

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -264,12 +265,19 @@ var renderers = map[string]renderer{
 	"took":        each(func(f field, v value) []string { return mapped(v.Raw, func(s int64) string { return took(&s) }) }),
 	"glyph+age":   pushedAges,
 	"checkout":    each(checkoutName),
+	"name":        each(plainName),
 	"counts":      aheadBehind,
 	"diffstat":    each(func(f field, v value) []string { return []string{diffstat(v.Of.(checkout))} }),
 	"uncommitted": uncommittedCells,
 	"checks":      checksCells,
 	"threads":     each(threadsText),
 	"where":       whereCells,
+}
+
+// glyphed names the renderers that draw a glyph before a value, the field's own or its value's.
+var glyphed = map[string]bool{
+	"glyph+text": true, "glyph": true, "glyph+age": true, "checkout": true, "checks": true, "threads": true,
+	"where": true,
 }
 
 // each gives a renderer that draws every row's value alone, as texts, without regard to the others.
@@ -387,6 +395,11 @@ func checksCells(f field, vs []value) []cell {
 	return out
 }
 
+// plainName draws a checkout's name as checkoutName does, without the field's glyph.
+func plainName(f field, v value) []string {
+	return []string{strings.TrimPrefix(checkoutName(f, v)[0], f.Glyph+" ")}
+}
+
 // threadsText draws a pull request's review threads unresolved after the field's glyph, or nothing for none.
 func threadsText(f field, v value) []string {
 	if n, _ := strconv.Atoi(v.Raw[0]); n > 0 {
@@ -418,15 +431,19 @@ func whereCells(f field, vs []value) []cell {
 	return out
 }
 
+// drawnBy gives the rendering a field is drawn by: the one pinned, when it is one of the field's, else its first.
+func (f field) drawnBy(pinned string) string {
+	if slices.Contains(f.Renderings, pinned) {
+		return pinned
+	}
+	return f.Renderings[0]
+}
+
 // draw gives a field's cells from the values the rows hold in it, as the rendering pinned draws them, when it is one of
 // the field's, else its first: each dim where the field is, the field's alignment, each row's link, and what each
 // sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim.
 func (f field) draw(vs []value, pinned string) []cell {
-	rendering := f.Renderings[0]
-	if slices.Contains(f.Renderings, pinned) {
-		rendering = pinned
-	}
-	out := renderers[rendering](f, vs)
+	out := renderers[f.drawnBy(pinned)](f, vs)
 	for k, v := range vs {
 		c := &out[k]
 		if f.Dim {

@@ -167,7 +167,7 @@ func checkSetting(t *testing.T, where string, f field, s setting) {
 // then give their cells in the order of its fields, one a field.
 func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 	m := loaded(t, options())
-	for i, s := range m.stages {
+	for _, s := range m.stages {
 		fields := fieldsOf(s.name)
 		if fields == nil {
 			continue
@@ -188,7 +188,7 @@ func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 				t.Errorf("%s: the row %s gives %q, the stage's fields are %q", s.name, r.Key, got, ids)
 			}
 		}
-		for _, r := range m.unfiltered(i) {
+		for _, r := range laid(s.name, records, func(string) string { return "" }) {
 			if len(r.Cells) > 1 && len(r.Cells) != len(fields) {
 				t.Errorf("%s: the row %s has %d cells, the stage %d fields", s.name, r.Key, len(r.Cells), len(fields))
 			}

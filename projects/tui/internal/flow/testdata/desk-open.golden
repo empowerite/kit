@@ -3,9 +3,9 @@
  ◃og     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     4 │  🔀 c ▹
   ─────────╰─────────────────────╯               ╰─────────────────────╰───────┐
    Default ▾                                                                   │
-   branch   ahead   lines   uncommitted                                        │
+   branch  ahead   lines   uncommitted                                         │
    ─────────────────────────────────────────────────────────────────────────── │
- ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      │
+ ▾ main    ↑12 ↓1  +40 -6  2 uncommitted                                       │
        M kit.yml                                                               │
       ?? scratch.txt                                                           │
       c0ffee1 #45 status: the desk is a stage of its own                       │

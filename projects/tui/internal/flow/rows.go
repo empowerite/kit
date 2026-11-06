@@ -347,8 +347,9 @@ func (m Model) shown(i int) shown {
 }
 
 // shown is a stage's rows as its panel lets them through, the columns its panel offers, those its rows group by on
-// their own and the level of the headings that say each, how many levels of headings they stand under, and how many
-// rows but the asides it loaded, the panel apart, and how many of those the panel lets through, a group folded or not.
+// their own and the level of the headings that say each, how many levels of headings they stand under, how many
+// rows but the asides it loaded, the panel apart, and how many of those the panel lets through, a group folded or not,
+// and the rendering each field is drawn by, by id, as automatic chose it.
 type shown struct {
 	rows   []row
 	names  []string
@@ -357,14 +358,86 @@ type shown struct {
 	levels int
 	all    int
 	passed int
+	drawn  map[string]string
 }
 
 // build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them.
+// The rows are laid out twice: first as the panel pins each field's rendering, or by its first, which says the rows
+// the panel lets through; then by the renderings automatic chooses for those rows and the width, when they differ.
+// The second time lets through the rows the first did, so a search keeps the rows whose text had it, though a field
+// now draws less of it.
 func (m Model) build(i int) shown {
-	all, names := m.unfiltered(i), columnsOf(m.stages[i].name)
-	p := m.filter(i)
+	s, names, p := m.stages[i], columnsOf(m.stages[i].name), m.filter(i)
+	if s.name == "incoming" {
+		all := incomingRows(s)
+		rows, auto := p.Filtered(all, names)
+		return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all),
+			counted(rows), nil}
+	}
+	records := m.records(s)
+	pinned := func(id string) string { return s.view.Field(id).Rendering }
+	all := laid(s.name, records, pinned)
 	rows, auto := p.Filtered(all, names)
-	return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all), counted(rows)}
+	fields := m.placed(i)
+	drawn := automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead))
+	if slices.ContainsFunc(fields, func(f placed) bool { return drawn[f.ID] != f.drawnBy(f.pinned) }) {
+		passed := map[string]bool{}
+		for _, r := range rows {
+			passed[r.Key] = true
+		}
+		all = laid(s.name, records, func(id string) string { return drawn[id] })
+		q := p
+		q.Query = ""
+		rows, auto = q.Filtered(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
+	}
+	return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all),
+		counted(rows), drawn}
+}
+
+// placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each
+// with the name the header stands over it while it shows, then the fields grouped or hidden.
+func (m Model) placed(i int) []placed {
+	s, p := m.stages[i], m.filter(i)
+	fields := fieldsOf(s.name)
+	heads := m.names(i)
+	var out, rest []placed
+	for k, id := range p.Arrange(columnsOf(s.name)) {
+		f := fields[k]
+		if id != "" {
+			f = fields[slices.IndexFunc(fields, func(f field) bool { return f.ID == id })]
+		}
+		pin := p.Field(f.ID).Rendering
+		if id != "" && !p.Shows(id) {
+			rest = append(rest, placed{f, pin, false, ""})
+			continue
+		}
+		name := ""
+		if len(out) < len(heads) {
+			name = heads[len(out)]
+		}
+		out = append(out, placed{f, pin, true, name})
+	}
+	return append(out, rest...)
+}
+
+// shownValues gives the values the records the rows let through hold in each field, by id, one a record.
+func shownValues(records []record, rows []row) map[string][]value {
+	passed := map[string]bool{}
+	for _, r := range rows {
+		if !r.Aside {
+			passed[r.Key] = true
+		}
+	}
+	out := map[string][]value{}
+	for _, r := range records {
+		if r.values == nil || !passed[r.Key] {
+			continue
+		}
+		for id, v := range r.values {
+			out[id] = append(out[id], v)
+		}
+	}
+	return out
 }
 
 // filled gives a stage's columns as its panel offers them: each named column that one of the rows loaded has a value
@@ -382,16 +455,6 @@ func filled(rows []row, names []string) []string {
 		}
 	}
 	return out
-}
-
-// unfiltered lays a stage's rows out from what it loaded, each in the stage's fields, as the rendering its panel pins
-// draws each.
-func (m Model) unfiltered(i int) []row {
-	s := m.stages[i]
-	if s.name == "incoming" {
-		return incomingRows(s)
-	}
-	return laid(s.name, m.records(s), func(id string) string { return s.view.Field(id).Rendering })
 }
 
 // records gives a stage's records from what it loaded; none for a stage kittui does not draw.

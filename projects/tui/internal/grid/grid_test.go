@@ -85,21 +85,60 @@ func TestOpensSaysWhichRowsHideSomethingAtTheWidth(t *testing.T) {
 	}
 }
 
-func TestLinkAtFindsTheLinkedGlyphUnderAColumn(t *testing.T) {
+// A column needs its widest value, or its first and +N, widened to its name while it has text; columns fit a width
+// with a gap between each two and, when one wraps, minFill left for it.
+func TestNeedAndFitsMeasureTheColumnsAsDrawLaysThemOut(t *testing.T) {
+	cells := []Cell{{Values: []string{"👤 ada", "👤 bob"}}, {Values: []string{"👤 carol"}}}
+	if n := Need(cells[1:], ""); n != ansi.StringWidth("👤 carol") {
+		t.Errorf("one assignee needs %d", n)
+	}
+	if n := Need(cells, ""); n != ansi.StringWidth("👤 ada +1") {
+		t.Errorf("two assignees and one need %d", n)
+	}
+	if n := Need(cells, "the assignees"); n != len("the assignees") {
+		t.Errorf("under a wide name, %d", n)
+	}
+	if n := Need([]Cell{{}, {}}, "assignees"); n != 0 {
+		t.Errorf("a column without text needs %d", n)
+	}
+	for _, c := range []struct {
+		needs []int
+		wraps bool
+		width int
+		fits  bool
+	}{
+		{[]int{3, 5}, false, 3 + gap + 5, true},
+		{[]int{3, 5}, false, 3 + gap + 5 - 1, false},
+		{[]int{3, 0, 5}, false, 3 + gap + 5, true},
+		{[]int{3, 5}, true, 3 + gap + 5 + gap + minFill, true},
+		{[]int{3, 5}, true, 3 + gap + 5 + gap + minFill - 1, false},
+		{nil, true, minFill, true},
+	} {
+		if got := Fits(c.needs, c.wraps, c.width); got != c.fits {
+			t.Errorf("%v, wraps %v, at %d: %v", c.needs, c.wraps, c.width, got)
+		}
+	}
+}
+
+// A link leads from a cell's first word: its glyph, as a span's, or, drawn without one, its text's, as the title's a.
+func TestLinkAtFindsTheLinkedGlyphOrFirstWordUnderAColumn(t *testing.T) {
 	rows := issues()
 	rows[0].Cells[3].Link = "https://example/1"
 	rows[0].Cells[0].Link = "https://example/number"
 	rows = append(rows, Row{Key: "s", Cells: []Cell{{Values: []string{"🔗 a span"}, Link: "https://example/span"}}})
 	// the title starts after the gutter, #1, the assignees, and the age, each with the gap after it
 	title := len(lead) + 3 + gap + ansi.StringWidth("👤 ada +1") + gap + 3 + gap
-	for x, want := range map[int]string{title: "https://example/1", title + 1: "https://example/1", title + 2: "",
+	for x, want := range map[int]string{title: "https://example/1", title + 1: "", title + 2: "",
 		len(lead) + 1: "https://example/number", len(lead): "", 0: ""} {
 		if got := LinkAt(rows, nil, 0, 40, x); got != want {
 			t.Errorf("at %d: %q, want %q", x, got, want)
 		}
 	}
-	if got := LinkAt(rows, nil, 3, 40, len(lead)); got != "https://example/span" {
+	if got := LinkAt(rows, nil, 3, 40, len(lead)+1); got != "https://example/span" {
 		t.Errorf("a span's glyph: %q", got)
+	}
+	if got := LinkAt(rows, nil, 3, 40, len(lead)+2); got != "" {
+		t.Errorf("after a span's glyph: %q", got)
 	}
 }
 

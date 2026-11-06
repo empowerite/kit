@@ -201,13 +201,13 @@ func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
 	}
 	side, _ := m.panel(0).Lines()
 	at := slices.Index(side, style.Cursor(pane.Pad(grid.Unticked+" assignees", m.sideWidth()-1, false)))
-	if strings.Contains(drawn(m), Owner) || at < 0 || ansi.Strip(side[at-1]) != "hidden" || m.panel(0).Under() != "assignees" {
+	if strings.Contains(drawn(m), "jeffrey-agui") || at < 0 || ansi.Strip(side[at-1]) != "hidden" || m.panel(0).Under() != "assignees" {
 		t.Errorf("assignees hidden:\n%s", view(m))
 	}
 	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show  ⇧↑↓ move") {
 		t.Errorf("the keys on a hidden field: %q", keys)
 	}
-	if m = drive(m, press(tea.KeySpace)); !strings.Contains(drawn(m), Owner) || shownNow(m)[2] != "assignees" {
+	if m = drive(m, press(tea.KeySpace)); !strings.Contains(drawn(m), "jeffrey-agui") || shownNow(m)[2] != "assignees" {
 		t.Errorf("assignees shown again: %q\n%s", shownNow(m), view(m))
 	}
 	m = drive(m, press('?'), press('?'), esc, tab)
@@ -310,12 +310,13 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	}
 }
 
-func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
+// A title drawn without its glyph, as every row shares it, leads to the issue's page from its first word.
+func TestAClickOnATitlesFirstWordOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
 	// the first issue stands under the heading over every row, the source said once
 	y := m.rowsTop() + 1
 	first := lines(m)[y]
-	x := ansi.StringWidth(first[:strings.Index(first, Issue)])
+	x := ansi.StringWidth(first[:strings.Index(first, "kit flow is")])
 	browsed = nil
 	if m = drive(m, testkit.Click(x, y)); len(browsed) != 1 ||
 		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
@@ -380,7 +381,7 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 	// branch, the first column, moves down a place: ahead first, in the header and in the rows
 	m = drive(m, tab, down, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
 	if l := lines(m); !strings.HasPrefix(strings.TrimSpace(l[paneTop]), "ahead") || line("branch") <= line("ahead") ||
-		!strings.Contains(l[m.rowsTop()], "↑266 ↓0  🌿 1-the-first-release") {
+		!strings.Contains(l[m.rowsTop()], "↑266 ↓0  1-the-first-release") {
 		t.Fatalf("shift-down on branch:\n%s", view(m))
 	}
 	// a drag of state's line onto lines' puts state where lines was, toggling nothing
@@ -582,7 +583,7 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != grid.Unfolded+" "+GitHub+" github source  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
+	if got := heading(m); got != grid.Unfolded+" github source  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
 		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
 	}
 	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {
@@ -662,13 +663,13 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 		before, _, _ := strings.Cut(lines(m)[k], glyph)
 		return ansi.StringWidth(before)
 	}
-	if h, r := column(m, "github source", grid.Unfolded), column(m, "#46", "▸"); r != h+2 {
+	if h, r := column(m, "github source", grid.Unfolded), column(m, "#45", "▸"); r != h+2 {
 		t.Errorf("grouped on its own, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
 	}
 	unfold(&m)
 	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
 	outer, inner := column(m, "github source", grid.Unfolded), column(m, "jeffrey-aguilera assignees", grid.Unfolded)
-	if r := column(m, "#46", "▸"); inner != outer+2 || r != inner+2 {
+	if r := column(m, "#45", "▸"); inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d and %d, a row's ▸ at %d:\n%s", outer, inner, r, view(m))
 	}
 }
@@ -717,10 +718,13 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 		!strings.Contains(presetText(m), "assignees: ¬@me") {
 		t.Errorf("exclude: %v, %q", keys(m), presetText(m))
 	}
-	// the rendering text draws the logins without their glyph
-	x, y := popLineAt(t, m, "text")
-	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
-		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
+	// auto draws the logins without the glyph they all share, and says so; glyph+text, pinned, draws it again
+	if strings.Contains(drawn(m), Owner) || !strings.Contains(view(m), "auto text") {
+		t.Errorf("assignees drawn by auto:\n%s", view(m))
+	}
+	x, y := popLineAt(t, m, "glyph+text")
+	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "glyph+text" || !strings.Contains(drawn(m), Owner) {
+		t.Errorf("a click on glyph+text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
 	// esc closes it; the editor has the keyboard, and marks the field sorted and filtered
 	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ▲ ⊘") {

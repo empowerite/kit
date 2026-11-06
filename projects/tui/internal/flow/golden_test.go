@@ -1,9 +1,10 @@
 // Every stage's screen at 80×24, closed and with its first row open, is pinned as a golden file without its escapes,
-// its preset line over its table; underway's and builds' are at 120×24, the common width. So is the bar at 120 columns,
-// with the legend and without, and the legend at 80, scrolled to changes; and backlog's preset line once its table
-// differs from every view, filtered to the others' issues and to those not on GitLab, under the keyboard; and, at 120
-// columns, the sidebar's field editor with a field in each section, and with assignees' popover open over it, @me
-// checked.
+// its preset line over its table, each field drawn as automatic chooses: without a glyph its rows all share, and, as
+// changes at 80, stepped down to a shorter rendering where the columns are short of width; underway's and builds' are
+// at 120×24, the common width. So is the bar at 120 columns, with the legend and without, and the legend at 80,
+// scrolled to changes; and backlog's preset line once its table differs from every view, filtered to the others' issues
+// and to those not on GitLab, under the keyboard; and, at 120 columns, the sidebar's field editor with a field in each
+// section, and with assignees' popover open over it, @me checked.
 package flow
 
 import (

@@ -235,6 +235,7 @@ func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
 func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
 	for i, name := range eight {
 		m := opened(t, i)
+		asCatalog(&m, i)
 		if name == "desk" {
 			// the desk, on main, has no pull request; on a branch with one, it leads to it
 			m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"

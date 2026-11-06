@@ -45,7 +45,8 @@ type popLine struct {
 // for an enum or a person: whether the values checked are let through or held back, include or exclude, one line that
 // toggles, then a box per value: an enum's known values with their glyphs, a person's logins the rows loaded hold,
 // after @me, the caller, and the values the catalog does not know, then none, a row with no value, and any the filter
-// names that are not there. rendering: auto, the field's first that fits, then each of its renderings, a radio.
+// names that are not there. rendering: auto, with the rendering it chooses now, dim, then each of the field's
+// renderings, a radio.
 func (m Model) popLines(id string) []popLine {
 	s, p := m.stages[m.stage], m.panel(m.stage)
 	fields := fieldsOf(s.name)
@@ -114,7 +115,7 @@ func (m Model) popLines(id string) []popLine {
 	for _, r := range append([]string{""}, f.Renderings...) {
 		name := r
 		if r == "" {
-			name = "auto"
+			name = "auto " + style.Off(m.shown(m.stage).drawn[id])
 		}
 		radio(name, g.Rendering == r, func(p grid.Panel) grid.Panel { return p.Rendered(id, r) })
 	}
