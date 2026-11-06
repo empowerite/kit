@@ -4,10 +4,10 @@
 // saves others, per stage, in a file of their own, presets.json under ~/.config/kit/, so their views follow them to
 // every repository; one they named as a stage's own was named before the stage had it, and stays theirs. The preset
 // line, the rule under the stage's header, names the view the table is set as; enter, or a click on the name, drops
-// down the views to choose from; typing renames it. Once the table differs from every view, the line names none, and a
-// mark says so, and 💾 Save stands at its right, dim until a name is typed; it stands there too once the name was
-// changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own overwritten, a stage's
-// own refused for a name of their own, and no name refused.
+// down the views to choose from; typing renames it. Once the table differs from every view, the line names none, and 💾
+// Save stands at its right, dim until a name is typed; it stands there too once the name was changed. ctrl+s or a click
+// on it saves the panel under the name, a view of the person's own overwritten, a stage's own refused for a name of
+// their own, and no name refused.
 package flow
 
 import (
@@ -34,13 +34,12 @@ const Opening = "Default"
 
 // Save is the glyph of the button at the preset line's right while the table differs from its view, SaveText the word
 // after it, and Saving the two, as the button draws them. Unnamed stands, dim, in place of the view's name while the
-// line names none: the table differs from every view, and nothing is typed. Differs is the mark after the name then.
+// line names none: the table differs from every view, and nothing is typed.
 const (
 	Save     = "💾"
 	SaveText = "Save"
 	Saving   = Save + " " + SaveText
 	Unnamed  = "unnamed"
-	Differs  = "●"
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
@@ -221,16 +220,17 @@ func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
 		}
 		p.Fields[f.ID] = g
 	}
-	p.Fold = pr.Fold == nil || *pr.Fold
+	p.Fold, p.Glyphs = pr.Fold == nil || *pr.Fold, pr.Glyphs
 	return p
 }
 
-// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed: of each field, what differs from what a preset that names none of them says. A column's position is said only while
-// the columns stand in another order than the stage's, and then for every column, from 1; a group's depth and a sort's
-// priority are numbered from 1, the outermost and the first first.
+// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed: of each field, what differs from
+// what a preset that names none of them says. A column's position is said only while the columns stand in another order
+// than the stage's, and then for every column, from 1; a group's depth and a sort's priority are numbered from 1, the
+// outermost and the first first.
 func presetOf(p grid.Panel, fields []field) preset {
 	fold := p.Fold
-	out := preset{Fold: &fold}
+	out := preset{Fold: &fold, Glyphs: p.Glyphs}
 	var ids []string
 	for _, f := range fields {
 		if f.Label != "" {
@@ -569,7 +569,7 @@ func (m *Model) choosePreset(k int) {
 // the screen's left when that would run past its edge, and the screen line and column it is drawn from.
 func (m Model) presetBox() (lines []string, top, left int) {
 	lines, _ = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, m.width)
-	return lines, m.presetTop() + 1, max(0, min(len(lead)-1, m.width-ansi.StringWidth(lines[0])))
+	return lines, m.presetTop() + 1, max(0, min(m.dropStart()-1, m.width-ansi.StringWidth(lines[0])))
 }
 
 // presetMenuClick takes a click while the presets' menu is open: on a view, it chooses it; anywhere else, it closes the
@@ -591,7 +591,7 @@ func (m *Model) presetClick(x int) tea.Cmd {
 	switch {
 	case m.changed(m.stage) && x >= m.paneWidth()-ansi.StringWidth(Saving) && x < m.paneWidth():
 		return m.savePreset()
-	case x < m.dropEnd():
+	case x >= m.dropStart() && x < m.dropEnd():
 		m.dropPresets()
 	}
 	return nil

@@ -74,11 +74,12 @@ type enumValue struct {
 
 // preset is a stage's panel as a preset keeps it, one of the stage's own or one the person saved: its name; whether it
 // folds, a value every row of a group shares said once, in the group's heading, or, when it says nothing, as it does;
-// and what it says of each field it names, by id. A field it does not name takes the catalog's placement, and no sort,
-// filter, or rendering.
+// whether it shows the emoji every row shares, which it does not when it says nothing; and what it says of each field
+// it names, by id. A field it does not name takes the catalog's placement, and no sort, filter, or rendering.
 type preset struct {
 	Name   string             `json:"name"`
 	Fold   *bool              `json:"fold,omitempty"`
+	Glyphs bool               `json:"glyphs,omitempty"`
 	Fields map[string]setting `json:"fields,omitempty"`
 }
 

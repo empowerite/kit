@@ -39,13 +39,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
   `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
   and leaves the old file as it is.
-  - The column names always stand over the rows. The rule under them is the preset line: it names the preset the
-    table is set as, with a chip per filter, and, at its right end, how many rows are selected and 💾 Save once the
-    table differs from every preset. It takes no line of the rows. ↓ from the tabs reaches it, ⏎ on it lists the
-    presets, typing renames, and ⌃S saves.
+  - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
+    rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
+    set as, unnamed once the table differs from every preset, and 💾 Save then. ↓ from the tabs reaches it, ⏎ on it
+    lists the presets, typing renames, and ⌃S saves.
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
-    or shows it again.
+    or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
   - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
     enum or a person, and its rendering. What it sets applies at once. A double click on a column's name opens the
     same popover, and puts back the sort the first click of it changed. A click on the name sorts by it alone, and

@@ -3,7 +3,7 @@
  ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ group by
   ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ columns
    change  title         author         state  age  checks  threads         branch         │ ☑ change
-   Default ▾ ───────────────────────────────────────────────────────────────────────────── │ ☑ title
+   ───────────────────────────────────────────────────────────────────────────── Default ▾ │ ☑ title
  ▸ 🔀 #2   The first r…  jeffrey-agui…  🏁      8d  ✅                      1-the-first-r… │ ☑ author
  ▸ 🔀 #3   A spike on …  ada            🔨     90m  🏃      💬 2 unresolv…  3-a-spike      │ ☑ state
  ▸ 🔀 #4   Lint every …  bob            🔥     25h  ❌                      4-lint-every-… │ ☑ age
@@ -13,10 +13,11 @@
                                                                                            │ hidden
                                                                                            │
                                                                                            │ ☑ fold shared values
+                                                                                           │ ☐ show shared emoji
                                                                                            │
-                                                                                           │ legend
-                                                                                           ▸ 🔀 a pull request 🔗
-                                                                                           ╷ 👤 assignees or author
+                                                                                           ▸ legend
+                                                                                           ╷ 🔀 a pull request 🔗
+                                                                                           │ 👤 assignees or author
                                                                                            │ 🌿 a branch or a worktree
                                                                                            │ 🏃 running
                                                                                            │ ✅ passed
@@ -27,6 +28,5 @@
                                                                                            │
                                                                                            │ state 🔗
                                                                                            │ 🔨 draft
-                                                                                           │ 🚦 queued
-                                                                                           │ … 7 more
+                                                                                           │ … 8 more
  = menu  / search  ? hide sidebar  ⇥ sidebar │ ←→ tab  ↓ preset  1-8 jump  : tab menu

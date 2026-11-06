@@ -379,7 +379,7 @@ func (m Model) build(i int) shown {
 	all := laid(s.name, records, pinned)
 	rows, auto := p.Filtered(all, names)
 	fields := m.placed(i)
-	drawn := automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead))
+	drawn := automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead), p.Glyphs)
 	if slices.ContainsFunc(fields, func(f placed) bool { return drawn[f.ID] != f.drawnBy(f.pinned) }) {
 		passed := map[string]bool{}
 		for _, r := range rows {

@@ -24,10 +24,11 @@ type placed struct {
 // choose among them. A glyph that leads somewhere is a button: where a value the rows hold in the field links, the
 // field keeps to its renderings that draw a glyph, when it has one. Else a glyph every row shares says nothing: where
 // each value the rows hold in the field draws the same glyph, the field drops its renderings that draw one, unless
-// every one does. And a table short of width steps down: while the columns do not fit, as grid.Fits says, each column,
-// from the rightmost leftward and a step each in turn, takes its next rendering that is narrower, until they fit or
-// none can step. The column that wraps takes what is left, as it always does, and never steps.
-func automatic(fields []placed, vs map[string][]value, width int) map[string]string {
+// every one does, or the panel shows the emoji every row shares, as shared says. And a table short of width steps down:
+// while the columns do not fit, as grid.Fits says, each column, from the rightmost leftward and a step each in turn,
+// takes its next rendering that is narrower, until they fit or none can step. The column that wraps takes what is left,
+// as it always does, and never steps.
+func automatic(fields []placed, vs map[string][]value, width int, shared bool) map[string]string {
 	out, ladders := map[string]string{}, map[string][]string{}
 	for _, f := range fields {
 		if slices.Contains(f.Renderings, f.pinned) {
@@ -40,7 +41,7 @@ func automatic(fields []placed, vs map[string][]value, width int) map[string]str
 		switch {
 		case len(drawing) > 0 && links(vs[f.ID]):
 			ladder = drawing
-		case len(plain) > 0 && f.sharesGlyph(vs[f.ID]):
+		case len(plain) > 0 && !shared && f.sharesGlyph(vs[f.ID]):
 			ladder = plain
 		}
 		out[f.ID], ladders[f.ID] = ladder[0], ladder[1:]

@@ -53,10 +53,10 @@ func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 		!strings.Contains(lines(m)[paneTop], "assignees") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
-	// selected rows are counted at its right end
+	// the selector stands at its right end, after how many rows are selected
 	m.stages[0].picked[m.rows(0)[1].Key] = true
-	if got := ansi.Strip(lines(m)[m.presetTop()]); !strings.HasPrefix(got, "   Default ▾ ─") ||
-		!strings.Contains(got, "─ 1 selected ─") {
+	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "   ─") ||
+		!strings.HasSuffix(got, "─ 1 selected ─ Default ▾") {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].picked = map[string]bool{}
@@ -159,15 +159,14 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 		m.changed(0) || presetText(m) != "   Compact ▾" {
 		t.Fatalf("Compact: %q, changed %v, %q", shownNow(m), m.changed(0), presetText(m))
 	}
-	// a column shown again differs from every view: the line names none, the mark says so, and 💾 Save, dim, stands
-	// at its right
+	// a column shown again differs from every view: the line names none, and 💾 Save, dim, stands at its right
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	if got := presetText(m); !m.changed(0) || m.savable(0) || m.viewShown(0) != "" ||
-		!strings.HasPrefix(got, "   "+Unnamed+" ▾ "+Differs) || !strings.HasSuffix(got, Saving) ||
+		!strings.HasSuffix(got, " "+Unnamed+" ▾ "+Saving) || !strings.HasSuffix(got, Saving) ||
 		!strings.Contains(keysOf(m), "⌃S save") {
 		t.Errorf("a change does not show save, or names a view: %q", got)
 	}
-	if at := len(lead) + len(Unnamed) + 2; m.dropEnd() != at {
+	if at := m.dropStart() + len(Unnamed) + 2; m.dropEnd() != at || m.dropStart() < m.paneWidth()/2 {
 		t.Errorf("▾ ends at %d, not %d", m.dropEnd(), at)
 	}
 	// saving with no name is refused, as is saving over a stage's own view; the change stays
@@ -214,7 +213,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	m.setPanel(p)
 	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
 	m = drive(m, typed("x")...)
-	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.HasPrefix(presetText(m), "   x▏ ▾") ||
+	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.HasSuffix(presetText(m), "  x▏ ▾ "+Saving) ||
 		!m.savable(0) {
 		t.Fatalf("typing: %q", presetText(m))
 	}
@@ -229,7 +228,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	m = drive(m, typed("Triage")...)
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if last := keysOf(m); !strings.Contains(last, "saved the preset Triage") || m.stages[0].viewName != "Triage" ||
-		m.changed(0) || !strings.HasPrefix(presetText(m), "   Triage ▾  assignees") {
+		m.changed(0) || !strings.HasSuffix(presetText(m), "assignees: ¬@me  Triage ▾") {
 		t.Fatalf("save: %q, view %q, changed %v, %q", last, m.stages[0].viewName, m.changed(0), presetText(m))
 	}
 	data, err := os.ReadFile(file)
@@ -276,13 +275,13 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 func TestClicksOpenThePresetsChooseOneAndSave(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
-	// a click on the line past the name gives it the keyboard, and opens nothing
-	if m = drive(m, testkit.Click(m.dropEnd()+4, m.presetTop())); m.presetMenu || !m.onPreset {
+	// a click on the line before the name gives it the keyboard, and opens nothing
+	if m = drive(m, testkit.Click(m.dropStart()-4, m.presetTop())); m.presetMenu || !m.onPreset {
 		t.Fatalf("a click past ▾: menu %v, on the line %v", m.presetMenu, m.onPreset)
 	}
 	m = drive(m, esc)
 	// a click on the name drops the presets down, as one on ▾ does
-	if m = drive(m, testkit.Click(len(lead)+1, m.presetTop())); !m.presetMenu || !m.onPreset {
+	if m = drive(m, testkit.Click(m.dropStart()+1, m.presetTop())); !m.presetMenu || !m.onPreset {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetMenu, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetBox()

@@ -90,13 +90,15 @@ const (
 )
 
 // Panel is the controls beside a grid's rows, top to bottom: the search field; the field editor, each field with a name
-// in one of three sections, the groups, the columns, and the hidden, as Lines draws them; and whether the panel folds.
+// in one of three sections, the groups, the columns, and the hidden, as Lines draws them; whether the panel folds; and
+// whether it shows the emoji every row shares.
 // Columns names the columns by their fields' ids, in the stage's order, and Labels gives the label the editor lists
 // each by, its id where it gives none. Fields holds what the panel says of each field, by id, as Field says; a field it
 // does not name is a column, unsorted and unfiltered. The panel never changes the map it was given, but gives a new
 // one. Fold says whether a value every row of a group shares is said once, in the group's heading, rather than in each
 // row: the rows then group on their own, as group says, by each groupable column whose value is the same on every row
-// of a group; Auto names the columns that do so now, as Filtered gave them, and AutoAt the level of the headings each
+// of a group. Glyphs says whether a glyph every row shown shares is drawn still, where the screen would drop it as
+// saying nothing; Auto names the columns that do so now, as Filtered gave them, and AutoAt the level of the headings each
 // is said at, from 1, as Said gives it. Sortable and Groupable name the columns that can sort and group, which the
 // stage says. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
 // Caller is the caller's login, Me, which matches no one while it is unknown. Cursor is the control under the
@@ -110,6 +112,7 @@ type Panel struct {
 	Labels    map[string]string
 	Fields    map[string]Field
 	Fold      bool
+	Glyphs    bool
 	Sortable  map[string]bool
 	Groupable map[string]bool
 	Auto      []string
@@ -721,11 +724,13 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 	return out
 }
 
-// control is one of the panel's controls: the search, a field's line in the editor, or whether the panel folds.
+// control is one of the panel's controls: the search, a field's line in the editor, whether the panel folds, or
+// whether it shows the emoji every row shares.
 type control struct {
 	search bool
 	field  string
 	fold   bool
+	glyphs bool
 }
 
 // sections are the editor's sections, top to bottom, each a placement, and the dim heading over each, by placement.
@@ -771,7 +776,8 @@ func (p Panel) section(at Placement) []string {
 }
 
 // controls gives the panel's controls, in order: the search; while the stage has fields with a name, each field in its
-// section, as section gives them; and, where a field can group, whether the panel folds.
+// section, as section gives them; where a field can group, whether the panel folds; and whether it shows the emoji
+// every row shares.
 func (p Panel) controls() []control {
 	out := []control{{search: true}}
 	if !slices.ContainsFunc(p.Columns, func(id string) bool { return id != "" }) {
@@ -785,14 +791,16 @@ func (p Panel) controls() []control {
 	if len(p.Groupable) > 0 {
 		out = append(out, control{fold: true})
 	}
-	return out
+	return append(out, control{glyphs: true})
 }
 
-// Filtered is the mark after a field's label in the editor while a filter on it holds rows back, and Folds the label
-// of the control that says whether the panel folds a value every row of a group shares into the group's heading.
+// Filtered is the mark after a field's label in the editor while a filter on it holds rows back; Folds the label of the
+// control that says whether the panel folds a value every row of a group shares into the group's heading; and Emoji
+// the label of the one that says whether it shows the emoji every row shares.
 const (
 	Filtered = "⊘"
 	Folds    = "fold shared values"
+	Emoji    = "show shared emoji"
 )
 
 // drawnLine is one line of the panel, as layout draws it: its text; the control it draws, or -1; and for a section's
@@ -831,9 +839,15 @@ func (p Panel) layout() []drawnLine {
 	}
 	if k < len(controls) {
 		add("", -1)
-		line := style.Off(Unticked) + " " + Folds
-		if p.Fold {
-			line = style.Mark(Ticked + " " + Folds)
+	}
+	for ; k < len(controls); k++ {
+		label, on := Emoji, p.Glyphs
+		if controls[k].fold {
+			label, on = Folds, p.Fold
+		}
+		line := style.Off(Unticked) + " " + label
+		if on {
+			line = style.Mark(Ticked + " " + label)
 		}
 		draw(k, line)
 	}
@@ -903,7 +917,8 @@ var Clicks = []string{"click     sort", "⌥ click   add a sort", "⌃ click   g
 // Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
 // controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back; off it,
 // / goes to the search; on a field, space hides it, or shows a hidden one as a column, and shift with up or down moves
-// it, as Step says, the keyboard with it; on whether the panel folds, space or enter toggles it.
+// it, as Step says, the keyboard with it; on whether the panel folds, or shows the emoji every row shares, space or
+// enter toggles it.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -923,7 +938,7 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 			step = -1
 		}
 		p, _ = p.Step(c.field, step)
-	case c.field != "" && key == "space", c.fold && (key == "space" || key == "enter"):
+	case c.field != "" && key == "space", (c.fold || c.glyphs) && (key == "space" || key == "enter"):
 		p = p.act(c)
 	default:
 		return p, false
@@ -939,8 +954,8 @@ func (p Panel) Under() string {
 
 // Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
 // there are some; a field's line hides it, or shows it, with space, moves it with shift and up or down, where it can
-// move that way, and opens its popover with enter, which the screen draws; whether the panel folds toggles with space
-// or enter.
+// move that way, and opens its popover with enter, which the screen draws; whether the panel folds, or shows the emoji
+// every row shares, toggles with space or enter.
 func (p Panel) Keys(recalls bool) shell.Segment {
 	controls := p.controls()
 	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
@@ -966,7 +981,12 @@ func (p Panel) Keys(recalls bool) shell.Segment {
 		return s.With(shell.Bind("⏎", "options", "enter"))
 	}
 	does := "fold"
-	if p.Fold {
+	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
+	case c.glyphs && p.Glyphs:
+		does = "hide"
+	case c.glyphs:
+		does = "show"
+	case p.Fold:
 		does = "unfold"
 	}
 	return shell.Segment{Bindings: []shell.Binding{shell.Bind("␣", does, "space", "enter")}}
@@ -1011,13 +1031,17 @@ func (p Panel) Find() Panel {
 }
 
 // act toggles a field's box, hiding a column or a group, which then leaves the groups, and showing a hidden field as a
-// column where it stood; or toggles whether the panel folds, and with it the columns the rows group by on their own.
+// column where it stood; toggles whether the panel shows the emoji every row shares; or toggles whether it folds, and
+// with it the columns the rows group by on their own.
 func (p Panel) act(c control) Panel {
 	switch {
 	case c.field != "" && p.Fields[c.field].Placement == Hidden:
 		return p.Placed(c.field, Column).follow(c.field)
 	case c.field != "":
 		return p.Placed(c.field, Hidden).follow(c.field)
+	case c.glyphs:
+		p.Glyphs = !p.Glyphs
+		return p
 	}
 	p.Fold = !p.Fold
 	if !p.Fold {

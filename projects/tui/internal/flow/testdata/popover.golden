@@ -3,7 +3,7 @@
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰──╭─ assignees ──────────────────────╮
    id  source     assignees  age  title                                             │ sort                             │
-   unnamed ▾ ●  assignees: @me ───────────────────────────────────────────────────  │ ⦿ off                            │
+   ───────────────────────────────────────────────────── assignees: @me  unnamed ▾  │ ⦿ off                            │
  ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  │ ⦾ ▲ ascending                    │
                                                                                     │ ⦾ ▼ descending                   │
                                                                                     │ filter                           │

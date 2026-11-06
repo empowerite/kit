@@ -390,24 +390,40 @@ func (m Model) header() (lines []string, hides bool) {
 	return append(lines, m.rule()), hides
 }
 
-// rule gives the line under the header, as wide as the pane: the preset line, where the stage has one, as presetLine
-// draws it, else the gutter; a thin dim line; and at its right end, how many rows are selected, in the accent, when
-// some are, then Saving, as presetLine gives it. The preset line's chips are clipped first where the line is short.
+// rule gives the line under the header, as ruled draws it.
 func (m Model) rule() string {
+	line, _ := m.ruled()
+	return line
+}
+
+// ruled gives the line under the header, as wide as the pane, and the column the preset's name starts on, -1 where the
+// stage has no preset line: the gutter, a thin dim line, and at its right end, how many rows are selected, in the
+// accent, when some are, then the preset line, where the stage has one: a chip per filter the panel sets, as chips
+// gives them, and the selector and the button, as presetLine draws them. The chips are clipped first where the line is
+// short, leaving a cell of the rule.
+func (m Model) ruled() (string, int) {
 	width, right := m.paneWidth(), ""
 	if n := m.selected(); n > 0 {
 		right = style.Tint(" "+strconv.Itoa(n)+" selected ") + style.Off("─")
 	}
-	left, button := lead, ""
+	tail := ""
 	if m.presets(m.stage) {
-		left, button = m.presetLine(width - ansi.StringWidth(right))
-		left += " "
+		selector, button := m.presetLine()
+		tail = " " + selector + button
+		if chips := m.chips(m.stage); len(chips) > 0 {
+			// the gutter, a cell of the rule, and a space either side of the chips
+			room := width - len(lead) - 1 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
+			if room > 1 {
+				right += " " + ansi.Truncate(strings.Join(chips, "  "), room, "…") + " "
+			}
+		}
 	}
-	if button != "" {
-		right += " " + button
+	fill := max(1, width-len(lead)-ansi.StringWidth(right)-ansi.StringWidth(tail))
+	line := ansi.Truncate(lead+style.Off(strings.Repeat("─", fill))+right+tail, width, "")
+	if tail == "" {
+		return line, -1
 	}
-	fill := max(1, width-ansi.StringWidth(left)-ansi.StringWidth(right))
-	return ansi.Truncate(left+style.Off(strings.Repeat("─", fill))+right, width, "")
+	return line, len(lead) + fill + ansi.StringWidth(right) + 1
 }
 
 // presetTop gives the screen line the preset line is drawn on, the rule under the header.
@@ -570,7 +586,7 @@ func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
 // keeps it on the screen while the keys bar is hidden.
 func (m Model) Noticing() bool { return m.notice != "" }
 
-// lead is what stands before the preset line's name: the gutter the rows' marks and folds take.
+// lead is what stands before the rule under the header: the gutter the rows' marks and folds take.
 const lead = "   "
 
 // presets says whether a stage's table has a preset line: one with columns, the views of which it names.
@@ -591,48 +607,40 @@ func (m Model) presetName() (string, bool) {
 	return name, false
 }
 
-// dropEnd gives the screen column after the preset line's ▾, before which a click drops the presets down.
-func (m Model) dropEnd() int {
-	name, _ := m.presetName()
-	return len(lead) + ansi.StringWidth(name) + 2
+// dropStart gives the screen column the preset line's name starts on, at the rule's right end.
+func (m Model) dropStart() int {
+	_, at := m.ruled()
+	return at
 }
 
-// presetLine gives the preset line, the left of the rule under the table's header, in so many cells, and the button
-// at the rule's right end: the view's name, after the gutter, Unnamed dim while it names none, and ▾, inverse while
-// the line has the keyboard; Differs, in the accent, while the table differs from every view; and a chip per filter
-// the panel sets, as chips gives them, clipped to leave a cell of the rule and the button. The button is Saving while
-// the table differs or the name was changed, its word dim while there is no name to save it under: an emoji draws in
-// its own colors, which no dimming changes.
-func (m Model) presetLine(room int) (text, button string) {
-	i := m.stage
+// dropEnd gives the screen column after the preset line's ▾; a click from dropStart up to it drops the presets down.
+func (m Model) dropEnd() int {
+	name, _ := m.presetName()
+	return m.dropStart() + ansi.StringWidth(name) + 2
+}
+
+// presetLine gives the preset's selector and the button after it, at the right end of the rule under the table's
+// header: the view's name, Unnamed dim while it names none, and ▾, inverse while the line has the keyboard. The button
+// is a space and Saving while the table differs or the name was changed, its word dim while there is no name to save it
+// under: an emoji draws in its own colors, which no dimming changes.
+func (m Model) presetLine() (selector, button string) {
 	name, unnamed := m.presetName()
 	if unnamed {
 		name = style.Off(name)
 	}
-	text = name + " ▾"
+	selector = name + " ▾"
 	if m.onPreset && !m.inPanel {
-		text = style.Cursor(ansi.Strip(text))
+		selector = style.Cursor(ansi.Strip(selector))
 	}
-	text = lead + text
-	is, changed, savable := m.standing(i)
-	if is == "" {
-		text += " " + style.Tint(Differs)
-	}
+	_, changed, savable := m.standing(m.stage)
 	if changed {
 		word := SaveText
 		if !savable {
 			word = style.Off(word)
 		}
-		button = Save + " " + word
+		button = " " + Save + " " + word
 	}
-	if chips := m.chips(i); len(chips) > 0 {
-		// past the two spaces before the chips: a space and a cell of the rule, and a space and the button
-		left := room - ansi.StringWidth(text) - 2 - 2 - ansi.StringWidth(button) - btoi(button != "")
-		if left > 1 {
-			text += "  " + ansi.Truncate(strings.Join(chips, "  "), left, "…")
-		}
-	}
-	return text, button
+	return selector, button
 }
 
 // chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the

@@ -3,7 +3,7 @@
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     ▹
   ╵                  ╰────────────────────╰────────────────╰───────────────────┐
       id  assignees         age  branch            title                       │
-   Default ▾ ───────────────────────────────────────────────────────────────── │
+   ───────────────────────────────────────────────────────────────── Default ▾ │
  ▾ github source  3                                                            │
    ▾ #45                     2h                    🎫 kit flow is the one      │
                                                    picture: five stages,       │

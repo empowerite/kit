@@ -187,7 +187,8 @@ func plainLines(p Panel) ([]string, []int) {
 
 // Under the search, the field editor lists each field with a label, by it, once, in its section: the groups by depth,
 // the columns by position, the hidden in the stage's order, each section under its dim heading, an empty one's too. A
-// field's line marks its sort, its group, and a filter on it; whether the panel folds is a box of its own after them.
+// field's line marks its sort, its group, and a filter on it; whether the panel folds, and whether it shows the emoji
+// every row shares, are boxes of their own after them.
 func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	p := Panel{Columns: []string{"number", "who", "", "state", "title"}, Labels: map[string]string{"number": "#"},
 		Groupable: map[string]bool{"state": true, "who": true}, Sortable: map[string]bool{"number": true},
@@ -195,8 +196,8 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 			"title": {Position: 1}, "number": {Sort: Descending, Priority: 1}}, Owner: "who"}
 	got, at := plainLines(p)
 	want := []string{"🔎 search", "", "group by", "columns", "☑ title", "☑ # ▼", "☑ state", "hidden", "☐ who ⊘", "",
-		"☐ " + Folds}
-	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, -1, 1, 2, 3, -1, 4, -1, 5}) {
+		"☐ " + Folds, "☐ " + Emoji}
+	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, -1, 1, 2, 3, -1, 4, -1, 5, 6}) {
 		t.Errorf("the panel:\n%s\n%v", strings.Join(got, "\n"), at)
 	}
 	// a column and a group are ticked, bold in the accent; a hidden field's box is dim; the marks are in the accent
@@ -249,15 +250,23 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Column {
 		t.Errorf("space did not show who: %v", p.Fields)
 	}
-	// enter on a field is not the panel's; down stops at whether it folds, and space or enter toggles it
+	// enter on a field is not the panel's; down stops at whether it shows the emoji every row shares, and space or
+	// enter toggles it, and whether it folds, just above
 	if _, ok := p.Update(key(tea.KeyEnter, "")); ok {
 		t.Error("enter on a field was taken")
 	}
 	for range 10 {
 		p, _ = p.Update(key(tea.KeyDown, ""))
 	}
-	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Fold || p.Under() != "" {
-		t.Errorf("enter on the last control: fold %v", p.Fold)
+	if p.Keys(false).Bindings[0].Does != "show" {
+		t.Errorf("the keys on the box for the emoji: %+v", p.Keys(false))
+	}
+	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Glyphs || p.Fold || p.Under() != "" || p.Keys(false).Bindings[0].Does != "hide" {
+		t.Errorf("enter on the last control: emoji %v, fold %v", p.Glyphs, p.Fold)
+	}
+	p, _ = p.Update(key(tea.KeyUp, ""))
+	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Fold || !p.Glyphs {
+		t.Errorf("enter on the box above: fold %v", p.Fold)
 	}
 	if q, ok := p.Click(1); ok || q.Cursor != p.Cursor {
 		t.Errorf("a click on a gap was taken")
@@ -827,7 +836,7 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 		!strings.HasSuffix(lines[3], " "+style.Tint(Grouping+"₁")) {
 		t.Errorf("numbered by level: %q %q", lines[6], lines[3])
 	}
-	q.Focused, q.Cursor = true, len(q.controls())-1
+	q.Focused, q.Cursor = true, len(q.controls())-2
 	if q.Keys(false).Bindings[0].Does != "unfold" {
 		t.Errorf("the keys on the box for folding: %+v", q.Keys(false))
 	}
