@@ -30,20 +30,35 @@ import (
 // Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right
 // is a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the
 // row is closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page:
-// a click on the glyph opens it. Sort is what the cell sorts by, as an age by its seconds; none sorts by its first
-// value's text, naturally, so #7 comes before #31.
+// a click on the glyph opens it. Sort is what the cell sorts and groups by, its raw value, as an age by its seconds and
+// an assignee by the login; none sorts by its first value's text, naturally, so #7 comes before #31. Head is what a
+// group's heading says of the value, for a cell that draws more than it groups by, as checks their counts beside their
+// state; none says the cell's first value.
 type Cell struct {
 	Values []string
 	Right  bool
 	Wrap   bool
 	Link   string
 	Sort   string
+	Head   string
 }
 
 // key gives what a cell sorts and groups by: its sort value, else its first value's text without its styles.
 func (c Cell) key() string {
 	if c.Sort != "" {
 		return c.Sort
+	}
+	return ansi.Strip(c.first())
+}
+
+// heading gives the cell's value as a group's heading says it: its Head, else its first value without its styles, as
+// the rows draw it; none for a cell without a value.
+func (c Cell) heading() string {
+	switch {
+	case c.key() == "":
+		return "none"
+	case c.Head != "":
+		return c.Head
 	}
 	return ansi.Strip(c.first())
 }

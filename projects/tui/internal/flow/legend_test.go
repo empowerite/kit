@@ -74,12 +74,6 @@ func TestEveryGlyphIsInTheLegend(t *testing.T) {
 			t.Errorf("the legend does not draw %s as %s", state, glyph)
 		}
 	}
-	if stateGlyph("nonesuch") != Other || stateGlyph("ready") != "🏁" {
-		t.Errorf("stateGlyph: %s %s", stateGlyph("nonesuch"), stateGlyph("ready"))
-	}
-	if kindGlyph("draft") != Draft || kindGlyph("pre-release") != Pre || kindGlyph("release") != Release {
-		t.Errorf("kindGlyph: %s %s %s", kindGlyph("draft"), kindGlyph("pre-release"), kindGlyph("release"))
-	}
 }
 
 // opened gives the screen at 200×80 on stage i, the legend on and every row open.

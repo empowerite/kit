@@ -1,5 +1,5 @@
 // The field catalog holds together: each stage's ids are its own, every type and renderer it names is registered, its
-// presets name only its fields, and its fields stand in the order the stage's rows give their cells.
+// presets name only its fields, and the stage's rows give a value in each of its fields.
 package flow
 
 import (
@@ -85,6 +85,34 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 	}
 }
 
+// The catalog draws a pull request's state, a build's, and a release's kind as the legend does: each known value with
+// the glyph the legend gives it, and Other, or a release's own, for one it does not know.
+func TestTheCatalogsGlyphsAreTheLegends(t *testing.T) {
+	drawn := func(stage, id string, raw ...string) []string {
+		k := slices.IndexFunc(fieldsOf(stage), func(f field) bool { return f.ID == id })
+		return fieldsOf(stage)[k].glyphed(raw, false)
+	}
+	for _, stage := range []string{"underway", "desk", "worktrees", "changes"} {
+		for state, glyph := range stateGlyphs {
+			if got := drawn(stage, "state", state); got[0] != glyph {
+				t.Errorf("%s draws %s as %s, not %s", stage, state, got[0], glyph)
+			}
+		}
+		if got := drawn(stage, "state", "nonesuch"); got[0] != Other {
+			t.Errorf("%s draws a state it does not know as %s", stage, got[0])
+		}
+	}
+	for _, state := range []string{"running", "passed", "failed", "cancelled", "queued"} {
+		if got := drawn("builds", "status", state); got[0] != runGlyph(state) {
+			t.Errorf("builds draws %s as %s, not %s", state, got[0], runGlyph(state))
+		}
+	}
+	if got := drawn("releases", "kind", "draft", "pre-release", "release", "other"); !slices.Equal(got,
+		[]string{Draft, Pre, Release, Release}) {
+		t.Errorf("the releases' kinds: %q", got)
+	}
+}
+
 // valueGlyphs gives the glyphs of an enum's known values.
 func valueGlyphs(f field) []string {
 	var out []string
@@ -132,19 +160,32 @@ func checkSetting(t *testing.T, where string, f field, s setting) {
 	}
 }
 
-// Each stage's rows give their cells in the order of its fields, one a field.
-func TestTheFieldsStandInTheOrderTheRowsGiveThem(t *testing.T) {
+// Each stage's records give a value in every one of its fields, by id, and none in a field it does not have; its rows
+// then give their cells in the order of its fields, one a field.
+func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 	m := loaded(t, options())
 	for i, s := range m.stages {
 		fields := fieldsOf(s.name)
 		if fields == nil {
 			continue
 		}
-		rows := m.unfiltered(i)
-		if len(rows) == 0 {
+		var ids []string
+		for _, f := range fields {
+			ids = append(ids, f.ID)
+		}
+		records := m.records(s)
+		if len(records) == 0 {
 			t.Errorf("%s: no rows to check", s.name)
 		}
-		for _, r := range rows {
+		for _, r := range records {
+			if r.values == nil {
+				continue
+			}
+			if got := slices.Sorted(maps.Keys(r.values)); !slices.Equal(got, slices.Sorted(slices.Values(ids))) {
+				t.Errorf("%s: the row %s gives %q, the stage's fields are %q", s.name, r.Key, got, ids)
+			}
+		}
+		for _, r := range m.unfiltered(i) {
 			if len(r.Cells) > 1 && len(r.Cells) != len(fields) {
 				t.Errorf("%s: the row %s has %d cells, the stage %d fields", s.name, r.Key, len(r.Cells), len(fields))
 			}

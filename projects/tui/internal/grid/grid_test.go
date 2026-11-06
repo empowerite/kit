@@ -542,6 +542,28 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 // group the person chose, the walk goes on in each group, the values joining its heading. A column blank on some rows,
 // one with several values, a group of one row, a hidden column, and one kept a column do not group on their own; g
 // on such a column in the panel keeps it, and the panel marks one grouping on its own with a dim ▤.
+// The rows group by a cell's sort key, its raw value, and the heading says the value as the rows draw it, or as the
+// cell's Head says it where the rows draw more than they group by.
+func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
+	columns := []string{"id", "state", "checks"}
+	row := func(id, state, checks string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{"🏁 " + state}, Sort: state},
+			{Values: []string{"✅ " + checks}, Sort: "SUCCESS", Head: "✅ SUCCESS"}}}
+	}
+	rows := []Row{row("#1", "ready", "1 / 1"), row("#2", "draft", "2 / 2"), row("#3", "ready", "3 / 3")}
+	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Group: []string{"state"}}
+	got, _ := p.group(rows, columns)
+	var headings []string
+	for _, r := range got {
+		if r.Aside {
+			headings = append(headings, ansi.Strip(r.Cells[0].first()))
+		}
+	}
+	if want := []string{"▾ 🏁 draft state  1", "▾ 🏁 ready state, ✅ SUCCESS checks  2"}; !slices.Equal(headings, want) {
+		t.Errorf("the headings: %q", headings)
+	}
+}
+
 func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	columns := []string{"id", "source", "state", "where", "who"}
 	row := func(id, state, where, who string) Row {

@@ -353,7 +353,8 @@ func uncommittedCells(f field, vs []value) []cell {
 	return out
 }
 
-// checksCells draws a pull request's checks, as their cell does.
+// checksCells draws a pull request's checks, as their cell does; a heading over rows grouped by them says their state
+// after its glyph, as the counts and the time differ from row to row.
 func checksCells(f field, vs []value) []cell {
 	out := make([]cell, len(vs))
 	for k, v := range vs {
@@ -362,6 +363,7 @@ func checksCells(f field, vs []value) []cell {
 			continue
 		}
 		out[k] = text(c.cell())
+		out[k].Head = f.glyphed(v.Raw, true)[0]
 	}
 	return out
 }
@@ -374,15 +376,16 @@ func threadsText(f field, v value) []string {
 	return nil
 }
 
-// whereCells draws where the work of an issue underway is: here, after the desk's glyph or a worktree's, for a checkout
-// on this desk; local for a branch this desk has without a checkout; else the pull request's author, dim.
+// whereCells draws where the work of an issue underway is, as its value's Of says: here, after the desk's glyph or a
+// worktree's, for a checkout on this desk; local for a branch this desk has without a checkout; else the pull
+// request's author, dim.
 func whereCells(f field, vs []value) []cell {
 	out := make([]cell, len(vs))
 	for k, v := range vs {
 		if len(v.Raw) == 0 {
 			continue
 		}
-		switch v.Raw[0] {
+		switch v.Of {
 		case "desk":
 			out[k] = text(Desk + " here")
 		case "here":

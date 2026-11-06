@@ -237,9 +237,10 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
-// in their values' order and the rows in each as they came: a heading, an aside, is the value, as the rows draw it,
-// and the column's name, dim, indented by its depth, and how many rows it heads, dim. A row groups by a cell's first value, or under none when the
-// cell has none. A row of one cell, as a heading, has no value: those follow the groups.
+// in their values' order and the rows in each as they came: a heading, an aside, is the value, as the rows draw it or
+// as their cell's Head says it, and the column's name, dim, indented by its depth, and how many rows it heads, dim. A
+// row groups by a cell's sort key, or under none when the cell has none. A row of one cell, as a heading, has no
+// value: those follow the groups.
 //
 // Under each heading, the walk goes on along the columns that can group, in the panel's order: one whose value is the
 // same on every row the heading heads, as their sort key says, one value on each and none blank, groups them on its
@@ -324,8 +325,11 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 				return slices.ContainsFunc(auto[:depth], func(above []int) bool { return slices.Contains(above, x) })
 			}))
 			took = append(took, auto[depth]...)
-			heading := strings.Repeat("  ", depth) + style.Off(p.fold(key)) + " " + value(r, j) + " " +
-				style.Off(columns[j])
+			said := "none"
+			if j < len(r.Cells) {
+				said = r.Cells[j].heading()
+			}
+			heading := strings.Repeat("  ", depth) + style.Off(p.fold(key)) + " " + said + " " + style.Off(columns[j])
 			if len(auto[depth]) > 0 {
 				heading += style.Off(",") + " " + joined(r, columns, auto[depth])
 			}
@@ -428,12 +432,12 @@ func constant(rows []Row, columns []int) []int {
 }
 
 // joined gives each column a row groups by on its own, at the indexes, as a heading says it: the row's value in it,
-// without its style, and the column's name, as a heading of a column the person chose says them, and a comma between
+// as its cell's heading says it, and the column's name, as a heading of a column the person chose says them, and a comma between
 // columns.
 func joined(r Row, names []string, columns []int) string {
 	var values []string
 	for _, j := range columns {
-		values = append(values, ansi.Strip(r.Cells[j].first())+" "+style.Off(names[j]))
+		values = append(values, r.Cells[j].heading()+" "+style.Off(names[j]))
 	}
 	return strings.Join(values, style.Off(",")+" ")
 }

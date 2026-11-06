@@ -185,25 +185,6 @@ var stateGlyphs = func() map[string]string {
 	return out
 }()
 
-// stateGlyph gives a pull request's glyph; a state word the legend does not name draws Other.
-func stateGlyph(state string) string {
-	if g, ok := stateGlyphs[state]; ok {
-		return g
-	}
-	return Other
-}
-
-// kindGlyph gives a release's glyph by its kind.
-func kindGlyph(kind string) string {
-	switch kind {
-	case "draft":
-		return Draft
-	case "pre-release":
-		return Pre
-	}
-	return Release
-}
-
 // runGlyph gives a build's glyph, or a job's, by its state; a state #48 does not name draws Other.
 func runGlyph(state string) string {
 	switch state {

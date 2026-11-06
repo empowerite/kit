@@ -1623,9 +1623,10 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			t.Errorf("%s kept as a column does not say the source:\n%s", name, view(m))
 		}
 	}
-	if source("gitlab").Values[0] != style.Off(GitLab+" gitlab") || source("AB#").Values[0] != style.Off("AB#") ||
-		len(source("").Values) != 0 {
-		t.Errorf("the source cells: %q %q %q", source("gitlab").Values, source("AB#").Values, source("").Values)
+	source := fieldsOf("backlog")[slices.IndexFunc(fieldsOf("backlog"), func(f field) bool { return f.ID == "source" })]
+	if c := source.draw([]value{some("gitlab"), some("AB#"), some("")}); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
+		c[1].Values[0] != style.Off("AB#") || len(c[2].Values) != 0 {
+		t.Errorf("the source cells: %q %q %q", c[0].Values, c[1].Values, c[2].Values)
 	}
 	s := m.find("underway")
 	for k := range s.under {
