@@ -121,7 +121,7 @@ func (m Model) enabled(k int) bool {
 	case "Refresh":
 		return known[s.name]
 	case "Show Headers":
-		return len(columns[s.name]) > 0
+		return len(fieldsOf(s.name)) > 0
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":

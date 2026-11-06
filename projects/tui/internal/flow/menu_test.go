@@ -308,10 +308,10 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 // A header whose names take more than a line shows its first alone, with ▸ before it, until it is opened: by a click
 // on its gutter, as a row's, or by Expand All, which Collapse All undoes; the rows then start under every line of it.
 func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
-	long := slices.Clone(columns["backlog"])
-	long[len(long)-1] = "the title of the issue, as its tracker gives it, in full"
-	defer func(was []string) { columns["backlog"] = was }(columns["backlog"])
-	columns["backlog"] = long
+	backlog := catalog["backlog"]
+	defer func(was []field) { backlog.Fields = was }(backlog.Fields)
+	backlog.Fields = slices.Clone(backlog.Fields)
+	backlog.Fields[len(backlog.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
 	// the header stands in as the rows do, under the heading over every row
 	closed, in := m.rowsTop(), strings.Repeat(" ", m.indent(0))
@@ -410,7 +410,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("clear selection: %d selected", m.selected())
 	}
 	// a group's heading is no row to select; off the rows, space selects nothing
-	m.setPanel(grid.Panel{Group: []string{"source"}, Groupable: groupable["backlog"]})
+	m.setPanel(grid.Panel{Group: []string{"source"}, Groupable: groupableOf("backlog")})
 	m.stages[0].cursor = 0
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
 		t.Errorf("space on a heading selected %d", m.selected())

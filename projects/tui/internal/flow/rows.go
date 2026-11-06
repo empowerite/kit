@@ -368,57 +368,9 @@ type shown struct {
 	passed int
 }
 
-// columns names each stage's columns, in the order its rows' cells come, for the panel's checkboxes; a column without
-// a name, as a glyph's, has none. A stage without columns, as incoming, whose rows are commits and branches, has only
-// the search. An issue's column is its id, the reference its tracker gives it, which need not be a number.
-var columns = map[string][]string{
-	"backlog":   {"id", "source", "assignees", "age", "branch", "title"},
-	"underway":  {"id", "source", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"},
-	"desk":      {"branch", "ahead", "lines", "change", "state", "uncommitted"},
-	"worktrees": {"branch", "ahead", "lines", "change", "state", "uncommitted"},
-	"changes":   {"change", "title", "author", "state", "age", "checks", "threads", "branch"},
-	"builds":    {"", "workflow", "run", "event", "branch", "commit", "title", "age", "took"},
-	"releases":  {"version", "kind", "age", "latest"},
-}
-
-// sortable names each stage's columns that its rows can sort by, and groupable those that can group them: a value that
-// orders, and one that many rows share.
-var (
-	sortable = map[string]map[string]bool{
-		"backlog":   set("id", "source", "assignees", "age", "branch", "title"),
-		"underway":  set("id", "source", "assignees", "age", "change", "state", "where", "fork", "pushed", "by", "title"),
-		"desk":      set("branch", "ahead", "lines", "change", "state", "uncommitted"),
-		"worktrees": set("branch", "ahead", "lines", "change", "state", "uncommitted"),
-		"changes":   set("change", "title", "author", "state", "age", "checks", "threads", "branch"),
-		"builds":    set("workflow", "run", "event", "branch", "age", "took"),
-		"releases":  set("version", "kind", "age"),
-	}
-	groupable = map[string]map[string]bool{
-		"backlog":   set("source", "assignees"),
-		"underway":  set("source", "assignees", "change", "state", "where", "fork", "by"),
-		"worktrees": set("state"),
-		"changes":   set("author", "state", "checks"),
-		"builds":    set("workflow", "event", "branch"),
-		"releases":  set("kind", "latest"),
-	}
-)
-
-// set gives the names as a set.
-func set(names ...string) map[string]bool {
-	out := map[string]bool{}
-	for _, n := range names {
-		out[n] = true
-	}
-	return out
-}
-
-// owned names the stages whose rows belong to people, which the panel lets through as every row, the caller's, or
-// everyone else's.
-var owned = map[string]bool{"backlog": true, "underway": true, "changes": true}
-
 // build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them.
 func (m Model) build(i int) shown {
-	all, names := m.unfiltered(i), columns[m.stages[i].name]
+	all, names := m.unfiltered(i), columnsOf(m.stages[i].name)
 	p := m.filter(i)
 	rows, auto := p.Filtered(all, names)
 	return shown{p.Fold(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all), counted(rows)}

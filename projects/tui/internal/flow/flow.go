@@ -192,7 +192,7 @@ func New(r kit.Runner, o Options) Model {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columns[name], Owned: owned[name]}.Width())
+		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name), Owned: ownedStage(name)}.Width())
 	}
 	return m
 }
@@ -384,11 +384,11 @@ func (m Model) panel(i int) grid.Panel {
 	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
 	s := m.stages[i]
 	p.Recall = len(m.recent.Items) > 0
-	p.Views, p.Naming = !m.noViews && len(columns[s.name]) > 0, s.renaming
+	p.Views, p.Naming = !m.noViews && len(fieldsOf(s.name)) > 0, s.renaming
 	p.View = m.viewShown(i)
 	p.Changed = p.Views && m.changed(i)
 	name := strings.TrimSpace(p.View)
-	p.Savable = p.Changed && name != "" && !builtin(name)
+	p.Savable = p.Changed && name != "" && !m.builtin(i, name)
 	return p
 }
 
@@ -397,7 +397,7 @@ func (m Model) panel(i int) grid.Panel {
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
-	p.Owned, p.Me, p.Sortable, p.Groupable = owned[s.name], m.me, sortable[s.name], groupable[s.name]
+	p.Owned, p.Me, p.Sortable, p.Groupable = ownedStage(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }

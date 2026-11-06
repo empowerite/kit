@@ -1,15 +1,17 @@
 // Named views: a stage's panel as it is set, its columns shown and their order, its sort and groups, whose rows it
-// shows, and whether its headers stand over the rows, kept under a name. Every stage with columns has three views of
-// its own, which never change: Everything, every column; Default, the stage as it opens; and Minimal, the few columns
-// that say what a row is. The person saves others, per stage, in a file of their own, under ~/.config/kit/, so their
-// views follow them to every repository. The panel's dropdown, under its search, names the view; enter, or a click on
-// it, drops down the views to choose from; typing renames it. Once the panel differs from the view, the dropdown names
-// none, as the panel is no longer the view, and 💾 Save stands at its right, dim until a name is typed; it stands there
-// too once the name was changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own
-// overwritten, a stage's own refused for a name of their own, and no name refused.
+// shows, and whether its headers stand over the rows, kept under a name. Every stage with columns has its own views,
+// the presets the field catalog gives it, which never change: Default, the stage as it opens, and Compact, the few
+// columns that say what a row is. The person saves others, per stage, in a file of their own, under ~/.config/kit/, so
+// their views follow them to every repository; one they named as a stage's own was named before the stage had it, and
+// stays theirs. The panel's dropdown, under its search, names the view; enter, or a click on it, drops down the views
+// to choose from; typing renames it. Once the panel differs from the view, the dropdown names none, as the panel is no
+// longer the view, and 💾 Save stands at its right, dim until a name is typed; it stands there too once the name was
+// changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own overwritten, a stage's own
+// refused for a name of their own, and no name refused.
 package flow
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,23 +27,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
 
-// The stages' own views, in the dropdown's order.
-const (
-	Everything = "Everything"
-	Opening    = "Default"
-	Minimal    = "Minimal"
-)
-
-// minimal names each stage's columns its Minimal view keeps: those that say what a row is.
-var minimal = map[string][]string{
-	"backlog":   {"id", "title"},
-	"underway":  {"id", "change", "state", "title"},
-	"desk":      {"branch", "change", "state"},
-	"worktrees": {"branch", "change", "state"},
-	"changes":   {"change", "title", "state"},
-	"builds":    {"workflow", "title", "age"},
-	"releases":  {"version", "kind"},
-}
+// Opening is the name of the view a stage opens on, one of its own.
+const Opening = "Default"
 
 // named is a stage's panel as a view keeps it: the columns hidden, their order, the sort's keys, the groups, the
 // columns kept from grouping on their own, whose rows it shows, and whether the headers show.
@@ -112,16 +99,72 @@ func writeViews(path string, views map[string][]named) error {
 	return os.Rename(tmp, path)
 }
 
-// builtins gives a stage's own views: Everything, Default, and Minimal.
+// builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
+// Default alone, as it opens.
 func (m Model) builtins(i int) []named {
-	name := m.stages[i].name
-	min := named{Name: Minimal, Headers: true}
-	for _, c := range columns[name] {
-		if c != "" && !slices.Contains(minimal[name], c) {
-			min.Hidden = append(min.Hidden, c)
+	s := catalog[m.stages[i].name]
+	if s == nil {
+		return []named{{Name: Opening, Headers: !m.noHeaders}}
+	}
+	var out []named
+	for _, p := range s.Presets {
+		out = append(out, p.view(s.Fields, !m.noHeaders))
+	}
+	return out
+}
+
+// view gives a preset as a view keeps a stage's panel, of the stage's fields: the columns hidden, those it places at a
+// position in their order, the groups by depth, the sort's keys by priority, whose rows it shows, from the filter on the
+// field that owns them, and the headers, as the screen opens them where the preset says nothing. A field it does not
+// name takes the catalog's placement. A field without a label, which the panel offers no checkbox for, is never hidden.
+func (p preset) view(fields []field, headers bool) named {
+	v := named{Name: p.Name, Headers: headers}
+	if p.Headers != nil {
+		v.Headers = *p.Headers
+	}
+	type at struct {
+		id   string
+		n    int
+		desc bool
+	}
+	var order, groups, sorts []at
+	for _, f := range fields {
+		s := p.Fields[f.ID]
+		placement := cmp.Or(s.Placement, f.Placement)
+		switch {
+		case placement == placeHidden && f.Label != "":
+			v.Hidden = append(v.Hidden, f.ID)
+		case placement == placeGroup:
+			groups = append(groups, at{id: f.ID, n: s.Depth})
+		case placement == placeColumn && s.Position > 0:
+			order = append(order, at{id: f.ID, n: s.Position})
+		}
+		if s.Sort != "" {
+			sorts = append(sorts, at{f.ID, s.Priority, s.Sort == "desc"})
+		}
+		if f.Owns && s.Filter != nil {
+			switch {
+			case slices.Equal(s.Filter.Include, []string{caller}):
+				v.Show = "mine"
+			case slices.Equal(s.Filter.Exclude, []string{caller}):
+				v.Show = "others"
+			}
 		}
 	}
-	return []named{{Name: Everything, Headers: true}, {Name: Opening, Headers: !m.noHeaders}, min}
+	byN := func(a, b at) int { return cmp.Compare(a.n, b.n) }
+	slices.SortStableFunc(order, byN)
+	slices.SortStableFunc(groups, byN)
+	slices.SortStableFunc(sorts, byN)
+	for _, a := range order {
+		v.Order = append(v.Order, a.id)
+	}
+	for _, a := range groups {
+		v.Group = append(v.Group, a.id)
+	}
+	for _, a := range sorts {
+		v.Sort = append(v.Sort, sortKey{a.id, a.desc})
+	}
+	return v
 }
 
 // views gives a stage's views, its own first, then the person's.
@@ -129,9 +172,9 @@ func (m Model) views(i int) []named {
 	return append(m.builtins(i), m.saved[m.stages[i].name]...)
 }
 
-// builtin says whether a name is one of the stages' own views.
-func builtin(name string) bool {
-	return name == Everything || name == Opening || name == Minimal
+// builtin says whether a name is one of a stage's own views.
+func (m Model) builtin(i int, name string) bool {
+	return slices.ContainsFunc(m.builtins(i), func(v named) bool { return v.Name == name })
 }
 
 // chosen gives the view a stage's dropdown names, or Default when that view is gone.
@@ -140,7 +183,7 @@ func (m Model) chosen(i int) named {
 	if k := slices.IndexFunc(vs, func(v named) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
 		return vs[k]
 	}
-	return vs[1]
+	return vs[slices.IndexFunc(vs, func(v named) bool { return v.Name == Opening })]
 }
 
 // current gives a stage's panel as a view would keep it.
@@ -173,7 +216,7 @@ func (m Model) current(i int) named {
 // same says whether two views set a stage's panel alike, their names apart: the same columns hidden, in the same
 // order, sorted and grouped alike, keeping the same columns, showing the same rows, and the headers alike.
 func (m Model) same(i int, a, b named) bool {
-	cols := columns[m.stages[i].name]
+	cols := columnsOf(m.stages[i].name)
 	normal := func(v named) named {
 		v.Name = ""
 		v.Order = grid.Panel{Order: v.Order}.Arrange(cols)
@@ -284,7 +327,7 @@ func (m *Model) saveView() tea.Cmd {
 	case name == "":
 		m.notice, m.noted = Failed+" a view needs a name: type one, then save", false
 		return nil
-	case builtin(name):
+	case m.builtin(m.stage, name):
 		m.notice, m.noted = Failed+" "+name+" is the stage's own and does not change: type a new name, then save", false
 		return nil
 	}

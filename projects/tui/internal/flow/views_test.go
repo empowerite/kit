@@ -1,4 +1,4 @@
-// The panel's dropdown of views: each stage's own three, the person's saved in their file, a change to the panel
+// The panel's dropdown of views: each stage's own two, the person's saved in their file, a change to the panel
 // showing 💾, and a save that keeps the panel under the name typed, never over a stage's own.
 package flow
 
@@ -65,25 +65,25 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 		t.Fatal("enter did not drop the views down")
 	}
 	// the menu is drawn, over the sidebar, whole
-	if drawn := raw(m); !strings.Contains(drawn, "Everything") || !strings.Contains(drawn, "Minimal") {
+	if drawn := raw(m); !strings.Contains(drawn, "Default") || !strings.Contains(drawn, "Compact") {
 		t.Fatalf("the views are not drawn:\n%s", drawn)
 	}
 	names := []string{}
 	for _, i := range m.viewItems() {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{"Everything", "Default", "Minimal"}) || m.viewItems()[1].Glyph != Checked {
+	if !slices.Equal(names, []string{"Default", "Compact"}) || m.viewItems()[0].Glyph != Checked {
 		t.Fatalf("the views: %q", names)
 	}
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "esc close") {
 		t.Errorf("the keys with the menu open: %q", last)
 	}
 	m = drive(m, down, press(tea.KeyEnter))
-	if m.viewMenu || m.stages[0].viewName != "Minimal" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
+	if m.viewMenu || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
 		m.panel(0).Changed {
-		t.Fatalf("Minimal: %q, changed %v", shownNow(m), m.panel(0).Changed)
+		t.Fatalf("Compact: %q, changed %v", shownNow(m), m.panel(0).Changed)
 	}
-	// a column shown again differs from Minimal: the dropdown names no view, and 💾 Save, dim, stands at its right
+	// a column shown again differs from Compact: the dropdown names no view, and 💾 Save, dim, stands at its right
 	m.setPanel(m.panel(0).Keep("age"))
 	p := m.panel(0)
 	p.Hidden = map[string]bool{"source": true, "assignees": true, "branch": true}
@@ -100,25 +100,25 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "a view needs a name") || !m.panel(0).Changed {
 		t.Errorf("save with no name: %q", last)
 	}
-	m = drive(m, typed("Minimal")...)
+	m = drive(m, typed("Compact")...)
 	if m.panel(0).Savable {
 		t.Error("a stage's own name can be saved")
 	}
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "Minimal is the stage's own and does not change") ||
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "Compact is the stage's own and does not change") ||
 		!m.panel(0).Changed {
-		t.Errorf("save over Minimal: %q", last)
+		t.Errorf("save over Compact: %q", last)
 	}
 	m = drive(m, esc)
 	// the menu's keys: up, a letter to the next view it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, up, up, typed("m")[0]); m.viewAt != 2 {
-		t.Errorf("m in the menu: %d", m.viewAt)
+	if m = drive(m, up, typed("c")[0]); m.viewAt != 1 {
+		t.Errorf("c in the menu: %d", m.viewAt)
 	}
-	m = drive(m, esc, press(tea.KeyEnter), up, up)
-	// Everything shows every column again
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns["backlog"]) || m.panel(0).Changed {
-		t.Errorf("Everything: %q", shownNow(m))
+	m = drive(m, esc, press(tea.KeyEnter), up)
+	// Default shows every column again
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(fieldsOf("backlog")) || m.panel(0).Changed {
+		t.Errorf("Default: %q", shownNow(m))
 	}
 }
 
@@ -161,8 +161,8 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := m.viewItems(); len(items) != 5 || items[3].Name != "" || items[4].Name != "Triage" ||
-		items[4].Glyph != Checked || m.viewAt != 4 {
+	if items := m.viewItems(); len(items) != 4 || items[2].Name != "" || items[3].Name != "Triage" ||
+		items[3].Glyph != Checked || m.viewAt != 3 {
 		t.Errorf("the menu: %+v, at %d", items, m.viewAt)
 	}
 	m = drive(m, esc)
@@ -183,7 +183,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.viewAt = 4
+	n.viewAt = 3
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Show != grid.Others ||
 		n.stages[0].headers || len(n.panel(0).Sort) != 1 || !slices.Equal(n.panel(0).Group, []string{"assignees"}) ||
 		!n.panel(0).Kept["source"] {
@@ -208,12 +208,12 @@ func TestClicksOpenTheViewsChooseOneAndSave(t *testing.T) {
 		t.Fatalf("a click on ▾ did not open it:\n%s", raw(m))
 	}
 	box, top, left := m.viewBox()
-	if m = drive(m, testkit.Click(left+3, top+3)); m.viewMenu || m.stages[0].viewName != "Minimal" {
-		t.Fatalf("a click on Minimal: menu %v, view %q\n%v", m.viewMenu, m.stages[0].viewName, box)
+	if m = drive(m, testkit.Click(left+3, top+2)); m.viewMenu || m.stages[0].viewName != "Compact" {
+		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.viewMenu, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
 	m = drive(m, testkit.Click(m.dropAt(), y))
-	if m = drive(m, testkit.Click(1, 20)); m.viewMenu || m.stages[0].viewName != "Minimal" {
+	if m = drive(m, testkit.Click(1, 20)); m.viewMenu || m.stages[0].viewName != "Compact" {
 		t.Errorf("a click off the menu: menu %v", m.viewMenu)
 	}
 	// with a change and a name of its own, a click on 💾 saves
@@ -232,7 +232,7 @@ func TestAViewsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
-	if !strings.Contains(m.notice, "does not read as views") || len(m.views(0)) != 3 {
+	if !strings.Contains(m.notice, "does not read as views") || len(m.views(0)) != 2 {
 		t.Errorf("a bad file: %q", m.notice)
 	}
 	// an empty name saves nothing; a file that cannot be written is said
@@ -252,6 +252,32 @@ func TestAViewsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/somewhere")
 	if got := viewsFile(); got != "/somewhere/kit/views.json" {
 		t.Errorf("under XDG_CONFIG_HOME: %q", got)
+	}
+}
+
+// A view the person saved as Everything or Minimal, which the stages once had of their own, is the person's: it is
+// listed after the stage's own, and saving over it overwrites it.
+func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "views.json")
+	kept := `{"backlog": [{"name": "Everything", "headers": true}, {"name": "Minimal", "hidden": ["age"], "headers": true}]}`
+	if err := os.WriteFile(file, []byte(kept), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := onDropdown(t, file)
+	var names []string
+	for _, v := range m.views(0) {
+		names = append(names, v.Name)
+	}
+	if !slices.Equal(names, []string{"Default", "Compact", "Everything", "Minimal"}) || m.builtin(0, "Minimal") {
+		t.Fatalf("the views: %q", names)
+	}
+	p := m.panel(0)
+	p.Hidden = map[string]bool{"branch": true}
+	m.setPanel(p)
+	m = drive(m, typed("Minimal")...)
+	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"branch"`) || strings.Contains(string(data), `"age"`) {
+		t.Errorf("Minimal was not overwritten: %s", data)
 	}
 }
 

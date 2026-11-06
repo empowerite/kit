@@ -321,7 +321,7 @@ func (m Model) sideLines() []string {
 	return panel
 }
 
-// names gives the names of a stage's columns that its panel shows, in its order, as its header stands them over its
+// names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
 // rows, which widen its columns, each that sorts the rows marked as the panel marks it; none while its tab's menu hides
 // its headers.
 func (m Model) names(i int) []string {
@@ -330,6 +330,7 @@ func (m Model) names(i int) []string {
 	}
 	p, names := m.filter(i), m.shownColumns(i)
 	for k, name := range names {
+		names[k] = labelOf(m.stages[i].name, name)
 		if mark := p.Mark(name); mark != "" {
 			names[k] += " " + mark
 		}
@@ -337,11 +338,12 @@ func (m Model) names(i int) []string {
 	return names
 }
 
-// shownColumns gives the names of a stage's columns its panel shows, in its order, one a cell of its rows.
+// shownColumns gives the ids of a stage's columns its panel shows, in its order, one a cell of its rows, and none for a
+// column without a label.
 func (m Model) shownColumns(i int) []string {
 	p := m.filter(i)
 	var names []string
-	for _, name := range p.Arrange(columns[m.stages[i].name]) {
+	for _, name := range p.Arrange(columnsOf(m.stages[i].name)) {
 		if name == "" || p.Shows(name) {
 			names = append(names, name)
 		}
