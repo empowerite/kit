@@ -79,7 +79,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 0 ]
   [ "$(jq -c 'map([.number, .pr.number, .here])' <<<"$output")" = '[[7,3,true],[7,5,false],[11,5,false]]' ]
   [ "$(jq -c '.[0] | keys_unsorted' <<<"$output")" \
-    = '["number","title","assignees","age","source","pr","here","local","worktree"]' ]
+    = '["number","title","assignees","age","source","organization","repository","pr","here","local","worktree"]' ]
   [ "$(jq -c '.[0].pr' <<<"$output")" = '{"number":3,"title":"Fix the thing","author":"ada","state":"draft",'\
 '"branch":"7-fix-the-thing","fork":null,"pushed":null}' ]
   [ "$(jq -c 'map(.local)' <<<"$output")" = '[false,false,false]' ]

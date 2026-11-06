@@ -109,3 +109,20 @@ func TestKeysThatDoTheSameThingAreDrawnAsOne(t *testing.T) {
 		t.Errorf("under a rename: %q", got)
 	}
 }
+
+// With adds bindings after a segment's own, and leaves the segment it was given as it was.
+func TestWithAddsBindingsAfterTheSegmentsOwn(t *testing.T) {
+	s := Segment{Bindings: []Binding{Bind("esc", "close")}}
+	if got := s.With(Bind("⏎", "open", "enter")); len(got.Bindings) != 2 || got.Bindings[1].Does != "open" ||
+		len(s.Bindings) != 1 {
+		t.Errorf("with: %+v, was %+v", got, s)
+	}
+}
+
+// The settings file is kit/kittui.json, beside the searches.
+func TestTheSettingsFileIsBesideTheSearches(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "/somewhere")
+	if SettingsFile() != "/somewhere/kit/kittui.json" {
+		t.Errorf("the file: %q", SettingsFile())
+	}
+}

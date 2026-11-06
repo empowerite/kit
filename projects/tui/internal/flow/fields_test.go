@@ -6,7 +6,10 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
@@ -55,7 +58,7 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 			if !slices.Contains([]string{placeColumn, placeGroup, placeHidden}, f.Placement) {
 				t.Errorf("%s.%s: the placement %q", name, f.ID, f.Placement)
 			}
-			if (f.Type == "enum") != (len(f.Values) > 0) {
+			if f.Type != "enum" && len(f.Values) > 0 {
 				t.Errorf("%s.%s: a %s with %d values", name, f.ID, f.Type, len(f.Values))
 			}
 			if f.Owns && f.Type != "person" {
@@ -209,7 +212,7 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		"assignees": {Sort: "asc", Priority: 2, Filter: &valueFilter{Exclude: []string{caller}}},
 	}}
 	g := p.panel(fields, grid.Panel{Owner: ownerOf("backlog")})
-	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "assignees", "age", "branch"}) ||
+	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || !g.Fold || g.Field("branch").Rendering != "text" {
@@ -237,5 +240,36 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	}
 	if c := title.draw([]value{one("a")}, "age"); c[0].Values[0] != Issue+" a" {
 		t.Errorf("title pinned to a rendering not its own: %q", c[0].Values)
+	}
+}
+
+// An issue's organization and repository, as kit prints them, are fields of backlog and of underway, hidden until the
+// person shows them; shown, they draw each row's, and a filter on them offers the values the rows hold.
+func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	for _, stage := range []string{"backlog", "underway"} {
+		for _, id := range []string{"organization", "repository"} {
+			if f := fieldIn(stage, id); f.Placement != placeHidden || !f.Filter || !f.Group {
+				t.Errorf("%s.%s: %+v", stage, id, f)
+			}
+		}
+	}
+	if strings.Contains(raw(m), "jig") {
+		t.Errorf("the repository is drawn while hidden:\n%s", raw(m))
+	}
+	m.setPanel(m.panel(0).Placed("repository", grid.Column))
+	if !strings.Contains(raw(m), "jig") || !strings.Contains(raw(m), "kit") {
+		t.Errorf("the repository shown:\n%s", raw(m))
+	}
+	if got := m.filterValues(fieldIn("backlog", "repository")); !slices.Equal(got, []string{"jig", "kit", grid.NoValue}) {
+		t.Errorf("the repository's filter offers %q", got)
+	}
+	m.setPanel(m.panel(0).FilteredBy("repository", grid.Filter{Values: []string{"jig"}}))
+	if n := m.shown(0).passed; n != 1 {
+		t.Errorf("a filter on jig lets %d rows through", n)
+	}
+	m = drive(m, right)
+	if got := m.records(m.stages[m.stage])[0].values["organization"].Raw; !slices.Equal(got, []string{"empowerite"}) {
+		t.Errorf("underway's organization: %q", got)
 	}
 }

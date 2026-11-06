@@ -9,16 +9,16 @@
    ▸ #46  jeffrey-…   2d  46-a-noun…  🎫 A noun l… │ ☑ branch
    ▸  #7  ada    +1  40d              🎫 Fix the … │ ☑ title
                                                    │ hidden
+                                                   │ ☐ organization
+                                                   │ ☐ repository
+                                                   ▸
+                                                   ╷ ☑ fold shared values
+                                                   │ ☐ show shared emoji
                                                    │
-                                                   │ ☑ fold shared values
-                                                   ▸ ☐ show shared emoji
-                                                   ╷
                                                    │ legend
                                                    │ 🎫 an issue 🔗
                                                    │ 🐙 on GitHub
                                                    │ 🦊 on GitLab
                                                    │ 👤 assignees or author
-                                                   │ 🌿 a branch or a worktree
-                                                   │ ❌ failed
-                                                   │
+                                                   │ … 2 more
  … │ ←→ tab  ↓ preset  1-8 jump  : tab menu

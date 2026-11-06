@@ -44,9 +44,9 @@ import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
 [["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
 
 # A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
-import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}]}]; null)
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null)
 {"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
-{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"source":"gitlab","age":400}]}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}]}
 
 # A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
 # started it; a pipeline that names no one gives a null by.
@@ -61,12 +61,13 @@ import "forge" as forge; [forge::github_prs(1000000) | {fork, pushed}]
 [{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":40,"by":null}},{"fork":null,"pushed":null}]
 
 # A closed issue's assignees come from the answer's open issues with an assignee, not from the issue itself: one they
-# do not name has none, as has an issue of another repository with the same number.
-import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .assignees]
+# do not name has none, as has an issue of another repository with the same number. Each says the organization and the
+# repository it is in.
+import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .assignees, .organization, .repository]
 {"data": {"repository": {"nameWithOwner": "empowerite/example", "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}, {"login": "cy"}]}}]}, "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 8, "title": "Eight, closed or unassigned", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 7, "title": "Seven elsewhere", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "other/place"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
-[7,["bob","cy"]]
-[8,[]]
-[7,[]]
+[7,["bob","cy"],"empowerite","example"]
+[8,[],"empowerite","example"]
+[7,[],"other","place"]
 
 # A rate limit that is spent gives the wait until it resets, in local time, which the suite runs in UTC, and in
 # minutes rounded up, the later of the two when both are; with neither spent, or no answer, nothing.
@@ -74,17 +75,19 @@ import "forge" as forge; [.[] | [forge::github_spent(1000000)]]
 [{"resources": {"core": {"remaining": 10, "reset": 1003600}, "graphql": {"remaining": 0, "reset": 1000690}}}, {"resources": {"core": {"remaining": 0, "reset": 1001200}, "graphql": {"remaining": 0, "reset": 1000060}}}, {"resources": {"core": {"remaining": 0, "reset": 1000010}}}, {"resources": {"core": {"remaining": 1, "reset": 1000010}}}, {}]
 [["wait until 13:58, in 12m, when GitHub's GraphQL rate limit resets"],["wait until 14:06, in 20m, when GitHub's REST rate limit resets"],["wait until 13:46, in 1m, when GitHub's REST rate limit resets"],[],[]]
 
-# GitHub's open issues fold into one document each, oldest first, with the assignees by login and the age in seconds.
+# GitHub's open issues fold into one document each, oldest first, with the assignees by login, the age in seconds, and
+# the organization and the repository their url names, or null without one.
 import "forge" as forge; forge::github_issues(1000000)
-[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "1970-01-12T13:46:20Z"}]
-{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"createdAt":"1970-01-12T13:46:20Z","age":20,"source":"github"}
-{"number":9,"ref":"#9","title":"Other thing","assignees":[],"createdAt":"1970-01-12T13:46:30Z","age":10,"source":"github"}
+[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "1970-01-12T13:46:20Z", "url": "https://github.com/empowerite/kit/issues/7"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"createdAt":"1970-01-12T13:46:20Z","age":20,"source":"github","organization":"empowerite","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"createdAt":"1970-01-12T13:46:30Z","age":10,"source":"github","organization":null,"repository":null}
 
-# GitLab's fold the same, from iid, username, and a created_at with fractional seconds.
+# GitLab's fold the same, from iid, username, and a created_at with fractional seconds; the organization is the group,
+# subgroups and all, its full reference names.
 import "forge" as forge; forge::gitlab_issues(1000000)
-[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "1970-01-12T13:46:20.000Z"}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
-{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"createdAt":"1970-01-12T13:46:20.000Z","age":20,"source":"gitlab"}
-{"number":9,"ref":"#9","title":"Other thing","assignees":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10,"source":"gitlab"}
+[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "1970-01-12T13:46:20.000Z", "references": {"full": "empowerite/tools/kit#7"}}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"createdAt":"1970-01-12T13:46:20.000Z","age":20,"source":"gitlab","organization":"empowerite/tools","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10,"source":"gitlab","organization":null,"repository":null}
 
 # A draft has no publishing time and is dated by when it was made; releases come newest first.
 import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]

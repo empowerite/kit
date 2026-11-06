@@ -8,17 +8,17 @@
      #7    40d  🎫 Fix the thing                                                           │ ☑ branch
                                                                                            │ ☑ title
                                                                                            │ hidden
+                                                                                           │ ☐ organization
+                                                                                           │ ☐ repository
                                                                                            │ ☐ assignees ⊘
+                                                                                           ▸
+                                                                                           ╷ ☑ fold shared values
+                                                                                           │ ☐ show shared emoji
                                                                                            │
-                                                                                           │ ☑ fold shared values
-                                                                                           ▸ ☐ show shared emoji
-                                                                                           ╷
                                                                                            │ ⇧↑↓  move, or drag
                                                                                            │ ⏎    sort, filter, draw
                                                                                            │ 
                                                                                            │ click     sort
                                                                                            │ ⌥ click   add a sort
-                                                                                           │ ⌃ click   group
-                                                                                           │ ⌥⌃ click  nest a group
-                                                                                           │ … 9 more
+                                                                                           │ … 11 more
  = menu  / search │ 1-8 jump  : tab menu │ ⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ ␣ hide  ⇧↑↓ move  ⏎ options

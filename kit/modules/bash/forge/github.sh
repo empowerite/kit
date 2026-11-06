@@ -92,7 +92,7 @@ forge/github:noun() { printf '#\tpull request\n'; }
 # answers with issues alone, never pull requests.
 forge/github:open-issues() {
   local answer
-  forge/github:ask answer 'the issues' issue list --state open --limit 1000 --json number,title,assignees,createdAt \
+  forge/github:ask answer 'the issues' issue list --state open --limit 1000 --json number,title,assignees,createdAt,url \
     || return 1
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_issues($now)' \

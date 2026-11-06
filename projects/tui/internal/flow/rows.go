@@ -13,15 +13,18 @@ import (
 )
 
 // issue is one of backlog's, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
-// Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it.
+// Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it, and
+// Organization and Repository where in it the issue is, each empty where the tracker has none.
 type issue struct {
-	Number    int      `json:"number"`
-	Title     string   `json:"title"`
-	Assignees []string `json:"assignees"`
-	Age       *int64   `json:"age"`
-	Branch    string   `json:"branch"`
-	URL       string   `json:"url"`
-	Source    string   `json:"source"`
+	Number       int      `json:"number"`
+	Title        string   `json:"title"`
+	Assignees    []string `json:"assignees"`
+	Age          *int64   `json:"age"`
+	Branch       string   `json:"branch"`
+	URL          string   `json:"url"`
+	Source       string   `json:"source"`
+	Organization string   `json:"organization"`
+	Repository   string   `json:"repository"`
 }
 
 // commit is one commit: its short hash and its subject.
@@ -34,16 +37,19 @@ type commit struct {
 // issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
 // Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
 // owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how long ago
-// and by whom, when the forge says. Source is the tracker that holds the issue. The URLs are kit's when it prints
+// and by whom, when the forge says. Source is the tracker that holds the issue, and Organization and Repository where
+// in it the issue is. The URLs are kit's when it prints
 // them.
 type underway struct {
-	Number    int      `json:"number"`
-	Title     string   `json:"title"`
-	Assignees []string `json:"assignees"`
-	Age       *int64   `json:"age"`
-	URL       string   `json:"url"`
-	Source    string   `json:"source"`
-	PR        struct {
+	Number       int      `json:"number"`
+	Title        string   `json:"title"`
+	Assignees    []string `json:"assignees"`
+	Age          *int64   `json:"age"`
+	URL          string   `json:"url"`
+	Source       string   `json:"source"`
+	Organization string   `json:"organization"`
+	Repository   string   `json:"repository"`
+	PR           struct {
 		Number int    `json:"number"`
 		Title  string `json:"title"`
 		Author string `json:"author"`
@@ -478,14 +484,15 @@ func (m Model) records(s stage) []record {
 	return nil
 }
 
-// backlogRows gives each issue: number, source, assignees, age, branch, title, its glyph leading to the issue's page;
+// backlogRows gives each issue: number, source, organization, repository, assignees, age, branch, title, its glyph leading to the issue's page;
 // open, every assignee and the title wrapped. An issue belongs to its assignees.
 func (m Model) backlogRows(s stage) []record {
 	var out []record
 	for _, i := range s.issues {
 		key := "#" + strconv.Itoa(i.Number)
 		out = append(out, record{row{Key: key}, map[string]value{
-			"id": one(key), "source": some(i.Source), "assignees": {Raw: i.Assignees}, "age": seconds(i.Age),
+			"id": one(key), "source": some(i.Source), "organization": some(i.Organization),
+			"repository": some(i.Repository), "assignees": {Raw: i.Assignees}, "age": seconds(i.Age),
 			"branch": some(i.Branch), "title": {Raw: []string{i.Title}, Link: m.origin.issue(i.Number, i.URL)},
 		}})
 	}
@@ -493,7 +500,7 @@ func (m Model) backlogRows(s stage) []record {
 }
 
 // underwayRows gives each issue underway beside the pull request that closes it, oldest first as kit prints them:
-// number, source, assignees, age, the pull request's number and state, where the work is, the fork its branch is in,
+// number, source, organization, repository, assignees, age, the pull request's number and state, where the work is, the fork its branch is in,
 // when last pushed, its age right-aligned after the glyph, by whom when not the author, and the title. Where is here
 // when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
 // it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
@@ -524,7 +531,8 @@ func (m Model) underwayRows(s stage) []record {
 			change = jumpTo("changes", m.pullKey(u.PR.Number))
 		}
 		out = append(out, record{row{Key: issue + " " + pr}, map[string]value{
-			"id": one(issue), "source": some(u.Source), "assignees": {Raw: u.Assignees}, "age": seconds(u.Age),
+			"id": one(issue), "source": some(u.Source), "organization": some(u.Organization),
+			"repository": some(u.Repository), "assignees": {Raw: u.Assignees}, "age": seconds(u.Age),
 			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
 			"where": where, "fork": some(u.PR.Fork), "pushed": pushed, "by": by,
 			"title": {Raw: []string{u.Title}, Link: m.origin.issue(u.Number, u.URL)},

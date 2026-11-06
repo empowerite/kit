@@ -28,3 +28,8 @@ import "underway" as underway; [underway::by_owners(["ada"]; false), underway::b
 import "underway" as underway; underway::rows({}; []) | map(.source)
 [{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "source": "github"}, {"number": 8, "age": 8}]}]
 ["github",null]
+
+# A row carries where its issue is, the organization and the repository, or null when the change's document gives none.
+import "underway" as underway; underway::rows({}; []) | map([.organization, .repository])
+[{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "organization": "empowerite", "repository": "kit"}, {"number": 8, "age": 8}]}]
+[["empowerite","kit"],[null,null]]

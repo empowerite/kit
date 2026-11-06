@@ -201,7 +201,7 @@ func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
 	}
 	side, _ := m.panel(0).Lines()
 	at := slices.Index(side, style.Cursor(pane.Pad(grid.Unticked+" assignees", m.sideWidth()-1, false)))
-	if strings.Contains(drawn(m), "jeffrey-agui") || at < 0 || ansi.Strip(side[at-1]) != "hidden" || m.panel(0).Under() != "assignees" {
+	if strings.Contains(drawn(m), "jeffrey-agui") || at < 0 || ansi.Strip(side[at-1]) != grid.Unticked+" repository" || m.panel(0).Under() != "assignees" {
 		t.Errorf("assignees hidden:\n%s", view(m))
 	}
 	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show  ⇧↑↓ move") {
@@ -217,7 +217,8 @@ func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
 }
 
 func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
-	m := loaded(t, options(), press('?'))
+	// tall enough that the panel and the legend end above the side's last line
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, press('?'))
 	x := m.paneWidth() + 3
 	// the side's lines: the search, a gap, group by, columns, then id, source, and assignees
 	if m = drive(m, testkit.Click(x, 6), testkit.Release(x, 6)); !m.inPanel || m.panel(0).Field("assignees").Placement != grid.Hidden ||
@@ -295,12 +296,12 @@ func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
 	if m = drive(m, press(tea.KeyPgUp)); m.sideOffset != 0 {
 		t.Errorf("page up in the panel: offset %d", m.sideOffset)
 	}
-	m = drive(m, slices.Repeat([]tea.Msg{down}, 9)...)
+	m = drive(m, slices.Repeat([]tea.Msg{down}, 11)...)
 	at := m.sideOffset
 	if m = drive(m, down); m.sideOffset != at+1 {
 		t.Errorf("down past the last control: offset %d, was %d", m.sideOffset, at)
 	}
-	if m = drive(m, slices.Repeat([]tea.Msg{up}, 9)...); m.sideOffset != 0 {
+	if m = drive(m, slices.Repeat([]tea.Msg{up}, 11)...); m.sideOffset != 0 {
 		t.Errorf("up to the search: offset %d", m.sideOffset)
 	}
 	// another stage starts at the sidebar's top
@@ -327,7 +328,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m.find("backlog").issues[0].URL = "https://refuse.example/45"
 	m.rebuild()
 	m = drive(m, testkit.Click(x, y))
-	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") {
+	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") || !m.Noticing() {
 		t.Errorf("a page that did not open: %q", last)
 	}
 	if m = drive(m, down); m.notice != "" || strings.Contains(lines(m)[23], "could not open") {
@@ -485,7 +486,8 @@ func TestAClickOnAColumnsNameTogglesNothing(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, press('?'))
 	box := m.paneWidth() + 3
 	m = drive(m, testkit.Click(box+3, 5), testkit.Release(box+3, 5))
-	if p := m.panel(0); len(hiddenOf(p)) != 0 || !m.inPanel || p.FieldAt(5) != "source" {
+	if p := m.panel(0); !slices.Equal(hiddenOf(p), []string{"organization", "repository"}) || !m.inPanel ||
+		p.FieldAt(5) != "source" {
 		t.Errorf("a click on source's name: hidden %v, in panel %v", hiddenOf(p), m.inPanel)
 	}
 	lines, _ := m.panel(0).Lines()
@@ -611,8 +613,8 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// space on the box for folding stops it, through a refresh of the rows: the search, eleven fields, then the box
-	if m = drive(m, append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 12)...)...); m.panel(m.stage).Under() != "" {
+	// space on the box for folding stops it, through a refresh of the rows: the search, thirteen fields, then the box
+	if m = drive(m, append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 14)...)...); m.panel(m.stage).Under() != "" {
 		t.Fatalf("the panel's cursor: %d", m.panel(m.stage).Cursor)
 	}
 	if m = drive(m, press(tea.KeySpace)); heading(m) != "" || m.panel(m.stage).Fold ||

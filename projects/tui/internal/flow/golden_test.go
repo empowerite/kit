@@ -59,7 +59,7 @@ func TestGoldenViews(t *testing.T) {
 	// the field editor in the sidebar: source grouped, age sorted descending, and assignees filtered to @me and hidden
 	shiftUp, enter, space := testkit.Press("shift+up"), press(tea.KeyEnter), press(tea.KeySpace)
 	golden("editor.golden", append(append([]tea.Msg{tab, down, down, shiftUp, shiftUp, down, down, enter},
-		slices.Repeat([]tea.Msg{down}, 4)...), space, esc, space, up, up, up, enter, down, down, space, esc)...)
+		slices.Repeat([]tea.Msg{down}, 4)...), space, esc, space, up, up, up, up, up, enter, down, down, space, esc)...)
 	// the field editor in the sidebar, backlog's assignees' popover open over it, @me checked
 	golden("popover.golden", append([]tea.Msg{tab, down, down, down, press(tea.KeyEnter)},
 		append(slices.Repeat([]tea.Msg{down}, 4), press(tea.KeySpace))...)...)

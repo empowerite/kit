@@ -308,6 +308,12 @@ func (v named) preset(stage string) (preset, []string) {
 			p.Fields[c] = grid.Field{Position: len(p.Fields) + 1}
 		}
 	}
+	// a field the catalog hides, which views.json knew nothing of, stays hidden, as are those it hid
+	for _, f := range fields {
+		if f.Placement == placeHidden {
+			p = p.Placed(f.ID, grid.Hidden)
+		}
+	}
 	for _, label := range v.Hidden {
 		if c := id(label); c != "" {
 			p = p.Placed(c, grid.Hidden)

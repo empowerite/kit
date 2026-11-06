@@ -91,8 +91,10 @@ JSON
   route gh 'issue view 7 *' issue.json
   route gh 'issue create*' issue-url.txt
   fixture issues.json <<'JSON'
-[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "2026-09-25T09:00:00Z"},
- {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z"}]
+[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "2026-09-25T09:00:00Z",
+  "url": "https://github.com/empowerite/example/issues/9"},
+ {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z",
+  "url": "https://github.com/empowerite/example/issues/7"}]
 JSON
   route gh 'issue edit 7 --add-assignee ada' '!0'
   route gh 'issue list --state open --limit 1000 --json *' issues.json
@@ -144,8 +146,10 @@ JSON
   route glab "api ${p}/issues/7" issue.json
   route glab 'issue create*' issue-url.txt
   fixture issues.json <<'JSON'
-[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "2026-09-20T09:00:00.000Z"},
- {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.500Z"}]
+[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "2026-09-20T09:00:00.000Z",
+  "references": {"full": "empowerite/example#7"}},
+ {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.500Z",
+  "references": {"full": "empowerite/example#9"}}]
 JSON
   route glab 'issue update 7 --assignee +ada' '!0'
   route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc" issues.json
@@ -255,12 +259,14 @@ JSON
     world "${forge}"
     run call open-prs
     [ "$status" -eq 0 ]
-    [ "$(jq --compact-output --sort-keys 'del(.age, .createdAt, .ref) | .closes |= map(del(.age, .source))' \
-      <<<"$output")" \
+    [ "$(jq --compact-output --sort-keys \
+      'del(.age, .createdAt, .ref) | .closes |= map(del(.age, .source, .organization, .repository))' <<<"$output")" \
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
     [ "$(jq '.closes[0].age > 0' <<<"$output")" = true ]
-    # each issue a change closes names the tracker that holds it: the forge's own
+    # each issue a change closes names the tracker that holds it, the forge's own, and where in it the issue is
     [ "$(jq --raw-output '[.closes[].source] | unique | join(" ")' <<<"$output")" = "${forge}" ]
+    [ "$(jq --raw-output '[.closes[] | "\(.organization)/\(.repository)"] | unique | join(" ")' <<<"$output")" \
+      = empowerite/example ]
   done
 }
 
@@ -392,7 +398,7 @@ JSON
   done
 }
 
-@test "every provider lists its open issues in one shape, oldest first, with the assignees by login" {
+@test "every provider lists its open issues in one shape, oldest first, with the assignees by login and the repository" {
   expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"]},'
   expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[]}]'
   for forge in github gitlab
@@ -400,10 +406,12 @@ JSON
     world "${forge}"
     run call open-issues
     [ "$status" -eq 0 ]
-    [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .createdAt, .source))' <<<"$output")" \
-      = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
-    # each issue names the tracker that holds it: the forge's own
+    [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .createdAt, .source, .organization, .repository))' \
+      <<<"$output")" = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
+    # each issue names the tracker that holds it, the forge's own, and where in it the issue is
     [ "$(jq --raw-output --slurp 'map(.source) | unique | join(" ")' <<<"$output")" = "${forge}" ]
+    [ "$(jq --raw-output --slurp 'map("\(.organization)/\(.repository)") | unique | join(" ")' <<<"$output")" \
+      = empowerite/example ]
   done
 }
 

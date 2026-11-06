@@ -9,19 +9,19 @@
      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  🎫 A noun lists, a noun with a verb acts                                                                              │ ☑ branch
    ▸  #7  ada           +1  40d                      🎫 Fix the thing                                                                                                      │ ☑ title
                                                                                                                                                                            │ hidden
+                                                                                                                                                                           │ ☐ organization
+                                                                                                                                                                           │ ☐ repository
                                                                                                                                                                            │
                                                                                                                                                                            │ ☑ fold shared values
                                                                                                                                                                            │ ☐ show shared emoji
                                                                                                                                                                            │
-                                                                                                                                                                           │ legend
-                                                                                                                                                                           │ 🎫 an issue 🔗
-                                                                                                                                                                           ▸ 🐙 on GitHub
-                                                                                                                                                                           ╷ 🦊 on GitLab
+                                                                                                                                                                           ▸ legend
+                                                                                                                                                                           ╷ 🎫 an issue 🔗
+                                                                                                                                                                           │ 🐙 on GitHub
+                                                                                                                                                                           │ 🦊 on GitLab
                                                                                                                                                                            │ 👤 assignees or author
                                                                                                                                                                            │ 🌿 a branch or a worktree
                                                                                                                                                                            │ ❌ failed
-                                                                                                                                                                           │
-                                                                                                                                                                           │
                                                                                                                                                                            │
                                                                                                                                                                            │
                                                                                                                                                                            │

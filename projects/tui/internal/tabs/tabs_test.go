@@ -451,3 +451,27 @@ func TestATabsOwnReserveKeepsItsCountsRoomAndNoMore(t *testing.T) {
 		t.Errorf("a count within its reserve moved the tabs: %v, then %v", before, after)
 	}
 }
+
+// The bar's keys: while it has the keyboard, left and right, and down where it says what down enters; a tab's number
+// from anywhere, nine at most; and : for the tab's menu where the bar has menus. A bar of no tabs has none.
+func TestTheBarNamesItsKeys(t *testing.T) {
+	keys := func(b Bar, down string) string {
+		var out []string
+		for _, k := range b.Keys(down).Bindings {
+			out = append(out, k.Key+" "+k.Does)
+		}
+		return strings.Join(out, ", ")
+	}
+	b := stages(0, 120)
+	b.Focused, b.Menus = true, true
+	if got := keys(b, "preset"); got != "←→ tab, ↓ preset, 1-8 jump, : tab menu" {
+		t.Errorf("focused, with menus: %q", got)
+	}
+	b.Focused, b.Menus = false, false
+	if got := keys(b, "preset"); got != "1-8 jump" {
+		t.Errorf("not focused: %q", got)
+	}
+	if got := keys(Bar{}, ""); got != "" {
+		t.Errorf("no tabs: %q", got)
+	}
+}

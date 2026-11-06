@@ -197,9 +197,10 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 	if m.presetMenu || !m.onPreset {
 		t.Errorf("esc in the menu: open %v", m.presetMenu)
 	}
-	// Default shows every column again
+	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(fieldsOf("backlog")) || m.changed(0) {
+	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f field) bool { return f.Placement != placeColumn })
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.changed(0) {
 		t.Errorf("Default: %q", shownNow(m))
 	}
 }
@@ -470,5 +471,18 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	if g := want["changes"][0].panel(fieldsOf("changes"), grid.Panel{}); g.Field("branch").Placement != grid.Column ||
 		!g.Shows("title") {
 		t.Errorf("Authors' other fields: %+v", g.Fields)
+	}
+}
+
+// A stage without columns has Default alone, and a view the line was set to that is gone gives way to Default.
+func TestAStageWithoutColumnsHasDefaultAloneAndAViewGoneGivesWayToIt(t *testing.T) {
+	m := loaded(t, options())
+	incoming := slices.Index(eight, "incoming")
+	if vs := m.builtins(incoming); len(vs) != 1 || vs[0].Name != Opening {
+		t.Errorf("incoming's views: %+v", vs)
+	}
+	m.stages[0].viewName = "Gone"
+	if v := m.chosen(0); v.Name != Opening {
+		t.Errorf("a view gone: %q", v.Name)
 	}
 }

@@ -42,11 +42,11 @@ type stageFields struct {
 // Path is where its value is read from in the stage's record, as jq names it: several, comma-separated, for a value
 // made of several, and one after a stage's name and a colon for a value read from another stage's records, as a
 // checkout's pull request from changes. Sort, Group, and Filter say whether the rows can sort, group, and be filtered
-// by it, and Owns that the rows belong to the people it names. Values are an enum's known values, and Other the glyph of
-// one it does not know, if any. Glyph is the glyph drawn before each value of a field that is not an enum. Renderings
-// names the renderers that can draw it, the first preferred. Dim, Right, and Wrap say how its column is drawn: dim,
-// right-aligned, or as the one column that takes the width left and wraps. Placement is where a preset that names
-// none puts it: a column, a group, or hidden.
+// by it, and Owns that the rows belong to the people it names. Values are an enum's known values, none for one whose
+// values only the rows know, as an issue's repository, and Other the glyph of one it does not know, if any. Glyph is
+// the glyph drawn before each value of a field that is not an enum. Renderings names the renderers that can draw it,
+// the first preferred. Dim, Right, and Wrap say how its column is drawn: dim, right-aligned, or as the one column that
+// takes the width left and wraps. Placement is where a preset that names none puts it: a column, a group, or hidden.
 type field struct {
 	ID         string      `json:"id"`
 	Label      string      `json:"label"`

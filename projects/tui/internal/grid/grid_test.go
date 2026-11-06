@@ -965,3 +965,13 @@ func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 		t.Errorf("who's filter and rendering: %+v", f)
 	}
 }
+
+// Shown and Showing agree: each choice of Show sets the owner's filter so that Showing says the same choice again.
+func TestShowingSaysTheChoiceShownSet(t *testing.T) {
+	p := Panel{Owner: "who"}
+	for _, s := range []Show{Mine, Others, All} {
+		if got := p.Shown(s).Showing(); got != s {
+			t.Errorf("shown %v, showing %v", s, got)
+		}
+	}
+}

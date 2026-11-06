@@ -21,6 +21,20 @@
 # epoch reads an ISO 8601 time, with or without fractional seconds, and gives seconds since the epoch.
 def epoch: sub("\\.[0-9]+"; "") | fromdateiso8601;
 
+# place($path) gives where an issue is, as a repository's path names it: the organization, the path up to its last
+# segment, an owner on GitHub and a group, with its subgroups, on GitLab; and the repository, that last segment. Both
+# are null without a path.
+def place($path):
+  if ($path // "") == "" then {organization: null, repository: null}
+  else ($path | split("/")) as $p | {organization: ($p[:-1] | join("/")), repository: $p[-1]} end;
+
+# github_path reads a GitHub issue's url and gives its repository's owner/name, or null without one.
+def github_path: (.url // "") | capture("^https?://[^/]+/(?<path>[^/]+/[^/]+)/issues/").path // null;
+
+# gitlab_path reads a GitLab issue's full reference, group/…/project#7, and gives its project's path, or null without
+# one.
+def gitlab_path: (.references.full // "") | sub("#[0-9]+$"; "") | if . == "" then null else . end;
+
 # checks($now) reads runs, [{name, verdict, at, since, took}], and gives {state, passed, total, failing, took}. A
 # run's verdict is pending, passed, or failed; at orders the runs of one name, and the latest counts, as after a
 # rerun; since is when it started or was queued, in epoch seconds; took is its own duration, or null. took is the
@@ -52,14 +66,16 @@ def state:
 
 # document($now) reads {number, ref, branch, fork, title, author, createdAt, pushed, draft, conflicted, approval, runs,
 # unresolved, closes} and gives the document. pushed is {at, by}, or null, and comes out with its age in place of at.
-# Each of closes is {number, title, assignees, createdAt, source}, and comes out with its age; an issue an older answer
-# gives without a time has a null age, and one without a source a null source.
+# Each of closes is {number, title, assignees, createdAt, source, organization, repository}, and comes out with its age;
+# an issue an older answer gives without a time has a null age, and one without a source, an organization, or a
+# repository a null one.
 def document($now):
   (.runs | checks($now)) as $checks
   | { number, ref, branch, fork: (.fork // null), title, author, createdAt, age: ($now - (.createdAt | epoch)),
       pushed: (if .pushed == null then null else {age: ($now - (.pushed.at | epoch)), by: (.pushed.by // null)} end),
       state: (. + {checks: $checks} | state), checks: $checks, unresolved,
       closes: [.closes[] | { number, title, assignees: (.assignees // []), source: (.source // null),
+                             organization: (.organization // null), repository: (.repository // null),
                              age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }] };
 
 # github_runs reads a commit's status check contexts, CheckRun and StatusContext alike, and gives its runs.
@@ -95,7 +111,8 @@ def github_prs($now):
       closes: [.closingIssuesReferences.nodes[]
                | { number, title, createdAt, source: "github",
                    assignees: (if .repository.nameWithOwner == $repository.nameWithOwner
-                               then $assigned["\(.number)"] // [] else [] end) }] }
+                               then $assigned["\(.number)"] // [] else [] end) }
+                 + place(.repository.nameWithOwner)] }
   | document($now);
 
 # github_spent($now) reads the answer of GitHub's rate_limit endpoint and gives the wait for the limit that is spent,
@@ -131,25 +148,28 @@ def gitlab_pr($now; $jobs; $discussions; $closes; $fork):
     runs: ($jobs | gitlab_runs),
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),
     closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], createdAt: .created_at,
-                           source: "gitlab" }] }
+                           source: "gitlab" } + place(gitlab_path)] }
   | document($now);
 
-# issue($now; $source) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue
-# document kit backlog draws: those, ref, age in seconds, and source, the tracker that holds it: the code forge's own,
-# github or gitlab, for now.
-def issue($now; $source):
-  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch)), source: $source};
+# issue($now; $source; $path) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue
+# document kit backlog draws: those, ref, age in seconds, source, the tracker that holds it: the code forge's own,
+# github or gitlab, for now; and the organization and the repository it is in, as place reads $path.
+def issue($now; $source; $path):
+  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch)), source: $source}
+  + place($path);
+
 
 # github_issues($now) reads gh issue list's JSON, the answer to forge/github:open-issues, and gives one document per
 # open issue, oldest first.
 def github_issues($now):
-  sort_by(.createdAt, .number)[] | {number, title, assignees: [.assignees[].login], createdAt}
-  | issue($now; "github");
+  sort_by(.createdAt, .number)[] | github_path as $path | {number, title, assignees: [.assignees[].login], createdAt}
+  | issue($now; "github"; $path);
 
 # gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents.
 def gitlab_issues($now):
-  sort_by(.created_at, .iid)[] | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
-  | issue($now; "gitlab");
+  sort_by(.created_at, .iid)[] | gitlab_path as $path
+  | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
+  | issue($now; "gitlab"; $path);
 
 # release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without
 # release/), tag, name, kind (release, pre-release, or draft), latest, at (when it was published, or made, for a
