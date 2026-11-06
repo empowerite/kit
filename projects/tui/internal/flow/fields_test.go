@@ -4,8 +4,11 @@ package flow
 
 import (
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
+
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
@@ -193,32 +196,47 @@ func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 	}
 }
 
-// A preset says, per field, its placement, its sort, and its filter; the panel keeps them as a view does.
-func TestAPresetIsKeptAsAView(t *testing.T) {
+// A preset says, per field, its placement, its sort, and its filter; the panel is set as it says, and gives back a
+// preset that sets it alike.
+func TestAPresetSetsThePanel(t *testing.T) {
 	fields := fieldsOf("backlog")
 	yes := true
 	p := preset{Name: "Triage", Headers: &yes, Fields: map[string]setting{
 		"title":     {Placement: placeColumn, Position: 1},
 		"id":        {Placement: placeColumn, Position: 2},
 		"source":    {Placement: placeGroup, Depth: 1},
-		"branch":    {Placement: placeHidden},
+		"branch":    {Placement: placeHidden, Rendering: "text"},
 		"age":       {Sort: "desc", Priority: 1},
 		"assignees": {Sort: "asc", Priority: 2, Filter: &valueFilter{Exclude: []string{caller}}},
 	}}
-	v := p.view(fields, false)
-	if v.Name != "Triage" || !v.Headers || !slices.Equal(v.Order, []string{"title", "id"}) ||
-		!slices.Equal(v.Group, []string{"source"}) || !slices.Equal(v.Hidden, []string{"branch"}) ||
-		!slices.Equal(v.Sort, []sortKey{{"age", true}, {"assignees", false}}) || v.Show != "others" {
-		t.Errorf("the view: %+v", v)
+	g := p.panel(fields, grid.Panel{Owner: ownerOf("backlog")})
+	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "assignees", "age", "branch"}) ||
+		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
+		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
+		g.Showing() != grid.Others || !g.Fold || g.Field("branch").Rendering != "text" {
+		t.Errorf("the panel: %q %+v", got, g.Fields)
 	}
-	// the stage's own: Default shows every column, with the headers as the screen opens; Compact, the few that say
-	// what a row is
+	back := presetOf(g, fields, true)
+	if !reflect.DeepEqual(presetOf(back.panel(fields, grid.Panel{}), fields, true), back) || *back.Headers != true ||
+		back.Fields["source"] != (setting{Placement: placeGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
+		t.Errorf("the preset again: %+v", back)
+	}
+	// the stage's own: Default shows every column, folding; Compact, the few that say what a row is
 	builds := catalog["builds"]
-	if d := builds.Presets[0].view(builds.Fields, false); d.Name != Opening || d.Headers || d.Hidden != nil {
-		t.Errorf("Default: %+v", d)
+	if d := builds.Presets[0].panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening || !d.Fold ||
+		hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}) != nil {
+		t.Errorf("Default: %+v", d.Fields)
 	}
-	if c := builds.Presets[1].view(builds.Fields, false); c.Name != "Compact" || !c.Headers ||
-		!slices.Equal(c.Hidden, []string{"run", "event", "branch", "commit", "took"}) {
-		t.Errorf("Compact: %+v", c)
+	if c := builds.Presets[1].panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
+		!slices.Equal(hiddenOf(c), []string{"run", "event", "branch", "commit", "took"}) {
+		t.Errorf("Compact: %+v", c.Fields)
+	}
+	// a rendering pinned draws the field
+	title := fields[slices.IndexFunc(fields, func(f field) bool { return f.ID == "title" })]
+	if c := title.draw([]value{one("a")}, "text"); c[0].Values[0] != "a" {
+		t.Errorf("title pinned to text: %q", c[0].Values)
+	}
+	if c := title.draw([]value{one("a")}, "age"); c[0].Values[0] != Issue+" a" {
+		t.Errorf("title pinned to a rendering not its own: %q", c[0].Values)
 	}
 }

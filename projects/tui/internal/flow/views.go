@@ -1,5 +1,5 @@
-// Named views: a stage's panel as it is set, its columns shown and their order, its sort and groups, whose rows it
-// shows, and whether its headers stand over the rows, kept under a name. Every stage with columns has its own views,
+// Named views: a stage's panel as it is set, each field's placement, sort, filter, and rendering, whether it folds, and
+// whether its headers stand over the rows, kept under a name as a preset. Every stage with columns has its own views,
 // the presets the field catalog gives it, which never change: Default, the stage as it opens, and Compact, the few
 // columns that say what a row is. The person saves others, per stage, in a file of their own, under ~/.config/kit/, so
 // their views follow them to every repository; one they named as a stage's own was named before the stage had it, and
@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -30,8 +31,9 @@ import (
 // Opening is the name of the view a stage opens on, one of its own.
 const Opening = "Default"
 
-// named is a stage's panel as a view keeps it: the columns hidden, their order, the sort's keys, the groups, the
-// columns kept from grouping on their own, whose rows it shows, and whether the headers show.
+// named is a stage's panel as the views file keeps it, by the columns' labels: the columns hidden, their order, the
+// sort's keys, the groups, the columns kept from grouping on their own, whose rows it shows, whether the headers show,
+// and whether it folds, when it does not.
 type named struct {
 	Name    string    `json:"name"`
 	Hidden  []string  `json:"hidden,omitempty"`
@@ -41,6 +43,7 @@ type named struct {
 	Kept    []string  `json:"kept,omitempty"`
 	Show    string    `json:"show,omitempty"`
 	Headers bool      `json:"headers"`
+	Fold    *bool     `json:"fold,omitempty"`
 }
 
 // sortKey is one of a view's sort keys: a column, and whether the larger come first.
@@ -63,10 +66,10 @@ func viewsFile() string {
 	return filepath.Join(dir, "kit", "views.json")
 }
 
-// readViews gives the views the file keeps, by stage; none when there is no file. A file that does not read as views
-// is the error.
-func readViews(path string) (map[string][]named, error) {
-	out := map[string][]named{}
+// readViews gives the views the file keeps, by stage, as presets; none when there is no file. A file that does not read
+// as views is the error.
+func readViews(path string) (map[string][]preset, error) {
+	out := map[string][]preset{}
 	if path == "" {
 		return out, nil
 	}
@@ -74,18 +77,32 @@ func readViews(path string) (map[string][]named, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return out, nil
 	}
+	var kept map[string][]named
 	if err == nil {
-		err = json.Unmarshal(data, &out)
+		err = json.Unmarshal(data, &kept)
+	}
+	for stage, vs := range kept {
+		for _, v := range vs {
+			p, _ := v.preset(stage)
+			out[stage] = append(out[stage], p)
+		}
 	}
 	return out, err
 }
 
-// writeViews keeps the views in the file, written whole beside it first, so a reader never sees half of it.
-func writeViews(path string, views map[string][]named) error {
+// writeViews keeps the views in the file, by the columns' labels, written whole beside it first, so a reader never sees
+// half of it.
+func writeViews(path string, views map[string][]preset) error {
 	if path == "" {
 		return nil
 	}
-	data, err := json.MarshalIndent(views, "", "  ")
+	kept := map[string][]named{}
+	for stage, ps := range views {
+		for _, p := range ps {
+			kept[stage] = append(kept[stage], p.named(stage))
+		}
+	}
+	data, err := json.MarshalIndent(kept, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -99,112 +116,216 @@ func writeViews(path string, views map[string][]named) error {
 	return os.Rename(tmp, path)
 }
 
-// builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
-// Default alone, as it opens.
-func (m Model) builtins(i int) []named {
+// builtins gives a stage's own views, its presets in the catalog, in the catalog's order, each with its headers as the
+// screen opens them where it says nothing; a stage without columns has Default alone, as it opens.
+func (m Model) builtins(i int) []preset {
+	headers := !m.noHeaders
 	s := catalog[m.stages[i].name]
 	if s == nil {
-		return []named{{Name: Opening, Headers: !m.noHeaders}}
+		return []preset{{Name: Opening, Headers: &headers}}
 	}
-	var out []named
+	var out []preset
 	for _, p := range s.Presets {
-		out = append(out, p.view(s.Fields, !m.noHeaders))
+		if p.Headers == nil {
+			p.Headers = &headers
+		}
+		out = append(out, p)
 	}
 	return out
 }
 
-// view gives a preset as a view keeps a stage's panel, of the stage's fields: the columns hidden, those it places at a
-// position in their order, the groups by depth, the sort's keys by priority, whose rows it shows, from the filter on the
-// field that owns them, and the headers, as the screen opens them where the preset says nothing. A field it does not
-// name takes the catalog's placement. A field without a label, which the panel offers no checkbox for, is never hidden.
-func (p preset) view(fields []field, headers bool) named {
-	v := named{Name: p.Name, Headers: headers}
-	if p.Headers != nil {
-		v.Headers = *p.Headers
-	}
-	type at struct {
-		id   string
-		n    int
-		desc bool
-	}
-	var order, groups, sorts []at
+// panel gives a stage's panel set as a preset says, of the stage's fields, the rest of it as p has it: each field placed,
+// sorted, filtered, and drawn as the preset says, a field it does not name placed as the catalog says, and folding
+// unless the preset says it does not. What a field cannot do it is not set to do: a field without a label is never
+// hidden, nor grouped, sorted, or filtered unless it can be, nor drawn by a rendering not its own.
+func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
+	p.Fields = map[string]grid.Field{}
 	for _, f := range fields {
-		s := p.Fields[f.ID]
-		placement := cmp.Or(s.Placement, f.Placement)
-		switch {
-		case placement == placeHidden && f.Label != "":
-			v.Hidden = append(v.Hidden, f.ID)
-		case placement == placeGroup:
-			groups = append(groups, at{id: f.ID, n: s.Depth})
-		case placement == placeColumn && s.Position > 0:
-			order = append(order, at{id: f.ID, n: s.Position})
+		s := pr.Fields[f.ID]
+		var g grid.Field
+		switch cmp.Or(s.Placement, f.Placement) {
+		case placeHidden:
+			if f.Label != "" {
+				g.Placement = grid.Hidden
+			}
+		case placeGroup:
+			if f.Group {
+				g.Placement, g.Depth = grid.Group, s.Depth
+			}
+		default:
+			g.Position = s.Position
 		}
-		if s.Sort != "" {
-			sorts = append(sorts, at{f.ID, s.Priority, s.Sort == "desc"})
+		if f.Sort && (s.Sort == "asc" || s.Sort == "desc") {
+			g.Sort, g.Priority = grid.Ascending, s.Priority
+			if s.Sort == "desc" {
+				g.Sort = grid.Descending
+			}
 		}
-		if f.Owns && s.Filter != nil {
+		if s.Filter != nil && f.Filter {
 			switch {
-			case slices.Equal(s.Filter.Include, []string{caller}):
-				v.Show = "mine"
-			case slices.Equal(s.Filter.Exclude, []string{caller}):
-				v.Show = "others"
+			case len(s.Filter.Include) > 0:
+				g.Filter = grid.Filter{Values: slices.Clone(s.Filter.Include)}
+			case len(s.Filter.Exclude) > 0:
+				g.Filter = grid.Filter{Values: slices.Clone(s.Filter.Exclude), Exclude: true}
+			}
+		}
+		if slices.Contains(f.Renderings, s.Rendering) {
+			g.Rendering = s.Rendering
+		}
+		p.Fields[f.ID] = g
+	}
+	p.Fold = pr.Fold == nil || *pr.Fold
+	return p
+}
+
+// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed, with the headers as they are: of
+// each field, what differs from what a preset that names none of them says. A column's position is said only while
+// the columns stand in another order than the stage's, and then for every column, from 1; a group's depth and a sort's
+// priority are numbered from 1, the outermost and the first first.
+func presetOf(p grid.Panel, fields []field, headers bool) preset {
+	fold := p.Fold
+	out := preset{Headers: &headers, Fold: &fold}
+	var ids []string
+	for _, f := range fields {
+		if f.Label != "" {
+			ids = append(ids, f.ID)
+		}
+	}
+	columns := slices.DeleteFunc(p.Arrange(ids), func(id string) bool { return !p.Shows(id) })
+	positioned := !slices.Equal(columns, slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !p.Shows(id) }))
+	groups, sorts := p.Groups(), p.SortKeys()
+	for _, f := range fields {
+		g := p.Field(f.ID)
+		var s setting
+		switch k := slices.Index(columns, f.ID); {
+		case g.Placement == grid.Hidden && f.Label != "":
+			if f.Placement != placeHidden {
+				s.Placement = placeHidden
+			}
+		case g.Placement == grid.Group && slices.Contains(groups, f.ID):
+			s.Placement, s.Depth = placeGroup, slices.Index(groups, f.ID)+1
+		case positioned && k >= 0:
+			s.Placement, s.Position = placeColumn, k+1
+		case cmp.Or(f.Placement, placeColumn) != placeColumn:
+			s.Placement = placeColumn
+		}
+		if k := slices.IndexFunc(sorts, func(s grid.SortKey) bool { return s.Column == f.ID }); k >= 0 {
+			s.Sort, s.Priority = "asc", k+1
+			if sorts[k].Desc {
+				s.Sort = "desc"
+			}
+		}
+		if len(g.Filter.Values) > 0 {
+			s.Filter = &valueFilter{Include: slices.Clone(g.Filter.Values)}
+			if g.Filter.Exclude {
+				s.Filter = &valueFilter{Exclude: slices.Clone(g.Filter.Values)}
+			}
+		}
+		s.Rendering = g.Rendering
+		if s != (setting{}) {
+			if out.Fields == nil {
+				out.Fields = map[string]setting{}
+			}
+			out.Fields[f.ID] = s
+		}
+	}
+	return out
+}
+
+// preset gives a view of the views file as a preset of the stage's: each column's label, or its id, as the field's id,
+// the catalog's; the columns hidden, those it groups by, outermost first, and those it sorts by, first first, as their
+// placements and sorts; the columns' order as their positions; whose rows it shows as the filter on the field that
+// owns them: mine as the caller alone, others as anyone but the caller; and the headers, and whether it folds. The
+// columns it kept from grouping on their own are dropped, as the person no longer keeps a column so; it folds, or does
+// not, as a whole. It gives the labels the catalog does not know, each once, which are dropped.
+func (v named) preset(stage string) (preset, []string) {
+	fields := fieldsOf(stage)
+	var dropped []string
+	id := func(label string) string {
+		k := slices.IndexFunc(fields, func(f field) bool { return f.Label != "" && f.Label == label })
+		if k < 0 {
+			k = slices.IndexFunc(fields, func(f field) bool { return f.Label != "" && f.ID == label })
+		}
+		if k < 0 {
+			if !slices.Contains(dropped, label) {
+				dropped = append(dropped, label)
+			}
+			return ""
+		}
+		return fields[k].ID
+	}
+	p := grid.Panel{Groupable: groupableOf(stage), Sortable: sortableOf(stage), Owner: ownerOf(stage),
+		Fold: v.Fold == nil || *v.Fold, Fields: map[string]grid.Field{}}
+	// the columns the order names stand first, in its order, the rest after them, in the stage's
+	for _, label := range v.Order {
+		if c := id(label); c != "" && p.Fields[c].Position == 0 {
+			p.Fields[c] = grid.Field{Position: len(p.Fields) + 1}
+		}
+	}
+	for _, label := range v.Hidden {
+		if c := id(label); c != "" {
+			p = p.Placed(c, grid.Hidden)
+		}
+	}
+	var groups []string
+	for _, label := range v.Group {
+		if c := id(label); c != "" {
+			groups = append(groups, c)
+		}
+	}
+	for k, c := range groups {
+		p = p.Grouped(c, k > 0)
+	}
+	for _, s := range v.Sort {
+		if c := id(s.Column); c != "" {
+			p = p.Sorted(c, true)
+			if s.Desc {
+				p = p.Sorted(c, true)
 			}
 		}
 	}
-	byN := func(a, b at) int { return cmp.Compare(a.n, b.n) }
-	slices.SortStableFunc(order, byN)
-	slices.SortStableFunc(groups, byN)
-	slices.SortStableFunc(sorts, byN)
-	for _, a := range order {
-		v.Order = append(v.Order, a.id)
+	switch v.Show {
+	case "mine":
+		p = p.Shown(grid.Mine)
+	case "others":
+		p = p.Shown(grid.Others)
 	}
-	for _, a := range groups {
-		v.Group = append(v.Group, a.id)
-	}
-	for _, a := range sorts {
-		v.Sort = append(v.Sort, sortKey{a.id, a.desc})
-	}
-	return v
+	out := presetOf(p, fields, v.Headers)
+	out.Name = v.Name
+	return out, dropped
 }
 
-// views gives a stage's views, its own first, then the person's.
-func (m Model) views(i int) []named {
-	return append(m.builtins(i), m.saved[m.stages[i].name]...)
-}
-
-// builtin says whether a name is one of a stage's own views.
-func (m Model) builtin(i int, name string) bool {
-	return slices.ContainsFunc(m.builtins(i), func(v named) bool { return v.Name == name })
-}
-
-// chosen gives the view a stage's dropdown names, or Default when that view is gone.
-func (m Model) chosen(i int) named {
-	vs := m.views(i)
-	if k := slices.IndexFunc(vs, func(v named) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
-		return vs[k]
+// named gives a preset of the stage's as the views file keeps it, by the columns' labels: what it says the file has no
+// words for, a filter but on whose rows show, and a rendering, it does not keep.
+func (pr preset) named(stage string) named {
+	fields := fieldsOf(stage)
+	p := pr.panel(fields, grid.Panel{Owner: ownerOf(stage)})
+	v := named{Name: pr.Name, Headers: pr.Headers == nil || *pr.Headers}
+	if !p.Fold {
+		v.Fold = &p.Fold
 	}
-	return vs[slices.IndexFunc(vs, func(v named) bool { return v.Name == Opening })]
-}
-
-// current gives a stage's panel as a view would keep it.
-func (m Model) current(i int) named {
-	s := m.stages[i]
-	p := s.view
-	v := named{Order: p.Order, Group: p.Group, Headers: s.headers}
-	for c, hidden := range p.Hidden {
-		if hidden {
-			v.Hidden = append(v.Hidden, c)
+	label := func(id string) string { return labelOf(stage, id) }
+	positioned := false
+	for _, c := range p.Arrange(columnsOf(stage)) {
+		if c == "" {
+			continue
+		}
+		positioned = positioned || p.Field(c).Position > 0
+		v.Order = append(v.Order, label(c))
+		if p.Field(c).Placement == grid.Hidden {
+			v.Hidden = append(v.Hidden, label(c))
 		}
 	}
-	for c, kept := range p.Kept {
-		if kept {
-			v.Kept = append(v.Kept, c)
-		}
+	if !positioned {
+		v.Order = nil
 	}
-	for _, k := range p.Sort {
-		v.Sort = append(v.Sort, sortKey{k.Column, k.Desc})
+	for _, c := range p.Groups() {
+		v.Group = append(v.Group, label(c))
 	}
-	switch p.Show {
+	for _, k := range p.SortKeys() {
+		v.Sort = append(v.Sort, sortKey{label(k.Column), k.Desc})
+	}
+	switch p.Showing() {
 	case grid.Mine:
 		v.Show = "mine"
 	case grid.Others:
@@ -213,22 +334,43 @@ func (m Model) current(i int) named {
 	return v
 }
 
-// same says whether two views set a stage's panel alike, their names apart: the same columns hidden, in the same
-// order, sorted and grouped alike, keeping the same columns, showing the same rows, and the headers alike.
-func (m Model) same(i int, a, b named) bool {
-	cols := columnsOf(m.stages[i].name)
-	normal := func(v named) named {
-		v.Name = ""
-		v.Order = grid.Panel{Order: v.Order}.Arrange(cols)
-		v.Hidden = slices.DeleteFunc(slices.Sorted(slices.Values(v.Hidden)), func(c string) bool {
-			return !slices.Contains(cols, c)
-		})
-		v.Kept = slices.Sorted(slices.Values(v.Kept))
-		return v
+// views gives a stage's views, its own first, then the person's.
+func (m Model) views(i int) []preset {
+	return append(m.builtins(i), m.saved[m.stages[i].name]...)
+}
+
+// builtin says whether a name is one of a stage's own views.
+func (m Model) builtin(i int, name string) bool {
+	return slices.ContainsFunc(m.builtins(i), func(v preset) bool { return v.Name == name })
+}
+
+// chosen gives the view a stage's dropdown names, or Default when that view is gone.
+func (m Model) chosen(i int) preset {
+	vs := m.views(i)
+	if k := slices.IndexFunc(vs, func(v preset) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
+		return vs[k]
 	}
-	a, b = normal(a), normal(b)
-	return slices.Equal(a.Hidden, b.Hidden) && slices.Equal(a.Order, b.Order) && slices.Equal(a.Sort, b.Sort) &&
-		slices.Equal(a.Group, b.Group) && slices.Equal(a.Kept, b.Kept) && a.Show == b.Show && a.Headers == b.Headers
+	return vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == Opening })]
+}
+
+// current gives a stage's panel as a view would keep it.
+func (m Model) current(i int) preset {
+	s := m.stages[i]
+	return presetOf(s.view, fieldsOf(s.name), s.headers)
+}
+
+// same says whether two views set a stage's panel alike, their names apart: each field placed, sorted, filtered, and
+// drawn alike, folding alike, and the headers alike, a view that says nothing of them as the screen opens them.
+func (m Model) same(i int, a, b preset) bool {
+	fields := fieldsOf(m.stages[i].name)
+	normal := func(v preset) preset {
+		headers := !m.noHeaders
+		if v.Headers != nil {
+			headers = *v.Headers
+		}
+		return presetOf(v.panel(fields, grid.Panel{}), fields, headers)
+	}
+	return reflect.DeepEqual(normal(a), normal(b))
 }
 
 // changed says whether the selected stage's panel differs from its view, or the view's name was changed: then 💾
@@ -254,34 +396,16 @@ func (m Model) viewShown(i int) string {
 	return s.viewName
 }
 
-// apply sets the selected stage's panel as the view keeps it, its search and cursor as they are, and names the view.
-func (m *Model) apply(v named) {
+// apply sets the selected stage's panel as the view keeps it, its search, cursor, and groups closed as they are, and
+// names the view.
+func (m *Model) apply(v preset) {
 	s := &m.stages[m.stage]
-	p := s.view
-	p.Hidden, p.Kept, p.Sort, p.Show = nil, nil, nil, grid.All
-	p.Order, p.Group = slices.Clone(v.Order), slices.Clone(v.Group)
-	for _, c := range v.Hidden {
-		if p.Hidden == nil {
-			p.Hidden = map[string]bool{}
-		}
-		p.Hidden[c] = true
+	p := v.panel(fieldsOf(s.name), s.view)
+	s.headers = !m.noHeaders
+	if v.Headers != nil {
+		s.headers = *v.Headers
 	}
-	for _, c := range v.Kept {
-		if p.Kept == nil {
-			p.Kept = map[string]bool{}
-		}
-		p.Kept[c] = true
-	}
-	for _, k := range v.Sort {
-		p.Sort = append(p.Sort, grid.SortKey{Column: k.Column, Desc: k.Desc})
-	}
-	switch v.Show {
-	case "mine":
-		p.Show = grid.Mine
-	case "others":
-		p.Show = grid.Others
-	}
-	s.headers, s.viewName, s.renaming, s.naming = v.Headers, v.Name, false, ""
+	s.viewName, s.renaming, s.naming = v.Name, false, ""
 	m.setPanel(p)
 }
 
@@ -294,7 +418,7 @@ func (m *Model) viewKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	case key == "enter" || key == "space":
 		vs := m.views(m.stage)
 		m.viewMenu = true
-		m.viewAt = slices.IndexFunc(vs, func(v named) bool { return v.Name == m.chosen(m.stage).Name })
+		m.viewAt = slices.IndexFunc(vs, func(v preset) bool { return v.Name == m.chosen(m.stage).Name })
 		if m.viewAt >= len(m.builtins(m.stage)) {
 			m.viewAt++ // past the rule between the stage's own and the person's
 		}
@@ -334,12 +458,12 @@ func (m *Model) saveView() tea.Cmd {
 	v := m.current(m.stage)
 	v.Name = name
 	saved := slices.Clone(m.saved[s.name])
-	if k := slices.IndexFunc(saved, func(w named) bool { return w.Name == name }); k >= 0 {
+	if k := slices.IndexFunc(saved, func(w preset) bool { return w.Name == name }); k >= 0 {
 		saved[k] = v
 	} else {
 		saved = append(saved, v)
 	}
-	all := map[string][]named{}
+	all := map[string][]preset{}
 	for stage, vs := range m.saved {
 		all[stage] = vs
 	}
@@ -398,7 +522,7 @@ func (m *Model) chooseView(k int) {
 	m.viewMenu = false
 	if name := m.viewItems()[k].Name; name != "" {
 		vs := m.views(m.stage)
-		m.apply(vs[slices.IndexFunc(vs, func(v named) bool { return v.Name == name })])
+		m.apply(vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == name })])
 	}
 }
 

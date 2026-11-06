@@ -290,7 +290,7 @@ func TestShowHeadersStandsTheColumnsNamesOverTheRows(t *testing.T) {
 		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].cursor)
 	}
 	// a column the panel hides has no name over it
-	m.setPanel(grid.Panel{Hidden: map[string]bool{"uncommitted": true}})
+	m.setPanel(m.panel(m.stage).Placed("uncommitted", grid.Hidden))
 	if strings.Contains(lines(m)[paneTop], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
@@ -353,9 +353,9 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 // nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each
 // selected row's page, and clears the selection.
 func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
-	// the source kept a column, the rows stand under no heading
+	// the panel not folding, the rows stand under no heading
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24})
-	m.setPanel(m.panel(m.stage).Keep("source"))
+	unfold(&m)
 	m = drive(m, down, press(tea.KeySpace))
 	gutter := func(k int) string { return string([]rune(lines(m)[m.rowsTop()+k])[0]) }
 	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.rowsTop()-1], " 1 selected ") {
@@ -410,7 +410,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("clear selection: %d selected", m.selected())
 	}
 	// a group's heading is no row to select; off the rows, space selects nothing
-	m.setPanel(grid.Panel{Group: []string{"source"}, Groupable: groupableOf("backlog")})
+	m.setPanel(grid.Panel{Groupable: groupableOf("backlog")}.Grouped("source", false))
 	m.stages[0].cursor = 0
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
 		t.Errorf("space on a heading selected %d", m.selected())

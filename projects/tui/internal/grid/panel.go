@@ -2,6 +2,7 @@
 package grid
 
 import (
+	"cmp"
 	"maps"
 	"slices"
 	"strconv"
@@ -15,7 +16,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Show is which rows a panel lets through by whom they belong to: every one, the caller's, or everyone else's.
+// Show is a choice of whose rows a panel lets through: every one, the caller's, or everyone else's. It is the filter
+// on the field that owns the rows: none, the caller's login alone, or anyone's but the caller's.
 type Show int
 
 // The choices of Show, in the panel's order.
@@ -39,31 +41,78 @@ const (
 	Picked   = "⦿"
 )
 
+// Placement is where a field stands: a column, a group the rows stand under, or hidden.
+type Placement int
+
+// The placements, a column the one a field takes where the panel says none.
+const (
+	Column Placement = iota
+	Group
+	Hidden
+)
+
+// Direction is how a field sorts the rows: not at all, the smaller first, or the larger first.
+type Direction int
+
+// The directions, none the one a field takes where the panel says none.
+const (
+	Unsorted Direction = iota
+	Ascending
+	Descending
+)
+
+// Field is what a panel says of one field, three things apart. Its placement: a column, a group at a Depth, from 1, the
+// outermost first, or hidden. Position is where it stands among the named columns, from 1, those with none after them
+// in the stage's order; a field grouped or hidden keeps its own, so it stands where it was once it is a column again.
+// Its sort: none, or a direction at a Priority, from 1, the first key first; sorting a grouped field orders its groups.
+// Its filter, which a row's raw values in it must pass. And the rendering it pins, which draws it, none for the
+// field's first.
+type Field struct {
+	Placement Placement
+	Position  int
+	Depth     int
+	Sort      Direction
+	Priority  int
+	Filter    Filter
+	Rendering string
+}
+
+// Filter is a field's filter: the values a row must hold one of, or, with Exclude, none of; with no values, it lets
+// every row through. Among them, Caller stands for the caller's login, and NoValue for a row that holds none.
+type Filter struct {
+	Values  []string
+	Exclude bool
+}
+
+// Caller and NoValue are the values a person's filter names the caller and no one by.
+const (
+	Caller  = "@me"
+	NoValue = "none"
+)
+
 // Panel is the controls beside a grid's rows, top to bottom: the search field; a checkbox per column that has a name;
-// and, when the rows belong to people, a radio button per choice of Show. Mine and others need the caller's login,
-// Me; while it is unknown they are dim, and cannot be chosen. Cursor is the control under the keyboard, Focused
-// whether the panel has it. Hidden holds the names of the columns hidden; the panel never changes the map it was
-// given, but gives a new one. Order is the order the named columns stand in, the rows' and the panel's checkboxes
-// alike, as Arrange says; none is the stage's own. Sort is the columns the rows sort by, the first first, and Group
-// the columns they group by, the outermost first; Sortable and Groupable name the columns that can, which the stage
-// says. Beside the groups the person chose, the rows group on their own by each groupable column whose value is the
-// same on every row of a group, as group says; Auto names the columns that do so now, as Filtered gave them, AutoAt
-// the level of the headings each is said at, from 1, as Said gives it, and Kept
-// those the person keeps as columns, which never do, a new map as Hidden is. Recall says whether there are searches to
-// recall, which the search, with the keyboard, offers with its Recall glyph. Views says whether the panel offers a
-// dropdown of named views under its search: View is the name it shows, none once the panel differs from its view,
-// Naming whether the person is typing a new one, Changed whether the panel differs from the view or the name was
+// and, when the rows belong to people, a radio button per choice of Show. Columns names the columns by their fields'
+// ids, in the stage's order. Fields holds what the panel says of each field, by id, as Field says; a field it does not
+// name is a column, unsorted and unfiltered. The panel never changes the map it was given, but gives a new one. Fold
+// says whether a value every row of a group shares is said once, in the group's heading, rather than in each row: the
+// rows then group on their own, as group says, by each groupable column whose value is the same on every row of a
+// group; Auto names the columns that do so now, as Filtered gave them, and AutoAt the level of the headings each is
+// said at, from 1, as Said gives it. Sortable and Groupable name the columns that can sort and group, which the stage
+// says. Owner is the field that names the people the rows belong to, whose filter the choice of Show sets, none when
+// they belong to nobody; mine and others need the caller's login, Me; while it is unknown they are dim, and cannot be
+// chosen. Cursor is the control under the keyboard, Focused whether the panel has it. Recall says whether there are
+// searches to recall, which the search, with the keyboard, offers with its Recall glyph. Views says whether the panel
+// offers a dropdown of named views under its search: View is the name it shows, none once the panel differs from its
+// view, Naming whether the person is typing a new one, Changed whether the panel differs from the view or the name was
 // changed, which shows Save, and Savable whether there is a name to save it under, without which Save is dim. Closed
-// holds the keys of the groups' headings whose rows are folded away under them, as Fold says, a new map as Hidden is.
+// holds the keys of the groups' headings whose rows are folded away under them, as Close says, a new map as Fields is.
 // Fill is the cells the control under the keyboard is drawn inverse across, at least.
 type Panel struct {
 	Query     string
 	Columns   []string
-	Hidden    map[string]bool
-	Order     []string
-	Sort      []SortKey
+	Fields    map[string]Field
+	Fold      bool
 	Sortable  map[string]bool
-	Group     []string
 	Groupable map[string]bool
 	Auto      []string
 	AutoAt    map[string]int
@@ -74,10 +123,8 @@ type Panel struct {
 	Changed   bool
 	Savable   bool
 	Closed    map[string]bool
-	Kept      map[string]bool
 	Fill      int
-	Show      Show
-	Owned     bool
+	Owner     string
 	Me        string
 	Cursor    int
 	Focused   bool
@@ -89,6 +136,145 @@ type SortKey struct {
 	Desc   bool
 }
 
+// Field gives what the panel says of a field, by id.
+func (p Panel) Field(id string) Field { return p.Fields[id] }
+
+// with gives the panel with what it says of the fields changed as change says, in a map of its own.
+func (p Panel) with(change func(fields map[string]Field)) Panel {
+	fields := maps.Clone(p.Fields)
+	if fields == nil {
+		fields = map[string]Field{}
+	}
+	change(fields)
+	p.Fields = fields
+	return p
+}
+
+// ranked gives the ids of the fields rank gives a rank to, from 1, by it, the lower first.
+func (p Panel) ranked(rank func(Field) int) []string {
+	var out []string
+	for id, f := range p.Fields {
+		if rank(f) > 0 {
+			out = append(out, id)
+		}
+	}
+	slices.SortFunc(out, func(a, b string) int {
+		return cmp.Or(cmp.Compare(rank(p.Fields[a]), rank(p.Fields[b])), strings.Compare(a, b))
+	})
+	return out
+}
+
+// Groups gives the fields the rows group by, the outermost first.
+func (p Panel) Groups() []string {
+	return p.ranked(func(f Field) int {
+		if f.Placement == Group {
+			return max(f.Depth, 1)
+		}
+		return 0
+	})
+}
+
+// SortKeys gives the fields the rows sort by, the first first.
+func (p Panel) SortKeys() []SortKey {
+	var out []SortKey
+	for _, id := range p.ranked(func(f Field) int {
+		if f.Sort != Unsorted {
+			return max(f.Priority, 1)
+		}
+		return 0
+	}) {
+		out = append(out, SortKey{id, p.Fields[id].Sort == Descending})
+	}
+	return out
+}
+
+// sortedBy gives the panel sorting the rows by the keys alone, in their order.
+func (p Panel) sortedBy(keys []SortKey) Panel {
+	return p.with(func(fields map[string]Field) {
+		for id, f := range fields {
+			f.Sort, f.Priority = Unsorted, 0
+			fields[id] = f
+		}
+		for k, s := range keys {
+			f := fields[s.Column]
+			f.Sort, f.Priority = Ascending, k+1
+			if s.Desc {
+				f.Sort = Descending
+			}
+			fields[s.Column] = f
+		}
+	})
+}
+
+// groupedBy gives the panel grouping the rows by the fields alone, the outermost first; a field it no longer groups
+// by is a column again.
+func (p Panel) groupedBy(ids []string) Panel {
+	return p.with(func(fields map[string]Field) {
+		for id, f := range fields {
+			if f.Placement == Group {
+				f.Placement, f.Depth = Column, 0
+				fields[id] = f
+			}
+		}
+		for k, id := range ids {
+			f := fields[id]
+			f.Placement, f.Depth = Group, k+1
+			fields[id] = f
+		}
+	})
+}
+
+// Placed gives the panel with a field a column or hidden; a group it leaves, and those under it move out a level.
+func (p Panel) Placed(id string, at Placement) Panel {
+	p = p.groupedBy(slices.DeleteFunc(p.Groups(), func(g string) bool { return g == id }))
+	return p.with(func(fields map[string]Field) {
+		f := fields[id]
+		f.Placement = at
+		fields[id] = f
+	})
+}
+
+// Showing gives the choice of Show the filter on the field that owns the rows says: none lets every row through, the
+// caller alone the caller's, and anyone but the caller everyone else's; -1 for another filter, which no choice says.
+func (p Panel) Showing() Show {
+	f := p.Fields[p.Owner].Filter
+	switch {
+	case len(f.Values) == 0:
+		return All
+	case !slices.Equal(f.Values, []string{Caller}):
+		return -1
+	case f.Exclude:
+		return Others
+	}
+	return Mine
+}
+
+// Shown gives the panel letting through the rows a choice of Show says, by the filter on the field that owns them.
+func (p Panel) Shown(s Show) Panel {
+	if p.Owner == "" {
+		return p
+	}
+	var filter Filter
+	if s != All {
+		filter = Filter{Values: []string{Caller}, Exclude: s == Others}
+	}
+	return p.with(func(fields map[string]Field) {
+		f := fields[p.Owner]
+		f.Filter = filter
+		fields[p.Owner] = f
+	})
+}
+
+// Filtering says whether a filter on any field narrows the rows.
+func (p Panel) Filtering() bool {
+	for _, f := range p.Fields {
+		if len(f.Filter.Values) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Sorted gives the panel with the column sorting the rows alone, as a click on its name asks, or, with also, as one
 // more key after the others, as a shift-click does: a column not sorting sorts ascending, then descending, then not at
 // all. A column that cannot sort changes nothing.
@@ -96,12 +282,13 @@ func (p Panel) Sorted(column string, also bool) Panel {
 	if !p.Sortable[column] {
 		return p
 	}
-	k := slices.IndexFunc(p.Sort, func(s SortKey) bool { return s.Column == column })
-	keys := slices.Clone(p.Sort)
+	sorts := p.SortKeys()
+	k := slices.IndexFunc(sorts, func(s SortKey) bool { return s.Column == column })
+	keys := slices.Clone(sorts)
 	if !also {
 		keys = nil
 		if k >= 0 {
-			keys = []SortKey{p.Sort[k]}
+			keys = []SortKey{sorts[k]}
 		}
 		k = min(k, 0)
 	}
@@ -113,14 +300,14 @@ func (p Panel) Sorted(column string, also bool) Panel {
 	default:
 		keys = slices.Delete(keys, k, k+1)
 	}
-	p.Sort = keys
-	return p
+	return p.sortedBy(keys)
 }
 
 // Mark gives what stands after a column's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
 // among the keys, as a subscript, when there are several; nothing where it does not.
 func (p Panel) Mark(column string) string {
-	for k, s := range p.Sort {
+	sorts := p.SortKeys()
+	for k, s := range sorts {
 		if s.Column != column {
 			continue
 		}
@@ -128,7 +315,7 @@ func (p Panel) Mark(column string) string {
 		if s.Desc {
 			mark = "▼"
 		}
-		if len(p.Sort) > 1 {
+		if len(sorts) > 1 {
 			mark += subscript(k + 1)
 		}
 		return mark
@@ -138,9 +325,10 @@ func (p Panel) Mark(column string) string {
 
 // grouping gives how many columns the rows group by: those the person chose, and those they group by on their own.
 func (p Panel) grouping() int {
-	n := len(p.Group)
+	groups := p.Groups()
+	n := len(groups)
 	for _, c := range p.Auto {
-		if !slices.Contains(p.Group, c) {
+		if !slices.Contains(groups, c) {
 			n++
 		}
 	}
@@ -153,37 +341,25 @@ func subscript(n int) string {
 }
 
 // Grouped gives the panel grouping the rows by the column alone, as g asks, or, with nest, as G asks, within the groups
-// it has, innermost; a column it groups by already, it no longer does, alone or among the others. A column that cannot
-// group changes nothing.
+// it has, innermost; a column it groups by already, it no longer does, alone or among the others, and it is a column
+// again. A column that cannot group changes nothing.
 func (p Panel) Grouped(column string, nest bool) Panel {
 	if !p.Groupable[column] {
 		return p
 	}
-	k := slices.Index(p.Group, column)
+	groups := p.Groups()
+	k := slices.Index(groups, column)
 	switch {
 	case k >= 0 && nest:
-		p.Group = slices.Delete(slices.Clone(p.Group), k, k+1)
-	case k >= 0 && len(p.Group) == 1:
-		p.Group = nil
+		groups = slices.Delete(groups, k, k+1)
+	case k >= 0 && len(groups) == 1:
+		groups = nil
 	case nest:
-		p.Group = append(slices.Clone(p.Group), column)
+		groups = append(groups, column)
 	default:
-		p.Group = []string{column}
+		groups = []string{column}
 	}
-	return p
-}
-
-// Keep gives the panel keeping the column as a column, so the rows no longer group by it on their own, for as long as
-// the panel lasts.
-func (p Panel) Keep(column string) Panel {
-	kept := maps.Clone(p.Kept)
-	if kept == nil {
-		kept = map[string]bool{}
-	}
-	kept[column] = true
-	p.Kept = kept
-	p.Auto = slices.DeleteFunc(slices.Clone(p.Auto), func(c string) bool { return c == column })
-	return p
+	return p.groupedBy(groups)
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
@@ -230,30 +406,31 @@ func (p Panel) Heading(r Row) string {
 	if !Heads(r) {
 		return ""
 	}
-	if depth := strings.Count(r.Key, "\x00") - 1; depth < len(p.Group) {
-		return p.Group[depth]
+	if groups, depth := p.Groups(), strings.Count(r.Key, "\x00")-1; depth < len(groups) {
+		return groups[depth]
 	}
 	return ""
 }
 
 // group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
-// in their values' order and the rows in each as they came: a heading, an aside, is the value, as the rows draw it or
-// as their cell's Head says it, and the column's name, dim, indented by its depth, and how many rows it heads, dim. A
-// row groups by a cell's sort key, or under none when the cell has none. A row of one cell, as a heading, has no
-// value: those follow the groups.
+// in their values' order, the larger first where the column sorts descending, and the rows in each as they came: a
+// heading, an aside, is the value, as the rows draw it or as their cell's Head says it, and the column's name, dim,
+// indented by its depth, and how many rows it heads, dim. A row groups by a cell's sort key, or under none when the
+// cell has none. A row of one cell, as a heading, has no value: those follow the groups.
 //
-// Under each heading, the walk goes on along the columns that can group, in the panel's order: one whose value is the
-// same on every row the heading heads, as their sort key says, one value on each and none blank, groups them on its
-// own. Its value joins the heading, after a comma, and its cell is blank in those rows, so the value is said once; a
-// heading under it says it no more. Without a column the person chose, the rows group on their own under one heading
-// over every row, their values alone. A heading over one row is not worth it: a group of one row, or a stage of one,
-// does not group on its own. A column hidden, or kept as a column, never does. It gives the columns that group on
-// their own anywhere.
+// While the panel folds, under each heading, the walk goes on along the columns that can group, in the panel's order:
+// one whose value is the same on every row the heading heads, as their sort key says, one value on each and none
+// blank, groups them on its own. Its value joins the heading, after a comma, and its cell is blank in those rows, so
+// the value is said once; a heading under it says it no more. Without a column the person chose, the rows group on
+// their own under one heading over every row, their values alone. A heading over one row is not worth it: a group of
+// one row, or a stage of one, does not group on its own. A column hidden never does. It gives the columns that group
+// on their own anywhere.
 func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 	var at []int
-	for _, name := range p.Group {
+	var desc []bool
+	for _, name := range p.Groups() {
 		if j := slices.Index(columns, name); j >= 0 {
-			at = append(at, j)
+			at, desc = append(at, j), append(desc, p.Fields[name].Sort == Descending)
 		}
 	}
 	value := func(r Row, j int) string {
@@ -296,8 +473,11 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		return append(out, rest...), names(columns, took)
 	}
 	slices.SortStableFunc(grouped, func(a, b Row) int {
-		for _, j := range at {
+		for k, j := range at {
 			if c := natural(value(a, j), value(b, j)); c != 0 {
+				if desc[k] {
+					return -c
+				}
 				return c
 			}
 		}
@@ -372,10 +552,10 @@ func (p Panel) Close(key string, closed bool) Panel {
 	return p
 }
 
-// Fold gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
+// FoldAway gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
 // the headings deeper than it, up to the next heading as shallow, or the rows of one cell that follow the groups. The
 // heading stays, its count the rows it hides, and holds them in its Folded, which lay the columns out still.
-func (p Panel) Fold(rows []Row) []Row {
+func (p Panel) FoldAway(rows []Row) []Row {
 	if len(p.Closed) == 0 {
 		return rows
 	}
@@ -399,13 +579,17 @@ func (p Panel) Fold(rows []Row) []Row {
 	return out
 }
 
-// walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: each that can
-// group and has a name, but those the person groups by, hides, or keeps as a column.
+// walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: while the
+// panel folds, each column that can group and has a name, but those the person groups by or hides; none while it does
+// not.
 func (p Panel) walk(columns []string, chosen []int) []int {
+	if !p.Fold {
+		return nil
+	}
 	var out []int
 	for _, j := range p.arrangement(columns) {
 		name := columns[j]
-		if name != "" && p.Groupable[name] && !p.Hidden[name] && !p.Kept[name] && !slices.Contains(chosen, j) {
+		if name != "" && p.Groupable[name] && p.Shows(name) && !slices.Contains(chosen, j) {
 			out = append(out, j)
 		}
 	}
@@ -468,7 +652,8 @@ func names(columns []string, at []int) []string {
 // order sorts the rows by the panel's keys, each in turn, the rows alike on every key keeping their order; a row of
 // one cell, as a heading, stays where it is, the rows around it sorting in the places they hold.
 func (p Panel) order(rows []Row, columns []string) []Row {
-	if len(p.Sort) == 0 {
+	sorts := p.SortKeys()
+	if len(sorts) == 0 {
 		return rows
 	}
 	var places []int
@@ -479,7 +664,7 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 		}
 	}
 	slices.SortStableFunc(sorted, func(a, b Row) int {
-		for _, s := range p.Sort {
+		for _, s := range sorts {
 			j := slices.Index(columns, s.Column)
 			if j < 0 || j >= len(a.Cells) || j >= len(b.Cells) {
 				continue
@@ -519,7 +704,7 @@ func (p Panel) controls() []control {
 			out = append(out, control{column: c})
 		}
 	}
-	if p.Owned {
+	if p.Owner != "" {
 		for s := range shows {
 			out = append(out, control{show: Show(s)})
 		}
@@ -552,13 +737,13 @@ func (p Panel) Lines() (lines []string, at []int) {
 				add(style.Off("columns"), -1)
 			}
 			line = style.Mark(Ticked + " " + c.column)
-			if p.Hidden[c.column] {
+			if p.Fields[c.column].Placement == Hidden {
 				line = style.Off(Unticked) + " " + c.column
 			}
 			if mark := p.Mark(c.column); mark != "" {
 				line += " " + style.Tint(mark)
 			}
-			if k := slices.Index(p.Group, c.column); k >= 0 {
+			if k := slices.Index(p.Groups(), c.column); k >= 0 {
 				mark := Grouping
 				if p.grouping() > 1 {
 					mark += subscript(k + 1)
@@ -579,7 +764,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 				add(style.Off("show"), -1)
 			}
 			switch {
-			case p.Show == c.show:
+			case p.Showing() == c.show:
 				line = style.Mark(Picked + " " + shows[c.show])
 			case c.show != All && p.Me == "":
 				line = style.Off(Unpicked + " " + shows[c.show])
@@ -619,7 +804,7 @@ func (p Panel) hints() []string {
 // off it, / goes to the search, and space and enter toggle a checkbox and pick a choice of Show; on a column's
 // checkbox, shift with up or down moves the column a place, the keyboard with it, among the columns alone, s sorts by
 // the column alone and S adds it to the sort, as Sorted says, and g groups by it alone and G within the groups, as
-// Grouped says; on a column the rows group by on their own, g or G keeps it a column instead, as Keep says.
+// Grouped says; on a column the rows group by on their own, g or G stops the panel folding, so no column does.
 func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	controls := p.controls()
 	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
@@ -640,8 +825,8 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 	case c.column != "" && (k.Text == "s" || k.Text == "S"):
 		p = p.Sorted(c.column, k.Text == "S")
 	case c.column != "" && (k.Text == "g" || k.Text == "G"):
-		if slices.Contains(p.Auto, c.column) && !slices.Contains(p.Group, c.column) {
-			p = p.Keep(c.column)
+		if slices.Contains(p.Auto, c.column) && p.Fields[c.column].Placement != Group {
+			p.Fold, p.Auto, p.AutoAt = false, nil, nil
 		} else {
 			p = p.Grouped(c.column, k.Text == "G")
 		}
@@ -664,7 +849,7 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 
 // Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
 // there are some; a column's line shows or hides it with space or enter, sorts by it with s, groups by it with g where
-// the column can group, or keeps it a column where the rows group by it on their own, and orders it among the others
+// the column can group, or stops the folding where the rows group by it on their own, and orders it among the others
 // with shift and up or down; a choice of whose rows show is taken with space or enter.
 // The views' dropdown takes keys its screen says.
 func (p Panel) Keys(recalls bool) shell.Segment {
@@ -676,13 +861,13 @@ func (p Panel) Keys(recalls bool) shell.Segment {
 		return shell.Segment{}
 	case c.column != "":
 		toggle := "hide"
-		if p.Hidden[c.column] {
+		if p.Fields[c.column].Placement == Hidden {
 			toggle = "show"
 		}
 		s := shell.Segment{Bindings: []shell.Binding{shell.Bind("␣", toggle, "space", "enter"),
 			shell.Bind("s", "sort", "s", "S")}}
 		switch {
-		case slices.Contains(p.Auto, c.column) && !slices.Contains(p.Group, c.column):
+		case slices.Contains(p.Auto, c.column) && p.Fields[c.column].Placement != Group:
 			s.Bindings = append(s.Bindings, shell.Bind("g", "ungroup", "g", "G"))
 		case p.Groupable[c.column]:
 			s.Bindings = append(s.Bindings, shell.Bind("g", "group", "g", "G"))
@@ -783,23 +968,17 @@ func (p Panel) Find() Panel {
 	return p
 }
 
-// act toggles a column's checkbox, or picks a choice of Show; mine and others only while the caller's login is known.
-// A column the person shows is kept a column, as Keep says.
+// act toggles a column's checkbox, hiding a column or a group, which then leaves the groups, and showing a hidden
+// field as a column; or picks a choice of Show, mine and others only while the caller's login is known.
 func (p Panel) act(c control) Panel {
 	if c.column != "" {
-		hidden := maps.Clone(p.Hidden)
-		if hidden == nil {
-			hidden = map[string]bool{}
+		if p.Fields[c.column].Placement == Hidden {
+			return p.Placed(c.column, Column)
 		}
-		hidden[c.column] = !hidden[c.column]
-		p.Hidden = hidden
-		if !hidden[c.column] {
-			p = p.Keep(c.column)
-		}
-		return p
+		return p.Placed(c.column, Hidden)
 	}
 	if c.show == All || p.Me != "" {
-		p.Show = c.show
+		p = p.Shown(c.show)
 	}
 	return p
 }
@@ -821,20 +1000,20 @@ func (p Panel) Filter(rows []Row, columns []string) []Row {
 	return out
 }
 
-// Filtered gives the rows the panel lets through: those whose text has the search, without regard to case, and that
-// belong to the caller or not, as Show says, sorted by its keys, grouped as group says, each with its cells in its
-// order and without the hidden columns'. columns names each cell's column, in the stage's order. While the search or
-// Show narrows the rows, an aside that heads none of them is left out with them. It gives the columns the rows group
-// by on their own too, for the panel's Auto.
+// Filtered gives the rows the panel lets through: those whose text has the search, without regard to case, and whose
+// raw values pass the filter on each field, sorted by its keys, grouped as group says, each with its cells in its
+// order and without those of the columns it does not show. columns names each cell's column, in the stage's order.
+// While the search or a filter narrows the rows, an aside that heads none of them is left out with them. It gives the
+// columns the rows group by on their own too, for the panel's Auto.
 func (p Panel) Filtered(rows []Row, columns []string) ([]Row, []string) {
 	query := strings.ToLower(p.Query)
 	var out []Row
 	for _, r := range rows {
-		if r.Aside || p.matches(r, query) {
+		if r.Aside || p.matches(r, columns, query) {
 			out = append(out, r)
 		}
 	}
-	if query != "" || p.Show != All {
+	if query != "" || p.Filtering() {
 		out = dropBare(out)
 	}
 	out, auto := p.group(p.order(out, columns), columns)
@@ -858,14 +1037,21 @@ func dropBare(rows []Row) []Row {
 	return out
 }
 
-// matches says whether a row has the search in its text, and belongs as Show says.
-func (p Panel) matches(r Row, query string) bool {
-	switch {
-	case p.Show == Mine && !owned(r, p.Me):
-		return false
-	case p.Show == Others && owned(r, p.Me):
-		return false
-	case query == "":
+// matches says whether a row passes the filter on each field, of the columns named, and has the search in its text.
+func (p Panel) matches(r Row, columns []string, query string) bool {
+	for id, f := range p.Fields {
+		if len(f.Filter.Values) == 0 {
+			continue
+		}
+		var raw []string
+		if j := slices.Index(columns, id); j >= 0 && j < len(r.Cells) {
+			raw = r.Cells[j].Raw
+		}
+		if !p.passes(f.Filter, raw) {
+			return false
+		}
+	}
+	if query == "" {
 		return true
 	}
 	for _, line := range append([][]Cell{r.Cells}, r.Detail...) {
@@ -880,20 +1066,26 @@ func (p Panel) matches(r Row, query string) bool {
 	return false
 }
 
-// owned says whether the row belongs to the login.
-func owned(r Row, login string) bool {
-	for _, o := range r.Owners {
-		if o == login {
-			return true
+// passes says whether a row's raw values in a field pass its filter: one of them among the filter's values, or, for a
+// row that holds none, NoValue among them, and Caller the caller's login, which is no one's while it is unknown; with
+// Exclude, none of them.
+func (p Panel) passes(f Filter, raw []string) bool {
+	in := slices.ContainsFunc(f.Values, func(v string) bool {
+		switch v {
+		case Caller:
+			return p.Me != "" && slices.Contains(raw, p.Me)
+		case NoValue:
+			return len(raw) == 0
 		}
-	}
-	return false
+		return slices.Contains(raw, v)
+	})
+	return in != f.Exclude
 }
 
-// hide gives the row with its cells in the panel's order, without the hidden columns' cells; a row of one cell spans
-// the columns, and keeps it.
+// hide gives the row with its cells in the panel's order, without the cells of the columns it does not show; a row of
+// one cell spans the columns, and keeps it.
 func (p Panel) hide(r Row, columns []string) Row {
-	if len(r.Cells) < 2 || len(p.Hidden) == 0 && len(p.Order) == 0 && len(p.Group) == 0 {
+	if len(r.Cells) < 2 || len(p.Fields) == 0 {
 		return r
 	}
 	var cells []Cell
@@ -909,23 +1101,24 @@ func (p Panel) hide(r Row, columns []string) Row {
 	return r
 }
 
-// Shows says whether the rows show a column: one hidden does not, nor, while the rows are grouped by it, one whose
-// value each group's heading names.
-func (p Panel) Shows(column string) bool {
-	return !p.Hidden[column] && !slices.Contains(p.Group, column)
-}
+// Shows says whether the rows show a field as a column: one hidden does not, nor one grouped, whose value each group's
+// heading names.
+func (p Panel) Shows(column string) bool { return p.Fields[column].Placement == Column }
 
 // arrangement gives the order the columns stand in, as indexes into them: a column without a name keeps its place, and
-// the named ones fill the other places, those in Order first, in its order, then the rest, in theirs.
+// the named ones fill the other places, those with a position first, by it, then the rest, in their order.
 func (p Panel) arrangement(columns []string) []int {
 	var named []int
-	for _, name := range p.Order {
-		if j := slices.Index(columns, name); j >= 0 && name != "" && !slices.Contains(named, j) {
+	for j, name := range columns {
+		if name != "" && p.Fields[name].Position > 0 {
 			named = append(named, j)
 		}
 	}
+	slices.SortStableFunc(named, func(a, b int) int {
+		return cmp.Compare(p.Fields[columns[a]].Position, p.Fields[columns[b]].Position)
+	})
 	for j, name := range columns {
-		if name != "" && !slices.Contains(named, j) {
+		if name != "" && p.Fields[name].Position == 0 {
 			named = append(named, j)
 		}
 	}
@@ -950,14 +1143,19 @@ func (p Panel) Arrange(columns []string) []string {
 }
 
 // Move gives the panel with the column named moving to where the column named at stands, the columns between shifting
-// one place toward where it was; the order then names every column the panel offers.
+// one place toward where it was; every column the panel offers then has its position.
 func (p Panel) Move(name, at string) Panel {
 	order := slices.DeleteFunc(p.Arrange(p.Columns), func(c string) bool { return c == "" })
 	from, to := slices.Index(order, name), slices.Index(order, at)
 	if from < 0 || to < 0 || from == to {
 		return p
 	}
-	order = slices.Delete(order, from, from+1)
-	p.Order = slices.Insert(order, to, name)
-	return p
+	order = slices.Insert(slices.Delete(order, from, from+1), to, name)
+	return p.with(func(fields map[string]Field) {
+		for k, id := range order {
+			f := fields[id]
+			f.Position = k + 1
+			fields[id] = f
+		}
+	})
 }

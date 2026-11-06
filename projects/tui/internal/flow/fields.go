@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -70,13 +71,15 @@ type enumValue struct {
 	Glyph string `json:"glyph"`
 }
 
-// preset is one of a stage's own presets: its name; whether the header shows, or, when it says nothing, as the screen
-// opens; and what it says of each field it names, by id. A field it does not name takes the catalog's placement, and
-// no sort or filter.
+// preset is a stage's panel as a preset keeps it, one of the stage's own or one the person saved: its name; whether the
+// header shows, or, when it says nothing, as the screen opens; whether it folds, a value every row of a group shares
+// said once, in the group's heading, or, when it says nothing, as it does; and what it says of each field it names, by
+// id. A field it does not name takes the catalog's placement, and no sort, filter, or rendering.
 type preset struct {
 	Name    string             `json:"name"`
-	Headers *bool              `json:"headers"`
-	Fields  map[string]setting `json:"fields"`
+	Headers *bool              `json:"headers,omitempty"`
+	Fold    *bool              `json:"fold,omitempty"`
+	Fields  map[string]setting `json:"fields,omitempty"`
 }
 
 // setting is what a preset says of one field, three things apart: its placement, a column at a position, from 1, a
@@ -84,19 +87,19 @@ type preset struct {
 // priority, from 1, or none; and, for a field a filter can narrow, the values to include or to exclude. A person's
 // filter also knows @me, the caller's login, and none. Rendering pins one of the field's renderings.
 type setting struct {
-	Placement string       `json:"placement"`
-	Position  int          `json:"position"`
-	Depth     int          `json:"depth"`
-	Sort      string       `json:"sort"`
-	Priority  int          `json:"priority"`
-	Filter    *valueFilter `json:"filter"`
-	Rendering string       `json:"rendering"`
+	Placement string       `json:"placement,omitempty"`
+	Position  int          `json:"position,omitempty"`
+	Depth     int          `json:"depth,omitempty"`
+	Sort      string       `json:"sort,omitempty"`
+	Priority  int          `json:"priority,omitempty"`
+	Filter    *valueFilter `json:"filter,omitempty"`
+	Rendering string       `json:"rendering,omitempty"`
 }
 
 // valueFilter is a preset's filter on a field: the values its rows must hold one of, or those they must hold none of.
 type valueFilter struct {
-	Include []string `json:"include"`
-	Exclude []string `json:"exclude"`
+	Include []string `json:"include,omitempty"`
+	Exclude []string `json:"exclude,omitempty"`
 }
 
 // The placements a field can take, and the person a person's filter names by the caller's login.
@@ -104,7 +107,7 @@ const (
 	placeColumn = "column"
 	placeGroup  = "group"
 	placeHidden = "hidden"
-	caller      = "@me"
+	caller      = grid.Caller
 )
 
 // readCatalog reads the catalog, every key known; one that does not read is kittui's own fault, which the tests catch
@@ -177,10 +180,15 @@ func groupableOf(stage string) map[string]bool {
 	return able(stage, func(f field) bool { return f.Group })
 }
 
-// ownedStage says whether a stage's rows belong to people, those a person field that owns them names, which the panel
-// lets through as every row, the caller's, or everyone else's.
-func ownedStage(stage string) bool {
-	return slices.ContainsFunc(fieldsOf(stage), func(f field) bool { return f.Owns })
+// ownerOf gives the id of the person field that names the people a stage's rows belong to, whose filter the panel
+// sets as every row, the caller's, or everyone else's; none for a stage whose rows belong to nobody.
+func ownerOf(stage string) string {
+	for _, f := range fieldsOf(stage) {
+		if f.Owns {
+			return f.ID
+		}
+	}
+	return ""
 }
 
 // valueType is a kind of value a field holds, and whether a filter chooses among its values, as among an enum's known
@@ -399,11 +407,15 @@ func whereCells(f field, vs []value) []cell {
 	return out
 }
 
-// draw gives a field's cells from the values the rows hold in it, as its first rendering draws them: each dim where
-// the field is, the field's alignment, each row's link, and what each sorts and groups by, its first raw value; what
-// a field holding no value draws instead, dim.
-func (f field) draw(vs []value) []cell {
-	out := renderers[f.Renderings[0]](f, vs)
+// draw gives a field's cells from the values the rows hold in it, as the rendering pinned draws them, when it is one of
+// the field's, else its first: each dim where the field is, the field's alignment, each row's link, and what each
+// sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim.
+func (f field) draw(vs []value, pinned string) []cell {
+	rendering := f.Renderings[0]
+	if slices.Contains(f.Renderings, pinned) {
+		rendering = pinned
+	}
+	out := renderers[rendering](f, vs)
 	for k, v := range vs {
 		c := &out[k]
 		if f.Dim {
@@ -416,10 +428,7 @@ func (f field) draw(vs []value) []cell {
 		if len(v.Raw) == 0 && v.Else != "" {
 			c.Values = []string{style.Off(v.Else)}
 		}
-		c.Right, c.Wrap, c.Link = f.Right, f.Wrap, v.Link
-		if len(v.Raw) > 0 {
-			c.Sort = v.Raw[0]
-		}
+		c.Right, c.Wrap, c.Link, c.Raw = f.Right, f.Wrap, v.Link, v.Raw
 	}
 	return out
 }

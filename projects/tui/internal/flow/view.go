@@ -503,7 +503,7 @@ func (m Model) lines(i int) []line {
 	rows := m.rows(i)
 	switch p := m.panel(i); {
 	case len(rows) > 0:
-	case p.Query != "" || p.Show != grid.All:
+	case p.Query != "" || p.Filtering():
 		return []line{{-1, lead + style.Off("no row matches the panel")}}
 	default:
 		return []line{{-1, lead + style.Off(empty(s))}}

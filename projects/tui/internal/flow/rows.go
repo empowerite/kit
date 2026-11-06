@@ -302,9 +302,9 @@ type record struct {
 }
 
 // laid gives a stage's rows from its records: each record's values drawn in the stage's fields, in the order their
-// columns stand, as each field's renderer draws its column, so a renderer can line a column up; a row of one cell as it
-// is. A row belongs to the people the field that owns the stage's rows names.
-func laid(stage string, records []record) []row {
+// columns stand, as each field's renderer draws its column, so a renderer can line a column up, or the one pinned gives
+// it by id; a row of one cell as it is.
+func laid(stage string, records []record, pinned func(id string) string) []row {
 	out := make([]row, len(records))
 	var at []int
 	for k, r := range records {
@@ -318,12 +318,8 @@ func laid(stage string, records []record) []row {
 		for n, k := range at {
 			vs[n] = records[k].values[f.ID]
 		}
-		for n, c := range f.draw(vs) {
-			k := at[n]
-			out[k].Cells = append(out[k].Cells, c)
-			if f.Owns {
-				out[k].Owners = vs[n].Raw
-			}
+		for n, c := range f.draw(vs, pinned(f.ID)) {
+			out[at[n]].Cells = append(out[at[n]].Cells, c)
 		}
 	}
 	return out
@@ -368,7 +364,7 @@ func (m Model) build(i int) shown {
 	all, names := m.unfiltered(i), columnsOf(m.stages[i].name)
 	p := m.filter(i)
 	rows, auto := p.Filtered(all, names)
-	return shown{p.Fold(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all), counted(rows)}
+	return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all), counted(rows)}
 }
 
 // filled gives a stage's columns as its panel offers them: each named column that one of the rows loaded has a value
@@ -388,13 +384,14 @@ func filled(rows []row, names []string) []string {
 	return out
 }
 
-// unfiltered lays a stage's rows out from what it loaded, each in the stage's fields.
+// unfiltered lays a stage's rows out from what it loaded, each in the stage's fields, as the rendering its panel pins
+// draws each.
 func (m Model) unfiltered(i int) []row {
 	s := m.stages[i]
 	if s.name == "incoming" {
 		return incomingRows(s)
 	}
-	return laid(s.name, m.records(s))
+	return laid(s.name, m.records(s), func(id string) string { return s.view.Field(id).Rendering })
 }
 
 // records gives a stage's records from what it loaded; none for a stage kittui does not draw.

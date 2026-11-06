@@ -18,12 +18,11 @@ func one(s string) Cell { return Cell{Values: []string{s}} }
 // issues are three rows like backlog's: number, assignees, age, and a title that wraps.
 func issues() []Row {
 	return []Row{
-		{Key: "#1", Cells: []Cell{{Values: []string{"#1"}, Right: true}, {Values: []string{"👤 ada", "👤 bob"}},
-			{Values: []string{"2h"}, Right: true}, {Values: []string{"a title long enough to wrap in its column"}, Wrap: true}},
-			Owners: []string{"ada", "bob"}},
-		{Key: "#22", Cells: []Cell{{Values: []string{"#22"}, Right: true}, {Values: []string{"👤 carol"}},
-			{Values: []string{"40d"}, Right: true}, {Values: []string{"short"}, Wrap: true}},
-			Owners: []string{"carol"}},
+		{Key: "#1", Cells: []Cell{{Values: []string{"#1"}, Right: true},
+			{Values: []string{"👤 ada", "👤 bob"}, Raw: []string{"ada", "bob"}},
+			{Values: []string{"2h"}, Right: true}, {Values: []string{"a title long enough to wrap in its column"}, Wrap: true}}},
+		{Key: "#22", Cells: []Cell{{Values: []string{"#22"}, Right: true}, {Values: []string{"👤 carol"}, Raw: []string{"carol"}},
+			{Values: []string{"40d"}, Right: true}, {Values: []string{"short"}, Wrap: true}}},
 		{Key: "#3", Cells: []Cell{{Values: []string{"#3"}, Right: true}, {}, {Values: []string{"1d"}, Right: true},
 			{Values: []string{"leaf"}, Wrap: true}}, Detail: [][]Cell{{one("https://example/3")}}},
 	}
@@ -134,7 +133,8 @@ func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 }
 
 func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
-	p := Panel{Columns: []string{"number", "who", "", "title"}, Hidden: map[string]bool{"who": true}, Owned: true}
+	p := Panel{Columns: []string{"number", "who", "", "title"}, Fields: map[string]Field{"who": {Placement: Hidden}},
+		Owner: "who"}
 	lines, at := p.Lines()
 	want := []string{"🔎 search", "", "columns", "☑ number", "☐ who", "☑ title", "", "show", "⦿ all", "⦾ mine", "⦾ others"}
 	got := make([]string, len(lines))
@@ -152,8 +152,8 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	if !strings.Contains(lines[9], style.Off("⦾ mine")) {
 		t.Errorf("mine is not dim without a login: %q", lines[9])
 	}
-	if q, ok := p.Click(9); !ok || q.Show != All {
-		t.Errorf("mine was chosen without a login: %v, %v", q.Show, ok)
+	if q, ok := p.Click(9); !ok || q.Showing() != All || q.Filtering() {
+		t.Errorf("mine was chosen without a login: %v, %v", q.Showing(), ok)
 	}
 	// the width keeps room for the hints the panel shows with the keyboard
 	if p.Width() != ansi.StringWidth("⇧↑↓  order, or drag") {
@@ -183,7 +183,7 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 }
 
 func TestThePanelTakesKeysAndClicks(t *testing.T) {
-	p := Panel{Columns: []string{"number", "who"}, Owned: true, Me: "ada"}.Find()
+	p := Panel{Columns: []string{"number", "who"}, Owner: "who", Me: "ada"}.Find()
 	key := func(code rune, text string) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Text: text} }
 	for _, r := range "ad" {
 		p, _ = p.Update(key(r, string(r)))
@@ -195,26 +195,28 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 		t.Errorf("the search under the keyboard has no caret: %q", lines[0])
 	}
 	// down to who, space hides it, again shows it; the panel's map is never the one it was given
-	given := map[string]bool{}
-	p.Hidden = given
+	given := map[string]Field{}
+	p.Fields = given
 	p, _ = p.Update(key(tea.KeyDown, ""))
 	p, _ = p.Update(key(tea.KeyDown, ""))
-	if p, _ = p.Update(key(tea.KeySpace, " ")); !p.Hidden["who"] || given["who"] {
-		t.Errorf("space did not hide who, or changed the given map: %v %v", p.Hidden, given)
+	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Hidden || len(given) > 0 {
+		t.Errorf("space did not hide who, or changed the given map: %v %v", p.Fields, given)
 	}
 	// up stops at the search, down at mine and others' last
 	for range 10 {
 		p, _ = p.Update(key(tea.KeyDown, ""))
 	}
-	if p, _ = p.Update(key(tea.KeyEnter, "")); p.Show != Others {
-		t.Errorf("enter on the last control: show %v", p.Show)
+	// others is the filter on who: anyone but the caller
+	if p, _ = p.Update(key(tea.KeyEnter, "")); p.Showing() != Others ||
+		!slices.Equal(p.Field("who").Filter.Values, []string{Caller}) || !p.Field("who").Filter.Exclude {
+		t.Errorf("enter on the last control: show %v, filter %+v", p.Showing(), p.Field("who").Filter)
 	}
 	if q, ok := p.Click(1); ok || q.Cursor != p.Cursor {
 		t.Errorf("a click on a gap was taken")
 	}
 	// with the keyboard, the hints under the columns push the show choices down: a gap, the order's hint, a gap
-	if q, ok := p.Click(9); !ok || q.Show != All || q.Cursor != 3 {
-		t.Errorf("a click on all: show %v, cursor %d", q.Show, q.Cursor)
+	if q, ok := p.Click(9); !ok || q.Showing() != All || q.Filtering() || q.Cursor != 3 {
+		t.Errorf("a click on all: show %v, cursor %d", q.Showing(), q.Cursor)
 	}
 	if _, ok := p.Update(key('x', "x")); ok {
 		t.Error("a letter off the search was taken")
@@ -237,7 +239,7 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 		}
 		return out
 	}
-	p := Panel{Me: "ada"}
+	p := Panel{Me: "ada", Owner: "who"}
 	if got := keys(p.Filter(issues(), columns)); !slices.Equal(got, []string{"#1", "#22", "#3"}) {
 		t.Errorf("no filter: %v", got)
 	}
@@ -249,14 +251,35 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 		}
 	}
 	p.Query = ""
-	if p.Show = Mine; !slices.Equal(keys(p.Filter(issues(), columns)), []string{"#1"}) {
+	if p = p.Shown(Mine); !slices.Equal(keys(p.Filter(issues(), columns)), []string{"#1"}) {
 		t.Errorf("mine: %v", keys(p.Filter(issues(), columns)))
 	}
-	if p.Show = Others; !slices.Equal(keys(p.Filter(issues(), columns)), []string{"#22", "#3"}) {
+	if p = p.Shown(Others); !slices.Equal(keys(p.Filter(issues(), columns)), []string{"#22", "#3"}) {
 		t.Errorf("others: %v", keys(p.Filter(issues(), columns)))
 	}
+	// while the caller's login is unknown, the caller is no one
+	if p.Me = ""; !slices.Equal(keys(p.Shown(Mine).Filter(issues(), columns)), nil) {
+		t.Errorf("mine without a login: %v", keys(p.Shown(Mine).Filter(issues(), columns)))
+	}
+	// a filter includes a row holding one of its values, none a row holding no value, and an exclusion the others
+	for _, c := range []struct {
+		filter Filter
+		want   []string
+	}{
+		{Filter{Values: []string{"carol", "bob"}}, []string{"#1", "#22"}},
+		{Filter{Values: []string{NoValue}}, []string{"#3"}},
+		{Filter{Values: []string{"bob", NoValue}, Exclude: true}, []string{"#22"}},
+	} {
+		q := Panel{Fields: map[string]Field{"who": {Filter: c.filter}}}
+		if got := keys(q.Filter(issues(), columns)); !slices.Equal(got, c.want) || !q.Filtering() || q.Showing() != All {
+			t.Errorf("the filter %+v: %v", c.filter, got)
+		}
+		if q.Owner = "who"; q.Showing() != -1 {
+			t.Errorf("the filter %+v says a choice of show: %v", c.filter, q.Showing())
+		}
+	}
 	// a hidden column is left out of every row
-	p = Panel{Hidden: map[string]bool{"who": true}}
+	p = Panel{Fields: map[string]Field{"who": {Placement: Hidden}}}
 	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }, nil))
 	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "   #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
@@ -395,7 +418,7 @@ func TestTheTitleIsTheLastToGiveUpRoom(t *testing.T) {
 // keyboard with it, and stops at the columns' ends.
 func TestThePanelOrdersTheColumns(t *testing.T) {
 	columns := []string{"", "a", "b", "c"}
-	p := Panel{Columns: columns, Order: []string{"c", "a"}}
+	p := Panel{Columns: columns, Fields: map[string]Field{"c": {Position: 1}, "a": {Position: 2}}}
 	if got := p.Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
 		t.Errorf("arranged: %q", got)
 	}
@@ -406,8 +429,13 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 	if got := (Panel{Columns: columns}).Move("c", "a").Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
 		t.Errorf("c moved to a: %q", got)
 	}
-	if got := (Panel{Columns: columns}).Move("a", "nonesuch"); got.Order != nil {
-		t.Errorf("a move to no column: %q", got.Order)
+	if got := (Panel{Columns: columns}).Move("a", "nonesuch"); got.Fields != nil {
+		t.Errorf("a move to no column: %v", got.Fields)
+	}
+	// a hidden column keeps its place, and stands there shown again
+	hidden := (Panel{Columns: columns}).Move("c", "a").Placed("a", Hidden).Placed("a", Column)
+	if got := hidden.Arrange(columns); !slices.Equal(got, []string{"", "c", "a", "b"}) {
+		t.Errorf("a hidden and shown again: %q", got)
 	}
 	shift := func(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Mod: tea.ModShift} }
 	q := Panel{Columns: columns, Focused: true, Cursor: 1}
@@ -434,7 +462,7 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 func TestThePanelSortsTheRows(t *testing.T) {
 	columns := []string{"id", "age"}
 	row := func(id, age, secs string) Row {
-		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{age}, Sort: secs}}}
+		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{age}, Raw: []string{secs}}}}
 	}
 	rows := []Row{row("#31", "2d", "172800"), row("#7", "60m", "3600"), {Key: "heading", Cells: []Cell{one("heading")}},
 		row("#100", "60m", "3600")}
@@ -458,26 +486,31 @@ func TestThePanelSortsTheRows(t *testing.T) {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
 	// a click on a key among several sorts by it alone, as it was; a third click on a column stops it
-	if got := byAge.Sorted("id", false); len(got.Sort) != 1 || got.Sort[0] != (SortKey{"id", true}) || got.Mark("id") != "▼" {
-		t.Errorf("a click on id among two keys: %+v", got.Sort)
+	if got := byAge.Sorted("id", false).SortKeys(); len(got) != 1 || got[0] != (SortKey{"id", true}) ||
+		byAge.Sorted("id", false).Mark("id") != "▼" {
+		t.Errorf("a click on id among two keys: %+v", got)
 	}
-	if got := p.Sorted("id", false).Sorted("id", false).Sorted("id", false); len(got.Sort) != 0 || got.Mark("id") != "" {
-		t.Errorf("three clicks: %+v", got.Sort)
+	if got := p.Sorted("id", false).Sorted("id", false).Sorted("id", false); len(got.SortKeys()) != 0 || got.Mark("id") != "" {
+		t.Errorf("three clicks: %+v", got.SortKeys())
 	}
-	if got := byAge.Sorted("id", true).Sorted("id", true); len(got.Sort) != 1 || got.Sort[0].Column != "age" {
-		t.Errorf("two shift-clicks on id: %+v", got.Sort)
+	if got := byAge.Sorted("id", true).Sorted("id", true).SortKeys(); len(got) != 1 || got[0].Column != "age" {
+		t.Errorf("two shift-clicks on id: %+v", got)
 	}
-	if got := p.Sorted("title", false); got.Sort != nil {
-		t.Errorf("a column that cannot sort: %+v", got.Sort)
+	// each key is the field's sort, at its priority
+	if f := byAge.Field("id"); f.Sort != Ascending || f.Priority != 2 || byAge.Field("age").Priority != 1 {
+		t.Errorf("the fields' sorts: %+v", byAge.Fields)
+	}
+	if got := p.Sorted("title", false); got.SortKeys() != nil {
+		t.Errorf("a column that cannot sort: %+v", got.SortKeys())
 	}
 	// s and S in the panel, on a column's checkbox, do what a click and a shift-click do
 	q := Panel{Columns: columns, Sortable: p.Sortable, Focused: true, Cursor: 1}
 	q, _ = q.Update(tea.KeyPressMsg{Code: 's', Text: "s"})
 	q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	q, _ = q.Update(tea.KeyPressMsg{Code: 'S', Text: "S"})
-	if lines, _ := q.Lines(); len(q.Sort) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲₁") ||
+	if lines, _ := q.Lines(); len(q.SortKeys()) != 2 || !strings.HasSuffix(ansi.Strip(lines[3]), "id ▲₁") ||
 		!strings.HasSuffix(ansi.Strip(lines[4]), "age ▲₂") {
-		t.Errorf("s then S: %+v\n%s", q.Sort, strings.Join(lines, "\n"))
+		t.Errorf("s then S: %+v\n%s", q.SortKeys(), strings.Join(lines, "\n"))
 	}
 	if natural("a2", "a10") >= 0 || natural("B", "a") <= 0 || natural("ab", "abc") >= 0 || natural("x", "x") != 0 {
 		t.Error("natural")
@@ -524,34 +557,48 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if q := p.Grouped("state", true); !slices.Equal(q.Group, []string{"who"}) || p.Grouped("id", false).Group[0] != "state" {
-		t.Errorf("ungrouping, or a column that cannot group: %q", q.Group)
+	if q := p.Grouped("state", true); !slices.Equal(q.Groups(), []string{"who"}) || q.Field("state").Placement != Column ||
+		q.Field("who").Depth != 1 || p.Grouped("id", false).Groups()[0] != "state" {
+		t.Errorf("ungrouping, or a column that cannot group: %q", q.Groups())
+	}
+	// a group hidden leaves the groups, those under it moving out a level
+	if q := p.Placed("state", Hidden); !slices.Equal(q.Groups(), []string{"who"}) || q.Field("who").Depth != 1 {
+		t.Errorf("state hidden: %q %+v", q.Groups(), q.Fields)
+	}
+	// sorting a grouped field orders its groups, the larger first descending
+	desc := p.with(func(fields map[string]Field) {
+		fields["state"] = Field{Placement: Group, Depth: 1, Sort: Descending, Priority: 1}
+	})
+	if got, _ := desc.group(rows, columns); ansi.Strip(got[0].Cells[0].first()) != "▾ ready state  2" {
+		t.Errorf("the groups descending: %q", ansi.Strip(got[0].Cells[0].first()))
 	}
 	if got, _ := (Panel{}).group(rows, columns); len(got) != len(rows) {
 		t.Error("grouping by nothing changed the rows")
 	}
 	q := Panel{Columns: columns, Groupable: p.Groupable, Focused: true, Cursor: 2}
 	q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
-	if lines, _ := q.Lines(); !slices.Equal(q.Group, []string{"state"}) || !strings.HasSuffix(ansi.Strip(lines[4]), "state "+Grouping) {
-		t.Errorf("g on state: %q\n%s", q.Group, strings.Join(lines, "\n"))
+	if lines, _ := q.Lines(); !slices.Equal(q.Groups(), []string{"state"}) || !strings.HasSuffix(ansi.Strip(lines[4]), "state "+Grouping) {
+		t.Errorf("g on state: %q\n%s", q.Groups(), strings.Join(lines, "\n"))
 	}
 }
 
-// A column that can group, whose value is the same on every row, groups them on its own: without a group the person
-// chose, one heading over every row says the values, joined in the panel's order, and their cells are blank. Under a
-// group the person chose, the walk goes on in each group, the values joining its heading. A column blank on some rows,
-// one with several values, a group of one row, a hidden column, and one kept a column do not group on their own; g
-// on such a column in the panel keeps it, and the panel marks one grouping on its own with a dim ▤.
+// While the panel folds, a column that can group, whose value is the same on every row, groups them on its own: without
+// a group the person chose, one heading over every row says the values, joined in the panel's order, and their cells
+// are blank. Under a group the person chose, the walk goes on in each group, the values joining its heading. A column
+// blank on some rows, one with several values, a group of one row, and a hidden column do not group on their own, nor
+// does any while the panel does not fold; g on such a column in the panel stops the folding, and the panel marks one
+// grouping on its own with a dim ▤.
 // The rows group by a cell's sort key, its raw value, and the heading says the value as the rows draw it, or as the
 // cell's Head says it where the rows draw more than they group by.
 func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 	columns := []string{"id", "state", "checks"}
 	row := func(id, state, checks string) Row {
-		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{"🏁 " + state}, Sort: state},
-			{Values: []string{"✅ " + checks}, Sort: "SUCCESS", Head: "✅ SUCCESS"}}}
+		return Row{Key: id, Cells: []Cell{one(id), {Values: []string{"🏁 " + state}, Raw: []string{state}},
+			{Values: []string{"✅ " + checks}, Raw: []string{"SUCCESS"}, Head: "✅ SUCCESS"}}}
 	}
 	rows := []Row{row("#1", "ready", "1 / 1"), row("#2", "draft", "2 / 2"), row("#3", "ready", "3 / 3")}
-	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Group: []string{"state"}}
+	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Fold: true,
+		Fields: map[string]Field{"state": {Placement: Group, Depth: 1}}}
 	got, _ := p.group(rows, columns)
 	var headings []string
 	for _, r := range got {
@@ -587,21 +634,25 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 		return out
 	}
 	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
-	p := Panel{Columns: columns, Groupable: groupable}
+	p := Panel{Columns: columns, Groupable: groupable, Fold: true}
 	got, auto := p.group(rows, columns)
 	want := []string{"▾ github source, here where  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
 	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
 		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
-	// the panel's order joins the values; a hidden column and one kept do not group
-	if got, _ := (Panel{Groupable: groupable, Order: []string{"where", "source"}}).group(rows, columns); texts(got)[0] != "▾ here where, github source  3" {
+	// the panel's order joins the values; a hidden column does not group, nor does any while the panel does not fold
+	if got, _ := p.Move("where", "source").group(rows, columns); texts(got)[0] != "▾ here where, github source  3" {
 		t.Errorf("in the panel's order: %q", texts(got)[0])
 	}
-	if got, auto := (Panel{Groupable: groupable, Hidden: map[string]bool{"source": true}, Kept: map[string]bool{"where": true}}).group(rows, columns); len(got) != 3 || auto != nil {
-		t.Errorf("hidden and kept: %q, auto %q", texts(got), auto)
+	if got, auto := p.Placed("source", Hidden).group(rows, columns); texts(got)[0] != "▾ here where  3" ||
+		!slices.Equal(auto, []string{"where"}) {
+		t.Errorf("source hidden: %q, auto %q", texts(got), auto)
+	}
+	if got, auto := (Panel{Groupable: groupable}).group(rows, columns); len(got) != 3 || auto != nil {
+		t.Errorf("not folding: %q, auto %q", texts(got), auto)
 	}
 	// under the groups the person chose, each group alone; one of one row does not group
-	p.Group = []string{"state"}
+	p = p.Grouped("state", false)
 	got, auto = p.group(rows, columns)
 	// the column the person groups by stays in the cells, which the panel's hide then leaves out
 	want = []string{"▾ draft state, github source, here where  2", "#1||draft||ada", "#2||draft||", "▾ ready state  1",
@@ -611,14 +662,14 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	}
 	// two values in a cell, or one row alone, do not group
 	rows[0].Cells[3].Values = []string{"here", "there"}
-	if got, _ := (Panel{Groupable: groupable}).group(rows, columns); texts(got)[0] != "▾ github source  3" {
+	if got, _ := (Panel{Groupable: groupable, Fold: true}).group(rows, columns); texts(got)[0] != "▾ github source  3" {
 		t.Errorf("several values: %q", texts(got)[0])
 	}
-	if got, auto := (Panel{Groupable: groupable}).group(rows[:1], columns); len(got) != 1 || auto != nil {
+	if got, auto := (Panel{Groupable: groupable, Fold: true}).group(rows[:1], columns); len(got) != 1 || auto != nil {
 		t.Errorf("one row: %q", texts(got))
 	}
-	// the panel marks a column grouping on its own dim, and g on it keeps it a column
-	q := Panel{Columns: columns, Groupable: groupable, Auto: []string{"source"}, Cursor: 2}
+	// the panel marks a column grouping on its own dim, and g on it stops the folding
+	q := Panel{Columns: columns, Groupable: groupable, Fold: true, Auto: []string{"source"}, Cursor: 2}
 	if lines, _ := q.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping)) {
 		t.Errorf("source grouping on its own: %q", lines[4])
 	}
@@ -633,26 +684,26 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 		map[string]int{"where": 1, "source": 2}) {
 		t.Errorf("said at two levels: %v", said)
 	}
-	n := Panel{Columns: columns, Groupable: groupable, Group: []string{"state"}, Auto: []string{"source"},
-		AutoAt: map[string]int{"source": 1}}
+	n := Panel{Columns: columns, Groupable: groupable, Fields: map[string]Field{"state": {Placement: Group, Depth: 1}},
+		Auto: []string{"source"}, AutoAt: map[string]int{"source": 1}}
 	if lines, _ := n.Lines(); !strings.HasSuffix(lines[4], " "+style.Off(Grouping+"₁")) ||
 		!strings.HasSuffix(lines[5], " "+style.Tint(Grouping+"₁")) {
 		t.Errorf("numbered by level: %q %q", lines[4], lines[5])
 	}
 	q.Focused = true
-	if q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"}); !q.Kept["source"] || len(q.Group) > 0 || len(q.Auto) > 0 {
-		t.Errorf("g on source: kept %v, group %q, auto %q", q.Kept, q.Group, q.Auto)
+	if q, _ = q.Update(tea.KeyPressMsg{Code: 'g', Text: "g"}); q.Fold || len(q.Groups()) > 0 || len(q.Auto) > 0 {
+		t.Errorf("g on source: fold %v, group %q, auto %q", q.Fold, q.Groups(), q.Auto)
 	}
-	// a column shown again is kept a column
-	q = Panel{Columns: columns, Hidden: map[string]bool{"who": true}}
-	if q, _ = q.Click(len(columns) + 2); q.Hidden["who"] || !q.Kept["who"] {
-		t.Errorf("who shown: hidden %v, kept %v", q.Hidden, q.Kept)
+	// a column shown again is a column
+	q = Panel{Columns: columns, Fields: map[string]Field{"who": {Placement: Hidden}}}
+	if q, _ = q.Click(len(columns) + 2); q.Field("who").Placement != Column {
+		t.Errorf("who shown: %+v", q.Field("who"))
 	}
 }
 
 // Heading names the column whose group a row heads, at its depth, and nothing for a row that heads none.
 func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
-	p := Panel{Group: []string{"source", "who"}, Groupable: map[string]bool{"source": true, "who": true}}
+	p := Panel{Groupable: map[string]bool{"source": true, "who": true}}.Grouped("source", false).Grouped("who", true)
 	rows, _ := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
 		[]string{"source", "who"})
 	var got []string
@@ -662,7 +713,7 @@ func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	if !slices.Equal(got, []string{"source", "who", ""}) {
 		t.Errorf("the headings: %q", got)
 	}
-	if h := (Panel{Group: []string{"source"}}).Heading(rows[1]); h != "" {
+	if h := p.Grouped("who", true).Heading(rows[1]); h != "" {
 		t.Errorf("a heading deeper than the groups: %q", h)
 	}
 }
@@ -702,7 +753,7 @@ func TestTheViewsDropdownStandsUnderTheSearch(t *testing.T) {
 	if q, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); !ok || q.Cursor != 2 {
 		t.Errorf("down from the dropdown: %d", q.Cursor)
 	}
-	if q, ok := p.Click(3); !ok || q.Cursor != 1 || q.Show != p.Show {
+	if q, ok := p.Click(3); !ok || q.Cursor != 1 || q.Showing() != p.Showing() {
 		t.Errorf("a click on the dropdown: %d", q.Cursor)
 	}
 }
@@ -718,7 +769,7 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	texts := func(p Panel) []string {
 		grouped, _ := p.group(rows, columns)
 		var out []string
-		for _, r := range p.Fold(grouped) {
+		for _, r := range p.FoldAway(grouped) {
 			text := r.Key
 			if r.Aside {
 				text = ansi.Strip(r.Cells[0].first())
@@ -743,7 +794,7 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	grouped, _ := every.group(rows, columns)
 	names := []string{"id", "state", "who"}
 	open, _ := Header(grouped, names, 60, false)
-	folded := every.Close("group\x00draft", true).Close(ready, true).Fold(grouped)
+	folded := every.Close("group\x00draft", true).Close(ready, true).FoldAway(grouped)
 	if shut, _ := Header(folded, names, 60, false); len(folded) != 3 || len(folded[1].Folded) != 2 ||
 		!slices.Equal(shut, open) || !slices.Equal(headed(folded, names), headed(grouped, names)) {
 		t.Errorf("every group closed: %d rows, %d folded under ready, header %q, was %q", len(folded),

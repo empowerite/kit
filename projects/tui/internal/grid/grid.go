@@ -8,9 +8,10 @@
 // header can stand the columns' names over the rows, widening each column to its name; a click on a name sorts by it. A
 // row selected, one of several, has ✓ before its ▸.  A panel beside the rows narrows them: a search, which keeps the
 // rows whose text has it; a checkbox per column, which shows or hides it; and, for rows that belong to people, a choice
-// of every row, the caller's, or everyone else's. It also keeps the columns' order, the columns the rows sort by, and
-// those they group by, each group under a heading; a column whose value is the same on every row of a group groups it
-// on its own, its value said once in the heading.
+// of every row, the caller's, or everyone else's, which is the filter on the field that names them. It keeps, per
+// field, its placement, as a column at a position, a group at a depth, or hidden, its sort, and its filter, each group
+// under a heading; while it folds, a column whose value is the same on every row of a group groups it on its own, its
+// value said once in the heading.
 package grid
 
 import (
@@ -30,23 +31,23 @@ import (
 // Cell is one column of a row: its values, styled already when they are dim, each a line when the row is open; Right
 // is a number, right-aligned in its column; Wrap is the one cell of a row that takes the width left, cut while the
 // row is closed and wrapped when it is open. Link is where the glyph its text starts with leads, as an issue's page:
-// a click on the glyph opens it. Sort is what the cell sorts and groups by, its raw value, as an age by its seconds and
-// an assignee by the login; none sorts by its first value's text, naturally, so #7 comes before #31. Head is what a
-// group's heading says of the value, for a cell that draws more than it groups by, as checks their counts beside their
-// state; none says the cell's first value.
+// a click on the glyph opens it. Raw is what the cell sorts, groups, and filters by, its raw values, unstyled, as an
+// age by its seconds and assignees by their logins; it sorts and groups by the first, and with none by its first
+// value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the value, for a cell that
+// draws more than it groups by, as checks their counts beside their state; none says the cell's first value.
 type Cell struct {
 	Values []string
 	Right  bool
 	Wrap   bool
 	Link   string
-	Sort   string
+	Raw    []string
 	Head   string
 }
 
-// key gives what a cell sorts and groups by: its sort value, else its first value's text without its styles.
+// key gives what a cell sorts and groups by: its first raw value, else its first value's text without its styles.
 func (c Cell) key() string {
-	if c.Sort != "" {
-		return c.Sort
+	if len(c.Raw) > 0 && c.Raw[0] != "" {
+		return c.Raw[0]
 	}
 	return ansi.Strip(c.first())
 }
@@ -98,16 +99,15 @@ func digits(s string) int {
 }
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
-// drawn closed; whether it is an aside, as a heading, which a screen does not count; the logins it belongs to, which
-// Show matches; for a group's heading, the columns whose value it says because the rows group by them on their own;
-// and, for a heading whose group is closed, the rows it folds away, which are not drawn but still lay the columns and
-// the header out, so closing a group moves no column and leaves the header standing.
+// drawn closed; whether it is an aside, as a heading, which a screen does not count; for a group's heading, the
+// columns whose value it says because the rows group by them on their own; and, for a heading whose group is closed,
+// the rows it folds away, which are not drawn but still lay the columns and the header out, so closing a group moves
+// no column and leaves the header standing.
 type Row struct {
 	Key    string
 	Cells  []Cell
 	Detail [][]Cell
 	Aside  bool
-	Owners []string
 	Says   []string
 	Folded []Row
 }

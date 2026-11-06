@@ -235,7 +235,7 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), press('?'))
 	x := m.paneWidth() + 3
 	// the side's lines: the search, a gap, columns, then number, source, and assignees
-	if m = drive(m, testkit.Click(x, 5), testkit.Release(x, 5)); !m.inPanel || !m.panel(0).Hidden["assignees"] ||
+	if m = drive(m, testkit.Click(x, 5), testkit.Release(x, 5)); !m.inPanel || m.panel(0).Field("assignees").Placement != grid.Hidden ||
 		strings.Contains(drawn(m), Owner) {
 		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
 	}
@@ -401,28 +401,30 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 	// a drag of state's line onto lines' puts state where lines was, toggling nothing
 	from, to := line("state"), line("lines")
 	m = drive(m, testkit.Click(x, from), testkit.Drag(x, to), testkit.Release(x, to))
-	if line("state") != to || len(m.panel(m.stage).Hidden) != 0 || !strings.Contains(lines(m)[paneTop], "state") ||
+	if line("state") != to || len(hiddenOf(m.panel(m.stage))) != 0 || !strings.Contains(lines(m)[paneTop], "state") ||
 		strings.Index(lines(m)[paneTop], "state") > strings.Index(lines(m)[paneTop], "lines") {
 		t.Errorf("a drag of state onto lines:\n%s", view(m))
 	}
 	// a press and a release on the same line toggle; a press released elsewhere does not
 	at := line("ahead")
-	if m = drive(m, testkit.Click(x, at)); m.panel(m.stage).Hidden["ahead"] {
+	hidden := func() bool { return m.panel(m.stage).Field("ahead").Placement == grid.Hidden }
+	if m = drive(m, testkit.Click(x, at)); hidden() {
 		t.Error("the press alone toggled ahead")
 	}
-	if m = drive(m, testkit.Release(x, at)); !m.panel(m.stage).Hidden["ahead"] {
+	if m = drive(m, testkit.Release(x, at)); !hidden() {
 		t.Error("the release did not toggle ahead")
 	}
-	if m = drive(m, testkit.Click(x, at), testkit.Release(x, at+5)); !m.panel(m.stage).Hidden["ahead"] {
+	if m = drive(m, testkit.Click(x, at), testkit.Release(x, at+5)); !hidden() {
 		t.Error("a release off its line toggled ahead")
 	}
 	// a drag that never held a column, or over a line that draws none, moves nothing
-	before := m.panel(m.stage).Order
-	if m = drive(m, testkit.Drag(x, to), testkit.Release(x, to)); !slices.Equal(m.panel(m.stage).Order, before) {
+	order := func() []string { return m.panel(m.stage).Arrange(m.panel(m.stage).Columns) }
+	before := order()
+	if m = drive(m, testkit.Drag(x, to), testkit.Release(x, to)); !slices.Equal(order(), before) {
 		t.Error("a drag with nothing held moved a column")
 	}
 	m = drive(m, testkit.Click(x, line("state")), testkit.Drag(x, 0), testkit.Drag(2, 10), testkit.Release(2, 10))
-	if !slices.Equal(m.panel(m.stage).Order, before) {
+	if !slices.Equal(order(), before) {
 		t.Error("a drag over no column's line moved one")
 	}
 }
@@ -431,7 +433,7 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 // adds a column after it; a click on a name that does not sort, as builds' commit, changes nothing.
 func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	m.setPanel(m.panel(m.stage).Keep("source")) // the source, one tracker's on every row, kept a column
+	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
 	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
@@ -449,8 +451,8 @@ func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
 	}
 	// builds' commit does not sort
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), paneTop)); len(m.panel(m.stage).Sort) != 0 || m.stages[m.stage].name != "builds" {
-		t.Errorf("a click on commit sorted builds: %+v", m.panel(m.stage).Sort)
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); len(m.panel(m.stage).SortKeys()) != 0 || m.stages[m.stage].name != "builds" {
+		t.Errorf("a click on commit sorted builds: %+v", m.panel(m.stage).SortKeys())
 	}
 }
 
@@ -462,17 +464,17 @@ func TestGInThePanelGroupsTheRows(t *testing.T) {
 	count := m.count(m.stage)
 	// down to state, the sixth column: id, source, assignees, age, change, state
 	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), typed("g")...)...)
-	if v := view(m); !slices.Equal(m.panel(m.stage).Group, []string{"state"}) || !strings.Contains(v, "🏁 ready state  1") ||
+	if v := view(m); !slices.Equal(m.panel(m.stage).Groups(), []string{"state"}) || !strings.Contains(v, "🏁 ready state  1") ||
 		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count {
-		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Group, m.count(m.stage), v)
+		t.Fatalf("g on state: %q, count %s\n%s", m.panel(m.stage).Groups(), m.count(m.stage), v)
 	}
 	if want := style.Off(grid.Unfolded) + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
 		m.View().Content, want) {
 		t.Error("a group's heading does not draw its value plain, and its column and count dim")
 	}
 	m = drive(m, slices.Repeat([]tea.Msg{up}, 5)...)
-	if m = drive(m, typed("g")...); len(m.panel(m.stage).Group) != 1 {
-		t.Errorf("g on id: %q", m.panel(m.stage).Group)
+	if m = drive(m, typed("g")...); len(m.panel(m.stage).Groups()) != 1 {
+		t.Errorf("g on id: %q", m.panel(m.stage).Groups())
 	}
 }
 
@@ -482,14 +484,14 @@ func TestAClickOnAColumnsNameTogglesNothing(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, press('?'))
 	box := m.paneWidth() + 3
 	m = drive(m, testkit.Click(box+3, 4), testkit.Release(box+3, 4))
-	if p := m.panel(0); len(p.Hidden) != 0 || !m.inPanel || p.ColumnAt(4) != "source" {
-		t.Errorf("a click on source's name: hidden %v, in panel %v", p.Hidden, m.inPanel)
+	if p := m.panel(0); len(hiddenOf(p)) != 0 || !m.inPanel || p.ColumnAt(4) != "source" {
+		t.Errorf("a click on source's name: hidden %v, in panel %v", hiddenOf(p), m.inPanel)
 	}
 	lines, _ := m.panel(0).Lines()
 	if got := ansi.StringWidth(lines[4]); got != m.sideWidth()-1 || !strings.HasPrefix(lines[4], style.Cursor(grid.Ticked)[:4]) {
 		t.Errorf("the control under the keyboard is %d cells inverse, not %d: %q", got, m.sideWidth()-1, lines[4])
 	}
-	if m = drive(m, testkit.Click(box, 4), testkit.Release(box, 4)); !m.panel(0).Hidden["source"] {
+	if m = drive(m, testkit.Click(box, 4), testkit.Release(box, 4)); m.panel(0).Field("source").Placement != grid.Hidden {
 		t.Error("a click on source's checkbox did not toggle it")
 	}
 }
@@ -501,11 +503,11 @@ func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
 	// down to source, then to assignees: g on each groups by it alone; G nests
 	m = drive(m, down, down, typed("g")[0], down, typed("g")[0])
-	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"assignees"}) {
+	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"assignees"}) {
 		t.Fatalf("g on source, then g on assignees: %q", got)
 	}
 	m = drive(m, up, typed("G")[0])
-	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"assignees", "source"}) {
+	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"assignees", "source"}) {
 		t.Fatalf("G on source: %q", got)
 	}
 	header := ansi.Cut(lines(m)[paneTop], 0, m.paneWidth())
@@ -521,8 +523,8 @@ func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it
-	if p := m.panel(m.stage).Grouped("assignees", false).Grouped("assignees", false); len(p.Group) != 0 {
-		t.Errorf("g twice: %q", p.Group)
+	if p := m.panel(m.stage).Grouped("assignees", false).Grouped("assignees", false); len(p.Groups()) != 0 {
+		t.Errorf("g twice: %q", p.Groups())
 	}
 }
 
@@ -531,14 +533,14 @@ func TestGroupingNestsWithShiftAndIndentsTheRows(t *testing.T) {
 // grouping by its column alone, the other groups kept; on a row, it does nothing.
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
-	m.setPanel(m.panel(m.stage).Keep("source")) // the source, one tracker's on every row, kept a column
+	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	heading := func(text string) int {
 		return slices.IndexFunc(lines(m), func(l string) bool {
 			return strings.Contains(l, grid.Unfolded) && strings.Contains(l, text)
 		})
 	}
-	group := func() []string { return m.panel(m.stage).Group }
+	group := func() []string { return m.panel(m.stage).Groups() }
 	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
 		t.Fatalf("a ctrl-click on source: %q\n%s", group(), view(m))
 	}
@@ -557,8 +559,8 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
 	// a plain click on a name still sorts, and groups nothing
-	if m = drive(m, testkit.Click(at("age"), paneTop)); len(group()) != 0 || len(m.panel(m.stage).Sort) != 1 {
-		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).Sort)
+	if m = drive(m, testkit.Click(at("age"), paneTop)); len(group()) != 0 || len(m.panel(m.stage).SortKeys()) != 1 {
+		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).SortKeys())
 	}
 }
 
@@ -567,7 +569,7 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 func TestUnderwayGroupsByChange(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	m.setPanel(m.panel(m.stage).Grouped("change", false))
-	if got := m.panel(m.stage).Group; !slices.Equal(got, []string{"change"}) {
+	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"change"}) {
 		t.Fatalf("grouped by change: %q", got)
 	}
 	headings := 0
@@ -583,8 +585,8 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 
 // A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
 // tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
-// dim ▤. It follows the rows: a search that leaves one row ungroups it. g on the column in the panel keeps it a column
-// for the session.
+// dim ▤. It follows the rows: a search that leaves one row ungroups it. g on the column in the panel stops the panel
+// folding, so it is a column again.
 func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	heading := func(m Model) string {
@@ -607,14 +609,14 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// g on source in the panel keeps it a column, through a refresh of the rows
+	// g on source in the panel stops the folding, through a refresh of the rows
 	// the search, then id, then source
 	if m = drive(m, press(tea.KeyTab), down, down); m.panel(m.stage).Cursor != 2 {
 		t.Fatalf("the panel's cursor: %d", m.panel(m.stage).Cursor)
 	}
-	if m = drive(m, typed("g")[0]); heading(m) != "" || !m.panel(m.stage).Kept["source"] ||
-		len(m.panel(m.stage).Group) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
-		t.Errorf("g on source: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Group, view(m))
+	if m = drive(m, typed("g")[0]); heading(m) != "" || m.panel(m.stage).Fold ||
+		len(m.panel(m.stage).Groups()) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
+		t.Errorf("g on source: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
 	if m.rebuild(); heading(m) != "" {
 		t.Errorf("the rows built again group by source")
@@ -677,7 +679,8 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	if h, r := column(m, "github source", grid.Unfolded), column(m, "#46", "▸"); r != h+2 {
 		t.Errorf("grouped on its own, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
 	}
-	m.setPanel(m.panel(m.stage).Keep("source").Grouped("source", false).Grouped("assignees", true))
+	unfold(&m)
+	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
 	outer, inner := column(m, "github source", grid.Unfolded), column(m, "jeffrey-aguilera assignees", grid.Unfolded)
 	if r := column(m, "#46", "▸"); inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d and %d, a row's ▸ at %d:\n%s", outer, inner, r, view(m))

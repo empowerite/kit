@@ -100,6 +100,25 @@ func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
+// unfold has the selected stage's panel fold no longer, so a column the rows group by on their own, as the source,
+// one tracker's on every row, is a column again.
+func unfold(m *Model) {
+	p := m.panel(m.stage)
+	p.Fold = false
+	m.setPanel(p)
+}
+
+// hiddenOf gives the fields a panel hides, in their order.
+func hiddenOf(p grid.Panel) []string {
+	var out []string
+	for _, id := range p.Arrange(p.Columns) {
+		if id != "" && p.Field(id).Placement == grid.Hidden {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 var (
 	up    = press(tea.KeyUp)
 	down  = press(tea.KeyDown)
@@ -899,7 +918,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 
 func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
-	m.setPanel(grid.Panel{Hidden: map[string]bool{"source": true}}) // the source column has a test of its own
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
 	m = drive(m, down, toggle)
 	v := view(m)
 	// the title has what the other columns leave, each cut at its cap to give it more
@@ -1431,7 +1450,7 @@ func TestTookIsToTheSecond(t *testing.T) {
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), right)
-	m.setPanel(grid.Panel{Hidden: map[string]bool{"source": true}}) // the source column has a test of its own
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
@@ -1617,14 +1636,14 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			strings.Count(view(m), GitHub+" github") != 1 {
 			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
 		}
-		m.setPanel(m.panel(m.stage).Keep("source"))
+		unfold(&m)
 		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], GitHub+" github") ||
 			!strings.Contains(m.View().Content, style.Off(GitHub+" github")) {
-			t.Errorf("%s kept as a column does not say the source:\n%s", name, view(m))
+			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
 	}
 	source := fieldsOf("backlog")[slices.IndexFunc(fieldsOf("backlog"), func(f field) bool { return f.ID == "source" })]
-	if c := source.draw([]value{some("gitlab"), some("AB#"), some("")}); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
+	if c := source.draw([]value{some("gitlab"), some("AB#"), some("")}, ""); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
 		c[1].Values[0] != style.Off("AB#") || len(c[2].Values) != 0 {
 		t.Errorf("the source cells: %q %q %q", c[0].Values, c[1].Values, c[2].Values)
 	}

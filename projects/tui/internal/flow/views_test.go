@@ -84,10 +84,7 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 		t.Fatalf("Compact: %q, changed %v", shownNow(m), m.panel(0).Changed)
 	}
 	// a column shown again differs from Compact: the dropdown names no view, and 💾 Save, dim, stands at its right
-	m.setPanel(m.panel(0).Keep("age"))
-	p := m.panel(0)
-	p.Hidden = map[string]bool{"source": true, "assignees": true, "branch": true}
-	m.setPanel(p)
+	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	if q := m.panel(0); !q.Changed || q.Savable || q.View != "" || !strings.HasPrefix(sideText(m)[3], grid.Unnamed+" ▾") ||
 		!strings.HasSuffix(sideText(m)[3], grid.Saving) {
 		t.Errorf("a change does not show save, or names a view: %q", sideText(m)[3])
@@ -125,9 +122,9 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "kit", "views.json")
 	m := onDropdown(t, file)
-	p := m.panel(0)
-	p.Hidden, p.Sort, p.Show = map[string]bool{"branch": true}, []grid.SortKey{{Column: "age", Desc: true}}, grid.Others
-	p.Group, p.Kept = []string{"assignees"}, map[string]bool{"source": true}
+	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age", false).Sorted("age", false).Shown(grid.Others)
+	p = p.Grouped("assignees", false)
+	p.Fold = false
 	m.setPanel(p)
 	m.stages[0].headers = false
 	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
@@ -156,7 +153,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 		t.Fatalf("the file: %s, %v", data, err)
 	}
 	if v := kept["backlog"][0]; v.Name != "Triage" || !slices.Equal(v.Hidden, []string{"branch"}) || v.Show != "others" ||
-		v.Headers || len(v.Sort) != 1 || !v.Sort[0].Desc {
+		v.Headers || len(v.Sort) != 1 || !v.Sort[0].Desc || v.Fold == nil || *v.Fold {
 		t.Errorf("the view kept: %+v", v)
 	}
 	// the menu lists it after a rule
@@ -168,9 +165,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	m = drive(m, esc)
 	// changed, the dropdown names no view, and nothing is saved until a name is typed; saved again under its own name,
 	// it is overwritten
-	p = m.panel(0)
-	p.Hidden = nil
-	m.setPanel(p)
+	m.setPanel(m.panel(0).Placed("branch", grid.Column))
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if data, _ = os.ReadFile(file); !strings.Contains(string(data), "branch") {
 		t.Error("a change was saved with no name")
@@ -184,9 +179,9 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
 	n.viewAt = 3
-	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Show != grid.Others ||
-		n.stages[0].headers || len(n.panel(0).Sort) != 1 || !slices.Equal(n.panel(0).Group, []string{"assignees"}) ||
-		!n.panel(0).Kept["source"] {
+	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
+		n.stages[0].headers || len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
+		n.panel(0).Fold {
 		t.Errorf("Triage in another session: %+v", n.panel(0))
 	}
 }
@@ -271,9 +266,7 @@ func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
 	if !slices.Equal(names, []string{"Default", "Compact", "Everything", "Minimal"}) || m.builtin(0, "Minimal") {
 		t.Fatalf("the views: %q", names)
 	}
-	p := m.panel(0)
-	p.Hidden = map[string]bool{"branch": true}
-	m.setPanel(p)
+	m.setPanel(m.panel(0).Placed("branch", grid.Hidden))
 	m = drive(m, typed("Minimal")...)
 	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"branch"`) || strings.Contains(string(data), `"age"`) {

@@ -116,7 +116,7 @@ func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 		t.Errorf("checks with nothing to say draw %q, %q", none.cell(), (&checks{State: "SKIPPED"}).cell())
 	}
 	m := New(runner(t), options())
-	if r := laid("worktrees", []record{m.checkoutRow(checkout{Path: "/src/kit"}, false)}); !strings.Contains(r[0].Cells[0].Values[0], "/src/kit") {
+	if r := laid("worktrees", []record{m.checkoutRow(checkout{Path: "/src/kit"}, false)}, func(string) string { return "" }); !strings.Contains(r[0].Cells[0].Values[0], "/src/kit") {
 		t.Errorf("a checkout with only its path: %+v", r[0].Cells[0])
 	}
 	if got := ref(pull{Number: 7}); got != "#7" {

@@ -85,7 +85,7 @@ type stage struct {
 	viewName string
 	naming   string
 	renaming bool
-	view     grid.Panel         // the stage's panel: its search, the columns hidden, whose rows show, and its cursor
+	view     grid.Panel         // the stage's panel: its search, what it says of each field, and its cursor
 	gen      int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
 	stop     context.CancelFunc // ends the latest load's command, when r starts another
@@ -125,7 +125,7 @@ type Model struct {
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
 	noted         bool                   // whether the notice says what was done, rather than why it was not
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
-	saved         map[string][]named     // the person's views, by stage, as their file keeps them
+	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	viewsPath     string                 // that file, or none
 	viewMenu      bool                   // whether the panel's dropdown of views is open
 	viewAt        int                    // the line of that menu under the keyboard
@@ -171,8 +171,8 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	return New(r, o), nil
 }
 
-// New opens the screen on the options; every stage loads once Init starts it. A stage kittui does not know shows a
-// line saying so, and runs nothing.
+// New opens the screen on the options; every stage loads once Init starts it, its panel set as its Default preset
+// says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
@@ -191,8 +191,11 @@ func New(r kit.Runner, o Options) Model {
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
+		if c := catalog[name]; c != nil {
+			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p preset) bool { return p.Name == Opening })].panel(c.Fields, s.view)
+		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name), Owned: ownedStage(name)}.Width())
+		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name), Owner: ownerOf(name)}.Width())
 	}
 	return m
 }
@@ -397,7 +400,7 @@ func (m Model) panel(i int) grid.Panel {
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.view
-	p.Owned, p.Me, p.Sortable, p.Groupable = ownedStage(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
+	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
 	p.Focused = m.inPanel && i == m.stage
 	return p
 }
