@@ -1,11 +1,13 @@
 // The panel's dropdown of views: each stage's own two, the person's saved in their file, a change to the panel
-// showing 💾, and a save that keeps the panel under the name typed, never over a stage's own.
+// showing 💾, and a save that keeps the panel under the name typed, never over a stage's own; and the views file before
+// it, read once into presets.json.
 package flow
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -120,7 +122,7 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 }
 
 func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "kit", "views.json")
+	file := filepath.Join(t.TempDir(), "kit", "presets.json")
 	m := onDropdown(t, file)
 	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age", false).Sorted("age", false).Shown(grid.Others)
 	p = p.Grouped("assignees", false)
@@ -148,13 +150,15 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 		t.Fatalf("save: %q, view %q, changed %v", last, m.stages[0].viewName, m.panel(0).Changed)
 	}
 	data, err := os.ReadFile(file)
-	var kept map[string][]named
-	if err != nil || json.Unmarshal(data, &kept) != nil || len(kept["backlog"]) != 1 {
+	var kept presets
+	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 || len(kept.Stages["backlog"]) != 1 {
 		t.Fatalf("the file: %s, %v", data, err)
 	}
-	if v := kept["backlog"][0]; v.Name != "Triage" || !slices.Equal(v.Hidden, []string{"branch"}) || v.Show != "others" ||
-		v.Headers || len(v.Sort) != 1 || !v.Sort[0].Desc || v.Fold == nil || *v.Fold {
-		t.Errorf("the view kept: %+v", v)
+	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending
+	want := map[string]setting{"branch": {Placement: placeHidden}, "age": {Sort: "desc", Priority: 1},
+		"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}}}
+	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) || *v.Headers || *v.Fold {
+		t.Errorf("the view kept: %s", data)
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
@@ -187,7 +191,7 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 }
 
 func TestClicksOpenTheViewsChooseOneAndSave(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "views.json")
+	file := filepath.Join(t.TempDir(), "presets.json")
 	m := onDropdown(t, file)
 	y := m.viewRow()
 	// a click on the name puts the keyboard there, to type a new one, and opens nothing
@@ -221,31 +225,38 @@ func TestClicksOpenTheViewsChooseOneAndSave(t *testing.T) {
 	}
 }
 
-func TestAViewsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "views.json")
-	if err := os.WriteFile(file, []byte("{not json"), 0o644); err != nil {
-		t.Fatal(err)
+func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "presets.json")
+	for content, says := range map[string]string{"{not json": "does not read as presets",
+		`{"version": 3, "stages": {}}`: "version 3, not 2"} {
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
+		if !strings.Contains(m.notice, says) || m.noted || len(m.views(0)) != 2 {
+			t.Errorf("a bad file: %q", m.notice)
+		}
+		if data, _ := os.ReadFile(file); string(data) != content {
+			t.Errorf("the bad file was changed: %s", data)
+		}
 	}
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
-	if !strings.Contains(m.notice, "does not read as views") || len(m.views(0)) != 2 {
-		t.Errorf("a bad file: %q", m.notice)
-	}
 	// an empty name saves nothing; a file that cannot be written is said
 	m = drive(m, press('?'), tab, down)
 	m.stages[0].renaming, m.stages[0].naming = true, "  "
 	if m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}); !strings.Contains(lines(m)[len(lines(m))-1], "needs a name") {
 		t.Errorf("an empty name: %q", lines(m)[len(lines(m))-1])
 	}
-	m.viewsPath = filepath.Join(file, "under-a-file", "views.json")
+	m.presetsPath = filepath.Join(file, "under-a-file", "presets.json")
 	m.stages[0].renaming, m.stages[0].naming = true, "Mine"
 	if m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}); !strings.Contains(lines(m)[len(lines(m))-1], "could not be saved") {
 		t.Errorf("an unwritable file: %q", lines(m)[len(lines(m))-1])
 	}
-	if got := viewsFile(); !strings.HasSuffix(got, filepath.Join("kit", "views.json")) {
-		t.Errorf("the views file: %q", got)
+	if got := presetsFile(); !strings.HasSuffix(got, filepath.Join("kit", "presets.json")) {
+		t.Errorf("the presets file: %q", got)
 	}
 	t.Setenv("XDG_CONFIG_HOME", "/somewhere")
-	if got := viewsFile(); got != "/somewhere/kit/views.json" {
+	if got := presetsFile(); got != "/somewhere/kit/presets.json" {
 		t.Errorf("under XDG_CONFIG_HOME: %q", got)
 	}
 }
@@ -253,8 +264,9 @@ func TestAViewsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 // A view the person saved as Everything or Minimal, which the stages once had of their own, is the person's: it is
 // listed after the stage's own, and saving over it overwrites it.
 func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
-	file := filepath.Join(t.TempDir(), "views.json")
-	kept := `{"backlog": [{"name": "Everything", "headers": true}, {"name": "Minimal", "hidden": ["age"], "headers": true}]}`
+	file := filepath.Join(t.TempDir(), "presets.json")
+	kept := `{"version": 2, "stages": {"backlog": [{"name": "Everything", "headers": true},
+		{"name": "Minimal", "fields": {"age": {"placement": "hidden"}}, "headers": true}]}}`
 	if err := os.WriteFile(file, []byte(kept), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -310,5 +322,72 @@ func TestASearchIsRememberedAndRecalled(t *testing.T) {
 	m = drive(m, testkit.Click(m.recallAt(), 0), testkit.Click(1, 20))
 	if m.recent.Open {
 		t.Error("a click off the searches left them open")
+	}
+}
+
+// With no presets.json, the views.json beside it is read once into presets.json, version 2, and left as it is: each
+// column's label its field's id, the order the columns' positions, mine the filter on the assignees of the caller
+// alone, others of anyone but the caller, the columns kept from grouping on their own dropped, and each label the
+// catalog does not know dropped, which the notice line says, once.
+func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "kit")
+	v1, err := os.ReadFile(filepath.Join("testdata", "views-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil || os.WriteFile(filepath.Join(dir, "views.json"), v1, 0o644) != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "presets.json")
+	m := loaded(t, viewing(file))
+	if !m.noted || m.notice != grid.Save+" views.json is now presets.json, without the columns kittui no longer knows: "+
+		"milestone in backlog Mine; estimate in backlog All; milestone in changes Authors" {
+		t.Errorf("the notice: %q", m.notice)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "views.json")); string(data) != string(v1) {
+		t.Errorf("views.json was changed: %s", data)
+	}
+	data, err := os.ReadFile(file)
+	var kept presets
+	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 {
+		t.Fatalf("presets.json: %s, %v", data, err)
+	}
+	yes, no := true, false
+	want := map[string][]preset{
+		"backlog": {
+			{Name: "Mine", Headers: &yes, Fold: &yes, Fields: map[string]setting{
+				"title":     {Placement: placeColumn, Position: 1},
+				"id":        {Placement: placeColumn, Position: 2},
+				"source":    {Placement: placeColumn, Position: 3},
+				"assignees": {Placement: placeColumn, Position: 4, Filter: &valueFilter{Include: []string{caller}}},
+				"age":       {Placement: placeColumn, Position: 5, Sort: "desc", Priority: 1},
+				"branch":    {Placement: placeHidden},
+			}},
+			{Name: "Others", Headers: &no, Fold: &yes, Fields: map[string]setting{
+				"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}},
+			}},
+			{Name: "All", Headers: &yes, Fold: &yes},
+		},
+		"changes": {
+			{Name: "Authors", Headers: &yes, Fold: &yes, Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
+		},
+	}
+	if !reflect.DeepEqual(kept.Stages, want) || !reflect.DeepEqual(m.saved, want) {
+		t.Errorf("presets.json:\n%s", data)
+	}
+	// each show is the owner's filter: mine, others, and all
+	for k, show := range []grid.Show{grid.Mine, grid.Others, grid.All} {
+		if got := m.saved["backlog"][k].panel(fieldsOf("backlog"), grid.Panel{Owner: "assignees"}).Showing(); got != show {
+			t.Errorf("%s shows %v, not %v", m.saved["backlog"][k].Name, got, show)
+		}
+	}
+	// read again, presets.json is what is read, and nothing is noted
+	if n := loaded(t, viewing(file)); n.notice != "" || !reflect.DeepEqual(n.saved, want) {
+		t.Errorf("read again: %q, %+v", n.notice, n.saved)
+	}
+	// a stage's fields a preset does not name take the catalog's placement
+	if g := want["changes"][0].panel(fieldsOf("changes"), grid.Panel{}); g.Field("branch").Placement != grid.Column ||
+		!g.Shows("title") {
+		t.Errorf("Authors' other fields: %+v", g.Fields)
 	}
 }

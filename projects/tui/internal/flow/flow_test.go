@@ -49,11 +49,11 @@ func options() Options {
 		NoViews: true}
 }
 
-// viewing gives the options with the panels' dropdown of views, their views kept in the file named, or for the test
+// viewing gives the options with the panels' dropdown of views, their presets kept in the file named, or for the test
 // alone when it is empty.
 func viewing(file string) Options {
 	o := options()
-	o.NoViews, o.Views = false, file
+	o.NoViews, o.Presets = false, file
 	return o
 }
 

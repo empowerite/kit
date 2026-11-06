@@ -1,9 +1,9 @@
 // Named views: a stage's panel as it is set, each field's placement, sort, filter, and rendering, whether it folds, and
 // whether its headers stand over the rows, kept under a name as a preset. Every stage with columns has its own views,
 // the presets the field catalog gives it, which never change: Default, the stage as it opens, and Compact, the few
-// columns that say what a row is. The person saves others, per stage, in a file of their own, under ~/.config/kit/, so
-// their views follow them to every repository; one they named as a stage's own was named before the stage had it, and
-// stays theirs. The panel's dropdown, under its search, names the view; enter, or a click on it, drops down the views
+// columns that say what a row is. The person saves others, per stage, in a file of their own, presets.json under
+// ~/.config/kit/, so their views follow them to every repository; one they named as a stage's own was named before the
+// stage had it, and stays theirs. The panel's dropdown, under its search, names the view; enter, or a click on it, drops down the views
 // to choose from; typing renames it. Once the panel differs from the view, the dropdown names none, as the panel is no
 // longer the view, and 💾 Save stands at its right, dim until a name is typed; it stands there too once the name was
 // changed. ctrl+s or a click on it saves the panel under the name, a view of the person's own overwritten, a stage's own
@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -31,9 +32,9 @@ import (
 // Opening is the name of the view a stage opens on, one of its own.
 const Opening = "Default"
 
-// named is a stage's panel as the views file keeps it, by the columns' labels: the columns hidden, their order, the
-// sort's keys, the groups, the columns kept from grouping on their own, whose rows it shows, whether the headers show,
-// and whether it folds, when it does not.
+// named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
+// columns hidden, their order, the sort's keys, the groups, the columns kept from grouping on their own, whose rows it
+// shows, whether the headers show, and whether it folds, when it does not.
 type named struct {
 	Name    string    `json:"name"`
 	Hidden  []string  `json:"hidden,omitempty"`
@@ -52,9 +53,9 @@ type sortKey struct {
 	Desc   bool   `json:"desc,omitempty"`
 }
 
-// viewsFile gives the file the person's views are kept in: kit/views.json under XDG_CONFIG_HOME, else under
+// presetsFile gives the file the person's presets are kept in: kit/presets.json under XDG_CONFIG_HOME, else under
 // ~/.config; nothing when neither is known.
-func viewsFile() string {
+func presetsFile() string {
 	dir := os.Getenv("XDG_CONFIG_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
@@ -63,46 +64,91 @@ func viewsFile() string {
 		}
 		dir = filepath.Join(home, ".config")
 	}
-	return filepath.Join(dir, "kit", "views.json")
+	return filepath.Join(dir, "kit", "presets.json")
 }
 
-// readViews gives the views the file keeps, by stage, as presets; none when there is no file. A file that does not read
-// as views is the error.
-func readViews(path string) (map[string][]preset, error) {
+// presetsVersion is the version of presets.json; views.json, the file before it, was the first.
+const presetsVersion = 2
+
+// presets is presets.json: its version, and the person's presets, by stage, each in the catalog's vocabulary, its
+// fields by id.
+type presets struct {
+	Version int                 `json:"version"`
+	Stages  map[string][]preset `json:"stages"`
+}
+
+// readPresets gives the presets the file keeps, by stage; none when there is no file. With no presets.json, it reads
+// views.json beside it, the file before it, once: each view a preset, its labels the fields' ids, which it then keeps
+// in presets.json, leaving views.json as it is. It says what it noted, the labels the catalog no longer knows, which
+// are dropped, or none. A file that does not read, or is of another version, is the error, and nothing is written.
+func readPresets(path string) (map[string][]preset, string, error) {
 	out := map[string][]preset{}
 	if path == "" {
-		return out, nil
+		return out, "", nil
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return out, nil
+		return migrate(path)
+	}
+	var file presets
+	if err == nil {
+		err = json.Unmarshal(data, &file)
+	}
+	if err == nil && file.Version != presetsVersion {
+		err = fmt.Errorf("version %d, not %d", file.Version, presetsVersion)
+	}
+	if err != nil {
+		return out, "", fmt.Errorf("%s does not read as presets: %w", path, err)
+	}
+	for stage, ps := range file.Stages {
+		out[stage] = ps
+	}
+	return out, "", nil
+}
+
+// migrate reads views.json beside the presets file, when there is one, as readPresets says, and writes the presets
+// file from it. Its note names each label dropped, after its stage and its view.
+func migrate(path string) (map[string][]preset, string, error) {
+	out := map[string][]preset{}
+	old := filepath.Join(filepath.Dir(path), "views.json")
+	data, err := os.ReadFile(old)
+	if errors.Is(err, os.ErrNotExist) {
+		return out, "", nil
 	}
 	var kept map[string][]named
 	if err == nil {
 		err = json.Unmarshal(data, &kept)
 	}
-	for stage, vs := range kept {
-		for _, v := range vs {
-			p, _ := v.preset(stage)
+	if err != nil {
+		return out, "", fmt.Errorf("%s does not read as views: %w", old, err)
+	}
+	var dropped []string
+	for _, stage := range slices.Sorted(maps.Keys(kept)) {
+		for _, v := range kept[stage] {
+			p, labels := v.preset(stage)
 			out[stage] = append(out[stage], p)
+			if len(labels) > 0 {
+				dropped = append(dropped, fmt.Sprintf("%s in %s %s", strings.Join(labels, ", "), stage, v.Name))
+			}
 		}
 	}
-	return out, err
+	note := ""
+	if len(dropped) > 0 {
+		note = grid.Save + " views.json is now presets.json, without the columns kittui no longer knows: " +
+			strings.Join(dropped, "; ")
+	}
+	if err := writePresets(path, out); err != nil {
+		return out, "", fmt.Errorf("%s could not be written from %s: %w", path, old, err)
+	}
+	return out, note, nil
 }
 
-// writeViews keeps the views in the file, by the columns' labels, written whole beside it first, so a reader never sees
-// half of it.
-func writeViews(path string, views map[string][]preset) error {
+// writePresets keeps the presets in the file, written whole beside it first, so a reader never sees half of it.
+func writePresets(path string, stages map[string][]preset) error {
 	if path == "" {
 		return nil
 	}
-	kept := map[string][]named{}
-	for stage, ps := range views {
-		for _, p := range ps {
-			kept[stage] = append(kept[stage], p.named(stage))
-		}
-	}
-	data, err := json.MarshalIndent(kept, "", "  ")
+	data, err := json.MarshalIndent(presets{Version: presetsVersion, Stages: stages}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -232,7 +278,7 @@ func presetOf(p grid.Panel, fields []field, headers bool) preset {
 	return out
 }
 
-// preset gives a view of the views file as a preset of the stage's: each column's label, or its id, as the field's id,
+// preset gives a view of views.json as a preset of the stage's: each column's label, or its id, as the field's id,
 // the catalog's; the columns hidden, those it groups by, outermost first, and those it sorts by, first first, as their
 // placements and sorts; the columns' order as their positions; whose rows it shows as the filter on the field that
 // owns them: mine as the caller alone, others as anyone but the caller; and the headers, and whether it folds. The
@@ -293,45 +339,6 @@ func (v named) preset(stage string) (preset, []string) {
 	out := presetOf(p, fields, v.Headers)
 	out.Name = v.Name
 	return out, dropped
-}
-
-// named gives a preset of the stage's as the views file keeps it, by the columns' labels: what it says the file has no
-// words for, a filter but on whose rows show, and a rendering, it does not keep.
-func (pr preset) named(stage string) named {
-	fields := fieldsOf(stage)
-	p := pr.panel(fields, grid.Panel{Owner: ownerOf(stage)})
-	v := named{Name: pr.Name, Headers: pr.Headers == nil || *pr.Headers}
-	if !p.Fold {
-		v.Fold = &p.Fold
-	}
-	label := func(id string) string { return labelOf(stage, id) }
-	positioned := false
-	for _, c := range p.Arrange(columnsOf(stage)) {
-		if c == "" {
-			continue
-		}
-		positioned = positioned || p.Field(c).Position > 0
-		v.Order = append(v.Order, label(c))
-		if p.Field(c).Placement == grid.Hidden {
-			v.Hidden = append(v.Hidden, label(c))
-		}
-	}
-	if !positioned {
-		v.Order = nil
-	}
-	for _, c := range p.Groups() {
-		v.Group = append(v.Group, label(c))
-	}
-	for _, k := range p.SortKeys() {
-		v.Sort = append(v.Sort, sortKey{label(k.Column), k.Desc})
-	}
-	switch p.Showing() {
-	case grid.Mine:
-		v.Show = "mine"
-	case grid.Others:
-		v.Show = "others"
-	}
-	return v
 }
 
 // views gives a stage's views, its own first, then the person's.
@@ -468,7 +475,7 @@ func (m *Model) saveView() tea.Cmd {
 		all[stage] = vs
 	}
 	all[s.name] = saved
-	if err := writeViews(m.viewsPath, all); err != nil {
+	if err := writePresets(m.presetsPath, all); err != nil {
 		m.notice, m.noted = fmt.Sprintf("%s the view could not be saved: %v", Failed, err), false
 		return nil
 	}

@@ -49,7 +49,7 @@ type Options struct {
 	Filters   []string
 	NoHeaders bool
 	NoSidebar bool
-	Views     string // the file the person's views are kept in; none keeps them for the session alone
+	Presets   string // the file the person's presets are kept in; none keeps them for the session alone
 	NoViews   bool   // whether the panels offer no dropdown of views, as a test of the panel alone asks
 	History   string // the file the searches are remembered in; none remembers them for the session alone
 }
@@ -126,7 +126,7 @@ type Model struct {
 	noted         bool                   // whether the notice says what was done, rather than why it was not
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
-	viewsPath     string                 // that file, or none
+	presetsPath   string                 // that file, or none
 	viewMenu      bool                   // whether the panel's dropdown of views is open
 	viewAt        int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages open with their headers hidden
@@ -160,7 +160,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	if err != nil {
 		return Model{}, err
 	}
-	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Views: viewsFile(), History: shell.RecentFile()}
+	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: presetsFile(), History: shell.RecentFile()}
 	for _, word := range words {
 		if word == "--no-fetch" {
 			o.NoFetch = true
@@ -178,12 +178,13 @@ func New(r kit.Runner, o Options) Model {
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.sideChosen = o.NoSidebar
-	m.noHeaders, m.viewsPath, m.noViews = o.NoHeaders, o.Views, o.NoViews
+	m.noHeaders, m.presetsPath, m.noViews = o.NoHeaders, o.Presets, o.NoViews
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
-	if m.saved, err = readViews(o.Views); err != nil {
-		m.notice = fmt.Sprintf("%s %s does not read as views, and is left as it is: %v", Failed, o.Views, err)
+	if m.saved, m.notice, err = readPresets(o.Presets); err != nil {
+		m.notice = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
+	m.noted = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{}, headers: !o.NoHeaders,
