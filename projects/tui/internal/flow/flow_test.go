@@ -933,7 +933,8 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 
 func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
+	// the source and labels columns have tests of their own
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
 	m = drive(m, down, toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
@@ -946,7 +947,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	}
 	// the issue's page is its title's glyph's, not a line of its own, and nothing says how to start it
 	if strings.Contains(v, "https://") || strings.Contains(v, "kit work 45") ||
-		m.rows(0)[0].Cells[4].Link != "https://github.com/empowerite/kit/issues/45" {
+		last(m.rows(0)[0].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
 	}
 	m = loaded(t, options(), right, right, right, right, right, right, right, down, down, toggle)
@@ -1466,8 +1467,9 @@ func TestTookIsToTheSecond(t *testing.T) {
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), right)
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden)) // the source column has a test of its own
-	asCatalog(&m, m.stage)                                     // auto_test has what the screen chooses
+	// the source and labels columns have tests of their own
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
+	asCatalog(&m, m.stage) // auto_test has what the screen chooses
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))
 	}
@@ -1537,7 +1539,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		if r.Cells[3].Link != jumpTo("changes", "#2") && r.Cells[3].Link != jumpTo("changes", "#4") {
 			t.Errorf("the pull request's glyph leads to %q", r.Cells[3].Link)
 		}
-		return r.Cells[4].Link, r.Cells[9].Link
+		return r.Cells[4].Link, last(r.Cells).Link
 	}
 	if pr, issue := links(m); strings.Contains(v, "https://") || pr != "https://github.com/empowerite/kit/pull/2" ||
 		issue != "https://github.com/empowerite/kit/issues/1" {
@@ -1674,3 +1676,6 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 		t.Errorf("a column no issue has a source in has a header:\n%s", view(m))
 	}
 }
+
+// last gives a row's last cell, the title's, which stands after every other column.
+func last(cells []grid.Cell) grid.Cell { return cells[len(cells)-1] }

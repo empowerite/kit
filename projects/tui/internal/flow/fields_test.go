@@ -155,8 +155,8 @@ func checkSetting(t *testing.T, where string, f field, s setting) {
 		}
 		for _, v := range slices.Concat(s.Filter.Include, s.Filter.Exclude) {
 			known := slices.ContainsFunc(f.Values, func(e enumValue) bool { return e.Value == v })
-			// a person's filter names logins, @me among them, and none
-			if !known && (f.Type != "person" || v == "") {
+			// a person's filter names logins, @me among them, and none; a label's, any label's name, and none
+			if !known && (f.Type != "person" && f.Type != "label" || v == "") {
 				t.Errorf("%s: the filter's value %q", where, v)
 			}
 		}
@@ -212,7 +212,7 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		"assignees": {Sort: "asc", Priority: 2, Filter: &valueFilter{Exclude: []string{caller}}},
 	}}
 	g := p.panel(fields, grid.Panel{Owner: ownerOf("backlog")})
-	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch"}) ||
+	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {

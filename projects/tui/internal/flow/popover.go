@@ -39,7 +39,8 @@ type popLine struct {
 
 // popLines gives the popover's lines for the field, under two dim headings, each where the field has it. filter,
 // for an enum or a person: whether the values checked are let through or held back, include or exclude, one line that
-// toggles, then a box per value: an enum's known values with their glyphs, a person's logins the rows loaded hold,
+// toggles, then a box per value: an enum's known values with their glyphs, a label's names as its pills draw them, a
+// person's logins the rows loaded hold,
 // after @me, the caller, and the values the catalog does not know, then none, a row with no value, and any the filter
 // names that are not there. rendering: auto, with the rendering it chooses now, dim, then each of the field's
 // renderings, a radio.
@@ -75,6 +76,8 @@ func (m Model) popLines(id string) []popLine {
 			switch {
 			case f.Type == "enum" && v != grid.NoValue && f.glyphOf(v) != "":
 				name = f.glyphOf(v) + " " + v
+			case f.Type == "label" && v != grid.NoValue:
+				name = pill(m.labelNamed(f.ID, v))
 			case v == caller && m.me != "":
 				name += " " + style.Off(m.me)
 			}

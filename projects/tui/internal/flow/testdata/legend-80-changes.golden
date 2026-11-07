@@ -9,14 +9,15 @@
  ▸ 🔀 #4   Lint …  bob     🔥     25h  ❌        … │ ☑ age
                                                    │ ☑ checks
                                                    │ ☑ threads
+                                                   │ ☑ labels
                                                    │ ☑ branch
                                                    │ hidden
                                                    │
                                                    │ legend
                                                    │ 🔀 a pull request 🔗
-                                                   │ 👤 assignees or author
-                                                   ▸ 🌿 a branch or a worktree
-                                                   ╷ 🏃 running
+                                                   ▸ 👤 assignees or author
+                                                   ╷ 🌿 a branch or a worktree
+                                                   │ 🏃 running
                                                    │ ✅ passed
                                                    │ ❌ failed
                                                    │ 💬 threads unresolved
@@ -27,6 +28,5 @@
                                                    │ 🔨 draft
                                                    │ 🚦 queued
                                                    │ 💥 conflicted
-                                                   │ 🔥 failing:gate
-                                                   │ … 5 more
+                                                   │ … 6 more
  = menu / search ? hide sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu

@@ -2,7 +2,9 @@
 // a column, and the lines it opens to. A cell holds one value, or several, as an issue's assignees, or a text that
 // wraps, as a title. A closed row shows a cell's first value, with +N, right-aligned in the cell, when it holds more,
 // and its text cut with … where its column ends. An open row shows every value, one a line in its column, the text
-// wrapped in its column, then the lines it opens to. A row that hides anything, closed, has ▸ in the gutter before it,
+// wrapped in its column, then the lines it opens to. A cell with a summary, as an issue's labels by their count, shows
+// the summary in its column, closed or open, and an open row's values in it follow the row's lines, as many to a line
+// as the width holds. A row that hides anything, closed, has ▸ in the gutter before it,
 // and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks the
 // row, so the cell is not underlined as a chosen name is. A glyph, or a first word, whose link opens a page is
 // underlined with dots. A header can stand the columns' names over the rows, widening each column to its name; a click
@@ -37,15 +39,18 @@ import (
 // with none by its first value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the
 // value, for a cell that draws more than it groups by, as checks their counts beside their state; none says the cell's
 // first value. Hang says its values start with a glyph, so a line an open row breaks one onto starts under the text
-// after the glyph, not under the glyph: a hanging indent.
+// after the glyph, not under the glyph: a hanging indent. Summary is what its column shows in place of its values, as
+// how many labels an issue has: the column is as wide as the summary, and an open row draws the values after its own
+// lines, side by side across the width, so values too wide for a column stand whole.
 type Cell struct {
-	Values []string
-	Right  bool
-	Wrap   bool
-	Link   string
-	Raw    []string
-	Head   string
-	Hang   bool
+	Values  []string
+	Right   bool
+	Wrap    bool
+	Link    string
+	Raw     []string
+	Head    string
+	Hang    bool
+	Summary string
 }
 
 // key gives what a cell sorts and groups by: its first raw value, else its first value's text without its styles.
@@ -169,9 +174,18 @@ func (c Cell) first() string {
 	return c.Values[0]
 }
 
-// more gives what a closed cell shows after its first value when it holds more: +N, dim, a space before it.
+// face gives what a cell's column shows of it: its summary, when it has one, else its first value.
+func (c Cell) face() string {
+	if c.Summary != "" {
+		return c.Summary
+	}
+	return c.first()
+}
+
+// more gives what a closed cell shows after its first value when it holds more: +N, dim, a space before it; nothing
+// for a cell with a summary, which says it already.
 func (c Cell) more() string {
-	if len(c.Values) < 2 {
+	if len(c.Values) < 2 || c.Summary != "" {
 		return ""
 	}
 	return " " + style.Off("+"+strconv.Itoa(len(c.Values)-1))
@@ -221,6 +235,14 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 			out = append(out, Line{k, g + l})
 		}
 		if opened {
+			for _, c := range r.Cells {
+				if c.Summary == "" {
+					continue
+				}
+				for _, l := range flowed(c.Values, cells-len(under)+len(lead)) {
+					out = append(out, Line{k, under + l})
+				}
+			}
 			for _, d := range table(r.Detail, cells-len(under)+len(lead)) {
 				out = append(out, Line{k, under + d})
 			}
@@ -353,16 +375,17 @@ func HeaderName(rows []Row, names []string, width, j int) (int, string) {
 }
 
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
-// a text wider than the cells its column leaves it, the title's or one cut to give the title room.
+// with a summary in their place, or a text wider than the cells its column leaves it, the title's or one cut to give
+// the title room.
 func Hides(r Row, widths []int, left int) bool {
 	if len(r.Detail) > 0 {
 		return true
 	}
 	for j, c := range r.Cells {
 		switch {
-		case len(c.Values) > 1, c.Wrap && ansi.StringWidth(c.first()) > left:
+		case len(c.Values) > 1, c.Summary != "" && len(c.Values) > 0, c.Wrap && ansi.StringWidth(c.first()) > left:
 			return true
-		case !c.Wrap && len(r.Cells) > 1 && j < len(widths) && widths[j] > 0 && ansi.StringWidth(c.first()) > widths[j]:
+		case !c.Wrap && len(r.Cells) > 1 && j < len(widths) && widths[j] > 0 && ansi.StringWidth(c.face()) > widths[j]:
 			return true
 		}
 	}
@@ -396,9 +419,9 @@ func LinkAt(rows []Row, head []string, k, width, x int) string {
 		}
 		start := at
 		if c.Right {
-			start += w - ansi.StringWidth(c.first()+c.more())
+			start += w - ansi.StringWidth(c.face()+c.more())
 		}
-		word, _, _ := strings.Cut(ansi.Strip(c.first()), " ")
+		word, _, _ := strings.Cut(ansi.Strip(c.face()), " ")
 		if c.Link != "" && x >= start && x < start+min(ansi.StringWidth(word), w) {
 			return c.Link
 		}
@@ -463,8 +486,12 @@ func columnWidths(rows []Row) []int {
 }
 
 // need gives the cells a cell takes in its column: its widest value, or its first value and +N; for the cell that
-// wraps, the widest it is on one line, which fit takes as the most it needs.
+// wraps, the widest it is on one line, which fit takes as the most it needs; for a cell with a summary, the summary,
+// as its values stand under the row.
 func (c Cell) need() int {
+	if c.Summary != "" {
+		return ansi.StringWidth(c.Summary)
+	}
 	n := 0
 	if !c.Wrap {
 		n = ansi.StringWidth(c.first() + c.more())
@@ -591,7 +618,7 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 		default:
 			more := c.more()
 			w := widths[j] - ansi.StringWidth(more)
-			v := dotted(pane.Clip(c.first(), w), c)
+			v := dotted(pane.Clip(c.face(), w), c)
 			if len(parts) == 0 {
 				v = choose(v, chosen)
 			}
@@ -614,6 +641,8 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 		switch {
 		case c.Wrap:
 			columns[j] = wrapped(c, left)
+		case j < len(widths) && widths[j] > 0 && c.Summary != "":
+			columns[j] = []string{pane.Clip(c.Summary, widths[j])}
 		case j < len(widths) && widths[j] > 0:
 			for _, v := range c.Values {
 				columns[j] = append(columns[j], hung(v, c.Hang, widths[j], broken)...)
@@ -645,6 +674,27 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			parts = append(parts, pane.Pad(v, w, c.Right))
 		}
 		out[k] = pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
+	}
+	return out
+}
+
+// flowed lays values out side by side, a space between each two, in lines of so many cells: a line takes each value
+// that still fits on it whole, and a value wider than a line has one of its own, cut where it ends.
+func flowed(values []string, width int) []string {
+	var out []string
+	line, used := "", 0
+	for _, v := range values {
+		w := ansi.StringWidth(v)
+		if line != "" && used+1+w > width {
+			out, line, used = append(out, line), "", 0
+		}
+		if line != "" {
+			line, used = line+" ", used+1
+		}
+		line, used = line+pane.Clip(v, width), used+min(w, width)
+	}
+	if line != "" {
+		out = append(out, line)
 	}
 	return out
 }

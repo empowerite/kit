@@ -19,6 +19,8 @@
          "right": true, "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
          "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
          "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
       ],
@@ -26,7 +28,7 @@
         {"name": "Default"},
         {"name": "Compact", "fields": {
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
-          "branch": {"placement": "hidden"}}}
+          "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
       ]
     },
     {
@@ -64,6 +66,8 @@
          "right": true, "placement": "column"},
         {"id": "by", "label": "by", "type": "person", "path": ".pr.pushed.by", "sort": true, "group": true,
          "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
          "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
       ],
@@ -72,7 +76,7 @@
         {"name": "Compact", "fields": {
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
           "where": {"placement": "hidden"}, "fork": {"placement": "hidden"}, "pushed": {"placement": "hidden"},
-          "by": {"placement": "hidden"}}}
+          "by": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
       ]
     },
     {
@@ -154,6 +158,8 @@
          "renderings": ["checks", "glyph"], "placement": "column"},
         {"id": "threads", "label": "threads", "type": "number", "path": ".unresolved", "sort": true, "glyph": "💬",
          "renderings": ["threads"], "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
          "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"}
       ],
@@ -161,7 +167,7 @@
         {"name": "Default"},
         {"name": "Compact", "fields": {
           "author": {"placement": "hidden"}, "age": {"placement": "hidden"}, "checks": {"placement": "hidden"},
-          "threads": {"placement": "hidden"}, "branch": {"placement": "hidden"}}}
+          "threads": {"placement": "hidden"}, "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
       ]
     },
     {

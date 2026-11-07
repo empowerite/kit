@@ -7,18 +7,18 @@
  ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                         │ ☑ a╭─ assignees ──────────╮
                                                                                            │ ☑ a│ filter               │
                                                                                            │ ☑ b│ ⦿ include  ⦾ exclude │
-                                                                                           │ ☑ t│ ☑ @me ada            │
-                                                                                           │ hid│ ☐ ada                │
-                                                                                           │ ☐ o│ ☐ bob                │
-                                                                                           │ ☐ r│ ☐ jeffrey-aguilera   │
-                                                                                           ▸    │ ☐ none               │
-                                                                                           ╷ ⇧↑↓│ rendering            │
-                                                                                           │ ⏎  │ ⦿ auto glyph+text    │
-                                                                                           │    │ ⦾ glyph+text         │
-                                                                                           │ cli│ ⦾ text               │
-                                                                                           │    ╰──────────────────────╯
+                                                                                           │ ☑ l│ ☑ @me ada            │
+                                                                                           │ ☑ t│ ☐ ada                │
+                                                                                           │ hid│ ☐ bob                │
+                                                                                           │ ☐ o│ ☐ jeffrey-aguilera   │
+                                                                                           ▸ ☐ r│ ☐ none               │
+                                                                                           ╷    │ rendering            │
+                                                                                           │ ⇧↑↓│ ⦿ auto glyph+text    │
+                                                                                           │ ⏎  │ ⦾ glyph+text         │
+                                                                                           │    │ ⦾ text               │
+                                                                                           │ cli╰──────────────────────╯
+                                                                                           │
                                                                                            │ legend
                                                                                            │ 🎫 an issue 🔗
-                                                                                           │ 🐙 on GitHub
-                                                                                           │ … 4 more
+                                                                                           │ … 5 more
  esc close ↑↓ move ␣ toggle

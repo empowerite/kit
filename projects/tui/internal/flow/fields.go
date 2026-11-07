@@ -208,7 +208,8 @@ type valueType struct {
 }
 
 // types gives each kind of value a field can hold, by the name the catalog gives it: a reference, as an issue's #45; a
-// text; an enum, one of known values; a person's login; a time, in seconds; and a number.
+// text; an enum, one of known values; a person's login; a time, in seconds; a number; and a forge's labels, which a
+// row's column counts and its open row draws, each a pill.
 var types = map[string]valueType{
 	"ref":    {},
 	"text":   {},
@@ -216,6 +217,7 @@ var types = map[string]valueType{
 	"person": {filters: true},
 	"time":   {},
 	"number": {},
+	"label":  {filters: true},
 }
 
 // value is what a row holds in one field. Raw is what the row sorts, groups, and filters by, unstyled, one a value, as
@@ -270,6 +272,7 @@ var renderers = map[string]renderer{
 	"checks":      checksCells,
 	"threads":     each(threadsText),
 	"where":       whereCells,
+	"pills":       each(pills),
 }
 
 // glyphed names the renderers that draw a glyph before a value, the field's own or its value's.
@@ -441,7 +444,8 @@ func (f field) drawnBy(pinned string) string {
 // the field's, else its first: each dim where the field is, the field's alignment, each row's link, and what each
 // sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim. A link leads from
 // the glyph, so a field drawn without its glyph, which another of its renderings draws, has none: its text is no
-// button. A field none of whose renderings draws a glyph, as a reference, leads from its text.
+// button. A field none of whose renderings draws a glyph, as a reference, leads from its text. A field of labels says
+// how many a row has, dim, in its column, and a group's heading the one label its rows share, as it draws it.
 func (f field) draw(vs []value, pinned string) []cell {
 	rendering := f.drawnBy(pinned)
 	links := glyphed[rendering] || !slices.ContainsFunc(f.Renderings, func(r string) bool { return glyphed[r] })
@@ -459,6 +463,9 @@ func (f field) draw(vs []value, pinned string) []cell {
 			c.Values = []string{style.Off(v.Else)}
 		}
 		c.Right, c.Wrap, c.Raw, c.Hang = f.Right, f.Wrap, v.Raw, glyphed[rendering]
+		if f.Type == "label" && len(c.Values) > 0 {
+			c.Summary, c.Head = style.Off(strconv.Itoa(len(c.Values))), c.Values[0]
+		}
 		if links {
 			c.Link = v.Link
 		}

@@ -14,11 +14,12 @@ import (
 
 // issue is one of backlog's, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
 // Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it, and
-// Organization and Repository where in it the issue is, each empty where the tracker has none.
+// Organization and Repository where in it the issue is, each empty where the tracker has none; Labels are its forge's.
 type issue struct {
 	Number       int      `json:"number"`
 	Title        string   `json:"title"`
 	Assignees    []string `json:"assignees"`
+	Labels       []label  `json:"labels"`
 	Age          *int64   `json:"age"`
 	Branch       string   `json:"branch"`
 	URL          string   `json:"url"`
@@ -38,12 +39,12 @@ type commit struct {
 // Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
 // owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how long ago
 // and by whom, when the forge says. Source is the tracker that holds the issue, and Organization and Repository where
-// in it the issue is. The URLs are kit's when it prints
-// them.
+// in it the issue is, and Labels the issue's, not the pull request's. The URLs are kit's when it prints them.
 type underway struct {
 	Number       int      `json:"number"`
 	Title        string   `json:"title"`
 	Assignees    []string `json:"assignees"`
+	Labels       []label  `json:"labels"`
 	Age          *int64   `json:"age"`
 	URL          string   `json:"url"`
 	Source       string   `json:"source"`
@@ -118,7 +119,7 @@ type checkout struct {
 	} `json:"changes"`
 }
 
-// pull is one open pull request, with the issues it closes.
+// pull is one open pull request, with its labels and the issues it closes.
 type pull struct {
 	Number     int     `json:"number"`
 	Ref        string  `json:"ref"`
@@ -130,6 +131,7 @@ type pull struct {
 	Checks     *checks `json:"checks"`
 	Unresolved int     `json:"unresolved"`
 	Branch     string  `json:"branch"`
+	Labels     []label `json:"labels"`
 	Closes     []issue `json:"closes"`
 }
 
@@ -484,8 +486,8 @@ func (m Model) records(s stage) []record {
 	return nil
 }
 
-// backlogRows gives each issue: number, source, organization, repository, assignees, age, branch, title, its glyph leading to the issue's page;
-// open, every assignee and the title wrapped. An issue belongs to its assignees.
+// backlogRows gives each issue: number, source, organization, repository, assignees, age, branch, labels, title, its
+// glyph leading to the issue's page; open, every assignee, the title wrapped, and every label. An issue belongs to its assignees.
 func (m Model) backlogRows(s stage) []record {
 	var out []record
 	for _, i := range s.issues {
@@ -493,7 +495,8 @@ func (m Model) backlogRows(s stage) []record {
 		out = append(out, record{row{Key: key}, map[string]value{
 			"id": one(key), "source": some(i.Source), "organization": some(i.Organization),
 			"repository": some(i.Repository), "assignees": {Raw: i.Assignees}, "age": seconds(i.Age),
-			"branch": some(i.Branch), "title": {Raw: []string{i.Title}, Link: m.origin.issue(i.Number, i.URL)},
+			"branch": some(i.Branch), "labels": labelled(i.Labels),
+			"title": {Raw: []string{i.Title}, Link: m.origin.issue(i.Number, i.URL)},
 		}})
 	}
 	return out
@@ -501,7 +504,8 @@ func (m Model) backlogRows(s stage) []record {
 
 // underwayRows gives each issue underway beside the pull request that closes it, oldest first as kit prints them:
 // number, source, organization, repository, assignees, age, the pull request's number and state, where the work is, the fork its branch is in,
-// when last pushed, its age right-aligned after the glyph, by whom when not the author, and the title. Where is here
+// when last pushed, its age right-aligned after the glyph, by whom when not the author, the issue's labels, and the
+// title. Where is here
 // when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
 // it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
 // the picture; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
@@ -534,7 +538,7 @@ func (m Model) underwayRows(s stage) []record {
 			"id": one(issue), "source": some(u.Source), "organization": some(u.Organization),
 			"repository": some(u.Repository), "assignees": {Raw: u.Assignees}, "age": seconds(u.Age),
 			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
-			"where": where, "fork": some(u.PR.Fork), "pushed": pushed, "by": by,
+			"where": where, "fork": some(u.PR.Fork), "pushed": pushed, "by": by, "labels": labelled(u.Labels),
 			"title": {Raw: []string{u.Title}, Link: m.origin.issue(u.Number, u.URL)},
 		}})
 	}
@@ -773,8 +777,8 @@ func ref(p pull) string {
 	return "#" + strconv.Itoa(p.Number)
 }
 
-// changeRows gives each pull request: number, title, author, state, age, checks, threads, branch; open, the title
-// wrapped, then the issues it closes, one row each, in flight. The pull request's glyph and its state's lead to its
+// changeRows gives each pull request: number, title, author, state, age, checks, threads, labels, branch; open, the
+// title wrapped and every label, then the issues it closes, one row each, in flight. The pull request's glyph and its state's lead to its
 // page. A pull request belongs to its author.
 func (m Model) changeRows(s stage) []record {
 	var out []record
@@ -787,7 +791,7 @@ func (m Model) changeRows(s stage) []record {
 		r := record{row{Key: ref(p)}, map[string]value{
 			"change": {Raw: []string{ref(p)}, Link: page}, "title": one(p.Title), "author": some(p.Author),
 			"state": {Raw: []string{p.State}, Link: page}, "age": seconds(&p.Age), "checks": checked,
-			"threads": one(strconv.Itoa(p.Unresolved)), "branch": some(p.Branch),
+			"threads": one(strconv.Itoa(p.Unresolved)), "branch": some(p.Branch), "labels": labelled(p.Labels),
 		}}
 		for _, i := range p.Closes {
 			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),

@@ -4,21 +4,21 @@
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ ☑ source ▤
      id  age ▼  title                                                                   📊 │ columns
    ───────────────────────────────────────────────────────────── assignees: @me  Default ▼ │ ☑ id
- ▾ 🐙 github source  1                                                                     │ ☑ age ▼                   
-     #7    40d  🎫 Fix the thing                                                           │ ☑ branch
+ ▾ 🐙 github source  1                                                                     │ ☑ age ▼
+     #7    40d  🎫 Fix the thing                                                           │ ☑ branch                  
+                                                                                           │ ☑ labels
                                                                                            │ ☑ title
                                                                                            │ hidden
                                                                                            │ ☐ organization
                                                                                            │ ☐ repository
-                                                                                           │ ☐ assignees ⊘
-                                                                                           ▸
-                                                                                           ╷ ⇧↑↓  move, or drag
+                                                                                           ▸ ☐ assignees ⊘
+                                                                                           ╷
+                                                                                           │ ⇧↑↓  move, or drag
                                                                                            │ ⏎    filter, draw
                                                                                            │ 
                                                                                            │ click a name  its menu
                                                                                            │
                                                                                            │ legend
                                                                                            │ 🎫 an issue 🔗
-                                                                                           │ 🐙 on GitHub
-                                                                                           │ … 4 more
+                                                                                           │ … 5 more
  = menu / search │ 1-8 jump : tab menu │ ⇥·esc backlog ↑↓ move ⇞⇟ scroll │ ␣ hide ⇧↑↓ move ⏎ options
