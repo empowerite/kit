@@ -476,10 +476,7 @@ func (m Model) View() tea.View {
 	}
 	drawn = m.recent.Overlay(drawn, m.recallAt(), m.width)
 	drawn = m.appMenu.Overlay(drawn, m.width)
-	v := tea.NewView(strings.Join(style.Bottom(drawn, m.height, m.keys().Line(m.width)), "\n"))
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	return v
+	return shell.View(drawn, m.height, m.keys().Line(m.width))
 }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, which esc quits; the verbs' list,

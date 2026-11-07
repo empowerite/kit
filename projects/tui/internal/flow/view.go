@@ -68,11 +68,7 @@ func (m Model) View() tea.View {
 	case m.notice != "":
 		bottom = " " + style.Refusal(pane.Clip(m.notice, m.width-1))
 	}
-	lines = style.Bottom(lines, m.height, bottom)
-	v := tea.NewView(strings.Join(lines, "\n"))
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	return v
+	return shell.View(lines, m.height, bottom)
 }
 
 // bar gives the stages' tab bar, from the screen's second line, as wide as barWidth says: each stage's glyph, name,

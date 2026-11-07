@@ -52,10 +52,7 @@ func (m Model) View() tea.View {
 	lines = append(lines, m.pane()...)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, m.keys().Line(m.width)), "\n"))
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	return v
+	return shell.View(lines, m.height, m.keys().Line(m.width))
 }
 
 // bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, the count in red

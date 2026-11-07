@@ -49,10 +49,7 @@ func (m Model) View() tea.View {
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.appMenu.Overlay(append(lines, ""), m.width)
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, m.bottom()), "\n"))
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	return v
+	return shell.View(lines, m.height, m.bottom())
 }
 
 // bottom gives the screen's last line: the notice while there is one, else the keys bar. The link to open by hand
