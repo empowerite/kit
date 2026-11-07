@@ -189,7 +189,7 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 			t.Errorf("the %s arrow: at %d", arrows[c], m.legend.at)
 		}
 		box, top, left = m.legendBox()
-		if c == topLeft && (top != paneTop || left != 0) || c == bottomRight && left+ansi.StringWidth(box[0]) != m.width {
+		if c == topLeft && (top != m.top() || left != 0) || c == bottomRight && left+ansi.StringWidth(box[0]) != m.width {
 			t.Errorf("the legend in corner %d: %d, %d", c, top, left)
 		}
 	}

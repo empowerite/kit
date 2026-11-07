@@ -106,12 +106,12 @@ func (m Model) legendBox() (lines []string, top, left int) {
 	}
 	lines[0] = shell.Splice(lines[0], " "+strings.Join(buttons, " ")+" ", width-len(arrows)*2-2)
 	lines = append(lines[:len(lines)-2], lines[len(lines)-1])
-	top, left = paneTop, 0
+	top, left = m.top(), 0
 	if m.legend.at == topRight || m.legend.at == bottomRight {
 		left = max(0, m.width-width)
 	}
 	if m.legend.at == bottomLeft || m.legend.at == bottomRight {
-		top = max(paneTop, m.height-1-len(lines))
+		top = max(m.top(), m.height-1-len(lines))
 	}
 	return lines, top, left
 }

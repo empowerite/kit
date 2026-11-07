@@ -21,12 +21,21 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
-// right under the bar, which is open there to the selected tab.
-const (
-	fixed   = 3 + tabs.Height
-	paneTop = 1 + tabs.Height
-)
+// top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
+// maximized, under the title and the banner, the line under it in the tab's color.
+func (m Model) top() int {
+	if m.maximized {
+		return 2
+	}
+	return 1 + tabs.Height
+}
+
+// banner gives the line under the title of a maximized tab: Banner, as wide as the pane, in the color the bar draws the
+// selected tab in.
+func (m Model) banner() string {
+	mark, _ := style.In(m.bar().Color)
+	return mark(strings.Repeat(Banner, m.paneWidth()))
+}
 
 // line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
 type line struct {
@@ -34,12 +43,17 @@ type line struct {
 	text string
 }
 
-// View draws the title and, on its right, the search; the bar; the selected stage's pane, the rows the width of the
-// screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on the alternate screen,
-// with the mouse on for the bar, and each forge's rate limit at the keys bar's right end. A screen too short for all of
-// them keeps the bar, and cuts the rest from the bottom.
+// View draws the title and, on its right, the search; the bar, or, maximized, the banner; the selected stage's pane, the
+// rows the width of the screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on
+// the alternate screen, with the mouse on for the bar, and each forge's rate limit at the keys bar's right end. A screen
+// too short for all of them keeps the bar, and cuts the rest from the bottom.
 func (m Model) View() tea.View {
-	lines := append([]string{m.titled()}, strings.Split(m.bar().View(), "\n")...)
+	lines := []string{m.titled()}
+	if m.maximized {
+		lines = append(lines, m.banner())
+	} else {
+		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
+	}
 	lines = append(lines, m.pane()...)
 	lines = m.float(m.overlay(m.overLegend(append(lines, ""))))
 	bottom := m.keys().LineWith(m.width, quotaText(m.quotas, time.Now()))
@@ -73,8 +87,8 @@ func (m Model) bar() tabs.Bar {
 	return b
 }
 
-// paneHeight gives the lines the pane has.
-func (m Model) paneHeight() int { return max(1, m.height-fixed) }
+// paneHeight gives the lines the pane has: the screen's from top on, but the gap and the keys bar under it.
+func (m Model) paneHeight() int { return max(1, m.height-m.top()-2) }
 
 // titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
 func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
@@ -108,8 +122,8 @@ func (m Model) titled() string {
 func (m Model) paneWidth() int { return max(1, m.width-1) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? and F1 show or hide the
-// legend; the stages' bar, whose down reaches the preset line, or the rows where the stage has none; and the part the
-// keyboard is in, the preset line, the rows, or the search.
+// legend; the stages' bar, whose down reaches the preset line, or the rows where the stage has none, and which,
+// maximized, has no left or right; and the part the keyboard is in, the preset line, the rows, or the search.
 // An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	switch {
@@ -139,7 +153,12 @@ func (m Model) keys() shell.Path {
 	if m.presets(m.stage) {
 		down = "preset"
 	}
-	path := shell.Path{shell.ScreenKeys(legend), m.bar().Keys(down)}
+	bar := m.bar().Keys(down)
+	if m.maximized {
+		// the bar is not there to move along
+		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "←→" })
+	}
+	path := shell.Path{shell.ScreenKeys(legend), bar}
 	switch {
 	case m.inPanel:
 		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "back"), shell.Bind("⏎", "back", "enter")}},
@@ -208,14 +227,17 @@ func (m Model) rowKeys() shell.Segment {
 	return seg
 }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; and origin's
-// owner/repo after its glyph, in its own color, when known.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; origin's owner/repo
+// after its glyph, in its own color, when known; and, maximized, the selected tab, as the bar draws it, its ⋮ last.
 func (m Model) title() string {
 	title := shell.Title(style.Label("kit flow"), m.appMenu.Open)
-	if m.origin.Repo == "" {
-		return title
+	if m.origin.Repo != "" {
+		title += " · " + Repository + " " + style.Repo(m.origin.Repo)
 	}
-	return title + " · " + Repository + " " + style.Repo(m.origin.Repo)
+	if m.maximized {
+		title += " · " + m.bar().Label()
+	}
+	return title
 }
 
 // count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming
@@ -347,17 +369,17 @@ func (m Model) ruled() (string, int) {
 // presetTop gives the screen line the preset line is drawn on, the rule under the header.
 func (m Model) presetTop() int {
 	lines, _ := m.header()
-	return paneTop + len(lines) - 1
+	return m.top() + len(lines) - 1
 }
 
 // rowsTop gives the screen line the rows start on: the pane's first, or the one under the header and its rule.
 func (m Model) rowsTop() int {
 	lines, _ := m.header()
-	return paneTop + len(lines)
+	return m.top() + len(lines)
 }
 
 // rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's and its rule's, which do not.
-func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-paneTop)) }
+func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-m.top())) }
 
 // pane gives the pane's lines, as many as it has, each as wide as the pane: the header and its rule, when shown, then
 // the selected stage's rows from its offset on.

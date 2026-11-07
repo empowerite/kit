@@ -54,8 +54,8 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // the pane's first line, the line under them names the view, and the rows start under it.
 func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != "   "+selector(Opening) || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
-		!strings.Contains(lines(m)[paneTop], "assignees") {
+	if got := presetText(m); got != "   "+selector(Opening) || m.presetTop() != m.top()+1 || m.rowsTop() != m.top()+2 ||
+		!strings.Contains(lines(m)[m.top()], "assignees") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected
@@ -149,7 +149,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	// the menu is titled Presets at its left, as a dialog is, not by the preset the table is set as; it stands on the
 	// header's first line, as the columns dialog does, its right edge on the selector's ▼
 	if box, top, left := m.presetBox(); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+PresetsTitle+" ─") ||
-		strings.Contains(box[0], Opening) || top != paneTop || left+ansi.StringWidth(box[0]) != m.dropEnd() {
+		strings.Contains(box[0], Opening) || top != m.top() || left+ansi.StringWidth(box[0]) != m.dropEnd() {
 		t.Errorf("the menu's title, at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
 	// it is in its tab's color, as the selector is, not the menus' own

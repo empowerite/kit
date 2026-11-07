@@ -33,8 +33,8 @@ func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 // as the rows stand them, then the hidden, each with whether it shows, its sort, and its group's depth.
 func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	if strings.Contains(lines(m)[paneTop], "◫") || strings.Contains(lines(m)[paneTop], Fields) {
-		t.Errorf("an icon on the header: %q", lines(m)[paneTop])
+	if strings.Contains(lines(m)[m.top()], "◫") || strings.Contains(lines(m)[m.top()], Fields) {
+		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
 	}
 	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("assignees", true))
 	if m.dropPresets(); m.presetItems()[itemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
@@ -49,7 +49,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	}
 	box, top, left := m.columnsBox()
 	text := ansi.Strip(strings.Join(box, "\n"))
-	if top != paneTop || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog fields") ||
+	if top != m.top() || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog fields") ||
 		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
 		!strings.Contains(text, "▼") || !strings.Contains(text, grid.Unticked+" organization") ||
 		!strings.Contains(keysOf(m), "s sort") {

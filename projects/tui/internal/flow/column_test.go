@@ -17,9 +17,9 @@ import (
 // rows grouped by it, innermost, or no longer; Hide; and its options. A line the column cannot act on stays, dim.
 func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
-	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
+	at := func(name string) int { return strings.Index(lines(m)[m.top()], name) }
 	rightClick := func(name string) tea.MouseClickMsg {
-		return tea.MouseClickMsg{X: at(name), Y: paneTop, Button: tea.MouseRight}
+		return tea.MouseClickMsg{X: at(name), Y: m.top(), Button: tea.MouseRight}
 	}
 	group := func() []string { return m.panel(m.stage).Groups() }
 	sorts := func() int { return len(m.panel(m.stage).SortKeys()) }
@@ -109,7 +109,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("Hide age: %q", m.shownColumns(m.stage))
 	}
 	// a right click on the header's gutter, off every name, opens nothing
-	if m = drive(m, tea.MouseClickMsg{X: 1, Y: paneTop, Button: tea.MouseRight}); m.colMenu.open {
+	if m = drive(m, tea.MouseClickMsg{X: 1, Y: m.top(), Button: tea.MouseRight}); m.colMenu.open {
 		t.Errorf("a right click off the names opened the menu")
 	}
 	// nor does one under the rows, or a click on the rule of a table with no preset line
@@ -117,7 +117,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("a right click under the rows opened the menu")
 	}
 	m.noPresets = true
-	if m = drive(m, testkit.Click(10, paneTop+1)); m.colMenu.open || m.pop.open {
+	if m = drive(m, testkit.Click(10, m.top()+1)); m.colMenu.open || m.pop.open {
 		t.Errorf("a click on the rule opened a menu")
 	}
 }
@@ -128,11 +128,11 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 // on it, where the terminal sends shift, stops the sort; the menu stays shut.
 func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
-	header := func() string { return lines(m)[paneTop] }
+	header := func() string { return lines(m)[m.top()] }
 	at := func(text string) int { return ansi.StringWidth(header()[:strings.Index(header(), text)]) }
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
 	menu := func(name string, act colAct) {
-		m = drive(m, testkit.Click(at(name), paneTop))
+		m = drive(m, testkit.Click(at(name), m.top()))
 		m.columnAct(m.columnLine(act))
 	}
 	if m.colMenu.column = "age"; m.columnItems()[1].Name != "▲ Ascending" {
@@ -149,14 +149,14 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Fatalf("then by age, then by id: %+v\n%s", sorts(), header())
 	}
 	// the ▲ of age turns, and age keeps its place among the keys; the menu stays shut
-	if m = drive(m, testkit.Click(at("▲₁"), paneTop)); m.colMenu.open ||
+	if m = drive(m, testkit.Click(at("▲₁"), m.top())); m.colMenu.open ||
 		!slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ▲: %+v, menu %v\n%s", sorts(), m.colMenu.open, header())
 	}
-	if m = drive(m, testkit.Click(at("▼₁")+1, paneTop)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) {
+	if m = drive(m, testkit.Click(at("▼₁")+1, m.top())); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ₁: %+v\n%s", sorts(), header())
 	}
-	shift := tea.MouseClickMsg{X: at("▲₂") - 1, Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModShift}
+	shift := tea.MouseClickMsg{X: at("▲₂") - 1, Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModShift}
 	if m = drive(m, shift); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.colMenu.open {
 		t.Fatalf("a shift-click before id's ▲: %+v\n%s", sorts(), header())
 	}
@@ -200,28 +200,28 @@ func TestAClickJustAfterAColumnsNameSortsByIt(t *testing.T) {
 	keys := func(m Model) int { return len(m.panel(m.stage).SortKeys()) }
 	mark := func(m Model, column string) string { return m.panel(m.stage).Mark(column) }
 	// age stands two cells before branch: the cell after it sorts, the next, against branch's name, does nothing
-	if m = drive(m, testkit.Click(after(m, "age")+1, paneTop)); keys(m) != 0 || m.colMenu.open {
+	if m = drive(m, testkit.Click(after(m, "age")+1, m.top())); keys(m) != 0 || m.colMenu.open {
 		t.Fatalf("a click against branch's name: %d keys, menu %v", keys(m), m.colMenu.open)
 	}
-	if m = drive(m, testkit.Click(after(m, "age"), paneTop)); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.open {
+	if m = drive(m, testkit.Click(after(m, "age"), m.top())); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.open {
 		t.Fatalf("a click right after age: %d keys, age %q, menu %v", keys(m), mark(m, "age"), m.colMenu.open)
 	}
 	// again turns it around, and again back, never off
 	for _, want := range []string{"▼", "▲"} {
-		if m = drive(m, testkit.Click(after(m, "age"), paneTop)); keys(m) != 1 || mark(m, "age") != want {
+		if m = drive(m, testkit.Click(after(m, "age"), m.top())); keys(m) != 1 || mark(m, "age") != want {
 			t.Fatalf("another click after age: %d keys, age %q", keys(m), mark(m, "age"))
 		}
 	}
 	// assignees has room after its name: the second cell sorts by it too, after age
-	if m = drive(m, testkit.Click(after(m, "assignees")+1, paneTop)); keys(m) != 2 || mark(m, "assignees") != "▲₂" {
+	if m = drive(m, testkit.Click(after(m, "assignees")+1, m.top())); keys(m) != 2 || mark(m, "assignees") != "▲₂" {
 		t.Errorf("a click two cells after assignees: %d keys, assignees %q", keys(m), mark(m, "assignees"))
 	}
 	// off the names' line, as on the rule under them, the cells after a name sort nothing
-	if column := m.sortAt(after(m, "assignees"), paneTop+1); column != "" {
+	if column := m.sortAt(after(m, "assignees"), m.top()+1); column != "" {
 		t.Errorf("the rule under assignees sorts %q", column)
 	}
 	// the name itself drops the column menu down, and sorts nothing
-	if m = drive(m, testkit.Click(after(m, "branch")-2, paneTop)); !m.colMenu.open || keys(m) != 2 {
+	if m = drive(m, testkit.Click(after(m, "branch")-2, m.top())); !m.colMenu.open || keys(m) != 2 {
 		t.Errorf("a click on branch's name: menu %v, %d keys", m.colMenu.open, keys(m))
 	}
 }

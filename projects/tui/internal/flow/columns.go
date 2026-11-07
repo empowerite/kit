@@ -94,7 +94,7 @@ func (m Model) columnsBox() (lines []string, top, left int) {
 		body = append(body, line)
 	}
 	lines = shell.Dialog(m.stages[m.stage].name+" fields", body, m.paneWidth())
-	return lines, paneTop, max(0, m.paneWidth()-ansi.StringWidth(lines[0]))
+	return lines, m.top(), max(0, m.paneWidth()-ansi.StringWidth(lines[0]))
 }
 
 // columnsRow gives the field a screen line of the columns dialog draws, as an index into the fields it lists, or -1 for

@@ -55,6 +55,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     stand, then the hidden, each with whether it shows, its sort and its place among the keys, and its group's depth.
     What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
     or out, and ⏎ opens its Options…; a click on a line's box, sort, or group does as space, s, or g.
+  - Maximize, first in the tab's menu, gives the rows the bar's lines but one, for the session: the title names the
+    tab, its count, and its ⋮, which drops the tab's menu as the bar's does, a line in the tab's color runs under it,
+    and the header follows; Restore, in its place, puts the bar back as it was, and a tab's number selects a tab
+    either way.
   - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
     the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then

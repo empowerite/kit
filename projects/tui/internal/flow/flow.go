@@ -8,7 +8,8 @@
 // hides it; / or a click on the search, always on the screen's top right, gives the search the keyboard. A click on a
 // linked glyph, as an issue's before its title, opens its page in the browser, and one on a glyph that names a row of
 // another stage, as underway's pull request, selects that stage with the row under the cursor. The rows take the
-// screen's width. Esc goes back one level: from the search, then from the rows to the bar. Ctrl-c quits with
+// screen's width. Maximize, in the tab's menu, gives the rows the bar's lines but one, the tab named in the title, and
+// Restore puts the bar back. Esc goes back one level: from the search, then from the rows to the bar. Ctrl-c quits with
 // 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's
 // command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
@@ -143,6 +144,7 @@ type Model struct {
 	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
+	maximized     bool                   // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
 	pop           popover                // a field's popover, which has the keyboard while it is open
 	width, height int
@@ -322,7 +324,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.MouseWheelDown:
 			d = 1
 		}
-		if msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() {
+		if msg.X < m.paneWidth() && msg.Y >= m.top() && msg.Y < m.top()+m.paneHeight() {
 			m.scrollRows(d * wheel)
 		}
 	case tea.MouseClickMsg:
@@ -376,21 +378,21 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.dropDown(false)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
-		case len(m.stages) > 0 && grouping(msg) && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() &&
+		case len(m.stages) > 0 && grouping(msg) && msg.Y >= m.top() && msg.Y < m.top()+m.paneHeight() &&
 			msg.X < m.paneWidth():
 			m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
 		case msg.Button != tea.MouseLeft:
-			if bar, ok := m.bar().Update(msg); ok {
+			if bar, ok := m.barTakes(msg); ok {
 				m.choose(bar)
 			}
 		case msg.Y == 0 && msg.X >= m.searchAt():
 			return m, m.enterPanel()
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
-		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
+		case len(m.stages) > 0 && msg.Y >= m.top() && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
 			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, msg.Mod&tea.ModShift != 0)
 		default:
-			if bar, ok := m.bar().Update(msg); ok {
+			if bar, ok := m.barTakes(msg); ok {
 				m.choose(bar)
 			} else {
 				return m, m.click(msg.X, msg.Y, msg.Mod&tea.ModAlt != 0)
@@ -400,11 +402,21 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// onMenu says whether a click at x, y is on the selected tab's menu glyph: its cells on the bar's middle line, or the
-// blank cell either side of them, so a click a little off still drops the menu.
+// onMenu says whether a click at x, y is on the selected tab's menu glyph: its cells on the bar's middle line, or, once
+// maximized, on the title, or the blank cell either side of them, so a click a little off still drops the menu.
 func (m Model) onMenu(x, y int) bool {
-	at := m.bar().MenuAt()
-	return at >= 0 && y == m.bar().Row+1 && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
+	at := m.kebab()
+	return at >= 0 && y == m.menuTop() && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
+}
+
+// barTakes gives what the bar makes of a message, as its Update says, and whether it took it; while maximized, the bar
+// is not drawn, so a click is never on it, and left and right have no tabs to move along: it takes a tab's number
+// alone.
+func (m Model) barTakes(msg tea.Msg) (tabs.Bar, bool) {
+	if k, ok := msg.(tea.KeyPressMsg); m.maximized && (!ok || k.String() == "left" || k.String() == "right") {
+		return tabs.Bar{}, false
+	}
+	return m.bar().Update(msg)
 }
 
 // dropDown drops a menu down: the app's, or the selected tab's, which on backlog asks kit for the caller's login the
@@ -545,17 +557,17 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
-	if y < paneTop {
+	if y < m.top() {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && y == paneTop && x >= 0 && x < 3 {
+	if _, hides := m.header(); hides && !group && y == m.top() && x >= 0 && x < 3 {
 		next := maps.Clone(s.open)
 		next[headerKey] = !s.open[headerKey]
 		m.reoutline(next)
 		return nil
 	}
 	lines, _ := m.header()
-	if y >= paneTop+len(lines)-1 {
+	if y >= m.top()+len(lines)-1 {
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
@@ -741,7 +753,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if menu, app := menuFor(k); menu {
 		return m, m.dropDown(app)
 	}
-	if bar, ok := m.bar().Update(k); ok {
+	if bar, ok := m.barTakes(k); ok {
 		m.choose(bar)
 		return m, nil
 	}
@@ -844,7 +856,7 @@ func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.inPanel = false
-	if bar, ok := m.bar().Update(k); ok {
+	if bar, ok := m.barTakes(k); ok {
 		m.choose(bar)
 		return m, nil
 	}

@@ -112,7 +112,7 @@ func TestRefreshInTheTabsMenuRunsItsStageAndTheStagesThatShareItsRead(t *testing
 		record := filepath.Join(t.TempDir(), "calls")
 		m := to(t, loaded(t, options()), c.stage)
 		t.Setenv("FAKE_FLOW_CALLS", record)
-		m = drive(m, press(':'), press(tea.KeyEnter))
+		m = choose(t, m, "Refresh")
 		got := calls(t, record)
 		slices.Sort(got)
 		if !slices.Equal(got, c.want) || m.menu {

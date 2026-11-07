@@ -17,11 +17,15 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// The glyphs beside the tab's menu's items, the stage loaded again, every row expanded and every row collapsed, all
-// the way down and up as ▾ and ▸ are one row's, the selected rows' pages opened, every row selected, and the selection
-// swept away; beside the presets' menu's, the one the table stands as, two cells wide as the others; and beside the
-// app's menu's own, every stage loaded again.
+// The glyphs beside the tab's menu's items, the tab maximized and restored, one cell each, the stage loaded again, every
+// row expanded and every row collapsed, all the way down and up as ▾ and ▸ are one row's, the selected rows' pages
+// opened, every row selected, and the selection swept away; beside the presets' menu's, the one the table stands as,
+// two cells wide as the others; beside the app's menu's own, every stage loaded again; and the line under the title of
+// a maximized tab, in the tab's color, a cell of it.
 const (
+	Maximize = "⤢"
+	Restore  = "⤡"
+	Banner   = "━"
 	Expand   = "⏬"
 	Collapse = "⏫"
 	Checked  = "✅"
@@ -34,11 +38,16 @@ const (
 // ownItems are the picture's own in the app's menu: every stage loaded again, reading the forge afresh.
 var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
-// tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, the outline expanded, collapsed,
-// and collapsed but for the selection, as folds names them, a rule, every row selected and none, a rule, and what acts
-// on the rows selected: on backlog, the actions there, then each one's page opened.
+// tabItems gives the tab's menu's lines, top to bottom: the tab maximized, or restored once it is, and the stage loaded
+// again, a rule, the outline expanded, collapsed, and collapsed but for the selection, as folds names them, a rule,
+// every row selected and none, a rule, and what acts on the rows selected: on backlog, the actions there, then each
+// one's page opened.
 func (m Model) tabItems() []shell.Item {
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, m.folds()...)
+	size := shell.Item{Glyph: Maximize, Name: "Maximize"}
+	if m.maximized {
+		size = shell.Item{Glyph: Restore, Name: "Restore"}
+	}
+	items := append([]shell.Item{size, {Glyph: Reload, Name: "Refresh"}, {}}, m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
@@ -109,6 +118,8 @@ func (m Model) enabled(k int) bool {
 		return (m.selected() > 0 || m.tabItems()[k].Name != "Collapse Others") && m.changes(next)
 	}
 	switch m.tabItems()[k].Name {
+	case "Maximize", "Restore":
+		return true
 	case "Refresh":
 		return known[s.name]
 	case "Open Selected":
@@ -122,8 +133,9 @@ func (m Model) enabled(k int) bool {
 }
 
 // pick does what the tab's menu's item at k says to the selected stage's rows, closes the menu, and gives the rows the
-// keyboard, so left and right go on from there; refresh runs the stage again, as refresh says, leaving the keyboard
-// where it was. An item that is not enabled does nothing, and leaves the menu open. It gives what refresh runs.
+// keyboard, so left and right go on from there; maximize and restore give the rows the bar's lines but one, or take them
+// back, and refresh runs the stage again, as refresh says, each leaving the keyboard where it was. An item that is not
+// enabled does nothing, and leaves the menu open. It gives what refresh runs.
 func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
 		return nil
@@ -139,6 +151,9 @@ func (m *Model) pick(k int) tea.Cmd {
 		return nil
 	}
 	switch m.tabItems()[k].Name {
+	case "Maximize", "Restore":
+		m.maximize(!m.maximized)
+		return nil
 	case "Refresh":
 		return m.refresh(s.name)
 	case "Open Selected":
@@ -188,8 +203,9 @@ func (m *Model) refresh(name string) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's ⋮, and the column its
-// left edge is drawn at. The rows, not the bar, bound it, as the lines under the bar end where the rows do.
+// menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's ⋮, on the bar or the
+// title as kebab says, and the column its left edge is drawn at. The rows, not the bar, bound it, as the lines under
+// the bar end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
 	lines, left, _ = m.menuBoxIn()
 	return lines, left
@@ -198,24 +214,51 @@ func (m Model) menuBox() (lines []string, left int) {
 // menuBoxIn gives the tab's menu's lines as menuBox does, and the first item they show: the box ends above the keys
 // bar, and a menu taller than the room scrolls with the keyboard.
 func (m Model) menuBoxIn() (lines []string, left, first int) {
-	return shell.BoxIn(m.tabItems(), m.enabled, m.menuAt, tabs.Menu, m.bar().MenuAt(), m.paneWidth(),
-		max(3, m.height-1-menuTop))
+	return shell.BoxIn(m.tabItems(), m.enabled, m.menuAt, tabs.Menu, m.kebab(), m.paneWidth(),
+		max(3, m.height-1-m.menuTop()))
 }
 
-// menuTop is the screen line the tab's menu's box starts on: the bar's middle one, its top edge through the tab's
-// glyph.
-const menuTop = paneTop - 2
+// menuTop gives the screen line the tab's menu's box starts on, its top edge through the tab's glyph: the bar's middle
+// one, or, maximized, the title's.
+func (m Model) menuTop() int {
+	if m.maximized {
+		return shell.Top
+	}
+	return m.top() - 2
+}
+
+// kebab gives the screen column the selected tab's ⋮ is drawn at, which drops its menu down: on the bar, as its MenuAt
+// says, or, maximized, at the title's end, -1 where the title is clipped short of it.
+func (m Model) kebab() int {
+	if !m.maximized {
+		return m.bar().MenuAt()
+	}
+	end := ansi.StringWidth(m.title())
+	if end > m.titleWidth() {
+		return -1
+	}
+	return end - ansi.StringWidth(tabs.Menu)
+}
+
+// maximize gives the rows the bar's lines but one, the bar no longer drawn, or, restored, takes them back, the bar as it
+// was: the cursor, the rows' scroll, and the selection stay as they are, and once the rows have fewer lines, the cursor
+// is scrolled to as it moves there.
+func (m *Model) maximize(on bool) {
+	if m.maximized = on; !on {
+		m.fit()
+	}
+}
 
 // overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
 // backlog action asks, over the rows' top. The rest are drawn after the title's search, by float.
 func (m Model) overlay(lines []string) []string {
 	if m.menu {
 		box, left := m.menuBox()
-		lines = shell.Over(lines, box, menuTop, left)
+		lines = shell.Over(lines, box, m.menuTop(), left)
 	}
 	if m.ask != nil {
 		box, left := m.askBox()
-		lines = shell.Over(lines, box, paneTop+1, left)
+		lines = shell.Over(lines, box, m.top()+1, left)
 	}
 	return m.appMenu.Overlay(lines, m.paneWidth())
 }
@@ -225,7 +268,7 @@ func (m Model) overlay(lines []string) []string {
 func (m *Model) menuClick(x, y int) tea.Cmd {
 	box, left, first := m.menuBoxIn()
 	// the lines between the box's edges show the items from first on
-	if k := y - menuTop - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
+	if k := y - m.menuTop() - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
 		return m.pick(first + k)
 	}
 	m.menu = false

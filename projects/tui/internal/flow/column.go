@@ -245,7 +245,7 @@ func (m *Model) columnAct(k int) tea.Cmd {
 		p = p.Grouped(c.column, true)
 	default:
 		x, _ := m.columnName(c.column)
-		return m.openPopover(c.column, x, paneTop, true)
+		return m.openPopover(c.column, x, m.top(), true)
 	}
 	m.setPanel(p)
 	return nil
@@ -256,7 +256,7 @@ func (m *Model) columnAct(k int) tea.Cmd {
 func (m Model) columnBox() (lines []string, top, left int) {
 	x, name := m.columnName(m.colMenu.column)
 	lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.at, name, x, m.width)
-	return lines, paneTop, left
+	return lines, m.top(), left
 }
 
 // columnName gives the screen column a column's name starts on in the header, and its first line, as the header draws
@@ -281,7 +281,7 @@ func (m *Model) columnClick(x, y int) tea.Cmd {
 // headerColumn gives the column whose name a click at x, y in the header falls on, none off every name.
 func (m Model) headerColumn(x, y int) string {
 	lines, _ := m.header()
-	if y < paneTop || y >= paneTop+len(lines)-1 {
+	if y < m.top() || y >= m.top()+len(lines)-1 {
 		return ""
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x-m.indent(m.stage))
@@ -303,7 +303,7 @@ func (m Model) sortAt(x, y int) string {
 			return shown[j]
 		}
 	}
-	if y != paneTop {
+	if y != m.top() {
 		return ""
 	}
 	starts, ends := map[int]bool{}, map[int]string{}
@@ -330,7 +330,7 @@ func (m Model) sortAt(x, y int) string {
 // the number after it, or the cell before the triangle.
 func (m Model) onMark(x, y int) bool {
 	lines, _ := m.header()
-	line := lines[y-paneTop]
+	line := lines[y-m.top()]
 	cell := func(at int) string { return ansi.Strip(ansi.Cut(line, at, at+1)) }
 	triangle := func(c string) bool { return c == "▲" || c == "▼" }
 	subscript := func(c string) bool { return c != "" && strings.Trim(c, "₀₁₂₃₄₅₆₇₈₉") == "" }

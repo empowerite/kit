@@ -218,7 +218,7 @@ func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) 
 	m.stages[0].picked["#45"] = true
 	m = drive(m, press(':'))
 	box, _, first := m.menuBoxIn()
-	if len(box) != 16-1-menuTop || first != 0 || !strings.Contains(ansi.Strip(box[len(box)-1]), "▾") ||
+	if len(box) != 16-1-m.menuTop() || first != 0 || !strings.Contains(ansi.Strip(box[len(box)-1]), "▾") ||
 		strings.Contains(ansi.Strip(box[0]), "▴") {
 		t.Fatalf("the menu at the top: %d lines, first %d\n%s", len(box), first, view(m))
 	}
@@ -231,13 +231,13 @@ func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) 
 	k := item(m, "Assign to Me")
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	if m = drive(m, testkit.Click(left+3, menuTop+1+k-first)); !slices.Equal(acted(t, record), []string{"assign #45"}) {
+	if m = drive(m, testkit.Click(left+3, m.menuTop()+1+k-first)); !slices.Equal(acted(t, record), []string{"assign #45"}) {
 		t.Errorf("a click on Assign to Me: %q", acted(t, record))
 	}
 	// a click on the box's bottom edge picks nothing
 	m = drive(m, press(':'))
 	box, left, _ = m.menuBoxIn()
-	if m = drive(m, testkit.Click(left+3, menuTop+len(box)-1)); m.menu || len(acted(t, record)) != 1 {
+	if m = drive(m, testkit.Click(left+3, m.menuTop()+len(box)-1)); m.menu || len(acted(t, record)) != 1 {
 		t.Errorf("a click on the edge: menu %v, calls %q", m.menu, acted(t, record))
 	}
 }

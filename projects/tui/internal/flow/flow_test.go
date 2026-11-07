@@ -357,13 +357,13 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a second click did not close it:\n%s", view(m))
 	}
-	if m = drive(m, click(6, paneTop)); m.find("worktrees").cursor != 0 || m.stage != 3 {
+	if m = drive(m, click(6, m.top())); m.find("worktrees").cursor != 0 || m.stage != 3 {
 		t.Errorf("a click on the first row: cursor %d, stage %d", m.find("worktrees").cursor, m.stage)
 	}
 	before := view(m)
 	m = drive(m, press('?'))
 	for _, c := range []tea.Msg{click(m.paneWidth()+4, 1), click(6, 0), click(6, 23),
-		tea.MouseClickMsg{X: 6, Y: paneTop + 1, Button: tea.MouseRight}} {
+		tea.MouseClickMsg{X: 6, Y: m.top() + 1, Button: tea.MouseRight}} {
 		if m = drive(m, c); m.find("worktrees").cursor != 0 || strings.Contains(view(m), style.Opened) {
 			t.Errorf("%v moved the cursor or opened a row:\n%s", c, view(m))
 		}
@@ -373,10 +373,10 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	}
 	// on a short pane, the … line above is no row's
 	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
-	if m.find("worktrees").cursor != 2 || !strings.Contains(lines(m)[paneTop], "above") {
+	if m.find("worktrees").cursor != 2 || !strings.Contains(lines(m)[m.top()], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").cursor, view(m))
 	}
-	if m = drive(m, click(6, paneTop)); m.find("worktrees").cursor != 2 {
+	if m = drive(m, click(6, m.top())); m.find("worktrees").cursor != 2 {
 		t.Errorf("a click on … above moved the cursor to %d:\n%s", m.find("worktrees").cursor, view(m))
 	}
 }
@@ -1509,9 +1509,9 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
 	m := loaded(t, bare(), right, down, down)
 	at := func(m Model, glyph string) int {
-		return cellsOf(lines(m)[paneTop+m.find("underway").cursor], glyph)[0]
+		return cellsOf(lines(m)[m.top()+m.find("underway").cursor], glyph)[0]
 	}
-	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), paneTop+m.find("underway").cursor
+	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.top()+m.find("underway").cursor
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {
@@ -1564,12 +1564,12 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			m = drive(m, right)
 			folding(&m, true)
 		}
-		if l := lines(m); strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
+		if l := lines(m); strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
 			strings.Count(view(m), "github") != 1 || strings.Contains(view(m), GitHub) {
 			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
 		}
 		unfold(&m)
-		if l := lines(m); !strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
+		if l := lines(m); !strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
 			!strings.Contains(m.View().Content, style.Off("github")) || strings.Contains(view(m), GitHub) {
 			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
@@ -1584,7 +1584,7 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 		s.under[k].Source = ""
 	}
 	m.rebuild()
-	if strings.Contains(lines(m)[paneTop], "source") {
+	if strings.Contains(lines(m)[m.top()], "source") {
 		t.Errorf("a column no issue has a source in has a header:\n%s", view(m))
 	}
 }

@@ -26,6 +26,27 @@ func plain(b Bar) string { return ansi.Strip(b.View()) }
 // row gives one of the bar's lines without its escapes: 0 over the tabs, 1 the tabs, 2 under them.
 func row(b Bar, k int) string { return strings.Split(plain(b), "\n")[k] }
 
+func TestLabelIsTheSelectedTabAsTheBarDrawsIt(t *testing.T) {
+	if got := (Bar{}).Label(); got != "" {
+		t.Errorf("no tabs: %q", got)
+	}
+	b := stages(1, 120)
+	b.Menus, b.Color = true, "33"
+	mark, _ := style.In("33")
+	if got := b.Label(); ansi.Strip(got) != "🛫 underway 58 "+Menu || !strings.Contains(got, mark("underway")) ||
+		!strings.Contains(b.View(), mark("underway")) {
+		t.Errorf("the label: %q", got)
+	}
+	b.MenuOpen = true
+	if got := ansi.Strip(b.Label()); got != "🛫 underway    "+Menu {
+		t.Errorf("the menu open, the count blank: %q", got)
+	}
+	b.MenuOpen, b.Tabs[1].Count = false, ""
+	if got := ansi.Strip(b.Label()); got != "🛫 underway "+Menu {
+		t.Errorf("no count: %q", got)
+	}
+}
+
 func TestTheMarkersAreNumberedToTenThenNone(t *testing.T) {
 	cases := []struct {
 		i        int

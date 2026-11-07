@@ -680,7 +680,7 @@ func (m Model) presetBox() (lines []string, top, left int) {
 	lines, left = shell.BoxColored(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, min(m.dropEnd(), m.width),
 		color)
 	lines[0] = shell.TitledColored(PresetsTitle, ansi.StringWidth(lines[0]), color)
-	return lines, paneTop, left
+	return lines, m.top(), left
 }
 
 // presetMenuClick takes a click while the presets' menu is open: on a line that acts, it chooses it; anywhere else, it

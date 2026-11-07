@@ -223,6 +223,20 @@ func (b Bar) label(i int) (name, end string) {
 	return name, end
 }
 
+// Label gives the selected tab's label as the bar draws it on its middle line, on one line with a space between its
+// parts: its glyph, its name in the bar's color, its count, and the menu's glyph, as label says; a screen that draws the
+// tab without the bar draws it so. No tabs give nothing.
+func (b Bar) Label() string {
+	if len(b.Tabs) == 0 {
+		return ""
+	}
+	name, end := b.label(b.Selected)
+	if ansi.StringWidth(b.Tabs[b.Selected].Count) > 0 {
+		name += " "
+	}
+	return name + end
+}
+
 // wants gives the cells a tab's label takes at least: its name, a space and its count, or the bar's reserve or the
 // tab's own in Reserves when the count is narrower, room for a space and the menu's glyph on every tab when the bar
 // has menus, and a space after them.
