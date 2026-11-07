@@ -36,7 +36,8 @@ func (m Model) headingNames(r row) []nameSpot {
 				break
 			}
 			at := from + k + 1
-			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") {
+			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
+				strings.HasPrefix(text[end:], " "+grid.Unfolded) || strings.HasPrefix(text[end:], " "+grid.Folded) {
 				x := 2 + ansi.StringWidth(text[:at])
 				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
 				break

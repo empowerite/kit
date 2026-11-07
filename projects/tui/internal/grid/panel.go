@@ -561,7 +561,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			}
 			titles = append(titles, glyph+" "+columns[j])
 		}
-		heading := strings.Join(titles, "  ") + "  " + style.Off(strconv.Itoa(len(grouped)))
+		heading := strings.Join(titles, " ") + "  " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)

@@ -99,7 +99,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     on the selection while rows are selected: Expand Selected opens the groups over them too, and Collapse Others
     folds every group without one. Space on a heading selects every row of its group, or none once all are, and the
     heading's mark, ▣ or ◩, says whether all are or some. What stands open lasts the session; a preset does not keep
-    it. Grouped rows stand under one heading that names the grouped columns, `▾ source  ▾ assignees`, and a heading
+    it. Grouped rows stand under one heading that names the grouped columns, `▾ source ▾ assignees`, and a heading
     per value under it. That heading never closes: the ▾ or ▸ before each name shows the groups down to that level
     and nothing under it, collapsing or expanding to it, and a level under one not wholly open shows ▸ too. A click
     on a column's name there, or ⏎ on the heading, drops the column's own menu, in `heading.go`, as a name in the

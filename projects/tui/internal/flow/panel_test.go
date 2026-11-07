@@ -493,7 +493,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	}
 	unfold(&m)
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
-	over := column(m, "source  ▾ assignees", grid.Unfolded)
+	over := column(m, "source ▾ assignees", grid.Unfolded)
 	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
 	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d, %d and %d, a row's ▸ at %d:\n%s", over, outer, inner, r, view(m))

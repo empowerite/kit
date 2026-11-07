@@ -113,7 +113,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	m := loaded(t, options())
 	m.setPanel(regroup(m.panel(0), "source", "assignees"))
-	text := "▾ source  ▾ assignees  3"
+	text := "▾ source ▾ assignees  3"
 	heading := row{Key: m.rows(0)[0].Key, Aside: true, Cells: []grid.Cell{{Values: []string{text}}}}
 	var got []string
 	for _, n := range m.headingNames(heading) {
@@ -125,7 +125,7 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	if len(got) != 2 {
 		t.Errorf("the names of two columns: %q", got)
 	}
-	tricky := row{Key: heading.Key, Aside: true, Cells: []grid.Cell{{Values: []string{"▾ sourcery source  ▾ assignees  3"}}}}
+	tricky := row{Key: heading.Key, Aside: true, Cells: []grid.Cell{{Values: []string{"▾ sourcery source ▾ assignees  3"}}}}
 	if names := m.headingNames(tricky); len(names) != 2 || names[0].from != 2+ansi.StringWidth("▾ sourcery ") {
 		t.Errorf("past a value that holds source: %+v", names)
 	}
