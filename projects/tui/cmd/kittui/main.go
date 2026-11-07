@@ -17,6 +17,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/screens"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/transcript"
+	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
@@ -40,7 +41,7 @@ var (
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
-// flow, or the guide for welcome, under kittui's root, whose app's menu switches between them, and ends as the person
+// flow, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between them, and ends as the person
 // ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
@@ -64,11 +65,13 @@ func run(args []string, stderr io.Writer) int {
 		return finishFlow(shown)
 	case welcome.Model:
 		return finishWelcome(shown)
+	case tutorials.Model:
+		return finishTutorials(shown)
 	}
 	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 }
 
-// open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the
+// open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the cards for tutorials, with its --tag words; the
 // palette on a verb's page or a group for help; and, as the help's screen, the palette, or the form of the verb
 // named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
@@ -78,6 +81,8 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 		return shell.Flow, m, err
 	case "welcome":
 		return shell.Welcome, welcome.Open(r), nil
+	case "tutorials":
+		return shell.Tutorials, tutorials.Open(r, tags(words)), nil
 	case "help":
 		name := ""
 		if len(words) > 0 {
@@ -96,7 +101,7 @@ func failed(err error, stderr io.Writer) int {
 	return 1
 }
 
-// needsTerminal gives the line kittui prints without a terminal: the picture and the guide have a text form, the rest
+// needsTerminal gives the line kittui prints without a terminal: the picture, the guide, and the tutorials have a text form, the rest
 // a help page.
 func needsTerminal(verb string) string {
 	if verb == "flow" {
@@ -104,6 +109,9 @@ func needsTerminal(verb string) string {
 	}
 	if verb == "welcome" {
 		return "kit welcome needs an interactive terminal; run: kit welcome --text"
+	}
+	if verb == "tutorials" {
+		return "kit tutorials needs an interactive terminal; run: kit tutorials --text"
 	}
 	if verb == "help" {
 		return "kit help needs an interactive terminal for its palette; run: kit help --text"
@@ -130,6 +138,26 @@ func refuse(err error, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stderr, "❌ kittui %s: %v\n", version, err)
 	return 1
+}
+
+// tags gives the values of the --tag words kit tutorials passes on; any other word is ignored.
+func tags(words []string) []string {
+	var out []string
+	for i := 0; i+1 < len(words); i++ {
+		if words[i] == "--tag" {
+			out = append(out, words[i+1])
+			i++
+		}
+	}
+	return out
+}
+
+// finishTutorials ends as the tutorials ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
+func finishTutorials(m tutorials.Model) int {
+	if m.Interrupted() {
+		return 130
+	}
+	return 0
 }
 
 // finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.

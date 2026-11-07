@@ -1,14 +1,15 @@
 # kittui
 
-`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, and `kit welcome` exec
-it. It runs `kit` for everything it knows, so it holds no verb by name.
+`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, `kit welcome`, and
+`kit tutorials` exec it. It runs `kit` for everything it knows, so it holds no verb by name.
 
-It has four screens:
+It has five screens:
 
 - **The palette.** Bare `kit` opens it. It lists every verb under its group, filtered as you type.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
 - **The flow picture.** `kit flow` at a terminal draws its stages here.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
+- **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 
 Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, and the picture reads
 `kit flow <stage> --json`. `kittui` never parses kit's text.
@@ -99,6 +100,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
+- `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.

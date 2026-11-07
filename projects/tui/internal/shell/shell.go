@@ -28,7 +28,7 @@ const (
 type Screen string
 
 // kit's screens: the picture of where the work stands, the welcome's guide, the help's palette of verbs, and the
-// tutorials, which kit does not have yet.
+// tutorials' cards.
 const (
 	Flow      Screen = "flow"
 	Welcome   Screen = "welcome"
@@ -98,7 +98,7 @@ func (m Menu) Items() []Item {
 var settingsItem = Item{Configure, "Settings…"}
 
 // enabled says whether the menu's line k does something: the screen's own items, a screen other than the one it is
-// on but the tutorials, the settings, and quit; the rules never do.
+// on, the settings, and quit; the rules never do.
 func (m Menu) enabled(k int) bool {
 	item := m.Items()[k]
 	if item.Name == "Quit" || item == settingsItem || slices.Contains(m.Own, item) && item.Name != "" {
@@ -106,7 +106,7 @@ func (m Menu) enabled(k int) bool {
 	}
 	for _, s := range screens {
 		if s.item == item {
-			return s.screen != m.Here && s.screen != Tutorials
+			return s.screen != m.Here
 		}
 	}
 	return false

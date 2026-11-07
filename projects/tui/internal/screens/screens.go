@@ -17,6 +17,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
@@ -170,6 +171,8 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 		return flow.Open(m.runner, nil)
 	case shell.Welcome:
 		return welcome.Open(m.runner), nil
+	case shell.Tutorials:
+		return tutorials.Open(m.runner, nil), nil
 	case shell.Help:
 		return app.OpenHelp(m.runner, "")
 	}

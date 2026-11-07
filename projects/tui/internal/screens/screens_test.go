@@ -14,6 +14,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
+	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
@@ -73,15 +74,25 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 	m.Close()
 }
 
+// The menu's Tutorials opens the tutorials screen, made on its first showing.
+func TestTheMenuOpensTheTutorials(t *testing.T) {
+	m := help(t)
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Tutorials})
+	if _, ok := m.Shown().(tutorials.Model); !ok || m.here != shell.Tutorials {
+		t.Fatalf("the screen shown is %T, %s", m.Shown(), m.here)
+	}
+	m.Close()
+}
+
 // A screen kit does not have leaves the one shown, with kit's line on its last line until the next key.
 func TestAScreenThatCannotOpenLeavesTheOneShown(t *testing.T) {
 	m := help(t)
-	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Tutorials})
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: "nonesuch"})
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
-	if m.here != shell.Help || !strings.Contains(lines[len(lines)-1], "kit has no tutorials yet") {
+	if m.here != shell.Help || !strings.Contains(lines[len(lines)-1], "kit has no nonesuch yet") {
 		t.Fatalf("the refusal:\n%s", strings.Join(lines, "\n"))
 	}
-	if m, _ = testkit.Drive(m, nil, typed("x")...); strings.Contains(ansi.Strip(m.View().Content), "tutorials") {
+	if m, _ = testkit.Drive(m, nil, typed("x")...); strings.Contains(ansi.Strip(m.View().Content), "nonesuch") {
 		t.Error("the refusal stayed after a key")
 	}
 }

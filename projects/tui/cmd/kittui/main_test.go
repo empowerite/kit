@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,7 +18,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/app"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
+	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
 )
 
@@ -37,6 +40,7 @@ func TestNoTerminalRefuses(t *testing.T) {
 		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
 		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: kit flow --text\n",
 		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
+		"tutorials": "❌ kit tutorials needs an interactive terminal; run: kit tutorials --text\n",
 	} {
 		cmd := exec.Command(binary, strings.Fields(args)...)
 		cmd.Stdin = nil
@@ -221,7 +225,7 @@ func TestEveryScreenOpensOnATerminalAndEndsAsThePersonEndedIt(t *testing.T) {
 // A program that cannot run on the terminal is kittui's own line, ending with 1, on every screen; a picture whose
 // stages kit refuses is kit's line with its code.
 func TestAProgramThatCannotRunIsKittuisLine(t *testing.T) {
-	for _, args := range [][]string{nil, {"flow"}, {"welcome"}} {
+	for _, args := range [][]string{nil, {"flow"}, {"welcome"}, {"tutorials"}} {
 		onTerminal(t, func(tea.Model) (tea.Model, error) { return nil, errors.New("no tty") })
 		var stderr bytes.Buffer
 		if code := run(args, &stderr); code != 1 || stderr.String() != "❌ kittui unreleased: no tty\n" {
@@ -271,6 +275,7 @@ func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 		"help":      "kit help needs an interactive terminal for its palette; run: kit help --text",
 		"":          "kit tui needs an interactive terminal; run: kit help tui",
 		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
+		"tutorials": "kit tutorials needs an interactive terminal; run: kit tutorials --text",
 		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
 	} {
 		var stderr bytes.Buffer
@@ -313,4 +318,36 @@ func TestWordsAfterADoubleDash(t *testing.T) {
 		}
 	}
 	_ = os.Stdin
+}
+
+// The words after tutorials are --tag pairs; the tags are the values, and anything else is ignored.
+func TestTutorialsOpensItsScreen(t *testing.T) {
+	for words, want := range map[string][]string{
+		"":                        nil,
+		"--tag a --tag b":         {"a", "b"},
+		"stray --tag a --tag":     {"a"},
+		"--tag a --other --tag c": {"a", "c"},
+	} {
+		if got := tags(strings.Fields(words)); !slices.Equal(got, want) {
+			t.Errorf("%q: tags %q, want %q", words, got, want)
+		}
+	}
+	r := testkit.Runner(t, "tutorials")
+	for key, code := range map[string]int{"alt-esc": 0, "ctrl-c": 130} {
+		k := tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
+		if code == 130 {
+			k = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
+		}
+		onTerminal(t, ending(k))
+		t.Setenv("KIT", r.Kit)
+		var stderr bytes.Buffer
+		if got := run([]string{"tutorials", "--tag", "x", "stray"}, &stderr); got != code || stderr.Len() != 0 {
+			t.Errorf("%s: exit %d, stderr %q", key, got, stderr.String())
+		}
+	}
+	screen, m, err := open(r, "tutorials", []string{"--tag", "x"})
+	if _, ok := m.(tutorials.Model); err != nil || !ok || screen != shell.Tutorials {
+		t.Errorf("open: %s, %T, %v", screen, m, err)
+	}
+	m.(tutorials.Model).Close()
 }
