@@ -92,14 +92,14 @@ func (s Segment) takes(press string) bool {
 func typing(press string) bool { return press == "space" || utf8.RuneCountInString(press) == 1 }
 
 // The keys bar's separators: a space between the keys of one control, which the keys' color sets apart, and a rule
-// between one control and the next. A dialog's keys, on its bottom edge, have a dot between them. Keys that do the same
-// thing are drawn as one, a comma between them, in what they do's color, never / or another key the bar names.
+// between one control and the next. A dialog gives its keys as one line, a dot between them. Keys that do the same
+// thing are drawn as one, a dim middle dot between them, never / or another key the bar names.
 const (
 	gap  = " "
 	dot  = " · "
 	rule = " │ "
 	cut  = "…"
-	or   = ","
+	or   = "·"
 )
 
 // Line draws the keys bar for the path on a screen so wide: a cell of gutter, then each segment the bar draws, the one
@@ -143,7 +143,7 @@ func (p Path) Line(width int) string {
 }
 
 // merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by a
-// comma, as tab and esc both leave the sidebar: ⇥,esc rows. A key a deeper control takes is gone from the run already.
+// middle dot, no space either side, as tab and esc both leave the sidebar: ⇥·esc rows. A key a deeper control takes is gone from the run already.
 func merged(s []Binding) []Binding {
 	var out []Binding
 	for _, b := range s {
@@ -187,8 +187,8 @@ func drawSegment(s []Binding, here bool) string {
 	return strings.Join(keys, gap)
 }
 
-// drawKeys draws a binding's key, bold, or the keys merged into it, each bold, the comma between them as what they do
-// is drawn.
+// drawKeys draws a binding's key, bold, or the keys merged into it, each bold, the middle dot between them dim, so the
+// keys stand apart from what joins them.
 func drawKeys(b Binding, here bool) string {
 	if len(b.keys) == 0 {
 		return style.BarKey(b.Key, here)
@@ -197,7 +197,7 @@ func drawKeys(b Binding, here bool) string {
 	for _, k := range b.keys {
 		keys = append(keys, style.BarKey(k, here))
 	}
-	return strings.Join(keys, style.BarDoes(or, here))
+	return strings.Join(keys, style.Off(or))
 }
 
 // Digits are the presses that select a tab by its number: 1 to 9, and 0 for the tenth.

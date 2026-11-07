@@ -103,8 +103,12 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 func TestKeysThatDoTheSameThingAreDrawnAsOne(t *testing.T) {
 	sidebar := Segment{Bindings: []Binding{Bind("⇥", "backlog", "tab"), Bind("esc", "backlog"), Bind("↑↓", "move",
 		"up", "down")}}
-	if got := (Path{sidebar}).String(); got != "⇥,esc backlog ↑↓ move" {
+	if got := (Path{sidebar}).String(); got != "⇥·esc backlog ↑↓ move" {
 		t.Errorf("the sidebar: %q", got)
+	}
+	// the dot is dim, where the keyboard is too, and the keys either side of it are not
+	if got := (Path{sidebar}).Line(80); !strings.Contains(got, style.BarKey("⇥", true)+style.Off("·")+style.BarKey("esc", true)) {
+		t.Errorf("the merged keys drawn: %q", got)
 	}
 	renaming := Segment{Bindings: []Binding{Bind("esc", "cancel")}}
 	if got := (Path{sidebar, renaming}).String(); got != "⇥ backlog ↑↓ move │ esc cancel" {

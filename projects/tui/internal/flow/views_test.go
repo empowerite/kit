@@ -71,7 +71,7 @@ func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	}
 	m = drive(m, down)
 	keys := keysOf(m)
-	for _, want := range []string{"↑,esc backlog", "↓ rows", "⏎ presets"} {
+	for _, want := range []string{"↑·esc backlog", "↓ rows", "⏎ presets"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("the keys on the preset line lack %q: %q", want, keys)
 		}
@@ -103,7 +103,7 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	}
 	// tab from the line gives the sidebar the keyboard, and esc gives it back to the line
 	m = drive(m, down, tab)
-	if !m.inPanel || !strings.Contains(keysOf(m), "⇥,esc preset") {
+	if !m.inPanel || !strings.Contains(keysOf(m), "⇥·esc preset") {
 		t.Fatalf("tab from the line: in panel %v, %q", m.inPanel, keysOf(m))
 	}
 	if m = drive(m, esc); m.inPanel || !m.onPreset {

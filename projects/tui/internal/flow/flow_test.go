@@ -675,7 +675,7 @@ func fit(keys string, room int) string {
 const (
 	screenKeys = "= menu / search ? show sidebar ⇥ sidebar │ "
 	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
-	inRows     = screenKeys + "1-8 jump : tab menu │ esc STAGE ↑↓ move ␣,⇧↑↓ select ⌃A all"
+	inRows     = screenKeys + "1-8 jump : tab menu │ esc STAGE ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
 	closes     = inRows + " ← collapse"
 )
