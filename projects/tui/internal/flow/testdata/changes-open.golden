@@ -3,7 +3,7 @@
  ◃    1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 inc ▹
   ──────╰──────────────────────╯                  ╰──────────────────╰─────────┐
    change  title         author     state  age  checks  threads     branch     │
-   ───────────────────────────────────────────────────────────────── Default ▾ │
+   ───────────────────────────────────────────────────────────────── Default ▼ │
  ▾ 🔀 #2   The first     jeffrey-   🏁      8d  ✅                  1-the-     │
            release,      aguilera                                   first-     │
            v0.1.0                                                   release-   │

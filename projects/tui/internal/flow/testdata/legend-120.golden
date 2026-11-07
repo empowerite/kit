@@ -3,7 +3,7 @@
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ columns
       id  assignees         age  branch            title                                   │ ☑ id
-   ───────────────────────────────────────────────────────────────────────────── Default ▾ │ ☑ source ▤
+   ───────────────────────────────────────────────────────────────────────────── Default ▼ │ ☑ source ▤
  ▾ github source  3                                                                        │ ☑ assignees
    ▸ #45                     2h                    🎫 kit flow is the one picture: five s… │ ☑ age
    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  🎫 A noun lists, a noun with a verb ac… │ ☑ branch

@@ -3,11 +3,10 @@
 // which never change: Default, the stage as it opens, and Compact, the few columns that say what a row is. The person
 // saves others, per stage, in a file of their own, presets.json under ~/.config/kit/, so their views follow them to
 // every repository; one they named as a stage's own was named before the stage had it, and stays theirs. The preset
-// line, the rule under the stage's header, names the view the table is set as; enter, or a click on the name, drops
-// down the views to choose from; typing renames it. Once the table differs from every view, the line names none, and 💾
-// Save stands at its right, dim until a name is typed; it stands there too once the name was changed. ctrl+s or a click
-// on it saves the panel under the name, a view of the person's own overwritten, a stage's own refused for a name of
-// their own, and no name refused.
+// line, the rule under the stage's header, ends in the name of the view the table is set as and ▼, or ▼ alone once the
+// table differs from every view; enter, or a click on it, drops down Save As… and the views to choose from. Save As…
+// takes a name typed in the selector's place, and enter saves the panel under it, a view of the person's own
+// overwritten, a stage's own refused, and no name refused.
 package flow
 
 import (
@@ -32,14 +31,14 @@ import (
 // Opening is the name of the view a stage opens on, one of its own.
 const Opening = "Default"
 
-// Save is the glyph of the button at the preset line's right while the table differs from its view, SaveText the word
-// after it, and Saving the two, as the button draws them. Unnamed stands, dim, in place of the view's name while the
-// line names none: the table differs from every view, and nothing is typed.
+// Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
+// down. SaveAs is the presets' menu's first item, SavingAs what stands, dim, before the name typed for it, and Save the
+// glyph of what saving says.
 const (
+	Presets  = "▼"
+	SaveAs   = "Save As…"
+	SavingAs = "save as"
 	Save     = "💾"
-	SaveText = "Save"
-	Saving   = Save + " " + SaveText
-	Unnamed  = "unnamed"
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
@@ -395,108 +394,72 @@ func (m Model) is(i int) string {
 	return ""
 }
 
-// standing gives where a stage's panel stands among its views: the view it is set as, as is gives it; whether it
-// differs from every view, or the name was changed, when 💾 shows; and whether there is a name to save it under then,
-// one shown and not a stage's own.
-func (m Model) standing(i int) (is string, changed, savable bool) {
-	s := m.stages[i]
-	is = m.is(i)
-	name := is
-	if s.renaming {
-		name = strings.TrimSpace(s.naming)
-	}
-	changed = is == "" || s.renaming && name != is
-	return is, changed, changed && name != "" && !m.builtin(i, name)
-}
-
-// changed says whether a stage's panel differs from every view, or the name was changed: then 💾 shows.
-func (m Model) changed(i int) bool {
-	_, changed, _ := m.standing(i)
-	return changed
-}
-
-// savable says whether there is a name to save a stage's panel under, while 💾 shows: one typed, not a stage's own.
-func (m Model) savable(i int) bool {
-	_, _, savable := m.standing(i)
-	return savable
-}
-
-// viewShown gives the name a stage's preset line shows: as typed while the person renames the view; else the view the
-// panel is set as, or none once it differs from every one.
-func (m Model) viewShown(i int) string {
-	if s := m.stages[i]; s.renaming {
-		return s.naming
-	}
-	return m.is(i)
-}
-
 // apply sets the selected stage's panel as the view keeps it, its search, cursor, and groups closed as they are, and
 // names the view.
 func (m *Model) apply(v preset) {
 	s := &m.stages[m.stage]
 	p := v.panel(fieldsOf(s.name), s.view)
-	s.viewName, s.renaming, s.naming = v.Name, false, ""
+	s.viewName, s.savingAs, s.naming = v.Name, false, ""
 	m.setPanel(p)
 }
 
 // presetKey takes a key while the keyboard is on the preset line, and says whether it did: up and esc give the bar the
-// keyboard, and down the rows, when the stage has some; enter and space drop the presets down; ctrl+s saves, while 💾
-// shows; esc stops a rename; and what is typed renames the view, = : and ; apart, which the menus take: a letter first
-// typed takes the name's place, as in a field whose text is selected, and backspace first takes the last letter of the
-// name shown back.
+// keyboard, and down the rows, when the stage has some; enter and space drop the presets down. While a name is typed
+// for Save As…, what is typed is the name, = : and ; apart, which the menus take; enter saves under it, esc stops,
+// and up and down stop too, and move as ever.
 func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := &m.stages[m.stage]
-	switch key := k.String(); {
-	case key == "esc" && s.renaming:
-		s.renaming, s.naming = false, ""
-	case key == "esc" || key == "up":
+	key := k.String()
+	if s.savingAs {
+		switch {
+		case key == "up" || key == "down":
+			s.savingAs, s.naming = false, ""
+		case key == "esc":
+			s.savingAs, s.naming = false, ""
+			return nil, true
+		case key == "enter":
+			return m.savePreset(), true
+		case key == "backspace" || k.Text != "" && !strings.ContainsAny(k.Text, "=:;"):
+			s.naming, _ = shell.Type(s.naming, k)
+			return nil, true
+		default:
+			return nil, false
+		}
+	}
+	switch key {
+	case "esc", "up":
 		m.onPreset = false
-	case key == "down":
+	case "down":
 		if len(m.rows(m.stage)) > 0 {
 			m.onPreset = false
 			m.down(1)
 		}
-	case key == "enter" || key == "space":
+	case "enter", "space":
 		m.dropPresets()
-	case key == "ctrl+s" && m.changed(m.stage):
-		return m.savePreset(), true
-	case key == "backspace" || k.Text != "" && !strings.ContainsAny(k.Text, "=:;"):
-		if !s.renaming {
-			s.renaming, s.naming = true, ""
-			if key == "backspace" {
-				s.naming = m.viewShown(m.stage)
-			}
-		}
-		s.naming, _ = shell.Type(s.naming, k)
 	default:
 		return nil, false
 	}
 	return nil, true
 }
 
-// dropPresets drops the selected stage's presets down, the one the line names under the keyboard, else the one it was
-// last set to.
+// dropPresets drops the selected stage's presets down, the one the line names under the keyboard, else Save As….
 func (m *Model) dropPresets() {
-	vs, name := m.views(m.stage), cmp.Or(m.is(m.stage), m.chosen(m.stage).Name)
 	m.presetMenu = true
-	m.presetAt = slices.IndexFunc(vs, func(v preset) bool { return v.Name == name })
-	if m.presetAt >= len(m.builtins(m.stage)) {
-		m.presetAt++ // past the rule between the stage's own and the person's
-	}
+	m.presetAt = max(0, slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked }))
 }
 
-// savePreset keeps the selected stage's panel under the name the preset line shows: the person's view of that name is
+// savePreset keeps the selected stage's panel under the name typed for Save As…: the person's view of that name is
 // overwritten, a new one is added after theirs, and a stage's own name is refused, as those never change. What it
 // did, or why not, is in place of the keys.
 func (m *Model) savePreset() tea.Cmd {
 	s := &m.stages[m.stage]
-	name := strings.TrimSpace(m.viewShown(m.stage))
+	name := strings.TrimSpace(s.naming)
 	switch {
 	case name == "":
-		m.notice, m.noted = Failed+" a preset needs a name: type one, then save", false
+		m.notice, m.noted = Failed+" a preset needs a name: type one, then ⏎", false
 		return nil
 	case m.builtin(m.stage, name):
-		m.notice, m.noted = Failed+" "+name+" is the stage's own and does not change: type a new name, then save", false
+		m.notice, m.noted = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
 		return nil
 	}
 	v := m.current(m.stage)
@@ -517,15 +480,15 @@ func (m *Model) savePreset() tea.Cmd {
 		return nil
 	}
 	m.saved = all
-	s.viewName, s.renaming, s.naming = name, false, ""
+	s.viewName, s.savingAs, s.naming = name, false, ""
 	m.notice, m.noted = Save+" saved the preset "+name, true
 	return nil
 }
 
-// presetItems gives the presets' menu: the stage's own views, a rule, and the person's, the one the line names
-// checked.
+// presetItems gives the presets' menu: Save As…, a rule, the stage's own views, a rule, and the person's, the one the
+// line names checked.
 func (m Model) presetItems() []shell.Item {
-	var items []shell.Item
+	items := []shell.Item{{Name: SaveAs}, {}}
 	is := m.is(m.stage)
 	for k, v := range m.views(m.stage) {
 		if k == len(m.builtins(m.stage)) {
@@ -540,7 +503,7 @@ func (m Model) presetItems() []shell.Item {
 	return items
 }
 
-// presetEnabled says whether a line of the presets' menu is a view, which the rule is not.
+// presetEnabled says whether a line of the presets' menu is Save As… or a view, which a rule is not.
 func (m Model) presetEnabled(k int) bool { return m.presetItems()[k].Name != "" }
 
 // presetMenuKey takes a key while the presets' menu is open: up and down move, a letter to the next view it starts,
@@ -562,16 +525,23 @@ func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// choosePreset applies the view on the menu's line k, and closes the menu.
+// choosePreset closes the menu and takes its line k: Save As… gives the preset line the keyboard, for a name; a view
+// applies.
 func (m *Model) choosePreset(k int) {
 	m.presetMenu = false
-	if name := m.presetItems()[k].Name; name != "" {
+	switch name := m.presetItems()[k].Name; {
+	case name == "":
+	case k == 0:
+		s := &m.stages[m.stage]
+		s.savingAs, s.naming = true, ""
+		m.onPreset, m.inRows, m.inPanel = true, false, false
+	default:
 		vs := m.views(m.stage)
 		m.apply(vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == name })])
 	}
 }
 
-// presetBox gives the presets' menu's lines, under the preset line, its left edge a cell before the name's, or nearer
+// presetBox gives the presets' menu's lines, under the preset line, its left edge a cell before the selector's, or nearer
 // the screen's left when that would run past its edge, and the screen line and column it is drawn from.
 func (m Model) presetBox() (lines []string, top, left int) {
 	lines, _ = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, m.width)
@@ -590,14 +560,11 @@ func (m *Model) presetMenuClick(x, y int) {
 	m.presetMenu = false
 }
 
-// presetClick takes a click on the preset line, which then has the keyboard: on 💾 Save, at the line's right end, it
-// saves, or says why not; on the name or ▾, it drops the presets down.
+// presetClick takes a click on the preset line, which then has the keyboard: on the selector, its name or ▼, it drops
+// the presets down.
 func (m *Model) presetClick(x int) tea.Cmd {
 	m.onPreset, m.inRows, m.inPanel = true, false, false
-	switch {
-	case m.changed(m.stage) && x >= m.paneWidth()-ansi.StringWidth(Saving) && x < m.paneWidth():
-		return m.savePreset()
-	case x >= m.dropStart() && x < m.dropEnd():
+	if x >= m.dropStart() && x < m.dropEnd() {
 		m.dropPresets()
 	}
 	return nil

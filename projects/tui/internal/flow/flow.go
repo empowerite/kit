@@ -80,10 +80,10 @@ type stage struct {
 	open    map[string]bool // the rows opened, by key
 	headed  bool            // whether its header is open, every line of names that take more than one
 	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
-	// the view its preset line was last set to, and the name typed over it while the person renames it
+	// the view its preset line was last set to, and the name typed for Save As… while the person names a preset
 	viewName string
 	naming   string
-	renaming bool
+	savingAs bool
 	view     grid.Panel         // the stage's panel: its search, what it says of each field, and its cursor
 	gen      int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
@@ -215,8 +215,21 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Close ends the stages' commands still running, as quitting does, for a picture kittui leaves hidden as it ends.
 func (m Model) Close() { m.cancel() }
 
-// Update takes a message.
+// Update takes a message, as update does; then a name typed for Save As… on a preset line that no longer has the
+// keyboard is dropped, so the line does not come back to it.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	next, cmd := m.update(msg)
+	if n, ok := next.(Model); ok && !n.onPreset {
+		for i := range n.stages {
+			n.stages[i].savingAs, n.stages[i].naming = false, ""
+		}
+		next = n
+	}
+	return next, cmd
+}
+
+// update takes a message.
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height

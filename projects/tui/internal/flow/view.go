@@ -203,24 +203,21 @@ func (m Model) sidebarKeys() shell.Segment {
 
 // presetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard,
 // named by the stage it has selected, and down the rows, when the stage has some; enter or space drops the presets
-// down; ctrl+s saves the panel under the name shown while 💾 does; and what is typed renames it, = : and ; apart, which
-// the menus take, and esc stops a rename.
+// down. While a name is typed for Save As…, what is typed is the name, = : and ; apart, which the menus take; enter
+// saves under it, and esc stops.
 func (m Model) presetKeys() shell.Segment {
-	s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
-	name := m.stages[m.stage].name
-	if m.stages[m.stage].renaming {
-		s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", "cancel"))
-	} else {
-		s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", name))
+	if m.stages[m.stage].savingAs {
+		s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
+		s.Bindings = append(s.Bindings, shell.Bind("⏎", "save", "enter"), shell.Bind("esc", "cancel"))
+		return s.With(shell.Bind("", "type the preset's name"))
 	}
+	var s shell.Segment
+	name := m.stages[m.stage].name
+	s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", name))
 	if len(m.rows(m.stage)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
-	s.Bindings = append(s.Bindings, shell.Bind("⏎", "presets", "enter", "space"))
-	if m.changed(m.stage) {
-		s.Bindings = append(s.Bindings, shell.Bind("⌃S", "save", "ctrl+s"))
-	}
-	return s.With(shell.Bind("", "type to rename"))
+	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
 }
 
 // rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
@@ -396,10 +393,10 @@ func (m Model) rule() string {
 	return line
 }
 
-// ruled gives the line under the header, as wide as the pane, and the column the preset's name starts on, -1 where the
+// ruled gives the line under the header, as wide as the pane, and the column the preset's selector starts on, -1 where the
 // stage has no preset line: the gutter, a thin dim line, and at its right end, how many rows are selected, in the
 // accent, when some are, then the preset line, where the stage has one: a chip per filter the panel sets, as chips
-// gives them, and the selector and the button, as presetLine draws them. The chips are clipped first where the line is
+// gives them, and the selector, as presetLine draws it. The chips are clipped first where the line is
 // short, leaving a cell of the rule.
 func (m Model) ruled() (string, int) {
 	width, right := m.paneWidth(), ""
@@ -408,8 +405,7 @@ func (m Model) ruled() (string, int) {
 	}
 	tail := ""
 	if m.presets(m.stage) {
-		selector, button := m.presetLine()
-		tail = " " + selector + button
+		tail = " " + m.presetLine()
 		if chips := m.chips(m.stage); len(chips) > 0 {
 			// the gutter, a cell of the rule, and a space either side of the chips
 			room := width - len(lead) - 1 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
@@ -594,53 +590,33 @@ func (m Model) presets(i int) bool {
 	return !m.noPresets && i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0
 }
 
-// presetName gives the name the preset line shows, without its styles, and whether it is Unnamed: as typed while the
-// view is renamed, with a caret while the line has the keyboard; else the view's, or Unnamed while it names none.
-func (m Model) presetName() (string, bool) {
-	name := m.viewShown(m.stage)
-	switch {
-	case m.stages[m.stage].renaming && m.onPreset && !m.inPanel:
-		return name + "▏", false
-	case name == "":
-		return Unnamed, true
-	}
-	return name, false
-}
-
-// dropStart gives the screen column the preset line's name starts on, at the rule's right end.
+// dropStart gives the screen column the preset line's selector starts on, at the rule's right end.
 func (m Model) dropStart() int {
 	_, at := m.ruled()
 	return at
 }
 
-// dropEnd gives the screen column after the preset line's ▾; a click from dropStart up to it drops the presets down.
-func (m Model) dropEnd() int {
-	name, _ := m.presetName()
-	return m.dropStart() + ansi.StringWidth(name) + 2
-}
+// dropEnd gives the screen column after the preset line's selector; a click from dropStart up to it drops the presets
+// down.
+func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetLine()) }
 
-// presetLine gives the preset's selector and the button after it, at the right end of the rule under the table's
-// header: the view's name, Unnamed dim while it names none, and ▾, inverse while the line has the keyboard. The button
-// is a space and Saving while the table differs or the name was changed, its word dim while there is no name to save it
-// under: an emoji draws in its own colors, which no dimming changes.
-func (m Model) presetLine() (selector, button string) {
-	name, unnamed := m.presetName()
-	if unnamed {
-		name = style.Off(name)
+// presetLine gives the preset's selector, at the right end of the rule under the table's header: the name of the
+// preset the table is set as, and Presets; Presets alone once the table differs from every preset; or, while a name is
+// typed for Save As…, the name with a caret after a dim "save as", once the line has the keyboard. The selector is
+// inverse while the line has the keyboard.
+func (m Model) presetLine() string {
+	on := m.onPreset && !m.inPanel
+	if on && m.stages[m.stage].savingAs {
+		return style.Off(SavingAs) + " " + m.stages[m.stage].naming + "▏"
 	}
-	selector = name + " ▾"
-	if m.onPreset && !m.inPanel {
-		selector = style.Cursor(ansi.Strip(selector))
+	selector := Presets
+	if is := m.is(m.stage); is != "" {
+		selector = is + " " + Presets
 	}
-	_, changed, savable := m.standing(m.stage)
-	if changed {
-		word := SaveText
-		if !savable {
-			word = style.Off(word)
-		}
-		button = " " + Save + " " + word
+	if on {
+		return style.Cursor(selector)
 	}
-	return selector, button
+	return selector
 }
 
 // chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the

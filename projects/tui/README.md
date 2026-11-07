@@ -41,8 +41,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   and leaves the old file as it is.
   - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
     rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
-    set as, unnamed once the table differs from every preset, and 💾 Save then. ↓ from the tabs reaches it, ⏎ on it
-    lists the presets, typing renames, and ⌃S saves.
+    set as and ▼, or ▼ alone once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on
+    it drops down Save As… and the presets. Save As… takes a name in the selector's place, and ⏎ saves.
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.

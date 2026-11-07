@@ -35,7 +35,7 @@ func onDropdown(t *testing.T, file string) Model {
 // presetText gives the preset line as the screen draws it, the rule under the header, without its escapes, its run of
 // ─ and the sidebar after it apart.
 func presetText(m Model) string {
-	line := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), "")
+	line := ansi.Strip(m.rule())
 	return strings.TrimRight(regexp.MustCompile(` ?─+ ?`).ReplaceAllString(line, " "), " ")
 }
 
@@ -49,14 +49,14 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // the pane's first line, the line under them names the view, and the rows start under it.
 func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != "   Default ▾" || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
+	if got := presetText(m); got != "   Default "+Presets || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
 		!strings.Contains(lines(m)[paneTop], "assignees") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected
 	m.stages[0].picked[m.rows(0)[1].Key] = true
 	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "   ─") ||
-		!strings.HasSuffix(got, "─ 1 selected ─ Default ▾") {
+		!strings.HasSuffix(got, "─ 1 selected ─ Default ▼") {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].picked = map[string]bool{}
@@ -70,13 +70,13 @@ func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	}
 	m = drive(m, down)
 	keys := keysOf(m)
-	for _, want := range []string{"↑/esc backlog", "↓ rows", "⏎ presets", "type to rename"} {
+	for _, want := range []string{"↑/esc backlog", "↓ rows", "⏎ presets"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("the keys on the preset line lack %q: %q", want, keys)
 		}
 	}
-	if strings.Contains(keys, "⌃S save") {
-		t.Errorf("save is named while the table is its view: %q", keys)
+	if strings.Contains(keys, "save") || strings.Contains(keys, "rename") {
+		t.Errorf("the line names a save or a rename before Save As…: %q", keys)
 	}
 	// a stage with no columns has no preset line, and down on the bar says it reaches the rows
 	m = drive(m, esc, press('7'))
@@ -108,89 +108,102 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	if m = drive(m, esc); m.inPanel || !m.onPreset {
 		t.Errorf("esc from the sidebar: in panel %v, on the line %v", m.inPanel, m.onPreset)
 	}
-	// on the line, a number is typed, as a name may hold one; a click on a row leaves the line
+	// naming for Save As…, a number is typed, as a name may hold one; a click on a row leaves the line
+	m.choosePreset(0)
 	if m = drive(m, typed("2")...); !m.onPreset || m.stage != 0 || m.stages[0].naming != "2" {
 		t.Errorf("a number on the line: on the line %v, stage %d, %q", m.onPreset, m.stage, m.stages[0].naming)
 	}
 	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); m.onPreset || !m.inRows {
 		t.Errorf("a click on a row: on the line %v", m.onPreset)
 	}
+	// off Save As…, a number on the line selects the stage it numbers, as on the bar
+	m = drive(m, up, up)
+	if m = drive(m, typed("2")...); m.onPreset || m.stage != 1 {
+		t.Errorf("a number on the line, not naming: on the line %v, stage %d", m.onPreset, m.stage)
+	}
 }
 
 func TestAChipStandsForEachFilter(t *testing.T) {
 	m := onDropdown(t, "")
 	m.setPanel(m.panel(0).Shown(grid.Mine))
-	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, Saving) {
+	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, "@me  "+Presets) {
 		t.Errorf("mine: %q", got)
 	}
 	m.setPanel(m.panel(0).Shown(grid.Others))
 	if got := presetText(m); !strings.Contains(got, "  assignees: ¬@me") {
 		t.Errorf("others: %q", got)
 	}
-	// too narrow, the chips are clipped before Save is
+	// too narrow, the chips are clipped before the selector is
 	m = drive(m, tea.WindowSizeMsg{Width: 30, Height: 40})
-	if got := presetText(m); !strings.HasSuffix(got, Saving) || ansi.StringWidth(got) > m.paneWidth() {
+	if got := presetText(m); !strings.HasSuffix(got, " "+Presets) || ansi.StringWidth(got) > m.paneWidth() {
 		t.Errorf("narrow: %q", got)
 	}
 }
 
-func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
+func TestChoosingAViewSetsThePanelAndAChangeDropsTheName(t *testing.T) {
 	m := onDropdown(t, "")
 	m = drive(m, press(tea.KeyEnter))
 	if !m.presetMenu {
 		t.Fatal("enter did not drop the presets down")
 	}
 	// the menu is drawn, under the line, whole
-	if drawn := raw(m); !strings.Contains(drawn, "Default") || !strings.Contains(drawn, "Compact") {
+	if drawn := raw(m); !strings.Contains(drawn, SaveAs) || !strings.Contains(drawn, "Compact") {
 		t.Fatalf("the presets are not drawn:\n%s", drawn)
 	}
 	names := []string{}
 	for _, i := range m.presetItems() {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{"Default", "Compact"}) || m.presetItems()[0].Glyph != Checked {
-		t.Fatalf("the presets: %q", names)
+	if !slices.Equal(names, []string{SaveAs, "", "Default", "Compact"}) || m.presetItems()[2].Glyph != Checked ||
+		m.presetAt != 2 {
+		t.Fatalf("the presets: %q, at %d", names, m.presetAt)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
 		t.Errorf("the keys with the menu open: %q", keysOf(m))
 	}
 	m = drive(m, down, press(tea.KeyEnter))
 	if m.presetMenu || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
-		m.changed(0) || presetText(m) != "   Compact ▾" {
-		t.Fatalf("Compact: %q, changed %v, %q", shownNow(m), m.changed(0), presetText(m))
+		presetText(m) != "   Compact "+Presets {
+		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
-	// a column shown again differs from every view: the line names none, and 💾 Save, dim, stands at its right
+	// a column shown again differs from every view: the line names none, ▼ alone at its right end
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
-	if got := presetText(m); !m.changed(0) || m.savable(0) || m.viewShown(0) != "" ||
-		!strings.HasSuffix(got, " "+Unnamed+" ▾ "+Saving) || !strings.HasSuffix(got, Saving) ||
-		!strings.Contains(keysOf(m), "⌃S save") {
-		t.Errorf("a change does not show save, or names a view: %q", got)
+	if got := presetText(m); m.is(0) != "" || got != "   "+Presets {
+		t.Errorf("a change names a view: %q", got)
 	}
-	if at := m.dropStart() + len(Unnamed) + 2; m.dropEnd() != at || m.dropStart() < m.paneWidth()/2 {
-		t.Errorf("▾ ends at %d, not %d", m.dropEnd(), at)
+	if m.dropEnd() != m.dropStart()+1 || m.dropStart() < m.paneWidth()/2 {
+		t.Errorf("▼ from %d to %d", m.dropStart(), m.dropEnd())
 	}
-	// saving with no name is refused, as is saving over a stage's own view; the change stays
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	if last := keysOf(m); !strings.Contains(last, "a preset needs a name") || !m.changed(0) {
+	// the menu then opens on Save As…; saving with no name is refused, as is saving over a stage's own view; the
+	// change stays
+	if m = drive(m, press(tea.KeyEnter)); m.presetAt != 0 {
+		t.Errorf("the menu on a changed table opens at %d", m.presetAt)
+	}
+	m = drive(m, press(tea.KeyEnter))
+	if !m.stages[0].savingAs || m.presetMenu || !strings.HasSuffix(presetText(m), SavingAs+" ▏") ||
+		!strings.Contains(keysOf(m), "⏎ save") {
+		t.Fatalf("Save As…: %q, %q", presetText(m), keysOf(m))
+	}
+	m = drive(m, press(tea.KeyEnter))
+	if last := keysOf(m); !strings.Contains(last, "a preset needs a name") || m.is(0) != "" {
 		t.Errorf("save with no name: %q", last)
 	}
 	m = drive(m, typed("Compact")...)
-	if m.savable(0) {
-		t.Error("a stage's own name can be saved")
-	}
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	if last := keysOf(m); !strings.Contains(last, "Compact is the stage's own and does not change") || !m.changed(0) {
+	m = drive(m, press(tea.KeyEnter))
+	if last := keysOf(m); !strings.Contains(last, "Compact is the stage's own and does not change") || m.is(0) != "" {
 		t.Errorf("save over Compact: %q", last)
 	}
-	m = drive(m, esc)
+	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   "+Presets {
+		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
+	}
 	// the table set as another view names that one
 	m.setPanel(m.builtins(0)[0].panel(fieldsOf("backlog"), m.panel(0)))
-	if got := presetText(m); got != "   Default ▾" || m.changed(0) {
+	if got := presetText(m); got != "   Default "+Presets {
 		t.Errorf("the table as Default: %q", got)
 	}
-	// the menu's keys: up, a letter to the next view it starts, and esc
+	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetAt != 1 {
+	if m = drive(m, typed("c")[0]); m.presetAt != 3 {
 		t.Errorf("c in the menu: %d", m.presetAt)
 	}
 	m = drive(m, up, esc)
@@ -200,37 +213,33 @@ func TestChoosingAViewSetsThePanelAndAChangeShowsSave(t *testing.T) {
 	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
 	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f field) bool { return f.Placement != placeColumn })
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.changed(0) {
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.is(0) != "Default" {
 		t.Errorf("Default: %q", shownNow(m))
 	}
 }
 
-func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
+func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "kit", "presets.json")
 	m := onDropdown(t, file)
 	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age", false).Sorted("age", false).Shown(grid.Others)
 	p = p.Grouped("assignees", false)
 	p.Fold = false
 	m.setPanel(p)
-	// a letter first typed takes the name's place; backspace first takes the name's last letter; esc stops the rename
-	m = drive(m, typed("x")...)
-	if !m.stages[0].renaming || m.stages[0].naming != "x" || !strings.HasSuffix(presetText(m), "  x▏ ▾ "+Saving) ||
-		!m.savable(0) {
+	// off Save As…, what is typed names nothing
+	if m = drive(m, typed("x")...); m.stages[0].savingAs || m.stages[0].naming != "" {
+		t.Fatalf("typing off Save As…: %q", m.stages[0].naming)
+	}
+	// Save As… from the menu, then a name, backspace, and enter
+	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter))
+	m = drive(m, typed("Triagex")...)
+	if m = drive(m, press(tea.KeyBackspace)); m.stages[0].naming != "Triage" ||
+		!strings.HasSuffix(presetText(m), SavingAs+" Triage▏") {
 		t.Fatalf("typing: %q", presetText(m))
 	}
-	if m = drive(m, esc); m.stages[0].renaming || !m.onPreset {
-		t.Fatalf("esc did not stop the rename, or left the line")
-	}
-	// the table differs from every view, so the line names none, and backspace first has nothing to take back
-	if m = drive(m, press(tea.KeyBackspace)); m.stages[0].naming != "" || m.savable(0) {
-		t.Fatalf("backspace first: %q", m.stages[0].naming)
-	}
-	m = drive(m, esc)
-	m = drive(m, typed("Triage")...)
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	m = drive(m, press(tea.KeyEnter))
 	if last := keysOf(m); !strings.Contains(last, "saved the preset Triage") || m.stages[0].viewName != "Triage" ||
-		m.changed(0) || !strings.HasSuffix(presetText(m), "assignees: ¬@me  Triage ▾") {
-		t.Fatalf("save: %q, view %q, changed %v, %q", last, m.stages[0].viewName, m.changed(0), presetText(m))
+		m.stages[0].savingAs || !strings.HasSuffix(presetText(m), "assignees: ¬@me  Triage "+Presets) {
+		t.Fatalf("save: %q, view %q, %q", last, m.stages[0].viewName, presetText(m))
 	}
 	data, err := os.ReadFile(file)
 	var kept presets
@@ -245,27 +254,29 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := m.presetItems(); len(items) != 4 || items[2].Name != "" || items[3].Name != "Triage" ||
-		items[3].Glyph != Checked || m.presetAt != 3 {
+	if items := m.presetItems(); len(items) != 6 || items[4].Name != "" || items[5].Name != "Triage" ||
+		items[5].Glyph != Checked || m.presetAt != 5 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetAt)
 	}
 	m = drive(m, esc)
-	// changed, the line names no view, and nothing is saved until a name is typed; saved again under its own name, it
-	// is overwritten
+	// changed, then saved again under its own name, it is overwritten; up while naming stops, and leaves the line
 	m.setPanel(m.panel(0).Placed("branch", grid.Column))
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	if data, _ = os.ReadFile(file); !strings.Contains(string(data), "branch") {
-		t.Error("a change was saved with no name")
+	m.choosePreset(0)
+	if m = drive(m, typed("Triage")...); !m.stages[0].savingAs {
+		t.Fatal("Save As… was not taking a name")
 	}
-	m = drive(m, typed("Triage")...)
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	m = drive(m, press(tea.KeyEnter))
 	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "branch") {
 		t.Errorf("overwritten: %s", data)
+	}
+	m.choosePreset(0)
+	if m = drive(m, up); m.stages[0].savingAs || m.onPreset {
+		t.Errorf("up while naming: naming %v, on the line %v", m.stages[0].savingAs, m.onPreset)
 	}
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetAt = 3
+	n.presetAt = 5
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		n.panel(0).Fold {
@@ -273,34 +284,37 @@ func TestATypedNameSavesThePanelToTheFileAndTheViewComesBack(t *testing.T) {
 	}
 }
 
-func TestClicksOpenThePresetsChooseOneAndSave(t *testing.T) {
+func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// a click on the line before the name gives it the keyboard, and opens nothing
 	if m = drive(m, testkit.Click(m.dropStart()-4, m.presetTop())); m.presetMenu || !m.onPreset {
-		t.Fatalf("a click past ▾: menu %v, on the line %v", m.presetMenu, m.onPreset)
+		t.Fatalf("a click past the name: menu %v, on the line %v", m.presetMenu, m.onPreset)
 	}
 	m = drive(m, esc)
-	// a click on the name drops the presets down, as one on ▾ does
+	// a click on the name drops the presets down, as one on ▼ does
 	if m = drive(m, testkit.Click(m.dropStart()+1, m.presetTop())); !m.presetMenu || !m.onPreset {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetMenu, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetBox()
-	if m = drive(m, testkit.Click(left+3, top+2)); m.presetMenu || m.stages[0].viewName != "Compact" {
+	if m = drive(m, testkit.Click(left+3, top+4)); m.presetMenu || m.stages[0].viewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetMenu, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
 	m = drive(m, testkit.Click(m.dropEnd()-1, m.presetTop()))
 	if !m.presetMenu {
-		t.Fatalf("a click on ▾ did not open it:\n%s", raw(m))
+		t.Fatalf("a click on ▼ did not open it:\n%s", raw(m))
 	}
 	if m = drive(m, testkit.Click(1, 20)); m.presetMenu || m.stages[0].viewName != "Compact" {
 		t.Errorf("a click off the menu: menu %v", m.presetMenu)
 	}
-	// with a name of its own, a click on 💾 saves
-	m.stages[0].renaming, m.stages[0].naming = true, "Mine"
-	if m = drive(m, testkit.Click(m.paneWidth()-2, m.presetTop())); m.stages[0].viewName != "Mine" {
-		t.Errorf("a click on save: view %q, %q", m.stages[0].viewName, keysOf(m))
+	// a click on Save As… takes a name, and enter saves under it
+	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
+	_, top, left = m.presetBox()
+	m = drive(m, testkit.Click(left+3, top+1))
+	m = drive(m, typed("Mine")...)
+	if m = drive(m, press(tea.KeyEnter)); m.stages[0].viewName != "Mine" {
+		t.Errorf("Save As… by clicks: view %q, %q", m.stages[0].viewName, keysOf(m))
 	}
 	if _, err := os.Stat(file); err != nil {
 		t.Errorf("nothing saved: %v", err)
@@ -325,13 +339,13 @@ func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// an empty name saves nothing; a file that cannot be written is said
 	m = drive(m, down)
-	m.stages[0].renaming, m.stages[0].naming = true, "  "
-	if m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}); !strings.Contains(lines(m)[len(lines(m))-1], "needs a name") {
+	m.stages[0].savingAs, m.stages[0].naming = true, "  "
+	if m = drive(m, press(tea.KeyEnter)); !strings.Contains(lines(m)[len(lines(m))-1], "needs a name") {
 		t.Errorf("an empty name: %q", lines(m)[len(lines(m))-1])
 	}
 	m.presetsPath = filepath.Join(file, "under-a-file", "presets.json")
-	m.stages[0].renaming, m.stages[0].naming = true, "Mine"
-	if m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}); !strings.Contains(lines(m)[len(lines(m))-1], "could not be saved") {
+	m.stages[0].savingAs, m.stages[0].naming = true, "Mine"
+	if m = drive(m, press(tea.KeyEnter)); !strings.Contains(lines(m)[len(lines(m))-1], "could not be saved") {
 		t.Errorf("an unwritable file: %q", lines(m)[len(lines(m))-1])
 	}
 	if got := presetsFile(); !strings.HasSuffix(got, filepath.Join("kit", "presets.json")) {
@@ -361,8 +375,9 @@ func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
 		t.Fatalf("the views: %q", names)
 	}
 	m.setPanel(m.panel(0).Placed("branch", grid.Hidden))
+	m.choosePreset(0)
 	m = drive(m, typed("Minimal")...)
-	m = drive(m, tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	m = drive(m, press(tea.KeyEnter))
 	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"branch"`) || strings.Contains(string(data), `"age"`) {
 		t.Errorf("Minimal was not overwritten: %s", data)
 	}

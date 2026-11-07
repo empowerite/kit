@@ -3,7 +3,7 @@
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ ☑ source ▤
      id  age ▼  title                                                                      │ columns
-   ───────────────────────────────────────────────────── assignees: @me  unnamed ▾ 💾 Save │ ☑ id
+   ───────────────────────────────────────────────────────────────────── assignees: @me  ▼ │ ☑ id
  ▾ 🐙 github source  1                                                                     │ ☑ age ▼                   
      #7    40d  🎫 Fix the thing                                                           │ ☑ branch
                                                                                            │ ☑ title

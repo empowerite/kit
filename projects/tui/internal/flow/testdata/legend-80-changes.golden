@@ -3,7 +3,7 @@
  ◃rktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds   ▹ group by
   ───────────────╯                  ╰──────────────┐ columns
  ▸ change  title   author  state  age  checks  th… │ ☑ change
-   ───────────────────────────────────── Default ▾ │ ☑ title
+   ───────────────────────────────────── Default ▼ │ ☑ title
  ▸ 🔀 #2   The f…  jeffr…  🏁      8d  ✅        … │ ☑ author
  ▸ 🔀 #3   A spi…  ada     🔨     90m  🏃      💬… │ ☑ state
  ▸ 🔀 #4   Lint …  bob     🔥     25h  ❌        … │ ☑ age
