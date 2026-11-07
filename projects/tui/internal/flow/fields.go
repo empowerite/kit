@@ -460,7 +460,7 @@ func (f field) draw(vs []value, pinned string) []cell {
 		if len(v.Raw) == 0 && v.Else != "" {
 			c.Values = []string{style.Off(v.Else)}
 		}
-		c.Right, c.Wrap, c.Raw = f.Right, f.Wrap, v.Raw
+		c.Right, c.Wrap, c.Raw, c.Hang = f.Right, f.Wrap, v.Raw, glyphed[rendering]
 		if links {
 			c.Link = v.Link
 		}

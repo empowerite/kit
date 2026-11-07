@@ -1516,7 +1516,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release, v0.1.0:", "the kit verbs, the picture,", "and the forge seam on GitHub", "and GitLab",
+		"The first release, v0.1.0:", "the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
 		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {
 		t.Errorf("the open row repeats the pull request:\n%s", v)

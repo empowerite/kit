@@ -16,6 +16,7 @@ package grid
 
 import (
 	"cmp"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,7 +36,8 @@ import (
 // raw values, unstyled, as an age by its seconds and assignees by their logins; it sorts and groups by the first, and
 // with none by its first value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the
 // value, for a cell that draws more than it groups by, as checks their counts beside their state; none says the cell's
-// first value.
+// first value. Hang says its values start with a glyph, so a line an open row breaks one onto starts under the text
+// after the glyph, not under the glyph: a hanging indent.
 type Cell struct {
 	Values []string
 	Right  bool
@@ -43,6 +45,7 @@ type Cell struct {
 	Link   string
 	Raw    []string
 	Head   string
+	Hang   bool
 }
 
 // key gives what a cell sorts and groups by: its first raw value, else its first value's text without its styles.
@@ -613,7 +616,7 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			columns[j] = wrapped(c, left)
 		case j < len(widths) && widths[j] > 0:
 			for _, v := range c.Values {
-				columns[j] = append(columns[j], broken(v, widths[j])...)
+				columns[j] = append(columns[j], hung(v, c.Hang, widths[j], broken)...)
 			}
 		}
 		height = max(height, len(columns[j]))
@@ -664,13 +667,43 @@ func broken(v string, width int) []string {
 func wrapped(c Cell, width int) []string {
 	var out []string
 	for _, v := range c.Values {
-		out = append(out, pane.Wrap(v, max(width, 1))...)
+		out = append(out, hung(v, c.Hang, width, func(v string, width int) []string {
+			return pane.Wrap(v, max(width, 1))
+		})...)
 	}
 	if len(out) == 0 {
 		out = []string{""}
 	}
 	return out
 }
+
+// hung breaks a value into lines of so many cells as wrap does, with a hanging indent when hang says the value starts
+// with a glyph: the text after the glyph and its space is broken narrower by their cells, the glyph stands before its
+// first line, and the lines after start under the text. A value whose first word is no glyph, as it has a letter or a
+// digit, or a column too narrow to leave ten cells after the glyph, breaks as wrap breaks it.
+func hung(v string, hang bool, width int, wrap func(string, int) []string) []string {
+	glyph, text, ok := strings.Cut(v, " ")
+	cells := ansi.StringWidth(glyph) + 1
+	if !hang || !ok || cells == 1 || width-cells < 10 || strings.ContainsFunc(ansi.Strip(glyph), func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r)
+	}) || ansi.StringWidth(v) <= width {
+		return wrap(v, width)
+	}
+	// the text goes on in the styles the glyph started, as Restyle carries a style across a break
+	lines := wrap(strings.Join(sgr.FindAllString(glyph, -1), "")+text, width-cells)
+	out := make([]string, len(lines))
+	for k, l := range lines {
+		lead := strings.Repeat(" ", cells)
+		if k == 0 {
+			lead = glyph + " "
+		}
+		out[k] = lead + l
+	}
+	return out
+}
+
+// sgr is a sequence that sets how text is drawn: its color, bold, dim, and the like.
+var sgr = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
 
 // dotted underlines a cell's glyph, or first word, its text up to the first space, with a dotted line when the cell's
 // link opens a page, a URL, as a terminal that draws underline styles shows it; another draws a plain underline, or

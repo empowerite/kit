@@ -1037,3 +1037,50 @@ func TestShowingSaysTheChoiceShownSet(t *testing.T) {
 		}
 	}
 }
+
+// An open row breaks a value that starts with a glyph with a hanging indent: the lines after its first start under the
+// text, not under the glyph, and a dim value stays dim on each. A first word with a letter or a digit is no glyph, a
+// cell that says nothing of glyphs hangs nothing, and a column too narrow for ten cells after the glyph breaks as ever.
+func TestAnOpenRowHangsTheLinesAfterAGlyph(t *testing.T) {
+	plain := func(lines []string) []string {
+		out := make([]string, len(lines))
+		for k, l := range lines {
+			out[k] = ansi.Strip(l)
+		}
+		return out
+	}
+	title := "🎫 Every tracker in the picture, grouped by tracker"
+	if got := plain(wrapped(Cell{Values: []string{title}, Hang: true}, 24)); !slices.Equal(got,
+		[]string{"🎫 Every tracker in the", "   picture, grouped by", "   tracker"}) {
+		t.Errorf("a title hung: %q", got)
+	}
+	if got := plain(wrapped(Cell{Values: []string{title}}, 24)); !slices.Equal(got,
+		[]string{"🎫 Every tracker in the", "picture, grouped by", "tracker"}) {
+		t.Errorf("a cell that hangs nothing: %q", got)
+	}
+	if got := plain(wrapped(Cell{Values: []string{"#45 Every tracker in the picture"}, Hang: true}, 16)); strings.HasPrefix(got[1], " ") {
+		t.Errorf("a first word with a digit: %q", got)
+	}
+	if got := plain(wrapped(Cell{Values: []string{title}, Hang: true}, 12)); strings.HasPrefix(got[1], " ") {
+		t.Errorf("too narrow to hang: %q", got)
+	}
+	if got := wrapped(Cell{Values: []string{"🎫 short"}, Hang: true}, 24); !slices.Equal(got, []string{"🎫 short"}) {
+		t.Errorf("a value that fits: %q", got)
+	}
+	dim := wrapped(Cell{Values: []string{style.Off(title)}, Hang: true}, 24)
+	for _, l := range dim[1:] {
+		if !strings.HasPrefix(l, "   ") || !strings.Contains(l, "\x1b[") {
+			t.Errorf("a dim line, unhung or undimmed: %q", l)
+		}
+	}
+	// a value in a column of its own width breaks the same way, at a dash or a slash too
+	if got := plain(hung("🌿 46-a-noun-lists-a-noun-with-a-verb", true, 16, broken)); len(got) < 2 ||
+		!strings.HasPrefix(got[0], "🌿 46-") || !strings.HasPrefix(got[1], "   ") {
+		t.Errorf("a branch hung: %q", got)
+	}
+	rows := []Row{{Key: "a", Cells: []Cell{one("#1"), {Values: []string{"👤 jeffrey-aguilera-the-long"}, Hang: true},
+		{Values: []string{title}, Wrap: true, Hang: true}}}}
+	if got := plain(openLines(rows[0].Cells, []int{2, 14}, 24, 44, false)); len(got) < 2 || !strings.Contains(got[1], "   ") {
+		t.Errorf("an open row: %q", got)
+	}
+}
