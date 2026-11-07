@@ -1,0 +1,224 @@
+# Architecture
+
+kit has three parts: a release that a repository installs, commands that agents and people both run, and
+checks that verify the work follows the rules.
+
+[packages.md](packages.md) and [context.md](context.md) describe the package format and the rule lookup in detail.
+
+## The release and its delivery
+
+![Delivery: a release's packages, through the verbs, into a repository and a home](delivery.svg)
+
+A release is one tarball, `kit-<version>.tar.gz`, with the layout of this checkout's `kit/`:
+
+- `bin/kit` is the kit CLI. Each verb is an executable `bin/kit-<verb>` beside it, which runs the same when called
+  directly. `bin/` holds only commands a person runs.
+- `modules/` holds the modules the verbs share, one directory per language: `modules/bash/`, loaded with `use`, and
+  `modules/jq/`, imported by the jq programs they run; see [Bash modules](#bash-modules).
+- `packages/` holds everything a release delivers.
+- `libexec/` holds `kittui-<os>-<arch>`, the binary `kit tui` runs, for linux and darwin on amd64 and arm64. It is
+  built from this checkout's `projects/tui/`, so whatever installs the kit installs `kittui` at the same version. A
+  checkout has no `libexec/`; there `kit tui` builds `kittui` from `projects/tui/` with Go, once for each change to its
+  sources.
+- `version` holds the release version. The release workflow writes it from the tag. A checkout has no `version` file
+  and reports `unreleased`.
+
+### Bash modules
+
+The kit's commands share code through bash modules. A bash module is a file of functions, such as `forge.sh`, and a
+command loads it with `use forge`. `use` looks in each directory listed in the `bash_path` setting and loads every
+`forge.sh` it finds, in that order.
+
+That is how a repository changes the kit without editing it. It lists its own directory after the kit's, and its
+`forge.sh` loads second, so it can add functions, replace the kit's, or wrap them. It can add support for another
+code forge or toolchain the same way. [modules.md](modules.md) has the details.
+
+### Packages
+
+A package is a directory under `packages/`, named after the package. It contains:
+
+| Path | Purpose |
+| --- | --- |
+| `package.yml` | whether the package is on by default, which packages it depends on or includes, and default answers for its templates |
+| `files/<base>/` | files copied as they are to the same path under the base |
+| `templates/<base>/` | files copied after each `@key@` is replaced by a setting |
+| `regions/<base>/` | content kit owns inside a file the repository owns, rendered like a template |
+| `hosts/<base>/` | for a region, the template of the file that holds it, at the region's path; `kit check` holds the file to it |
+
+There are two bases: `repo` is the repository root, and `home` is the user's home directory.
+
+### The verbs that move content
+
+Content reaches a repository only through these verbs:
+
+- `kit install` resolves the active packages (`kit`, the ones named, their dependencies, and a bundle's members),
+  renders them, places the files, and writes the manifests.
+- `kit update` moves to a newly pinned release. It replaces each file the repository never edited and merges each
+  edited file three ways, with the previous release as the base.
+- `kit check` fails when a delivered file differs from the release.
+- `kit packages select`, `add`, and `remove` change the set of active packages.
+- `kit hydrate` brings every path under `.kit/` to its state from the declaration, choosing nothing. Every verb that
+  reads a delivered file does the same first.
+- `kit uninstall` takes it all out again: every path the active packages deliver, the manifests, and the
+  declaration, leaving the repository's own files, its own packages, and any copy it edited.
+
+How a file is placed depends on its destination:
+
+- A `.json` file, other than a schema, is merged by key. kit owns only the entries it writes.
+- A region lives inside a file the repository owns. It starts at a `kit:generate` line naming the file's path and
+  ends at a matching end line. `kit generate` replaces the region with the output of `kit region`. It does the same
+  for every region any file in the repository declares; see [generate.md](generate.md).
+- Every other file under `.kit/` is a link to its source inside the worktree, or a copy without the write bit, named
+  in `.kit/.gitignore` so git never sees it. Every other file outside `.kit/` is copied.
+
+### Manifests
+
+Each base has a manifest:
+
+- `.kit/manifest`, written beside what kit placed under `.kit/` and ignored like it. The repository commits the
+  declaration in `kit.yml` instead.
+- `~/.kit/manifest` on a developer machine, when a package delivers to the home directory.
+
+The repository's manifest records the release's digest of every delivered path. The version and the active packages
+are declared in `kit.yml`, the three keys the kit writes there. Home's manifest, with no settings file
+beside it, records its version and packages itself. `kit update` compares a file against its digest to tell whether
+the repository edited it.
+
+## Finding a file's rules
+
+![Context: how any agent, and Claude Code's hook, find the rules that govern a file](context.svg)
+
+Each rule lives in one file, `.kit/rules/<kind>.md`, and is not copied into any agent tool's own directory. A
+style package adds `.kit/styles/<kind>.md`, found the same way. A rule says what the work must do to be trusted; a
+style says how the file looks, and a repository takes the style it agrees with. A kind of file is defined once, by
+its `name:`, in a kinds file under `.kit/kinds/`, and each rule's and style's frontmatter names the kinds it governs
+under `kind:`:
+
+- `paths:` in a kind lists globs matched against the repository-relative path.
+- `content:` in a kind lists patterns matched against the first line of an existing file.
+- `embeds:` in a kind lists the kinds found inside its files, so a justfile brings the bash rule to its reader.
+
+`kit context <path>` prints the rules that govern a path and appends a line to `.git/kit/context.log`. Every caller
+gets the same answer:
+
+- an agent in any harness, following the instruction in `.kit/1st.md`,
+- a person at the shell,
+- a tool reading `--json`, and
+- Claude Code's `PreToolUse` hook, which the `agents/claude` package wires to `kit context --claude`, so the rules are
+  shown before each Write, Edit, and MultiEdit. A write through the shell does not reach it.
+
+The log records each path asked about, and when.
+
+A rule, or a style, can name a linter. `kit lint` runs each linter over the files its rule or style governs, so a
+hook manager only has to call `kit lint`. A style's templates are skeleton files of its kind: `kit new file <path>`
+creates a file from one, and `kit lint` checks that every file the style governs keeps the shape of one; see
+[templates.md](templates.md).
+
+## The workflow and the gate
+
+![The workflow: an issue becomes a worktree and a draft pull request, the gate checks it, a human merges](loop.svg)
+
+The desk is the root checkout on the human's machine, on whatever branch it currently has, and it belongs to the
+human. It usually has `main` checked out, and it may have any branch that no worktree is using. No agent changes it
+in place.
+
+Work starts from an issue:
+
+1. `kit work <N>` creates `worktrees/<N>-<slug>`, hydrated, a branch linked to the issue, a start commit, and a
+   draft pull request. If the desk has uncommitted work, `kit work` moves it into the new worktree and says so.
+   Then, when the desk is on the default branch, it also fast-forwards it. It does not change anything else on the
+   desk.
+2. In the worktree:
+   - `kit context` before changing a file,
+   - `kit lint` to run the pre-commit linters by hand,
+   - `kit commit` to commit, with the checks its rule requires, and `kit submit` to commit and push,
+   - `kit rebase` to rebase the branch onto the default branch at the primary remote and push it.
+3. Mark the pull request ready for review once its body holds the report: `gh pr ready` on GitHub,
+   `glab mr update --ready` on GitLab.
+4. A human merges, and `kit tidy` removes the worktree and the branch.
+
+The `workflow` package delivers these steps to agents as `.kit/workflow.md`, with the worker contract. The `kit`
+package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
+commands that replace raw git commands.
+
+`kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees, changes,
+builds, incoming, releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit flow
+<stage>` prints one stage. The backlog shows the branch that claims an issue, so the next `kit work <N>` is a pick,
+not a search. underway shows the rest of the open issues: who works on each, and where.
+
+### Code forges, seams, and providers
+
+A code forge is the service that hosts a repository with its issues and pull requests, such as GitHub or GitLab.
+The word forge comes from SourceForge, the first widely used site of this kind, in 1999. GitLab, Gitea, and Forgejo
+still use it for the category. kit says code forge rather than GitHub because the workflow runs on more than one.
+
+Five files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004). He
+took it from tailoring: a seam is where two pieces of cloth join, and where a garment is let out or taken in without
+recutting either piece. In code, a seam is a place where behavior can change without editing the code at that place.
+Every seam has an enabling point, the spot that decides which behavior runs.
+
+kit says seam rather than interface because seam is the more precise word for these files. An interface is only a
+contract: the calls a provider must answer. It says nothing about who picks the provider, or when. A seam is the
+contract plus its enabling point, and each of these files holds both. Its header lists the calls. Its code picks the
+provider at run time, from a setting or the primary remote's host, by building the provider's function name from a
+string. Shell has no types, so there is no separate interface declaration to point at; the seam is the whole of what
+exists.
+
+| Seam | Providers | Chosen by |
+| --- | --- | --- |
+| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else the primary remote's host |
+| `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/dependencies.sh` | `dependencies/npm.sh`, `dependencies/uv.sh` | every one usable here at once: its tool on `PATH`, its manifest and its lock at the root; see [toolchains.md](toolchains.md#dependencies) |
+| `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
+
+Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
+branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted code
+forge is named in the `forge` or `forges` setting, or found from a host `gh` or `glab` has logged in to.
+
+- Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
+- Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
+- A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and
+  the setting picks the one the workflow uses.
+- `tests/forge-conformance.bats` runs every provider against a fake of its tool and checks that each returns the
+  same shape.
+- The core verbs never call the code forge, so a repository with no code forge can still install, update, check, and run
+  `kit context`. Only a provider needs its code forge's tool.
+
+### The checks
+
+`kit ci` is the delivered check. The delivered GitHub Actions job runs it on every pull request into the default
+branch, and any other pipeline can run it too. It runs four checks, each a kit command:
+
+- `kit gate` runs the repository's own gate: the `gate` setting, or a detected justfile recipe, Makefile target, or
+  `package.json` script. It fails when there is no gate, because a gate that cannot run verifies nothing. The gate
+  runs with the tools the chosen toolchain pins (mise, nix, Homebrew, docker, or a dev container); see
+  [toolchains.md](toolchains.md).
+- `kit check` fails when a delivered file differs from the release.
+- `kit linked` fails when a pull request is not linked to an open issue.
+- `kit policy` fails when a branch name, commit subject, pull request title, or file in the tree at HEAD breaks the
+  repository's policy. The policy is a set of patterns or an Open Policy Agent policy; see [policy.md](policy.md).
+
+On a desk, `kit ci` passes only once the branch has a pull request. Before one exists, `kit linked` fails, and the
+other three, `kit gate`, `kit check`, and `kit policy`, run without one.
+
+## What verifies what
+
+| Claim | Verified by |
+| --- | --- |
+| A delivered file matches the release | `kit check`, in `kit ci` beside the gate and locally, against the release's files and the version `kit.yml` declares |
+| A change has an issue | `kit linked`, in `kit ci` beside the gate; `kit work` creates the link when it starts the work |
+| The repository's own gate ran | `kit gate`, which fails when there is no gate to run |
+| Branch names, commit subjects, and pull request titles follow the policy | `kit policy`, with patterns or Open Policy Agent |
+| The gate ran with the pinned tools | `kit tools install`, then the gate run through the chosen toolchain, locally and in CI |
+| All four held, wherever CI runs | `kit ci`, which runs all four and reports each one |
+| An agent was shown a file's rules | the Claude Code hook; a file per kit rule, attached by its kind's paths, in Cursor and Copilot; `kit context` elsewhere |
+| An agent asked for a file's rules | no check; `.git/kit/context.log` records each request, one line per path, and nothing reads it |
+| A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
+| A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
+| The forbidden git commands were not used | no check; the deny list prevents them where the harness has one (Claude Code, Gemini CLI), and elsewhere this rests on the report in the pull request body, which `kit ci` does not verify |
+| The desk was not changed | no check; `kit rebase` refuses the root checkout and `kit work` never switches its branch, and the deny lists refuse a few raw git commands where a harness has one |
+
+No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds
+of file they handle. The rest is the report in the pull request body, which the integrity rules in `.kit/1st.md`
+govern.

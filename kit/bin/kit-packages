@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# kit-packages - lists the packages in reach, and changes which are active (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit packages [--active | --inactive] [--json | --jq] [<package>…]
+#
+# kit packages (select | add | remove) <package>…
+#
+# Alone, it lists every package in reach, one row each: a mark, its name, its origin, and its description. ✅ marks
+# an active package, ❌ one the repository excludes. The packages come from the release and from .kit/packages/.
+# With a verb, it changes which are active:
+#
+#   - add places the files the new packages deliver and rewrites the manifests. A different file already at a
+#     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
+#   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A member
+#     of a bundle that stays active is recorded as excluded, so kit update does not bring it back.
+#   - select is remove, then add, to reach the named set. It says what it kept for another package's sake. With
+#     nothing to change, it says the set.
+#
+#   --active            only the active packages
+#   --inactive          the packages that are not active, excluded ones among them
+#   --json              one JSON object per package: name, origin, state, and description
+#   --jq                the same JSON, formatted by jq for a person
+#   select <package>…   makes exactly these, and what they need, the active set
+#   add <package>…      activates the packages, and what they depend on and include
+#   remove <package>…   deactivates the packages; refuses one an active package needs
+#   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
+#
+# Exits 0 when it did it, 1 when it could not, as when a source in kit.yml cannot be fetched or has another digest,
+# and 2 on a usage error or a package name the kit does not know.
+#
+# see: modules/bash/package.sh, modules/bash/settings.sh, docs/packages.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use package settings sources
+# A package a source holds is a name the arguments may give only once the source is fetched, so a source that cannot
+# be is the refusal, not the name.
+case "${1:-}" in
+  (select | add | remove) sources:fetch-all || exit 1
+esac
+guard:arguments packages "$@" || exit $?
+settings:require
+
+case "${1:-}" in
+  (select) shift; package:select "$@" ;;
+  (add) shift; package:add "$@" ;;
+  (remove) shift; package:remove "$@" ;;
+  (*) package:list "$@"
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

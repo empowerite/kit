@@ -1,0 +1,60 @@
+{
+  "verb": "context",
+  "purpose": "prints the rules that govern a file",
+  "usage": [
+    "kit context <path>… [--json | --jq]",
+    "kit context --claude"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "operand",
+        "name": "path",
+        "repeat": true
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "claude",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<path>": {
+      "description": "the files, relative to the current directory; need not exist",
+      "choices": "open"
+    },
+    "--json": {
+      "description": "one JSON object per path: path, kinds, and rules"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--claude": {
+      "description": "runs as Claude Code's PreToolUse hook"
+    }
+  }
+}

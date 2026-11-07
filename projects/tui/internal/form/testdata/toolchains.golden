@@ -1,0 +1,8 @@
+ kit toolchains - lists the toolchains kit found here, and records which one to use
+
+   required
+   [--json | --jq]
+   choose           records the toolchain for the project; ambient chooses none
+
+
+ kit toolchains

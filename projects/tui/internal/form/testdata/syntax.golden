@@ -1,0 +1,10 @@
+ kit syntax - prints a verb's grammar as JSON, and checks its header
+
+   required
+   [--check | --list] <verb>
+   <verb> --choices <answer>
+   <verb> --extend <answer>
+   <verb> --match <word>
+
+
+ kit syntax

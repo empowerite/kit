@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
+#
+#   backlog → underway → desk → worktrees → changes → builds → incoming → releases
+#
+# The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
+#
+# One remote is the primary: the primary setting in kit.yml, else origin. Ahead and behind, the default branch, pull
+# requests, builds, releases, and issues are read from it. incoming fetches every remote, the primary first, and
+# never rebases, merges, or pulls. Each remote has a forge, or none: the forges setting in kit.yml names it, else its
+# host does. The forge setting names the primary's.
+#
+# The flow setting in kit.yml names the stages drawn, in order. On a terminal, kit flow opens the picture in
+# kittui. Without one, or with --text, it prints the stages as text. Where it runs decides what worktrees and
+# changes draw:
+#
+#   - at a desk: every linked worktree, and every open pull request
+#   - in a worktree: that worktree, and the pull request its branch holds
+#   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
+#
+# backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
+# remote draws its checkouts, fetches nothing, and says so once.
+#
+# The open pull requests and the open issues are read from the forge at most once a minute. The stages read within
+# that minute draw the same snapshot, kept in the repository's common git directory, so they agree. A command that
+# changes an issue or a pull request drops it, and --fresh reads afresh.
+#
+# Each stage's JSON is kept there too, per checkout and arguments, whatever its age: --cached prints it, so a picture
+# can show the stage as it last was while it loads.
+#
+#   --no-fetch          fetches nothing; incoming says so
+#   --fresh             reads the open issues and pull requests afresh, not the snapshot of the last minute
+#   --cached            with --json and a stage, prints what that stage printed last here with the same arguments,
+#                       whatever its age, and reads nothing; refuses when it has printed nothing yet
+#   --text              prints the picture as text, even on a terminal
+#   --json              the picture as one JSON object, each stage under its name
+#   --jq                the same JSON, formatted by jq for a person
+#   --mine              only the caller's: assigned issues, and opened pull requests
+#   --others            everyone else's; unassigned issues included
+#   --all               every issue and pull request (the default); it stands alone
+#   --owner=<login>     only the named login's; give it once or more
+#   --stages            prints the stages the picture draws, one per line, in order
+#   --me                prints the caller's login on the primary's forge, the login --mine and --others match
+#   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
+#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most
+#   --today             only the issues opened in the last 24 hours
+#   <number>…           only these pull requests, by number or issue closed: #7
+#   backlog             the open issues not closed by any open pull request, oldest first; underway has the rest
+#   underway            the open issues closed by an open pull request: who works on each, and where
+#   incoming            what fetching every remote brought: default-branch commits, branches new and gone
+#   desk                the root checkout: branch, ahead and behind, uncommitted paths
+#   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
+#   changes             the open pull requests, each with the issues it closes
+#   builds              the runs not owned by any pull request: the default branch, tags, schedules
+#   releases            the releases on the forge, newest first
+#
+# The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
+#
+# kit flow --stages
+#
+# kit flow --me
+#
+# kit flow --quota
+#
+# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# kit flow incoming [--no-fetch] [--json | --jq] [--cached]
+#
+# kit flow desk [--json | --jq] [--cached]
+#
+# kit flow worktrees [--json | --jq] [--cached]
+#
+# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+#
+# kit flow builds [--json | --jq] [--cached]
+#
+# kit flow releases [--json | --jq] [--cached]
+#
+# One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
+# for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
+# --json prints an array with one {path, status} per desk.
+#
+# Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
+# issue first. Its owner flags match the issue's assignees. A row's JSON is {number, title, assignees, age, source,
+# organization, repository, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
+# is the owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a
+# namespace's path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not
+# tell it cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head pipeline's.
+# here is true when a checkout on this desk has the branch, and worktree is that checkout's path, or null. local is true
+# when the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same fork and pushed.
+# source names the tracker that holds an issue, under backlog and underway, and each issue a change closes: github or
+# gitlab, the code forge's own; trackers kit.yml declares add their own. organization and repository say where in that
+# tracker the issue is: on GitHub, the repository's owner and name; on GitLab, its group, subgroups and all, and the
+# project. Each is null where the tracker has none.
+#
+# incoming's JSON is {fetched, primary, remotes}. Each remote is {name, forge, host, default, commits, branches, tags}:
+# forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds error,
+# git's line, and the stage exits 1. With --no-fetch, fetched is false and each remote is {name, forge, host}.
+#
+# builds lists the 20 newest runs not owned by any pull request: pushes to the default branch or a tag, and scheduled or
+# manual runs. A run's JSON is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age, took, url,
+# jobs}. number is the forge's count of the workflow's runs, or null; attempt is 1 for a first run. tag is true for a
+# run on a tag. sha is the commit's short hash and title the forge's headline for the run, each empty when the forge
+# gives none. state is running, passed, failed, or cancelled. took is null while the run runs. jobs is empty when the
+# forge does not report them cheaply; each is {name, state, took, step}, step the failed step's name, or null.
+#
+# Legend
+#
+# Each stage lists the glyphs it draws, one per line. A glyph can show under more than one stage. NO_COLOR removes
+# the colors and keeps the glyphs. In kittui's legend, a dim † after a meaning says a click on the glyph goes to its
+# row in another stage, and a dim 🔗 that a click opens the glyph's page.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
+#   📚  the repository: owner/name, in kittui's title
+#
+# backlog:
+#
+#   🎫  an issue: its number and title
+#   🐙  on GitHub: the tracker that holds an issue
+#   🦊  on GitLab: the tracker that holds an issue
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# underway:
+#
+#   🛫  underway: an issue an open pull request closes
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🔀  a pull request: a merge request, on GitLab
+#   💻  the desk: the root checkout
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  a local branch: this desk has it, and no checkout does
+#   🍴  a fork's owner: the pull request's branch is in their repository
+#   📤  the last push: how long ago
+#   🎫  an issue: its number and title
+#   🐙  on GitHub: the tracker that holds an issue
+#   🦊  on GitLab: the tracker that holds an issue
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# desk:
+#
+#   💻  the desk: the root checkout
+#   ❗  not on any branch: a detached HEAD
+#   🔀  a pull request: a merge request, on GitLab
+#   📂  a desk's path: above desks
+#
+# worktrees:
+#
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❗  not on any branch: a detached HEAD
+#   🔀  a pull request: a merge request, on GitLab
+#   🔖  a branch gone: its upstream is gone; kit tidy removes it
+#
+# changes:
+#
+#   🔀  a pull request: a merge request, on GitLab
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🏃  running: checks or a build still running or queued
+#   ✅  passed: every check, or a build
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#   💬  threads unresolved: review threads, with how many
+#   🛫  underway: an issue an open pull request closes
+#   🎫  an issue: its number and title
+#
+# changes: a pull request's state, the first of these that holds:
+#
+#   🔨  draft
+#   🚦  queued: a check is still running
+#   💥  conflicted: with its base
+#   🔥  failing:gate: a check failed
+#   📭  no-check: no check has reported
+#   💬  comments:open: a review thread is unresolved
+#   👀  blocked:approval: a review blocks the merge
+#   🏁  ready: nothing is left to decide
+#   🔳  any other state
+#
+# builds:
+#
+#   🏭  a build: a workflow run not owned by any pull request
+#   🏃  running: checks or a build still running or queued
+#   ✅  passed: every check, or a build
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#   🛑  cancelled or skipped: a build
+#
+# incoming:
+#
+#   🛬  the fetch: what it brought from the remotes
+#   📡  a remote: its name, its forge or no forge, and its host
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🔖  a branch gone: its upstream is gone; kit tidy removes it
+#   📌  a new tag: the fetch brought it
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# releases:
+#
+#   📦  a release
+#   🧪  a pre-release
+#   📝  a draft release
+#   ⭐  the latest release
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+# Exits 0 when the picture is drawn, 1 when the forge or the fetch cannot be read or a setting is wrong, and 2 on a
+# usage error. A wrong setting is a flow setting that is not a list of distinct stages, a primary that names no
+# remote, or a forges key that is no remote name.
+#
+# see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
+# modules/bash/builds.sh, modules/bash/releases.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use flow tui
+guard:arguments flow "$@" || exit $?
+guard:require tool:git
+
+# A remote's name from kit.yml reaches git as an argument, so a wrong one stops every stage before git sees it.
+forge:primary >/dev/null || exit $?
+
+if [[ -n "${syntax_options[--stages]+x}" ]]
+then
+  settings:stages
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--me]+x}" ]]
+then
+  use forge
+  forge:me || exit $?
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--quota]+x}" ]]
+then
+  use forge
+  quota=$(forge:quota) || exit $?
+  jq --compact-output --slurp . <<<"${quota}"
+  exit 0
+fi
+
+# On a terminal inside a repository, with no stage asked for and no form chosen, the picture is kittui's, which
+# runs this kit. Without a kittui, or above desks, the text picture prints, as it does without a terminal.
+if [[ -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
+  && git rev-parse --git-dir >/dev/null 2>&1 && tui:binary --probe >/dev/null 2>&1
+then
+  binary=$(tui:binary) || exit 1
+  export KIT="${kit_root}/bin/kit"
+  exec "${binary}" flow "$@"
+fi
+
+flow:render "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

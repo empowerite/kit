@@ -1,0 +1,113 @@
+[
+  {
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "number": 1,
+    "title": "The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab",
+    "assignees": [
+      "jeffrey-aguilera"
+    ],
+    "age": 714296,
+    "pr": {
+      "source": "github",
+      "number": 2,
+      "title": "The first release, v0.1.0",
+      "author": "jeffrey-aguilera",
+      "state": "ready",
+      "branch": "1-the-first-release-v0-1-0",
+      "fork": null,
+      "pushed": {
+        "age": 3600,
+        "by": "jeffrey-aguilera"
+      }
+    },
+    "here": true,
+    "local": false,
+    "worktree": "/home/kit/worktrees/1-the-first-release-v0-1-0",
+    "labels": [
+      {
+        "name": "priority:high",
+        "color": "#b60205"
+      },
+      {
+        "name": "release",
+        "color": "#fbca04"
+      }
+    ]
+  },
+  {
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "number": 8,
+    "title": "Lint the modules",
+    "assignees": [],
+    "age": 200000,
+    "pr": {
+      "source": "github",
+      "number": 4,
+      "title": "Lint every module",
+      "author": "bob",
+      "state": "failing:gate",
+      "branch": "4-lint-every-module",
+      "fork": "bob",
+      "pushed": {
+        "age": 90000,
+        "by": "cy"
+      }
+    },
+    "here": false,
+    "local": false,
+    "worktree": null
+  },
+  {
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "number": 8,
+    "title": "Lint the modules",
+    "assignees": [],
+    "age": 200000,
+    "pr": {
+      "source": "github",
+      "number": 11,
+      "title": "Lint the modules with one shared config",
+      "author": "ada",
+      "state": "draft",
+      "branch": "11-lint-shared",
+      "fork": null,
+      "pushed": {
+        "age": 7200,
+        "by": "ada"
+      }
+    },
+    "here": false,
+    "local": true,
+    "worktree": null
+  },
+  {
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "number": 31,
+    "title": "kit commit, kit submit, and kit land: one verb per step from a worktree to a merged pull request",
+    "assignees": [
+      "ada"
+    ],
+    "age": 10800,
+    "pr": {
+      "source": "github",
+      "number": 12,
+      "title": "kit commit, kit submit, and kit land",
+      "author": "ada",
+      "state": "comments:open",
+      "branch": "31-commit-submit-land",
+      "fork": null,
+      "pushed": null
+    },
+    "here": false,
+    "local": false,
+    "worktree": null
+  }
+]

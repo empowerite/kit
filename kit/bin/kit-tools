@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+# kit-tools - lists, installs, and updates what the chosen toolchain and the dependencies pin (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
+#
+# kit tools [--toolchain <name>] (install | update | path | run <command>…)
+#
+# Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
+# Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
+# manifest and lock are here, and whose tool is on PATH with the toolchain's directories first.
+#
+# Alone, it lists each pinned tool: its name, the version pinned, and the version installed. A row marks what is
+# installed. It never reaches the network. With --outdated, it adds the latest version, which asks the network.
+# With no toolchain, kit runs ambient. Then it lists the tools the rules' linters need, and where each is on PATH.
+# The toolchain comes first, then each dependency provider, each in its own table headed by its name when there are
+# several.
+#
+#   --outdated          only the tools behind their latest version; reaches the network
+#   --check             with --outdated: fails when any tool is behind
+#   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
+#   <name>              mise, nix, brew, docker, devcontainer, or ambient
+#   --json              one JSON object per tool: name, pinned, installed, latest with --outdated, and from
+#   --jq                the same JSON, formatted by jq for a person
+#   install             installs every pinned tool, then every package; ambient, names what else to install
+#   update              moves every tool and package to its latest, and rewrites the pins
+#   path                prints the directories that put the tools first on PATH, then the packages'
+#   run <command>…      runs the command with the tools, or in their container
+#   <command>…          the command and its arguments, as typed, dash-words included
+#
+# With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
+#
+# Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
+# has name and path.
+#
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error; run exits with the command's status.
+#
+# see: modules/bash/toolchain.sh, modules/bash/dependencies.sh, docs/toolchains.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use toolchain dependencies settings flow materialize yaml
+guard:arguments tools "$@" || exit $?
+settings:validate || exit 1
+
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+[[ -z "${syntax_options[--toolchain]+x}" ]] || export KIT_TOOLCHAIN=${syntax_options[--toolchain]}
+verb=${syntax_literals[0]:-}
+json=false
+[[ -z "${syntax_options[--json]+x}" ]] || json=true
+
+chosen=$(toolchain:chosen project) || exit 1
+
+# needed prints "<tool>\t<path>" for each tool a rule's or a style's linter runs, once each: the first word of its
+# lint: command. The path is where it is found on PATH, or nothing.
+needed() {
+  local file tool
+  local -A seen=()
+  materialize:hydrate >&2 || return 1
+  for file in .kit/rules/*.md .kit/styles/*.md
+  do
+    [[ -f "${file}" ]] || continue
+    tool=$(yaml:value "${file}" lint 2>/dev/null) || continue
+    tool=${tool%% *}
+    [[ -n "${tool}" && -z "${seen[${tool}]+x}" ]] || continue
+    seen[${tool}]=1
+    printf '%s\t%s\n' "${tool}" "$(command -v "${tool}" 2>/dev/null || true)"
+  done
+}
+
+# draw <header> reads tab-separated rows on stdin, a glyph first, and prints them as a table: each column sized to
+# its widest cell, the cells joined by flow_sep, and the empty cells at a row's end dropped with their separators. A
+# row too wide for the terminal is clipped at its end. A found path gives way at its start, so its file name shows.
+draw() {
+  local width row line i room last
+  local -a header lines cells sizes=()
+  IFS=$'\t' read -r -a header <<<"$1"
+  readarray -t lines
+  for (( i = 0; i < ${#header[@]}; i++ ))
+  do
+    sizes[i]=${#header[i]}
+  done
+  for row in "${lines[@]}"
+  do
+    split "${row}"
+    for (( i = 1; i < ${#cells[@]}; i++ ))
+    do
+      (( ${#cells[i]} <= ${sizes[i - 1]:-0} )) || sizes[i - 1]=${#cells[i]}
+    done
+  done
+  width=$(flow:width)
+  printf '%s\n' "$(flow:paint 90 "$(join '  ' "${header[@]}")")"
+  for row in "${lines[@]}"
+  do
+    split "${row}"
+    line=$(join "${cells[@]}")
+    # a glyph counts as one character and is drawn two wide, so the row is clipped one short
+    if (( ${#line} + 1 > width )) && [[ "${header[-1]}" == found && ${#cells[@]} == $(( ${#header[@]} + 1 )) ]]
+    then
+      last=${cells[-1]}
+      room=$(( width - 1 - (${#line} - ${#last}) ))
+      if (( room > 1 ))
+      then
+        cells[-1]="…${last: -$(( room - 1 ))}"
+        line=$(join "${cells[@]}")
+      fi
+    fi
+    if (( ${#line} + 1 > width ))
+    then flow:cell "${line}" $(( width - 1 )); printf '\n'
+    else printf '%s\n' "${line}"
+    fi
+  done
+}
+
+# split <row> sets draw's cells to the row's tab-separated cells. To read, a tab is whitespace, and two tabs count as
+# one, so each becomes \x1f first, which delimits every field.
+split() {
+  IFS=$'\x1f' read -r -a cells <<<"${1//$'\t'/$'\x1f'}"
+}
+
+# join <glyph> <cell>… prints the glyph, then each cell padded to its column's size from draw's sizes, joined by
+# flow_sep. The empty cells at the end are dropped.
+join() {
+  local glyph=$1 out='' i last=-1
+  shift
+  local -a cells=("$@")
+  for (( i = 0; i < ${#cells[@]}; i++ ))
+  do
+    [[ -z "${cells[i]}" ]] || last=${i}
+  done
+  for (( i = 0; i <= last; i++ ))
+  do
+    # shellcheck disable=SC2154  # flow_sep is set by modules/bash/flow.sh
+    (( i == 0 )) || out+=${flow_sep}
+    if (( i == last ))
+    then out+=${cells[i]}
+    else out+=$(flow:cell "${cells[i]}" "${sizes[i]}")
+    fi
+  done
+  printf '%s %s' "${glyph}" "${out}"
+}
+
+# layers holds what this run acts on, in order: toolchain/<name> for the chosen toolchain, unless ambient, then
+# toolchain/brew where brew fills in for it, then dependencies/<name> for each usable dependency provider.
+# toolchain_dirs holds the toolchain's directories, joined by colons, found only where a dependency provider's manifest
+# and lock are here. toolchain_pinned names what the chosen toolchain pins, so brew filling in leaves those tools to it.
+toolchain_dirs=''
+for provider in $(dependencies:providers)
+do
+  if dependencies:locked "${provider}"
+  then
+    toolchain_dirs=$(dependencies:toolchain-dirs)
+    break
+  fi
+done
+layers=()
+[[ "${chosen}" == ambient ]] || layers+=("toolchain/${chosen}")
+filler=$(toolchain:filler "${chosen}") || exit 1
+if [[ -n "${filler}" ]]
+then
+  # shellcheck disable=SC2034  # read by modules/bash/toolchain/brew.sh
+  toolchain_pinned=$(toolchain:pinned-names "${chosen}") \
+    || { error "${chosen}: the pinned tools could not be read"; exit 1; }
+  layers+=("toolchain/${filler}")
+fi
+while IFS= read -r provider
+do
+  [[ -z "${provider}" ]] || layers+=("dependencies/${provider}")
+done < <(dependencies:usable "${toolchain_dirs}")
+# several is true when more than one table is drawn, so each is headed by the name of what it lists.
+several=false
+(( ${#layers[@]} + $([[ "${chosen}" == ambient ]] && echo 1 || echo 0) < 2 )) || several=true
+
+# call <layer> <call> runs the call of the layer's provider. A dependency provider runs with the toolchain's
+# directories first on PATH, so it finds the npm or uv the toolchain pins.
+call() {
+  local layer=$1
+  shift
+  if [[ "${layer}" == toolchain/* ]]
+  then toolchain:call "${layer#*/}" "$@"
+  else PATH="${toolchain_dirs:+${toolchain_dirs}:}${PATH}" dependencies:call "${layer#*/}" "$@"
+  fi
+}
+
+# source_of <layer> prints the file the layer's pins come from: the toolchain's file, or the provider's lock.
+source_of() {
+  if [[ "$1" == toolchain/* ]]
+  then call "$1" file
+  else call "$1" lock
+  fi
+}
+
+# described <layer> prints what the layer's table lists: its source, and for the filler, what it fills in for.
+described() {
+  local layer=$1
+  printf '%s' "$(source_of "${layer}")"
+  [[ "${layer}" != "toolchain/${filler}" ]] || printf ', for what %s does not pin' "${chosen}"
+}
+
+# heading <name> <file> names the table that follows, when several are drawn: blank between tables, then the name.
+heading() {
+  [[ "${several}" == true && "${json}" != true ]] || return 0
+  [[ -z "${headed:-}" ]] || printf '\n'
+  headed=true
+  printf '%s %s\n' "$1" "$(flow:paint 90 "· $2")"
+}
+
+# ambient handles a verb's part when no toolchain is chosen: the rules' tools stand in for the pins. It runs after
+# the dependency providers', so a linter that npm or uv installs is found on their path.
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+ambient() {
+  local tool path found system missing=() rows=''
+  case "${verb}" in
+    (update)
+      (( ${#layers[@]} == 0 )) || return 0
+      error "no toolchain pins this repository's tools, so there is nothing to update; see: kit toolchains"
+      return 1
+      ;;
+    (*) ;;
+  esac
+  if [[ -n "${syntax_options[--outdated]+x}" ]]
+  then
+    (( ${#layers[@]} )) || ok "no toolchain pins this repository's tools, so none is behind; see: kit toolchains"
+    return 0
+  fi
+  found=$(PATH="$(toolchain:path | paste -s -d ':' -):${PATH}" needed) || return 1
+  while IFS=$'\t' read -r tool path
+  do
+    [[ -n "${tool}" ]] || continue
+    [[ -n "${path}" ]] || missing+=("${tool}")
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${tool}" --arg path "${path}" \
+        '{name: $name, path: ($path | if . == "" then null else . end), from: "ambient"}'
+    elif [[ -n "${path}" ]]
+    then rows+=$'✅\t'"${tool}"$'\t'"${path}"$'\n'
+    else rows+=$'❌\t'"${tool}"$'\tmissing\n'
+    fi
+  done <<<"${found}"
+  if [[ "${verb}" == install ]]
+  then
+    if (( ${#missing[@]} == 0 ))
+    then
+      ok "no toolchain pins the tools here, and every tool the rules need is on PATH"
+      return 0
+    fi
+    error "no toolchain pins the tools here, so kit installs none; install each by hand:"
+    # the system toolchain's command for each, or else the tool's name alone
+    system=$(toolchain:chosen system list 2>/dev/null) || system=''
+    for tool in "${missing[@]}"
+    do
+      printf '    %s\n' "$(toolchain:remedy "${system}" "${tool}" || printf '%s' "${tool}")" >&2
+    done
+    return 1
+  fi
+  [[ "${json}" != true ]] || return 0
+  heading ambient "the rules' tools, on PATH"
+  printf '%s' "${rows}" | draw $'name\tfound'
+}
+
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+case "${verb}" in
+  (path)
+    toolchain:path
+    exit
+    ;;
+  (run)
+    toolchain:run "${syntax_operands[@]}"
+    exit
+    ;;
+  (install)
+    for layer in "${layers[@]}"
+    do
+      name=${layer#*/} file=$(source_of "${layer}") rest=''
+      [[ "${layer}" != "toolchain/${filler}" ]] || rest=" that ${chosen} does not"
+      step "${name}: installing from ${file}"
+      if ! call "${layer}" install
+      then
+        error "${name}: the tools could not be installed; see above"
+        exit 1
+      fi
+      ok "${name} installed the tools ${file} pins${rest}"
+      summary "✅ Tools installed with ${name}, from ${file}."
+    done
+    [[ "${chosen}" != ambient ]] || ambient
+    exit
+    ;;
+  (update)
+    for layer in "${layers[@]}"
+    do
+      name=${layer#*/}
+      call "${layer}" update || exit 1
+      ok "${name} moved every tool to its latest; commit the pins and the lock it rewrote"
+    done
+    [[ "${chosen}" != ambient ]] || ambient
+    exit
+    ;;
+  (*) ;;
+esac
+
+if [[ -z "${syntax_options[--outdated]+x}" ]]
+then
+  [[ "${chosen}" != ambient ]] || ambient || exit 1
+  for layer in "${layers[@]}"
+  do
+    name=${layer#*/}
+    pins=$(call "${layer}" pins) || { error "${name}: the pinned tools could not be read"; exit 1; }
+    rows=''
+    # A pin or a version can be empty, so each tab becomes \x1f, which read never runs together with the next.
+    while IFS=$'\x1f' read -r tool pinned installed
+    do
+      [[ -n "${tool}" ]] || continue
+      if [[ "${json}" == true ]]
+      then
+        jq --null-input --compact-output --arg name "${tool}" --arg pinned "${pinned}" --arg installed "${installed}" \
+          --arg from "${name}" '{name: $name, pinned: $pinned, installed: $installed, from: $from}
+            | map_values(if . == "" then null else . end)'
+      elif [[ -n "${installed}" ]]
+      then rows+="✅"$'\t'"${tool}"$'\t'"${pinned}"$'\t'"${installed}"$'\n'
+      else rows+="❌"$'\t'"${tool}"$'\t'"${pinned}"$'\t\n'
+      fi
+    done <<<"${pins//$'\t'/$'\x1f'}"
+    [[ "${json}" != true ]] || continue
+    heading "${name}" "$(described "${layer}")"
+    printf '%s' "${rows}" | draw $'name\tpinned\tinstalled'
+  done
+  exit 0
+fi
+
+# --outdated: each layer's answer, with the pin and the installed version from its pins where they name the tool.
+# A provider that cannot read a source prints what it could and fails; the rows it read are still shown.
+[[ "${chosen}" != ambient ]] || ambient
+failed=() behind=0
+for layer in "${layers[@]}"
+do
+  name=${layer#*/}
+  pins=$(call "${layer}" pins) || { error "${name}: the pinned tools could not be read"; exit 1; }
+  declare -A pinned_of=() installed_of=()
+  while IFS=$'\x1f' read -r tool pinned installed
+  do
+    [[ -z "${tool}" ]] || { pinned_of[${tool}]=${pinned}; installed_of[${tool}]=${installed}; }
+  done <<<"${pins//$'\t'/$'\x1f'}"
+  outdated=$(call "${layer}" outdated) || failed+=("${name}")
+  rows=''
+  while IFS=$'\x1f' read -r tool installed latest
+  do
+    [[ -n "${tool}" ]] || continue
+    behind=$(( behind + 1 ))
+    pinned=${pinned_of[${tool}]-}
+    [[ -z "${installed_of[${tool}]+x}" ]] || installed=${installed_of[${tool}]}
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${tool}" --arg pinned "${pinned}" --arg installed "${installed}" \
+        --arg latest "${latest}" --arg from "${name}" \
+        '{name: $name, pinned: $pinned, installed: $installed, latest: $latest, from: $from}
+          | map_values(if . == "" then null else . end)'
+    else
+      rows+="🔺"$'\t'"${tool}"$'\t'"${pinned}"$'\t'"${installed}"$'\t'"${latest}"$'\n'
+    fi
+  done <<<"${outdated//$'\t'/$'\x1f'}"
+  unset pinned_of installed_of
+  [[ "${json}" == true || -z "${rows}" ]] \
+    || { heading "${name}" "$(described "${layer}")"; printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'; }
+done
+(( ${#layers[@]} )) || exit 0
+# names lists the layers as a sentence does: mise, or mise and npm, or mise, npm, and uv.
+names=${layers[0]#*/}
+for (( i = 1; i < ${#layers[@]}; i++ ))
+do
+  if (( i < ${#layers[@]} - 1 ))
+  then names+=", ${layers[i]#*/}"
+  elif (( i == 1 ))
+  then names+=" and ${layers[i]#*/}"
+  else names+=", and ${layers[i]#*/}"
+  fi
+done
+if (( ${#failed[@]} ))
+then
+  error "${failed[*]}: could not tell whether every tool is behind; see above"
+  exit 1
+elif (( behind == 0 ))
+then
+  if (( ${#layers[@]} == 1 ))
+  then ok "every tool ${names} pins is at its latest"
+  else ok "every tool ${names} pin is at its latest"
+  fi
+elif [[ -n "${syntax_options[--check]+x}" ]]
+then
+  error "${behind} tool(s) are behind; run: kit tools update"
+  exit 1
+else
+  warn "${behind} tool(s) are behind; run: kit tools update"
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

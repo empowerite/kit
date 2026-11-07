@@ -1,0 +1,12 @@
+ kit work - starts or resumes work on issues
+
+   required
+   <reference>  the issues, each named with its tracker: 7, #7, or AB#4521; the first is the
+                primary, and the one pull request closes them all
+   --title      creates an issue with that title and starts it; with references, creates it as their
+                parent, as kit gather does, and starts it with them
+   --pr         adds the issues to one of the caller's own open pull requests instead: each is
+                assigned to the caller and closed by it
+
+
+ kit work

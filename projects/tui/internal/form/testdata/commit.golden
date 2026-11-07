@@ -1,0 +1,12 @@
+ kit commit - commits what is staged, after the kit's checks
+
+   --all      stages every tracked change first, as git commit --all does
+
+   required
+   --message  the message; the first is the subject, the rest are paragraphs
+   --file     the message from a file; its first line is the subject
+
+   <path>…    commits these paths alone; each must be known to git
+
+
+ kit commit

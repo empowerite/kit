@@ -1,0 +1,8 @@
+ kit packages - lists the packages in reach, and changes which are active
+
+   required
+   [--active | --inactive] [--json | --jq] <package>
+   (select | add | remove) <package>
+
+
+ kit packages

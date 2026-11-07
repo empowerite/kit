@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/packages/rule.schema.json",
+  "title": "the frontmatter of .kit/rules/<kind>.md and .kit/styles/<kind>.md",
+  "description": "What a rule or a style governs and runs: the kinds it names, the linter and the checks kit lint runs over their files, and the templates that hold their shape. Each key is described in docs/context.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind"
+  ],
+  "properties": {
+    "kind": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "description": "A kind under .kit/kinds/."
+      }
+    },
+    "lint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The linter command kit lint runs once over the files of the kinds."
+    },
+    "checks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$",
+        "description": "One of the kit's own checks, by name."
+      }
+    },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The shapes a file of the kinds takes, in the order they are tried; a style's key.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "variant"
+        ],
+        "properties": {
+          "variant": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "The template's name under .kit/templates/<kind>/."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A glob that limits the template to the paths it matches."
+          },
+          "executable": {
+            "type": "boolean",
+            "description": "When true, kit new file makes the file executable."
+          }
+        }
+      }
+    }
+  }
+}

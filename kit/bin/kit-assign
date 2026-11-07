@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# kit-assign - assigns issues to the caller, or to someone else (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit assign [--to <login>] <reference>…
+#
+# Adds the caller to each issue's assignees, as each issue's tracker identifies the caller; with --to, adds that
+# login instead. Someone already assigned stays, and is named in a warning. To hand an issue over, take yourself off
+# with kit unassign.
+#
+#   --to <login>     the login to assign, in every issue's tracker; default: the caller
+#   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521
+#
+# Exits 0 when every issue is assigned, 1 when one could not be, and 2 on a usage error or a reference no declared
+# tracker reads.
+#
+# see: modules/bash/issue.sh, modules/bash/tracker.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use issue
+
+guard:arguments assign "$@" || exit $?
+declare -a refs=()
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+for ref in "${syntax_operands[@]}"
+do
+  refs+=("$(tracker:normal "${ref}")") || exit 2
+done
+if [[ -n "${syntax_options[--to]+x}" ]]
+then
+  issue:assign-to "${syntax_options[--to]}" "${refs[@]}"
+else
+  issue:assign "${refs[@]}"
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

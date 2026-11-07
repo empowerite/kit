@@ -1,0 +1,7 @@
+# kit:generated -- the markdown kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# A markdown page.
+name: markdown
+paths:
+  - "**/*.md"

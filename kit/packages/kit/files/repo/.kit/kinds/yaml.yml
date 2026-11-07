@@ -1,0 +1,8 @@
+# kit:generated -- the yaml kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# A YAML file. A workflow under .github/workflows/ is one too, and of kind workflows besides.
+name: yaml
+paths:
+  - "**/*.yml"
+  - "**/*.yaml"

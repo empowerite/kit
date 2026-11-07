@@ -1,0 +1,90 @@
+#!/usr/bin/env bats
+# release.bats - bin/release verifies a tag and packs a checkout as a release that installs from its unpacked directory
+# ----------------------------------------------------------------------------------------------------------------------
+
+bats_require_minimum_version 1.5.0
+
+load helper
+
+setup() {
+  repo_bin=$(cd "${BATS_TEST_DIRNAME}/../bin" && pwd)
+  # go is a fake: each build writes, at its -o path, a script that names the platform it was built for
+  fakes="${BATS_TEST_TMPDIR}/fakes"
+  mkdir -p "${fakes}"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${fakes}/go"
+  export FAKES="${fakes}" PATH="${fakes}:${PATH}"
+  work=$(mktemp -d)
+  cd "${work}"
+}
+
+@test "verify holds a tag to its shape, and a release tag to the default branch" {
+  git init --quiet --bare --initial-branch=main origin.git && git clone --quiet origin.git desk 2>/dev/null && cd desk
+  printf 'one\n' > a && git add a && git commit --quiet --message one && git push --quiet origin main
+  git remote set-head origin main
+  git tag release/1.2.3 && git tag release/1.2.3-rc.1 && git tag release/nope && git tag v1.2.3
+  git switch --quiet --create topic && printf 'two\n' > b && git add b && git commit --quiet --message two
+  git tag release/1.2.4 && git tag release/1.2.4-rc.1
+  run "${repo_bin}/release" verify release/1.2.3
+  [ "$status" -eq 0 ]
+  run "${repo_bin}/release" verify release/1.2.4-rc.1
+  [ "$status" -eq 0 ]
+  run "${repo_bin}/release" verify release/1.2.3-rc.1
+  [ "$status" -eq 0 ]
+  git tag release/1.2.3-rc-2 main
+  run "${repo_bin}/release" verify release/1.2.3-rc-2
+  [ "$status" -eq 0 ]
+  run "${repo_bin}/release" verify release/1.2.4
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not on main"* ]]
+  run "${repo_bin}/release" verify release/nope
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not a release tag"* ]]
+  run "${repo_bin}/release" verify v1.2.3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not a release tag"* ]]
+}
+
+@test "publish refuses a release from a desk, and names the push that has the runner publish it" {
+  run env -u GITHUB_ACTIONS "${repo_bin}/release" publish release/1.2.3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a release is published by the release workflow, not from a desk"* ]]
+  [[ "$output" == *"git push origin release/1.2.3"* ]]
+}
+
+@test "pack makes one directory with the release's layout and the version stamped in, which installs a repository" {
+  version=9.9.9
+  run "${repo_bin}/release" pack "release/${version}" "${work}"
+  [ "$status" -eq 0 ]
+  [ -f "kit-${version}.tar.gz.sha256" ]
+  grep --quiet "  kit-${version}.tar.gz$" "kit-${version}.tar.gz.sha256"
+  mkdir unpacked && tar --extract --gzip --file "kit-${version}.tar.gz" --directory unpacked
+  [ "$(ls unpacked)" = "kit-${version}" ]
+  [ -x "unpacked/kit-${version}/bin/kit" ]
+  [ -x "unpacked/kit-${version}/bin/kit-install" ]
+  [ -f "unpacked/kit-${version}/packages/agents/claude/package.yml" ]
+  [ "$(ls "unpacked/kit-${version}/libexec")" = $'kittui-darwin-amd64\nkittui-darwin-arm64\nkittui-linux-amd64\nkittui-linux-arm64' ]
+  [ "$("unpacked/kit-${version}/libexec/kittui-linux-arm64" x)" = "kittui linux-arm64 x" ]
+  grep -q '^linux amd64 0 build -trimpath -ldflags -s -w -X main.version=9.9.9 -o .*/libexec/kittui-linux-amd64 ./cmd/kittui$' "${fakes}/go.calls"
+  mkdir fresh && git -C fresh init --quiet --initial-branch=main
+  cd fresh
+  run "${work}/unpacked/kit-${version}/bin/kit" install agents/claude
+  [ "$status" -eq 0 ]
+  run "${work}/unpacked/kit-${version}/bin/kit" check
+  [ "$status" -eq 0 ]
+  [ "$("${work}/unpacked/kit-${version}/bin/kit" version)" = "${version}" ]
+  grep --quiet "^version: ${version}$" kit.yml
+}
+
+@test "publish uploads the tarball, kittui inside it, and its digest, and nothing beside them" {
+  printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" >> "${FAKES}/gh.calls"' \
+    'tar -tzf "$4" > "${FAKES}/listing"' > "${fakes}/gh"
+  chmod +x "${fakes}/gh"
+  run env GITHUB_ACTIONS=true "${repo_bin}/release" publish release/9.9.9
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "${fakes}/go.calls" | tr -d ' ')" -eq 4 ]
+  grep -q '^release create release/9\.9\.9 /[^ ]*/kit-9\.9\.9\.tar\.gz /[^ ]*/kit-9\.9\.9\.tar\.gz\.sha256 --title' "${fakes}/gh.calls"
+  run ! grep -q 'kittui' "${fakes}/gh.calls"
+  grep -q '^kit-9\.9\.9/libexec/kittui-darwin-arm64$' "${fakes}/listing"
+}
+
+# ----------------------------------------------------------------------------------------------------------------------

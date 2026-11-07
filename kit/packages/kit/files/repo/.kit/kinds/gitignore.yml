@@ -1,0 +1,8 @@
+# kit:generated -- the gitignore kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# An ignore list, at any depth.
+name: gitignore
+paths:
+  - ".gitignore"
+  - "**/.gitignore"

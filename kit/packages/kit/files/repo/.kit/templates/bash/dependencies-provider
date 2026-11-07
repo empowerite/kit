@@ -1,0 +1,11 @@
+«head»
+dependencies/«stem»:file()«call_file…= { error "not written yet"; return 1; }»
+dependencies/«stem»:install()«call_install…= { error "not written yet"; return 1; }»
+dependencies/«stem»:lock()«call_lock…= { error "not written yet"; return 1; }»
+dependencies/«stem»:outdated()«call_outdated…= { error "not written yet"; return 1; }»
+dependencies/«stem»:path()«call_path…= { error "not written yet"; return 1; }»
+dependencies/«stem»:pins()«call_pins…= { error "not written yet"; return 1; }»
+dependencies/«stem»:update()«call_update…= { error "not written yet"; return 1; }»
+dependencies/«stem»:usable()«call_usable…= { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

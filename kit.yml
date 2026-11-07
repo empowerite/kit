@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=.kit/kit.schema.json
+require_signing: true
+gate: bin/ci
+# Dependabot's pull requests have no issue and never will; kit linked and kit policy pass them by this name.
+linked_exempt:
+  - dependabot[bot]
+# The commit-subject rule is off for the history of #1, the first release, whose early commits predate it. Remove
+# this comment and the two lines below once that pull request merges, and the kit's default applies again.
+policy:
+  commit_subject: ''
+
+facts:
+  read:
+    - README.md
+version: unreleased
+packages:
+  - kit
+  - agents/generic
+  - agents/claude
+  - github/ci
+  - hooks/lefthook
+  - policy/opa
+  - style/bash
+  - style/gitignore
+  - style/json
+  - style/just
+  - style/markdown
+  - style/prose
+  - style/workflows
+  - style/yaml
+  - workflow
+  - empowerite
+  - house
+answers:
+  # About twice a run: the job takes 12 to 18 minutes on GitHub's runners, with bats on four jobs.
+  ci_timeout_minutes: "35"
+  ci_toolchain: mise

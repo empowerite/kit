@@ -1,0 +1,6 @@
+ kit hydrate - places what the active packages deliver under .kit/
+
+   --quick  for a shell hook: silent when everything is in place
+
+
+ kit hydrate

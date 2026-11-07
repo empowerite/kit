@@ -1,0 +1,24 @@
+  ≡ kit flow · 📚 empowerite/kit                                      🔎 search
+  ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
+  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
+  ╵                  ╰────────────────────╰────────────────╰────────────────────
+      id  assignees         age  branch           labels  title
+   ──────────────────────────────────────────────────────────────── Default ▼
+ ▾ github source  3
+   ▸ #45                     2h                   3       🎫 kit flow is the o…
+   ▸ #46  jeffrey-aguilera   2d  46-a-noun-lists  1       🎫 A noun lists, a n…
+   ▸  #7  ada           +1  40d                           🎫 Fix the thing
+
+
+
+
+
+
+
+
+
+
+                                                   ╭─ backlog legend ─ ↖ ↗ ↙ ↘ ╮
+                                                   │ 🎫 an issue 🔗            │
+                                                   ╰───────────────────────────╯
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

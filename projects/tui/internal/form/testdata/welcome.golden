@@ -1,0 +1,9 @@
+ kit welcome - walks a newcomer through what kit needs, the toolchains, setup, and the workflow
+
+   required
+   --text    prints the guide, even on a terminal
+   --checks  prints the checks alone, one line each
+   --fix     runs one check's fix, then checks again
+
+
+ kit welcome

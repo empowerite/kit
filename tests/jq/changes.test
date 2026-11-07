@@ -1,0 +1,8 @@
+# changes.test - the changes jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A change is kept when its own number is named, or when it closes an issue named, and dropped otherwise.
+import "changes" as changes; [.[] | changes::concerning([2, 7, 9])] | map(.number)
+[{"number": 1, "closes": [{"number": 7}]}, {"number": 2, "closes": [{"number": 8}]}, {"number": 3}, {"number": 4, "closes": [{"number": 5}]}]
+[1,2]

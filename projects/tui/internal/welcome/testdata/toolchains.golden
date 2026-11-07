@@ -1,0 +1,30 @@
+  ≡ kit welcome · 📚 empowerite/kit                                                                           🔎 search
+  ➀╶─────────╮➁╶────────────╴➌╶────────────────╮➃╶───────────╮➄╶───────────────────╮➅╶─────────╮➆╶─────────────────╮
+    👋 intro │  🧱 basics 2  │ 🧰 toolchains 1 │  🔧 setup 2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
+  ───────────╰───────────────╯                 ╰─────────────╰─────────────────────╰───────────╰───────────────────╰────
+   Toolchains
+
+   A toolchain installs tools. When several are usable, choose one.
+
+ ▸ ❌ several toolchains are usable for the project: mise, brew; choose one    now   later 
+      kit toolchains choose mise
+      or: kit toolchains choose brew
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu / search │ 1-7 jump │ esc toolchains ↑↓ move ⇞⇟ page ←→ now or later n now l later ⏎ choose

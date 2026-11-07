@@ -1,0 +1,9 @@
+ kit kinds - lists the kinds of file, or the kinds a path is of
+
+   --json   --jq  one JSON object per kind, or per path with its kinds
+
+   <kind>  the name of a defined kind; only these kinds are listed
+   <path>  a file to classify, relative to the current directory
+
+
+ kit kinds

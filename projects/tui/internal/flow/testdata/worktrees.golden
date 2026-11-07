@@ -1,0 +1,24 @@
+  ≡ kit flow · 📚 empowerite/kit                                      🔎 search
+  ──────────╮➂╶──────────────╴➍╶───────────────────╮➄╶─────────────────╮➅╶──────
+ ◃way     4 │  💻 desk     1  │ 🌿 worktrees   4 ⋮ │  🔀 changes     3 │  🏭 b ▹
+  ──────────╰─────────────────╯                    ╰───────────────────╰────────
+   branch                       ahead    lines       change  state            …
+   ──────────────────────────────────────────────────────────────── Default ▼
+ ▸ 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2   🏁 ready         …
+ ▸ 42-settings                    ↑3 ↓1  +120 -4             no pull request y…
+ ▸ worktrees/spike ❗ detached    ↑0 ↓0  +0 -0                                …
+ ▸ 🔖 gone: old-experiment, 44-a-spike
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

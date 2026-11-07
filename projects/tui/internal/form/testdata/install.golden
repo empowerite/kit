@@ -1,0 +1,6 @@
+ kit install - mirrors the release into the repository and the home directory
+
+   <package>…  more packages to activate, by name or glob such as 'style/*'
+
+
+ kit install

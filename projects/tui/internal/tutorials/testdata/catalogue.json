@@ -1,0 +1,27 @@
+{
+  "version": "unreleased",
+  "base": "https://empowerite.github.io/kit/tutorials/main/",
+  "audiences": [
+    {"id": "newcomer", "label": "Just starting"},
+    {"id": "ui", "label": "UI"},
+    {"id": "maintainer", "label": "Maintainer"}
+  ],
+  "tutorials": [
+    {
+      "id": "kit-tutorials",
+      "title": "Reading kit's tutorials",
+      "summary": "How the tutorials are laid out, who each one is for, and how a page tells you that your kit is too old for a passage.",
+      "glyph": "🎓",
+      "audience": ["newcomer"],
+      "url": "https://empowerite.github.io/kit/tutorials/main/kit-tutorials/?kit=unreleased"
+    },
+    {
+      "id": "kittui-tour",
+      "title": "Finding your way around kittui",
+      "summary": "The palette, the flow picture, and the menus every screen shares, a key and a click for each.",
+      "glyph": "🧭",
+      "audience": ["ui", "newcomer"],
+      "url": "https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the flow tests: answers flow --stages and flow <stage> --json (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
+# are appended to, one line each, so a test reads the order the stages ran in. FAKE_FLOW_STAGES is what --stages
+# prints, space-separated; unset, it prints the eight. FAKE_FLOW_REFUSE names a stage whose --json answer is a
+# refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_FLOW_SILENT names a stage that exits 1 with
+# nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
+# names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
+# --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
+# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
+# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read. A stage given --cached
+# prints <stage>.json from the directory FAKE_FLOW_KEPT names, and refuses with exit 1 without one, as kit does
+# before the stage has printed. new issue --list --json
+# prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
+# assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
+# FAKE_FLOW_REFUSE names refuses with exit 1.
+
+set -o errexit -o nounset -o pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+[[ -z "${FAKE_FLOW_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_FLOW_CALLS}"
+
+case "${1:-}" in
+  (assign | unassign | close | gather | work)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == "$1" ]]
+    then
+      echo "❌ kit $1 refuses for the test; run: kit help $1" >&2
+      exit 1
+    fi
+    echo "→ kit $1 runs" >&2
+    echo "✅ kit $*" >&2
+    exit 0
+    ;;
+esac
+
+if [[ "$*" == "new issue --list --json" ]]
+then
+  if [[ "${FAKE_FLOW_REFUSE:-}" == new ]]
+  then
+    echo "❌ kit new: the forge cannot be read; run: kit help new" >&2
+    exit 1
+  fi
+  cat "${here}/trackers.json"
+  exit 0
+fi
+
+if [[ "${1:-}" != flow ]]
+then
+  echo "❌ no kit verb '${1:-}'; run: kit help" >&2
+  exit 2
+fi
+shift
+
+case "${1:-}" in
+  (--stages)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == stages ]]
+    then
+      echo "❌ kit flow refuses for the test; run: kit help flow" >&2
+      exit 2
+    fi
+    for stage in ${FAKE_FLOW_STAGES-backlog underway desk worktrees changes builds incoming releases}
+    do
+      printf '%s\n' "${stage}"
+    done
+    ;;
+  (--quota)
+    if [[ -z "${FAKE_FLOW_QUOTA:-}" ]]
+    then
+      echo "❌ kit flow: the rate limits cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_FLOW_QUOTA}"
+    ;;
+  (--me)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == me ]]
+    then
+      echo "❌ kit flow: the forge cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_FLOW_ME-ada}"
+    ;;
+  (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+    stage=$1
+    shift
+    if [[ "${1:-}" != --json ]]
+    then
+      echo "❌ kit flow ${stage} takes --json in the test; run: kit help flow" >&2
+      exit 2
+    fi
+    shift
+    if [[ " $* " == *" --cached "* ]]
+    then
+      if [[ -z "${FAKE_FLOW_KEPT:-}" || ! -f "${FAKE_FLOW_KEPT}/${stage}.json" ]]
+      then
+        echo "❌ kit flow ${stage} has printed nothing here yet; run it without --cached" >&2
+        exit 1
+      fi
+      cat "${FAKE_FLOW_KEPT}/${stage}.json"
+      exit 0
+    fi
+    if [[ "${FAKE_FLOW_REFUSE:-}" == "${stage}" ]]
+    then
+      echo "❌ kit flow ${stage}: the forge cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    [[ "${FAKE_FLOW_SILENT:-}" != "${stage}" ]] || exit 1
+    [[ "${FAKE_FLOW_SLOW:-}" != "${stage}" ]] || sleep 5
+    if [[ "${FAKE_FLOW_ABOVE:-}" == "${stage}" ]]
+    then
+      printf '[{"path": "kit", "status": %s}, {"path": "jig", "status": null}]\n' "$(cat "${here}/${stage}.json")"
+    elif [[ "${stage}" == incoming && " $* " == *" --no-fetch "* ]]
+    then
+      cat "${here}/incoming-no-fetch.json"
+    else
+      cat "${here}/${stage}.json"
+    fi
+    ;;
+  (*)
+    echo "❌ kit flow: no stage '${1:-}'; run: kit help flow" >&2
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

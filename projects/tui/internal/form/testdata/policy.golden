@@ -1,0 +1,8 @@
+ kit policy - refuses a branch, subject, or title the policy forbids
+
+   --input  prints the facts as JSON instead of judging them
+   --facts  judges the facts document in <file>, and gathers nothing; for testing a rule against a
+            fixture
+
+
+ kit policy

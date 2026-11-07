@@ -1,0 +1,24 @@
+  ≡ kit flow · 📚 empowerite/kit                                                                              🔎 search
+  ➀╶─────────────────╴➋╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶─────────────────╮➅╶────────────────
+    🎫 backlog     3  │ 🛫 underway   4 ⋮ │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds      ▹
+  ────────────────────╯                   ╰────────────────╰─────────────────────╰───────────────────╰──────────────────
+      id  assignees         age  change  state             where     fork    pushed  by  labels  title
+   ──────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
+ ▾ github source  4
+   ▾  #1  jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here              60m      2       🎫 The first release, 
+                                                                                                    v0.1.0: the kit    
+                                                                                                    verbs, the picture,
+                                                                                                    and the forge seam 
+                                                                                                    on GitHub and      
+                                                                                                    GitLab             
+        priorityhigh release                                                                                      
+      #8                     2d  🔀 #4   🔥 failing:gate   👤 bob    🍴 bob     25h  cy          🎫 Lint the modules
+      #8                     2d  🔀 #11  🔨 draft          🌱 local              2h              🎫 Lint the modules
+   ▸ #31  ada                3h  🔀 #12  💬 comments:open  👤 ada                                🎫 kit commit, kit su…
+
+
+
+
+
+
+ = menu / search ? legend │ 1-8 jump : tab menu │ esc underway ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse

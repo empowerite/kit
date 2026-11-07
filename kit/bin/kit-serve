@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# kit-serve - serves the kit to an agent over the Model Context Protocol (kit verb: interfaces)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit serve
+#
+# Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, until stdin ends. It runs in
+# the repository it starts in, and opens no network port. Stdout carries only the protocol's messages, one JSON
+# object per line; every message for a person goes to stderr. Each message it answers is a line in
+# .kit/logs/mcp-YYYY-MMDD.log, beside a line when it starts and one when stdin ends, whose seconds are how long it ran.
+#
+# In a checkout of the kit, whose kit.yml declares version: unreleased, the checkout's own kit/bin/kit-serve serves
+# it, whichever kit started: a worktree that changes the kit is served by its own code. Between messages, the server
+# starts itself again from any file of its release that changed, and tells the client to list the tools and the
+# resources again; modules/bash/serve.sh says how.
+#
+# Its tools are the verbs that read and report, and do not change anything: check, context, flow, help, kinds, lint,
+# packages, syntax, toolchains, tools, and version. A tool's description is the verb's purpose and usage lines. Its
+# input is typed from the verb's usage: a boolean per flag, a string per option, and a string or a list per operand. A
+# call with a name the tool does not take is refused. A call does not place .kit/, and flow does not fetch. Its
+# resources are the kit's files, and each tool's help page:
+#
+#   - kit://1st.md
+#   - kit://workflow.md, with the workflow package
+#   - kit://rules/<kind> and kit://styles/<kind>, for each rule and style
+#   - kit://kinds/<file>, for each kinds file
+#   - kit://help/<verb>, for each tool
+#
+# An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration. For
+# Claude Code, that is mcpServers.kit in .mcp.json. It answers the 2026-07-28 revision of the protocol, and the ones
+# before it to a client that opens with initialize.
+#
+# Exits 0 when stdin ends, and 2 on a usage error.
+#
+# see: modules/bash/serve.sh, docs/serve.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use materialize
+
+guard:arguments serve "$@" || exit $?
+# A checkout of the kit, which declares no release, is served by the kit it holds, which may be ahead of this one.
+use settings
+own=$(pwd -P)/kit/bin/kit-serve
+if [[ -x "${own}" && "$(readlink -f "${own}")" != "$(readlink -f "${BASH_SOURCE[0]}")" ]] \
+  && [[ "$(settings:value version)" == unreleased ]]
+then
+  step "kit serve: this checkout's own kit serves it, ${own}"
+  exec "${own}"
+fi
+guard:require tool:jq || exit 1
+# Hydrating writes its steps to stderr, and places the files the resources name before the first request.
+materialize:hydrate >&2
+
+use serve
+started=0
+log:now started
+log:call mcp "${started}" "pid=$$" event=start
+serve:main
+log:call mcp "${started}" "pid=$$" event=stop
+
+# ----------------------------------------------------------------------------------------------------------------------

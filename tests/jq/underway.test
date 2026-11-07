@@ -1,0 +1,40 @@
+# underway.test - the underway jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is the open changes.
+
+# A row per issue and change, the oldest issue first, and a branch checked out on this desk is here.
+import "underway" as underway; underway::rows({"7-fix": "/desk/worktrees/7-fix"}; []) | map([.number, .pr.number, .here, .worktree])
+[{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "closes": [{"number": 7, "title": "Seven", "assignees": ["bob"], "age": 100}]}, {"number": 4, "title": "Also", "author": "cy", "state": "ready", "branch": "8-also", "closes": [{"number": 8, "title": "Eight", "assignees": [], "age": 900}, {"number": 7, "title": "Seven", "assignees": ["bob"], "age": 100}]}]
+[[8,4,false,null],[7,3,true,"/desk/worktrees/7-fix"],[7,4,false,null]]
+
+# A local branch that no checkout has is local; one a checkout has is here and not local, and one the desk lacks is
+# neither.
+import "underway" as underway; underway::rows({"7-fix": "/desk/worktrees/7-fix"}; ["7-fix", "8-also", "main"]) | map([.pr.number, .here, .local])
+[{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 100}]}, {"number": 4, "branch": "8-also", "closes": [{"number": 8, "age": 90}]}, {"number": 5, "branch": "9-gone", "closes": [{"number": 9, "age": 80}]}]
+[[3,true,false],[4,false,true],[5,false,false]]
+
+# The change in a row is its number, title, author, state, branch, fork, and last push, and nothing else.
+import "underway" as underway; underway::rows({}; []) | map(.pr)
+[{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "fork": "cy", "pushed": {"age": 60, "by": "dee"}, "ref": "#3", "age": 5, "closes": [{"number": 7, "title": "Seven", "age": 9}]}, {"number": 4, "title": "Also", "author": "ada", "state": "draft", "branch": "8-also", "fork": null, "pushed": null, "closes": [{"number": 8, "title": "Eight", "age": 8}]}]
+[{"number":3,"title":"Fix","author":"ada","state":"draft","branch":"7-fix","fork":"cy","pushed":{"age":60,"by":"dee"}},{"number":4,"title":"Also","author":"ada","state":"draft","branch":"8-also","fork":null,"pushed":null}]
+
+# Logins keep the rows whose issue one of them is assigned, whoever opened the change; except, the others.
+import "underway" as underway; [underway::by_owners(["ada"]; false), underway::by_owners(["ada"]; true), underway::by_owners([]; false)] | map(map(.number))
+[{"number": 1, "assignees": [], "pr": {"author": "ada"}}, {"number": 2, "assignees": ["ada"], "pr": {"author": "bob"}}, {"number": 3, "assignees": ["cy"], "pr": {"author": "bob"}}]
+[[2],[1,3],[1,2,3]]
+
+# A row carries the source of its issue, the tracker that holds it, or null when the change's document gives none.
+import "underway" as underway; underway::rows({}; []) | map(.source)
+[{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "source": "github"}, {"number": 8, "age": 8}]}]
+["github",null]
+
+# A row carries where its issue is, the organization and the repository, or null when the change's document gives none.
+import "underway" as underway; underway::rows({}; []) | map([.organization, .repository])
+[{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "organization": "empowerite", "repository": "kit"}, {"number": 8, "age": 8}]}]
+[["empowerite","kit"],[null,null]]
+
+# A row carries its issue's labels, not the change's, and none when the change's document gives the issue none.
+import "underway" as underway; underway::rows({}; []) | map(.labels)
+[{"number": 3, "branch": "7-fix", "labels": [{"name": "kind=fix", "color": null}], "closes": [{"number": 7, "age": 9, "labels": [{"name": "bug", "color": "#d73a4a"}]}, {"number": 8, "age": 8}]}]
+[[{"name":"bug","color":"#d73a4a"}],[]]

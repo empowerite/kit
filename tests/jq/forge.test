@@ -1,0 +1,142 @@
+# forge.test - the forge jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. Every case
+# fixes the time as $now, 1000000 seconds after the epoch.
+
+# A time reads the same with or without fractional seconds.
+import "forge" as forge; map(forge::epoch)
+["1970-01-12T13:46:40Z", "1970-01-12T13:46:40.123Z"]
+[1000000,1000000]
+
+# A label is a name and a color, #rrggbb in lower case: a name alone, as GitLab gives one without its details, has a
+# null color, as has one whose color is empty; GitHub's, without a #, gains one.
+import "forge" as forge; forge::labels
+["bug", {"name": "priority=high", "color": "B60205", "description": "x"}, {"name": "area::tui", "color": "#6699CC"}, {"name": "plain", "color": ""}]
+[{"name":"bug","color":null},{"name":"priority=high","color":"#b60205"},{"name":"area::tui","color":"#6699cc"},{"name":"plain","color":null}]
+
+# No labels, or none given, are none.
+import "forge" as forge; [.[] | forge::labels]
+[[], null]
+[[],[]]
+
+# A change's labels without a color, and those of the issues it closes, take the one a project's labels give their
+# name, in lower case after a #; one that has a color keeps it, and a name the project does not give stays without one.
+import "forge" as forge; forge::colored({"bug": "#D73A4A", "kind=fix": "0e8a16"}) | [.labels, .closes[].labels]
+{"labels": [{"name": "bug", "color": null}, {"name": "other", "color": null}], "closes": [{"labels": [{"name": "kind=fix", "color": null}, {"name": "bug", "color": "#000000"}]}]}
+[[{"name":"bug","color":"#d73a4a"},{"name":"other","color":null}],[{"name":"kind=fix","color":"#0e8a16"},{"name":"bug","color":"#000000"}]]
+
+# A GitLab merge request names its labels, and those of the issues it closes, by name alone.
+import "forge" as forge; forge::gitlab_pr(1000000; []; []; [{"iid": 7, "title": "Seven", "created_at": "1970-01-12T13:40:00Z", "labels": ["bug"]}]; null) | [.labels, .closes[].labels]
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "labels": ["kind=fix", "area::tui"]}
+[[{"name":"kind=fix","color":null},{"name":"area::tui","color":null}],[{"name":"bug","color":null}]]
+
+# A GitHub pull request's labels, and those of each issue it closes, are the answer's under each.
+import "forge" as forge; forge::github_prs(1000000) | [.labels, .closes[].labels]
+{"data": {"repository": {"nameWithOwner": "empowerite/example", "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "labels": {"nodes": [{"name": "kind:fix", "color": "0E8A16"}]}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}, "labels": {"nodes": [{"name": "bug", "color": "D73A4A"}]}}, {"number": 8, "title": "Eight", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[[{"name":"kind:fix","color":"#0e8a16"}],[{"name":"bug","color":"#d73a4a"}],[]]
+
+# Of two runs of one name, the later counts, so a rerun that passed supersedes the run that failed.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "test", "verdict": "failed", "at": "a", "since": 1, "took": 5}, {"name": "test", "verdict": "passed", "at": "b", "since": 2, "took": 50}, {"name": "lint", "verdict": "passed", "at": "a", "since": 1, "took": 9}]
+{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50}
+
+# A failed check makes the state FAILURE, and failing names the first, by name.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "zeta", "verdict": "failed", "at": "", "since": null, "took": 3}, {"name": "beta", "verdict": "failed", "at": "", "since": null, "took": 4}]
+{"state":"FAILURE","passed":0,"total":2,"failing":"beta","took":4}
+
+# While a check is pending, took is the wait since the earliest pending run started.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "a", "verdict": "pending", "at": "", "since": 999900, "took": null}, {"name": "b", "verdict": "pending", "at": "", "since": 999990, "took": null}]
+{"state":"PENDING","passed":0,"total":2,"failing":"","took":100}
+
+# With no runs, the state is NONE and took is null.
+import "forge" as forge; forge::checks(1000000)
+[]
+{"state":"NONE","passed":0,"total":0,"failing":"","took":null}
+
+# The first state that holds wins: a draft is a draft, whatever its checks.
+import "forge" as forge; map(forge::state)
+[{"draft": true, "checks": {"state": "FAILURE"}}, {"draft": false, "checks": {"state": "PENDING"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 1, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": false}]
+["draft","queued","conflicted","comments:open","blocked:approval","ready"]
+
+# A GitHub check run is pending until it completes, and a status context's EXPECTED is pending too.
+import "forge" as forge; forge::github_runs | map([.name, .verdict, .took])
+[{"__typename": "CheckRun", "name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "1970-01-12T13:45:00Z", "completedAt": "1970-01-12T13:46:40Z"}, {"__typename": "CheckRun", "name": "lint", "status": "IN_PROGRESS", "conclusion": null, "startedAt": "1970-01-12T13:45:00Z", "completedAt": null}, {"__typename": "StatusContext", "context": "ci/legacy", "state": "EXPECTED", "createdAt": "1970-01-12T13:45:00Z"}, {"__typename": "CheckRun", "name": "skipped", "status": "COMPLETED", "conclusion": "SKIPPED", "startedAt": null, "completedAt": null}, {"__typename": "StatusContext", "context": "ci/other", "state": "ERROR", "createdAt": "1970-01-12T13:45:00Z"}]
+[["test","passed",100],["lint","pending",null],["ci/legacy","pending",null],["skipped","passed",null],["ci/other","failed",null]]
+
+# A GitLab job that is manual or skipped has passed, and one that is running is pending.
+import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
+[{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00.5Z", "finished_at": "1970-01-12T13:46:40.5Z"}, {"name": "deploy", "status": "manual", "started_at": null, "finished_at": null, "created_at": "1970-01-12T13:45:00Z"}, {"name": "lint", "status": "running", "started_at": "1970-01-12T13:45:00Z", "finished_at": null}, {"name": "build", "status": "failed", "started_at": null, "finished_at": null}]
+[["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
+
+# A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null)
+{"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}]}
+
+# A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
+# started it; a pipeline that names no one gives a null by.
+import "forge" as forge; [forge::gitlab_pr(1000000; []; []; []; "cy"), (.head_pipeline.user = null | forge::gitlab_pr(1000000; []; []; []; null))] | map({fork, pushed})
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "head_pipeline": {"id": 11, "created_at": "1970-01-12T13:45:00.000Z", "user": {"username": "dee"}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":100,"by":null}}]
+
+# A pull request from another repository names its owner's login, and its head commit gives the last push: its age,
+# and the login of its author. A branch in the base repository is no fork, and a commit without a time is unknown.
+import "forge" as forge; [forge::github_prs(1000000) | {fork, pushed}]
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": true, "headRepositoryOwner": {"login": "cy"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:45:00Z", "author": {"user": {"login": "dee"}}, "statusCheckRollup": null}}]}}, {"number": 4, "title": "Also", "isDraft": true, "headRefName": "8-also", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": false, "headRepositoryOwner": {"login": "empowerite"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:46:00Z", "author": {"user": null}, "statusCheckRollup": null}}]}}, {"number": 5, "title": "Old", "isDraft": true, "headRefName": "9-old", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":40,"by":null}},{"fork":null,"pushed":null}]
+
+# A closed issue's assignees come from the answer's open issues with an assignee, not from the issue itself: one they
+# do not name has none, as has an issue of another repository with the same number. Each says the organization and the
+# repository it is in.
+import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .assignees, .organization, .repository]
+{"data": {"repository": {"nameWithOwner": "empowerite/example", "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}, {"login": "cy"}]}}]}, "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 8, "title": "Eight, closed or unassigned", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 7, "title": "Seven elsewhere", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "other/place"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[7,["bob","cy"],"empowerite","example"]
+[8,[],"empowerite","example"]
+[7,[],"other","place"]
+
+# A rate limit that is spent gives the wait until it resets, in local time, which the suite runs in UTC, and in
+# minutes rounded up, the later of the two when both are; with neither spent, or no answer, nothing.
+import "forge" as forge; [.[] | [forge::github_spent(1000000)]]
+[{"resources": {"core": {"remaining": 10, "reset": 1003600}, "graphql": {"remaining": 0, "reset": 1000690}}}, {"resources": {"core": {"remaining": 0, "reset": 1001200}, "graphql": {"remaining": 0, "reset": 1000060}}}, {"resources": {"core": {"remaining": 0, "reset": 1000010}}}, {"resources": {"core": {"remaining": 1, "reset": 1000010}}}, {}]
+[["wait until 13:58, in 12m, when GitHub's GraphQL rate limit resets"],["wait until 14:06, in 20m, when GitHub's REST rate limit resets"],["wait until 13:46, in 1m, when GitHub's REST rate limit resets"],[],[]]
+
+# GitHub's rate limits are GraphQL's, first, and REST's, as rest; the others kit does not spend are left out.
+import "forge" as forge; forge::github_quota
+{"resources": {"core": {"limit": 5000, "remaining": 4990, "used": 10, "reset": 1000600}, "search": {"limit": 30, "remaining": 30, "reset": 1000060}, "graphql": {"limit": 5000, "remaining": 0, "used": 5000, "reset": 1000300}}}
+{"forge":"github","limits":[{"name":"graphql","limit":5000,"remaining":0,"reset":1000300},{"name":"rest","limit":5000,"remaining":4990,"reset":1000600}]}
+
+# GitLab's is the one its RateLimit headers name, whatever their case; without them, or with a limit that is no number,
+# none.
+import "forge" as forge; [.[] | forge::gitlab_quota]
+["HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRATELIMIT-NAME: throttle_authenticated_api\r\nratelimit-remaining: 7\r\nRatelimit-Reset: 1000060\r\n\r\n{}", "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: 600\nRatelimit-Remaining: 599\n\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: lots\nRatelimit-Remaining: 9\n\n{}"]
+[{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
+
+# GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and
+# color, the age in seconds, and the organization and the repository their url names, or null without one.
+import "forge" as forge; forge::github_issues(1000000)
+[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "labels": [{"id": "LA_1", "name": "priority=high", "description": "", "color": "B60205"}], "createdAt": "1970-01-12T13:46:20Z", "url": "https://github.com/empowerite/kit/issues/7"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"priority=high","color":"#b60205"}],"createdAt":"1970-01-12T13:46:20Z","age":20,"source":"github","organization":"empowerite","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30Z","age":10,"source":"github","organization":null,"repository":null}
+
+# GitLab's fold the same, from iid, username, the labels' details, and a created_at with fractional seconds; the
+# organization is the group, subgroups and all, its full reference names.
+import "forge" as forge; forge::gitlab_issues(1000000)
+[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "labels": [{"id": 4, "name": "area::tui", "color": "#6699CC", "text_color": "#FFFFFF"}], "created_at": "1970-01-12T13:46:20.000Z", "references": {"full": "empowerite/tools/kit#7"}}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"area::tui","color":"#6699cc"}],"createdAt":"1970-01-12T13:46:20.000Z","age":20,"source":"gitlab","organization":"empowerite/tools","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10,"source":"gitlab","organization":null,"repository":null}
+
+# A draft has no publishing time and is dated by when it was made; releases come newest first.
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
+[{"tagName": "release/0.0.9", "name": "a", "isPrerelease": false, "isDraft": false, "isLatest": true, "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"}, {"tagName": "release/0.1.0-rc.7", "name": "b", "isPrerelease": true, "isDraft": true, "isLatest": false, "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
+["0.1.0-rc.7 draft false","0.0.9 release true"]
+
+# GitLab: the branch for an issue starts with its number and a dash, and a merge request's state is said as GitHub says it.
+import "forge" as forge; [forge::gitlab_branch_for_issue(7)]
+[{"source_branch": "70-other"}, {"source_branch": "7-start"}]
+["7-start"]
+
+import "forge" as forge; [.[] | [.] | forge::gitlab_pr_state]
+[{"state": "merged"}, {"state": "locked"}, {"state": "opened"}]
+["MERGED","CLOSED","OPEN"]

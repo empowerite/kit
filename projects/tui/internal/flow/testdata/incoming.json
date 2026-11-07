@@ -1,0 +1,16 @@
+{
+  "fetched": true,
+  "primary": "origin",
+  "remotes": [
+    {"name": "upstream", "forge": "gitlab", "host": "git.example.org", "default": "main",
+     "commits": [], "branches": {"new": [], "updated": [], "gone": ["old-experiment"]}, "tags": ["release/0.2.0"]},
+    {"name": "origin", "forge": "github", "host": "github.com", "default": "main",
+     "commits": [
+       {"sha": "a1b2c3d", "subject": "#1 docs: the docs say what the code does"},
+       {"sha": "e4f5a6b", "subject": "#1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one"}
+     ],
+     "branches": {"new": ["42-settings"], "updated": ["46-a-noun-lists"], "gone": []}, "tags": []},
+    {"name": "backup", "forge": "", "host": "nas.local", "default": "main",
+     "commits": [], "branches": {"new": [], "updated": [], "gone": []}, "tags": []}
+  ]
+}

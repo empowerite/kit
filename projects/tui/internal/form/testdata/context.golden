@@ -1,0 +1,8 @@
+ kit context - prints the rules that govern a file
+
+   required
+   <path>    the files, relative to the current directory; need not exist
+   --claude  runs as Claude Code's PreToolUse hook
+
+
+ kit context

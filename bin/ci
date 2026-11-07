@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# ci - this repository's gate: kit lint, the schemas, the links, bats, kit check
+# ----------------------------------------------------------------------------------------------------------------------
+# The gate setting in kit.yml names this script, so kit gate runs it, with the toolchain's tools on PATH,
+# and kit ci runs it in CI. It runs, in order:
+#
+#   - kit lint over every tracked path
+#   - kit syntax --check: every verb's usage line parses, and every argument has its description
+#   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
+#     their schemas
+#   - lychee: every link in the markdown, offline, including fragments
+#   - ajv: the front matter of every page of the tutorials site against its schema
+#   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, a build for a base, and verify-dist
+#   - the bats suite, one job per CPU, each test stopped and failed at five minutes
+#   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with at least 98% of its statements covered
+#   - kit/bin/kit check over this repository's installed copy of its own kit
+#
+# The pre-commit hook is a faster check over the staged paths only.
+#
+#   kit gate
+
+set -o errexit -o nounset -o pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+kit/bin/kit lint --all-files
+kit/bin/kit syntax --check
+ajv validate --spec=draft2020 -s kit/packages/package.schema.json \
+  -d 'kit/packages/*/package.yml' -d 'kit/packages/*/*/package.yml'
+ajv validate --spec=draft2020 -s .kit/kit.schema.json -d kit.yml
+# A rule's frontmatter is YAML between the two --- lines; ajv reads it from a copy of just those lines.
+frontmatter=$(mktemp -d)
+trap 'rm -rf "${frontmatter}"' EXIT
+for file in kit/packages/*/files/repo/.kit/rules/*.md kit/packages/*/*/files/repo/.kit/styles/*.md
+do
+  awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit } on' "${file}" > "${frontmatter}/${file//\//-}.yml"
+done
+ajv validate --spec=draft2020 -s kit/packages/rule.schema.json -d "${frontmatter}/*.yml"
+# A kinds file is a stream of one document per kind; ajv reads each document from a file of its own.
+mkdir "${frontmatter}/kinds"
+for file in kit/packages/*/files/repo/.kit/kinds/*.yml
+do
+  awk -v out="${frontmatter}/kinds/${file//\//-}" '
+    BEGIN { n = 0 }
+    /^---[ \t]*$/ { if (lines) n++; lines = 0; next }
+    /^[ \t]*(#|$)/ { next }
+    { print > (out "." n ".yml"); lines++ }' "${file}"
+done
+ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d "${frontmatter}/kinds/*.yml"
+lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
+# A tutorial's front matter is YAML between the two --- lines too, read the same way, from a directory of its own.
+mkdir "${frontmatter}/tutorials"
+while IFS= read -r file
+do
+  awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit } on' "${file}" \
+    > "${frontmatter}/tutorials/${file//\//-}.yml"
+done < <(find projects/tutorials/src -name '*.mdx')
+ajv validate --spec=draft2020 -s projects/tutorials/frontmatter.schema.json -d "${frontmatter}/tutorials/*.yml"
+(cd projects/tutorials && npm ci --no-audit --no-fund && npm run check)
+# The slowest test takes about a minute on a runner and over two at a desk; one that waits on a terminal forever
+# fails at five minutes, naming itself. The tests run side by side, one job per CPU, on GNU parallel from mise.toml:
+# nearly all their time goes to starting short processes, so more jobs than CPUs only queue.
+BATS_TEST_TIMEOUT=300 bats --jobs "$(getconf _NPROCESSORS_ONLN)" --timing --print-output-on-failure tests/
+(cd projects/tui && test -z "$(gofmt -l .)" && go vet ./... && go test -coverprofile="${frontmatter}/tui.cover" ./...)
+# The TUI's tests hold its statements to a floor: under 98% of them covered, the gate fails, naming the total.
+coverage=$(cd projects/tui && go tool cover -func="${frontmatter}/tui.cover" \
+  | awk '$1 == "total:" { sub("%", "", $3); print $3 }')
+if ! awk -v covered="${coverage}" 'BEGIN { exit !(covered + 0 >= 98) }'
+then
+  echo "❌ the TUI's tests cover ${coverage:-none}% of its statements, under the floor of 98%" >&2
+  exit 1
+fi
+kit/bin/kit check
+echo "✅ ci passed"
+
+# ----------------------------------------------------------------------------------------------------------------------

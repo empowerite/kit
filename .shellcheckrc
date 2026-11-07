@@ -1,0 +1,9 @@
+# .shellcheckrc - how ShellCheck finds the files this repository's scripts source, from the command line or an editor
+# ----------------------------------------------------------------------------------------------------------------------
+# A verb sources the loader by a path it computes, and names it for ShellCheck as source=modules/bash/1st.sh. These
+# lines follow it without -x, and find it whether ShellCheck is given the file's path, or its text on stdin from the
+# file's directory or from the repository root, as editors do.
+external-sources=true
+source-path=SCRIPTDIR
+source-path=SCRIPTDIR/..
+source-path=kit

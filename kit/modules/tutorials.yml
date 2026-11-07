@@ -1,0 +1,23 @@
+# tutorials.yml - the catalogue of kit's tutorials, which kit tutorials lists as buttons
+# ----------------------------------------------------------------------------------------------------------------------
+# kit generate writes the region below from the front matter of the tutorials site's top-level pages, so a tutorial is
+# described in one place, its page. Edit a page, then run kit generate; a hand edit here makes the region stale.
+
+# kit:generate catalogue `bin/tutorials catalogue`
+audiences:
+  - id: newcomer
+    label: Just starting
+  - id: ui
+    label: UI
+  - id: maintainer
+    label: Maintainer
+tutorials:
+  - id: kit-tutorials
+    path: kit-tutorials/
+    title: Reading kit's tutorials
+    summary: How the tutorials are laid out, who each one is for, and how a page tells you that your kit is too old for a passage.
+    glyph: "\U0001F393"
+    audience:
+      - newcomer
+    order: 1
+# kit:end catalogue

@@ -1,0 +1,7 @@
+# .gitattributes - how git and the forge treat paths
+# ----------------------------------------------------------------------------------------------------------------------
+
+# mise writes these lock files; marked generated, the forge folds their diffs, and kit lint holds them to no template.
+/.mise/locks/** linguist-generated
+
+# ----------------------------------------------------------------------------------------------------------------------

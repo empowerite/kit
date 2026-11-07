@@ -1,0 +1,1 @@
+../../../release/packages/kit/files/repo/.kit/welcome/5-lay-of-the-land.md

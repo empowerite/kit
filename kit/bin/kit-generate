@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# kit-generate - expands each kit:generate region, or checks that it is current (kit verb: files)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit generate [--check] [--iterations=<n>] [<path>…]
+#
+# Expands each kit:generate region in the given files to what its command makes, and writes the result in place.
+# With no path, it takes every tracked file and every untracked file git does not ignore, and repeats until a pass
+# changes nothing.
+#
+#   --check             writes nothing, and fails naming every stale file
+#   --iterations=<n>    expands the named files <n> times instead of once
+#   <path>…             the files to expand, relative to the current directory
+#
+# kit check makes the same check, and the lefthook pre-commit hook runs kit generate --check over the staged paths.
+#
+# Exits 0 when every region is as its command makes it, 1 when a file is stale (with --check) or cannot be expanded,
+# and 2 on a usage error.
+#
+# see: modules/bash/generate.sh, docs/generate.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context generate materialize
+guard:arguments generate "$@" || exit $?
+materialize:hydrate
+
+args=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--) ;;
+    (--check | --iterations=*) args+=("${arg}") ;;
+    (*) args+=("$(context:relative "${arg}")")
+  esac
+done
+generate:run "${args[@]}"
+
+# ----------------------------------------------------------------------------------------------------------------------

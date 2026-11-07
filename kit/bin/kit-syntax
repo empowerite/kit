@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# kit-syntax - prints a verb's grammar as JSON, and checks its header (kit verb: plumbing)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit syntax [--check | --list] [<verb>…]
+#
+# kit syntax <verb> --choices <argument> [<answer>…]
+#
+# kit syntax <verb> --extend [<answer>…]
+#
+# kit syntax <verb> --match [<word>…]
+#
+# Prints the grammar of a verb's command line as JSON, read from the usage lines in its header. The JSON is the
+# contract between the verbs and whatever needs to know what they take, kit tui first. Its keys:
+#
+#   - verb, purpose, and usage: the lines as written
+#   - syntax: alternatives, each a sequence of nodes of kind literal, operand, flag, option, or group
+#   - arguments: each argument's description, keyed as the header's block writes it, with its choices when the verb
+#     lists them
+#   - extends: true for a verb whose arguments grow with the answers, kit new
+#
+#   --check                prints no JSON; names each fault in the header, and fails
+#   --list                 prints no JSON; one line per verb: verb, purpose, group, tab-separated
+#   --choices <argument>   prints that argument's choices instead, one per line
+#   <answer>…              an argument answered already, or a subcommand word chosen
+#   --extend               prints the arguments the verb learns from the answers
+#   --match                judges the words as the guard judges a command line
+#   <word>…                the words of the command line to judge, after kit <verb>
+#   <verb>…                the verbs to print; none prints every verb
+#
+# A fault is a usage line that does not parse, or an argument the header does not describe. One verb prints its
+# object; several print an array.
+#
+# A choice is the value, its description, its state, and the line the verb would print about it, tab-separated.
+# Choices are closed when they are the only values the verb accepts, and open when any value is still allowed. An
+# answer is <package>=house, --rule=markdown, or a word such as select; one that starts with - follows a --.
+#
+# --extend answers with arguments entries marked extended, for a form to add as fields; kit new answers with the
+# template's holes, and {} before it knows them. --match answers with status 0, 1 with missing, or 2 with refusal,
+# and the words sorted into literals, operands, options, and values, for a form to fill; the words follow a --.
+#
+# Exits 0 when every usage line parses (and, with --check, every argument is described), 1 when one does not (its
+# object carries error), the verb has no choices for the argument, or it does not extend its arguments, and 2 when a
+# name is not a verb.
+#
+# see: modules/bash/syntax.sh, modules/jq/syntax.jq
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use help syntax
+guard:arguments syntax "$@" || exit $?
+
+guard:require tool:jq
+
+# The guard sorted the arguments: the verbs named, --check, and --choices with the answers after the verb.
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+verbs=("${syntax_operands[@]}")
+(( ${#verbs[@]} )) || readarray -t verbs < <(help:verbs)
+[[ -z "${syntax_options[--choices]+x}${syntax_options[--extend]+x}${syntax_options[--match]+x}" ]] || verbs=("${verbs[0]}")
+for verb in "${verbs[@]}"
+do
+  # <verb>… is open, so a word that starts with - lands here; it is refused as the guard refuses an unknown option
+  case "${verb}" in
+    (--json | --jq)
+      error "kit syntax: unknown option '${verb}' (its output is JSON already); run: kit help syntax"
+      exit 2
+      ;;
+    (-*)
+      error "kit syntax: unknown option '${verb}'; run: kit help syntax"
+      exit 2
+  esac
+  if [[ ! -x "${kit_root}/bin/kit-${verb}" ]]
+  then
+    guard:unknown-verb "${verb}" || exit $?
+  fi
+done
+
+if [[ -n "${syntax_options[--choices]+x}" ]]
+then
+  if ! syntax:kind "${verbs[0]}" "${syntax_options[--choices]}" >/dev/null
+  then
+    error "kit ${verbs[0]} has no choices for '${syntax_options[--choices]}'; run: kit help syntax"
+    exit 1
+  fi
+  # the verb lists this argument, but perhaps not from these answers: --variant needs a rule that exists
+  if ! syntax:choices "${verbs[0]}" "${syntax_options[--choices]}" "${syntax_operands[@]:1}"
+  then
+    error "kit ${verbs[0]} lists no ${syntax_options[--choices]} for these answers: ${syntax_operands[*]:1}; run:" \
+      "kit help ${verbs[0]}"
+    exit 1
+  fi
+  exit 0
+fi
+if [[ -n "${syntax_options[--extend]+x}" ]]
+then
+  if ! syntax:extend "${verbs[0]}" "${syntax_operands[@]:1}"
+  then
+    error "kit ${verbs[0]} does not extend its arguments; run: kit help syntax"
+    exit 1
+  fi
+  exit 0
+fi
+if [[ -n "${syntax_options[--match]+x}" ]]
+then
+  syntax:judge "${verbs[0]}" "${syntax_operands[@]:1}"
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--list]+x}" ]]
+then
+  # the banners are read once, and the verbs print in the order named
+  declare -A banner=()
+  while IFS=$'\t' read -r verb group purpose
+  do
+    banner[${verb}]="${purpose}"$'\t'"${group}"
+  done < <(help:banners)
+  for verb in "${verbs[@]}"
+  do
+    printf '%s\t%s\n' "${verb}" "${banner[${verb}]}"
+  done
+  exit 0
+fi
+
+status=0
+if [[ -n "${syntax_options[--check]+x}" ]]
+then
+  for verb in "${verbs[@]}"
+  do
+    syntax:check "${verb}" || status=1
+  done
+  (( status )) || ok "every verb's usage parses, and every argument is described"
+  exit "${status}"
+fi
+
+json=''
+for verb in "${verbs[@]}"
+do
+  spec=$(syntax:spec "${verb}") || status=1
+  json+="${spec}"$'\n'
+done
+if (( ${#verbs[@]} == 1 ))
+then
+  printf '%s' "${json}"
+else
+  jq --slurp . <<<"${json}"
+fi
+exit "${status}"
+
+# ----------------------------------------------------------------------------------------------------------------------

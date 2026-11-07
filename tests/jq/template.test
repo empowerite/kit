@@ -1,0 +1,81 @@
+# template.test - the template jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is a template's text, or {template, text}.
+
+# A hole within a line takes any text on it, a hole that is a line any run of whole lines, and the values come back.
+import "template" as template; template::parts as $p | ["# a.sh - p\nx\ny\n", "# a.sh - p\n", "# a.sh\n"] | map(. as $t | $p | template::match($t))
+"# «name» - «purpose»\n«body»\n"
+[{"ok":true,"values":{"name":"a.sh","purpose":"p","body":"x\ny\n"}},{"ok":true,"values":{"name":"a.sh","purpose":"p","body":""}},{"ok":false,"line":1}]
+
+# A hole within a line stops at the line's end; with … it takes text across lines.
+import "template" as template; ["a «x» b\n", "a «x…» b\n"] | map(template::parts | template::match("a one\ntwo b\n") | .ok)
+null
+[false,true]
+
+# A name that appears more than once takes an array, one element per appearance, and each may differ.
+import "template" as template; template::parts | template::match("set a\nx\nset b\n")
+"set «setting»\nx\nset «setting»\n"
+{"ok":true,"values":{"setting":["a","b"]}}
+
+# Bound names are literal text, so a banner that names another file leaves the template on its line.
+import "template" as template; [.[] | template::bind({name: "a.sh"}) | template::parts | template::match("# b.sh - p\n")]
+["# «name» - «purpose»\n"]
+[{"ok":false,"line":1}]
+
+# A literal that is not found is where the file leaves the template, by its own line within a multi-line literal.
+import "template" as template; template::parts | template::match("one\ntwo\nTHREE\n")
+"one\ntwo\nthree\n"
+{"ok":false,"line":3}
+
+# Text left after the template's end leaves it at its end, which has no line.
+import "template" as template; template::parts | template::match("one\nmore\n")
+"one\n"
+{"ok":false,"line":null}
+
+# A region's lines hold anything a command wrote, and the template makes them as it has them.
+import "template" as template; template::parts as $p | [($p | template::match("# kit\u003agenerate x\nanything\nat all\n# kit\u003aend x\n") | .ok), ($p | template::render({}))]
+"# kit\u003agenerate x\nstub\n# kit\u003aend x\n"
+[true,"# kit\u003agenerate x\nstub\n# kit\u003aend x\n"]
+
+# Two holes with no text between them are ambiguous, by the line of the second.
+import "template" as template; [template::parts | template::ambiguous]
+"ok «a»\n«b»«c»\n"
+[2]
+
+# Rendering fills a hole, takes its default without a value, keeps a hole within a line with neither, and gives a
+# hole that is a line a blank line, or nothing as the last part.
+import "template" as template; template::parts | template::render({title: "Guide"})
+"# «title»\n«note=none\\nyet»\nx «x»\n«gap»\ny\n«body»\n"
+"# Guide\nnone\nyet\nx «x»\n\ny\n"
+
+# An array fills each appearance with its element, and a string fills every one.
+import "template" as template; template::parts | [template::render({s: ["a", "b"]}), template::render({s: "c"})]
+"set «s»\nset «s»\n"
+["set a\nset b\n","set c\nset c\n"]
+
+# What a file gives its template's holes renders the same file again.
+import "template" as template; .text as $t | (.template | template::parts) as $p | ($p | template::match($t).values) as $v | $p | template::render($v) == $t
+{"template": "#!/usr/bin/env bash\n# «name» - «purpose»\n«about»\nset -o errexit\n«body»\n", "text": "#!/usr/bin/env bash\n# x - y\n\nset -o errexit\necho\n\necho\n"}
+true
+
+# The holes a caller fills are those within a line, or across lines, without a default, once each.
+import "template" as template; template::parts | template::holes
+"# «name» - «purpose»\n«about»\n«purpose» «x=d» «y…»\n"
+["name","purpose","y"]
+
+# A file is judged against the variants its path allows, by the furthest line any of them reached.
+import "template" as template; [template::check({a: "one\ntwo\n", b: "one\nthree\nfour\n"}; [{path: "p", text: "one\nthree\nfive\n", variants: ["a", "b"]}, {path: "q", text: "one\ntwo\n", variants: ["a"]}, {path: "r", text: "x", variants: []}]; {})]
+null
+[{"path":"p","variants":["a","b"],"line":3,"variant":"b"}]
+
+# A dotted name is a path in the settings: bound, its value is literal text, and rendering takes it from the values.
+import "template" as template; [(template::bind({"answers.who": "ada"}) | template::parts | template::match("by ada\n") | .ok), (template::parts | template::render({"answers.who": "bob"}))]
+"by «answers.who»\n"
+[true,"by bob\n"]
+
+# A region that never closes is refused, by the line it opened on, so no template is read with its tail dropped.
+import "template" as template; try template::parts catch .
+"# «title»\n# kit:generate x\nstub\n"
+"the region opened at line 2 never closes: no kit:end line follows"
+

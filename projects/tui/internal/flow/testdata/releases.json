@@ -1,0 +1,5 @@
+[
+  {"version": "0.2.0", "tag": "release/0.2.0", "name": "kit 0.2.0", "kind": "draft", "latest": false, "at": "2026-11-01T01:00:00Z", "age": 3600},
+  {"version": "0.1.0", "tag": "release/0.1.0", "name": "kit 0.1.0", "kind": "release", "latest": true, "at": "2026-10-31T20:00:00Z", "age": 21600},
+  {"version": "0.1.0-rc.7", "tag": "release/0.1.0-rc.7", "name": "kit 0.1.0-rc.7", "kind": "pre-release", "latest": false, "at": "2026-10-31T06:11:59Z", "age": 102864}
+]

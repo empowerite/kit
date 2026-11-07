@@ -1,0 +1,24 @@
+  ≡ kit flow · 📚 empowerite/kit                                                                              🔎 search
+  ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶─────────────────╮➅╶────────────────
+  │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds
+  ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────
+   id  source     assignees  age  title                                               ╭─ backlog╭─ assignees ──────────╮
+   ───────────────────────────────────────────────────────────────────────────────────│   field │ filter               │
+ ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                    │ ☑ id    │ ⦿ include  ⦾ exclude │
+                                                                                      │ ☑ source│ ☑ @me ada            │
+                                                                                      │ ☑ assign│ ☐ ada                │
+                                                                                      │ ☑ age   │ ☐ bob                │
+                                                                                      │ ☑ branch│ ☐ jeffrey-aguilera   │
+                                                                                      │ ☑ labels│ ☐ none               │
+                                                                                      │ ☑ title │ rendering            │
+                                                                                      │ ☐ organi│ ⦿ auto glyph+text    │
+                                                                                      │ ☐ reposi│ ⦾ glyph+text         │
+                                                                                      ╰─────────│ ⦾ text               │
+                                                                                                ╰──────────────────────╯
+
+
+
+
+
+
+ esc close ↑↓ move ␣ toggle

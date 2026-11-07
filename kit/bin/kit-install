@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# kit-install - mirrors the release into the repository and the home directory (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit install [<package>…]
+#
+# Sets up kit in a repository that does not have it yet:
+#
+#   1. Activates the default packages, the named packages, and what they depend on and include.
+#   2. Places the files those packages deliver, in the repository and in the home directory.
+#   3. Declares the version and the packages in kit.yml, and writes .kit/manifest. It writes ~/.kit/manifest too,
+#      when the packages deliver files to the home directory.
+#
+#   <package>…   more packages to activate, by name or glob such as 'style/*'
+#
+# A package must be in the release or under .kit/packages/. When a different file is already at a delivered path,
+# kit install names it and leaves it alone; it writes no manifest until every path is clear. A repository whose
+# kit.yml already declares a kit version is refused: run kit update.
+#
+# Exits 0 on success, 2 for a package that is neither in the release nor under .kit/packages/, and 1 for any
+# other failure.
+#
+# see: modules/bash/resolve.sh, modules/bash/place.sh, modules/bash/settings.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use release settings resolve render place materialize manifest
+
+guard:arguments install "$@" || exit $?
+
+guard:require tool:jq
+# A glob such as style/* stands for every package it matches.
+expanded=$(resolve:expand "${kit_root}" "$@") || exit 2
+readarray -t named < <(awk 'NF' <<<"${expanded}")
+set -- "${named[@]}"
+resolve:require "${kit_root}" "$@"
+if [[ -n "$(settings:version)" ]]
+then
+  error "run: kit update (this repository already declares kit $(settings:version))"
+  exit 1
+fi
+readarray -t defaults < <(resolve:defaults "${kit_root}")
+readarray -t packages < <(resolve:active "${kit_root}" '' "${defaults[@]}" "$@")
+render:all "${kit_root}" "${packages[@]}"
+section "kit install $(release:version), packages: ${packages[*]}"
+refused=0
+for base in $(release:bases)
+do
+  place:all "${kit_root}" "${base}" "${packages[@]}" || refused=$(( refused + $? ))
+done
+if (( refused > 0 ))
+then
+  error "${refused} path(s) could not be placed, each named above; settle each, then run: kit install"
+  exit 1
+fi
+manifest:write-all '' "${packages[@]}"
+materialize:all "${packages[@]}"
+release:finish "${packages[@]}"
+
+# ----------------------------------------------------------------------------------------------------------------------

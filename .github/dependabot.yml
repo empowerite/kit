@@ -1,0 +1,30 @@
+# dependabot.yml - keeps the SHA-pinned actions in the workflows current
+# ----------------------------------------------------------------------------------------------------------------------
+# Every `uses:` in .github/workflows/ is pinned to a full commit SHA, with the version as a trailing comment. The SHA
+# advances when a pull request from Dependabot's github-actions ecosystem merges. Once a week, Dependabot moves every
+# SHA that is behind, with its comment, in one pull request for the whole group, so a week with three bumps is one
+# review and one CI run.
+#
+# The commit subject is `actions: <what moved>`, without the `#<N>` a commit subject starts with, since a bot has no
+# issue to name. `linked_exempt` in kit.yml names dependabot[bot], so kit linked and kit policy pass its
+# pull request by name.
+#
+# This is the one ecosystem Dependabot reads here. The tools come from mise.toml, which Dependabot does not read;
+# `mise outdated` answers for those, and Renovate is the tool that reads mise.toml should that ever be automated.
+#
+# see: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: actions
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+# ----------------------------------------------------------------------------------------------------------------------

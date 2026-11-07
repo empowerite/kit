@@ -1,0 +1,30 @@
+{
+  "verb": "hydrate",
+  "purpose": "places what the active packages deliver under .kit/",
+  "usage": [
+    "kit hydrate [--quick]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "quick",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--quick": {
+      "description": "for a shell hook: silent when everything is in place"
+    }
+  }
+}

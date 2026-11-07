@@ -1,0 +1,234 @@
+#!/usr/bin/env bats
+# policy.bats - the facts, the patterns and their defaults, and two engines that refuse the same things the same way
+# ----------------------------------------------------------------------------------------------------------------------
+
+load helper
+
+setup() {
+  fake-tools gh
+  work=$(mktemp -d)
+  cd "${work}"
+  git init --quiet --bare --initial-branch=main origin.git
+  git clone --quiet origin.git desk 2>/dev/null
+  cd desk
+  git commit --quiet --allow-empty --message "#1 start: the first" && git push --quiet origin main
+  git remote set-head origin main
+  mkdir .kit
+}
+
+# branch <name> <subject>… makes a branch past main with one empty commit per subject.
+branch() {
+  git switch --quiet --create "$1"
+  shift
+  for subject in "$@"
+  do
+    git commit --quiet --allow-empty --message "${subject}"
+  done
+}
+
+# change <title> makes the forge, GitHub by the setting since origin is a local path, answer a change on the
+# branch with that title.
+change() {
+  grep --quiet '^forge:' kit.yml 2>/dev/null || printf 'forge: github\n' >> kit.yml
+  fixture pr.json <<<"{\"number\": 3, \"title\": \"$1\", \"body\": \"Closes #7\"}"
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example"}'
+  fixture pull.json <<<"{\"user\": {\"login\": \"${2:-ada}\"}}"
+  route gh 'pr view --json number*' pr.json
+  route gh 'pr view 3 --json *' pr.json
+  route gh 'repo view*' repo.json
+  route gh 'api repos/empowerite/example/pulls/3 *' pull.json
+}
+
+@test "the facts are the branch, the commits past the fork, the change, and the rules with the kit's defaults" {
+  branch 7-fix-the-thing "#7 cli: fix the thing" "AB#4521 docs: say so"
+  change "Fix the thing"
+  run "${kit_root}/bin/kit" policy --input
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output .branch <<<"$output")" = "7-fix-the-thing" ]
+  subjects=$(jq --raw-output '[.commits[].subject] | join("|")' <<<"$output")
+  [ "${subjects}" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
+  [ "$(jq --raw-output .change.title <<<"$output")" = "Fix the thing" ]
+  [ "$(jq --raw-output .change.author <<<"$output")" = "ada" ]
+  [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject" ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the patterns policy allows the branch, 2 commit(s), the change title"* ]]
+  # the facts were written to scratch space, swept at exit
+  [ -z "$(find "${TMPDIR}" -mindepth 1 -maxdepth 1 -name 'kit.*')" ]
+}
+
+@test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {
+  branch topic "#7 cli: fine" "wip"
+  change ""
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'topic' does not match policy.branch"* ]]
+  [[ "$output" == *"'wip' does not match policy.commit_subject"* ]]
+  [[ "$output" == *"change title '' does not match policy.change_title"* ]]
+  [[ "$output" == *"3 refusal(s) by the patterns policy"* ]]
+}
+
+@test "a repository's patterns replace the defaults, an empty one turns a rule off, and an unknown subject is refused" {
+  branch feature/login "wip"
+  printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  commit_subject: ''\n" > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  printf "policy:\n  branche: '^x\$'\n" > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"policy has a subject the kit does not know: branche"* ]]
+}
+
+@test "a change by a login in linked_exempt passes the policy by name, since its branch and subjects are the bot's" {
+  branch dependabot/github-actions/actions-1a2b3c "actions: bump actions/checkout from 4 to 5"
+  change "actions: bump actions/checkout from 4 to 5" 'dependabot[bot]'
+  printf 'linked_exempt:\n  - dependabot[bot]\n' >> kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pull request #3 is dependabot[bot]'s, exempt from the policy by kit.yml"* ]]
+  printf 'forge: github\n' > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'dependabot/github-actions/actions-1a2b3c' does not match policy.branch"* ]]
+}
+
+@test "on the default branch, or detached, only the tree is under check, and kit policy says so" {
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the patterns policy allows the tree at HEAD; on main, no branch or commit is judged"* ]]
+  git commit --quiet --allow-empty --message "not checked"
+  git switch --quiet --detach
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+}
+
+@test "the opa engine, given the policy/opa package's Rego, refuses exactly what the patterns engine does" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
+  [ -f .kit/policy/kit.rego ]
+  branch topic "#7 cli: fine" "wip" "Also wrong"
+  change "A title that is fine"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"by the opa policy"* ]]
+  by_opa=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  printf 'forge: github\npolicy_engine: patterns\n' > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  by_patterns=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  [ "$(wc -l <<<"${by_opa}")" -eq 3 ]
+  [ "${by_opa}" = "${by_patterns}" ]
+}
+
+@test "a rule of the repository's own in Rego adds to the kit's, and a policy engine the kit does not know is refused" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains msg if {
+	count(input.commits) > 2
+	msg := sprintf("%d commits; split the change", [count(input.commits)])
+}
+REGO
+  branch 7-many "#7 a: one" "#7 a: two" "#7 a: three"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"3 commits; split the change"* ]]
+  printf 'policy_engine: cue\n' > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'cue' is not a policy engine the kit knows"* ]]
+}
+
+@test "a warning is printed and passes; a refusal beside it still fails" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+warn contains "consider fewer commits" if count(input.commits) > 1
+REGO
+  branch 7-many "#7 a: one" "#7 a: two"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⚠️ consider fewer commits"* ]]
+  [[ "$output" == *"allows"*"1 warning"* ]]
+  cat >> .kit/policy/ours.rego <<'REGO'
+
+deny contains "never two commits" if count(input.commits) > 1
+REGO
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"⚠️ consider fewer commits"* ]]
+  [[ "$output" == *"❌ never two commits"* ]]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------
+
+@test "kit policy --facts judges a saved document, and gathers nothing" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  change "Fix the thing"
+  "${kit_root}/bin/kit" policy --input | jq '.branch = "BAD"' > facts.json
+  : > "${FAKE_DIR}/gh.calls"
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'BAD' does not match policy.branch"* ]]
+  [[ "$output" != *"7-fix-the-thing"* ]]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+}
+
+@test "kit policy --facts with a file that is not JSON is refused" {
+  printf 'not json\n' > facts.json
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"facts.json"* ]]
+  run "${kit_root}/bin/kit" policy --facts=missing.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"missing.json"* ]]
+}
+
+@test "kit policy --facts refuses an empty file, and an object with no policy, as no facts document" {
+  : > empty.json
+  run "${kit_root}/bin/kit" policy --facts=empty.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"empty.json"*"is not a facts document"* ]]
+  printf '{}\n' > bare.json
+  run "${kit_root}/bin/kit" policy --facts=bare.json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"bare.json"*"is not a facts document"* ]]
+}
+
+@test "kit policy --facts reads a relative file from the directory it was typed in" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  mkdir sub
+  "${kit_root}/bin/kit" policy --input | jq '.branch = "BAD"' > sub/fx.json
+  "${kit_root}/bin/kit" policy --input > fx.json
+  cd sub
+  run "${kit_root}/bin/kit" policy --facts=fx.json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'BAD' does not match policy.branch"* ]]
+}
+
+@test "Rego that defines no deny in package kit.policy refuses, since unjudged is never allowed" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy
+  printf 'package kit.polcy\n\nimport rego.v1\n\ndeny contains "a typo hides me" if true\n' > .kit/policy/typo.rego
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"defines no data.kit.policy.deny"* ]]
+}
+
+@test "at ci, a branch whose fork from the default branch is not here fails, since no commit could be checked" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git update-ref -d refs/remotes/origin/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no commit was checked"*"fetch"* ]]
+}
+

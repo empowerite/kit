@@ -1,0 +1,9 @@
+{
+  "name": "kit-ajv-cli",
+  "version": "5.0.0",
+  "private": true,
+  "description": "ajv-cli for the nix dev shell, which nixpkgs does not package; see: flake.nix",
+  "dependencies": {
+    "ajv-cli": "5.0.0"
+  }
+}

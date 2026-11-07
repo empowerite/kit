@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# kit - the kit CLI: runs the verb script bin/kit-<verb> (executed entrypoint)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
+# bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
+# when called directly. kit with no verb runs kit tui, the interactive terminal UI. kit --help and kit -h run kit help,
+# which reads each verb's usage from its header; kit <verb> --help is the verb's page, which guard:arguments in
+# modules/bash/1st.sh answers. A verb that does not exist is refused with a pointer to kit help, in the words every
+# verb uses for one.
+#
+# It runs the verb as its child, not in its place, so it can write the call to .kit/logs/kit-YYYY-MMDD.log when the
+# verb ends, with its exit status, which it then exits with. modules/bash/log.sh says what a line holds. Ctrl-C reaches
+# the verb, which ends with it, and the call is logged with status 130. A TERM or HUP sent to this process alone waits
+# for the verb to end before this process does.
+#
+# see: .kit/1st.md
+
+set -o errexit -o nounset -o pipefail
+
+# readlink -f needs macOS 12.3 or later. Older macOS has no GNU-compatible readlink.
+kit_bin=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+
+verb=${1:-tui}
+(( $# == 0 )) || shift
+case "${verb}" in
+  (--help | -h) verb=help
+esac
+# shellcheck source=../modules/bash/log.sh
+source "${kit_bin}/../modules/bash/log.sh"
+started=0
+log:now started
+line=''
+(( $# == 0 )) || printf -v line ' %q' "$@"
+printf -v line 'kit %q%s' "${verb}" "${line}"
+log:root root || root=${PWD}
+directory=${PWD#"${root}"}
+directory=${directory#/}
+printf -v directory '%q' "${directory:-.}"
+if [[ ! -x "${kit_bin}/kit-${verb}" ]]
+then
+  # The loader is sourced only to refuse: the verbs load it themselves.
+  # shellcheck source=../modules/bash/1st.sh
+  source "${kit_bin}/../modules/bash/1st.sh"
+  guard:unknown-verb "${verb}" || true
+  log:call kit "${started}" "pid=$$" "depth=${kit_depth:-0}" status=2 "in=${directory}" "${line}"
+  exit 2
+fi
+# The verb shares the terminal's process group, so Ctrl-C reaches it. A trap here only keeps this process alive to
+# log the call once the verb has ended.
+trap ':' INT TERM HUP
+status=0
+"${kit_bin}/kit-${verb}" "$@" || status=$?
+log:call kit "${started}" "pid=$$" "depth=${kit_depth:-0}" "status=${status}" "in=${directory}" "${line}"
+exit "${status}"
+
+# ----------------------------------------------------------------------------------------------------------------------

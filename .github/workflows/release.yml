@@ -1,0 +1,50 @@
+# release.yml - pushing a release tag publishes the kit as a GitHub release
+# ----------------------------------------------------------------------------------------------------------------------
+# Pushing a tag such as release/0.1.0 runs this workflow. It has two steps, and each step is one kit command, so
+# the same thing can be run on a laptop:
+#
+#   bin/release verify    checks the tag. A release tag, release/0.1.0, must point at a commit on main. A
+#                         pre-release tag, release/0.1.0-rc.1, may point at any commit, on main or off it. Any
+#                         other tag is refused.
+#   bin/release publish   packs kit/ into kit-<version>.tar.gz, writes the version after release/ into
+#                         it, with kittui, kit tui's binary, built for linux and darwin on amd64 and arm64 in
+#                         libexec/, and publishes it as a GitHub release named by that version. A version with a
+#                         suffix is published as a pre-release. The pinned tools come first, through mise, for Go.
+#
+# GitHub does not let a published release change, so a version is tagged once and never again. A release is
+# published here and nowhere else: bin/release publish refuses a release tag anywhere but on the runner, so a
+# desk cannot publish one by hand. A desk may publish a pre-release. A pre-release is deleted once no branch reaches
+# its commit, as when the branch it was tagged on is deleted; see retire-pre-releases.yml.
+#
+# see: bin/release
+
+name: release
+
+on:
+  push:
+    tags: ['release/*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: tools
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+
+      - name: verify
+        run: bin/release verify "${GITHUB_REF_NAME}"
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bin/release publish "${GITHUB_REF_NAME}"
+
+# ----------------------------------------------------------------------------------------------------------------------

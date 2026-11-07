@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the runner's tests: answers syntax and help, and records any other call (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
+# groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, and a stage
+# echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the
+# file FAKE_KIT_RECORD names; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any
+# other verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to
+# read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
+# refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
+# that does not parse, and a match on the verb FAKE_KIT_MATCH_REFUSE names judges the words refused; one on the verb
+# FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign
+# and close act: each says what it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1. new issue --list --json
+# lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and
+# FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials screen's catalogue, its words
+# written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
+
+set -o errexit -o nounset -o pipefail
+
+# FAKE_KIT_HANG is the seconds every call sleeps before it answers, as a kit that hangs would.
+[[ -z "${FAKE_KIT_HANG:-}" ]] || sleep "${FAKE_KIT_HANG}"
+
+here=$(cd "$(dirname "$0")" && pwd)
+fixtures=${here}/../../syntax/testdata
+
+case "${1:-}" in
+  (syntax)
+    shift
+    if [[ -n "${FAKE_KIT_REFUSE:-}" && "${1:-}" == "${FAKE_KIT_REFUSE}" ]]
+    then
+      echo "❌ kit $1 refuses for the test; run: kit help $1" >&2
+      exit 2
+    fi
+    if [[ "${1:-}" == --list ]]
+    then
+      printf 'check\tcompares the repository with the release\tchecks\n'
+      printf 'commit\tcommits what is staged, after the checks a commit'"'"'s rule requires\tworkflow\n'
+      printf 'context\tprints the rules that govern a file\tfiles\n'
+      printf 'submit\tcommits what is staged, as kit commit does, then pushes the branch\tworkflow\n'
+      printf 'tui\truns the interactive terminal UI\tinterfaces\n'
+      printf 'version\tprints this release'"'"'s version\tinstallation\n'
+    elif (( $# == 0 ))
+    then
+      printf '['
+      cat "${fixtures}/commit.json"
+      printf ','
+      cat "${fixtures}/version.json"
+      printf ']\n'
+    elif [[ "${2:-}" == --choices ]]
+    then
+      verb=$1 key=$3
+      shift 3
+      [[ "${1:-}" != -- ]] || shift
+      if [[ "${1:-}" == --kind ]]
+      then
+        shift
+        case " $* " in
+          (*" select "*) printf 'set\n' ;;
+          (*) printf 'closed\n'
+        esac
+        exit 0
+      fi
+      [[ -z "${FAKE_KIT_CALLS:-}" ]] || printf 'choices %s %s %s\n' "${verb}" "${key}" "$*" >> "${FAKE_KIT_CALLS}"
+      if [[ -n "${FAKE_KIT_ROWS:-}" ]]
+      then
+        printf 'docs/guide.md\t\t\t\n'
+        for (( i = 1; i < FAKE_KIT_ROWS; i++ ))
+        do
+          printf 'src/file-%d.go\t\t\t\n' "${i}"
+        done
+        exit 0
+      fi
+      printf 'a\tthe first\tactive\t\n'
+      printf 'b\t\tactive\tb: kept, c depend(s) on it\n'
+      printf 'answers\t%s %s %s\t\t\n' "${verb}" "${key}" "$*"
+    elif [[ "${2:-}" == --match && -n "${FAKE_KIT_MATCH_REFUSE:-}" && "$1" == "${FAKE_KIT_MATCH_REFUSE}" ]]
+    then
+      printf '{"status": 2, "refusal": "❌ kit %s refuses these words for the test"}\n' "$1"
+    elif [[ "${2:-}" == --match && -n "${FAKE_KIT_MATCH_MISSING:-}" && "$1" == "${FAKE_KIT_MATCH_MISSING}" ]]
+    then
+      literals=''
+      [[ -z "${FAKE_KIT_MATCH_LITERAL:-}" ]] || literals="\"${FAKE_KIT_MATCH_LITERAL}\""
+      printf '{"status": 1, "missing": "<path>", "literals": [%s]}\n' "${literals}"
+    elif [[ "${2:-}" == --match ]]
+    then
+      shift 2
+      [[ "${1:-}" != -- ]] || shift
+      printf '{"status": 0, "literals": [], "operands": ["x"], "options": {"--message": ["%s"]}, "values": {"--message": ["%s"], "<path>": ["x"]}}\n' "$*" "$*"
+    elif [[ "${2:-}" == --extend ]]
+    then
+      shift 2
+      [[ "${1:-}" != -- ]] || shift
+      if (( $# == 0 ))
+      then
+        printf '{}\n'
+      else
+        printf '{"--title": {"description": "the title", "extended": true}, "--purpose": {"description": "", "extended": true}}\n'
+      fi
+    elif [[ -n "${FAKE_KIT_UNPARSED:-}" && "$1" == "${FAKE_KIT_UNPARSED}" ]]
+    then
+      printf '{"verb": "%s", "purpose": "a purpose", "usage": [], "syntax": [], "arguments": {}, "error": "a test"}\n' "$1"
+    elif [[ -f "${fixtures}/$1.json" ]]
+    then
+      cat "${fixtures}/$1.json"
+    else
+      echo "❌ no kit verb '$1'; run: kit help" >&2
+      exit 2
+    fi
+    ;;
+  (help)
+    # bold headings as help.sh gives them: under CLICOLOR_FORCE, unless NO_COLOR is set
+    bold='' plain=''
+    if [[ -z "${NO_COLOR:-}" && -n "${CLICOLOR_FORCE:-}" && "${CLICOLOR_FORCE}" != 0 ]]
+    then
+      bold=$'\x1b[1m' plain=$'\x1b[0m'
+    fi
+    printf 'kit %s - a purpose for the test\n\n%sUsage%s\n  kit %s\n\nDescription\n  Does it.\n' "$2" "${bold}" \
+      "${plain}" "$2"
+    ;;
+  (flow)
+    # --stages names two stages; a stage answers with the words after its name, so a test reads them back
+    shift
+    if [[ "${1:-}" == --stages ]]
+    then
+      printf 'backlog\nincoming\n'
+    elif [[ "${1:-}" == --me ]]
+    then
+      printf 'ada\n'
+    elif [[ "${1:-}" == nonesuch ]]
+    then
+      echo "❌ kit flow: no stage 'nonesuch'; run: kit help flow" >&2
+      exit 2
+    else
+      if [[ -n "${FAKE_KIT_SLEEP:-}" ]]
+      then
+        sleep "${FAKE_KIT_SLEEP}" &
+        printf '%s\n' "$!" > "${FAKE_KIT_RECORD:?}"
+        wait
+      fi
+      printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
+    fi
+    ;;
+  (new)
+    if [[ "${FAKE_KIT_REFUSE:-}" == new ]]
+    then
+      echo "❌ kit new: the forge cannot be read; run: kit help new" >&2
+      exit 1
+    fi
+    echo "⚠️ a warning, on stderr, which is no part of the JSON" >&2
+    if [[ "${FAKE_KIT_UNPARSED:-}" == new ]]
+    then
+      echo "not JSON"
+      exit 0
+    fi
+    printf '[{"prefix": "#", "provider": "forge", "label": "github empowerite/kit", "url": "%s", "error": null}]\n' \
+      'https://github.com/empowerite/kit/issues/new'
+    ;;
+  (root)
+    printf '/the/release\n'
+    ;;
+  (tutorials)
+    [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" > "${FAKE_KIT_RECORD}"
+    if [[ "${FAKE_KIT_REFUSE:-}" == tutorials ]]
+    then
+      echo "❌ kit tutorials refuses for the test; run: kit help tutorials" >&2
+      exit 2
+    fi
+    cat "${here}/../../tutorials/testdata/catalogue.json"
+    ;;
+  (welcome)
+    # --checks prints the welcome screen's fixture; --fix falls through to the record below
+    if [[ "${2:-}" == --checks ]]
+    then
+      cat "${here}/../../welcome/testdata/checks.json"
+      exit 0
+    fi
+    printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
+    pwd -P >> "${FAKE_KIT_RECORD}"
+    ;;
+  (assign | close)
+    # a verb that acts says what it did on stderr; refused, its ❌ line is followed by another
+    if [[ "${FAKE_KIT_REFUSE:-}" == "$1" ]]
+    then
+      echo "→ kit $1 runs" >&2
+      echo "❌ kit $1 refuses for the test" >&2
+      echo "  and says more" >&2
+      exit 1
+    fi
+    echo "out $*"
+    echo "✅ kit $* done" >&2
+    ;;
+  (*)
+    printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
+    pwd -P >> "${FAKE_KIT_RECORD}"
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

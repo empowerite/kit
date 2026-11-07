@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# fake-curl - stands in for curl: serves the file named by the URL's last part from ${FAKE_RELEASES} (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# Linked as curl on PATH. Every URL asked for is appended to ${FAKE_RELEASES}/curl.calls. The response is the file
+# ${FAKE_RELEASES}/<last part of the URL>, written to the --output file when there is one and to stdout otherwise, as
+# curl does. A URL with no such file fails with 22, curl's status for an HTTP error under --fail.
+
+set -o errexit -o nounset -o pipefail
+out='' url=''
+while (( $# ))
+do
+  case "$1" in
+    (--output | -o) out=$2; shift 2 ;;
+    (-*) shift ;;
+    (*) url=$1; shift
+  esac
+done
+printf '%s\n' "${url}" >> "${FAKE_RELEASES}/curl.calls"
+file="${FAKE_RELEASES}/${url##*/}"
+[[ -f "${file}" ]] || exit 22
+if [[ -n "${out}" ]]
+then cp "${file}" "${out}"
+else cat "${file}"
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

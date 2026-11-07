@@ -1,0 +1,227 @@
+{
+  "stages": [
+    {
+      "stage": "backlog", "record": ".[]",
+      "fields": [
+        {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
+         "right": true, "placement": "column"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "assignees", "label": "assignees", "type": "person", "path": ".assignees", "sort": true, "group": true,
+         "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true,
+         "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
+         "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
+          "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "underway", "record": ".[]",
+      "fields": [
+        {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
+         "right": true, "placement": "column"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "assignees", "label": "assignees", "type": "person", "path": ".assignees", "sort": true, "group": true,
+         "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true,
+         "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "change", "label": "change", "type": "ref", "path": ".pr.number", "sort": true, "group": true,
+         "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".pr.state", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
+           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
+           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
+           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "where", "label": "where", "type": "text", "path": ".here, .local, .pr.author", "sort": true,
+         "group": true, "renderings": ["where"], "placement": "column"},
+        {"id": "fork", "label": "fork", "type": "person", "path": ".pr.fork", "sort": true, "group": true,
+         "filter": true, "glyph": "🍴", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "pushed", "label": "pushed", "type": "time", "path": ".pr.pushed.age", "sort": true, "glyph": "📤",
+         "renderings": ["glyph+age", "age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "by", "label": "by", "type": "person", "path": ".pr.pushed.by", "sort": true, "group": true,
+         "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
+         "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
+          "where": {"placement": "hidden"}, "fork": {"placement": "hidden"}, "pushed": {"placement": "hidden"},
+          "by": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "desk", "record": ".",
+      "fields": [
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
+         "glyph": "💻", "renderings": ["checkout", "name"], "placement": "column"},
+        {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
+         "renderings": ["counts"], "placement": "column"},
+        {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
+         "renderings": ["diffstat"], "placement": "column"},
+        {"id": "change", "label": "change", "type": "ref", "path": "changes:.ref", "sort": true, "glyph": "🔀",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": "changes:.state", "sort": true, "filter": true,
+         "values": [
+           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
+           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
+           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
+           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "uncommitted", "label": "uncommitted", "type": "number", "path": ".uncommitted", "sort": true,
+         "renderings": ["uncommitted"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "worktrees", "record": ".worktrees[]",
+      "fields": [
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
+         "glyph": "🌿", "renderings": ["checkout", "name"], "placement": "column"},
+        {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
+         "renderings": ["counts"], "placement": "column"},
+        {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
+         "renderings": ["diffstat"], "placement": "column"},
+        {"id": "change", "label": "change", "type": "ref", "path": "changes:.ref", "sort": true, "glyph": "🔀",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": "changes:.state", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
+           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
+           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
+           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "uncommitted", "label": "uncommitted", "type": "number", "path": ".uncommitted", "sort": true,
+         "renderings": ["uncommitted"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "changes", "record": ".[]",
+      "fields": [
+        {"id": "change", "label": "change", "type": "ref", "path": ".ref, .number", "sort": true, "glyph": "🔀",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
+         "wrap": true, "placement": "column"},
+        {"id": "author", "label": "author", "type": "person", "path": ".author", "sort": true, "group": true,
+         "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true,
+         "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
+           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
+           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
+           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "checks", "label": "checks", "type": "enum", "path": ".checks.state", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "SUCCESS", "glyph": "✅"}, {"value": "FAILURE", "glyph": "❌"}, {"value": "PENDING", "glyph": "🏃"}],
+         "renderings": ["checks", "glyph"], "placement": "column"},
+        {"id": "threads", "label": "threads", "type": "number", "path": ".unresolved", "sort": true, "glyph": "💬",
+         "renderings": ["threads"], "placement": "column"},
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+         "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "author": {"placement": "hidden"}, "age": {"placement": "hidden"}, "checks": {"placement": "hidden"},
+          "threads": {"placement": "hidden"}, "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "builds", "record": ".[]",
+      "fields": [
+        {"id": "status", "label": "", "type": "enum", "path": ".state", "filter": true, "values": [
+           {"value": "running", "glyph": "🏃"}, {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"},
+           {"value": "cancelled", "glyph": "🛑"}], "other": "🔳",
+         "renderings": ["glyph"], "placement": "column"},
+        {"id": "workflow", "label": "workflow", "type": "text", "path": ".workflow", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "run", "label": "run", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
+         "dim": true, "right": true, "placement": "column"},
+        {"id": "event", "label": "event", "type": "enum", "path": ".event, .tag", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "push"}, {"value": "tag"}, {"value": "schedule"}, {"value": "manual"}, {"value": "pull_request"}],
+         "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "commit", "label": "commit", "type": "ref", "path": ".sha", "renderings": ["text"], "dim": true,
+         "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "renderings": ["text"], "wrap": true,
+         "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "took", "label": "took", "type": "time", "path": ".took", "sort": true, "renderings": ["took", "age"],
+         "right": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "run": {"placement": "hidden"}, "event": {"placement": "hidden"}, "branch": {"placement": "hidden"},
+          "commit": {"placement": "hidden"}, "took": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "releases", "record": ".[]",
+      "fields": [
+        {"id": "version", "label": "version", "type": "text", "path": ".version", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "release", "glyph": "📦"}, {"value": "pre-release", "glyph": "🧪"},
+                    {"value": "draft", "glyph": "📝"}], "other": "📦",
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "latest", "label": "latest", "type": "enum", "path": ".latest", "group": true, "filter": true,
+         "values": [{"value": "latest", "glyph": "⭐"}], "renderings": ["glyph+text", "glyph"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}}}
+      ]
+    }
+  ]
+}

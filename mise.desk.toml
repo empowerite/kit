@@ -1,0 +1,6 @@
+# mise.desk.toml - the tools only a desk runs, read when MISE_ENV=desk; see: mise.toml
+#
+# Lefthook runs the pre-commit hook, and a runner commits nothing.
+
+[tools]
+lefthook = "2.2"

@@ -1,0 +1,21 @@
+# .kit/packages/house/package.yml - the house package: this repository's own taste, kept out of the kit it delivers
+# ----------------------------------------------------------------------------------------------------------------------
+# The kit delivers its style as optional packages, one per kind of file. This repository takes the empowerite bundle,
+# which brings all of them, and this package goes further: it replaces some of their templates, so kit new file
+# makes, and kit lint requires, a line of dashes to column 120 under the banner and at the end of the file. Its
+# style, .kit/styles/house.md, says the rest of that shape. A repository that installs the kit never sees this
+# package.
+#
+# It also delivers this repository's own tree rules, in Rego, for the opa policy engine.
+#
+# It also has Claude Code run this checkout's own kit as its MCP server, by path from the project directory Claude
+# Code names, rather than whichever kit is on the PATH the harness started with: kit/bin is on PATH only where mise
+# has activated the worktree. Coming after agents/claude, its entry wins.
+#
+# see: docs/packages.md, docs/serve.md
+
+description: "This repository's own style and templates, and Claude Code serving this checkout's own kit"
+depends:
+  - empowerite
+  - agents/claude
+  - policy/opa

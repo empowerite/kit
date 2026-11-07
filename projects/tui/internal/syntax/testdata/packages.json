@@ -1,0 +1,130 @@
+{
+  "verb": "packages",
+  "purpose": "lists the packages in reach, and changes which are active",
+  "usage": [
+    "kit packages [--active | --inactive] [--json | --jq] [<package>…]",
+    "kit packages (select | add | remove) <package>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "active",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "inactive",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "package",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "select",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "add",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "remove",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "package",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--active": {
+      "description": "only the active packages"
+    },
+    "--inactive": {
+      "description": "the packages that are not active, excluded ones among them"
+    },
+    "--json": {
+      "description": "one JSON object per package: name, origin, state, and description"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "select": {
+      "description": "makes exactly these, and what they need, the active set"
+    },
+    "add": {
+      "description": "activates the packages, and what they depend on and include"
+    },
+    "remove": {
+      "description": "deactivates the packages; refuses one an active package needs"
+    },
+    "<package>": {
+      "description": "a name, such as style/bash, or a glob, such as 'style/*'",
+      "choices": "closed"
+    }
+  }
+}

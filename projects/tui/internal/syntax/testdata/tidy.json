@@ -1,0 +1,30 @@
+{
+  "verb": "tidy",
+  "purpose": "removes merged worktrees and gone branches",
+  "usage": [
+    "kit tidy [--dry-run]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "dry-run",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--dry-run": {
+      "description": "prints what kit tidy would do, and changes nothing"
+    }
+  }
+}

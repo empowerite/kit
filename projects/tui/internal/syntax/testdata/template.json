@@ -1,0 +1,29 @@
+{
+  "verb": "template",
+  "purpose": "rewrites a template's ASCII holes into guillemets",
+  "usage": [
+    "kit template fix <path>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "literal",
+        "name": "fix",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "path",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "fix": {
+      "description": "rewrites the ASCII holes in each file"
+    },
+    "<path>": {
+      "description": "the template files to rewrite"
+    }
+  }
+}

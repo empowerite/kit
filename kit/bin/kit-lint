@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# kit-lint - runs each rule's linter over the paths it governs (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit lint [--all-files] [<path>…]
+#
+# Runs each rule's checks over the files the rule governs.
+#
+#   <path>…       the files to check; default: the staged files
+#   --all-files   with no paths, every tracked file instead of the staged ones
+#
+# A path is relative to the current directory; a directory stands for the tracked files under it. Each file is
+# matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left out, so
+# no linter runs over a file it cannot parse. Then, for each rule:
+#
+#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is not on PATH
+#     is a failure, not a skip
+#   - each name under `checks:` in the frontmatter runs one of the kit's own checks over the rule's files
+#   - when the rule has templates, each file must have the shape of one of them
+#
+# The kit's own checks are:
+#
+#   - `pinned`: every `uses:` in a workflow names a local action, a docker image, or an action pinned to a full
+#     commit SHA. The version follows as a trailing comment.
+#   - `jq-compiles`: every function a jq module defines compiles, and calls only names that are defined
+#
+# Files under .kit/templates/ are templates, not files of their kind, and are not linted. kit lint needs no hook
+# manager; the hooks/lefthook package runs it from a pre-commit hook.
+#
+# Exits 0 when every rule passes, 1 when any rule refuses, and 2 on a usage error.
+#
+# see: modules/bash/context.sh, modules/bash/lint.sh, modules/bash/template.sh, docs/context.md, docs/templates.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context lint template yaml materialize
+guard:arguments lint "$@" || exit $?
+materialize:hydrate
+
+all=false
+paths=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--) ;;
+    (--all-files) all=true ;;
+    (*) paths+=("${arg}")
+  esac
+done
+# git's lists are root-relative already, and NUL-separated so that a name with a space or a non-ASCII character
+# survives.
+if (( ${#paths[@]} == 0 ))
+then
+  if [[ "${all}" == true ]]
+  then
+    readarray -d '' -t paths < <(git ls-files -z)
+  else
+    readarray -d '' -t paths < <(git diff --cached --name-only --diff-filter=ACMR -z)
+  fi
+else
+  named=("${paths[@]}")
+  paths=()
+  for path in "${named[@]}"
+  do
+    path=$(context:relative "${path}")
+    if [[ -d "${path}" ]]
+    then
+      readarray -d '' -t under < <(git ls-files -z -- "${path}")
+      paths+=("${under[@]}")
+    else
+      paths+=("${path}")
+    fi
+  done
+fi
+if (( ${#paths[@]} == 0 ))
+then
+  ok "nothing to lint"
+  exit 0
+fi
+
+# The paths each rule governs, newline-separated, keyed by the rule file.
+declare -A governed=()
+context:load
+for path in "${paths[@]}"
+do
+  [[ -f "${path}" && ! "${path}" =~ (^|/)\.kit/templates/ ]] || continue
+  while IFS= read -r rule
+  do
+    [[ -n "${rule}" ]] || continue
+    governed[${rule}]+="${path}"$'\n'
+  done < <(context:rules "${path}" --direct)
+done
+
+refused=0
+for rule in $(printf '%s\n' "${!governed[@]}" | LC_ALL=C sort)
+do
+  readarray -t targets < <(printf '%s' "${governed[${rule}]}")
+  if [[ -n "$(template:variants "${rule}")" ]]
+  then
+    held=()
+    while IFS= read -r path
+    do
+      [[ -n "${path}" ]] && ! template:exempt "${path}" && held+=("${path}")
+    done < <(printf '%s' "${governed[${rule}]}")
+    step "${rule}: the shape of its templates over ${#held[@]} path(s)"
+    if (( ${#held[@]} > 0 )) && ! template:check "${rule}" "${held[@]}"
+    then
+      refused=$(( refused + 1 ))
+    fi
+  fi
+  for name in $(yaml:list "${rule}" checks)
+  do
+    if ! declare -F "lint:${name}" >/dev/null
+    then
+      error "${rule} names a check the kit does not have: ${name}; the checks are: $(lint:names | paste -s -d ' ' -)"
+      refused=$(( refused + 1 ))
+      continue
+    fi
+    step "${rule}: the ${name} check over ${#targets[@]} path(s)"
+    "lint:${name}" "${targets[@]}" || refused=$(( refused + 1 ))
+  done
+  linter=$(yaml:value "${rule}" lint)
+  [[ -n "${linter}" ]] || continue
+  read -r -a command <<<"${linter}"
+  step "${rule}: ${linter} over ${#targets[@]} path(s)"
+  if ! guard:require "tool:${command[0]}"
+  then
+    refused=$(( refused + 1 ))
+    continue
+  fi
+  "${command[@]}" "${targets[@]}" || refused=$(( refused + 1 ))
+done
+if (( refused > 0 ))
+then
+  error "${refused} rule(s) refused; see above"
+  exit 1
+fi
+ok "every governed path passes its rule's linter"
+
+# ----------------------------------------------------------------------------------------------------------------------
