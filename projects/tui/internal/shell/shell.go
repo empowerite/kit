@@ -245,6 +245,22 @@ func Box(items []Item, enabled func(int) bool, at int, mark string, glyph, room 
 // are above them, and a ▾ on its bottom edge while items are below.
 func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, room, rows int) (lines []string, left,
 	first int) {
+	return boxIn(items, enabled, at, mark, glyph, room, rows, "")
+}
+
+// BoxColored gives a menu's lines as Box does, its edges and the line under the keyboard in color, a 256-color number,
+// as style.MenuIn draws them, for a menu that belongs to one group.
+func BoxColored(items []Item, enabled func(int) bool, at int, mark string, glyph, room int, color string) (
+	lines []string, left int) {
+	lines, left, _ = boxIn(items, enabled, at, mark, glyph, room, len(items)+2, color)
+	return lines, left
+}
+
+// boxIn gives a menu's lines as BoxIn does, its edges and the line under the keyboard in color, or the menu's own with
+// none.
+func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, room, rows int, color string) (
+	lines []string, left, first int) {
+	edge, under := style.MenuIn(color)
 	shown := len(items)
 	if rows-2 < shown {
 		shown = max(1, rows-2)
@@ -277,18 +293,18 @@ func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		}
 		top = slices.Concat(top[:c], []rune(mark), top[c+cells:])
 	}
-	more := func(edge []rune, glyph rune) string {
+	more := func(line []rune, glyph rune) string {
 		// the mark of more items sits two cells before the right corner, dim, in the edge's color either side
-		if len(edge) < 4 {
-			return style.Menu(string(edge))
+		if len(line) < 4 {
+			return edge(string(line))
 		}
-		k := len(edge) - 3
-		return style.Menu(string(edge[:k])) + style.Off(string(glyph)) + style.Menu(string(edge[k+1:]))
+		k := len(line) - 3
+		return edge(string(line[:k])) + style.Off(string(glyph)) + edge(string(line[k+1:]))
 	}
 	if first > 0 {
 		lines = append(lines, more(top, '▴'))
 	} else {
-		lines = append(lines, style.Menu(string(top)))
+		lines = append(lines, edge(string(top)))
 	}
 	for k, item := range items {
 		if k < first || k >= first+shown {
@@ -297,31 +313,35 @@ func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		text := pane.Pad(" "+pane.Pad(item.Glyph, 2, false)+" "+item.Name+" ", inner, false)
 		switch {
 		case item.Name == "":
-			lines = append(lines, style.Menu("│")+" "+style.Off(strings.Repeat("─", inner-2))+" "+style.Menu("│"))
+			lines = append(lines, edge("│")+" "+style.Off(strings.Repeat("─", inner-2))+" "+edge("│"))
 			continue
 		case !enabled(k):
 			// dim, and never under the keyboard, even when what it acts on changed under an open menu
 			text = style.Off(text)
 		case k == at:
-			text = style.Selected(text)
+			text = under(text)
 		}
-		lines = append(lines, style.Menu("│")+text+style.Menu("│"))
+		lines = append(lines, edge("│")+text+edge("│"))
 	}
 	bottom := []rune("╰" + strings.Repeat("─", inner) + "╯")
 	if first+shown < len(items) {
 		lines = append(lines, more(bottom, '▾'))
 	} else {
-		lines = append(lines, style.Menu(string(bottom)))
+		lines = append(lines, edge(string(bottom)))
 	}
 	return lines, left, first
 }
 
 // Titled gives a box's top edge, so wide, in the menu's color, its title at the left after a dash, clipped to the
 // room, as a dialog's is.
-func Titled(title string, width int) string {
+func Titled(title string, width int) string { return TitledColored(title, width, "") }
+
+// TitledColored gives a box's top edge as Titled does, in color, a 256-color number, as BoxColored draws its edges.
+func TitledColored(title string, width int, color string) string {
+	edge, _ := style.MenuIn(color)
 	inner := width - 2
 	title = ansi.Truncate(title, inner-3, "…")
-	return style.Menu("╭─ " + title + " " + strings.Repeat("─", max(0, inner-3-ansi.StringWidth(title))) + "╮")
+	return edge("╭─ " + title + " " + strings.Repeat("─", max(0, inner-3-ansi.StringWidth(title))) + "╮")
 }
 
 // Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge, around its lines, each a

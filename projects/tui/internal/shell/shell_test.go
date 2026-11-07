@@ -178,6 +178,32 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 		t.Error("too narrow a screen")
 	}
 }
+// A box and a title in a group's color say what the menu's own do, the edges and the line under the keyboard drawn in
+// that color, as style.MenuIn draws them; no color is the menu's own.
+func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
+	items := []Item{{Glyph: "💾", Name: "Save"}, {}, {Name: "Default"}}
+	enabled := func(k int) bool { return items[k].Name != "" }
+	own, left := Box(items, enabled, 2, "", -1, 40)
+	blue, at := BoxColored(items, enabled, 2, "", -1, 40, "75")
+	if plain, _ := BoxColored(items, enabled, 2, "", -1, 40, ""); strings.Join(plain, "\n") != strings.Join(own, "\n") {
+		t.Errorf("no color is not the menu's own:\n%s", strings.Join(plain, "\n"))
+	}
+	edge, under := style.MenuIn("75")
+	if at != left || len(blue) != len(own) || blue[0] != edge(ansi.Strip(blue[0])) ||
+		!strings.Contains(blue[3], "48;5;75") || blue[3] == own[3] || under("x") == style.Selected("x") || strings.Contains(strings.Join(blue, ""), style.Menu("│")) {
+		t.Errorf("the box in 75, at %d:\n%q", at, blue)
+	}
+	for k := range own {
+		if ansi.Strip(blue[k]) != ansi.Strip(own[k]) {
+			t.Errorf("line %d says %q, not %q", k, ansi.Strip(blue[k]), ansi.Strip(own[k]))
+		}
+	}
+	if got := TitledColored("Presets", 20, "75"); ansi.Strip(got) != ansi.Strip(Titled("Presets", 20)) ||
+		got != edge(ansi.Strip(got)) || TitledColored("Presets", 20, "") != Titled("Presets", 20) {
+		t.Errorf("the title in 75: %q", got)
+	}
+}
+
 
 // A dialog is a box with its title on the top edge, a plain bottom edge, its keys being the keys bar's alone, and its
 // lines inside, every line as wide as the others; a line too long for the room is clipped.

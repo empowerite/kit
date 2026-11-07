@@ -63,6 +63,17 @@ func In(color string) (marked, tinted func(string) string) {
 	return func(s string) string { return m.Render(s) }, func(s string) string { return t.Render(s) }
 }
 
+// MenuIn gives Menu and Selected in a color of their own, a 256-color number, for a menu that belongs to one group, as
+// the presets' menu belongs to its tab: the edges bold in it, the line under the keyboard black on it; no color gives
+// Menu and Selected themselves.
+func MenuIn(color string) (edge, under func(string) string) {
+	if color == "" {
+		return Menu, Selected
+	}
+	e, u := menu.Foreground(lipgloss.Color(color)), selected.Background(lipgloss.Color(color))
+	return func(s string) string { return e.Render(s) }, func(s string) string { return u.Render(ansi.Strip(s)) }
+}
+
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }
 

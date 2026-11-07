@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -150,6 +151,11 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	if box, top, left := m.presetBox(); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+PresetsTitle+" ─") ||
 		strings.Contains(box[0], Opening) || top != paneTop || left+ansi.StringWidth(box[0]) != m.dropEnd() {
 		t.Errorf("the menu's title, at %d, %d: %q", top, left, ansi.Strip(box[0]))
+	}
+	// it is in its tab's color, as the selector is, not the menus' own
+	if box, _, _ := m.presetBox(); box[0] != shell.TitledColored(PresetsTitle, ansi.StringWidth(box[0]),
+		stageColors["backlog"]) || strings.Contains(strings.Join(box, ""), style.Menu("│")) {
+		t.Errorf("the menu is not in backlog's color: %q", box)
 	}
 	// the menu is drawn, under the line, whole
 	if drawn := raw(m); !strings.Contains(drawn, SaveAs) || !strings.Contains(drawn, "Compact") {

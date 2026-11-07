@@ -40,6 +40,19 @@ func TestTheLineSelectedInAMenuStandsOnTheMenusColor(t *testing.T) {
 	}
 }
 
+// A menu in a group's color draws its edges and the line under the keyboard in that color, the text kept; no color
+// draws them as the menu's own.
+func TestAMenuInAGroupsColorDrawsInIt(t *testing.T) {
+	edge, under := MenuIn("114")
+	if ansi.Strip(edge("╭─╮")) != "╭─╮" || edge("╭─╮") == Menu("╭─╮") || ansi.Strip(under(Off("Save"))) != "Save" ||
+		under("Save") == Selected("Save") || under(Off("Save")) != under("Save") {
+		t.Errorf("in 114: %q, %q", edge("╭─╮"), under(Off("Save")))
+	}
+	if own, sel := MenuIn(""); own("╭─╮") != Menu("╭─╮") || sel("Save") != Selected("Save") {
+		t.Error("no color is not the menu's own")
+	}
+}
+
 // A band keeps the line's text and styles, pads it to the width, and opens the band again after each style ends.
 func TestABandRunsTheWholeLine(t *testing.T) {
 	line := "#45 " + Off("2h") + " title"
