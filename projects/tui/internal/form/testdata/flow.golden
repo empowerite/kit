@@ -8,6 +8,9 @@
    --quota                   prints the caller's rate limits on the primary's forge, as one JSON
                              array: each forge's {forge, limits}, each limit {name, limit,
                              remaining, reset}; reading them costs a request at most
+   --marks                   prints a mark per stage, as one JSON object, which changes when what
+                             the stage draws does: read again, a mark that differs says the stage is
+                             stale; on GitHub, nothing changed costs no request
    backlog                   the open issues not closed by any open pull request, oldest first;
                              underway has the rest
    underway                  the open issues closed by an open pull request: who works on each, and

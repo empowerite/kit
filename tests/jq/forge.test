@@ -113,6 +113,12 @@ import "forge" as forge; [.[] | forge::gitlab_quota]
 ["HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRATELIMIT-NAME: throttle_authenticated_api\r\nratelimit-remaining: 7\r\nRatelimit-Reset: 1000060\r\n\r\n{}", "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: 600\nRatelimit-Remaining: 599\n\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: lots\nRatelimit-Remaining: 9\n\n{}"]
 [{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
 
+# GitLab's marks are what its newest items say of when they changed: the issue and the merge request updated last
+# together, the pipelines' ids, states, and updates, and the release's tag and time; none says an empty list.
+import "forge" as forge; forge::gitlab_marks([{"iid": 7, "updated_at": "a", "title": "x"}]; [{"iid": 3, "updated_at": "b"}]; [{"id": 11, "status": "running", "updated_at": "c"}]; [])
+null
+{"issues":"[[7,\"a\"],[3,\"b\"]]","runs":"[[11,\"running\",\"c\"]]","releases":"[]"}
+
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and
 # color, the age in seconds, and the organization and the repository their url names, or null without one.
 import "forge" as forge; forge::github_issues(1000000)

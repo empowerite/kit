@@ -42,6 +42,9 @@
 #   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
+#   marks [<dir>]                 one JSON object, a mark for each kind of the repository's data, issues (with the
+#                                 changes), runs, and releases, each a text that changes when that data does, read
+#                                 cheaply; with <dir>, what makes the next read cheaper is kept there
 #   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
 #                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
 #                                 at most one request
@@ -250,6 +253,14 @@ forge:repo()                { forge:call repo "$@"; }
 forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
 forge:quota()               { forge:call quota "$@"; }
+
+# forge:marks prints the forge's marks, as the seam's header says, keeping what makes the next read cheaper beside the
+# snapshots, or nowhere when they have no place.
+forge:marks() {
+  local dir=''
+  dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''
+  forge:call marks "${dir}"
+}
 forge:noun()                { forge:call noun "$@"; }
 forge:pr-url()              { forge:call pr-url "$@"; }
 forge:issue-create()        { forge:changing issue-create "$@"; }

@@ -96,6 +96,26 @@ forge/gitlab:link-branch() {
   forge/gitlab:api repository/branches --method POST --raw-field "branch=$1-${slug}" --raw-field "ref=$2" >/dev/null
 }
 
+# forge/gitlab:marks [<dir>] reads, for each kind of the project's data, a mark that changes when it does: issues, of
+# the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release.
+# GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and costs a request
+# each read, four in all.
+forge/gitlab:marks() {
+  local issues mrs runs releases
+  if ! issues=$(forge/gitlab:api "issues?order_by=updated_at&sort=desc&per_page=1" 2>/dev/null) \
+    || ! mrs=$(forge/gitlab:api "merge_requests?order_by=updated_at&sort=desc&per_page=1" 2>/dev/null) \
+    || ! runs=$(forge/gitlab:api "pipelines?per_page=10" 2>/dev/null) \
+    || ! releases=$(forge/gitlab:api "releases?per_page=1" 2>/dev/null)
+  then
+    error "run: glab auth status (the marks could not be read)"
+    return 1
+  fi
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
+    --argjson runs "${runs}" --argjson releases "${releases}" \
+    'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases)'
+}
+
 forge/gitlab:me() {
   glab api user 2>/dev/null | jq --raw-output '.username' && return 0
   error "run: glab auth login (the GitLab CLI is not authenticated)"
@@ -103,17 +123,6 @@ forge/gitlab:me() {
 }
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
-
-# forge/gitlab:quota reads the caller's user, one request, for the RateLimit headers GitLab sends with every answer:
-# the limit that throttles the caller, by name, what is left of it, and when it resets. A GitLab that sends none has
-# no limit to show.
-forge/gitlab:quota() {
-  local answer
-  answer=$(glab api --include user 2>/dev/null) \
-    || { error "run: glab auth status (the rate limits could not be read)"; return 1; }
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --raw-input --slurp --compact-output 'import "forge" as forge; forge::gitlab_quota' <<<"${answer}"
-}
 
 # forge/gitlab:open-issues prints one document per open issue, oldest first, as the seam's header says. GitLab gives
 # each label's color only with its details.
@@ -242,6 +251,17 @@ forge/gitlab:pr-title() {
 }
 
 forge/gitlab:pr-url() { printf '%s/-/merge_requests/%s\n' "$(forge/gitlab:repo-url)" "$1"; }
+
+# forge/gitlab:quota reads the caller's user, one request, for the RateLimit headers GitLab sends with every answer:
+# the limit that throttles the caller, by name, what is left of it, and when it resets. A GitLab that sends none has
+# no limit to show.
+forge/gitlab:quota() {
+  local answer
+  answer=$(glab api --include user 2>/dev/null) \
+    || { error "run: glab auth status (the rate limits could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --raw-input --slurp --compact-output 'import "forge" as forge; forge::gitlab_quota' <<<"${answer}"
+}
 
 # forge/gitlab:releases prints one document per release, newest first, as the seam's header says.
 forge/gitlab:releases() {

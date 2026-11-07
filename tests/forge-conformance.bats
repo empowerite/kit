@@ -456,6 +456,51 @@ JSON
   [ "$output" = '{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":1998,"reset":1800000060}]}' ]
 }
 
+@test "every provider reads a mark of each kind of its data, and GitHub's marks cost nothing while nothing changed" {
+  printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i1 > "${FAKE_DIR}/issues-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n{}\n' r1 > "${FAKE_DIR}/runs-200.txt"
+  printf 'HTTP/2.0 200 OK\r\netag: W/"%s"\r\n\r\n[]\n' v1 > "${FAKE_DIR}/releases-200.txt"
+  printf 'HTTP/2.0 304 Not Modified\r\n\r\n' > "${FAKE_DIR}/304.txt"
+  world github
+  route gh 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*' '!1 >304.txt'
+  route gh 'api --include --header If-None-Match: W/"r1" repos/{owner}/{repo}/actions/runs*' '!1 >304.txt'
+  route gh 'api --include repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' issues-200.txt
+  route gh 'api --include repos/{owner}/{repo}/actions/runs?per_page=10' runs-200.txt
+  route gh 'api --include*repos/{owner}/{repo}/releases?per_page=1' releases-200.txt
+  run call marks
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\""}' ]
+  # the second read sends each ETag kept, and a 304 keeps the mark
+  : > "${FAKE_DIR}/gh.calls"
+  run call marks
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\""}' ]
+  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 3 ]
+  # a change gives a new ETag, which is the new mark
+  printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i2 > "${FAKE_DIR}/issues-200.txt"
+  printf '%s\n' 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*'$'\t''issues-200.txt' \
+    > "${FAKE_DIR}/routes.tmp" && grep --invert-match --fixed-strings 'W/"i1"' "${FAKE_DIR}/gh.routes" \
+    >> "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+  [ "$(call marks | jq --raw-output .issues)" = 'W/"i2"' ]
+  # GitLab's marks say what its newest items say of when they changed
+  world gitlab
+  local p='projects/empowerite%2Fexample'
+  fixture gl-issues.json <<<'[{"iid": 7, "updated_at": "2026-11-01T09:00:00.000Z"}]'
+  fixture gl-mrs.json <<<'[{"iid": 3, "updated_at": "2026-11-02T09:00:00.000Z"}]'
+  fixture gl-pipelines.json <<<'[{"id": 11, "status": "success", "updated_at": "2026-11-03T09:00:00.000Z"}]'
+  fixture gl-releases.json <<<'[{"tag_name": "v1", "released_at": "2026-11-04T09:00:00.000Z"}]'
+  route glab "api ${p}/issues?order_by=updated_at&sort=desc&per_page=1" gl-issues.json
+  route glab "api ${p}/merge_requests?order_by=updated_at&sort=desc&per_page=1" gl-mrs.json
+  route glab "api ${p}/pipelines?per_page=10" gl-pipelines.json
+  route glab "api ${p}/releases?per_page=1" gl-releases.json
+  run call marks
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '.issues, .runs, .releases' <<<"$output")" = \
+    '[[7,"2026-11-01T09:00:00.000Z"],[3,"2026-11-02T09:00:00.000Z"]]
+[[11,"success","2026-11-03T09:00:00.000Z"]]
+[["v1","2026-11-04T09:00:00.000Z"]]' ]
+}
+
 @test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
   world github
   route gh 'api rate_limit' '!1'

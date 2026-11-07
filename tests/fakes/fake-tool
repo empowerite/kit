@@ -4,8 +4,10 @@
 # Linked as gh or glab on PATH. Every call is appended to ${FAKE_DIR}/<tool>.calls. The response is the first line
 # of ${FAKE_DIR}/<tool>.routes whose glob matches the arguments joined by spaces: "<glob>\t<file>", the file's
 # contents printed, or "<glob>\t!<status>" to fail with that status, or "<glob>\t!<status> <file>" to fail with it
-# after printing the file on stderr, as a tool says why it failed. A gh call carrying --jq has the filter applied
-# to the response, as gh does, so the provider's own filter is what is tested. An unrouted call fails.
+# after printing the file on stderr, as a tool says why it failed, or "<glob>\t!<status> ><file>" to fail with it after
+# printing the file on stdout, as gh prints a 304's headers with --include and still exits 1. A gh call carrying --jq
+# has the filter applied to the response, as gh does, so the provider's own filter is what is tested. An unrouted
+# call fails.
 #
 # As gh does, the fake colors an unfiltered response when CLICOLOR_FORCE is set to other than 0 or GH_FORCE_TTY is set:
 # it wraps the response in a color and its reset. A provider that lets a desk's forcing reach its tool is caught by
@@ -29,7 +31,10 @@ do
   if [[ "${response}" == '!'* ]]
   then
     response=${response#!}
-    [[ "${response}" != *' '* ]] || cat "${FAKE_DIR}/${response#* }" >&2
+    case "${response}" in
+      (*' >'*) cat "${FAKE_DIR}/${response#* >}" ;;
+      (*' '*) cat "${FAKE_DIR}/${response#* }" >&2 ;;
+    esac
     exit "${response%% *}"
   fi
   if [[ -n "${filter}" ]]

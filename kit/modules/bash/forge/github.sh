@@ -73,6 +73,23 @@ forge/github:link-branch() {
   gh issue develop "$1" --base "$2" >/dev/null
 }
 
+# forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
+# of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
+# releases, of the newest release. A mark is GitHub's ETag for the answer. With <dir>, each ETag is kept there and the
+# next read sends it, so GitHub answers 304 Not Modified while nothing changed, which counts against no rate limit.
+# gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
+forge/github:marks() {
+  local dir=${1:-} issues runs releases
+  issues=$(forge/github:mark 'repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' \
+    "${dir:+${dir}/marks-issues.etag}") || return 1
+  runs=$(forge/github:mark 'repos/{owner}/{repo}/actions/runs?per_page=10' "${dir:+${dir}/marks-runs.etag}") \
+    || return 1
+  releases=$(forge/github:mark 'repos/{owner}/{repo}/releases?per_page=1' "${dir:+${dir}/marks-releases.etag}") \
+    || return 1
+  jq --null-input --compact-output --arg issues "${issues}" --arg runs "${runs}" --arg releases "${releases}" \
+    '{issues: $issues, runs: $runs, releases: $releases}'
+}
+
 forge/github:me() {
   local login said
   file:temp said gh || return 1
@@ -87,15 +104,6 @@ forge/github:me() {
 }
 
 forge/github:noun() { printf '#\tpull request\n'; }
-
-# forge/github:quota reads the rate_limit endpoint, which no limit counts, and keeps the two kit spends: GraphQL's
-# points and REST's requests.
-forge/github:quota() {
-  local limits
-  forge/github:ask limits 'the rate limits' api rate_limit || return 1
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output 'import "forge" as forge; forge::github_quota' <<<"${limits}"
-}
 
 # forge/github:open-issues prints one document per open issue, oldest first, as the seam's header says. gh issue list
 # answers with issues alone, never pull requests.
@@ -235,6 +243,15 @@ forge/github:pr-title() {
 
 forge/github:pr-url() { printf '%s/pull/%s\n' "$(forge/github:repo-url)" "$1"; }
 
+# forge/github:quota reads the rate_limit endpoint, which no limit counts, and keeps the two kit spends: GraphQL's
+# points and REST's requests.
+forge/github:quota() {
+  local limits
+  forge/github:ask limits 'the rate limits' api rate_limit || return 1
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output 'import "forge" as forge; forge::github_quota' <<<"${limits}"
+}
+
 # forge/github:releases prints one document per release, newest first, as the seam's header says.
 forge/github:releases() {
   local answer
@@ -287,6 +304,34 @@ forge/github:runs() {
 }
 
 # The seam's calls end here; what follows is this provider's own.
+
+# forge/github:mark <path> [<file>] prints the ETag of GitHub's answer for <path>: the one kept in <file> when GitHub
+# answers 304 Not Modified to it, else the new one, which it keeps there. gh exits 1 on a 304, so the answer's status
+# line says what came back. An answer that is neither fails.
+forge/github:mark() {
+  local path=$1 file=${2:-} etag='' answer status
+  local -a header=()
+  [[ -z "${file}" || ! -f "${file}" ]] || etag=$(<"${file}")
+  [[ -z "${etag}" ]] || header=(--header "If-None-Match: ${etag}")
+  answer=$(gh api --include "${header[@]}" "${path}" 2>/dev/null) || true
+  status=$(sed -n '1s@^HTTP/[0-9.]* \([0-9]*\).*@\1@p' <<<"${answer}")
+  case "${status}" in
+    (304) printf '%s\n' "${etag}" ;;
+    (200)
+      etag=$(tr -d '\r' <<<"${answer}" | sed -n 's/^[Ee][Tt][Aa][Gg]: *//p' | head -n 1)
+      if [[ -z "${etag}" ]]
+      then
+        error "run: gh auth status (GitHub gave no ETag for ${path})"
+        return 1
+      fi
+      [[ -z "${file}" ]] || file:replace "${file}" printf '%s\n' "${etag}" || true
+      printf '%s\n' "${etag}"
+      ;;
+    (*)
+      error "run: gh auth status (the marks could not be read)"
+      return 1
+  esac
+}
 
 # forge/github:ask <name> <what> <gh argument>… runs gh and puts what it printed in the variable <name>. When gh
 # fails, it says why, as forge/github:limited does, or else names gh auth status, for <what>, and returns 1.

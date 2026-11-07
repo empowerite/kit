@@ -47,6 +47,8 @@
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
 #                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: read
+#                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
 #   backlog             the open issues not closed by any open pull request, oldest first; underway has the rest
@@ -65,6 +67,8 @@
 # kit flow --me
 #
 # kit flow --quota
+#
+# kit flow --marks
 #
 # kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
@@ -235,6 +239,13 @@ if [[ -n "${syntax_options[--me]+x}" ]]
 then
   use forge
   forge:me || exit $?
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--marks]+x}" ]]
+then
+  use marks
+  marks:stages || exit $?
   exit 0
 fi
 

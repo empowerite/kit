@@ -168,6 +168,14 @@ def gitlab_quota:
                else [{name: ($h.name // "api"), limit: $limit, remaining: $remaining,
                       reset: ($h.reset // "" | number)}] end) };
 
+# gitlab_marks($issues; $mrs; $runs; $releases) reads GitLab's newest issue and merge request by update, its ten newest
+# pipelines, and its newest release, and gives a mark of each kind: what each says of its items and when they changed,
+# as one text, so a mark changes when one of them does.
+def gitlab_marks($issues; $mrs; $runs; $releases):
+  { issues: ([$issues[]?, $mrs[]? | [.iid, .updated_at]] | tojson),
+    runs: ([$runs[]? | [.id, .status, .updated_at]] | tojson),
+    releases: ([$releases[]? | [.tag_name, .released_at]] | tojson) };
+
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
   map({ name,

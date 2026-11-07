@@ -6,6 +6,7 @@
     "kit flow --stages",
     "kit flow --me",
     "kit flow --quota",
+    "kit flow --marks",
     "kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow incoming [--no-fetch] [--json | --jq] [--cached]",
@@ -152,6 +153,13 @@
       {
         "kind": "flag",
         "name": "quota",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "marks",
         "repeat": false
       }
     ],
@@ -795,6 +803,9 @@
     },
     "--quota": {
       "description": "prints the caller's rate limits on the primary's forge, as one JSON array: each forge's {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most"
+    },
+    "--marks": {
+      "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: read again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request"
     },
     "--today": {
       "description": "only the issues opened in the last 24 hours"

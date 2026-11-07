@@ -602,6 +602,34 @@ fake-tui() {
   [[ "$output" == *"--cached prints a stage's JSON"* ]]
 }
 
+@test "kit flow --marks gives each stage a mark that changes when what it draws does, and none a stage it cannot read" {
+  marks() { "${kit_root}/bin/kit" flow --marks; }
+  run marks
+  [ "$status" -eq 0 ]
+  first=$output
+  # every stage the picture draws has a mark, or null; origin here has no forge
+  [ "$(jq --compact-output 'keys' <<<"${first}")" \
+    = '["backlog","builds","changes","desk","incoming","releases","underway","worktrees"]' ]
+  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"${first}")" = '[null,null,null,null,null]' ]
+  [ "$(jq '[.desk, .worktrees, .incoming] | all(type == "string")' <<<"${first}")" = true ]
+  # nothing changed, nothing moves
+  [ "$(marks)" = "${first}" ]
+  # a path changed on the desk moves the desk's mark alone
+  printf 'x\n' > c
+  second=$(marks)
+  [ "$(jq -r .desk <<<"${second}")" != "$(jq -r .desk <<<"${first}")" ]
+  [ "$(jq -c '[.worktrees, .incoming]' <<<"${second}")" = "$(jq -c '[.worktrees, .incoming]' <<<"${first}")" ]
+  # a worktree added moves the worktrees' mark
+  git worktree add --quiet worktrees/7-topic -b 7-topic
+  third=$(marks)
+  [ "$(jq -r .worktrees <<<"${third}")" != "$(jq -r .worktrees <<<"${second}")" ]
+  # a push to origin from elsewhere moves incoming's, before any fetch
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  commits-in ../other 1
+  git -C ../other push --quiet origin main
+  [ "$(jq -r .incoming <<<"$(marks)")" != "$(jq -r .incoming <<<"${third}")" ]
+}
+
 @test "the worktrees stage ends with the branches whose upstream is gone, in text and as goneBranches" {
   git push --quiet origin main:gone-soon
   git fetch --quiet origin
