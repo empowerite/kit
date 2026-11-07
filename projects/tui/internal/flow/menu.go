@@ -35,16 +35,16 @@ const (
 	Sweep    = "🧹"
 )
 
-// tabItems gives the tab's menu's lines, top to bottom: the tab maximized, or restored once it is, the stage loaded
-// again, and watched, or no longer, as watch.go says, a rule, the outline expanded, collapsed, and collapsed but for the selection, as folds names them, a rule,
-// every row selected and none, a rule, and what acts on the rows selected: on backlog, the actions there, then each
-// one's page opened.
+// tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go
+// says; the tab maximized, or restored once it is; a rule; the outline expanded, collapsed, and collapsed but for the
+// selection, as folds names them; a rule; every row selected and none; a rule; and what acts on the rows selected: on
+// backlog, the actions there, then each one's page opened.
 func (m Model) tabItems() []shell.Item {
 	size := shell.Item{Glyph: Maximize, Name: "Maximize"}
 	if m.maximized {
 		size = shell.Item{Glyph: Restore, Name: "Restore"}
 	}
-	items := append([]shell.Item{size, {Glyph: Reload, Name: "Refresh"}, m.watchItem(m.stage), {}}, m.folds()...)
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, m.watchItem(m.stage), size, {}}, m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})

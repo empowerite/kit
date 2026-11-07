@@ -17,21 +17,26 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// maximize gives the screen with the tab's menu's first item chosen: Maximize, or Restore once maximized.
+// maximize gives the screen with the tab's menu's Maximize chosen, or Restore once maximized: the keyboard moves down
+// to it from Refresh, where the menu opens, past Watch.
 func maximize(t *testing.T, m Model) Model {
 	t.Helper()
 	m = drive(m, press(':'))
-	if name := m.tabItems()[0].Name; name != "Maximize" && name != "Restore" || m.menuAt != 0 {
-		t.Fatalf("the tab's menu starts with %q, the keyboard on %d", name, m.menuAt)
+	for range 3 {
+		if name := m.tabItems()[m.menuAt].Name; name == "Maximize" || name == "Restore" {
+			return drive(m, press(tea.KeyEnter))
+		}
+		m = drive(m, press(tea.KeyDown))
 	}
-	return drive(m, press(tea.KeyEnter))
+	t.Fatalf("no Maximize or Restore in the tab's menu's first section: %+v", m.tabItems()[:4])
+	return m
 }
 
-func TestTheTabsMenuStartsWithMaximizeThenRestore(t *testing.T) {
+func TestTheTabsMenusFirstSectionIsRefreshWatchAndMaximize(t *testing.T) {
 	m := drive(loaded(t, viewing("")), press(':'))
-	if got := m.tabItems()[:4]; got[0].Glyph != Maximize || got[0].Name != "Maximize" || got[1].Name != "Refresh" ||
-		got[2].Name != WatchIt || got[3].Name != "" || !m.enabled(0) {
-		t.Fatalf("the tab's menu's first section: %+v", got)
+	if got := m.tabItems()[:4]; got[0].Name != "Refresh" || got[1].Name != WatchIt || got[2].Glyph != Maximize ||
+		got[2].Name != "Maximize" || got[3].Name != "" || !m.enabled(2) || m.menuAt != 0 {
+		t.Fatalf("the tab's menu's first section: %+v, the keyboard on %d", got, m.menuAt)
 	}
 	if ansi.StringWidth(Maximize) != 1 || ansi.StringWidth(Restore) != 1 || ansi.StringWidth(Banner) != 1 {
 		t.Errorf("a glyph is not one cell: %q %q %q", Maximize, Restore, Banner)
@@ -39,8 +44,8 @@ func TestTheTabsMenuStartsWithMaximizeThenRestore(t *testing.T) {
 	if m = maximize(t, loaded(t, viewing(""))); !m.maximized || m.menu {
 		t.Fatalf("Maximize: maximized %v, menu %v", m.maximized, m.menu)
 	}
-	if m = drive(m, press(':')); m.tabItems()[0].Glyph != Restore || m.tabItems()[0].Name != "Restore" {
-		t.Errorf("maximized, the tab's menu starts with %+v", m.tabItems()[0])
+	if m = drive(m, press(':')); m.tabItems()[2].Glyph != Restore || m.tabItems()[2].Name != "Restore" {
+		t.Errorf("maximized, the tab's menu's third item is %+v", m.tabItems()[2])
 	}
 }
 
@@ -151,11 +156,12 @@ func TestClicksFollowTheTop(t *testing.T) {
 	}
 	if box, left := m.menuBox(); left != glyph-2 || m.menuTop() != 0 ||
 		ansi.Cut(lines(m)[0], glyph-1, glyph+2) != "╴"+tabs.Menu+"╶" ||
-		!strings.Contains(ansi.Strip(box[1]), Restore+"  Restore") {
+		!strings.Contains(ansi.Strip(box[3]), Restore+"  Restore") {
 		t.Errorf("the menu hangs at %d from %d:\n%s", left, glyph, raw(m))
 	}
 	_, left := m.menuBox()
-	if m = drive(m, testkit.Click(left+3, 1)); m.maximized || m.menu {
+	// Restore is the menu's third line, after Refresh and Watch, under its top edge on the title's line
+	if m = drive(m, testkit.Click(left+3, 3)); m.maximized || m.menu {
 		t.Errorf("a click on Restore: maximized %v, menu %v", m.maximized, m.menu)
 	}
 }

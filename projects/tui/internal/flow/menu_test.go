@@ -36,13 +36,13 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
-	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on maximize, refresh after
-	// it, and collapse all, with no row open, is dim; Fields… is the presets' menu's, not this one's
+	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, watch and maximize
+	// after it, and collapse all, with no row open, is dim; Fields… is the presets' menu's, not this one's
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[m.menuTop()], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
-		!strings.Contains(box[1], " "+Maximize+"  Maximize") || !strings.Contains(box[2], " "+Reload+" Refresh") ||
-		!strings.Contains(box[3], " "+Unwatched+" Watch") ||
+		!strings.Contains(box[1], " "+Reload+" Refresh") || !strings.Contains(box[2], " "+Unwatched+" Watch") ||
+		!strings.Contains(box[3], " "+Maximize+"  Maximize") ||
 		strings.Contains(view(m), FieldsIt) ||
 		!strings.Contains(box[6], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
