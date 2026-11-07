@@ -3,7 +3,7 @@
     🎫 backlog     3  │ 🛫 underway   4 ⋮ │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds      ▹
   ────────────────────╯                   ╰────────────────╰─────────────────────╰───────────────────╰──────────────────
       id  assignees         age  change  state             where     fork    pushed  by  labels  title                ◫
-   ────────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
+   ──────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
  ▾ github source  4
    ▾  #1  jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here              60m      2       🎫 The first release, 
                                                                                                     v0.1.0: the kit    

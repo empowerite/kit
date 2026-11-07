@@ -19,7 +19,6 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
-	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -40,6 +39,10 @@ func presetText(m Model) string {
 	return strings.TrimRight(regexp.MustCompile(` ?─+ ?`).ReplaceAllString(line, " "), " ")
 }
 
+// selector gives the preset line's selector as the screen draws it, without its escapes: the name and Presets between
+// the pill's half circles.
+func selector(name string) string { return capLeft + name + " " + Presets + capRight }
+
 // shown gives the columns a stage's panel shows.
 func shownNow(m Model) []string { return m.shownColumns(m.stage) }
 
@@ -50,14 +53,14 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // the pane's first line, the line under them names the view, and the rows start under it.
 func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != "   Default "+Presets || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
+	if got := presetText(m); got != "   "+selector(Opening) || m.presetTop() != paneTop+1 || m.rowsTop() != paneTop+2 ||
 		!strings.Contains(lines(m)[paneTop], "assignees") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected
 	m.stages[0].picked[m.rows(0)[1].Key] = true
 	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "   ─") ||
-		!strings.HasSuffix(got, "─ 1 selected ─ Default ▼") {
+		!strings.HasSuffix(got, "─ 1 selected ─ "+selector(Opening)) {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].picked = map[string]bool{}
@@ -122,7 +125,7 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 func TestAChipStandsForEachFilter(t *testing.T) {
 	m := onDropdown(t, "")
 	m.setPanel(m.panel(0).Shown(grid.Mine))
-	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, "@me  Default "+Presets) {
+	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, "@me  "+selector(Opening)) {
 		t.Errorf("mine: %q", got)
 	}
 	m.setPanel(m.panel(0).Shown(grid.Others))
@@ -131,7 +134,7 @@ func TestAChipStandsForEachFilter(t *testing.T) {
 	}
 	// too narrow, the chips are clipped before the selector is
 	m = drive(m, tea.WindowSizeMsg{Width: 30, Height: 40})
-	if got := presetText(m); !strings.HasSuffix(got, " "+Presets) || ansi.StringWidth(got) > m.paneWidth() {
+	if got := presetText(m); !strings.HasSuffix(got, " "+Presets+capRight) || ansi.StringWidth(got) > m.paneWidth() {
 		t.Errorf("narrow: %q", got)
 	}
 }
@@ -164,21 +167,21 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	m = drive(m, down, press(tea.KeyEnter))
 	if m.presetMenu || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
-		presetText(m) != "   Compact "+Presets {
+		presetText(m) != "   "+selector("Compact") {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
 	// a column shown again differs from every view: the line names the one it was set to, in italics
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	color := stageColors["backlog"]
-	if got := presetText(m); m.is(0) != "" || got != "   Compact "+Presets ||
-		!strings.Contains(m.rule(), style.Named("Compact", color, true, true)) {
+	if got := presetText(m); m.is(0) != "" || got != "   "+selector("Compact") ||
+		!strings.Contains(m.rule(), selectorPill("Compact", selectorFocus, true)) {
 		t.Errorf("a change does not italicize the view: %q", got)
 	}
-	if m.onPreset = false; !strings.Contains(m.rule(), style.Named("Compact", color, true, false)) {
-		t.Errorf("off the line, the view is not in italics, in the tab's color: %q", m.rule())
+	if m.onPreset = false; !strings.Contains(m.rule(), selectorPill("Compact", color, true)) {
+		t.Errorf("off the line, the view is not in italics, on the tab's color: %q", m.rule())
 	}
 	m.onPreset = true
-	if m.dropEnd() != m.dropStart()+len("Compact ")+1 || m.dropStart() < m.paneWidth()/2 {
+	if m.dropEnd() != m.dropStart()+ansi.StringWidth(selector("Compact")) || m.dropStart() < m.paneWidth()/2 {
 		t.Errorf("▼ from %d to %d", m.dropStart(), m.dropEnd())
 	}
 	// a stage's own view is never saved over, renamed, or deleted: those lines are dim
@@ -204,12 +207,12 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	if last := keysOf(m); !strings.Contains(last, "Compact is the stage's own and does not change") || m.is(0) != "" {
 		t.Errorf("save over Compact: %q", last)
 	}
-	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   Compact "+Presets {
+	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   "+selector("Compact") {
 		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
 	}
 	// the table set as another view names that one
 	m.setPanel(m.builtins(0)[0].panel(fieldsOf("backlog"), m.panel(0)))
-	if got := presetText(m); got != "   Default "+Presets {
+	if got := presetText(m); got != "   "+selector(Opening) {
 		t.Errorf("the table as Default: %q", got)
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
@@ -248,7 +251,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	m = drive(m, press(tea.KeyEnter))
 	if last := keysOf(m); !strings.Contains(last, "saved the preset Triage") || m.stages[0].viewName != "Triage" ||
-		m.stages[0].savingAs || !strings.HasSuffix(presetText(m), "assignees: ¬@me  Triage "+Presets) {
+		m.stages[0].savingAs || !strings.HasSuffix(presetText(m), "assignees: ¬@me  "+selector("Triage")) {
 		t.Fatalf("save: %q, view %q, %q", last, m.stages[0].viewName, presetText(m))
 	}
 	data, err := os.ReadFile(file)
@@ -660,7 +663,7 @@ func TestThePresetLineIsTheTabsColorAndWaitsForTheRows(t *testing.T) {
 		t.Errorf("while backlog loads: header %q, preset line %v\n%s", lines, m.presets(0), view(m))
 	}
 	m = loaded(t, viewing(""))
-	if !m.presets(0) || !strings.Contains(m.rule(), style.Named(Opening, stageColors["backlog"], false, false)+" "+Presets) {
+	if !m.presets(0) || !strings.Contains(m.rule(), selectorPill(Opening, stageColors["backlog"], false)) {
 		t.Errorf("backlog's preset line: %q", m.rule())
 	}
 }

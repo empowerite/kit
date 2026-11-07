@@ -3,7 +3,7 @@
   way     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 b ▹
   ──────────╰────────────────╰──────────────────────╯                  ╰────────
    change  title         author   state  age  checks  threads  labels  branch ◫
-   ────────────────────────────────────────────────────────────────── Default ▼
+   ──────────────────────────────────────────────────────────────── Default ▼
  ▾ 🔀 #2   The first     jeffrey  🏁      8d  ✅               1       1-the-  
            release,      -                                             first-  
            v0.1.0        aguiler                                       release-

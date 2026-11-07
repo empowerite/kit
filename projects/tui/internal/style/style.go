@@ -63,17 +63,6 @@ func In(color string) (marked, tinted func(string) string) {
 	return func(s string) string { return m.Render(s) }, func(s string) string { return t.Render(s) }
 }
 
-// Named draws a name that belongs to a group, as the preset a tab is set as: as In's Mark draws it, bold in the group's
-// color, a 256-color number, or the accent with none; italic where it no longer quite holds; and inverse while it is
-// under the cursor.
-func Named(s, color string, italic, under bool) string {
-	st := mark
-	if color != "" {
-		st = st.Foreground(lipgloss.Color(color))
-	}
-	return st.Italic(italic).Reverse(under).Render(s)
-}
-
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }
 

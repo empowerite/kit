@@ -11,6 +11,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
@@ -485,8 +486,9 @@ func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetL
 // presetLine gives the preset's selector, at the right end of the rule under the table's header: the name of the
 // preset the table is set as, and Presets; once the table differs from every preset, the name of the one it was last
 // set to, in italics, as a hint it has left it; or, while a name is typed for Save As… or Rename…, the name with a
-// caret after a dim "save as" or "rename", once the line has the keyboard. The name is in its tab's color, as the tab's
-// own is, the preset being the tab's; the selector is inverse while the line has the keyboard.
+// caret after a dim "save as" or "rename", once the line has the keyboard. The selector is a pill, as a label is: bold
+// black on its tab's color, the preset being the tab's, between half circles in that color; on the menus' bright cyan
+// while the line has the keyboard, as the line under the keyboard in a menu is.
 func (m Model) presetLine() string {
 	on := m.onPreset && !m.inPanel
 	if st := m.stages[m.stage]; on && st.savingAs {
@@ -496,15 +498,26 @@ func (m Model) presetLine() string {
 		}
 		return style.Off(label) + " " + st.naming + "▏"
 	}
-	color, rest := stageColors[m.stages[m.stage].name], " "+Presets
+	back := stageColors[m.stages[m.stage].name]
 	if on {
-		rest = style.Cursor(rest)
+		back = selectorFocus
 	}
 	if is := m.is(m.stage); is != "" {
-		return style.Named(is, color, false, on) + rest
+		return selectorPill(is, back, false)
 	}
-	return style.Named(m.chosen(m.stage).Name, color, true, on) + rest
+	return selectorPill(m.chosen(m.stage).Name, back, true)
 }
+
+// selectorPill draws the preset line's selector: the preset's name, in italics or not, and Presets, bold black on
+// back, between half circles in back.
+func selectorPill(name, back string, italic bool) string {
+	text := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(back))
+	return end(capLeft, back) + text.Italic(italic).Render(name) + text.Render(" "+Presets) + end(capRight, back)
+}
+
+// selectorFocus is the color the preset line's selector is drawn on while the line has the keyboard: the menus' bright
+// cyan.
+const selectorFocus = "14"
 
 // chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the
 // values it lets through, or, ¬ before each, those it holds back, in the accent.

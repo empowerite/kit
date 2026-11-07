@@ -41,8 +41,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   and leaves the old file as it is.
   - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
     rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
-    set as and ▼, the name in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or
-    a click on it drops down ◫ Columns…, the columns dialog, then Save, Save As…, Rename…, Delete, and the presets.
+    set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
+    name is in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on it
+    drops down ◫ Columns…, the columns dialog, then Save, Save As…, Rename…, Delete, and the presets.
     Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and ⏎
     saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line was
     set to, and are dim on Default and Compact. What was done is said in place of the keys, for five seconds or until
