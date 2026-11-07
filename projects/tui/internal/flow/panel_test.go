@@ -378,7 +378,7 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 			headings++
 		}
 	}
-	if headings == 0 || !strings.Contains(view(m), " change  ") {
+	if headings == 0 || !strings.Contains(view(m), grid.Unfolded+" change "+grid.Unfolded+"  ") {
 		t.Errorf("no heading per change:\n%s", view(m))
 	}
 }

@@ -79,7 +79,7 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	}
 	// a click on the heading over the groups, off its folds and names, folds nothing
 	names, before := m.headingNames(m.rows(0)[0]), len(m.rows(0))
-	if m = drive(m, testkit.Click(names[len(names)-1].until+1, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.Open {
+	if m = drive(m, testkit.Click(names[len(names)-1].until+2, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.Open {
 		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
 			len(m.rows(0)), before, m.colMenu.Open)
 	}
