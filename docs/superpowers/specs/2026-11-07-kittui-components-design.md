@@ -80,7 +80,7 @@ Each row names the component, its package, what it owns, and where it is today.
 | --- | --- | --- | --- |
 | Control | `shell` | the contract every interactive piece meets | implicit, per screen |
 | Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | `key`, `keys`, and the clicks in `flow` |
-| Menu | `menu` | items, enabled, cursor, anchor, box, letters, extra keys | five copies in `flow`, `shell.Menu` |
+| Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | `shell.Menu`, done; four copies in `flow` |
 | Dialog | `dialog` | a titled box of acting lines, radios, and boxes | `popover.go`, `columns.go`, `shell.SettingsDialog`, the ask dialog |
 | Frame | `frame` | title, app menu, search, tab bar, pane, notice with fade, keys bar and its right end | each screen's `View` |
 | Table | `table` | catalog, types, renderers, presets, auto renderings, fields dialog, column and heading menus, popover, outline | `flow` and `grid` |
@@ -109,11 +109,14 @@ by pushing it, and a control that closes pops itself. Focus is then one list, an
 
 ### Menu
 
-`menu.Menu` holds what each copy in `flow` holds: the items, `enabled`, the cursor, the anchor it hangs from, and
-whether it is open. It answers up, down, enter, space, esc, a typed letter, and a click on a line, and draws itself
-with `shell.Box`. A menu that does more, as the column menu moves its column on ⇧←→, gives extra bindings, each with
-the function it runs. The tab menu, the column menu, the heading menu, the presets' menu, and the app menu become five
-values of one type. Disabled lines stay, dim, as kittui's menus show them.
+`shell.Dropdown` holds what each copy in `flow` holds: whether it is open, and the line under the keyboard. Its lines
+and which of them act are its owner's, given to each call, since they follow what the screen shows. It answers up,
+down, enter, space, esc, a key its owner names, a typed letter, and a click on a line of its box, and gives back the
+line chosen. A menu that does more, as the column menu moves its column on ⇧←→, takes those keys before it hands the
+rest to the dropdown. It lives in `shell`, not a package of its own, because the app's menu, `shell.Menu`, embeds it,
+and `shell` cannot import a package that imports `shell`. The app's menu is on it already; the tab menu, the column
+menu, the heading menu, and the presets' menu each move onto it in a commit of their own. Disabled lines stay, dim,
+as kittui's menus show them.
 
 ### Dialog
 
@@ -156,8 +159,8 @@ records each timer and fires none until the test says so, so no test can hang on
 Each step is one commit, keeps every test and golden as it is, and lands while `flow` is quiet, as the sessions in
 the worktree agree.
 
-1. `menu`: the menu type, then the five menus moved onto it, one commit each, smallest first. It removes the most
-   copied code at the least risk.
+1. `shell.Dropdown`: the menu type and the app's menu on it, done; then the four menus in `flow` moved onto it, one
+   commit each, smallest first. It removes the most copied code at the least risk.
 2. `shell.Layers` and `Control`: the menus first, then the dialogs, the search, the preset line, and the rows. `key`,
    `keys`, and the clicks in `flow` shrink to one call each.
 3. `dialog`: the popover, the fields dialog, the settings dialog, and the ask dialog moved onto it.
@@ -176,7 +179,7 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 ## Left to the builder
 
-- The names of the packages, and whether `dialog` folds into `menu` once both exist.
+- The names of the packages, and whether `dialog` folds into `shell` beside `Dropdown`.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.
