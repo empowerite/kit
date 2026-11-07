@@ -673,10 +673,10 @@ func (m *Model) choosePreset(k int) {
 const PresetsTitle = "Presets"
 
 // presetBox gives the presets' menu's lines, the box around the preset line's selector, its top edge titled
-// PresetsTitle where the selector starts, as the tab's menu hangs from ⋮; and the screen line and column it is drawn
-// from.
+// PresetsTitle two cells into the selector, as the tab's menu hangs from ⋮, so the box covers the selector's ▼; and the
+// screen line and column it is drawn from.
 func (m Model) presetBox() (lines []string, top, left int) {
-	lines, left = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, PresetsTitle, m.dropStart(), m.width)
+	lines, left = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, PresetsTitle, m.dropStart()+2, m.width)
 	return lines, m.presetTop(), left
 }
 
