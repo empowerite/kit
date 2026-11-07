@@ -81,7 +81,7 @@ Each row names the component, its package, what it owns, and where it is today.
 | Control | `shell` | the contract every interactive piece meets | implicit, per screen |
 | Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | done: `flow`'s eight popups, in `layers.go` |
 | Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | done: the app's, the tab's, the column, and the presets' menus |
-| Dialog | `dialog` | a titled box of acting lines, radios, and boxes | `popover.go`, `columns.go`, `shell.SettingsDialog`, the ask dialog |
+| Dialog | `shell`, as `Placed` and `Step` | where a box stands and a click falls on it, and the cursor's step | done: the four dialogs |
 | Frame | `frame` | title, app menu, search, tab bar, pane, notice with fade, keys bar and its right end | each screen's `View` |
 | Table | `table` | catalog, types, renderers, presets, auto renderings, fields dialog, column and heading menus, popover, outline | `flow` and `grid` |
 | Grid | `grid` | laying rows out in columns, and the panel's per-field state | `grid`, as now |
@@ -120,10 +120,12 @@ them. Disabled lines stay, dim, as kittui's menus show them.
 
 ### Dialog
 
-`dialog.Dialog` is a titled box of lines, each a heading, a gap, an acting line, a radio, or a box that toggles: what
-the field popover, the fields dialog, the settings dialog, and the ask dialog draw. It answers the keys they share and
-gives each acting line's function the line's value. The fields dialog's own keys, s, g, and ⇧↑↓, are extra bindings,
-as a menu's are.
+What the four dialogs share is narrower than a dialog type: `shell.Placed`, a box as `shell.Dialog` draws it, where it
+stands, which draws itself and says whether a click falls off it, on its edges, or on a body line; and `shell.Step`,
+the line under the keyboard moving to the next line it can stand on and stopping at the ends. The field popover, the
+fields dialog, the Settings dialog, and what a backlog action asks each use both, and keep what they show, how they mark
+the line under the keyboard, where they stand, and their own keys, as the fields dialog's s, g, and ⇧↑↓, and the ask
+dialog's typing. A type that drew their lines too would hold four looks for four dialogs, so it stops here.
 
 ### Frame
 
@@ -163,7 +165,8 @@ the worktree agree.
 2. `shell.Layers`: done for `flow`'s popups, its menus and dialogs, in `flow/layers.go`; `key`, `keys`, the clicks,
    and `View` each make one call to it. A layer is a table of functions on the screen's model, not a `Control` value,
    as the popups are the model's methods; the search, the preset line, and the rows are the screen's still.
-3. `dialog`: the popover, the fields dialog, the settings dialog, and the ask dialog moved onto it.
+3. `shell.Placed` and `shell.Step`: the popover, the fields dialog, the Settings dialog, and the ask dialog on them.
+   Done.
 4. `frame`, with the notice: `tutorials` first, as the newest and smallest, then `welcome`, `palette`, and `flow`.
 5. `source` and its clock: the marks, the rate limits, and the kept copy first, as they are already apart in
    `marks.go`, `quota.go`, and `kept.go`; then the stages' loads; then the other screens' loads.
@@ -179,7 +182,7 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 ## Left to the builder
 
-- The names of the packages, and whether `dialog` folds into `shell` beside `Dropdown`.
+- The names of the packages that are still to come: `frame`, `source`, and `table`.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.
