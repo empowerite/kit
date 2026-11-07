@@ -202,7 +202,7 @@ func (b Bar) label(i int) (name, end string) {
 	if t.Glyph != "" {
 		name = t.Glyph + " "
 	}
-	mark, tint := style.In(b.Color)
+	mark, _ := style.In(b.Color)
 	if i == b.Selected {
 		name += mark(t.Name)
 	} else {
@@ -213,7 +213,7 @@ func (b Bar) label(i int) (name, end string) {
 		end = style.Loss(t.Count)
 	}
 	if b.Menus && i == b.Selected {
-		glyph := tint(Menu)
+		glyph := mark(Menu) // bold, as the tab's name is, so the narrow kebab reads as a button
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
 			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)

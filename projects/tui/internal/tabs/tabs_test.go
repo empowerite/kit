@@ -423,11 +423,12 @@ func TestTheReserveAndTheMenuKeepEveryTabWhereItIs(t *testing.T) {
 	if got := row(bar(1, "3"), 1); strings.Count(got, Menu) != 1 || !strings.Contains(got, "4 "+Menu+" │") {
 		t.Errorf("the menu's glyph is not on the selected tab alone, after its count: %q", got)
 	}
-	// the glyph is bold only while the menu is open, and the count is then blank, the glyph in its column
+	// the glyph is bold in the tab's color while the menu is closed, as the tab's name is, and in the menu's own
+	// while it is open, the count then blank, the glyph in its column
 	open := bar(1, "3")
 	closed := open.View()
-	if strings.Contains(closed, style.Menu(Menu)) || !strings.Contains(closed, style.Tint(Menu)) {
-		t.Errorf("the glyph of a closed menu is bold: %q", closed)
+	if strings.Contains(closed, style.Menu(Menu)) || !strings.Contains(closed, style.Mark(Menu)) {
+		t.Errorf("the glyph of a closed menu is not bold in the tab's color: %q", closed)
 	}
 	if open.MenuOpen = true; !strings.Contains(open.View(), style.Menu(Menu)) {
 		t.Errorf("the glyph of an open menu is not bold")
