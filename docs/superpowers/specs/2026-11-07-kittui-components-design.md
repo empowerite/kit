@@ -82,7 +82,7 @@ Each row names the component, its package, what it owns, and where it is today.
 | Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | done: `flow`'s eight popups, in `layers.go` |
 | Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | done: the app's, the tab's, the column, and the presets' menus |
 | Dialog | `shell`, as `Placed` and `Step` | where a box stands and a click falls on it, and the cursor's step | done: the four dialogs |
-| Frame | `frame` | title, app menu, search, tab bar, pane, notice with fade, keys bar and its right end | each screen's `View` |
+| Frame | `shell`, as `View` and `Notice` | the screen's end on its last line, and the notice with its fade | done: four screens' views, two screens' notices |
 | Table | `table` | catalog, types, renderers, presets, auto renderings, fields dialog, column and heading menus, popover, outline | `flow` and `grid` |
 | Grid | `grid` | laying rows out in columns, and the panel's per-field state | `grid`, as now |
 | Source | `source` | a read of kit: generation, cancel, deadline, kept copy, mark, staleness, Watch, polling | `flow.Model`, and each screen's loads |
@@ -129,11 +129,12 @@ dialog's typing. A type that drew their lines too would hold four looks for four
 
 ### Frame
 
-`frame.Frame` draws a screen: the title line with ≡ and the search at its right end; the tab bar, when the screen has
-tabs; the pane the screen gives it; the layers' boxes; and the last line, a notice while one stands, else the keys bar
-with its right end, as the rate limits use it. It owns the notice: what was done fades after `Fades`, and why
-something was not done stays until a key. A screen gives its title, its tabs, its pane, its layers, and its right end,
-and gets the lines back. Maximize, under way for #85, makes the pane's top the frame's to say, which this keeps.
+What the screens share of their frame is two parts of `shell`. `shell.View` ends a screen: its lines over the last
+line, on the alternate screen, with the mouse on; `flow`, `tutorials`, `welcome`, and `palette` end in it, and the
+form, which takes no click, keeps its own. `shell.Notice` is what stands in the keys bar's place: what was done, which
+fades after a while unless a key or a later notice takes its place, or why something was not done, which stays until
+a key; `flow` and `tutorials` keep one each. The tab bar is `tabs`' already. The title line and its search stay each
+screen's own: each lays the search out in its own room, and one shared line would move it on some of them.
 
 ### Table
 
@@ -167,7 +168,7 @@ the worktree agree.
    as the popups are the model's methods; the search, the preset line, and the rows are the screen's still.
 3. `shell.Placed` and `shell.Step`: the popover, the fields dialog, the Settings dialog, and the ask dialog on them.
    Done.
-4. `frame`, with the notice: `tutorials` first, as the newest and smallest, then `welcome`, `palette`, and `flow`.
+4. `shell.View` and `shell.Notice`: the screens' ends and the two notices on them. Done.
 5. `source` and its clock: the marks, the rate limits, and the kept copy first, as they are already apart in
    `marks.go`, `quota.go`, and `kept.go`; then the stages' loads; then the other screens' loads.
 6. `table`: the catalog, the renderers, and the presets out of `flow`, then the dialogs and menus that act on a table.
@@ -182,7 +183,7 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 ## Left to the builder
 
-- The names of the packages that are still to come: `frame`, `source`, and `table`.
+- The names of the packages that are still to come: `source` and `table`.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.
