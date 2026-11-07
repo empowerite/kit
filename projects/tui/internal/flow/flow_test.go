@@ -64,9 +64,22 @@ func drive(m Model, msgs ...tea.Msg) Model {
 		if _, ok := msg.(toggleMsg); ok {
 			msg = m.toggleKey()
 		}
-		m, _ = testkit.Drive(m, nil, msg)
+		m, _ = testkit.Drive(m, faded, msg)
 	}
 	return m
+}
+
+// faded says a notice's time is up, which drive never feeds back, so a test sees what a notice says; a test of the
+// fading sends it itself.
+func faded(msg tea.Msg) bool {
+	_, ok := msg.(fadedMsg)
+	return ok
+}
+
+// TestMain waits no time for a notice to fade, as drive runs the wait's command in place.
+func TestMain(m *testing.M) {
+	fades = 0
+	os.Exit(m.Run())
 }
 
 // refreshAll drops the app's menu down and chooses its first item, Refresh All.

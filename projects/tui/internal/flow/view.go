@@ -203,12 +203,16 @@ func (m Model) sidebarKeys() shell.Segment {
 
 // presetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard,
 // named by the stage it has selected, and down the rows, when the stage has some; enter or space drops the presets
-// down. While a name is typed for Save As…, what is typed is the name, = : and ; apart, which the menus take; enter
-// saves under it, and esc stops.
+// down. While a name is typed for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus
+// take; enter saves under it, or renames, and esc stops.
 func (m Model) presetKeys() shell.Segment {
-	if m.stages[m.stage].savingAs {
+	if st := m.stages[m.stage]; st.savingAs {
 		s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
-		s.Bindings = append(s.Bindings, shell.Bind("⏎", "save", "enter"), shell.Bind("esc", "cancel"))
+		does := "save"
+		if st.renaming != "" {
+			does = "rename"
+		}
+		s.Bindings = append(s.Bindings, shell.Bind("⏎", does, "enter"), shell.Bind("esc", "cancel"))
 		return s.With(shell.Bind("", "type the preset's name"))
 	}
 	var s shell.Segment
@@ -610,12 +614,17 @@ func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetL
 
 // presetLine gives the preset's selector, at the right end of the rule under the table's header: the name of the
 // preset the table is set as, and Presets; Presets alone once the table differs from every preset; or, while a name is
-// typed for Save As…, the name with a caret after a dim "save as", once the line has the keyboard. The selector is
+// typed for Save As… or Rename…, the name with a caret after a dim "save as" or "rename", once the line has the
+// keyboard. The selector is
 // inverse while the line has the keyboard.
 func (m Model) presetLine() string {
 	on := m.onPreset && !m.inPanel
-	if on && m.stages[m.stage].savingAs {
-		return style.Off(SavingAs) + " " + m.stages[m.stage].naming + "▏"
+	if st := m.stages[m.stage]; on && st.savingAs {
+		label := SavingAs
+		if st.renaming != "" {
+			label = Renaming
+		}
+		return style.Off(label) + " " + st.naming + "▏"
 	}
 	selector := Presets
 	if is := m.is(m.stage); is != "" {

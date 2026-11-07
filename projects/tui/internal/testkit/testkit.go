@@ -71,7 +71,12 @@ func Drive[M tea.Model](m M, ends func(tea.Msg) bool, msgs ...tea.Msg) (M, []tea
 				if cmd == nil {
 					continue
 				}
-				if msg := cmd(); msg != nil {
+				msg := cmd()
+				switch {
+				case msg == nil:
+				case ends != nil && ends(msg):
+					produced = append(produced, msg)
+				default:
 					out = append(out, msg)
 				}
 			}

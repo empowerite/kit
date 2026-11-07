@@ -80,10 +80,12 @@ type stage struct {
 	offset  int             // the first line of the pane
 	open    grid.Outline    // which of its headings, rows, and its header stand open, as outline.go says
 	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
-	// the view its preset line was last set to, and the name typed for Save As… while the person names a preset
+	// the view its preset line was last set to, and the name typed for Save As… or Rename… while the person names a
+	// preset, and the person's view Rename… renames
 	viewName string
 	naming   string
 	savingAs bool
+	renaming string
 	view     grid.Panel         // the stage's panel: its search, what it says of each field, and its cursor
 	gen      int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
@@ -125,6 +127,8 @@ type Model struct {
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
 	noted         bool                   // whether the notice says what was done, rather than why it was not
+	fading        string                 // the notice done put up, which goes after Fades while it is still up
+	fades         int                    // the notices done has put up, each the serial its fadedMsg carries
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
@@ -215,17 +219,47 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Close ends the stages' commands still running, as quitting does, for a picture kittui leaves hidden as it ends.
 func (m Model) Close() { m.cancel() }
 
-// Update takes a message, as update does; then a name typed for Save As… on a preset line that no longer has the
-// keyboard is dropped, so the line does not come back to it.
+// Update takes a message, as update does; then a name typed for Save As… or Rename… on a preset line that no longer
+// has the keyboard is dropped, so the line does not come back to it; and a notice that says what was done, new, goes
+// after Fades, unless a key or another notice took its place first.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	next, cmd := m.update(msg)
-	if n, ok := next.(Model); ok && !n.onPreset {
-		for i := range n.stages {
-			n.stages[i].savingAs, n.stages[i].naming = false, ""
+	if f, ok := msg.(fadedMsg); ok {
+		if f.serial == m.fades && m.notice == m.fading {
+			m.notice, m.fading = "", ""
 		}
-		next = n
+		return m, nil
 	}
-	return next, cmd
+	next, cmd := m.update(msg)
+	n, ok := next.(Model)
+	if !ok {
+		return next, cmd
+	}
+	if !n.onPreset {
+		for i := range n.stages {
+			n.stages[i].savingAs, n.stages[i].naming, n.stages[i].renaming = false, "", ""
+		}
+	}
+	if n.fades != m.fades {
+		serial := n.fades
+		cmd = tea.Batch(cmd, tea.Tick(fades, func(time.Time) tea.Msg { return fadedMsg{serial} }))
+	}
+	return n, cmd
+}
+
+// Fades is how long a notice that says what was done stays in place of the keys, short of a key. A notice that says
+// why something was not done stays until a key.
+const Fades = 5 * time.Second
+
+// fades is how long the screen waits for Fades: Fades, as a test waits less.
+var fades = Fades
+
+// fadedMsg says a notice that says what was done has been up for Fades: the one done gave that serial.
+type fadedMsg struct{ serial int }
+
+// done puts a notice that says what was done in place of the keys, for Fades, short of a key.
+func (m *Model) done(notice string) {
+	m.notice, m.noted, m.fading = notice, true, notice
+	m.fades++
 }
 
 // update takes a message.

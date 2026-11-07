@@ -154,7 +154,7 @@ func (m *Model) act(name string) tea.Cmd {
 			return [][]string{append([]string{"close", "--duplicate-of", original}, refs...)}
 		})
 	case "Copy Links":
-		m.notice, m.noted = fmt.Sprintf("%s copied %d links", ToPage, len(refs)), true
+		m.done(fmt.Sprintf("%s copied %d links", ToPage, len(refs)))
 		return tea.SetClipboard(m.links())
 	}
 	return nil
@@ -230,11 +230,13 @@ func (m *Model) run(cmds [][]string) tea.Cmd {
 // was asked, the selection is cleared; either way, what reads the forge's issues reads them afresh.
 func (m *Model) acted(msg actedMsg) tea.Cmd {
 	lines := strings.Split(strings.TrimSpace(ansi.Strip(msg.out)), "\n")
-	m.notice, m.noted = lines[len(lines)-1], true
 	if msg.err != nil {
 		m.notice, m.noted = Failed+" "+msg.err.Error(), false
-	} else if s := m.find("backlog"); s != nil {
-		clear(s.picked)
+	} else {
+		m.done(lines[len(lines)-1])
+		if s := m.find("backlog"); s != nil {
+			clear(s.picked)
+		}
 	}
 	return m.refresh("backlog")
 }

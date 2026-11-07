@@ -4,9 +4,12 @@
 // saves others, per stage, in a file of their own, presets.json under ~/.config/kit/, so their views follow them to
 // every repository; one they named as a stage's own was named before the stage had it, and stays theirs. The preset
 // line, the rule under the stage's header, ends in the name of the view the table is set as and ▼, or ▼ alone once the
-// table differs from every view; enter, or a click on it, drops down Save As… and the views to choose from. Save As…
-// takes a name typed in the selector's place, and enter saves the panel under it, a view of the person's own
-// overwritten, a stage's own refused, and no name refused.
+// table differs from every view; enter, or a click on it, drops down what can be done with views, then the views to
+// choose from. Save keeps the panel under the person's view it was set to; Save As… takes a name typed in the
+// selector's place, the person's view the line was set to typed already, and enter saves the panel under it, a view of
+// the person's own overwritten, a stage's own refused, and no name refused; Rename… takes a new name for the person's
+// view, as Save As… takes one, and Delete drops it, the stage back to Default. A stage's own views are never saved
+// over, renamed, or deleted: those lines stay, dim, while the line names one.
 package flow
 
 import (
@@ -32,13 +35,30 @@ import (
 const Opening = "Default"
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
-// down. SaveAs is the presets' menu's first item, SavingAs what stands, dim, before the name typed for it, and Save the
-// glyph of what saving says.
+// down. SaveIt, SaveAs, RenameIt, and DeleteIt are the presets' menu's first items, each after its glyph, Save,
+// SavedAs, Renamed, and Deleted, which what each did says too; SavingAs and Renaming stand, dim, before the name typed
+// for Save As… and Rename….
 const (
 	Presets  = "▼"
+	SaveIt   = "Save"
 	SaveAs   = "Save As…"
+	RenameIt = "Rename…"
+	DeleteIt = "Delete"
 	SavingAs = "save as"
+	Renaming = "rename"
 	Save     = "💾"
+	SavedAs  = "📄"
+	Renamed  = "📝"
+	Deleted  = "🚮"
+)
+
+// The presets' menu's lines that act on views, before a rule and the views themselves.
+const (
+	itemSave = iota
+	itemSaveAs
+	itemRename
+	itemDelete
+	itemViews // the rule after them; the views follow
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
@@ -405,17 +425,20 @@ func (m *Model) apply(v preset) {
 
 // presetKey takes a key while the keyboard is on the preset line, and says whether it did: up and esc give the bar the
 // keyboard, and down the rows, when the stage has some; enter and space drop the presets down. While a name is typed
-// for Save As…, what is typed is the name, = : and ; apart, which the menus take; enter saves under it, esc stops,
-// and up and down stop too, and move as ever.
+// for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus take; enter saves under it, or
+// renames, esc stops, and up and down stop too, and move as ever.
 func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := &m.stages[m.stage]
 	key := k.String()
 	if s.savingAs {
 		switch {
 		case key == "up" || key == "down":
-			s.savingAs, s.naming = false, ""
+			s.savingAs, s.naming, s.renaming = false, "", ""
 		case key == "esc":
-			s.savingAs, s.naming = false, ""
+			s.savingAs, s.naming, s.renaming = false, "", ""
+			return nil, true
+		case key == "enter" && s.renaming != "":
+			m.renamePreset()
 			return nil, true
 		case key == "enter":
 			return m.savePreset(), true
@@ -445,7 +468,37 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // dropPresets drops the selected stage's presets down, the one the line names under the keyboard, else Save As….
 func (m *Model) dropPresets() {
 	m.presetMenu = true
-	m.presetAt = max(0, slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked }))
+	m.presetAt = slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked })
+	if m.presetAt < 0 {
+		m.presetAt = itemSaveAs
+	}
+}
+
+// own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
+// not, nor is a view since deleted.
+func (m Model) own() (preset, bool) {
+	saved := m.saved[m.stages[m.stage].name]
+	name := m.stages[m.stage].viewName
+	if k := slices.IndexFunc(saved, func(v preset) bool { return v.Name == name }); k >= 0 && !m.builtin(m.stage, name) {
+		return saved[k], true
+	}
+	return preset{}, false
+}
+
+// keep writes the person's views of the selected stage as they are given, and says whether it could; when it could
+// not, the notice says why, and nothing changes.
+func (m *Model) keep(saved []preset, what string) bool {
+	all := map[string][]preset{}
+	for stage, vs := range m.saved {
+		all[stage] = vs
+	}
+	all[m.stages[m.stage].name] = saved
+	if err := writePresets(m.presetsPath, all); err != nil {
+		m.notice, m.noted = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
+		return false
+	}
+	m.saved = all
+	return true
 }
 
 // savePreset keeps the selected stage's panel under the name typed for Save As…: the person's view of that name is
@@ -462,6 +515,14 @@ func (m *Model) savePreset() tea.Cmd {
 		m.notice, m.noted = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
 		return nil
 	}
+	m.saveAs(name)
+	return nil
+}
+
+// saveAs keeps the selected stage's panel under a name, the person's view of that name overwritten, else added after
+// theirs; the line then names it, and the notice says so, for a while.
+func (m *Model) saveAs(name string) {
+	s := &m.stages[m.stage]
 	v := m.current(m.stage)
 	v.Name = name
 	saved := slices.Clone(m.saved[s.name])
@@ -470,25 +531,67 @@ func (m *Model) savePreset() tea.Cmd {
 	} else {
 		saved = append(saved, v)
 	}
-	all := map[string][]preset{}
-	for stage, vs := range m.saved {
-		all[stage] = vs
+	if !m.keep(saved, "saved") {
+		return
 	}
-	all[s.name] = saved
-	if err := writePresets(m.presetsPath, all); err != nil {
-		m.notice, m.noted = fmt.Sprintf("%s the preset could not be saved: %v", Failed, err), false
-		return nil
-	}
-	m.saved = all
-	s.viewName, s.savingAs, s.naming = name, false, ""
-	m.notice, m.noted = Save+" saved the preset "+name, true
-	return nil
+	s.viewName, s.savingAs, s.naming, s.renaming = name, false, "", ""
+	m.done(Save + " saved the preset " + name)
 }
 
-// presetItems gives the presets' menu: Save As…, a rule, the stage's own views, a rule, and the person's, the one the
-// line names checked.
+// renamePreset gives the person's view being renamed the name typed for Rename…: none, a stage's own, and another of
+// theirs are refused, and the same name leaves it as it is. The line names it by its new name.
+func (m *Model) renamePreset() {
+	s := &m.stages[m.stage]
+	from, name := s.renaming, strings.TrimSpace(s.naming)
+	saved := slices.Clone(m.saved[s.name])
+	k := slices.IndexFunc(saved, func(v preset) bool { return v.Name == from })
+	switch {
+	case name == "":
+		m.notice, m.noted = Failed+" a preset needs a name: type one, then ⏎", false
+		return
+	case m.builtin(m.stage, name):
+		m.notice, m.noted = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
+		return
+	case name != from && slices.ContainsFunc(saved, func(v preset) bool { return v.Name == name }):
+		m.notice, m.noted = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
+		return
+	case k < 0 || name == from:
+		s.savingAs, s.naming, s.renaming = false, "", ""
+		return
+	}
+	saved[k].Name = name
+	if !m.keep(saved, "renamed") {
+		return
+	}
+	if s.viewName == from {
+		s.viewName = name
+	}
+	s.savingAs, s.naming, s.renaming = false, "", ""
+	m.done(Renamed + " renamed the preset " + from + " to " + name)
+}
+
+// deletePreset drops the person's view the line was set to, and sets the stage as Default.
+func (m *Model) deletePreset() {
+	v, ok := m.own()
+	if !ok {
+		return
+	}
+	saved := slices.DeleteFunc(slices.Clone(m.saved[m.stages[m.stage].name]), func(w preset) bool {
+		return w.Name == v.Name
+	})
+	if !m.keep(saved, "deleted") {
+		return
+	}
+	vs := m.views(m.stage)
+	m.apply(vs[slices.IndexFunc(vs, func(w preset) bool { return w.Name == Opening })])
+	m.done(Deleted + " deleted the preset " + v.Name)
+}
+
+// presetItems gives the presets' menu: Save, Save As…, Rename…, and Delete, each after its glyph, a rule, the stage's
+// own views, a rule, and the person's, the one the line names checked.
 func (m Model) presetItems() []shell.Item {
-	items := []shell.Item{{Name: SaveAs}, {}}
+	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Glyph: SavedAs, Name: SaveAs}, {Glyph: Renamed, Name: RenameIt},
+		{Glyph: Deleted, Name: DeleteIt}, {}}
 	is := m.is(m.stage)
 	for k, v := range m.views(m.stage) {
 		if k == len(m.builtins(m.stage)) {
@@ -503,8 +606,19 @@ func (m Model) presetItems() []shell.Item {
 	return items
 }
 
-// presetEnabled says whether a line of the presets' menu is Save As… or a view, which a rule is not.
-func (m Model) presetEnabled(k int) bool { return m.presetItems()[k].Name != "" }
+// presetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
+// own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
+// never.
+func (m Model) presetEnabled(k int) bool {
+	v, own := m.own()
+	switch k {
+	case itemSave:
+		return own && !m.same(m.stage, m.current(m.stage), v)
+	case itemRename, itemDelete:
+		return own
+	}
+	return m.presetItems()[k].Name != ""
+}
 
 // presetMenuKey takes a key while the presets' menu is open: up and down move, a letter to the next view it starts,
 // enter and space choose, and esc closes it.
@@ -525,17 +639,29 @@ func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// choosePreset closes the menu and takes its line k: Save As… gives the preset line the keyboard, for a name; a view
-// applies.
+// choosePreset closes the menu and takes its line k: Save keeps the panel under the person's view the line was set to;
+// Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
+// name; Delete drops it; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
 	m.presetMenu = false
-	switch name := m.presetItems()[k].Name; {
-	case name == "":
-	case k == 0:
-		s := &m.stages[m.stage]
-		s.savingAs, s.naming = true, ""
+	if !m.presetEnabled(k) {
+		return
+	}
+	s := &m.stages[m.stage]
+	v, _ := m.own()
+	switch k {
+	case itemSave:
+		m.saveAs(v.Name)
+	case itemSaveAs, itemRename:
+		s.savingAs, s.naming, s.renaming = true, v.Name, ""
+		if k == itemRename {
+			s.renaming = v.Name
+		}
 		m.onPreset, m.inRows, m.inPanel = true, false, false
+	case itemDelete:
+		m.deletePreset()
 	default:
+		name := m.presetItems()[k].Name
 		vs := m.views(m.stage)
 		m.apply(vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == name })])
 	}
@@ -549,8 +675,8 @@ func (m Model) presetBox() (lines []string, top, left int) {
 	return lines, m.presetTop(), left
 }
 
-// presetMenuClick takes a click while the presets' menu is open: on a view, it chooses it; anywhere else, it closes the
-// menu.
+// presetMenuClick takes a click while the presets' menu is open: on a line that acts, it chooses it; anywhere else, it
+// closes the menu.
 func (m *Model) presetMenuClick(x, y int) {
 	box, top, left := m.presetBox()
 	if k := y - top - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 &&
