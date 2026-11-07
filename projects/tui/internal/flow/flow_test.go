@@ -360,8 +360,8 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	}
 }
 
-// A click on a row puts the cursor there and gives the rows the keyboard; a click on the row under the cursor opens it,
-// and again closes it. A click on a … line, on the legend, or off the pane does nothing.
+// A click on a row puts the cursor there and gives the rows the keyboard, and opens nothing, so space then selects it;
+// a click on its ▸ opens it, and on its ▾ closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	click := testkit.Click
 	m := loaded(t, bare(), right, right, right)
@@ -372,11 +372,14 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(6, m.rowsTop()+1)); !m.inRows || m.find("worktrees").cursor != 1 {
 		t.Fatalf("a click on the second row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
 	}
-	if m = drive(m, click(6, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" 42-settings") {
-		t.Errorf("a click on the row under the cursor did not open it:\n%s", view(m))
-	}
 	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
-		t.Errorf("a second click did not close it:\n%s", view(m))
+		t.Errorf("a click on the row under the cursor opened it:\n%s", view(m))
+	}
+	if m = drive(m, click(foldCell, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" 42-settings") {
+		t.Errorf("a click on the row's ▸ did not open it:\n%s", view(m))
+	}
+	if m = drive(m, click(foldCell, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
+		t.Errorf("a click on its ▾ did not close it:\n%s", view(m))
 	}
 	if m = drive(m, click(6, m.top())); m.find("worktrees").cursor != 0 || m.stage != 3 {
 		t.Errorf("a click on the first row: cursor %d, stage %d", m.find("worktrees").cursor, m.stage)

@@ -91,19 +91,20 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
     never steps, and a rendering pinned always wins.
   - The rows are an outline, in `outline.go`: a group's heading, a row, and a header of more than one line each open
-    and close, ▾ or ▸ in the gutter, and one map per stage holds which stand open, a heading open and a row closed
-    until changed. → opens the node under the cursor, or steps into an open heading's first row; ← closes it, or
-    steps out to the heading over it; ⌥ with either, or with a click, does the same to everything under the node. The
-    tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows are
-    selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
-    Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
-    whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
-    one heading that names the grouped columns, `▾ ▾ source › ▾ assignees`, and a heading per value under it. A click
-    on a column's name in that heading, or ⏎ on it, drops the column's own menu, in `heading.go`, as a name in the
-    header does; its first ▾ or ▸ folds it all, and the one before each name shows the groups down to that level and
-    nothing under it, collapsing or expanding to it. A click anywhere on a value's heading opens or closes it. A field of
-    several values, as assignees or labels, groups too: a row stands under each of its values, the same row, its
-    selection one.
+    and close by its ▾ or ▸, and a click opens or closes one only there; a click elsewhere on it puts the cursor on
+    it, so space selects it without folding anything. One map per stage holds which stand open, a heading open and a
+    row closed until changed. → opens the node under the cursor, or steps into an open heading's first row; ← closes
+    it, or steps out to the heading over it; ⌥ with either, or with a click on its ▾ or ▸, does the same to
+    everything under the node. The tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or
+    on the selection while rows are selected: Expand Selected opens the groups over them too, and Collapse Others
+    folds every group without one. Space on a heading selects every row of its group, or none once all are, and the
+    heading's mark, ▣ or ◩, says whether all are or some. What stands open lasts the session; a preset does not keep
+    it. Grouped rows stand under one heading that names the grouped columns, `▾ source  ▾ assignees`, and a heading
+    per value under it. That heading never closes: the ▾ or ▸ before each name shows the groups down to that level
+    and nothing under it, collapsing or expanding to it, and a level under one not wholly open shows ▸ too. A click
+    on a column's name there, or ⏎ on the heading, drops the column's own menu, in `heading.go`, as a name in the
+    header does. A field of several values, as assignees or labels, groups too: a row stands under each of its
+    values, the same row, its selection one.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
     right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and

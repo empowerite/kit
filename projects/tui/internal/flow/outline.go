@@ -12,10 +12,27 @@ package flow
 import (
 	"maps"
 	"slices"
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
+
+// foldCell is the cell of the gutter a row's ▾ or ▸ stands on, past its selection's two, and the header's, which alone
+// fold them.
+const foldCell = 2
+
+// foldAt gives the screen column, past the rows' indent for a row, the ▾ or ▸ of a row or a heading stands on, as
+// internal/grid draws it, which alone opens or closes it: a row's in the gutter, a heading's past its own indent too.
+func foldAt(r row) int {
+	if !grid.Heads(r) {
+		return foldCell
+	}
+	text := ansi.Strip(r.Cells[0].Values[0])
+	return foldCell + len(text) - len(strings.TrimLeft(text, " "))
+}
 
 // headerKey is the header's key in a stage's outline: open, every line of names that take more than one shows.
 const headerKey = "\x00header"
@@ -23,9 +40,13 @@ const headerKey = "\x00header"
 // every gives a stage's whole outline: its rows shown, each closed group's rows after its heading.
 func (m Model) every(i int) []row { return grid.Every(m.rows(i)) }
 
-// opens says whether the node at j of the outline hides something to open: a group's heading always, a row while its
-// lines do not all show, laid out as the selected stage lays its rows out.
+// opens says whether the node at j of the outline hides something to open: a group's heading always, but the one over
+// the groups, which never closes, its levels folding under it; a row while its lines do not all show, laid out as the
+// selected stage lays its rows out.
 func (m Model) opens(every []row, j int) bool {
+	if grid.OverGroups(every[j]) {
+		return false
+	}
 	return grid.Heads(every[j]) || grid.Opens(every, m.names(m.stage), j, m.gridWidth(m.stage))
 }
 

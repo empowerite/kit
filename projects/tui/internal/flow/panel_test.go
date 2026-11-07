@@ -163,11 +163,15 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 	}
 }
 
-// A click on the gutter of a row's first line opens it, from the search too; again closes it.
+// A click on the ▸ of a row's first line opens it, from the search too; again, on its ▾, closes it; a click on the
+// gutter elsewhere, as on the selection's cell, opens nothing.
 func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
 	// #45 stands under the heading over the groups and source's, four cells in
-	gutter := m.indent(0) + 1
+	if m = drive(m, testkit.Click(m.indent(0), m.rowsTop()+2)); m.stages[0].open["#45"] {
+		t.Fatalf("a click on #45's selection cell opened it")
+	}
+	gutter := m.indent(0) + foldCell
 	if m = drive(m, testkit.Click(gutter, m.rowsTop()+2)); m.inPanel || !m.inRows || m.stages[0].cursor != 2 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
@@ -392,7 +396,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != grid.Unfolded+" "+grid.Unfolded+" source  4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
+	if got := heading(m); got != grid.Unfolded+" source  4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
 		m.is(m.stage) != Opening || !strings.Contains(m.columnsLine("source"), grid.GroupMark(1)) {
 		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
@@ -425,16 +429,18 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 }
 
 // A group's heading folds its rows away and unfolds them: left on it folds, right unfolds, the cursor staying on the
-// heading, and a click anywhere on it does either; ▾ turns ▸, the keys say which, and the tab's count stays the rows
-// the panel lets through, folded or not.
+// heading, and a click on its ▾ or ▸, and there alone, does either; ▾ turns ▸, the keys say which, and the tab's count
+// stays the rows the panel lets through, folded or not. The heading over the groups never folds.
 func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	count, rows := m.count(m.stage), len(m.rows(m.stage))
-	// the cursor on the heading over the groups, the outermost
+	// left on the heading over the groups folds nothing
 	m.stages[m.stage].cursor, m.inRows = 0, true
-	if m.stages[m.stage].cursor != 0 || !grid.Heads(m.rows(m.stage)[0]) {
-		t.Fatalf("the cursor is not on the heading: %d", m.stages[m.stage].cursor)
+	if m = drive(m, left); len(m.rows(m.stage)) != rows {
+		t.Fatalf("left on the heading over the groups: %d rows of %d", len(m.rows(m.stage)), rows)
 	}
+	// the cursor on source's heading, github's
+	m.stages[m.stage].cursor = 1
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
@@ -444,9 +450,9 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if got := lines(m)[m.top()]; got != header || !strings.Contains(got, "title") {
 		t.Errorf("the header with every row folded: %q, was %q", got, header)
 	}
-	heading := ansi.Strip(m.rows(m.stage)[0].Cells[0].Values[0])
-	if len(m.rows(m.stage)) != 1 || !strings.HasPrefix(heading, grid.Folded+" ") || m.count(m.stage) != count ||
-		m.stages[m.stage].cursor != 0 {
+	heading := ansi.Strip(m.rows(m.stage)[1].Cells[0].Values[0])
+	if len(m.rows(m.stage)) != 2 || !strings.HasPrefix(heading, "  "+grid.Folded+" ") || m.count(m.stage) != count ||
+		m.stages[m.stage].cursor != 1 {
 		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
 	}
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ expand") {
@@ -455,11 +461,15 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if m = drive(m, right); len(m.rows(m.stage)) != rows {
 		t.Fatalf("right on the heading: %d rows", len(m.rows(m.stage)))
 	}
-	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it
-	if m = drive(m, testkit.Click(2, m.rowsTop())); len(m.rows(m.stage)) != 1 || m.colMenu.Open {
+	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it; one on its value folds nothing
+	fold := foldAt(m.rows(m.stage)[1])
+	if m = drive(m, testkit.Click(fold+3, m.rowsTop()+1)); len(m.rows(m.stage)) != rows {
+		t.Fatalf("a click on the heading's value: %d rows of %d", len(m.rows(m.stage)), rows)
+	}
+	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); len(m.rows(m.stage)) != 2 || m.colMenu.Open {
 		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.colMenu.Open, view(m))
 	}
-	if m = drive(m, testkit.Click(1, m.rowsTop())); len(m.rows(m.stage)) != rows {
+	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's ▸: %d rows", len(m.rows(m.stage)))
 	}
 }
@@ -483,7 +493,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	}
 	unfold(&m)
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
-	over := column(m, "source › ", grid.Unfolded)
+	over := column(m, "source  ▾ assignees", grid.Unfolded)
 	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
 	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d, %d and %d, a row's ▸ at %d:\n%s", over, outer, inner, r, view(m))

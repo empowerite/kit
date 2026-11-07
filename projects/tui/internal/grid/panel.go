@@ -446,10 +446,11 @@ func (p Panel) Heading(r Row) string {
 	return ""
 }
 
-// group gives the rows under one heading that names the columns the panel groups by, the outermost first, between dim
-// ›, each after its level's fold, ▾ while every heading of the level stands open, ▸, dim, while one does not, and how
-// many rows they group, dim; and under it, a heading per value of each column, the groups in their values'
-// order, the larger first where the column sorts descending, and the rows in each as they came: a heading of a value,
+// group gives the rows under one heading that names the columns the panel groups by, the outermost first, each after
+// its level's fold, ▾ while every heading of the level, and of each over it, stands open, ▸ while one does not, never
+// dim, as it always acts, and how many rows they group, dim; and under it, a heading per value of each column, the
+// groups in their values' order, the larger first where the column sorts descending, and the rows in each as they
+// came: a heading of a value,
 // an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
 // it heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values
 // groups the row under each, the same row under every heading it belongs to, nested under each pair of its values,
@@ -546,17 +547,21 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		}
 		out = append(out, e.row)
 	}
+	// a level is closed under a closed one too, its headings folded away there
+	for depth := 1; depth < len(closed); depth++ {
+		closed[depth] = closed[depth] || closed[depth-1]
+	}
 	if len(out) > 0 {
 		var titles []string
 		for depth, j := range at {
+			// never dim: a level's fold always acts, as it shows the groups down to it
 			glyph := Unfolded
 			if closed[depth] {
-				glyph = style.Off(Folded)
+				glyph = Folded
 			}
 			titles = append(titles, glyph+" "+columns[j])
 		}
-		heading := p.fold(byFields) + " " + strings.Join(titles, style.Off(" ›")+" ") + "  " +
-			style.Off(strconv.Itoa(len(grouped)))
+		heading := strings.Join(titles, "  ") + "  " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
@@ -574,8 +579,12 @@ const (
 // it opens: a heading open, everything else closed.
 type Outline map[string]bool
 
-// Open says whether a row stands open: a group's heading unless it was closed, any other row only once opened.
+// Open says whether a row stands open: the heading over the groups always, as each level folds under it; any other
+// group's heading unless it was closed; any other row only once opened.
 func (o Outline) Open(r Row) bool {
+	if OverGroups(r) {
+		return true
+	}
 	if open, ok := o[r.Key]; ok {
 		return open
 	}

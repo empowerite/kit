@@ -56,10 +56,16 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if m = drive(m, esc); m.colMenu.Open {
 		t.Error("esc did not close the menu")
 	}
-	// a click on a value's heading folds it, menu or none; ⏎ there drops none, nor does the keys bar offer one
+	// a click on a value's heading puts the cursor on it, folding nothing; one on its ▾ folds it, menu or none; ⏎ there
+	// drops none, nor does the keys bar offer one
 	all = len(m.rows(0))
-	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); m.colMenu.Open || len(m.rows(0)) != 2 {
-		t.Fatalf("a click on a value's heading: menu %v, %d rows", m.colMenu.Open, len(m.rows(0)))
+	if m = drive(m, testkit.Click(8, m.rowsTop()+1)); m.colMenu.Open || len(m.rows(0)) != all || m.stages[0].cursor != 1 {
+		t.Fatalf("a click on a value's heading: menu %v, %d rows of %d, cursor %d", m.colMenu.Open, len(m.rows(0)), all,
+			m.stages[0].cursor)
+	}
+	fold := foldAt(m.rows(0)[1])
+	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); m.colMenu.Open || len(m.rows(0)) != 2 {
+		t.Fatalf("a click on a value's ▾: menu %v, %d rows", m.colMenu.Open, len(m.rows(0)))
 	}
 	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "⏎ menu") {
 		t.Errorf("the keys on a value's heading: %q", last)
@@ -67,8 +73,8 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open {
 		t.Error("⏎ on a value's heading dropped a menu")
 	}
-	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); len(m.rows(0)) != all {
-		t.Errorf("a second click on the value's heading: %d rows of %d", len(m.rows(0)), all)
+	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); len(m.rows(0)) != all {
+		t.Errorf("a click on the value's ▸: %d rows of %d", len(m.rows(0)), all)
 	}
 	// Options… there opens the field's popover, hanging from its name in the heading; a column not grouped has no
 	// name there
@@ -102,12 +108,12 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	}
 }
 
-// The names in the heading over the groups are found where the heading says them, each before a ›, the count, or
-// the end; a value that holds a column's name in it is passed over, and any other row names nothing.
+// The names in the heading over the groups are found where the heading says them, each before the next level's fold,
+// the count, or the end; a value that holds a column's name in it is passed over, and any other row names nothing.
 func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	m := loaded(t, options())
 	m.setPanel(regroup(m.panel(0), "source", "assignees"))
-	text := "▾ source › assignees  3"
+	text := "▾ source  ▾ assignees  3"
 	heading := row{Key: m.rows(0)[0].Key, Aside: true, Cells: []grid.Cell{{Values: []string{text}}}}
 	var got []string
 	for _, n := range m.headingNames(heading) {
@@ -119,7 +125,7 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	if len(got) != 2 {
 		t.Errorf("the names of two columns: %q", got)
 	}
-	tricky := row{Key: heading.Key, Aside: true, Cells: []grid.Cell{{Values: []string{"▾ sourcery source › assignees  3"}}}}
+	tricky := row{Key: heading.Key, Aside: true, Cells: []grid.Cell{{Values: []string{"▾ sourcery source  ▾ assignees  3"}}}}
 	if names := m.headingNames(tricky); len(names) != 2 || names[0].from != 2+ansi.StringWidth("▾ sourcery ") {
 		t.Errorf("past a value that holds source: %+v", names)
 	}

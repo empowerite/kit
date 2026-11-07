@@ -54,19 +54,21 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, left, left); m.stages[0].cursor != 0 {
 		t.Fatalf("left on a closed heading: cursor %d", m.stages[0].cursor)
 	}
-	if m = drive(m, left, left); m.stages[0].cursor != 0 || len(m.rows(0)) != 1 {
-		t.Fatalf("left on the outer heading, then again: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
+	// the heading over the groups never closes: left on it, and again, folds nothing
+	if m = drive(m, left, left); m.stages[0].cursor != 0 || len(m.rows(0)) != 2 {
+		t.Fatalf("left on the heading over the groups, then again: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
 	}
 	if m = drive(m, right, right); m.stages[0].cursor != 1 {
 		t.Fatalf("right twice on the outer heading: cursor %d", m.stages[0].cursor)
 	}
-	// option-left on the outer heading closes everything under it; option-right opens everything, rows too
+	// option-left on the heading over the groups closes everything under it, it open still; option-right opens
+	// everything, rows too
 	m = drive(m, up, tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt})
-	if len(m.rows(0)) != 1 || m.stages[0].open[m.every(0)[1].Key] {
+	if len(m.rows(0)) != 2 || m.stages[0].open[m.every(0)[1].Key] {
 		t.Fatalf("option-left: %d rows, the inner heading open %v", len(m.rows(0)), m.stages[0].open[m.every(0)[1].Key])
 	}
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ expand") || !strings.Contains(last, "⌥←→ all under it") {
-		t.Errorf("the keys on a closed heading: %q", last)
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ all under it") {
+		t.Errorf("the keys on the heading over the groups: %q", last)
 	}
 	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt}); len(m.rows(0)) != all || openRows(m) == 0 {
 		t.Fatalf("option-right: %d rows of %d, %d rows open", len(m.rows(0)), all, openRows(m))
@@ -75,20 +77,20 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, down, left, left); m.stages[0].cursor != 0 {
 		t.Errorf("left out of an inner row twice: cursor %d", m.stages[0].cursor)
 	}
-	// an option-click on a heading's ▾ closes everything under it, and another opens it all again; elsewhere on the
-	// heading over the groups, off its names, a click folds nothing
+	// a click on the heading over the groups, off its folds and names, folds nothing
 	names, before := m.headingNames(m.rows(0)[0]), len(m.rows(0))
 	if m = drive(m, testkit.Click(names[len(names)-1].until+1, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.Open {
 		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
 			len(m.rows(0)), before, m.colMenu.Open)
 	}
-	alt := testkit.Click(1, m.rowsTop())
+	alt := testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop()+1)
 	alt.Mod = tea.ModAlt
-	if m = drive(m, alt); len(m.rows(0)) != 1 || m.stages[0].open[m.every(0)[1].Key] {
-		t.Fatalf("an option-click on the outer heading: %d rows", len(m.rows(0)))
-	}
+	// source's heading closed, as left left it: an option-click on its ▸ opens everything under it, and another closes it
 	if m = drive(m, alt); len(m.rows(0)) != all {
-		t.Errorf("a second option-click: %d rows of %d", len(m.rows(0)), all)
+		t.Fatalf("an option-click on source's ▸: %d rows of %d", len(m.rows(0)), all)
+	}
+	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].open[m.every(0)[1].Key] {
+		t.Errorf("a second option-click: %d rows", len(m.rows(0)))
 	}
 }
 
@@ -110,7 +112,8 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 		t.Errorf("collapse others with nothing selected: at %d, enabled %v", k, k >= 0 && m.enabled(k))
 	}
 	m = drive(m, down)
-	if m = choose(m, "Collapse All"); len(m.rows(0)) != 1 || m.stages[0].cursor != 0 {
+	// down to the outermost groups' headings, under the heading over them, which never closes
+	if m = choose(m, "Collapse All"); len(m.rows(0)) != 2 || m.stages[0].cursor != 1 {
 		t.Fatalf("collapse all: %d rows, cursor %d", len(m.rows(0)), m.stages[0].cursor)
 	}
 	if m = choose(m, "Expand All"); len(m.rows(0)) != all || openRows(m) == 0 {

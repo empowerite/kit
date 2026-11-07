@@ -253,7 +253,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
 	m = loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
-	if m = drive(m, testkit.Click(1, m.rowsTop())); openRows(m) != opened-1 {
+	if m = drive(m, testkit.Click(foldCell, m.rowsTop())); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
 }
@@ -403,16 +403,16 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	}
 	// space on a group's heading selects every row of the group, those folded away too, its heading marked ▣, and
 	// again none; with some selected, ◩ marks it. Off the rows, space selects nothing
-	m.setPanel(grid.Panel{Groupable: groupableOf("backlog")}.Grouped("source", false))
-	m.stages[0].cursor = 0
+	m.setPanel(regroup(grid.Panel{Groupable: groupableOf("backlog")}, "source"))
+	m.stages[0].cursor = 1
 	m = drive(m, left)
-	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Chosen ||
-		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+" "+grid.Folded) {
+	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[1].Key] != grid.Chosen ||
+		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()+1]), "  "+grid.Chosen+" "+grid.Folded) {
 		t.Errorf("space on a folded heading selected %d:\n%s", m.selected(), view(m))
 	}
-	m = drive(m, right, down, down, press(tea.KeySpace), up, up)
-	if m.selected() != 2 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Partly {
-		t.Errorf("one row unselected: %d selected, the mark %q", m.selected(), m.groupMarks(0)[m.rows(0)[0].Key])
+	m = drive(m, right, down, press(tea.KeySpace), up)
+	if m.selected() != 2 || m.groupMarks(0)[m.rows(0)[1].Key] != grid.Partly {
+		t.Errorf("one row unselected: %d selected, the mark %q", m.selected(), m.groupMarks(0)[m.rows(0)[1].Key])
 	}
 	if m = drive(m, press(tea.KeySpace), press(tea.KeySpace)); m.selected() != 0 || len(m.groupMarks(0)) != 0 {
 		t.Errorf("space on the heading twice: %d selected", m.selected())

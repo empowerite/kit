@@ -1,6 +1,6 @@
 // The heading over the groups names their columns, and a click on a name drops the column's own menu around it, as a
-// name in the header does, and so does ⏎ with the cursor on the heading, around its first column's; the heading folds
-// by its first ▾ or ▸ alone; the ▾ or ▸ before a column's name shows the groups down to its level, as foldLevel says.
+// name in the header does, and so does ⏎ with the cursor on the heading, around its first column's; the ▾ or ▸ before
+// a column's name shows the groups down to its level, as foldLevel says. The heading itself never closes.
 // A click anywhere on a value's heading folds its rows away, or unfolds them, as one on its ▾ or ▸ does.
 package flow
 
@@ -20,8 +20,8 @@ type nameSpot struct {
 	from, until int
 }
 
-// headingNames gives the columns the heading over the groups names, each where the rows draw its name, before a ›,
-// the count, or the heading's end; any other row names none. The heading's text stands after the gutter's two cells,
+// headingNames gives the columns the heading over the groups names, each where the rows draw its name, before the
+// next level's fold, the count, or the heading's end; any other row names none. The heading's text stands after the gutter's two cells,
 // its selection's.
 func (m Model) headingNames(r row) []nameSpot {
 	if !grid.OverGroups(r) {
@@ -36,8 +36,7 @@ func (m Model) headingNames(r row) []nameSpot {
 				break
 			}
 			at := from + k + 1
-			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
-				strings.HasPrefix(text[end:], " ›") {
+			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") {
 				x := 2 + ansi.StringWidth(text[:at])
 				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
 				break

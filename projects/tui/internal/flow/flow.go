@@ -547,7 +547,7 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	if y < m.top() {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && y == m.top() && x >= 0 && x < len(lead) {
+	if _, hides := m.header(); hides && !group && y == m.top() && x == foldCell {
 		next := maps.Clone(s.open)
 		next[headerKey] = !s.open[headerKey]
 		m.reoutline(next)
@@ -1155,13 +1155,13 @@ func (m *Model) down(n int) {
 	m.fit()
 }
 
-// click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
-// click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
-// on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
-// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; one on a
-// column's name in a group's heading drops the heading menu around the name, and one anywhere else on the heading
-// folds its rows away, or unfolds them.
-// With subtree, as option asks, everything under the row or the heading opens or closes with it. A click on a … line, or on a line about the stage, does nothing.
+// click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard, so
+// space then selects it; a click on a linked glyph of a row's first line, as an issue's before its title, opens its
+// page in the browser; one on the ▸ or ▾ of a row's first line, or of a heading, as foldAt says, and there alone,
+// opens it, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; in the
+// heading over the groups, one on a column's name drops its menu, and one on the ▾ or ▸ before the name shows the
+// groups down to its level. With subtree, as option asks, everything under the row or the heading opens or closes
+// with it. A click on a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
@@ -1187,7 +1187,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		}
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
-	toggle := first && link == "" && (x >= 0 && x < len(lead) || m.inRows && row == s.cursor)
+	fold := first && link == "" && x == foldAt(rows[row])
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	name, onName := m.nameAt(rows[row], x)
 	level, onLevel := m.levelAt(rows[row], x)
@@ -1197,19 +1197,13 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		m.fit()
 	case onName && !subtree:
 		m.openFieldMenu(row, name.column)
-	case grid.OverGroups(rows[row]) && (x < 0 || x >= len(lead)):
-		// the heading over the groups folds by its ▾ or ▸ alone; its names are its columns', the rest nothing
-		m.fit()
-	case grid.Heads(rows[row]):
-		m.disclose(!s.open.Open(rows[row]), subtree)
-		m.fit()
 	case strings.HasPrefix(link, jumps):
 		m.fit()
 		m.jump(strings.TrimPrefix(link, jumps))
 	case link != "":
 		m.fit()
 		return m.openPage(link)
-	case toggle:
+	case fold:
 		m.disclose(!s.open.Open(rows[row]), subtree)
 		m.fit()
 	default:
