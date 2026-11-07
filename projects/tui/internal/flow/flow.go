@@ -66,6 +66,7 @@ type stage struct {
 	stale   bool   // drawn from what kit kept of its last load, or changed since it loaded, as its mark says
 	mark    string // kit's mark of what the stage drew when it loaded, as marks.go reads it
 	remark  bool   // whether the stage loaded since the last read of the marks, so it takes the next as its own
+	watch   bool   // whether the stage loads again once it is stale, as watch.go says
 	refusal string // kit's line, when the command failed
 	issues  []issue
 	under   []underway
@@ -186,7 +187,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}, fold: true,
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, fold: true,
 		legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
@@ -208,6 +209,7 @@ func New(r kit.Runner, o Options) Model {
 		}
 		m.stages = append(m.stages, s)
 	}
+	m.syncOwn()
 	return m
 }
 
@@ -948,9 +950,14 @@ func (m Model) loads() []tea.Cmd {
 }
 
 // restart runs a stage's command again as its latest load, reading the forge afresh, ending the one before when it
-// still runs, and shows the stage loading until it answers.
+// still runs. A stage that shows its rows keeps them, stale, its dot on its tab, until the new ones come; one that
+// shows a refusal, or is loading, shows it loading until it answers.
 func (m *Model) restart(name string) tea.Cmd {
 	cmd, s := m.again(name, true), m.find(name)
+	if !s.loading && s.refusal == "" {
+		s.stale = true
+		return cmd
+	}
 	s.loading, s.refusal = true, ""
 	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
 	m.rebuild()

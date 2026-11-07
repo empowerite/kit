@@ -42,8 +42,9 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[m.menuTop()], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Maximize+"  Maximize") || !strings.Contains(box[2], " "+Reload+" Refresh") ||
+		!strings.Contains(box[3], " "+Unwatched+" Watch") ||
 		strings.Contains(view(m), FieldsIt) ||
-		!strings.Contains(box[5], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
+		!strings.Contains(box[6], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
@@ -53,12 +54,12 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 0}, {"E", 3}, {"z", 3}} {
+	}{{"c", 0}, {"E", 4}, {"z", 4}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
 	}
-	if m = drive(m, down, up); m.menuAt != 3 {
+	if m = drive(m, down, up); m.menuAt != 4 {
 		t.Errorf("up and down moved to a dim item: %d", m.menuAt)
 	}
 	// enter on expand all expands every worktree row that hides something; the menu closes
@@ -67,15 +68,15 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 	opened := openRows(m)
 	// now expand all is dim, and c finds collapse all, which space chooses; ; drops the menu down too
-	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 4 || m.enabled(3) {
+	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 5 || m.enabled(4) {
 		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
 	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, and the
-	// rule, to refresh
-	if m = drive(m, down); m.menuAt != 7 {
+	// rule, to watch
+	if m = drive(m, down); m.menuAt != 8 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
-	if m = drive(m, up, up); m.menuAt != 1 {
+	if m = drive(m, up, up); m.menuAt != 2 {
 		t.Errorf("up past expand all: item %d", m.menuAt)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
@@ -121,8 +122,9 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 		t.Errorf("refresh all ran %q", got)
 	}
 	// welcome asks for the welcome, the picture kept as it is; quit ends it, not interrupted
+	welcome := shell.Top + 1 + slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool { return it.Name == "Welcome" })
 	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
-		press('='), typed("w")[0], press(tea.KeyEnter))
+		testkit.Click(shell.At, shell.Top), testkit.Click(3, welcome))
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}
@@ -136,12 +138,12 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 // all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.menu || m.menuAt != 0 || m.enabled(3) || m.enabled(4) {
+	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.menu || m.menuAt != 0 || m.enabled(4) || m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.menuAt, view(m))
 	}
 	// nothing is drawn under the keyboard on a dim item, even when the keyboard was left on one the rows no longer
 	// let do anything
-	for _, at := range []int{-1, 3} {
+	for _, at := range []int{-1, 4} {
 		m.menuAt = at
 		if box, _ := m.menuBox(); strings.Contains(strings.Join(box, "\n"), style.Cursor(" ")[:4]) {
 			t.Errorf("with the keyboard on %d, a dim item is drawn under it: %q", at, box)
@@ -157,15 +159,15 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 	}
 	_, left := m.menuBox()
 	// a click on the rule, or on collapse all while it is dim, does nothing, and leaves the menu open
-	for _, y := range []int{m.menuTop() + 3, m.menuTop() + 5} {
+	for _, y := range []int{m.menuTop() + 4, m.menuTop() + 6} {
 		if m = drive(m, testkit.Click(left+2, y)); !m.menu || openRows(m) != 0 {
 			t.Errorf("a click on line %d: menu %v, open %d", y, m.menu, openRows(m))
 		}
 	}
-	if m = drive(m, testkit.Click(left+2, m.menuTop()+4)); m.menu || openRows(m) == 0 {
+	if m = drive(m, testkit.Click(left+2, m.menuTop()+5)); m.menu || openRows(m) == 0 {
 		t.Errorf("a click on expand all: menu %v, open %d", m.menu, openRows(m))
 	}
-	if m = drive(m, glyph, testkit.Click(left+2, m.menuTop()+5)); m.menu || openRows(m) != 0 {
+	if m = drive(m, glyph, testkit.Click(left+2, m.menuTop()+6)); m.menu || openRows(m) != 0 {
 		t.Errorf("a click on collapse all: menu %v, open %d", m.menu, openRows(m))
 	}
 	// a click off the menu closes it, and does nothing else
@@ -423,14 +425,14 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 // With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
 func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, press(tea.KeySpace), press(':'))
-	if m.tabItems()[3].Name != "Expand Selected" || m.tabItems()[4].Name != "Collapse Selected" || m.enabled(4) {
-		t.Fatalf("the items with a row selected: %+v", m.tabItems()[3:5])
+	if m.tabItems()[4].Name != "Expand Selected" || m.tabItems()[5].Name != "Collapse Selected" || m.enabled(5) {
+		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:6])
 	}
 	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].open[m.rows(m.stage)[0].Key] {
 		t.Errorf("expand selected opened %d", openRows(m))
 	}
-	if m = drive(m, press(':')); m.enabled(3) || !m.enabled(4) {
-		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(3), m.enabled(4))
+	if m = drive(m, press(':')); m.enabled(4) || !m.enabled(5) {
+		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(4), m.enabled(5))
 	}
 	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
 		t.Errorf("collapse selected left %d open", openRows(m))
@@ -438,8 +440,8 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	s.open[rows[0].Key], s.open[rows[1].Key] = true, true
-	if m = drive(m, press(':')); m.tabItems()[5].Name != "Collapse Others" || !m.enabled(5) {
-		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[5], m.enabled(5))
+	if m = drive(m, press(':')); m.tabItems()[6].Name != "Collapse Others" || !m.enabled(6) {
+		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[6], m.enabled(6))
 	}
 	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
 		!m.stages[m.stage].open[rows[0].Key] || m.menu {

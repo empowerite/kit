@@ -35,11 +35,8 @@ const (
 	Sweep    = "🧹"
 )
 
-// ownItems are the picture's own in the app's menu: every stage loaded again, reading the forge afresh.
-var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
-
-// tabItems gives the tab's menu's lines, top to bottom: the tab maximized, or restored once it is, and the stage loaded
-// again, a rule, the outline expanded, collapsed, and collapsed but for the selection, as folds names them, a rule,
+// tabItems gives the tab's menu's lines, top to bottom: the tab maximized, or restored once it is, the stage loaded
+// again, and watched, or no longer, as watch.go says, a rule, the outline expanded, collapsed, and collapsed but for the selection, as folds names them, a rule,
 // every row selected and none, a rule, and what acts on the rows selected: on backlog, the actions there, then each
 // one's page opened.
 func (m Model) tabItems() []shell.Item {
@@ -47,7 +44,7 @@ func (m Model) tabItems() []shell.Item {
 	if m.maximized {
 		size = shell.Item{Glyph: Restore, Name: "Restore"}
 	}
-	items := append([]shell.Item{size, {Glyph: Reload, Name: "Refresh"}, {}}, m.folds()...)
+	items := append([]shell.Item{size, {Glyph: Reload, Name: "Refresh"}, m.watchItem(m.stage), {}}, m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
@@ -85,7 +82,7 @@ func (m Model) appKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // chose does what a choice from the app's menu asks: refresh all runs every stage kittui draws again, reading the
-// forge afresh; a screen asks kittui to show it in the picture's place, which stays as it is; and quit ends the
+// forge afresh; watch all watches every stage, or stops them, as watch.go says; a screen asks kittui to show it in the picture's place, which stays as it is; and quit ends the
 // screen.
 func (m *Model) chose(c shell.Choice) tea.Cmd {
 	switch {
@@ -93,7 +90,9 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 		return m.quit()
 	case c.Screen != "":
 		return shell.Switch(c.Screen)
-	case c.Own == "Refresh All":
+	case c.Own == WatchAll:
+		return m.watchAll()
+	case c.Own == RefreshAll:
 		m.quotaOff, m.marksOff = false, false
 		var cmds []tea.Cmd
 		for _, s := range m.stages {
@@ -120,7 +119,7 @@ func (m Model) enabled(k int) bool {
 	switch m.tabItems()[k].Name {
 	case "Maximize", "Restore":
 		return true
-	case "Refresh":
+	case "Refresh", WatchIt:
 		return known[s.name]
 	case "Open Selected":
 		return len(m.pages()) > 0
@@ -156,6 +155,8 @@ func (m *Model) pick(k int) tea.Cmd {
 		return nil
 	case "Refresh":
 		return m.refresh(s.name)
+	case WatchIt:
+		return m.toggleWatch(m.stage)
 	case "Open Selected":
 		var cmds []tea.Cmd
 		for _, page := range m.pages() {

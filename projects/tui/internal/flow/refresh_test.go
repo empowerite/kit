@@ -45,11 +45,11 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 		t.Fatal("the older load ran on after a newer one superseded it")
 	}
 	m = drive(m, dropped)
-	if s := m.find("releases"); !s.loading {
-		t.Errorf("the superseded answer was taken: loading %v, refusal %q", s.loading, s.refusal)
+	if s := m.find("releases"); !s.stale || len(s.rels) == 0 {
+		t.Errorf("the superseded answer was taken: stale %v, refusal %q", s.stale, s.refusal)
 	}
 	m = drive(m, newer())
-	if s := m.find("releases"); s.loading || s.refusal != "" || len(s.rels) == 0 {
+	if s := m.find("releases"); s.loading || s.stale || s.refusal != "" || len(s.rels) == 0 {
 		t.Errorf("the newer answer was not taken: loading %v, refusal %q, %d releases", s.loading, s.refusal,
 			len(s.rels))
 	}

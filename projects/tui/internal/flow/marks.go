@@ -44,10 +44,11 @@ func (m *Model) askMarks() tea.Cmd {
 
 // tookMarks compares what kit said of each stage with the mark the stage took when it loaded, and has the screen read
 // them again in MarksEvery. A stage that loaded since the last read takes its mark now; one still loading, or without a
-// mark, is passed over. A read that fails changes nothing; the first to fail before any read stops the asking, until
-// Refresh All.
+// mark, is passed over. A stage whose mark moved is stale, and, watched, loads again at once. A read that fails changes
+// nothing; the first to fail before any read stops the asking, until Refresh All.
 func (m *Model) tookMarks(msg marksMsg) tea.Cmd {
 	m.marking = false
+	var cmds []tea.Cmd
 	switch {
 	case msg.err == nil:
 		m.marked = true
@@ -58,6 +59,12 @@ func (m *Model) tookMarks(msg marksMsg) tea.Cmd {
 			case !ok || s.loading || s.refusal != "":
 			case s.mark == "" || s.remark:
 				s.mark, s.remark = mark, false
+			case mark != s.mark && s.watch:
+				// a stage watched loads again, its rows and its dot staying until the new ones come; the load it starts
+				// supersedes one already under way, so a mark that moves twice loads it twice at most
+				s.stale = true
+				s.mark = mark
+				cmds = append(cmds, m.rewatch(s.name))
 			case mark != s.mark:
 				s.stale = true
 			}
@@ -68,5 +75,5 @@ func (m *Model) tookMarks(msg marksMsg) tea.Cmd {
 	}
 	m.marksSerial++
 	serial := m.marksSerial
-	return tea.Tick(marksEvery, func(time.Time) tea.Msg { return marksTickMsg{serial} })
+	return tea.Batch(append(cmds, tea.Tick(marksEvery, func(time.Time) tea.Msg { return marksTickMsg{serial} }))...)
 }

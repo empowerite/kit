@@ -29,8 +29,8 @@ func maximize(t *testing.T, m Model) Model {
 
 func TestTheTabsMenuStartsWithMaximizeThenRestore(t *testing.T) {
 	m := drive(loaded(t, viewing("")), press(':'))
-	if got := m.tabItems()[:3]; got[0].Glyph != Maximize || got[0].Name != "Maximize" || got[1].Name != "Refresh" ||
-		got[2].Name != "" || !m.enabled(0) {
+	if got := m.tabItems()[:4]; got[0].Glyph != Maximize || got[0].Name != "Maximize" || got[1].Name != "Refresh" ||
+		got[2].Name != WatchIt || got[3].Name != "" || !m.enabled(0) {
 		t.Fatalf("the tab's menu's first section: %+v", got)
 	}
 	if ansi.StringWidth(Maximize) != 1 || ansi.StringWidth(Restore) != 1 || ansi.StringWidth(Banner) != 1 {

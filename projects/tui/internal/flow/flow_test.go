@@ -474,7 +474,8 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	m := loaded(t, options(), right, right, right, right, right, right, right, press('='), typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
-	if cmd == nil || !strings.Contains(view(m), "loading") || !shows(m, Release, "…") {
+	// releases keeps its rows, stale, its dot on its tab, until the answer comes
+	if cmd == nil || strings.Contains(view(m), "loading") || !shows(m, Release, "3") || !m.find("releases").stale {
 		t.Fatalf("Refresh All did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
@@ -482,7 +483,7 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	if got := calls(t, record); len(got) != 24 || slices.Index(got[12:], "flow releases --json") < 0 {
 		t.Errorf("the calls: %q", got)
 	}
-	if !shows(m, Release, "3") {
+	if !shows(m, Release, "3") || m.find("releases").stale {
 		t.Errorf("releases did not come back:\n%s", view(m))
 	}
 }
