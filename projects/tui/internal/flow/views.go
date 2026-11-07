@@ -471,11 +471,11 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 
 // dropPresets drops the selected stage's presets down, the one the line names under the keyboard, else Save As….
 func (m *Model) dropPresets() {
-	m.presetMenu = true
-	m.presetAt = slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked })
-	if m.presetAt < 0 {
-		m.presetAt = itemSaveAs
+	at := slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked })
+	if at < 0 {
+		at = itemSaveAs
 	}
+	m.presetsMenu = shell.Dropdown{Open: true, At: at}
 }
 
 // own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
@@ -624,21 +624,11 @@ func (m Model) presetEnabled(k int) bool {
 	return m.presetItems()[k].Name != ""
 }
 
-// presetMenuKey takes a key while the presets' menu is open: up and down move, a letter to the next view it starts,
-// enter and space choose, and esc closes it.
+// presetMenuKey takes a key while the presets' menu is open, as a dropdown does, and takes the line chosen.
 func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	items := m.presetItems()
-	switch k.String() {
-	case "up":
-		m.presetAt = shell.Move(items, m.presetEnabled, m.presetAt, -1)
-	case "down":
-		m.presetAt = shell.Move(items, m.presetEnabled, m.presetAt, 1)
-	case "enter", "space":
-		m.choosePreset(m.presetAt)
-	case "esc":
-		m.presetMenu = false
-	default:
-		m.presetAt = shell.NextItem(items, m.presetEnabled, m.presetAt, k.Text)
+	var chosen int
+	if m.presetsMenu, chosen = m.presetsMenu.Key(k, m.presetItems(), m.presetEnabled); chosen >= 0 {
+		m.choosePreset(chosen)
 	}
 	return m, nil
 }
@@ -647,7 +637,7 @@ func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
 // name; Delete drops it; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
-	m.presetMenu = false
+	m.presetsMenu.Open = false
 	if !m.presetEnabled(k) {
 		return
 	}
@@ -681,22 +671,21 @@ const PresetsTitle = "Presets"
 // dialog's, its right edge on the selector's last cell, so it covers the ▼.
 func (m Model) presetBox() (lines []string, top, left int) {
 	color := stageColors[m.stages[m.stage].name]
-	lines, left = shell.BoxColored(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, min(m.dropEnd(), m.width),
+	lines, left = shell.BoxColored(m.presetItems(), m.presetEnabled, m.presetsMenu.At, "", -1, min(m.dropEnd(), m.width),
 		color)
 	lines[0] = shell.TitledColored(PresetsTitle, ansi.StringWidth(lines[0]), color)
 	return lines, m.top(), left
 }
 
-// presetMenuClick takes a click while the presets' menu is open: on a line that acts, it chooses it; anywhere else, it
-// closes the menu.
+// presetMenuClick takes a click while the presets' menu is open, as a dropdown does: on a line that acts, it chooses
+// it; on another line of the box, nothing; anywhere else, it closes the menu.
 func (m *Model) presetMenuClick(x, y int) {
 	box, top, left := m.presetBox()
-	if k := y - top - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 &&
-		m.presetEnabled(k) {
-		m.choosePreset(k)
-		return
+	var chosen int
+	if m.presetsMenu, chosen = m.presetsMenu.Click(x, y, top, left, ansi.StringWidth(box[0]), m.presetItems(),
+		m.presetEnabled); chosen >= 0 {
+		m.choosePreset(chosen)
 	}
-	m.presetMenu = false
 }
 
 // presetClick takes a click on the preset line, which then has the keyboard: on the selector, its name or ▼, it drops

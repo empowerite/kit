@@ -134,13 +134,12 @@ type Model struct {
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
-	presetMenu    bool                   // whether the preset line's menu of views is open
+	presetsMenu   shell.Dropdown         // the preset line's menu of views: whether it is open, and its line under the keyboard
 	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
 	fold          bool                   // whether the tables fold a value every row of a group shares, as kittui's settings say
 	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	cols          columnsDialog          // the columns dialog, while it is open
 	legend        legend                 // the legend, which F1 and ? show and hide, and the corner it stands in
-	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
 	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
@@ -344,7 +343,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.columnsClick(msg.X, msg.Y)
 			return m, nil
 		}
-		if m.presetMenu {
+		if m.presetsMenu.Open {
 			m.presetMenuClick(msg.X, msg.Y)
 			return m, nil
 		}
@@ -720,7 +719,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.cols.open {
 		return m.columnsKey(k)
 	}
-	if m.presetMenu {
+	if m.presetsMenu.Open {
 		return m.presetMenuKey(k)
 	}
 	if m.colMenu.Open {

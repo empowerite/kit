@@ -270,7 +270,7 @@ func (m *Model) menuClick(x, y int) tea.Cmd {
 // float draws what floats over the screen, over the menus and the legend: the presets' menu under the preset line; the columns dialog; a field's popover; the column and heading menus; and the searches
 // remembered under the search's ▾.
 func (m Model) float(lines []string) []string {
-	if m.presetMenu {
+	if m.presetsMenu.Open {
 		box, top, left := m.presetBox()
 		lines = shell.Over(lines, box, top, left)
 	}

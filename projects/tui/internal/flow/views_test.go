@@ -143,7 +143,7 @@ func TestAChipStandsForEachFilter(t *testing.T) {
 func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	m := onDropdown(t, "")
 	m = drive(m, press(tea.KeyEnter))
-	if !m.presetMenu {
+	if !m.presetsMenu.Open {
 		t.Fatal("enter did not drop the presets down")
 	}
 	// the menu is titled Presets at its left, as a dialog is, not by the preset the table is set as; it stands on the
@@ -166,14 +166,14 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 		names = append(names, i.Name)
 	}
 	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
-		m.presetItems()[7].Glyph != Checked || m.presetAt != 7 {
-		t.Fatalf("the presets: %q, at %d", names, m.presetAt)
+		m.presetItems()[7].Glyph != Checked || m.presetsMenu.At != 7 {
+		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
 		t.Errorf("the keys with the menu open: %q", keysOf(m))
 	}
 	m = drive(m, down, press(tea.KeyEnter))
-	if m.presetMenu || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
+	if m.presetsMenu.Open || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
 		presetText(m) != "    "+selector("Compact") {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
@@ -197,11 +197,11 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// the menu then opens on Save As…, no name typed for a stage's own view; saving with no name is refused, as is
 	// saving over a stage's own view; the change stays
-	if m = drive(m, press(tea.KeyEnter)); m.presetAt != itemSaveAs {
-		t.Errorf("the menu on a changed table opens at %d", m.presetAt)
+	if m = drive(m, press(tea.KeyEnter)); m.presetsMenu.At != itemSaveAs {
+		t.Errorf("the menu on a changed table opens at %d", m.presetsMenu.At)
 	}
 	m = drive(m, press(tea.KeyEnter))
-	if !m.stages[0].savingAs || m.presetMenu || !strings.HasSuffix(presetText(m), SavingAs+" ▏") ||
+	if !m.stages[0].savingAs || m.presetsMenu.Open || !strings.HasSuffix(presetText(m), SavingAs+" ▏") ||
 		!strings.Contains(keysOf(m), "⏎ save") {
 		t.Fatalf("Save As…: %q, %q", presetText(m), keysOf(m))
 	}
@@ -224,12 +224,12 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetAt != 8 {
-		t.Errorf("c in the menu: %d", m.presetAt)
+	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 8 {
+		t.Errorf("c in the menu: %d", m.presetsMenu.At)
 	}
 	m = drive(m, up, esc)
-	if m.presetMenu || !m.onPreset {
-		t.Errorf("esc in the menu: open %v", m.presetMenu)
+	if m.presetsMenu.Open || !m.onPreset {
+		t.Errorf("esc in the menu: open %v", m.presetsMenu.Open)
 	}
 	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
@@ -279,8 +279,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
 	if items := m.presetItems(); len(items) != 11 || items[9].Name != "" || items[10].Name != "Triage" ||
-		items[10].Glyph != Checked || m.presetAt != 10 {
-		t.Errorf("the menu: %+v, at %d", items, m.presetAt)
+		items[10].Glyph != Checked || m.presetsMenu.At != 10 {
+		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
 	m = drive(m, esc)
 	// changed, then Save As… again, its name typed already, it is overwritten; up while naming stops, and leaves the
@@ -301,7 +301,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetAt = 10
+	n.presetsMenu.At = 10
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
@@ -313,34 +313,33 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// a click on the line before the name gives it the keyboard, and opens nothing
-	if m = drive(m, testkit.Click(m.dropStart()-4, m.presetTop())); m.presetMenu || !m.onPreset {
-		t.Fatalf("a click past the name: menu %v, on the line %v", m.presetMenu, m.onPreset)
+	if m = drive(m, testkit.Click(m.dropStart()-4, m.presetTop())); m.presetsMenu.Open || !m.onPreset {
+		t.Fatalf("a click past the name: menu %v, on the line %v", m.presetsMenu.Open, m.onPreset)
 	}
 	m = drive(m, esc)
 	// a click on the name drops the presets down, as one on ▼ does
-	if m = drive(m, testkit.Click(m.dropStart()+1, m.presetTop())); !m.presetMenu || !m.onPreset {
-		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetMenu, m.onPreset, raw(m))
+	if m = drive(m, testkit.Click(m.dropStart()+1, m.presetTop())); !m.presetsMenu.Open || !m.onPreset {
+		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetsMenu.Open, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetBox()
-	if m = drive(m, testkit.Click(left+3, top+9)); m.presetMenu || m.stages[0].viewName != "Compact" {
-		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetMenu, m.stages[0].viewName, box)
+	if m = drive(m, testkit.Click(left+3, top+9)); m.presetsMenu.Open || m.stages[0].viewName != "Compact" {
+		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetsMenu.Open, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
 	m = drive(m, testkit.Click(m.dropEnd()-1, m.presetTop()))
-	if !m.presetMenu {
+	if !m.presetsMenu.Open {
 		t.Fatalf("a click on ▼ did not open it:\n%s", raw(m))
 	}
-	if m = drive(m, testkit.Click(1, 20)); m.presetMenu || m.stages[0].viewName != "Compact" {
-		t.Errorf("a click off the menu: menu %v", m.presetMenu)
+	if m = drive(m, testkit.Click(1, 20)); m.presetsMenu.Open || m.stages[0].viewName != "Compact" {
+		t.Errorf("a click off the menu: menu %v", m.presetsMenu.Open)
 	}
-	// a click on Save, dim on a stage's own view, does nothing; a click on Save As… takes a name, and enter saves
-	// under it
+	// a click on Save, dim on a stage's own view, does nothing, the menu left open, as on every dropdown; a click on
+	// Save As… takes a name, and enter saves under it
 	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
 	_, top, left = m.presetBox()
-	if m = drive(m, testkit.Click(left+3, top+3)); m.stages[0].savingAs || m.presetMenu {
-		t.Errorf("a click on Save, dim: naming %v, menu %v", m.stages[0].savingAs, m.presetMenu)
+	if m = drive(m, testkit.Click(left+3, top+3)); m.stages[0].savingAs || !m.presetsMenu.Open {
+		t.Errorf("a click on Save, dim: naming %v, menu %v", m.stages[0].savingAs, m.presetsMenu.Open)
 	}
-	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
 	m = drive(m, testkit.Click(left+3, top+4))
 	m = drive(m, typed("Mine")...)
 	if m = drive(m, press(tea.KeyEnter)); m.stages[0].viewName != "Mine" {

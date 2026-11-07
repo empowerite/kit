@@ -41,8 +41,8 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		m.presetItems()[itemFields+1].Name != "" || !m.presetEnabled(itemFields) {
 		t.Fatalf("the presets' menu: %+v", m.presetItems())
 	}
-	if m.choosePreset(itemFields); m.presetMenu || !m.cols.open || m.cols.at != 0 {
-		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetMenu, m.cols)
+	if m.choosePreset(itemFields); m.presetsMenu.Open || !m.cols.open || m.cols.at != 0 {
+		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
 	if got := m.colsListed(); got[0] != "assignees" || got[len(got)-1] != "repository" {
 		t.Errorf("the fields: %q", got)

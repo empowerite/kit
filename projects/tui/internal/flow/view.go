@@ -144,7 +144,7 @@ func (m Model) keys() shell.Path {
 		keys := shell.MenuKeys()
 		keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)
 		return shell.Path{keys}
-	case m.presetMenu, m.recent.Open, m.tabMenu.Open, m.appMenu.Open:
+	case m.presetsMenu.Open, m.recent.Open, m.tabMenu.Open, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")
