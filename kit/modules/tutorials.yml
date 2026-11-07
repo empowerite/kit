@@ -2,10 +2,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit generate writes the region below from the front matter of the tutorials site's top-level pages, so a tutorial is
 # described in one place, its page. Edit a page, then run kit generate; a hand edit here makes the region stale.
-# Only kit's own source repository has bin/tutorials; anywhere else, as in a repository that carries this release, the
-# region's command reprints the region as it stands, so it is never stale.
+# Only kit's own source repository has projects/tutorials, and there the region's command runs bin/tutorials, which must
+# be executable or the command fails. Anywhere else, as in a repository that carries this release, the command reprints
+# the region as it stands, so it is never stale, and a bin/tutorials of the repository's own is never run.
 
-# kit:generate catalogue `if [[ -x bin/tutorials ]]; then bin/tutorials catalogue; else awk -v r="$KIT_GENERATE_REGION" '$0 ~ "^# kit:end " r "$" {p=0} p {print} $0 ~ "^# kit:generate " r " " {p=1}' "$KIT_GENERATE_FILE"; fi`
+# kit:generate catalogue `if [[ -d projects/tutorials ]]; then bin/tutorials catalogue; else awk -v r="$KIT_GENERATE_REGION" '$0 ~ "^# kit:end " r "$" {p=0} p {print} $0 ~ "^# kit:generate " r " " {p=1}' "$KIT_GENERATE_FILE"; fi`
 audiences:
   - id: newcomer
     label: Just starting

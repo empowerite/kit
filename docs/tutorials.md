@@ -15,7 +15,8 @@ kit tutorials --json                  # one JSON object, for a program
 ## What it does
 
 - On a terminal, with no `--text`, `--json`, or `--jq`, it opens kittui's tutorials screen: a button for each tutorial,
-  and the audiences as filters. Each `--tag` starts with that filter on. Without a kittui, it prints the list.
+  and the audiences as filters. The screen starts on the tab of the first `--tag` that names an audience; the text,
+  `--json`, and `--jq` forms keep the tutorials for any of the tags. Without a kittui, it prints the list.
 - Without a terminal, or with `--text`, it prints a block for each tutorial: its glyph and title, its summary, its
   audiences, and its link. With none to show, it says so in one line.
 - A tutorial named opens in the browser. Its title and link print first, so a machine with no browser has the link.

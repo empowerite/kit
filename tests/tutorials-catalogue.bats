@@ -88,11 +88,29 @@ catalogue() {
   fresh-repo >/dev/null
   cp -R "${kit_checkout}" kit
   [ ! -e bin/tutorials ]
-  before=$(cat kit/modules/tutorials.yml)
+  cp kit/modules/tutorials.yml "${BATS_TEST_TMPDIR}/before"
   run "${kit_root}/bin/kit" generate --check kit/modules/tutorials.yml
   [ "$status" -eq 0 ]
-  [ "$(cat kit/modules/tutorials.yml)" = "${before}" ]
+  cmp kit/modules/tutorials.yml "${BATS_TEST_TMPDIR}/before"
   run "${kit_root}/bin/kit" generate kit/modules/tutorials.yml
   [ "$status" -eq 0 ]
-  [ "$(cat kit/modules/tutorials.yml)" = "${before}" ]
+  cmp kit/modules/tutorials.yml "${BATS_TEST_TMPDIR}/before"
+}
+
+@test "a repository's own bin/tutorials is never run by the region, but kit's source fails loudly without its execute bit" {
+  fresh-repo >/dev/null
+  cp -R "${kit_checkout}" kit
+  mkdir bin
+  printf '#!/bin/sh\ntouch ran\n' > bin/tutorials
+  chmod +x bin/tutorials
+  cp kit/modules/tutorials.yml "${BATS_TEST_TMPDIR}/before"
+  run "${kit_root}/bin/kit" generate kit/modules/tutorials.yml
+  [ "$status" -eq 0 ]
+  [ ! -e ran ]
+  cmp kit/modules/tutorials.yml "${BATS_TEST_TMPDIR}/before"
+  # with a projects/tutorials, as in kit's source, the command runs bin/tutorials, and a lost execute bit fails
+  mkdir -p projects/tutorials
+  chmod -x bin/tutorials
+  run "${kit_root}/bin/kit" generate kit/modules/tutorials.yml
+  [ "$status" -ne 0 ]
 }
