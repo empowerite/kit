@@ -333,11 +333,13 @@ func (p Panel) Rendered(id, rendering string) Panel {
 	})
 }
 
-// Place gives where a field stands among what orders the rows, from 1, or 0 where it orders nothing, and how many
-// things order them: the groups first, as the rows stand in their groups before any key sorts them, the outermost 1;
-// then the keys of the columns the rows do not group by, the first first.
+// Place gives where a field stands among what sorts the rows, from 1, or 0 where it sorts nothing, and how many
+// things sort them: the groups that sort first, as the rows stand in their groups before any key sorts them, the
+// outermost 1; then the keys of the columns the rows do not group by, the first first. A group that does not sort, as
+// a group does not by default, takes no place, so the keys number on from the groups that do.
 func (p Panel) Place(id string) (place, total int) {
-	groups, keys := p.Groups(), p.ColumnKeys()
+	groups := slices.DeleteFunc(p.Groups(), func(g string) bool { return p.Fields[g].Sort == Unsorted })
+	keys := p.ColumnKeys()
 	total = len(groups) + len(keys)
 	if k := slices.Index(groups, id); k >= 0 {
 		return k + 1, total
@@ -356,21 +358,21 @@ func (p Panel) ColumnKeys() []SortKey {
 }
 
 // Mark gives what stands after a field's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
-// among what orders them, as Place gives it, as a subscript, when more than one thing does; nothing where it does not
-// sort. A group sorts its rows' values as its field's sort says, ascending where it says none, and is marked only where
-// it says one.
+// among what orders them, as Place gives it, when more than one thing does, raised after ▲ and lowered after ▼, as
+// each points, ▲² and ▼₂; nothing where it does not sort. A group sorts its rows' values as its field's sort says,
+// ascending where it says none, and is marked only where it says one.
 func (p Panel) Mark(id string) string {
 	f := p.Fields[id]
 	place, total := p.Place(id)
 	if f.Sort == Unsorted || place == 0 {
 		return ""
 	}
-	mark := "▲"
+	mark, digits := "▲", superscript
 	if f.Sort == Descending {
-		mark = "▼"
+		mark, digits = "▼", subscript
 	}
 	if total > 1 {
-		mark += subscript(place)
+		mark += digits(place)
 	}
 	return mark
 }
@@ -379,9 +381,17 @@ func (p Panel) Mark(id string) string {
 // subscript, ▤₁ for the outermost, as Mark carries a sort's place.
 func GroupMark(depth int) string { return Grouping + subscript(depth) }
 
-// subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
+// subscript gives a number in subscript digits, as ₁₂, which mark a group's depth and a descending
+// column's place among the keys.
 func subscript(n int) string {
 	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
+}
+
+// superscript gives a number in superscript digits, as ¹², which mark an ascending column's place among the keys.
+// Their code points are not in a run, as subscript's are: ¹ ² ³ stand in Latin-1.
+func superscript(n int) string {
+	digits := []rune("⁰¹²³⁴⁵⁶⁷⁸⁹")
+	return strings.Map(func(r rune) rune { return digits[r-'0'] }, strconv.Itoa(n))
 }
 
 // Grouped gives the panel grouping the rows by the column alone, or, with nest, as the column menu's Group and a

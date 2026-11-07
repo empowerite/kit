@@ -445,7 +445,8 @@ func (f field) drawnBy(pinned string) string {
 // sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim. A link leads from
 // the glyph, so a field drawn without its glyph, which another of its renderings draws, has none: its text is no
 // button. A field none of whose renderings draws a glyph, as a reference, leads from its text. A field of labels says
-// how many a row has, dim, in its column, and a group's heading the one label its rows share, as it draws it.
+// how many a row has, dim, in its column, where it has more than one, and draws the one where it has one; a group's
+// heading says the one label its rows share, as it draws it.
 func (f field) draw(vs []value, pinned string) []cell {
 	rendering := f.drawnBy(pinned)
 	links := glyphed[rendering] || !slices.ContainsFunc(f.Renderings, func(r string) bool { return glyphed[r] })
@@ -464,7 +465,10 @@ func (f field) draw(vs []value, pinned string) []cell {
 		}
 		c.Right, c.Wrap, c.Raw, c.Hang = f.Right, f.Wrap, v.Raw, glyphed[rendering]
 		if f.Type == "label" && len(c.Values) > 0 {
-			c.Summary, c.Head = style.Off(strconv.Itoa(len(c.Values))), c.Values[0]
+			c.Head = c.Values[0]
+		}
+		if f.Type == "label" && len(c.Values) > 1 {
+			c.Summary = style.Off(strconv.Itoa(len(c.Values)))
 		}
 		if links {
 			c.Link = v.Link

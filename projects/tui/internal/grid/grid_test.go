@@ -478,7 +478,7 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	}
 	// by age, then id: the two of 60m by id
 	byAge := p.Sorted("age").Sorted("id")
-	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲₁" || byAge.Mark("id") != "▲₂" {
+	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲¹" || byAge.Mark("id") != "▲²" {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
 	// a key among several turns in its place; a third time on a column stops it; Unsorted clears every key
@@ -495,12 +495,17 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	if got := byAge.Unsorted().SortKeys(); len(got) != 0 {
 		t.Errorf("unsorted: %+v", got)
 	}
-	// grouped, the groups order the rows first: the outermost is 1, and a key after them numbers on; a group keeps
-	// how it sorts through Unsorted, and is marked only where it sorts; a lone key with no group has no number
+	// grouped, the groups that sort order the rows first: the outermost of those is 1, and a key after them numbers
+	// on; a group that does not sort, as a group does not by default, takes no number, so a key under it alone has
+	// none; a group keeps how it sorts through Unsorted, and is marked only where it sorts
 	g := Panel{Sortable: map[string]bool{"id": true, "age": true}, Groupable: map[string]bool{"age": true}}.
 		Grouped("age", true).Sorted("id")
-	if place, total := g.Place("age"); g.Mark("id") != "▲₂" || g.Mark("age") != "" || place != 1 || total != 2 {
-		t.Errorf("under a group: id %q, age %q at %d of %d", g.Mark("id"), g.Mark("age"), place, total)
+	if place, total := g.Place("age"); g.Mark("id") != "▲" || g.Mark("age") != "" || place != 0 || total != 1 {
+		t.Errorf("under a group that does not sort: id %q, age %q at %d of %d", g.Mark("id"), g.Mark("age"), place,
+			total)
+	}
+	if s := g.SortedAs("age", Descending); s.Mark("age") != "▼₁" || s.Mark("id") != "▲²" {
+		t.Errorf("under a group that sorts: id %q, age %q", s.Mark("id"), s.Mark("age"))
 	}
 	if g = g.SortedAs("age", Descending).Unsorted(); g.Mark("age") != "▼" || len(g.ColumnKeys()) != 0 {
 		t.Errorf("a group sorting, unsorted: %q %+v", g.Mark("age"), g.SortKeys())
@@ -841,13 +846,13 @@ func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
 func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age").Sorted("id")
 	given := p.Fields
-	if q := p.SortedAs("age", Descending); q.Mark("age") != "▼₁" || q.Mark("id") != "▲₂" || given["age"].Sort != Ascending {
+	if q := p.SortedAs("age", Descending); q.Mark("age") != "▼₁" || q.Mark("id") != "▲²" || given["age"].Sort != Ascending {
 		t.Errorf("age descending: %q %q", q.Mark("age"), q.Mark("id"))
 	}
 	if q := p.SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
 		t.Errorf("age off: %+v", q.SortKeys())
 	}
-	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "▲₂" {
+	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "▲²" {
 		t.Errorf("age back on: %q", q.Mark("age"))
 	}
 	if q := p.SortedAs("title", Ascending); len(q.SortKeys()) != 2 {

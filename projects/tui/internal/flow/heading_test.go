@@ -30,8 +30,7 @@ func nameOf(m Model, k int) int { return m.headingNames(m.rows(m.stage)[k])[0].f
 
 // A click on a column's name in the heading over every row drops the menu around the name, titled by it alone, the
 // first line that acts under the keyboard: everything under the heading collapsed or expanded, the group selected or
-// unselected, and the rows ungrouped by the column, dim, as the rows group by it on their own. A line that cannot act
-// stays, dim; esc, or a click off the menu, closes it. A click elsewhere on the heading, on its value, folds its rows
+// unselected; the rows group by it on their own, so there is no ungrouping. A line that cannot act stays, dim; esc, or a click off the menu, closes it. A click elsewhere on the heading, on its value, folds its rows
 // away, and another unfolds them.
 func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -50,10 +49,10 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 		m.headMenu.column != "source" {
 		t.Fatalf("a click on source: menu %+v, cursor %d", m.headMenu, m.stages[0].cursor)
 	}
-	want := []string{ExpandGroup, CollapseGroup, "", SelectGroup, "", UngroupIt}
+	want := []string{ExpandGroup, CollapseGroup, "", SelectGroup}
 	// the rows under it are closed, so both expand and collapse act
 	if got := menuNames(m); !slices.Equal(got, want) || !m.headingEnabled(0) || !m.headingEnabled(1) ||
-		m.headMenu.at != 0 || m.headingEnabled(5) {
+		m.headMenu.at != 0 || m.headingEnabled(2) {
 		t.Fatalf("the menu: %q, at %d", got, m.headMenu.at)
 	}
 	box, top, _ := m.headingBox()
@@ -165,6 +164,26 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); len(m.rows(0)) != all {
 		t.Errorf("a second click on the value's heading: %d rows of %d", len(m.rows(0)), all)
 	}
+	// Options… there opens the field's popover, hanging from its name in the heading; a column not grouped has no
+	// name there
+	m.stages[0].cursor = 0
+	m = drive(m, press(tea.KeyEnter))
+	x, y := m.fieldName("source")
+	m.columnAct(m.columnLine(actMore))
+	if !m.pop.open || m.pop.field != "source" ||
+		m.pop.x != x || m.pop.y != y || y != m.rowsTop() {
+		t.Errorf("Options… from the heading: %+v, source at %d, %d", m.pop, x, y)
+	}
+	m.pop = popover{}
+	if _, y := m.fieldName("age"); y != -1 {
+		t.Errorf("age, not grouped, stands in the heading on line %d", y)
+	}
+	// while the stage loads, the rule has no sort targets
+	m.stages[0].loading = true
+	if spots := m.sortSpots(); spots != nil {
+		t.Errorf("the sort targets while loading: %+v", spots)
+	}
+	m.stages[0].loading = false
 	// once the heading no longer shows, the menu draws nothing, and a click closes it
 	m.stages[0].cursor = 0
 	m = drive(m, press(tea.KeyEnter))
@@ -177,15 +196,18 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	}
 }
 
-// On the heading over every row, which no column the person chose makes, Ungroup, which the rows group by
-// on their own, stands dim; once a reload takes the
-// heading the menu hangs from away, it draws nothing, and a click closes it.
+// On the heading over every row, which no column the person chose makes, the menu holds no Ungroup, as the rows group
+// by its columns on their own, nor does shift move its column; once a reload takes the heading the menu hangs from
+// away, it draws nothing, and a click closes it.
 func TestTheHeadingMenuOverEveryRowAndAfterItsHeadingGoes(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	x := nameOf(m, 0)
 	m = drive(m, testkit.Click(x, m.rowsTop()))
-	if got := menuNames(m); !m.headMenu.open || got[5] != UngroupIt || m.headingEnabled(5) {
-		t.Fatalf("the menu over every row: %q, ungroup enabled %v", got, m.headingEnabled(5))
+	if got := menuNames(m); !m.headMenu.open || slices.Contains(got, UngroupIt) || strings.Contains(keysOf(m), "⇧←→") {
+		t.Fatalf("the menu over every row: %q, keys %q", got, keysOf(m))
+	}
+	if m = drive(m, testkit.Press("shift+left")); !m.headMenu.open || !slices.Equal(m.panel(0).Groups(), nil) {
+		t.Errorf("shift+left in the menu over every row: menu %v, groups %q", m.headMenu.open, m.panel(0).Groups())
 	}
 	m.headMenu.key = "a heading a reload took away"
 	if box, _, _ := m.headingBox(); box != nil || m.headingEnabled(0) || strings.Contains(raw(m), CollapseGroup) {
@@ -220,10 +242,9 @@ func TestAHeadingsNamesStandAfterTheirValues(t *testing.T) {
 	if len(got) != 3 {
 		t.Errorf("the names of three columns at one level: %q", got)
 	}
-	// a click on repository drops the menu titled by it alone, Ungroup dim, as the rows group by it on
-	// their own
+	// a click on repository drops the menu titled by it alone
 	m.headMenu = headingMenu{open: true, key: heading.Key, column: "repository"}
-	if items := m.headingItems(); items[5].Name != UngroupIt || m.headingEnabled(5) {
-		t.Errorf("repository's menu: %+v", items)
+	if box, _, _ := m.headingBox(); len(box) > 0 && !strings.Contains(box[0], "repository") {
+		t.Errorf("repository's menu: %q", box[0])
 	}
 }

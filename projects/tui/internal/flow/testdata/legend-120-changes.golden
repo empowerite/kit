@@ -2,11 +2,11 @@
   ➀╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────
     🎫 backlog     3 │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds      ▹
   ───────────────────╰────────────────────╰────────────────╰──────────────────────╯                  ╰──────────────────
-   change  title                        author            state  age  checks  threads          labels  branch
+   change  title                      author            state  age  checks  threads          labels    branch
    ──────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
- ▸ 🔀 #2   The first release, v0.1.0    jeffrey-aguilera  🏁      8d  ✅                       1       1-the-first-rel…
- ▸ 🔀 #3   A spike on the settings fi…  ada               🔨     90m  🏃      💬 2 unresolved          3-a-spike
- ▸ 🔀 #4   Lint every module            bob               🔥     25h  ❌                               4-lint-every-mo…
+ ▸ 🔀 #2   The first release, v0.1.0  jeffrey-aguilera  🏁      8d  ✅                       kind=fix  1-the-first-rel…
+ ▸ 🔀 #3   A spike on the settings …  ada               🔨     90m  🏃      💬 2 unresolved            3-a-spike
+ ▸ 🔀 #4   Lint every module          bob               🔥     25h  ❌                                 4-lint-every-mo…
 
 
 

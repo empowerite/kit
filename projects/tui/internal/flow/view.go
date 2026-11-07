@@ -134,15 +134,12 @@ func (m Model) keys() shell.Path {
 		return shell.Path{m.popKeys()}
 	case m.cols.open:
 		return shell.Path{m.columnsKeys()}
-	case m.colMenu.open, m.headMenu.open:
-		// a column's menus move it too
-		keys, column := shell.MenuKeys(), m.colMenu.column
-		if m.headMenu.open {
-			column = m.headMenu.column
-		}
-		keys.Bindings = append(keys.Bindings, m.shiftKeys(column)...)
+	case m.colMenu.open:
+		// a column's menu moves it too
+		keys := shell.MenuKeys()
+		keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)
 		return shell.Path{keys}
-	case m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.headMenu.open, m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")
@@ -283,18 +280,15 @@ func counted(rows []row) int {
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
-// rows, which widen its columns, each that sorts the rows marked as the panel marks it; none while the headers are
-// hidden, as a test of the rows alone asks.
+// rows, which widen its columns; none while the headers are hidden, as a test of the rows alone asks. A sort's mark
+// stands on the rule under the name, not after it, so sorting never widens a column.
 func (m Model) names(i int) []string {
 	if m.noHeaders {
 		return nil
 	}
-	p, names := m.filter(i), m.shownColumns(i)
+	names := m.shownColumns(i)
 	for k, name := range names {
 		names[k] = labelOf(m.stages[i].name, name)
-		if mark := p.Mark(name); mark != "" {
-			names[k] += " " + mark
-		}
 	}
 	return names
 }
@@ -340,7 +334,8 @@ func (m Model) rule() string {
 }
 
 // ruled gives the line under the header, as wide as the pane, and the column the preset's selector starts on, -1 where the
-// stage has no preset line: the gutter, a thin dim line, and at its right end, how many rows are selected, in the
+// stage has no preset line: the gutter, a thin dim line, each sort's mark on it under its column's name, as sortSpots
+// places them, where the line reaches, and at its right end, how many rows are selected, in the
 // accent, when some are, then the preset line, where the stage has one: a chip per filter the panel sets, as chips
 // gives them, and the selector, as presetLine draws it. The chips are clipped first where the line is
 // short, leaving a cell of the rule.
@@ -361,7 +356,7 @@ func (m Model) ruled() (string, int) {
 		}
 	}
 	fill := max(1, width-len(lead)-ansi.StringWidth(right)-ansi.StringWidth(tail))
-	line := ansi.Truncate(lead+style.Off(strings.Repeat("─", fill))+right+tail, width, "")
+	line := ansi.Truncate(lead+m.ruleFill(fill)+right+tail, width, "")
 	if tail == "" {
 		return line, -1
 	}

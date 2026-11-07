@@ -75,8 +75,14 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, down, left, left); m.stages[0].cursor != 0 {
 		t.Errorf("left out of an inner row twice: cursor %d", m.stages[0].cursor)
 	}
-	// an option-click on a heading closes everything under it, and another opens it all again
-	alt := testkit.Click(20, m.rowsTop())
+	// an option-click on a heading's ▾ closes everything under it, and another opens it all again; elsewhere on the
+	// heading over the groups, off its names, a click folds nothing
+	names, before := m.headingNames(m.rows(0)[0]), len(m.rows(0))
+	if m = drive(m, testkit.Click(names[len(names)-1].until+1, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.open {
+		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
+			len(m.rows(0)), before, m.colMenu.open)
+	}
+	alt := testkit.Click(1, m.rowsTop())
 	alt.Mod = tea.ModAlt
 	if m = drive(m, alt); len(m.rows(0)) != 1 || m.stages[0].open[m.every(0)[1].Key] {
 		t.Fatalf("an option-click on the outer heading: %d rows", len(m.rows(0)))

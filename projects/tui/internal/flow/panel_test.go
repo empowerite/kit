@@ -251,25 +251,30 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 	loaded(t, Options{}, turn(tea.MouseWheelDown))
 }
 
-// Sort by, in the menu a click on a sortable column's name drops, sorts the rows by it, ▲ beside the name; a click on ▲
-// turns it ▼;
+// Sort by, in the menu a click on a sortable column's name drops, sorts the rows by it, ▲ on the rule under the name; a
+// click on ▲ turns it ▼;
 // an option-click adds a column after it; the menu of a name that does not sort, as builds' commit, dims its sorts.
 func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[m.top()], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
-	if m = drive(m, testkit.Click(at("age"), m.top()), down, press(tea.KeyEnter)); !strings.Contains(lines(m)[m.top()], "age ▲") {
+	// under gives the mark the rule draws under a column's name
+	under := func(name string) string {
+		x := ansi.StringWidth(lines(m)[m.top()][:at(name)])
+		return strings.TrimRight(ansi.Strip(ansi.Cut(lines(m)[m.presetTop()], x, x+2)), "─")
+	}
+	if m = drive(m, testkit.Click(at("age"), m.top()), down, press(tea.KeyEnter)); under("age") != "▲" {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
 		t.Errorf("by age, the youngest first: %s", got)
 	}
-	if m = drive(m, testkit.Click(at("age")+len("age "), m.top())); !strings.Contains(lines(m)[m.top()], "age ▼") || order() != "#7 #46 #45" {
+	if m = drive(m, testkit.Click(at("age"), m.presetTop())); under("age") != "▼" || order() != "#7 #46 #45" {
 		t.Errorf("a click on its ▲, the oldest first: %s\n%s", order(), view(m))
 	}
 	option := tea.MouseClickMsg{X: at("source"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModAlt}
-	if m = drive(m, option); !strings.Contains(lines(m)[m.top()], "source ▲₂") || !strings.Contains(lines(m)[m.top()], "age ▼₁") {
+	if m = drive(m, option); under("source") != "▲²" || under("age") != "▼₁" {
 		t.Errorf("an option-click on source:\n%s", view(m))
 	}
 	// shift, which a terminal often keeps for its own selection, adds nothing: the click drops the menu, as ever
@@ -307,8 +312,9 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
-	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.top()], "age"), m.top()), down, press(tea.KeyEnter)); !strings.Contains(lines(m)[m.top()], "age ▲") {
+	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it, ▲ on the rule under it
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.top()], "age"), m.top()), down, press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
+		ansi.Cut(lines(m)[m.presetTop()], strings.Index(lines(m)[m.top()], "age"), strings.Index(lines(m)[m.top()], "age")+1) != "▲" {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it

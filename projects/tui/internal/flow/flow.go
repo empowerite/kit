@@ -390,10 +390,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case msg.Y == 0 && msg.X >= m.searchAt():
 			return m, m.enterPanel()
+		case len(m.stages) > 0 && msg.Y == m.presetTop() && msg.X < m.paneWidth() && m.sortAt(msg.X) != "":
+			m.sortBy(m.sortAt(msg.X), msg.Mod&tea.ModShift != 0)
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= m.top() && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
-			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, msg.Mod&tea.ModShift != 0)
+			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false)
 		default:
 			if bar, ok := m.barTakes(msg); ok {
 				m.choose(bar)
@@ -552,7 +554,7 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 		return
 	}
 	if y < m.rowsTop() {
-		m.clickHeader(x, y, nest, true, false)
+		m.clickHeader(x, y, nest, true)
 		return
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
@@ -566,14 +568,12 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 	}
 }
 
-// clickHeader takes a click on the header, which is no row, above its rule, the preset line: on its gutter it opens the
-// header, or closes it, when it hides lines; on a column's sort target, as sortAt says, its ▲ or ▼ or the cells right
-// after its name, it sorts by the column, ascending, after the other keys, where it does not sort yet, and turns its
-// sort around where it does, or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column
-// menu down under it. Where the terminal sends option or ctrl with a click, as many do not, also, as option asks, turns
-// the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows by it within the groups they
-// have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
-func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
+// clickHeader takes a click on the header, which is no row, above its rule, the preset line, where each column's sort
+// target stands, as sortAt says: on its gutter it opens the header, or closes it, when it hides lines; on a column's
+// name it drops the column menu down under it. Where the terminal sends option or ctrl with a click, as many do not,
+// also, as option asks, turns the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows
+// by it within the groups they have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
+func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
 	if y < m.top() {
@@ -590,30 +590,15 @@ func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
-	target := m.sortAt(x+m.indent(m.stage), y)
-	if j < 0 && target == "" {
+	if j < 0 {
 		return nil
 	}
-	column, p := target, m.panel(m.stage)
-	if column == "" {
-		column = m.shownColumns(m.stage)[j]
-	}
+	column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
 	switch {
 	case group:
 		m.setPanel(p.Grouped(column, true))
 	case also:
 		m.setPanel(p.Sorted(column))
-	case target != "" && p.Mark(column) == "":
-		m.setPanel(p.SortedAs(column, grid.Ascending))
-	case target != "":
-		d := grid.Descending
-		switch {
-		case drop:
-			d = grid.Unsorted
-		case strings.Contains(p.Mark(column), "▼"):
-			d = grid.Ascending
-		}
-		m.setPanel(p.SortedAs(column, d))
 	default:
 		m.openColumnMenu(column)
 	}
@@ -1213,7 +1198,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
 	if y < m.rowsTop() {
-		return m.clickHeader(x, y, false, false, false)
+		return m.clickHeader(x, y, false, false)
 	}
 	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
 	if y == m.rowsTop() && m.head(lines, m.rowsHeight()) != "" {
@@ -1244,6 +1229,9 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		m.openFieldMenu(row, name.column)
 	case onName && !subtree:
 		m.openHeadingMenu(row, y, name)
+	case grid.OverGroups(rows[row]) && (x < 0 || x >= 3):
+		// the heading over the groups folds by its ▾ or ▸ alone; its names are its columns', the rest nothing
+		m.fit()
 	case grid.Heads(rows[row]):
 		m.disclose(!s.open.Open(rows[row]), subtree)
 		m.fit()

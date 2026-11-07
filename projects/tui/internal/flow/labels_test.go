@@ -23,7 +23,7 @@ func TestALabelIsDrawnAsStylesPill(t *testing.T) {
 }
 
 // A row's labels column says how many it has, dim; its open row draws each as a pill, under the row's own lines; a
-// row with none says nothing there.
+// row with one label draws it in the column, as it is, no count; a row with none says nothing there.
 func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	f := fieldIn("backlog", "labels")
 	cells := f.draw([]value{labelled([]label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}}), {}}, "")
@@ -42,8 +42,17 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// text draws the names alone, for a terminal without the font's half circles, and counts them the same
-	if c := f.draw([]value{labelled([]label{{Name: "bug"}})}, "text"); c[0].Values[0] != "bug" || ansi.Strip(c[0].Summary) != "1" {
+	two := labelled([]label{{Name: "bug"}, {Name: "docs"}})
+	if c := f.draw([]value{two}, "text"); c[0].Values[0] != "bug" || ansi.Strip(c[0].Summary) != "2" {
 		t.Errorf("text: %+v", c[0])
+	}
+	// one label is drawn itself, as a pill, or by its name in text, its column no count
+	one := labelled([]label{{Name: "bug", Color: "#d73a4a"}})
+	if c := f.draw([]value{one}, ""); c[0].Summary != "" || len(c[0].Values) != 1 || c[0].Values[0] != pill(one.Of.([]label)[0]) {
+		t.Errorf("one label: %+v", c[0])
+	}
+	if c := f.draw([]value{one}, "text"); c[0].Summary != "" || c[0].Values[0] != "bug" {
+		t.Errorf("one label in text: %+v", c[0])
 	}
 }
 

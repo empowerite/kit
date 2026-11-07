@@ -46,7 +46,7 @@ const (
 	actMore
 )
 
-// The words of the column menu's lines, and of the heading menu's ungrouping, and their glyphs: grouping's is the mark
+// The words of the column menu's lines, and their glyphs: grouping's is the mark
 // a column grouping the rows has, hiding's the box of a hidden column in the columns dialog.
 const (
 	ClearSort = "Clear Sort"
@@ -68,14 +68,14 @@ type colLine struct {
 }
 
 // columnLines gives the column menu's lines. The radio's choice picked is the column's sort, None where it does not
-// sort. Where something else orders the rows, a group or another key, its triangles carry ₙ, as the header's mark
-// carries the place the column takes. Clear Sort, as the tab menu's Clear Selection, sweeps. A line that cannot act on
+// sort. Where something else orders the rows, a group or another key, its triangles carry ⁿ and ₙ, as the header's
+// mark carries the place the column takes, raised after ▲ and lowered after ▼. Clear Sort, as the tab menu's Clear Selection, sweeps. A line that cannot act on
 // the column stays, dim.
 func (m Model) columnLines() []colLine {
 	p, column := m.panel(m.stage), m.colMenu.column
-	d, n := p.Field(column).Sort, ""
+	d, up, down := p.Field(column).Sort, "", ""
 	if place, total := p.Place(column); total-min(place, 1) > 0 {
-		n = "ₙ"
+		up, down = "ⁿ", "ₙ"
 	}
 	radio := func(picked bool, name string, act colAct) colLine {
 		if picked {
@@ -83,8 +83,8 @@ func (m Model) columnLines() []colLine {
 		}
 		return colLine{shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}, act}
 	}
-	return []colLine{radio(d == grid.Unsorted, "None", actNone), radio(d == grid.Ascending, "▲"+n+" Ascending", actUp),
-		radio(d == grid.Descending, "▼"+n+" Descending", actDown), colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, actClear},
+	return []colLine{radio(d == grid.Unsorted, "None", actNone), radio(d == grid.Ascending, "▲"+up+" Ascending", actUp),
+		radio(d == grid.Descending, "▼"+down+" Descending", actDown), colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, actClear},
 		colLine{act: actRule},
 		colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, actGroup},
 		colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, actUngroup}, colLine{act: actRule},
@@ -330,56 +330,90 @@ func (m Model) headerColumn(x, y int) string {
 	return m.shownColumns(m.stage)[j]
 }
 
-// sortAt gives the column whose sort a click at x, y on the header turns, one that can sort: on its sort mark, as onMark
-// says; or, on the names' first line, on the cell right after its name, or on the cell after that, unless that one
-// stands against the next column's name. Where a column does not sort yet, those cells are blank, and still sort it.
-// Nothing elsewhere.
-func (m Model) sortAt(x, y int) string {
+// sortSpot is a column's sort target on the rule under the header: the screen columns under its name, from its first
+// to the one past it, as wide as the name's first line or its mark, whichever is wider, and the mark drawn there,
+// none where the column does not sort.
+type sortSpot struct {
+	column, mark string
+	from, until  int
+}
+
+// sortSpots gives the sort target of each column the header names that can sort, under its name on the rule, the mark
+// starting under the name's first cell; none while the header draws no names.
+func (m Model) sortSpots() []sortSpot {
+	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].loading || m.stages[m.stage].refusal != "" {
+		return nil
+	}
 	rows, names, width, in := m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), m.indent(m.stage)
-	shown, p := m.shownColumns(m.stage), m.panel(m.stage)
-	if m.onMark(x, y) {
-		if j := grid.HeaderAt(rows, names, width, x-in); j >= 0 && p.Sortable[shown[j]] {
-			return shown[j]
-		}
-	}
-	if y != m.top() {
-		return ""
-	}
-	starts, ends := map[int]bool{}, map[int]string{}
-	for j, column := range shown {
+	p := m.panel(m.stage)
+	var out []sortSpot
+	for j, column := range m.shownColumns(m.stage) {
 		start, first := grid.HeaderName(rows, names, width, j)
-		if start < 0 {
+		if start < 0 || !p.Sortable[column] {
 			continue
 		}
-		starts[in+start] = true
-		if p.Sortable[column] {
-			ends[in+start+ansi.StringWidth(strings.TrimSuffix(first, " "+p.Mark(column)))] = column
+		mark := p.Mark(column)
+		x := in + start
+		out = append(out, sortSpot{column, mark, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
+	}
+	return out
+}
+
+// ruleFill gives the rule's dim line, fill cells from the gutter on, each sort's mark on it under its column's name,
+// as sortSpots places them, not dim, where the whole mark fits on the line.
+func (m Model) ruleFill(fill int) string {
+	cells := slices.Repeat([]string{"─"}, fill)
+	marked := make([]bool, fill)
+	for _, s := range m.sortSpots() {
+		at, glyphs := s.from-len(lead), strings.Split(s.mark, "")
+		if s.mark == "" || at < 0 || at+len(glyphs) > fill {
+			continue
+		}
+		for k, g := range glyphs {
+			cells[at+k], marked[at+k] = g, true
 		}
 	}
-	if column, ok := ends[x]; ok {
-		return column
+	var out strings.Builder
+	for k := 0; k < fill; {
+		end := k
+		for end < fill && marked[end] == marked[k] {
+			end++
+		}
+		run := strings.Join(cells[k:end], "")
+		if !marked[k] {
+			run = style.Off(run)
+		}
+		out.WriteString(run)
+		k = end
 	}
-	if column, ok := ends[x-1]; ok && !starts[x+1] {
-		return column
+	return out.String()
+}
+
+// sortAt gives the column whose sort a click at the screen column x on the rule under the header turns: the one whose
+// target, under its name, as sortSpots gives them, x falls on, short of the rule's right end, where the selected count
+// and the preset line stand. Where a column does not sort yet, its target is the rule's line, and still sorts it.
+// Nothing elsewhere.
+func (m Model) sortAt(x int) string {
+	line := ansi.Strip(m.rule())
+	for _, s := range m.sortSpots() {
+		if x >= s.from && x < s.until && ansi.Cut(line, x, x+1) != " " && x < ansi.StringWidth(line) {
+			return s.column
+		}
 	}
 	return ""
 }
 
-// onMark says whether a click at x, y on a line of the header's names falls on a column's sort mark, its ▲ or ▼ and
-// the number after it, or the cell before the triangle.
-func (m Model) onMark(x, y int) bool {
-	lines, _ := m.header()
-	line := lines[y-m.top()]
-	cell := func(at int) string { return ansi.Strip(ansi.Cut(line, at, at+1)) }
-	triangle := func(c string) bool { return c == "▲" || c == "▼" }
-	subscript := func(c string) bool { return c != "" && strings.Trim(c, "₀₁₂₃₄₅₆₇₈₉") == "" }
-	if triangle(cell(x)) || triangle(cell(x+1)) && cell(x) == " " {
-		return true
+// sortBy turns a column's sort, as a click on its target on the rule asks: ascending where it does not sort yet, after
+// the other keys; around where it does; or, with drop, as shift asks, off.
+func (m *Model) sortBy(column string, drop bool) {
+	p, d := m.panel(m.stage), grid.Descending
+	switch {
+	case p.Mark(column) == "":
+		d = grid.Ascending
+	case drop:
+		d = grid.Unsorted
+	case strings.Contains(p.Mark(column), "▼"):
+		d = grid.Ascending
 	}
-	for at := x; subscript(cell(at)); at-- {
-		if triangle(cell(at - 1)) {
-			return true
-		}
-	}
-	return false
+	m.setPanel(p.SortedAs(column, d))
 }
