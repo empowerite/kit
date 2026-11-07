@@ -10,7 +10,6 @@ package flow
 import (
 	"maps"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -56,11 +55,13 @@ func TestGoldenViews(t *testing.T) {
 	p.Fields["source"] = source
 	m.setPanel(p)
 	testkit.Golden(t, filepath.Join("testdata", "preset-line.golden"), raw(drive(m, down)))
-	// the field editor in the sidebar: source grouped, age sorted descending, and assignees filtered to @me and hidden
+	// the field editor in the sidebar: source grouped, age sorted descending, as the column menu sorts it, and
+	// assignees filtered to @me and hidden; the popover opens on its filter's mode, @me under it
 	shiftUp, enter, space := testkit.Press("shift+up"), press(tea.KeyEnter), press(tea.KeySpace)
-	golden("editor.golden", append(append([]tea.Msg{tab, down, down, shiftUp, shiftUp, down, down, enter},
-		slices.Repeat([]tea.Msg{down}, 4)...), space, esc, space, up, up, up, up, up, enter, down, down, space, esc)...)
+	m = loaded(t, viewing(""))
+	m.setPanel(m.panel(0).SortedAs("age", grid.Descending))
+	testkit.Golden(t, filepath.Join("testdata", "editor.golden"), raw(drive(m, tab, down, down, shiftUp, shiftUp,
+		down, down, enter, down, space, esc, space, up, up, up, up, up)))
 	// the field editor in the sidebar, backlog's assignees' popover open over it, @me checked
-	golden("popover.golden", append([]tea.Msg{tab, down, down, down, press(tea.KeyEnter)},
-		append(slices.Repeat([]tea.Msg{down}, 4), press(tea.KeySpace))...)...)
+	golden("popover.golden", tab, down, down, down, enter, down, space)
 }

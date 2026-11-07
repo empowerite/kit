@@ -42,6 +42,8 @@ var (
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
 	repo    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))
 	band    = lipgloss.NewStyle().Background(lipgloss.Color("236"))
+	// on the menu's own bright cyan, black: 16 is the 256-color cube's black, which no theme remaps as it may 0
+	selected = lipgloss.NewStyle().Background(lipgloss.Color("14")).Foreground(lipgloss.Color("16"))
 )
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
@@ -85,6 +87,10 @@ func Off(s string) string { return off.Render(s) }
 
 // Label draws a field's name.
 func Label(s string) string { return label.Render(s) }
+
+// Selected draws the line under the keyboard in a menu or a dialog: on the color of the box and its title, Menu's, in
+// black, which reads on it, the line's own styles dropped, so none of them breaks the bar.
+func Selected(s string) string { return selected.Render(ansi.Strip(s)) }
 
 // Cursor draws the name under the cursor in a row of toggles: inverse.
 func Cursor(s string) string { return cursor.Render(s) }

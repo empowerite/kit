@@ -70,7 +70,7 @@ type SettingsDialog struct {
 	At   int
 }
 
-// settingsKeys are the dialog's keys, on its bottom edge and on the keys bar.
+// settingsKeys are the dialog's keys, on the keys bar.
 const settingsKeys = "esc close · ↑↓ move · ␣ toggle"
 
 // Key takes a key while the dialog is open: up and down move between the settings, space or enter flips the one under
@@ -141,11 +141,11 @@ func (d SettingsDialog) box(s Settings, width int) []string {
 		}
 		name := box + " " + set.name
 		if k == d.At {
-			name = style.Cursor(name)
+			name = style.Selected(name)
 		}
 		body = append(body, name+"  "+style.Off(set.says))
 	}
-	return Dialog("Settings", body, settingsKeys, width-2)
+	return Dialog("Settings", body, width-2)
 }
 
 // place gives the line and the column the dialog's box starts at on a screen of so many lines, so wide: its third

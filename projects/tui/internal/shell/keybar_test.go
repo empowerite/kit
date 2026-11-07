@@ -72,7 +72,8 @@ func TestTooNarrowTheBarDropsWholeControlsFromTheScreensEnd(t *testing.T) {
 }
 
 // The settings are kept in their file, each the file does not keep as kittui starts; the dialog flips the one under the
-// keyboard and saves it at once, and its keys take every press.
+// keyboard and saves it at once, on the menu's color under the keyboard, and its keys take every press, named on the
+// keys bar alone.
 func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "kit", "kittui.json")
 	s := LoadSettings(path)
@@ -85,7 +86,8 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	}
 	lines := d.Overlay(strings.Split(strings.Repeat(strings.Repeat(" ", 100)+"\n", 10), "\n"), s, 100)
 	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, "╭─ Settings ") ||
-		!strings.Contains(v, style.Unpicked+" Key bar") || !strings.Contains(v, "esc close · ↑↓ move · ␣ toggle") {
+		!strings.Contains(v, style.Unpicked+" Key bar") || strings.Contains(v, "esc close") ||
+		!strings.Contains(strings.Join(lines, "\n"), style.Selected(style.Unpicked+" Key bar")) {
 		t.Errorf("the dialog:\n%s", v)
 	}
 	if got := (Path{ScreenKeys(), d.Keys()}).String(); got != "esc close ↑↓ move ␣ toggle" {

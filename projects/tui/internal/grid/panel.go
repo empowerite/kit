@@ -952,7 +952,7 @@ func (p Panel) Lines() (lines []string, at []int) {
 // hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
 // popover sets; then what a click on a column's name in the header does.
 func (p Panel) hints() []string {
-	return append([]string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw", ""}, Clicks...)
+	return append([]string{"⇧↑↓  move, or drag", "⏎    filter, draw", ""}, Clicks...)
 }
 
 // Clicks say what a click on a column's name in the header does: it drops down the column's menu, which sorts by it,

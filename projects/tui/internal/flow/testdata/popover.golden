@@ -4,21 +4,21 @@
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ columns
    id  source     assignees  age  title                                                    │ ☑ id
    ───────────────────────────────────────────────────────────── assignees: @me  Default ▼ │ ☑ source
- ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  ╭─ assignees ──────────────────────╮
-                                                                                    │ sort                             │
-                                                                                    │ ⦿ off                            │
-                                                                                    │ ⦾ ▲ ascending                    │
-                                                                                    │ ⦾ ▼ descending                   │
-                                                                                    │ filter                           │
-                                                                                    │ ⦿ include  ⦾ exclude             │
-                                                                                    │ ☑ @me ada                        │
-                                                                                    │ ☐ ada                            │
-                                                                                    │ ☐ bob                            │
-                                                                                    │ ☐ jeffrey-aguilera               │
-                                                                                    │ ☐ none                           │
-                                                                                    │ rendering                        │
-                                                                                    │ ⦿ auto glyph+text                │
-                                                                                    │ ⦾ glyph+text                     │
-                                                                                    │ ⦾ text                           │
-                                                                                    ╰─ esc close · ↑↓ move · ␣ toggle ─╯
+ ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                         │ ☑ a╭─ assignees ──────────╮
+                                                                                           │ ☑ a│ filter               │
+                                                                                           │ ☑ b│ ⦿ include  ⦾ exclude │
+                                                                                           │ ☑ t│ ☑ @me ada            │
+                                                                                           │ hid│ ☐ ada                │
+                                                                                           │ ☐ o│ ☐ bob                │
+                                                                                           │ ☐ r│ ☐ jeffrey-aguilera   │
+                                                                                           ▸    │ ☐ none               │
+                                                                                           ╷ ☑ f│ rendering            │
+                                                                                           │ ☐ s│ ⦿ auto glyph+text    │
+                                                                                           │    │ ⦾ glyph+text         │
+                                                                                           │ ⇧↑↓│ ⦾ text               │
+                                                                                           │ ⏎  ╰──────────────────────╯
+                                                                                           │ 
+                                                                                           │ click a name  its menu
+                                                                                           │
+                                                                                           │ … 7 more
  esc close ↑↓ move ␣ toggle

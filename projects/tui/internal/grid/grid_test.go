@@ -213,9 +213,12 @@ func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	// with the keyboard, dim hints under the editor say how a field moves, and what enter on it opens, then what the
 	// clicks on a column's name do; the width keeps room for them
 	p.Focused = true
-	hints := append([]string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw", ""}, Clicks...)
-	if got, _ := plainLines(p); !slices.Equal(got[len(got)-len(hints):], hints) ||
-		p.Width() != ansi.StringWidth("⏎    sort, filter, draw") {
+	hints := append([]string{"⇧↑↓  move, or drag", "⏎    filter, draw", ""}, Clicks...)
+	widest := 0
+	for _, h := range hints {
+		widest = max(widest, ansi.StringWidth(h))
+	}
+	if got, _ := plainLines(p); !slices.Equal(got[len(got)-len(hints):], hints) || p.Width() < widest {
 		t.Errorf("the hints: %q, width %d", got[len(got)-len(hints):], p.Width())
 	}
 	// a stage with no field that has a label has the search alone

@@ -432,7 +432,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
-	if m = drive(m, testkit.Click(at("age"), paneTop), press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+	if m = drive(m, testkit.Click(at("age"), paneTop), down, press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
@@ -453,7 +453,8 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(0) || m.colMenu.at == 0 || m.stages[m.stage].name != "builds" {
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(lineUp) || m.colMenu.at <= lineThen ||
+		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
 }
@@ -523,8 +524,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
-	// a click on a name in the indented header drops its menu, which sorts by it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop), press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+	// a click on a name in the indented header drops its menu, whose ▲ ascending sorts by it
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop), down, press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it
@@ -705,24 +706,21 @@ func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 }
 
 // Enter on a field's line in the editor opens its popover, which has the keyboard: up and down move between the lines
-// that act, past the headings; space takes a sort or a rendering, and toggles a value of the filter, or its mode; each
-// applies at once, the rows, the editor's marks, and the preset line's mark and chips following it. Esc closes it, and
+// that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each applies
+// at once, the rows, the editor's marks, and the preset line's chips following it. The sort is the column menu's, so
+// the popover has none. Esc closes it, and
 // the editor has the keyboard again. A click on a line acts on it, and a click off the box closes it.
-func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
+func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	m := loaded(t, viewing(""), tab, down, down, down, press(tea.KeyEnter))
 	if !m.pop.open || m.pop.field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
-	// off is taken, so space on it is not named
-	if keys := m.keys().String(); keys != "esc close ↑↓ move" {
-		t.Errorf("the popover's keys on off: %q", keys)
-	}
-	if m = drive(m, down, press(tea.KeySpace)); len(m.panel(0).SortKeys()) != 1 || m.panel(0).Mark("assignees") != "▲" ||
-		!strings.Contains(view(m), "sort, key 1 of 1") || presetText(m) != "   Default "+Presets {
-		t.Errorf("▲ ascending: %+v\n%s", m.panel(0).SortKeys(), view(m))
+	// the keyboard starts on the filter's mode; there is no sort to take
+	if v := view(m); strings.Contains(v, "ascending") || !strings.Contains(m.keys().String(), "␣ toggle") {
+		t.Errorf("the popover's first line: %q\n%s", m.keys().String(), v)
 	}
 	// @me, the caller, is ada; checked, only her issue shows, and the preset line has its chip
-	m = drive(m, down, down, down)
+	m = drive(m, down)
 	if keys := m.keys().String(); keys != "esc close ↑↓ move ␣ toggle" || !strings.Contains(view(m), "@me ada") {
 		t.Errorf("the popover's keys on @me: %q", keys)
 	}
@@ -743,8 +741,8 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
 		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
-	// esc closes it; the editor has the keyboard, and marks the field sorted and filtered
-	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ▲ ⊘") {
+	// esc closes it; the editor has the keyboard, and marks the field filtered
+	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ⊘") {
 		t.Errorf("esc: open %v, in panel %v\n%s", m.pop.open, m.inPanel, view(m))
 	}
 	// a click off the box closes it, acting on nothing
@@ -765,7 +763,8 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 // Without the caller's login, @me stands alone, and checked lets no row through.
 func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "me")
-	m := loaded(t, options(), tab, down, down, down, press(tea.KeyEnter), down, down, down, down)
+	// the popover opens on its filter's mode; @me is under it
+	m := loaded(t, options(), tab, down, down, down, press(tea.KeyEnter), down)
 	if m.me != "" || !strings.Contains(view(m), grid.Unticked+" @me ") || strings.Contains(view(m), "@me ada") {
 		t.Fatalf("@me without a login: %q\n%s", m.me, view(m))
 	}
@@ -804,8 +803,8 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.open)
 	}
 	click("age", 0)
-	if m = drive(m, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
-		t.Fatalf("Sort by age: %+v", sorts())
+	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
+		t.Fatalf("▲ ascending on age: %+v", sorts())
 	}
 	click("age", 0)
 	m = drive(m, typed("o")...)

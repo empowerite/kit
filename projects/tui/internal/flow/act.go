@@ -277,7 +277,7 @@ func (m Model) askKeys() (body []string, keys string) {
 		return []string{a.typed + style.Mark("▏")}, "esc cancel · ⏎ ok"
 	case a.pick != nil:
 		body = slices.Clone(a.lines)
-		body[a.at] = style.Cursor(body[a.at])
+		body[a.at] = style.Selected(body[a.at])
 		return body, "esc cancel · ↑↓ move · ⏎ add"
 	}
 	return a.lines, "esc no · ⏎ yes"
@@ -285,7 +285,7 @@ func (m Model) askKeys() (body []string, keys string) {
 
 // askBox gives the dialog an action asks in, centered over the rows near their top, and the column it is drawn at.
 func (m Model) askBox() (lines []string, left int) {
-	body, keys := m.askKeys()
-	lines = shell.Dialog(m.ask.title, body, keys, m.paneWidth()-2)
+	body, _ := m.askKeys()
+	lines = shell.Dialog(m.ask.title, body, m.paneWidth()-2)
 	return lines, max(0, (m.paneWidth()-ansi.StringWidth(lines[0]))/2)
 }

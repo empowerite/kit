@@ -50,10 +50,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
-  - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
-    enum or a person, and its rendering. What it sets applies at once. A click on a column's name drops down its
-    menu, around the name, as ≡'s and ⋮'s hang around theirs: sort by it alone, then by it after the other keys, or
-    not by it; group by it alone or then by it, within the groups; and Options…, its popover, titled over the name.
+  - ⏎ on a field opens its popover: the checklist of values its filter lets through or holds back, for an enum or a
+    person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on a column's
+    name drops down its menu, around the name, as ≡'s and ⋮'s hang around theirs: its sort, off, ▲ ascending, or ▼
+    descending, a radio that shows it, which sorts by the column alone where it does not sort yet and turns it in its
+    place among the keys where it does, and Then sort by, after the other keys; group by it alone or then by it,
+    within the groups; and Options…, its popover, titled over the name. The line under the keyboard in a menu or a
+    dialog stands on the menu's bright cyan, in black, and a dialog's keys are the keys bar's alone.
     A click on the cell right after a column's name, or on the cell after that unless it stands against the next
     name, sorts by the column alone, ascending, and on a column that sorts already turns its sort around; that is
     where its ▲ or ▼ stands, and a shift-click on the mark stops the sort. A terminal such as iTerm

@@ -13,6 +13,7 @@ import (
 func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 	styles := map[string]func(string) string{"Mark": Mark, "Gain": Gain, "Loss": Loss, "Warn": Warn, "Repo": Repo,
 		"Chosen": Chosen, "Menu": Menu, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal,
+		"Selected":                 Selected,
 		"Italic":                   func(s string) string { return Italic(s, false) },
 		"Italic, under the cursor": func(s string) string { return Italic(s, true) }}
 	drawn := map[string]string{}
@@ -27,6 +28,15 @@ func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 			}
 		}
 		drawn[name] = got
+	}
+}
+
+// The line under the keyboard in a menu or a dialog drops its own styles, so a dim glyph in it leaves no hole in the
+// bar, and stands on the menu's bright cyan, 14, in black, 16.
+func TestTheLineSelectedInAMenuStandsOnTheMenusColor(t *testing.T) {
+	got := Selected(Off("⦾") + " off")
+	if got != "\x1b[38;5;16;106m⦾ off\x1b[m" {
+		t.Errorf("selected: %q", got)
 	}
 }
 

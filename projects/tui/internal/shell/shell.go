@@ -303,7 +303,7 @@ func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 			// dim, and never under the keyboard, even when what it acts on changed under an open menu
 			text = style.Off(text)
 		case k == at:
-			text = style.Cursor(text)
+			text = style.Selected(text)
 		}
 		lines = append(lines, style.Menu("│")+text+style.Menu("│"))
 	}
@@ -316,25 +316,20 @@ func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 	return lines, left, first
 }
 
-// Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge and its keys, dim, on
-// the bottom one, around its lines, each a cell in from either side; no wider than width, a line too long clipped.
-func Dialog(title string, body []string, keys string, width int) []string {
-	inner := max(pane.Width(body)+2, ansi.StringWidth(title)+4, ansi.StringWidth(keys)+4)
+// Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge, around its lines, each a
+// cell in from either side; no wider than width, a line too long clipped. Its keys are the keys bar's alone, so the
+// bottom edge is a plain one.
+func Dialog(title string, body []string, width int) []string {
+	inner := max(pane.Width(body)+2, ansi.StringWidth(title)+4)
 	inner = max(4, min(inner, width-2))
-	edge := func(left, text, right string, dim bool) string {
-		text = ansi.Truncate(text, inner-3, "…")
-		fill := strings.Repeat("─", max(0, inner-3-ansi.StringWidth(text)))
-		if dim {
-			return style.Menu(left+"─ ") + style.Off(text) + style.Menu(" "+fill+right)
-		}
-		return style.Menu(left + "─ " + text + " " + fill + right)
-	}
-	lines := []string{edge("╭", title, "╮", false)}
+	title = ansi.Truncate(title, inner-3, "…")
+	fill := strings.Repeat("─", max(0, inner-3-ansi.StringWidth(title)))
+	lines := []string{style.Menu("╭─ " + title + " " + fill + "╮")}
 	for _, l := range body {
 		lines = append(lines, style.Menu("│")+" "+pane.Pad(ansi.Truncate(l, inner-2, "…"), inner-2, false)+" "+
 			style.Menu("│"))
 	}
-	return append(lines, edge("╰", keys, "╯", true))
+	return append(lines, style.Menu("╰"+strings.Repeat("─", inner)+"╯"))
 }
 
 // Over draws a box over the screen's lines, from the line top and the column left; what the box covers is hidden, and

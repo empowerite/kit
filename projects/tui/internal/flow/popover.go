@@ -1,5 +1,5 @@
-// A field's popover: a small box over the screen that sets, for one field of the selected stage, how its rows sort,
-// which of its values they must hold, and how it is drawn. Enter on the field's line in the sidebar's editor opens it,
+// A field's popover: a small box over the screen that sets, for one field of the selected stage, which of its values
+// the rows must hold, and how it is drawn; how they sort is the column menu's, and the header's. Enter on the field's line in the sidebar's editor opens it,
 // and so does Options… in the column menu, under its name in the header. It has the keyboard while it is open: up and down move between
 // its lines, space or enter acts on the one under the keyboard, and esc closes it; a click on a line acts on it, and
 // a click off the box closes it. What it sets applies at once, so the rows, the editor, and the preset line's mark and
@@ -7,15 +7,12 @@
 package flow
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
-	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -40,8 +37,7 @@ type popLine struct {
 	box    bool
 }
 
-// popLines gives the popover's lines for the field, under three dim headings, each where the field has it. sort: off,
-// ▲ ascending, and ▼ descending, a radio, the heading saying the field's place among the keys while it sorts. filter,
+// popLines gives the popover's lines for the field, under two dim headings, each where the field has it. filter,
 // for an enum or a person: whether the values checked are let through or held back, include or exclude, one line that
 // toggles, then a box per value: an enum's known values with their glyphs, a person's logins the rows loaded hold,
 // after @me, the caller, and the values the catalog does not know, then none, a row with no value, and any the filter
@@ -63,20 +59,6 @@ func (m Model) popLines(id string) []popLine {
 			glyph = style.Tint(grid.Picked)
 		}
 		out = append(out, popLine{text: glyph + " " + text, act: act, picked: picked})
-	}
-	if f.Sort {
-		title := "sort"
-		if keys := p.SortKeys(); g.Sort != grid.Unsorted {
-			title += fmt.Sprintf(", key %d of %d", slices.IndexFunc(keys, func(s grid.SortKey) bool { return s.Column == id })+1,
-				len(keys))
-		}
-		heading(title)
-		for _, d := range []struct {
-			dir  grid.Direction
-			name string
-		}{{grid.Unsorted, "off"}, {grid.Ascending, "▲ ascending"}, {grid.Descending, "▼ descending"}} {
-			radio(d.name, g.Sort == d.dir, func(p grid.Panel) grid.Panel { return p.SortedAs(id, d.dir) })
-		}
 	}
 	if f.Filter && types[f.Type].filters {
 		heading("filter")
@@ -246,10 +228,7 @@ func (m Model) popKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// popWidest is the widest the popover's keys get, on its bottom edge.
-const popWidest = "esc close · ↑↓ move · ␣ choose"
-
-// popBox gives the popover's lines, a dialog titled by the field's label with its keys on the bottom edge, and the
+// popBox gives the popover's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the
 // screen line and column it is drawn from: from the header, its title over the name, or nearer the screen's left where
 // it would run past the edge; from the sidebar, its right edge at the screen's, its top on the
 // field's line, or higher where it would run past the keys bar.
@@ -258,19 +237,11 @@ func (m Model) popBox() (box []string, top, left int) {
 	for k, l := range m.popLines(m.pop.field) {
 		text := l.text
 		if k == m.pop.at {
-			text = style.Cursor(ansi.Strip(text))
+			text = style.Selected(text)
 		}
 		body = append(body, text)
 	}
-	var keys []string
-	for _, b := range m.popKeys().Bindings {
-		keys = append(keys, b.Key+" "+b.Does)
-	}
-	if len(body) > 0 {
-		// as wide as every key would make it, so the box keeps its width as the keys come and go
-		body[0] = pane.Pad(body[0], ansi.StringWidth(popWidest)+2, false)
-	}
-	box = shell.Dialog(labelOf(m.stages[m.stage].name, m.pop.field), body, strings.Join(keys, " · "), m.width)
+	box = shell.Dialog(labelOf(m.stages[m.stage].name, m.pop.field), body, m.width)
 	w := ansi.StringWidth(box[0])
 	if m.pop.header {
 		// the title on its top edge over the name, where the header draws it, after the corner, a rule, and a space

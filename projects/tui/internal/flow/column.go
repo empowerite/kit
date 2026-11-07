@@ -1,11 +1,13 @@
 // The column menu: a click on a column's name in the header drops it under the name, as does a right click where the
 // terminal sends one. Many terminals keep option, ctrl, and the right button with a click for their own selection and
-// menu, so the menu holds what those would do: sort by the column alone or after the other keys, group by it alone or
-// within the groups, and the field's popover.
+// menu, so the menu holds what those would do: the column's sort, off, ascending, or descending, a radio that shows
+// it, or the column after the other keys; group by it alone or within the groups; and the field's popover, which
+// leaves the sort to the menu.
 package flow
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
 // columnMenu is the column menu while it is open: the column it acts on, and the line under the keyboard.
@@ -23,43 +26,65 @@ type columnMenu struct {
 	at     int
 }
 
-// The column menu's lines: SortBy, before the column's label, sorts by it alone, ThenSort after the other keys, and
-// NoSort stops sorting by it; GroupBy and ThenGroup group by it alone or within the groups; and More opens the field's
-// popover.
+// The column menu's lines, by index: a dim heading, sort, saying the column's place among the keys while there are
+// several; the radio of its sort, off, ▲ ascending, and ▼ descending; ThenSort, before the column's label, adding it
+// after the other keys; a rule; GroupBy and ThenGroup, grouping by it alone or within the groups; a rule; and More,
+// the field's popover.
 const (
-	SortBy    = "Sort by "
+	lineSort = iota
+	lineOff
+	lineUp
+	lineDown
+	lineThen
+	_
+	lineGroup
+	lineThenGroup
+	_
+	lineMore
+)
+
+// The words of the column menu's lines.
+const (
 	ThenSort  = "Then sort by "
-	NoSort    = "Don't sort by "
 	GroupBy   = "Group by "
 	ThenGroup = "Then group by "
 	More      = "Options…"
 )
 
-// columnItems gives the column menu's lines: the three sorts, the two groupings, a rule, and Options…. A line that
-// cannot act on the column stays, dim.
+// columnItems gives the column menu's lines, as their indexes say. A line that cannot act on the column stays, dim.
 func (m Model) columnItems() []shell.Item {
-	label := cmp.Or(m.panel(m.stage).Labels[m.colMenu.column], m.colMenu.column)
-	return []shell.Item{{Name: SortBy + label}, {Name: ThenSort + label}, {Name: NoSort + label},
-		{Name: GroupBy + label}, {Name: ThenGroup + label}, {}, {Name: More}}
+	p, column := m.panel(m.stage), m.colMenu.column
+	label := cmp.Or(p.Labels[column], column)
+	title := "sort"
+	if keys := p.SortKeys(); len(keys) > 1 && p.Mark(column) != "" {
+		title += fmt.Sprintf(", key %d of %d", slices.IndexFunc(keys, func(s grid.SortKey) bool { return s.Column == column })+1,
+			len(keys))
+	}
+	radio := func(d grid.Direction, name string) shell.Item {
+		if p.Field(column).Sort == d {
+			return shell.Item{Glyph: style.Tint(grid.Picked), Name: name}
+		}
+		return shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}
+	}
+	return []shell.Item{{Name: title}, radio(grid.Unsorted, "off"), radio(grid.Ascending, "▲ ascending"),
+		radio(grid.Descending, "▼ descending"), {Name: ThenSort + label}, {}, {Name: GroupBy + label},
+		{Name: ThenGroup + label}, {}, {Name: More}}
 }
 
-// columnEnabled says whether the column menu's line k acts: Sort by on a column that sorts; Then sort by on one that
-// sorts and is not among the keys yet, and Don't sort by on one that is; a grouping on one that groups; and Options…
-// always; the rule never does.
+// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts; Then sort by on one that
+// sorts and is not among the keys yet; a grouping on one that groups; and Options… always; the heading and the rules
+// never do.
 func (m Model) columnEnabled(k int) bool {
 	p, column := m.panel(m.stage), m.colMenu.column
-	keyed := slices.ContainsFunc(p.SortKeys(), func(s grid.SortKey) bool { return s.Column == column })
 	switch k {
-	case 0:
+	case lineOff, lineUp, lineDown:
 		return p.Sortable[column]
-	case 1:
-		return p.Sortable[column] && !keyed
-	case 2:
-		return keyed
-	case 3, 4:
+	case lineThen:
+		return p.Sortable[column] && p.Mark(column) == ""
+	case lineGroup, lineThenGroup:
 		return p.Groupable[column]
 	}
-	return k == 6
+	return k == lineMore
 }
 
 // sortedAlone gives the panel sorting the rows by the column alone: in its direction, when it is among the keys
@@ -111,14 +136,19 @@ func (m *Model) columnAct(k int) tea.Cmd {
 	}
 	p := m.panel(m.stage)
 	switch k {
-	case 0:
-		p = sortedAlone(p, c.column)
-	case 1:
-		p = p.SortedAs(c.column, grid.Ascending)
-	case 2:
+	case lineOff:
 		p = p.SortedAs(c.column, grid.Unsorted)
-	case 3, 4:
-		p = p.Grouped(c.column, k == 4)
+	case lineUp, lineDown:
+		// a column among the keys turns in its place; one that is not sorts the rows alone
+		d := map[int]grid.Direction{lineUp: grid.Ascending, lineDown: grid.Descending}[k]
+		if p.Mark(c.column) == "" {
+			p = sortedAlone(p, c.column)
+		}
+		p = p.SortedAs(c.column, d)
+	case lineThen:
+		p = p.SortedAs(c.column, grid.Ascending)
+	case lineGroup, lineThenGroup:
+		p = p.Grouped(c.column, k == lineThenGroup)
 	default:
 		x, _ := m.columnName(c.column)
 		return m.openPopover(c.column, x, paneTop, true)
