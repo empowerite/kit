@@ -46,6 +46,10 @@ const (
 	After  = "▹"
 )
 
+// Stale is the dot after a tab's name while what it shows is stale, as kept from before, or since the source changed:
+// yellow, wherever the keyboard is.
+const Stale = "•"
+
 // Menu is the glyph after the selected tab's count, which will open the tab's menu: a vertical ellipsis, a kebab, as a
 // menu of actions on what it stands beside is drawn, narrow in every terminal.
 const Menu = "⋮"
@@ -68,7 +72,9 @@ type Tab struct {
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
 // stage's group has one; none is the accent. Alert says, by index, which tabs' counts want attention, as a step's
-// failed checks do. Scroll is the cells of the bar the view has scrolled past on its left, as the screen keeps it from
+// failed checks do. Stale says, by index, which tabs show what is stale: each has Stale after its name, in a cell of
+// the room before its count, so the dot moves no tab; a tab with no room to spare draws none. Scroll is the cells of
+// the bar the view has scrolled past on its left, as the screen keeps it from
 // what Update chose, so a triangle's scroll stays; the view goes on from there while the selected tab shows whole.
 type Bar struct {
 	Tabs     []Tab
@@ -84,6 +90,7 @@ type Bar struct {
 	Joined   bool
 	Color    string
 	Alert    []bool
+	Stale    []bool
 }
 
 // Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
@@ -364,8 +371,16 @@ func (b Bar) View() string {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
 		cells := l.parts[i] - 1
 		name, end := b.label(i)
-		head := pane.Pad(" "+name, cells-2-ansi.StringWidth(end), false)
+		room := cells - 2 - ansi.StringWidth(end)
+		head := pane.Pad(" "+name, room, false)
 		label := head + end + " "
+		dimmed, dimHead := b.dim(label), b.dim(head)
+		if lead := " " + name; b.stale(i) && ansi.StringWidth(lead)+1 <= room {
+			// the dot stays yellow while the rest of the tab dims
+			gap := strings.Repeat(" ", room-ansi.StringWidth(lead)-1)
+			head, dimHead = lead+style.Warn(Stale)+gap, b.dim(lead)+style.Warn(Stale)+gap
+			label, dimmed = head+end+" ", dimHead+b.dim(end)+" "
+		}
 		if i == b.Selected {
 			cell(mark(cmp.Or(Marker(i, true), "╭")), mark("│"), curve("╯", i == 0))
 			cell(mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
@@ -379,10 +394,9 @@ func (b Bar) View() string {
 			number = style.Off("─")
 		}
 		cell(number, " ", mark(strings.Repeat("─", cells)))
-		dimmed := b.dim(label)
 		if b.alert(i) {
 			// a count that wants attention stays bold and red, wherever the keyboard is
-			dimmed = b.dim(head) + end + " "
+			dimmed = dimHead + end + " "
 		}
 		cell(style.Off(top(cells-1)), dimmed, "")
 		switch {
@@ -456,6 +470,9 @@ func top(cells int) string { return "╶" + strings.Repeat("─", cells-1) }
 
 // alert says whether a tab's count wants attention.
 func (b Bar) alert(i int) bool { return i < len(b.Alert) && b.Alert[i] }
+
+// stale says whether the tab at i shows what is stale.
+func (b Bar) stale(i int) bool { return i < len(b.Stale) && b.Stale[i] }
 
 // dim draws what a tab other than the selected one draws dim, its own colors stripped, while the pane under the bar has
 // the keyboard; as it is while the bar has it.

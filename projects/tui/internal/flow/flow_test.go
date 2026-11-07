@@ -200,7 +200,7 @@ func cursor(m Model) string {
 func squeeze(s string) string { return regexp.MustCompile(` +`).ReplaceAllString(s, " ") }
 
 // calls reads the words of every kit call the fake recorded but the rate limits' reads, which each load brings, and
-// quota_test counts.
+// the reads of what kit kept of each stage, which the start brings; quota_test and kept_test count those.
 func calls(t *testing.T, path string) []string {
 	t.Helper()
 	got, err := os.ReadFile(path)
@@ -208,7 +208,7 @@ func calls(t *testing.T, path string) []string {
 		return nil
 	}
 	return slices.DeleteFunc(strings.Split(strings.TrimSpace(string(got)), "\n"), func(c string) bool {
-		return c == "flow --quota"
+		return c == "flow --quota" || strings.HasSuffix(c, " --cached")
 	})
 }
 
@@ -218,9 +218,10 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 	o := options()
 	o.NoFetch, o.Filters = true, []string{"--mine", "--owner=bob"}
 	m := New(runner(t), o)
+	// the eight read what kit kept of them, then load
 	batch, ok := m.Init()().(tea.BatchMsg)
-	if !ok || len(batch) != 8 {
-		t.Fatalf("Init did not start the eight at once: %T", batch)
+	if !ok || len(batch) != 16 {
+		t.Fatalf("Init did not start the eight at once: %T of %d", batch, len(batch))
 	}
 	for i := range m.stages {
 		if !m.stages[i].loading || m.count(i) != "…" {
@@ -258,7 +259,8 @@ func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
 	batch := m.Init()().(tea.BatchMsg)
 	var fetched tea.Msg
 	for _, cmd := range batch {
-		if msg := cmd(); msg.(loadedMsg).stage == "incoming" {
+		msg := cmd()
+		if l, ok := msg.(loadedMsg); ok && l.stage == "incoming" {
 			fetched = msg
 		} else {
 			m = drive(m, msg)
@@ -284,8 +286,9 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
+	// each reads what kit kept of it, then loads
 	batch, ok := m.Init()().(tea.BatchMsg)
-	if !ok || len(batch) != 2 {
+	if !ok || len(batch) != 4 {
 		t.Fatalf("Init did not start both: %T", m.Init()())
 	}
 	m = drive(m, batch)

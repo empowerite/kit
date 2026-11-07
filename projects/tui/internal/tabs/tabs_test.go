@@ -331,6 +331,31 @@ func TestTheOtherTabsAreDimWhileThePaneHasTheKeyboard(t *testing.T) {
 	}
 }
 
+// A stale tab has a yellow dot after its name, which stays yellow while the other tabs dim; it moves no tab, and every
+// line but the middle one's dot is as it was.
+func TestAStaleTabHasADotAfterItsNameAndMovesNothing(t *testing.T) {
+	for _, focused := range []bool{true, false} {
+		b := stages(0, 120)
+		b.Focused = focused
+		fresh := strings.Split(plain(b), "\n")
+		b.Stale = []bool{true, false, true}
+		got := b.View()
+		lines := strings.Split(ansi.Strip(got), "\n")
+		if !strings.Contains(lines[1], "backlog"+Stale) || !strings.Contains(lines[1], "incoming"+Stale) ||
+			strings.Contains(lines[1], "underway"+Stale) {
+			t.Errorf("focused %v: the stale tabs' middle line: %q", focused, lines[1])
+		}
+		if !strings.Contains(got, style.Warn(Stale)) {
+			t.Errorf("focused %v: the dot is not yellow: %q", focused, got)
+		}
+		if lines[0] != fresh[0] || lines[2] != fresh[2] ||
+			strings.ReplaceAll(lines[1], Stale, " ") != fresh[1] {
+			t.Errorf("focused %v: the dot moved the tabs:\n%s\nwas\n%s", focused, strings.Join(lines, "\n"),
+				strings.Join(fresh, "\n"))
+		}
+	}
+}
+
 func TestTheKeyboardChangesTheColorsAloneAndNeverTheSelectedTabs(t *testing.T) {
 	b := stages(0, 80)
 	focused := b.View()

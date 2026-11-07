@@ -9,7 +9,9 @@
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
 # --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
 # --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
-# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read. new issue --list --json
+# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read. A stage given --cached
+# prints <stage>.json from the directory FAKE_FLOW_KEPT names, and refuses with exit 1 without one, as kit does
+# before the stage has printed. new issue --list --json
 # prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
 # assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
 # FAKE_FLOW_REFUSE names refuses with exit 1.
@@ -87,6 +89,16 @@ case "${1:-}" in
       exit 2
     fi
     shift
+    if [[ " $* " == *" --cached "* ]]
+    then
+      if [[ -z "${FAKE_FLOW_KEPT:-}" || ! -f "${FAKE_FLOW_KEPT}/${stage}.json" ]]
+      then
+        echo "❌ kit flow ${stage} has printed nothing here yet; run it without --cached" >&2
+        exit 1
+      fi
+      cat "${FAKE_FLOW_KEPT}/${stage}.json"
+      exit 0
+    fi
     if [[ "${FAKE_FLOW_REFUSE:-}" == "${stage}" ]]
     then
       echo "❌ kit flow ${stage}: the forge cannot be read; run: kit help flow" >&2

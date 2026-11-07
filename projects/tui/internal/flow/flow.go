@@ -62,6 +62,7 @@ type loadedMsg struct {
 type stage struct {
 	name    string
 	loading bool
+	stale   bool   // drawn from what kit kept of its last load, while its own load runs
 	refusal string // kit's line, when the command failed
 	issues  []issue
 	under   []underway
@@ -203,8 +204,9 @@ func New(r kit.Runner, o Options) Model {
 }
 
 // Init starts the loading: every stage at once, so none waits on incoming's fetch, which can take as long as the
-// remotes do; the stages the fetch moves load again once it has fetched.
-func (m Model) Init() tea.Cmd { return m.all() }
+// remotes do; the stages the fetch moves load again once it has fetched. Each stage is drawn from what kit kept of its
+// last load meanwhile, stale, as kept.go says.
+func (m Model) Init() tea.Cmd { return tea.Batch(append(m.keptAll(), m.loads()...)...) }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -272,6 +274,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
 			return m, m.reloads()
 		}
+	case keptMsg:
+		m.takeKept(msg)
 	case quotaMsg:
 		return m, m.tookQuota(msg)
 	case quotaTickMsg:
@@ -905,14 +909,17 @@ func (m Model) load(name string, fresh bool) tea.Cmd {
 }
 
 // all runs every stage kittui draws, at once.
-func (m Model) all() tea.Cmd {
+func (m Model) all() tea.Cmd { return tea.Batch(m.loads()...) }
+
+// loads gives the load of every stage kittui draws.
+func (m Model) loads() []tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
 		if known[s.name] {
 			cmds = append(cmds, m.load(s.name, false))
 		}
 	}
-	return tea.Batch(cmds...)
+	return cmds
 }
 
 // restart runs a stage's command again as its latest load, reading the forge afresh, ending the one before when it
@@ -965,7 +972,7 @@ func (m *Model) take(msg loadedMsg) bool {
 	if s == nil || msg.gen != s.gen {
 		return false
 	}
-	s.loading = false
+	s.loading, s.stale = false, false
 	err := msg.err
 	if err == nil {
 		err = s.decode(msg.data)

@@ -58,7 +58,7 @@ func (m Model) View() tea.View {
 
 // bar gives the stages' tab bar, from the screen's second line, as wide as barWidth says: each stage's glyph, name,
 // and count, the room for the widest count of n/m its rows allow and the menu's glyph kept for each, the keyboard on it unless the rows or the
-// panel have it, its view where it was left, and the selected stage's group's color.
+// panel have it, its view where it was left, the selected stage's group's color, and a dot on each stage that is stale.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Scroll: m.barView,
 		Width: m.width, Row: 1, Menus: true, MenuOpen: m.menu}
@@ -68,6 +68,7 @@ func (m Model) bar() tabs.Bar {
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 		b.Reserves = append(b.Reserves, m.reserve(i))
+		b.Stale = append(b.Stale, s.stale)
 	}
 	return b
 }
