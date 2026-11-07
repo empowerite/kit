@@ -83,17 +83,15 @@ type SwitchMsg struct{ Screen Screen }
 // Switch gives the command that asks for the screen.
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
-// Items gives the menu's lines, top to bottom: the screen's own items and a rule, when it has any; kit's screens; a
-// rule; the settings; a rule; and quit.
+// Items gives the menu's lines, top to bottom: kit's screens; a rule; the screen's own items, when it has any, and the
+// settings; a rule; and quit.
 func (m Menu) Items() []Item {
 	var items []Item
-	if len(m.Own) > 0 {
-		items = append(slices.Clone(m.Own), Item{})
-	}
 	for _, s := range screens {
 		items = append(items, s.item)
 	}
-	return append(items, Item{}, settingsItem, Item{}, Item{Leave, "Quit"})
+	items = append(append(items, Item{}), m.Own...)
+	return append(items, settingsItem, Item{}, Item{Leave, "Quit"})
 }
 
 // settingsItem is the menu's line that opens the Settings dialog.

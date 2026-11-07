@@ -36,18 +36,18 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Refresh All||Welcome|Tutorials|Help|Flow||Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help|Flow||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on, the tutorials, and the rules
 	// do not
-	for k, want := range []bool{true, false, false, false, true, true, false, true, false, true} {
+	for k, want := range []bool{false, false, true, true, false, true, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[0].Name != "Welcome" || m.At != 0 || !m.Open {
-		t.Errorf("a menu with no items of its screen's, or the keyboard: %+v", m)
+	if (Menu{}).Items()[5].Name != "Settings…" || m.At != 2 || !m.Open {
+		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
 
@@ -74,7 +74,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	} else if _, c = m.Key(key("enter")); c != (Choice{Screen: SettingsScreen}) {
 		t.Errorf("settings: %+v", c)
 	}
-	own := Menu{Here: Help, Own: []Item{{"", "Mine"}}}.Opened()
+	own, _ := Menu{Here: Help, Own: []Item{{"", "Mine"}}}.Opened().Key(key("m"))
 	if _, c := own.Key(key("enter")); c != (Choice{Own: "Mine"}) {
 		t.Errorf("its own: %+v", c)
 	}

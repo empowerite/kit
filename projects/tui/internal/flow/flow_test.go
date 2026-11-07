@@ -82,8 +82,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// refreshAll drops the app's menu down and chooses its first item, Refresh All.
-var refreshAll = []tea.Msg{press('='), press(tea.KeyEnter)}
+// refreshAll drops the app's menu down and chooses Refresh All, the item r moves to.
+var refreshAll = []tea.Msg{press('='), typed("r")[0], press(tea.KeyEnter)}
 
 // toggleMsg stands, in drive, for the key that opens the row under the cursor or closes it: toggle.
 type toggleMsg struct{}
@@ -464,7 +464,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), right, right, right, right, right, right, right, press('='))
+	m := loaded(t, options(), right, right, right, right, right, right, right, press('='), typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	if cmd == nil || !strings.Contains(view(m), "loading") || !shows(m, Release, "…") {

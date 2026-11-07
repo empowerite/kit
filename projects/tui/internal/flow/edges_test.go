@@ -87,7 +87,7 @@ func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 // Refresh All while the cursor is in a stage's rows shows the stage loading, the cursor kept, and the rows come back
 // with the answer.
 func TestRefreshInTheRowsKeepsTheCursorThroughTheLoad(t *testing.T) {
-	m := loaded(t, options(), down, press('='))
+	m := loaded(t, options(), down, press('='), typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	if !m.inRows || !strings.Contains(view(m), "loading") {

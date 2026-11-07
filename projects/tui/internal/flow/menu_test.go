@@ -110,7 +110,9 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	if m = drive(m, testkit.Click(shell.At, shell.Top)); !m.appMenu.Open {
 		t.Fatalf("a click on %s:\n%s", shell.App, view(m))
 	}
-	m = drive(m, testkit.Click(3, shell.Top+1))
+	m = drive(m, testkit.Click(3, shell.Top+1+slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool {
+		return it.Name == "Refresh All"
+	})))
 	got := calls(t, record)
 	if m.appMenu.Open || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
 		len(got) < len(eight) {
