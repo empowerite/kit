@@ -146,12 +146,7 @@ func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
 // when none does.
 func (m Model) popMove(k, step int) int {
 	lines := m.popLines(m.pop.field)
-	for j := k + step; j >= 0 && j < len(lines); j += step {
-		if lines[j].act != nil {
-			return j
-		}
-	}
-	return k
+	return shell.Step(k, len(lines), step, func(j int) bool { return lines[j].act != nil })
 }
 
 // popActs says whether space on the popover's line under the keyboard changes anything: a value's box and the filter's
@@ -246,11 +241,10 @@ func (m Model) popBox() (box []string, top, left int) {
 // box elsewhere, nothing; off the box, it closes it.
 func (m *Model) popClick(x, y int) {
 	box, top, left := m.popBox()
-	if x < left || x >= left+ansi.StringWidth(box[0]) || y < top || y >= top+len(box) {
+	switch line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y); {
+	case !on:
 		m.pop = popover{}
-		return
-	}
-	if x > left && x < left+ansi.StringWidth(box[0])-1 {
-		m.popAct(y - top - 1)
+	case line >= 0:
+		m.popAct(line)
 	}
 }

@@ -152,10 +152,9 @@ func (m *Model) columnsAct(key string) {
 // dialog; and esc closes it.
 func (m Model) columnsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch key := k.String(); key {
-	case "up":
-		m.cols.at = max(m.cols.at-1, 0)
-	case "down":
-		m.cols.at = min(m.cols.at+1, len(m.colsListed())-1)
+	case "up", "down":
+		step := map[string]int{"up": -1, "down": 1}[key]
+		m.cols.at = shell.Step(m.cols.at, len(m.colsListed()), step, shell.Every)
 	case "esc":
 		m.cols = columnsDialog{}
 	case "enter":
@@ -168,16 +167,17 @@ func (m Model) columnsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // columnsClick takes a click while the columns dialog is open: on a field's box, its sort, or its group, it acts as
-// space, s, or g does, the keyboard on the field; on its label, the keyboard goes there; on the dialog elsewhere,
-// nothing; off it, the dialog closes.
+// space, s, or g does, the keyboard on the field; on its label, the keyboard goes there; on the dialog elsewhere, its
+// edges among it, nothing; off it, the dialog closes.
 func (m *Model) columnsClick(x, y int) {
 	box, top, left := m.columnsBox()
-	if x < left || x >= left+ansi.StringWidth(box[0]) || y < top || y >= top+len(box) {
+	line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y)
+	if !on {
 		m.cols = columnsDialog{}
 		return
 	}
 	k := m.columnsRow(y)
-	if k < 0 {
+	if line < 0 || k < 0 {
 		return
 	}
 	m.cols.at = k

@@ -90,11 +90,9 @@ const settingsKeys = "esc close · ↑↓ move · ␣ toggle"
 // Key takes a key while the dialog is open: up and down move between the settings, space or enter flips the one under
 // the keyboard, which is saved at once, and esc closes the dialog, as = does. It gives the dialog and the settings.
 func (d SettingsDialog) Key(k tea.KeyPressMsg, s Settings) (SettingsDialog, Settings) {
-	switch k.String() {
-	case "up":
-		d.At = max(d.At-1, 0)
-	case "down":
-		d.At = min(d.At+1, len(settings)-1)
+	switch key := k.String(); key {
+	case "up", "down":
+		d.At = Step(d.At, len(settings), map[string]int{"up": -1, "down": 1}[key], Every)
 	case "space", "enter":
 		s = settings[d.At].flip(s)
 		s.Save()
@@ -123,8 +121,8 @@ func (d SettingsDialog) Click(msg tea.MouseClickMsg, s Settings, height, width i
 	}
 	box := d.box(s, width)
 	top, left := d.place(box, height, width)
-	switch k := mouse.Y - top - 1; {
-	case mouse.Y < top || mouse.Y >= top+len(box) || mouse.X < left || mouse.X >= left+ansi.StringWidth(box[0]):
+	switch k, on := (Placed{Lines: box, Top: top, Left: left}).Hit(mouse.X, mouse.Y); {
+	case !on:
 		d.Open = false
 	case k >= 0 && k < len(settings):
 		d.At = k

@@ -317,10 +317,8 @@ func (m Model) askKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, a.then(answer)
 		}
 		return m, m.run(a.run(answer))
-	case a.pick != nil && key == "up":
-		a.at = max(a.at-1, 0)
-	case a.pick != nil && key == "down":
-		a.at = min(a.at+1, len(a.pick)-1)
+	case a.pick != nil && (key == "up" || key == "down"):
+		a.at = shell.Step(a.at, len(a.pick), map[string]int{"up": -1, "down": 1}[key], shell.Every)
 	case a.typing:
 		a.typed, _ = shell.Type(a.typed, k)
 	}
