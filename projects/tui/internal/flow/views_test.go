@@ -174,12 +174,13 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// a column shown again differs from every view: the line names the one it was set to, in italics
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
+	color := stageColors["backlog"]
 	if got := presetText(m); m.is(0) != "" || got != "   Compact "+Presets ||
-		!strings.Contains(m.rule(), style.Italic("Compact", true)) {
+		!strings.Contains(m.rule(), style.Named("Compact", color, true, true)) {
 		t.Errorf("a change does not italicize the view: %q", got)
 	}
-	if m.onPreset = false; !strings.Contains(m.rule(), style.Italic("Compact", false)) {
-		t.Errorf("off the line, the view is not in italics: %q", m.rule())
+	if m.onPreset = false; !strings.Contains(m.rule(), style.Named("Compact", color, true, false)) {
+		t.Errorf("off the line, the view is not in italics, in the tab's color: %q", m.rule())
 	}
 	m.onPreset = true
 	if m.dropEnd() != m.dropStart()+len("Compact ")+1 || m.dropStart() < m.paneWidth()/2 {
@@ -651,5 +652,18 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 	}
 	if err := writePresets(filepath.Join(dir, "taken.json"), nil); err == nil {
 		t.Error("a directory replaced by the file")
+	}
+}
+
+// The preset line names the preset in its tab's color, as the tab is named, the preset being the tab's; while a stage
+// loads, or once it refused, there is no header, and neither the rule nor the preset line stands.
+func TestThePresetLineIsTheTabsColorAndWaitsForTheRows(t *testing.T) {
+	m := New(runner(t), viewing(""))
+	if lines, _ := m.header(); lines != nil || m.presets(0) || strings.Contains(view(m), Presets) {
+		t.Errorf("while backlog loads: header %q, preset line %v\n%s", lines, m.presets(0), view(m))
+	}
+	m = loaded(t, viewing(""))
+	if !m.presets(0) || !strings.Contains(m.rule(), style.Named(Opening, stageColors["backlog"], false, false)+" "+Presets) {
+		t.Errorf("backlog's preset line: %q", m.rule())
 	}
 }

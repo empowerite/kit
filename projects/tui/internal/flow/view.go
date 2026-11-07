@@ -600,7 +600,8 @@ const lead = "   "
 
 // presets says whether a stage's table has a preset line: one with columns, the views of which it names.
 func (m Model) presets(i int) bool {
-	return !m.noPresets && i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0
+	return !m.noPresets && i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].loading &&
+		m.stages[i].refusal == ""
 }
 
 // dropStart gives the screen column the preset line's selector starts on, at the rule's right end.
@@ -616,8 +617,8 @@ func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetL
 // presetLine gives the preset's selector, at the right end of the rule under the table's header: the name of the
 // preset the table is set as, and Presets; once the table differs from every preset, the name of the one it was last
 // set to, in italics, as a hint it has left it; or, while a name is typed for Save As… or Rename…, the name with a
-// caret after a dim "save as" or "rename", once the line has the keyboard. The selector is inverse while the line has
-// the keyboard.
+// caret after a dim "save as" or "rename", once the line has the keyboard. The name is in its tab's color, as the tab's
+// own is, the preset being the tab's; the selector is inverse while the line has the keyboard.
 func (m Model) presetLine() string {
 	on := m.onPreset && !m.inPanel
 	if st := m.stages[m.stage]; on && st.savingAs {
@@ -627,17 +628,14 @@ func (m Model) presetLine() string {
 		}
 		return style.Off(label) + " " + st.naming + "▏"
 	}
-	if is := m.is(m.stage); is != "" {
-		if on {
-			return style.Cursor(is + " " + Presets)
-		}
-		return is + " " + Presets
-	}
-	rest := " " + Presets
+	color, rest := stageColors[m.stages[m.stage].name], " "+Presets
 	if on {
 		rest = style.Cursor(rest)
 	}
-	return style.Italic(m.chosen(m.stage).Name, on) + rest
+	if is := m.is(m.stage); is != "" {
+		return style.Named(is, color, false, on) + rest
+	}
+	return style.Named(m.chosen(m.stage).Name, color, true, on) + rest
 }
 
 // chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the
