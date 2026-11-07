@@ -127,7 +127,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		}
 	}
 	m.stages[0].cursor = 2
-	if m = drive(m, testkit.Click(spots[1].from+1, m.rowsTop())); !m.colMenu.open || !m.colMenu.heading ||
+	if m = drive(m, testkit.Click(spots[1].from+1, m.rowsTop())); !m.colMenu.Open || !m.colMenu.heading ||
 		m.colMenu.column != "assignees" || m.headMenu.open || m.stages[0].cursor != 0 || len(m.rows(0)) != all {
 		t.Fatalf("a click on assignees: menu %+v, cursor %d, %d rows of %d", m.colMenu, m.stages[0].cursor,
 			len(m.rows(0)), all)
@@ -138,27 +138,27 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("the box hangs at %d, %q:\n%s", top, edge, raw(m))
 	}
 	// Ungroup leaves the rows grouped by source alone, and closes the menu
-	m.colMenu.at = m.columnLine(actUngroup)
-	if m = drive(m, press(tea.KeyEnter)); m.colMenu.open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
-		t.Fatalf("ungroup assignees: menu %v, groups %q", m.colMenu.open, m.panel(0).Groups())
+	m.colMenu.At = m.columnLine(actUngroup)
+	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
+		t.Fatalf("ungroup assignees: menu %v, groups %q", m.colMenu.Open, m.panel(0).Groups())
 	}
 	// ⏎ on the heading drops source's menu; esc closes it
 	m.stages[0].cursor = 0
-	if m = drive(m, press(tea.KeyEnter)); !m.colMenu.open || m.colMenu.column != "source" {
+	if m = drive(m, press(tea.KeyEnter)); !m.colMenu.Open || m.colMenu.column != "source" {
 		t.Fatalf("⏎ on the heading over the groups: %+v", m.colMenu)
 	}
-	if m = drive(m, esc); m.colMenu.open {
+	if m = drive(m, esc); m.colMenu.Open {
 		t.Error("esc did not close the menu")
 	}
 	// a click on a value's heading folds it, menu or none; ⏎ there drops none, nor does the keys bar offer one
 	all = len(m.rows(0))
-	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); m.colMenu.open || m.headMenu.open || len(m.rows(0)) != 2 {
-		t.Fatalf("a click on a value's heading: menu %v %v, %d rows", m.colMenu.open, m.headMenu.open, len(m.rows(0)))
+	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); m.colMenu.Open || m.headMenu.open || len(m.rows(0)) != 2 {
+		t.Fatalf("a click on a value's heading: menu %v %v, %d rows", m.colMenu.Open, m.headMenu.open, len(m.rows(0)))
 	}
 	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "⏎ menu") {
 		t.Errorf("the keys on a value's heading: %q", last)
 	}
-	if m = drive(m, press(tea.KeyEnter)); m.colMenu.open || m.headMenu.open {
+	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open || m.headMenu.open {
 		t.Error("⏎ on a value's heading dropped a menu")
 	}
 	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); len(m.rows(0)) != all {
@@ -191,7 +191,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if box, _, _ := m.columnBox(); box != nil {
 		t.Error("the menu of a heading gone still draws")
 	}
-	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.open {
+	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.Open {
 		t.Error("a click did not close the menu of a heading gone")
 	}
 }

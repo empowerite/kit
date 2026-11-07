@@ -279,13 +279,13 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	}
 	// shift, which a terminal often keeps for its own selection, adds nothing: the click drops the menu, as ever
 	shift := tea.MouseClickMsg{X: at("source"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.colMenu.open {
+	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.colMenu.Open {
 		t.Errorf("a shift-click on source: %+v", m.panel(m.stage).SortKeys())
 	}
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), m.top())); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.at <= m.columnLine(actClear) ||
+	if m = drive(m, testkit.Click(at("commit"), m.top())); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.At <= m.columnLine(actClear) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
@@ -354,7 +354,7 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
 	// a plain click on a name drops its menu, and groups nothing
-	if m = drive(m, testkit.Click(at("age"), m.top())); len(group()) != 0 || !m.colMenu.open {
+	if m = drive(m, testkit.Click(at("age"), m.top())); len(group()) != 0 || !m.colMenu.Open {
 		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).SortKeys())
 	}
 }
@@ -578,7 +578,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		m = drive(m, tea.MouseClickMsg{X: at(name), Y: m.top(), Button: tea.MouseLeft, Mod: mod})
 	}
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
-	if click("age", 0); len(sorts()) != 0 || !m.colMenu.open || m.colMenu.column != "age" {
+	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.column != "age" {
 		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
 	}
 	// the box hangs around the name, its top edge drawing it where the header does, as ≡'s menu hangs from ≡
@@ -590,8 +590,8 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	if x, name := m.columnName("age"); name != "age" || x != at("age") {
 		t.Errorf("age's name in the header: %q at %d, not %d", name, x, at("age"))
 	}
-	if click("age", 0); m.colMenu.open || len(sorts()) != 0 {
-		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.open)
+	if click("age", 0); m.colMenu.Open || len(sorts()) != 0 {
+		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.Open)
 	}
 	click("age", 0)
 	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
@@ -606,7 +606,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("the popover's title is not over the name: %d, %d", top, left)
 	}
 	m = drive(m, esc)
-	if click("source", tea.ModAlt); len(sorts()) != 2 || m.colMenu.open {
-		t.Errorf("an option-click on source: %+v, menu %v", sorts(), m.colMenu.open)
+	if click("source", tea.ModAlt); len(sorts()) != 2 || m.colMenu.Open {
+		t.Errorf("an option-click on source: %+v, menu %v", sorts(), m.colMenu.Open)
 	}
 }

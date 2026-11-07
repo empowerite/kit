@@ -133,7 +133,7 @@ func TestClicksFollowTheTop(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
 	header := lines(m)[m.top()]
 	// a click on a column's name drops its menu
-	if m = drive(m, testkit.Click(strings.Index(header, "age"), m.top())); !m.colMenu.open || m.colMenu.column != "age" {
+	if m = drive(m, testkit.Click(strings.Index(header, "age"), m.top())); !m.colMenu.Open || m.colMenu.column != "age" {
 		t.Fatalf("a click on age: %+v\n%s", m.colMenu, raw(m))
 	}
 	m = drive(m, esc)

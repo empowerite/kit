@@ -19,13 +19,12 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// columnMenu is the column menu while it is open: the column it acts on, whether it hangs from the column's name in
-// the heading over the groups rather than in the header, and the line under the keyboard.
+// columnMenu is the column menu while it is open: a dropdown, the column it acts on, and whether it hangs from the
+// column's name in the heading over the groups rather than in the header.
 type columnMenu struct {
-	open    bool
+	shell.Dropdown
 	column  string
 	heading bool
-	at      int
 }
 
 // colAct is what a line of the column menu does.
@@ -193,16 +192,16 @@ func (m Model) shiftKeys(column string) []shell.Binding {
 
 // openColumnMenu drops the column menu down from a column's name, the first line that acts under the keyboard.
 func (m *Model) openColumnMenu(column string) {
-	m.colMenu = columnMenu{open: true, column: column, at: -1}
-	m.colMenu.at = shell.Move(m.columnItems(), m.columnEnabled, -1, 1)
+	m.colMenu = columnMenu{column: column}
+	m.colMenu.Dropdown = m.colMenu.Opened(m.columnItems(), m.columnEnabled)
 }
 
 // openFieldMenu drops the column menu around a column's name in the heading over the groups, its row k, the cursor on
 // the heading, the first line that acts under the keyboard.
 func (m *Model) openFieldMenu(k int, column string) {
 	m.stages[m.stage].cursor, m.inRows = k, true
-	m.colMenu = columnMenu{open: true, column: column, heading: true, at: -1}
-	m.colMenu.at = shell.Move(m.columnItems(), m.columnEnabled, -1, 1)
+	m.colMenu = columnMenu{column: column, heading: true}
+	m.colMenu.Dropdown = m.colMenu.Opened(m.columnItems(), m.columnEnabled)
 }
 
 // fieldName gives the screen column and line a column's name stands on in the heading over the groups, as the pane is
@@ -221,30 +220,32 @@ func (m Model) fieldName(column string) (x, y int) {
 	return 0, -1
 }
 
-// columnKey takes a key while the column menu is open: up and down move, a letter to the next line it starts, enter
-// and space act, shift with left or right moves the column, and esc closes it.
+// columnKey takes a key while the column menu is open: shift with left or right moves the column, the menu with it,
+// the keyboard on the same line; the rest go to the dropdown, and the line chosen does what it says.
 func (m Model) columnKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	items := m.columnItems()
-	switch k.String() {
-	case "up":
-		m.colMenu.at = shell.Move(items, m.columnEnabled, m.colMenu.at, -1)
-	case "down":
-		m.colMenu.at = shell.Move(items, m.columnEnabled, m.colMenu.at, 1)
-	case "enter", "space":
-		cmd := m.columnAct(m.colMenu.at) // before m is returned, which a return would copy first
-		return m, cmd
-	case "esc":
-		m.colMenu = columnMenu{}
-	case "shift+left", "shift+right":
-		// the column moves, the menu with it, the keyboard on the same line
-		d, _ := shiftStep(k.String())
+	if key := k.String(); key == "shift+left" || key == "shift+right" {
+		d, _ := shiftStep(key)
 		if p, ok := m.shifted(m.colMenu.column, d); ok {
 			m.setPanel(p)
 		}
-	default:
-		m.colMenu.at = shell.NextItem(items, m.columnEnabled, m.colMenu.at, k.Text)
+		return m, nil
 	}
-	return m, nil
+	d, chosen := m.colMenu.Key(k, m.columnItems(), m.columnEnabled)
+	return m, m.columnChose(d, chosen)
+}
+
+// columnChose takes what the dropdown did: a line chosen does what it says; a dropdown closed without one closes the
+// menu; one still open goes on.
+func (m *Model) columnChose(d shell.Dropdown, chosen int) tea.Cmd {
+	switch {
+	case chosen >= 0:
+		return m.columnAct(chosen)
+	case !d.Open:
+		m.colMenu = columnMenu{}
+	default:
+		m.colMenu.Dropdown = d
+	}
+	return nil
 }
 
 // columnAct closes the column menu and does what its line k says, when it acts.
@@ -290,11 +291,11 @@ func (m Model) columnBox() (lines []string, top, left int) {
 		if y < 0 {
 			return nil, 0, 0
 		}
-		lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.at, m.colMenu.column, x, m.paneWidth())
+		lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.At, m.colMenu.column, x, m.paneWidth())
 		return lines, y, left
 	}
 	x, name := m.columnName(m.colMenu.column)
-	lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.at, name, x, m.width)
+	lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.At, name, x, m.width)
 	return lines, m.top(), left
 }
 
@@ -306,15 +307,17 @@ func (m Model) columnName(column string) (int, string) {
 	return x + m.indent(m.stage), name
 }
 
-// columnClick takes a click while the column menu is open: on a line that acts, it does what the line says; anywhere
-// else, on the name it hangs from too, it closes the menu.
+// columnClick takes a click while the column menu is open, as a dropdown does: on a line that acts, it does what the
+// line says; on another line of the box, nothing; anywhere else, on the name it hangs from too, it closes the menu,
+// as it does when its box no longer shows.
 func (m *Model) columnClick(x, y int) tea.Cmd {
 	box, top, left := m.columnBox()
-	if k := y - top - 1; len(box) > 0 && x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
-		return m.columnAct(k)
+	if len(box) == 0 {
+		m.colMenu = columnMenu{}
+		return nil
 	}
-	m.colMenu = columnMenu{}
-	return nil
+	d, chosen := m.colMenu.Click(x, y, top, left, ansi.StringWidth(box[0]), m.columnItems(), m.columnEnabled)
+	return m.columnChose(d, chosen)
 }
 
 // headerColumn gives the column whose name a click at x, y in the header falls on, none off every name.

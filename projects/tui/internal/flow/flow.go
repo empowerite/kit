@@ -345,7 +345,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.presetMenuClick(msg.X, msg.Y)
 			return m, nil
 		}
-		if m.colMenu.open {
+		if m.colMenu.Open {
 			return m, m.columnClick(msg.X, msg.Y)
 		}
 		if m.headMenu.open {
@@ -724,7 +724,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.presetMenu {
 		return m.presetMenuKey(k)
 	}
-	if m.colMenu.open {
+	if m.colMenu.Open {
 		return m.columnKey(k)
 	}
 	if m.headMenu.open {

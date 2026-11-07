@@ -134,7 +134,7 @@ func (m Model) keys() shell.Path {
 		return shell.Path{m.popKeys()}
 	case m.cols.open:
 		return shell.Path{m.columnsKeys()}
-	case m.colMenu.open:
+	case m.colMenu.Open:
 		// a column's menu moves it too
 		keys := shell.MenuKeys()
 		keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)

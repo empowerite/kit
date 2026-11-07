@@ -282,7 +282,7 @@ func (m Model) float(lines []string) []string {
 		box, top, left := m.popBox()
 		lines = shell.Over(lines, box, top, left)
 	}
-	if m.colMenu.open {
+	if m.colMenu.Open {
 		if box, top, left := m.columnBox(); len(box) > 0 {
 			lines = shell.Over(lines, box, top, left)
 		}

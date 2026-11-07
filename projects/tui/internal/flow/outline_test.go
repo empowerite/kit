@@ -78,9 +78,9 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	// an option-click on a heading's ▾ closes everything under it, and another opens it all again; elsewhere on the
 	// heading over the groups, off its names, a click folds nothing
 	names, before := m.headingNames(m.rows(0)[0]), len(m.rows(0))
-	if m = drive(m, testkit.Click(names[len(names)-1].until+1, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.open {
+	if m = drive(m, testkit.Click(names[len(names)-1].until+1, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.Open {
 		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
-			len(m.rows(0)), before, m.colMenu.open)
+			len(m.rows(0)), before, m.colMenu.Open)
 	}
 	alt := testkit.Click(1, m.rowsTop())
 	alt.Mod = tea.ModAlt
