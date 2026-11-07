@@ -147,6 +147,11 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	if !m.presetMenu {
 		t.Fatal("enter did not drop the presets down")
 	}
+	// the menu is titled Presets, not by the preset the table is set as
+	if box, _, _ := m.presetBox(); !strings.Contains(ansi.Strip(box[0]), "╴"+PresetsTitle+"╶") ||
+		strings.Contains(box[0], Opening) {
+		t.Errorf("the menu's title: %q", ansi.Strip(box[0]))
+	}
 	// the menu is drawn, under the line, whole
 	if drawn := raw(m); !strings.Contains(drawn, SaveAs) || !strings.Contains(drawn, "Compact") {
 		t.Fatalf("the presets are not drawn:\n%s", drawn)

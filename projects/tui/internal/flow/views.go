@@ -664,11 +664,14 @@ func (m *Model) choosePreset(k int) {
 	}
 }
 
-// presetBox gives the presets' menu's lines, the box around the preset line's selector, which its top edge draws where
-// the line does, as the tab's menu hangs from ⋮; and the screen line and column it is drawn from.
+// PresetsTitle is what the presets' menu's top edge says, over the preset line's selector it hangs from.
+const PresetsTitle = "Presets"
+
+// presetBox gives the presets' menu's lines, the box around the preset line's selector, its top edge titled
+// PresetsTitle where the selector starts, as the tab's menu hangs from ⋮; and the screen line and column it is drawn
+// from.
 func (m Model) presetBox() (lines []string, top, left int) {
-	lines, left = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, ansi.Strip(m.presetLine()), m.dropStart(),
-		m.width)
+	lines, left = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, PresetsTitle, m.dropStart(), m.width)
 	return lines, m.presetTop(), left
 }
 
