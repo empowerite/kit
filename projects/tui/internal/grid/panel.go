@@ -407,8 +407,8 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
-// one a column the person groups by, and one the heading over every row, when the rows group on their own and the
-// person groups by nothing, so the rows under it stand in as they do under a heading the person chose.
+// one the heading over the groups the person chose, and one each column they group by; or one the heading over every
+// row, when the rows group on their own and the person groups by nothing.
 func Levels(rows []Row) int {
 	n := 0
 	for _, r := range rows {
@@ -420,8 +420,8 @@ func Levels(rows []Row) int {
 }
 
 // Said gives the level of the headings, from 1, that say each column the rows group by on their own, the shallowest
-// when it is said at several: the heading over every row is the first level, as is a heading of the outermost column
-// the person chose.
+// when it is said at several: the heading over every row is the first level, as is the heading over the groups the
+// person chose.
 func Said(rows []Row) map[string]int {
 	out := map[string]int{}
 	for _, r := range rows {
@@ -438,29 +438,38 @@ func Said(rows []Row) map[string]int {
 	return out
 }
 
-// overAll is the key of the heading over every row.
-const overAll = "group\x00"
+// overAll is the key of the heading over every row, as the rows group on their own; byFields the key of the heading
+// over the groups the person chose, which names their columns, and which every heading of a value keys under.
+const (
+	overAll  = "group\x00"
+	byFields = "group\x00\x01"
+)
+
+// OverGroups says whether a row is the heading over the groups the person chose, which names their columns.
+func OverGroups(r Row) bool { return r.Key == byFields }
 
 // Heads says whether a row is the heading of a group, as group draws one.
 func Heads(r Row) bool { return r.Aside && strings.HasPrefix(r.Key, "group\x00") }
 
-// Heading gives the column whose group a row heads, as group draws the headings, or nothing for a row that heads no
-// group, or the heading over every row, which no column the person chose makes.
+// Heading gives the column whose group a row heads, as group draws the headings, a value of it; or nothing for a row
+// that heads no group, the heading over every row, which no column the person chose makes, or the heading over the
+// groups, which names them all.
 func (p Panel) Heading(r Row) string {
-	if !Heads(r) {
+	if !Heads(r) || !strings.HasPrefix(r.Key, byFields+"\x00") {
 		return ""
 	}
-	if groups, depth := p.Groups(), strings.Count(r.Key, "\x00")-1; depth < len(groups) {
+	if groups, depth := p.Groups(), Level(r)-2; depth < len(groups) {
 		return groups[depth]
 	}
 	return ""
 }
 
-// group gives the rows under a heading per value of each column the panel groups by, the outermost first, the groups
-// in their values' order, the larger first where the column sorts descending, and the rows in each as they came: a
-// heading, an aside, is the value, as the rows draw it or as their cell's Head says it, and the column's name, dim,
-// indented by its depth, and how many rows it heads, dim. A row groups by a cell's sort key, or under none when the
-// cell has none. A row of one cell, as a heading, has no value: those follow the groups.
+// group gives the rows under one heading that names the columns the panel groups by, the outermost first, between dim
+// ›, and how many rows they group, dim; and under it, a heading per value of each column, the groups in their values'
+// order, the larger first where the column sorts descending, and the rows in each as they came: a heading of a value,
+// an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
+// it heads, dim. A row groups by a cell's sort key, or under none when the cell has none. A row of one cell, as a
+// heading, has no value: those follow the groups.
 //
 // While the panel folds and the person groups by no column, the rows group on their own: the walk goes along the
 // columns that can group, in the panel's order, and one whose value is the same on every row, as their sort key says,
@@ -527,6 +536,15 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		return 0
 	})
 	var out []Row
+	if len(grouped) > 0 {
+		var titles []string
+		for _, j := range at {
+			titles = append(titles, columns[j])
+		}
+		heading := p.fold(byFields) + " " + strings.Join(titles, style.Off(" ›")+" ") + "  " +
+			style.Off(strconv.Itoa(len(grouped)))
+		out = append(out, Row{Key: byFields, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
+	}
 	// the columns each heading open at its depth groups on its own, which the headings under it leave out
 	auto := make([][]int, len(at))
 	for i, r := range grouped {
@@ -534,7 +552,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			if i > 0 && same(grouped[i-1], r, depth) {
 				continue
 			}
-			n, key := 0, "group"
+			n, key := 0, byFields
 			for _, s := range grouped[i:] {
 				if !same(s, r, depth) {
 					break
@@ -552,7 +570,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			if j < len(r.Cells) {
 				said = r.Cells[j].heading()
 			}
-			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + said + " " + style.Off(columns[j])
+			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + said
 			if len(auto[depth]) > 0 {
 				heading += style.Off(",") + " " + joined(r, columns, auto[depth])
 			}

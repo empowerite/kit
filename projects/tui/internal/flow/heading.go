@@ -1,6 +1,8 @@
-// The heading menu: a click on a column's name in a group's heading drops it around the name, and so does ⏎ with the
-// cursor on the heading, around its first column's; a click anywhere else on the heading folds its rows away, or
-// unfolds them, as one on its ▾ or ▸ does. Many terminals keep option, ctrl, and the right button with a click for their own
+// The heading menu: a click on a column's name in the heading over every row, which the rows group by on their own,
+// drops it around the name, and so does ⏎ with the cursor on the heading, around its first column's. The heading over
+// the groups the person chose names their columns, and each name drops the column's own menu, as the header's do. A
+// click anywhere else on a heading, a value's heading anywhere, folds its rows away, or unfolds them, as one on its ▾
+// or ▸ does. Many terminals keep option, ctrl, and the right button with a click for their own
 // selection and menu, so the menu holds what those would do on a heading, and what space does there: everything under
 // the heading expanded or collapsed, the group's rows selected or unselected, and the rows no longer grouped by the
 // heading's column, which titles the menu. Shift with left or right moves the column a depth outward or inward among
@@ -34,24 +36,26 @@ type nameSpot struct {
 	from, until int
 }
 
-// headingNames gives the columns a group's heading names, each where the rows draw its name: the column the person
-// grouped by, then those the rows group by on their own, each name after its value, before a comma, the count, or the
-// heading's end. The heading stands after the gutter's one cell.
+// headingNames gives the columns a group's heading names, each where the rows draw its name: the heading over the
+// groups the person chose, each column they group by, before a ›, the count, or the heading's end; any other, those the
+// rows group by on their own, each name after its value, before a comma, the count, or the heading's end. A value's
+// heading names none. The heading stands after the gutter's one cell.
 func (m Model) headingNames(r row) []nameSpot {
 	text := ansi.Strip(r.Cells[0].Values[0])
-	var columns []string
-	if c := m.panel(m.stage).Heading(r); c != "" {
-		columns = append(columns, c)
+	columns := r.Says
+	if grid.OverGroups(r) {
+		columns = m.panel(m.stage).Groups()
 	}
 	var out []nameSpot
-	for _, column := range append(columns, r.Says...) {
+	for _, column := range columns {
 		for from := 0; ; {
 			k := strings.Index(text[from:], " "+column)
 			if k < 0 {
 				break
 			}
 			at := from + k + 1
-			if end := at + len(column); end == len(text) || text[end] == ',' || strings.HasPrefix(text[end:], "  ") {
+			if end := at + len(column); end == len(text) || text[end] == ',' || strings.HasPrefix(text[end:], "  ") ||
+				strings.HasPrefix(text[end:], " ›") {
 				x := 1 + ansi.StringWidth(text[:at])
 				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
 				break

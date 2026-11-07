@@ -221,8 +221,10 @@ func (m Model) rowKeys() shell.Segment {
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}
 	if grid.Heads(rows[s.cursor]) {
-		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "all under it", "alt+left", "alt+right"),
-			shell.Bind("⏎", "menu", "enter"))
+		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "all under it", "alt+left", "alt+right"))
+		if len(m.headingNames(rows[s.cursor])) > 0 {
+			seg.Bindings = append(seg.Bindings, shell.Bind("⏎", "menu", "enter"))
+		}
 	}
 	return seg
 }

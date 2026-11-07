@@ -13,13 +13,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// nested gives backlog grouped by hand, by source, then by assignees within it, at 120 columns: an outer heading, the
-// headings under it, and their rows.
+// nested gives backlog grouped by hand, by source, then by assignees within it, at 120 columns: the heading over the
+// groups, a heading per source under it, a heading per assignee under each, and their rows.
 func nested(t *testing.T) Model {
 	t.Helper()
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
-	if rows := m.rows(0); grid.Level(rows[0]) != 1 || grid.Level(rows[1]) != 2 {
+	if rows := m.rows(0); !grid.OverGroups(rows[0]) || grid.Level(rows[1]) != 2 || grid.Level(rows[2]) != 3 {
 		t.Fatalf("backlog does not group two deep:\n%s", view(m))
 	}
 	return m
@@ -39,15 +39,19 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if grid.Heads(at(m)) {
 		t.Fatalf("down landed on a heading")
 	}
-	if m = drive(m, left); grid.Level(at(m)) != 2 {
+	if m = drive(m, left); grid.Level(at(m)) != 3 {
 		t.Fatalf("left on a row closed did not step out to its heading: %q", at(m).Key)
 	}
 	inner := at(m).Key
 	if m = drive(m, left); len(m.rows(0)) >= all || at(m).Key != inner || m.stages[0].open.Open(at(m)) {
 		t.Fatalf("left on an open heading: %d rows of %d, cursor on %q", len(m.rows(0)), all, at(m).Key)
 	}
-	// left on the closed heading steps out to the outer one; right on that, open, steps back in
-	if m = drive(m, left); m.stages[0].cursor != 0 {
+	// left on the closed heading steps out to its source's, which a second left closes and a third steps out of, to the
+	// heading over the groups
+	if m = drive(m, left); grid.Level(at(m)) != 2 || !m.stages[0].open.Open(at(m)) {
+		t.Fatalf("left on a closed heading did not step out to the one over it: %q", at(m).Key)
+	}
+	if m = drive(m, left, left); m.stages[0].cursor != 0 {
 		t.Fatalf("left on a closed heading: cursor %d", m.stages[0].cursor)
 	}
 	if m = drive(m, left, left); m.stages[0].cursor != 0 || len(m.rows(0)) != 1 {

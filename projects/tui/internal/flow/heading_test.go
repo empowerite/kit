@@ -1,5 +1,6 @@
-// The heading menu, which a plain click on a group's heading's text drops, or ⏎ on the heading, so what option, ctrl,
-// and the right button do on a heading is there in a terminal that keeps those clicks.
+// The heading menu, which a plain click on a column's name in the heading over every row drops, or ⏎ on the heading,
+// so what option, ctrl, and the right button do on a heading is there in a terminal that keeps those clicks; and the
+// column menu, which a name in the heading over the groups the person chose drops, as the header's names do.
 package flow
 
 import (
@@ -27,12 +28,13 @@ func menuNames(m Model) []string {
 // nameOf gives the screen column a heading of the selected stage, its row k, draws its first column's name on.
 func nameOf(m Model, k int) int { return m.headingNames(m.rows(m.stage)[k])[0].from }
 
-// A click on a column's name in a heading drops the menu around the name, titled by it alone, the first line that acts
-// under the keyboard: everything under the heading collapsed or expanded, the group selected or unselected, and the
-// rows ungrouped by the column. A line that cannot act stays, dim; esc, or a click off the menu, closes it. A click
-// elsewhere on the heading, on its value, folds its rows away, and another unfolds them.
+// A click on a column's name in the heading over every row drops the menu around the name, titled by it alone, the
+// first line that acts under the keyboard: everything under the heading collapsed or expanded, the group selected or
+// unselected, and the rows ungrouped by the column, dim, as the rows group by it on their own. A line that cannot act
+// stays, dim; esc, or a click off the menu, closes it. A click elsewhere on the heading, on its value, folds its rows
+// away, and another unfolds them.
 func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
-	m := nested(t)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	all := len(m.rows(0))
 	x := nameOf(m, 0)
 	if text := ansi.Strip(lines(m)[m.rowsTop()]); ansi.Cut(text, x, x+len("source")) != "source" {
@@ -51,7 +53,7 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 	want := []string{ExpandGroup, CollapseGroup, "", SelectGroup, "", UngroupIt}
 	// the rows under it are closed, so both expand and collapse act
 	if got := menuNames(m); !slices.Equal(got, want) || !m.headingEnabled(0) || !m.headingEnabled(1) ||
-		m.headMenu.at != 0 || !m.headingEnabled(5) {
+		m.headMenu.at != 0 || m.headingEnabled(5) {
 		t.Fatalf("the menu: %q, at %d", got, m.headMenu.at)
 	}
 	box, top, _ := m.headingBox()
@@ -106,11 +108,72 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 	if y := m.rowLine(len(m.rows(0)) + 5); y != -1 {
 		t.Errorf("a row the pane does not show stands on line %d", y)
 	}
-	// on an inner heading, a click on assignees, and Ungroup leaves the rows grouped by source alone
-	m = drive(m, testkit.Click(nameOf(m, 1), m.rowsTop()+1))
-	m.headMenu.at = 5
-	if m = drive(m, press(tea.KeyEnter)); !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
-		t.Errorf("ungroup by assignees: %q", m.panel(0).Groups())
+}
+
+// The heading over the groups the person chose names their columns, and a click on a name drops that column's menu
+// around it, as the header's names do, the cursor on the heading; ⏎ on the heading drops its first column's. Ungroup
+// there leaves the rows grouped by the others. A click on a value's heading, which names no column, only folds its rows
+// away, and another unfolds them; ⏎ there drops no menu.
+func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
+	m := nested(t)
+	all := len(m.rows(0))
+	spots := m.headingNames(m.rows(0)[0])
+	if len(spots) != 2 || spots[0].column != "source" || spots[1].column != "assignees" {
+		t.Fatalf("the heading over the groups names %+v", spots)
+	}
+	text := ansi.Strip(lines(m)[m.rowsTop()])
+	for _, n := range spots {
+		if ansi.Cut(text, n.from, n.until) != n.column {
+			t.Errorf("%s does not stand at %d: %q", n.column, n.from, text)
+		}
+	}
+	m.stages[0].cursor = 2
+	if m = drive(m, testkit.Click(spots[1].from+1, m.rowsTop())); !m.colMenu.open || !m.colMenu.heading ||
+		m.colMenu.column != "assignees" || m.headMenu.open || m.stages[0].cursor != 0 || len(m.rows(0)) != all {
+		t.Fatalf("a click on assignees: menu %+v, cursor %d, %d rows of %d", m.colMenu, m.stages[0].cursor,
+			len(m.rows(0)), all)
+	}
+	box, top, _ := m.columnBox()
+	if edge := ansi.Strip(box[0]); top != m.rowsTop() || !strings.Contains(edge, "╴assignees╶") ||
+		!m.columnEnabled(m.columnLine(actUngroup)) || m.columnEnabled(m.columnLine(actGroup)) {
+		t.Errorf("the box hangs at %d, %q:\n%s", top, edge, raw(m))
+	}
+	// Ungroup leaves the rows grouped by source alone, and closes the menu
+	m.colMenu.at = m.columnLine(actUngroup)
+	if m = drive(m, press(tea.KeyEnter)); m.colMenu.open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
+		t.Fatalf("ungroup assignees: menu %v, groups %q", m.colMenu.open, m.panel(0).Groups())
+	}
+	// ⏎ on the heading drops source's menu; esc closes it
+	m.stages[0].cursor = 0
+	if m = drive(m, press(tea.KeyEnter)); !m.colMenu.open || m.colMenu.column != "source" {
+		t.Fatalf("⏎ on the heading over the groups: %+v", m.colMenu)
+	}
+	if m = drive(m, esc); m.colMenu.open {
+		t.Error("esc did not close the menu")
+	}
+	// a click on a value's heading folds it, menu or none; ⏎ there drops none, nor does the keys bar offer one
+	all = len(m.rows(0))
+	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); m.colMenu.open || m.headMenu.open || len(m.rows(0)) != 2 {
+		t.Fatalf("a click on a value's heading: menu %v %v, %d rows", m.colMenu.open, m.headMenu.open, len(m.rows(0)))
+	}
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "⏎ menu") {
+		t.Errorf("the keys on a value's heading: %q", last)
+	}
+	if m = drive(m, press(tea.KeyEnter)); m.colMenu.open || m.headMenu.open {
+		t.Error("⏎ on a value's heading dropped a menu")
+	}
+	if m = drive(m, testkit.Click(6, m.rowsTop()+1)); len(m.rows(0)) != all {
+		t.Errorf("a second click on the value's heading: %d rows of %d", len(m.rows(0)), all)
+	}
+	// once the heading no longer shows, the menu draws nothing, and a click closes it
+	m.stages[0].cursor = 0
+	m = drive(m, press(tea.KeyEnter))
+	m.setPanel(m.panel(0).Grouped("source", true))
+	if box, _, _ := m.columnBox(); box != nil {
+		t.Error("the menu of a heading gone still draws")
+	}
+	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.open {
+		t.Error("a click did not close the menu of a heading gone")
 	}
 }
 

@@ -19,11 +19,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// columnMenu is the column menu while it is open: the column it acts on, and the line under the keyboard.
+// columnMenu is the column menu while it is open: the column it acts on, whether it hangs from the column's name in
+// the heading over the groups rather than in the header, and the line under the keyboard.
 type columnMenu struct {
-	open   bool
-	column string
-	at     int
+	open    bool
+	column  string
+	heading bool
+	at      int
 }
 
 // colAct is what a line of the column menu does.
@@ -195,6 +197,30 @@ func (m *Model) openColumnMenu(column string) {
 	m.colMenu.at = shell.Move(m.columnItems(), m.columnEnabled, -1, 1)
 }
 
+// openFieldMenu drops the column menu around a column's name in the heading over the groups, its row k, the cursor on
+// the heading, the first line that acts under the keyboard.
+func (m *Model) openFieldMenu(k int, column string) {
+	m.stages[m.stage].cursor, m.inRows = k, true
+	m.colMenu = columnMenu{open: true, column: column, heading: true, at: -1}
+	m.colMenu.at = shell.Move(m.columnItems(), m.columnEnabled, -1, 1)
+}
+
+// fieldName gives the screen column and line a column's name stands on in the heading over the groups, as the pane is
+// scrolled; a line of -1 once the heading, or the name in it, no longer shows.
+func (m Model) fieldName(column string) (x, y int) {
+	rows := m.rows(m.stage)
+	k := slices.IndexFunc(rows, grid.OverGroups)
+	if k < 0 {
+		return 0, -1
+	}
+	for _, n := range m.headingNames(rows[k]) {
+		if n.column == column {
+			return n.from, m.rowLine(k)
+		}
+	}
+	return 0, -1
+}
+
 // columnKey takes a key while the column menu is open: up and down move, a letter to the next line it starts, enter
 // and space act, shift with left or right moves the column, and esc closes it.
 func (m Model) columnKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -245,15 +271,28 @@ func (m *Model) columnAct(k int) tea.Cmd {
 		p = p.Grouped(c.column, true)
 	default:
 		x, _ := m.columnName(c.column)
-		return m.openPopover(c.column, x, m.top(), true)
+		y := m.top()
+		if c.heading {
+			x, y = m.fieldName(c.column)
+		}
+		return m.openPopover(c.column, x, y, true)
 	}
 	m.setPanel(p)
 	return nil
 }
 
 // columnBox gives the column menu's lines, the box around the column's name, which its top edge draws where the header
-// does, as the app's menu hangs from ≡; and the screen line and column it is drawn from.
+// does, as the app's menu hangs from ≡, or where the heading over the groups does; and the screen line and column it
+// is drawn from. Once the heading no longer shows, there are none.
 func (m Model) columnBox() (lines []string, top, left int) {
+	if m.colMenu.heading {
+		x, y := m.fieldName(m.colMenu.column)
+		if y < 0 {
+			return nil, 0, 0
+		}
+		lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.at, m.colMenu.column, x, m.paneWidth())
+		return lines, y, left
+	}
 	x, name := m.columnName(m.colMenu.column)
 	lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.at, name, x, m.width)
 	return lines, m.top(), left
@@ -271,7 +310,7 @@ func (m Model) columnName(column string) (int, string) {
 // else, on the name it hangs from too, it closes the menu.
 func (m *Model) columnClick(x, y int) tea.Cmd {
 	box, top, left := m.columnBox()
-	if k := y - top - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
+	if k := y - top - 1; len(box) > 0 && x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
 		return m.columnAct(k)
 	}
 	m.colMenu = columnMenu{}

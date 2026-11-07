@@ -291,8 +291,9 @@ func (m Model) float(lines []string) []string {
 		lines = shell.Over(lines, box, top, left)
 	}
 	if m.colMenu.open {
-		box, top, left := m.columnBox()
-		lines = shell.Over(lines, box, top, left)
+		if box, top, left := m.columnBox(); len(box) > 0 {
+			lines = shell.Over(lines, box, top, left)
+		}
 	}
 	if m.headMenu.open {
 		if box, top, left := m.headingBox(); len(box) > 0 {

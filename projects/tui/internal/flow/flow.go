@@ -796,12 +796,17 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "pgdown":
 		m.page(1)
 	case "enter":
-		// on a group's heading, ⏎ drops the heading menu, as a click on its text does
+		// on a group's heading, ⏎ drops the menu its first name drops, as a click on the name does: the column menu on
+		// the heading over the groups, the heading menu on the one over every row
 		if !m.inRows || len(m.stages) == 0 {
 			break
 		}
 		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.Heads(rows[k]) {
-			if names := m.headingNames(rows[k]); len(names) > 0 {
+			switch names := m.headingNames(rows[k]); {
+			case len(names) == 0:
+			case grid.OverGroups(rows[k]):
+				m.openFieldMenu(k, names[0].column)
+			default:
 				m.openHeadingMenu(k, m.rowLine(k), names[0])
 			}
 		}
@@ -1211,6 +1216,8 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		name, onName = m.nameAt(rows[row], x)
 	}
 	switch {
+	case onName && !subtree && grid.OverGroups(rows[row]):
+		m.openFieldMenu(row, name.column)
 	case onName && !subtree:
 		m.openHeadingMenu(row, y, name)
 	case grid.Heads(rows[row]):

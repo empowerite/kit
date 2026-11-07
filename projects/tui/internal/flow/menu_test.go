@@ -408,7 +408,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+grid.Folded) {
 		t.Errorf("space on a folded heading selected %d:\n%s", m.selected(), view(m))
 	}
-	m = drive(m, right, down, press(tea.KeySpace), up)
+	m = drive(m, right, down, down, press(tea.KeySpace), up, up)
 	if m.selected() != 2 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Partly {
 		t.Errorf("one row unselected: %d selected, the mark %q", m.selected(), m.groupMarks(0)[m.rows(0)[0].Key])
 	}

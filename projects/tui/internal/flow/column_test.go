@@ -227,8 +227,9 @@ func TestAClickJustAfterAColumnsNameSortsByIt(t *testing.T) {
 }
 
 // Shift with left or right, while a column's menu is open, moves the column a place among those the header shows, the
-// menu with it, and names itself on the keys bar where it moves the column; at the header's end it moves nothing. In a
-// heading's menu it moves the column a depth among the groups, the menu on the column's heading where it now stands.
+// menu with it, and names itself on the keys bar where it moves the column; at the header's end it moves nothing. From
+// a name in the heading over the groups, it moves the column a depth among them, the menu on its name where it now
+// stands.
 func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// the columns the header names, apart from source, which groups the rows on its own
@@ -265,23 +266,24 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	if _, ok := m.shifted("branch", 1); ok && m.panel(m.stage).Field("branch").Placement == grid.Hidden {
 		t.Error("a hidden column moved")
 	}
-	// grouped by source, then assignees: shift+left on assignees' heading makes it the outer group, the menu on its
-	// heading still, which shift+left then cannot move; shift+right moves it back in
+	// grouped by source, then assignees: shift+left in assignees' menu, from its name in the heading over the groups,
+	// makes it the outer group, the menu on its name still, now first, which shift+left then cannot move; shift+right
+	// moves it back in
 	m.setPanel(m.panel(m.stage).Grouped("source", true).Grouped("assignees", true))
-	every := m.every(m.stage)
-	k := slices.IndexFunc(every, func(r row) bool { return m.panel(m.stage).Heading(r) == "assignees" })
-	m.stages[m.stage].cursor = k
-	m.fit()
-	names := m.headingNames(every[k])
-	m.openHeadingMenu(k, m.rowLine(k), names[slices.IndexFunc(names, func(n nameSpot) bool { return n.column == "assignees" })])
+	k := slices.IndexFunc(m.rows(m.stage), grid.OverGroups)
+	m.openFieldMenu(k, "assignees")
+	x0, _ = m.fieldName("assignees")
 	if m = drive(m, testkit.Press("shift+left")); !slices.Equal(m.panel(m.stage).Groups(), []string{"assignees", "source"}) ||
-		!m.headMenu.open || m.panel(m.stage).Heading(m.rows(m.stage)[m.headingAt()]) != "assignees" {
-		t.Fatalf("shift+left on assignees' heading: %q, menu %+v", m.panel(m.stage).Groups(), m.headMenu)
+		!m.colMenu.open || !m.colMenu.heading {
+		t.Fatalf("shift+left on assignees' name: %q, menu %+v", m.panel(m.stage).Groups(), m.colMenu)
 	}
-	if box, top, _ := m.headingBox(); top != m.rowLine(m.headingAt()) || len(box) == 0 {
-		t.Errorf("the heading menu stands at %d", top)
+	if box, top, _ := m.columnBox(); top != m.rowLine(k) || len(box) == 0 {
+		t.Errorf("the column menu stands at %d", top)
 	}
-	if m = drive(m, testkit.Press("shift+left")); m.panel(m.stage).Groups()[0] != "assignees" || !m.headMenu.open {
+	if x, _ := m.fieldName("assignees"); x >= x0 {
+		t.Errorf("the menu stayed behind: %d", x)
+	}
+	if m = drive(m, testkit.Press("shift+left")); m.panel(m.stage).Groups()[0] != "assignees" || !m.colMenu.open {
 		t.Errorf("shift+left on the outer group: %q", m.panel(m.stage).Groups())
 	}
 	if m = drive(m, testkit.Press("shift+right")); !slices.Equal(m.panel(m.stage).Groups(), []string{"source", "assignees"}) {

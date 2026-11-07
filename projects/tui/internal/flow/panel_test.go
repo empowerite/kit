@@ -341,10 +341,10 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("#1"), Button: tea.MouseRight}); !slices.Equal(group(), before) {
 		t.Errorf("a right-click on a row: %q", group())
 	}
-	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading(" assignees"), Button: tea.MouseRight}); !slices.Equal(group(), []string{"source"}) {
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("jeffrey-aguilera"), Button: tea.MouseRight}); !slices.Equal(group(), []string{"source"}) {
 		t.Fatalf("a right-click on an assignees heading: %q\n%s", group(), view(m))
 	}
-	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading(" source"), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
+	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("▾ github"), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
 	// a plain click on a name drops its menu, and groups nothing
@@ -446,7 +446,8 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 }
 
 // The rows under a group's heading stand in from it, whether the rows group on their own or by a column the person
-// chose: the heading's ▾ two cells left of its rows' ▸, and a heading nested under another two cells in from it.
+// chose: the heading's ▾ two cells left of its rows' ▸, and a heading nested under another two cells in from it, the
+// headings of the values in from the heading over the groups, which names their columns.
 func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	// column gives the cell a line of the pane draws its first glyph of the kind at
@@ -463,9 +464,10 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	}
 	unfold(&m)
 	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
-	outer, inner := column(m, "github source", grid.Unfolded), column(m, "jeffrey-aguilera assignees", grid.Unfolded)
-	if r := column(m, "#45", "▸"); inner != outer+2 || r != inner+2 {
-		t.Errorf("grouped by hand, the headings' ▾ at %d and %d, a row's ▸ at %d:\n%s", outer, inner, r, view(m))
+	over := column(m, "source › assignees", grid.Unfolded)
+	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
+	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {
+		t.Errorf("grouped by hand, the headings' ▾ at %d, %d and %d, a row's ▸ at %d:\n%s", over, outer, inner, r, view(m))
 	}
 }
 
