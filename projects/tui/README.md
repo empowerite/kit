@@ -47,7 +47,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     the same way. Save, Rename…, and Delete act on the person's preset the line was set to, and are dim on Default
     and Compact. What was done is said in place of the keys, for five seconds or until a key; why something was not
     done stays until a key.
-  - The columns dialog, in `columns.go`, opens from 📊 at the header's right end, or Columns… in the tab's menu: every
+  - The columns dialog, in `columns.go`, opens from ◫ at the header's right end, or Columns… in the tab's menu: every
     field a line, those the rows group by first, then the columns as they stand, then the hidden, each with whether it
     shows, its sort and its place among the keys, and its group's depth. What it sets applies at once: space shows or
     hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups or out, and ⏎ opens its Options…; a click on

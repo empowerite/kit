@@ -2,7 +2,7 @@
   ➀╶─────────────────╮➁╶──────────────────╴➌╶──────────────╮➃╶──────────────────
     🎫 backlog     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     ▹
   ───────────────────╰─────────────────────╯               ╰────────────────────
-   branch   ahead   lines   uncommitted                                      📊
+   branch   ahead   lines   uncommitted                                       ◫
    ────────────────────────────────────────────────────────────────── Default ▼
  ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      
        M kit.yml                                                               

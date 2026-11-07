@@ -2,7 +2,7 @@
   ──────────╮➂╶──────────────╴➍╶───────────────────╮➄╶─────────────────╮➅╶──────
  ◃way     4 │  💻 desk     1  │ 🌿 worktrees   4 ⋮ │  🔀 changes     3 │  🏭 b ▹
   ──────────╰─────────────────╯                    ╰───────────────────╰────────
-   branch                       ahead    lines       change  state           📊
+   branch                       ahead    lines       change  state            ◫
    ────────────────────────────────────────────────────────────────── Default ▼
  ▾ 1-the-first-release-v0-1-0   ↑266 ↓0  +34690 -18  🔀 #2   🏁 ready         …
        M kit/bin/kit-flow                                                      

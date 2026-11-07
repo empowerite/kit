@@ -42,7 +42,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") ||
-		!strings.Contains(box[2], " "+Columns+" Columns…") ||
+		!strings.Contains(box[2], " "+Columns+"  Columns…") ||
 		!strings.Contains(box[5], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))

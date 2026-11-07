@@ -24,7 +24,7 @@ import (
 )
 
 // Columns is the icon at the header's right end that opens the columns dialog.
-const Columns = "📊"
+const Columns = "◫"
 
 // columnsDialog is the columns dialog while it is open, and the line under the keyboard, an index into the fields it
 // lists.

@@ -32,7 +32,7 @@ func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 // shows, its sort, and its group's depth.
 func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	if icon := ansi.Strip(ansi.Cut(lines(m)[paneTop], m.paneWidth()-2, m.paneWidth())); icon != Columns {
+	if icon := ansi.Strip(ansi.Cut(lines(m)[paneTop], m.paneWidth()-ansi.StringWidth(Columns), m.paneWidth())); icon != Columns {
 		t.Fatalf("no icon at the header's right end: %q in %q", icon, lines(m)[paneTop])
 	}
 	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("assignees", true))
