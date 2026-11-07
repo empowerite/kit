@@ -104,6 +104,17 @@ forge/gitlab:me() {
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
 
+# forge/gitlab:quota reads the caller's user, one request, for the RateLimit headers GitLab sends with every answer:
+# the limit that throttles the caller, by name, what is left of it, and when it resets. A GitLab that sends none has
+# no limit to show.
+forge/gitlab:quota() {
+  local answer
+  answer=$(glab api --include user 2>/dev/null) \
+    || { error "run: glab auth status (the rate limits could not be read)"; return 1; }
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --raw-input --slurp --compact-output 'import "forge" as forge; forge::gitlab_quota' <<<"${answer}"
+}
+
 # forge/gitlab:open-issues prints one document per open issue, oldest first, as the seam's header says. GitLab gives
 # each label's color only with its details.
 forge/gitlab:open-issues() {

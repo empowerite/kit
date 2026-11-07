@@ -146,6 +146,28 @@ def github_spent($now):
   | "wait until \(.value.reset | strflocaltime("%H:%M")), in \($minutes)m, when GitHub's"
     + " \({graphql: "GraphQL", core: "REST"}[.key]) rate limit resets";
 
+# github_quota reads the answer of GitHub's rate_limit endpoint and gives the caller's limits that kit spends: GraphQL's
+# points, which the open changes and issues take, first, then REST's requests, which the builds take, as rest.
+def github_quota:
+  { forge: "github",
+    limits: ( [ .resources // {} | to_entries[] | select(.key | IN("graphql", "core"))
+                | {name: (if .key == "core" then "rest" else .key end), limit: .value.limit,
+                   remaining: .value.remaining, reset: .value.reset} ]
+              | sort_by(.name != "graphql") ) };
+
+# gitlab_quota reads an answer of GitLab's API with its headers, as glab api --include prints it, and gives the limit
+# its RateLimit headers name: none when it sends none, as a GitLab without rate limits does, or a limit or what is left
+# of it that is no number. A reset that is no number is null.
+def gitlab_quota:
+  def number: (tonumber? // null);
+  ( [ split("\n")[] | capture("^ratelimit-(?<key>[a-z]+):\\s*(?<value>\\S+)"; "i")
+      | {key: (.key | ascii_downcase), value} ] | from_entries ) as $h
+  | ($h.limit // "" | number) as $limit | ($h.remaining // "" | number) as $remaining
+  | { forge: "gitlab",
+      limits: (if $limit == null or $remaining == null then []
+               else [{name: ($h.name // "api"), limit: $limit, remaining: $remaining,
+                      reset: ($h.reset // "" | number)}] end) };
+
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
   map({ name,

@@ -42,6 +42,9 @@
 #   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
+#   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
+#                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
+#                                 at most one request
 #   issue-create <title> [<body>] the number of the issue it creates
 #   issue-title <n>               the issue's title
 #   issue-state <n>               OPEN or CLOSED
@@ -246,6 +249,7 @@ forge:require()             { forge:call require "$@"; }
 forge:repo()                { forge:call repo "$@"; }
 forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
+forge:quota()               { forge:call quota "$@"; }
 forge:noun()                { forge:call noun "$@"; }
 forge:pr-url()              { forge:call pr-url "$@"; }
 forge:issue-create()        { forge:changing issue-create "$@"; }

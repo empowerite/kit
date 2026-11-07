@@ -88,6 +88,15 @@ forge/github:me() {
 
 forge/github:noun() { printf '#\tpull request\n'; }
 
+# forge/github:quota reads the rate_limit endpoint, which no limit counts, and keeps the two kit spends: GraphQL's
+# points and REST's requests.
+forge/github:quota() {
+  local limits
+  forge/github:ask limits 'the rate limits' api rate_limit || return 1
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq -L "${kit_jq}" --compact-output 'import "forge" as forge; forge::github_quota' <<<"${limits}"
+}
+
 # forge/github:open-issues prints one document per open issue, oldest first, as the seam's header says. gh issue list
 # answers with issues alone, never pull requests.
 forge/github:open-issues() {

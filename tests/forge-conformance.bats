@@ -436,6 +436,37 @@ JSON
   done
 }
 
+@test "every provider reads the caller's rate limits in one shape, GitHub's GraphQL first, and kit flow --quota lists them" {
+  fixture limits.json <<<'{"resources": {"core": {"limit": 5000, "remaining": 4990, "reset": 1800000000},
+    "graphql": {"limit": 5000, "remaining": 4871, "reset": 1800000300}, "search": {"limit": 30, "remaining": 30}}}'
+  printf 'HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRatelimit-Name: throttle_authenticated_api\r\n%b\r\n\r\n%s\n' \
+    'Ratelimit-Remaining: 1998\r\nRatelimit-Reset: 1800000060' '{"username": "ada"}' > "${FAKE_DIR}/user-headers.txt"
+  world github
+  route gh 'api rate_limit' limits.json
+  run call quota
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"forge":"github","limits":[{"name":"graphql","limit":5000,"remaining":4871,"reset":1800000300},{"name":"rest","limit":5000,"remaining":4990,"reset":1800000000}]}' ]
+  run "${kit_root}/bin/kit" flow --quota
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'map(.forge) | join(" ")' <<<"$output")" = github ]
+  world gitlab
+  route glab 'api --include user' user-headers.txt
+  run call quota
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":1998,"reset":1800000060}]}' ]
+}
+
+@test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
+  world github
+  route gh 'api rate_limit' '!1'
+  run call quota
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"gh auth status"* ]]
+  run bash -c '"$0" flow --quota 2>/dev/null' "${kit_root}/bin/kit"
+  [ "$status" -ne 0 ]
+  [ -z "$output" ]
+}
+
 @test "every provider lists its releases in one shape, newest first, with the kind and the latest" {
   fixture gh-releases.json <<'JSON'
 [{"tagName": "release/0.0.9", "name": "kit 0.0.9", "isPrerelease": false, "isDraft": false, "isLatest": true,

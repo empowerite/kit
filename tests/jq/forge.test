@@ -102,6 +102,17 @@ import "forge" as forge; [.[] | [forge::github_spent(1000000)]]
 [{"resources": {"core": {"remaining": 10, "reset": 1003600}, "graphql": {"remaining": 0, "reset": 1000690}}}, {"resources": {"core": {"remaining": 0, "reset": 1001200}, "graphql": {"remaining": 0, "reset": 1000060}}}, {"resources": {"core": {"remaining": 0, "reset": 1000010}}}, {"resources": {"core": {"remaining": 1, "reset": 1000010}}}, {}]
 [["wait until 13:58, in 12m, when GitHub's GraphQL rate limit resets"],["wait until 14:06, in 20m, when GitHub's REST rate limit resets"],["wait until 13:46, in 1m, when GitHub's REST rate limit resets"],[],[]]
 
+# GitHub's rate limits are GraphQL's, first, and REST's, as rest; the others kit does not spend are left out.
+import "forge" as forge; forge::github_quota
+{"resources": {"core": {"limit": 5000, "remaining": 4990, "used": 10, "reset": 1000600}, "search": {"limit": 30, "remaining": 30, "reset": 1000060}, "graphql": {"limit": 5000, "remaining": 0, "used": 5000, "reset": 1000300}}}
+{"forge":"github","limits":[{"name":"graphql","limit":5000,"remaining":0,"reset":1000300},{"name":"rest","limit":5000,"remaining":4990,"reset":1000600}]}
+
+# GitLab's is the one its RateLimit headers name, whatever their case; without them, or with a limit that is no number,
+# none.
+import "forge" as forge; [.[] | forge::gitlab_quota]
+["HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRATELIMIT-NAME: throttle_authenticated_api\r\nratelimit-remaining: 7\r\nRatelimit-Reset: 1000060\r\n\r\n{}", "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: 600\nRatelimit-Remaining: 599\n\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: lots\nRatelimit-Remaining: 9\n\n{}"]
+[{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
+
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and
 # color, the age in seconds, and the organization and the repository their url names, or null without one.
 import "forge" as forge; forge::github_issues(1000000)

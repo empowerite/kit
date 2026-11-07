@@ -40,6 +40,8 @@
 #   --owner=<login>     only the named login's; give it once or more
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
+#   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
+#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
 #   backlog             the open issues not closed by any open pull request, oldest first; underway has the rest
@@ -56,6 +58,8 @@
 # kit flow --stages
 #
 # kit flow --me
+#
+# kit flow --quota
 #
 # kit flow backlog [--json | --jq] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
@@ -226,6 +230,14 @@ if [[ -n "${syntax_options[--me]+x}" ]]
 then
   use forge
   forge:me || exit $?
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--quota]+x}" ]]
+then
+  use forge
+  quota=$(forge:quota) || exit $?
+  jq --compact-output --slurp . <<<"${quota}"
   exit 0
 fi
 
