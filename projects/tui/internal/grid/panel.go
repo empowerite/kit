@@ -541,7 +541,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			if !p.Outline.Open(Row{Key: key, Aside: true}) {
 				closed[depth] = true
 			}
-			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + e.heads[depth] + "  " +
+			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + e.heads[depth] + " " +
 				style.Off(strconv.Itoa(n))
 			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 		}
@@ -566,7 +566,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		if closed[len(closed)-1] {
 			rows = Folded
 		}
-		heading := strings.Join(titles, " ") + " " + rows + "  " + style.Off(strconv.Itoa(len(grouped)))
+		heading := strings.Join(titles, " ") + " " + rows + " " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)

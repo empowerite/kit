@@ -4,8 +4,8 @@
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────
          id  assignees         age  branch            labels  title
     ─────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
-  ▾ source ▾  3
-    ▾ github  3
+  ▾ source ▾ 3
+    ▾ github 3
       ▸ #45                     2h                    3       🎫 kit flow is the one picture: five stages, interactive…
       ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a noun with a verb acts
       ▸  #7  ada           +1  40d                            🎫 Fix the thing
