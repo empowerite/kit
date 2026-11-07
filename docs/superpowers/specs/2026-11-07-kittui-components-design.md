@@ -79,7 +79,7 @@ Each row names the component, its package, what it owns, and where it is today.
 | Component | Package | Owns | Today |
 | --- | --- | --- | --- |
 | Control | `shell` | the contract every interactive piece meets | implicit, per screen |
-| Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | `key`, `keys`, and the clicks in `flow` |
+| Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | done: `flow`'s eight popups, in `layers.go` |
 | Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | done: the app's, the tab's, the column, and the presets' menus |
 | Dialog | `dialog` | a titled box of acting lines, radios, and boxes | `popover.go`, `columns.go`, `shell.SettingsDialog`, the ask dialog |
 | Frame | `frame` | title, app menu, search, tab bar, pane, notice with fade, keys bar and its right end | each screen's `View` |
@@ -160,8 +160,9 @@ Each step is one commit, keeps every test and golden as it is, and lands while `
 the worktree agree.
 
 1. `shell.Dropdown`: the menu type, and every menu on it, one commit each. Done.
-2. `shell.Layers` and `Control`: the menus first, then the dialogs, the search, the preset line, and the rows. `key`,
-   `keys`, and the clicks in `flow` shrink to one call each.
+2. `shell.Layers`: done for `flow`'s popups, its menus and dialogs, in `flow/layers.go`; `key`, `keys`, the clicks,
+   and `View` each make one call to it. A layer is a table of functions on the screen's model, not a `Control` value,
+   as the popups are the model's methods; the search, the preset line, and the rows are the screen's still.
 3. `dialog`: the popover, the fields dialog, the settings dialog, and the ask dialog moved onto it.
 4. `frame`, with the notice: `tutorials` first, as the newest and smallest, then `welcome`, `palette`, and `flow`.
 5. `source` and its clock: the marks, the rate limits, and the kept copy first, as they are already apart in
