@@ -257,6 +257,26 @@ func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
 	return quotas, nil
 }
 
+// Marks asks kit for a mark per stage, as kit flow --marks prints them, by the stage's name: a text that changes when
+// what the stage draws does; a stage kit cannot read a mark of has none. ctx ends it with the screen.
+func (r Runner) Marks(ctx context.Context) (map[string]string, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "flow", "--marks")
+	if err != nil {
+		return nil, err
+	}
+	var marks map[string]*string
+	if err := json.Unmarshal(out, &marks); err != nil {
+		return nil, fmt.Errorf("kit flow --marks: %w", err)
+	}
+	kept := map[string]string{}
+	for stage, mark := range marks {
+		if mark != nil {
+			kept[stage] = *mark
+		}
+	}
+	return kept, nil
+}
+
 // waitDelay is how long Status waits, once ctx has ended, for kit to die and its pipes to close before the pipes
 // are closed for it.
 const waitDelay = 2 * time.Second
