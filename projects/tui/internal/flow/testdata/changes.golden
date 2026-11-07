@@ -2,7 +2,7 @@
   ──────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶──────
   way     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 b ▹
   ──────────╰────────────────╰──────────────────────╯                  ╰───────┐
-   change  title         author     state  age  checks  threads     branch     │
+   change  title         author     state  age  checks  threads     branch  📊 │
    ───────────────────────────────────────────────────────────────── Default ▼ │
  ▸ 🔀 #2   The first r…  jeffrey-…  🏁      8d  ✅                  1-the-fir… │
  ▸ 🔀 #3   A spike on …  ada        🔨     90m  🏃      💬 2 unre…  3-a-spike  │

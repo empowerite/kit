@@ -263,6 +263,12 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	if p.Under() != "who" || p.Keys(false).Bindings[0].Does != "hide" {
 		t.Errorf("the keys on the last field: %q, %+v", p.Under(), p.Keys(false))
 	}
+	// the columns dialog lists the groups first, then the columns, then the hidden
+	if got := (Panel{Columns: []string{"a", "b", "c"}, Groupable: map[string]bool{"b": true},
+		Fields: map[string]Field{"b": {Placement: Group, Depth: 1}, "c": {Placement: Hidden}}}).Listed(); !slices.Equal(got,
+		[]string{"b", "a", "c"}) {
+		t.Errorf("listed: %q", got)
+	}
 	// on the search, the keys are the search's own
 	if got := (Panel{}).Keys(true); !reflect.DeepEqual(got, shell.SearchKeys(true)) {
 		t.Errorf("the keys on the search: %+v", got)

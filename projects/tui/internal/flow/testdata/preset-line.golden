@@ -2,7 +2,7 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees      
   ╵                  ╰────────────────────╰────────────────╰───────────────────┐
-      id  assignees         age  branch            title                       │
+      id  assignees         age  branch            title                    📊 │
    ─────────────────────────────── source: ¬gitlab  assignees: ¬@me  Default ▼ │
  ▾ github source  3                                                            │
    ▸ #45                     2h                    🎫 kit flow is the one pic… │

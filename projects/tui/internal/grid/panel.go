@@ -818,6 +818,12 @@ func (p Panel) section(at Placement) []string {
 	return out
 }
 
+// Listed gives the fields the columns dialog lists, in its order: those the rows group by, the outermost first; the
+// columns, as the rows stand them; then the hidden, in the stage's order.
+func (p Panel) Listed() []string {
+	return slices.Concat(p.section(Group), p.section(Column), p.section(Hidden))
+}
+
 // controls gives the panel's controls, in order: the search, and, while the stage has fields with a name, each field in
 // its section, as section gives them.
 func (p Panel) controls() []control {

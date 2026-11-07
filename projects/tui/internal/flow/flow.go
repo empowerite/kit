@@ -137,6 +137,7 @@ type Model struct {
 	fold          bool                   // whether the tables fold a value every row of a group shares, as kittui's settings say
 	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	headMenu      headingMenu            // the menu a click on a group's heading drops, while it is open
+	cols          columnsDialog          // the columns dialog, while it is open
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
@@ -325,6 +326,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.pop.open {
 			m.popClick(msg.X, msg.Y)
+			return m, nil
+		}
+		if m.cols.open {
+			m.columnsClick(msg.X, msg.Y)
 			return m, nil
 		}
 		if m.presetMenu {
@@ -575,6 +580,10 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 // groups they have, as the panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	s := &m.stages[m.stage]
+	if y == paneTop && m.columnsIcon() && x >= m.paneWidth()-ansi.StringWidth(Columns) {
+		m.openColumns()
+		return nil
+	}
 	x -= m.indent(m.stage)
 	if y < paneTop {
 		return nil
@@ -829,6 +838,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.pop.open {
 		return m.popKey(k)
+	}
+	if m.cols.open {
+		return m.columnsKey(k)
 	}
 	if m.presetMenu {
 		return m.presetMenuKey(k)

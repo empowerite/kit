@@ -147,6 +147,8 @@ func (m Model) keys() shell.Path {
 		return shell.Path{shell.DialogKeys(keys)}
 	case m.pop.open:
 		return shell.Path{m.popKeys()}
+	case m.cols.open:
+		return shell.Path{m.columnsKeys()}
 	case m.presetMenu, m.colMenu.open, m.headMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
@@ -451,6 +453,10 @@ func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-pane
 func (m Model) pane() []string {
 	h := m.rowsHeight()
 	out, _ := m.header()
+	if m.columnsIcon() {
+		// the columns dialog's icon at the right end of the header's first line
+		out[0] = shell.Splice(out[0], Columns, m.paneWidth()-ansi.StringWidth(Columns))
+	}
 	switch {
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))

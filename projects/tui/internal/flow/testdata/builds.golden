@@ -2,7 +2,7 @@
   ──────────────╮➃╶───────────────────╮➄╶─────────────────╴➏╶────────────────╮➆╶──────────────────╮➇╶──────────────────╮
  ◃💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3  │ 🏭 builds   4 ⋮ │  🛬 incoming     6 │  📦 releases     3 │
   ──────────────╰─────────────────────╰────────────────────╯                 ╰────────────────────╰────────────────────┤
-       workflow   run  event     branch         commit   title                                             age    took │
+       workflow   run  event     branch         commit   title                                             age    to📊 │
    ───────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼ │
  ▸ 🏃  release     #7  tag       release/0.1.0  1a2b3c4                                                     5m       … │
  ▸ ❌  kit       #160  push      main           8e817bf  #45 status: the builds stage tells which commit…   2h  4m 02s │
