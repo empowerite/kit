@@ -128,7 +128,7 @@ type Model struct {
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
 	presetMenu    bool                   // whether the preset line's menu of views is open
-	colMenu       columnMenu             // the menu a right click on a column's name drops, while it is open
+	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
@@ -138,8 +138,6 @@ type Model struct {
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
 	drag          drag                   // the field a press on its line in the panel holds, until the release
 	pop           popover                // a field's popover, which has the keyboard while it is open
-	clicks        shell.Clicks           // the clicks so far, which tell a double click
-	undo          unsort                 // the sort a click on a column's name changed, which a double click restores
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -281,10 +279,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
-		var double bool
-		if m.clicks, double = m.clicks.Click(msg); !double {
-			m.undo = unsort{}
-		}
 		if m.ask != nil {
 			return m, nil
 		}
@@ -338,7 +332,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
-			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, double)
+			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false, msg.Mod&tea.ModShift != 0)
 		default:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -509,7 +503,7 @@ func extends(msg tea.MouseClickMsg) bool { return msg.Mod&tea.ModAlt != 0 }
 // longer group by its column, the other groups kept.
 func (m *Model) groupClick(x, y int, nest, right bool) {
 	if column := m.headerColumn(x, y); right && column != "" {
-		m.openColumnMenu(column, x, y)
+		m.openColumnMenu(column)
 		return
 	}
 	if y < m.rowsTop() {
@@ -527,19 +521,13 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 	}
 }
 
-// unsort is the sort a click on a column's name changed: the column, and the keys before the click.
-type unsort struct {
-	column string
-	keys   []grid.SortKey
-}
-
 // clickHeader takes a click on the header, which is no row, above its rule, the preset line: on its gutter it opens the
-// header, or closes it, when it hides lines; on a name of a column that sorts, it sorts by it alone, or, with also, as
-// a option-click asks, by it after the others, as the panel's Sorted says; with group, a name groups the rows by its
-// column alone, or, with also, within the groups they have, as the panel's Grouped says; elsewhere it does nothing. The
-// second click of a double click on a name, as double says, sorts nothing: the sort goes back to what it was before the
-// first click changed it, and the field's popover opens under the name.
-func (m *Model) clickHeader(x, y int, also, group, double bool) tea.Cmd {
+// header, or closes it, when it hides lines; on a column's sort mark, its ▲ or ▼, it turns the column's sort around,
+// or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column menu down under it. Where the
+// terminal sends option or ctrl with a click, as many do not, also, as option asks, sorts by the column after the
+// others, as the panel's Sorted says, and group, as ctrl asks, groups the rows by it alone, or, with also, within the
+// groups they have, as the panel's Grouped says. Elsewhere it does nothing.
+func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
 	if y < paneTop {
@@ -561,19 +549,21 @@ func (m *Model) clickHeader(x, y int, also, group, double bool) tea.Cmd {
 	column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
 	switch {
 	case group:
-		p = p.Grouped(column, also)
-	case double && column != "":
-		if m.undo.column == column {
-			p = p.SortedBy(m.undo.keys)
+		m.setPanel(p.Grouped(column, also))
+	case also:
+		m.setPanel(p.Sorted(column, true))
+	case m.onMark(x+m.indent(m.stage), y) && p.Mark(column) != "":
+		d := grid.Descending
+		switch {
+		case drop:
+			d = grid.Unsorted
+		case strings.Contains(p.Mark(column), "▼"):
+			d = grid.Ascending
 		}
-		m.undo = unsort{}
-		m.setPanel(p)
-		return m.openPopover(column, x+m.indent(m.stage), y, true)
+		m.setPanel(p.SortedAs(column, d))
 	default:
-		m.undo = unsort{column: column, keys: p.SortKeys()}
-		p = p.Sorted(column, also)
+		m.openColumnMenu(column)
 	}
-	m.setPanel(p)
 	return nil
 }
 

@@ -320,9 +320,6 @@ func (p Panel) SortedAs(id string, d Direction) Panel {
 	return p.sortedBy(keys)
 }
 
-// SortedBy gives the panel sorting the rows by the keys alone, in their order, as they were before a click changed them.
-func (p Panel) SortedBy(keys []SortKey) Panel { return p.sortedBy(keys) }
-
 // FilteredBy gives the panel with the filter on a field, by id, as f says.
 func (p Panel) FilteredBy(id string, f Filter) Panel {
 	return p.with(func(fields map[string]Field) {
@@ -904,14 +901,14 @@ func (p Panel) Lines() (lines []string, at []int) {
 }
 
 // hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
-// popover sets; then what a click on a column's name in the header does, a right click, and two.
+// popover sets; then what a click on a column's name in the header does.
 func (p Panel) hints() []string {
 	return append([]string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw", ""}, Clicks...)
 }
 
-// Clicks say what a click on a column's name in the header does: sort by it alone; a right click drops down the
-// column's menu, which sorts by it after the others, and groups by it; and two open its field's popover.
-var Clicks = []string{"click        sort", "right click  menu", "2× click     options"}
+// Clicks say what a click on a column's name in the header does: it drops down the column's menu, which sorts by it,
+// groups by it, and opens its field's popover.
+var Clicks = []string{"click a name  its menu"}
 
 // Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
 // controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back; off it,

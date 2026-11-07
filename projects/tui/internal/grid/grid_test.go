@@ -678,6 +678,28 @@ func TestHeaderAtFindsTheColumnUnderAName(t *testing.T) {
 	}
 }
 
+// HeaderName says where the header draws a column's name, and its first line: from the cell's left, or against its
+// right for a column that aligns right; none for a column with no name, or none drawn.
+func TestHeaderNameSaysWhereANameIsDrawn(t *testing.T) {
+	rows := []Row{{Cells: []Cell{one("#31"), one(""), {Values: []string{"40d"}, Right: true},
+		{Values: []string{"a title"}, Wrap: true}}}}
+	names := []string{"id", "", "the age", "title"}
+	header, _ := Header(rows, names, 40, false)
+	plain := ansi.Strip(header[0])
+	for j, want := range map[int]string{0: "id", 2: "the age", 3: "title"} {
+		x, first := HeaderName(rows, names, 40, j)
+		if first != want || !strings.HasPrefix(plain[x:], want) {
+			t.Errorf("column %d: %q at %d in %q", j, first, x, plain)
+		}
+	}
+	if x, first := HeaderName(rows, names, 40, 1); x != -1 || first != "" {
+		t.Errorf("a column with no name: %q at %d", first, x)
+	}
+	if x, _ := HeaderName(rows, names, 40, 9); x != -1 {
+		t.Errorf("a column past the rows': %d", x)
+	}
+}
+
 // Grouping puts the rows under a dim heading per value, the groups in their values' order, the rows in each as they
 // sorted; a second column nests under the first; a cell with no value groups under none; a row of one cell follows
 // the groups. A groupable column moved into the groups groups them, ▤ beside its name; a column that cannot group
@@ -953,9 +975,6 @@ func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	}
 	if q := p.SortedAs("title", Ascending); len(q.SortKeys()) != 2 {
 		t.Errorf("title, which cannot sort: %+v", q.SortKeys())
-	}
-	if q := p.SortedBy(nil); len(q.SortKeys()) != 0 {
-		t.Errorf("sorted by nothing: %+v", q.SortKeys())
 	}
 	values := []string{Caller}
 	q := p.FilteredBy("who", Filter{Values: values, Exclude: true}).Rendered("who", "text")

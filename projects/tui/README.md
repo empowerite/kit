@@ -47,11 +47,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
   - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
-    enum or a person, and its rendering. What it sets applies at once. A double click on a column's name opens the
-    same popover, and puts back the sort the first click of it changed. A click on the name sorts by it alone. A
-    right click drops down the column's menu: sort by it alone or then by it, after the other keys; group by it alone
-    or then by it, within the groups; and Options…, its popover. Where the terminal sends them, ⌥ with a click adds a
-    sort key, ⌃ groups, and ⌥⌃ nests, but many keep ⌥, ⌃, and shift with a click for their own selection and menu.
+    enum or a person, and its rendering. What it sets applies at once. A click on a column's name drops down its
+    menu, around the name, as ≡'s and ⋮'s hang around theirs: sort by it alone, then by it after the other keys, or
+    not by it; group by it alone or then by it, within the groups; and Options…, its popover, titled over the name.
+    A click on a column's ▲ or ▼ turns its sort around, and a shift-click on it stops it. A terminal such as iTerm
+    keeps ⌥, ⌃, shift, and the right button with a click for its own selection and menu, so the menu is the one way
+    that works everywhere. Where the terminal sends them, ⌥ with a click adds a sort key, ⌃ groups, ⌥⌃ nests, and
+    the right button drops the menu too. The presets' menu hangs around the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
@@ -62,7 +64,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
-  and kittui's settings file, the double clicks Bubble Tea does not report, and the keys bar. A screen never writes its
+  and kittui's settings file, and the keys bar. A screen never writes its
   keys bar. It gives the path from the screen to the control that has the keyboard, and each control on the path names
   the keys it answers. A deeper control hides an ancestor's key for a press it takes. The bar draws each control's keys
   between rules, and drops whole controls from the screen's end when the line is too narrow.

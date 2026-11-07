@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -425,35 +424,37 @@ func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
 	}
 }
 
-// A click on a sortable column's name in the header sorts the rows by it, ▲ beside the name, and again ▼; a shift-click
-// adds a column after it; a click on a name that does not sort, as builds' commit, changes nothing.
-func TestAClickOnAColumnsNameSortsTheRows(t *testing.T) {
+// Sort by, in the menu a click on a sortable column's name drops, sorts the rows by it, ▲ beside the name; a click on ▲
+// turns it ▼;
+// an option-click adds a column after it; the menu of a name that does not sort, as builds' commit, dims its sorts.
+func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
-	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+	if m = drive(m, testkit.Click(at("age"), paneTop), press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
 		t.Errorf("by age, the youngest first: %s", got)
 	}
-	if m = drive(m, testkit.Click(at("age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▼") || order() != "#7 #46 #45" {
-		t.Errorf("again, the oldest first: %s\n%s", order(), view(m))
+	if m = drive(m, testkit.Click(at("age")+len("age "), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▼") || order() != "#7 #46 #45" {
+		t.Errorf("a click on its ▲, the oldest first: %s\n%s", order(), view(m))
 	}
 	option := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModAlt}
 	if m = drive(m, option); !strings.Contains(lines(m)[paneTop], "source ▲₂") || !strings.Contains(lines(m)[paneTop], "age ▼₁") {
 		t.Errorf("an option-click on source:\n%s", view(m))
 	}
-	// shift, which a terminal often keeps for its own selection, adds nothing: the click sorts by source alone
+	// shift, which a terminal often keeps for its own selection, adds nothing: the click drops the menu, as ever
 	shift := tea.MouseClickMsg{X: at("source"), Y: paneTop, Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 1 {
+	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.colMenu.open {
 		t.Errorf("a shift-click on source: %+v", m.panel(m.stage).SortKeys())
 	}
 	// builds' commit does not sort
+	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), paneTop)); len(m.panel(m.stage).SortKeys()) != 0 || m.stages[m.stage].name != "builds" {
-		t.Errorf("a click on commit sorted builds: %+v", m.panel(m.stage).SortKeys())
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(0) || m.colMenu.at == 0 || m.stages[m.stage].name != "builds" {
+		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
 }
 
@@ -522,8 +523,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
-	// a click on a name in the indented header sorts by it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop)); !strings.Contains(lines(m)[paneTop], "age ▲") {
+	// a click on a name in the indented header drops its menu, which sorts by it
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop), press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it
@@ -562,8 +563,8 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading(" source"), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
-	// a plain click on a name still sorts, and groups nothing
-	if m = drive(m, testkit.Click(at("age"), paneTop)); len(group()) != 0 || len(m.panel(m.stage).SortKeys()) != 1 {
+	// a plain click on a name drops its menu, and groups nothing
+	if m = drive(m, testkit.Click(at("age"), paneTop)); len(group()) != 0 || !m.colMenu.open {
 		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).SortKeys())
 	}
 }
@@ -773,50 +774,49 @@ func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 	}
 }
 
-// A double click on a column's name opens its field's popover under the name: the first click sorted, as a click does,
-// and the second puts the sort back as it was before the first, shift-clicks too. Two clicks further apart than
-// shell.DoubleClick, or on two names, are two clicks, each sorting. The clock is the test's.
-func TestADoubleClickOnAColumnsNameOpensItsPopover(t *testing.T) {
+// A click on a column's name drops its menu down under the name, and sorts nothing; a second click on the name, off
+// the menu, closes it. Options… opens the field's popover under the name. Where the terminal sends option with a click,
+// the click adds the column after the other sort keys, and drops nothing.
+func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	unfold(&m)
-	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
-	m.clicks.Now = func() time.Time { return now }
-	at := func(name string) int { return strings.Index(lines(m)[paneTop], name) }
-	click := func(name string, after time.Duration, mod tea.KeyMod) {
-		now = now.Add(after)
+	at := func(name string) int {
+		l := lines(m)[paneTop]
+		return ansi.StringWidth(l[:strings.Index(l, name)])
+	}
+	click := func(name string, mod tea.KeyMod) {
 		m = drive(m, tea.MouseClickMsg{X: at(name), Y: paneTop, Button: tea.MouseLeft, Mod: mod})
 	}
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
-	click("age", 0, 0)
-	if len(sorts()) != 1 || m.pop.open {
-		t.Fatalf("one click on age: %+v, popover %v", sorts(), m.pop.open)
+	if click("age", 0); len(sorts()) != 0 || !m.colMenu.open || m.colMenu.column != "age" {
+		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
 	}
-	click("age", 500*time.Millisecond, 0)
-	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) || m.pop.open {
-		t.Fatalf("a second click, later: %+v, popover %v", sorts(), m.pop.open)
+	// the box hangs around the name, its top edge drawing it where the header does, as ≡'s menu hangs from ≡
+	if box, top, left := m.columnBox(); top != paneTop || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
+		ansi.StringWidth(ansi.Cut(lines(m)[paneTop], left, at("age"))) != at("age")-left ||
+		ansi.Strip(ansi.Cut(lines(m)[paneTop], at("age"), at("age")+3)) != "age" {
+		t.Errorf("the menu does not hang from the name: %d, %d\n%s", top, left, view(m))
 	}
-	// the first click of a double click stops the sort; the second puts it back, descending, and opens age's popover
-	click("age", time.Second, 0)
-	if len(sorts()) != 0 {
-		t.Fatalf("a third click on age: %+v", sorts())
+	if x, name := m.columnName("age"); name != "age" || x != at("age") {
+		t.Errorf("age's name in the header: %q at %d, not %d", name, x, at("age"))
 	}
-	click("age", 100*time.Millisecond, 0)
-	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) || !m.pop.open || m.pop.field != "age" || !strings.Contains(view(m), "╭─ age ") {
-		t.Fatalf("a double click on age: %+v, popover %+v\n%s", sorts(), m.pop, view(m))
+	if click("age", 0); m.colMenu.open || len(sorts()) != 0 {
+		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.open)
 	}
-	if _, top, _ := m.popBox(); top != paneTop+1 {
-		t.Errorf("the popover is not under the name: %d", top)
+	click("age", 0)
+	if m = drive(m, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
+		t.Fatalf("Sort by age: %+v", sorts())
 	}
-	// with age sorting alone, an option-double-click on source leaves age the one key, and opens source's popover
+	click("age", 0)
+	m = drive(m, typed("o")...)
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.open || m.pop.field != "age" || !strings.Contains(view(m), "╭─ age ") {
+		t.Fatalf("Options… on age: popover %+v\n%s", m.pop, view(m))
+	}
+	if _, top, left := m.popBox(); top != paneTop || left+3 != at("age") {
+		t.Errorf("the popover's title is not over the name: %d, %d", top, left)
+	}
 	m = drive(m, esc)
-	click("age", time.Second, 0)
-	click("age", time.Second, 0)
-	click("source", 10*time.Millisecond, tea.ModAlt)
-	if len(sorts()) != 2 || m.pop.open {
-		t.Fatalf("an option-click on source after a click on age: %+v, popover %v", sorts(), m.pop.open)
-	}
-	click("source", 10*time.Millisecond, tea.ModAlt)
-	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.pop.field != "source" {
-		t.Errorf("a shift-double-click on source: %+v, popover %+v", sorts(), m.pop)
+	if click("source", tea.ModAlt); len(sorts()) != 2 || m.colMenu.open {
+		t.Errorf("an option-click on source: %+v, menu %v", sorts(), m.colMenu.open)
 	}
 }

@@ -313,6 +313,36 @@ func HeaderAt(rows []Row, names []string, width, x int) int {
 	return -1
 }
 
+// HeaderName gives where the header draws the name of the column j, an index into the rows' cells, as Header lays the
+// names out for a pane of so many cells: the column of the screen its first line starts on, from the header's own
+// first, and that line, without its styles; -1 and none where the header draws no name for it.
+func HeaderName(rows []Row, names []string, width, j int) (int, string) {
+	shape := shapeOf(rows)
+	widths, left := fit(shape, headed(rows, names), width-len(lead))
+	at := len(lead)
+	for k, c := range shape {
+		w := left
+		if !c.Wrap {
+			if k >= len(widths) || widths[k] == 0 {
+				continue
+			}
+			w = widths[k]
+		}
+		if k == j {
+			if j >= len(names) || names[j] == "" {
+				break
+			}
+			first := ansi.Strip(strings.Split(ansi.Wrap(names[j], max(w, 1), ""), "\n")[0])
+			if c.Right {
+				return at + w - ansi.StringWidth(first), first
+			}
+			return at, first
+		}
+		at += w + gap
+	}
+	return -1, ""
+}
+
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
 // a text wider than the cells its column leaves it, the title's or one cut to give the title room.
 func Hides(r Row, widths []int, left int) bool {

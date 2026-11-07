@@ -1,6 +1,6 @@
 // Package shell is what every screen of kittui shares around its own: the title line, after ≡, which drops the app's
 // menu down; the app's menu, the same on every screen, which moves between kit's screens and quits; the box every
-// menu is drawn in, hanging from the glyph that drops it down; and the double clicks Bubble Tea does not report.
+// menu is drawn in, hanging from the glyph that drops it down.
 package shell
 
 import (

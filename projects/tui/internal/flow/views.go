@@ -541,11 +541,12 @@ func (m *Model) choosePreset(k int) {
 	}
 }
 
-// presetBox gives the presets' menu's lines, under the preset line, its left edge a cell before the selector's, or nearer
-// the screen's left when that would run past its edge, and the screen line and column it is drawn from.
+// presetBox gives the presets' menu's lines, the box around the preset line's selector, which its top edge draws where
+// the line does, as the tab's menu hangs from ⋮; and the screen line and column it is drawn from.
 func (m Model) presetBox() (lines []string, top, left int) {
-	lines, _ = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, "", -1, m.width)
-	return lines, m.presetTop() + 1, max(0, min(m.dropStart()-1, m.width-ansi.StringWidth(lines[0])))
+	lines, left = shell.Box(m.presetItems(), m.presetEnabled, m.presetAt, ansi.Strip(m.presetLine()), m.dropStart(),
+		m.width)
+	return lines, m.presetTop(), left
 }
 
 // presetMenuClick takes a click while the presets' menu is open: on a view, it chooses it; anywhere else, it closes the

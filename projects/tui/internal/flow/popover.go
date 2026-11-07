@@ -1,6 +1,6 @@
 // A field's popover: a small box over the screen that sets, for one field of the selected stage, how its rows sort,
 // which of its values they must hold, and how it is drawn. Enter on the field's line in the sidebar's editor opens it,
-// and so does a double click on its name in the header. It has the keyboard while it is open: up and down move between
+// and so does Options… in the column menu, under its name in the header. It has the keyboard while it is open: up and down move between
 // its lines, space or enter acts on the one under the keyboard, and esc closes it; a click on a line acts on it, and
 // a click off the box closes it. What it sets applies at once, so the rows, the editor, and the preset line's mark and
 // chips follow it.
@@ -21,8 +21,8 @@ import (
 )
 
 // popover is a field's popover while it is open: the field, by id; its line under the keyboard; and the screen cell
-// it hangs from, the field's line in the sidebar, whose right edge it keeps, or its name in the header, under which it
-// opens.
+// it hangs from, the field's line in the sidebar, whose right edge it keeps, or its name in the header, which its title
+// covers.
 type popover struct {
 	open   bool
 	field  string
@@ -119,15 +119,6 @@ func (m Model) popLines(id string) []popLine {
 		}
 		radio(name, g.Rendering == r, func(p grid.Panel) grid.Panel { return p.Rendered(id, r) })
 	}
-	// what a click on its name in the header does, dim, as nothing here acts on it
-	if f.Sort || f.Group {
-		heading("on its name")
-		if f.Sort {
-			heading("click sorts · right click more")
-		} else {
-			heading("right click groups, and more")
-		}
-	}
 	return out
 }
 
@@ -158,7 +149,7 @@ func (m Model) filterValues(f field) []string {
 }
 
 // openPopover opens a field's popover, hanging from the screen cell x, y, the first line that acts under the keyboard;
-// from the header, it opens under the cell, else beside it. It asks kit for the caller's login the first time, which
+// from the header, its title covers the name there, else it opens beside the cell. It asks kit for the caller's login the first time, which
 // @me names.
 func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
 	m.pop = popover{open: true, field: id, x: x, y: y, header: header, at: -1}
@@ -259,8 +250,8 @@ func (m Model) popKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 const popWidest = "esc close · ↑↓ move · ␣ choose"
 
 // popBox gives the popover's lines, a dialog titled by the field's label with its keys on the bottom edge, and the
-// screen line and column it is drawn from: from the header, under the name clicked, from its column, or nearer the
-// screen's left where it would run past the edge; from the sidebar, its right edge at the screen's, its top on the
+// screen line and column it is drawn from: from the header, its title over the name, or nearer the screen's left where
+// it would run past the edge; from the sidebar, its right edge at the screen's, its top on the
 // field's line, or higher where it would run past the keys bar.
 func (m Model) popBox() (box []string, top, left int) {
 	var body []string
@@ -282,7 +273,8 @@ func (m Model) popBox() (box []string, top, left int) {
 	box = shell.Dialog(labelOf(m.stages[m.stage].name, m.pop.field), body, strings.Join(keys, " · "), m.width)
 	w := ansi.StringWidth(box[0])
 	if m.pop.header {
-		top, left = m.pop.y+1, min(m.pop.x, m.width-w)
+		// the title on its top edge over the name, where the header draws it, after the corner, a rule, and a space
+		top, left = m.pop.y, min(m.pop.x-3, m.width-w)
 	} else {
 		top, left = m.pop.y, m.width-w
 	}

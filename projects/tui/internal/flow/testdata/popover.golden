@@ -2,9 +2,11 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶────────
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 cha ▹ group by
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰─────────┐ columns
-   id  source     assignees  age  title                                             ╭─ assignees ──────────────────────╮
-   ───────────────────────────────────────────────────────────────────── assignees: │ sort                             │
- ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  │ ⦿ off                            │
+   id  source     assignees  age  title                                                    │ ☑ id
+   ───────────────────────────────────────────────────────────────────── assignees: @me  ▼ │ ☑ source
+ ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                  ╭─ assignees ──────────────────────╮
+                                                                                    │ sort                             │
+                                                                                    │ ⦿ off                            │
                                                                                     │ ⦾ ▲ ascending                    │
                                                                                     │ ⦾ ▼ descending                   │
                                                                                     │ filter                           │
@@ -18,7 +20,5 @@
                                                                                     │ ⦿ auto glyph+text                │
                                                                                     │ ⦾ glyph+text                     │
                                                                                     │ ⦾ text                           │
-                                                                                    │ on its name                      │
-                                                                                    │ click sorts · right click more   │
                                                                                     ╰─ esc close · ↑↓ move · ␣ toggle ─╯
  esc close  ↑↓ move  ␣ toggle
