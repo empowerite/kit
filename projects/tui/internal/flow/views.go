@@ -35,25 +35,28 @@ import (
 const Opening = "Default"
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
-// down. SaveIt, SaveAs, RenameIt, and DeleteIt are the presets' menu's first items, Save and Delete after their glyphs,
-// Save and Deleted; those, and Renamed, start what each did says. SavingAs and Renaming stand, dim, before the name
+// down. ColumnsIt is the presets' menu's first item, after the columns dialog's icon, and a rule; SaveIt, SaveAs,
+// RenameIt, and DeleteIt follow, Save and Delete after their glyphs, Save and Deleted; those, and Renamed, start what each did says. SavingAs and Renaming stand, dim, before the name
 // typed for Save As… and Rename….
 const (
-	Presets  = "▼"
-	SaveIt   = "Save"
-	SaveAs   = "Save As…"
-	RenameIt = "Rename…"
-	DeleteIt = "Delete"
-	SavingAs = "save as"
-	Renaming = "rename"
-	Save     = "💾"
-	Renamed  = "📝"
-	Deleted  = "🚮"
+	Presets   = "▼"
+	ColumnsIt = "Columns…"
+	SaveIt    = "Save"
+	SaveAs    = "Save As…"
+	RenameIt  = "Rename…"
+	DeleteIt  = "Delete"
+	SavingAs  = "save as"
+	Renaming  = "rename"
+	Save      = "💾"
+	Renamed   = "📝"
+	Deleted   = "🚮"
 )
 
-// The presets' menu's lines that act on views, before a rule and the views themselves.
+// The presets' menu's lines: Columns… and a rule, then those that act on views, before a rule and the views themselves.
 const (
-	itemSave = iota
+	itemColumns = iota
+	_           // the rule after it
+	itemSave
 	itemSaveAs
 	itemRename
 	itemDelete
@@ -582,11 +585,11 @@ func (m *Model) deletePreset() {
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
-// presetItems gives the presets' menu: Save and Delete after their glyphs, Save As… and Rename… between them without,
-// a rule, the stage's own views, a rule, and the person's, the one the line names checked.
+// presetItems gives the presets' menu: Columns… after the columns dialog's icon, a rule, Save and Delete after their
+// glyphs, Save As… and Rename… between them without, a rule, the stage's own views, a rule, and the person's, the one the line names checked.
 func (m Model) presetItems() []shell.Item {
-	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Name: SaveAs}, {Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt},
-		{}}
+	items := []shell.Item{{Glyph: Columns, Name: ColumnsIt}, {}, {Glyph: Save, Name: SaveIt}, {Name: SaveAs},
+		{Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt}, {}}
 	is := m.is(m.stage)
 	for k, v := range m.views(m.stage) {
 		if k == len(m.builtins(m.stage)) {
@@ -601,12 +604,14 @@ func (m Model) presetItems() []shell.Item {
 	return items
 }
 
-// presetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
+// presetEnabled says whether a line of the presets' menu acts: Columns… while the stage has columns to list; Save while the line was set to a view of the person's
 // own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
 // never.
 func (m Model) presetEnabled(k int) bool {
 	v, own := m.own()
 	switch k {
+	case itemColumns:
+		return m.columnar(m.stage)
 	case itemSave:
 		return own && !m.same(m.stage, m.current(m.stage), v)
 	case itemRename, itemDelete:
@@ -634,7 +639,7 @@ func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// choosePreset closes the menu and takes its line k: Save keeps the panel under the person's view the line was set to;
+// choosePreset closes the menu and takes its line k: Columns… opens the columns dialog; Save keeps the panel under the person's view the line was set to;
 // Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
 // name; Delete drops it; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
@@ -645,6 +650,8 @@ func (m *Model) choosePreset(k int) {
 	s := &m.stages[m.stage]
 	v, _ := m.own()
 	switch k {
+	case itemColumns:
+		m.openColumns()
 	case itemSave:
 		m.saveAs(v.Name)
 	case itemSaveAs, itemRename:

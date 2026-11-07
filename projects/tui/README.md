@@ -42,12 +42,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
     rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
     set as and ▼, the name in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or
-    a click on it drops down Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the
-    selector's place, the person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name
-    the same way. Save, Rename…, and Delete act on the person's preset the line was set to, and are dim on Default
-    and Compact. What was done is said in place of the keys, for five seconds or until a key; why something was not
-    done stays until a key.
-  - The columns dialog, in `columns.go`, opens from ◫ at the header's right end, or Columns… in the tab's menu: every
+    a click on it drops down ◫ Columns…, the columns dialog, then Save, Save As…, Rename…, Delete, and the presets.
+    Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and ⏎
+    saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line was
+    set to, and are dim on Default and Compact. What was done is said in place of the keys, for five seconds or until
+    a key; why something was not done stays until a key.
+  - The columns dialog, in `columns.go`, opens from ◫ at the header's right end, or Columns… in the presets' menu: every
     field a line, those the rows group by first, then the columns as they stand, then the hidden, each with whether it
     shows, its sort and its place among the keys, and its group's depth. What it sets applies at once: space shows or
     hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups or out, and ⏎ opens its Options…; a click on

@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -27,7 +28,7 @@ func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 	return -1, -1
 }
 
-// The icon at the header's right end, or Columns… in the tab's menu, opens the dialog under it: the fields the rows
+// The icon at the header's right end, or Columns… in the presets' menu, opens the dialog under it: the fields the rows
 // group by first, a rule under them, then the columns as the rows stand them, then the hidden, each with whether it
 // shows, its sort, and its group's depth.
 func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
@@ -55,10 +56,14 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		t.Errorf("the rows: edge %d, headings %d, assignees %d, rule %d, id %d", m.columnsRow(top), m.columnsRow(top+1),
 			m.columnsRow(top+2), m.columnsRow(top+3), m.columnsRow(top+4))
 	}
-	// Columns… in the tab's menu opens it too
+	// Columns… in the presets' menu opens it too: first there, after its icon, then a rule
 	m = drive(m, esc)
-	if m = choose(t, m, "Columns…"); !m.cols.open {
-		t.Error("Columns… did not open the dialog")
+	if m.dropPresets(); m.presetItems()[itemColumns] != (shell.Item{Glyph: Columns, Name: ColumnsIt}) ||
+		m.presetItems()[itemColumns+1].Name != "" || !m.presetEnabled(itemColumns) {
+		t.Fatalf("the presets' menu: %+v", m.presetItems())
+	}
+	if m.choosePreset(itemColumns); m.presetMenu || !m.cols.open {
+		t.Errorf("Columns… did not open the dialog: menu %v, dialog %+v", m.presetMenu, m.cols)
 	}
 }
 

@@ -109,8 +109,8 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 	// #46, selected while its group is folded away, shows and opens with Expand Selected; the other groups stay folded
 	m = choose(m, "Collapse All")
 	m.stages[0].picked["#46"] = true
-	if m = drive(m, press(':')); m.tabItems()[3].Name != "Expand Selected" || !m.enabled(item(m, "Collapse Others")) {
-		t.Fatalf("the items with a row selected: %+v", m.tabItems()[3:6])
+	if m = drive(m, press(':')); m.tabItems()[2].Name != "Expand Selected" || !m.enabled(item(m, "Collapse Others")) {
+		t.Fatalf("the items with a row selected: %+v", m.tabItems()[2:5])
 	}
 	m = drive(m, esc)
 	keys := func(m Model) []string {

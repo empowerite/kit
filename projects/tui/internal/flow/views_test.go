@@ -155,8 +155,8 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	for _, i := range m.presetItems() {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
-		m.presetItems()[5].Glyph != Checked || m.presetAt != 5 {
+	if !slices.Equal(names, []string{ColumnsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
+		m.presetItems()[7].Glyph != Checked || m.presetAt != 7 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetAt)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
@@ -214,7 +214,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetAt != 6 {
+	if m = drive(m, typed("c")[0]); m.presetAt != 8 {
 		t.Errorf("c in the menu: %d", m.presetAt)
 	}
 	m = drive(m, up, esc)
@@ -266,8 +266,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := m.presetItems(); len(items) != 9 || items[7].Name != "" || items[8].Name != "Triage" ||
-		items[8].Glyph != Checked || m.presetAt != 8 {
+	if items := m.presetItems(); len(items) != 11 || items[9].Name != "" || items[10].Name != "Triage" ||
+		items[10].Glyph != Checked || m.presetAt != 10 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetAt)
 	}
 	m = drive(m, esc)
@@ -289,7 +289,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetAt = 8
+	n.presetAt = 10
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
@@ -310,7 +310,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetMenu, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetBox()
-	if m = drive(m, testkit.Click(left+3, top+7)); m.presetMenu || m.stages[0].viewName != "Compact" {
+	if m = drive(m, testkit.Click(left+3, top+9)); m.presetMenu || m.stages[0].viewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetMenu, m.stages[0].viewName, box)
 	}
 	// a click anywhere else closes the menu
@@ -325,11 +325,11 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	// under it
 	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
 	_, top, left = m.presetBox()
-	if m = drive(m, testkit.Click(left+3, top+1)); m.stages[0].savingAs || m.presetMenu {
+	if m = drive(m, testkit.Click(left+3, top+3)); m.stages[0].savingAs || m.presetMenu {
 		t.Errorf("a click on Save, dim: naming %v, menu %v", m.stages[0].savingAs, m.presetMenu)
 	}
 	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
-	m = drive(m, testkit.Click(left+3, top+2))
+	m = drive(m, testkit.Click(left+3, top+4))
 	m = drive(m, typed("Mine")...)
 	if m = drive(m, press(tea.KeyEnter)); m.stages[0].viewName != "Mine" {
 		t.Errorf("Save As… by clicks: view %q, %q", m.stages[0].viewName, keysOf(m))

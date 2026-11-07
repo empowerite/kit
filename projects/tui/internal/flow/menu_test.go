@@ -37,27 +37,28 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
 	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, and collapse
-	// all, with no row open, is dim
+	// all, with no row open, is dim; Columns… is the presets' menu's, not this one's
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") ||
-		!strings.Contains(box[2], " "+Columns+"  Columns…") ||
-		!strings.Contains(box[5], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
+		strings.Contains(view(m), ColumnsIt) ||
+		!strings.Contains(box[4], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))
 	}
-	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing; down
-	// passes the rule, and collapse all while it is dim
+	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing, as c
+	// does while collapse all, collapse others, and clear selection are dim; down passes the rule, and collapse all
+	// while it is dim
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 1}, {"E", 3}, {"z", 3}} {
+	}{{"c", 0}, {"E", 2}, {"z", 2}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
 	}
-	if m = drive(m, down, up); m.menuAt != 3 {
+	if m = drive(m, down, up); m.menuAt != 2 {
 		t.Errorf("up and down moved to a dim item: %d", m.menuAt)
 	}
 	// enter on expand all expands every worktree row that hides something; the menu closes
@@ -65,16 +66,16 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf("expand all: menu %v, open %d", m.menu, openRows(m))
 	}
 	opened := openRows(m)
-	// now expand all is dim, and c finds Columns…, then collapse all, which space chooses; ; drops the menu down too
-	if m = drive(m, press(';'), typed("c")[0], typed("c")[0]); !m.menu || m.menuAt != 4 || m.enabled(3) {
+	// now expand all is dim, and c finds collapse all, which space chooses; ; drops the menu down too
+	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 3 || m.enabled(2) {
 		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
 	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, and the
-	// rule, to Columns…
-	if m = drive(m, down); m.menuAt != 7 {
+	// rule, to refresh
+	if m = drive(m, down); m.menuAt != 6 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
-	if m = drive(m, up, up); m.menuAt != 1 {
+	if m = drive(m, up, up); m.menuAt != 0 {
 		t.Errorf("up past expand all: item %d", m.menuAt)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
@@ -156,15 +157,15 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 	}
 	_, left := m.menuBox()
 	// a click on the rule, or on collapse all while it is dim, does nothing, and leaves the menu open
-	for _, y := range []int{menuTop + 3, menuTop + 5} {
+	for _, y := range []int{menuTop + 2, menuTop + 4} {
 		if m = drive(m, testkit.Click(left+2, y)); !m.menu || openRows(m) != 0 {
 			t.Errorf("a click on line %d: menu %v, open %d", y, m.menu, openRows(m))
 		}
 	}
-	if m = drive(m, testkit.Click(left+2, menuTop+4)); m.menu || openRows(m) == 0 {
+	if m = drive(m, testkit.Click(left+2, menuTop+3)); m.menu || openRows(m) == 0 {
 		t.Errorf("a click on expand all: menu %v, open %d", m.menu, openRows(m))
 	}
-	if m = drive(m, glyph, testkit.Click(left+2, menuTop+5)); m.menu || openRows(m) != 0 {
+	if m = drive(m, glyph, testkit.Click(left+2, menuTop+4)); m.menu || openRows(m) != 0 {
 		t.Errorf("a click on collapse all: menu %v, open %d", m.menu, openRows(m))
 	}
 	// a click off the menu closes it, and does nothing else
@@ -422,25 +423,25 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 // With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
 func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, press(tea.KeySpace), press(':'))
-	if m.tabItems()[3].Name != "Expand Selected" || m.tabItems()[4].Name != "Collapse Selected" || m.enabled(4) {
-		t.Fatalf("the items with a row selected: %+v", m.tabItems()[3:5])
+	if m.tabItems()[2].Name != "Expand Selected" || m.tabItems()[3].Name != "Collapse Selected" || m.enabled(3) {
+		t.Fatalf("the items with a row selected: %+v", m.tabItems()[2:4])
 	}
 	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].open[m.rows(m.stage)[0].Key] {
 		t.Errorf("expand selected opened %d", openRows(m))
 	}
-	if m = drive(m, press(':')); m.enabled(3) || !m.enabled(4) {
-		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(3), m.enabled(4))
+	if m = drive(m, press(':')); m.enabled(2) || !m.enabled(3) {
+		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(2), m.enabled(3))
 	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
+	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
 		t.Errorf("collapse selected left %d open", openRows(m))
 	}
 	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	s.open[rows[0].Key], s.open[rows[1].Key] = true, true
-	if m = drive(m, press(':')); m.tabItems()[5].Name != "Collapse Others" || !m.enabled(5) {
-		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[5], m.enabled(5))
+	if m = drive(m, press(':')); m.tabItems()[4].Name != "Collapse Others" || !m.enabled(4) {
+		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[4], m.enabled(4))
 	}
-	if m = drive(m, typed("c")[0], typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
+	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
 		!m.stages[m.stage].open[rows[0].Key] || m.menu {
 		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].open[rows[0].Key])
 	}

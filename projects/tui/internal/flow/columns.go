@@ -1,4 +1,4 @@
-// The columns dialog: an icon at the header's right end, or Columns… in the tab's menu, opens it under the header's
+// The columns dialog: an icon at the header's right end, or Columns… in the presets' menu, opens it under the header's
 // right end. It lists every field of the stage, those the rows group by first, the outermost first, then the columns
 // as the rows stand them, then the hidden, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
 // among the keys, and its group's depth. What it sets applies at once. Up and down move between the lines; shift with

@@ -38,7 +38,7 @@ var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 // and collapsed but for the selection, as folds names them, a rule, every row selected and none, a rule, and what acts
 // on the rows selected: on backlog, the actions there, then each one's page opened.
 func (m Model) tabItems() []shell.Item {
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {Glyph: Columns, Name: "Columns…"}, {}}, m.folds()...)
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
@@ -111,8 +111,6 @@ func (m Model) enabled(k int) bool {
 	switch m.tabItems()[k].Name {
 	case "Refresh":
 		return known[s.name]
-	case "Columns…":
-		return m.columnar(m.stage)
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
@@ -143,9 +141,6 @@ func (m *Model) pick(k int) tea.Cmd {
 	switch m.tabItems()[k].Name {
 	case "Refresh":
 		return m.refresh(s.name)
-	case "Columns…":
-		m.openColumns()
-		return nil
 	case "Open Selected":
 		var cmds []tea.Cmd
 		for _, page := range m.pages() {
