@@ -14,6 +14,8 @@ func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 	styles := map[string]func(string) string{"Mark": Mark, "Gain": Gain, "Loss": Loss, "Warn": Warn, "Repo": Repo,
 		"Chosen": Chosen, "Menu": Menu, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal,
 		"Selected":                 Selected,
+		"Named, in a color":        func(s string) string { return Named(s, "75", false, false) },
+		"Named, italic, under":     func(s string) string { return Named(s, "75", true, true) },
 		"Italic":                   func(s string) string { return Italic(s, false) },
 		"Italic, under the cursor": func(s string) string { return Italic(s, true) }}
 	drawn := map[string]string{}
@@ -28,6 +30,10 @@ func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 			}
 		}
 		drawn[name] = got
+	}
+	// a name in no group's color is Mark's, in the accent
+	if Named("kit", "", false, false) != Mark("kit") {
+		t.Errorf("Named with no color: %q", Named("kit", "", false, false))
 	}
 }
 
