@@ -568,6 +568,40 @@ fake-tui() {
     = "$(jq -nc --arg path "${desk}" '[$path, "../..", "main", 2]')" ]
 }
 
+@test "a stage's JSON is kept per checkout and arguments, and --cached prints it as it was, reading nothing" {
+  run "${kit_root}/bin/kit" flow desk --json --cached
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit flow desk has printed nothing here yet; run it without --cached"* ]]
+  first=$("${kit_root}/bin/kit" flow desk --json)
+  printf 'x\n' > c
+  # what is kept is the stage as it was when it printed, not as it is now
+  run "${kit_root}/bin/kit" flow desk --json --cached
+  [ "$status" -eq 0 ]
+  [ "$output" = "${first}" ]
+  [ "$(jq .uncommitted <<<"$output")" = 0 ]
+  [ "$("${kit_root}/bin/kit" flow desk --json | jq .uncommitted)" = 1 ]
+  [ "$("${kit_root}/bin/kit" flow desk --json --cached | jq .uncommitted)" = 1 ]
+  # another checkout keeps its own
+  git worktree add --quiet worktrees/7-topic -b 7-topic
+  cd worktrees/7-topic
+  run "${kit_root}/bin/kit" flow desk --json --cached
+  [ "$status" -eq 1 ]
+  # and so do other arguments
+  cd ../..
+  run "${kit_root}/bin/kit" flow incoming --json --no-fetch --cached
+  [ "$status" -eq 1 ]
+  "${kit_root}/bin/kit" flow incoming --json --no-fetch > /dev/null
+  run "${kit_root}/bin/kit" flow incoming --json --no-fetch --cached
+  [ "$status" -eq 0 ]
+  [ "$(jq .fetched <<<"$output")" = false ]
+  run "${kit_root}/bin/kit" flow incoming --json --cached
+  [ "$status" -eq 1 ]
+  # --cached needs --json
+  run "${kit_root}/bin/kit" flow desk --cached
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--cached prints a stage's JSON"* ]]
+}
+
 @test "the worktrees stage ends with the branches whose upstream is gone, in text and as goneBranches" {
   git push --quiet origin main:gone-soon
   git fetch --quiet origin

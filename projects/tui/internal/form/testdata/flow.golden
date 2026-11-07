@@ -5,6 +5,9 @@
    --stages                  prints the stages the picture draws, one per line, in order
    --me                      prints the caller's login on the primary's forge, the login --mine and
                              --others match
+   --quota                   prints the caller's rate limits on the primary's forge, as one JSON
+                             array: each forge's {forge, limits}, each limit {name, limit,
+                             remaining, reset}; reading them costs a request at most
    backlog                   the open issues not closed by any open pull request, oldest first;
                              underway has the rest
    underway                  the open issues closed by an open pull request: who works on each, and

@@ -29,8 +29,13 @@
 # that minute draw the same snapshot, kept in the repository's common git directory, so they agree. A command that
 # changes an issue or a pull request drops it, and --fresh reads afresh.
 #
+# Each stage's JSON is kept there too, per checkout and arguments, whatever its age: --cached prints it, so a picture
+# can show the stage as it last was while it loads.
+#
 #   --no-fetch          fetches nothing; incoming says so
 #   --fresh             reads the open issues and pull requests afresh, not the snapshot of the last minute
+#   --cached            with --json and a stage, prints what that stage printed last here with the same arguments,
+#                       whatever its age, and reads nothing; refuses when it has printed nothing yet
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object, each stage under its name
 #   --jq                the same JSON, formatted by jq for a person
@@ -61,21 +66,21 @@
 #
 # kit flow --quota
 #
-# kit flow backlog [--json | --jq] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow underway [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow incoming [--no-fetch] [--json | --jq]
+# kit flow incoming [--no-fetch] [--json | --jq] [--cached]
 #
-# kit flow desk [--json | --jq]
+# kit flow desk [--json | --jq] [--cached]
 #
-# kit flow worktrees [--json | --jq]
+# kit flow worktrees [--json | --jq] [--cached]
 #
-# kit flow changes [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
 #
-# kit flow builds [--json | --jq]
+# kit flow builds [--json | --jq] [--cached]
 #
-# kit flow releases [--json | --jq]
+# kit flow releases [--json | --jq] [--cached]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,

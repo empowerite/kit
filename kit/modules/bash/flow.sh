@@ -1015,6 +1015,39 @@ flow:stage() {
   esac
 }
 
+# flow:kept <stage> <argument>… prints the path that keeps the stage's last JSON, as this checkout printed it with these
+# arguments: under kit/flow/ in the repository's common git directory, which every worktree shares, named for the
+# stage, the checkout, and the arguments, since desk and worktrees draw what the checkout they run in sees.
+flow:kept() {
+  local common top
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+  printf '%s/kit/flow/%s-%s.json\n' "${common}" "$1" "$(printf '%s\n' "${top}" "$@" | cksum | cut -d ' ' -f 1)"
+}
+
+# flow:stage-json <stage> <cached> <argument>… prints the stage's JSON, with --json among the arguments, and keeps it
+# where flow:kept says; with <cached> true, prints what was kept there instead, and reads nothing, or refuses when
+# nothing is. A stage that fails keeps what was kept before.
+flow:stage-json() {
+  local stage=$1 cached=$2 kept out
+  shift 2
+  kept=$(flow:kept "${stage}" "$@") || kept=''
+  if [[ "${cached}" == true ]]
+  then
+    if [[ -z "${kept}" || ! -f "${kept}" ]]
+    then
+      error "kit flow ${stage} has printed nothing here yet; run it without --cached"
+      return 1
+    fi
+    cat "${kept}"
+    return 0
+  fi
+  out=$(flow:stage "${stage}" "$@") || return $?
+  printf '%s\n' "${out}"
+  # A copy that cannot be kept costs only the next --cached, so it never fails the stage.
+  [[ -z "${kept}" || -z "${out}" ]] || file:replace "${kept}" printf '%s\n' "${out}" 2>/dev/null || true
+}
+
 # flow:stage-args <stage> <argument>… prints, one per line, the arguments among those given that the stage takes:
 # --json for every stage, --no-fetch for incoming, and the owner flags for backlog, underway, and changes.
 flow:stage-args() {
@@ -1223,7 +1256,7 @@ flow:picture() {
 # here. --fresh makes every stage read the forge afresh, not from the snapshot of the last minute, as forge:fresh
 # says.
 flow:render() {
-  local stage='' arg
+  local stage='' arg cached=false
   local -a args=()
   if ! git rev-parse --git-dir >/dev/null 2>&1
   then
@@ -1243,10 +1276,19 @@ flow:render() {
         use forge
         forge:fresh
         ;;
+      (--cached) cached=true ;;
       (*) args+=("${arg}")
     esac
   done
-  if [[ -n "${stage}" ]]
+  if [[ "${cached}" == true && ( -z "${stage}" || " ${args[*]} " != *" --json "* ) ]]
+  then
+    error "--cached prints a stage's JSON: run kit flow <stage> --json --cached"
+    return 2
+  fi
+  if [[ -n "${stage}" && " ${args[*]} " == *" --json "* ]]
+  then
+    flow:stage-json "${stage}" "${cached}" "${args[@]}"
+  elif [[ -n "${stage}" ]]
   then
     flow:stage "${stage}" "${args[@]}"
   else

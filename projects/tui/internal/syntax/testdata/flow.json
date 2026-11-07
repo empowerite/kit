@@ -5,14 +5,15 @@
     "kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow --stages",
     "kit flow --me",
-    "kit flow backlog [--json | --jq] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
-    "kit flow underway [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
-    "kit flow incoming [--no-fetch] [--json | --jq]",
-    "kit flow desk [--json | --jq]",
-    "kit flow worktrees [--json | --jq]",
-    "kit flow changes [--json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
-    "kit flow builds [--json | --jq]",
-    "kit flow releases [--json | --jq]"
+    "kit flow --quota",
+    "kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow incoming [--no-fetch] [--json | --jq] [--cached]",
+    "kit flow desk [--json | --jq] [--cached]",
+    "kit flow worktrees [--json | --jq] [--cached]",
+    "kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
+    "kit flow builds [--json | --jq] [--cached]",
+    "kit flow releases [--json | --jq] [--cached]"
   ],
   "syntax": [
     [
@@ -149,6 +150,13 @@
     ],
     [
       {
+        "kind": "flag",
+        "name": "quota",
+        "repeat": false
+      }
+    ],
+    [
+      {
         "kind": "literal",
         "name": "backlog",
         "repeat": false
@@ -168,6 +176,20 @@
             {
               "kind": "flag",
               "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
               "repeat": false
             }
           ]
@@ -297,6 +319,20 @@
           [
             {
               "kind": "flag",
+              "name": "cached",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
               "name": "fresh",
               "repeat": false
             }
@@ -405,6 +441,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -428,6 +478,20 @@
             {
               "kind": "flag",
               "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
               "repeat": false
             }
           ]
@@ -461,6 +525,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -484,6 +562,20 @@
             {
               "kind": "flag",
               "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
               "repeat": false
             }
           ]
@@ -605,6 +697,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -633,6 +739,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "cached",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ]
   ],
@@ -642,6 +762,9 @@
     },
     "--fresh": {
       "description": "reads the open issues and pull requests afresh, not the snapshot of the last minute"
+    },
+    "--cached": {
+      "description": "with --json and a stage, prints what that stage printed last here with the same arguments, whatever its age, and reads nothing; refuses when it has printed nothing yet"
     },
     "--text": {
       "description": "prints the picture as text, even on a terminal"
@@ -669,6 +792,9 @@
     },
     "--me": {
       "description": "prints the caller's login on the primary's forge, the login --mine and --others match"
+    },
+    "--quota": {
+      "description": "prints the caller's rate limits on the primary's forge, as one JSON array: each forge's {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most"
     },
     "--today": {
       "description": "only the issues opened in the last 24 hours"
