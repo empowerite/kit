@@ -1,8 +1,9 @@
 // The outline: what a stage's rows open and close. A group's heading, a row, and the header are each a node of it, a
 // stage's open holds which stand open, and every way to open and close them goes through it alike. Right opens the node
 // under the cursor, or, on a heading already open, steps into its first row; left closes it, or, on a node closed or one
-// that hides nothing, steps out to the heading over it; with option, each opens or closes every node under it too. A
-// click on a heading, or on a row's ▸ or ▾, opens or closes it, and with option everything under it. The tab's menu
+// that hides nothing, steps out to the heading over it; with option, right opens one level more under it, as grow
+// says, and left closes the deepest open level under it, as peel says, a level each press. A click on the ▸ or ▾ of a
+// heading or a row opens or closes it, and with option everything under it. The tab's menu
 // expands and collapses everything, or, while rows are selected, the selection: the selected rows expanded with the
 // groups they stand in, or collapsed, or every other row collapsed and every group without a selected row folded. A
 // selection reaches into a group: space on its heading selects every row in it, or none once all are, and its mark says
@@ -114,9 +115,18 @@ func (m *Model) disclose(open, subtree bool) bool {
 }
 
 // expand takes right, as open says, or left, and with option either, as subtree says: the node under the cursor opened
-// or closed, as disclose says; or, where that changes nothing and option is not held, right on a heading steps into its
-// first row, and left steps out to the heading over the node.
+// or closed, as disclose says; with option, a level more opened under it, as grow says, or the deepest open level
+// under it closed, as peel says; or, where that changes nothing and option is not held, right on a heading steps into
+// its first row, and left steps out to the heading over the node.
 func (m *Model) expand(open, subtree bool) {
+	switch {
+	case subtree && open:
+		m.grow()
+		return
+	case subtree:
+		m.peel()
+		return
+	}
 	if m.disclose(open, subtree) || subtree || !m.inRows || len(m.stages) == 0 {
 		return
 	}
@@ -133,6 +143,89 @@ func (m *Model) expand(open, subtree bool) {
 		return
 	}
 	m.fit()
+}
+
+// under gives the outline, the index of the node under the cursor in it, and how far under that node the node at j
+// stands, with whether every node between them stands open, so that it shows; at is -1 with no node under the cursor.
+func (m Model) under() (every []row, at int, depth func(j int) (int, bool)) {
+	if !m.inRows || len(m.stages) == 0 {
+		return nil, -1, nil
+	}
+	s, rows := m.stages[m.stage], m.rows(m.stage)
+	if s.cursor >= len(rows) {
+		return nil, -1, nil
+	}
+	every = m.every(m.stage)
+	at = slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
+	depth = func(j int) (int, bool) {
+		n, shows := 0, true
+		for p := grid.Parent(every, j); p >= at; p = grid.Parent(every, p) {
+			n++
+			shows = shows && s.open.Open(every[p])
+		}
+		return n, shows
+	}
+	return every, at, depth
+}
+
+// grow opens one level more under the node under the cursor, as option with right asks: the deepest open node under
+// it that shows, the node itself counting, sets the level, and every node down to the level under that opens, so
+// each press shows one level more, every branch alike; with none open, the node itself opens. It says whether that
+// changed anything.
+func (m *Model) grow() bool {
+	every, at, depth := m.under()
+	if at < 0 {
+		return false
+	}
+	s := &m.stages[m.stage]
+	deepest := -1
+	for j := at; j < grid.Span(every, at); j++ {
+		// the heading over the groups counts as open, as it always stands so
+		if d, shows := depth(j); shows && s.open.Open(every[j]) && (m.opens(every, j) || grid.OverGroups(every[j])) {
+			deepest = max(deepest, d)
+		}
+	}
+	next, changed := maps.Clone(s.open), false
+	for j := at; j < grid.Span(every, at); j++ {
+		if d, _ := depth(j); d <= deepest+1 && m.opens(every, j) && !s.open.Open(every[j]) {
+			next[every[j].Key], changed = true, true
+		}
+	}
+	if changed {
+		m.reoutline(next)
+	}
+	return changed
+}
+
+// peel closes the deepest open nodes under the one under the cursor, of those that show, one level of them, as option
+// with left asks: from everything open, the rows close first, then the innermost groups' headings, and so outward, a
+// level each press, the node itself last. It says whether that changed anything.
+func (m *Model) peel() bool {
+	every, at, depth := m.under()
+	if at < 0 {
+		return false
+	}
+	s := &m.stages[m.stage]
+	deepest, closing := -1, []int(nil)
+	for j := at; j < grid.Span(every, at); j++ {
+		d, shows := depth(j)
+		if !shows || !m.opens(every, j) || !s.open.Open(every[j]) || d < deepest {
+			continue
+		}
+		if d > deepest {
+			deepest, closing = d, nil
+		}
+		closing = append(closing, j)
+	}
+	if len(closing) == 0 {
+		return false
+	}
+	next := maps.Clone(s.open)
+	for _, j := range closing {
+		next[every[j].Key] = false
+	}
+	m.reoutline(next)
+	return true
 }
 
 // groupRows gives the keys of the rows a group's heading at j of the outline stands over, its headings apart.

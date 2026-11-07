@@ -61,17 +61,48 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, right, right); m.stages[0].cursor != 1 {
 		t.Fatalf("right twice on the outer heading: cursor %d", m.stages[0].cursor)
 	}
-	// option-left on the heading over the groups closes everything under it, it open still; option-right opens
-	// everything, rows too
-	m = drive(m, up, tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt})
-	if len(m.rows(0)) != 2 || m.stages[0].open[m.every(0)[1].Key] {
-		t.Fatalf("option-left: %d rows, the inner heading open %v", len(m.rows(0)), m.stages[0].open[m.every(0)[1].Key])
+	// from every heading open, option-left closes the deepest open level under the node, a level each press, and
+	// option-right opens one level more, every branch alike, the heading over the groups open always
+	m.stages[0].open, m.stages[0].cursor = grid.Outline{}, 0
+	m.rebuild()
+	levels := func() (sources, assignees, rows int) {
+		for _, r := range m.rows(0) {
+			switch {
+			case grid.Level(r) == 2:
+				sources++
+			case grid.Level(r) == 3:
+				assignees++
+			case !r.Aside:
+				rows++
+			}
+		}
+		return
 	}
-	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ all under it") {
+	optioned := func(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code, Mod: tea.ModAlt} }
+	s0, a0, r0 := levels()
+	if m = drive(m, optioned(tea.KeyLeft)); func() bool { s, a, r := levels(); return s != s0 || a != a0 || r != 0 }() {
+		s, a, r := levels()
+		t.Fatalf("option-left from every heading open: %d %d %d, were %d %d %d", s, a, r, s0, a0, r0)
+	}
+	if m = drive(m, optioned(tea.KeyLeft)); func() bool { s, a, r := levels(); return s != s0 || a != 0 || r != 0 }() {
+		s, a, r := levels()
+		t.Fatalf("option-left again: %d sources, %d assignees, %d rows", s, a, r)
+	}
+	if m = drive(m, optioned(tea.KeyLeft)); len(m.rows(0)) != 1+s0 {
+		t.Errorf("option-left on the heading over the groups closed it: %d rows", len(m.rows(0)))
+	}
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ a level") {
 		t.Errorf("the keys on the heading over the groups: %q", last)
 	}
-	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt}); len(m.rows(0)) != all || openRows(m) == 0 {
-		t.Fatalf("option-right: %d rows of %d, %d rows open", len(m.rows(0)), all, openRows(m))
+	if m = drive(m, optioned(tea.KeyRight)); func() bool { s, a, r := levels(); return s != s0 || a != a0 || r != 0 }() {
+		s, a, r := levels()
+		t.Fatalf("option-right: %d sources, %d assignees, %d rows", s, a, r)
+	}
+	if m = drive(m, optioned(tea.KeyRight)); len(m.rows(0)) != all || openRows(m) != 0 {
+		t.Fatalf("option-right again: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
+	}
+	if m = drive(m, optioned(tea.KeyRight)); openRows(m) == 0 {
+		t.Fatalf("option-right a third time opened no row")
 	}
 	// a row that hides nothing under no heading has nowhere to step out to
 	if m = drive(m, down, left, left); m.stages[0].cursor != 0 {
