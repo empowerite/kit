@@ -181,6 +181,22 @@ func TestStagesAndStatusRunKitStatus(t *testing.T) {
 	if me, err := r.Me(ctx); err != nil || me != "ada" {
 		t.Errorf("Me: %v, %q", err, me)
 	}
+	// the trackers are read from kit's JSON alone, a warning on stderr apart; a refusal, or what is not JSON, is the
+	// error
+	if trackers, err := r.Trackers(ctx); err != nil || len(trackers) != 1 || trackers[0].Prefix != "#" ||
+		trackers[0].URL != "https://github.com/empowerite/kit/issues/new" {
+		t.Errorf("Trackers: %v, %+v", err, trackers)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "new")
+	if _, err := r.Trackers(ctx); err == nil || !strings.Contains(err.Error(), "the forge cannot be read") {
+		t.Errorf("Trackers refused: %v", err)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "")
+	t.Setenv("FAKE_KIT_UNPARSED", "new")
+	if _, err := r.Trackers(ctx); err == nil || !strings.Contains(err.Error(), "kit new issue --list --json") {
+		t.Errorf("Trackers unparsed: %v", err)
+	}
+	t.Setenv("FAKE_KIT_UNPARSED", "")
 	_, err = r.Status(ctx, "nonesuch", nil)
 	var refusal *ExitError
 	if !errors.As(err, &refusal) || refusal.Code != 2 || !strings.Contains(refusal.Stderr, "no stage 'nonesuch'") {

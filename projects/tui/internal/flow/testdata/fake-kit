@@ -8,7 +8,8 @@
 # nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
 # --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
-# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. The verbs that act,
+# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. new issue --list --json
+# prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
 # assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
 # FAKE_FLOW_REFUSE names refuses with exit 1.
 
@@ -29,6 +30,17 @@ case "${1:-}" in
     exit 0
     ;;
 esac
+
+if [[ "$*" == "new issue --list --json" ]]
+then
+  if [[ "${FAKE_FLOW_REFUSE:-}" == new ]]
+  then
+    echo "❌ kit new: the forge cannot be read; run: kit help new" >&2
+    exit 1
+  fi
+  cat "${here}/trackers.json"
+  exit 0
+fi
 
 if [[ "${1:-}" != flow ]]
 then

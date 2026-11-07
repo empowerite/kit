@@ -288,6 +288,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.notice, m.noted = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
+	case trackersMsg:
+		return m, m.newIssue(msg)
 	case actedMsg:
 		return m, m.acted(msg)
 	case tea.KeyPressMsg:

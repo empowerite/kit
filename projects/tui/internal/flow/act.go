@@ -7,6 +7,7 @@
 package flow
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -15,13 +16,16 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// The glyphs beside the backlog's actions that the picture's own glyphs do not name already: the issues handed to
-// someone, the caller walking away from them, gathered in a basket, closed as not planned, and closed as a twin.
+// The glyphs beside the backlog's actions that the picture's own glyphs do not name already: a new issue written, the
+// issues handed to someone, the caller walking away from them, gathered in a basket, closed as not planned, and
+// closed as a twin.
 const (
+	Write  = "📝"
 	Hand   = "👥"
 	Leave  = "🚶"
 	Gather = "🧺"
@@ -29,13 +33,15 @@ const (
 	Twin   = "♊"
 )
 
-// actions gives the backlog's actions, in the tab's menu's order, on backlog, and none elsewhere. They are there with
-// nothing selected too, dim, so the menu shows what selecting issues makes possible.
+// actions gives the backlog's actions, in the tab's menu's order, on backlog, and none elsewhere: New… first, which
+// files an issue and needs none selected, then those on the issues selected, there with nothing selected too, dim, so
+// the menu shows what selecting issues makes possible.
 func (m Model) actions() []shell.Item {
 	if len(m.stages) == 0 || m.stages[m.stage].name != "backlog" {
 		return nil
 	}
 	return []shell.Item{
+		{Glyph: Write, Name: "New…"},
 		{Glyph: Sprout, Name: "Start Local Work for Each"},
 		{Glyph: Branch, Name: "Start Local Work Together…"},
 		{Glyph: Change, Name: "Add to Pull Request…"},
@@ -50,15 +56,24 @@ func (m Model) actions() []shell.Item {
 }
 
 // ask is what an action asks before kit runs: a title, and either a line to type, the issues it will change to
-// confirm, or the caller's pull requests to pick one of, by number; and the kit commands the answer makes.
+// confirm, or lines to pick one of, each with its answer, as the caller's pull requests by number; and the kit commands
+// the answer makes, or, with then, what it does in their place.
 type ask struct {
 	title  string
 	typing bool     // whether the answer is typed
 	typed  string   // what is typed so far
-	lines  []string // the issues to confirm, or the pull requests to pick from
-	pick   []int    // the pull requests' numbers, when one is picked
-	at     int      // the pull request under the keyboard
+	lines  []string // the issues to confirm, or the lines to pick from
+	pick   []string // each line's answer, when one is picked
+	at     int      // the line under the keyboard
+	does   string   // what enter does with the line picked, as the keys bar names it: add, by default
 	run    func(answer string) [][]string
+	then   func(answer string) tea.Cmd
+}
+
+// trackersMsg is what kit said of the trackers a new issue can be filed in, or why it could not say.
+type trackersMsg struct {
+	trackers []kit.Tracker
+	err      error
 }
 
 // actedMsg is what kit printed for an action's commands, and its refusal when one failed: those after it did not run.
@@ -93,10 +108,14 @@ func (m Model) mine() (numbers []int, lines []string) {
 }
 
 // acting says whether an item of the tab's menu is one of the backlog's actions, and whether it does anything now:
-// none while no issue is selected, and Add to Pull Request only while the caller has an open pull request to add to.
+// New… always; the rest none while no issue is selected, and Add to Pull Request only while the caller has an open
+// pull request to add to.
 func (m Model) acting(name string) (action, enabled bool) {
 	if !slices.ContainsFunc(m.actions(), func(i shell.Item) bool { return i.Name == name }) {
 		return false, false
+	}
+	if name == "New…" {
+		return true, true
 	}
 	if m.selected() == 0 {
 		return true, false
@@ -121,6 +140,13 @@ func (m *Model) act(name string) tea.Cmd {
 		m.ask = &ask{title: title, typing: true, run: run}
 	}
 	switch name {
+	case "New…":
+		m.notice, m.noted = "→ kit new issue --list …", true
+		r, ctx := m.runner, m.ctx
+		return func() tea.Msg {
+			trackers, err := r.Trackers(ctx)
+			return trackersMsg{trackers, err}
+		}
 	case "Start Local Work for Each":
 		var cmds [][]string
 		for _, r := range refs {
@@ -133,7 +159,11 @@ func (m *Model) act(name string) tea.Cmd {
 		})
 	case "Add to Pull Request…":
 		numbers, lines := m.mine()
-		m.ask = &ask{title: "Add to which of your pull requests?", lines: lines, pick: numbers,
+		var picks []string
+		for _, n := range numbers {
+			picks = append(picks, strconv.Itoa(n))
+		}
+		m.ask = &ask{title: "Add to which of your pull requests?", lines: lines, pick: picks,
 			run: func(n string) [][]string { return [][]string{append([]string{"work", "--pr", n}, refs...)} }}
 	case "Assign to Me":
 		return m.run(each("assign")(""))
@@ -157,6 +187,32 @@ func (m *Model) act(name string) tea.Cmd {
 		m.done(fmt.Sprintf("%s copied %d links", ToPage, len(refs)))
 		return tea.SetClipboard(m.links())
 	}
+	return nil
+}
+
+// newIssue takes what kit said of the trackers: a dialog that picks the one to file a new issue in, each line its
+// prefix and where, the page opened once it is picked; it starts on the forge's own, which kit lists first, as
+// backlog's issues are. A tracker that gives no page is left out; with none left, the notice says why.
+func (m *Model) newIssue(msg trackersMsg) tea.Cmd {
+	m.notice = ""
+	if msg.err != nil {
+		m.notice, m.noted = Failed+" "+msg.err.Error(), false
+		return nil
+	}
+	a := &ask{title: "New issue in which tracker?", does: "open", then: m.openPage}
+	refusal := "kit names no tracker to file a new issue in"
+	for _, t := range msg.trackers {
+		if t.URL == "" {
+			refusal = t.Error
+			continue
+		}
+		a.lines, a.pick = append(a.lines, t.Prefix+"  "+t.Label), append(a.pick, t.URL)
+	}
+	if len(a.pick) == 0 {
+		m.notice, m.noted = Failed+" "+refusal, false
+		return nil
+	}
+	m.ask = a
 	return nil
 }
 
@@ -252,11 +308,14 @@ func (m Model) askKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		answer := strings.TrimSpace(a.typed)
 		switch {
 		case a.pick != nil:
-			answer = strconv.Itoa(a.pick[a.at])
+			answer = a.pick[a.at]
 		case a.typing && answer == "":
 			return m, nil
 		}
 		m.ask = nil
+		if a.then != nil {
+			return m, a.then(answer)
+		}
 		return m, m.run(a.run(answer))
 	case a.pick != nil && key == "up":
 		a.at = max(a.at-1, 0)
@@ -278,7 +337,7 @@ func (m Model) askKeys() (body []string, keys string) {
 	case a.pick != nil:
 		body = slices.Clone(a.lines)
 		body[a.at] = style.Selected(body[a.at])
-		return body, "esc cancel · ↑↓ move · ⏎ add"
+		return body, "esc cancel · ↑↓ move · ⏎ " + cmp.Or(a.does, "add")
 	}
 	return a.lines, "esc no · ⏎ yes"
 }

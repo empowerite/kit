@@ -10,7 +10,9 @@
 # refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
 # that does not parse, and a match on the verb FAKE_KIT_MATCH_REFUSE names judges the words refused; one on the verb
 # FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign
-# and close act: each says what it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1.
+# and close act: each says what it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1. new issue --list --json
+# lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and
+# FAKE_KIT_UNPARSED=new answers with what is not JSON.
 
 set -o errexit -o nounset -o pipefail
 
@@ -136,6 +138,21 @@ case "${1:-}" in
       fi
       printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
     fi
+    ;;
+  (new)
+    if [[ "${FAKE_KIT_REFUSE:-}" == new ]]
+    then
+      echo "❌ kit new: the forge cannot be read; run: kit help new" >&2
+      exit 1
+    fi
+    echo "⚠️ a warning, on stderr, which is no part of the JSON" >&2
+    if [[ "${FAKE_KIT_UNPARSED:-}" == new ]]
+    then
+      echo "not JSON"
+      exit 0
+    fi
+    printf '[{"prefix": "#", "provider": "forge", "label": "github empowerite/kit", "url": "%s", "error": null}]\n' \
+      'https://github.com/empowerite/kit/issues/new'
     ;;
   (root)
     printf '/the/release\n'

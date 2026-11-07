@@ -244,6 +244,31 @@ func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte
 	return out, err
 }
 
+// Tracker is a tracker a new issue can be filed in, as kit new issue --list --json gives it: the prefix its references
+// start with, its provider, a label that says where, and the page kit opens to file one, or its refusal where it gives
+// none.
+type Tracker struct {
+	Prefix   string `json:"prefix"`
+	Provider string `json:"provider"`
+	Label    string `json:"label"`
+	URL      string `json:"url"`
+	Error    string `json:"error"`
+}
+
+// Trackers asks kit for the trackers a new issue can be filed in, the forge's own first, which the forge's tool may
+// take a moment to say; ctx ends it with the screen.
+func (r Runner) Trackers(ctx context.Context) ([]Tracker, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "new", "issue", "--list", "--json")
+	if err != nil {
+		return nil, err
+	}
+	var trackers []Tracker
+	if err := json.Unmarshal(out, &trackers); err != nil {
+		return nil, fmt.Errorf("kit new issue --list --json: %w", err)
+	}
+	return trackers, nil
+}
+
 // Act runs a verb that changes something, kit <words>…, as the tab's menu asks, and gives what it printed, stdout and
 // stderr as they came, where kit says what it did. Kit's refusal is an ExitError whose line is the last kit marked
 // as failed, or its last line.

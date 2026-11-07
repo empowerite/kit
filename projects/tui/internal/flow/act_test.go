@@ -66,8 +66,12 @@ func TestTheBacklogsActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
 			t.Errorf("%s with nothing selected: line %d, not dim", name, k)
 		}
 	}
+	// New… files an issue, and needs none selected
+	if k := item(m, "New…"); k < 0 || !m.enabled(k) {
+		t.Errorf("New… with nothing selected: line %d, dim", k)
+	}
 	m, _ = selecting(t)
-	names := []string{"Start Local Work for Each", "Start Local Work Together…", "Add to Pull Request…", "Assign to Me",
+	names := []string{"New…", "Start Local Work for Each", "Start Local Work Together…", "Add to Pull Request…", "Assign to Me",
 		"Assign to…", "Unassign", "Gather Under a Parent…", "Close as Not Planned", "Close as Duplicate of…",
 		"Copy Links", "Open Selected"}
 	if got := m.tabItems()[len(m.tabItems())-len(names):]; !slices.EqualFunc(got, names,
@@ -235,5 +239,38 @@ func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) 
 	box, left, _ = m.menuBoxIn()
 	if m = drive(m, testkit.Click(left+3, menuTop+len(box)-1)); m.menu || len(acted(t, record)) != 1 {
 		t.Errorf("a click on the edge: menu %v, calls %q", m.menu, acted(t, record))
+	}
+}
+
+// New… asks kit for the trackers, and offers those that give a page, each its prefix and where, the forge's own under
+// the keyboard; enter opens the page picked. A tracker with no page is left
+// out, and kit's refusal to list them is in place of the keys.
+func TestNewOffersTheTrackersAndOpensThePagePicked(t *testing.T) {
+	m := loaded(t, options(), down)
+	var opened []string
+	m.browse = func(url string) error { opened = append(opened, url); return nil }
+	m = choose(t, m, "New…")
+	if m.ask == nil || m.ask.title != "New issue in which tracker?" || m.ask.at != 0 ||
+		!slices.Equal(m.ask.lines, []string{"#  github empowerite/kit", "AB#  ado Claims Team"}) {
+		t.Fatalf("the dialog: %+v", m.ask)
+	}
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "⏎ open") || !strings.Contains(raw(m), "AB#  ado Claims Team") {
+		t.Errorf("the dialog's keys: %q\n%s", last, raw(m))
+	}
+	if m = drive(m, down, press(tea.KeyEnter)); m.ask != nil ||
+		!slices.Equal(opened, []string{"https://dev.azure.com/example/Claims%20Team/_workitems/create/Task"}) {
+		t.Errorf("enter on AB#: opened %q, dialog %+v", opened, m.ask)
+	}
+	// no tracker with a page, or kit's refusal, is said in place of the keys
+	trackers, err := m.runner.Trackers(m.ctx)
+	if err != nil || len(trackers) != 3 {
+		t.Fatalf("the trackers: %+v, %v", trackers, err)
+	}
+	if m.newIssue(trackersMsg{trackers: trackers[2:]}); m.ask != nil || !strings.Contains(m.notice, "the BZ# tracker has no new page") {
+		t.Errorf("no tracker with a page: %q", m.notice)
+	}
+	t.Setenv("FAKE_FLOW_REFUSE", "new")
+	if m = choose(t, m, "New…"); m.ask != nil || !strings.Contains(lines(m)[len(lines(m))-1], "the forge cannot be read") {
+		t.Errorf("a refusal: %+v, %q", m.ask, lines(m)[len(lines(m))-1])
 	}
 }
