@@ -1,14 +1,15 @@
 // The column menu: a click on a column's name in the header drops it under the name, as does a right click where the
 // terminal sends one. Many terminals keep option, ctrl, and the right button with a click for their own selection and
-// menu, so the menu holds what those would do: the column's sort, off, ascending, or descending, a radio that shows
-// it, or the column after the other keys; group by it alone or within the groups; and the field's popover, which
-// leaves the sort to the menu.
+// menu, so the menu holds what those would do: the column's sort, a radio that shows it, None, by the column alone or
+// first, Ascending or Descending, or after the other keys, Ascending Next or Descending Next; group by it alone or
+// within the groups; the column hidden; and the field's popover, which leaves the sort to the menu.
 package flow
 
 import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -27,64 +28,94 @@ type columnMenu struct {
 }
 
 // The column menu's lines, by index: a dim heading, sort, saying the column's place among the keys while there are
-// several; the radio of its sort, off, ▲ ascending, and ▼ descending; ThenSort, before the column's label, adding it
-// after the other keys; a rule; GroupBy and ThenGroup, grouping by it alone or within the groups; a rule; and More,
-// the field's popover.
+// several; the radio of its sort: None; Ascending and Descending, by the column alone or first; and Ascending Next and
+// Descending Next, after the other keys, each glyph with the place the column takes among them; a rule; GroupBy and
+// ThenGroup, grouping by it alone or within the groups; a rule; Hide, before the column's label; and More, the field's
+// popover.
 const (
 	lineSort = iota
-	lineOff
+	lineNone
 	lineUp
 	lineDown
-	lineThen
+	lineUpNext
+	lineDownNext
 	_
 	lineGroup
 	lineThenGroup
 	_
+	lineHide
 	lineMore
 )
 
 // The words of the column menu's lines.
 const (
-	ThenSort  = "Then sort by "
 	GroupBy   = "Group by "
 	ThenGroup = "Then group by "
+	Hide      = "Hide "
 	More      = "Options…"
 )
 
-// columnItems gives the column menu's lines, as their indexes say. A line that cannot act on the column stays, dim.
+// keyAt gives where a column stands among the sort's keys, from 1, or 0 where it does not sort the rows, and how many
+// keys there are but it.
+func keyAt(p grid.Panel, column string) (place, others int) {
+	keys := p.SortKeys()
+	place = slices.IndexFunc(keys, func(s grid.SortKey) bool { return s.Column == column }) + 1
+	if place > 0 {
+		return place, len(keys) - 1
+	}
+	return 0, len(keys)
+}
+
+// columnItems gives the column menu's lines, as their indexes say. The radio's choice picked is the column's sort:
+// None where it does not sort, Ascending or Descending where it is the first key, and a Next where it is a later one,
+// whose glyph's subscript is its place; on a column not among the keys, a Next's subscript is the place it would take.
+// A line that cannot act on the column stays, dim.
 func (m Model) columnItems() []shell.Item {
 	p, column := m.panel(m.stage), m.colMenu.column
 	label := cmp.Or(p.Labels[column], column)
+	place, others := keyAt(p, column)
 	title := "sort"
-	if keys := p.SortKeys(); len(keys) > 1 && p.Mark(column) != "" {
-		title += fmt.Sprintf(", key %d of %d", slices.IndexFunc(keys, func(s grid.SortKey) bool { return s.Column == column })+1,
-			len(keys))
+	if place > 0 && others > 0 {
+		title += fmt.Sprintf(", key %d of %d", place, others+1)
 	}
-	radio := func(d grid.Direction, name string) shell.Item {
-		if p.Field(column).Sort == d {
+	next := place
+	if next < 2 {
+		next = others + 1
+	}
+	d := p.Field(column).Sort
+	radio := func(picked bool, name string) shell.Item {
+		if picked {
 			return shell.Item{Glyph: style.Tint(grid.Picked), Name: name}
 		}
 		return shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}
 	}
-	return []shell.Item{{Name: title}, radio(grid.Unsorted, "off"), radio(grid.Ascending, "▲ ascending"),
-		radio(grid.Descending, "▼ descending"), {Name: ThenSort + label}, {}, {Name: GroupBy + label},
-		{Name: ThenGroup + label}, {}, {Name: More}}
+	return []shell.Item{{Name: title}, radio(place == 0, "None"),
+		radio(place == 1 && d == grid.Ascending, "▲ Ascending"), radio(place == 1 && d == grid.Descending, "▼ Descending"),
+		radio(place > 1 && d == grid.Ascending, "▲"+subscript(next)+" Ascending Next"),
+		radio(place > 1 && d == grid.Descending, "▼"+subscript(next)+" Descending Next"), {},
+		{Name: GroupBy + label}, {Name: ThenGroup + label}, {}, {Name: Hide + label}, {Name: More}}
 }
 
-// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts; Then sort by on one that
-// sorts and is not among the keys yet; a grouping on one that groups; and Options… always; the heading and the rules
-// never do.
+// subscript gives a number in subscript digits, as the sort's mark gives a key's place: ₂.
+func subscript(n int) string {
+	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
+}
+
+// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts, a Next only where there
+// is another key for it to come after; a grouping on one that groups; and Hide and Options… always; the heading and the
+// rules never do.
 func (m Model) columnEnabled(k int) bool {
 	p, column := m.panel(m.stage), m.colMenu.column
+	_, others := keyAt(p, column)
 	switch k {
-	case lineOff, lineUp, lineDown:
+	case lineNone, lineUp, lineDown:
 		return p.Sortable[column]
-	case lineThen:
-		return p.Sortable[column] && p.Mark(column) == ""
+	case lineUpNext, lineDownNext:
+		return p.Sortable[column] && others > 0
 	case lineGroup, lineThenGroup:
 		return p.Groupable[column]
 	}
-	return k == lineMore
+	return k == lineHide || k == lineMore
 }
 
 // sortedAlone gives the panel sorting the rows by the column alone: in its direction, when it is among the keys
@@ -135,18 +166,22 @@ func (m *Model) columnAct(k int) tea.Cmd {
 		return nil
 	}
 	p := m.panel(m.stage)
-	switch k {
-	case lineOff:
+	switch place, _ := keyAt(p, c.column); k {
+	case lineNone:
 		p = p.SortedAs(c.column, grid.Unsorted)
 	case lineUp, lineDown:
-		// a column among the keys turns in its place; one that is not sorts the rows alone
-		d := map[int]grid.Direction{lineUp: grid.Ascending, lineDown: grid.Descending}[k]
-		if p.Mark(c.column) == "" {
-			p = sortedAlone(p, c.column)
+		// by the column alone, in that direction
+		p = sortedAlone(p, c.column).SortedAs(c.column, map[int]grid.Direction{lineUp: grid.Ascending,
+			lineDown: grid.Descending}[k])
+	case lineUpNext, lineDownNext:
+		// a later key turns in its place; the first, or one not among the keys, goes after the others
+		d := map[int]grid.Direction{lineUpNext: grid.Ascending, lineDownNext: grid.Descending}[k]
+		if place == 1 {
+			p = p.SortedAs(c.column, grid.Unsorted)
 		}
 		p = p.SortedAs(c.column, d)
-	case lineThen:
-		p = p.SortedAs(c.column, grid.Ascending)
+	case lineHide:
+		p = p.Placed(c.column, grid.Hidden)
 	case lineGroup, lineThenGroup:
 		p = p.Grouped(c.column, k == lineThenGroup)
 	default:

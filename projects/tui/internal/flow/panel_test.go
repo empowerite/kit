@@ -453,7 +453,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(lineUp) || m.colMenu.at <= lineThen ||
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(lineUp) || m.colMenu.at <= lineDownNext ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
@@ -524,7 +524,7 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
-	// a click on a name in the indented header drops its menu, whose ▲ ascending sorts by it
+	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it
 	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[paneTop], "age"), paneTop), down, press(tea.KeyEnter)); !strings.Contains(lines(m)[paneTop], "age ▲") {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
@@ -804,7 +804,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	click("age", 0)
 	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
-		t.Fatalf("▲ ascending on age: %+v", sorts())
+		t.Fatalf("▲ Ascending on age: %+v", sorts())
 	}
 	click("age", 0)
 	m = drive(m, typed("o")...)

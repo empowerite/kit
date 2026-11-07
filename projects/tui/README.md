@@ -52,10 +52,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
   - ⏎ on a field opens its popover: the checklist of values its filter lets through or holds back, for an enum or a
     person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on a column's
-    name drops down its menu, around the name, as ≡'s and ⋮'s hang around theirs: its sort, off, ▲ ascending, or ▼
-    descending, a radio that shows it, which sorts by the column alone where it does not sort yet and turns it in its
-    place among the keys where it does, and Then sort by, after the other keys; group by it alone or then by it,
-    within the groups; and Options…, its popover, titled over the name. The line under the keyboard in a menu or a
+    name drops down its menu, around the name, as ≡'s and ⋮'s hang around theirs: its sort, a radio that shows it,
+    None, Ascending or Descending, by the column alone, and Ascending Next or Descending Next, after the other keys,
+    each glyph's subscript the place it takes; group by it alone or then by it, within the groups; Hide; and
+    Options…, its popover, titled over the name. The line under the keyboard in a menu or a
     dialog stands on the menu's bright cyan, in black, and a dialog's keys are the keys bar's alone.
     A click on the cell right after a column's name, or on the cell after that unless it stands against the next
     name, sorts by the column alone, ascending, and on a column that sorts already turns its sort around; that is
