@@ -62,7 +62,9 @@ type loadedMsg struct {
 type stage struct {
 	name    string
 	loading bool
-	stale   bool   // drawn from what kit kept of its last load, while its own load runs
+	stale   bool   // drawn from what kit kept of its last load, or changed since it loaded, as its mark says
+	mark    string // kit's mark of what the stage drew when it loaded, as marks.go reads it
+	remark  bool   // whether the stage loaded since the last read of the marks, so it takes the next as its own
 	refusal string // kit's line, when the command failed
 	issues  []issue
 	under   []underway
@@ -116,6 +118,10 @@ type Model struct {
 	quoting       bool                   // whether kit is reading the rate limits now
 	quotaOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
 	quotaSerial   int                    // the last read's, which the tick it waits on names
+	marking       bool                   // whether kit is reading the stages' marks now
+	marked        bool                   // whether kit has read them once
+	marksOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
+	marksSerial   int                    // the last read's, which the tick it waits on names
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
 	noted         bool                   // whether the notice says what was done, rather than why it was not
@@ -228,8 +234,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	n := next.(Model)
 	if _, ok := msg.(loadedMsg); ok {
-		// a load spends the rate limits: they are read again
-		cmd = tea.Batch(cmd, n.askQuota())
+		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again
+		cmd = tea.Batch(cmd, n.askQuota(), n.askMarks())
 	}
 	if !n.onPreset {
 		for i := range n.stages {
@@ -276,6 +282,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case keptMsg:
 		m.takeKept(msg)
+	case marksMsg:
+		return m, m.tookMarks(msg)
+	case marksTickMsg:
+		if msg.serial == m.marksSerial {
+			return m, m.askMarks()
+		}
 	case quotaMsg:
 		return m, m.tookQuota(msg)
 	case quotaTickMsg:
@@ -968,7 +980,7 @@ func (m *Model) take(msg loadedMsg) bool {
 	if s == nil || msg.gen != s.gen {
 		return false
 	}
-	s.loading, s.stale = false, false
+	s.loading, s.stale, s.remark = false, false, true
 	err := msg.err
 	if err == nil {
 		err = s.decode(msg.data)

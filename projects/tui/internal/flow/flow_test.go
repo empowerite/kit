@@ -68,20 +68,20 @@ func drive(m Model, msgs ...tea.Msg) Model {
 	return m
 }
 
-// faded says a notice's time is up, or the rate limits' minute, which drive never feeds back, so a test sees what a
-// notice says and the screen reads the limits once; a test of either sends it itself.
+// faded says a notice's time is up, or the rate limits' or the marks' minute, which drive never feeds back, so a test
+// sees what a notice says and the screen reads the limits and the marks once; a test of each sends it itself.
 func faded(msg tea.Msg) bool {
 	switch msg.(type) {
-	case fadedMsg, quotaTickMsg:
+	case fadedMsg, quotaTickMsg, marksTickMsg:
 		return true
 	}
 	return false
 }
 
-// TestMain waits no time for a notice to fade, nor for the rate limits' minute, as drive runs each wait's command in
-// place.
+// TestMain waits no time for a notice to fade, nor for the rate limits' or the marks' minute, as drive runs each
+// wait's command in place.
 func TestMain(m *testing.M) {
-	fades, quotaEvery = 0, 0
+	fades, quotaEvery, marksEvery = 0, 0, 0
 	os.Exit(m.Run())
 }
 
@@ -199,8 +199,9 @@ func cursor(m Model) string {
 // squeeze gives a line with each run of spaces one space, as a tab's count right-aligned in it reads.
 func squeeze(s string) string { return regexp.MustCompile(` +`).ReplaceAllString(s, " ") }
 
-// calls reads the words of every kit call the fake recorded but the rate limits' reads, which each load brings, and
-// the reads of what kit kept of each stage, which the start brings; quota_test and kept_test count those.
+// calls reads the words of every kit call the fake recorded but the rate limits' and the marks' reads, which each load
+// brings, and the reads of what kit kept of each stage, which the start brings; quota_test, marks_test, and kept_test
+// count those.
 func calls(t *testing.T, path string) []string {
 	t.Helper()
 	got, err := os.ReadFile(path)
@@ -208,7 +209,7 @@ func calls(t *testing.T, path string) []string {
 		return nil
 	}
 	return slices.DeleteFunc(strings.Split(strings.TrimSpace(string(got)), "\n"), func(c string) bool {
-		return c == "flow --quota" || strings.HasSuffix(c, " --cached")
+		return c == "flow --quota" || c == "flow --marks" || strings.HasSuffix(c, " --cached")
 	})
 }
 

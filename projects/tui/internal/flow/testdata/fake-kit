@@ -9,7 +9,8 @@
 # names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
 # --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
 # --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
-# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read. A stage given --cached
+# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read; --marks prints
+# FAKE_FLOW_MARKS, a file it reads again each time, and refuses the same way without one. A stage given --cached
 # prints <stage>.json from the directory FAKE_FLOW_KEPT names, and refuses with exit 1 without one, as kit does
 # before the stage has printed. new issue --list --json
 # prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
@@ -63,6 +64,14 @@ case "${1:-}" in
     do
       printf '%s\n' "${stage}"
     done
+    ;;
+  (--marks)
+    if [[ -z "${FAKE_FLOW_MARKS:-}" || ! -f "${FAKE_FLOW_MARKS}" ]]
+    then
+      echo "❌ kit flow: the marks cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    cat "${FAKE_FLOW_MARKS}"
     ;;
   (--quota)
     if [[ -z "${FAKE_FLOW_QUOTA:-}" ]]

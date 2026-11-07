@@ -2,8 +2,8 @@
 # fake-kit - stands in for kit in the runner's tests: answers syntax and help, and records any other call (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
-# groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, and a stage
-# echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the
+# groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, another
+# flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the
 # file FAKE_KIT_RECORD names; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any
 # other verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to
 # read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
@@ -130,6 +130,12 @@ case "${1:-}" in
     then
       echo "❌ kit flow: no stage 'nonesuch'; run: kit help flow" >&2
       exit 2
+    elif [[ "${1:-}" == --* ]]
+    then
+      # a flag the fake does not answer is refused, as kit refuses one it cannot read, so a screen that asks for
+      # --marks or --quota reads nothing and starts no tick
+      echo "❌ kit flow: the fake does not answer $1; run: kit help flow" >&2
+      exit 1
     else
       if [[ -n "${FAKE_KIT_SLEEP:-}" ]]
       then

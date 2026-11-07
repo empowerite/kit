@@ -85,7 +85,7 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 	case c.Screen != "":
 		return shell.Switch(c.Screen)
 	case c.Own == "Refresh All":
-		m.quotaOff = false
+		m.quotaOff, m.marksOff = false, false
 		var cmds []tea.Cmd
 		for _, s := range m.stages {
 			if known[s.name] {
