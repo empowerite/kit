@@ -110,7 +110,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   keys bar. It gives the path from the screen to the control that has the keyboard, and each control on the path names
   the keys it answers. A deeper control hides an ancestor's key for a press it takes. The bar draws each control's keys
   between rules, and drops whole controls from the screen's end when the line is too narrow.
-- `internal/style/` is the look: one accent color, the glyphs, and the keys bar's styles. It honors `NO_COLOR`.
+- `internal/style/` is the look: one accent color, the glyphs, the keys bar's styles, and the pill a label or an
+  audience is drawn as, its text on its color between half circles. It honors `NO_COLOR`.
 - `internal/testkit/` holds what the tests share. Only tests import it.
 
 ## Testing

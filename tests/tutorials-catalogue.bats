@@ -16,7 +16,7 @@ catalogue() {
 @test "the catalogue lists the top-level tutorials in order" {
   catalogue ok
   [ "$status" -eq 0 ]
-  [ "$(printf '%s\n' "${output}" | yq -o json -I 0 '.')" = '{"audiences":[{"id":"newcomer","label":"Just starting"},{"id":"ui","label":"UI"},{"id":"maintainer","label":"Maintainer"}],"tutorials":[{"id":"beta","path":"beta/","title":"Beta","summary":"The first one.","glyph":"🅱","audience":["maintainer"],"order":10},{"id":"alpha","path":"alpha/","title":"Alpha","summary":"The second one.","glyph":"🅰","audience":["newcomer","ui"],"order":20}]}' ]
+  [ "$(printf '%s\n' "${output}" | yq -o json -I 0 '.')" = '{"audiences":[{"id":"newcomer","label":"Just starting","color":"#15803d"},{"id":"ui","label":"UI","color":"#1d4ed8"},{"id":"maintainer","label":"Maintainer","color":"#7c3aed"}],"tutorials":[{"id":"beta","path":"beta/","title":"Beta","summary":"The first one.","glyph":"🅱","audience":["maintainer"],"order":10},{"id":"alpha","path":"alpha/","title":"Alpha","summary":"The second one.","glyph":"🅰","audience":["newcomer","ui"],"order":20}]}' ]
   [[ "${output}" != *Deeper* ]]
 }
 
@@ -25,6 +25,37 @@ catalogue() {
   [ "$status" -eq 1 ]
   [[ "${stderr}" == *"gamma/index.mdx"* ]]
   [[ "${stderr}" == *"wizard"* ]]
+}
+
+@test "an audience needs a color" {
+  catalogue no-color
+  [ "$status" -eq 1 ]
+  [ "$output" = "" ]
+  local file="${repo_root}/tests/fixtures/tutorials/no-color/audiences.yml"
+  [ "${stderr}" = "❌ ${file}: the audience 'ui' needs a color, as #rrggbb" ]
+}
+
+@test "a color is #rrggbb" {
+  catalogue bad-color
+  [ "$status" -eq 1 ]
+  local file="${repo_root}/tests/fixtures/tutorials/bad-color/audiences.yml"
+  [ "${stderr}" = "❌ ${file}: the audience 'ui' has the color '#1d4ed', not #rrggbb" ]
+  # each color is set as a YAML value, in a copy of the ok project
+  local color
+  for color in '"blue"' '"#1d4ed8f"' '"1d4ed8"' '"#gggggg"' '"#1d4ed8 "' 12 '[]' '"#1D4ED8"'
+  do
+    rm -rf "${BATS_TEST_TMPDIR}/project"
+    cp -R "${repo_root}/tests/fixtures/tutorials/ok" "${BATS_TEST_TMPDIR}/project"
+    yq -i ".[1].color = ${color}" "${BATS_TEST_TMPDIR}/project/audiences.yml"
+    TUTORIALS_PROJECT="${BATS_TEST_TMPDIR}/project" run --separate-stderr "${repo_root}/bin/tutorials" catalogue
+    if [[ "${color}" == '"#1D4ED8"' ]]
+    then
+      [ "$status" -eq 0 ]
+    else
+      [ "$status" -eq 1 ]
+      [[ "${stderr}" == *"/project/audiences.yml: the audience 'ui' has the color "*", not #rrggbb" ]]
+    fi
+  done
 }
 
 @test "a top-level page needs a summary" {

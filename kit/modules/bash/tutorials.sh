@@ -4,8 +4,8 @@
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
 # The tutorials are a site, one MDX page per tutorial. Its catalogue is modules/tutorials.yml, which kit generate writes
-# from the pages' front matter: the audiences, and for each tutorial its id, path, title, summary, glyph, audiences,
-# and order. KIT_TUTORIALS_CATALOGUE, when set, names another file in its place.
+# from the pages' front matter: the audiences, each its id, label, and color, and for each tutorial its id, path,
+# title, summary, glyph, audiences, and order. KIT_TUTORIALS_CATALOGUE, when set, names another file in its place.
 #
 # A tutorial's link is <base><path>?kit=<version>, and the base follows this kit's version:
 #
@@ -38,9 +38,9 @@ tutorials:base() {
   printf '%s\n' "${base%/}/"
 }
 
-# tutorials:json [<tag>…] prints one JSON object: the version, the base, the audiences, and the tutorials in order,
-# each with its link; with tags, only the tutorials for any of those audiences. It returns 1 where the catalogue
-# is missing.
+# tutorials:json [<tag>…] prints one JSON object: the version, the base, the audiences, each with its color, empty
+# where the catalogue gives none, and the tutorials in order, each with its link; with tags, only the tutorials for any
+# of those audiences. It returns 1 where the catalogue is missing.
 tutorials:json() {
   local file version base
   file=$(tutorials:catalogue)
@@ -54,7 +54,7 @@ tutorials:json() {
   yaml:json "${file}" | jq --compact-output --arg version "${version}" --arg base "${base}" --args '
     ($ARGS.positional) as $tags
     | {version: $version, base: $base,
-       audiences: [(.audiences // [])[] | {id, label}],
+       audiences: [(.audiences // [])[] | {id, label, color: (.color // "")}],
        tutorials: [(.tutorials // []) | sort_by(.order)[]
          | select(($tags | length) == 0 or any(.audience[]?; . as $a | $tags | index($a)))
          | {id, title, summary, glyph, audience: (.audience // []),

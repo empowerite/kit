@@ -3,6 +3,7 @@
 package tutorials
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,7 +24,7 @@ const Failed = "❌"
 // either side; the cards stand gap cells apart, after the gutter every line keeps, as the tab bar does.
 const (
 	cardWidth  = 38
-	cardHeight = 6
+	cardHeight = 7
 	textWidth  = cardWidth - 4
 	gap        = 1
 	gutter     = tabs.Gutter
@@ -191,8 +192,8 @@ func (m Model) grid(cards []kit.Tutorial) []string {
 }
 
 // card gives a tutorial's card, its lines each cardWidth cells: a rounded border, dim, or in the menus' bright cyan
-// under the cursor; the glyph and the title in bold; the summary on three lines; and the labels of its audiences,
-// dim, on the bottom edge.
+// under the cursor; the glyph and the title in bold; a blank line; the summary on three lines; and a pill for each of
+// its audiences on the bottom edge.
 func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	edge, inner := style.Off, cardWidth-2
 	if cursor {
@@ -205,16 +206,17 @@ func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	if t.Glyph != "" {
 		title = t.Glyph + " " + title
 	}
-	out := []string{edge("╭" + strings.Repeat("─", inner) + "╮"), line(style.Label(title))}
+	out := []string{edge("╭" + strings.Repeat("─", inner) + "╮"), line(style.Label(title)), line("")}
 	for _, l := range summary(t.Summary) {
 		out = append(out, line(l))
 	}
-	labels := pane.Clip(m.labels(t), inner-4)
-	if labels == "" {
+	// the pills stand a cell in from the corner's ─ and leave a ─ of the edge before the other corner
+	drawn := pills(m.audiences(t), inner-4, edge)
+	if drawn == "" {
 		return append(out, edge("╰"+strings.Repeat("─", inner)+"╯"))
 	}
-	fill := strings.Repeat("─", inner-3-ansi.StringWidth(labels))
-	return append(out, edge("╰─ ")+style.Off(labels)+edge(" "+fill+"╯"))
+	fill := strings.Repeat("─", inner-3-ansi.StringWidth(drawn))
+	return append(out, edge("╰─ ")+drawn+edge(" "+fill+"╯"))
 }
 
 // summary gives a summary's three lines, broken at spaces to the card's text; one that runs over ends its third line
@@ -239,20 +241,52 @@ func summary(text string) []string {
 	return lines
 }
 
-// labels gives the labels of the audiences a tutorial is for, in its order, a dot between them; an audience the
-// catalogue does not list stands as its id.
-func (m Model) labels(t kit.Tutorial) string {
-	var out []string
-	for _, id := range t.Audience {
-		label := id
-		for _, a := range m.catalog.Audiences {
-			if a.ID == id {
-				label = a.Label
-			}
+// audiences gives the audiences a tutorial is for: those the catalogue lists, in its order, then any it does not, each
+// its id alone, in the tutorial's order.
+func (m Model) audiences(t kit.Tutorial) []kit.Audience {
+	var out []kit.Audience
+	for _, a := range m.catalog.Audiences {
+		if slices.Contains(t.Audience, a.ID) {
+			out = append(out, a)
 		}
-		out = append(out, label)
 	}
-	return strings.Join(out, " · ")
+	for _, id := range t.Audience {
+		if !slices.ContainsFunc(m.catalog.Audiences, func(a kit.Audience) bool { return a.ID == id }) {
+			out = append(out, kit.Audience{ID: id, Label: id})
+		}
+	}
+	return out
+}
+
+// pills gives a pill for each audience, its label on its color, a cell apart, in room cells. Where they do not all
+// fit, the pills that leave room for a cell and … stand whole, then the …, in the edge's style; where not even the
+// first does, it stands alone, its label cut with … to fit, so no pill is cut through its half circles.
+func pills(audiences []kit.Audience, room int, edge func(string) string) string {
+	all := make([]string, len(audiences))
+	for k, a := range audiences {
+		all[k] = style.Pill(a.Label, a.Color)
+	}
+	if whole := strings.Join(all, " "); ansi.StringWidth(whole) <= room {
+		return whole
+	}
+	more := " " + edge("…")
+	var fit []string
+	for _, p := range all {
+		if ansi.StringWidth(strings.Join(append(fit, p), " ")+more) > room {
+			break
+		}
+		fit = append(fit, p)
+	}
+	if len(fit) > 0 {
+		return strings.Join(fit, " ") + more
+	}
+	first := audiences[0]
+	if len(audiences) == 1 {
+		more = ""
+	}
+	// the label's cells: the room less the half circles and whatever follows
+	cut := ansi.Truncate(first.Label, room-2-ansi.StringWidth(more), "…")
+	return style.Pill(cut, first.Color) + more
 }
 
 // cardAt gives the index of the card at a cell of the screen, in the selected tab's tutorials, or -1 where there is

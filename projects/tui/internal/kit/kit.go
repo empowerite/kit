@@ -419,10 +419,12 @@ type Catalogue struct {
 	Tutorials []Tutorial `json:"tutorials"`
 }
 
-// Audience is one of the audiences a tutorial is for: the id a tutorial and --tag name it by, and its label.
+// Audience is one of the audiences a tutorial is for: the id a tutorial and --tag name it by, its label, and the color
+// its pill is drawn on, as #rrggbb, or none from a kit whose catalogue gives none.
 type Audience struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+	Color string `json:"color"`
 }
 
 // Tutorial is one tutorial: its id, title, summary, and glyph; the ids of the audiences it is for; and its link,

@@ -5,7 +5,10 @@
 
 - id: newcomer
   label: Just starting
+  color: "#15803d"
 - id: ui
   label: UI
+  color: "#1d4ed8"
 - id: maintainer
   label: Maintainer
+  color: "#7c3aed"

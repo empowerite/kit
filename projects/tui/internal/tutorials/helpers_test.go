@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -114,4 +115,12 @@ func catalogueFile(t *testing.T, name string) {
 		t.Fatal(err)
 	}
 	t.Setenv("FAKE_TUTORIALS_CATALOGUE", path)
+}
+
+// pillText gives a pill as the screen draws it, without its escapes: the text between the half circles.
+func pillText(text string) string { return style.PillLeft + text + style.PillRight }
+
+// bottomEdge gives a card's bottom edge without its escapes, as it stands under the pills, the text they draw.
+func bottomEdge(pills string) string {
+	return "╰─ " + pills + " " + strings.Repeat("─", cardWidth-5-ansi.StringWidth(pills)) + "╯"
 }

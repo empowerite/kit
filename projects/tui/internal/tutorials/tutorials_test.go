@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -59,15 +60,15 @@ func TestArrowsMoveBetweenCardsAndRows(t *testing.T) {
 	}
 }
 
-// At 60×20, eight cards stand one a row, two rows at a time; the pane scrolls so the card under the cursor is always
+// At 60×24, eight cards stand one a row, two rows at a time; the pane scrolls so the card under the cursor is always
 // drawn whole, and says how many cards it hides above and below.
 func TestTheCursorScrollsThePane(t *testing.T) {
-	m, _ := withEight(t, at60)
+	m, _ := withEight(t, tea.WindowSizeMsg{Width: 60, Height: 24})
 	whole := func(k int) {
 		t.Helper()
 		ls := lines(m)
 		at := slices.IndexFunc(ls, func(l string) bool { return strings.Contains(l, "Tutorial "+string(rune('1'+k))+" ") })
-		if at < 1 || at+4 >= len(ls)-1 || !strings.HasPrefix(ls[at-1], "  ╭") || !strings.HasPrefix(ls[at+4], "  ╰") {
+		if at < 1 || at+5 >= len(ls)-1 || !strings.HasPrefix(ls[at-1], "  ╭") || !strings.HasPrefix(ls[at+5], "  ╰") {
 			t.Fatalf("the cursor's card %d is not whole:\n%s", k+1, view(m))
 		}
 	}
@@ -93,6 +94,11 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 8}, down, down)
 	if ls := lines(m); !strings.Contains(strings.Join(ls, "\n"), "Tutorial 3") {
 		t.Errorf("at 60×8:\n%s", view(m))
+	}
+	// at 60×20, a card at a time
+	if m = drive(m, at60); m.rows() != 1 || !strings.Contains(view(m), "… 2 above") ||
+		!strings.Contains(view(m), "… 5 more") {
+		t.Errorf("at 60×20, %d rows:\n%s", m.rows(), view(m))
 	}
 }
 
@@ -331,10 +337,13 @@ func TestBrowseRunsTheOpener(t *testing.T) {
 
 // A card keeps to its cells whatever its tutorial holds: a title too long is cut with …, a summary that runs over ends
 // its third line with … after a whole word, or inside a word wider than the card, a tutorial with no glyph starts with
-// its title, and one for no audience has a plain bottom edge; an audience the catalogue lacks shows as its id.
+// its title, and one for no audience has a plain bottom edge; an audience the catalogue lacks shows as its id, after
+// those it lists. Pills that do not fit end with …, and one too wide for the edge alone has its text cut.
 func TestACardKeepsToItsCells(t *testing.T) {
 	m, _ := fake(t)
-	m.catalog.Audiences = eight().Audiences
+	m.catalog.Audiences = append(eight().Audiences, kit.Audience{ID: "long", Label: strings.Repeat("Long ", 8)},
+		kit.Audience{ID: "wide", Label: "🎓 Twenty-nine cells and wide"},
+		kit.Audience{ID: "edge", Label: strings.Repeat("a", 28) + "🎓b"})
 	long := strings.Repeat("word ", 30)
 	for _, c := range []struct {
 		tutorial kit.Tutorial
@@ -345,7 +354,17 @@ func TestACardKeepsToItsCells(t *testing.T) {
 				"╰────────────────────────────────────╯"}},
 		{kit.Tutorial{Title: "T", Glyph: "📘", Summary: strings.Repeat("x", 120), Audience: []string{"ops", "ui"}},
 			[]string{"│ 📘 T                               │", "│ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx… │",
-				"╰─ ops · UI ─────────────────────────╯"}},
+				bottomEdge(pillText("UI") + " " + pillText("ops"))}},
+		{kit.Tutorial{Title: "T", Audience: []string{"ui", "newcomer", "wide"}},
+			[]string{bottomEdge(pillText("Just starting") + " " + pillText("UI") + " …")}},
+		{kit.Tutorial{Title: "T", Audience: []string{"wide"}},
+			[]string{bottomEdge(pillText("🎓 Twenty-nine cells and wide"))}},
+		{kit.Tutorial{Title: "T", Audience: []string{"long"}},
+			[]string{bottomEdge(pillText("Long Long Long Long Long Long…"))}},
+		{kit.Tutorial{Title: "T", Audience: []string{"wide", "long"}},
+			[]string{bottomEdge(pillText("Long Long Long Long Long Lo…") + " …")}},
+		{kit.Tutorial{Title: "T", Audience: []string{"edge"}},
+			[]string{bottomEdge(pillText(strings.Repeat("a", 28) + "…"))}},
 	} {
 		got := m.card(c.tutorial, false)
 		if len(got) != cardHeight {
@@ -367,5 +386,54 @@ func TestACardKeepsToItsCells(t *testing.T) {
 	m, b := loaded(t)
 	if m = drive(m, tea.MouseClickMsg{X: 5, Y: paneTop + 2, Button: tea.MouseRight}); len(b.urls) != 0 {
 		t.Errorf("a right click opened %q", b.urls)
+	}
+}
+
+// A card reads its top edge, the glyph and the title, a blank line, the summary on three lines, and its bottom edge.
+func TestTheTitleIsFollowedByABlankLine(t *testing.T) {
+	m, _ := loaded(t)
+	got := m.card(m.catalog.Tutorials[0], false)
+	want := []string{"╭" + strings.Repeat("─", cardWidth-2) + "╮", "│ 🎓 Reading kit's tutorials         │",
+		"│" + strings.Repeat(" ", cardWidth-2) + "│", "│ How the tutorials are laid out,    │",
+		"│ who each one is for, and how a     │", "│ page tells you that your kit is…   │",
+		bottomEdge(pillText("Just starting"))}
+	if plain := strings.Split(ansi.Strip(strings.Join(got, "\n")), "\n"); !slices.Equal(plain, want) {
+		t.Errorf("the card:\n%s\nwant\n%s", strings.Join(plain, "\n"), strings.Join(want, "\n"))
+	}
+	if ls := lines(m); ls[paneTop+1+2] != "  "+want[2]+" "+want[2] {
+		t.Errorf("the screen's line under the titles: %q", ls[paneTop+1+2])
+	}
+}
+
+// Each audience is a pill on the card's bottom edge, its label on its color between the half circles, a cell apart,
+// in the catalogue's order whatever the tutorial's; an audience the catalogue gives no color is drawn on the pastel its
+// label picks, as a forge's label without one is. The pills keep their colors under the cursor, where the edge is cyan.
+func TestAudiencesArePillsInTheirColors(t *testing.T) {
+	m, _ := loaded(t)
+	tour := m.catalog.Tutorials[1]
+	if strings.Join(tour.Audience, " ") != "ui newcomer" {
+		t.Fatalf("the fixture's tour is for %q", tour.Audience)
+	}
+	for _, cursor := range []bool{false, true} {
+		bottom := m.card(tour, cursor)[cardHeight-1]
+		pills := style.Pill("Just starting", "#15803d") + " " + style.Pill("UI", "#1d4ed8")
+		if !strings.Contains(bottom, pills) {
+			t.Errorf("cursor %v: no pills in their colors, in the catalogue's order, in %q", cursor, bottom)
+		}
+		if ansi.Strip(bottom) != bottomEdge(pillText("Just starting")+" "+pillText("UI")) {
+			t.Errorf("cursor %v: %q", cursor, ansi.Strip(bottom))
+		}
+		// the edge's own escapes end before the first half circle and start after the last
+		before, after, _ := strings.Cut(bottom, pills)
+		if !strings.HasSuffix(before, "\x1b[m") || !strings.HasPrefix(after, "\x1b[") {
+			t.Errorf("cursor %v: the edge runs into the pills: %q · %q", cursor, before, after)
+		}
+	}
+	if !strings.Contains(m.View().Content, style.Pill("UI", "#1d4ed8")) {
+		t.Error("the screen draws no UI pill")
+	}
+	m.catalog.Audiences[1].Color = ""
+	if bottom := m.card(tour, false)[cardHeight-1]; !strings.Contains(bottom, style.Pill("UI", "")) {
+		t.Errorf("an audience with no color: %q", bottom)
 	}
 }

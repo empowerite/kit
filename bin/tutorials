@@ -6,10 +6,11 @@
 # `kit generate kit/modules/tutorials.yml` to rewrite the region; `kit generate --check` fails when it is stale.
 #
 # A top-level tutorial is a page with `top: true`, at <id>/index.mdx under the project's src/content/. The catalogue
-# holds the audiences, in the order projects/tutorials/audiences.yml lists them, and the tutorials sorted by `order`
-# (1000 when a page has none), then id. A page that cannot be listed is refused, naming the file and why, and the
-# exit status is 1: a top-level page lacking a summary, a glyph, or an audience; one with an audience that
-# audiences.yml does not list; or one that is not at <id>/index.mdx.
+# holds the audiences, each its id, label, and color, in the order projects/tutorials/audiences.yml lists them, and the
+# tutorials sorted by `order` (1000 when a page has none), then id. A file that cannot be listed is refused, naming the
+# file and why, and the exit status is 1: an audience without a color shaped #rrggbb; a top-level page lacking a
+# summary, a glyph, or an audience; one with an audience that audiences.yml does not list; or one that is not at
+# <id>/index.mdx.
 #
 #   bin/tutorials catalogue
 #
@@ -30,8 +31,15 @@ refuse() {
 
 # catalogue prints the region's body, YAML, on stdout.
 catalogue() {
-  local audiences pages=() file front id unknown
+  local audiences pages=() file front id unknown shaped
   audiences=$(yq -p yaml -o json '.' "${project}/audiences.yml")
+  id=$(jq --raw-output 'first(.[] | select((.color // "") == "") | .id) // empty' <<< "${audiences}")
+  [[ -z "${id}" ]] || refuse "${project}/audiences.yml" "the audience '${id}' needs a color, as #rrggbb"
+  # shaped is the first audience whose color is not #rrggbb: its id, a tab, and the color
+  shaped=$(jq --raw-output 'first(.[] | select(.color | type != "string" or (test("^#[0-9A-Fa-f]{6}$") | not))
+    | "\(.id)\t\(.color)") // empty' <<< "${audiences}")
+  [[ -z "${shaped}" ]] || refuse "${project}/audiences.yml" \
+    "the audience '${shaped%%$'\t'*}' has the color '${shaped#*$'\t'}', not #rrggbb"
 
   while IFS= read -r file
   do
@@ -57,7 +65,8 @@ catalogue() {
 
   # shellcheck disable=SC2016  # the program is jq's, not the shell's
   printf '%s\n' "${pages[@]+"${pages[@]}"}" \
-    | jq -s --argjson audiences "${audiences}" '{audiences: $audiences, tutorials: sort_by([.order, .id])}' \
+    | jq -s --argjson audiences "${audiences}" \
+      '{audiences: ($audiences | map({id, label, color})), tutorials: sort_by([.order, .id])}' \
     | yq -p json -o yaml -P '.'
 }
 

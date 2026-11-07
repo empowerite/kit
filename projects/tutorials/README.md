@@ -74,8 +74,9 @@ holds it to these keys, and the gate checks every page against it:
 | `audience` | list of strings | when `top` | Who it is for, at least one id from `audiences.yml` |
 | `order` | integer | no, `1000` | Where it stands among the tutorials, lowest first |
 
-[audiences.yml](audiences.yml) is the closed list of audiences, each an `id` and the `label` kit shows, in the order
-kit shows them. Adding an audience is an edit there.
+[audiences.yml](audiences.yml) is the closed list of audiences, each an `id`, the `label` kit shows, and the `color`
+kittui draws its pill on, as `#rrggbb`, dark enough for white text, in the order kit shows them. Adding an audience is
+an edit there; `bin/tutorials catalogue` refuses one without a color shaped `#rrggbb`.
 
 ## Marking what a patch release added
 

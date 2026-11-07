@@ -18,10 +18,13 @@ setup() {
 audiences:
   - id: newcomer
     label: Just starting
+    color: "#15803d"
   - id: ui
     label: UI
+    color: "#1d4ed8"
   - id: maintainer
     label: Maintainer
+    color: "#7c3aed"
 tutorials:
   - id: first
     path: first/
@@ -91,9 +94,17 @@ https://kit.empowerite.dev/tutorials/0.4/" ]
   [ "$(jq --raw-output '.tutorials[].url' <<<"$output")" = "https://kit.empowerite.dev/tutorials/0.4/first/?kit=0.4.7
 https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7
 https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
-  [ "$(jq --raw-output '.audiences[].id' <<<"$output" | paste -s -d ' ' -)" = "newcomer ui maintainer" ]
+  [ "$(jq --compact-output '.audiences' <<<"$output")" = '[{"id":"newcomer","label":"Just starting","color":"#15803d"},{"id":"ui","label":"UI","color":"#1d4ed8"},{"id":"maintainer","label":"Maintainer","color":"#7c3aed"}]' ]
   [ "$(jq --raw-output '.tutorials[0] | keys | join(",")' <<<"$output")" = "audience,glyph,id,summary,title,url" ]
   [ "$(wc -l <<<"$output")" -eq 1 ]
+}
+
+@test "--json gives an audience the catalogue gives no color an empty one" {
+  grep -v '^    color: ' "${catalogue}" > "${BATS_TEST_TMPDIR}/colorless.yml"
+  export KIT_TUTORIALS_CATALOGUE="${BATS_TEST_TMPDIR}/colorless.yml"
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '.audiences[0]' <<<"$output")" = '{"id":"newcomer","label":"Just starting","color":""}' ]
 }
 
 @test "KIT_TUTORIALS_BASE replaces the base" {
@@ -176,6 +187,7 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   in-order "$output" '2' 'The screens' 'What kittui shows.' 'ui' 'newcomer' \
     'https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7' '3' 'Cutting a release'
   [ "$(grep -c 'kit=0.4.7' <<<"$output")" -eq 3 ]
+  [[ "$output" != *"#15803d"* ]]
 }
 
 @test "no tutorials" {

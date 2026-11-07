@@ -401,7 +401,8 @@ func TestTutorialsDecodesTheCatalogue(t *testing.T) {
 		c.Base != "https://empowerite.github.io/kit/tutorials/main/" {
 		t.Fatalf("Tutorials: %v, %+v", err, c)
 	}
-	if want := (Audience{ID: "newcomer", Label: "Just starting"}); len(c.Audiences) != 3 || c.Audiences[0] != want {
+	if want := (Audience{ID: "newcomer", Label: "Just starting", Color: "#15803d"}); len(c.Audiences) != 3 ||
+		c.Audiences[0] != want {
 		t.Errorf("audiences: %+v", c.Audiences)
 	}
 	first := c.Tutorials[0]

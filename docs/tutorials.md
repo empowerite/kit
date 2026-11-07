@@ -26,12 +26,13 @@ kit tutorials --json                  # one JSON object, for a program
 
 ```json
 {"version":"0.4.7","base":"https://kit.empowerite.dev/tutorials/0.4/",
- "audiences":[{"id":"newcomer","label":"Just starting"}],
+ "audiences":[{"id":"newcomer","label":"Just starting","color":"#15803d"}],
  "tutorials":[{"id":"kit-tutorials","title":"Reading kit's tutorials","summary":"…","glyph":"🎓",
                "audience":["newcomer"],"url":"https://kit.empowerite.dev/tutorials/0.4/kit-tutorials/?kit=0.4.7"}]}
 ```
 
-`--tag` filters the tutorials and leaves the audiences whole, so a screen can show every filter.
+`--tag` filters the tutorials and leaves the audiences whole, so a screen can show every filter. An audience's `color`,
+as `#rrggbb`, is the one kittui draws its pill on; it is empty where the catalogue gives none.
 
 ## Where tutorials live
 
