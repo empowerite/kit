@@ -111,6 +111,10 @@ type Model struct {
 	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
 	me            string                 // the caller's login, once kit has said it, which a filter's @me matches
 	asked         bool                   // whether kit has been asked for the caller's login
+	quotas        []kit.Quota            // each forge's rate limits on the caller, as kit last read them
+	quoting       bool                   // whether kit is reading the rate limits now
+	quotaOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
+	quotaSerial   int                    // the last read's, which the tick it waits on names
 	browse        func(url string) error // opens a page in the browser
 	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
 	noted         bool                   // whether the notice says what was done, rather than why it was not
@@ -209,8 +213,9 @@ func (m Model) Interrupted() bool { return m.interrupted }
 func (m Model) Close() { m.cancel() }
 
 // Update takes a message, as update does; then a name typed for Save As… or Rename… on a preset line that no longer
-// has the keyboard is dropped, so the line does not come back to it; and a notice that says what was done, new, goes
-// after Fades, unless a key or another notice took its place first.
+// has the keyboard is dropped, so the line does not come back to it; a stage that loaded has the rate limits read
+// again; and a notice that says what was done, new, goes after Fades, unless a key or another notice took its place
+// first.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if f, ok := msg.(fadedMsg); ok {
 		if f.serial == m.fades && m.notice == m.fading {
@@ -220,6 +225,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	next, cmd := m.update(msg)
 	n := next.(Model)
+	if _, ok := msg.(loadedMsg); ok {
+		// a load spends the rate limits: they are read again
+		cmd = tea.Batch(cmd, n.askQuota())
+	}
 	if !n.onPreset {
 		for i := range n.stages {
 			n.stages[i].savingAs, n.stages[i].naming, n.stages[i].renaming = false, "", ""
@@ -262,6 +271,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if in := m.find("incoming").in; in != nil && in.Fetched {
 			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
 			return m, m.reloads()
+		}
+	case quotaMsg:
+		return m, m.tookQuota(msg)
+	case quotaTickMsg:
+		if msg.serial == m.quotaSerial {
+			return m, m.askQuota()
 		}
 	case meMsg:
 		if msg.err == nil {

@@ -142,6 +142,18 @@ func (p Path) Line(width int) string {
 	return " " + ansi.Truncate(line, room, cut)
 }
 
+// LineWith draws the keys bar as Line does, with what stands at its right end, as each forge's rate limit, against the
+// screen's right edge and a cell short of it: the keys keep the bar's room first, so the right end is drawn only where
+// it fits after them, two cells apart.
+func (p Path) LineWith(width int, right string) string {
+	line := p.Line(width)
+	used, needs := ansi.StringWidth(line), ansi.StringWidth(right)
+	if right == "" || used+2+needs > width-1 {
+		return line
+	}
+	return line + strings.Repeat(" ", width-1-used-needs) + right
+}
+
 // merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by a
 // middle dot, no space either side, as esc and enter both leave the search: esc·⏎ back. A key a deeper control takes
 // is gone from the run already.

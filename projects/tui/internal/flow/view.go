@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -34,12 +35,13 @@ type line struct {
 
 // View draws the title and, on its right, the search; the bar; the selected stage's pane, the rows the width of the
 // screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on the alternate screen,
-// with the mouse on for the bar. A screen too short for all of them keeps the bar, and cuts the rest from the bottom.
+// with the mouse on for the bar, and each forge's rate limit at the keys bar's right end. A screen too short for all of
+// them keeps the bar, and cuts the rest from the bottom.
 func (m Model) View() tea.View {
 	lines := append([]string{m.titled()}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.float(m.overlay(m.overLegend(append(lines, ""))))
-	bottom := m.keys().Line(m.width)
+	bottom := m.keys().LineWith(m.width, quotaText(m.quotas, time.Now()))
 	switch {
 	case m.notice != "" && m.noted:
 		bottom = " " + pane.Clip(m.notice, m.width-1)

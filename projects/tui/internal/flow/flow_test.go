@@ -68,16 +68,20 @@ func drive(m Model, msgs ...tea.Msg) Model {
 	return m
 }
 
-// faded says a notice's time is up, which drive never feeds back, so a test sees what a notice says; a test of the
-// fading sends it itself.
+// faded says a notice's time is up, or the rate limits' minute, which drive never feeds back, so a test sees what a
+// notice says and the screen reads the limits once; a test of either sends it itself.
 func faded(msg tea.Msg) bool {
-	_, ok := msg.(fadedMsg)
-	return ok
+	switch msg.(type) {
+	case fadedMsg, quotaTickMsg:
+		return true
+	}
+	return false
 }
 
-// TestMain waits no time for a notice to fade, as drive runs the wait's command in place.
+// TestMain waits no time for a notice to fade, nor for the rate limits' minute, as drive runs each wait's command in
+// place.
 func TestMain(m *testing.M) {
-	fades = 0
+	fades, quotaEvery = 0, 0
 	os.Exit(m.Run())
 }
 
@@ -195,14 +199,17 @@ func cursor(m Model) string {
 // squeeze gives a line with each run of spaces one space, as a tab's count right-aligned in it reads.
 func squeeze(s string) string { return regexp.MustCompile(` +`).ReplaceAllString(s, " ") }
 
-// calls reads the words of every kit call the fake recorded.
+// calls reads the words of every kit call the fake recorded but the rate limits' reads, which each load brings, and
+// quota_test counts.
 func calls(t *testing.T, path string) []string {
 	t.Helper()
 	got, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
-	return strings.Split(strings.TrimSpace(string(got)), "\n")
+	return slices.DeleteFunc(strings.Split(strings.TrimSpace(string(got)), "\n"), func(c string) bool {
+		return c == "flow --quota"
+	})
 }
 
 func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {

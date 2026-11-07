@@ -227,6 +227,36 @@ func (r Runner) Me(ctx context.Context) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// Quota is one forge's rate limits on the caller, as kit flow --quota gives them: the forge, as kit names it, and each
+// limit.
+type Quota struct {
+	Forge  string  `json:"forge"`
+	Limits []Limit `json:"limits"`
+}
+
+// Limit is one rate limit: its name, as the forge gives it, how many it allows, how many are left, and when it resets,
+// in seconds since the epoch, or none where the forge does not say.
+type Limit struct {
+	Name      string `json:"name"`
+	Limit     int    `json:"limit"`
+	Remaining int    `json:"remaining"`
+	Reset     int64  `json:"reset"`
+}
+
+// Quota asks kit for the caller's rate limits on each forge kit flow reads, as kit flow --quota prints them; reading
+// them costs a request of each forge at most. ctx ends it with the screen.
+func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "flow", "--quota")
+	if err != nil {
+		return nil, err
+	}
+	var quotas []Quota
+	if err := json.Unmarshal(out, &quotas); err != nil {
+		return nil, fmt.Errorf("kit flow --quota: %w", err)
+	}
+	return quotas, nil
+}
+
 // waitDelay is how long Status waits, once ctx has ended, for kit to die and its pipes to close before the pipes
 // are closed for it.
 const waitDelay = 2 * time.Second

@@ -28,6 +28,23 @@ func TestEachControlsKeysStandBetweenRules(t *testing.T) {
 	}
 }
 
+// What stands at the bar's right end ends a cell short of the screen's edge, and gives way to the keys: too narrow for
+// both, the keys stand alone, whole.
+func TestTheRightEndStandsAfterTheKeysWhereBothFit(t *testing.T) {
+	path := Path{ScreenKeys(Bind("?", "legend")), {}, rows}
+	keys := ansi.Strip(path.Line(80))
+	got := ansi.Strip(path.LineWith(60, "🐙 4871/5000"))
+	if !strings.HasPrefix(got, keys) || !strings.HasSuffix(got, "🐙 4871/5000") || ansi.StringWidth(got) != 59 {
+		t.Errorf("the right end: %q, %d cells", got, ansi.StringWidth(got))
+	}
+	if got := ansi.Strip(path.LineWith(ansi.StringWidth(keys)+12, "🐙 4871/5000")); got != keys {
+		t.Errorf("too narrow for both: %q", got)
+	}
+	if got := path.LineWith(80, ""); got != path.Line(80) {
+		t.Errorf("nothing at the right end: %q", got)
+	}
+}
+
 func TestADeeperControlHidesTheKeysItTakes(t *testing.T) {
 	for _, c := range []struct {
 		name string
