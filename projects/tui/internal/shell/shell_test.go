@@ -36,7 +36,7 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help|Flow||Refresh All|Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Flow|Help||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on, the tutorials, and the rules
@@ -56,7 +56,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 2}, {"down", 5}, {"down", 7}, {"down", 7}, {"up", 5}, {"w", 0}, {"q", 7}, {"z", 7}} {
+	}{{"down", 3}, {"down", 5}, {"down", 7}, {"down", 7}, {"up", 5}, {"w", 0}, {"q", 7}, {"z", 7}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -107,7 +107,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
-	if m, c := m.Click(3, Top+4, 60); c != (Choice{}) || !m.Open {
+	if m, c := m.Click(3, Top+3, 60); c != (Choice{}) || !m.Open {
 		t.Errorf("a click on flow: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
