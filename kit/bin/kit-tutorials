@@ -21,8 +21,10 @@
 #   <tutorial>        a tutorial's id, as --json names it; it opens in the browser, with a title and link first
 #
 # KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
-# names another catalogue. Exits 0 when it printed or opened, 1 when the catalogue is missing, and 2 on a usage error,
-# or a tutorial or audience that is unknown.
+# names another catalogue.
+#
+# Exits 0 when it printed or opened, 1 when the catalogue is missing, and 2 on a usage error, or a tutorial or
+# audience that is unknown.
 #
 # see: modules/bash/tutorials.sh, modules/bash/tui.sh, docs/tutorials.md, issue #86
 

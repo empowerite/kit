@@ -52,3 +52,16 @@ catalogue() {
   run bash -c 'cd "$1" && "$2/bin/kit" generate --check kit/modules/tutorials.yml' _ "${repo_root}" "${kit_checkout}"
   [ "$status" -eq 0 ]
 }
+
+@test "where kit's source is not, the catalogue's region reprints as it stands, so generate --check holds" {
+  fresh-repo >/dev/null
+  cp -R "${kit_checkout}" kit
+  [ ! -e bin/tutorials ]
+  before=$(cat kit/modules/tutorials.yml)
+  run "${kit_root}/bin/kit" generate --check kit/modules/tutorials.yml
+  [ "$status" -eq 0 ]
+  [ "$(cat kit/modules/tutorials.yml)" = "${before}" ]
+  run "${kit_root}/bin/kit" generate kit/modules/tutorials.yml
+  [ "$status" -eq 0 ]
+  [ "$(cat kit/modules/tutorials.yml)" = "${before}" ]
+}
