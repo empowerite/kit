@@ -61,11 +61,12 @@ var screens = []struct {
 }
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
-// after kit's screens; and, as a dropdown, whether it is open, and then has the keyboard, and the item under the
-// keyboard.
+// after kit's screens, and the names of those that do nothing now, dim; and, as a dropdown, whether it is open, and
+// then has the keyboard, and the item under the keyboard.
 type Menu struct {
 	Here Screen
 	Own  []Item
+	Dim  []string
 	Dropdown
 }
 
@@ -97,11 +98,14 @@ func (m Menu) Items() []Item {
 // settingsItem is the menu's line that opens the Settings dialog.
 var settingsItem = Item{Configure, "Settings…"}
 
-// enabled says whether the menu's line k does something: the screen's own items, a screen other than the one it is
-// on, the settings, and quit; the rules never do.
+// enabled says whether the menu's line k does something: the screen's own items but those it dims, a screen other
+// than the one it is on, the settings, and quit; the rules never do.
 func (m Menu) enabled(k int) bool {
 	item := m.Items()[k]
-	if item.Name == "Quit" || item == settingsItem || slices.Contains(m.Own, item) && item.Name != "" {
+	if slices.Contains(m.Own, item) && item.Name != "" {
+		return !slices.Contains(m.Dim, item.Name)
+	}
+	if item.Name == "Quit" || item == settingsItem {
 		return true
 	}
 	for _, s := range screens {

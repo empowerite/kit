@@ -1,6 +1,7 @@
 // Watch: a stage watched loads again once its mark moves, keeping its rows and its dot until the new ones come. Watch in
-// the tab's menu watches one stage; Watch All in the app's menu every one, or none once every one is. Nothing is
-// watched at the start.
+// the tab's menu watches one stage, and reads Stop Watching while it is; Watch All in the app's menu watches every one,
+// and Stop Watching All stops them, each dim when it would do nothing. The keys bar's right end says watching while the
+// selected stage is watched. Nothing is watched at the start.
 package flow
 
 import (
@@ -13,17 +14,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// watchAllItem gives the app's menu's Watch All.
-func watchAllItem(m Model) shell.Item {
+// own gives the app's menu's own line by name, and whether it acts.
+func own(m Model, name string) (shell.Item, bool) {
 	items := m.appMenu.Items()
-	return items[slices.IndexFunc(items, func(it shell.Item) bool { return it.Name == WatchAll })]
+	k := slices.IndexFunc(items, func(it shell.Item) bool { return it.Name == name })
+	return items[k], !slices.Contains(m.appMenu.Dim, name)
 }
 
 func TestNothingIsWatchedAtTheStart(t *testing.T) {
-	m := loaded(t, options())
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for _, s := range m.stages {
 		if s.watch {
 			t.Errorf("%s is watched at the start", s.name)
@@ -32,53 +35,76 @@ func TestNothingIsWatchedAtTheStart(t *testing.T) {
 	if got := m.watchItem(m.stage); got != (shell.Item{Glyph: Unwatched, Name: WatchIt}) {
 		t.Errorf("the tab's Watch: %+v", got)
 	}
-	if got := watchAllItem(m); got.Glyph != Unwatched || m.watchingAll() {
-		t.Errorf("Watch All: %+v, watching all %v", got, m.watchingAll())
+	// Watch All acts and Stop Watching All is dim, both under Refresh All
+	if all, on := own(m, WatchAll); all.Glyph != Unwatched || !on {
+		t.Errorf("Watch All: %+v, acts %v", all, on)
 	}
-	// Watch All stands under Refresh All
+	if stop, on := own(m, StopAll); stop.Glyph != StopWatched || on {
+		t.Errorf("Stop Watching All: %+v, acts %v", stop, on)
+	}
 	items := m.appMenu.Items()
 	at := slices.IndexFunc(items, func(it shell.Item) bool { return it.Name == RefreshAll })
-	if at < 0 || items[at+1].Name != WatchAll {
+	if at < 0 || items[at+1].Name != WatchAll || items[at+2].Name != StopAll {
 		t.Errorf("the app's menu: %+v", items)
 	}
-	// a picture of no stage kittui draws watches none of them all
-	if none := New(runner(t), Options{Stages: []string{"nonesuch"}}); none.watchingAll() {
-		t.Error("a picture without a stage to watch watches them all")
+	// the keys bar's right end says nothing of Watch
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "watching") || m.watchedText() != "" {
+		t.Errorf("the keys bar with nothing watched: %q", last)
+	}
+	// a picture of no stage kittui draws has nothing to watch, nor to stop
+	none := New(runner(t), Options{Stages: []string{"nonesuch"}})
+	if _, on := own(none, WatchAll); on {
+		t.Error("Watch All acts with no stage to watch")
+	}
+	if _, on := own(none, StopAll); on {
+		t.Error("Stop Watching All acts with no stage to watch")
 	}
 	// Watch All passes over a stage kittui does not draw
 	some := New(runner(t), Options{Stages: []string{"nonesuch", "desk"}})
-	if some.watchAll(); some.stages[0].watch || !some.stages[1].watch || !some.watchingAll() {
+	if some.watchAll(true); some.stages[0].watch || !some.stages[1].watch {
 		t.Errorf("Watch All with a stage kittui does not draw: %v %v", some.stages[0].watch, some.stages[1].watch)
 	}
 }
 
-func TestWatchInTheTabsMenuWatchesTheStageOrStops(t *testing.T) {
-	m := loaded(t, options(), press(':'))
+func TestWatchInTheTabsMenuWatchesTheStageThenReadsStopWatching(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, press(':'))
 	k := item(m, WatchIt)
 	if k < 0 || !m.enabled(k) {
 		t.Fatalf("Watch is not in the tab's menu, or dim: %d", k)
 	}
 	m.tabMenu.At = k
 	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].watch || m.tabMenu.Open ||
-		m.watchItem(m.stage) != (shell.Item{Glyph: Checked, Name: WatchIt}) {
+		m.watchItem(m.stage) != (shell.Item{Glyph: StopWatched, Name: StopIt}) {
 		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].watch, m.tabMenu.Open, m.watchItem(m.stage))
 	}
-	// one stage watched is not every one
-	if watchAllItem(m).Glyph != Unwatched {
-		t.Errorf("Watch All with one stage watched: %+v", watchAllItem(m))
+	// the keys bar's right end says the stage is watched, in the accent; another stage, not watched, says nothing
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, Unwatched+" watching") ||
+		m.watchedText() != style.Tint(Unwatched+" watching") {
+		t.Errorf("the keys bar while the stage is watched: %q", last)
+	}
+	if n := drive(m, right); strings.Contains(lines(n)[len(lines(n))-1], "watching") {
+		t.Errorf("the keys bar on a stage not watched: %q", lines(n)[len(lines(n))-1])
+	}
+	// one stage watched: both of the app's Watch lines act
+	if _, on := own(m, WatchAll); !on {
+		t.Error("Watch All is dim with one stage watched")
+	}
+	if _, on := own(m, StopAll); !on {
+		t.Error("Stop Watching All is dim with one stage watched")
 	}
 	m = drive(m, press(':'))
-	m.tabMenu.At = item(m, WatchIt)
-	if m = drive(m, press(tea.KeyEnter)); m.stages[m.stage].watch {
-		t.Error("Watch again did not stop")
+	if m.tabMenu.At = item(m, StopIt); m.tabMenu.At < 0 || !m.enabled(m.tabMenu.At) {
+		t.Fatalf("Stop Watching is not in the tab's menu, or dim: %d", m.tabMenu.At)
+	}
+	if m = drive(m, press(tea.KeyEnter)); m.stages[m.stage].watch || item(m, WatchIt) < 0 {
+		t.Error("Stop Watching did not stop")
 	}
 }
 
-func TestWatchAllWatchesEveryStageOrStopsThemAll(t *testing.T) {
+func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 	m := loaded(t, options())
 	m.stages[2].watch = true
 	m.syncOwn()
-	// with some watched, Watch All watches every one
 	if cmd := m.chose(shell.Choice{Own: WatchAll}); cmd != nil {
 		m = drive(m, cmd())
 	}
@@ -87,18 +113,31 @@ func TestWatchAllWatchesEveryStageOrStopsThemAll(t *testing.T) {
 			t.Errorf("%s is not watched after Watch All", s.name)
 		}
 	}
-	if watchAllItem(m).Glyph != Checked || !m.watchingAll() || m.watchItem(4).Glyph != Checked {
-		t.Errorf("Watch All while every stage is watched: %+v", watchAllItem(m))
+	// every stage watched: Watch All is dim, Stop Watching All acts, and each tab's line reads Stop Watching
+	if _, on := own(m, WatchAll); on {
+		t.Error("Watch All acts while every stage is watched")
 	}
-	// with every one watched, it stops them all
-	m.chose(shell.Choice{Own: WatchAll})
-	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.watch }) || watchAllItem(m).Glyph != Unwatched {
-		t.Errorf("Watch All again: %+v", watchAllItem(m))
+	if _, on := own(m, StopAll); !on || m.watchItem(4).Name != StopIt {
+		t.Errorf("Stop Watching All acts %v, a tab's line %+v", on, m.watchItem(4))
 	}
-	// chosen from the app's menu by a click
-	at := slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool { return it.Name == WatchAll })
-	if m = drive(m, press('='), testkit.Click(3, shell.Top+1+at)); !m.watchingAll() || m.appMenu.Open {
-		t.Errorf("a click on Watch All: watching all %v, menu open %v", m.watchingAll(), m.appMenu.Open)
+	m.chose(shell.Choice{Own: StopAll})
+	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.watch }) {
+		t.Error("Stop Watching All left a stage watched")
+	}
+	// each chosen from the app's menu by a click; a click on one that is dim does nothing
+	click := func(m Model, name string) Model {
+		at := slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool { return it.Name == name })
+		return drive(m, press('='), testkit.Click(3, shell.Top+1+at))
+	}
+	if m = click(m, StopAll); !m.appMenu.Open {
+		t.Error("a click on the dim Stop Watching All closed the menu")
+	}
+	if m = drive(m, esc); click(m, WatchAll).find("desk").watch != true {
+		t.Error("a click on Watch All did not watch")
+	}
+	m = click(m, WatchAll)
+	if m = click(m, StopAll); m.find("desk").watch || m.appMenu.Open {
+		t.Errorf("a click on Stop Watching All: desk watched %v, menu open %v", m.find("desk").watch, m.appMenu.Open)
 	}
 }
 
@@ -148,7 +187,7 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 	m.toggleWatch(m.stage)
 	m.find("releases").stale = true
 	m.find("desk").stale, m.find("desk").loading = true, true
-	cmd = m.watchAll()
+	cmd = m.watchAll(true)
 	if cmd == nil {
 		t.Fatal("Watch All loaded no stale stage")
 	}
@@ -156,7 +195,7 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 		t.Error("releases is still stale after Watch All")
 	}
 	// a stage loading is not loaded again: watching it alone starts nothing
-	m.watchAll()
+	m.watchAll(false)
 	l := m.find("worktrees")
 	l.stale, l.loading = true, true
 	if cmd := m.toggleWatch(slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "worktrees" })); cmd != nil {

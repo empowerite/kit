@@ -75,7 +75,7 @@ func (m Model) appKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // chose does what a choice from the app's menu asks: refresh all runs every stage kittui draws again, reading the
-// forge afresh; watch all watches every stage, or stops them, as watch.go says; a screen asks kittui to show it in the picture's place, which stays as it is; and quit ends the
+// forge afresh; watch all watches every stage, and stop watching all stops them, as watch.go says; a screen asks kittui to show it in the picture's place, which stays as it is; and quit ends the
 // screen.
 func (m *Model) chose(c shell.Choice) tea.Cmd {
 	switch {
@@ -83,8 +83,8 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 		return m.quit()
 	case c.Screen != "":
 		return shell.Switch(c.Screen)
-	case c.Own == WatchAll:
-		return m.watchAll()
+	case c.Own == WatchAll, c.Own == StopAll:
+		return m.watchAll(c.Own == WatchAll)
 	case c.Own == RefreshAll:
 		m.quotaOff, m.marksOff = false, false
 		var cmds []tea.Cmd
@@ -112,7 +112,7 @@ func (m Model) enabled(k int) bool {
 	switch m.tabItems()[k].Name {
 	case "Maximize", "Restore":
 		return true
-	case "Refresh", WatchIt:
+	case "Refresh", WatchIt, StopIt:
 		return known[s.name]
 	case "Open Selected":
 		return len(m.pages()) > 0
@@ -148,7 +148,7 @@ func (m *Model) pick(k int) tea.Cmd {
 		return nil
 	case "Refresh":
 		return m.refresh(s.name)
-	case WatchIt:
+	case WatchIt, StopIt:
 		return m.toggleWatch(m.stage)
 	case "Open Selected":
 		return m.openPages(m.pages())
