@@ -322,9 +322,15 @@ func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 		More}) || m.columnLine(actGroup) != -1 || m.columnLine(actUngroup) != -1 {
 		t.Errorf("title, which sorts and cannot group: %q", got)
 	}
-	if got := names("labels"); !slices.Equal(got, []string{Hide, More}) || m.columnLine(actUp) != -1 {
-		t.Errorf("labels, which neither sorts nor groups: %q", got)
+	if got := names("labels"); !slices.Equal(got, []string{GroupIt, UngroupIt, "", Hide, More}) || m.columnLine(actUp) != -1 {
+		t.Errorf("labels, which groups and cannot sort: %q", got)
 	}
+	at := m.stage
+	m.stage = slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "builds" })
+	if got := names("commit"); !slices.Equal(got, []string{Hide, More}) {
+		t.Errorf("builds' commit, which neither sorts nor groups: %q", got)
+	}
+	m.stage = at
 	if got := names("assignees"); !slices.Contains(got, GroupIt) || !slices.Contains(got, ClearSort) ||
 		m.columnEnabled(m.columnLine(actClear)) {
 		t.Errorf("assignees, which sorts and groups, nothing sorting: %q, clear %v", got, m.columnEnabled(m.columnLine(actClear)))

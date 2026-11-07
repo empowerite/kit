@@ -73,6 +73,32 @@ func (c Cell) heading() string {
 	return ansi.Strip(c.first())
 }
 
+// groups gives the values a row groups by in the cell, raw, each once, and each as a group's heading says it: for a
+// cell of one value, its key, as heading says it; for a cell of several, each raw value with the value the row draws
+// for it, without its styles, or with them where the cell's Head says it so, as a label's pill; none, for a cell
+// without a value.
+func (c Cell) groups() (values, heads []string) {
+	if len(c.Raw) < 2 {
+		return []string{cmp.Or(c.key(), "none")}, []string{c.heading()}
+	}
+	for k, v := range c.Raw {
+		if v == "" || slices.Contains(values, v) {
+			continue
+		}
+		head := v
+		if len(c.Values) == len(c.Raw) {
+			if head = c.Values[k]; c.Head == "" {
+				head = ansi.Strip(head)
+			}
+		}
+		values, heads = append(values, v), append(heads, head)
+	}
+	if len(values) == 0 {
+		return []string{"none"}, []string{"none"}
+	}
+	return values, heads
+}
+
 // natural compares two texts as a person reads them: each run of digits by its number, the rest without regard to
 // case, so 7 comes before 31 and a2 before a10.
 func natural(a, b string) int {

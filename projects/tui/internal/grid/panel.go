@@ -450,8 +450,10 @@ func (p Panel) Heading(r Row) string {
 // ›, and how many rows they group, dim; and under it, a heading per value of each column, the groups in their values'
 // order, the larger first where the column sorts descending, and the rows in each as they came: a heading of a value,
 // an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
-// it heads, dim. A row groups by a cell's sort key, or under none when the cell has none. A row of one cell, as a
-// heading, has no value: those follow the groups. Where the panel groups by nothing, the rows stand as they came.
+// it heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values
+// groups the row under each, the same row under every heading it belongs to, nested under each pair of its values,
+// each heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups.
+// Where the panel groups by nothing, the rows stand as they came.
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
@@ -459,21 +461,6 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		if j := slices.Index(columns, name); j >= 0 {
 			at, desc = append(at, j), append(desc, p.Fields[name].Sort == Descending)
 		}
-	}
-	value := func(r Row, j int) string {
-		if j < len(r.Cells) && r.Cells[j].key() != "" {
-			return r.Cells[j].key()
-		}
-		return "none"
-	}
-	// same says whether two rows share their values down to a depth
-	same := func(a, b Row, depth int) bool {
-		for _, j := range at[:depth+1] {
-			if value(a, j) != value(b, j) {
-				return false
-			}
-		}
-		return true
 	}
 	var grouped, rest []Row
 	for _, r := range rows {
@@ -486,9 +473,35 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	if len(at) == 0 {
 		return rows
 	}
-	slices.SortStableFunc(grouped, func(a, b Row) int {
-		for k, j := range at {
-			if c := natural(value(a, j), value(b, j)); c != 0 {
+	// an entry is a row under one value of each column, as many entries as the pairs of its values
+	type entry struct {
+		row    Row
+		values []string // the raw values, a depth each
+		heads  []string // as the headings say them
+	}
+	var entries []entry
+	for _, r := range grouped {
+		partial := []entry{{row: r}}
+		for _, j := range at {
+			var c Cell
+			if j < len(r.Cells) {
+				c = r.Cells[j]
+			}
+			values, heads := c.groups()
+			var next []entry
+			for _, e := range partial {
+				for k := range values {
+					next = append(next, entry{r, append(slices.Clone(e.values), values[k]),
+						append(slices.Clone(e.heads), heads[k])})
+				}
+			}
+			partial = next
+		}
+		entries = append(entries, partial...)
+	}
+	slices.SortStableFunc(entries, func(a, b entry) int {
+		for k := range at {
+			if c := natural(a.values[k], b.values[k]); c != 0 {
 				if desc[k] {
 					return -c
 				}
@@ -497,8 +510,10 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		}
 		return 0
 	})
+	// same says whether two entries share their values down to a depth
+	same := func(a, b entry, depth int) bool { return slices.Equal(a.values[:depth+1], b.values[:depth+1]) }
 	var out []Row
-	if len(grouped) > 0 {
+	if len(entries) > 0 {
 		var titles []string
 		for _, j := range at {
 			titles = append(titles, columns[j])
@@ -507,29 +522,29 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			style.Off(strconv.Itoa(len(grouped)))
 		out = append(out, Row{Key: byFields, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 	}
-	for i, r := range grouped {
-		for depth, j := range at {
-			if i > 0 && same(grouped[i-1], r, depth) {
+	for i, e := range entries {
+		for depth := range at {
+			if i > 0 && same(entries[i-1], e, depth) {
 				continue
 			}
-			n, key := 0, byFields
-			for _, s := range grouped[i:] {
-				if !same(s, r, depth) {
+			// the rows under it, each once, though it stands under several of the values deeper
+			under := map[string]bool{}
+			for _, f := range entries[i:] {
+				if !same(f, e, depth) {
 					break
 				}
-				n++
+				under[f.row.Key] = true
 			}
-			for _, x := range at[:depth+1] {
-				key += "\x00" + value(r, x)
+			n := len(under)
+			key := byFields
+			for _, v := range e.values[:depth+1] {
+				key += "\x00" + v
 			}
-			said := "none"
-			if j < len(r.Cells) {
-				said = r.Cells[j].heading()
-			}
-			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + said + "  " + style.Off(strconv.Itoa(n))
+			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + e.heads[depth] + "  " +
+				style.Off(strconv.Itoa(n))
 			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 		}
-		out = append(out, r)
+		out = append(out, e.row)
 	}
 	return append(out, rest...)
 }

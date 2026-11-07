@@ -963,3 +963,40 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 		}
 	}
 }
+
+// A column of several values groups a row under each of its values, the same row under every heading it belongs to,
+// a heading saying its value as the row draws it; a row with none stands under none. The heading over the groups
+// counts each row once, each value's heading the rows under it. Nested, a row stands under each pair of its values.
+func TestARowOfSeveralValuesStandsUnderEachOfThem(t *testing.T) {
+	columns := []string{"id", "who", "state"}
+	row := func(id, state string, who ...string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), {Values: slices.Clone(who), Raw: slices.Clone(who)}, one(state)}}
+	}
+	rows := []Row{row("#1", "ready", "ada", "bob"), row("#2", "draft", "bob"), row("#3", "ready")}
+	texts := func(p Panel) []string {
+		var out []string
+		for _, r := range p.group(rows, columns) {
+			text := r.Key
+			if r.Aside {
+				text = ansi.Strip(r.Cells[0].first())
+			}
+			out = append(out, text)
+		}
+		return out
+	}
+	p := Panel{Groupable: map[string]bool{"who": true, "state": true}}.Grouped("who", false)
+	want := []string{"▾ who  3", "  ▾ ada  1", "#1", "  ▾ bob  2", "#1", "#2", "  ▾ none  1", "#3"}
+	if got := texts(p); !slices.Equal(got, want) {
+		t.Errorf("by who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	want = []string{"▾ state › who  3", "  ▾ draft  1", "    ▾ bob  1", "#2", "  ▾ ready  2", "    ▾ ada  1", "#1",
+		"    ▾ bob  1", "#1", "    ▾ none  1", "#3"}
+	if got := texts(p.Grouped("state", false).Grouped("who", true)); !slices.Equal(got, want) {
+		t.Errorf("by state, then who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// a heading says the value as the row draws it, its styles kept where the cell's Head says it so, as a label's pill
+	rows[0].Cells[1] = Cell{Values: []string{"👤 ada", "👤 bob"}, Raw: []string{"ada", "bob"}}
+	if got := texts(p)[1]; got != "  ▾ 👤 ada  1" {
+		t.Errorf("ada's heading: %q", got)
+	}
+}

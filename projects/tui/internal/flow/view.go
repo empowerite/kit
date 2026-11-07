@@ -273,15 +273,16 @@ func (m Model) reserve(i int) int {
 	return 2*len(strconv.Itoa(m.shown(i).all)) + 1
 }
 
-// counted gives how many of the rows are not asides.
+// counted gives how many of the rows are not asides, each once, though grouping by a column of several values stands
+// it under each.
 func counted(rows []row) int {
-	n := 0
+	seen := map[string]bool{}
 	for _, r := range rows {
 		if !r.Aside {
-			n++
+			seen[r.Key] = true
 		}
 	}
-	return n
+	return len(seen)
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its

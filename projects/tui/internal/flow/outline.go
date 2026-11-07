@@ -29,23 +29,36 @@ func (m Model) opens(every []row, j int) bool {
 	return grid.Heads(every[j]) || grid.Opens(every, m.names(m.stage), j, m.gridWidth(m.stage))
 }
 
-// reoutline gives the selected stage the outline next, and builds its rows again: the cursor stays on its row, or, once
-// that is folded away, on the nearest heading over it that shows.
+// reoutline gives the selected stage the outline next, and builds its rows again: the cursor stays on its row, under
+// the same headings, as a row grouped under several values stands under each; or, once that is folded away, on the
+// nearest heading over it that shows.
 func (m *Model) reoutline(next grid.Outline) {
 	s := &m.stages[m.stage]
-	rows := m.rows(m.stage)
-	var chain []string
-	for k := s.cursor; k >= 0 && k < len(rows); k = grid.Parent(rows, k) {
-		chain = append(chain, rows[k].Key)
+	// chain gives the keys of the node at k and of each heading over it, the node's first
+	chain := func(rows []row, k int) []string {
+		var out []string
+		for ; k >= 0 && k < len(rows); k = grid.Parent(rows, k) {
+			out = append(out, rows[k].Key)
+		}
+		return out
 	}
+	was := chain(m.rows(m.stage), s.cursor)
 	s.open = next
 	m.rebuild()
-	rows = m.rows(m.stage)
-	for _, key := range chain {
-		if k := slices.IndexFunc(rows, func(r row) bool { return r.Key == key }); k >= 0 {
-			s.cursor = k
-			break
+	rows := m.rows(m.stage)
+	// the cursor's row under the same headings, else the nearest heading over it that shows
+	found := func() int {
+		for at := range was {
+			for k := range rows {
+				if rows[k].Key == was[at] && slices.Equal(chain(rows, k), was[at:]) {
+					return k
+				}
+			}
 		}
+		return -1
+	}
+	if k := found(); k >= 0 {
+		s.cursor = k
 	}
 	m.clamp(m.stage)
 	m.fit()

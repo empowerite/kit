@@ -19,7 +19,7 @@
          "right": true, "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
          "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
-        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true, "group": true,
          "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
          "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
@@ -66,7 +66,7 @@
          "right": true, "placement": "column"},
         {"id": "by", "label": "by", "type": "person", "path": ".pr.pushed.by", "sort": true, "group": true,
          "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
-        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true, "group": true,
          "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
          "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
@@ -158,7 +158,7 @@
          "renderings": ["checks", "glyph"], "placement": "column"},
         {"id": "threads", "label": "threads", "type": "number", "path": ".unresolved", "sort": true, "glyph": "💬",
          "renderings": ["threads"], "placement": "column"},
-        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true,
+        {"id": "labels", "label": "labels", "type": "label", "path": ".labels[].name", "filter": true, "group": true,
          "renderings": ["pills", "text"], "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
          "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"}

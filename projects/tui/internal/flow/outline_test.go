@@ -168,3 +168,39 @@ func TestTheOutlinesKeysWithNothingToActOn(t *testing.T) {
 		t.Errorf("with no stage, %d selected", none.selected())
 	}
 }
+
+// Grouped by labels, a field of several values, an issue stands under each of its labels, the same row under every
+// heading: selecting it under one selects it under all, as the selection is the row's, and the tab counts it once.
+// Opening it, the cursor stays under the heading it was opened under.
+func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	count := m.count(0)
+	m.setPanel(regroup(m.panel(0), "labels"))
+	rows := m.rows(0)
+	var at []int
+	for k, r := range rows {
+		if r.Key == "#45" {
+			at = append(at, k)
+		}
+	}
+	if len(at) < 2 || m.count(0) != count {
+		t.Fatalf("#45 stands under %d headings, the count %s, was %s:\n%s", len(at), m.count(0), count, view(m))
+	}
+	// selected under its last label, it is selected under every one, each heading over it marked
+	m.stages[0].cursor, m.inRows = at[len(at)-1], true
+	m.selectRow(false)
+	marks := m.groupMarks(0)
+	for _, k := range at {
+		if p := grid.Parent(rows, k); marks[rows[p].Key] == "" {
+			t.Errorf("the heading over #45 at %d is not marked", k)
+		}
+	}
+	if m.selected() != 1 {
+		t.Errorf("%d selected, want one row", m.selected())
+	}
+	// opened under its last label, the cursor stays there, not on the first
+	m.stages[0].cursor = at[len(at)-1]
+	if m = drive(m, right); m.stages[0].cursor != at[len(at)-1] || !m.stages[0].open["#45"] {
+		t.Errorf("opened under its last label: cursor %d, want %d", m.stages[0].cursor, at[len(at)-1])
+	}
+}

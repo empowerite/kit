@@ -649,14 +649,17 @@ func (m *Model) selectAll() {
 	}
 }
 
-// selectedRows gives the selected stage's rows that are selected, of those it shows, its closed groups' too.
+// selectedRows gives the selected stage's rows that are selected, of those it shows, its closed groups' too, each once,
+// though grouping by a column of several values stands it under each.
 func (m Model) selectedRows() []row {
 	if len(m.stages) == 0 {
 		return nil
 	}
 	var out []row
+	seen := map[string]bool{}
 	for _, r := range m.every(m.stage) {
-		if m.stages[m.stage].picked[r.Key] && !r.Aside {
+		if m.stages[m.stage].picked[r.Key] && !r.Aside && !seen[r.Key] {
+			seen[r.Key] = true
 			out = append(out, r)
 		}
 	}
