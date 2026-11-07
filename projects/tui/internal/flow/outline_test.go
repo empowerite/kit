@@ -201,7 +201,8 @@ func TestTheOutlinesKeysWithNothingToActOn(t *testing.T) {
 	p.Query = "matches no row at all"
 	m.setPanel(p)
 	m.inRows = true
-	if m = drive(m, right, left, press(tea.KeySpace)); len(m.rows(0)) != 0 || m.selected() != 0 {
+	if m = drive(m, right, left, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt},
+		tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt}, press(tea.KeySpace)); len(m.rows(0)) != 0 || m.selected() != 0 {
 		t.Errorf("keys over no rows: %d rows, %d selected", len(m.rows(0)), m.selected())
 	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
