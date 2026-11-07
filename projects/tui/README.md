@@ -100,8 +100,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
     one heading that names the grouped columns, `▾ ▾ source › ▾ assignees`, and a heading per value under it. A click
     on a column's name in that heading, or ⏎ on it, drops the column's own menu, in `heading.go`, as a name in the
-    header does; its first ▾ or ▸ folds it all, and the one before each name closes every heading of that level, or
-    opens them and every heading over them. A click anywhere on a value's heading opens or closes it. A field of
+    header does; its first ▾ or ▸ folds it all, and the one before each name shows the groups down to that level and
+    nothing under it, collapsing or expanding to it. A click anywhere on a value's heading opens or closes it. A field of
     several values, as assignees or labels, groups too: a row stands under each of its values, the same row, its
     selection one.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,

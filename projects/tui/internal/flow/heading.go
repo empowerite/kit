@@ -1,6 +1,6 @@
 // The heading over the groups names their columns, and a click on a name drops the column's own menu around it, as a
 // name in the header does, and so does ⏎ with the cursor on the heading, around its first column's; the heading folds
-// by its first ▾ or ▸ alone, and each level of the groups by the ▾ or ▸ before its column's name, as foldLevel says.
+// by its first ▾ or ▸ alone; the ▾ or ▸ before a column's name shows the groups down to its level, as foldLevel says.
 // A click anywhere on a value's heading folds its rows away, or unfolds them, as one on its ▾ or ▸ does.
 package flow
 
@@ -69,18 +69,18 @@ func (m Model) levelAt(r row, x int) (int, bool) {
 	return 0, false
 }
 
-// foldLevel closes every heading of a level of the groups, from 0 the outermost, while every one stands open, as a
-// click on its ▾ asks; else, as a click on its ▸ asks, it opens them and every heading over them, so the rows stand
-// open down to the level. The cursor stays on its row, as reoutline says.
+// foldLevel shows the groups down to a level, from 0 the outermost, and nothing under it, as a click on its ▾ or ▸
+// asks: every heading over the level opens, and every heading of it closes, so its values stand listed, their rows
+// folded away. From ▾, the rows open under the level, it collapses to it; from ▸, it expands to it. The cursor stays
+// on its row, or the nearest heading over it that shows, as reoutline says.
 func (m *Model) foldLevel(depth int) {
 	s, every, level := m.stages[m.stage], m.every(m.stage), depth+2
-	open := !slices.ContainsFunc(every, func(r row) bool { return grid.Level(r) == level && !s.open.Open(r) })
 	next := maps.Clone(s.open)
 	for _, r := range every {
 		switch l := grid.Level(r); {
 		case l == level:
-			next[r.Key] = !open
-		case !open && l >= 1 && l < level:
+			next[r.Key] = false
+		case l >= 1 && l < level:
 			next[r.Key] = true
 		}
 	}
