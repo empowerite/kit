@@ -158,11 +158,7 @@ func (m *Model) pick(k int) tea.Cmd {
 	case WatchIt:
 		return m.toggleWatch(m.stage)
 	case "Open Selected":
-		var cmds []tea.Cmd
-		for _, page := range m.pages() {
-			cmds = append(cmds, m.openPage(page))
-		}
-		return tea.Batch(cmds...)
+		return m.openPages(m.pages())
 	case "Select All":
 		clear(s.picked)
 		m.selectAll()

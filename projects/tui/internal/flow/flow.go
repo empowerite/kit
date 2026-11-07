@@ -21,8 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os/exec"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -304,7 +302,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rebuild()
 		}
 	case browsedMsg:
-		if msg.err != nil {
+		switch {
+		case errors.Is(msg.err, shell.ErrNoDisplay):
+			m.notice, m.noted = msg.link(), false
+		case msg.err != nil:
 			m.notice, m.noted = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
 	case shell.SettingsMsg:
@@ -446,28 +447,44 @@ func menuFor(k tea.KeyPressMsg) (menu, app bool) {
 	return false, false
 }
 
-// browsedMsg says whether the browser was asked to open the page at url: err is why not.
+// browsedMsg says whether the browser was asked to open the page at url: err is why not, and shell.ErrNoDisplay that
+// the person is not at the machine, so the link is given to open by hand. first and more say which pages were asked
+// together: the first of them, and how many came after it.
 type browsedMsg struct {
-	url string
-	err error
+	url   string
+	err   error
+	first string
+	more  int
 }
 
-// browser is how a screen opens a page, which New gives it: the browser, as browse opens it.
-var browser = browse
-
-// browse opens a page in the browser: open on macOS, xdg-open elsewhere, without waiting for it.
-func browse(url string) error {
-	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		opener = "open"
-	}
-	return exec.Command(opener, url).Start()
-}
+// browser is how a screen opens a page, which New gives it: the browser, as shell.Browse opens it.
+var browser = shell.Browse
 
 // openPage asks the browser for the page at url.
-func (m Model) openPage(url string) tea.Cmd {
+func (m Model) openPage(url string) tea.Cmd { return m.openPages([]string{url}) }
+
+// openPages asks the browser for each page. Where the person must open them by hand, each says the first page's link
+// and how many more were asked, so what stands is the same whichever answers last.
+func (m Model) openPages(urls []string) tea.Cmd {
 	b := m.browse
-	return func() tea.Msg { return browsedMsg{url, b(url)} }
+	var cmds []tea.Cmd
+	for _, url := range urls {
+		cmds = append(cmds, func() tea.Msg { return browsedMsg{url, b(url), urls[0], len(urls) - 1} })
+	}
+	return tea.Batch(cmds...)
+}
+
+// link is the notice that gives the link of the first page, to open by hand, and says how many more were asked.
+func (msg browsedMsg) link() string {
+	text := "Open " + msg.first + " in a browser"
+	switch msg.more {
+	case 0:
+	case 1:
+		text += ", and 1 more page"
+	default:
+		text += fmt.Sprintf(", and %d more pages", msg.more)
+	}
+	return text
 }
 
 // meMsg is kit's answer to the caller's login: the login, or why it could not be read.

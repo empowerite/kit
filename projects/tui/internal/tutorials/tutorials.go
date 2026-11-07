@@ -22,11 +22,7 @@ package tutorials
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
-	"os/exec"
-	"runtime"
 	"slices"
 	"time"
 
@@ -93,7 +89,7 @@ func Open(r kit.Runner, tags []string) Model { return New(r, tags) }
 
 // New opens the screen with the cards' keyboard, reading. Init asks kit for the catalogue.
 func New(r kit.Runner, tags []string) Model {
-	m := Model{runner: r, browse: browse, tags: tags, inPane: true, width: 80, height: 24,
+	m := Model{runner: r, browse: shell.Browse, tags: tags, inPane: true, width: 80, height: 24,
 		appMenu: shell.Menu{Here: shell.Tutorials}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
@@ -319,43 +315,4 @@ func (m *Model) choose(bar tabs.Bar) {
 func (m Model) open(t kit.Tutorial) tea.Cmd {
 	b := m.browse
 	return func() tea.Msg { return browsedMsg{tutorial: t, err: b(t.URL)} }
-}
-
-// lookupEnv and goos are the environment and the system browse reads; tests set them.
-var (
-	lookupEnv = os.LookupEnv
-	goos      = runtime.GOOS
-)
-
-// errNoBrowser says the screen did not ask for a browser, as the person is not at one.
-var errNoBrowser = errors.New("no browser on this desk")
-
-// remote says whether the person is not at the machine that runs kit: over SSH, an opener would open the page on the
-// other machine, and on Linux with neither an X nor a Wayland display, xdg-open has nowhere to open it.
-func remote() bool {
-	set := func(name string) bool { v, ok := lookupEnv(name); return ok && v != "" }
-	if set("SSH_CONNECTION") || set("SSH_TTY") {
-		return true
-	}
-	return goos == "linux" && !set("DISPLAY") && !set("WAYLAND_DISPLAY")
-}
-
-// browse opens a link in the browser, as start does, without waiting for it; where the person is not at the machine, it
-// fails without running the opener, so the screen gives the link.
-func browse(url string) error {
-	if remote() {
-		return errNoBrowser
-	}
-	_, err := start(url)
-	return err
-}
-
-// start starts the opener on a link: open on macOS, xdg-open elsewhere, as flow opens a page.
-func start(url string) (*exec.Cmd, error) {
-	opener := "xdg-open"
-	if goos == "darwin" {
-		opener = "open"
-	}
-	cmd := exec.Command(opener, url)
-	return cmd, cmd.Start()
 }

@@ -105,8 +105,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
-- `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
-  the clicks that select them.
+- `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
+  and the keys and the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
