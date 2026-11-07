@@ -12,7 +12,9 @@ import (
 // Each style keeps its text as it is, and only adds the escapes that draw it; two styles draw it differently.
 func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 	styles := map[string]func(string) string{"Mark": Mark, "Gain": Gain, "Loss": Loss, "Warn": Warn, "Repo": Repo,
-		"Chosen": Chosen, "Menu": Menu, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal}
+		"Chosen": Chosen, "Menu": Menu, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal,
+		"Italic":                   func(s string) string { return Italic(s, false) },
+		"Italic, under the cursor": func(s string) string { return Italic(s, true) }}
 	drawn := map[string]string{}
 	for name, draw := range styles {
 		got := draw("kit 🏭")

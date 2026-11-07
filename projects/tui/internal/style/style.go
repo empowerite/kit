@@ -32,6 +32,7 @@ var (
 	off     = lipgloss.NewStyle().Faint(true)
 	label   = lipgloss.NewStyle().Bold(true)
 	cursor  = lipgloss.NewStyle().Reverse(true)
+	italic  = lipgloss.NewStyle().Italic(true)
 	refusal = lipgloss.NewStyle().Foreground(red)
 	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
 	tint    = lipgloss.NewStyle().Foreground(accent)
@@ -87,6 +88,15 @@ func Label(s string) string { return label.Render(s) }
 
 // Cursor draws the name under the cursor in a row of toggles: inverse.
 func Cursor(s string) string { return cursor.Render(s) }
+
+// Italic draws a name that no longer quite holds, as the preset a table has changed from: italic, and inverse too
+// while it is under the cursor.
+func Italic(s string, under bool) string {
+	if under {
+		return italic.Reverse(true).Render(s)
+	}
+	return italic.Render(s)
+}
 
 // Refusal draws the line a verb would print about an answer.
 func Refusal(s string) string { return refusal.Render(s) }

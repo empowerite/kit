@@ -3,8 +3,8 @@
 // which never change: Default, the stage as it opens, and Compact, the few columns that say what a row is. The person
 // saves others, per stage, in a file of their own, presets.json under ~/.config/kit/, so their views follow them to
 // every repository; one they named as a stage's own was named before the stage had it, and stays theirs. The preset
-// line, the rule under the stage's header, ends in the name of the view the table is set as and ▼, or ▼ alone once the
-// table differs from every view; enter, or a click on it, drops down what can be done with views, then the views to
+// line, the rule under the stage's header, ends in the name of the view the table is set as and ▼, the name in italics
+// once the table differs from every view; enter, or a click on it, drops down what can be done with views, then the views to
 // choose from. Save keeps the panel under the person's view it was set to; Save As… takes a name typed in the
 // selector's place, the person's view the line was set to typed already, and enter saves the panel under it, a view of
 // the person's own overwritten, a stage's own refused, and no name refused; Rename… takes a new name for the person's
@@ -35,9 +35,9 @@ import (
 const Opening = "Default"
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
-// down. SaveIt, SaveAs, RenameIt, and DeleteIt are the presets' menu's first items, each after its glyph, Save,
-// SavedAs, Renamed, and Deleted, which what each did says too; SavingAs and Renaming stand, dim, before the name typed
-// for Save As… and Rename….
+// down. SaveIt, SaveAs, RenameIt, and DeleteIt are the presets' menu's first items, Save and Delete after their glyphs,
+// Save and Deleted; those, and Renamed, start what each did says. SavingAs and Renaming stand, dim, before the name
+// typed for Save As… and Rename….
 const (
 	Presets  = "▼"
 	SaveIt   = "Save"
@@ -47,7 +47,6 @@ const (
 	SavingAs = "save as"
 	Renaming = "rename"
 	Save     = "💾"
-	SavedAs  = "📄"
 	Renamed  = "📝"
 	Deleted  = "🚮"
 )
@@ -585,11 +584,11 @@ func (m *Model) deletePreset() {
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
-// presetItems gives the presets' menu: Save, Save As…, Rename…, and Delete, each after its glyph, a rule, the stage's
-// own views, a rule, and the person's, the one the line names checked.
+// presetItems gives the presets' menu: Save and Delete after their glyphs, Save As… and Rename… between them without,
+// a rule, the stage's own views, a rule, and the person's, the one the line names checked.
 func (m Model) presetItems() []shell.Item {
-	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Glyph: SavedAs, Name: SaveAs}, {Glyph: Renamed, Name: RenameIt},
-		{Glyph: Deleted, Name: DeleteIt}, {}}
+	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Name: SaveAs}, {Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt},
+		{}}
 	is := m.is(m.stage)
 	for k, v := range m.views(m.stage) {
 		if k == len(m.builtins(m.stage)) {

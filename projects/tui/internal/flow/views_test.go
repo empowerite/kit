@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -126,7 +127,7 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 func TestAChipStandsForEachFilter(t *testing.T) {
 	m := onDropdown(t, "")
 	m.setPanel(m.panel(0).Shown(grid.Mine))
-	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, "@me  "+Presets) {
+	if got := presetText(m); !strings.Contains(got, "  assignees: @me") || !strings.HasSuffix(got, "@me  Default "+Presets) {
 		t.Errorf("mine: %q", got)
 	}
 	m.setPanel(m.panel(0).Shown(grid.Others))
@@ -140,7 +141,7 @@ func TestAChipStandsForEachFilter(t *testing.T) {
 	}
 }
 
-func TestChoosingAViewSetsThePanelAndAChangeDropsTheName(t *testing.T) {
+func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	m := onDropdown(t, "")
 	m = drive(m, press(tea.KeyEnter))
 	if !m.presetMenu {
@@ -166,12 +167,17 @@ func TestChoosingAViewSetsThePanelAndAChangeDropsTheName(t *testing.T) {
 		presetText(m) != "   Compact "+Presets {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
-	// a column shown again differs from every view: the line names none, ▼ alone at its right end
+	// a column shown again differs from every view: the line names the one it was set to, in italics
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
-	if got := presetText(m); m.is(0) != "" || got != "   "+Presets {
-		t.Errorf("a change names a view: %q", got)
+	if got := presetText(m); m.is(0) != "" || got != "   Compact "+Presets ||
+		!strings.Contains(m.rule(), style.Italic("Compact", true)) {
+		t.Errorf("a change does not italicize the view: %q", got)
 	}
-	if m.dropEnd() != m.dropStart()+1 || m.dropStart() < m.paneWidth()/2 {
+	if m.onPreset = false; !strings.Contains(m.rule(), style.Italic("Compact", false)) {
+		t.Errorf("off the line, the view is not in italics: %q", m.rule())
+	}
+	m.onPreset = true
+	if m.dropEnd() != m.dropStart()+len("Compact ")+1 || m.dropStart() < m.paneWidth()/2 {
 		t.Errorf("▼ from %d to %d", m.dropStart(), m.dropEnd())
 	}
 	// a stage's own view is never saved over, renamed, or deleted: those lines are dim
@@ -197,7 +203,7 @@ func TestChoosingAViewSetsThePanelAndAChangeDropsTheName(t *testing.T) {
 	if last := keysOf(m); !strings.Contains(last, "Compact is the stage's own and does not change") || m.is(0) != "" {
 		t.Errorf("save over Compact: %q", last)
 	}
-	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   "+Presets {
+	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   Compact "+Presets {
 		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
 	}
 	// the table set as another view names that one

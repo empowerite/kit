@@ -718,7 +718,7 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("the popover's keys on off: %q", keys)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); len(m.panel(0).SortKeys()) != 1 || m.panel(0).Mark("assignees") != "▲" ||
-		!strings.Contains(view(m), "sort, key 1 of 1") || presetText(m) != "   "+Presets {
+		!strings.Contains(view(m), "sort, key 1 of 1") || presetText(m) != "   Default "+Presets {
 		t.Errorf("▲ ascending: %+v\n%s", m.panel(0).SortKeys(), view(m))
 	}
 	// @me, the caller, is ada; checked, only her issue shows, and the preset line has its chip

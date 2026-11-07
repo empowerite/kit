@@ -41,11 +41,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   and leaves the old file as it is.
   - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
     rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
-    set as and ▼, or ▼ alone once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on
-    it drops down Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the
-    person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save,
-    Rename…, and Delete act on the person's preset the line was set to, and are dim on Default and Compact. What was
-    done is said in place of the keys, for five seconds or until a key; why something was not done stays until a key.
+    set as and ▼, the name in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or
+    a click on it drops down Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the
+    selector's place, the person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name
+    the same way. Save, Rename…, and Delete act on the person's preset the line was set to, and are dim on Default
+    and Compact. What was done is said in place of the keys, for five seconds or until a key; why something was not
+    done stays until a key.
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
