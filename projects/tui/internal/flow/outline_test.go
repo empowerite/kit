@@ -116,12 +116,27 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	}
 	alt := testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop()+1)
 	alt.Mod = tea.ModAlt
-	// source's heading closed, as left left it: an option-click on its ▸ opens everything under it, and another closes it
-	if m = drive(m, alt); len(m.rows(0)) != all {
-		t.Fatalf("an option-click on source's ▸: %d rows of %d", len(m.rows(0)), all)
+	// source's heading closed, as left left it, everything under it open: an option-click on its ▸ opens it, a level,
+	// so all shows again; each option-click on its ▾ then closes the deepest open level under it, the rows first, then
+	// the assignees' headings, then the heading itself
+	if m = drive(m, alt); len(m.rows(0)) != all || openRows(m) == 0 {
+		t.Fatalf("an option-click on source's ▸: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
 	}
-	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].open[m.every(0)[1].Key] {
-		t.Errorf("a second option-click: %d rows", len(m.rows(0)))
+	if m = drive(m, alt); len(m.rows(0)) != all || openRows(m) != 0 {
+		t.Fatalf("an option-click on its ▾: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
+	}
+	if m = drive(m, alt); len(m.rows(0)) >= all || !m.stages[0].open.Open(m.every(0)[1]) {
+		t.Fatalf("a second option-click: %d rows of %d", len(m.rows(0)), all)
+	}
+	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].open.Open(m.every(0)[1]) {
+		t.Errorf("a third option-click: %d rows", len(m.rows(0)))
+	}
+	// an option-click on a level's fold in the heading over the groups does as a click there
+	spots := m.headingNames(m.rows(0)[0])
+	level := testkit.Click(spots[len(spots)-1].until+1, m.rowsTop())
+	level.Mod = tea.ModAlt
+	if m = drive(m, level); len(m.rows(0)) != all {
+		t.Errorf("an option-click on the rows' fold: %d rows of %d", len(m.rows(0)), all)
 	}
 }
 

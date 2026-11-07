@@ -3,7 +3,7 @@
 // under the cursor, or, on a heading already open, steps into its first row; left closes it, or, on a node closed or one
 // that hides nothing, steps out to the heading over it; with option, right opens one level more under it, as grow
 // says, and left closes the deepest open level under it, as peel says, a level each press. A click on the ▸ or ▾ of a
-// heading or a row opens or closes it, and with option everything under it. The tab's menu
+// heading or a row opens or closes it, and with option a level under it, as option with right or left does. The tab's menu
 // expands and collapses everything, or, while rows are selected, the selection: the selected rows expanded with the
 // groups they stand in, or collapsed, or every other row collapsed and every group without a selected row folded. A
 // selection reaches into a group: space on its heading selects every row in it, or none once all are, and its mark says

@@ -1160,8 +1160,9 @@ func (m *Model) down(n int) {
 // page in the browser; one on the ▸ or ▾ of a row's first line, or of a heading, as foldAt says, and there alone,
 // opens it, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; in the
 // heading over the groups, one on a column's name drops its menu, and one on the ▾ or ▸ before the name shows the
-// groups down to its level. With subtree, as option asks, everything under the row or the heading opens or closes
-// with it. A click on a … line, or on a line about the stage, does nothing.
+// groups down to its level. With subtree, as option asks, a click on a ▸ opens one level more under the node, as grow
+// says, and one on a ▾ closes the deepest open level under it, as peel says, a level each click, as option with right
+// or left does. A click on a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
@@ -1192,7 +1193,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	name, onName := m.nameAt(rows[row], x)
 	level, onLevel := m.levelAt(rows[row], x)
 	switch {
-	case onLevel && !subtree:
+	case onLevel:
 		m.foldLevel(level)
 		m.fit()
 	case onName && !subtree:
@@ -1203,8 +1204,14 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	case link != "":
 		m.fit()
 		return m.openPage(link)
+	case fold && subtree && s.open.Open(rows[row]):
+		m.peel()
+		m.fit()
+	case fold && subtree:
+		m.grow()
+		m.fit()
 	case fold:
-		m.disclose(!s.open.Open(rows[row]), subtree)
+		m.disclose(!s.open.Open(rows[row]), false)
 		m.fit()
 	default:
 		m.fit()
