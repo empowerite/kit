@@ -3,7 +3,7 @@
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────
    id  source     assignees  age  title                                               ╭─ backlog╭─ assignees ──────────╮
-   ───────────────────────────────────────────────────────────────────────────────────│   column│ filter               │
+   ───────────────────────────────────────────────────────────────────────────────────│   field │ filter               │
  ▸ #7  🐙 github  👤 ada +1  40d  🎫 Fix the thing                                    │ ☑ id    │ ⦿ include  ⦾ exclude │
                                                                                       │ ☑ source│ ☑ @me ada            │
                                                                                       │ ☑ assign│ ☐ ada                │

@@ -83,12 +83,13 @@ func (m Model) columnsLine(id string) string {
 	return box + " " + pane.Pad(label, labelCells, false) + pane.Pad(sort, sortCells, false) + group
 }
 
-// columnsBox gives the columns dialog's lines, titled by the stage, the headings of its cells dim over its fields, a
-// rule under the groups; the line under the keyboard on the menu's color; and the screen line and column it is drawn
-// from: under the header's right end, its right edge at the pane's.
+// columnsBox gives the columns dialog's lines, titled by the stage's fields, as it lists the groups and the hidden
+// too, the headings of its cells dim over its fields, a rule under the groups; the line under the keyboard on the
+// menu's color; and the screen line and column it is drawn from: under the header's right end, its right edge at the
+// pane's.
 func (m Model) columnsBox() (lines []string, top, left int) {
 	p := m.panel(m.stage)
-	body := []string{style.Off("  " + pane.Pad("column", labelCells, false) + pane.Pad("sort", sortCells, false) + "group")}
+	body := []string{style.Off("  " + pane.Pad("field", labelCells, false) + pane.Pad("sort", sortCells, false) + "group")}
 	groups := len(p.Groups())
 	for k, id := range m.colsListed() {
 		if k == groups && groups > 0 {
@@ -100,7 +101,7 @@ func (m Model) columnsBox() (lines []string, top, left int) {
 		}
 		body = append(body, line)
 	}
-	lines = shell.Dialog(m.stages[m.stage].name+" columns", body, m.paneWidth())
+	lines = shell.Dialog(m.stages[m.stage].name+" fields", body, m.paneWidth())
 	return lines, paneTop, max(0, m.paneWidth()-ansi.StringWidth(lines[0]))
 }
 

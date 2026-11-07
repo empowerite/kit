@@ -45,8 +45,8 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	}
 	box, top, left := m.columnsBox()
 	text := ansi.Strip(strings.Join(box, "\n"))
-	if top != paneTop || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog columns") ||
-		!strings.Contains(text, "column") || !strings.Contains(text, grid.Ticked+" assignees") ||
+	if top != paneTop || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog fields") ||
+		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
 		!strings.Contains(text, "▼") || !strings.Contains(text, grid.Unticked+" organization") ||
 		!strings.Contains(keysOf(m), "s sort") {
 		t.Errorf("the dialog at %d, %d:\n%s\n%q", top, left, text, keysOf(m))
