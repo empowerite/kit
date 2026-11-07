@@ -642,7 +642,7 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 
 // broken gives a value in lines of so many cells: broken at spaces, after a dash or a slash, and inside a word only
 // where one is wider. The dash or the slash a line breaks after may stand past the limit ansi.Wordwrap is given, so it
-// is given one cell less.
+// is given one cell less. A style that runs across a break goes on, as pane.Restyle carries it.
 func broken(v string, width int) []string {
 	if ansi.StringWidth(v) <= width {
 		return []string{v}
@@ -651,7 +651,7 @@ func broken(v string, width int) []string {
 	for _, l := range strings.Split(ansi.Wordwrap(v, max(width-1, 1), "-/"), "\n") {
 		out = append(out, strings.Split(ansi.Hardwrap(l, max(width, 1), true), "\n")...)
 	}
-	return out
+	return pane.Restyle(out)
 }
 
 // wrapped gives a cell's text broken into lines of so many cells, every value after the first on lines of its own.

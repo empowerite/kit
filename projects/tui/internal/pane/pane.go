@@ -5,6 +5,7 @@ package pane
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -165,19 +166,55 @@ func Cells(line string, from, to int) string {
 }
 
 // Break wraps a text as Wrap does, then breaks a word wider than the width across lines, so no line is wider and none
-// of the text is lost.
+// of the text is lost, its styles carried as Restyle carries them.
 func Break(text string, width int) []string {
 	width = max(width, 10)
 	var out []string
 	for _, l := range Wrap(text, width) {
 		out = append(out, strings.Split(ansi.Hardwrap(l, width, false), "\n")...)
 	}
-	return out
+	return Restyle(out)
 }
 
 // Wrap breaks a text at spaces into lines no wider than the width, in cells, and never narrower than ten. A word wider
-// than the width stands alone. A text without a word gives no line.
+// than the width stands alone. A text without a word gives no line. A style that runs across a break goes on, each
+// line drawn as Restyle draws it.
 func Wrap(text string, width int) []string {
+	return Restyle(wrap(text, width))
+}
+
+// sgr is a sequence that sets how text is drawn: its color, bold, dim, and the like.
+var sgr = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
+
+// Restyle gives the lines one text was broken into each drawn as it was in the text: a style still on where a line
+// ends is turned off there and on again where the next line starts, so a line drawn apart, as in its own column, keeps
+// it. Lines with no style are as they were.
+func Restyle(lines []string) []string {
+	if len(lines) == 0 {
+		return lines
+	}
+	carried := ""
+	out := make([]string, len(lines))
+	for k, l := range lines {
+		on := carried
+		for _, seq := range sgr.FindAllString(l, -1) {
+			if params := seq[2 : len(seq)-1]; params == "" || params == "0" {
+				on = ""
+			} else {
+				on += seq
+			}
+		}
+		out[k] = carried + l
+		if on != "" {
+			out[k] += "\x1b[m"
+		}
+		carried = on
+	}
+	return out
+}
+
+// wrap breaks a text as Wrap says, its styles where the text has them.
+func wrap(text string, width int) []string {
 	width = max(width, 10)
 	var lines []string
 	current := ""

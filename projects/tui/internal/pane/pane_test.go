@@ -243,3 +243,20 @@ func TestPadFillsToTheWidthOnEitherSide(t *testing.T) {
 		t.Errorf("Width = %d", got)
 	}
 }
+
+// A style that runs across a break goes on on the next line, turned off where each line ends, so a line drawn apart, as
+// a value broken in its column, keeps it; a line after the style ends, and a text with none, are as they were.
+func TestAStyleRunsOnAcrossABreak(t *testing.T) {
+	const dim, bold, off = "\x1b[2m", "\x1b[1m", "\x1b[m"
+	got := Restyle([]string{dim + "jeffrey-", "aguilera" + off + " and", bold + "more", "still" + off, "plain"})
+	want := []string{dim + "jeffrey-" + off, dim + "aguilera" + off + " and", bold + "more" + off, bold + "still" + off,
+		"plain"}
+	for k := range want {
+		if got[k] != want[k] {
+			t.Errorf("line %d: %q, want %q", k, got[k], want[k])
+		}
+	}
+	if lines := Wrap(dim+"a title long enough to break"+off, 12); lines[1] != dim+"enough to"+off {
+		t.Errorf("wrapped: %q", lines)
+	}
+}
