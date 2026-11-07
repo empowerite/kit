@@ -262,7 +262,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 11}, right, right, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, right, right, right)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}

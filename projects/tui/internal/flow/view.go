@@ -56,7 +56,7 @@ func (m Model) View() tea.View {
 		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
 	}
 	lines = append(lines, m.pane()...)
-	lines = m.float(m.overlay(m.overLegend(append(lines, ""))))
+	lines = m.float(m.overlay(m.overLegend(lines)))
 	right := quotaText(m.quotas, time.Now())
 	if watched := m.watchedText(); watched != "" {
 		right = strings.TrimSpace(watched + "  " + right)
@@ -92,8 +92,9 @@ func (m Model) bar() tabs.Bar {
 	return b
 }
 
-// paneHeight gives the lines the pane has: the screen's from top on, but the gap and the keys bar under it.
-func (m Model) paneHeight() int { return max(1, m.height-m.top()-2) }
+// paneHeight gives the lines the pane has: the screen's from top on, but the keys bar under it, which follows the
+// pane's last line at once.
+func (m Model) paneHeight() int { return max(1, m.height-m.top()-1) }
 
 // titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
 func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }

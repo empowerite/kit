@@ -393,7 +393,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
+	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 8}, right, right, right, down, down, down)
 	if m.find("worktrees").cursor != 2 || !strings.Contains(lines(m)[m.top()], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").cursor, view(m))
 	}
@@ -951,12 +951,12 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, down)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 8}, right, right, right, down, down, down)
 	got := lines(m)
-	if len(got) != 9 {
-		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
+	if len(got) != 8 {
+		t.Fatalf("%d lines on a screen of 8:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(keysFor(m, opens)) {
+	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[7] != " "+at80(keysFor(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -969,7 +969,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if !strings.Contains(view(m), "?? notes.md") || !strings.Contains(view(m), style.Opened) {
 		t.Errorf("the open row's detail is not shown with its row:\n%s", view(m))
 	}
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 9})
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 8})
 	// a page is the pane less one row: two rows here
 	m = drive(m, press(tea.KeyPgUp))
 	if !m.inRows || m.find("worktrees").cursor != 0 {
@@ -1093,10 +1093,10 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 9}, right, right, right, down, down, toggle)
 	got := lines(m)
-	if len(got) != 10 || got[9] != " "+at80(keysFor(m, closes)) {
-		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
+	if len(got) != 9 || got[8] != " "+at80(keysFor(m, closes)) {
+		t.Fatalf("the screen is not 9 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)
 	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 4 more") ||
@@ -1189,10 +1189,10 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 }
 
 func TestAnOpenCheckoutFillsThePaneAndPagesThroughEveryCommit(t *testing.T) {
-	m := loaded(t, options(), right, right, down, toggle, tea.WindowSizeMsg{Width: 80, Height: 12})
+	m := loaded(t, options(), right, right, down, toggle, tea.WindowSizeMsg{Width: 80, Height: 11})
 	got := lines(m)
-	// the pane runs to the gap above the keys bar, its last line counting what is below
-	if len(got) != 12 || !strings.Contains(got[9], "more") || strings.TrimSpace(got[10]) != "" {
+	// the pane runs to the keys bar, its last line, right over it, counting what is below
+	if len(got) != 11 || !strings.Contains(got[9], "more") {
 		t.Fatalf("the open desk does not fill the pane:\n%s", view(m))
 	}
 	for range 5 {
