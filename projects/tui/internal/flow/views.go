@@ -538,8 +538,8 @@ func (m *Model) saveAs(name string) {
 	m.done(Save + " saved the preset " + name)
 }
 
-// renamePreset gives the person's view being renamed the name typed for Rename…: none, a stage's own, and another of
-// theirs are refused, and the same name leaves it as it is. The line names it by its new name.
+// renamePreset gives the person's view being renamed, which stays while the line has the keyboard, the name typed for
+// Rename…: none, a stage's own, and another of theirs are refused, and the same name leaves it as it is. The line names it by its new name.
 func (m *Model) renamePreset() {
 	s := &m.stages[m.stage]
 	from, name := s.renaming, strings.TrimSpace(s.naming)
@@ -555,7 +555,7 @@ func (m *Model) renamePreset() {
 	case name != from && slices.ContainsFunc(saved, func(v preset) bool { return v.Name == name }):
 		m.notice, m.noted = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
 		return
-	case k < 0 || name == from:
+	case name == from:
 		s.savingAs, s.naming, s.renaming = false, "", ""
 		return
 	}
@@ -570,12 +570,10 @@ func (m *Model) renamePreset() {
 	m.done(Renamed + " renamed the preset " + from + " to " + name)
 }
 
-// deletePreset drops the person's view the line was set to, and sets the stage as Default.
+// deletePreset drops the person's view the line was set to, as choosePreset has it only while there is one, and sets
+// the stage as Default.
 func (m *Model) deletePreset() {
-	v, ok := m.own()
-	if !ok {
-		return
-	}
+	v, _ := m.own()
 	saved := slices.DeleteFunc(slices.Clone(m.saved[m.stages[m.stage].name]), func(w preset) bool {
 		return w.Name == v.Name
 	})

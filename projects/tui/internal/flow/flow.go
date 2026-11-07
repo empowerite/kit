@@ -230,10 +230,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	next, cmd := m.update(msg)
-	n, ok := next.(Model)
-	if !ok {
-		return next, cmd
-	}
+	n := next.(Model)
 	if !n.onPreset {
 		for i := range n.stages {
 			n.stages[i].savingAs, n.stages[i].naming, n.stages[i].renaming = false, "", ""

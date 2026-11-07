@@ -593,3 +593,52 @@ func TestANoticeOfWhatWasDoneFades(t *testing.T) {
 		t.Errorf("a refusal faded: %q", m.notice)
 	}
 }
+
+// Rename… with no name is refused, and with the same name stops, the view as it was; Rename… and Delete that cannot
+// write the file say so and change nothing, as does a file that cannot be written beside or replaced; Delete on a
+// stage's own view does nothing.
+func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "presets.json")
+	m := onDropdown(t, file)
+	if m.choosePreset(itemDelete); m.is(0) != Opening || m.notice != "" {
+		t.Errorf("Delete on Default: %q", m.notice)
+	}
+	m.choosePreset(itemSaveAs)
+	m.stages[0].naming = "Mine"
+	m = drive(m, press(tea.KeyEnter))
+	rename := func(name string) Model {
+		m.choosePreset(itemRename)
+		m.stages[0].naming = name
+		return drive(m, press(tea.KeyEnter))
+	}
+	if m = rename(" "); !strings.Contains(m.notice, "needs a name") || !m.stages[0].savingAs {
+		t.Errorf("rename to nothing: %q", m.notice)
+	}
+	m = drive(m, esc)
+	if m = rename("Mine"); m.stages[0].savingAs || m.stages[0].viewName != "Mine" || strings.Contains(m.notice, "renamed") {
+		t.Errorf("rename to the same name: naming %v, %q", m.stages[0].savingAs, m.notice)
+	}
+	m.presetsPath = filepath.Join(file, "under-a-file", "presets.json")
+	if m = rename("Yours"); !strings.Contains(m.notice, "could not be renamed") || m.stages[0].viewName != "Mine" {
+		t.Errorf("rename, unwritable: %q", m.notice)
+	}
+	m = drive(m, esc)
+	if m.choosePreset(itemDelete); !strings.Contains(m.notice, "could not be deleted") || m.stages[0].viewName != "Mine" {
+		t.Errorf("delete, unwritable: %q", m.notice)
+	}
+	// the file cannot be written beside, as a directory stands where it would be; or replaced, as it is a directory
+	blocked := filepath.Join(dir, "blocked.json")
+	if err := os.MkdirAll(filepath.Join(blocked+".new", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writePresets(blocked, nil); err == nil {
+		t.Error("a file written where a directory stands")
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "taken.json", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writePresets(filepath.Join(dir, "taken.json"), nil); err == nil {
+		t.Error("a directory replaced by the file")
+	}
+}
