@@ -141,8 +141,7 @@ type Model struct {
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
 	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
-	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
-	menuAt        int                    // the tab's menu's item under the keyboard
+	tabMenu       shell.Dropdown         // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
 	maximized     bool                   // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
 	pop           popover                // a field's popover, which has the keyboard while it is open
@@ -367,7 +366,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.recent = m.recent.Opened()
 			return m, nil
 		}
-		if m.legend.open && !m.menu && !m.appMenu.Open && m.ask == nil && m.legendClick(msg.X, msg.Y) {
+		if m.legend.open && !m.tabMenu.Open && !m.appMenu.Open && m.ask == nil && m.legendClick(msg.X, msg.Y) {
 			return m, nil
 		}
 		switch {
@@ -375,7 +374,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.paneWidth())
 			return m, m.chose(c)
-		case m.menu && msg.Button == tea.MouseLeft:
+		case m.tabMenu.Open && msg.Button == tea.MouseLeft:
 			return m, m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			return m, m.dropDown(false)
@@ -432,7 +431,7 @@ func (m *Model) dropDown(app bool) tea.Cmd {
 		return nil
 	}
 	m.openMenu()
-	if !m.menu || m.stages[m.stage].name != "backlog" {
+	if !m.tabMenu.Open || m.stages[m.stage].name != "backlog" {
 		return nil
 	}
 	return m.askMe()
@@ -743,7 +742,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.appMenu.Open {
 		return m.appKey(k)
 	}
-	if m.menu {
+	if m.tabMenu.Open {
 		return m.menuKey(k)
 	}
 	if m.inPanel {

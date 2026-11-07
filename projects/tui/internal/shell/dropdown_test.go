@@ -75,4 +75,11 @@ func TestADropdownTakesAClickOnALineOrOffItsBox(t *testing.T) {
 			t.Errorf("%s: chosen %d, open %v; want %d, %v", c.name, chosen, d.Open, c.chosen, c.open)
 		}
 	}
+	// scrolled to show two lines from Bravo on, the box's first line is Bravo, and a line past the two is off it
+	if d, chosen := (Dropdown{Open: true}).ClickIn(12, 6, 5, 10, 12, 3, 2, lines, acts); chosen != 3 || d.Open {
+		t.Errorf("a click on a scrolled box's first line: chosen %d, open %v", chosen, d.Open)
+	}
+	if d, chosen := (Dropdown{Open: true}).ClickIn(12, 8, 5, 10, 12, 3, 2, lines, acts); chosen != -1 || d.Open {
+		t.Errorf("a click past a scrolled box's lines: chosen %d, open %v", chosen, d.Open)
+	}
 }

@@ -30,7 +30,7 @@ func choose(t *testing.T, m Model, name string) Model {
 	if k < 0 || !m.enabled(k) {
 		t.Fatalf("%s is not in the menu, or dim: %d", name, k)
 	}
-	m.menuAt = k
+	m.tabMenu.At = k
 	return drive(m, press(tea.KeyEnter))
 }
 
@@ -204,7 +204,7 @@ func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 		t.Errorf("the links: %q", got)
 	}
 	m = drive(m, press(':'))
-	m.menuAt = item(m, "Copy Links")
+	m.tabMenu.At = item(m, "Copy Links")
 	next, cmd := m.Update(press(tea.KeyEnter))
 	if m = next.(Model); cmd == nil || !strings.Contains(ansi.Strip(lines(m)[len(lines(m))-1]), "copied 2 links") {
 		t.Errorf("copy links: %q", lines(m)[len(lines(m))-1])
@@ -222,7 +222,7 @@ func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) 
 		strings.Contains(ansi.Strip(box[0]), "▴") {
 		t.Fatalf("the menu at the top: %d lines, first %d\n%s", len(box), first, view(m))
 	}
-	m.menuAt = item(m, "Open Selected")
+	m.tabMenu.At = item(m, "Open Selected")
 	box, left, first := m.menuBoxIn()
 	if first == 0 || !strings.Contains(ansi.Strip(box[0]), "▴") || strings.Contains(ansi.Strip(box[len(box)-1]), "▾") {
 		t.Errorf("the menu at the end: first %d\n%s", first, view(m))
@@ -237,8 +237,8 @@ func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) 
 	// a click on the box's bottom edge picks nothing
 	m = drive(m, press(':'))
 	box, left, _ = m.menuBoxIn()
-	if m = drive(m, testkit.Click(left+3, m.menuTop()+len(box)-1)); m.menu || len(acted(t, record)) != 1 {
-		t.Errorf("a click on the edge: menu %v, calls %q", m.menu, acted(t, record))
+	if m = drive(m, testkit.Click(left+3, m.menuTop()+len(box)-1)); m.tabMenu.Open || len(acted(t, record)) != 1 {
+		t.Errorf("a click on the edge: menu %v, calls %q", m.tabMenu.Open, acted(t, record))
 	}
 }
 

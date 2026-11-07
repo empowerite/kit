@@ -58,17 +58,17 @@ func TestWatchInTheTabsMenuWatchesTheStageOrStops(t *testing.T) {
 	if k < 0 || !m.enabled(k) {
 		t.Fatalf("Watch is not in the tab's menu, or dim: %d", k)
 	}
-	m.menuAt = k
-	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].watch || m.menu ||
+	m.tabMenu.At = k
+	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].watch || m.tabMenu.Open ||
 		m.watchItem(m.stage) != (shell.Item{Glyph: Checked, Name: WatchIt}) {
-		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].watch, m.menu, m.watchItem(m.stage))
+		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].watch, m.tabMenu.Open, m.watchItem(m.stage))
 	}
 	// one stage watched is not every one
 	if watchAllItem(m).Glyph != Unwatched {
 		t.Errorf("Watch All with one stage watched: %+v", watchAllItem(m))
 	}
 	m = drive(m, press(':'))
-	m.menuAt = item(m, WatchIt)
+	m.tabMenu.At = item(m, WatchIt)
 	if m = drive(m, press(tea.KeyEnter)); m.stages[m.stage].watch {
 		t.Error("Watch again did not stop")
 	}

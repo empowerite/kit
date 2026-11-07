@@ -23,7 +23,7 @@ func maximize(t *testing.T, m Model) Model {
 	t.Helper()
 	m = drive(m, press(':'))
 	for range 3 {
-		if name := m.tabItems()[m.menuAt].Name; name == "Maximize" || name == "Restore" {
+		if name := m.tabItems()[m.tabMenu.At].Name; name == "Maximize" || name == "Restore" {
 			return drive(m, press(tea.KeyEnter))
 		}
 		m = drive(m, press(tea.KeyDown))
@@ -35,14 +35,14 @@ func maximize(t *testing.T, m Model) Model {
 func TestTheTabsMenusFirstSectionIsRefreshWatchAndMaximize(t *testing.T) {
 	m := drive(loaded(t, viewing("")), press(':'))
 	if got := m.tabItems()[:4]; got[0].Name != "Refresh" || got[1].Name != WatchIt || got[2].Glyph != Maximize ||
-		got[2].Name != "Maximize" || got[3].Name != "" || !m.enabled(2) || m.menuAt != 0 {
-		t.Fatalf("the tab's menu's first section: %+v, the keyboard on %d", got, m.menuAt)
+		got[2].Name != "Maximize" || got[3].Name != "" || !m.enabled(2) || m.tabMenu.At != 0 {
+		t.Fatalf("the tab's menu's first section: %+v, the keyboard on %d", got, m.tabMenu.At)
 	}
 	if ansi.StringWidth(Maximize) != 1 || ansi.StringWidth(Restore) != 1 || ansi.StringWidth(Banner) != 1 {
 		t.Errorf("a glyph is not one cell: %q %q %q", Maximize, Restore, Banner)
 	}
-	if m = maximize(t, loaded(t, viewing(""))); !m.maximized || m.menu {
-		t.Fatalf("Maximize: maximized %v, menu %v", m.maximized, m.menu)
+	if m = maximize(t, loaded(t, viewing(""))); !m.maximized || m.tabMenu.Open {
+		t.Fatalf("Maximize: maximized %v, menu %v", m.maximized, m.tabMenu.Open)
 	}
 	if m = drive(m, press(':')); m.tabItems()[2].Glyph != Restore || m.tabItems()[2].Name != "Restore" {
 		t.Errorf("maximized, the tab's menu's third item is %+v", m.tabItems()[2])
@@ -151,7 +151,7 @@ func TestClicksFollowTheTop(t *testing.T) {
 	if glyph < 0 || ansi.Cut(lines(m)[0], glyph, glyph+1) != tabs.Menu {
 		t.Fatalf("the title's ⋮ at %d: %q", glyph, lines(m)[0])
 	}
-	if m = drive(m, testkit.Click(glyph, 0)); !m.menu {
+	if m = drive(m, testkit.Click(glyph, 0)); !m.tabMenu.Open {
 		t.Fatalf("a click on the title's ⋮:\n%s", raw(m))
 	}
 	if box, left := m.menuBox(); left != glyph-2 || m.menuTop() != 0 ||
@@ -161,8 +161,8 @@ func TestClicksFollowTheTop(t *testing.T) {
 	}
 	_, left := m.menuBox()
 	// Restore is the menu's third line, after Refresh and Watch, under its top edge on the title's line
-	if m = drive(m, testkit.Click(left+3, 3)); m.maximized || m.menu {
-		t.Errorf("a click on Restore: maximized %v, menu %v", m.maximized, m.menu)
+	if m = drive(m, testkit.Click(left+3, 3)); m.maximized || m.tabMenu.Open {
+		t.Errorf("a click on Restore: maximized %v, menu %v", m.maximized, m.tabMenu.Open)
 	}
 }
 
@@ -173,10 +173,10 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 	if m.kebab() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
 		t.Fatalf("the ⋮ at %d: %q", m.kebab(), lines(m)[0])
 	}
-	if m = drive(m, testkit.Click(m.titleWidth()-1, 0)); m.menu {
+	if m = drive(m, testkit.Click(m.titleWidth()-1, 0)); m.tabMenu.Open {
 		t.Errorf("a click on the clipped title dropped the menu")
 	}
-	if m = drive(m, press(':')); !m.menu {
+	if m = drive(m, press(':')); !m.tabMenu.Open {
 		t.Fatalf(": did not drop the menu")
 	}
 	if box, left := m.menuBox(); left+ansi.StringWidth(box[0]) != m.paneWidth() {

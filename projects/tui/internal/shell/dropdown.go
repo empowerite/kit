@@ -47,9 +47,16 @@ func (d Dropdown) Key(k tea.KeyPressMsg, items []Item, enabled func(int) bool, c
 // another line of the box, it does nothing; off the box, it closes the dropdown. It gives the dropdown and the line
 // chosen, -1 for none.
 func (d Dropdown) Click(x, y, top, left, width int, items []Item, enabled func(int) bool) (Dropdown, int) {
+	return d.ClickIn(x, y, top, left, width, 0, len(items), items, enabled)
+}
+
+// ClickIn takes a click as Click does, on a box that scrolls: its lines between the edges show so many of the lines,
+// from first on.
+func (d Dropdown) ClickIn(x, y, top, left, width, first, shown int, items []Item, enabled func(int) bool) (Dropdown,
+	int) {
 	k := y - top - 1
-	if x > left && x < left+width-1 && k >= 0 && k < len(items) {
-		return d.choose(k, items, enabled)
+	if x > left && x < left+width-1 && k >= 0 && k < shown {
+		return d.choose(first+k, items, enabled)
 	}
 	d.Open = false
 	return d, -1

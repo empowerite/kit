@@ -101,8 +101,8 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 	all := len(m.rows(0))
 	choose := func(m Model, name string) Model {
 		m = drive(m, press(':'))
-		if m.menuAt = item(m, name); m.menuAt < 0 || !m.enabled(m.menuAt) {
-			t.Fatalf("%s is not in the menu, or dim: %d", name, m.menuAt)
+		if m.tabMenu.At = item(m, name); m.tabMenu.At < 0 || !m.enabled(m.tabMenu.At) {
+			t.Fatalf("%s is not in the menu, or dim: %d", name, m.tabMenu.At)
 		}
 		return drive(m, press(tea.KeyEnter))
 	}

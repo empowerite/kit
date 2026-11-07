@@ -75,7 +75,7 @@ func (m Model) View() tea.View {
 // panel have it, its view where it was left, the selected stage's group's color, and a dot on each stage that is stale.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Scroll: m.barView,
-		Width: m.width, Row: 1, Menus: true, MenuOpen: m.menu}
+		Width: m.width, Row: 1, Menus: true, MenuOpen: m.tabMenu.Open}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}
@@ -139,7 +139,7 @@ func (m Model) keys() shell.Path {
 		keys := shell.MenuKeys()
 		keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)
 		return shell.Path{keys}
-	case m.headMenu.open, m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.headMenu.open, m.presetMenu, m.recent.Open, m.tabMenu.Open, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")

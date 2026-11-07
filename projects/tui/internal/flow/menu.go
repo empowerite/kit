@@ -53,23 +53,16 @@ func (m Model) tabItems() []shell.Item {
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.
 func (m *Model) openMenu() {
 	if len(m.stages) > 0 {
-		m.menu, m.menuAt = true, shell.Move(m.tabItems(), m.enabled, -1, 1)
+		m.tabMenu = m.tabMenu.Opened(m.tabItems(), m.enabled)
 	}
 }
 
-// menuKey takes a key while the tab's menu is open.
+// menuKey takes a key while the tab's menu is open, as a dropdown does, : and ; closing it as esc does, and does what
+// the item chosen says.
 func (m Model) menuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch key := k.String(); key {
-	case "up":
-		m.menuAt = shell.Move(m.tabItems(), m.enabled, m.menuAt, -1)
-	case "down":
-		m.menuAt = shell.Move(m.tabItems(), m.enabled, m.menuAt, 1)
-	case "enter", "space":
-		return m, m.pick(m.menuAt)
-	case "esc", ":", ";":
-		m.menu = false
-	default:
-		m.menuAt = shell.NextItem(m.tabItems(), m.enabled, m.menuAt, k.Text)
+	var chosen int
+	if m.tabMenu, chosen = m.tabMenu.Key(k, m.tabItems(), m.enabled, ":", ";"); chosen >= 0 {
+		return m, m.pick(chosen)
 	}
 	return m, nil
 }
@@ -140,7 +133,7 @@ func (m *Model) pick(k int) tea.Cmd {
 		return nil
 	}
 	s := &m.stages[m.stage]
-	m.menu = false
+	m.tabMenu.Open = false
 	if action, _ := m.acting(m.tabItems()[k].Name); action {
 		return m.act(m.tabItems()[k].Name)
 	}
@@ -211,7 +204,7 @@ func (m Model) menuBox() (lines []string, left int) {
 // menuBoxIn gives the tab's menu's lines as menuBox does, and the first item they show: the box ends above the keys
 // bar, and a menu taller than the room scrolls with the keyboard.
 func (m Model) menuBoxIn() (lines []string, left, first int) {
-	return shell.BoxIn(m.tabItems(), m.enabled, m.menuAt, tabs.Menu, m.kebab(), m.paneWidth(),
+	return shell.BoxIn(m.tabItems(), m.enabled, m.tabMenu.At, tabs.Menu, m.kebab(), m.paneWidth(),
 		max(3, m.height-1-m.menuTop()))
 }
 
@@ -249,7 +242,7 @@ func (m *Model) maximize(on bool) {
 // overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
 // backlog action asks, over the rows' top. The rest are drawn after the title's search, by float.
 func (m Model) overlay(lines []string) []string {
-	if m.menu {
+	if m.tabMenu.Open {
 		box, left := m.menuBox()
 		lines = shell.Over(lines, box, m.menuTop(), left)
 	}
@@ -265,11 +258,13 @@ func (m Model) overlay(lines []string) []string {
 func (m *Model) menuClick(x, y int) tea.Cmd {
 	box, left, first := m.menuBoxIn()
 	// the lines between the box's edges show the items from first on
-	if k := y - m.menuTop() - 1; x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(box)-2 {
-		return m.pick(first + k)
+	var chosen int
+	m.tabMenu, chosen = m.tabMenu.ClickIn(x, y, m.menuTop(), left, ansi.StringWidth(box[0]), first, len(box)-2,
+		m.tabItems(), m.enabled)
+	if chosen < 0 {
+		return nil
 	}
-	m.menu = false
-	return nil
+	return m.pick(chosen)
 }
 
 // float draws what floats over the screen, over the menus and the legend: the presets' menu under the preset line; the columns dialog; a field's popover; the column and heading menus; and the searches

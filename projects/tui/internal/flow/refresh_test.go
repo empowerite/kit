@@ -115,7 +115,7 @@ func TestRefreshInTheTabsMenuRunsItsStageAndTheStagesThatShareItsRead(t *testing
 		m = choose(t, m, "Refresh")
 		got := calls(t, record)
 		slices.Sort(got)
-		if !slices.Equal(got, c.want) || m.menu {
+		if !slices.Equal(got, c.want) || m.tabMenu.Open {
 			t.Errorf("refresh on %s ran %q, not %q", c.stage, got, c.want)
 		}
 	}
