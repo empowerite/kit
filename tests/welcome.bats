@@ -35,16 +35,6 @@ check() {
   checks | jq --compact-output --arg id "$1" '.[] | select(.id == $id)'
 }
 
-# pty <command> runs the command in a pseudo-terminal, so its stdin, stdout, and stderr are terminals, as at a desk.
-pty() {
-  if script --version >/dev/null 2>&1
-  then
-    script --quiet --return --command "$1" /dev/null </dev/null
-  else
-    script -q /dev/null bash -c "$1" </dev/null
-  fi
-}
-
 # fake-gh writes a gh that runs, and is logged in to github.com once its login has run: auth login touches a file,
 # and auth status succeeds while the file is there. Every call is recorded in gh.calls. With LOGIN_FAILS set, the
 # login changes nothing.

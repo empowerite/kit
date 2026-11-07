@@ -258,6 +258,16 @@ without-kittui() {
   printf '%s%s\n' "${dir}" "${out}"
 }
 
+# pty <command> runs the command in a pseudo-terminal, so its stdin, stdout, and stderr are terminals, as at a desk.
+pty() {
+  if script --version >/dev/null 2>&1
+  then
+    script --quiet --return --command "$1" /dev/null </dev/null
+  else
+    script -q /dev/null bash -c "$1" </dev/null
+  fi
+}
+
 # fake-tools <tool>… stands tests/fakes/fake-tool in for each tool, first on PATH, with an empty route file each, and
 # exports FAKE_DIR, where fixture and route write and the fake records its calls.
 fake-tools() {

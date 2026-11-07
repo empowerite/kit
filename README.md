@@ -119,6 +119,9 @@ taken the kit, `kit check` says every delivered file matches the release.
 New to a repository that uses kit? Run `kit welcome`. It checks your tools, your code forge logins, and the repository,
 and shows the fix for each problem. Then it walks you through how work flows, the terms, and what a team can change.
 
+`kit tutorials` lists kit's tutorials, by who each is for, and opens one in the browser; see
+[docs/tutorials.md](docs/tutorials.md).
+
 ## Take the kit
 
 1. Run `kit install` with the packages you want. The `kit` package, the entry file and the rules, is the default:
