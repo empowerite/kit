@@ -49,7 +49,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     done stays until a key.
   - The sidebar is the field editor: under the search, each field in one of three sections, group by, columns, and
     hidden. ⇧↑↓ or a drag moves a field within its section, or across a heading into the next, and space hides a field
-    or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
+    or shows it again. Whether shared values fold into a group's heading, and whether shared emoji show, are kittui's
+    settings, in = Settings…, every view's alike.
   - ⏎ on a field opens its popover: the checklist of values its filter lets through or holds back, for an enum or a
     person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on a column's
     name drops down its menu, around the name, as ≡'s and ⋮'s hang around theirs: its sort, a radio that shows it,

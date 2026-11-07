@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
 
 // fieldIn gives a stage's field by its id.
@@ -189,13 +190,17 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	if !strings.Contains(raw(m), GitHub+" github") {
 		t.Errorf("source pinned to glyph+text:\n%s", raw(m))
 	}
-	// the panel showing the emoji every row shares draws each again, and a preset keeps it so
-	p.Glyphs = true
-	m.setPanel(p)
-	if got := m.shown(0).drawn; got["source"] != "glyph+text" || got["assignees"] != "glyph+text" ||
-		!presetOf(m.panel(0), fieldsOf("backlog")).Glyphs || m.is(0) != "" {
+	// kittui's setting to show the emoji every row shares draws each again, in every view: the table is still as its
+	// preset sets it
+	setting := shell.Settings{FoldShared: true, SharedEmoji: true}
+	n, _ := m.Update(shell.SettingsMsg{Settings: setting})
+	m = n.(Model)
+	if got := m.shown(0).drawn; got["source"] != "glyph+text" || got["assignees"] != "glyph+text" || !m.panel(0).Glyphs {
 		t.Errorf("shared emoji shown: %v", got)
 	}
+	setting.SharedEmoji = false
+	n, _ = m.Update(shell.SettingsMsg{Settings: setting})
+	m = n.(Model)
 	changes := slices.Index(eight, "changes")
 	at := func(width int) map[string]string {
 		m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: width, Height: 24})

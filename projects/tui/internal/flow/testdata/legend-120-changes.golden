@@ -12,14 +12,11 @@
                                                                                            │ ☑ branch
                                                                                            │ hidden
                                                                                            │
-                                                                                           │ ☑ fold shared values
-                                                                                           │ ☐ show shared emoji
-                                                                                           │
-                                                                                           ▸ legend
-                                                                                           ╷ 🔀 a pull request 🔗
+                                                                                           │ legend
+                                                                                           │ 🔀 a pull request 🔗
                                                                                            │ 👤 assignees or author
-                                                                                           │ 🌿 a branch or a worktree
-                                                                                           │ 🏃 running
+                                                                                           ▸ 🌿 a branch or a worktree
+                                                                                           ╷ 🏃 running
                                                                                            │ ✅ passed
                                                                                            │ ❌ failed
                                                                                            │ 💬 threads unresolved
@@ -28,5 +25,8 @@
                                                                                            │
                                                                                            │ state 🔗
                                                                                            │ 🔨 draft
-                                                                                           │ … 8 more
+                                                                                           │ 🚦 queued
+                                                                                           │ 💥 conflicted
+                                                                                           │ 🔥 failing:gate
+                                                                                           │ … 5 more
  = menu / search ? hide sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu

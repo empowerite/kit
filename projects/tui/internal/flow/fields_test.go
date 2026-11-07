@@ -215,7 +215,7 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
-		g.Showing() != grid.Others || !g.Fold || g.Field("branch").Rendering != "text" {
+		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {
 		t.Errorf("the panel: %q %+v", got, g.Fields)
 	}
 	back := presetOf(g, fields)
@@ -223,9 +223,9 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		back.Fields["source"] != (setting{Placement: placeGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}
-	// the stage's own: Default shows every column, folding; Compact, the few that say what a row is
+	// the stage's own: Default shows every column; Compact, the few that say what a row is
 	builds := catalog["builds"]
-	if d := builds.Presets[0].panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening || !d.Fold ||
+	if d := builds.Presets[0].panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
 		hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}) != nil {
 		t.Errorf("Default: %+v", d.Fields)
 	}

@@ -36,8 +36,21 @@ type Model struct {
 // New gives the root showing the screen first, made already, as kittui opened on it, with the settings kittui's file
 // keeps.
 func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
-	return Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
+	root := Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
 		settings: shell.LoadSettings(shell.SettingsFile())}
+	root.made[first], _ = m.Update(shell.SettingsMsg{Settings: root.settings})
+	return root
+}
+
+// told gives every screen made the settings, after the dialog changed one, and what they start.
+func (m Model) told() (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	for to := range m.made {
+		var cmd tea.Cmd
+		_, cmd = m.deliver(to, shell.SettingsMsg{Settings: m.settings})
+		cmds = append(cmds, cmd)
+	}
+	return m, tea.Batch(cmds...)
 }
 
 // Shown gives the screen shown, as the program ended on it.
@@ -77,21 +90,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		m.refusal = ""
 		if m.dialog.Open && msg.String() != "ctrl+c" {
-			shown := m.settings.KeysBar
-			if m.dialog, m.settings = m.dialog.Key(msg, m.settings); m.settings.KeysBar != shown && m.size != nil {
-				// the keys bar shown or hidden: the screen has its line, or gives it back
-				return m.deliver(m.here, m.sized())
-			}
-			return m, nil
+			was := m.settings
+			m.dialog, m.settings = m.dialog.Key(msg, m.settings)
+			return m.changed(was)
 		}
 	case tea.MouseClickMsg:
 		if m.dialog.Open {
-			shown := m.settings.KeysBar
-			if m.dialog, m.settings = m.dialog.Click(msg, m.settings, m.height(), m.width()); m.settings.KeysBar != shown &&
-				m.size != nil {
-				return m.deliver(m.here, m.sized())
-			}
-			return m, nil
+			was := m.settings
+			m.dialog, m.settings = m.dialog.Click(msg, m.settings, m.height(), m.width())
+			return m.changed(was)
 		}
 	case tea.MouseMsg:
 		if m.dialog.Open {
@@ -99,6 +106,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m.deliver(m.here, msg)
+}
+
+// changed follows a setting the dialog changed from was: the keys bar shown or hidden, the screen shown has its line,
+// or gives it back; another, every screen made is told.
+func (m Model) changed(was shell.Settings) (tea.Model, tea.Cmd) {
+	switch {
+	case m.settings.KeysBar != was.KeysBar && m.size != nil:
+		return m.deliver(m.here, m.sized())
+	case m.settings != was:
+		return m.told()
+	}
+	return m, nil
 }
 
 // deliver gives a message to a screen made, and tags what it starts as that screen's.
@@ -131,7 +150,8 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.made[to], m.here = s, to
-	cmds := []tea.Cmd{tag(to, s.Init())}
+	_, told := m.deliver(to, shell.SettingsMsg{Settings: m.settings})
+	cmds := []tea.Cmd{tag(to, s.Init()), told}
 	if m.size != nil {
 		_, cmd := m.deliver(to, m.sized())
 		cmds = append(cmds, cmd)

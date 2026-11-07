@@ -179,3 +179,37 @@ func TestAClickFlipsASettingAndOneOutsideTheDialogClosesIt(t *testing.T) {
 	}
 	m.Close()
 }
+
+// told records the settings a screen is told.
+type told struct{ settings []shell.Settings }
+
+func (t told) Init() tea.Cmd { return nil }
+
+func (t told) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if s, ok := msg.(shell.SettingsMsg); ok {
+		t.settings = append(t.settings, s.Settings)
+	}
+	return t, nil
+}
+
+func (t told) View() tea.View { return tea.NewView("") }
+
+// A screen is told kittui's settings when it is made, and again whenever the dialog flips one but the keys bar, which
+// the root follows itself, so a table folds and draws as they say in every view.
+func TestEveryScreenIsToldTheSettings(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := New(testkit.Runner(t, "kit"), shell.Flow, told{})
+	if got := m.made[shell.Flow].(told).settings; len(got) != 1 || !got[0].FoldShared {
+		t.Fatalf("made: %+v", got)
+	}
+	m, _ = testkit.Drive(m, nil, tea.WindowSizeMsg{Width: 120, Height: 30}, shell.SwitchMsg{Screen: shell.SettingsScreen},
+		tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if got := m.made[shell.Flow].(told).settings; len(got) != 2 || got[1].FoldShared {
+		t.Errorf("Fold shared values flipped: %+v", got)
+	}
+	// the keys bar flipped is the root's own: the screen is told its size, not the settings
+	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyUp}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	if got := m.made[shell.Flow].(told).settings; len(got) != 2 {
+		t.Errorf("the keys bar flipped told the screen: %+v", got)
+	}
+}

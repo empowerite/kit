@@ -770,13 +770,10 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 	return out
 }
 
-// control is one of the panel's controls: the search, a field's line in the editor, whether the panel folds, or
-// whether it shows the emoji every row shares.
+// control is one of the panel's controls: the search, or a field's line in the editor.
 type control struct {
 	search bool
 	field  string
-	fold   bool
-	glyphs bool
 }
 
 // sections are the editor's sections, top to bottom, each a placement, and the dim heading over each, by placement.
@@ -821,9 +818,8 @@ func (p Panel) section(at Placement) []string {
 	return out
 }
 
-// controls gives the panel's controls, in order: the search; while the stage has fields with a name, each field in its
-// section, as section gives them; where a field can group, whether the panel folds; and whether it shows the emoji
-// every row shares.
+// controls gives the panel's controls, in order: the search, and, while the stage has fields with a name, each field in
+// its section, as section gives them.
 func (p Panel) controls() []control {
 	out := []control{{search: true}}
 	if !slices.ContainsFunc(p.Columns, func(id string) bool { return id != "" }) {
@@ -834,20 +830,11 @@ func (p Panel) controls() []control {
 			out = append(out, control{field: id})
 		}
 	}
-	if len(p.Groupable) > 0 {
-		out = append(out, control{fold: true})
-	}
-	return append(out, control{glyphs: true})
+	return out
 }
 
-// Filtered is the mark after a field's label in the editor while a filter on it holds rows back; Folds the label of the
-// control that says whether the panel folds a value every row of a group shares into the group's heading; and Emoji
-// the label of the one that says whether it shows the emoji every row shares.
-const (
-	Filtered = "⊘"
-	Folds    = "fold shared values"
-	Emoji    = "show shared emoji"
-)
+// Filtered is the mark after a field's label in the editor while a filter on it holds rows back.
+const Filtered = "⊘"
 
 // drawnLine is one line of the panel, as layout draws it: its text; the control it draws, or -1; and for a section's
 // heading, the section, which a field dragged onto it moves to the top of.
@@ -882,20 +869,6 @@ func (p Panel) layout() []drawnLine {
 			draw(k, p.fieldLine(controls[k].field))
 			k++
 		}
-	}
-	if k < len(controls) {
-		add("", -1)
-	}
-	for ; k < len(controls); k++ {
-		label, on := Emoji, p.Glyphs
-		if controls[k].fold {
-			label, on = Folds, p.Fold
-		}
-		line := style.Off(Unticked) + " " + label
-		if on {
-			line = style.Mark(Ticked + " " + label)
-		}
-		draw(k, line)
 	}
 	if p.Focused {
 		add("", -1)
@@ -983,7 +956,7 @@ func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
 			step = -1
 		}
 		p, _ = p.Step(c.field, step)
-	case c.field != "" && key == "space", (c.fold || c.glyphs) && (key == "space" || key == "enter"):
+	case c.field != "" && key == "space":
 		p = p.act(c)
 	default:
 		return p, false
@@ -999,42 +972,30 @@ func (p Panel) Under() string {
 
 // Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
 // there are some; a field's line hides it, or shows it, with space, moves it with shift and up or down, where it can
-// move that way, and opens its popover with enter, which the screen draws; whether the panel folds, or shows the emoji
-// every row shares, toggles with space or enter.
+// move that way, and opens its popover with enter, which the screen draws.
 func (p Panel) Keys(recalls bool) shell.Segment {
 	controls := p.controls()
-	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
-	case c.search:
+	c := controls[min(max(p.Cursor, 0), len(controls)-1)]
+	if c.search {
 		return shell.SearchKeys(recalls)
-	case c.field != "":
-		toggle := "hide"
-		if p.Fields[c.field].Placement == Hidden {
-			toggle = "show"
-		}
-		s := shell.Segment{Takes: []string{"shift+up", "shift+down"},
-			Bindings: []shell.Binding{shell.Bind("␣", toggle, "space")}}
-		var moves []string
-		if _, ok := p.Step(c.field, -1); ok {
-			moves = append(moves, "shift+up")
-		}
-		if _, ok := p.Step(c.field, 1); ok {
-			moves = append(moves, "shift+down")
-		}
-		if len(moves) > 0 {
-			s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "move", moves...))
-		}
-		return s.With(shell.Bind("⏎", "options", "enter"))
 	}
-	does := "fold"
-	switch c := controls[min(max(p.Cursor, 0), len(controls)-1)]; {
-	case c.glyphs && p.Glyphs:
-		does = "hide"
-	case c.glyphs:
-		does = "show"
-	case p.Fold:
-		does = "unfold"
+	toggle := "hide"
+	if p.Fields[c.field].Placement == Hidden {
+		toggle = "show"
 	}
-	return shell.Segment{Bindings: []shell.Binding{shell.Bind("␣", does, "space", "enter")}}
+	s := shell.Segment{Takes: []string{"shift+up", "shift+down"},
+		Bindings: []shell.Binding{shell.Bind("␣", toggle, "space")}}
+	var moves []string
+	if _, ok := p.Step(c.field, -1); ok {
+		moves = append(moves, "shift+up")
+	}
+	if _, ok := p.Step(c.field, 1); ok {
+		moves = append(moves, "shift+down")
+	}
+	if len(moves) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "move", moves...))
+	}
+	return s.With(shell.Bind("⏎", "options", "enter"))
 }
 
 // Click takes a click on a line of the panel, as Lines numbers them, and says whether it fell on a control: the
@@ -1076,23 +1037,12 @@ func (p Panel) Find() Panel {
 }
 
 // act toggles a field's box, hiding a column or a group, which then leaves the groups, and showing a hidden field as a
-// column where it stood; toggles whether the panel shows the emoji every row shares; or toggles whether it folds, and
-// with it the columns the rows group by on their own.
+// column where it stood.
 func (p Panel) act(c control) Panel {
-	switch {
-	case c.field != "" && p.Fields[c.field].Placement == Hidden:
+	if p.Fields[c.field].Placement == Hidden {
 		return p.Placed(c.field, Column).follow(c.field)
-	case c.field != "":
-		return p.Placed(c.field, Hidden).follow(c.field)
-	case c.glyphs:
-		p.Glyphs = !p.Glyphs
-		return p
 	}
-	p.Fold = !p.Fold
-	if !p.Fold {
-		p.Auto, p.AutoAt = nil, nil
-	}
-	return p
+	return p.Placed(c.field, Hidden).follow(c.field)
 }
 
 // follow gives the panel with the keyboard on a field's line, wherever it stands now.

@@ -113,12 +113,14 @@ func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
-// unfold has the selected stage's panel fold no longer, so a column the rows group by on their own, as the source,
-// one tracker's on every row, is a column again.
-func unfold(m *Model) {
-	p := m.panel(m.stage)
-	p.Fold = false
-	m.setPanel(p)
+// unfold has the tables fold no longer, as kittui's settings say once Fold shared values is off, so a column the rows
+// group by on their own, as the source, one tracker's on every row, is a column again.
+func unfold(m *Model) { folding(m, false) }
+
+// folding has the tables fold, or not, as kittui's settings say.
+func folding(m *Model, on bool) {
+	n, _ := m.Update(shell.SettingsMsg{Settings: shell.Settings{KeysBar: true, FoldShared: on}})
+	*m = n.(Model)
 }
 
 // hiddenOf gives the fields a panel hides, in their order.
@@ -1646,6 +1648,7 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 	for i, name := range []string{"backlog", "underway"} {
 		if i > 0 {
 			m = drive(m, right)
+			folding(&m, true)
 		}
 		if l := lines(m); strings.Contains(l[paneTop], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
 			strings.Count(view(m), "github") != 1 || strings.Contains(view(m), GitHub) {

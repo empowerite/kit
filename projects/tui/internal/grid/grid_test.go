@@ -3,6 +3,7 @@ package grid
 import (
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -187,17 +188,16 @@ func plainLines(p Panel) ([]string, []int) {
 
 // Under the search, the field editor lists each field with a label, by it, once, in its section: the groups by depth,
 // the columns by position, the hidden in the stage's order, each section under its dim heading, an empty one's too. A
-// field's line marks its sort, its group, and a filter on it; whether the panel folds, and whether it shows the emoji
-// every row shares, are boxes of their own after them.
+// field's line marks its sort, its group, and a filter on it. Whether the panel folds, and whether it shows the emoji
+// every row shares, are kittui's settings, so the editor has no box for either.
 func TestThePanelDrawsItsControlsOneALine(t *testing.T) {
 	p := Panel{Columns: []string{"number", "who", "", "state", "title"}, Labels: map[string]string{"number": "#"},
 		Groupable: map[string]bool{"state": true, "who": true}, Sortable: map[string]bool{"number": true},
 		Fields: map[string]Field{"who": {Placement: Hidden, Filter: Filter{Values: []string{Caller}}},
 			"title": {Position: 1}, "number": {Sort: Descending, Priority: 1}}, Owner: "who"}
 	got, at := plainLines(p)
-	want := []string{"🔎 search", "", "group by", "columns", "☑ title", "☑ # ▼", "☑ state", "hidden", "☐ who ⊘", "",
-		"☐ " + Folds, "☐ " + Emoji}
-	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, -1, 1, 2, 3, -1, 4, -1, 5, 6}) {
+	want := []string{"🔎 search", "", "group by", "columns", "☑ title", "☑ # ▼", "☑ state", "hidden", "☐ who ⊘"}
+	if !slices.Equal(got, want) || !slices.Equal(at, []int{0, -1, -1, -1, 1, 2, 3, -1, 4}) {
 		t.Errorf("the panel:\n%s\n%v", strings.Join(got, "\n"), at)
 	}
 	// a column and a group are ticked, bold in the accent; a hidden field's box is dim; the marks are in the accent
@@ -253,23 +253,19 @@ func TestThePanelTakesKeysAndClicks(t *testing.T) {
 	if p, _ = p.Update(key(tea.KeySpace, " ")); p.Field("who").Placement != Column {
 		t.Errorf("space did not show who: %v", p.Fields)
 	}
-	// enter on a field is not the panel's; down stops at whether it shows the emoji every row shares, and space or
-	// enter toggles it, and whether it folds, just above
+	// enter on a field is not the panel's; down stops at the last field, who, a column, which space hides
 	if _, ok := p.Update(key(tea.KeyEnter, "")); ok {
 		t.Error("enter on a field was taken")
 	}
 	for range 10 {
 		p, _ = p.Update(key(tea.KeyDown, ""))
 	}
-	if p.Keys(false).Bindings[0].Does != "show" {
-		t.Errorf("the keys on the box for the emoji: %+v", p.Keys(false))
+	if p.Under() != "who" || p.Keys(false).Bindings[0].Does != "hide" {
+		t.Errorf("the keys on the last field: %q, %+v", p.Under(), p.Keys(false))
 	}
-	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Glyphs || p.Fold || p.Under() != "" || p.Keys(false).Bindings[0].Does != "hide" {
-		t.Errorf("enter on the last control: emoji %v, fold %v", p.Glyphs, p.Fold)
-	}
-	p, _ = p.Update(key(tea.KeyUp, ""))
-	if p, _ = p.Update(key(tea.KeyEnter, "")); !p.Fold || !p.Glyphs {
-		t.Errorf("enter on the box above: fold %v", p.Fold)
+	// on the search, the keys are the search's own
+	if got := (Panel{}).Keys(true); !reflect.DeepEqual(got, shell.SearchKeys(true)) {
+		t.Errorf("the keys on the search: %+v", got)
 	}
 	if q, ok := p.Click(1); ok || q.Cursor != p.Cursor {
 		t.Errorf("a click on a gap was taken")
@@ -839,7 +835,7 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	if got, auto := (Panel{Groupable: groupable, Fold: true}).group(rows[:1], columns); len(got) != 1 || auto != nil {
 		t.Errorf("one row: %q", texts(got))
 	}
-	// the panel marks a column grouping on its own dim, and its box for folding stops the folding
+	// the panel marks a column grouping on its own dim
 	q := Panel{Columns: columns, Groupable: groupable, Fold: true, Auto: []string{"source"}}
 	if lines, _ := q.Lines(); !strings.HasSuffix(lines[5], " "+style.Off(Grouping)) {
 		t.Errorf("source grouping on its own: %q", lines[5])
@@ -861,12 +857,9 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 		!strings.HasSuffix(lines[3], " "+style.Tint(Grouping+"₁")) {
 		t.Errorf("numbered by level: %q %q", lines[6], lines[3])
 	}
-	q.Focused, q.Cursor = true, len(q.controls())-2
-	if q.Keys(false).Bindings[0].Does != "unfold" {
-		t.Errorf("the keys on the box for folding: %+v", q.Keys(false))
-	}
-	if q, _ = q.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}); q.Fold || len(q.Groups()) > 0 || len(q.Auto) > 0 {
-		t.Errorf("space on the box for folding: fold %v, group %q, auto %q", q.Fold, q.Groups(), q.Auto)
+	// without the folding, no column groups the rows on its own
+	if got, auto := (Panel{Groupable: groupable}).group(rows, columns); len(got) != len(rows) || auto != nil {
+		t.Errorf("not folding: %q, auto %q", texts(got), auto)
 	}
 	// a column shown again is a column
 	q = Panel{Columns: columns, Fields: map[string]Field{"who": {Placement: Hidden}}}

@@ -61,8 +61,9 @@ const (
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
-// columns hidden, their order, the sort's keys, the groups, the columns kept from grouping on their own, whose rows it
-// shows, and whether it folds, when it does not. It said whether the headers showed, which they now always do.
+// columns hidden, their order, the sort's keys, the groups, the columns kept from grouping on their own, and whose rows
+// it shows. It said whether the headers showed, which they now always do, and whether it folded, which kittui's
+// settings now say for every view.
 type named struct {
 	Name   string    `json:"name"`
 	Hidden []string  `json:"hidden,omitempty"`
@@ -71,7 +72,6 @@ type named struct {
 	Group  []string  `json:"group,omitempty"`
 	Kept   []string  `json:"kept,omitempty"`
 	Show   string    `json:"show,omitempty"`
-	Fold   *bool     `json:"fold,omitempty"`
 }
 
 // sortKey is one of a view's sort keys: a column, and whether the larger come first.
@@ -238,7 +238,6 @@ func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
 		}
 		p.Fields[f.ID] = g
 	}
-	p.Fold, p.Glyphs = pr.Fold == nil || *pr.Fold, pr.Glyphs
 	return p
 }
 
@@ -247,8 +246,7 @@ func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
 // than the stage's, and then for every column, from 1; a group's depth and a sort's priority are numbered from 1, the
 // outermost and the first first.
 func presetOf(p grid.Panel, fields []field) preset {
-	fold := p.Fold
-	out := preset{Fold: &fold, Glyphs: p.Glyphs}
+	var out preset
 	var ids []string
 	for _, f := range fields {
 		if f.Label != "" {
@@ -319,7 +317,7 @@ func (v named) preset(stage string) (preset, []string) {
 		return fields[k].ID
 	}
 	p := grid.Panel{Groupable: groupableOf(stage), Sortable: sortableOf(stage), Owner: ownerOf(stage),
-		Fold: v.Fold == nil || *v.Fold, Fields: map[string]grid.Field{}}
+		Fields: map[string]grid.Field{}}
 	// the columns the order names stand first, in its order, the rest after them, in the stage's
 	for _, label := range v.Order {
 		if c := id(label); c != "" && p.Fields[c].Position == 0 {

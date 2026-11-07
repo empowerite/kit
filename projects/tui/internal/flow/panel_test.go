@@ -591,8 +591,8 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 
 // A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
 // tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
-// dim ▤. It follows the rows: a search that leaves one row ungroups it. The panel's box for folding, the last of its
-// controls, stops it, so it is a column again.
+// dim ▤. It follows the rows: a search that leaves one row ungroups it. kittui's setting, Fold shared values off,
+// stops it, so it is a column again.
 func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	heading := func(m Model) string {
@@ -615,13 +615,10 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// space on the box for folding stops it, through a refresh of the rows: the search, thirteen fields, then the box
-	if m = drive(m, append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 14)...)...); m.panel(m.stage).Under() != "" {
-		t.Fatalf("the panel's cursor: %d", m.panel(m.stage).Cursor)
-	}
-	if m = drive(m, press(tea.KeySpace)); heading(m) != "" || m.panel(m.stage).Fold ||
-		len(m.panel(m.stage).Groups()) > 0 || !strings.Contains(lines(m)[paneTop], "source") {
-		t.Errorf("space on the box: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
+	// kittui's setting, Fold shared values off, stops it, through a refresh of the rows
+	if unfold(&m); heading(m) != "" || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
+		!strings.Contains(lines(m)[paneTop], "source") {
+		t.Errorf("not folding: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
 	if m.rebuild(); heading(m) != "" {
 		t.Errorf("the rows built again group by source")

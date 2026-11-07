@@ -12,13 +12,13 @@
                                                                                            │ ☐ o│ ☐ bob                │
                                                                                            │ ☐ r│ ☐ jeffrey-aguilera   │
                                                                                            ▸    │ ☐ none               │
-                                                                                           ╷ ☑ f│ rendering            │
-                                                                                           │ ☐ s│ ⦿ auto glyph+text    │
+                                                                                           ╷ ⇧↑↓│ rendering            │
+                                                                                           │ ⏎  │ ⦿ auto glyph+text    │
                                                                                            │    │ ⦾ glyph+text         │
-                                                                                           │ ⇧↑↓│ ⦾ text               │
-                                                                                           │ ⏎  ╰──────────────────────╯
-                                                                                           │ 
-                                                                                           │ click a name  its menu
-                                                                                           │
-                                                                                           │ … 7 more
+                                                                                           │ cli│ ⦾ text               │
+                                                                                           │    ╰──────────────────────╯
+                                                                                           │ legend
+                                                                                           │ 🎫 an issue 🔗
+                                                                                           │ 🐙 on GitHub
+                                                                                           │ … 4 more
  esc close ↑↓ move ␣ toggle

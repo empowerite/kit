@@ -134,6 +134,8 @@ type Model struct {
 	presetsPath   string                 // that file, or none
 	presetMenu    bool                   // whether the preset line's menu of views is open
 	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
+	fold          bool                   // whether the tables fold a value every row of a group shares, as kittui's settings say
+	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	headMenu      headingMenu            // the menu a click on a group's heading drops, while it is open
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
@@ -183,7 +185,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}}
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}, fold: true}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.sideChosen = o.NoSidebar
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
@@ -288,6 +290,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.notice, m.noted = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
+	case shell.SettingsMsg:
+		m.fold, m.glyphs = msg.Settings.FoldShared, msg.Settings.SharedEmoji
+		m.rebuild()
+		m.fit()
 	case trackersMsg:
 		return m, m.newIssue(msg)
 	case actedMsg:
@@ -461,7 +467,7 @@ func (m Model) filter(i int) grid.Panel {
 	p := s.view
 	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
 	p.Labels = labelsOf(s.name)
-	p.Focused, p.Outline = m.inPanel && i == m.stage, s.open
+	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.open, m.fold, m.glyphs
 	return p
 }
 

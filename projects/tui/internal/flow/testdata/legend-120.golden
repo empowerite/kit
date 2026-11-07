@@ -12,16 +12,16 @@
                                                                                            │ ☐ organization
                                                                                            │ ☐ repository
                                                                                            │
-                                                                                           │ ☑ fold shared values
-                                                                                           │ ☐ show shared emoji
-                                                                                           │
-                                                                                           ▸ legend
-                                                                                           ╷ 🎫 an issue 🔗
+                                                                                           │ legend
+                                                                                           │ 🎫 an issue 🔗
                                                                                            │ 🐙 on GitHub
-                                                                                           │ 🦊 on GitLab
-                                                                                           │ 👤 assignees or author
+                                                                                           ▸ 🦊 on GitLab
+                                                                                           ╷ 👤 assignees or author
                                                                                            │ 🌿 a branch or a worktree
                                                                                            │ ❌ failed
+                                                                                           │
+                                                                                           │
+                                                                                           │
                                                                                            │
                                                                                            │
                                                                                            │

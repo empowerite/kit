@@ -12,13 +12,13 @@
                                                                                            │ ☐ repository
                                                                                            │ ☐ assignees ⊘
                                                                                            ▸
-                                                                                           ╷ ☑ fold shared values
-                                                                                           │ ☐ show shared emoji
-                                                                                           │
-                                                                                           │ ⇧↑↓  move, or drag
+                                                                                           ╷ ⇧↑↓  move, or drag
                                                                                            │ ⏎    filter, draw
                                                                                            │ 
                                                                                            │ click a name  its menu
                                                                                            │
-                                                                                           │ … 7 more
+                                                                                           │ legend
+                                                                                           │ 🎫 an issue 🔗
+                                                                                           │ 🐙 on GitHub
+                                                                                           │ … 4 more
  = menu / search │ 1-8 jump : tab menu │ ⇥·esc backlog ↑↓ move ⇞⇟ scroll │ ␣ hide ⇧↑↓ move ⏎ options

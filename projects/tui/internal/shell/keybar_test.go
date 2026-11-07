@@ -96,6 +96,25 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	if d, _ = d.Key(key("esc"), s); d.Open {
 		t.Error("esc did not close the dialog")
 	}
+	// shared values fold, and shared emoji are dropped, until the dialog flips them, for every view, and the file keeps
+	// what it flips
+	if !s.FoldShared || s.SharedEmoji {
+		t.Errorf("with no file: fold %v, emoji %v", s.FoldShared, s.SharedEmoji)
+	}
+	d = SettingsDialog{Open: true}
+	lines = d.Overlay(strings.Split(strings.Repeat(strings.Repeat(" ", 120)+"\n", 10), "\n"), s, 120)
+	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, style.Picked+" Fold shared values") ||
+		!strings.Contains(v, style.Unpicked+" Show shared emoji") {
+		t.Errorf("the dialog's settings:\n%s", v)
+	}
+	d, s = d.Key(key("down"), s)
+	if d, s = d.Key(key("space"), s); s.FoldShared || LoadSettings(path).FoldShared {
+		t.Errorf("space on Fold shared values: %v, saved %v", s.FoldShared, LoadSettings(path).FoldShared)
+	}
+	d, s = d.Key(key("down"), s)
+	if _, s = d.Key(key("space"), s); !s.SharedEmoji || !LoadSettings(path).SharedEmoji {
+		t.Errorf("space on Show shared emoji: %v, saved %v", s.SharedEmoji, LoadSettings(path).SharedEmoji)
+	}
 }
 
 // Keys of one control that do the same thing are drawn as one, joined by /, and a key a deeper control takes leaves the

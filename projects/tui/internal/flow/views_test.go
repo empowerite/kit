@@ -239,7 +239,6 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	m := onDropdown(t, file)
 	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age", false).Sorted("age", false).Shown(grid.Others)
 	p = p.Grouped("assignees", false)
-	p.Fold = false
 	m.setPanel(p)
 	// off Save As…, what is typed names nothing
 	if m = drive(m, typed("x")...); m.stages[0].savingAs || m.stages[0].naming != "" {
@@ -265,7 +264,9 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending
 	want := map[string]setting{"branch": {Placement: placeHidden}, "age": {Sort: "desc", Priority: 1},
 		"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}}}
-	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) || *v.Fold {
+	// whether shared values fold is kittui's setting, so the preset does not keep it
+	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) ||
+		strings.Contains(string(data), "fold") {
 		t.Errorf("the view kept: %s", data)
 	}
 	// the menu lists it after a rule
@@ -296,7 +297,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	n.presetAt = 8
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].viewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
-		n.panel(0).Fold {
+		!n.panel(0).Fold {
 		t.Errorf("Triage in another session: %+v", n.panel(0))
 	}
 }
@@ -471,10 +472,9 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 {
 		t.Fatalf("presets.json: %s, %v", data, err)
 	}
-	yes := true
 	want := map[string][]preset{
 		"backlog": {
-			{Name: "Mine", Fold: &yes, Fields: map[string]setting{
+			{Name: "Mine", Fields: map[string]setting{
 				"title":     {Placement: placeColumn, Position: 1},
 				"id":        {Placement: placeColumn, Position: 2},
 				"source":    {Placement: placeColumn, Position: 3},
@@ -482,13 +482,13 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 				"age":       {Placement: placeColumn, Position: 5, Sort: "desc", Priority: 1},
 				"branch":    {Placement: placeHidden},
 			}},
-			{Name: "Others", Fold: &yes, Fields: map[string]setting{
+			{Name: "Others", Fields: map[string]setting{
 				"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}},
 			}},
-			{Name: "All", Fold: &yes},
+			{Name: "All"},
 		},
 		"changes": {
-			{Name: "Authors", Fold: &yes, Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
+			{Name: "Authors", Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
 		},
 	}
 	if !reflect.DeepEqual(kept.Stages, want) || !reflect.DeepEqual(m.saved, want) {

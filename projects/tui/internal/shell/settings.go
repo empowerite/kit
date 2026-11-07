@@ -11,13 +11,21 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Settings are kittui's own, the same on every screen, which the Settings dialog changes and kittui's file keeps:
-// whether the keys bar shows on the screen's last line. With no file, or one that does not read, each is as kittui
-// starts, the keys bar shown.
+// Settings are kittui's own, the same on every screen and every view, which the Settings dialog changes and kittui's
+// file keeps: whether the keys bar shows on the screen's last line; whether a table folds a value every row of a group
+// shares, said once in the group's heading; and whether it draws an emoji every row shown shares, which it drops
+// otherwise. With no file, or one that does not read, each is as kittui starts: the keys bar shown, shared values
+// folded, and shared emoji dropped.
 type Settings struct {
-	Path    string `json:"-"`
-	KeysBar bool   `json:"keysBar"`
+	Path        string `json:"-"`
+	KeysBar     bool   `json:"keysBar"`
+	FoldShared  bool   `json:"foldShared"`
+	SharedEmoji bool   `json:"sharedEmoji"`
 }
+
+// SettingsMsg tells a screen the settings, when it is made and whenever the dialog changes one, so a table folds and
+// draws as they say.
+type SettingsMsg struct{ Settings Settings }
 
 // SettingsFile gives the file kittui keeps its settings in: kit/kittui.json under XDG_CONFIG_HOME, else under
 // ~/.config, beside the searches; nothing when neither is known.
@@ -27,7 +35,7 @@ func SettingsFile() string {
 
 // LoadSettings gives the settings the file keeps, each it does not keep as kittui starts.
 func LoadSettings(path string) Settings {
-	s := Settings{KeysBar: true}
+	s := Settings{KeysBar: true, FoldShared: true}
 	if data, err := os.ReadFile(path); path != "" && err == nil {
 		_ = json.Unmarshal(data, &s)
 	}
@@ -61,6 +69,12 @@ var settings = []setting{
 	{"Key bar", "shows the keys you can press now, on the bottom line",
 		func(s Settings) bool { return s.KeysBar },
 		func(s Settings) Settings { s.KeysBar = !s.KeysBar; return s }},
+	{"Fold shared values", "says a value every row of a group shares once, in the group's heading",
+		func(s Settings) bool { return s.FoldShared },
+		func(s Settings) Settings { s.FoldShared = !s.FoldShared; return s }},
+	{"Show shared emoji", "draws an emoji every row shown shares, which a table drops otherwise",
+		func(s Settings) bool { return s.SharedEmoji },
+		func(s Settings) Settings { s.SharedEmoji = !s.SharedEmoji; return s }},
 }
 
 // SettingsDialog is the dialog the app's menu's Settings… opens over the screen shown: whether it is open, which then

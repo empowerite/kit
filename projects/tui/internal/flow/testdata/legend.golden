@@ -12,13 +12,13 @@
                                                    │ ☐ organization
                                                    │ ☐ repository
                                                    ▸
-                                                   ╷ ☑ fold shared values
-                                                   │ ☐ show shared emoji
-                                                   │
-                                                   │ legend
+                                                   ╷ legend
                                                    │ 🎫 an issue 🔗
                                                    │ 🐙 on GitHub
                                                    │ 🦊 on GitLab
                                                    │ 👤 assignees or author
-                                                   │ … 2 more
+                                                   │ 🌿 a branch or a worktree
+                                                   │ ❌ failed
+                                                   │
+                                                   │
  = menu / search ? hide sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
