@@ -129,9 +129,10 @@ forge/github:open-issues() {
 # Labels are asked under each closed issue all the same, as no other list holds them all, and a pull request is
 # asked for the first 10 issues it closes, not 100, which keeps them cheap. GitHub's dry run, rateLimit(dryRun: true),
 # puts the request at 16 points of the GraphQL rate limit; without any labels, it costs 5, and with the labels under
-# the first 100 issues each closes, 106.
+# the first 100 issues each closes, 106. A pull request that closes more than 10 says so, as its list's next page, and
+# forge/github:rest-of-closes reads the rest of it, 100 at a time, a point each.
 forge/github:open-prs() {
-  local repo query answer
+  local repo query answer number cursor rest
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -145,7 +146,7 @@ forge/github:open-prs() {
           author { login }
           headRepositoryOwner { login }
           labels(first: 20) { nodes { name color } }
-          closingIssuesReferences(first: 10) { nodes {
+          closingIssuesReferences(first: 10) { pageInfo { hasNextPage endCursor } nodes {
             number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
           } }
           reviewThreads(first: 100) { nodes { isResolved } }
@@ -163,6 +164,16 @@ forge/github:open-prs() {
   }'
   forge/github:ask answer 'the pull requests' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
     --raw-field query="${query}" || return 1
+  while IFS=$'\t' read -r number cursor
+  do
+    [[ -n "${number}" ]] || continue
+    rest=$(forge/github:rest-of-closes "${repo}" "${number}" "${cursor}") || return 1
+    answer=$(jq --compact-output --argjson number "${number}" --argjson rest "${rest}" \
+      '.data.repository.pullRequests.nodes |= map(if .number == $number then .closingIssuesReferences.nodes += $rest
+                                                  else . end)' <<<"${answer}")
+  done < <(jq --raw-output '.data.repository.pullRequests.nodes[]
+    | select(.closingIssuesReferences.pageInfo.hasNextPage) | "\(.number)\t\(.closingIssuesReferences.pageInfo.endCursor)"' \
+    <<<"${answer}")
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_prs($now)' \
     <<<"${answer}"
@@ -331,6 +342,33 @@ forge/github:mark() {
       error "run: gh auth status (the marks could not be read)"
       return 1
   esac
+}
+
+# forge/github:rest-of-closes <owner/name> <number> <cursor> prints, as one JSON array, the issues the pull request
+# closes after the cursor its first page ended on, each as forge/github:open-prs asks for one, reading 100 a request,
+# a point of the GraphQL rate limit each, until the list ends.
+forge/github:rest-of-closes() {
+  local repo=$1 number=$2 cursor=$3 query page all='[]' more=true
+  query='query($owner: String!, $name: String!, $pr: Int!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $pr) {
+        closingIssuesReferences(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+          number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
+        } }
+      }
+    }
+  }'
+  while [[ "${more}" == true ]]
+  do
+    forge/github:ask page "the rest of the issues #${number} closes" api graphql --field owner="${repo%%/*}" \
+      --field name="${repo#*/}" --field pr="${number}" --raw-field after="${cursor}" --raw-field query="${query}" \
+      || return 1
+    all=$(jq --compact-output --argjson all "${all}" '$all + .data.repository.pullRequest.closingIssuesReferences.nodes' \
+      <<<"${page}")
+    more=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.hasNextPage' <<<"${page}")
+    cursor=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.endCursor // ""' <<<"${page}")
+  done
+  printf '%s\n' "${all}"
 }
 
 # forge/github:ask <name> <what> <gh argument>… runs gh and puts what it printed in the variable <name>. When gh

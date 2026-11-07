@@ -324,25 +324,35 @@ JSON
   [ "$(jq --compact-output '[.fork, .pushed, .checks.total]' <<<"$output")" = '[null,null,0]' ]
 }
 
-@test "a change that closes many issues is drawn with every one GitLab gives, a hundred, and GitHub's first ten" {
+@test "a change that closes many issues is drawn with every one: GitLab's hundred, and GitHub's first ten, then the rest" {
   for forge in github gitlab
   do
     world "${forge}"
     if [[ "${forge}" == github ]]
     then
-      jq '.data.repository.pullRequests.nodes[0].closingIssuesReferences.nodes
-            = [range(1; 13) | {number: ., title: "Issue \(.)"}]' "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/many.json"
+      # the first page holds ten and says there are more; the rest come in pages of their own, after its cursor
+      jq '.data.repository.pullRequests.nodes[0].closingIssuesReferences
+            = {pageInfo: {hasNextPage: true, endCursor: "c10"}, nodes: [range(1; 11) | {number: ., title: "Issue \(.)"}]}' \
+        "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/many.json"
       mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/open-prs.json"
+      fixture rest-1.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {
+        "pageInfo": {"hasNextPage": true, "endCursor": "c11"}, "nodes": [{"number": 11, "title": "Issue 11"}]}}}}}'
+      fixture rest-2.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {
+        "pageInfo": {"hasNextPage": false, "endCursor": "c12"}, "nodes": [{"number": 12, "title": "Issue 12"}]}}}}}'
+      { printf '%s\t%s\n' 'api graphql*pr=3*after=c10*' rest-1.json 'api graphql*pr=3*after=c11*' rest-2.json
+        cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
     else
       jq --null-input '[range(1; 13) | {iid: ., title: "Issue \(.)", state: "opened",
                                         references: {full: "empowerite/example#\(.)"}}]' > "${FAKE_DIR}/closes.json"
     fi
     run call open-prs
     [ "$status" -eq 0 ]
-    [ "$(jq '.closes | length' <<<"$output")" -eq 12 ]
+    [ "$(jq --compact-output '[.closes[].number]' <<<"$output")" = "$(jq --null-input --compact-output '[range(1; 13)]')" ]
   done
-  # GitHub prices the labels under each issue a change closes by how many issues it may give, so it is asked for ten
+  # GitHub prices the labels under each issue a change closes by how many issues it may give, so it is asked for ten,
+  # and the rest, where there are more, a hundred at a time
   grep --quiet 'closingIssuesReferences(first: 10)' "${FAKE_DIR}/gh.calls"
+  [ "$(grep --count 'closingIssuesReferences(first: 100, after: $after)' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   grep --quiet 'merge_requests/3/closes_issues?per_page=100' "${FAKE_DIR}/glab.calls"
 }
 
@@ -743,7 +753,7 @@ SH
   [ "$(jq --compact-output '.closes | map(.assignees)' <<<"$output")" = '[["bob"]]' ]
   [ "$(jq --compact-output '[.labels, .closes[0].labels] | map(map(.name))' <<<"$output")" = '[["kind=fix"],["bug"]]' ]
   grep --quiet 'issues(states: OPEN, first: 100, filterBy: {assignee: "\*"}' "${FAKE_DIR}/gh.calls"
-  grep --quiet 'closingIssuesReferences(first: 10) { nodes {$' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'closingIssuesReferences(first: 10) { pageInfo { hasNextPage endCursor } nodes {$' "${FAKE_DIR}/gh.calls"
   grep --quiet 'number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }' \
     "${FAKE_DIR}/gh.calls"
   [ "$(grep --count 'assignees(first: 10)' "${FAKE_DIR}/gh.calls")" -eq 1 ]
