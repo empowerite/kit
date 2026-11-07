@@ -2,16 +2,16 @@
   ──────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶──────
   way     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 b ▹
   ──────────╰────────────────╰──────────────────────╯                  ╰────────
-   change  title         author   state  age  checks  threads  labels   branch
-   ──────────────────────────────────────────────────────────────── Default ▼
- ▾ 🔀 #2   The first     jeffrey  🏁      8d  ✅               kind=fi  1-the- 
-           release,      -                                     x        first- 
-           v0.1.0        aguiler                                        release
-                         a                                              -      
+    change  title         author  state  age  checks  threads  labels   branch
+    ─────────────────────────────────────────────────────────────── Default ▼
+  ▾ 🔀 #2   The first     jeffre  🏁      8d  ✅               kind=fi  1-the- 
+            release,      y-                                   x        first- 
+            v0.1.0        aguile                                        release
+                          ra                                            -      
                                                                         v0-1-0 
-      #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0  
- ▸ 🔀 #3   A spike on …  ada      🔨     90m  🏃      💬 2 u…           3-a-sp…
- ▸ 🔀 #4   Lint every …  bob      🔥     25h  ❌                        4-lint…
+       #1  👤 jeffrey-aguilera  🛫 in flight  8d  🎫 The first release, v0.1.0 
+  ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 u…           3-a-sp…
+  ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                        4-lint…
 
 
 

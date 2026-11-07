@@ -36,7 +36,7 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	for _, l := range grid.Draw(rows, nil, 40, -1, func(grid.Row) bool { return true }, nil) {
 		got = append(got, strings.TrimRight(ansi.Strip(l.Text), " "))
 	}
-	want := []string{" ▾ #1  2  a", "      " + style.PillLeft + "bug" + style.PillRight + " " + style.PillLeft + "priority" + style.PillRight + "high" +
+	want := []string{"  ▾ #1  2  a", "       " + style.PillLeft + "bug" + style.PillRight + " " + style.PillLeft + "priority" + style.PillRight + "high" +
 		style.PillRight}
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

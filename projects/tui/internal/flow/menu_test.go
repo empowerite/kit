@@ -245,7 +245,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
 	m := loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
-	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[m.rowsTop()], " "+style.Opened) {
+	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[m.rowsTop()], "  "+style.Opened) {
 		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
 	}
 	opened := openRows(m)
@@ -268,7 +268,7 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	}
 	drawn := lines(m)
 	if !strings.Contains(drawn[m.top()], "branch") || !strings.Contains(drawn[m.top()], "uncommitted") ||
-		!strings.HasPrefix(drawn[m.rowsTop()-1], "   ───") ||
+		!strings.HasPrefix(drawn[m.rowsTop()-1], "    ───") ||
 		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") || m.rowsTop() <= m.top() {
 		t.Fatalf("the headers:\n%s", view(m))
 	}
@@ -304,14 +304,14 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
 	// the header stands in as the rows do, under the heading over every row
 	closed, in := m.rowsTop(), strings.Repeat(" ", m.indent(0))
-	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+" "+style.Off("▸")) || closed != m.top()+2 {
+	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || closed != m.top()+2 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+1, m.top())); !m.stages[0].open[headerKey] || m.rowsTop() <= closed ||
-		!strings.HasPrefix(lines(m)[m.top()], in+" ▾") || m.inRows {
+	if m = drive(m, testkit.Click(len(in)+2, m.top())); !m.stages[0].open[headerKey] || m.rowsTop() <= closed ||
+		!strings.HasPrefix(lines(m)[m.top()], in+"  ▾") || m.inRows {
 		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+1, m.top())); m.stages[0].open[headerKey] {
+	if m = drive(m, testkit.Click(len(in)+2, m.top())); m.stages[0].open[headerKey] {
 		t.Error("a second click did not close it")
 	}
 	// Expand All opens it with the rows, and Collapse All closes it, the group over the rows folded with them
@@ -407,7 +407,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	m.stages[0].cursor = 0
 	m = drive(m, left)
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Chosen ||
-		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+grid.Folded) {
+		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+" "+grid.Folded) {
 		t.Errorf("space on a folded heading selected %d:\n%s", m.selected(), view(m))
 	}
 	m = drive(m, right, down, down, press(tea.KeySpace), up, up)

@@ -44,9 +44,9 @@ func plain(lines []Line) []string {
 func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *testing.T) {
 	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return false }, nil))
 	want := []string{
-		" ▸  #1  👤 ada +1   2h  a title long en…",
-		"   #22  👤 carol   40d  short",
-		" ▸  #3              1d  leaf",
+		"  ▸  #1  👤 ada +1   2h  a title long e…",
+		"    #22  👤 carol   40d  short",
+		"  ▸  #3              1d  leaf",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("closed:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -56,12 +56,12 @@ func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *te
 func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *testing.T) {
 	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return true }, nil))
 	want := []string{
-		" ▾  #1  👤 ada      2h  a title long",
-		"        👤 bob          enough to wrap",
-		"                        in its column",
-		"   #22  👤 carol   40d  short",
-		" ▾  #3              1d  leaf",
-		"      https://example/3",
+		"  ▾  #1  👤 ada      2h  a title long",
+		"         👤 bob          enough to wrap",
+		"                         in its column",
+		"    #22  👤 carol   40d  short",
+		"  ▾  #3              1d  leaf",
+		"       https://example/3",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -170,7 +170,7 @@ func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"a heading far too long for the pane"}, Wrap: true}}}}
 	closed := plain(Draw(rows, nil, 20, -1, func(Row) bool { return false }, nil))
 	open := plain(Draw(rows, nil, 20, -1, func(Row) bool { return true }, nil))
-	if !slices.Equal(closed, []string{" ▸ a heading far to…"}) || len(open) != 2 || open[1] != "   long for the pane" {
+	if !slices.Equal(closed, []string{"  ▸ a heading far t…"}) || len(open) != 3 || open[1] != "    too long for the" {
 		t.Errorf("closed %q, open %q", closed, open)
 	}
 }
@@ -285,7 +285,7 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	// a hidden column is left out of every row
 	p = Panel{Fields: map[string]Field{"who": {Placement: Hidden}}}
 	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }, nil))
-	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "   #22  40d  short") {
+	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "    #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
 	}
 	// an aside heading no row the search keeps goes with them; without a search, every aside stays
@@ -321,7 +321,7 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 	plain := strip(closed)
 	drawn := ansi.Strip(Draw(rows, names, 40, -1, func(Row) bool { return false }, nil)[1].Text)
 	// changes widens its column; fork is over no text, and left out; the title's name wraps, the header closed
-	if !hides || len(closed) != 1 || plain[0] != " ▸  id  changes  the title of the issue" || strings.Contains(plain[0], "fork") {
+	if !hides || len(closed) != 1 || plain[0] != "  ▸  id  changes  the title of the issue" || strings.Contains(plain[0], "fork") {
 		t.Fatalf("the closed header:\n%s", strings.Join(plain, "\n"))
 	}
 	for name, under := range map[string]string{"changes": "🔀", "the": "another"} {
@@ -337,11 +337,11 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 		t.Errorf("the names are not bold, or ▸ not dim: %q", closed[0])
 	}
 	open, _ := Header(rows, names, 40, true)
-	if plain := strip(open); len(open) != 2 || !strings.HasPrefix(plain[0], " ▾  id") || !strings.HasPrefix(plain[1], "     ") ||
+	if plain := strip(open); len(open) != 2 || !strings.HasPrefix(plain[0], "  ▾  id") || !strings.HasPrefix(plain[1], "     ") ||
 		!strings.HasSuffix(plain[1], "it closes") {
 		t.Errorf("the open header:\n%s", strings.Join(plain, "\n"))
 	}
-	if got, hides := Header(rows, names[:3], 40, false); hides || strings.HasPrefix(ansi.Strip(got[0]), " ▸") {
+	if got, hides := Header(rows, names[:3], 40, false); hides || strings.Contains(ansi.Strip(got[0]), "▸") {
 		t.Errorf("a header of one line: %q", got)
 	}
 	if got, _ := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40, false); got != nil {
@@ -371,11 +371,11 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 	}
 	got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text)
 	// the title column is as wide as the widest title, shorter one, even under minFill; the state stands after it
-	if got != "   #1  short        ready" {
+	if got != "    #1  short        ready" {
 		t.Errorf("a short title: %q", got)
 	}
 	rows[1].Cells[1].Values[0] = "a title of thirty cells, wide."
-	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text); got != "   #1  short"+strings.Repeat(" ", 27)+"ready" {
+	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text); got != "    #1  short"+strings.Repeat(" ", 27)+"ready" {
 		t.Errorf("a title as wide as the longest: %q", got)
 	}
 }
@@ -943,5 +943,29 @@ func TestThePanelListsItsFieldsAndTypesInItsSearch(t *testing.T) {
 	}
 	if _, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); ok {
 		t.Error("the search took down")
+	}
+}
+
+// A row's selection takes two cells of the gutter, its mark and a space, so the mark never stands against the ▸ or ▾
+// after it; a heading's mark stands in with the heading, after its indent. A row stands where the screen indents it,
+// two cells in from the innermost heading, as Levels says.
+func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
+	grouped, _ := p.group([]Row{row("#1", "ready", "ada"), row("#2", "ready", "bob")}, columns)
+	picked := func(r Row) string {
+		if Heads(r) {
+			return Partly
+		}
+		return Chosen
+	}
+	got := plain(Draw(grouped, nil, 60, -1, func(r Row) bool { return Heads(r) }, picked))
+	want := []string{Partly + " ▾ state › who  2", "  " + Partly + " ▾ ready  2", "    " + Partly + " ▾ ada  1",
+		Chosen + "   #1  ready  ada"}
+	for k, w := range want {
+		if !strings.HasPrefix(got[k], w) {
+			t.Errorf("line %d: %q, want %q", k, got[k], w)
+		}
 	}
 }

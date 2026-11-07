@@ -579,7 +579,7 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	if y < m.top() {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && y == m.top() && x >= 0 && x < 3 {
+	if _, hides := m.header(); hides && !group && y == m.top() && x >= 0 && x < len(lead) {
 		next := maps.Clone(s.open)
 		next[headerKey] = !s.open[headerKey]
 		m.reoutline(next)
@@ -1217,7 +1217,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		}
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
-	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
+	toggle := first && link == "" && (x >= 0 && x < len(lead) || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	var name nameSpot
 	onName := false
@@ -1229,7 +1229,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		m.openFieldMenu(row, name.column)
 	case onName && !subtree:
 		m.openHeadingMenu(row, y, name)
-	case grid.OverGroups(rows[row]) && (x < 0 || x >= 3):
+	case grid.OverGroups(rows[row]) && (x < 0 || x >= len(lead)):
 		// the heading over the groups folds by its ▾ or ▸ alone; its names are its columns', the rest nothing
 		m.fit()
 	case grid.Heads(rows[row]):

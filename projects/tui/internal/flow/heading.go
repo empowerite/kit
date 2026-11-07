@@ -38,7 +38,7 @@ type nameSpot struct {
 // headingNames gives the columns a group's heading names, each where the rows draw its name: the heading over the
 // groups the person chose, each column they group by, before a ›, the count, or the heading's end; any other, those the
 // rows group by on their own, each name after its value, before a comma, the count, or the heading's end. A value's
-// heading names none. The heading stands after the gutter's one cell.
+// heading names none. The heading's text stands after the gutter's two cells, its selection's.
 func (m Model) headingNames(r row) []nameSpot {
 	text := ansi.Strip(r.Cells[0].Values[0])
 	columns := r.Says
@@ -55,7 +55,7 @@ func (m Model) headingNames(r row) []nameSpot {
 			at := from + k + 1
 			if end := at + len(column); end == len(text) || text[end] == ',' || strings.HasPrefix(text[end:], "  ") ||
 				strings.HasPrefix(text[end:], " ›") {
-				x := 1 + ansi.StringWidth(text[:at])
+				x := 2 + ansi.StringWidth(text[:at])
 				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
 				break
 			}

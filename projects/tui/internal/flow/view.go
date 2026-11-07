@@ -420,13 +420,12 @@ func (m Model) head(lines []line, h int) string {
 // the keyboard.
 func (m Model) lines(i int) []line {
 	s := m.stages[i]
-	lead := "   "
 	switch {
 	case s.loading:
 		return []line{{-1, lead + style.Off("loading")}}
 	case s.refusal != "":
 		var out []line
-		for _, l := range pane.Wrap(Failed+" "+s.refusal, m.paneWidth()-3) {
+		for _, l := range pane.Wrap(Failed+" "+s.refusal, m.paneWidth()-len(lead)) {
 			out = append(out, line{-1, lead + style.Refusal(l)})
 		}
 		return out
@@ -478,8 +477,9 @@ func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
 // keeps it on the screen while the keys bar is hidden.
 func (m Model) Noticing() bool { return m.notice != "" }
 
-// lead is what stands before the rule under the header: the gutter the rows' marks and folds take.
-const lead = "   "
+// lead is what stands before the rule under the header: the gutter the rows' marks and folds take, as internal/grid
+// lays it out, two cells for the selection and two for the ▸ or ▾.
+const lead = "    "
 
 // presets says whether a stage's table has a preset line: one with columns, the views of which it names.
 func (m Model) presets(i int) bool { return !m.noPresets && m.columnar(i) }

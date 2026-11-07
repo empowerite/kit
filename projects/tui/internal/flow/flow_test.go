@@ -839,7 +839,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 	m.find("incoming").in.Remotes[0].Branches.Gone, m.find("incoming").in.Remotes[0].Tags = nil, nil
 	m.rebuild()
 	failed := Failed + " fatal: could not read from remote repository"
-	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n   "+failed+"\n") ||
+	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n    "+failed+"\n") ||
 		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(6) != "4" {
 		t.Errorf("a failed fetch: count %s\n%s", m.count(6), v)
 	}
@@ -1433,7 +1433,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release, v0.1.0:", "the kit verbs, the picture,", "and the forge seam on", "GitHub and GitLab",
+		"The first release, v0.1.0:", "the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
 		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {
 		t.Errorf("the open row repeats the pull request:\n%s", v)

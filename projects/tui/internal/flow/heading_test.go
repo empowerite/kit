@@ -225,7 +225,7 @@ func TestAHeadingsNamesStandAfterTheirValues(t *testing.T) {
 	heading := row{Key: "group\x00x", Aside: true, Says: []string{"source", "nowhere"},
 		Cells: []grid.Cell{{Values: []string{"▾ source of truth source  3"}}}}
 	names := m.headingNames(heading)
-	if len(names) != 1 || names[0].column != "source" || names[0].from != 1+ansi.StringWidth("▾ source of truth ") {
+	if len(names) != 1 || names[0].column != "source" || names[0].from != 2+ansi.StringWidth("▾ source of truth ") {
 		t.Errorf("the names: %+v", names)
 	}
 	// several columns the rows group by on their own, at one level, each its own name, as the heading says them
@@ -235,7 +235,7 @@ func TestAHeadingsNamesStandAfterTheirValues(t *testing.T) {
 	var got []string
 	for _, n := range m.headingNames(heading) {
 		got = append(got, fmt.Sprintf("%s@%d", n.column, n.from))
-		if cut := ansi.Cut(" "+text, n.from, n.until); cut != n.column {
+		if cut := ansi.Cut("  "+text, n.from, n.until); cut != n.column {
 			t.Errorf("%s stands at %d, where the heading draws %q", n.column, n.from, cut)
 		}
 	}

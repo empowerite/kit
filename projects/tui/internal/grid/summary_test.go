@@ -26,17 +26,17 @@ func labeled() []Row {
 
 func TestACellWithASummaryShowsItClosedAndItsValuesUnderTheOpenRow(t *testing.T) {
 	closed := plain(Draw(labeled(), nil, 40, -1, func(Row) bool { return false }, nil))
-	if want := []string{" ▸ #1  3  a title", " ▸ #2  1  two", "   #3     three"}; !slices.Equal(closed, want) {
+	if want := []string{"  ▸ #1  3  a title", "  ▸ #2  1  two", "    #3     three"}; !slices.Equal(closed, want) {
 		t.Errorf("closed:\n%s\nwant\n%s", strings.Join(closed, "\n"), strings.Join(want, "\n"))
 	}
 	open := plain(Draw(labeled(), nil, 30, -1, func(Row) bool { return true }, nil))
 	want := []string{
-		" ▾ #1  3  a title",
-		"      bug priority high",
-		"      good first issue",
-		" ▾ #2  1  two",
-		"      docs",
-		"   #3     three",
+		"  ▾ #1  3  a title",
+		"       bug priority high",
+		"       good first issue",
+		"  ▾ #2  1  two",
+		"       docs",
+		"    #3     three",
 	}
 	if !slices.Equal(open, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(open, "\n"), strings.Join(want, "\n"))

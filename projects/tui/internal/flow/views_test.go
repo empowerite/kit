@@ -54,13 +54,13 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // the pane's first line, the line under them names the view, and the rows start under it.
 func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != "   "+selector(Opening) || m.presetTop() != m.top()+1 || m.rowsTop() != m.top()+2 ||
+	if got := presetText(m); got != "    "+selector(Opening) || m.presetTop() != m.top()+1 || m.rowsTop() != m.top()+2 ||
 		!strings.Contains(lines(m)[m.top()], "assignees") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected
 	m.stages[0].picked[m.rows(0)[1].Key] = true
-	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "   ─") ||
+	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "    ─") ||
 		!strings.HasSuffix(got, "─ 1 selected ─ "+selector(Opening)) {
 		t.Errorf("one row selected: %q", got)
 	}
@@ -174,13 +174,13 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	m = drive(m, down, press(tea.KeyEnter))
 	if m.presetMenu || m.stages[0].viewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
-		presetText(m) != "   "+selector("Compact") {
+		presetText(m) != "    "+selector("Compact") {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
 	// a column shown again differs from every view: the line names the one it was set to, in italics
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	color := stageColors["backlog"]
-	if got := presetText(m); m.is(0) != "" || got != "   "+selector("Compact") ||
+	if got := presetText(m); m.is(0) != "" || got != "    "+selector("Compact") ||
 		!strings.Contains(m.rule(), selectorPill("Compact", selectorFocus, true)) {
 		t.Errorf("a change does not italicize the view: %q", got)
 	}
@@ -214,12 +214,12 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	if last := keysOf(m); !strings.Contains(last, "Compact is the stage's own and does not change") || m.is(0) != "" {
 		t.Errorf("save over Compact: %q", last)
 	}
-	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "   "+selector("Compact") {
+	if m = drive(m, esc); m.stages[0].savingAs || !m.onPreset || presetText(m) != "    "+selector("Compact") {
 		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
 	}
 	// the table set as another view names that one
 	m.setPanel(m.builtins(0)[0].panel(fieldsOf("backlog"), m.panel(0)))
-	if got := presetText(m); got != "   "+selector(Opening) {
+	if got := presetText(m); got != "    "+selector(Opening) {
 		t.Errorf("the table as Default: %q", got)
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc

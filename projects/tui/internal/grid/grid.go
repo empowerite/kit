@@ -160,9 +160,10 @@ const (
 	floorWidth = 6
 )
 
-// lead is the gutter before a row's lines; a line the row opens to starts under its first cell, and three cells in.
+// lead is the gutter before a row's lines: two cells for its selection, its mark and a space, so the mark never
+// stands against the ▸ or ▾ in the two after; a line the row opens to starts under its first cell, and three cells in.
 const (
-	lead  = "   "
+	lead  = "    "
 	under = lead + "   "
 )
 
@@ -196,7 +197,8 @@ func (c Cell) more() string {
 // each row selected, as one of several, with what picked gives for it, drawn, in the gutter's first cell of its first
 // line: Chosen in a color, or nothing for a row not selected. picked may be nil. A row opens only when it hides
 // something. A group's heading stands two cells further out than a row, its ▾ or ▸ where a row's own stands, so the
-// rows under it stand in from it, and what picked gives for it, as Chosen or Partly, in the one cell before.
+// rows under it stand in from it, and what picked gives for it, as Chosen or Partly, in the two cells before, after
+// the heading's own indent, so its mark stands in with it.
 func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
@@ -223,14 +225,17 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 			selected = picked(r)
 		}
 		for n, l := range lines {
-			g := "   "
+			g := lead
 			switch {
 			case Heads(r) && n == 0:
-				g = selected
+				// the heading's indent, its depth's, stands before its mark
+				plain := ansi.Strip(l)
+				in := len(plain) - len(strings.TrimLeft(plain, " "))
+				g, l = strings.Repeat(" ", in)+selected+" ", ansi.TruncateLeft(l, in, "")
 			case Heads(r):
-				g = " "
+				g = "  "
 			case n == 0:
-				g = selected + mark + " "
+				g = selected + " " + mark + " "
 			}
 			out = append(out, Line{k, g + l})
 		}
@@ -315,7 +320,7 @@ func Header(rows []Row, names []string, width int, open bool) (lines []string, h
 		}
 		g := lead
 		if k == 0 {
-			g = " " + mark + " "
+			g = "  " + mark + " "
 		}
 		out[k] = g + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
 	}
