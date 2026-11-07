@@ -74,10 +74,11 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows are
     selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
-    whether all are or some. What stands open lasts the session; a preset does not keep it. A click on a heading's ▾
-    or ▸ opens or closes it; a click on its text, or ⏎ on it, drops the heading menu, in `heading.go`, around the
-    text: Expand All Under It, Collapse All Under It, Select Group, and Ungroup by its column, so what ⌥ and ⌃ do
-    there takes a plain click too.
+    whether all are or some. What stands open lasts the session; a preset does not keep it. A click on a column's
+    name in a heading, or ⏎ on the heading, drops the heading menu, in `heading.go`, around the name, titled by it:
+    Expand All Under It, Collapse All Under It, Select Group, and Ungroup by the column, dim on one the rows group by
+    on their own, so what ⌥ and ⌃ do there takes a plain click too. A click anywhere else on the heading opens or
+    closes it.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.

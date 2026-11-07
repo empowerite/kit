@@ -909,7 +909,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.Heads(rows[k]) {
-			m.openHeadingMenu(k, m.rowLine(k))
+			if names := m.headingNames(rows[k]); len(names) > 0 {
+				m.openHeadingMenu(k, m.rowLine(k), names[0])
+			}
 		}
 	case "right", "alt+right":
 		m.expand(true, k.String() == "alt+right")
@@ -1333,7 +1335,8 @@ func (m *Model) down(n int) {
 // click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
 // on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
 // the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; one on a
-// group's heading's ▾ or ▸ folds its rows away, or unfolds them, and one on its text drops the heading menu around it.
+// column's name in a group's heading drops the heading menu around the name, and one anywhere else on the heading
+// folds its rows away, or unfolds them.
 // With subtree, as option asks, everything under the row or the heading opens or closes with it. A click on a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
@@ -1362,9 +1365,14 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	}
 	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
+	var name nameSpot
+	onName := false
+	if grid.Heads(rows[row]) {
+		name, onName = m.nameAt(rows[row], x)
+	}
 	switch {
-	case grid.Heads(rows[row]) && !subtree && x > 1+2*(grid.Level(rows[row])-1):
-		m.openHeadingMenu(row, y)
+	case onName && !subtree:
+		m.openHeadingMenu(row, y, name)
 	case grid.Heads(rows[row]):
 		m.disclose(!s.open.Open(rows[row]), subtree)
 		m.fit()

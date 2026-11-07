@@ -1,5 +1,6 @@
-// The heading menu: a click on a group's heading, off its ▾ or ▸, drops it around the heading's text, and so does ⏎
-// with the cursor on the heading. Many terminals keep option, ctrl, and the right button with a click for their own
+// The heading menu: a click on a column's name in a group's heading drops it around the name, and so does ⏎ with the
+// cursor on the heading, around its first column's; a click anywhere else on the heading folds its rows away, or
+// unfolds them, as one on its ▾ or ▸ does. Many terminals keep option, ctrl, and the right button with a click for their own
 // selection and menu, so the menu holds what those would do on a heading, and what space does there: everything under
 // the heading expanded or collapsed, the group's rows selected or unselected, and the rows no longer grouped by the
 // heading's column.
@@ -17,13 +18,48 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
 
-// headingMenu is the heading menu while it is open: the key of the heading it acts on, the screen line the heading
-// stood on when it opened, and the line under the keyboard.
+// headingMenu is the heading menu while it is open: the key of the heading it acts on, the column whose name it hangs
+// from, the screen line and column the name stood on when it opened, and the line under the keyboard.
 type headingMenu struct {
-	open bool
-	key  string
-	y    int
-	at   int
+	open   bool
+	key    string
+	column string
+	x, y   int
+	at     int
+}
+
+// nameSpot is a column's name in a heading, and the screen columns it stands on, from its first to the one past it.
+type nameSpot struct {
+	column      string
+	from, until int
+}
+
+// headingNames gives the columns a group's heading names, each where the rows draw its name: the column the person
+// grouped by, then those the rows group by on their own, each name after its value, before a comma, the count, or the
+// heading's end. The heading stands after the gutter's one cell.
+func (m Model) headingNames(r row) []nameSpot {
+	text := ansi.Strip(r.Cells[0].Values[0])
+	var columns []string
+	if c := m.panel(m.stage).Heading(r); c != "" {
+		columns = append(columns, c)
+	}
+	var out []nameSpot
+	for _, column := range append(columns, r.Says...) {
+		for from := 0; ; {
+			k := strings.Index(text[from:], " "+column)
+			if k < 0 {
+				break
+			}
+			at := from + k + 1
+			if end := at + len(column); end == len(text) || text[end] == ',' || strings.HasPrefix(text[end:], "  ") {
+				x := 1 + ansi.StringWidth(text[:at])
+				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
+				break
+			}
+			from = at
+		}
+	}
+	return out
 }
 
 // The heading menu's lines: everything under the heading opened or closed, the group's rows selected or, once every
@@ -41,11 +77,21 @@ func (m Model) headingAt() int {
 	return slices.IndexFunc(m.rows(m.stage), func(r row) bool { return r.Key == m.headMenu.key })
 }
 
+// nameAt gives the column's name in a heading that the screen column x falls on, and whether one does.
+func (m Model) nameAt(r row, x int) (nameSpot, bool) {
+	for _, n := range m.headingNames(r) {
+		if x >= n.from && x < n.until {
+			return n, true
+		}
+	}
+	return nameSpot{}, false
+}
+
 // headingItems gives the heading menu's lines: expand and collapse, a rule, the group selected or unselected, a rule,
-// and the ungrouping, which names the column, or stands alone on the heading over every row, which no column the
-// person chose makes. A line that cannot act stays, dim.
+// and the rows ungrouped by the menu's column. A line that cannot act stays, dim.
 func (m Model) headingItems() []shell.Item {
-	selecting, ungroup := SelectGroup, strings.TrimSpace(Ungroup)
+	p := m.panel(m.stage)
+	selecting, ungroup := SelectGroup, Ungroup+cmp.Or(p.Labels[m.headMenu.column], m.headMenu.column)
 	rows, s := m.rows(m.stage), m.stages[m.stage]
 	if k := m.headingAt(); k >= 0 {
 		every := m.every(m.stage)
@@ -53,17 +99,14 @@ func (m Model) headingItems() []shell.Item {
 		if len(keys) > 0 && !slices.ContainsFunc(keys, func(key string) bool { return !s.picked[key] }) {
 			selecting = UnselectGroup
 		}
-		if column := m.panel(m.stage).Heading(rows[k]); column != "" {
-			ungroup = Ungroup + cmp.Or(m.panel(m.stage).Labels[column], column)
-		}
 	}
 	return []shell.Item{{Glyph: Expand, Name: ExpandUnder}, {Glyph: Collapse, Name: CollapseUnder}, {},
 		{Glyph: Every, Name: selecting}, {}, {Name: ungroup}}
 }
 
 // headingEnabled says whether the heading menu's line k acts: expand while a node under the heading, or the heading
-// itself, is closed, collapse while one is open; selecting always; ungrouping on a heading of a column the person
-// chose; the rules never.
+// itself, is closed, collapse while one is open; selecting always; ungrouping on a column the person groups by, not one
+// the rows group by on their own; the rules never.
 func (m Model) headingEnabled(k int) bool {
 	at := m.headingAt()
 	if at < 0 {
@@ -82,16 +125,16 @@ func (m Model) headingEnabled(k int) bool {
 	case 3:
 		return true
 	case 5:
-		return m.panel(m.stage).Heading(m.rows(m.stage)[at]) != ""
+		return slices.Contains(m.panel(m.stage).Groups(), m.headMenu.column)
 	}
 	return false
 }
 
-// openHeadingMenu drops the heading menu around the heading at the screen line y, the cursor on the heading, the
-// first line that acts under the keyboard.
-func (m *Model) openHeadingMenu(k, y int) {
+// openHeadingMenu drops the heading menu around a column's name in the heading k, at the screen line y, the cursor on
+// the heading, the first line that acts under the keyboard.
+func (m *Model) openHeadingMenu(k, y int, name nameSpot) {
 	m.stages[m.stage].cursor, m.inRows = k, true
-	m.headMenu = headingMenu{open: true, key: m.rows(m.stage)[k].Key, y: y, at: -1}
+	m.headMenu = headingMenu{open: true, key: m.rows(m.stage)[k].Key, column: name.column, x: name.from, y: y, at: -1}
 	m.headMenu.at = shell.Move(m.headingItems(), m.headingEnabled, -1, 1)
 }
 
@@ -116,7 +159,7 @@ func (m Model) headingKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // headingAct closes the heading menu and does what its line k says, when it acts, the cursor on the heading.
 func (m *Model) headingAct(k int) {
-	enabled, at := m.headingEnabled(k), m.headingAt()
+	enabled, at, column := m.headingEnabled(k), m.headingAt(), m.headMenu.column
 	m.headMenu = headingMenu{}
 	if !enabled {
 		return
@@ -128,28 +171,20 @@ func (m *Model) headingAct(k int) {
 	case 3:
 		m.selectRow(false)
 	default:
-		m.setPanel(m.panel(m.stage).Grouped(m.panel(m.stage).Heading(m.rows(m.stage)[at]), true))
+		m.setPanel(m.panel(m.stage).Grouped(column, true))
 	}
 	m.fit()
 }
 
-// headingText gives the screen column a heading's text starts on, past its ▾ or ▸, and the text, as the rows draw it:
-// the gutter's cell, two cells a level below the outermost, and the triangle and a space.
-func headingText(r row) (int, string) {
-	text := strings.TrimLeft(ansi.Strip(r.Cells[0].Values[0]), " ")
-	_, text, _ = strings.Cut(text, " ")
-	return 1 + 2*(grid.Level(r)-1) + 2, text
-}
-
-// headingBox gives the heading menu's lines, the box around the heading's text, which its top edge draws where the
-// heading does; and the screen line and column it is drawn from. Once a reload takes the heading away, there are none.
+// headingBox gives the heading menu's lines, the box around the column's name, which its top edge draws where the
+// heading does, as the column menu's draws the name in the header; and the screen line and column it is drawn from.
+// Once a reload takes the heading away, there are none.
 func (m Model) headingBox() (lines []string, top, left int) {
-	k := m.headingAt()
-	if k < 0 {
+	if m.headingAt() < 0 {
 		return nil, 0, 0
 	}
-	x, text := headingText(m.rows(m.stage)[k])
-	lines, left = shell.Box(m.headingItems(), m.headingEnabled, m.headMenu.at, text, x, m.paneWidth())
+	lines, left = shell.Box(m.headingItems(), m.headingEnabled, m.headMenu.at, m.headMenu.column, m.headMenu.x,
+		m.paneWidth())
 	return lines, m.headMenu.y, left
 }
 
