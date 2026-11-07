@@ -95,6 +95,12 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	if groups := m.panel(0).Groups(); !slices.Equal(groups, []string{"source", "assignees"}) || m.cols.at != 1 {
 		t.Errorf("shift+up into the groups: %q, at %d", groups, m.cols.at)
 	}
+	// a group's cell is the grouping glyph and its depth as a subscript, as a sort's mark carries its place
+	for id, want := range map[string]string{"source": grid.Grouping + "₁", "assignees": grid.Grouping + "₂"} {
+		if got := strings.TrimSpace(ansi.Strip(m.columnsLine(id))[len("☑ ")+labelCells+sortCells:]); got != want {
+			t.Errorf("%s's group cell: %q, want %q", id, got, want)
+		}
+	}
 	m = drive(m, typed("g")...)
 	at("id")
 	if m = drive(m, testkit.Press("shift+up")); len(m.panel(0).Groups()) != 1 {

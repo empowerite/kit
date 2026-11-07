@@ -375,6 +375,10 @@ func (p Panel) Mark(id string) string {
 	return mark
 }
 
+// GroupMark gives what stands for a field the rows are grouped by at a depth: the grouping glyph and the depth as a
+// subscript, ▤₁ for the outermost, as Mark carries a sort's place.
+func GroupMark(depth int) string { return Grouping + subscript(depth) }
+
 // subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
 func subscript(n int) string {
 	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))

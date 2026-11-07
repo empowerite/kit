@@ -11,7 +11,6 @@ package flow
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -69,7 +68,7 @@ func (m Model) columnsLine(id string) string {
 	group := style.Off("·")
 	switch {
 	case f.Placement == grid.Group:
-		group = style.Tint(strconv.Itoa(f.Depth))
+		group = style.Tint(grid.GroupMark(f.Depth))
 	case !p.Groupable[id]:
 		group = " "
 	}
