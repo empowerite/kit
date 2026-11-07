@@ -61,12 +61,12 @@ var screens = []struct {
 }
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
-// first; whether it is open, and then has the keyboard; and the item under the keyboard.
+// after kit's screens; and, as a dropdown, whether it is open, and then has the keyboard, and the item under the
+// keyboard.
 type Menu struct {
 	Here Screen
 	Own  []Item
-	Open bool
-	At   int
+	Dropdown
 }
 
 // Choice is what a choice from the app's menu asks of its screen: a screen to open in its place, kittui to quit, or
@@ -134,46 +134,25 @@ func (m Menu) choice(k int) Choice {
 
 // Opened gives the menu dropped down, its first item that does something under the keyboard.
 func (m Menu) Opened() Menu {
-	m.Open, m.At = true, Move(m.Items(), m.enabled, -1, 1)
+	m.Dropdown = m.Dropdown.Opened(m.Items(), m.enabled)
 	return m
 }
 
-// Key takes a key while the menu is open: up and down move, a letter moves to the next item that starts with it, enter
-// and space choose, and esc or = closes it; it gives the menu, closed once a choice is made, and the choice.
+// Key takes a key while the menu is open, as a dropdown does, = closing it as esc does; it gives the menu, closed once
+// a choice is made, and the choice.
 func (m Menu) Key(k tea.KeyPressMsg) (Menu, Choice) {
-	items := m.Items()
-	switch k.String() {
-	case "up":
-		m.At = Move(items, m.enabled, m.At, -1)
-	case "down":
-		m.At = Move(items, m.enabled, m.At, 1)
-	case "enter", "space":
-		if c := m.choice(m.At); c != (Choice{}) {
-			m.Open = false
-			return m, c
-		}
-	case "esc", "=":
-		m.Open = false
-	default:
-		m.At = NextItem(items, m.enabled, m.At, k.Text)
-	}
-	return m, Choice{}
+	var at int
+	m.Dropdown, at = m.Dropdown.Key(k, m.Items(), m.enabled, "=")
+	return m, m.choice(at)
 }
 
-// Click takes a left click while the menu is open, the screen's rows as wide as room: on an item, it chooses it, and
-// on one not enabled, or a rule, it does nothing; anywhere else, it closes the menu.
+// Click takes a left click while the menu is open, the screen's rows as wide as room, as a dropdown does; it gives the
+// menu and the choice.
 func (m Menu) Click(x, y, room int) (Menu, Choice) {
 	box, left := m.box(room)
-	k := y - Top - 1
-	if x > left && x < left+ansi.StringWidth(box[0])-1 && k >= 0 && k < len(m.Items()) {
-		if c := m.choice(k); c != (Choice{}) {
-			m.Open = false
-			return m, c
-		}
-		return m, Choice{}
-	}
-	m.Open = false
-	return m, Choice{}
+	var at int
+	m.Dropdown, at = m.Dropdown.Click(x, y, Top, left, ansi.StringWidth(box[0]), m.Items(), m.enabled)
+	return m, m.choice(at)
 }
 
 // OnApp says whether a click at x, y is on App before the title, or the cell either side of it.

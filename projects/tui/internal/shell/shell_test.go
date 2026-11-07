@@ -78,7 +78,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 		t.Errorf("its own: %+v", c)
 	}
 	// enter on nothing chosen does nothing; esc and = close
-	if m, c := (Menu{Here: Flow, Open: true, At: -1}).Key(key("enter")); !m.Open || c != (Choice{}) {
+	if m, c := (Menu{Here: Flow, Dropdown: Dropdown{Open: true, At: -1}}).Key(key("enter")); !m.Open || c != (Choice{}) {
 		t.Errorf("enter on nothing: %v %+v", m.Open, c)
 	}
 	for _, k := range []string{"esc", "="} {
@@ -177,6 +177,7 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 		t.Error("too narrow a screen")
 	}
 }
+
 // A box and a title in a group's color say what the menu's own do, the edges and the line under the keyboard drawn in
 // that color, as style.MenuIn draws them; no color is the menu's own.
 func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
@@ -202,7 +203,6 @@ func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
 		t.Errorf("the title in 75: %q", got)
 	}
 }
-
 
 // A dialog is a box with its title on the top edge, a plain bottom edge, its keys being the keys bar's alone, and its
 // lines inside, every line as wide as the others; a line too long for the room is clipped.
