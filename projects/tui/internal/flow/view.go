@@ -147,7 +147,7 @@ func (m Model) keys() shell.Path {
 		return shell.Path{shell.DialogKeys(keys)}
 	case m.pop.open:
 		return shell.Path{m.popKeys()}
-	case m.presetMenu, m.colMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.presetMenu, m.colMenu.open, m.headMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	if len(m.stages) == 0 {
@@ -251,7 +251,8 @@ func (m Model) rowKeys() shell.Segment {
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}
 	if grid.Heads(rows[s.cursor]) {
-		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "all under it", "alt+left", "alt+right"))
+		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "all under it", "alt+left", "alt+right"),
+			shell.Bind("⏎", "menu", "enter"))
 	}
 	return seg
 }

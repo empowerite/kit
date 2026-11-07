@@ -658,12 +658,12 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if m = drive(m, right); len(m.rows(m.stage)) != rows {
 		t.Fatalf("right on the heading: %d rows", len(m.rows(m.stage)))
 	}
-	// a click on the heading's line, past its text, folds it, and another unfolds it
-	if m = drive(m, testkit.Click(40, m.rowsTop())); len(m.rows(m.stage)) != 1 {
-		t.Fatalf("a click on the heading: %d rows\n%s", len(m.rows(m.stage)), view(m))
+	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it
+	if m = drive(m, testkit.Click(1, m.rowsTop())); len(m.rows(m.stage)) != 1 || m.headMenu.open {
+		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.headMenu.open, view(m))
 	}
-	if m = drive(m, testkit.Click(40, m.rowsTop())); len(m.rows(m.stage)) != rows {
-		t.Fatalf("a second click on the heading: %d rows", len(m.rows(m.stage)))
+	if m = drive(m, testkit.Click(1, m.rowsTop())); len(m.rows(m.stage)) != rows {
+		t.Fatalf("a click on the heading's ▸: %d rows", len(m.rows(m.stage)))
 	}
 }
 

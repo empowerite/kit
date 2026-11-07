@@ -134,6 +134,7 @@ type Model struct {
 	presetsPath   string                 // that file, or none
 	presetMenu    bool                   // whether the preset line's menu of views is open
 	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
+	headMenu      headingMenu            // the menu a click on a group's heading drops, while it is open
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
@@ -324,6 +325,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.colMenu.open {
 			return m, m.columnClick(msg.X, msg.Y)
+		}
+		if m.headMenu.open {
+			m.headingClick(msg.X, msg.Y)
+			return m, nil
 		}
 		if m.recent.Open {
 			var query string
@@ -823,6 +828,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.colMenu.open {
 		return m.columnKey(k)
 	}
+	if m.headMenu.open {
+		return m.headingKey(k)
+	}
 	if m.recent.Open {
 		var query string
 		if m.recent, query = m.recent.Key(k); query != "" {
@@ -893,6 +901,14 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
+	case "enter":
+		// on a group's heading, ⏎ drops the heading menu, as a click on its text does
+		if !m.inRows || len(m.stages) == 0 {
+			break
+		}
+		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.Heads(rows[k]) {
+			m.openHeadingMenu(k, m.rowLine(k))
+		}
 	case "right", "alt+right":
 		m.expand(true, k.String() == "alt+right")
 	case "left", "alt+left":
@@ -1314,9 +1330,9 @@ func (m *Model) down(n int) {
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
 // click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
 // on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
-// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; one anywhere
-// on a group's heading folds its rows away, or unfolds them. With subtree, as option asks, everything under the row or
-// the heading opens or closes with it. A click on a … line, or on a line about the stage, does nothing.
+// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; one on a
+// group's heading's ▾ or ▸ folds its rows away, or unfolds them, and one on its text drops the heading menu around it.
+// With subtree, as option asks, everything under the row or the heading opens or closes with it. A click on a … line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
@@ -1345,6 +1361,8 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	toggle := first && link == "" && (x >= 0 && x < 3 || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
+	case grid.Heads(rows[row]) && !subtree && x > 1+2*(grid.Level(rows[row])-1):
+		m.openHeadingMenu(row, y)
 	case grid.Heads(rows[row]):
 		m.disclose(!s.open.Open(rows[row]), subtree)
 		m.fit()
@@ -1361,6 +1379,18 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		m.fit()
 	}
 	return nil
+}
+
+// rowLine gives the screen line the first line of the selected stage's row k stands on, as the pane is scrolled, or
+// -1 while it is scrolled away.
+func (m Model) rowLine(k int) int {
+	lines, s := m.lines(m.stage), m.stages[m.stage]
+	for y := 0; y < m.rowsHeight(); y++ {
+		if at := pane.At(len(lines), m.rowsHeight(), s.offset, y); at >= 0 && lines[at].row == k {
+			return m.rowsTop() + y
+		}
+	}
+	return -1
 }
 
 // jump follows a link to a row of another stage, its name and the row's key: the stage is selected, its rows have the
