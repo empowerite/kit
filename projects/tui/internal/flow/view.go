@@ -509,7 +509,8 @@ func (m Model) presetLine() string {
 // back, between half circles in back.
 func selectorPill(name, back string, italic bool) string {
 	text := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(back))
-	return end(capLeft, back) + text.Italic(italic).Render(name) + text.Render(" "+Presets) + end(capRight, back)
+	return style.PillEnd(style.PillLeft, back) + text.Italic(italic).Render(name) + text.Render(" "+Presets) +
+		style.PillEnd(style.PillRight, back)
 }
 
 // selectorFocus is the color the preset line's selector is drawn on while the line has the keyboard: the menus' bright

@@ -1,4 +1,4 @@
-// A forge's labels: each a pill, a key and a value two segments; a row's column counts them, its open row draws them,
+// A forge's labels: each a pill, as style draws it; a row's column counts them, its open row draws them,
 // and a filter keeps the rows that hold one of the labels it names, or none of them.
 package flow
 
@@ -10,65 +10,15 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-func TestALabelSplitsIntoAKeyAndAValueAtItsLastSeparator(t *testing.T) {
-	for name, want := range map[string][3]string{
-		"bug":                {"", "bug", ""},
-		"priority=high":      {"priority", "high", "split"},
-		"kind:fix":           {"kind", "fix", "split"},
-		"area::tui":          {"area", "tui", "split"},
-		"team::ux::research": {"team::ux", "research", "split"},
-		"a:b=c":              {"a:b", "c", "split"},
-		"a=b:c":              {"a=b", "c", "split"},
-		"area::ui:dark":      {"area::ui", "dark", "split"},
-		"area:ui::dark":      {"area:ui", "dark", "split"},
-		":wip":               {"", ":wip", ""},
-		"todo:":              {"", "todo:", ""},
-		"::":                 {"", "::", ""},
-		"area::":             {"", "area::", ""},
-	} {
-		key, val, ok := splitLabel(name)
-		if got := [3]string{key, val, map[bool]string{true: "split"}[ok]}; got != want {
-			t.Errorf("%q splits as %q, want %q", name, got, want)
+// A label is drawn as style draws a pill: on its forge's color, or, with none, on the pastel its name picks.
+func TestALabelIsDrawnAsStylesPill(t *testing.T) {
+	for _, l := range []label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}} {
+		if got := pill(l); got != style.Pill(l.Name, l.Color) {
+			t.Errorf("%+v: %q", l, got)
 		}
-	}
-}
-
-// A plain label is its name between two half circles; a key and a value, the key, the round edge where the colors
-// meet, then the value, the : or = dropped. Each half circle takes one cell.
-func TestAPillIsItsTextBetweenHalfCircles(t *testing.T) {
-	if got := ansi.Strip(pill(label{Name: "bug", Color: "#d73a4a"})); got != capLeft+"bug"+capRight {
-		t.Errorf("a plain pill: %q", got)
-	}
-	if got := ansi.Strip(pill(label{Name: "priority=high"})); got != capLeft+"priority"+capRight+"high"+capRight {
-		t.Errorf("a key and a value: %q", got)
-	}
-	if w := ansi.StringWidth(pill(label{Name: "kind:fix"})); w != len("kindfix")+3 {
-		t.Errorf("the pill takes %d cells", w)
-	}
-}
-
-// The text is black on a light color and white on a dark one; the key's color is its own, the same for every label
-// with that key, and never its value's.
-func TestAPillsTextReadsOnItsColorAndAKeyKeepsItsColor(t *testing.T) {
-	light, dark := ink("#fbca04"), ink("#1d4ed8")
-	if r, _, _, _ := light.RGBA(); r != 0 {
-		t.Errorf("text on yellow is not black: %v", light)
-	}
-	if r, _, _, _ := dark.RGBA(); r == 0 {
-		t.Errorf("text on blue is not white: %v", dark)
-	}
-	if keyColor("priority", "#ffffff") != keyColor("priority", "#000000") {
-		t.Error("a key's color depends on its value's")
-	}
-	for _, c := range pastel {
-		if keyColor("priority", c) == c {
-			t.Errorf("the key priority is drawn on its value's color %s", c)
-		}
-	}
-	if labelColor(label{Name: "x", Color: "#123456"}) != "#123456" || labelColor(label{Name: "x"}) == "" {
-		t.Error("a label's color is not its forge's, or none without one")
 	}
 }
 
@@ -86,7 +36,8 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	for _, l := range grid.Draw(rows, nil, 40, -1, func(grid.Row) bool { return true }, nil) {
 		got = append(got, strings.TrimRight(ansi.Strip(l.Text), " "))
 	}
-	want := []string{" ▾ #1  2  a", "      " + capLeft + "bug" + capRight + " " + capLeft + "priority" + capRight + "high" + capRight}
+	want := []string{" ▾ #1  2  a", "      " + style.PillLeft + "bug" + style.PillRight + " " + style.PillLeft + "priority" + style.PillRight + "high" +
+		style.PillRight}
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}

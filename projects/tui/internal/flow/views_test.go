@@ -42,7 +42,7 @@ func presetText(m Model) string {
 
 // selector gives the preset line's selector as the screen draws it, without its escapes: the name and Presets between
 // the pill's half circles.
-func selector(name string) string { return capLeft + name + " " + Presets + capRight }
+func selector(name string) string { return style.PillLeft + name + " " + Presets + style.PillRight }
 
 // shown gives the columns a stage's panel shows.
 func shownNow(m Model) []string { return m.shownColumns(m.stage) }
@@ -135,7 +135,7 @@ func TestAChipStandsForEachFilter(t *testing.T) {
 	}
 	// too narrow, the chips are clipped before the selector is
 	m = drive(m, tea.WindowSizeMsg{Width: 30, Height: 40})
-	if got := presetText(m); !strings.HasSuffix(got, " "+Presets+capRight) || ansi.StringWidth(got) > m.paneWidth() {
+	if got := presetText(m); !strings.HasSuffix(got, " "+Presets+style.PillRight) || ansi.StringWidth(got) > m.paneWidth() {
 		t.Errorf("narrow: %q", got)
 	}
 }
