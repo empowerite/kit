@@ -143,7 +143,8 @@ func (p Path) Line(width int) string {
 }
 
 // merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by a
-// middle dot, no space either side, as tab and esc both leave the sidebar: ⇥·esc rows. A key a deeper control takes is gone from the run already.
+// middle dot, no space either side, as esc and enter both leave the search: esc·⏎ back. A key a deeper control takes
+// is gone from the run already.
 func merged(s []Binding) []Binding {
 	var out []Binding
 	for _, b := range s {

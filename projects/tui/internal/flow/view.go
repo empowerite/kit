@@ -26,36 +26,19 @@ const (
 	paneTop = 1 + tabs.Height
 )
 
-// rule is what stands between the rows and the sidebar beside them, a space either side of it: a dim solid line from
-// the line under the bar down to the keys bar; while the sidebar is hidden, a space and the rule end each of those
-// lines, at the screen's last column. Beside the title and the bar there is none. On the rule's middle line, at
-// triangleAt, is a triangle, pointing left to show the sidebar and right to hide it, as a click anywhere on the rule
-// does, as ? does. Under the triangle the rule starts again halfway down its cell, as under, so the space below the
-// triangle looks as wide as the space above it.
-const (
-	rule  = "│"
-	under = "╷"
-	show  = "◂"
-	hide  = "▸"
-)
-
-// triangleAt gives the screen line of the rule's triangle: the middle of the rule, from under the bar down to the keys
-// bar.
-func (m Model) triangleAt() int { return paneTop + (m.sideHeight()-paneTop)/2 }
-
 // line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
 type line struct {
 	row  int
 	text string
 }
 
-// View draws the title, the bar, the selected stage's pane, and a gap, and on the screen's right, from its top down to
-// the keys bar on the last line, the panel's search, the rule under the bar, and the sidebar while ? shows it; on the
-// alternate screen, with the mouse on for the bar. A screen too short for all of them keeps the bar, and cuts the rest from the bottom.
+// View draws the title and, on its right, the search; the bar; the selected stage's pane, the rows the width of the
+// screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on the alternate screen,
+// with the mouse on for the bar. A screen too short for all of them keeps the bar, and cuts the rest from the bottom.
 func (m Model) View() tea.View {
-	lines := append([]string{pane.Clip(m.title(), m.titleWidth())}, strings.Split(m.bar().View(), "\n")...)
+	lines := append([]string{m.titled()}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
-	lines = m.float(m.side(m.overlay(append(lines, ""))))
+	lines = m.float(m.overlay(m.overLegend(append(lines, ""))))
 	bottom := m.keys().Line(m.width)
 	switch {
 	case m.notice != "" && m.noted:
@@ -75,7 +58,7 @@ func (m Model) View() tea.View {
 // panel have it, its view where it was left, and the selected stage's group's color.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Scroll: m.barView,
-		Width: m.barWidth(), Row: 1, Menus: true, MenuOpen: m.menu, Joined: true}
+		Width: m.width, Row: 1, Menus: true, MenuOpen: m.menu}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}
@@ -89,56 +72,37 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// sideHeight gives the lines the rule and the sidebar have: every line above the keys bar.
-func (m Model) sideHeight() int { return m.paneHeight() + fixed - 1 }
-
-// sideWidth gives the cells the panel takes on the screen's right, shown or not: the widest stage's panel or legend,
-// so moving along the bar never lays anything out again, and never more than two fifths of the screen, which clips it.
-func (m Model) sideWidth() int { return min(m.widest, (m.width-3)*2/5) }
-
-// sidebarWidth gives the cells the sidebar takes beside the rows, the rule before it apart: the panel's, while ? shows
-// it, and nothing while it does not.
-func (m Model) sidebarWidth() int {
-	if !m.sidebar {
-		return 0
-	}
-	return m.sideWidth()
-}
-
 // titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
 func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
 
-// searchAt gives the screen column the search starts at, on the screen's first line: the sidebar's, while it shows;
-// while it is hidden, where internal/shell puts every screen's, over the tab bar's numbers.
+// searchAt gives the screen column the search starts at, on the screen's first line, where internal/shell puts every
+// screen's, over the tab bar's numbers.
 func (m Model) searchAt() int {
-	if m.sidebar || len(m.stages) == 0 {
-		return m.width - m.sideWidth()
+	if len(m.stages) == 0 {
+		return m.width
 	}
 	p := m.panel(m.stage)
-	return shell.SearchAt(m.width, m.bar().Numbers(), p.Focused && p.Cursor == 0 || p.Query != "")
+	return shell.SearchAt(m.width, m.bar().Numbers(), p.Focused || p.Query != "")
 }
 
-// barWidth gives the cells the bar has: the screen's while the sidebar is hidden; beside it, the rows', a space, and
-// the rule's cell, where the bar's last line turns down into the rule under it.
-func (m Model) barWidth() int {
-	if m.sidebar {
-		return m.paneWidth() + 2
+// titled gives the title line: the title, clipped, and two spaces after it the search, from searchAt; none with no
+// stage.
+func (m Model) titled() string {
+	title := pane.Clip(m.title(), m.titleWidth())
+	if len(m.stages) == 0 {
+		return title
 	}
-	return m.width
+	p := m.panel(m.stage)
+	search := shell.RecallLine(p.Query, p.Focused, len(m.recent.Items) > 0)
+	return pane.Pad(title, m.titleWidth(), false) + "  " + pane.Clip(search, m.width-1-m.searchAt())
 }
 
-// paneWidth gives the cells the rows have: the screen's, less a space and the rule, and a space and the sidebar while
-// ? shows it.
-func (m Model) paneWidth() int {
-	if w := m.sidebarWidth(); w > 0 {
-		return m.width - 3 - w
-	}
-	return m.width - 2
-}
+// paneWidth gives the cells the rows have: the screen's, but its last cell.
+func (m Model) paneWidth() int { return max(1, m.width-1) }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? shows or hides the sidebar
-// and tab gives it the keyboard; the stages' bar, whose down reaches the preset line, or the rows where the stage has
-// none; and the part the keyboard is in, the preset line, the rows, or the sidebar and its control under the keyboard.
+// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? and F1 show or hide the
+// legend; the stages' bar, whose down reaches the preset line, or the rows where the stage has none; and the part the
+// keyboard is in, the preset line, the rows, or the search.
 // An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	switch {
@@ -152,55 +116,25 @@ func (m Model) keys() shell.Path {
 	case m.presetMenu, m.colMenu.open, m.headMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
+	legend := shell.Bind("?", "legend", "?", "f1")
 	if len(m.stages) == 0 {
-		return shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()))}
+		return shell.Path{shell.ScreenKeys(legend)}
 	}
 	down := "rows"
 	if m.presets(m.stage) {
 		down = "preset"
 	}
-	path := shell.Path{shell.ScreenKeys(shell.Bind("?", m.sidebarDoes()), shell.Bind("⇥", "sidebar", "tab")),
-		m.bar().Keys(down)}
+	path := shell.Path{shell.ScreenKeys(legend), m.bar().Keys(down)}
 	switch {
 	case m.inPanel:
-		return append(path, m.sidebarKeys(), m.panel(m.stage).Keys(len(m.recent.Items) > 0))
+		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "back"), shell.Bind("⏎", "back", "enter")}},
+			shell.SearchKeys(len(m.recent.Items) > 0))
 	case m.onPreset:
 		return append(path, m.presetKeys())
 	case m.inRows:
 		return append(path, m.rowKeys())
 	}
 	return path
-}
-
-// sidebarDoes says what ? does: shows the sidebar, or hides it.
-func (m Model) sidebarDoes() string {
-	if m.sidebar {
-		return "hide sidebar"
-	}
-	return "show sidebar"
-}
-
-// sidebarKeys gives the segment of the sidebar while it has the keyboard: tab or esc gives the keyboard back to the
-// rows, the preset line, or the bar, as they had it, the bar named by the stage it has selected; up and down move
-// between its controls, and a page at a time scrolls it, while it shows. It takes every other press, but the menus',
-// the search's, and a stage's number.
-func (m Model) sidebarKeys() shell.Segment {
-	back := m.stages[m.stage].name
-	switch {
-	case m.inRows:
-		back = "rows"
-	case m.onPreset:
-		back = "preset"
-	}
-	s := shell.Segment{Owns: true, Passes: append([]string{"=", ":", ";", "/"}, shell.Digits...),
-		Bindings: []shell.Binding{shell.Bind("⇥", back, "tab"), shell.Bind("esc", back)}}
-	if m.sidebar {
-		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", "up", "down"))
-		if n, h := m.scrolled(); n > h {
-			s.Bindings = append(s.Bindings, shell.Bind("⇞⇟", "scroll", "pgup", "pgdown"))
-		}
-	}
-	return s
 }
 
 // presetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard,
@@ -307,44 +241,6 @@ func counted(rows []row) int {
 		}
 	}
 	return n
-}
-
-// legendLines gives a stage's legend as the column beside its rows draws it: legend, dim, then each glyph the stage
-// draws, two cells wide, a space, what it means, and its mark when a click on it leads somewhere; changes' states
-// after a gap under state, dim and marked; nothing for a stage with no legend.
-func legendLines(name string) []string {
-	if len(legends[name]) == 0 {
-		return nil
-	}
-	lines := func(entries []entry, mark map[string]string) []string {
-		var out []string
-		for _, e := range entries {
-			out = append(out, pane.Pad(e.glyph, 2, false)+" "+e.meaning+marked(mark[e.glyph]))
-		}
-		return out
-	}
-	out := append([]string{style.Off("legend")}, lines(legends[name], marks[name])...)
-	if name == "changes" {
-		out = append(append(out, "", style.Off("state")+marked(ToPage)), lines(states, nil)...)
-	}
-	return out
-}
-
-// marked gives a legend's mark after its meaning, dim after a space, or nothing for none.
-func marked(mark string) string {
-	if mark == "" {
-		return ""
-	}
-	return " " + style.Off(mark)
-}
-
-// sideLines gives the sidebar's lines while ? shows it: the selected stage's panel, then, after a gap, its legend.
-func (m Model) sideLines() []string {
-	panel, _ := m.panel(m.stage).Lines()
-	if legend := legendLines(m.stages[m.stage].name); len(legend) > 0 {
-		return append(append(panel, ""), legend...)
-	}
-	return panel
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
@@ -474,55 +370,6 @@ func (m Model) pane() []string {
 	return out
 }
 
-// side ends each of the lines, from the screen's top, with the lines on its right: beside the title, two spaces and
-// the search, from searchAt; beside the bar while the sidebar shows, a space and the next of sideColumn's lines; under the bar, a space and the rule, its triangle at
-// triangleAt, and beside it, while ? shows it, a space and the rest of them.
-func (m Model) side(lines []string) []string {
-	side, sw, pw, bw := m.sideColumn(), m.sideWidth(), m.paneWidth(), m.barWidth()
-	triangle, at := show, m.triangleAt()
-	if m.sidebar {
-		triangle = hide
-	}
-	for k, l := range lines {
-		// the spaces before a side line only when there is one, so a line with none ends on the bar, or the rule
-		width, edge, gap, room := bw, "", " ", sw
-		switch {
-		case k == 0:
-			width, gap, room = m.titleWidth(), "  ", m.width-m.searchAt()
-			if !m.sidebar {
-				room-- // the search alone ends one cell short of the edge
-			}
-		case k >= paneTop:
-			width, edge, gap = pw, " "+style.Off(rule), " "
-			switch k {
-			case at:
-				edge = " " + triangle
-			case at + 1:
-				edge = " " + style.Off(under)
-			}
-		}
-		if k < len(side) && side[k] != "" {
-			edge += gap + pane.Clip(side[k], room)
-		}
-		lines[k] = pane.Pad(pane.Clip(l, width), width, false) + edge
-	}
-	return lines
-}
-
-// sideColumn gives the lines on the screen's right, from its top: the selected stage's search, always; under it, while
-// ? shows the sidebar, the rest of its panel and its legend from the sidebar's offset, a dim … N above and … N more
-// where the screen hides some of them.
-func (m Model) sideColumn() []string {
-	if len(m.stages) == 0 || m.sideWidth() == 0 {
-		return nil
-	}
-	all := m.sideLines()
-	if !m.sidebar {
-		return all[:1]
-	}
-	return append(all[:1:1], pane.Lines(all[1:], m.sideOffset, m.sideHeight()-1, "", "")...)
-}
-
 // head gives the line the pane pins on top, in place of its … above: the first line of the row under the cursor, once
 // paging through that open row has scrolled it away while the rest of the row still shows; else nothing.
 func (m Model) head(lines []line, h int) string {
@@ -605,9 +452,11 @@ func (m Model) Noticing() bool { return m.notice != "" }
 const lead = "   "
 
 // presets says whether a stage's table has a preset line: one with columns, the views of which it names.
-func (m Model) presets(i int) bool {
-	return !m.noPresets && i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].loading &&
-		m.stages[i].refusal == ""
+func (m Model) presets(i int) bool { return !m.noPresets && m.columnar(i) }
+
+// columnar says whether a stage's table has columns the columns dialog sets: its fields, loaded, not refused.
+func (m Model) columnar(i int) bool {
+	return i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].loading && m.stages[i].refusal == ""
 }
 
 // dropStart gives the screen column the preset line's selector starts on, at the rule's right end.

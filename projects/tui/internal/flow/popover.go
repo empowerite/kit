@@ -1,8 +1,8 @@
 // A field's popover: a small box over the screen that sets, for one field of the selected stage, which of its values
-// the rows must hold, and how it is drawn; how they sort is the column menu's, and the header's. Enter on the field's line in the sidebar's editor opens it,
-// and so does Options… in the column menu, under its name in the header. It has the keyboard while it is open: up and down move between
-// its lines, space or enter acts on the one under the keyboard, and esc closes it; a click on a line acts on it, and
-// a click off the box closes it. What it sets applies at once, so the rows, the editor, and the preset line's mark and
+// the rows must hold, and how it is drawn; how they sort is the column menu's, and the header's. Options… in the column
+// menu opens it, under the field's name in the header, and so does enter on the field's line in the columns dialog.
+// It has the keyboard while it is open: up and down move between its lines, space or enter acts on the one under the
+// keyboard, and esc closes it; a click on a line acts on it, and a click off the box closes it. What it sets applies at once, so the rows, the columns dialog, and the preset line's
 // chips follow it.
 package flow
 
@@ -18,7 +18,7 @@ import (
 )
 
 // popover is a field's popover while it is open: the field, by id; its line under the keyboard; and the screen cell
-// it hangs from, the field's line in the sidebar, whose right edge it keeps, or its name in the header, which its title
+// it hangs from, the columns dialog's corner, whose right edge it keeps, or its name in the header, which its title
 // covers.
 type popover struct {
 	open   bool
@@ -142,19 +142,6 @@ func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
 	return m.askMe()
 }
 
-// fieldLineAt gives the screen line the sidebar draws the line of the panel's control under the keyboard on, or the
-// pane's first when it draws none.
-func (m Model) fieldLineAt() int {
-	_, at := m.panel(m.stage).Lines()
-	line := slices.Index(at, m.panel(m.stage).Cursor)
-	for y := 1; y < m.sideHeight(); y++ {
-		if m.panelLine(m.width-1, y) == line {
-			return y
-		}
-	}
-	return paneTop
-}
-
 // popMove gives the line of the popover from k on, by step, that acts, stopping at the first and the last; k itself
 // when none does.
 func (m Model) popMove(k, step int) int {
@@ -233,8 +220,8 @@ func (m Model) popKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // popBox gives the popover's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the
 // screen line and column it is drawn from: from the header, its title over the name, or nearer the screen's left where
-// it would run past the edge; from the sidebar, its right edge at the screen's, its top on the
-// field's line, or higher where it would run past the keys bar.
+// it would run past the edge; from the columns dialog, its right edge at the screen's, its top on the dialog's, or
+// higher where it would run past the keys bar.
 func (m Model) popBox() (box []string, top, left int) {
 	var body []string
 	for k, l := range m.popLines(m.pop.field) {

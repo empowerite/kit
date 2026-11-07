@@ -148,85 +148,73 @@ func stateOf(glyph string) string {
 	return ""
 }
 
-func TestTheLegendStandsBesideTheRowsWithTheGlyphsInOneColumn(t *testing.T) {
-	for _, width := range []int{120, 200} {
-		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 60}, press('?'))
+// F1 or ? floats the legend over the rows, in the bottom right corner as it opens, titled by the stage: it says what
+// each glyph the rows draw now means, and nothing of a glyph they do not draw. An arrow on its top edge moves it to
+// that corner, the one it stands in dim; a click elsewhere on it does nothing, and one off it is the screen's.
+func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
+	for _, width := range []int{80, 120, 200} {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40}, tea.KeyPressMsg{Code: tea.KeyF1})
 		for i, name := range eight {
 			if i > 0 {
 				m = drive(m, right)
 			}
-			column := m.paneWidth() + 3 // a space, the rule, and a space
-			want := map[string]int{"legend": column}
-			for _, e := range legends[name] {
-				want[e.glyph+" "+e.meaning] = column
+			box, top, left := m.legendBox()
+			drawn := m.drawn()
+			if !strings.Contains(ansi.Strip(box[0]), name+" legend") || left+ansi.StringWidth(box[0]) != width ||
+				top+len(box) != m.height-1 {
+				t.Errorf("at %d, %s's legend is not in the bottom right, titled: %d, %d\n%s", width, name, top, left, view(m))
 			}
+			entries := legends[name]
 			if name == "changes" {
-				want["state"] = column
-				for _, e := range states {
-					want[e.glyph+" "+e.meaning] = column
-				}
+				entries = append(slices.Clone(entries), states...)
 			}
-			for text, at := range want {
-				found := false
-				for _, l := range lines(m) {
-					found = found || slices.Contains(cellsOf(l, text), at)
+			for _, e := range entries {
+				on, shown := strings.Contains(drawn, e.glyph), false
+				for _, l := range box {
+					shown = shown || strings.Contains(l, e.glyph) && strings.Contains(ansi.Strip(l), " "+e.meaning)
 				}
-				if !found {
-					t.Errorf("at %d, %s's legend lacks %q at cell %d:\n%s", width, name, text, at, view(m))
+				if on != shown {
+					t.Errorf("at %d, %s: %s %q drawn %v, in the legend %v:\n%s", width, name, e.glyph, e.meaning, on,
+						shown, view(m))
 				}
 			}
 		}
+	}
+	m := loaded(t, options(), press('?'))
+	box, top, left := m.legendBox()
+	arrow := func(c corner) int { return left + cellOf(box[0], arrows[c]) }
+	for _, c := range []corner{topLeft, topRight, bottomLeft, bottomRight} {
+		box, top, left = m.legendBox()
+		if m = drive(m, testkit.Click(arrow(c), top)); m.legend.at != c || !m.legend.open {
+			t.Errorf("the %s arrow: at %d", arrows[c], m.legend.at)
+		}
+		box, top, left = m.legendBox()
+		if c == topLeft && (top != paneTop || left != 0) || c == bottomRight && left+ansi.StringWidth(box[0]) != m.width {
+			t.Errorf("the legend in corner %d: %d, %d", c, top, left)
+		}
+	}
+	// a click on the legend off its arrows does nothing; one off it, the screen takes; F1 hides it
+	before := m.stages[m.stage].cursor
+	if m = drive(m, testkit.Click(left+2, top+1)); !m.legend.open || m.legend.at != bottomRight || m.stages[m.stage].cursor != before {
+		t.Errorf("a click on the legend: open %v, at %d", m.legend.open, m.legend.at)
+	}
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyF1}); m.legend.open || strings.Contains(view(m), "backlog legend") {
+		t.Errorf("F1 kept the legend:\n%s", view(m))
+	}
+	// with no stage, there is no legend to show
+	if m = loaded(t, Options{}, press('?')); m.legend.open {
+		t.Error("a legend with no stage")
 	}
 }
 
-// The legend takes no more than two fifths of the screen, the rows have the rest, and no line passes the edge; ? again
-// takes it away, and the rows have the width again.
-func TestTheLegendIsNarrowAndQuestionTakesItAway(t *testing.T) {
-	for _, width := range []int{40, 80, 120} {
-		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 30}, press('?'))
-		if lw := m.sidebarWidth(); lw == 0 || lw > (width-3)*2/5 || m.paneWidth()+lw+3 != width {
-			t.Errorf("at %d, the legend is %d cells beside rows of %d", width, lw, m.paneWidth())
-		}
-		for _, l := range lines(m) {
-			if n := ansi.StringWidth(l); n > width {
-				t.Errorf("at %d, a line of %d cells: %q", width, n, l)
-			}
-		}
-		if m = drive(m, press('?')); m.sidebar || m.paneWidth() != width-2 || strings.Contains(view(m), "legend") {
-			t.Errorf("at %d, ? left the legend: %v, rows of %d", width, m.sidebar, m.paneWidth())
-		}
+// cellOf gives the screen cell a text starts at in a line, or -1.
+func cellOf(line, text string) int {
+	plain := ansi.Strip(line)
+	k := strings.Index(plain, text)
+	if k < 0 {
+		return -1
 	}
-}
-
-// While the sidebar is hidden, the rule ends every line from under the bar down to the keys bar, at the screen's last
-// column, with ◂ on its middle line; a click on the triangle shows the sidebar, the triangle then ▸, and a click
-// anywhere else on the rule again hides it.
-func TestTheTriangleOnTheRuleShowsAndHidesTheLegend(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 12})
-	drawn := strings.Split(raw(m), "\n")
-	for k := paneTop; k < m.sideHeight(); k++ {
-		end := rule
-		switch k {
-		case m.triangleAt():
-			end = show
-		case m.triangleAt() + 1:
-			end = under
-		}
-		if !strings.HasSuffix(drawn[k], end) || ansi.StringWidth(drawn[k]) != 80 {
-			t.Errorf("line %d does not end on %s at the last column: %q", k, end, drawn[k])
-		}
-	}
-	if m.triangleAt() != paneTop+(m.sideHeight()-paneTop)/2 || m.triangleAt() <= paneTop+1 {
-		t.Errorf("the triangle is on line %d, not the rule's middle", m.triangleAt())
-	}
-	triangle := testkit.Click(m.paneWidth()+1, m.triangleAt())
-	if m = drive(m, triangle); !m.sidebar || !strings.Contains(raw(m), "columns") {
-		t.Fatalf("a click on %s did not show the legend:\n%s", show, raw(m))
-	}
-	triangle.X, triangle.Y = m.paneWidth()+1, paneTop
-	if m = drive(m, triangle); m.sidebar || !strings.HasSuffix(strings.Split(raw(m), "\n")[m.triangleAt()], show) {
-		t.Errorf("a click on %s did not hide the legend:\n%s", hide, raw(m))
-	}
+	return ansi.StringWidth(plain[:k])
 }
 
 // Each glyph a stage's rows lead somewhere from is marked in its legend, † for a row under another stage and 🔗 for

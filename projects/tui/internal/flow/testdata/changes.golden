@@ -1,24 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
   ──────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶──────
   way     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 b ▹
-  ──────────╰────────────────╰──────────────────────╯                  ╰───────┐
-   change  title         author   state  age  checks  threads  labels  branc📊 │
-   ───────────────────────────────────────────────────────────────── Default ▼ │
- ▸ 🔀 #2   The first r…  jeffre…  🏁      8d  ✅               1       1-the-… │
- ▸ 🔀 #3   A spike on …  ada      🔨     90m  🏃      💬 2 u…          3-a-sp… │
- ▸ 🔀 #4   Lint every …  bob      🔥     25h  ❌                       4-lint… │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               ◂
-                                                                               ╷
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
- = menu / search ? show sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
+  ──────────╰────────────────╰──────────────────────╯                  ╰────────
+   change  title         author   state  age  checks  threads  labels  branch📊
+   ────────────────────────────────────────────────────────────────── Default ▼
+ ▸ 🔀 #2   The first r…  jeffre…  🏁      8d  ✅               1       1-the-f…
+ ▸ 🔀 #3   A spike on …  ada      🔨     90m  🏃      💬 2 u…          3-a-spi…
+ ▸ 🔀 #4   Lint every …  bob      🔥     25h  ❌                       4-lint-…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

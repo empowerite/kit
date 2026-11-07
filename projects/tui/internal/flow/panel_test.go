@@ -4,7 +4,6 @@
 package flow
 
 import (
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -14,18 +13,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
-	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
-	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard
-// from the bar: the sidebar's keys, then the search's, which hides every key of the screen's and the bar's it types.
-const panelKeys = "⇥·esc backlog ↑↓ move ⇞⇟ scroll │ type to search"
-
-// searchKeys is the keys bar while the search has the keyboard, the sidebar hidden, from the bar.
-const searchKeys = "⇥·esc backlog │ type to search"
+// searchKeys is the keys bar while the search has the keyboard: esc or enter leaves it, then the search's own, which
+// hides every key of the screen's and the bar's it types.
+const searchKeys = "esc·⏎ back │ type to search"
 
 // menuKeys is the keys bar while a menu is open.
 var menuKeys = shell.Path{shell.MenuKeys()}.String()
@@ -59,24 +53,22 @@ func drawn(m Model) string {
 	return strings.Join(out, "\n")
 }
 
-var tab = press(tea.KeyTab)
-
-func TestTabGivesThePanelTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testing.T) {
-	m := loaded(t, options(), tab)
-	if !m.inPanel || !m.sidebar || m.bar().Focused || lines(m)[23] != " "+panelKeys {
-		t.Fatalf("tab: in panel %v, side %v, keys %q", m.inPanel, m.sidebar, lines(m)[23])
+func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testing.T) {
+	m := loaded(t, options(), typed("/")...)
+	if !m.inPanel || m.bar().Focused || lines(m)[23] != " "+searchKeys {
+		t.Fatalf("/: in panel %v, keys %q", m.inPanel, lines(m)[23])
 	}
-	if !strings.Contains(view(m), grid.Search+" ▏") {
+	if !strings.Contains(raw(m), grid.Search+" ▏") {
 		t.Errorf("the search under the keyboard has no caret:\n%s", view(m))
 	}
 	m = drive(m, typed("NOUN")...)
-	// the tab says how many of the rows loaded the panel lets through
+	// the tab says how many of the rows loaded the search lets through
 	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "1/3") {
-		t.Errorf("shell.Typing noun: rows %v\n%s", got, view(m))
+		t.Errorf("typing noun: rows %v\n%s", got, view(m))
 	}
 	// a number types into the search, and r does not refresh
 	m = drive(m, typed("2r")...)
-	if m.stage != 0 || m.stages[0].loading || !strings.Contains(view(m), grid.Search+" NOUN2r▏") {
+	if m.stage != 0 || m.stages[0].loading || !strings.Contains(raw(m), grid.Search+" NOUN2r▏") {
 		t.Errorf("a number or r in the search: stage %d\n%s", m.stage, view(m))
 	}
 	if !strings.Contains(view(m), "no row matches the panel") {
@@ -88,46 +80,42 @@ func TestTabGivesThePanelTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *testin
 	if len(keys(m)) != 3 || !shows(m, stageGlyphs["backlog"], "3") {
 		t.Errorf("the search emptied: rows %v", keys(m))
 	}
-	// a key neither the panel nor the bar takes keeps the keyboard in the panel
+	// a key neither the search nor the bar takes keeps the keyboard in the search
 	if m = drive(m, press(tea.KeyPgDown)); !m.inPanel {
-		t.Error("pgdown left the panel")
+		t.Error("pgdown left the search")
 	}
-	// esc gives the keyboard back to the bar, the side still showing; tab again takes it, and esc from the rows
-	// returns to them
-	if m = drive(m, esc); m.inPanel || !m.sidebar || !m.bar().Focused {
-		t.Errorf("esc: in panel %v, side %v", m.inPanel, m.sidebar)
+	// esc gives the keyboard back to the bar; / from the rows, and enter, back to them
+	if m = drive(m, esc); m.inPanel || !m.bar().Focused {
+		t.Errorf("esc: in panel %v", m.inPanel)
 	}
-	m = drive(m, down, tab, tab)
+	m = drive(m, down, typed("/")[0], press(tea.KeyEnter))
 	if m.inPanel || !m.inRows {
-		t.Errorf("tab from the rows and back: in panel %v, in rows %v", m.inPanel, m.inRows)
+		t.Errorf("/ from the rows and enter: in panel %v, in rows %v", m.inPanel, m.inRows)
 	}
 }
 
-func TestSlashFindsAndANumberWithAltLeavesThePanelForItsStage(t *testing.T) {
+func TestSlashFindsAndANumberWithAltLeavesTheSearchForItsStage(t *testing.T) {
 	m := loaded(t, options(), down, down)
 	m = drive(m, typed("/")...)
-	if !m.inPanel || m.panel(0).Cursor != 0 || !m.inRows {
-		t.Fatalf("/: in panel %v, cursor %d", m.inPanel, m.panel(0).Cursor)
+	if !m.inPanel || !m.inRows {
+		t.Fatalf("/: in panel %v, in rows %v", m.inPanel, m.inRows)
 	}
-	// the band stays on the row under the cursor while the panel has the keyboard
+	// the band stays on the row under the cursor while the search has the keyboard
 	if !strings.HasPrefix(cursor(m), "#46") {
 		t.Errorf("the cursor's row lost its band: %q", cursor(m))
 	}
 	m = drive(m, tea.KeyPressMsg{Code: '3', Mod: tea.ModAlt})
 	if m.inPanel || m.stage != 2 || !m.bar().Focused {
-		t.Errorf("alt-3 in the panel: in panel %v, stage %d", m.inPanel, m.stage)
+		t.Errorf("alt-3 in the search: in panel %v, stage %d", m.inPanel, m.stage)
 	}
-	// / from another control of the panel goes to the search, and what is typed next lands there
-	m = drive(m, typed("2")...)
-	m = drive(m, tab, down, down)
 	m = drive(m, typed("/x")...)
-	if p := m.panel(m.stage); !m.inPanel || p.Cursor != 0 || p.Query != "x" {
-		t.Errorf("/ from a checkbox: in panel %v, cursor %d, search %q", m.inPanel, p.Cursor, p.Query)
+	if p := m.panel(m.stage); !m.inPanel || p.Query != "x" {
+		t.Errorf("/ then x: in panel %v, search %q", m.inPanel, p.Query)
 	}
 	m = drive(m, esc)
-	// each stage keeps its own panel: the desk's search is empty
-	if m.panel(2).Query != "" || m.panel(0).Query != "" {
-		t.Errorf("the panels: %q, %q", m.panel(2).Query, m.panel(0).Query)
+	// each stage keeps its own search: backlog's is empty
+	if m.panel(2).Query != "x" || m.panel(0).Query != "" {
+		t.Errorf("the searches: %q, %q", m.panel(2).Query, m.panel(0).Query)
 	}
 }
 
@@ -137,11 +125,10 @@ func glyphAt(m Model) int {
 	return ansi.StringWidth(top[:strings.Index(top, grid.Search)])
 }
 
-// The search stands on the screen's top right whether the sidebar shows or not: while it is hidden, right-aligned one
-// cell short of the edge, and in use, its glyph over the rightmost tab's number that leaves ten cells to type in, until
-// it is left empty. / or a click on it gives it the keyboard without showing the sidebar; down then has nothing to move
-// to. With the sidebar shown, the search is the sidebar's, and down moves to the panel's first control.
-func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
+// The search stands on the screen's top right: idle, right-aligned one cell short of the edge, and in use, its glyph
+// over the rightmost tab's number that leaves ten cells to type in, until it is left empty. / or a click on it gives
+// it the keyboard; down then has nothing to move to.
+func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 	m := loaded(t, options(), down)
 	idle := m.width - 1 - ansi.StringWidth(grid.Search+" search")
 	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" search") ||
@@ -150,8 +137,8 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	}
 	for _, enter := range []tea.Msg{typed("/")[0], testkit.Click(idle, 0)} {
 		m = drive(m, esc, enter)
-		if !m.inPanel || m.sidebar || m.panel(0).Cursor != 0 || lines(m)[23] != " "+searchKeys {
-			t.Fatalf("%v: in panel %v, sidebar %v, keys %q", enter, m.inPanel, m.sidebar, lines(m)[23])
+		if !m.inPanel || lines(m)[23] != " "+searchKeys {
+			t.Fatalf("%v: in panel %v, keys %q", enter, m.inPanel, lines(m)[23])
 		}
 		numbers := m.bar().Numbers()
 		at := glyphAt(m)
@@ -159,14 +146,14 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 			slices.ContainsFunc(numbers, func(x int) bool { return x > at && m.width-1-(x+3) >= shell.Typing }) {
 			t.Errorf("%v: the search's glyph is at %d, over none of %v that leaves room", enter, at, numbers)
 		}
-		if m = drive(m, down, press(tea.KeyPgDown)); m.panel(0).Cursor != 0 || m.sideOffset != 0 || m.sidebar {
-			t.Errorf("down in the search alone: cursor %d, offset %d", m.panel(0).Cursor, m.sideOffset)
+		if m = drive(m, down, press(tea.KeyPgDown)); !m.inPanel {
+			t.Errorf("down in the search left it")
 		}
 	}
 	at := glyphAt(m)
 	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) ||
 		!strings.Contains(strings.Split(raw(m), "\n")[0], grid.Search+" noun") {
-		t.Errorf("shell.Typing in the search alone: %v\n%s", keys(m), view(m))
+		t.Errorf("typing in the search: %v\n%s", keys(m), view(m))
 	}
 	// a query left behind keeps the search where it is typed in; an empty one goes back to the edge
 	if m = drive(m, esc); glyphAt(m) != at {
@@ -181,54 +168,12 @@ func TestTheSearchStandsAloneWhileTheSidebarIsHidden(t *testing.T) {
 	if at := glyphAt(m); at != 20-1-shell.Typing-3 {
 		t.Errorf("at 20 columns, the search's glyph is at %d", at)
 	}
-	m = drive(m, esc, tea.WindowSizeMsg{Width: 120, Height: 24})
-	if m = drive(m, press('?'), typed("/")[0], down); m.panel(0).Cursor != 1 || !m.sidebar ||
-		glyphAt(m) != m.width-m.sideWidth() {
-		t.Errorf("down from the search with the sidebar shown: cursor %d, glyph at %d", m.panel(0).Cursor, glyphAt(m))
-	}
 }
 
-// Space on a field's line in the editor hides it, and it stands under hidden, the keyboard with it; again shows it
-// where it stood. Kit is asked for the caller's login once, whichever way the sidebar shows.
-func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
-	record := filepath.Join(t.TempDir(), "calls")
-	t.Setenv("FAKE_FLOW_CALLS", record)
-	// the search, then id, source, and assignees, under columns
-	m := loaded(t, options(), tab, down, down, down, press(tea.KeySpace))
-	if m.me != "ada" {
-		t.Fatalf("the caller's login: %q", m.me)
-	}
-	side, _ := m.panel(0).Lines()
-	at := slices.Index(side, style.Cursor(pane.Pad(grid.Unticked+" assignees", m.sideWidth()-1, false)))
-	if strings.Contains(drawn(m), "jeffrey-agui") || at < 0 || ansi.Strip(side[at-1]) != grid.Unticked+" repository" || m.panel(0).Under() != "assignees" {
-		t.Errorf("assignees hidden:\n%s", view(m))
-	}
-	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show ⇧↑↓ move") {
-		t.Errorf("the keys on a hidden field: %q", keys)
-	}
-	if m = drive(m, press(tea.KeySpace)); !strings.Contains(drawn(m), "jeffrey-agui") || shownNow(m)[2] != "assignees" {
-		t.Errorf("assignees shown again: %q\n%s", shownNow(m), view(m))
-	}
-	m = drive(m, press('?'), press('?'), esc, tab)
-	if n := strings.Count(strings.Join(calls(t, record), "\n"), "flow --me"); n != 1 {
-		t.Errorf("kit flow --me ran %d times", n)
-	}
-}
-
-func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
-	// tall enough that the panel and the legend end above the side's last line
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, press('?'))
-	x := m.paneWidth() + 3
-	// the side's lines: the search, a gap, group by, columns, then id, source, and assignees
-	if m = drive(m, testkit.Click(x, 6), testkit.Release(x, 6)); !m.inPanel || m.panel(0).Field("assignees").Placement != grid.Hidden ||
-		strings.Contains(drawn(m), Owner) {
-		t.Fatalf("a click on assignees: in panel %v\n%s", m.inPanel, view(m))
-	}
-	if m = drive(m, testkit.Click(x, 1)); !m.inPanel || m.panel(0).Under() != "assignees" {
-		t.Errorf("a click on a gap moved the panel's cursor: %d", m.panel(0).Cursor)
-	}
-	// a click on the gutter of a row's first line opens it, from the panel; again closes it. #45 stands under the
-	// heading over every row, two cells in
+// A click on the gutter of a row's first line opens it, from the search too; again closes it.
+func TestAClickOnAGutterOpensItsRow(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
+	// #45 stands under the heading over every row, two cells in
 	gutter := m.indent(0) + 1
 	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
 		!m.stages[0].open["#45"] {
@@ -237,76 +182,15 @@ func TestAClickOnThePanelActsAndAClickOnAGutterOpensItsRow(t *testing.T) {
 	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
-	// a click past the panel's lines, or on the side while it is hidden, acts on nothing
-	before := view(m)
-	if m = drive(m, testkit.Click(x, m.sideHeight()-1)); view(m) != before || m.inPanel {
-		t.Errorf("a click under the side changed the screen")
-	}
 }
 
 func TestThePanelWithoutStagesDoesNothing(t *testing.T) {
-	m := loaded(t, Options{}, tab, testkit.Click(78, paneTop))
+	m := loaded(t, Options{}, typed("/")[0], testkit.Click(78, 0))
 	if m.inPanel {
-		t.Error("the panel took the keyboard without a stage")
+		t.Error("the search took the keyboard without a stage")
 	}
-	if m = drive(m, press('?'), testkit.Click(m.paneWidth()+3, paneTop)); m.inPanel {
-		t.Error("a click on the side took the keyboard without a stage")
-	}
-}
-
-func TestAStageWithoutALegendShowsItsPanelAlone(t *testing.T) {
-	m := loaded(t, Options{Stages: []string{"nonesuch"}}, press('?'))
-	if side := m.sideLines(); len(side) != 1 || !strings.HasPrefix(side[0], grid.Search) {
-		t.Errorf("the side of a stage kittui does not draw: %q", side)
-	}
-}
-
-func TestTheSidebarScrollsSoTheLegendUnderThePanelCanBeRead(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, press('?'))
-	x, h := m.paneWidth()+3, m.sideHeight()
-	if len(m.sideLines()) <= h || !strings.Contains(view(m), "… ") {
-		t.Fatalf("the sidebar fits %d lines: %d", h, len(m.sideLines()))
-	}
-	wheel := func(b tea.MouseButton, x int) tea.Msg { return tea.MouseWheelMsg{X: x, Y: paneTop + 2, Button: b} }
-	if m = drive(m, wheel(tea.MouseWheelDown, x)); m.sideOffset == 0 {
-		t.Error("the wheel did not scroll the sidebar down")
-	}
-	if m = drive(m, wheel(tea.MouseWheelUp, x), wheel(tea.MouseWheelDown, 4)); m.sideOffset != 0 {
-		t.Errorf("the wheel up, or over the rows: offset %d", m.sideOffset)
-	}
-	// a click on … more pages down, and another to the legend's end; one on … above, under the search, pages back up
-	if m = drive(m, testkit.Click(x, h-1)); m.sideOffset == 0 || strings.Contains(view(m), Failed+" failed") {
-		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
-	}
-	for range 2 {
-		m = drive(m, testkit.Click(x, h-1))
-	}
-	if !strings.Contains(view(m), Failed+" failed") {
-		t.Errorf("a click on … more: offset %d\n%s", m.sideOffset, view(m))
-	}
-	if m = drive(m, testkit.Click(x, 1), testkit.Click(x, 1), testkit.Click(x, 1)); m.sideOffset != 0 {
-		t.Errorf("a click on … above: offset %d", m.sideOffset)
-	}
-	// with the panel's keyboard, page down and up scroll it; down past the last control scrolls on, and up brings
-	// the control under the keyboard back
-	if m = drive(m, tab, press(tea.KeyPgDown)); m.sideOffset == 0 || !m.inPanel {
-		t.Errorf("page down in the panel: offset %d", m.sideOffset)
-	}
-	if m = drive(m, press(tea.KeyPgUp)); m.sideOffset != 0 {
-		t.Errorf("page up in the panel: offset %d", m.sideOffset)
-	}
-	m = drive(m, slices.Repeat([]tea.Msg{down}, 11)...)
-	at := m.sideOffset
-	if m = drive(m, down); m.sideOffset != at+1 {
-		t.Errorf("down past the last control: offset %d, was %d", m.sideOffset, at)
-	}
-	if m = drive(m, slices.Repeat([]tea.Msg{up}, 11)...); m.sideOffset != 0 {
-		t.Errorf("up to the search: offset %d", m.sideOffset)
-	}
-	// another stage starts at the sidebar's top
-	m = drive(m, esc, press(tea.KeyPgDown), right)
-	if m.sideOffset != 0 {
-		t.Errorf("another stage: offset %d", m.sideOffset)
+	if m = drive(m, press('?')); m.legend.open {
+		t.Error("? showed a legend without a stage")
 	}
 }
 
@@ -344,7 +228,8 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 }
 
 func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
-	m := loaded(t, options(), press('?'))
+	m := loaded(t, options())
+	m.openColumns()
 	if !strings.Contains(view(m), grid.Ticked+" branch") {
 		t.Fatalf("backlog's branch has no checkbox while an issue has one:\n%s", view(m))
 	}
@@ -371,57 +256,6 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 		t.Errorf("the wheel on the bar scrolled the rows")
 	}
 	loaded(t, Options{}, turn(tea.MouseWheelDown))
-}
-
-// In the panel, shift with up or down moves a column, and a drag of its line moves it as far as the mouse goes; the
-// header and the rows follow. A press on a column's line toggles nothing until the release, and a drag never does.
-func TestThePanelOrdersTheColumnsByKeyOrByDrag(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, right, right, right, press('?'))
-	x := m.paneWidth() + 3
-	line := func(name string) int {
-		for y, l := range lines(m) {
-			if strings.HasSuffix(strings.TrimRight(l, " "), grid.Ticked+" "+name) {
-				return y
-			}
-		}
-		t.Fatalf("no %s in the panel:\n%s", name, view(m))
-		return -1
-	}
-	// branch, the first column, moves down a place: ahead first, in the header and in the rows
-	m = drive(m, tab, down, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
-	if l := lines(m); !strings.HasPrefix(strings.TrimSpace(l[paneTop]), "ahead") || line("branch") <= line("ahead") ||
-		!strings.Contains(l[m.rowsTop()], "↑266 ↓0  1-the-first-release") {
-		t.Fatalf("shift-down on branch:\n%s", view(m))
-	}
-	// a drag of state's line onto lines' puts state where lines was, toggling nothing
-	from, to := line("state"), line("lines")
-	m = drive(m, testkit.Click(x, from), testkit.Drag(x, to), testkit.Release(x, to))
-	if line("state") != to || len(hiddenOf(m.panel(m.stage))) != 0 || !strings.Contains(lines(m)[paneTop], "state") ||
-		strings.Index(lines(m)[paneTop], "state") > strings.Index(lines(m)[paneTop], "lines") {
-		t.Errorf("a drag of state onto lines:\n%s", view(m))
-	}
-	// a press and a release on the same line toggle; a press released elsewhere does not
-	at := line("ahead")
-	hidden := func() bool { return m.panel(m.stage).Field("ahead").Placement == grid.Hidden }
-	if m = drive(m, testkit.Click(x, at)); hidden() {
-		t.Error("the press alone toggled ahead")
-	}
-	if m = drive(m, testkit.Release(x, at)); !hidden() {
-		t.Error("the release did not toggle ahead")
-	}
-	if m = drive(m, testkit.Click(x, at), testkit.Release(x, at+5)); !hidden() {
-		t.Error("a release off its line toggled ahead")
-	}
-	// a drag that never held a column, or over a line that draws none, moves nothing
-	order := func() []string { return m.panel(m.stage).Arrange(m.panel(m.stage).Columns) }
-	before := order()
-	if m = drive(m, testkit.Drag(x, to), testkit.Release(x, to)); !slices.Equal(order(), before) {
-		t.Error("a drag with nothing held moved a column")
-	}
-	m = drive(m, testkit.Click(x, line("state")), testkit.Drag(x, 0), testkit.Drag(2, 10), testkit.Release(2, 10))
-	if !slices.Equal(order(), before) {
-		t.Error("a drag over no column's line moved one")
-	}
 }
 
 // Sort by, in the menu a click on a sortable column's name drops, sorts the rows by it, ▲ beside the name; a click on ▲
@@ -459,62 +293,18 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	}
 }
 
-// A groupable field moved up from the first column, by shift and up in the editor, groups the stage's rows by it under
-// headings, which its tab does not count, each its value as the rows draw it and the field's name and the count dim; a
-// field that cannot group, as id, stays the first column.
-func TestAFieldMovedIntoTheGroupsGroupsTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
-	count := m.count(m.stage)
-	shiftUp := tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
-	// down to state, the sixth column: id, source, assignees, age, change, state; up past the five before it
-	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), slices.Repeat([]tea.Msg{shiftUp}, 6)...)...)
-	if v := view(m); !slices.Equal(m.panel(m.stage).Groups(), []string{"state"}) || !strings.Contains(v, "🏁 ready state  1") ||
-		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count || m.panel(m.stage).Under() != "state" {
-		t.Fatalf("state up into the groups: %q, count %s\n%s", m.panel(m.stage).Groups(), m.count(m.stage), v)
-	}
-	if want := grid.Unfolded + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
-		m.View().Content, want) {
-		t.Error("a group's heading does not draw its ▾ and value plain, and its column and count dim")
-	}
-	m = drive(m, down)
-	if m = drive(m, shiftUp); m.panel(m.stage).Under() != "id" || len(m.panel(m.stage).Groups()) != 1 {
-		t.Errorf("shift-up on id: %q", m.panel(m.stage).Groups())
-	}
-}
-
-// In the side panel a field toggles only by space, or a click on its box: a click on its label takes the keyboard, and
-// toggles nothing. The control under the keyboard is inverse across the panel but a cell.
-func TestAClickOnAColumnsNameTogglesNothing(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 30}, press('?'))
-	box := m.paneWidth() + 3
-	m = drive(m, testkit.Click(box+3, 5), testkit.Release(box+3, 5))
-	if p := m.panel(0); !slices.Equal(hiddenOf(p), []string{"organization", "repository"}) || !m.inPanel ||
-		p.FieldAt(5) != "source" {
-		t.Errorf("a click on source's name: hidden %v, in panel %v", hiddenOf(p), m.inPanel)
-	}
-	lines, _ := m.panel(0).Lines()
-	if got := ansi.StringWidth(lines[5]); got != m.sideWidth()-1 || !strings.HasPrefix(lines[5], style.Cursor(grid.Ticked)[:4]) {
-		t.Errorf("the control under the keyboard is %d cells inverse, not %d: %q", got, m.sideWidth()-1, lines[5])
-	}
-	if m = drive(m, testkit.Click(box, 5), testkit.Release(box, 5)); m.panel(0).Field("source").Placement != grid.Hidden {
-		t.Error("a click on source's checkbox did not toggle it")
-	}
-}
-
-// A field moved into the groups groups the rows by it, at the last depth, within the groups there are; a grouped
-// column leaves the header and the rows, whose heading names its value, and the rows and the header stand in two cells
-// a level, a click on a name finding its column there.
+// g in the columns dialog groups the rows by a field, at the last depth, within the groups there are; a grouped column
+// leaves the header and the rows, whose heading names its value, and the rows and the header stand in two cells a
+// level, a click on a name finding its column there.
 func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right, press('?'), tab)
-	shiftUp := tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
-	// down to source, up into the groups; then down to assignees, under it and id, and up after it
-	m = drive(m, down, down, shiftUp, shiftUp)
-	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source"}) {
-		t.Fatalf("source up into the groups: %q", got)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m.openColumns()
+	for _, id := range []string{"source", "assignees"} {
+		m.cols.at = slices.Index(m.colsListed(), id)
+		m = drive(m, typed("g")...)
 	}
-	m = drive(m, down, down, shiftUp, shiftUp)
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source", "assignees"}) {
-		t.Fatalf("assignees up into the groups: %q", got)
+		t.Fatalf("source, then assignees, into the groups: %q", got)
 	}
 	header := ansi.Cut(lines(m)[paneTop], 0, m.paneWidth())
 	if strings.Contains(header, "source") || strings.Contains(header, "assignees") || !strings.HasPrefix(header, strings.Repeat(" ", 4+3)) {
@@ -603,9 +393,6 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	if got := heading(m); got != grid.Unfolded+" github source  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
 		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
-	}
-	if lines, _ := m.panel(m.stage).Lines(); !slices.Contains(lines, style.Mark(grid.Ticked+" source")+" "+style.Off(grid.Grouping)) {
-		t.Errorf("the panel does not mark source dim:\n%s", strings.Join(lines, "\n"))
 	}
 	// a search that leaves one row: the source is a column again
 	p := m.panel(m.stage)
@@ -702,13 +489,20 @@ func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 	return -1, -1
 }
 
-// Enter on a field's line in the editor opens its popover, which has the keyboard: up and down move between the lines
-// that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each applies
-// at once, the rows, the editor's marks, and the preset line's chips following it. The sort is the column menu's, so
-// the popover has none. Esc closes it, and
-// the editor has the keyboard again. A click on a line acts on it, and a click off the box closes it.
+// popoverOf opens a field's Options… from the columns dialog, enter on its line.
+func popoverOf(m Model, id string) Model {
+	m.openColumns()
+	m.cols.at = slices.Index(m.colsListed(), id)
+	return drive(m, press(tea.KeyEnter))
+}
+
+// Enter on a field's line in the columns dialog opens its popover, which has the keyboard: up and down move between the
+// lines that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each
+// applies at once, the rows and the preset line's chips following it. The sort is the column menu's, so the popover has
+// none. Esc closes it, and the dialog has the keyboard again. A click on a line acts on it, and a click off the box
+// closes it.
 func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
-	m := loaded(t, viewing(""), tab, down, down, down, press(tea.KeyEnter))
+	m := popoverOf(loaded(t, viewing("")), "assignees")
 	if !m.pop.open || m.pop.field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
@@ -738,9 +532,9 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
 		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
-	// esc closes it; the editor has the keyboard, and marks the field filtered
-	if m = drive(m, esc); m.pop.open || !m.inPanel || !strings.Contains(view(m), "assignees ⊘") {
-		t.Errorf("esc: open %v, in panel %v\n%s", m.pop.open, m.inPanel, view(m))
+	// esc closes it; the columns dialog has the keyboard, and marks the field filtered
+	if m = drive(m, esc); m.pop.open || !m.cols.open || !strings.Contains(view(m), "assignees ⊘") {
+		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.open, m.cols.open, view(m))
 	}
 	// a click off the box closes it, acting on nothing
 	m = drive(m, press(tea.KeyEnter))
@@ -749,8 +543,7 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("a click off the popover: open %v", m.pop.open)
 	}
 	// an enum's values are the catalog's, with their glyphs, then none
-	m = drive(m, append([]tea.Msg{esc, esc, right, tab}, slices.Repeat([]tea.Msg{down}, 6)...)...)
-	m = drive(m, press(tea.KeyEnter))
+	m = popoverOf(drive(m, esc, esc, right), "state")
 	if v := view(m); m.pop.field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
 		!strings.Contains(v, grid.Unticked+" 🏁 ready") || !strings.Contains(v, grid.Unticked+" none") {
 		t.Errorf("state's popover:\n%s", v)
@@ -761,7 +554,7 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "me")
 	// the popover opens on its filter's mode; @me is under it
-	m := loaded(t, options(), tab, down, down, down, press(tea.KeyEnter), down)
+	m := drive(popoverOf(loaded(t, options()), "assignees"), down)
 	if m.me != "" || !strings.Contains(view(m), grid.Unticked+" @me ") || strings.Contains(view(m), "@me ada") {
 		t.Fatalf("@me without a login: %q\n%s", m.me, view(m))
 	}

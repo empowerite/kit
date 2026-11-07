@@ -52,7 +52,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 0}, {"E", 3}, {"z", 3}} {
+	}{{"c", 1}, {"E", 3}, {"z", 3}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.menuAt != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.menuAt, step.want)
 		}
@@ -65,17 +65,16 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 		t.Fatalf("expand all: menu %v, open %d", m.menu, openRows(m))
 	}
 	opened := openRows(m)
-	// now expand all is dim, and c finds collapse all, Columns… dim where the stage has no preset line, which space
-	// chooses; ; drops the menu down too
-	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 4 || m.enabled(3) {
+	// now expand all is dim, and c finds Columns…, then collapse all, which space chooses; ; drops the menu down too
+	if m = drive(m, press(';'), typed("c")[0], typed("c")[0]); !m.menu || m.menuAt != 4 || m.enabled(3) {
 		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
-	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, the rule,
-	// and the dim Columns…, to refresh
+	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, and the
+	// rule, to Columns…
 	if m = drive(m, down); m.menuAt != 7 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
-	if m = drive(m, up, up); m.menuAt != 0 {
+	if m = drive(m, up, up); m.menuAt != 1 {
 		t.Errorf("up past expand all: item %d", m.menuAt)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); openRows(m) != 0 || m.menu {
@@ -176,7 +175,7 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 }
 
 func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
-	m := loaded(t, options(), tab)
+	m := loaded(t, options(), typed("/")[0])
 	if m = drive(m, typed("=:;")...); m.menu || m.panel(0).Query != "=:;" {
 		t.Fatalf("the menus' keys in the search: menu %v, search %q", m.menu, m.panel(0).Query)
 	}
@@ -184,8 +183,8 @@ func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
 		key rune
 		app bool
 	}{{'=', true}, {':', false}, {';', false}} {
-		if m = drive(m, down, press(c.key)); m.menu == c.app || m.appMenu.Open != c.app || !m.inPanel {
-			t.Errorf("%c off the search: menu %v, app %v, in panel %v", c.key, m.menu, m.appMenu.Open, m.inPanel)
+		if m = drive(m, typed("/")[0], esc, press(c.key)); m.menu == c.app || m.appMenu.Open != c.app || m.inPanel {
+			t.Errorf("%c after the search: menu %v, app %v, in panel %v", c.key, m.menu, m.appMenu.Open, m.inPanel)
 		}
 		m = drive(m, esc)
 	}
@@ -201,14 +200,14 @@ func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
 }
 
 // On the rightmost tab, a box from the glyph would run past the rows: the glyph takes the top edge's cell two before
-// the right corner instead, or a nearer one when the rows end there; at every width, beside the sidebar or not, the
+// the right corner instead, or a nearer one when the rows end there; at every width, over the legend or not, the
 // whole box shows, the edge half a line either side of the glyph.
 // What the box does not cover stays in its columns, a two-cell glyph it cuts in half giving way to a space.
 func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *testing.T) {
 	for _, width := range []int{60, 80, 97, 110, 131, 174, 200} {
-		for _, sidebar := range []bool{false, true} {
+		for _, legend := range []bool{false, true} {
 			m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 24})
-			if sidebar {
+			if legend {
 				m = drive(m, press('?'))
 			}
 			for i := range m.stages {
@@ -220,7 +219,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 				if end > m.paneWidth() || glyph-left < 2 || ansi.Cut(drawn[menuTop], glyph-1, glyph+cells) != "╴"+tabs.Menu ||
 					!(after == "╶" || glyph+cells == end-1 && after == "╮" || glyph+cells == end) ||
 					ansi.Cut(drawn[menuTop+len(box)-1], left, end) != ansi.Strip(box[len(box)-1]) {
-					t.Errorf("at %d, sidebar %v, tab %d: the box spans %d to %d, the glyph at %d:\n%s", width, sidebar, i,
+					t.Errorf("at %d, legend %v, tab %d: the box spans %d to %d, the glyph at %d:\n%s", width, legend, i,
 						left, end-1, glyph, view(m))
 				}
 				m = drive(m, esc, right)
@@ -386,8 +385,9 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	if m = drive(m, typed("s")[0], typed("s")[0], press(tea.KeyEnter)); m.selected() != 3 || on("Select All") {
 		t.Errorf("select all: %d selected", m.selected())
 	}
-	m = drive(m, press(':'), typed("c")[0], press(tea.KeyEnter))
-	m = drive(m, press(tea.KeySpace), up, press(tea.KeySpace))
+	m = drive(m, press(':'))
+	m.menuAt = item(m, "Clear Selection")
+	m = drive(m, press(tea.KeyEnter), press(tea.KeySpace), up, press(tea.KeySpace))
 	browsed = nil
 	m = drive(m, press(':'), typed("o")[0], press(tea.KeyEnter))
 	if len(browsed) != 2 || !strings.HasSuffix(browsed[0], "/issues/46") && !strings.HasSuffix(browsed[1], "/issues/46") {
@@ -431,7 +431,7 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	if m = drive(m, press(':')); m.enabled(3) || !m.enabled(4) {
 		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(3), m.enabled(4))
 	}
-	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
+	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
 		t.Errorf("collapse selected left %d open", openRows(m))
 	}
 	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
@@ -440,7 +440,7 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	if m = drive(m, press(':')); m.tabItems()[5].Name != "Collapse Others" || !m.enabled(5) {
 		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[5], m.enabled(5))
 	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
+	if m = drive(m, typed("c")[0], typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
 		!m.stages[m.stage].open[rows[0].Key] || m.menu {
 		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].open[rows[0].Key])
 	}

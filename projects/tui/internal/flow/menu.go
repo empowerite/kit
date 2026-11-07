@@ -111,7 +111,7 @@ func (m Model) enabled(k int) bool {
 	case "Refresh":
 		return known[s.name]
 	case "Columns…":
-		return m.presets(m.stage)
+		return m.columnar(m.stage)
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
@@ -211,7 +211,7 @@ func (m Model) menuBoxIn() (lines []string, left, first int) {
 const menuTop = paneTop - 2
 
 // overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
-// backlog action asks, over the rows' top. The menus that hang over the sidebar are drawn after it, by float.
+// backlog action asks, over the rows' top. The rest are drawn after the title's search, by float.
 func (m Model) overlay(lines []string) []string {
 	if m.menu {
 		box, left := m.menuBox()
@@ -236,8 +236,8 @@ func (m *Model) menuClick(x, y int) tea.Cmd {
 	return nil
 }
 
-// float draws the menus that hang over the sidebar, once the sidebar is laid out beside the rows, which would clip
-// them: the presets' menu under the preset line, a field's popover, and the searches remembered under the search's ▾.
+// float draws what floats over the screen, over the menus and the legend: the presets' menu under the preset line; the columns dialog; a field's popover; the column and heading menus; and the searches
+// remembered under the search's ▾.
 func (m Model) float(lines []string) []string {
 	if m.presetMenu {
 		box, top, left := m.presetBox()

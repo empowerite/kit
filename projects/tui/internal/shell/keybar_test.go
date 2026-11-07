@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -16,8 +17,8 @@ import (
 var rows = Segment{Bindings: []Binding{Bind("↑↓", "move", "up", "down"), Bind("␣", "select", "space")}}
 
 func TestEachControlsKeysStandBetweenRules(t *testing.T) {
-	path := Path{ScreenKeys(Bind("?", "sidebar")), {}, rows}
-	if got := ansi.Strip(path.Line(80)); got != " = menu / search ? sidebar │ ↑↓ move ␣ select" {
+	path := Path{ScreenKeys(Bind("?", "legend")), {}, rows}
+	if got := ansi.Strip(path.Line(80)); got != " = menu / search ? legend │ ↑↓ move ␣ select" {
 		t.Errorf("the bar: %q", got)
 	}
 	// the keys where the keyboard is are bright, and the screen's dim
@@ -114,6 +115,29 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	d, s = d.Key(key("down"), s)
 	if _, s = d.Key(key("space"), s); !s.SharedEmoji || !LoadSettings(path).SharedEmoji {
 		t.Errorf("space on Show shared emoji: %v, saved %v", s.SharedEmoji, LoadSettings(path).SharedEmoji)
+	}
+}
+
+// A left click on a setting puts the keyboard on it and flips it, saved at once; one on the box's edge changes
+// nothing; one off the box closes the dialog; another button does nothing.
+func TestAClickOnTheSettingsDialogFlipsASettingOrClosesIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "kittui.json")
+	s, d := LoadSettings(path), SettingsDialog{Open: true}
+	box := d.box(s, 120)
+	top, left := d.place(box, 30, 120)
+	click := func(x, y int, b tea.MouseButton) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: b} }
+	if d, s = d.Click(click(left+3, top+2, tea.MouseLeft), s, 30, 120); d.At != 1 || s.FoldShared ||
+		LoadSettings(path).FoldShared {
+		t.Errorf("a click on Fold shared values: at %d, fold %v", d.At, s.FoldShared)
+	}
+	if d, s = d.Click(click(left+3, top+2, tea.MouseRight), s, 30, 120); s.FoldShared || !d.Open {
+		t.Errorf("a right click flipped: fold %v", s.FoldShared)
+	}
+	if d, s = d.Click(click(left+3, top, tea.MouseLeft), s, 30, 120); !d.Open || s.FoldShared {
+		t.Errorf("a click on the edge: open %v, fold %v", d.Open, s.FoldShared)
+	}
+	if d, _ = d.Click(click(0, 0, tea.MouseLeft), s, 30, 120); d.Open {
+		t.Error("a click off the box kept the dialog")
 	}
 }
 

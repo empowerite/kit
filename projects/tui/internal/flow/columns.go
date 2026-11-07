@@ -55,7 +55,7 @@ func (m *Model) openColumns() {
 }
 
 // columnsLine draws a field's line in the columns dialog: its box, ticked where it shows, as a column or a group; its
-// label, dim where it is hidden; its sort, ▲ or ▼, and its place among the keys while there are several, or a dim dot;
+// label, dim where it is hidden, ⊘ after it while a filter on it holds rows back; its sort, ▲ or ▼, and its place among the keys while there are several, or a dim dot;
 // and its group's depth, or a dim dot, or nothing where it cannot group.
 func (m Model) columnsLine(id string) string {
 	p := m.panel(m.stage)
@@ -63,6 +63,9 @@ func (m Model) columnsLine(id string) string {
 	box, label := style.Mark(grid.Ticked), cmp.Or(p.Labels[id], id)
 	if f.Placement == grid.Hidden {
 		box, label = style.Off(grid.Unticked), style.Off(label)
+	}
+	if len(f.Filter.Values) > 0 {
+		label += " " + style.Tint(grid.Filtered)
 	}
 	sort := style.Off("·")
 	if mark := p.Mark(id); mark != "" {
@@ -195,7 +198,40 @@ func (m *Model) columnsClick(x, y int) {
 	}
 }
 
-// columnsKeys gives the keys bar's segment while the columns dialog is open.
+// columnsKeys gives the keys bar's segment while the columns dialog is open, each key where it acts on the field under
+// the keyboard: up and down where there is a line that way, shift with either where the field moves that way, s where
+// it sorts, g where it groups, and enter where it has Options….
 func (m Model) columnsKeys() shell.Segment {
-	return shell.DialogKeys("esc close · ↑↓ move · ⇧↑↓ order · ␣ show/hide · s sort · g group · ⏎ options")
+	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
+	id, p := m.colsListed()[m.cols.at], m.panel(m.stage)
+	var moves, orders []string
+	for _, step := range []struct {
+		key  string
+		by   int
+		more bool
+	}{{"up", -1, m.cols.at > 0}, {"down", 1, m.cols.at < len(m.colsListed())-1}} {
+		if step.more {
+			moves = append(moves, step.key)
+		}
+		if _, ok := p.Step(id, step.by); ok {
+			orders = append(orders, "shift+"+step.key)
+		}
+	}
+	if len(moves) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", moves...))
+	}
+	if len(orders) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "order", orders...))
+	}
+	s.Bindings = append(s.Bindings, shell.Bind("␣", "show/hide", "space"))
+	if p.Sortable[id] {
+		s.Bindings = append(s.Bindings, shell.Bind("s", "sort"))
+	}
+	if p.Groupable[id] {
+		s.Bindings = append(s.Bindings, shell.Bind("g", "group"))
+	}
+	if len(m.popLines(id)) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("⏎", "options", "enter"))
+	}
+	return s
 }

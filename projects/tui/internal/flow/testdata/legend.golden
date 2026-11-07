@@ -1,24 +1,24 @@
-  ≡ kit flow · 📚 empowerite/kit                     🔎 search
-  ➊╶─────────────────╮➁╶──────────────────╮➂╶───────
-  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 de   group by
-  ╵                  ╰────────────────────╰────────┐ columns
-   ▸  id  assign  age  branch  labels  title    📊 │ ☑ id
-   ───────────────────────────────────── Default ▼ │ ☑ source ▤
- ▾ github source  3                                │ ☑ assignees
-   ▸ #45           2h          3       🎫 kit flo… │ ☑ age
-   ▸ #46  jeffr…   2d  46-a-…  1       🎫 A noun … │ ☑ branch
-   ▸  #7  ada +1  40d                  🎫 Fix the… │ ☑ labels
-                                                   │ ☑ title
-                                                   │ hidden
-                                                   │ ☐ organization
-                                                   ▸ ☐ repository
-                                                   ╷
-                                                   │ legend
-                                                   │ 🎫 an issue 🔗
-                                                   │ 🐙 on GitHub
-                                                   │ 🦊 on GitLab
-                                                   │ 👤 assignees or author
-                                                   │ 🌿 a branch or a worktree
-                                                   │ ❌ failed
-                                                   │
- = menu / search ? hide sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
+  ≡ kit flow · 📚 empowerite/kit                                      🔎 search
+  ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
+  │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
+  ╵                  ╰────────────────────╰────────────────╰────────────────────
+      id  assignees         age  branch           labels  title              📊
+   ────────────────────────────────────────────────────────────────── Default ▼
+ ▾ github source  3
+   ▸ #45                     2h                   3       🎫 kit flow is the o…
+   ▸ #46  jeffrey-aguilera   2d  46-a-noun-lists  1       🎫 A noun lists, a n…
+   ▸  #7  ada           +1  40d                           🎫 Fix the thing
+
+
+
+
+
+
+
+
+
+
+                                                   ╭─ backlog legend ─ ↖ ↗ ↙ ↘ ╮
+                                                   │ 🎫 an issue 🔗            │
+                                                   ╰───────────────────────────╯
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

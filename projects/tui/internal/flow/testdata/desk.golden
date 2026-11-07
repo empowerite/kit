@@ -1,24 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
   ➀╶─────────────────╮➁╶──────────────────╴➌╶──────────────╮➃╶──────────────────
     🎫 backlog     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     ▹
-  ───────────────────╰─────────────────────╯               ╰───────────────────┐
-   branch   ahead   lines   uncommitted                                     📊 │
-   ───────────────────────────────────────────────────────────────── Default ▼ │
- ▸ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               ◂
-                                                                               ╷
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
- = menu / search ? show sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
+  ───────────────────╰─────────────────────╯               ╰────────────────────
+   branch   ahead   lines   uncommitted                                      📊
+   ────────────────────────────────────────────────────────────────── Default ▼
+ ▸ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

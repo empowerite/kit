@@ -42,11 +42,10 @@ func bare() Options {
 	return o
 }
 
-// options gives the eight stages and origin as a test knows them, the sidebar hidden until the test shows it with ?,
-// and the tables without their preset line, which views_test.go tests, so down from the bar enters the rows.
+// options gives the eight stages and origin as a test knows them, and the tables without their preset line, which
+// views_test.go tests, so down from the bar enters the rows.
 func options() Options {
-	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoSidebar: true,
-		NoPresets: true}
+	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoPresets: true}
 }
 
 // viewing gives the options with the tables' preset line, their presets kept in the file named, or for the test alone
@@ -162,22 +161,17 @@ func shows(m Model, glyph, count string) bool {
 	return regexp.MustCompile(re + ` +( |│|$)`).MatchString(strings.Split(ansi.Strip(b.View()), "\n")[1])
 }
 
-// lines gives the screen's lines without their escapes, and while the sidebar is hidden, without what is on the
-// screen's right, the search beside the title and the rule under the bar: the title, the bar, and the rows as they
-// are drawn.
+// lines gives the screen's lines without their escapes, the title's without the search beside it, and the rest above
+// the keys bar without the spaces they end in: the title, the bar, and the rows as they are drawn.
 func lines(m Model) []string {
 	out := strings.Split(raw(m), "\n")
 	for k, l := range out {
 		switch {
-		case m.sidebar || k >= min(m.sideHeight(), len(out)-1):
+		case k == len(out)-1:
 		case k == 0:
 			out[k] = strings.TrimRight(ansi.Cut(l, 0, m.titleWidth()), " ")
 		default:
-			for _, end := range []string{show, rule, under} {
-				if cut, ok := strings.CutSuffix(l, end); ok {
-					out[k] = strings.TrimRight(cut, " ")
-				}
-			}
+			out[k] = strings.TrimRight(l, " ")
 		}
 	}
 	return out
@@ -282,7 +276,7 @@ func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
 func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}, NoSidebar: true})
+	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
 	batch, ok := m.Init()().(tea.BatchMsg)
 	if !ok || len(batch) != 2 {
 		t.Fatalf("Init did not start both: %T", m.Init()())
@@ -592,64 +586,26 @@ func TestQuitCodes(t *testing.T) {
 	}
 }
 
-// Esc walks back from the rows to the bar and leaves the sidebar as it is: only ? or a click on the rule beside the
-// rows takes it away.
-func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheSidebar(t *testing.T) {
+// Esc walks back from the rows to the bar and leaves the legend as it is: only F1 or ? takes it away.
+func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheLegend(t *testing.T) {
 	m := loaded(t, options(), right, right, right, down, down, press('?'))
-	if !m.sidebar || !strings.Contains(view(m), " "+grid.Search+" ") {
+	if !m.legend.open || !strings.Contains(view(m), "worktrees legend") {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || !m.sidebar || m.inRows || m.stage != 3 || cursor(m) != "" {
-		t.Fatalf("esc in the rows: legend %v, in rows %v, stage %d\n%s", m.sidebar, m.inRows, m.stage, view(m))
+	if m = next.(Model); cmd != nil || !m.legend.open || m.inRows || m.stage != 3 || cursor(m) != "" {
+		t.Fatalf("esc in the rows: legend %v, in rows %v, stage %d\n%s", m.legend.open, m.inRows, m.stage, view(m))
 	}
 	// on the bar, esc does nothing
 	next, _ = m.Update(press(tea.KeyEscape))
-	if m = next.(Model); !m.sidebar || m.ctx.Err() != nil {
-		t.Errorf("esc on the bar: legend %v, context %v", m.sidebar, m.ctx.Err())
+	if m = next.(Model); !m.legend.open || m.ctx.Err() != nil {
+		t.Errorf("esc on the bar: legend %v, context %v", m.legend.open, m.ctx.Err())
 	}
-	if m = drive(m, press('?')); m.sidebar {
+	if m = drive(m, press('?')); m.legend.open {
 		t.Error("? did not take the legend away")
 	}
-}
-
-// On a screen as wide as roomy the sidebar shows from the start, and asks kit for the caller's login; on a narrower one
-// it starts hidden, and a resize shows or hides it until the person does.
-func TestTheSidebarShowsFromTheStartOnAWideScreen(t *testing.T) {
-	record := filepath.Join(t.TempDir(), "calls")
-	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := New(runner(t), Options{Stages: []string{"changes", "worktrees"}})
-	batch, ok := m.Init()().(tea.BatchMsg)
-	if !ok || len(batch) != 2 || m.sidebar {
-		t.Fatalf("Init: %T, sidebar %v", m.Init()(), m.sidebar)
-	}
-	m = drive(m, batch, tea.WindowSizeMsg{Width: roomy, Height: 24})
-	if got := calls(t, record); !m.sidebar || !slices.Contains(got, "flow --me") || !strings.Contains(view(m), "legend") {
-		t.Errorf("at %d: sidebar %v, the calls %q, and the view:\n%s", roomy, m.sidebar, got, view(m))
-	}
-	if m = drive(m, tea.WindowSizeMsg{Width: roomy - 1, Height: 24}); m.sidebar {
-		t.Errorf("at %d the sidebar still shows", roomy-1)
-	}
-	if m = drive(m, tea.WindowSizeMsg{Width: 200, Height: 24}); !m.sidebar {
-		t.Error("at 200 the sidebar does not show again")
-	}
-}
-
-// On a narrow screen the sidebar starts hidden, so a row's title has the room; ? shows it, and once the person has
-// shown or hidden it, a resize keeps it so.
-func TestTheSidebarStartsHiddenOnANarrowScreenAndKeepsThePersonsChoice(t *testing.T) {
-	record := filepath.Join(t.TempDir(), "calls")
-	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}},
-		tea.WindowSizeMsg{Width: 80, Height: 24})
-	if got := calls(t, record); m.sidebar || slices.Contains(got, "flow --me") || strings.Contains(view(m), "legend") {
-		t.Fatalf("at 80: sidebar %v, the calls %q", m.sidebar, got)
-	}
-	if m = drive(m, press('?'), tea.WindowSizeMsg{Width: 200, Height: 24}, tea.WindowSizeMsg{Width: 80, Height: 24}); !m.sidebar {
-		t.Error("? showed the sidebar, and a resize took it away")
-	}
-	if m = drive(m, press('?'), tea.WindowSizeMsg{Width: 200, Height: 24}); m.sidebar {
-		t.Error("? hid the sidebar, and a resize showed it")
+	if m = drive(m, press(tea.KeyF1)); !m.legend.open {
+		t.Error("F1 did not show the legend")
 	}
 }
 
@@ -673,22 +629,18 @@ func fit(keys string, room int) string {
 }
 
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: the screen's
-// keys, the stages' bar's, then the rows', each control's between rules; the sidebar hidden, which ? shows.
+// keys, the stages' bar's, then the rows', each control's between rules; ? and F1 show the legend from anywhere.
 const (
-	screenKeys = "= menu / search ? show sidebar ⇥ sidebar │ "
+	screenKeys = "= menu / search ? legend │ "
 	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc STAGE ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
 	closes     = inRows + " ← collapse"
 )
 
-// sidebarBar gives the keys bar for the screen as it is: ? hides the sidebar while it shows; esc in the rows names the
-// stage selected, as STAGE stands for; and in rows more than the pane shows, the page keys move a page at a time.
-func sidebarBar(m Model, keys string) string {
+// keysFor gives the keys bar for the screen as it is: esc in the rows names the stage selected, as STAGE stands for; and in rows more than the pane shows, the page keys move a page at a time.
+func keysFor(m Model, keys string) string {
 	keys = strings.Replace(keys, "STAGE", m.stages[m.stage].name, 1)
-	if m.sidebar {
-		keys = strings.Replace(keys, "? show sidebar", "? hide sidebar", 1)
-	}
 	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
 		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇞⇟ page ", 1)
 	}
@@ -715,7 +667,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
 					// a bar too narrow for every key drops the screen's, then the next control's, … in their place
-					want := fit(sidebarBar(m, c.keys), width-1)
+					want := fit(keysFor(m, c.keys), width-1)
 					got := lines(m)
 					if len(got) != height || got[height-1] != " "+want {
 						t.Errorf("after %v at %d×%d: %d lines, the last %q", c.msgs, width, height, len(got),
@@ -827,7 +779,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
-	m = loaded(t, Options{Stages: []string{"releases"}, NoSidebar: true})
+	m = loaded(t, Options{Stages: []string{"releases"}})
 	if first := lines(m)[0]; first != "  "+shell.App+" kit flow" {
 		t.Errorf("the title alone: %q", first)
 	}
@@ -971,7 +923,7 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if len(got) != 9 {
 		t.Fatalf("%d lines on a screen of 9:\n%s", len(got), view(m))
 	}
-	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(sidebarBar(m, opens)) {
+	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Branch, "4") || got[8] != " "+at80(keysFor(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
@@ -1038,9 +990,8 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 			if n := ansi.StringWidth(l); n > width {
 				t.Errorf("%s at %d, legend %v: a line of %d cells: %q", eight[i], width, legend, n, ansi.Strip(l))
 			}
-			// a clipped row ends in …, before the rule
-			clipped = clipped || strings.Contains(ansi.Strip(l), "… "+rule) || strings.Contains(ansi.Strip(l), "… "+show) ||
-				strings.Contains(ansi.Strip(l), "… "+hide)
+			// a clipped row ends in …
+			clipped = clipped || strings.Contains(strings.TrimRight(ansi.Strip(l), " "), "…")
 		}
 		long := eight[i] == "changes" || eight[i] == "backlog" || eight[i] == "underway"
 		if width <= 80 && long && !clipped {
@@ -1052,7 +1003,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}, NoSidebar: true}, right)
+	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, right)
 	if v := view(m); !strings.Contains(squeeze(v), "nonesuch !") ||
 		!strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
 		t.Errorf("the unknown stage:\n%s", v)
@@ -1111,7 +1062,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, toggle)
 	got := lines(m)
-	if len(got) != 10 || got[9] != " "+at80(sidebarBar(m, closes)) {
+	if len(got) != 10 || got[9] != " "+at80(keysFor(m, closes)) {
 		t.Fatalf("the screen is not 10 lines with the keys last:\n%s", view(m))
 	}
 	v := view(m)
@@ -1123,56 +1074,6 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 	m = loaded(t, options(), right, right, right)
 	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
-	}
-}
-
-// ? shows the sidebar down the screen's right, from its top to the keys bar: the title stays where it is, the bar
-// narrows to the rows' width, and the keys bar keeps the whole line.
-func TestQuestionMarkShowsTheSidebarDownTheRightAndTheBarNarrows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 24}, right, right, right)
-	before := lines(m)
-	m = drive(m, press('?'))
-	got, pw := lines(m), m.paneWidth()
-	if len(got) != 24 || !strings.HasPrefix(got[0], before[0]) || got[23] != " "+sidebarBar(m, barKeys) {
-		t.Errorf("the title or the keys moved under the sidebar:\n%s", view(m))
-	}
-	if !strings.HasSuffix(got[0], "  "+grid.Search+" search") || m.bar().Width != pw+2 {
-		t.Errorf("the sidebar does not start on the screen's first line, or the bar is %d wide:\n%s", m.bar().Width,
-			view(m))
-	}
-	// the bar's last line turns down into the rule, in the rule's column
-	if cell := ansi.Cut(got[paneTop-1], pw+1, pw+2); !strings.Contains("┤│┐├", cell) || cell == "" {
-		t.Errorf("the bar does not join the rule: %q\n%s", cell, view(m))
-	}
-	for k := paneTop; k < 23; k++ {
-		want := rule
-		switch k {
-		case m.triangleAt():
-			want = hide
-		case m.triangleAt() + 1:
-			want = under
-		}
-		if cell := ansi.Cut(got[k], pw+1, pw+2); cell != want {
-			t.Errorf("line %d has %q, not the rule, before the sidebar:\n%s", k, cell, view(m))
-		}
-	}
-	if !strings.Contains(view(m), " "+grid.Search+" ") || !strings.Contains(view(m), "1-the-first-release") {
-		t.Errorf("the legend is not beside the rows:\n%s", view(m))
-	}
-	// the keys move in the rows while the legend is on
-	m = drive(m, down, down)
-	if !m.inRows || m.find("worktrees").cursor != 1 || !strings.HasPrefix(cursor(m), "42-settings") {
-		t.Errorf("down with the legend on: in rows %v, cursor %d\n%s", m.inRows, m.find("worktrees").cursor, view(m))
-	}
-	m = drive(m, up, up, press('?'))
-	if m.sidebar || strings.Contains(view(m), "legend") || lines(m)[23] != " "+barKeys ||
-		strings.Join(lines(m), "\n") != strings.Join(before, "\n") {
-		t.Errorf("? again did not take the legend away:\n%s", view(m))
-	}
-	// shift-/ comes as ? with its text
-	m = drive(m, tea.KeyPressMsg{Code: '/', Mod: tea.ModShift, Text: "?"})
-	if !m.sidebar {
-		t.Errorf("shift-/ did not show the legend")
 	}
 }
 
@@ -1520,7 +1421,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	m = drive(m, down, toggle)
 	v := view(m)
 	order := []string{style.Opened + "  #1",
-		"The first release, v0.1.0:", "the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
+		"The first release, v0.1.0:", "the kit verbs, the picture,", "and the forge seam on", "GitHub and GitLab",
 		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {
 		t.Errorf("the open row repeats the pull request:\n%s", v)

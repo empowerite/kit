@@ -1,24 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
   ────────────────╮➅╶────────────────╮➆╶──────────────────╴➑╶──────────────────╮
     changes     3 │  🏭 builds     4 │  🛬 incoming     6  │ 📦 releases   3 ⋮ │
-  ────────────────╰──────────────────╰─────────────────────╯                   │
-   version     kind            age  latest                                  📊 │
-   ───────────────────────────────────────────────────────────────── Default ▼ │
- ▸ 0.2.0       📝 draft        60m                                             │
- ▸ 0.1.0       📦 release       6h  ⭐ latest                                  │
- ▸ 0.1.0-rc.7  🧪 pre-release  28h                                             │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               ◂
-                                                                               ╷
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
- = menu / search ? show sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
+  ────────────────╰──────────────────╰─────────────────────╯                   ╵
+   version     kind            age  latest                                   📊
+   ────────────────────────────────────────────────────────────────── Default ▼
+ ▸ 0.2.0       📝 draft        60m
+ ▸ 0.1.0       📦 release       6h  ⭐ latest
+ ▸ 0.1.0-rc.7  🧪 pre-release  28h
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

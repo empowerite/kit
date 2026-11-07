@@ -1,32 +1,32 @@
-  ≡ kit flow · 📚 empowerite/kit                                                             🔎 search
-  ────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────╮➆╶──────────────
- ◃ desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 incoming  ▹ group by
-  ────────────╰──────────────────────╯                  ╰──────────────────╰───────────────┐ columns
-   change  title         author       state  age  checks  threads      labels  branch   📊 │ ☑ change
-   ───────────────────────────────────────────────────────────────────────────── Default ▼ │ ☑ title
- ▸ 🔀 #2   The first r…  jeffrey-ag…  🏁      8d  ✅                   1       1-the-firs… │ ☑ author
- ▸ 🔀 #3   A spike on …  ada          🔨     90m  🏃      💬 2 unres…          3-a-spike   │ ☑ state
- ▸ 🔀 #4   Lint every …  bob          🔥     25h  ❌                           4-lint-eve… │ ☑ age
-                                                                                           │ ☑ checks
-                                                                                           │ ☑ threads
-                                                                                           │ ☑ labels
-                                                                                           │ ☑ branch
-                                                                                           │ hidden
-                                                                                           │
-                                                                                           │ legend
-                                                                                           │ 🔀 a pull request 🔗
-                                                                                           ▸ 👤 assignees or author
-                                                                                           ╷ 🌿 a branch or a worktree
-                                                                                           │ 🏃 running
-                                                                                           │ ✅ passed
-                                                                                           │ ❌ failed
-                                                                                           │ 💬 threads unresolved
-                                                                                           │ 🛫 underway
-                                                                                           │ 🎫 an issue
-                                                                                           │
-                                                                                           │ state 🔗
-                                                                                           │ 🔨 draft
-                                                                                           │ 🚦 queued
-                                                                                           │ 💥 conflicted
-                                                                                           │ … 6 more
- = menu / search ? hide sidebar ⇥ sidebar │ ←→ tab ↓ preset 1-8 jump : tab menu
+  ≡ kit flow · 📚 empowerite/kit                                                                              🔎 search
+  ➀╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────
+    🎫 backlog     3 │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds      ▹
+  ───────────────────╰────────────────────╰────────────────╰──────────────────────╯                  ╰──────────────────
+   change  title                        author            state  age  checks  threads          labels  branch        📊
+   ────────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
+ ▸ 🔀 #2   The first release, v0.1.0    jeffrey-aguilera  🏁      8d  ✅                       1       1-the-first-rel…
+ ▸ 🔀 #3   A spike on the settings fi…  ada               🔨     90m  🏃      💬 2 unresolved          3-a-spike
+ ▸ 🔀 #4   Lint every module            bob               🔥     25h  ❌                               4-lint-every-mo…
+
+
+
+
+
+
+
+
+
+                                                                                           ╭─ changes legend ─ ↖ ↗ ↙ ↘ ╮
+                                                                                           │ 🔀 a pull request 🔗      │
+                                                                                           │ 🏃 running                │
+                                                                                           │ ✅ passed                 │
+                                                                                           │ ❌ failed                 │
+                                                                                           │ 💬 threads unresolved     │
+                                                                                           │                           │
+                                                                                           │ state 🔗                  │
+                                                                                           │ 🔨 draft                  │
+                                                                                           │ 🔥 failing:gate           │
+                                                                                           │ 💬 comments:open          │
+                                                                                           │ 🏁 ready                  │
+                                                                                           ╰───────────────────────────╯
+ = menu / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

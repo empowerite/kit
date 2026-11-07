@@ -11,7 +11,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -89,11 +88,10 @@ const (
 	NoValue = "none"
 )
 
-// Panel is the controls beside a grid's rows, top to bottom: the search field; the field editor, each field with a name
-// in one of three sections, the groups, the columns, and the hidden, as Lines draws them; whether the panel folds; and
-// whether it shows the emoji every row shares.
-// Columns names the columns by their fields' ids, in the stage's order, and Labels gives the label the editor lists
-// each by, its id where it gives none. Fields holds what the panel says of each field, by id, as Field says; a field it
+// Panel is what a screen sets of a grid's rows: the search, Query, and what it says of each field, which the columns
+// dialog lists in three sections, the groups, the columns, and the hidden, as Listed gives them.
+// Columns names the columns by their fields' ids, in the stage's order, and Labels gives the label each is listed by,
+// its id where it gives none. Fields holds what the panel says of each field, by id, as Field says; a field it
 // does not name is a column, unsorted and unfiltered. The panel never changes the map it was given, but gives a new
 // one. Fold says whether a value every row of a group shares is said once, in the group's heading, rather than in each
 // row: the rows then group on their own, as group says, by each groupable column whose value is the same on every row
@@ -101,11 +99,10 @@ const (
 // saying nothing; Auto names the columns that do so now, as Filtered gave them, and AutoAt the level of the headings each
 // is said at, from 1, as Said gives it. Sortable and Groupable name the columns that can sort and group, which the
 // stage says. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
-// Caller is the caller's login, Me, which matches no one while it is unknown. Cursor is the control under the
-// keyboard, Focused whether the panel has it. Recall says whether there are searches to recall, which the search, with
-// the keyboard, offers with its Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the
-// rows of those that do not; the panel only reads it. Fill is the cells the control under the keyboard is drawn inverse
-// across, at least.
+// Caller is the caller's login, Me, which matches no one while it is unknown. Focused says whether the search has the
+// keyboard. Recall says whether there are searches to recall, which the search, with the keyboard, offers with its
+// Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the rows of those that do not; the
+// panel only reads it.
 type Panel struct {
 	Query     string
 	Columns   []string
@@ -119,10 +116,8 @@ type Panel struct {
 	AutoAt    map[string]int
 	Recall    bool
 	Outline   Outline
-	Fill      int
 	Owner     string
 	Me        string
-	Cursor    int
 	Focused   bool
 }
 
@@ -357,18 +352,6 @@ func (p Panel) Mark(column string) string {
 		return mark
 	}
 	return ""
-}
-
-// grouping gives how many columns the rows group by: those the person chose, and those they group by on their own.
-func (p Panel) grouping() int {
-	groups := p.Groups()
-	n := len(groups)
-	for _, c := range p.Auto {
-		if !slices.Contains(groups, c) {
-			n++
-		}
-	}
-	return n
 }
 
 // subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
@@ -770,32 +753,12 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 	return out
 }
 
-// control is one of the panel's controls: the search, or a field's line in the editor.
-type control struct {
-	search bool
-	field  string
-}
-
-// sections are the editor's sections, top to bottom, each a placement, and the dim heading over each, by placement.
-var (
-	sections = []Placement{Group, Column, Hidden}
-	headings = map[Placement]string{Group: "group by", Column: "columns", Hidden: "hidden"}
-)
-
-// label gives the label a field is listed by: the one the panel was given, else its id.
-func (p Panel) label(id string) string {
-	if l := p.Labels[id]; l != "" {
-		return l
-	}
-	return id
-}
-
-// offers says whether the editor lists a field: one with a name among the columns, or one the rows group by.
+// offers says whether the columns dialog lists a field: one with a name among the columns, or one the rows group by.
 func (p Panel) offers(id string) bool {
 	return id != "" && (slices.Contains(p.Columns, id) || p.Fields[id].Placement == Group)
 }
 
-// section gives the fields the editor lists under a placement, in their order: the groups by depth, the outermost
+// section gives the fields the columns dialog lists under a placement, in their order: the groups by depth, the outermost
 // first; the columns by position, as the rows stand them; and the hidden in the stage's order.
 func (p Panel) section(at Placement) []string {
 	var out []string
@@ -818,249 +781,17 @@ func (p Panel) section(at Placement) []string {
 	return out
 }
 
+// Filtered is the mark after a field's label in the columns dialog while a filter on it holds rows back.
+const Filtered = "⊘"
+
 // Listed gives the fields the columns dialog lists, in its order: those the rows group by, the outermost first; the
 // columns, as the rows stand them; then the hidden, in the stage's order.
 func (p Panel) Listed() []string {
 	return slices.Concat(p.section(Group), p.section(Column), p.section(Hidden))
 }
 
-// controls gives the panel's controls, in order: the search, and, while the stage has fields with a name, each field in
-// its section, as section gives them.
-func (p Panel) controls() []control {
-	out := []control{{search: true}}
-	if !slices.ContainsFunc(p.Columns, func(id string) bool { return id != "" }) {
-		return out
-	}
-	for _, at := range sections {
-		for _, id := range p.section(at) {
-			out = append(out, control{field: id})
-		}
-	}
-	return out
-}
-
-// Filtered is the mark after a field's label in the editor while a filter on it holds rows back.
-const Filtered = "⊘"
-
-// drawnLine is one line of the panel, as layout draws it: its text; the control it draws, or -1; and for a section's
-// heading, the section, which a field dragged onto it moves to the top of.
-type drawnLine struct {
-	text    string
-	control int
-	heading Placement
-	heads   bool
-}
-
-// layout draws the panel's lines, as Lines says.
-func (p Panel) layout() []drawnLine {
-	var out []drawnLine
-	add := func(text string, control int) { out = append(out, drawnLine{text: text, control: control}) }
-	controls := p.controls()
-	draw := func(k int, line string) {
-		if p.Focused && p.Cursor == k && k > 0 {
-			line = style.Cursor(pane.Pad(ansi.Strip(line), p.Fill, false))
-		}
-		add(line, k)
-	}
-	add(shell.RecallLine(p.Query, p.Focused && p.Cursor == 0, p.Recall), 0)
-	if len(controls) == 1 {
-		return out
-	}
-	add("", -1)
-	k := 1
-	for _, at := range sections {
-		// every section's heading, an empty one's too, so a field can be moved to it
-		out = append(out, drawnLine{text: style.Off(headings[at]), control: -1, heading: at, heads: true})
-		for range p.section(at) {
-			draw(k, p.fieldLine(controls[k].field))
-			k++
-		}
-	}
-	if p.Focused {
-		add("", -1)
-		for _, h := range p.hints() {
-			add(style.Off(h), -1)
-		}
-	}
-	return out
-}
-
-// fieldLine draws a field's line in the editor: its box, ticked in the accent and bold for a column or a group, dim and
-// unticked for a field hidden; its label; ▲ or ▼ while it sorts the rows, with its place among the keys when there are
-// several; ▤ while the rows group by it, with its depth while they group by more than one, or dim while they group by
-// it on their own, at the level of the headings that say it; and ⊘ while a filter on it holds rows back.
-func (p Panel) fieldLine(id string) string {
-	line := style.Mark(Ticked + " " + p.label(id))
-	if p.Fields[id].Placement == Hidden {
-		line = style.Off(Unticked) + " " + p.label(id)
-	}
-	if mark := p.Mark(id); mark != "" {
-		line += " " + style.Tint(mark)
-	}
-	if k := slices.Index(p.Groups(), id); k >= 0 {
-		mark := Grouping
-		if p.grouping() > 1 {
-			mark += subscript(k + 1)
-		}
-		line += " " + style.Tint(mark)
-	} else if slices.Contains(p.Auto, id) {
-		mark := Grouping
-		if at := p.AutoAt[id]; at > 0 && p.grouping() > 1 {
-			mark += subscript(at)
-		}
-		line += " " + style.Off(mark)
-	}
-	if len(p.Fields[id].Filter.Values) > 0 {
-		line += " " + style.Tint(Filtered)
-	}
-	return line
-}
-
-// Lines draws the panel's controls, one a line: the search; under it, after a gap, the field editor, one list in three
-// sections, group by, columns, and hidden, each under a dim heading, a field's line as fieldLine draws it; after a gap,
-// whether the panel folds, a box ticked or not; and, while the panel has the keyboard, after a gap, dim hints of what
-// moves a field. The control under the keyboard is inverse while the panel has it. Beside each line is the control it
-// draws, or -1 for a heading, a hint, or a gap.
-func (p Panel) Lines() (lines []string, at []int) {
-	for _, l := range p.layout() {
-		lines, at = append(lines, l.text), append(at, l.control)
-	}
-	return lines, at
-}
-
-// hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
-// popover sets; then what a click on a column's name in the header does.
-func (p Panel) hints() []string {
-	return append([]string{"⇧↑↓  move, or drag", "⏎    filter, draw", ""}, Clicks...)
-}
-
-// Clicks say what a click on a column's name in the header does: it drops down the column's menu, which sorts by it,
-// groups by it, and opens its field's popover.
-var Clicks = []string{"click a name  its menu"}
-
-// Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
-// controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back; off it,
-// / goes to the search; on a field, space hides it, or shows a hidden one as a column, and shift with up or down moves
-// it, as Step says, the keyboard with it; on whether the panel folds, or shows the emoji every row shares, space or
-// enter toggles it.
-func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
-	controls := p.controls()
-	p.Cursor = min(max(p.Cursor, 0), len(controls)-1)
-	c := controls[p.Cursor]
-	switch key := k.String(); {
-	case key == "up":
-		p.Cursor = max(p.Cursor-1, 0)
-	case key == "down":
-		p.Cursor = min(p.Cursor+1, len(controls)-1)
-	case c.search && (key == "backspace" || k.Text != ""):
-		p.Query, _ = shell.Type(p.Query, k)
-	case k.Text == "/":
-		p.Cursor = 0
-	case c.field != "" && (key == "shift+up" || key == "shift+down"):
-		step := 1
-		if key == "shift+up" {
-			step = -1
-		}
-		p, _ = p.Step(c.field, step)
-	case c.field != "" && key == "space":
-		p = p.act(c)
-	default:
-		return p, false
-	}
-	return p, true
-}
-
-// Under gives the field whose line is under the keyboard, or nothing on another control.
-func (p Panel) Under() string {
-	controls := p.controls()
-	return controls[min(max(p.Cursor, 0), len(controls)-1)].field
-}
-
-// Keys gives the keys bar's segment of the control under the keyboard: the search types, and recalls a search when
-// there are some; a field's line hides it, or shows it, with space, moves it with shift and up or down, where it can
-// move that way, and opens its popover with enter, which the screen draws.
-func (p Panel) Keys(recalls bool) shell.Segment {
-	controls := p.controls()
-	c := controls[min(max(p.Cursor, 0), len(controls)-1)]
-	if c.search {
-		return shell.SearchKeys(recalls)
-	}
-	toggle := "hide"
-	if p.Fields[c.field].Placement == Hidden {
-		toggle = "show"
-	}
-	s := shell.Segment{Takes: []string{"shift+up", "shift+down"},
-		Bindings: []shell.Binding{shell.Bind("␣", toggle, "space")}}
-	var moves []string
-	if _, ok := p.Step(c.field, -1); ok {
-		moves = append(moves, "shift+up")
-	}
-	if _, ok := p.Step(c.field, 1); ok {
-		moves = append(moves, "shift+down")
-	}
-	if len(moves) > 0 {
-		s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "move", moves...))
-	}
-	return s.With(shell.Bind("⏎", "options", "enter"))
-}
-
-// Click takes a click on a line of the panel, as Lines numbers them, and says whether it fell on a control: the
-// control is then under the keyboard, and a field's box or whether the panel folds is acted on as space does.
-func (p Panel) Click(line int) (Panel, bool) {
-	p, ok := p.Point(line)
-	if !ok {
-		return p, false
-	}
-	if c := p.controls()[p.Cursor]; !c.search {
-		p = p.act(c)
-	}
-	return p, true
-}
-
-// FieldAt gives the id of the field whose line a line of the panel, as Lines numbers them, draws, or nothing.
-func (p Panel) FieldAt(line int) string {
-	_, at := p.Lines()
-	if line < 0 || line >= len(at) || at[line] < 0 {
-		return ""
-	}
-	return p.controls()[at[line]].field
-}
-
-// Point puts the keyboard on the control a line of the panel draws, acting on nothing, and says whether one is there.
-func (p Panel) Point(line int) (Panel, bool) {
-	_, at := p.Lines()
-	if line < 0 || line >= len(at) || at[line] < 0 {
-		return p, false
-	}
-	p.Cursor = at[line]
-	return p, true
-}
-
-// Find puts the search under the keyboard.
-func (p Panel) Find() Panel {
-	p.Cursor, p.Focused = 0, true
-	return p
-}
-
-// act toggles a field's box, hiding a column or a group, which then leaves the groups, and showing a hidden field as a
-// column where it stood.
-func (p Panel) act(c control) Panel {
-	if p.Fields[c.field].Placement == Hidden {
-		return p.Placed(c.field, Column).follow(c.field)
-	}
-	return p.Placed(c.field, Hidden).follow(c.field)
-}
-
-// follow gives the panel with the keyboard on a field's line, wherever it stands now.
-func (p Panel) follow(id string) Panel {
-	if k := slices.IndexFunc(p.controls(), func(c control) bool { return c.field == id }); k >= 0 {
-		p.Cursor = k
-	}
-	return p
-}
-
-// Step gives the panel with a field moved a place, up for a negative step, down for a positive one, the keyboard
-// with it, and says whether it moved: within its section, a group moves a depth and a column a position; past its
+// Step gives the panel with a field moved a place, up for a negative step, down for a positive one, and says whether it
+// moved: within its section, a group moves a depth and a column a position; past its
 // section's end, it crosses into the next, a column up into the groups' last depth, where it can group, and down into
 // the hidden, a group down into the first column. A hidden field, which stands in the stage's order, moves up alone,
 // to the last column.
@@ -1087,10 +818,10 @@ func (p Panel) Step(id string, d int) (Panel, bool) {
 	return p, false
 }
 
-// Moved gives the panel with a field moved into a section at an index among the fields there, the keyboard with it,
-// and says whether anything changed: into the groups, at that depth, where the field can group; into the columns, at
+// Moved gives the panel with a field moved into a section at an index among the fields there, and says whether
+// anything changed: into the groups, at that depth, where the field can group; into the columns, at
 // that position, which every field the panel offers then has, a field hidden or grouped keeping its own among them;
-// hidden, where it keeps its position. A field the editor does not list never moves.
+// hidden, where it keeps its position. A field the columns dialog does not list never moves.
 func (p Panel) Moved(id string, to Placement, k int) (Panel, bool) {
 	if !p.offers(id) || to == Group && !p.Groupable[id] {
 		return p, false
@@ -1128,43 +859,24 @@ func (p Panel) Moved(id string, to Placement, k int) (Panel, bool) {
 			}
 		})
 	}
-	p = p.follow(id)
 	after := [][]string{p.section(Group), p.section(Column), p.section(Hidden)}
 	return p, !slices.EqualFunc(before, after, slices.Equal)
 }
 
-// Dropped gives the panel with a field moved, as a drag of its line drops it on a line of the panel, as Lines numbers
-// them: onto another field's line, to where that field stands, it and those after it moving a place; onto a section's
-// heading, to the top of that section. It says whether anything changed.
-func (p Panel) Dropped(id string, line int) (Panel, bool) {
-	drawn := p.layout()
-	if line < 0 || line >= len(drawn) {
+// Update takes a key while the search has the keyboard, and says whether it took it: a printable key is typed, / too,
+// and backspace takes one back.
+func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
+	if k.String() != "backspace" && k.Text == "" {
 		return p, false
 	}
-	l := drawn[line]
-	if l.heads {
-		return p.Moved(id, l.heading, 0)
-	}
-	target := ""
-	if l.control >= 0 {
-		target = p.controls()[l.control].field
-	}
-	if target == "" || target == id {
-		return p, false
-	}
-	at := p.Fields[target].Placement
-	return p.Moved(id, at, slices.Index(p.section(at), target))
+	p.Query, _ = shell.Type(p.Query, k)
+	return p, true
 }
 
-// Width gives the cells the panel's widest line takes, with the keyboard or without it.
-func (p Panel) Width() int {
+// Find puts the search under the keyboard.
+func (p Panel) Find() Panel {
 	p.Focused = true
-	lines, _ := p.Lines()
-	widest := 0
-	for _, l := range lines {
-		widest = max(widest, ansi.StringWidth(l))
-	}
-	return widest
+	return p
 }
 
 // Filter gives the rows the panel lets through, as Filtered does.

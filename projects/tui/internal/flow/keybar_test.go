@@ -15,45 +15,42 @@ import (
 
 func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 	shiftUp := testkit.Press("shift+up")
+	// the tab's menu, down to Columns…, chosen: the columns dialog
+	columns := []tea.Msg{press(':'), down, press(tea.KeyEnter)}
 	for _, c := range []struct {
 		where   string
 		msgs    []tea.Msg
 		presets bool // whether the tables have their preset line
 	}{
 		{"on the bar", nil, false},
-		{"on the bar, the sidebar shown", []tea.Msg{press('?')}, false},
+		{"on the bar, the legend shown", []tea.Msg{press('?')}, false},
 		{"on a row that opens", []tea.Msg{right, right, right, down}, false},
 		{"on a row open", []tea.Msg{right, right, right, down, right}, false},
-		{"in the sidebar's search", []tea.Msg{press(tea.KeyTab)}, false},
-		{"in the sidebar's search, typed", append([]tea.Msg{press(tea.KeyTab)}, typed("o")...), false},
-		{"on the sidebar's first column", []tea.Msg{press(tea.KeyTab), down}, false},
-		{"on the sidebar's second column", []tea.Msg{press(tea.KeyTab), down, down}, false},
-		{"on a group in the sidebar's editor", []tea.Msg{press(tea.KeyTab), down, down, shiftUp, shiftUp}, false},
-		{"on the last column in the sidebar's editor", append([]tea.Msg{press(tea.KeyTab)},
-			slices.Repeat([]tea.Msg{down}, 6)...), false},
-		{"on a hidden field in the sidebar's editor", []tea.Msg{press(tea.KeyTab), down, down, down,
-			press(tea.KeySpace)}, false},
-		{"on the sidebar's box for folding", append([]tea.Msg{press(tea.KeyTab)}, slices.Repeat([]tea.Msg{down}, 7)...),
+		{"in the search", typed("/"), false},
+		{"in the search, typed", typed("/o"), false},
+		{"in the rows, then the search", append([]tea.Msg{down}, typed("/")...), false},
+		{"in the columns dialog", columns, false},
+		{"on a group in the columns dialog", append(slices.Clone(columns), shiftUp), false},
+		{"on the last field in the columns dialog", append(slices.Clone(columns),
+			slices.Repeat([]tea.Msg{down}, 9)...), false},
+		{"on a hidden field in the columns dialog", append(slices.Clone(columns), down, down, press(tea.KeySpace)),
 			false},
-		{"in a field's popover, on a sort taken", []tea.Msg{press(tea.KeyTab), down, down, down, press(tea.KeyEnter)},
-			false},
-		{"in a field's popover, on a value", []tea.Msg{press(tea.KeyTab), down, down, down, press(tea.KeyEnter), down,
-			down, down, down}, false},
-		{"in a field's popover, on a rendering not taken", append([]tea.Msg{press(tea.KeyTab), down, down, down,
-			press(tea.KeyEnter)}, slices.Repeat([]tea.Msg{down}, 20)...), false},
-		{"in a field's popover, on auto, a rendering pinned", append(append([]tea.Msg{press(tea.KeyTab), down, down, down,
-			press(tea.KeyEnter)}, slices.Repeat([]tea.Msg{down}, 20)...), press(tea.KeySpace), up, up), false},
-		{"in the search, the sidebar hidden", typed("/"), false},
-		{"in the rows, then the sidebar", []tea.Msg{down, press(tea.KeyTab), down}, false},
+		{"in a field's popover", append(slices.Clone(columns), down, down, press(tea.KeyEnter)), false},
+		{"in a field's popover, on a value", append(slices.Clone(columns), down, down, press(tea.KeyEnter), down,
+			down, down, down), false},
+		{"in a field's popover, on a rendering not taken", append(append(slices.Clone(columns), down, down,
+			press(tea.KeyEnter)), slices.Repeat([]tea.Msg{down}, 20)...), false},
+		{"in a field's popover, on auto, a rendering pinned", append(append(append(slices.Clone(columns), down, down,
+			press(tea.KeyEnter)), slices.Repeat([]tea.Msg{down}, 20)...), press(tea.KeySpace), up, up), false},
 		{"on the bar, over a preset line", nil, true},
 		{"on the preset line", []tea.Msg{down}, true},
-		{"on the preset line, the table changed", []tea.Msg{down, press(tea.KeyTab), down, press(tea.KeySpace), esc},
-			true},
+		{"on the preset line, the table changed", append(append([]tea.Msg{down}, columns...), down,
+			press(tea.KeySpace), esc), true},
 		{"naming for Save As… on the preset line", append([]tea.Msg{down, press(tea.KeyEnter), up, up,
 			press(tea.KeyEnter)}, typed("Mine")...), true},
 		{"with the presets dropped down", []tea.Msg{down, press(tea.KeyEnter)}, true},
 		{"in the rows, under a preset line", []tea.Msg{down, down}, true},
-		{"in the sidebar, from the preset line", []tea.Msg{down, press(tea.KeyTab)}, true},
+		{"in the search, from the preset line", append([]tea.Msg{down}, typed("/")...), true},
 	} {
 		t.Run(c.where, func(t *testing.T) {
 			t.Parallel()

@@ -55,13 +55,12 @@ func TestGoldenViews(t *testing.T) {
 	p.Fields["source"] = source
 	m.setPanel(p)
 	testkit.Golden(t, filepath.Join("testdata", "preset-line.golden"), raw(drive(m, down)))
-	// the field editor in the sidebar: source grouped, age sorted descending, as the column menu sorts it, and
-	// assignees filtered to @me and hidden; the popover opens on its filter's mode, @me under it
-	shiftUp, enter, space := testkit.Press("shift+up"), press(tea.KeyEnter), press(tea.KeySpace)
+	// the columns dialog: source grouped, age sorted descending, and assignees filtered to @me and hidden
 	m = loaded(t, viewing(""))
-	m.setPanel(m.panel(0).SortedAs("age", grid.Descending))
-	testkit.Golden(t, filepath.Join("testdata", "editor.golden"), raw(drive(m, tab, down, down, shiftUp, shiftUp,
-		down, down, enter, down, space, esc, space, up, up, up, up, up)))
-	// the field editor in the sidebar, backlog's assignees' popover open over it, @me checked
-	golden("popover.golden", tab, down, down, down, enter, down, space)
+	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("source", true))
+	m = drive(popoverOf(m, "assignees"), press(tea.KeyDown), press(tea.KeySpace), esc, press(tea.KeySpace))
+	testkit.Golden(t, filepath.Join("testdata", "columns.golden"), raw(m))
+	// backlog's assignees' popover open over the columns dialog, @me checked
+	testkit.Golden(t, filepath.Join("testdata", "popover.golden"), raw(drive(popoverOf(loaded(t, viewing("")), "assignees"),
+		press(tea.KeyDown), press(tea.KeySpace))))
 }

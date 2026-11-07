@@ -4,14 +4,11 @@
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
 // every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
-// menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; ? shows the sidebar beside the rows, the stage's
-// panel over its legend, and again takes it away, as a click anywhere on the rule beside the rows does; tab gives the
-// panel the keyboard, and / or a click on the search, always on the screen's top right, gives the search the keyboard,
-// the sidebar shown or not. A click on a linked glyph, as an issue's before its title, opens its page in the browser,
-// and one on a glyph that names a row of another stage, as underway's pull request, selects that stage with the row
-// under the cursor. On a screen as wide as roomy, the sidebar shows from the start; on a narrower one it starts hidden,
-// so a row's title has the room; once the person shows or hides it, it stays so for the session, through a resize. Esc
-// goes back one level: from the panel, then from the rows to the bar; it leaves the sidebar as it is. Ctrl-c quits with
+// menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; F1 or ? shows the legend over the rows, and again
+// hides it; / or a click on the search, always on the screen's top right, gives the search the keyboard. A click on a
+// linked glyph, as an issue's before its title, opens its page in the browser, and one on a glyph that names a row of
+// another stage, as underway's pull request, selects that stage with the row under the cursor. The rows take the
+// screen's width. Esc goes back one level: from the search, then from the rows to the bar. Ctrl-c quits with
 // 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's
 // command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
@@ -41,15 +38,13 @@ import (
 
 // Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
 // whether the fetch is skipped, the filters backlog, underway, and changes take, whether every stage's headers are
-// hidden, as a test of the rows alone asks, and whether the sidebar starts hidden at every width, as if the person had
-// hidden it.
+// hidden, as a test of the rows alone asks.
 type Options struct {
 	Stages    []string
 	Origin    Origin
 	NoFetch   bool
 	Filters   []string
 	NoHeaders bool
-	NoSidebar bool
 	Presets   string // the file the person's presets are kept in; none keeps them for the session alone
 	NoPresets bool   // whether the stages' tables have no preset line, as a test of the rows alone asks
 	History   string // the file the searches are remembered in; none remembers them for the session alone
@@ -96,10 +91,6 @@ type stage struct {
 var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
 	"changes": true, "builds": true, "releases": true}
 
-// roomy is the narrowest screen, in cells, the sidebar shows on from the start: on a narrower one it starts hidden,
-// since beside it a row's title would have a few cells.
-const roomy = 140
-
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
 const deadline = 2 * time.Minute
 
@@ -118,10 +109,6 @@ type Model struct {
 	inRows        bool                   // whether the rows have the keyboard, not the bar
 	onPreset      bool                   // whether the preset line has the keyboard, not the bar or the rows
 	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
-	sidebar       bool                   // whether the sidebar, the panel and the legend, shows beside the rows
-	sideChosen    bool                   // whether the person showed or hid the sidebar, which a resize then keeps
-	sideOffset    int                    // the sidebar's first line, when it is taller than the pane
-	widest        int                    // the cells of the widest stage's panel or legend
 	me            string                 // the caller's login, once kit has said it, which a filter's @me matches
 	asked         bool                   // whether kit has been asked for the caller's login
 	browse        func(url string) error // opens a page in the browser
@@ -138,6 +125,7 @@ type Model struct {
 	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	headMenu      headingMenu            // the menu a click on a group's heading drops, while it is open
 	cols          columnsDialog          // the columns dialog, while it is open
+	legend        legend                 // the legend, which F1 and ? show and hide, and the corner it stands in
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
@@ -145,7 +133,6 @@ type Model struct {
 	menu          bool                   // whether the selected tab's menu is open, which then has the keyboard
 	menuAt        int                    // the tab's menu's item under the keyboard
 	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
-	drag          drag                   // the field a press on its line in the panel holds, until the release
 	pop           popover                // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
@@ -186,9 +173,9 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}, fold: true}
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow, Own: ownItems}, fold: true,
+		legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
-	m.sideChosen = o.NoSidebar
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
@@ -207,8 +194,6 @@ func New(r kit.Runner, o Options) Model {
 			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p preset) bool { return p.Name == Opening })].panel(c.Fields, s.view)
 		}
 		m.stages = append(m.stages, s)
-		m.widest = max(m.widest, pane.Width(legendLines(name)), grid.Panel{Columns: columnsOf(name),
-			Labels: labelsOf(name), Groupable: groupableOf(name)}.Width())
 	}
 	return m
 }
@@ -268,10 +253,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		if !m.sideChosen && m.sidebar != (m.width >= roomy) {
-			// until the person chooses, the screen's width says whether the sidebar shows
-			return m, m.placeSidebar(m.width >= roomy)
-		}
 		m.rebuild()
 		m.fit()
 	case loadedMsg:
@@ -310,16 +291,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.MouseWheelDown:
 			d = 1
 		}
-		switch {
-		case msg.X > m.paneWidth()+1 && m.sidebar:
-			m.scrollSide(d)
-		case msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight():
+		if msg.X < m.paneWidth() && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() {
 			m.scrollRows(d * wheel)
 		}
-	case tea.MouseMotionMsg:
-		m.dragTo(msg.X, msg.Y)
-	case tea.MouseReleaseMsg:
-		m.release(msg.X, msg.Y)
 	case tea.MouseClickMsg:
 		if m.ask != nil {
 			return m, nil
@@ -353,11 +327,14 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if msg.Y == 0 && len(m.stages) > 0 && m.inPanel && msg.X == m.recallAt() &&
-			m.panel(m.stage).Recall && m.panel(m.stage).Cursor == 0 {
+			m.panel(m.stage).Recall {
 			m.recent = m.recent.Opened()
 			return m, nil
 		}
-		switch side := m.paneWidth() + 1; {
+		if m.legend.open && !m.menu && !m.appMenu.Open && m.ask == nil && m.legendClick(msg.X, msg.Y) {
+			return m, nil
+		}
+		switch {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.paneWidth())
@@ -375,10 +352,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
 			}
-		case msg.X == side && msg.Y >= paneTop && msg.Y < m.sideHeight():
-			return m, m.showSidebar(!m.sidebar)
-		case msg.Y == 0 && msg.X >= m.searchAt(), m.sidebar && msg.X >= m.width-m.sideWidth():
-			return m, m.clickPanel(msg.X, msg.Y)
+		case msg.Y == 0 && msg.X >= m.searchAt():
+			return m, m.enterPanel()
 		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
 			return m, m.presetClick(msg.X)
 		case len(m.stages) > 0 && msg.Y >= paneTop && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
@@ -402,7 +377,7 @@ func (m Model) onMenu(x, y int) bool {
 }
 
 // dropDown drops a menu down: the app's, or the selected tab's, which on backlog asks kit for the caller's login the
-// first time, as Add to Pull Request needs it even while the sidebar, which asks too, is hidden.
+// first time, as Add to Pull Request needs it.
 func (m *Model) dropDown(app bool) tea.Cmd {
 	if app {
 		m.appMenu = m.appMenu.Opened()
@@ -460,7 +435,7 @@ type meMsg struct {
 // whether its rows belong to people, the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
-	p.Columns, p.Auto, p.AutoAt, p.Fill = m.offered(i), m.shown(i).auto, m.shown(i).said, m.sideWidth()-1
+	p.Columns, p.Auto, p.AutoAt = m.offered(i), m.shown(i).auto, m.shown(i).said
 	p.Recall = len(m.recent.Items) > 0
 	return p
 }
@@ -485,55 +460,13 @@ func (m *Model) setPanel(p grid.Panel) {
 	m.fit()
 }
 
-// enterPanel gives the panel the keyboard: the search under it, as it is, shown or not, when find says so; else the
-// panel's control under it, the sidebar shown, which asks kit for the caller's login the first time.
-func (m *Model) enterPanel(find bool) tea.Cmd {
+// enterPanel gives the search the keyboard, what is typed in it as it is.
+func (m *Model) enterPanel() tea.Cmd {
 	if len(m.stages) == 0 {
 		return nil
 	}
-	if find {
-		m.inPanel = true
-		m.stages[m.stage].view = m.panel(m.stage).Find()
-		return nil
-	}
-	cmd := m.showSidebar(true)
 	m.inPanel = true
-	return cmd
-}
-
-// clickPanel takes a click on a line of the screen's right, from its first: on the search, the panel has the keyboard
-// and the search under it, as / does; on one of the panel's other controls, the panel has the keyboard and acts on it
-// as space does; on the … above or … more, the sidebar scrolls a page.
-func (m *Model) clickPanel(x, line int) tea.Cmd {
-	if len(m.stages) == 0 {
-		return nil
-	}
-	if line == 0 {
-		return m.enterPanel(true)
-	}
-	line--
-	n, h := m.scrolled()
-	start, end, above, below := pane.Window(n, h, m.sideOffset)
-	k := pane.At(n, h, m.sideOffset, line)
-	switch {
-	case above && line == 0:
-		m.scrollSide(-max(1, h-2))
-	case below && line == end-start+btoi(above):
-		m.scrollSide(max(1, h-2))
-	case k >= 0:
-		p := m.panel(m.stage)
-		if field := p.FieldAt(k + 1); field != "" {
-			// a field's line is held, to drag or to toggle on the release; it takes the keyboard now
-			p, _ = p.Point(k + 1)
-			m.inPanel, m.drag = true, drag{field: field}
-			m.setPanel(p)
-			return nil
-		}
-		if p, ok := p.Click(k + 1); ok {
-			m.inPanel = true
-			m.setPanel(p)
-		}
-	}
+	m.stages[m.stage].view = m.panel(m.stage).Find()
 	return nil
 }
 
@@ -693,74 +626,6 @@ func (m Model) selectedRows() []row {
 // selected gives how many of the selected stage's rows shown are selected.
 func (m Model) selected() int { return len(m.selectedRows()) }
 
-// drag is the field whose line in the panel a press holds, and whether a drag has moved it since.
-type drag struct {
-	field string
-	moved bool
-}
-
-// panelLine gives the line of the panel, as its Lines numbers them, that a screen cell falls on: the search's, 0, on
-// the title line, else one of the lines under it as the sidebar is scrolled; -1 off the sidebar, or on a … line.
-func (m Model) panelLine(x, y int) int {
-	switch {
-	case !m.sidebar || len(m.stages) == 0 || x < m.width-m.sideWidth():
-		return -1
-	case y == 0:
-		return 0
-	}
-	n, h := m.scrolled()
-	start, end, above, below := pane.Window(n, h, m.sideOffset)
-	if line := y - 1; above && line == 0 || below && line == end-start+btoi(above) {
-		return -1
-	}
-	if k := pane.At(n, h, m.sideOffset, y-1); k >= 0 {
-		return k + 1
-	}
-	return -1
-}
-
-// dragTo moves the field held, while the mouse drags it, as the panel's Dropped says: over another field's line, to
-// where that field stands, and over a section's heading, to the top of that section, across the editor's sections as
-// shift with up or down moves it, the keyboard with it; over any other line it moves nothing.
-func (m *Model) dragTo(x, y int) {
-	if m.drag.field == "" {
-		return
-	}
-	if p, ok := m.panel(m.stage).Dropped(m.drag.field, m.panelLine(x, y)); ok {
-		m.drag.moved = true
-		m.setPanel(p)
-		m.fitSide()
-	}
-}
-
-// release ends a hold on a field's line: a hold no drag moved, released on the box of the line it began on, toggles
-// it, as a click on any other control acts on it; released on the field's label, which takes the keyboard, it toggles
-// nothing.
-func (m *Model) release(x, y int) {
-	held := m.drag
-	m.drag = drag{}
-	if held.field == "" || held.moved || x > m.width-m.sideWidth()+1 {
-		return
-	}
-	line := m.panelLine(x, y)
-	if p := m.panel(m.stage); p.FieldAt(line) == held.field {
-		p, _ = p.Click(line)
-		m.setPanel(p)
-	}
-}
-
-// scrolled gives how many of the sidebar's lines scroll, all but the search on the screen's first line, and the lines
-// they have, all under it down to the keys bar.
-func (m Model) scrolled() (n, h int) { return len(m.sideLines()) - 1, m.sideHeight() - 1 }
-
-// btoi gives 1 for true, 0 for false.
-func btoi(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 // wheel is the lines a turn of the mouse wheel scrolls the rows.
 const wheel = 3
 
@@ -772,34 +637,6 @@ func (m *Model) scrollRows(n int) {
 	}
 	s := &m.stages[m.stage]
 	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.rowsHeight(), s.offset+n)
-}
-
-// scrollSide scrolls the sidebar under the search n lines, down when n is positive, never past its ends.
-func (m *Model) scrollSide(n int) {
-	lines, h := m.scrolled()
-	m.sideOffset, _, _, _ = pane.Window(lines, h, m.sideOffset+n)
-}
-
-// fitSide scrolls the sidebar so the panel's control under the keyboard shows; the search always does, and on it the
-// sidebar is back at its top.
-func (m *Model) fitSide() {
-	_, at := m.panel(m.stage).Lines()
-	n, h := m.scrolled()
-	line := slices.Index(at, m.stages[m.stage].view.Cursor) - 1
-	if line < 0 {
-		m.sideOffset = 0
-	}
-	for line >= 0 {
-		start, end, _, _ := pane.Window(n, h, m.sideOffset)
-		switch {
-		case line < start:
-			m.sideOffset = line
-		case line >= end:
-			m.sideOffset++
-		default:
-			return
-		}
-	}
 }
 
 // askMe runs kit flow --me, once, for the limit at most.
@@ -824,7 +661,7 @@ func (m Model) whoami() tea.Cmd {
 
 // key takes a key press: the quitting keys, a field's popover's while it is open, the open menu's while one is open, the
 // panel's while it has the keyboard, the preset line's while it has it, = for the app's menu and : or ; for the tab's,
-// the bar's, then the rows' and the sidebar's. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
+// the bar's, then the rows', F1 and ? showing the legend or hiding it. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -882,18 +719,16 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch k.String() {
-	case "tab":
-		return m, m.enterPanel(false)
 	case "/":
-		return m, m.enterPanel(true)
+		return m, m.enterPanel()
 	case "esc":
 		if m.inRows {
 			s := &m.stages[m.stage]
 			s.cursor, s.offset, m.inRows = 0, 0, false
 		}
 		m.fit()
-	case "?":
-		return m, m.showSidebar(!m.sidebar)
+	case "?", "f1":
+		m.toggleLegend()
 	case "space":
 		m.selectRow(false)
 	case "ctrl+a":
@@ -939,23 +774,20 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// panelKey takes a key while the panel has the keyboard: tab and esc give it back to the rows or the bar, as they had
-// it; page up and down scroll the sidebar, and so does down past the last control, so the legend under the panel can
-// be read; the panel takes what it can, as typing in its search, the sidebar following its cursor; a number the bar
-// takes selects a stage, and gives the bar the keyboard. While the sidebar is hidden the search stands alone: down and
-// a page at a time have nothing to move to.
+// panelKey takes a key while the search has the keyboard, as panelKeys says; ctrl+r drops the searches remembered
+// down, and what was typed is remembered once the search gives up the keyboard.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if len(m.stages) == 0 {
 		return m.panelKeys(k)
 	}
 	before := m.panel(m.stage)
-	searching := before.Focused && before.Cursor == 0
+	searching := before.Focused
 	if searching && k.String() == "ctrl+r" {
 		m.recent = m.recent.Opened()
 		return m, nil
 	}
 	next, cmd := m.panelKeys(k)
-	if after := next.(Model); searching && (!after.inPanel || after.panel(after.stage).Cursor != 0) {
+	if after := next.(Model); searching && !after.inPanel {
 		// the search gave up the keyboard: what was typed is remembered
 		after.recent = after.recent.Remember(before.Query)
 		return after, cmd
@@ -971,43 +803,17 @@ func (m Model) recallAt() int {
 	return shell.RecallAt(m.searchAt())
 }
 
-// panelKeys takes a key while the panel has the keyboard, as panelKey says.
+// panelKeys takes a key while the search has the keyboard, as panelKey says: tab, esc, and enter leave it, what is
+// typed kept; a printable key is typed, and backspace takes one back; any other key the bar takes, as a stage's number
+// does not while it is typed, gives the bar the keyboard.
 func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	h := max(1, m.sideHeight()-3)
 	switch k.String() {
-	case "tab", "esc":
+	case "tab", "esc", "enter":
 		m.inPanel = false
 		return m, nil
-	case "down", "pgdown", "pgup":
-		if !m.sidebar {
-			return m, nil
-		}
 	}
-	switch k.String() {
-	case "pgdown":
-		m.scrollSide(h)
-		return m, nil
-	case "pgup":
-		m.scrollSide(-h)
-		return m, nil
-	}
-	before := m.panel(m.stage)
-	if field := before.Under(); field != "" && k.String() == "enter" {
-		// enter on a field's line opens its popover, beside the line
-		return m, m.openPopover(field, m.width-1, m.fieldLineAt(), false)
-	}
-	if menu, app := menuFor(k); menu && before.Cursor != 0 {
-		// off the search, the menus' keys drop them down, as they do from the rows
-		return m, m.dropDown(app)
-	}
-	if p, ok := before.Update(k); ok {
+	if p, ok := m.panel(m.stage).Update(k); ok {
 		m.setPanel(p)
-		if k.String() == "down" && p.Cursor == before.Cursor {
-			// past the last control, down scrolls on to the legend under the panel
-			m.scrollSide(1)
-		} else {
-			m.fitSide()
-		}
 		return m, nil
 	}
 	m.inPanel = false
@@ -1019,29 +825,6 @@ func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// showSidebar shows the sidebar beside the rows, or takes it away, as the person asks, which a resize then keeps; the
-// rows are laid out again for the width left, and the panel loses the keyboard with it. Shown the first time, it asks
-// kit for the caller's login.
-func (m *Model) showSidebar(on bool) tea.Cmd {
-	m.sideChosen = true
-	m.inPanel = m.inPanel && on
-	return m.placeSidebar(on)
-}
-
-// placeSidebar shows the sidebar beside the rows, or takes it away, the rows laid out again for the width left; a
-// search that has the keyboard keeps it, as it stands on the screen either way. Shown the first time, it asks kit for
-// the caller's login.
-func (m *Model) placeSidebar(on bool) tea.Cmd {
-	m.sidebar = on
-	m.inPanel = m.inPanel && (on || len(m.stages) > 0 && m.stages[m.stage].view.Cursor == 0)
-	m.rebuild()
-	m.fit()
-	if on {
-		return m.askMe()
-	}
-	return nil
-}
-
 // choose takes what the bar chose: where its view is scrolled, the stage it selected, where the cursor is as it was
 // left, and the keyboard. A triangle, which scrolls the view alone, leaves the keyboard where it is, in the panel or on
 // the preset line too.
@@ -1049,9 +832,6 @@ func (m *Model) choose(bar tabs.Bar) {
 	m.barView = bar.Scroll
 	if bar.Selected == m.stage && bar.Focused == m.bar().Focused {
 		return
-	}
-	if bar.Selected != m.stage {
-		m.sideOffset = 0
 	}
 	m.stage, m.inRows, m.inPanel, m.onPreset = bar.Selected, !bar.Focused, false, false
 	m.fit()

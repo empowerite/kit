@@ -30,7 +30,7 @@ func bigNow(m Model, n int) loadedMsg {
 }
 
 // A stage's rows are built once for what it loaded and the width: drawing, moving along the bar, and moving through
-// the rows reuse them. A stage that loads again, a new width, or the legend shown beside them builds them anew.
+// the rows, and the legend floating over them, reuse them. A stage that loads again, or a new width, builds them anew.
 func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = drive(m, bigNow(m, 300))
@@ -43,8 +43,9 @@ func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 		t.Error("the rows were built again for the same data and width")
 	}
 	m = drive(m, press('?'))
-	if again := m.rows(i); &again[0] == &first[0] {
-		t.Error("the legend beside the rows reused the rows laid out for the whole width")
+	_ = m.View()
+	if again := m.rows(i); &again[0] != &first[0] {
+		t.Error("the legend over the rows built them again")
 	}
 	m = drive(m, press('?'))
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 40})

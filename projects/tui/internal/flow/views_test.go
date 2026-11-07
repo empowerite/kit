@@ -34,7 +34,7 @@ func onDropdown(t *testing.T, file string) Model {
 }
 
 // presetText gives the preset line as the screen draws it, the rule under the header, without its escapes, its run of
-// ─ and the sidebar after it apart.
+// ─ apart.
 func presetText(m Model) string {
 	line := ansi.Strip(m.rule())
 	return strings.TrimRight(regexp.MustCompile(` ?─+ ?`).ReplaceAllString(line, " "), " ")
@@ -63,11 +63,6 @@ func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 	m.stages[0].picked = map[string]bool{}
 	if !strings.Contains(keysOf(m), "↓ preset") {
 		t.Errorf("down on the bar does not say it reaches the preset line: %q", keysOf(m))
-	}
-	// the sidebar under the search starts with the field editor
-	side, _ := m.panel(0).Lines()
-	if got := ansi.Strip(side[2]); got != "group by" || ansi.Strip(side[1]) != "" {
-		t.Errorf("the sidebar's first lines: %q", side[:3])
 	}
 	m = drive(m, down)
 	keys := keysOf(m)
@@ -101,13 +96,13 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	if m = drive(m, down, esc); m.onPreset || !m.bar().Focused {
 		t.Fatalf("esc from the line: on the line %v", m.onPreset)
 	}
-	// tab from the line gives the sidebar the keyboard, and esc gives it back to the line
-	m = drive(m, down, tab)
-	if !m.inPanel || !strings.Contains(keysOf(m), "⇥·esc preset") {
-		t.Fatalf("tab from the line: in panel %v, %q", m.inPanel, keysOf(m))
+	// / from the line gives the search the keyboard, and esc gives it back to the line
+	m = drive(m, down, typed("/")[0])
+	if !m.inPanel || !strings.Contains(keysOf(m), "esc·⏎ back") {
+		t.Fatalf("/ from the line: in panel %v, %q", m.inPanel, keysOf(m))
 	}
 	if m = drive(m, esc); m.inPanel || !m.onPreset {
-		t.Errorf("esc from the sidebar: in panel %v, on the line %v", m.inPanel, m.onPreset)
+		t.Errorf("esc from the search: in panel %v, on the line %v", m.inPanel, m.onPreset)
 	}
 	// naming for Save As…, a number is typed, as a name may hold one; a click on a row leaves the line
 	m.choosePreset(itemSaveAs)

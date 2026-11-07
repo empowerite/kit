@@ -1,24 +1,24 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
   ─────────╮➄╶─────────────────╮➅╶────────────────╴➐╶──────────────────╮➇╶──────
   es     4 │  🔀 changes     3 │  🏭 builds     4  │ 🛬 incoming   6 ⋮ │  📦 r ▹
-  ─────────╰───────────────────╰───────────────────╯                   ╰───────┐
-   📡 origin · github · github.com                                             │
-   a1b2c3d  #1 docs: the docs say what the code does                           │
- ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, a… │
-   🌿       46-a-noun-lists updated                                            │
-   🌿       42-settings new branch                                             │
-   📡 upstream · gitlab · git.example.org                                      │
-   🔖       old-experiment upstream gone                                       │
-   📌       release/0.2.0 new tag                                              │
-   📡 backup · no forge · nas.local                                            │
-   unchanged                                                                   ◂
-                                                                               ╷
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
-                                                                               │
+  ─────────╰───────────────────╰───────────────────╯                   ╰────────
+   📡 origin · github · github.com                                             
+   a1b2c3d  #1 docs: the docs say what the code does
+ ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, an…
+   🌿       46-a-noun-lists updated
+   🌿       42-settings new branch
+   📡 upstream · gitlab · git.example.org
+   🔖       old-experiment upstream gone
+   📌       release/0.2.0 new tag
+   📡 backup · no forge · nas.local
+   unchanged
+
+
+
+
+
+
+
+
+
  … │ 1-8 jump : tab menu │ esc incoming ↑↓ move ␣·⇧↑↓ select ⌃A all
