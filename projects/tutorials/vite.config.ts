@@ -23,14 +23,15 @@ function escape(text: string): string {
 }
 
 // prerender writes each route's page into the shell the client build left in dist/index.html. A page that throws,
-// as one with <Since version="0.4"> does, fails the build.
+// as one with <Since version="0.4"> does, fails the build. The replacements are functions, so a `$$`, `$&`, or `$'` in
+// a page's text is not read as a replacement pattern.
 async function prerender(): Promise<void> {
   const shell = await readFile(join(dist, "index.html"), "utf8");
   const { routes, render }: Server = await import(pathToFileURL(join(server, "server.js")).href);
   for (const route of routes) {
     const html = shell
-      .replace("<title>kit tutorials</title>", `<title>${escape(route.title)} · kit tutorials</title>`)
-      .replace("<!--page-->", render(route.path));
+      .replace("<title>kit tutorials</title>", () => `<title>${escape(route.title)} · kit tutorials</title>`)
+      .replace("<!--page-->", () => render(route.path));
     await mkdir(join(dist, route.path), { recursive: true });
     await writeFile(join(dist, route.path, "index.html"), html);
   }

@@ -43,6 +43,20 @@ for (const file of await readdir(join(site, "dist"), { recursive: true })) {
   }
 }
 
+// A page's text reaches the shell through a string replacement in the build; `$$`, `$&`, and `$'` in a page must survive
+// it. React escapes & and ' in text, so dist/ holds them escaped.
+try {
+  const dollars = await readFile(join(site, "dist/kit-tutorials/dollar-signs/index.html"), "utf8");
+  const expected = ["echo $$", "echo $&amp;", "echo $&#x27;x&#x27;"];
+  for (const text of expected) {
+    if (!dollars.includes(text)) {
+      problems.push(`dist/kit-tutorials/dollar-signs/index.html: lost "${text}" in the build`);
+    }
+  }
+} catch {
+  // a missing page is reported above
+}
+
 if (problems.length > 0) {
   console.error(problems.join("\n"));
   process.exit(1);

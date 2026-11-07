@@ -66,10 +66,15 @@ const tutorials = Object.keys(pages)
   .filter((file) => file.startsWith("./content/"))
   .map((file) => ({ file, path: contentPath(file), ...pages[file].frontmatter }));
 
+// byOrder sorts tutorials as the catalogue does: by order (1000 when a page has none), then by path, which is its id.
+export function byOrder(a: { order?: number; path: string }, b: { order?: number; path: string }): number {
+  return (a.order ?? 1000) - (b.order ?? 1000) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+}
+
 function Home() {
   const top = tutorials
     .filter((tutorial) => tutorial.top)
-    .sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000) || a.title.localeCompare(b.title));
+    .sort(byOrder);
   return (
     <Titled title="Tutorials">
       <h1>Tutorials</h1>
