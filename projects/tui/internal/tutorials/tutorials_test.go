@@ -114,11 +114,12 @@ func TestEnterAndAClickOpenTheCardsURL(t *testing.T) {
 	if last != " 🎓 Opened Reading kit's tutorials in the browser" || !m.Noticing() {
 		t.Errorf("the notice: %q", last)
 	}
-	if m = drive(m, fadedMsg{m.fades}); m.Noticing() {
+	older := m.note.FadeMsg()
+	if m = drive(m, older); m.Noticing() {
 		t.Error("the notice outlived its time")
 	}
 	m = drive(m, enter)
-	if m = drive(m, fadedMsg{m.fades - 1}); !m.Noticing() {
+	if m = drive(m, older); !m.Noticing() {
 		t.Error("an older notice's time took the newer one")
 	}
 	if m = drive(m, right); m.Noticing() || m.cursor != 1 {
@@ -149,7 +150,7 @@ func TestABrowserThatFailsShowsTheLink(t *testing.T) {
 	if last := lines(m)[29]; last != want || !m.Noticing() {
 		t.Fatalf("the notice: %q", last)
 	}
-	if m = drive(m, fadedMsg{m.fades}); !m.Noticing() {
+	if m = drive(m, m.note.FadeMsg()); !m.Noticing() {
 		t.Error("the link went with time")
 	}
 	if m = drive(m, at60); lines(m)[19] != " https://empowerite.github.io/kit/tutorials/main/kittui-tou…" {

@@ -192,7 +192,7 @@ func TestARefusalStaysInTheKeysBarAndKeepsTheSelection(t *testing.T) {
 	m = choose(t, m, "Unassign")
 	m = drive(m, press(tea.KeyEnter))
 	last := lines(m)[len(lines(m))-1]
-	if !strings.Contains(last, Failed+" kit unassign refuses for the test") || m.noted || m.selected() != 2 {
+	if !strings.Contains(last, Failed+" kit unassign refuses for the test") || m.note.Done || m.selected() != 2 {
 		t.Errorf("the refusal: %q, %d selected", lines(m)[len(lines(m))-1], m.selected())
 	}
 }
@@ -266,8 +266,8 @@ func TestNewOffersTheTrackersAndOpensThePagePicked(t *testing.T) {
 	if err != nil || len(trackers) != 3 {
 		t.Fatalf("the trackers: %+v, %v", trackers, err)
 	}
-	if m.newIssue(trackersMsg{trackers: trackers[2:]}); m.ask != nil || !strings.Contains(m.notice, "the BZ# tracker has no new page") {
-		t.Errorf("no tracker with a page: %q", m.notice)
+	if m.newIssue(trackersMsg{trackers: trackers[2:]}); m.ask != nil || !strings.Contains(m.note.Text, "the BZ# tracker has no new page") {
+		t.Errorf("no tracker with a page: %q", m.note.Text)
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "new")
 	if m = choose(t, m, "New…"); m.ask != nil || !strings.Contains(lines(m)[len(lines(m))-1], "the forge cannot be read") {

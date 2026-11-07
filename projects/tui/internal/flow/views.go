@@ -498,7 +498,7 @@ func (m *Model) keep(saved []preset, what string) bool {
 	}
 	all[m.stages[m.stage].name] = saved
 	if err := writePresets(m.presetsPath, all); err != nil {
-		m.notice, m.noted = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
+		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}
 	m.saved = all
@@ -513,10 +513,10 @@ func (m *Model) savePreset() tea.Cmd {
 	name := strings.TrimSpace(s.naming)
 	switch {
 	case name == "":
-		m.notice, m.noted = Failed+" a preset needs a name: type one, then ⏎", false
+		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
 		return nil
 	case m.builtin(m.stage, name):
-		m.notice, m.noted = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
+		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
 		return nil
 	}
 	m.saveAs(name)
@@ -551,13 +551,13 @@ func (m *Model) renamePreset() {
 	k := slices.IndexFunc(saved, func(v preset) bool { return v.Name == from })
 	switch {
 	case name == "":
-		m.notice, m.noted = Failed+" a preset needs a name: type one, then ⏎", false
+		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
 		return
 	case m.builtin(m.stage, name):
-		m.notice, m.noted = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
+		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
 		return
 	case name != from && slices.ContainsFunc(saved, func(v preset) bool { return v.Name == name }):
-		m.notice, m.noted = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
+		m.note.Text, m.note.Done = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
 		return
 	case name == from:
 		s.savingAs, s.naming, s.renaming = false, "", ""

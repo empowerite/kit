@@ -50,8 +50,8 @@ func TestOverSSHOpeningAPageShowsTheLinkAndRunsNoOpener(t *testing.T) {
 	record := atTheOpener(t, &m)
 	t.Setenv("SSH_CONNECTION", "1.2.3.4 5 6.7.8.9 22")
 	m = drive(m, m.openPage(page)())
-	if want := "Open " + page + " in a browser"; m.notice != want || m.noted {
-		t.Errorf("the notice: %q (noted %v), want %q", m.notice, m.noted, want)
+	if want := "Open " + page + " in a browser"; m.note.Text != want || m.note.Done {
+		t.Errorf("the notice: %q (noted %v), want %q", m.note.Text, m.note.Done, want)
 	}
 	if v := view(m); !strings.Contains(v, "Open "+page+" in a browser") {
 		t.Errorf("the link is not on the screen:\n%s", v)
@@ -59,14 +59,14 @@ func TestOverSSHOpeningAPageShowsTheLinkAndRunsNoOpener(t *testing.T) {
 	if ran(record) {
 		t.Error("an opener ran over SSH")
 	}
-	if m = drive(m, down); m.notice != "" {
-		t.Errorf("a key kept the link: %q", m.notice)
+	if m = drive(m, down); m.note.Text != "" {
+		t.Errorf("a key kept the link: %q", m.note.Text)
 	}
 	// at a desk, the opener runs and the notice stays empty
 	t.Setenv("SSH_CONNECTION", "")
 	m = drive(m, m.openPage(page)())
-	if !ran(record) || m.notice != "" {
-		t.Errorf("at a desk: opener ran %v, notice %q", ran(record), m.notice)
+	if !ran(record) || m.note.Text != "" {
+		t.Errorf("at a desk: opener ran %v, notice %q", ran(record), m.note.Text)
 	}
 	if got, _ := os.ReadFile(record); string(got) != page+"\n" {
 		t.Errorf("the opener was given %q", got)
@@ -84,15 +84,15 @@ func TestOverSSHOpenSelectedShowsTheFirstLinkAndCountsTheRest(t *testing.T) {
 		t.Fatalf("pages: %q", pages)
 	}
 	m = choose(t, m, "Open Selected")
-	if want := "Open " + pages[0] + " in a browser, and 1 more page"; m.notice != want || m.noted {
-		t.Errorf("the notice: %q (noted %v), want %q", m.notice, m.noted, want)
+	if want := "Open " + pages[0] + " in a browser, and 1 more page"; m.note.Text != want || m.note.Done {
+		t.Errorf("the notice: %q (noted %v), want %q", m.note.Text, m.note.Done, want)
 	}
 	if ran(record) {
 		t.Error("an opener ran over SSH")
 	}
 	// one page asked says no more
 	delete(m.stages[0].picked, "#46")
-	if m = choose(t, m, "Open Selected"); m.notice != "Open "+pages[0]+" in a browser" {
-		t.Errorf("one page: %q", m.notice)
+	if m = choose(t, m, "Open Selected"); m.note.Text != "Open "+pages[0]+" in a browser" {
+		t.Errorf("one page: %q", m.note.Text)
 	}
 }

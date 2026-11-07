@@ -127,10 +127,7 @@ type Model struct {
 	marksOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
 	marksSerial   int                    // the last read's, which the tick it waits on names
 	browse        func(url string) error // opens a page in the browser
-	notice        string                 // why a page did not open, or what kit did, in place of the keys until a key
-	noted         bool                   // whether the notice says what was done, rather than why it was not
-	fading        string                 // the notice done put up, which goes after Fades while it is still up
-	fades         int                    // the notices done has put up, each the serial its fadedMsg carries
+	note          shell.Notice           // what kit did, or why something was not done, in place of the keys
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
@@ -192,10 +189,10 @@ func New(r kit.Runner, o Options) Model {
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
-	if m.saved, m.notice, err = readPresets(o.Presets); err != nil {
-		m.notice = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
+	if m.saved, m.note.Text, err = readPresets(o.Presets); err != nil {
+		m.note.Text = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
-	m.noted = err == nil
+	m.note.Done = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: grid.Outline{}, picked: map[string]bool{},
@@ -228,10 +225,8 @@ func (m Model) Close() { m.cancel() }
 // again; and a notice that says what was done, new, goes after Fades, unless a key or another notice took its place
 // first.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if f, ok := msg.(fadedMsg); ok {
-		if f.serial == m.fades && m.notice == m.fading {
-			m.notice, m.fading = "", ""
-		}
+	if f, ok := msg.(shell.FadedMsg); ok {
+		m.note = m.note.Faded(f)
 		return m, nil
 	}
 	next, cmd := m.update(msg)
@@ -245,9 +240,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			n.stages[i].savingAs, n.stages[i].naming, n.stages[i].renaming = false, "", ""
 		}
 	}
-	if n.fades != m.fades {
-		serial := n.fades
-		cmd = tea.Batch(cmd, tea.Tick(fades, func(time.Time) tea.Msg { return fadedMsg{serial} }))
+	if fade := n.note.Fading(m.note, fades); fade != nil {
+		cmd = tea.Batch(cmd, fade)
 	}
 	return n, cmd
 }
@@ -259,14 +253,8 @@ const Fades = 5 * time.Second
 // fades is how long the screen waits for Fades: Fades, as a test waits less.
 var fades = Fades
 
-// fadedMsg says a notice that says what was done has been up for Fades: the one done gave that serial.
-type fadedMsg struct{ serial int }
-
 // done puts a notice that says what was done in place of the keys, for Fades, short of a key.
-func (m *Model) done(notice string) {
-	m.notice, m.noted, m.fading = notice, true, notice
-	m.fades++
-}
+func (m *Model) done(notice string) { m.note = m.note.Did(notice) }
 
 // update takes a message.
 func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -305,9 +293,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case browsedMsg:
 		switch {
 		case errors.Is(msg.err, shell.ErrNoDisplay):
-			m.notice, m.noted = msg.link(), false
+			m.note.Text, m.note.Done = msg.link(), false
 		case msg.err != nil:
-			m.notice, m.noted = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
+			m.note.Text, m.note.Done = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
 	case shell.SettingsMsg:
 		m.fold, m.glyphs = msg.Settings.FoldShared, msg.Settings.SharedEmoji
@@ -318,7 +306,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case actedMsg:
 		return m, m.acted(msg)
 	case tea.KeyPressMsg:
-		m.notice = ""
+		m.note.Text = ""
 		return m.key(msg)
 	case tea.MouseWheelMsg:
 		d := 0

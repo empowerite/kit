@@ -57,15 +57,15 @@ func (m Model) View() tea.View {
 func (m Model) bottom() string {
 	room := m.width - 1
 	switch {
-	case m.notice == "":
+	case m.note.Text == "":
 		return m.keys().Line(m.width)
-	case !m.noted && ansi.StringWidth(m.notice) > room:
-		_, url, _ := strings.Cut(strings.TrimSuffix(m.notice, " in a browser"), "Open ")
+	case !m.note.Done && ansi.StringWidth(m.note.Text) > room:
+		_, url, _ := strings.Cut(strings.TrimSuffix(m.note.Text, " in a browser"), "Open ")
 		return " " + style.Warn(pane.Clip(url, room))
-	case !m.noted:
-		return " " + style.Warn(m.notice)
+	case !m.note.Done:
+		return " " + style.Warn(m.note.Text)
 	}
-	return " " + pane.Clip(m.notice, room)
+	return " " + pane.Clip(m.note.Text, room)
 }
 
 // bar gives the tab bar, from the screen's second line: All, then each audience, each with how many tutorials it has,

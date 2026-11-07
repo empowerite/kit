@@ -358,8 +358,8 @@ func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 			t.Fatal(err)
 		}
 		m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
-		if !strings.Contains(m.notice, says) || m.noted || len(m.views(0)) != 2 {
-			t.Errorf("a bad file: %q", m.notice)
+		if !strings.Contains(m.note.Text, says) || m.note.Done || len(m.views(0)) != 2 {
+			t.Errorf("a bad file: %q", m.note.Text)
 		}
 		if data, _ := os.ReadFile(file); string(data) != content {
 			t.Errorf("the bad file was changed: %s", data)
@@ -466,9 +466,9 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 	file := filepath.Join(dir, "presets.json")
 	m := loaded(t, viewing(file))
-	if !m.noted || m.notice != Save+" views.json is now presets.json, without the columns kittui no longer knows: "+
+	if !m.note.Done || m.note.Text != Save+" views.json is now presets.json, without the columns kittui no longer knows: "+
 		"milestone in backlog Mine; estimate in backlog All; milestone in changes Authors" {
-		t.Errorf("the notice: %q", m.notice)
+		t.Errorf("the notice: %q", m.note.Text)
 	}
 	if data, _ := os.ReadFile(filepath.Join(dir, "views.json")); string(data) != string(v1) {
 		t.Errorf("views.json was changed: %s", data)
@@ -509,8 +509,8 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 		}
 	}
 	// read again, presets.json is what is read, and nothing is noted
-	if n := loaded(t, viewing(file)); n.notice != "" || !reflect.DeepEqual(n.saved, want) {
-		t.Errorf("read again: %q, %+v", n.notice, n.saved)
+	if n := loaded(t, viewing(file)); n.note.Text != "" || !reflect.DeepEqual(n.saved, want) {
+		t.Errorf("read again: %q, %+v", n.note.Text, n.saved)
 	}
 	// a stage's fields a preset does not name take the catalog's placement
 	if g := want["changes"][0].panel(fieldsOf("changes"), grid.Panel{}); g.Field("branch").Placement != grid.Column ||
@@ -567,21 +567,21 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	}
 	for _, refused := range []string{"Compact", "Other"} {
 		m.stages[0].naming = refused
-		if m = drive(m, press(tea.KeyEnter)); !strings.Contains(m.notice, refused+" is ") || m.stages[0].viewName != "Triage" {
-			t.Errorf("rename to %s: %q", refused, m.notice)
+		if m = drive(m, press(tea.KeyEnter)); !strings.Contains(m.note.Text, refused+" is ") || m.stages[0].viewName != "Triage" {
+			t.Errorf("rename to %s: %q", refused, m.note.Text)
 		}
 	}
 	m.stages[0].naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
 	if data, _ := os.ReadFile(file); m.stages[0].viewName != "Mine" || strings.Contains(string(data), "Triage") ||
-		!strings.Contains(string(data), `"Mine"`) || !strings.Contains(m.notice, Renamed+" renamed the preset Triage to Mine") {
-		t.Errorf("renamed: view %q, %q, %s", m.stages[0].viewName, m.notice, data)
+		!strings.Contains(string(data), `"Mine"`) || !strings.Contains(m.note.Text, Renamed+" renamed the preset Triage to Mine") {
+		t.Errorf("renamed: view %q, %q, %s", m.stages[0].viewName, m.note.Text, data)
 	}
 	// Delete drops it, and the stage is Default
 	m.choosePreset(itemDelete)
 	if data, _ := os.ReadFile(file); strings.Contains(string(data), "Mine") || m.is(0) != Opening ||
-		!strings.Contains(m.notice, Deleted+" deleted the preset Mine") {
-		t.Errorf("deleted: %q, is %q, %s", m.notice, m.is(0), data)
+		!strings.Contains(m.note.Text, Deleted+" deleted the preset Mine") {
+		t.Errorf("deleted: %q, is %q, %s", m.note.Text, m.is(0), data)
 	}
 	if m.presetEnabled(itemRename) || m.presetEnabled(itemDelete) {
 		t.Error("Rename… or Delete acts on Default")
@@ -595,22 +595,22 @@ func TestANoticeOfWhatWasDoneFades(t *testing.T) {
 	m.choosePreset(itemSaveAs)
 	m.stages[0].naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
-	first := m.fades
+	first := m.note.FadeMsg()
 	if !strings.Contains(keysOf(m), "saved the preset Mine") {
 		t.Fatalf("the notice: %q", keysOf(m))
 	}
 	m.done(Save + " another")
-	if m = drive(m, fadedMsg{first}); m.notice == "" {
+	if m = drive(m, first); m.note.Text == "" {
 		t.Error("a time up for an earlier notice took a later one")
 	}
-	if m = drive(m, fadedMsg{m.fades}); m.notice != "" {
-		t.Errorf("the notice stayed: %q", m.notice)
+	if m = drive(m, m.note.FadeMsg()); m.note.Text != "" {
+		t.Errorf("the notice stayed: %q", m.note.Text)
 	}
 	m.choosePreset(itemSaveAs)
 	m.stages[0].naming = ""
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, fadedMsg{m.fades}); !strings.Contains(m.notice, "needs a name") {
-		t.Errorf("a refusal faded: %q", m.notice)
+	if m = drive(m, m.note.FadeMsg()); !strings.Contains(m.note.Text, "needs a name") {
+		t.Errorf("a refusal faded: %q", m.note.Text)
 	}
 }
 
@@ -621,8 +621,8 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "presets.json")
 	m := onDropdown(t, file)
-	if m.choosePreset(itemDelete); m.is(0) != Opening || m.notice != "" {
-		t.Errorf("Delete on Default: %q", m.notice)
+	if m.choosePreset(itemDelete); m.is(0) != Opening || m.note.Text != "" {
+		t.Errorf("Delete on Default: %q", m.note.Text)
 	}
 	m.choosePreset(itemSaveAs)
 	m.stages[0].naming = "Mine"
@@ -632,20 +632,20 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 		m.stages[0].naming = name
 		return drive(m, press(tea.KeyEnter))
 	}
-	if m = rename(" "); !strings.Contains(m.notice, "needs a name") || !m.stages[0].savingAs {
-		t.Errorf("rename to nothing: %q", m.notice)
+	if m = rename(" "); !strings.Contains(m.note.Text, "needs a name") || !m.stages[0].savingAs {
+		t.Errorf("rename to nothing: %q", m.note.Text)
 	}
 	m = drive(m, esc)
-	if m = rename("Mine"); m.stages[0].savingAs || m.stages[0].viewName != "Mine" || strings.Contains(m.notice, "renamed") {
-		t.Errorf("rename to the same name: naming %v, %q", m.stages[0].savingAs, m.notice)
+	if m = rename("Mine"); m.stages[0].savingAs || m.stages[0].viewName != "Mine" || strings.Contains(m.note.Text, "renamed") {
+		t.Errorf("rename to the same name: naming %v, %q", m.stages[0].savingAs, m.note.Text)
 	}
 	m.presetsPath = filepath.Join(file, "under-a-file", "presets.json")
-	if m = rename("Yours"); !strings.Contains(m.notice, "could not be renamed") || m.stages[0].viewName != "Mine" {
-		t.Errorf("rename, unwritable: %q", m.notice)
+	if m = rename("Yours"); !strings.Contains(m.note.Text, "could not be renamed") || m.stages[0].viewName != "Mine" {
+		t.Errorf("rename, unwritable: %q", m.note.Text)
 	}
 	m = drive(m, esc)
-	if m.choosePreset(itemDelete); !strings.Contains(m.notice, "could not be deleted") || m.stages[0].viewName != "Mine" {
-		t.Errorf("delete, unwritable: %q", m.notice)
+	if m.choosePreset(itemDelete); !strings.Contains(m.note.Text, "could not be deleted") || m.stages[0].viewName != "Mine" {
+		t.Errorf("delete, unwritable: %q", m.note.Text)
 	}
 	// the file cannot be written beside, as a directory stands where it would be; or replaced, as it is a directory
 	blocked := filepath.Join(dir, "blocked.json")

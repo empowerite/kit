@@ -72,7 +72,7 @@ func drive(m Model, msgs ...tea.Msg) Model {
 // sees what a notice says and the screen reads the limits and the marks once; a test of each sends it itself.
 func faded(msg tea.Msg) bool {
 	switch msg.(type) {
-	case fadedMsg, quotaTickMsg, marksTickMsg:
+	case shell.FadedMsg, quotaTickMsg, marksTickMsg:
 		return true
 	}
 	return false

@@ -141,7 +141,7 @@ func (m *Model) act(name string) tea.Cmd {
 	}
 	switch name {
 	case "New…":
-		m.notice, m.noted = "→ kit new issue --list …", true
+		m.note.Text, m.note.Done = "→ kit new issue --list …", true
 		r, ctx := m.runner, m.ctx
 		return func() tea.Msg {
 			trackers, err := r.Trackers(ctx)
@@ -194,9 +194,9 @@ func (m *Model) act(name string) tea.Cmd {
 // prefix and where, the page opened once it is picked; it starts on the forge's own, which kit lists first, as
 // backlog's issues are. A tracker that gives no page is left out; with none left, the notice says why.
 func (m *Model) newIssue(msg trackersMsg) tea.Cmd {
-	m.notice = ""
+	m.note.Text = ""
 	if msg.err != nil {
-		m.notice, m.noted = Failed+" "+msg.err.Error(), false
+		m.note.Text, m.note.Done = Failed+" "+msg.err.Error(), false
 		return nil
 	}
 	a := &ask{title: "New issue in which tracker?", does: "open", then: m.openPage}
@@ -209,7 +209,7 @@ func (m *Model) newIssue(msg trackersMsg) tea.Cmd {
 		a.lines, a.pick = append(a.lines, t.Prefix+"  "+t.Label), append(a.pick, t.URL)
 	}
 	if len(a.pick) == 0 {
-		m.notice, m.noted = Failed+" "+refusal, false
+		m.note.Text, m.note.Done = Failed+" "+refusal, false
 		return nil
 	}
 	m.ask = a
@@ -267,7 +267,7 @@ func (m *Model) run(cmds [][]string) tea.Cmd {
 	if len(cmds) == 0 {
 		return nil
 	}
-	m.notice, m.noted = "→ kit "+strings.Join(cmds[0], " ")+" …", true
+	m.note.Text, m.note.Done = "→ kit "+strings.Join(cmds[0], " ")+" …", true
 	r, ctx := m.runner, m.ctx
 	return func() tea.Msg {
 		var out strings.Builder
@@ -287,7 +287,7 @@ func (m *Model) run(cmds [][]string) tea.Cmd {
 func (m *Model) acted(msg actedMsg) tea.Cmd {
 	lines := strings.Split(strings.TrimSpace(ansi.Strip(msg.out)), "\n")
 	if msg.err != nil {
-		m.notice, m.noted = Failed+" "+msg.err.Error(), false
+		m.note.Text, m.note.Done = Failed+" "+msg.err.Error(), false
 	} else {
 		m.done(lines[len(lines)-1])
 		if s := m.find("backlog"); s != nil {

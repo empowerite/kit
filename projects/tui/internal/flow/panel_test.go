@@ -211,7 +211,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") || !m.Noticing() {
 		t.Errorf("a page that did not open: %q", last)
 	}
-	if m = drive(m, down); m.notice != "" || strings.Contains(lines(m)[23], "could not open") {
+	if m = drive(m, down); m.note.Text != "" || strings.Contains(lines(m)[23], "could not open") {
 		t.Errorf("the next key kept the notice: %q", lines(m)[23])
 	}
 	// pinned to its text, the title's first word is no button

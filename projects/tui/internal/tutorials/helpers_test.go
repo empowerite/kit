@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -74,7 +75,7 @@ func drive(m Model, msgs ...tea.Msg) Model {
 
 // faded says a notice's time is up.
 func faded(msg tea.Msg) bool {
-	_, ok := msg.(fadedMsg)
+	_, ok := msg.(shell.FadedMsg)
 	return ok
 }
 

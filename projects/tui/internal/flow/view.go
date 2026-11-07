@@ -63,10 +63,10 @@ func (m Model) View() tea.View {
 	}
 	bottom := m.keys().LineWith(m.width, right)
 	switch {
-	case m.notice != "" && m.noted:
-		bottom = " " + pane.Clip(m.notice, m.width-1)
-	case m.notice != "":
-		bottom = " " + style.Refusal(pane.Clip(m.notice, m.width-1))
+	case m.note.Text != "" && m.note.Done:
+		bottom = " " + pane.Clip(m.note.Text, m.width-1)
+	case m.note.Text != "":
+		bottom = " " + style.Refusal(pane.Clip(m.note.Text, m.width-1))
 	}
 	return shell.View(lines, m.height, bottom)
 }
@@ -466,7 +466,7 @@ func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
 
 // Noticing says whether the keys bar's line says what was done, or why not, in place of the keys, until a key: kittui
 // keeps it on the screen while the keys bar is hidden.
-func (m Model) Noticing() bool { return m.notice != "" }
+func (m Model) Noticing() bool { return m.note.Text != "" }
 
 // lead is what stands before the rule under the header: the gutter the rows' marks and folds take, as internal/grid
 // lays it out, two cells for the selection and two for the ▸ or ▾.

@@ -55,9 +55,6 @@ const Fades = 5 * time.Second
 // fades is how long the screen waits for Fades: Fades, as a test waits less.
 var fades = Fades
 
-// fadedMsg says a notice that a tutorial opened has been up for Fades: the one opened gave that serial.
-type fadedMsg struct{ serial int }
-
 // Model is the tutorials screen.
 type Model struct {
 	runner  kit.Runner
@@ -76,10 +73,8 @@ type Model struct {
 	offset  int  // the first row of cards the pane shows
 	width   int
 	height  int
-	appMenu shell.Menu // the app's menu, internal/shell's, which has the keyboard while it is open
-	notice  string     // what opened, or the link to open by hand, in place of the keys until a key
-	noted   bool       // whether the notice says a tutorial opened, rather than giving its link
-	fades   int        // the notices that a tutorial opened, each the serial its fadedMsg carries
+	appMenu shell.Menu   // the app's menu, internal/shell's, which has the keyboard while it is open
+	note    shell.Notice // what opened, or the link to open by hand, in place of the keys
 
 	interrupted bool
 }
@@ -112,7 +107,7 @@ func (m Model) Close() { m.cancel() }
 
 // Noticing says whether the keys bar's line says what opened, or gives a link to open, in place of the keys, until a
 // key: kittui keeps it on the screen while the keys bar is hidden.
-func (m Model) Noticing() bool { return m.notice != "" }
+func (m Model) Noticing() bool { return m.note.Text != "" }
 
 // quit ends the screen, and kit's answer still running with it.
 func (m Model) quit() tea.Cmd {
@@ -135,17 +130,14 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 // Update takes a message, as update does; then a notice that a tutorial opened, new, goes after Fades, unless a key or
 // another notice took its place first.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if f, ok := msg.(fadedMsg); ok {
-		if f.serial == m.fades && m.noted {
-			m.notice = ""
-		}
+	if f, ok := msg.(shell.FadedMsg); ok {
+		m.note = m.note.Faded(f)
 		return m, nil
 	}
 	next, cmd := m.update(msg)
 	n := next.(Model)
-	if n.fades != m.fades {
-		serial := n.fades
-		cmd = tea.Batch(cmd, tea.Tick(fades, func(time.Time) tea.Msg { return fadedMsg{serial} }))
+	if fade := n.note.Fading(m.note, fades); fade != nil {
+		cmd = tea.Batch(cmd, fade)
 	}
 	return n, cmd
 }
@@ -159,13 +151,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.take(msg)
 	case browsedMsg:
 		if msg.err == nil {
-			m.notice, m.noted = fmt.Sprintf("%s Opened %s in the browser", Opened, msg.tutorial.Title), true
-			m.fades++
+			m.note = m.note.Did(fmt.Sprintf("%s Opened %s in the browser", Opened, msg.tutorial.Title))
 		} else {
-			m.notice, m.noted = "Open "+msg.tutorial.URL+" in a browser", false
+			m.note.Text, m.note.Done = "Open "+msg.tutorial.URL+" in a browser", false
 		}
 	case tea.KeyPressMsg:
-		m.notice = ""
+		m.note.Text = ""
 		return m.key(msg)
 	case tea.MouseClickMsg:
 		return m.click(msg)
