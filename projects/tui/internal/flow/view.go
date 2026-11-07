@@ -56,7 +56,7 @@ func (m Model) View() tea.View {
 		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
 	}
 	lines = append(lines, m.pane()...)
-	lines = m.float(m.overlay(m.overLegend(lines)))
+	lines = m.layers().Draw(m, m.overLegend(lines))
 	right := quotaText(m.quotas, time.Now())
 	if watched := m.watchedText(); watched != "" {
 		right = strings.TrimSpace(watched + "  " + right)
@@ -132,21 +132,9 @@ func (m Model) paneWidth() int { return max(1, m.width-1) }
 // maximized, has no left or right; and the part the keyboard is in, the preset line, the rows, or the search.
 // An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
-	switch {
-	case m.ask != nil:
-		_, keys := m.askKeys()
-		return shell.Path{shell.DialogKeys(keys)}
-	case m.pop.open:
-		return shell.Path{m.popKeys()}
-	case m.cols.open:
-		return shell.Path{m.columnsKeys()}
-	case m.colMenu.Open:
-		// a column's menu moves it too
-		keys := shell.MenuKeys()
-		keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)
-		return shell.Path{keys}
-	case m.presetsMenu.Open, m.recent.Open, m.tabMenu.Open, m.appMenu.Open:
-		return shell.Path{shell.MenuKeys()}
+	// an open layer, the topmost, names its keys alone, as layers.go orders them
+	if path, ok := m.layers().Keys(m); ok {
+		return path
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")
 	if len(m.stages) == 0 {

@@ -239,20 +239,6 @@ func (m *Model) maximize(on bool) {
 	}
 }
 
-// overlay draws the open menu over the screen's lines: the tab's from menuTop, the app's from the title; and what a
-// backlog action asks, over the rows' top. The rest are drawn after the title's search, by float.
-func (m Model) overlay(lines []string) []string {
-	if m.tabMenu.Open {
-		box, left := m.menuBox()
-		lines = shell.Over(lines, box, m.menuTop(), left)
-	}
-	if m.ask != nil {
-		box, left := m.askBox()
-		lines = shell.Over(lines, box, m.top()+1, left)
-	}
-	return m.appMenu.Overlay(lines, m.paneWidth())
-}
-
 // menuClick takes a left click while the tab's menu is open: on an item it shows, it chooses it, and on one not
 // enabled it does nothing; anywhere else, it closes the menu.
 func (m *Model) menuClick(x, y int) tea.Cmd {
@@ -265,27 +251,4 @@ func (m *Model) menuClick(x, y int) tea.Cmd {
 		return nil
 	}
 	return m.pick(chosen)
-}
-
-// float draws what floats over the screen, over the menus and the legend: the presets' menu under the preset line; the columns dialog; a field's popover; the column and heading menus; and the searches
-// remembered under the search's ▾.
-func (m Model) float(lines []string) []string {
-	if m.presetsMenu.Open {
-		box, top, left := m.presetBox()
-		lines = shell.Over(lines, box, top, left)
-	}
-	if m.cols.open {
-		box, top, left := m.columnsBox()
-		lines = shell.Over(lines, box, top, left)
-	}
-	if m.pop.open {
-		box, top, left := m.popBox()
-		lines = shell.Over(lines, box, top, left)
-	}
-	if m.colMenu.Open {
-		if box, top, left := m.columnBox(); len(box) > 0 {
-			lines = shell.Over(lines, box, top, left)
-		}
-	}
-	return m.recent.Overlay(lines, m.recallAt(), m.width)
 }

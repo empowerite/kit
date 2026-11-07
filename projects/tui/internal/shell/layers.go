@@ -9,13 +9,14 @@ package shell
 import tea "charm.land/bubbletea/v2"
 
 // Layer is one control a screen opens over itself, as the functions of the screen's model M that say what it does:
-// whether it is open; what it does with a key, and with a click, while it is open, a nil Click doing nothing, as a
-// dialog that asks before anything else happens; the keys the keys bar names for it; and how it draws itself over the
-// screen's lines.
+// whether it is open; what it does with a key while it is open; what it does with a click, and whether it takes it,
+// as a menu takes a left click and leaves the screen the others, a nil Click taking every click and doing nothing, as
+// a dialog that asks before anything else happens; the keys the keys bar names for it; and how it draws itself over
+// the screen's lines.
 type Layer[M any] struct {
 	Open  func(M) bool
 	Key   func(M, tea.KeyPressMsg) (M, tea.Cmd)
-	Click func(m M, x, y int) (M, tea.Cmd)
+	Click func(M, tea.MouseClickMsg) (M, tea.Cmd, bool)
 	Keys  func(M) Segment
 	Draw  func(M, []string) []string
 }
@@ -43,9 +44,9 @@ func (ls Layers[M]) Key(m M, k tea.KeyPressMsg) (M, tea.Cmd, bool) {
 	return m, cmd, true
 }
 
-// Click gives a click to the topmost open layer, and says whether one took it, as one does whether or not the click
-// falls on it; with none open, the screen takes it.
-func (ls Layers[M]) Click(m M, x, y int) (M, tea.Cmd, bool) {
+// Click gives a click to the topmost open layer, and says whether it took it, on the layer or off it; with none open,
+// or one that leaves the click, the screen takes it.
+func (ls Layers[M]) Click(m M, c tea.MouseClickMsg) (M, tea.Cmd, bool) {
 	at := ls.top(m)
 	if at < 0 {
 		return m, nil, false
@@ -53,8 +54,7 @@ func (ls Layers[M]) Click(m M, x, y int) (M, tea.Cmd, bool) {
 	if ls[at].Click == nil {
 		return m, nil, true
 	}
-	m, cmd := ls[at].Click(m, x, y)
-	return m, cmd, true
+	return ls[at].Click(m, c)
 }
 
 // Keys gives the keys bar's path while a layer is open, the topmost's keys alone, and says whether one is.

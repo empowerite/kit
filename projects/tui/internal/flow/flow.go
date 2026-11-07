@@ -332,32 +332,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scrollRows(d * wheel)
 		}
 	case tea.MouseClickMsg:
-		if m.ask != nil {
-			return m, nil
-		}
-		if m.pop.open {
-			m.popClick(msg.X, msg.Y)
-			return m, nil
-		}
-		if m.cols.open {
-			m.columnsClick(msg.X, msg.Y)
-			return m, nil
-		}
-		if m.presetsMenu.Open {
-			m.presetMenuClick(msg.X, msg.Y)
-			return m, nil
-		}
-		if m.colMenu.Open {
-			return m, m.columnClick(msg.X, msg.Y)
-		}
-		if m.recent.Open {
-			var query string
-			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
-				p := m.panel(m.stage)
-				p.Query = query
-				m.setPanel(p)
-			}
-			return m, nil
+		// an open layer, the topmost, takes the click, as layers.go orders them; the menus leave all but a left one
+		if n, cmd, ok := m.layers().Click(m, msg); ok {
+			return n, cmd
 		}
 		if msg.Y == 0 && len(m.stages) > 0 && m.inPanel && msg.X == m.recallAt() &&
 			m.panel(m.stage).Recall {
@@ -368,12 +345,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch {
-		case m.appMenu.Open && msg.Button == tea.MouseLeft:
-			var c shell.Choice
-			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.paneWidth())
-			return m, m.chose(c)
-		case m.tabMenu.Open && msg.Button == tea.MouseLeft:
-			return m, m.menuClick(msg.X, msg.Y)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			return m, m.dropDown(false)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
@@ -713,35 +684,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+esc", "super+esc":
 		return m, m.quit()
 	}
-	if m.ask != nil {
-		return m.askKey(k)
-	}
-	if m.pop.open {
-		return m.popKey(k)
-	}
-	if m.cols.open {
-		return m.columnsKey(k)
-	}
-	if m.presetsMenu.Open {
-		return m.presetMenuKey(k)
-	}
-	if m.colMenu.Open {
-		return m.columnKey(k)
-	}
-	if m.recent.Open {
-		var query string
-		if m.recent, query = m.recent.Key(k); query != "" {
-			p := m.panel(m.stage)
-			p.Query = query
-			m.setPanel(p)
-		}
-		return m, nil
-	}
-	if m.appMenu.Open {
-		return m.appKey(k)
-	}
-	if m.tabMenu.Open {
-		return m.menuKey(k)
+	// an open layer, the topmost, takes the key, as layers.go orders them
+	if n, cmd, ok := m.layers().Key(m, k); ok {
+		return n, cmd
 	}
 	if m.inPanel {
 		return m.panelKey(k)
