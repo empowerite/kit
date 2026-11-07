@@ -70,6 +70,15 @@ tracker/ado:me() {
     || { error "run: az login (the Azure CLI is not signed in)"; return 1; }
 }
 
+tracker/ado:new-url() {
+  local org project type
+  org=$(tracker/ado:organization) || return 1
+  project=$(tracker:field "${TRACKER_PREFIX}" project)
+  type=$(tracker:field "${TRACKER_PREFIX}" type)
+  type=${type:-Task}
+  tracker:query "${org}/${project// /%20}/_workitems/create/${type// /%20}" '[System.Title]' "${1:-}"
+}
+
 tracker/ado:state() {
   tracker/ado:read "$1" 'if (.fields["System.State"] | IN("Closed", "Done", "Removed")) then "CLOSED" else "OPEN" end'
 }

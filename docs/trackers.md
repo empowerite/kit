@@ -20,6 +20,7 @@ A reference names its tracker in its syntax, the way the trackers already write 
 | --- | --- |
 | `7` or `#7` | the code forge's own issues, GitHub's or GitLab's |
 | `AB#4521` | an Azure DevOps work item, under a prefix the repository declares |
+| `LIN#12` | an issue in a ticket system such as Linear or Bugzilla, which kit reaches through its pages alone |
 
 `kit.yml` declares every tracker except the code forge's own. Each record has:
 
@@ -61,6 +62,9 @@ and the error lists the known prefixes.
   body closes, with a comment naming the merge commit; when it closed without merging, it puts every issue it names
   back in the backlog. The delivered CI runs it when a change closes, and `kit tidy` runs it before removing a
   finished worktree.
+- `kit new issue AB#` opens the page a person files a new issue at in that tracker, and prints its URL; with no
+  prefix, the code forge's own. `--print` prints the URL alone. `kit new issue --list` lists every tracker, the
+  code forge's own first, with its page, and `--json` gives the list as JSON for kittui's New… in backlog's menu.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
 
@@ -70,6 +74,18 @@ and the error lists the known prefixes.
 | --- | --- | --- | --- |
 | `forge` | the code forge's own, through `kit/modules/bash/forge.sh` | none | the code forge's closed state |
 | `ado` | `az` with the `azure-devops` extension | `organization`, `project`, `type` (default `Task`), `closed_state` (default `Closed`), `removed_state` (default `Removed`) | Closed, Done, or Removed |
+| `web` | none: kit opens its pages | `new`, the page a new issue is filed at, `{title}` standing for the title; `url`, an issue's page, `{id}` standing for its number | never read |
+
+A `web` tracker is a ticket system kit has no command line for. kit opens its pages and does nothing else there: the
+calls that read or change an issue refuse, naming the issue's page.
+
+```yaml
+trackers:
+  - prefix: "LIN#"
+    provider: web
+    new: https://linear.app/example/team/ENG/new?title={title}
+    url: https://linear.app/example/issue/ENG-{id}
+```
 
 A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 
@@ -83,8 +99,10 @@ A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 | `close <id> <reason> [<other-id>]` | nothing; closes the issue as `completed`, `not-planned`, or `duplicate` of the other issue in the same tracker |
 | `comment <id> <text>` | nothing; adds a comment |
 | `me` | the caller's login in this tracker, which can differ from the code forge's |
+| `new-url [<title>]` | the browser URL a person files a new issue at, the title filled in where the page takes one |
 | `create <title> [<body>]` | the number of the issue it creates |
 | `url <id>` | the issue's browser URL |
 
-`tests/tracker.bats` tests the Azure DevOps provider against a fake `az`. It cannot prove that a real organization's
+`tests/tracker.bats` tests the Azure DevOps provider against a fake `az`, and the `web` provider and every new-issue
+page against `kit.yml` alone. It cannot prove that a real organization's
 `az` responds the way the fixtures do.

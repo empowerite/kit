@@ -431,8 +431,11 @@ guard:arguments() {
   syntax:match "${verb}" "$@" || status=$?
   if (( status == 0 ))
   then
-    # --jq beside --json is --json read through jq .; kit new's --jq, with no --json beside it, means its own thing
-    if [[ -n "${syntax_options[--jq]+x}" ]] && help:usage "${verb}" | grep --quiet -- '--json'
+    # --jq beside --json is --json read through jq ., where the form the words take, by its literals, offers --json;
+    # kit new module's --jq, whose form offers none, means its own thing
+    if [[ -n "${syntax_options[--jq]+x}" ]] &&
+      help:usage "${verb}" | grep --fixed-strings -- "kit ${verb}${syntax_literals[*]:+ ${syntax_literals[*]}}" |
+      grep --quiet -- '--json'
     then
       guard:jq "${verb}" "$@"
     fi

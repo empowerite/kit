@@ -161,7 +161,7 @@ func TestNewChoosesWhatToMakeAndEndsWithTheWildcard(t *testing.T) {
 		t.Fatal(err)
 	}
 	options := strings.Join(fields[0].Options, " ")
-	if kinds(fields) != "OneOf" || !strings.HasPrefix(options, "file kind ") || !strings.HasSuffix(options, " verb") || !fields[0].Required {
+	if kinds(fields) != "OneOf" || !strings.HasPrefix(options, "file kind ") || !strings.HasSuffix(options, " verb issue") || !fields[0].Required {
 		t.Fatalf("bare new: %s %+v", kinds(fields), fields)
 	}
 	fields, _ = Fields(specs(t)["new"], FromMatch(syntax.Match{Literals: []string{"file"}}))

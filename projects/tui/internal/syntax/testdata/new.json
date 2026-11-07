@@ -10,7 +10,8 @@
     "kit new template <rule> <variant> [--from=<path>] [--package=<name>]",
     "kit new module <name> --purpose=<text> [--jq]",
     "kit new provider <seam> <name>",
-    "kit new verb <name> --purpose=<text> --group=<group>"
+    "kit new verb <name> --purpose=<text> --group=<group>",
+    "kit new issue [<prefix>] [--print] [--list] [--json]"
   ],
   "syntax": [
     [
@@ -422,6 +423,69 @@
         "value": "group",
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "issue",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "prefix",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "print",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "list",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
@@ -451,6 +515,9 @@
     },
     "verb": {
       "description": "makes a verb of the kit"
+    },
+    "issue": {
+      "description": "opens the page that files a new issue in a tracker"
     },
     "<path>": {
       "description": "the new file, relative to the repository root"
@@ -516,6 +583,18 @@
     },
     "--group": {
       "description": "the heading kit help lists the verb under"
+    },
+    "<prefix>": {
+      "description": "the tracker, by the prefix its references start with: # for the forge's own"
+    },
+    "--print": {
+      "description": "prints the page's URL, opening nothing"
+    },
+    "--list": {
+      "description": "lists the trackers a new issue can be filed in, and each one's page"
+    },
+    "--json": {
+      "description": "prints the list as JSON: an array of {prefix, provider, label, url, error}"
     }
   },
   "extends": true

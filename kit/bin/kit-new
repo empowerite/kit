@@ -19,6 +19,8 @@
 #
 # kit new verb <name> --purpose=<text> --group=<group>
 #
+# kit new issue [<prefix>] [--print] [--list] [--json]
+#
 # Makes one new thing, in its place and its house shape, and never overwrites anything:
 #
 #   - file: a file from a rule's template, then the rules to read before writing the rest, as kit context prints
@@ -28,6 +30,8 @@
 #   - module, provider: a bash module in the repository's own directory on the module path, from the bash style's
 #     template
 #   - verb, or a module with --jq: in the kit's own source alone
+#   - issue: in a tracker, through the page a person files one at, which kit opens in the browser and prints; the
+#     tracker is the one the prefix names, the forge's own, #, by default
 #
 # When the package is active, the new file is placed; otherwise kit new names the command that activates the
 # package. A provider has one function for each call its seam makes, each refusing until it is written. A verb gets
@@ -42,6 +46,7 @@
 #   module                  makes a bash module, or a jq module with --jq
 #   provider                makes a provider of a seam
 #   verb                    makes a verb of the kit
+#   issue                   opens the page that files a new issue in a tracker
 #   <path>                  the new file, relative to the repository root
 #   --rule=<rule>           the rule whose template to use
 #   --variant=<variant>     the template to use
@@ -63,6 +68,10 @@
 #   --purpose=<text>        what the module or verb does, for its banner
 #   --jq                    makes a jq module, with its tests
 #   --group=<group>         the heading kit help lists the verb under
+#   <prefix>                the tracker, by the prefix its references start with: # for the forge's own
+#   --print                 prints the page's URL, opening nothing
+#   --list                  lists the trackers a new issue can be filed in, and each one's page
+#   --json                  prints the list as JSON: an array of {prefix, provider, label, url, error}
 #
 # The defaults, and the limits:
 #
@@ -99,7 +108,8 @@ case "$1" in
   (template) shift; new:template "$@"; exit $? ;;
   (module) shift; new:module "$@"; exit $? ;;
   (provider) shift; new:provider "$@"; exit $? ;;
-  (verb) shift; new:verb "$@"; exit $?
+  (verb) shift; new:verb "$@"; exit $? ;;
+  (issue) shift; new:issue "$@"; exit $?
 esac
 shift
 

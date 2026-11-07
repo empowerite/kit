@@ -566,6 +566,85 @@ new:provider() {
     "${body}"
 }
 
+# new:issue [<prefix>] [--print] opens the page a person files a new issue at, in the tracker the prefix names, the
+# forge's own, #, by default, and prints its URL; --print prints the URL alone. new:issue --list [--json] lists every
+# tracker instead, as new:trackers says. A title is not taken here, as kit new file takes --title for a template's
+# hole; the seam's new-url takes one.
+new:issue() {
+  local prefix='#' print=false list=false json=false arg url
+  for arg in "$@"
+  do
+    case "${arg}" in
+      (--print) print=true ;;
+      (--list) list=true ;;
+      (--json) json=true ;;
+      (*) prefix=${arg}
+    esac
+  done
+  use tracker
+  if [[ "${list}" == true ]]
+  then
+    new:trackers "${json}"
+    return
+  fi
+  tracker:provider "${prefix}" >/dev/null || return 2
+  url=$(tracker:at "${prefix}" new-url) || return 1
+  printf '%s\n' "${url}"
+  [[ "${print}" == true ]] || new:browse "${url}"
+}
+
+# new:trackers <json> lists every tracker a new issue can be filed in, the forge's own first: its prefix, a label
+# that says where, and the page new:issue opens, a line each, tab-separated; with json true, an array of {prefix,
+# provider, label, url, error}, url null and error the tracker's refusal where it gives no page.
+new:trackers() {
+  local prefix provider url error label out='[]' refusal
+  use file forge
+  file:temp refusal new-issue || return 1
+  while IFS=$'\x1f' read -r prefix provider
+  do
+    error='' label=${provider}
+    url=$(NO_COLOR=1 tracker:at "${prefix}" new-url 2>"${refusal}") || url=''
+    [[ -n "${url}" ]] || error=$(tail -n 1 "${refusal}" | sed 's/^❌ //')
+    case "${provider}" in
+      (forge)
+        label="$(forge:provider 2>/dev/null) $(sed -E 's|^[a-z]+://[^/]+/||; s|(/-)?/issues/new.*$||' <<<"${url}")" ;;
+      (ado) label="ado $(tracker:field "${prefix}" project)" ;;
+      (*) label="${provider} $(sed -E 's|^[a-z]+://([^/]+).*$|\1|' <<<"${url}")"
+    esac
+    out=$(jq --compact-output --arg prefix "${prefix}" --arg provider "${provider}" --arg label "${label% }" \
+      --arg url "${url}" --arg error "${error}" \
+      '. + [{prefix: $prefix, provider: $provider, label: $label, url: ($url | select(. != "") // null),
+        error: ($error | select(. != "") // null)}]' <<<"${out}")
+  done < <(tracker:records | new:forge-first)
+  if [[ "$1" == true ]]
+  then
+    jq . <<<"${out}"
+  else
+    jq --raw-output '.[] | [.prefix, .label, (.url // .error)] | @tsv' <<<"${out}"
+  fi
+}
+
+# new:forge-first passes the tracker records through, the forge's own first.
+new:forge-first() {
+  local records
+  records=$(cat)
+  grep "$(printf '\x1fforge$')" <<<"${records}" || true
+  grep --invert-match "$(printf '\x1fforge$')" <<<"${records}" || true
+}
+
+# new:browse <url> opens the page in the browser: open on macOS, xdg-open elsewhere; without either, it warns, and the
+# URL printed is the way there.
+new:browse() {
+  local opener=xdg-open
+  [[ "$(uname -s)" == Darwin ]] && opener=open
+  if ! command -v "${opener}" >/dev/null
+  then
+    warn "no ${opener} to open the page with; open the URL above"
+    return 0
+  fi
+  "${opener}" "$1" >/dev/null 2>&1 || warn "${opener} could not open the page; open the URL above"
+}
+
 # new:verb <name> --purpose=<text> --group=<group> writes a verb into the kit's own source: kit/bin/kit-<name>, with
 # the header kit help reads, the loader, and the guard on its arguments.
 new:verb() {

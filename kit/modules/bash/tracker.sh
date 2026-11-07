@@ -44,6 +44,7 @@
 #                           the same tracker
 #   comment <id> <text>     adds a comment
 #   me                      the caller's login in this tracker, which can differ from the forge login
+#   new-url [<title>]       the browser URL a person files a new issue at, the title filled in where the page takes one
 #   create <title> [<body>] the number of the issue it creates
 #   url <id>                the issue's browser URL
 #
@@ -133,6 +134,17 @@ tracker:at() {
   provider=$(tracker:provider "${prefix}") || return 1
   use "tracker/${provider}" || return 1
   TRACKER_PREFIX=${prefix} "tracker/${provider}:${call}" "$@"
+}
+
+# tracker:query <url> <key> <value> prints the URL with ?<key>=<value> after it, each encoded for a URL, or the URL
+# alone when the value is empty: the query a tracker's new-issue page reads a field from.
+tracker:query() {
+  if [[ -z "$3" ]]
+  then
+    printf '%s\n' "$1"
+    return
+  fi
+  jq --null-input --raw-output --arg url "$1" --arg key "$2" --arg value "$3" '"\($url)?\($key | @uri)=\($value | @uri)"'
 }
 
 # tracker:normal <reference> prints the reference in its tracker's own form: `7` becomes `#7`.

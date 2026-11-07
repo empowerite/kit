@@ -10,6 +10,7 @@
    module    makes a bash module, or a jq module with --jq
    provider  makes a provider of a seam
    verb      makes a verb of the kit
+   issue     opens the page that files a new issue in a tracker
 
 
  kit new

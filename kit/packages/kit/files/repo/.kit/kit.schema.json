@@ -111,12 +111,13 @@
           },
           "provider": {
             "type": "string",
-            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items.",
+            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items, web for a ticket system kit reaches through its pages alone.",
             "anyOf": [
               {
                 "enum": [
                   "forge",
-                  "ado"
+                  "ado",
+                  "web"
                 ]
               },
               {
@@ -144,6 +145,14 @@
           "removed_state": {
             "type": "string",
             "description": "ado: the state a work item closed as not planned or a duplicate is set to. Default: Removed."
+          },
+          "new": {
+            "type": "string",
+            "description": "web: the page a person files a new issue at; {title} in it stands for the title, encoded for a URL."
+          },
+          "url": {
+            "type": "string",
+            "description": "web: an issue's page; {id} in it stands for the issue's number."
           }
         }
       }

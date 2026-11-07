@@ -103,6 +103,78 @@ JSON
   [ "$output" = $'update --id 4521 --assigned-to  \nupdate --id 4521 --state Closed \nupdate --id 4521 --state Removed \nupdate --id 4521 --discussion Duplicate of AB#4522 \nupdate --id 4521 --state Removed ' ]
 }
 
+@test "each tracker gives the page a new issue is filed at, its title in the query, and a web tracker refuses the rest" {
+  fixture repo.json <<<'{"url": "https://github.com/empowerite/example"}'
+  route gh 'repo view*' repo.json
+  cat >> kit.yml <<'YAML'
+  - prefix: "LIN#"
+    provider: web
+    new: https://linear.app/example/team/ENG/new?title={title}
+    url: https://linear.app/example/issue/ENG-{id}
+  - prefix: "BZ#"
+    provider: web
+YAML
+  run in_tracker tracker:at '#' new-url 'Fix it & more'
+  [ "$output" = "https://github.com/empowerite/example/issues/new?title=Fix%20it%20%26%20more" ]
+  run in_tracker tracker:at '#' new-url
+  [ "$output" = "https://github.com/empowerite/example/issues/new" ]
+  run in_tracker tracker:at 'AB#' new-url 'Fix it'
+  [ "$output" = "https://dev.azure.com/example/Claims%20Team/_workitems/create/Task?%5BSystem.Title%5D=Fix%20it" ]
+  run in_tracker tracker:at 'LIN#' new-url 'Fix it'
+  [ "$output" = "https://linear.app/example/team/ENG/new?title=Fix%20it" ]
+  run in_tracker tracker:of 'LIN#12' url
+  [ "$output" = "https://linear.app/example/issue/ENG-12" ]
+  # a web tracker does nothing but open its pages: the rest refuses, naming the page to do it on, or the setting
+  run in_tracker tracker:of 'LIN#12' title
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit cannot read its title in the LIN# tracker, which it reaches through its pages alone; open https://linear.app/example/issue/ENG-12"* ]]
+  run in_tracker tracker:at 'LIN#' create 'Fix it'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"run: kit new issue LIN#, which opens its page"* ]]
+  run in_tracker tracker:at 'BZ#' new-url
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the BZ# tracker has no new page; set new in its record under trackers in kit.yml"* ]]
+  run in_tracker tracker:of 'BZ#3' assign ada
+  [[ "$output" == *"kit cannot assign it in the BZ# tracker"*"open its tracker's page"* ]]
+  # on GitLab, the page is under the project's /-/, the title as issue[title]
+  git remote set-url origin git@gitlab.com:empowerite/group/example.git
+  run in_tracker tracker:at '#' new-url 'Fix it'
+  [ "$output" = "https://gitlab.com/empowerite/group/example/-/issues/new?issue%5Btitle%5D=Fix%20it" ]
+}
+
+@test "kit new issue opens the tracker's new-issue page, and lists every tracker with its page, the forge's own first" {
+  fake-tools gh az open xdg-open
+  fixture repo.json <<<'{"url": "https://github.com/empowerite/example"}'
+  fixture none.txt < /dev/null
+  route gh 'repo view*' repo.json
+  route open '*' none.txt
+  route xdg-open '*' none.txt
+  : > "${FAKE_DIR}/open.calls"
+  : > "${FAKE_DIR}/xdg-open.calls"
+  printf '  - prefix: "BZ#"\n    provider: web\n' >> kit.yml
+  run "${kit_root}/bin/kit" new issue 'AB#'
+  [ "$status" -eq 0 ]
+  [ "$output" = "https://dev.azure.com/example/Claims%20Team/_workitems/create/Task" ]
+  [ "$(cat "${FAKE_DIR}/open.calls" "${FAKE_DIR}/xdg-open.calls")" = "${output}" ]
+  # --print opens nothing; the forge's own is the default
+  : > "${FAKE_DIR}/open.calls"
+  : > "${FAKE_DIR}/xdg-open.calls"
+  run "${kit_root}/bin/kit" new issue --print
+  [ "$output" = "https://github.com/empowerite/example/issues/new" ]
+  [ -z "$(cat "${FAKE_DIR}/open.calls" "${FAKE_DIR}/xdg-open.calls")" ]
+  run "${kit_root}/bin/kit" new issue 'XY#' --print
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"no tracker answers 'XY#'"* ]]
+  # the list: the forge's own first, each with its label and page, or the refusal where it has none
+  run "${kit_root}/bin/kit" new issue --list --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.[] | [.prefix, .provider, .label, .url != null]]' <<<"${output}")" = \
+    '[["#","forge","github empowerite/example",true],["AB#","ado","ado Claims Team",true],["BZ#","web","web",false]]' ]
+  [[ "$(jq --raw-output '.[2].error' <<<"${output}")" == "the BZ# tracker has no new page; set new in its record under trackers in kit.yml" ]]
+  run "${kit_root}/bin/kit" new issue --list
+  [ "${lines[0]}" = "$(printf '#\tgithub empowerite/example\thttps://github.com/empowerite/example/issues/new')" ]
+}
+
 @test "a tracker record without its organization is refused with the setting to add" {
   printf 'trackers:\n  - prefix: "AB#"\n    provider: ado\n' > kit.yml
   run in_tracker tracker:of 'AB#4521' title

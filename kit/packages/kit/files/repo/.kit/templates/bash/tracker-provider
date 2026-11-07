@@ -5,6 +5,7 @@ tracker/«stem»:close()«call_close…= { error "not written yet"; return 1; }�
 tracker/«stem»:comment()«call_comment…= { error "not written yet"; return 1; }»
 tracker/«stem»:create()«call_create…= { error "not written yet"; return 1; }»
 tracker/«stem»:me()«call_me…= { error "not written yet"; return 1; }»
+tracker/«stem»:new-url()«call_new_url…= { error "not written yet"; return 1; }»
 tracker/«stem»:state()«call_state…= { error "not written yet"; return 1; }»
 tracker/«stem»:title()«call_title…= { error "not written yet"; return 1; }»
 tracker/«stem»:unassign()«call_unassign…= { error "not written yet"; return 1; }»
