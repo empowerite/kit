@@ -346,9 +346,9 @@ func (v named) preset(stage string) (preset, []string) {
 	}
 	for _, s := range v.Sort {
 		if c := id(s.Column); c != "" {
-			p = p.Sorted(c, true)
+			p = p.Sorted(c)
 			if s.Desc {
-				p = p.Sorted(c, true)
+				p = p.Sorted(c)
 			}
 		}
 	}

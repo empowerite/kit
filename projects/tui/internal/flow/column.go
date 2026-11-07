@@ -1,15 +1,14 @@
 // The column menu: a click on a column's name in the header drops it under the name, as does a right click where the
 // terminal sends one. Many terminals keep option, ctrl, and the right button with a click for their own selection and
-// menu, so the menu holds what those would do: the column's sort, a radio that shows it, None, by the column alone or
-// first, Ascending or Descending, or after the other keys, Ascending Next or Descending Next; group by it alone or
-// within the groups; the column hidden; and the field's popover, which leaves the sort to the menu.
+// menu, so the menu holds what those would do: the column's sort, a radio that shows it, None, Ascending, or
+// Descending, a column that did not sort coming after the keys there are, one that did keeping its place, and Clear
+// Sort, which no column sorts after; the rows grouped by it too, innermost, or no longer; the column hidden; and the
+// field's popover, which leaves the sort to the menu. The menu's title is the column's name, so no line names it again. Shift with left or
+// right moves the column a place among those the header shows, the menu with it.
 package flow
 
 import (
-	"cmp"
-	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -27,109 +26,167 @@ type columnMenu struct {
 	at     int
 }
 
-// The column menu's lines, by index: a dim heading, sort, saying the column's place among the keys while there are
-// several; the radio of its sort: None; Ascending and Descending, by the column alone or first; and Ascending Next and
-// Descending Next, after the other keys, each glyph with the place the column takes among them; a rule; GroupBy and
-// ThenGroup, grouping by it alone or within the groups; a rule; Hide, before the column's label; and More, the field's
-// popover.
+// colAct is what a line of the column menu does.
+type colAct int
+
+// What the column menu's lines do: none, the rules; the radio of the column's sort, None, Ascending and Descending;
+// every column's sort cleared; the rows grouped by the column, innermost, or no longer; the column hidden; and More,
+// the field's popover.
 const (
-	lineSort = iota
-	lineNone
-	lineUp
-	lineDown
-	lineUpNext
-	lineDownNext
-	_
-	lineGroup
-	lineThenGroup
-	_
-	lineHide
-	lineMore
+	actRule colAct = iota
+	actNone
+	actUp
+	actDown
+	actClear
+	actGroup
+	actUngroup
+	actHide
+	actMore
 )
 
-// The words of the column menu's lines.
+// The words of the column menu's lines, and of the heading menu's ungrouping, and their glyphs: grouping's is the mark
+// a column grouping the rows has, hiding's the box of a hidden column in the columns dialog.
 const (
-	GroupBy   = "Group by "
-	ThenGroup = "Then group by "
-	Hide      = "Hide "
+	ClearSort = "Clear Sort"
+	GroupIt   = "Group"
+	UngroupIt = "Ungroup"
+	Hide      = "Hide"
 	More      = "Options…"
+
+	GroupGlyph   = grid.Grouping
+	UngroupGlyph = "▢"
+	HideGlyph    = grid.Unticked
+	MoreGlyph    = "⋯"
 )
 
-// keyAt gives where a column stands among the sort's keys, from 1, or 0 where it does not sort the rows, and how many
-// keys there are but it.
-func keyAt(p grid.Panel, column string) (place, others int) {
-	keys := p.SortKeys()
-	place = slices.IndexFunc(keys, func(s grid.SortKey) bool { return s.Column == column }) + 1
-	if place > 0 {
-		return place, len(keys) - 1
-	}
-	return 0, len(keys)
+// colLine is a line of the column menu: what it draws, and what it does.
+type colLine struct {
+	item shell.Item
+	act  colAct
 }
 
-// columnItems gives the column menu's lines, as their indexes say. The radio's choice picked is the column's sort:
-// None where it does not sort, Ascending or Descending where it is the first key, and a Next where it is a later one,
-// whose glyph's subscript is its place; on a column not among the keys, a Next's subscript is the place it would take.
-// A line that cannot act on the column stays, dim.
-func (m Model) columnItems() []shell.Item {
+// columnLines gives the column menu's lines. The radio's choice picked is the column's sort, None where it does not
+// sort. Where something else orders the rows, a group or another key, its triangles carry ₙ, as the header's mark
+// carries the place the column takes. Clear Sort, as the tab menu's Clear Selection, sweeps. A line that cannot act on
+// the column stays, dim.
+func (m Model) columnLines() []colLine {
 	p, column := m.panel(m.stage), m.colMenu.column
-	label := cmp.Or(p.Labels[column], column)
-	place, others := keyAt(p, column)
-	title := "sort"
-	if place > 0 && others > 0 {
-		title += fmt.Sprintf(", key %d of %d", place, others+1)
+	d, n := p.Field(column).Sort, ""
+	if place, total := p.Place(column); total-min(place, 1) > 0 {
+		n = "ₙ"
 	}
-	next := place
-	if next < 2 {
-		next = others + 1
-	}
-	d := p.Field(column).Sort
-	radio := func(picked bool, name string) shell.Item {
+	radio := func(picked bool, name string, act colAct) colLine {
 		if picked {
-			return shell.Item{Glyph: style.Tint(grid.Picked), Name: name}
+			return colLine{shell.Item{Glyph: style.Tint(grid.Picked), Name: name}, act}
 		}
-		return shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}
+		return colLine{shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}, act}
 	}
-	return []shell.Item{{Name: title}, radio(place == 0, "None"),
-		radio(place == 1 && d == grid.Ascending, "▲ Ascending"), radio(place == 1 && d == grid.Descending, "▼ Descending"),
-		radio(place > 1 && d == grid.Ascending, "▲"+subscript(next)+" Ascending Next"),
-		radio(place > 1 && d == grid.Descending, "▼"+subscript(next)+" Descending Next"), {},
-		{Name: GroupBy + label}, {Name: ThenGroup + label}, {}, {Name: Hide + label}, {Name: More}}
+	return []colLine{radio(d == grid.Unsorted, "None", actNone), radio(d == grid.Ascending, "▲"+n+" Ascending", actUp),
+		radio(d == grid.Descending, "▼"+n+" Descending", actDown), colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, actClear},
+		colLine{act: actRule},
+		colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, actGroup},
+		colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, actUngroup}, colLine{act: actRule},
+		colLine{shell.Item{Glyph: HideGlyph, Name: Hide}, actHide}, colLine{shell.Item{Glyph: MoreGlyph, Name: More}, actMore}}
 }
 
-// subscript gives a number in subscript digits, as the sort's mark gives a key's place: ₂.
-func subscript(n int) string {
-	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
+// columnItems gives the column menu's lines as the menu draws them.
+func (m Model) columnItems() []shell.Item {
+	var items []shell.Item
+	for _, l := range m.columnLines() {
+		items = append(items, l.item)
+	}
+	return items
 }
 
-// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts, a Next only where there
-// is another key for it to come after; a grouping on one that groups; and Hide and Options… always; the heading and the
-// rules never do.
+// columnLine gives the index of the column menu's line that does act, -1 where none does.
+func (m Model) columnLine(act colAct) int {
+	return slices.IndexFunc(m.columnLines(), func(l colLine) bool { return l.act == act })
+}
+
+// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts; Clear Sort while a column
+// sorts the rows; Group on one that can group and does not yet, Ungroup on one that does; and Hide and Options…
+// always; the rules never do.
 func (m Model) columnEnabled(k int) bool {
-	p, column := m.panel(m.stage), m.colMenu.column
-	_, others := keyAt(p, column)
-	switch k {
-	case lineNone, lineUp, lineDown:
-		return p.Sortable[column]
-	case lineUpNext, lineDownNext:
-		return p.Sortable[column] && others > 0
-	case lineGroup, lineThenGroup:
-		return p.Groupable[column]
+	lines := m.columnLines()
+	if k < 0 || k >= len(lines) {
+		return false
 	}
-	return k == lineHide || k == lineMore
+	p, column := m.panel(m.stage), m.colMenu.column
+	grouped := slices.Contains(p.Groups(), column)
+	switch lines[k].act {
+	case actNone, actUp, actDown:
+		return p.Sortable[column]
+	case actClear:
+		return len(p.ColumnKeys()) > 0
+	case actGroup:
+		return p.Groupable[column] && !grouped
+	case actUngroup:
+		return grouped
+	case actHide, actMore:
+		return true
+	}
+	return false
 }
 
-// sortedAlone gives the panel sorting the rows by the column alone: in its direction, when it is among the keys
-// already, else ascending.
-func sortedAlone(p grid.Panel, column string) grid.Panel {
-	for _, s := range p.SortKeys() {
-		if s.Column != column {
-			p = p.SortedAs(s.Column, grid.Unsorted)
+// shifted gives the panel with a column moved a place, left for a negative step, right for a positive one, among those
+// it stands with: a column among the columns the header names, past those no row fills and those the rows group by on
+// their own; a group among the groups, a
+// depth outward or inward. It says whether it moved; at either end it does not, nor does it cross into the groups or the
+// hidden.
+func (m Model) shifted(column string, d int) (grid.Panel, bool) {
+	p := m.panel(m.stage)
+	placement := p.Field(column).Placement
+	order := func(q grid.Panel) []string { return q.Groups() }
+	switch placement {
+	case grid.Column:
+		// those the header names: not one the rows group by on their own, whose value their heading says
+		shown := slices.DeleteFunc(slices.Clone(m.shownColumns(m.stage)), func(id string) bool {
+			_, name := m.columnName(id)
+			return name == ""
+		})
+		order = func(q grid.Panel) []string {
+			return slices.DeleteFunc(q.Listed(), func(id string) bool {
+				return q.Field(id).Placement != grid.Column || !slices.Contains(shown, id)
+			})
+		}
+	case grid.Hidden:
+		return p, false
+	}
+	before := order(p)
+	for q := p; ; {
+		var ok bool
+		if q, ok = q.Step(column, d); !ok || q.Field(column).Placement != placement {
+			return p, false
+		}
+		if !slices.Equal(order(q), before) {
+			return q, true
 		}
 	}
-	if p.Mark(column) == "" {
-		p = p.SortedAs(column, grid.Ascending)
+}
+
+// shiftStep gives the step shift with left or right asks for, and whether the key is one.
+func shiftStep(key string) (int, bool) {
+	switch key {
+	case "shift+left":
+		return -1, true
+	case "shift+right":
+		return 1, true
 	}
-	return p
+	return 0, false
+}
+
+// shiftKeys gives the binding of shift with left and right on a menu that moves a column, each where it moves it.
+func (m Model) shiftKeys(column string) []shell.Binding {
+	var presses []string
+	for _, key := range []string{"shift+left", "shift+right"} {
+		if d, _ := shiftStep(key); func() bool { _, ok := m.shifted(column, d); return ok }() {
+			presses = append(presses, key)
+		}
+	}
+	if len(presses) == 0 {
+		return nil
+	}
+	return []shell.Binding{shell.Bind("⇧←→", "move", presses...)}
 }
 
 // openColumnMenu drops the column menu down from a column's name, the first line that acts under the keyboard.
@@ -139,7 +196,7 @@ func (m *Model) openColumnMenu(column string) {
 }
 
 // columnKey takes a key while the column menu is open: up and down move, a letter to the next line it starts, enter
-// and space act, and esc closes it.
+// and space act, shift with left or right moves the column, and esc closes it.
 func (m Model) columnKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	items := m.columnItems()
 	switch k.String() {
@@ -152,6 +209,12 @@ func (m Model) columnKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case "esc":
 		m.colMenu = columnMenu{}
+	case "shift+left", "shift+right":
+		// the column moves, the menu with it, the keyboard on the same line
+		d, _ := shiftStep(k.String())
+		if p, ok := m.shifted(m.colMenu.column, d); ok {
+			m.setPanel(p)
+		}
 	default:
 		m.colMenu.at = shell.NextItem(items, m.columnEnabled, m.colMenu.at, k.Text)
 	}
@@ -161,29 +224,25 @@ func (m Model) columnKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // columnAct closes the column menu and does what its line k says, when it acts.
 func (m *Model) columnAct(k int) tea.Cmd {
 	c, enabled := m.colMenu, m.columnEnabled(k)
-	m.colMenu = columnMenu{}
 	if !enabled {
+		m.colMenu = columnMenu{}
 		return nil
 	}
+	act := m.columnLines()[k].act
+	m.colMenu = columnMenu{}
 	p := m.panel(m.stage)
-	switch place, _ := keyAt(p, c.column); k {
-	case lineNone:
-		p = p.SortedAs(c.column, grid.Unsorted)
-	case lineUp, lineDown:
-		// by the column alone, in that direction
-		p = sortedAlone(p, c.column).SortedAs(c.column, map[int]grid.Direction{lineUp: grid.Ascending,
-			lineDown: grid.Descending}[k])
-	case lineUpNext, lineDownNext:
-		// a later key turns in its place; the first, or one not among the keys, goes after the others
-		d := map[int]grid.Direction{lineUpNext: grid.Ascending, lineDownNext: grid.Descending}[k]
-		if place == 1 {
-			p = p.SortedAs(c.column, grid.Unsorted)
-		}
-		p = p.SortedAs(c.column, d)
-	case lineHide:
+	switch act {
+	case actNone, actUp, actDown:
+		// a column that did not sort comes after the keys there are; one that did turns in its place
+		p = p.SortedAs(c.column, map[colAct]grid.Direction{actNone: grid.Unsorted, actUp: grid.Ascending,
+			actDown: grid.Descending}[act])
+	case actClear:
+		p = p.Unsorted()
+	case actHide:
 		p = p.Placed(c.column, grid.Hidden)
-	case lineGroup, lineThenGroup:
-		p = p.Grouped(c.column, k == lineThenGroup)
+	case actGroup, actUngroup:
+		// a column joins the groups innermost, or leaves them from wherever it stands
+		p = p.Grouped(c.column, true)
 	default:
 		x, _ := m.columnName(c.column)
 		return m.openPopover(c.column, x, paneTop, true)

@@ -266,23 +266,15 @@ func (p Panel) Filtering() bool {
 	return false
 }
 
-// Sorted gives the panel with the column sorting the rows alone, as a click on its name asks, or, with also, as one
-// more key after the others, as an option-click does: a column not sorting sorts ascending, then descending, then not at
-// all. A column that cannot sort changes nothing.
-func (p Panel) Sorted(column string, also bool) Panel {
+// Sorted gives the panel with the column's sort turned, as an option-click on its name asks: a column not sorting sorts
+// ascending, as one more key after the others, then descending in its place, then not at all. A column that cannot
+// sort changes nothing.
+func (p Panel) Sorted(column string) Panel {
 	if !p.Sortable[column] {
 		return p
 	}
-	sorts := p.SortKeys()
-	k := slices.IndexFunc(sorts, func(s SortKey) bool { return s.Column == column })
-	keys := slices.Clone(sorts)
-	if !also {
-		keys = nil
-		if k >= 0 {
-			keys = []SortKey{sorts[k]}
-		}
-		k = min(k, 0)
-	}
+	keys := p.SortKeys()
+	k := slices.IndexFunc(keys, func(s SortKey) bool { return s.Column == column })
 	switch {
 	case k < 0:
 		keys = append(keys, SortKey{Column: column})
@@ -315,6 +307,13 @@ func (p Panel) SortedAs(id string, d Direction) Panel {
 	return p.sortedBy(keys)
 }
 
+// Unsorted gives the panel with no column sorting the rows within their groups: the keys of the columns gone, the
+// groups keeping how they sort.
+func (p Panel) Unsorted() Panel {
+	groups := p.Groups()
+	return p.sortedBy(slices.DeleteFunc(p.SortKeys(), func(s SortKey) bool { return !slices.Contains(groups, s.Column) }))
+}
+
 // FilteredBy gives the panel with the filter on a field, by id, as f says.
 func (p Panel) FilteredBy(id string, f Filter) Panel {
 	return p.with(func(fields map[string]Field) {
@@ -334,24 +333,46 @@ func (p Panel) Rendered(id, rendering string) Panel {
 	})
 }
 
-// Mark gives what stands after a column's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
-// among the keys, as a subscript, when there are several; nothing where it does not.
-func (p Panel) Mark(column string) string {
-	sorts := p.SortKeys()
-	for k, s := range sorts {
-		if s.Column != column {
-			continue
-		}
-		mark := "▲"
-		if s.Desc {
-			mark = "▼"
-		}
-		if len(sorts) > 1 {
-			mark += subscript(k + 1)
-		}
-		return mark
+// Place gives where a field stands among what orders the rows, from 1, or 0 where it orders nothing, and how many
+// things order them: the groups first, as the rows stand in their groups before any key sorts them, the outermost 1;
+// then the keys of the columns the rows do not group by, the first first.
+func (p Panel) Place(id string) (place, total int) {
+	groups, keys := p.Groups(), p.ColumnKeys()
+	total = len(groups) + len(keys)
+	if k := slices.Index(groups, id); k >= 0 {
+		return k + 1, total
 	}
-	return ""
+	if k := slices.IndexFunc(keys, func(s SortKey) bool { return s.Column == id }); k >= 0 {
+		return len(groups) + k + 1, total
+	}
+	return 0, total
+}
+
+// ColumnKeys gives the keys that sort the rows within their groups: those of the fields the rows do not group by, the
+// first first.
+func (p Panel) ColumnKeys() []SortKey {
+	groups := p.Groups()
+	return slices.DeleteFunc(p.SortKeys(), func(s SortKey) bool { return slices.Contains(groups, s.Column) })
+}
+
+// Mark gives what stands after a field's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
+// among what orders them, as Place gives it, as a subscript, when more than one thing does; nothing where it does not
+// sort. A group sorts its rows' values as its field's sort says, ascending where it says none, and is marked only where
+// it says one.
+func (p Panel) Mark(id string) string {
+	f := p.Fields[id]
+	place, total := p.Place(id)
+	if f.Sort == Unsorted || place == 0 {
+		return ""
+	}
+	mark := "▲"
+	if f.Sort == Descending {
+		mark = "▼"
+	}
+	if total > 1 {
+		mark += subscript(place)
+	}
+	return mark
 }
 
 // subscript gives a number in subscript digits, as ₁₂, which mark a column's place among the keys or the groups.
@@ -359,9 +380,9 @@ func subscript(n int) string {
 	return strings.Map(func(r rune) rune { return '₀' + r - '0' }, strconv.Itoa(n))
 }
 
-// Grouped gives the panel grouping the rows by the column alone, as a ctrl-click on its name asks, or, with nest, as a
-// ctrl-option-click asks, within the groups it has, innermost; a column it groups by already, it no longer does, alone or among the others, and it is a column
-// again. A column that cannot group changes nothing.
+// Grouped gives the panel grouping the rows by the column alone, or, with nest, as the column menu's Group and a
+// ctrl-click on a name ask, within the groups it has, innermost; a column it groups by already, it no longer does,
+// alone or among the others, and it is a column again. A column that cannot group changes nothing.
 func (p Panel) Grouped(column string, nest bool) Panel {
 	if !p.Groupable[column] {
 		return p

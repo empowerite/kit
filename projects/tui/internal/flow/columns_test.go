@@ -106,7 +106,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Errorf("a click on title's box: %+v", m.panel(0).Field("title"))
 	}
 	x, y = columnsAt(t, m, "age")
-	if m = drive(m, testkit.Click(x+2+labelCells, y)); m.panel(0).Mark("age") != "▲" {
+	if m = drive(m, testkit.Click(x+2+labelCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
 		t.Errorf("a click on age's sort: %q", m.panel(0).Mark("age"))
 	}
 	x, y = columnsAt(t, m, "assignees")

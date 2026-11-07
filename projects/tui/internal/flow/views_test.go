@@ -232,7 +232,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "kit", "presets.json")
 	m := onDropdown(t, file)
-	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age", false).Sorted("age", false).Shown(grid.Others)
+	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age").Sorted("age").Shown(grid.Others)
 	p = p.Grouped("assignees", false)
 	m.setPanel(p)
 	// off Save As…, what is typed names nothing

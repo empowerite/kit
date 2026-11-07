@@ -470,33 +470,49 @@ func TestThePanelSortsTheRows(t *testing.T) {
 		return strings.Join(out, " ")
 	}
 	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}
-	if got := keys(p.Sorted("id", false).order(rows, columns)); got != "#7 #31 heading #100" {
+	if got := keys(p.Sorted("id").order(rows, columns)); got != "#7 #31 heading #100" {
 		t.Errorf("by id: %s", got)
 	}
-	if got := keys(p.Sorted("id", false).Sorted("id", false).order(rows, columns)); got != "#100 #31 heading #7" {
+	if got := keys(p.Sorted("id").Sorted("id").order(rows, columns)); got != "#100 #31 heading #7" {
 		t.Errorf("by id, descending: %s", got)
 	}
 	// by age, then id: the two of 60m by id
-	byAge := p.Sorted("age", false).Sorted("id", true)
+	byAge := p.Sorted("age").Sorted("id")
 	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲₁" || byAge.Mark("id") != "▲₂" {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
-	// a click on a key among several sorts by it alone, as it was; a third click on a column stops it
-	if got := byAge.Sorted("id", false).SortKeys(); len(got) != 1 || got[0] != (SortKey{"id", true}) ||
-		byAge.Sorted("id", false).Mark("id") != "▼" {
-		t.Errorf("a click on id among two keys: %+v", got)
+	// a key among several turns in its place; a third time on a column stops it; Unsorted clears every key
+	if got := byAge.Sorted("id").SortKeys(); len(got) != 2 || got[1] != (SortKey{"id", true}) ||
+		byAge.Sorted("id").Mark("id") != "▼₂" {
+		t.Errorf("id turned among two keys: %+v", got)
 	}
-	if got := p.Sorted("id", false).Sorted("id", false).Sorted("id", false); len(got.SortKeys()) != 0 || got.Mark("id") != "" {
-		t.Errorf("three clicks: %+v", got.SortKeys())
+	if got := p.Sorted("id").Sorted("id").Sorted("id"); len(got.SortKeys()) != 0 || got.Mark("id") != "" {
+		t.Errorf("three times: %+v", got.SortKeys())
 	}
-	if got := byAge.Sorted("id", true).Sorted("id", true).SortKeys(); len(got) != 1 || got[0].Column != "age" {
-		t.Errorf("two shift-clicks on id: %+v", got)
+	if got := byAge.Sorted("id").Sorted("id").SortKeys(); len(got) != 1 || got[0].Column != "age" {
+		t.Errorf("id twice more: %+v", got)
+	}
+	if got := byAge.Unsorted().SortKeys(); len(got) != 0 {
+		t.Errorf("unsorted: %+v", got)
+	}
+	// grouped, the groups order the rows first: the outermost is 1, and a key after them numbers on; a group keeps
+	// how it sorts through Unsorted, and is marked only where it sorts; a lone key with no group has no number
+	g := Panel{Sortable: map[string]bool{"id": true, "age": true}, Groupable: map[string]bool{"age": true}}.
+		Grouped("age", true).Sorted("id")
+	if place, total := g.Place("age"); g.Mark("id") != "▲₂" || g.Mark("age") != "" || place != 1 || total != 2 {
+		t.Errorf("under a group: id %q, age %q at %d of %d", g.Mark("id"), g.Mark("age"), place, total)
+	}
+	if g = g.SortedAs("age", Descending).Unsorted(); g.Mark("age") != "▼" || len(g.ColumnKeys()) != 0 {
+		t.Errorf("a group sorting, unsorted: %q %+v", g.Mark("age"), g.SortKeys())
+	}
+	if place, _ := g.Place("id"); place != 0 {
+		t.Errorf("id, not sorting, at %d", place)
 	}
 	// each key is the field's sort, at its priority
 	if f := byAge.Field("id"); f.Sort != Ascending || f.Priority != 2 || byAge.Field("age").Priority != 1 {
 		t.Errorf("the fields' sorts: %+v", byAge.Fields)
 	}
-	if got := p.Sorted("title", false); got.SortKeys() != nil {
+	if got := p.Sorted("title"); got.SortKeys() != nil {
 		t.Errorf("a column that cannot sort: %+v", got.SortKeys())
 	}
 	if natural("a2", "a10") >= 0 || natural("B", "a") <= 0 || natural("ab", "abc") >= 0 || natural("x", "x") != 0 {
@@ -810,7 +826,7 @@ func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
 // a new direction, adds one after the others, and takes one away; a field that cannot sort changes nothing. The
 // panel's map is never the one it was given.
 func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
-	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age", false).Sorted("id", true)
+	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age").Sorted("id")
 	given := p.Fields
 	if q := p.SortedAs("age", Descending); q.Mark("age") != "▼₁" || q.Mark("id") != "▲₂" || given["age"].Sort != Ascending {
 		t.Errorf("age descending: %q %q", q.Mark("age"), q.Mark("id"))

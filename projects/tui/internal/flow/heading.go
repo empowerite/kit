@@ -3,11 +3,11 @@
 // unfolds them, as one on its ▾ or ▸ does. Many terminals keep option, ctrl, and the right button with a click for their own
 // selection and menu, so the menu holds what those would do on a heading, and what space does there: everything under
 // the heading expanded or collapsed, the group's rows selected or unselected, and the rows no longer grouped by the
-// heading's column.
+// heading's column, which titles the menu. Shift with left or right moves the column a depth outward or inward among
+// the groups, the menu with its heading.
 package flow
 
 import (
-	"cmp"
 	"slices"
 	"strings"
 
@@ -63,13 +63,12 @@ func (m Model) headingNames(r row) []nameSpot {
 }
 
 // The heading menu's lines: everything under the heading opened or closed, the group's rows selected or, once every
-// one is, unselected, and, before the column's label, the rows no longer grouped by it.
+// one is, unselected, and the rows no longer grouped by its column, as the column menu's Ungroup says.
 const (
 	ExpandUnder   = "Expand All Under It"
 	CollapseUnder = "Collapse All Under It"
 	SelectGroup   = "Select Group"
 	UnselectGroup = "Unselect Group"
-	Ungroup       = "Ungroup by "
 )
 
 // headingAt gives the index of the heading the menu acts on among the selected stage's rows, -1 once it shows no more.
@@ -90,8 +89,7 @@ func (m Model) nameAt(r row, x int) (nameSpot, bool) {
 // headingItems gives the heading menu's lines: expand and collapse, a rule, the group selected or unselected, a rule,
 // and the rows ungrouped by the menu's column. A line that cannot act stays, dim.
 func (m Model) headingItems() []shell.Item {
-	p := m.panel(m.stage)
-	selecting, ungroup := SelectGroup, Ungroup+cmp.Or(p.Labels[m.headMenu.column], m.headMenu.column)
+	selecting := SelectGroup
 	rows, s := m.rows(m.stage), m.stages[m.stage]
 	if k := m.headingAt(); k >= 0 {
 		every := m.every(m.stage)
@@ -101,7 +99,7 @@ func (m Model) headingItems() []shell.Item {
 		}
 	}
 	return []shell.Item{{Glyph: Expand, Name: ExpandUnder}, {Glyph: Collapse, Name: CollapseUnder}, {},
-		{Glyph: Every, Name: selecting}, {}, {Name: ungroup}}
+		{Glyph: Every, Name: selecting}, {}, {Glyph: UngroupGlyph, Name: UngroupIt}}
 }
 
 // headingEnabled says whether the heading menu's line k acts: expand while a node under the heading, or the heading
@@ -139,7 +137,7 @@ func (m *Model) openHeadingMenu(k, y int, name nameSpot) {
 }
 
 // headingKey takes a key while the heading menu is open: up and down move, a letter to the next line it starts, enter
-// and space act, and esc closes it.
+// and space act, shift with left or right moves the column among the groups, and esc closes it.
 func (m Model) headingKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	items := m.headingItems()
 	switch k.String() {
@@ -151,6 +149,9 @@ func (m Model) headingKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.headingAct(m.headMenu.at)
 	case "esc":
 		m.headMenu = headingMenu{}
+	case "shift+left", "shift+right":
+		d, _ := shiftStep(k.String())
+		m.shiftHeading(d)
 	default:
 		m.headMenu.at = shell.NextItem(items, m.headingEnabled, m.headMenu.at, k.Text)
 	}
@@ -174,6 +175,48 @@ func (m *Model) headingAct(k int) {
 		m.setPanel(m.panel(m.stage).Grouped(column, true))
 	}
 	m.fit()
+}
+
+// shiftHeading moves the heading menu's column a depth among the groups, outward for a negative step, and the menu with
+// it: onto the heading of that column over the first row the heading headed, where it now stands, the cursor on it, the
+// keyboard on the same line. Where the column cannot move that way, nothing changes; where the heading no longer
+// shows, the menu closes.
+func (m *Model) shiftHeading(d int) {
+	p, ok := m.shifted(m.headMenu.column, d)
+	every := m.every(m.stage)
+	j := slices.IndexFunc(every, func(r row) bool { return r.Key == m.headMenu.key })
+	if !ok || j < 0 {
+		return
+	}
+	under := groupRows(every, j)
+	if len(under) == 0 {
+		return
+	}
+	m.setPanel(p)
+	m.fit()
+	every, column := m.every(m.stage), m.headMenu.column
+	i := slices.IndexFunc(every, func(r row) bool { return r.Key == under[0] })
+	for ; i >= 0 && m.panel(m.stage).Heading(every[i]) != column; i-- {
+	}
+	rows := m.rows(m.stage)
+	k := -1
+	if i >= 0 {
+		k = slices.IndexFunc(rows, func(r row) bool { return r.Key == every[i].Key })
+	}
+	if k < 0 {
+		m.headMenu = headingMenu{}
+		return
+	}
+	m.stages[m.stage].cursor = k
+	m.fit()
+	y := m.rowLine(k)
+	for _, name := range m.headingNames(rows[k]) {
+		if name.column == column && y >= 0 {
+			m.headMenu.key, m.headMenu.x, m.headMenu.y = rows[k].Key, name.from, y
+			return
+		}
+	}
+	m.headMenu = headingMenu{}
 }
 
 // headingBox gives the heading menu's lines, the box around the column's name, which its top edge draws where the

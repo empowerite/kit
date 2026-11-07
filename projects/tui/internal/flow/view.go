@@ -118,7 +118,15 @@ func (m Model) keys() shell.Path {
 		return shell.Path{m.popKeys()}
 	case m.cols.open:
 		return shell.Path{m.columnsKeys()}
-	case m.presetMenu, m.colMenu.open, m.headMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.colMenu.open, m.headMenu.open:
+		// a column's menus move it too
+		keys, column := shell.MenuKeys(), m.colMenu.column
+		if m.headMenu.open {
+			column = m.headMenu.column
+		}
+		keys.Bindings = append(keys.Bindings, m.shiftKeys(column)...)
+		return shell.Path{keys}
+	case m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")

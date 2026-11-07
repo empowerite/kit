@@ -280,7 +280,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(lineUp) || m.colMenu.at <= lineDownNext ||
+	if m = drive(m, testkit.Click(at("commit"), paneTop)); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.at <= m.columnLine(actClear) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}

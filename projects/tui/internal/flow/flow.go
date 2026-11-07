@@ -521,11 +521,11 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 
 // clickHeader takes a click on the header, which is no row, above its rule, the preset line: on its gutter it opens the
 // header, or closes it, when it hides lines; on a column's sort target, as sortAt says, its ▲ or ▼ or the cells right
-// after its name, it sorts by the column alone, ascending, where it does not sort yet, and turns its sort around where
-// it does, or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column menu down under it. Where the
-// terminal sends option or ctrl with a click, as many do not, also, as option asks, sorts by the column after the
-// others, as the panel's Sorted says, and group, as ctrl asks, groups the rows by it alone, or, with also, within the
-// groups they have, as the panel's Grouped says. Elsewhere it does nothing.
+// after its name, it sorts by the column, ascending, after the other keys, where it does not sort yet, and turns its
+// sort around where it does, or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column
+// menu down under it. Where the terminal sends option or ctrl with a click, as many do not, also, as option asks, turns
+// the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows by it within the groups they
+// have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	if y == paneTop && m.columnsIcon() && x >= m.paneWidth()-ansi.StringWidth(Columns) {
@@ -557,11 +557,11 @@ func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	}
 	switch {
 	case group:
-		m.setPanel(p.Grouped(column, also))
+		m.setPanel(p.Grouped(column, true))
 	case also:
-		m.setPanel(p.Sorted(column, true))
+		m.setPanel(p.Sorted(column))
 	case target != "" && p.Mark(column) == "":
-		m.setPanel(p.Sorted(column, false))
+		m.setPanel(p.SortedAs(column, grid.Ascending))
 	case target != "":
 		d := grid.Descending
 		switch {
