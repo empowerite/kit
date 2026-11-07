@@ -104,10 +104,12 @@ forge/gitlab:me() {
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
 
-# forge/gitlab:open-issues prints one document per open issue, oldest first, as the seam's header says.
+# forge/gitlab:open-issues prints one document per open issue, oldest first, as the seam's header says. GitLab gives
+# each label's color only with its details.
 forge/gitlab:open-issues() {
   local list
-  list=$(forge/gitlab:api "issues?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \
+  list=$(forge/gitlab:api "issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true" \
+    2>/dev/null) \
     || { error "run: glab auth status (the issues could not be read)"; return 1; }
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::gitlab_issues($now)' \
@@ -116,7 +118,8 @@ forge/gitlab:open-issues() {
 
 # forge/gitlab:open-prs prints one JSON object per open merge request: the document kit flow renders, which
 # modules/jq/forge.jq folds the answers into. Of several jobs of one name in the pipeline, as after a retry, only
-# the latest counts. GitLab's REST API needs four reads per merge request, and one per fork:
+# the latest counts. GitLab's REST API needs one read for the project's labels, whose colors the merge requests and
+# the issues they close name only by name, the first 100 of them; then four reads per merge request, and one per fork:
 #
 #   - the merge request, whose head pipeline also says when the branch was last pushed, and by whom
 #   - its pipeline's jobs
@@ -125,10 +128,14 @@ forge/gitlab:open-issues() {
 #   - the project its branch lives in, when that is not this project, once for each such project: its namespace's
 #     path names the fork's owner, and a project the caller cannot read names none
 forge/gitlab:open-prs() {
-  local list iid mr jobs discussions closes pipeline source fork
+  local list iid mr jobs discussions closes pipeline source fork colors
   local -A owners=()
   list=$(forge/gitlab:api "merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \
     || { error "run: glab auth status (the merge requests could not be read)"; return 1; }
+  # A label whose color cannot be read is drawn without it, so the labels' read never fails the merge requests'.
+  colors=$(forge/gitlab:api "labels?per_page=100" 2>/dev/null \
+    | jq --compact-output 'map({key: .name, value: .color}) | from_entries' 2>/dev/null) || colors=''
+  [[ -n "${colors}" ]] || colors='{}'
   while IFS= read -r iid
   do
     [[ -n "${iid}" ]] || continue
@@ -151,7 +158,9 @@ forge/gitlab:open-prs() {
     # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
     jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --argjson jobs "${jobs}" \
       --argjson discussions "${discussions}" --argjson closes "${closes}" --argjson fork "${fork}" \
-      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork)' <<<"${mr}"
+      --argjson colors "${colors}" \
+      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork) | forge::colored($colors)' \
+      <<<"${mr}"
   done < <(jq --raw-output '.[].iid' <<<"${list}")
 }
 

@@ -13,8 +13,9 @@
 #   state       draft, queued, conflicted, failing:gate, no-check, comments:open, blocked:approval, or ready
 #   checks      {state, passed, total, failing, took}
 #   unresolved  the number of unresolved review threads
-#   closes      [{number, title, assignees, age, source}] of the issues it closes, the assignees as logins, so a
-#               change's issues are drawn as the backlog stage draws an issue without a second call to the forge
+#   labels      [{name, color}] of the labels on it, as labels gives them
+#   closes      [{number, title, assignees, labels, age, source}] of the issues it closes, the assignees as logins,
+#               so a change's issues are drawn as the backlog stage draws an issue without a second call to the forge
 #
 # see: modules/bash/forge.sh, modules/bash/forge/github.sh, modules/bash/forge/gitlab.sh
 
@@ -27,6 +28,23 @@ def epoch: sub("\\.[0-9]+"; "") | fromdateiso8601;
 def place($path):
   if ($path // "") == "" then {organization: null, repository: null}
   else ($path | split("/")) as $p | {organization: ($p[:-1] | join("/")), repository: $p[-1]} end;
+
+# hex reads a color as a forge writes it, with or without a #, in either case, and gives it as #rrggbb in lower case;
+# null for none.
+def hex: if (. // "") == "" then null else "#" + (ascii_downcase | ltrimstr("#")) end;
+
+# labels reads a forge's labels, each a name alone, as GitLab gives one without its details, or an object with a name
+# and a color, as GitHub gives one, and gives each as {name, color}: the color as hex gives it, or null where the
+# forge gives none.
+def labels:
+  [.[]? | if type == "string" then {name: ., color: null} else {name, color: (.color | hex)} end];
+
+# colored($colors) reads a change's document and gives each label on it, and on the issues it closes, that has no
+# color the one $colors gives its name, as a project's label list does on GitLab, as hex gives it; a name it does not
+# give stays null.
+def colored($colors):
+  def paint: map(.color //= ($colors[.name] | hex));
+  .labels |= paint | .closes |= map(.labels |= paint);
 
 # github_path reads a GitHub issue's url and gives its repository's owner/name, or null without one.
 def github_path: (.url // "") | capture("^https?://[^/]+/(?<path>[^/]+/[^/]+)/issues/").path // null;
@@ -65,16 +83,17 @@ def state:
   else "ready" end;
 
 # document($now) reads {number, ref, branch, fork, title, author, createdAt, pushed, draft, conflicted, approval, runs,
-# unresolved, closes} and gives the document. pushed is {at, by}, or null, and comes out with its age in place of at.
-# Each of closes is {number, title, assignees, createdAt, source, organization, repository}, and comes out with its age;
-# an issue an older answer gives without a time has a null age, and one without a source, an organization, or a
-# repository a null one.
+# unresolved, labels, closes} and gives the document. pushed is {at, by}, or null, and comes out with its age in place
+# of at. labels are the forge's, as labels reads them. Each of closes is {number, title, assignees, labels, createdAt,
+# source, organization, repository}, and comes out with its age; an issue an older answer gives without a time has a
+# null age, one without a source, an organization, or a repository a null one, and one without labels none.
 def document($now):
   (.runs | checks($now)) as $checks
   | { number, ref, branch, fork: (.fork // null), title, author, createdAt, age: ($now - (.createdAt | epoch)),
       pushed: (if .pushed == null then null else {age: ($now - (.pushed.at | epoch)), by: (.pushed.by // null)} end),
-      state: (. + {checks: $checks} | state), checks: $checks, unresolved,
-      closes: [.closes[] | { number, title, assignees: (.assignees // []), source: (.source // null),
+      state: (. + {checks: $checks} | state), checks: $checks, unresolved, labels: (.labels | labels),
+      closes: [.closes[] | { number, title, assignees: (.assignees // []), labels: (.labels | labels),
+                             source: (.source // null),
                              organization: (.organization // null), repository: (.repository // null),
                              age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }] };
 
@@ -94,7 +113,8 @@ def github_runs:
 # GitHub tells no push's time without a further call, so pushed is the head commit's: when it was committed, and the
 # login of its author, or null when the author's email belongs to no account. A closed issue's assignees are those
 # the answer's open issues with an assignee give it; an issue they do not name has none: one with no assignee, one
-# closed, one in another repository, or one past the hundred most recently updated.
+# closed, one in another repository, or one past the hundred most recently updated. Its labels are its own, as the
+# answer gives them under it.
 def github_prs($now):
   .data.repository as $repository
   | ([$repository.issues.nodes[]? | {key: "\(.number)", value: [.assignees.nodes[]?.login]}] | from_entries)
@@ -108,8 +128,9 @@ def github_prs($now):
       approval: ((.reviewDecision // "") | IN("REVIEW_REQUIRED", "CHANGES_REQUESTED")),
       runs: ([.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?] | github_runs),
       unresolved: ([.reviewThreads.nodes[]? | select(.isResolved | not)] | length),
+      labels: [.labels.nodes[]?],
       closes: [.closingIssuesReferences.nodes[]
-               | { number, title, createdAt, source: "github",
+               | { number, title, createdAt, source: "github", labels: [.labels.nodes[]?],
                    assignees: (if .repository.nameWithOwner == $repository.nameWithOwner
                                then $assigned["\(.number)"] // [] else [] end) }
                  + place(.repository.nameWithOwner)] }
@@ -137,6 +158,7 @@ def gitlab_runs:
 
 # gitlab_pr($now; $jobs; $discussions; $closes; $fork) reads a merge request, with its pipeline's jobs, its
 # discussions, the issues it closes, and the owner of the fork its branch lives in, or null, and gives its document.
+# GitLab names a label without its color here, which colored then gives it.
 # GitLab tells no push's time without a further call, so pushed is the head pipeline's: when it was created, and who
 # started it; null when the branch has no pipeline.
 def gitlab_pr($now; $jobs; $discussions; $closes; $fork):
@@ -144,31 +166,35 @@ def gitlab_pr($now; $jobs; $discussions; $closes; $fork):
     createdAt: .created_at, draft, conflicted: .has_conflicts, fork: $fork,
     pushed: (.head_pipeline // {}
              | if .created_at == null then null else {at: .created_at, by: (.user.username // null)} end),
-    approval: ((.detailed_merge_status // "") == "not_approved"),
+    approval: ((.detailed_merge_status // "") == "not_approved"), labels,
     runs: ($jobs | gitlab_runs),
     unresolved: ([$discussions[] | .notes[]? | select(.resolvable and (.resolved | not))] | length),
-    closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], createdAt: .created_at,
+    closes: [$closes[] | { number: .iid, title, assignees: [.assignees[]?.username], labels, createdAt: .created_at,
                            source: "gitlab" } + place(gitlab_path)] }
   | document($now);
 
-# issue($now; $source; $path) reads {number, title, assignees, createdAt}, the assignees as logins, and gives the issue
-# document kit backlog draws: those, ref, age in seconds, source, the tracker that holds it: the code forge's own,
-# github or gitlab, for now; and the organization and the repository it is in, as place reads $path.
+# issue($now; $source; $path) reads {number, title, assignees, labels, createdAt}, the assignees as logins, and gives
+# the issue document kit backlog draws: those, the labels as labels reads them, ref, age in seconds, source, the
+# tracker that holds it: the code forge's own, github or gitlab, for now; and the organization and the repository it
+# is in, as place reads $path.
 def issue($now; $source; $path):
-  {number, ref: "#\(.number)", title, assignees, createdAt, age: ($now - (.createdAt | epoch)), source: $source}
+  { number, ref: "#\(.number)", title, assignees, labels: (.labels | labels), createdAt,
+    age: ($now - (.createdAt | epoch)), source: $source }
   + place($path);
 
 
 # github_issues($now) reads gh issue list's JSON, the answer to forge/github:open-issues, and gives one document per
 # open issue, oldest first.
 def github_issues($now):
-  sort_by(.createdAt, .number)[] | github_path as $path | {number, title, assignees: [.assignees[].login], createdAt}
+  sort_by(.createdAt, .number)[] | github_path as $path
+  | {number, title, assignees: [.assignees[].login], labels, createdAt}
   | issue($now; "github"; $path);
 
-# gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents.
+# gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents. The
+# answer gives each label's details, its color among them.
 def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | gitlab_path as $path
-  | {number: .iid, title, assignees: [.assignees[].username], createdAt: .created_at}
+  | {number: .iid, title, assignees: [.assignees[].username], labels, createdAt: .created_at}
   | issue($now; "gitlab"; $path);
 
 # release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without

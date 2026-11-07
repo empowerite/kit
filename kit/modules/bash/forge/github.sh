@@ -92,24 +92,27 @@ forge/github:noun() { printf '#\tpull request\n'; }
 # answers with issues alone, never pull requests.
 forge/github:open-issues() {
   local answer
-  forge/github:ask answer 'the issues' issue list --state open --limit 1000 --json number,title,assignees,createdAt,url \
+  forge/github:ask answer 'the issues' issue list --state open --limit 1000 \
+    --json number,title,assignees,labels,createdAt,url \
     || return 1
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_issues($now)' \
     <<<"${answer}"
 }
 
-# forge/github:open-prs makes one GraphQL request for every open pull request, with the issues it closes, its
-# review threads, the owner of the repository its branch lives in, and its head commit: when it was committed, by
-# whom, and the checks on it. It prints one JSON object per pull request: the document kit status renders, which
-# modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit, as after a rerun, only
-# the latest counts.
+# forge/github:open-prs makes one GraphQL request for every open pull request, with its labels, the issues it closes
+# and theirs, its review threads, the owner of the repository its branch lives in, and its head commit: when it was
+# committed, by whom, and the checks on it. It prints one JSON object per pull request: the document kit status
+# renders, which modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit, as after a
+# rerun, only the latest counts.
 #
 # GitHub charges a request by the nodes it may return, so assignees asked of each issue each pull request closes cost
 # a hundred times as much as the rest of the request. The same request asks instead for the assignees of the hundred
 # open issues with an assignee most recently updated, and forge.jq gives each closed issue its assignees from them.
-# The request costs 5 points of the GraphQL rate limit; with the assignees asked under each closed issue, it would
-# cost 104.
+# Labels are asked under each closed issue all the same, as no other list holds them all, and a pull request is
+# asked for the first 10 issues it closes, not 100, which keeps them cheap. GitHub's dry run, rateLimit(dryRun: true),
+# puts the request at 16 points of the GraphQL rate limit; without any labels, it costs 5, and with the labels under
+# the first 100 issues each closes, 106.
 forge/github:open-prs() {
   local repo query answer
   repo=$(forge/github:repo) || return 1
@@ -124,7 +127,10 @@ forge/github:open-prs() {
           number title isDraft headRefName createdAt mergeStateStatus reviewDecision isCrossRepository
           author { login }
           headRepositoryOwner { login }
-          closingIssuesReferences(first: 100) { nodes { number title createdAt repository { nameWithOwner } } }
+          labels(first: 20) { nodes { name color } }
+          closingIssuesReferences(first: 10) { nodes {
+            number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
+          } }
           reviewThreads(first: 100) { nodes { isResolved } }
           commits(last: 1) { nodes { commit {
             committedDate author { user { login } }

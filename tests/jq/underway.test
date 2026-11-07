@@ -33,3 +33,8 @@ import "underway" as underway; underway::rows({}; []) | map(.source)
 import "underway" as underway; underway::rows({}; []) | map([.organization, .repository])
 [{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 9, "organization": "empowerite", "repository": "kit"}, {"number": 8, "age": 8}]}]
 [["empowerite","kit"],[null,null]]
+
+# A row carries its issue's labels, not the change's, and none when the change's document gives the issue none.
+import "underway" as underway; underway::rows({}; []) | map(.labels)
+[{"number": 3, "branch": "7-fix", "labels": [{"name": "kind=fix", "color": null}], "closes": [{"number": 7, "age": 9, "labels": [{"name": "bug", "color": "#d73a4a"}]}, {"number": 8, "age": 8}]}]
+[[{"name":"bug","color":"#d73a4a"}],[]]

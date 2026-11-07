@@ -74,9 +74,10 @@ JSON
   "pullRequests": {"nodes": [{
   "number": 3, "title": "Fix the thing", "isDraft": false, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
-  "author": {"login": "ada"},
+  "author": {"login": "ada"}, "labels": {"nodes": [{"name": "kind=fix", "color": "0E8A16"}]},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
-                                         "repository": {"nameWithOwner": "empowerite/example"}}]},
+                                         "repository": {"nameWithOwner": "empowerite/example"},
+                                         "labels": {"nodes": [{"name": "bug", "color": "D73A4A"}]}}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
@@ -94,6 +95,7 @@ JSON
 [{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "2026-09-25T09:00:00Z",
   "url": "https://github.com/empowerite/example/issues/9"},
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z",
+  "labels": [{"id": "LA_1", "name": "bug", "description": "", "color": "d73a4a"}],
   "url": "https://github.com/empowerite/example/issues/7"}]
 JSON
   route gh 'issue edit 7 --add-assignee ada' '!0'
@@ -123,7 +125,8 @@ world-gitlab() {
   fixture mr.json <<'JSON'
 {"iid": 3, "title": "Fix the thing", "draft": false, "source_branch": "7-fix-the-thing",
  "created_at": "2026-10-01T09:00:00.000Z", "author": {"username": "ada"}, "has_conflicts": false,
- "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"}}
+ "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"},
+ "labels": ["kind=fix"]}
 JSON
   fixture jobs.json <<'JSON'
 [{"name": "a", "status": "failed",
@@ -139,20 +142,24 @@ JSON
 JSON
   fixture closes.json <<'JSON'
 [{"iid": 7, "title": "Fix the thing", "state": "opened", "references": {"full": "empowerite/example#7"},
-  "created_at": "2026-09-20T09:00:00.000Z", "assignees": [{"username": "bob"}]}]
+  "created_at": "2026-09-20T09:00:00.000Z", "assignees": [{"username": "bob"}], "labels": ["bug"]}]
 JSON
+  fixture labels.json <<<'[{"name": "bug", "color": "#D73A4A"}, {"name": "kind=fix", "color": "#0E8A16"}]'
   fixture none.json <<<'[]'
   route glab 'api user' user.json
   route glab "api ${p}/issues/7" issue.json
   route glab 'issue create*' issue-url.txt
   fixture issues.json <<'JSON'
 [{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "2026-09-20T09:00:00.000Z",
+  "labels": [{"id": 4, "name": "bug", "color": "#D73A4A", "text_color": "#FFFFFF"}],
   "references": {"full": "empowerite/example#7"}},
  {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.500Z",
   "references": {"full": "empowerite/example#9"}}]
 JSON
   route glab 'issue update 7 --assignee +ada' '!0'
-  route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc" issues.json
+  route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true" \
+    issues.json
+  route glab "api ${p}/labels?per_page=100" labels.json
   route glab "api ${p}/merge_requests?state=opened&per_page=100&order_by=*" mrs-list.json
   route glab "api ${p}/merge_requests?state=opened&per_page=100" mrs-open.json
   route glab "api ${p}/merge_requests?state=opened&source_branch=7-fix-the-thing" mr-by-branch.json
@@ -253,7 +260,9 @@ JSON
 @test "every provider folds its open changes into the one document kit flow draws" {
   expected='{"number":3,"branch":"7-fix-the-thing","fork":null,"title":"Fix the thing","author":"ada","pushed":null,'
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
-  expected+='"unresolved":1,"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"]}]}'
+  expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":"#0e8a16"}],'
+  expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
+  expected+='"labels":[{"name":"bug","color":"#d73a4a"}]}]}'
   for forge in github gitlab
   do
     world "${forge}"
@@ -315,7 +324,7 @@ JSON
   [ "$(jq --compact-output '[.fork, .pushed, .checks.total]' <<<"$output")" = '[null,null,0]' ]
 }
 
-@test "a change that closes more issues than a page holds is drawn with every one: each provider asks for a hundred" {
+@test "a change that closes many issues is drawn with every one GitLab gives, a hundred, and GitHub's first ten" {
   for forge in github gitlab
   do
     world "${forge}"
@@ -332,7 +341,8 @@ JSON
     [ "$status" -eq 0 ]
     [ "$(jq '.closes | length' <<<"$output")" -eq 12 ]
   done
-  grep --quiet 'closingIssuesReferences(first: 100)' "${FAKE_DIR}/gh.calls"
+  # GitHub prices the labels under each issue a change closes by how many issues it may give, so it is asked for ten
+  grep --quiet 'closingIssuesReferences(first: 10)' "${FAKE_DIR}/gh.calls"
   grep --quiet 'merge_requests/3/closes_issues?per_page=100' "${FAKE_DIR}/glab.calls"
 }
 
@@ -398,9 +408,10 @@ JSON
   done
 }
 
-@test "every provider lists its open issues in one shape, oldest first, with the assignees by login and the repository" {
-  expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"]},'
-  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[]}]'
+@test "every provider lists its open issues in one shape, oldest first, with the assignees by login, the labels, and the repository" {
+  expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],'
+  expected+='"labels":[{"name":"bug","color":"#d73a4a"}]},'
+  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[]}]'
   for forge in github gitlab
   do
     world "${forge}"
@@ -649,13 +660,15 @@ SH
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
 }
 
-@test "GitHub's open changes cost 5 points: the closed issues' assignees come from the open issues, not from each" {
+@test "GitHub's open changes cost 16 points: the closed issues' assignees come from the open issues, their labels from each" {
   world github
   run call open-prs
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output '.closes | map(.assignees)' <<<"$output")" = '[["bob"]]' ]
+  [ "$(jq --compact-output '[.labels, .closes[0].labels] | map(map(.name))' <<<"$output")" = '[["kind=fix"],["bug"]]' ]
   grep --quiet 'issues(states: OPEN, first: 100, filterBy: {assignee: "\*"}' "${FAKE_DIR}/gh.calls"
-  grep --quiet 'closingIssuesReferences(first: 100) { nodes { number title createdAt repository { nameWithOwner } } }' \
+  grep --quiet 'closingIssuesReferences(first: 10) { nodes {$' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }' \
     "${FAKE_DIR}/gh.calls"
   [ "$(grep --count 'assignees(first: 10)' "${FAKE_DIR}/gh.calls")" -eq 1 ]
 }
