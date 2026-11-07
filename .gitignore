@@ -4,6 +4,10 @@
 # direnv per-checkout cache; see: https://direnv.net/
 /.direnv/
 
+# npm ci and npm run check in the tutorials site; see: projects/tutorials/README.md
+/projects/tutorials/node_modules/
+/projects/tutorials/dist/
+
 # kit:generate .gitignore
 # per-issue worktrees for agents; see: .kit/1st.md
 /worktrees/

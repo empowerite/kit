@@ -48,6 +48,7 @@
         pkgs.lychee
         (ajv-cli pkgs)
         pkgs.markdownlint-cli2
+        pkgs.nodejs_24
         pkgs.open-policy-agent
         pkgs.parallel
         pkgs.shellcheck

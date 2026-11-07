@@ -9,6 +9,8 @@
 #   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
 #     their schemas
 #   - lychee: every link in the markdown, offline, including fragments
+#   - ajv: the front matter of every page of the tutorials site against its schema
+#   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, a build for a base, and verify-dist
 #   - the bats suite, one job per CPU, each test stopped and failed at five minutes
 #   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with at least 98% of its statements covered
 #   - kit/bin/kit check over this repository's installed copy of its own kit
@@ -45,6 +47,15 @@ do
 done
 ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d "${frontmatter}/kinds/*.yml"
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
+# A tutorial's front matter is YAML between the two --- lines too, read the same way, from a directory of its own.
+mkdir "${frontmatter}/tutorials"
+while IFS= read -r file
+do
+  awk 'NR == 1 && $0 == "---" { on = 1; next } on && $0 == "---" { exit } on' "${file}" \
+    > "${frontmatter}/tutorials/${file//\//-}.yml"
+done < <(find projects/tutorials/src -name '*.mdx')
+ajv validate --spec=draft2020 -s projects/tutorials/frontmatter.schema.json -d "${frontmatter}/tutorials/*.yml"
+(cd projects/tutorials && npm ci --no-audit --no-fund && npm run check)
 # The slowest test takes about a minute on a runner and over two at a desk; one that waits on a terminal forever
 # fails at five minutes, naming itself. The tests run side by side, one job per CPU, on GNU parallel from mise.toml:
 # nearly all their time goes to starting short processes, so more jobs than CPUs only queue.
