@@ -447,7 +447,8 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under one heading that names the columns the panel groups by, the outermost first, between dim
-// ›, and how many rows they group, dim; and under it, a heading per value of each column, the groups in their values'
+// ›, each after its level's fold, ▾ while every heading of the level stands open, ▸, dim, while one does not, and how
+// many rows they group, dim; and under it, a heading per value of each column, the groups in their values'
 // order, the larger first where the column sorts descending, and the rows in each as they came: a heading of a value,
 // an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
 // it heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values
@@ -514,14 +515,10 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	same := func(a, b entry, depth int) bool { return slices.Equal(a.values[:depth+1], b.values[:depth+1]) }
 	var out []Row
 	if len(entries) > 0 {
-		var titles []string
-		for _, j := range at {
-			titles = append(titles, columns[j])
-		}
-		heading := p.fold(byFields) + " " + strings.Join(titles, style.Off(" ›")+" ") + "  " +
-			style.Off(strconv.Itoa(len(grouped)))
-		out = append(out, Row{Key: byFields, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
+		out = append(out, Row{Key: byFields, Aside: true}) // its text says each level's fold, once they are known
 	}
+	// closed says, of each level, whether one of its headings stands closed
+	closed := make([]bool, len(at))
 	for i, e := range entries {
 		for depth := range at {
 			if i > 0 && same(entries[i-1], e, depth) {
@@ -540,11 +537,27 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			for _, v := range e.values[:depth+1] {
 				key += "\x00" + v
 			}
+			if !p.Outline.Open(Row{Key: key, Aside: true}) {
+				closed[depth] = true
+			}
 			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + e.heads[depth] + "  " +
 				style.Off(strconv.Itoa(n))
 			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 		}
 		out = append(out, e.row)
+	}
+	if len(out) > 0 {
+		var titles []string
+		for depth, j := range at {
+			glyph := Unfolded
+			if closed[depth] {
+				glyph = style.Off(Folded)
+			}
+			titles = append(titles, glyph+" "+columns[j])
+		}
+		heading := p.fold(byFields) + " " + strings.Join(titles, style.Off(" ›")+" ") + "  " +
+			style.Off(strconv.Itoa(len(grouped)))
+		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
 }

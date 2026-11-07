@@ -98,9 +98,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
     whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
-    one heading that names the grouped columns, `▾ source › assignees`, and a heading per value under it. A click on
-    a column's name in that heading, or ⏎ on it, drops the column's own menu, in `heading.go`, as a name in the
-    header does; only its ▾ or ▸ folds it. A click anywhere on a value's heading opens or closes it.
+    one heading that names the grouped columns, `▾ ▾ source › ▾ assignees`, and a heading per value under it. A click
+    on a column's name in that heading, or ⏎ on it, drops the column's own menu, in `heading.go`, as a name in the
+    header does; its first ▾ or ▸ folds it all, and the one before each name closes every heading of that level, or
+    opens them and every heading over them. A click anywhere on a value's heading opens or closes it. A field of
+    several values, as assignees or labels, groups too: a row stands under each of its values, the same row, its
+    selection one.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
     right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and

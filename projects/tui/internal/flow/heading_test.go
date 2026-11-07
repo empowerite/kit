@@ -127,3 +127,42 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 		t.Errorf("a value's heading names %+v", names)
 	}
 }
+
+// A click on the ▾ before a column's name in the heading over the groups closes every heading of its level, which
+// then shows ▸; a click on that ▸ opens them again, with every heading over them, so the rows stand open down to it.
+func TestALevelsFoldInTheHeadingOverTheGroupsFoldsEveryHeadingOfIt(t *testing.T) {
+	m := nested(t)
+	all := len(m.rows(0))
+	spots := m.headingNames(m.rows(0)[0])
+	glyph := func(column string) string {
+		for _, n := range m.headingNames(m.rows(0)[0]) {
+			if n.column == column {
+				return ansi.Strip(ansi.Cut(lines(m)[m.rowsTop()], n.from-2, n.from-1))
+			}
+		}
+		return ""
+	}
+	if glyph("assignees") != grid.Unfolded {
+		t.Fatalf("assignees' fold: %q in %q", glyph("assignees"), ansi.Strip(lines(m)[m.rowsTop()]))
+	}
+	// assignees' level closed: every assignee's heading folds its rows away, the sources' headings open still
+	if m = drive(m, testkit.Click(spots[1].from-2, m.rowsTop())); len(m.rows(0)) >= all || m.colMenu.Open ||
+		glyph("assignees") != grid.Folded || glyph("source") != grid.Unfolded {
+		t.Fatalf("assignees' level closed: %d rows of %d, folds %q %q\n%s", len(m.rows(0)), all, glyph("source"),
+			glyph("assignees"), view(m))
+	}
+	for _, r := range m.rows(0) {
+		if !r.Aside {
+			t.Errorf("a row shows under a closed assignee: %q", r.Key)
+		}
+	}
+	// the sources' level closed, then assignees' opened: everything down to the assignees opens again
+	m = drive(m, testkit.Click(spots[0].from-2, m.rowsTop()))
+	if glyph("source") != grid.Folded {
+		t.Errorf("source's level closed: %q", glyph("source"))
+	}
+	if m = drive(m, testkit.Click(spots[1].from-2, m.rowsTop())); len(m.rows(0)) != all ||
+		glyph("source") != grid.Unfolded || glyph("assignees") != grid.Unfolded {
+		t.Errorf("assignees' level opened: %d rows of %d\n%s", len(m.rows(0)), all, view(m))
+	}
+}

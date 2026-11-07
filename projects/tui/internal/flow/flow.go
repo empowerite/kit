@@ -1245,7 +1245,11 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	toggle := first && link == "" && (x >= 0 && x < len(lead) || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	name, onName := m.nameAt(rows[row], x)
+	level, onLevel := m.levelAt(rows[row], x)
 	switch {
+	case onLevel && !subtree:
+		m.foldLevel(level)
+		m.fit()
 	case onName && !subtree:
 		m.openFieldMenu(row, name.column)
 	case grid.OverGroups(rows[row]) && (x < 0 || x >= len(lead)):

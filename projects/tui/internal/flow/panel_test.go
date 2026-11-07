@@ -392,7 +392,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		}
 		return ""
 	}
-	if got := heading(m); got != grid.Unfolded+" source  4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
+	if got := heading(m); got != grid.Unfolded+" "+grid.Unfolded+" source  4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
 		m.is(m.stage) != Opening || !strings.Contains(m.columnsLine("source"), grid.GroupMark(1)) {
 		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
@@ -483,7 +483,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	}
 	unfold(&m)
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
-	over := column(m, "source › assignees", grid.Unfolded)
+	over := column(m, "source › ", grid.Unfolded)
 	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
 	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d, %d and %d, a row's ▸ at %d:\n%s", over, outer, inner, r, view(m))
