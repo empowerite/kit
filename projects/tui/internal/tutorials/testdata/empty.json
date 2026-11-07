@@ -1,0 +1,10 @@
+{
+  "version": "unreleased",
+  "base": "https://empowerite.github.io/kit/tutorials/main/",
+  "audiences": [
+    {"id": "newcomer", "label": "Just starting"},
+    {"id": "ui", "label": "UI"},
+    {"id": "maintainer", "label": "Maintainer"}
+  ],
+  "tutorials": []
+}

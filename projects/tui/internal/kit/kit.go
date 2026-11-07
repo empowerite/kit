@@ -1,6 +1,6 @@
 // Package kit runs the kit CLI for the binary: the grammar and the help it reads, the choices and the extension it
-// asks for as a form fills, the exec that finishes a verb, and kit welcome's checks and fixes. The binary knows no
-// verb by name; every word it shows comes through here.
+// asks for as a form fills, the exec that finishes a verb, kit welcome's checks and fixes, and the tutorials'
+// catalogue. The binary knows no verb by name; every word it shows comes through here.
 package kit
 
 import (
@@ -388,6 +388,50 @@ func (r Runner) WelcomeFix(id string) *exec.Cmd {
 	cmd := exec.Command(r.Kit, "welcome", "--fix", id)
 	cmd.Dir = r.Dir
 	return cmd
+}
+
+// Catalogue is the tutorials kit knows, as kit tutorials --json prints them: the kit's version, the base every link
+// starts with, the audiences in the order they are shown, and the tutorials in theirs.
+type Catalogue struct {
+	Version   string     `json:"version"`
+	Base      string     `json:"base"`
+	Audiences []Audience `json:"audiences"`
+	Tutorials []Tutorial `json:"tutorials"`
+}
+
+// Audience is one of the audiences a tutorial is for: the id a tutorial and --tag name it by, and its label.
+type Audience struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+// Tutorial is one tutorial: its id, title, summary, and glyph; the ids of the audiences it is for; and its link,
+// which carries the kit's version as ?kit=, so the page knows the reader's kit.
+type Tutorial struct {
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Summary  string   `json:"summary"`
+	Glyph    string   `json:"glyph"`
+	Audience []string `json:"audience"`
+	URL      string   `json:"url"`
+}
+
+// Tutorials gives the catalogue, as kit tutorials --json prints it with a --tag for each tag, which keeps the
+// tutorials for any of those audiences; no tag keeps them all. It has callLimit at most, and ends when ctx does.
+func (r Runner) Tutorials(ctx context.Context, tags []string) (Catalogue, error) {
+	args := []string{"tutorials", "--json"}
+	for _, tag := range tags {
+		args = append(args, "--tag", tag)
+	}
+	var c Catalogue
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), args...)
+	if err != nil {
+		return c, err
+	}
+	if err := json.Unmarshal(out, &c); err != nil {
+		return c, fmt.Errorf("kit tutorials --json: %w", err)
+	}
+	return c, nil
 }
 
 // Root gives the directory of the release that runs, as kit root prints it.

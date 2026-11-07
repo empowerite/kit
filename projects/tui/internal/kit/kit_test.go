@@ -271,6 +271,7 @@ func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 		_, _, calls["Extend"] = r.Extend("new", nil)
 		_, calls["Match"] = r.Match("commit", nil)
 		_, calls["WelcomeChecks"] = r.WelcomeChecks(context.Background())
+		_, calls["Tutorials"] = r.Tutorials(context.Background(), nil)
 		if r.Kit == missing.Kit {
 			_, calls["List"] = r.List()
 			_, calls["Choices"] = r.Choices("commit", "<path>", nil)
@@ -386,5 +387,43 @@ func TestActGivesWhatKitSaidAndItsRefusal(t *testing.T) {
 	if _, err = (Runner{Kit: filepath.Join(t.TempDir(), "none")}).Act(context.Background(), "assign"); err == nil ||
 		errors.As(err, &exit) {
 		t.Errorf("a kit that is not there: %v", err)
+	}
+}
+
+// Tutorials runs kit tutorials --json with a --tag for each tag, and decodes the catalogue: the audiences, and each
+// tutorial with its link, which carries the kit's version; kit's refusal is an ExitError.
+func TestTutorialsDecodesTheCatalogue(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("FAKE_KIT_RECORD", record)
+	r := fake(t, "")
+	c, err := r.Tutorials(context.Background(), []string{"ui", "newcomer"})
+	if err != nil || len(c.Tutorials) != 2 || c.Version != "unreleased" ||
+		c.Base != "https://empowerite.github.io/kit/tutorials/main/" {
+		t.Fatalf("Tutorials: %v, %+v", err, c)
+	}
+	if want := (Audience{ID: "newcomer", Label: "Just starting"}); len(c.Audiences) != 3 || c.Audiences[0] != want {
+		t.Errorf("audiences: %+v", c.Audiences)
+	}
+	first := c.Tutorials[0]
+	if first.ID != "kit-tutorials" || first.Title != "Reading kit's tutorials" || first.Glyph != "🎓" ||
+		!strings.HasPrefix(first.Summary, "How the tutorials") || strings.Join(first.Audience, " ") != "newcomer" {
+		t.Errorf("the first tutorial: %+v", first)
+	}
+	for k, want := range []string{
+		"https://empowerite.github.io/kit/tutorials/main/kit-tutorials/?kit=unreleased",
+		"https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased",
+	} {
+		if c.Tutorials[k].URL != want {
+			t.Errorf("tutorial %d: %q", k, c.Tutorials[k].URL)
+		}
+	}
+	if got, _ := os.ReadFile(record); string(got) != "tutorials --json --tag ui --tag newcomer\n" {
+		t.Errorf("kit ran as %q", got)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "tutorials")
+	_, err = r.Tutorials(context.Background(), nil)
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != 2 || !strings.HasPrefix(err.Error(), "kit tutorials refuses") {
+		t.Errorf("a kit that exits 2: %v", err)
 	}
 }

@@ -12,7 +12,8 @@
 # FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign
 # and close act: each says what it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1. new issue --list --json
 # lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and
-# FAKE_KIT_UNPARSED=new answers with what is not JSON.
+# FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials screen's catalogue, its words
+# written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
 
 set -o errexit -o nounset -o pipefail
 
@@ -156,6 +157,15 @@ case "${1:-}" in
     ;;
   (root)
     printf '/the/release\n'
+    ;;
+  (tutorials)
+    [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" > "${FAKE_KIT_RECORD}"
+    if [[ "${FAKE_KIT_REFUSE:-}" == tutorials ]]
+    then
+      echo "❌ kit tutorials refuses for the test; run: kit help tutorials" >&2
+      exit 2
+    fi
+    cat "${here}/../../tutorials/testdata/catalogue.json"
     ;;
   (welcome)
     # --checks prints the welcome screen's fixture; --fix falls through to the record below
