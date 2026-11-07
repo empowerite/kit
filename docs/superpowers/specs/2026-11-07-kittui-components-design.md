@@ -169,10 +169,14 @@ the worktree agree.
 
 Watch, issue #88's third step, is built now as designed: it reads like `source`'s, and step 5 moves it with the marks.
 
+## Decided
+
+- A table reads each record as a map of values by field id, as it does now. An interface a table asks for its values
+  is not needed yet.
+
 ## Left to the builder
 
 - The names of the packages, and whether `dialog` folds into `menu` once both exist.
-- Whether a record is a map of values by field id, as now, or an interface a table asks for its values.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.
