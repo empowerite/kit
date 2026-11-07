@@ -144,3 +144,43 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Errorf("don't sort by id: %+v", sorts())
 	}
 }
+
+// A click on the cell right after a column's name sorts by it alone, ascending, where it does not sort yet, and turns
+// its sort around where it does, never off; the cell after that does the same, unless it stands against the next
+// column's name, where a click does nothing. The name itself still drops the column menu down.
+func TestAClickJustAfterAColumnsNameSortsByIt(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
+	// after gives the screen column of the cell right after a column's name, its sort mark apart
+	after := func(m Model, column string) int {
+		j := slices.Index(m.shownColumns(m.stage), column)
+		start, first := grid.HeaderName(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), j)
+		return m.indent(m.stage) + start + ansi.StringWidth(strings.TrimSuffix(first, " "+m.panel(m.stage).Mark(column)))
+	}
+	keys := func(m Model) int { return len(m.panel(m.stage).SortKeys()) }
+	mark := func(m Model, column string) string { return m.panel(m.stage).Mark(column) }
+	// age stands two cells before branch: the cell after it sorts, the next, against branch's name, does nothing
+	if m = drive(m, testkit.Click(after(m, "age")+1, paneTop)); keys(m) != 0 || m.colMenu.open {
+		t.Fatalf("a click against branch's name: %d keys, menu %v", keys(m), m.colMenu.open)
+	}
+	if m = drive(m, testkit.Click(after(m, "age"), paneTop)); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.open {
+		t.Fatalf("a click right after age: %d keys, age %q, menu %v", keys(m), mark(m, "age"), m.colMenu.open)
+	}
+	// again turns it around, and again back, never off
+	for _, want := range []string{"▼", "▲"} {
+		if m = drive(m, testkit.Click(after(m, "age"), paneTop)); keys(m) != 1 || mark(m, "age") != want {
+			t.Fatalf("another click after age: %d keys, age %q", keys(m), mark(m, "age"))
+		}
+	}
+	// assignees has room after its name: the second cell sorts by it alone too
+	if m = drive(m, testkit.Click(after(m, "assignees")+1, paneTop)); keys(m) != 1 || mark(m, "assignees") != "▲" {
+		t.Errorf("a click two cells after assignees: %d keys, assignees %q", keys(m), mark(m, "assignees"))
+	}
+	// off the names' line, as on the rule under them, the cells after a name sort nothing
+	if column := m.sortAt(after(m, "assignees"), paneTop+1); column != "" {
+		t.Errorf("the rule under assignees sorts %q", column)
+	}
+	// the name itself drops the column menu down, and sorts nothing
+	if m = drive(m, testkit.Click(after(m, "branch")-2, paneTop)); !m.colMenu.open || keys(m) != 1 {
+		t.Errorf("a click on branch's name: menu %v, %d keys", m.colMenu.open, keys(m))
+	}
+}

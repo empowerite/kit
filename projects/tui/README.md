@@ -53,7 +53,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     enum or a person, and its rendering. What it sets applies at once. A click on a column's name drops down its
     menu, around the name, as ≡'s and ⋮'s hang around theirs: sort by it alone, then by it after the other keys, or
     not by it; group by it alone or then by it, within the groups; and Options…, its popover, titled over the name.
-    A click on a column's ▲ or ▼ turns its sort around, and a shift-click on it stops it. A terminal such as iTerm
+    A click on the cell right after a column's name, or on the cell after that unless it stands against the next
+    name, sorts by the column alone, ascending, and on a column that sorts already turns its sort around; that is
+    where its ▲ or ▼ stands, and a shift-click on the mark stops the sort. A terminal such as iTerm
     keeps ⌥, ⌃, shift, and the right button with a click for its own selection and menu, so the menu is the one way
     that works everywhere. Where the terminal sends them, ⌥ with a click adds a sort key, ⌃ groups, ⌥⌃ nests, and
     the right button drops the menu too. The presets' menu hangs around the preset line's selector the same way.

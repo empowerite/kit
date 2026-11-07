@@ -167,6 +167,41 @@ func (m Model) headerColumn(x, y int) string {
 	return m.shownColumns(m.stage)[j]
 }
 
+// sortAt gives the column whose sort a click at x, y on the header turns, one that can sort: on its sort mark, as onMark
+// says; or, on the names' first line, on the cell right after its name, or on the cell after that, unless that one
+// stands against the next column's name. Where a column does not sort yet, those cells are blank, and still sort it.
+// Nothing elsewhere.
+func (m Model) sortAt(x, y int) string {
+	rows, names, width, in := m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), m.indent(m.stage)
+	shown, p := m.shownColumns(m.stage), m.panel(m.stage)
+	if m.onMark(x, y) {
+		if j := grid.HeaderAt(rows, names, width, x-in); j >= 0 && p.Sortable[shown[j]] {
+			return shown[j]
+		}
+	}
+	if y != paneTop {
+		return ""
+	}
+	starts, ends := map[int]bool{}, map[int]string{}
+	for j, column := range shown {
+		start, first := grid.HeaderName(rows, names, width, j)
+		if start < 0 {
+			continue
+		}
+		starts[in+start] = true
+		if p.Sortable[column] {
+			ends[in+start+ansi.StringWidth(strings.TrimSuffix(first, " "+p.Mark(column)))] = column
+		}
+	}
+	if column, ok := ends[x]; ok {
+		return column
+	}
+	if column, ok := ends[x-1]; ok && !starts[x+1] {
+		return column
+	}
+	return ""
+}
+
 // onMark says whether a click at x, y on a line of the header's names falls on a column's sort mark, its ▲ or ▼ and
 // the number after it, or the cell before the triangle.
 func (m Model) onMark(x, y int) bool {

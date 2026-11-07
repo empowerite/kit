@@ -557,8 +557,9 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 }
 
 // clickHeader takes a click on the header, which is no row, above its rule, the preset line: on its gutter it opens the
-// header, or closes it, when it hides lines; on a column's sort mark, its ▲ or ▼, it turns the column's sort around,
-// or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column menu down under it. Where the
+// header, or closes it, when it hides lines; on a column's sort target, as sortAt says, its ▲ or ▼ or the cells right
+// after its name, it sorts by the column alone, ascending, where it does not sort yet, and turns its sort around where
+// it does, or, with shift, as drop asks, stops it; elsewhere on a column's name it drops the column menu down under it. Where the
 // terminal sends option or ctrl with a click, as many do not, also, as option asks, sorts by the column after the
 // others, as the panel's Sorted says, and group, as ctrl asks, groups the rows by it alone, or, with also, within the
 // groups they have, as the panel's Grouped says. Elsewhere it does nothing.
@@ -579,16 +580,22 @@ func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
-	if j < 0 {
+	target := m.sortAt(x+m.indent(m.stage), y)
+	if j < 0 && target == "" {
 		return nil
 	}
-	column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
+	column, p := target, m.panel(m.stage)
+	if column == "" {
+		column = m.shownColumns(m.stage)[j]
+	}
 	switch {
 	case group:
 		m.setPanel(p.Grouped(column, also))
 	case also:
 		m.setPanel(p.Sorted(column, true))
-	case m.onMark(x+m.indent(m.stage), y) && p.Mark(column) != "":
+	case target != "" && p.Mark(column) == "":
+		m.setPanel(p.Sorted(column, false))
+	case target != "":
 		d := grid.Descending
 		switch {
 		case drop:
