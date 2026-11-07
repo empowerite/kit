@@ -48,7 +48,7 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 		m.headMenu.column != "source" {
 		t.Fatalf("a click on source: menu %+v, cursor %d", m.headMenu, m.stages[0].cursor)
 	}
-	want := []string{ExpandUnder, CollapseUnder, "", SelectGroup, "", UngroupIt}
+	want := []string{ExpandGroup, CollapseGroup, "", SelectGroup, "", UngroupIt}
 	// the rows under it are closed, so both expand and collapse act
 	if got := menuNames(m); !slices.Equal(got, want) || !m.headingEnabled(0) || !m.headingEnabled(1) ||
 		m.headMenu.at != 0 || !m.headingEnabled(5) {
@@ -56,7 +56,7 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 	}
 	box, top, _ := m.headingBox()
 	if edge := ansi.Strip(box[0]); top != m.rowsTop() || !strings.Contains(edge, "╴source╶") || strings.Contains(edge, "github") ||
-		!strings.Contains(raw(m), CollapseUnder) || !strings.Contains(lines(m)[len(lines(m))-1], "esc") {
+		!strings.Contains(raw(m), CollapseGroup) || !strings.Contains(lines(m)[len(lines(m))-1], "esc") {
 		t.Errorf("the box hangs at %d, %q:\n%s", top, edge, raw(m))
 	}
 	// down and enter collapse everything under the heading, and close the menu
@@ -94,7 +94,7 @@ func TestAClickOnAColumnsNameInAHeadingDropsItsMenu(t *testing.T) {
 		len(m.rows(0)) != all || m.selected() != 0 {
 		t.Error("a click off the menu did something, or left it open")
 	}
-	// with everything open, Expand All Under It is dim: up passes over it, and a click on it does nothing but close
+	// with everything open, Expand Group is dim: up passes over it, and a click on it does nothing but close
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt}, testkit.Click(x, m.rowsTop()), up)
 	if m.headingEnabled(0) || m.headMenu.at != 1 {
 		t.Errorf("up with everything open: at %d, expand enabled %v", m.headMenu.at, m.headingEnabled(0))
@@ -125,7 +125,7 @@ func TestTheHeadingMenuOverEveryRowAndAfterItsHeadingGoes(t *testing.T) {
 		t.Fatalf("the menu over every row: %q, ungroup enabled %v", got, m.headingEnabled(5))
 	}
 	m.headMenu.key = "a heading a reload took away"
-	if box, _, _ := m.headingBox(); box != nil || m.headingEnabled(0) || strings.Contains(raw(m), CollapseUnder) {
+	if box, _, _ := m.headingBox(); box != nil || m.headingEnabled(0) || strings.Contains(raw(m), CollapseGroup) {
 		t.Error("the menu of a heading gone still draws")
 	}
 	if m = drive(m, testkit.Click(x, m.rowsTop())); m.headMenu.open {

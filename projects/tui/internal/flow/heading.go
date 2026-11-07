@@ -65,8 +65,8 @@ func (m Model) headingNames(r row) []nameSpot {
 // The heading menu's lines: everything under the heading opened or closed, the group's rows selected or, once every
 // one is, unselected, and the rows no longer grouped by its column, as the column menu's Ungroup says.
 const (
-	ExpandUnder   = "Expand All Under It"
-	CollapseUnder = "Collapse All Under It"
+	ExpandGroup   = "Expand Group"
+	CollapseGroup = "Collapse Group"
 	SelectGroup   = "Select Group"
 	UnselectGroup = "Unselect Group"
 )
@@ -98,7 +98,7 @@ func (m Model) headingItems() []shell.Item {
 			selecting = UnselectGroup
 		}
 	}
-	return []shell.Item{{Glyph: Expand, Name: ExpandUnder}, {Glyph: Collapse, Name: CollapseUnder}, {},
+	return []shell.Item{{Glyph: Expand, Name: ExpandGroup}, {Glyph: Collapse, Name: CollapseGroup}, {},
 		{Glyph: Every, Name: selecting}, {}, {Glyph: UngroupGlyph, Name: UngroupIt}}
 }
 

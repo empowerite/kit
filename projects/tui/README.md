@@ -40,22 +40,25 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
   and leaves the old file as it is.
   - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
-    rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is
-    set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
-    name is in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on it
-    drops down ◫ Columns…, the columns dialog, then Save, Save As…, Rename…, Delete, and the presets.
-    Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and ⏎
-    saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line was
-    set to, and are dim on Default and Compact. What was done is said in place of the keys, for five seconds or until
-    a key; why something was not done stays until a key.
-  - The columns dialog, in `columns.go`, opens from ◫ at the header's right end, or Columns… in the presets' menu: every
-    field a line, those the rows group by first, then the columns as they stand, then the hidden, each with whether it
-    shows, its sort and its place among the keys, and its group's depth. What it sets applies at once: space shows or
-    hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups or out, and ⏎ opens its Options…; a click on
-    a line's box, sort, or group does as space, s, or g.
-  - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no
-    sidebar: the rows take the screen's width. Whether shared values fold into a group's heading, and whether shared
-    emoji show, are kittui's settings, in = Settings…, every view's alike.
+    rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is set
+    as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the name is
+    in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on it drops down
+    the presets' menu, titled Presets at its left as a dialog is, from the header's first line, its right edge over the
+    ▼: 📇 Fields…, the columns dialog, then Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in
+    the selector's place, the person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name
+    the same way. Save, Rename…, and Delete act on the person's preset the line was set to, and are dim on Default and
+    Compact. What was done is said in place of the keys, for five seconds or until a key; why something was not done
+    stays until a key.
+  - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
+    header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
+    stand, then the hidden, each with whether it shows, its sort and its place among the keys, and its group's depth.
+    What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
+    or out, and ⏎ opens its Options…; a click on a line's box, sort, or group does as space, s, or g.
+  - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
+    the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
+    heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
+    group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which keeps an emoji every row
+    shows instead of dropping it, are kittui's settings, in = Settings…, every view's alike.
   - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph the selected stage's rows
     draw now means, and nothing of a glyph they do not, each glyph a click leads somewhere from marked. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It
@@ -90,7 +93,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
     whether all are or some. What stands open lasts the session; a preset does not keep it. A click on a column's
     name in a heading, or ⏎ on the heading, drops the heading menu, in `heading.go`, around the name, titled by it:
-    Expand All Under It, Collapse All Under It, Select Group, and Ungroup by the column, dim on one the rows group by
+    Expand Group, Collapse Group, Select Group, and Ungroup by the column, dim on one the rows group by
     on their own, so what ⌥ and ⌃ do there takes a plain click too. A click anywhere else on the heading opens or
     closes it.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
