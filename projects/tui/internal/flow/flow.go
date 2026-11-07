@@ -128,6 +128,7 @@ type Model struct {
 	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
 	presetsPath   string                 // that file, or none
 	presetMenu    bool                   // whether the preset line's menu of views is open
+	colMenu       columnMenu             // the menu a right click on a column's name drops, while it is open
 	presetAt      int                    // the line of that menu under the keyboard
 	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                   // whether the stages' tables have no preset line
@@ -295,6 +296,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.presetMenuClick(msg.X, msg.Y)
 			return m, nil
 		}
+		if m.colMenu.open {
+			return m, m.columnClick(msg.X, msg.Y)
+		}
 		if m.recent.Open {
 			var query string
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -322,7 +326,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.appMenu = m.appMenu.Opened()
 		case len(m.stages) > 0 && grouping(msg) && msg.Y >= paneTop && msg.Y < paneTop+m.paneHeight() &&
 			msg.X < m.paneWidth():
-			m.groupClick(msg.X, msg.Y, extends(msg))
+			m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
 		case msg.Button != tea.MouseLeft:
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
@@ -489,8 +493,8 @@ func (m *Model) clickPanel(x, line int) tea.Cmd {
 	return nil
 }
 
-// grouping says whether a click groups rather than sorts or selects: with ctrl held, or with the right button, as a
-// terminal on macOS may send ctrl with a click.
+// grouping says whether a click groups rather than sorts or selects: with ctrl held, where the terminal sends it, or
+// with the right button, which on a column's name drops its menu down, and on a group's heading ungroups.
 func grouping(msg tea.MouseClickMsg) bool {
 	return msg.Mod&tea.ModCtrl != 0 || msg.Button == tea.MouseRight
 }
@@ -500,9 +504,14 @@ func grouping(msg tea.MouseClickMsg) bool {
 // own selection, and never sends it.
 func extends(msg tea.MouseClickMsg) bool { return msg.Mod&tea.ModAlt != 0 }
 
-// groupClick takes a click that groups, as grouping says: on a column's name in the header, the rows group by it, as
-// clickHeader says; on a group's heading, they no longer group by its column, the other groups kept.
-func (m *Model) groupClick(x, y int, nest bool) {
+// groupClick takes a click that groups, as grouping says: a right click on a column's name in the header drops the
+// column menu down under it; a ctrl-click there groups the rows by it, as clickHeader says; on a group's heading, they no
+// longer group by its column, the other groups kept.
+func (m *Model) groupClick(x, y int, nest, right bool) {
+	if column := m.headerColumn(x, y); right && column != "" {
+		m.openColumnMenu(column, x, y)
+		return
+	}
 	if y < m.rowsTop() {
 		m.clickHeader(x, y, nest, true, false)
 		return
@@ -770,6 +779,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.presetMenu {
 		return m.presetMenuKey(k)
+	}
+	if m.colMenu.open {
+		return m.columnKey(k)
 	}
 	if m.recent.Open {
 		var query string

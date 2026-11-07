@@ -532,9 +532,9 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	}
 }
 
-// A click on a column's name with ctrl or option held, or with the right button, as macOS may send a ctrl-click,
-// groups the rows by it alone; with shift too, within the groups there are. The same click on a group's heading stops
-// grouping by its column alone, the other groups kept; on a row, it does nothing.
+// A click on a column's name with ctrl held, where the terminal sends it, groups the rows by it alone; with option too,
+// within the groups there are. The same click, or a right click, on a group's heading stops grouping by its column
+// alone, the other groups kept; on a row, it does nothing.
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	unfold(&m) // the source, one tracker's on every row, a column

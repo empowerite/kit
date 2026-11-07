@@ -48,9 +48,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     or shows it again. Under them, two boxes: fold shared values, and show shared emoji, which a preset keeps.
   - ⏎ on a field opens its popover: its sort, the checklist of values its filter lets through or holds back, for an
     enum or a person, and its rendering. What it sets applies at once. A double click on a column's name opens the
-    same popover, and puts back the sort the first click of it changed. A click on the name sorts by it alone, and
-    with ⌥ adds it after the other sort keys. With ⌃, or the right button, it groups by it alone, and with ⌥⌃ nests
-    it within the groups. Shift is not used, because many terminals keep it for their own selection.
+    same popover, and puts back the sort the first click of it changed. A click on the name sorts by it alone. A
+    right click drops down the column's menu: sort by it alone or then by it, after the other keys; group by it alone
+    or then by it, within the groups; and Options…, its popover. Where the terminal sends them, ⌥ with a click adds a
+    sort key, ⌃ groups, and ⌥⌃ nests, but many keep ⌥, ⌃, and shift with a click for their own selection and menu.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title

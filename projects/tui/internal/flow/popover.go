@@ -120,17 +120,12 @@ func (m Model) popLines(id string) []popLine {
 		radio(name, g.Rendering == r, func(p grid.Panel) grid.Panel { return p.Rendered(id, r) })
 	}
 	// what a click on its name in the header does, dim, as nothing here acts on it
-	var clicks []string
-	if f.Sort {
-		clicks = append(clicks, "click sorts", "⌥ adds")
-	}
-	if f.Group {
-		clicks = append(clicks, "⌃ groups", "⌥⌃ nests")
-	}
-	if len(clicks) > 0 {
+	if f.Sort || f.Group {
 		heading("on its name")
-		for k := 0; k < len(clicks); k += 2 {
-			heading(clicks[k] + " · " + clicks[k+1])
+		if f.Sort {
+			heading("click sorts · right click more")
+		} else {
+			heading("right click groups, and more")
 		}
 	}
 	return out

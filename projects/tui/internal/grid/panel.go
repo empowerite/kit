@@ -904,15 +904,14 @@ func (p Panel) Lines() (lines []string, at []int) {
 }
 
 // hints gives the dim lines under the editor, while the panel has the keyboard, that say how a field moves, and what its
-// popover sets; then what a click on a column's name in the header does, alone and with option, ctrl, or both, and two.
+// popover sets; then what a click on a column's name in the header does, a right click, and two.
 func (p Panel) hints() []string {
 	return append([]string{"⇧↑↓  move, or drag", "⏎    sort, filter, draw", ""}, Clicks...)
 }
 
-// Clicks say what a click on a column's name in the header does: sort by it alone, or after the others with option;
-// group by it alone with ctrl, or within the groups with both; and two open its field's popover.
-var Clicks = []string{"click     sort", "⌥ click   add a sort", "⌃ click   group", "⌥⌃ click  nest a group",
-	"2× click  options"}
+// Clicks say what a click on a column's name in the header does: sort by it alone; a right click drops down the
+// column's menu, which sorts by it after the others, and groups by it; and two open its field's popover.
+var Clicks = []string{"click        sort", "right click  menu", "2× click     options"}
 
 // Update takes a key while the panel has the keyboard, and says whether it took it: up and down move between the
 // controls, stopping at the ends; on the search, a printable key is typed, / too, and backspace takes one back; off it,

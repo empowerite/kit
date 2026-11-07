@@ -147,7 +147,7 @@ func (m Model) keys() shell.Path {
 		return shell.Path{shell.DialogKeys(keys)}
 	case m.pop.open:
 		return shell.Path{m.popKeys()}
-	case m.presetMenu, m.recent.Open, m.menu, m.appMenu.Open:
+	case m.presetMenu, m.colMenu.open, m.recent.Open, m.menu, m.appMenu.Open:
 		return shell.Path{shell.MenuKeys()}
 	}
 	if len(m.stages) == 0 {

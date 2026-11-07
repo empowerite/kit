@@ -311,5 +311,9 @@ func (m Model) float(lines []string) []string {
 		box, top, left := m.popBox()
 		lines = shell.Over(lines, box, top, left)
 	}
+	if m.colMenu.open {
+		box, top, left := m.columnBox()
+		lines = shell.Over(lines, box, top, left)
+	}
 	return m.recent.Overlay(lines, m.recallAt(), m.width)
 }
