@@ -80,7 +80,7 @@ Each row names the component, its package, what it owns, and where it is today.
 | --- | --- | --- | --- |
 | Control | `shell` | the contract every interactive piece meets | implicit, per screen |
 | Layers | `shell` | the ordered open controls: focus, keys, clicks, overlays | `key`, `keys`, and the clicks in `flow` |
-| Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | `shell.Menu`, done; four copies in `flow` |
+| Menu | `shell`, as `Dropdown` | open or not, the cursor, its keys and its clicks | done: the app's, the tab's, the column, and the presets' menus |
 | Dialog | `dialog` | a titled box of acting lines, radios, and boxes | `popover.go`, `columns.go`, `shell.SettingsDialog`, the ask dialog |
 | Frame | `frame` | title, app menu, search, tab bar, pane, notice with fade, keys bar and its right end | each screen's `View` |
 | Table | `table` | catalog, types, renderers, presets, auto renderings, fields dialog, column and heading menus, popover, outline | `flow` and `grid` |
@@ -114,9 +114,9 @@ and which of them act are its owner's, given to each call, since they follow wha
 down, enter, space, esc, a key its owner names, a typed letter, and a click on a line of its box, and gives back the
 line chosen. A menu that does more, as the column menu moves its column on ⇧←→, takes those keys before it hands the
 rest to the dropdown. It lives in `shell`, not a package of its own, because the app's menu, `shell.Menu`, embeds it,
-and `shell` cannot import a package that imports `shell`. The app's menu is on it already; the tab menu, the column
-menu, the heading menu, and the presets' menu each move onto it in a commit of their own. Disabled lines stay, dim,
-as kittui's menus show them.
+and `shell` cannot import a package that imports `shell`. The app's menu, the tab menu, the column menu, and the
+presets' menu are each on it; the heading menu is gone. A click on a line that cannot act does nothing on every one of
+them. Disabled lines stay, dim, as kittui's menus show them.
 
 ### Dialog
 
@@ -159,8 +159,7 @@ records each timer and fires none until the test says so, so no test can hang on
 Each step is one commit, keeps every test and golden as it is, and lands while `flow` is quiet, as the sessions in
 the worktree agree.
 
-1. `shell.Dropdown`: the menu type and the app's menu on it, done; then the four menus in `flow` moved onto it, one
-   commit each, smallest first. It removes the most copied code at the least risk.
+1. `shell.Dropdown`: the menu type, and every menu on it, one commit each. Done.
 2. `shell.Layers` and `Control`: the menus first, then the dialogs, the search, the preset line, and the rows. `key`,
    `keys`, and the clicks in `flow` shrink to one call each.
 3. `dialog`: the popover, the fields dialog, the settings dialog, and the ask dialog moved onto it.
