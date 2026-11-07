@@ -133,16 +133,40 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
 }
 
 @test "without an opener, the link prints" {
-  # a uname that says Linux makes xdg-open the opener, which a machine without one lacks
-  command -v xdg-open >/dev/null && skip "this machine has xdg-open"
   versioned 0.4.7
-  mkdir -p "${BATS_TEST_TMPDIR}/linux"
-  printf '#!/usr/bin/env bash\necho Linux\n' > "${BATS_TEST_TMPDIR}/linux/uname"
-  chmod +x "${BATS_TEST_TMPDIR}/linux/uname"
-  PATH="${BATS_TEST_TMPDIR}/linux:${PATH}" run --separate-stderr "${kit}" tutorials first
+  # a uname that says Linux makes xdg-open the opener; every PATH directory that holds open or xdg-open is replaced by
+  # links to everything else in it, so no machine has an opener here
+  local dir out="${BATS_TEST_TMPDIR}/linux" n=0 copy
+  mkdir -p "${out}"
+  printf '#!/usr/bin/env bash\necho Linux\n' > "${out}/uname"
+  chmod +x "${out}/uname"
+  while IFS= read -r dir
+  do
+    [[ -d "${dir}" ]] || continue
+    if [[ -e "${dir}/open" || -e "${dir}/xdg-open" ]]
+    then
+      copy="${BATS_TEST_TMPDIR}/noopener-$((n++))"
+      mkdir -p "${copy}"
+      ln -s "${dir}"/* "${copy}/" 2>/dev/null || true
+      rm -f "${copy}/open" "${copy}/xdg-open"
+      dir=${copy}
+    fi
+    out+=":${dir}"
+  done < <(tr ':' '\n' <<<"${PATH}")
+  PATH=${out} run --separate-stderr "${kit}" tutorials first
   [ "$status" -eq 0 ]
   [[ "$output" == *"https://kit.empowerite.dev/tutorials/0.4/first/?kit=0.4.7"* ]]
   [[ "$stderr" == *"open the URL above"* ]]
+}
+
+@test "an audience no tutorial has is one dim line, and exit 0" {
+  grep -v '^      - maintainer$' "${catalogue}" | sed '/id: releasing/,$d' > "${BATS_TEST_TMPDIR}/none.yml"
+  export KIT_TUTORIALS_CATALOGUE="${BATS_TEST_TMPDIR}/none.yml"
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --text --tag maintainer
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ "$(wc -l <<<"$stderr")" -eq 1 ]
+  [[ "$stderr" == *"no tutorials"*"maintainer"* ]]
 }
 
 @test "the text lists glyph, title, summary, audiences, and link" {
