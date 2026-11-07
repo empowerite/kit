@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -319,6 +320,7 @@ func TestBrowseRunsTheOpener(t *testing.T) {
 		}
 	}
 	t.Setenv("PATH", dir)
+	atADesk(t)
 	cmd, err := start("https://example.test/?kit=1")
 	if err != nil {
 		t.Fatal(err)
@@ -332,6 +334,85 @@ func TestBrowseRunsTheOpener(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if err := browse("https://example.test/"); err == nil {
 		t.Error("no opener on PATH did not fail")
+	}
+}
+
+// atADesk sets the environment browse reads to a desk with a display and no SSH, on macOS.
+func atADesk(t *testing.T) {
+	t.Helper()
+	env := map[string]string{}
+	setEnv(t, env, "darwin")
+}
+
+// setEnv sets the environment and the system browse reads for the test.
+func setEnv(t *testing.T, env map[string]string, system string) {
+	t.Helper()
+	was, wasGoos := lookupEnv, goos
+	lookupEnv = func(name string) (string, bool) { v, ok := env[name]; return v, ok }
+	goos = system
+	t.Cleanup(func() { lookupEnv, goos = was, wasGoos })
+}
+
+// Over SSH, or on Linux with no display, browse does not run the opener, and fails so that the screen gives the link;
+// at a desk it runs the opener.
+func TestBrowseDoesNotRunTheOpenerAwayFromTheDesk(t *testing.T) {
+	dir := t.TempDir()
+	ran := filepath.Join(dir, "ran")
+	for _, opener := range []string{"open", "xdg-open"} {
+		script := "#!/bin/sh\n: > " + ran + "\n"
+		if err := os.WriteFile(filepath.Join(dir, opener), []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	cases := []struct {
+		name   string
+		env    map[string]string
+		system string
+		away   bool
+	}{
+		{"ssh connection", map[string]string{"SSH_CONNECTION": "1.2.3.4 5 6.7.8.9 22"}, "darwin", true},
+		{"ssh tty", map[string]string{"SSH_TTY": "/dev/pts/0"}, "linux", true},
+		{"linux without a display", map[string]string{}, "linux", true},
+		{"linux with an empty display", map[string]string{"DISPLAY": ""}, "linux", true},
+		{"linux with x", map[string]string{"DISPLAY": ":0"}, "linux", false},
+		{"linux with wayland", map[string]string{"WAYLAND_DISPLAY": "wayland-0"}, "linux", false},
+		{"macOS", map[string]string{}, "darwin", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			os.Remove(ran)
+			setEnv(t, c.env, c.system)
+			err := browse("https://example.test/")
+			for range 100 {
+				if c.away {
+					break
+				}
+				if _, statErr := os.Stat(ran); statErr == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			_, statErr := os.Stat(ran)
+			if c.away && (!errors.Is(err, errNoBrowser) || statErr == nil) {
+				t.Errorf("err %v, opener ran %v", err, statErr == nil)
+			}
+			if !c.away && (err != nil || statErr != nil) {
+				t.Errorf("err %v, opener ran %v", err, statErr == nil)
+			}
+		})
+	}
+}
+
+// The screen gives the link, until a key, when the person is away from the desk.
+func TestAwayFromTheDeskTheScreenGivesTheLink(t *testing.T) {
+	setEnv(t, map[string]string{"SSH_CONNECTION": "x"}, "darwin")
+	m, _ := loaded(t)
+	m.browse = browse
+	m = drive(m, right, enter)
+	want := " Open https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased in a browser"
+	if last := lines(m)[29]; last != want || !m.Noticing() {
+		t.Errorf("the notice: %q", last)
 	}
 }
 

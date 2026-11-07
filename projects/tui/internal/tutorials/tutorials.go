@@ -2,10 +2,10 @@
 // card each, tabbed by audience, and the keys bar last. The tabs are All, then each audience in the catalogue's order,
 // each counting its tutorials; a tag given on the command line, kit tutorials --tag <audience>, selects its audience's
 // tab once the catalogue is read. Under the bar, the pane draws the selected tab's tutorials as a grid of cards, as
-// many columns as fit and at least one: each card has the tutorial's glyph and title in bold, its summary on three lines
-// with … where it runs over, and the labels of its audiences, dim, on its bottom edge. The card under the cursor is
-// drawn in the menus' bright cyan, and the pane scrolls a row of cards at a time so that card is always whole. A tab
-// with no tutorial says so.
+// many columns as fit and at least one: each card has the tutorial's glyph and title in bold, a blank line, its summary
+// on three lines with … where it runs over, and its audiences as pills in their colors on its bottom edge. The card
+// under the cursor is drawn in the menus' bright cyan, and the pane scrolls a row of cards at a time so that card is
+// always whole. A tab with no tutorial says so.
 //
 // The cards have the keyboard as the screen opens. The arrows move the cursor between them: left and right in reading
 // order, on along the next row; up and down a column, down to the last card from a row it is not under; and up from the
@@ -16,12 +16,15 @@
 // with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0.
 //
 // Opening a tutorial says so in place of the keys, for Fades or until a key; when the browser cannot be asked, the
-// tutorial's link stands there instead until a key, to open by hand.
+// tutorial's link stands there instead until a key, to open by hand. The browser cannot be asked over SSH, where an
+// opener would open the page on the other machine, nor on Linux with no display for it.
 package tutorials
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -318,8 +321,31 @@ func (m Model) open(t kit.Tutorial) tea.Cmd {
 	return func() tea.Msg { return browsedMsg{tutorial: t, err: b(t.URL)} }
 }
 
-// browse opens a link in the browser, as start does, without waiting for it.
+// lookupEnv and goos are the environment and the system browse reads; tests set them.
+var (
+	lookupEnv = os.LookupEnv
+	goos      = runtime.GOOS
+)
+
+// errNoBrowser says the screen did not ask for a browser, as the person is not at one.
+var errNoBrowser = errors.New("no browser on this desk")
+
+// remote says whether the person is not at the machine that runs kit: over SSH, an opener would open the page on the
+// other machine, and on Linux with neither an X nor a Wayland display, xdg-open has nowhere to open it.
+func remote() bool {
+	set := func(name string) bool { v, ok := lookupEnv(name); return ok && v != "" }
+	if set("SSH_CONNECTION") || set("SSH_TTY") {
+		return true
+	}
+	return goos == "linux" && !set("DISPLAY") && !set("WAYLAND_DISPLAY")
+}
+
+// browse opens a link in the browser, as start does, without waiting for it; where the person is not at the machine, it
+// fails without running the opener, so the screen gives the link.
 func browse(url string) error {
+	if remote() {
+		return errNoBrowser
+	}
 	_, err := start(url)
 	return err
 }
@@ -327,7 +353,7 @@ func browse(url string) error {
 // start starts the opener on a link: open on macOS, xdg-open elsewhere, as flow opens a page.
 func start(url string) (*exec.Cmd, error) {
 	opener := "xdg-open"
-	if runtime.GOOS == "darwin" {
+	if goos == "darwin" {
 		opener = "open"
 	}
 	cmd := exec.Command(opener, url)

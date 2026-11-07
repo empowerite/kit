@@ -41,8 +41,8 @@ var (
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
-// flow, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between them, and ends as the person
-// ended the screen shown.
+// flow, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between
+// them, and ends as the person ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
 	if !terminals() {
@@ -71,9 +71,9 @@ func run(args []string, stderr io.Writer) int {
 	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 }
 
-// open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the cards for tutorials, with its --tag words; the
-// palette on a verb's page or a group for help; and, as the help's screen, the palette, or the form of the verb
-// named.
+// open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the cards
+// for tutorials, with its --tag words; the palette on a verb's page or a group for help; and, as the help's screen, the
+// palette, or the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
 	case "flow":
@@ -101,8 +101,8 @@ func failed(err error, stderr io.Writer) int {
 	return 1
 }
 
-// needsTerminal gives the line kittui prints without a terminal: the picture, the guide, and the tutorials have a text form, the rest
-// a help page.
+// needsTerminal gives the line kittui prints without a terminal: the picture, the guide, and the tutorials have a text
+// form, the rest a help page.
 func needsTerminal(verb string) string {
 	if verb == "flow" {
 		return "kit flow needs an interactive terminal for its picture; run: kit flow --text"
