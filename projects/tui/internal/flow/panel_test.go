@@ -374,7 +374,7 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 
 // A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
 // tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
-// dim ▤. It follows the rows: a search that leaves one row ungroups it. kittui's setting, Fold shared values off,
+// dim ▤. It follows the rows: a search that leaves one row ungroups it. kittui's setting, Auto-group off,
 // stops it, so it is a column again.
 func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
@@ -395,7 +395,7 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// kittui's setting, Fold shared values off, stops it, through a refresh of the rows
+	// kittui's setting, Auto-group off, stops it, through a refresh of the rows
 	if unfold(&m); heading(m) != "" || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
 		!strings.Contains(lines(m)[paneTop], "source") {
 		t.Errorf("not folding: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))

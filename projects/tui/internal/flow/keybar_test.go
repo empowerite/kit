@@ -16,7 +16,7 @@ import (
 func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 	shiftUp := testkit.Press("shift+up")
 	// the presets dropped down from the preset line, up past the view the line is set to, Save As…, and the dim Save,
-	// to Columns…, chosen: the columns dialog; from the bar, down to the preset line first
+	// to Fields…, chosen: the columns dialog; from the bar, down to the preset line first
 	fromLine := []tea.Msg{press(tea.KeyEnter), up, up, press(tea.KeyEnter)}
 	columns := append([]tea.Msg{down}, fromLine...)
 	for _, c := range []struct {

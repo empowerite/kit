@@ -316,15 +316,21 @@ func BoxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 	return lines, left, first
 }
 
+// Titled gives a box's top edge, so wide, in the menu's color, its title at the left after a dash, clipped to the
+// room, as a dialog's is.
+func Titled(title string, width int) string {
+	inner := width - 2
+	title = ansi.Truncate(title, inner-3, "…")
+	return style.Menu("╭─ " + title + " " + strings.Repeat("─", max(0, inner-3-ansi.StringWidth(title))) + "╮")
+}
+
 // Dialog gives a dialog's lines: a rounded box in the menu's color, its title on the top edge, around its lines, each a
 // cell in from either side; no wider than width, a line too long clipped. Its keys are the keys bar's alone, so the
 // bottom edge is a plain one.
 func Dialog(title string, body []string, width int) []string {
 	inner := max(pane.Width(body)+2, ansi.StringWidth(title)+4)
 	inner = max(4, min(inner, width-2))
-	title = ansi.Truncate(title, inner-3, "…")
-	fill := strings.Repeat("─", max(0, inner-3-ansi.StringWidth(title)))
-	lines := []string{style.Menu("╭─ " + title + " " + fill + "╮")}
+	lines := []string{Titled(title, inner+2)}
 	for _, l := range body {
 		lines = append(lines, style.Menu("│")+" "+pane.Pad(ansi.Truncate(l, inner-2, "…"), inner-2, false)+" "+
 			style.Menu("│"))

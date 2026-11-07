@@ -28,17 +28,21 @@ func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 	return -1, -1
 }
 
-// The icon at the header's right end, or Columns… in the presets' menu, opens the dialog under it: the fields the rows
-// group by first, a rule under them, then the columns as the rows stand them, then the hidden, each with whether it
-// shows, its sort, and its group's depth.
+// Fields… heads the presets' menu, its glyph before it, a rule after it, and opens the dialog under the header's right
+// end, the header drawing no icon of its own: the fields the rows group by first, a rule under them, then the columns
+// as the rows stand them, then the hidden, each with whether it shows, its sort, and its group's depth.
 func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	if icon := ansi.Strip(ansi.Cut(lines(m)[paneTop], m.paneWidth()-ansi.StringWidth(Columns), m.paneWidth())); icon != Columns {
-		t.Fatalf("no icon at the header's right end: %q in %q", icon, lines(m)[paneTop])
+	if strings.Contains(lines(m)[paneTop], "◫") || strings.Contains(lines(m)[paneTop], Fields) {
+		t.Errorf("an icon on the header: %q", lines(m)[paneTop])
 	}
 	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("assignees", true))
-	if m = drive(m, testkit.Click(m.paneWidth()-1, paneTop)); !m.cols.open || m.cols.at != 0 {
-		t.Fatalf("a click on the icon: %+v", m.cols)
+	if m.dropPresets(); m.presetItems()[itemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
+		m.presetItems()[itemFields+1].Name != "" || !m.presetEnabled(itemFields) {
+		t.Fatalf("the presets' menu: %+v", m.presetItems())
+	}
+	if m.choosePreset(itemFields); m.presetMenu || !m.cols.open || m.cols.at != 0 {
+		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetMenu, m.cols)
 	}
 	if got := m.colsListed(); got[0] != "assignees" || got[len(got)-1] != "repository" {
 		t.Errorf("the fields: %q", got)
@@ -55,15 +59,6 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		m.columnsRow(top+4) != 1 || m.columnsRow(top+40) != -1 {
 		t.Errorf("the rows: edge %d, headings %d, assignees %d, rule %d, id %d", m.columnsRow(top), m.columnsRow(top+1),
 			m.columnsRow(top+2), m.columnsRow(top+3), m.columnsRow(top+4))
-	}
-	// Columns… in the presets' menu opens it too: first there, after its icon, then a rule
-	m = drive(m, esc)
-	if m.dropPresets(); m.presetItems()[itemColumns] != (shell.Item{Glyph: Columns, Name: ColumnsIt}) ||
-		m.presetItems()[itemColumns+1].Name != "" || !m.presetEnabled(itemColumns) {
-		t.Fatalf("the presets' menu: %+v", m.presetItems())
-	}
-	if m.choosePreset(itemColumns); m.presetMenu || !m.cols.open {
-		t.Errorf("Columns… did not open the dialog: menu %v, dialog %+v", m.presetMenu, m.cols)
 	}
 }
 

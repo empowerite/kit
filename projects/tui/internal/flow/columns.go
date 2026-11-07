@@ -1,5 +1,5 @@
-// The columns dialog: an icon at the header's right end, or Columns… in the presets' menu, opens it under the header's
-// right end. It lists every field of the stage, those the rows group by first, the outermost first, then the columns
+// The columns dialog: Fields… in the presets' menu opens it under the header's right end, titled by the stage's
+// fields. It lists every field of the stage, those the rows group by first, the outermost first, then the columns
 // as the rows stand them, then the hidden, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
 // among the keys, and its group's depth. What it sets applies at once. Up and down move between the lines; shift with
 // either moves the field a place, across into the groups or out of them, or into the hidden; space shows or hides it,
@@ -23,8 +23,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Columns is the icon at the header's right end that opens the columns dialog.
-const Columns = "◫"
+// Fields is the glyph of Fields…, the presets' menu's line that opens the columns dialog: a card index.
+const Fields = "📇"
 
 // columnsDialog is the columns dialog while it is open, and the line under the keyboard, an index into the fields it
 // lists.
@@ -38,13 +38,6 @@ const (
 	labelCells = 16
 	sortCells  = 6
 )
-
-// columnsIcon says whether the header draws the columns dialog's icon at its right end: while the stage has a preset
-// line, under a line of names.
-func (m Model) columnsIcon() bool {
-	lines, _ := m.header()
-	return m.presets(m.stage) && len(lines) > 1
-}
 
 // colsListed gives the fields the columns dialog lists, as the selected stage's panel lists them.
 func (m Model) colsListed() []string { return m.panel(m.stage).Listed() }

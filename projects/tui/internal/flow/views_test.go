@@ -145,10 +145,11 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	if !m.presetMenu {
 		t.Fatal("enter did not drop the presets down")
 	}
-	// the menu is titled Presets, not by the preset the table is set as
-	if box, _, _ := m.presetBox(); !strings.Contains(ansi.Strip(box[0]), "╴"+PresetsTitle+"╶") ||
-		strings.Contains(box[0], Opening) {
-		t.Errorf("the menu's title: %q", ansi.Strip(box[0]))
+	// the menu is titled Presets at its left, as a dialog is, not by the preset the table is set as; it stands on the
+	// header's first line, as the columns dialog does, its right edge on the selector's ▼
+	if box, top, left := m.presetBox(); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+PresetsTitle+" ─") ||
+		strings.Contains(box[0], Opening) || top != paneTop || left+ansi.StringWidth(box[0]) != m.dropEnd() {
+		t.Errorf("the menu's title, at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
 	// the menu is drawn, under the line, whole
 	if drawn := raw(m); !strings.Contains(drawn, SaveAs) || !strings.Contains(drawn, "Compact") {
@@ -158,7 +159,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	for _, i := range m.presetItems() {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{ColumnsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
+	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
 		m.presetItems()[7].Glyph != Checked || m.presetAt != 7 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetAt)
 	}

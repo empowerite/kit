@@ -2,7 +2,7 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
   ╵                  ╰────────────────────╰────────────────╰────────────────────
-      id  assignees         age  branch           labels  title               ◫
+      id  assignees         age  branch           labels  title
    ──────────────────────────────────────────────────────────────── Default ▼
  ▾ github source  3
    ▸ #45                     2h                   3       🎫 kit flow is the o…

@@ -609,7 +609,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 
 // While the panel folds, a column that can group, whose value is the same on every row, groups them on its own: without
 // a group the person chose, one heading over every row says the values, joined in the panel's order, and their cells
-// are blank. Under a group the person chose, the walk goes on in each group, the values joining its heading. A column
+// are blank. A group the person chose overrides it: under one, no column groups the rows on its own. A column
 // blank on some rows, one with several values, a group of one row, and a hidden column do not group on their own, nor
 // does any while the panel does not fold; the panel's box for folding stops it, and the panel marks a column grouping on
 // its own with a dim ▤.
@@ -622,17 +622,23 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 			{Values: []string{"✅ " + checks}, Raw: []string{"SUCCESS"}, Head: "✅ SUCCESS"}}}
 	}
 	rows := []Row{row("#1", "ready", "1 / 1"), row("#2", "draft", "2 / 2"), row("#3", "ready", "3 / 3")}
-	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Fold: true,
-		Fields: map[string]Field{"state": {Placement: Group, Depth: 1}}}
-	got, _ := p.group(rows, columns)
-	var headings []string
-	for _, r := range got {
-		if r.Aside {
-			headings = append(headings, ansi.Strip(r.Cells[0].first()))
+	headings := func(p Panel) []string {
+		got, _ := p.group(rows, columns)
+		var out []string
+		for _, r := range got {
+			if r.Aside {
+				out = append(out, ansi.Strip(r.Cells[0].first()))
+			}
 		}
+		return out
 	}
-	if want := []string{"▾ 🏁 draft state  1", "▾ 🏁 ready state, ✅ SUCCESS checks  2"}; !slices.Equal(headings, want) {
-		t.Errorf("the headings: %q", headings)
+	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Fold: true}
+	if got := headings(p.Grouped("state", true)); !slices.Equal(got, []string{"▾ 🏁 draft state  1", "▾ 🏁 ready state  2"}) {
+		t.Errorf("the headings by state: %q", got)
+	}
+	// on their own, the rows group by checks' raw value, every row's SUCCESS, the heading saying its Head
+	if got := headings(p); !slices.Equal(got, []string{"▾ ✅ SUCCESS checks  3"}) {
+		t.Errorf("the heading on their own: %q", got)
 	}
 }
 
@@ -676,13 +682,13 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	if got, auto := (Panel{Groupable: groupable}).group(rows, columns); len(got) != 3 || auto != nil {
 		t.Errorf("not folding: %q, auto %q", texts(got), auto)
 	}
-	// under the groups the person chose, each group alone; one of one row does not group
+	// a group the person chose overrides the rows' own: under state, no column groups them on its own
 	p = p.Grouped("state", false)
 	got, auto = p.group(rows, columns)
 	// the column the person groups by stays in the cells, which the panel's hide then leaves out
-	want = []string{"▾ draft state, github source, here where  2", "#1||draft||ada", "#2||draft||", "▾ ready state  1",
+	want = []string{"▾ draft state  2", "#1|github|draft|here|ada", "#2|github|draft|here|", "▾ ready state  1",
 		"#3|github|ready|here|bob"}
-	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
+	if !slices.Equal(texts(got), want) || auto != nil || Levels(got) != 1 {
 		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
 	}
 	// two values in a cell, or one row alone, do not group
@@ -693,11 +699,10 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 	if got, auto := (Panel{Groupable: groupable, Fold: true}).group(rows[:1], columns); len(got) != 1 || auto != nil {
 		t.Errorf("one row: %q", texts(got))
 	}
-	// the headings say which columns they group by on their own, at which level; with more than one column grouping,
-	// the panel numbers each by its level, the person's and the rows' own alike
+	// the headings say which columns they group by on their own, at which level: none under the person's group
 	got, _ = p.group(rows, columns)
-	if said := Said(got); !maps.Equal(said, map[string]int{"source": 1}) {
-		t.Errorf("said: %v", said)
+	if said := Said(got); len(said) != 0 {
+		t.Errorf("said under state: %v", said)
 	}
 	if said := Said([]Row{{Key: overAll, Aside: true, Says: []string{"where"}},
 		{Key: "group\x00a\x00b", Aside: true, Says: []string{"where", "source"}}}); !maps.Equal(said,

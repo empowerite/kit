@@ -458,13 +458,12 @@ func (p Panel) Heading(r Row) string {
 // indented by its depth, and how many rows it heads, dim. A row groups by a cell's sort key, or under none when the
 // cell has none. A row of one cell, as a heading, has no value: those follow the groups.
 //
-// While the panel folds, under each heading, the walk goes on along the columns that can group, in the panel's order:
-// one whose value is the same on every row the heading heads, as their sort key says, one value on each and none
-// blank, groups them on its own. Its value joins the heading, after a comma, and its cell is blank in those rows, so
-// the value is said once; a heading under it says it no more. Without a column the person chose, the rows group on
-// their own under one heading over every row, their values alone. A heading over one row is not worth it: a group of
-// one row, or a stage of one, does not group on its own. A column hidden never does. It gives the columns that group
-// on their own anywhere.
+// While the panel folds and the person groups by no column, the rows group on their own: the walk goes along the
+// columns that can group, in the panel's order, and one whose value is the same on every row, as their sort key says,
+// one value on each and none blank, joins one heading over every row, after a comma, its cell blank in those rows, so
+// the value is said once. A group the person chose overrides it, as walk says. A heading over one row is not worth
+// it: a stage of one row does not group on its own. A column hidden never does. It gives the columns that group on
+// their own.
 func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 	var at []int
 	var desc []bool
@@ -669,10 +668,10 @@ func Parent(rows []Row, k int) int {
 }
 
 // walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: while the
-// panel folds, each column that can group and has a name, but those the person groups by or hides; none while it does
-// not.
+// panel folds and the person groups by none, each column that can group and has a name, but those hidden; none while
+// it does not fold, or once the person chooses a group, which overrides the grouping the rows would make on their own.
 func (p Panel) walk(columns []string, chosen []int) []int {
-	if !p.Fold {
+	if !p.Fold || len(chosen) > 0 {
 		return nil
 	}
 	var out []int

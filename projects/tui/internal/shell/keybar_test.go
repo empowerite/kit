@@ -121,17 +121,17 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	}
 	d = SettingsDialog{Open: true}
 	lines = d.Overlay(strings.Split(strings.Repeat(strings.Repeat(" ", 120)+"\n", 10), "\n"), s, 120)
-	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, style.Picked+" Fold shared values") ||
-		!strings.Contains(v, style.Unpicked+" Show shared emoji") {
+	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, style.Picked+" Auto-group") ||
+		!strings.Contains(v, style.Unpicked+" Repeated emoji") {
 		t.Errorf("the dialog's settings:\n%s", v)
 	}
 	d, s = d.Key(key("down"), s)
 	if d, s = d.Key(key("space"), s); s.FoldShared || LoadSettings(path).FoldShared {
-		t.Errorf("space on Fold shared values: %v, saved %v", s.FoldShared, LoadSettings(path).FoldShared)
+		t.Errorf("space on Auto-group: %v, saved %v", s.FoldShared, LoadSettings(path).FoldShared)
 	}
 	d, s = d.Key(key("down"), s)
 	if _, s = d.Key(key("space"), s); !s.SharedEmoji || !LoadSettings(path).SharedEmoji {
-		t.Errorf("space on Show shared emoji: %v, saved %v", s.SharedEmoji, LoadSettings(path).SharedEmoji)
+		t.Errorf("space on Repeated emoji: %v, saved %v", s.SharedEmoji, LoadSettings(path).SharedEmoji)
 	}
 }
 
@@ -145,7 +145,7 @@ func TestAClickOnTheSettingsDialogFlipsASettingOrClosesIt(t *testing.T) {
 	click := func(x, y int, b tea.MouseButton) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, Button: b} }
 	if d, s = d.Click(click(left+3, top+2, tea.MouseLeft), s, 30, 120); d.At != 1 || s.FoldShared ||
 		LoadSettings(path).FoldShared {
-		t.Errorf("a click on Fold shared values: at %d, fold %v", d.At, s.FoldShared)
+		t.Errorf("a click on Auto-group: at %d, fold %v", d.At, s.FoldShared)
 	}
 	if d, s = d.Click(click(left+3, top+2, tea.MouseRight), s, 30, 120); s.FoldShared || !d.Open {
 		t.Errorf("a right click flipped: fold %v", s.FoldShared)

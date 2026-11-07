@@ -205,7 +205,7 @@ func TestEveryScreenIsToldTheSettings(t *testing.T) {
 	m, _ = testkit.Drive(m, nil, tea.WindowSizeMsg{Width: 120, Height: 30}, shell.SwitchMsg{Screen: shell.SettingsScreen},
 		tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	if got := m.made[shell.Flow].(told).settings; len(got) != 2 || got[1].FoldShared {
-		t.Errorf("Fold shared values flipped: %+v", got)
+		t.Errorf("Auto-group flipped: %+v", got)
 	}
 	// the keys bar flipped is the root's own: the screen is told its size, not the settings
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyUp}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})

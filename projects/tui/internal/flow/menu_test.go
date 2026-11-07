@@ -37,12 +37,12 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
 	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, and collapse
-	// all, with no row open, is dim; Columns… is the presets' menu's, not this one's
+	// all, with no row open, is dim; Fields… is the presets' menu's, not this one's
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.menuAt != 0 ||
 		ansi.Cut(lines(m)[menuTop], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") ||
-		strings.Contains(view(m), ColumnsIt) ||
+		strings.Contains(view(m), FieldsIt) ||
 		!strings.Contains(box[4], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.menuAt, view(m))

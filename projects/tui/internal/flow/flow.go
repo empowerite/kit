@@ -532,10 +532,6 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 // have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 	s := &m.stages[m.stage]
-	if y == paneTop && m.columnsIcon() && x >= m.paneWidth()-ansi.StringWidth(Columns) {
-		m.openColumns()
-		return nil
-	}
 	x -= m.indent(m.stage)
 	if y < paneTop {
 		return nil
