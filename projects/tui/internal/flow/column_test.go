@@ -304,3 +304,30 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 		t.Errorf("shift+right: %q", m.panel(m.stage).Groups())
 	}
 }
+
+// The column menu holds only the sections a field can use: one that cannot sort has no sort, its radio and Clear Sort
+// gone, and one that cannot group has no Group or Ungroup; each section's rule goes with it. What a field can do but
+// cannot now stays, dim.
+func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
+	names := func(column string) []string {
+		m.colMenu = columnMenu{Dropdown: shell.Dropdown{Open: true}, column: column}
+		var out []string
+		for _, i := range m.columnItems() {
+			out = append(out, i.Name)
+		}
+		return out
+	}
+	if got := names("title"); !slices.Equal(got, []string{"None", "▲ Ascending", "▼ Descending", ClearSort, "", Hide,
+		More}) || m.columnLine(actGroup) != -1 || m.columnLine(actUngroup) != -1 {
+		t.Errorf("title, which sorts and cannot group: %q", got)
+	}
+	if got := names("labels"); !slices.Equal(got, []string{Hide, More}) || m.columnLine(actUp) != -1 {
+		t.Errorf("labels, which neither sorts nor groups: %q", got)
+	}
+	if got := names("assignees"); !slices.Contains(got, GroupIt) || !slices.Contains(got, ClearSort) ||
+		m.columnEnabled(m.columnLine(actClear)) {
+		t.Errorf("assignees, which sorts and groups, nothing sorting: %q, clear %v", got, m.columnEnabled(m.columnLine(actClear)))
+	}
+	m.colMenu = columnMenu{}
+}

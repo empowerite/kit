@@ -68,8 +68,9 @@ type colLine struct {
 
 // columnLines gives the column menu's lines. The radio's choice picked is the column's sort, None where it does not
 // sort. Where something else orders the rows, a group or another key, its triangles carry ⁿ and ₙ, as the header's
-// mark carries the place the column takes, raised after ▲ and lowered after ▼. Clear Sort, as the tab menu's Clear Selection, sweeps. A line that cannot act on
-// the column stays, dim.
+// mark carries the place the column takes, raised after ▲ and lowered after ▼. Clear Sort, as the tab menu's Clear
+// Selection, sweeps. A section the field cannot use is left out, with its rule: the sort, for one that cannot sort, and
+// Group and Ungroup, for one that cannot group. A line the field can use but that cannot act now stays, dim.
 func (m Model) columnLines() []colLine {
 	p, column := m.panel(m.stage), m.colMenu.column
 	d, up, down := p.Field(column).Sort, "", ""
@@ -82,12 +83,18 @@ func (m Model) columnLines() []colLine {
 		}
 		return colLine{shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}, act}
 	}
-	return []colLine{radio(d == grid.Unsorted, "None", actNone), radio(d == grid.Ascending, "▲"+up+" Ascending", actUp),
-		radio(d == grid.Descending, "▼"+down+" Descending", actDown), colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, actClear},
-		colLine{act: actRule},
-		colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, actGroup},
-		colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, actUngroup}, colLine{act: actRule},
-		colLine{shell.Item{Glyph: HideGlyph, Name: Hide}, actHide}, colLine{shell.Item{Glyph: MoreGlyph, Name: More}, actMore}}
+	var lines []colLine
+	if p.Sortable[column] {
+		lines = append(lines, radio(d == grid.Unsorted, "None", actNone), radio(d == grid.Ascending, "▲"+up+" Ascending", actUp),
+			radio(d == grid.Descending, "▼"+down+" Descending", actDown),
+			colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, actClear}, colLine{act: actRule})
+	}
+	if p.Groupable[column] {
+		lines = append(lines, colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, actGroup},
+			colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, actUngroup}, colLine{act: actRule})
+	}
+	return append(lines, colLine{shell.Item{Glyph: HideGlyph, Name: Hide}, actHide},
+		colLine{shell.Item{Glyph: MoreGlyph, Name: More}, actMore})
 }
 
 // columnItems gives the column menu's lines as the menu draws them.
@@ -104,9 +111,9 @@ func (m Model) columnLine(act colAct) int {
 	return slices.IndexFunc(m.columnLines(), func(l colLine) bool { return l.act == act })
 }
 
-// columnEnabled says whether the column menu's line k acts: the radio on a column that sorts; Clear Sort while a column
-// sorts the rows; Group on one that can group and does not yet, Ungroup on one that does; and Hide and Options…
-// always; the rules never do.
+// columnEnabled says whether the column menu's line k acts: the radio always, as the menu has it only for a column that
+// sorts; Clear Sort while a column sorts the rows; Group on one that does not group yet, Ungroup on one that does; and
+// Hide and Options… always; the rules never do.
 func (m Model) columnEnabled(k int) bool {
 	lines := m.columnLines()
 	if k < 0 || k >= len(lines) {
@@ -116,11 +123,11 @@ func (m Model) columnEnabled(k int) bool {
 	grouped := slices.Contains(p.Groups(), column)
 	switch lines[k].act {
 	case actNone, actUp, actDown:
-		return p.Sortable[column]
+		return true
 	case actClear:
 		return len(p.ColumnKeys()) > 0
 	case actGroup:
-		return p.Groupable[column] && !grouped
+		return !grouped
 	case actUngroup:
 		return grouped
 	case actHide, actMore:
