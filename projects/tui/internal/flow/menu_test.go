@@ -302,7 +302,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	backlog.Fields = slices.Clone(backlog.Fields)
 	backlog.Fields[len(backlog.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
-	// the header stands in as the rows do, under the heading over every row
+	// the header stands in as the rows do, under the headings the view grouped them by as it loaded
 	closed, in := m.rowsTop(), strings.Repeat(" ", m.indent(0))
 	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || closed != m.top()+2 {
 		t.Fatalf("the closed header:\n%s", view(m))

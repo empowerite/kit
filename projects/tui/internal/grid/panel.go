@@ -93,11 +93,9 @@ const (
 // Columns names the columns by their fields' ids, in the stage's order, and Labels gives the label each is listed by,
 // its id where it gives none. Fields holds what the panel says of each field, by id, as Field says; a field it
 // does not name is a column, unsorted and unfiltered. The panel never changes the map it was given, but gives a new
-// one. Fold says whether a value every row of a group shares is said once, in the group's heading, rather than in each
-// row: the rows then group on their own, as group says, by each groupable column whose value is the same on every row
-// of a group. Glyphs says whether a glyph every row shown shares is drawn still, where the screen would drop it as
-// saying nothing; Auto names the columns that do so now, as Filtered gave them, and AutoAt the level of the headings each
-// is said at, from 1, as Said gives it. Sortable and Groupable name the columns that can sort and group, which the
+// one. Fold says whether a view, as it loads, groups the rows by each column whose value is the same on every row, as
+// AutoGrouped says, where it groups by none. Glyphs says whether a glyph every row shown shares is drawn still, where
+// the screen would drop it as saying nothing. Sortable and Groupable name the columns that can sort and group, which the
 // stage says. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
 // Caller is the caller's login, Me, which matches no one while it is unknown. Focused says whether the search has the
 // keyboard. Recall says whether there are searches to recall, which the search, with the keyboard, offers with its
@@ -112,8 +110,6 @@ type Panel struct {
 	Glyphs    bool
 	Sortable  map[string]bool
 	Groupable map[string]bool
-	Auto      []string
-	AutoAt    map[string]int
 	Recall    bool
 	Outline   Outline
 	Owner     string
@@ -417,8 +413,7 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
-// one the heading over the groups the person chose, and one each column they group by; or one the heading over every
-// row, when the rows group on their own and the person groups by nothing.
+// one the heading over the groups, and one each column they group by; none where nothing groups them.
 func Levels(rows []Row) int {
 	n := 0
 	for _, r := range rows {
@@ -429,41 +424,18 @@ func Levels(rows []Row) int {
 	return n
 }
 
-// Said gives the level of the headings, from 1, that say each column the rows group by on their own, the shallowest
-// when it is said at several: the heading over every row is the first level, as is the heading over the groups the
-// person chose.
-func Said(rows []Row) map[string]int {
-	out := map[string]int{}
-	for _, r := range rows {
-		if !Heads(r) {
-			continue
-		}
-		level := max(1, strings.Count(r.Key, "\x00"))
-		for _, c := range r.Says {
-			if at, ok := out[c]; !ok || level < at {
-				out[c] = level
-			}
-		}
-	}
-	return out
-}
+// byFields is the key of the heading over the groups, which names their columns, and which every heading of a value
+// keys under.
+const byFields = "group\x00\x01"
 
-// overAll is the key of the heading over every row, as the rows group on their own; byFields the key of the heading
-// over the groups the person chose, which names their columns, and which every heading of a value keys under.
-const (
-	overAll  = "group\x00"
-	byFields = "group\x00\x01"
-)
-
-// OverGroups says whether a row is the heading over the groups the person chose, which names their columns.
+// OverGroups says whether a row is the heading over the groups, which names their columns.
 func OverGroups(r Row) bool { return r.Key == byFields }
 
 // Heads says whether a row is the heading of a group, as group draws one.
 func Heads(r Row) bool { return r.Aside && strings.HasPrefix(r.Key, "group\x00") }
 
 // Heading gives the column whose group a row heads, as group draws the headings, a value of it; or nothing for a row
-// that heads no group, the heading over every row, which no column the person chose makes, or the heading over the
-// groups, which names them all.
+// that heads no group, or the heading over the groups, which names them all.
 func (p Panel) Heading(r Row) string {
 	if !Heads(r) || !strings.HasPrefix(r.Key, byFields+"\x00") {
 		return ""
@@ -479,15 +451,8 @@ func (p Panel) Heading(r Row) string {
 // order, the larger first where the column sorts descending, and the rows in each as they came: a heading of a value,
 // an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
 // it heads, dim. A row groups by a cell's sort key, or under none when the cell has none. A row of one cell, as a
-// heading, has no value: those follow the groups.
-//
-// While the panel folds and the person groups by no column, the rows group on their own: the walk goes along the
-// columns that can group, in the panel's order, and one whose value is the same on every row, as their sort key says,
-// one value on each and none blank, joins one heading over every row, after a comma, its cell blank in those rows, so
-// the value is said once. A group the person chose overrides it, as walk says. A heading over one row is not worth
-// it: a stage of one row does not group on its own. A column hidden never does. It gives the columns that group on
-// their own.
-func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
+// heading, has no value: those follow the groups. Where the panel groups by nothing, the rows stand as they came.
+func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
 	for _, name := range p.Groups() {
@@ -518,21 +483,8 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			rest = append(rest, r)
 		}
 	}
-	walk := p.walk(columns, at)
-	var took []int
 	if len(at) == 0 {
-		took = constant(grouped, walk)
-		if len(took) == 0 {
-			return rows, nil
-		}
-		heading := p.fold(overAll) + " " + joined(grouped[0], columns, took) + "  " +
-			style.Off(strconv.Itoa(len(grouped)))
-		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true,
-			Says: names(columns, took)}}
-		for _, r := range grouped {
-			out = append(out, blank(r, took))
-		}
-		return append(out, rest...), names(columns, took)
+		return rows
 	}
 	slices.SortStableFunc(grouped, func(a, b Row) int {
 		for k, j := range at {
@@ -555,8 +507,6 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			style.Off(strconv.Itoa(len(grouped)))
 		out = append(out, Row{Key: byFields, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 	}
-	// the columns each heading open at its depth groups on its own, which the headings under it leave out
-	auto := make([][]int, len(at))
 	for i, r := range grouped {
 		for depth, j := range at {
 			if i > 0 && same(grouped[i-1], r, depth) {
@@ -572,25 +522,16 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			for _, x := range at[:depth+1] {
 				key += "\x00" + value(r, x)
 			}
-			auto[depth] = constant(grouped[i:i+n], slices.DeleteFunc(slices.Clone(walk), func(x int) bool {
-				return slices.ContainsFunc(auto[:depth], func(above []int) bool { return slices.Contains(above, x) })
-			}))
-			took = append(took, auto[depth]...)
 			said := "none"
 			if j < len(r.Cells) {
 				said = r.Cells[j].heading()
 			}
-			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + said
-			if len(auto[depth]) > 0 {
-				heading += style.Off(",") + " " + joined(r, columns, auto[depth])
-			}
-			heading += "  " + style.Off(strconv.Itoa(n))
-			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true,
-				Says: names(columns, auto[depth])})
+			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + said + "  " + style.Off(strconv.Itoa(n))
+			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 		}
-		out = append(out, blank(r, slices.Concat(auto...)))
+		out = append(out, r)
 	}
-	return append(out, rest...), names(columns, took)
+	return append(out, rest...)
 }
 
 // Unfolded and Folded are the glyphs before a node of the outline that hides something, a group's heading or a row:
@@ -699,21 +640,36 @@ func Parent(rows []Row, k int) int {
 	return -1
 }
 
-// walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: while the
-// panel folds and the person groups by none, each column that can group and has a name, but those hidden; none while
-// it does not fold, or once the person chooses a group, which overrides the grouping the rows would make on their own.
-func (p Panel) walk(columns []string, chosen []int) []int {
-	if !p.Fold || len(chosen) > 0 {
-		return nil
+// AutoGrouped gives the panel a view takes as it loads, while it folds and groups by nothing: the rows grouped by
+// each column whose value is the same on every row it lets through, as constant says, left to right, in the panel's
+// order, the outermost first; a column hidden, or one that cannot group, never is. From then on they are groups as
+// any other, which the person moves and ungroups as they would. A panel that does not fold, or groups already, or
+// whose rows share no value, is given back as it is. columns names each cell's column, in the stage's order.
+func (p Panel) AutoGrouped(rows []Row, columns []string) Panel {
+	if !p.Fold || len(p.Groups()) > 0 {
+		return p
 	}
-	var out []int
-	for _, j := range p.arrangement(columns) {
-		name := columns[j]
-		if name != "" && p.Groupable[name] && p.Shows(name) && !slices.Contains(chosen, j) {
-			out = append(out, j)
+	query := strings.ToLower(p.Query)
+	var through []Row
+	for _, r := range rows {
+		if !r.Aside && len(r.Cells) > 1 && p.matches(r, columns, query) {
+			through = append(through, r)
 		}
 	}
-	return out
+	var walk []int
+	for _, j := range p.arrangement(columns) {
+		if name := columns[j]; name != "" && p.Groupable[name] && p.Shows(name) {
+			walk = append(walk, j)
+		}
+	}
+	var ids []string
+	for _, j := range constant(through, walk) {
+		ids = append(ids, columns[j])
+	}
+	if len(ids) == 0 {
+		return p
+	}
+	return p.groupedBy(ids)
 }
 
 // constant gives those of the columns whose value is the same on every one of the rows, as their sort key says, each
@@ -730,40 +686,6 @@ func constant(rows []Row, columns []int) []int {
 		}
 		if !slices.ContainsFunc(rows[1:], func(r Row) bool { return !one(r) || r.Cells[j].key() != rows[0].Cells[j].key() }) {
 			out = append(out, j)
-		}
-	}
-	return out
-}
-
-// joined gives each column a row groups by on its own, at the indexes, as a heading says it: the row's value in it,
-// as its cell's heading says it, and the column's name, as a heading of a column the person chose says them, and a comma between
-// columns.
-func joined(r Row, names []string, columns []int) string {
-	var values []string
-	for _, j := range columns {
-		values = append(values, r.Cells[j].heading()+" "+style.Off(names[j]))
-	}
-	return strings.Join(values, style.Off(",")+" ")
-}
-
-// blank gives the row with its cells in the columns blank, their values said by the heading over it.
-func blank(r Row, columns []int) Row {
-	if len(columns) == 0 {
-		return r
-	}
-	r.Cells = slices.Clone(r.Cells)
-	for _, j := range columns {
-		r.Cells[j] = Cell{Right: r.Cells[j].Right}
-	}
-	return r
-}
-
-// names gives the columns' names, each once, in the stage's order.
-func names(columns []string, at []int) []string {
-	var out []string
-	for j, name := range columns {
-		if slices.Contains(at, j) {
-			out = append(out, name)
 		}
 	}
 	return out
@@ -931,18 +853,11 @@ func (p Panel) Find() Panel {
 	return p
 }
 
-// Filter gives the rows the panel lets through, as Filtered does.
-func (p Panel) Filter(rows []Row, columns []string) []Row {
-	out, _ := p.Filtered(rows, columns)
-	return out
-}
-
-// Filtered gives the rows the panel lets through: those whose text has the search, without regard to case, and whose
+// Filter gives the rows the panel lets through: those whose text has the search, without regard to case, and whose
 // raw values pass the filter on each field, sorted by its keys, grouped as group says, each with its cells in its
 // order and without those of the columns it does not show. columns names each cell's column, in the stage's order.
-// While the search or a filter narrows the rows, an aside that heads none of them is left out with them. It gives the
-// columns the rows group by on their own too, for the panel's Auto.
-func (p Panel) Filtered(rows []Row, columns []string) ([]Row, []string) {
+// While the search or a filter narrows the rows, an aside that heads none of them is left out with them.
+func (p Panel) Filter(rows []Row, columns []string) []Row {
 	query := strings.ToLower(p.Query)
 	var out []Row
 	for _, r := range rows {
@@ -953,13 +868,13 @@ func (p Panel) Filtered(rows []Row, columns []string) ([]Row, []string) {
 	if query != "" || p.Filtering() {
 		out = dropBare(out)
 	}
-	out, auto := p.group(p.order(out, columns), columns)
+	out = p.group(p.order(out, columns), columns)
 	for k, r := range out {
 		if !r.Aside {
 			out[k] = p.hide(r, columns)
 		}
 	}
-	return out, auto
+	return out
 }
 
 // dropBare leaves out each aside that heads no row: one the next aside, or the end, follows at once.

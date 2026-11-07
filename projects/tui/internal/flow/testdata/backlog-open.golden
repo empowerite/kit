@@ -2,22 +2,22 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
   ╵                  ╰────────────────────╰────────────────╰────────────────────
-       id  assignees         age  branch           labels  title
+         id  assignees         age  branch            labels  title
     ─────────────────────────────────────────────────────────────── Default ▼
-  ▾ github source  3
-    ▾ #45                     2h                   3       🎫 kit flow is the  
-                                                              one picture: five
-                                                              stages,          
-                                                              interactive on a 
-                                                              terminal, and the
-                                                              listing verbs    
-                                                              fold into it     
-         kindfeature areatui good first issue                          
-    ▸ #46  jeffrey-aguilera   2d  46-a-noun-lists  bug   🎫 A noun lists, a …
-    ▸  #7  ada           +1  40d                           🎫 Fix the thing
-
-
-
+  ▾ source  3
+    ▾ github  3
+      ▾ #45                     2h                    3       🎫 kit flow is   
+                                                                 the one       
+                                                                 picture: five 
+                                                                 stages,       
+                                                                 interactive on
+                                                                 a terminal,   
+                                                                 and the       
+                                                                 listing verbs 
+                                                                 fold into it  
+           kindfeature areatui good first issue                        
+      ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists,…
+      ▸  #7  ada           +1  40d                            🎫 Fix the thing
 
 
 

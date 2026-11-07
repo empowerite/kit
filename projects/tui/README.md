@@ -97,11 +97,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows are
     selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
-    whether all are or some. What stands open lasts the session; a preset does not keep it. A click on a column's
-    name in a heading, or ⏎ on the heading, drops the heading menu, in `heading.go`, around the name, titled by it:
-    Expand Group, Collapse Group, Select Group, and Ungroup by the column, dim on one the rows group by
-    on their own, so what ⌥ and ⌃ do there takes a plain click too. A click anywhere else on the heading opens or
-    closes it.
+    whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
+    one heading that names the grouped columns, `▾ source › assignees`, and a heading per value under it. A click on
+    a column's name in that heading, or ⏎ on it, drops the column's own menu, in `heading.go`, as a name in the
+    header does; only its ▾ or ▸ folds it. A click anywhere on a value's heading opens or closes it.
+  - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
+    when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
+    right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and
+    the preset line still names the view.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.

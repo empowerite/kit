@@ -59,7 +59,7 @@ func TestThePresetLineIsTheHeadersRuleAndNamesTheView(t *testing.T) {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected
-	m.stages[0].picked[m.rows(0)[1].Key] = true
+	m.stages[0].picked[m.rows(0)[slices.IndexFunc(m.rows(0), func(r row) bool { return !r.Aside })].Key] = true
 	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "    ─") ||
 		!strings.HasSuffix(got, "─ 1 selected ─ "+selector(Opening)) {
 		t.Errorf("one row selected: %q", got)
@@ -90,8 +90,8 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	if m = drive(m, down); !m.inRows || m.onPreset {
 		t.Fatalf("down from the line: in rows %v, on the line %v", m.inRows, m.onPreset)
 	}
-	// up past the heading over the first row
-	if m = drive(m, up, up); !m.onPreset || m.inRows {
+	// up past the headings over the first row, the one over the groups and source's
+	if m = drive(m, up, up, up); !m.onPreset || m.inRows {
 		t.Fatalf("up from the first row: in rows %v, on the line %v", m.inRows, m.onPreset)
 	}
 	if m = drive(m, up); m.onPreset || !m.bar().Focused {
@@ -234,7 +234,9 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
 	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f field) bool { return f.Placement != placeColumn })
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.is(0) != "Default" {
+	// less source, which the view groups the rows by as it loads
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns)-1 || m.is(0) != "Default" ||
+		!slices.Equal(m.panel(0).Groups(), []string{"source"}) {
 		t.Errorf("Default: %q", shownNow(m))
 	}
 }

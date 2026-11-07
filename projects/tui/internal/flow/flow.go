@@ -84,7 +84,11 @@ type stage struct {
 	naming   string
 	savingAs bool
 	renaming string
-	view     grid.Panel         // the stage's panel: its search, what it says of each field, and its cursor
+	view     grid.Panel // the stage's panel: its search, what it says of each field, and its cursor
+	// whether the view the stage was last set to still waits for rows to group by, as it loads, as autoGroup says;
+	// and the view as autoGroup left it, which the preset line names as the view still
+	grouping bool
+	grouped  *preset
 	gen      int                // the stage's latest load: an answer from an earlier one is dropped
 	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
 	stop     context.CancelFunc // ends the latest load's command, when r starts another
@@ -134,7 +138,6 @@ type Model struct {
 	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
 	fold          bool                   // whether the tables fold a value every row of a group shares, as kittui's settings say
 	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
-	headMenu      headingMenu            // the menu a click on a group's heading drops, while it is open
 	cols          columnsDialog          // the columns dialog, while it is open
 	legend        legend                 // the legend, which F1 and ? show and hide, and the corner it stands in
 	presetAt      int                    // the line of that menu under the keyboard
@@ -197,7 +200,7 @@ func New(r kit.Runner, o Options) Model {
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, loading: true, open: grid.Outline{}, picked: map[string]bool{},
-			viewName: Opening}
+			viewName: Opening, grouping: true}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
@@ -348,10 +351,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.colMenu.Open {
 			return m, m.columnClick(msg.X, msg.Y)
 		}
-		if m.headMenu.open {
-			m.headingClick(msg.X, msg.Y)
-			return m, nil
-		}
 		if m.recent.Open {
 			var query string
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -494,11 +493,11 @@ type meMsg struct {
 	err   error
 }
 
-// panel gives a stage's panel: what the person set in it, the columns it offers, those its rows group by on their own,
-// whether its rows belong to people, the caller's login, and whether it has the keyboard.
+// panel gives a stage's panel: what the person set in it, the columns it offers, whether its rows belong to people,
+// the caller's login, and whether it has the keyboard.
 func (m Model) panel(i int) grid.Panel {
 	p := m.filter(i)
-	p.Columns, p.Auto, p.AutoAt = m.offered(i), m.shown(i).auto, m.shown(i).said
+	p.Columns = m.offered(i)
 	p.Recall = len(m.recent.Items) > 0
 	return p
 }
@@ -727,9 +726,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.colMenu.Open {
 		return m.columnKey(k)
 	}
-	if m.headMenu.open {
-		return m.headingKey(k)
-	}
 	if m.recent.Open {
 		var query string
 		if m.recent, query = m.recent.Key(k); query != "" {
@@ -799,18 +795,13 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "pgdown":
 		m.page(1)
 	case "enter":
-		// on a group's heading, ⏎ drops the menu its first name drops, as a click on the name does: the column menu on
-		// the heading over the groups, the heading menu on the one over every row
+		// on the heading over the groups, ⏎ drops its first column's menu, as a click on the name does
 		if !m.inRows || len(m.stages) == 0 {
 			break
 		}
-		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.Heads(rows[k]) {
-			switch names := m.headingNames(rows[k]); {
-			case len(names) == 0:
-			case grid.OverGroups(rows[k]):
+		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.OverGroups(rows[k]) {
+			if names := m.headingNames(rows[k]); len(names) > 0 {
 				m.openFieldMenu(k, names[0].column)
-			default:
-				m.openHeadingMenu(k, m.rowLine(k), names[0])
 			}
 		}
 	case "right", "alt+right":
@@ -1014,11 +1005,44 @@ func (m *Model) take(msg loadedMsg) bool {
 		s.refusal = refusalOf(s.name, err)
 	}
 	m.rebuild()
+	m.autoGroup(s.name)
 	for i := range m.stages {
 		m.clamp(i)
 	}
 	m.fit()
 	return true
+}
+
+// autoGroup groups a stage's rows as its view groups them as it loads, once it has rows to look at: by each column
+// whose value is the same on every row the panel lets through, as the panel's AutoGrouped says, where kittui's
+// settings auto-group and the view groups by nothing. It runs once a view, on the first rows after the view is set, as
+// the screen opens or the preset line sets another; past that, the groups are the person's, as any they chose, and
+// the preset line names the view still.
+func (m *Model) autoGroup(name string) {
+	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
+	if i < 0 {
+		return
+	}
+	s := &m.stages[i]
+	if !s.grouping || s.loading || s.refusal != "" {
+		return
+	}
+	s.grouping = false
+	var all []row
+	if s.name == "incoming" {
+		all = incomingRows(*s)
+	} else {
+		all = laid(s.name, m.records(*s), func(id string) string { return s.view.Field(id).Rendering })
+	}
+	p := m.panel(i)
+	next := p.AutoGrouped(all, columnsOf(s.name))
+	if len(next.Groups()) == len(p.Groups()) {
+		return
+	}
+	s.view = next
+	grouped := m.current(i)
+	s.grouped = &grouped
+	m.rebuild()
 }
 
 // decode keeps what the stage's command printed. A document of another shape, as kit prints above repositories, is
@@ -1218,16 +1242,10 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	}
 	toggle := first && link == "" && (x >= 0 && x < len(lead) || m.inRows && row == s.cursor)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
-	var name nameSpot
-	onName := false
-	if grid.Heads(rows[row]) {
-		name, onName = m.nameAt(rows[row], x)
-	}
+	name, onName := m.nameAt(rows[row], x)
 	switch {
-	case onName && !subtree && grid.OverGroups(rows[row]):
-		m.openFieldMenu(row, name.column)
 	case onName && !subtree:
-		m.openHeadingMenu(row, y, name)
+		m.openFieldMenu(row, name.column)
 	case grid.OverGroups(rows[row]) && (x < 0 || x >= len(lead)):
 		// the heading over the groups folds by its ▾ or ▸ alone; its names are its columns', the rest nothing
 		m.fit()

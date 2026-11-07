@@ -61,7 +61,7 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 	rowLines := func(m Model) int {
 		n := 0
 		for _, l := range lines(m)[m.rowsTop() : m.rowsTop()+m.rowsHeight()] {
-			if strings.Contains(l, "#") || strings.Contains(l, "github") {
+			if strings.TrimSpace(ansi.Strip(l)) != "" {
 				n++
 			}
 		}

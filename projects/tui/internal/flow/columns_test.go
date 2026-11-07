@@ -36,7 +36,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if strings.Contains(lines(m)[m.top()], "◫") || strings.Contains(lines(m)[m.top()], Fields) {
 		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
 	}
-	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("assignees", true))
+	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees"))
 	if m.dropPresets(); m.presetItems()[itemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
 		m.presetItems()[itemFields+1].Name != "" || !m.presetEnabled(itemFields) {
 		t.Fatalf("the presets' menu: %+v", m.presetItems())
@@ -68,6 +68,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 // Options… over the dialog; esc, or a click off the dialog, closes it.
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
+	m.setPanel(regroup(m.panel(0)))
 	m.openColumns()
 	at := func(id string) { m.cols.at = slices.Index(m.colsListed(), id) }
 	at("branch")

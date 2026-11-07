@@ -18,7 +18,7 @@ import (
 func nested(t *testing.T) Model {
 	t.Helper()
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
-	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
+	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	if rows := m.rows(0); !grid.OverGroups(rows[0]) || grid.Level(rows[1]) != 2 || grid.Level(rows[2]) != 3 {
 		t.Fatalf("backlog does not group two deep:\n%s", view(m))
 	}

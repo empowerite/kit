@@ -1,12 +1,12 @@
   ≡ kit flow · 📚 empowerite/kit · 🎫 backlog ╭╴⋮╶────────────────────────────╮                               🔎 search
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                    │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-       id  assignees         age  branch      │ 🔭 Watch                      │
+         id  assignees         age  branch    │ 🔭 Watch                      │
     ──────────────────────────────────────────│ ⤡  Restore                    │──────────────────────────── Default ▼
-  ▾ github source  3                          │ ───────────────────────────── │
-    ▸ #45                     2h              │ ⏬ Expand All                 │one picture: five stages, interactive o…
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun│ ⏫ Collapse All               │noun with a verb acts
-    ▸  #7  ada           +1  40d              │ ⏫ Collapse Others            │
-                                              │ ───────────────────────────── │
+  ▾ source  3                                 │ ───────────────────────────── │
+    ▾ github  3                               │ ⏬ Expand All                 │
+      ▸ #45                     2h            │ ⏫ Collapse All               │e one picture: five stages, interactive…
+      ▸ #46  jeffrey-aguilera   2d  🌿 46-a-no│ ⏫ Collapse Others            │a noun with a verb acts
+      ▸  #7  ada           +1  40d            │ ───────────────────────────── │
                                               │ 📋 Select All                 │
                                               │ 🧹 Clear Selection            │
                                               │ ───────────────────────────── │

@@ -61,7 +61,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	// Group groups within the groups, innermost, and Ungroup takes it out wherever it stands; a letter moves to the
 	// next line it starts
-	m.setPanel(m.panel(m.stage).Grouped("source", false))
+	m.setPanel(regroup(m.panel(m.stage), "source"))
 	m = drive(m, rightClick("assignees"), down, down, down, down)
 	if m.colMenu.At != m.columnLine(actGroup) {
 		t.Fatalf("down to Group: %d", m.colMenu.At)
@@ -182,7 +182,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Errorf("None on id: %+v", sorts())
 	}
 	// grouped by source, which does not sort, age, the one key, has no number; once source sorts, it is 1, and age ▼₂
-	m.setPanel(m.panel(m.stage).Grouped("source", true))
+	m.setPanel(regroup(m.panel(m.stage), "source"))
 	if !strings.Contains(rule(), "▼") || strings.Contains(rule(), "▼₁") || strings.Contains(rule(), "▼₂") {
 		t.Errorf("age under a group that does not sort:\n%s", rule())
 	}
@@ -246,7 +246,7 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 // stands.
 func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
-	// the columns the header names, apart from source, which groups the rows on its own
+	// the columns the header names, apart from source, which the view grouped the rows by as it loaded
 	shown := func() []string {
 		return slices.DeleteFunc(slices.Clone(m.shownColumns(m.stage)), func(id string) bool {
 			_, name := m.columnName(id)
@@ -283,7 +283,7 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	// grouped by source, then assignees: shift+left in assignees' menu, from its name in the heading over the groups,
 	// makes it the outer group, the menu on its name still, now first, which shift+left then cannot move; shift+right
 	// moves it back in
-	m.setPanel(m.panel(m.stage).Grouped("source", true).Grouped("assignees", true))
+	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	k := slices.IndexFunc(m.rows(m.stage), grid.OverGroups)
 	m.openFieldMenu(k, "assignees")
 	x0, _ = m.fieldName("assignees")

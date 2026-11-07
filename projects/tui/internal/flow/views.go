@@ -399,11 +399,11 @@ func (m Model) same(i int, a, b preset) bool {
 	return reflect.DeepEqual(normal(a), normal(b))
 }
 
-// is gives the name of the view a stage's panel is set as: the view chosen, when the panel is as it says; else the
-// first of the stage's views it is as; none when it differs from every one.
+// is gives the name of the view a stage's panel is set as: the view chosen, when the panel is as it says, or as it
+// grouped the rows as it loaded; else the first of the stage's views it is as; none when it differs from every one.
 func (m Model) is(i int) string {
 	now := m.current(i)
-	if m.same(i, now, m.chosen(i)) {
+	if g := m.stages[i].grouped; m.same(i, now, m.chosen(i)) || g != nil && m.same(i, now, *g) {
 		return m.chosen(i).Name
 	}
 	for _, v := range m.views(i) {
@@ -415,12 +415,16 @@ func (m Model) is(i int) string {
 }
 
 // apply sets the selected stage's panel as the view keeps it, its search, cursor, and groups closed as they are, and
-// names the view.
+// names the view, which then groups the rows as it loads, as autoGroup says.
 func (m *Model) apply(v preset) {
 	s := &m.stages[m.stage]
 	p := v.panel(fieldsOf(s.name), s.view)
 	s.viewName, s.savingAs, s.naming = v.Name, false, ""
+	s.grouping, s.grouped = true, nil
 	m.setPanel(p)
+	m.autoGroup(s.name)
+	m.clamp(m.stage)
+	m.fit()
 }
 
 // presetKey takes a key while the keyboard is on the preset line, and says whether it did: up and esc give the bar the

@@ -354,15 +354,12 @@ func (m Model) shown(i int) shown {
 	return r
 }
 
-// shown is a stage's rows as its panel lets them through, the columns its panel offers, those its rows group by on
-// their own and the level of the headings that say each, how many levels of headings they stand under, how many
-// rows but the asides it loaded, the panel apart, and how many of those the panel lets through, a group folded or not,
-// and the rendering each field is drawn by, by id, as automatic chose it.
+// shown is a stage's rows as its panel lets them through, the columns its panel offers, how many levels of headings
+// they stand under, how many rows but the asides it loaded, the panel apart, and how many of those the panel lets
+// through, a group folded or not, and the rendering each field is drawn by, by id, as automatic chose it.
 type shown struct {
 	rows   []row
 	names  []string
-	auto   []string
-	said   map[string]int
 	levels int
 	all    int
 	passed int
@@ -378,14 +375,13 @@ func (m Model) build(i int) shown {
 	s, names, p := m.stages[i], columnsOf(m.stages[i].name), m.filter(i)
 	if s.name == "incoming" {
 		all := incomingRows(s)
-		rows, auto := p.Filtered(all, names)
-		return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all),
-			counted(rows), nil}
+		rows := p.Filter(all, names)
+		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), counted(rows), nil}
 	}
 	records := m.records(s)
 	pinned := func(id string) string { return s.view.Field(id).Rendering }
 	all := laid(s.name, records, pinned)
-	rows, auto := p.Filtered(all, names)
+	rows := p.Filter(all, names)
 	fields := m.placed(i)
 	drawn := automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead), p.Glyphs)
 	if slices.ContainsFunc(fields, func(f placed) bool { return drawn[f.ID] != f.drawnBy(f.pinned) }) {
@@ -396,10 +392,9 @@ func (m Model) build(i int) shown {
 		all = laid(s.name, records, func(id string) string { return drawn[id] })
 		q := p
 		q.Query = ""
-		rows, auto = q.Filtered(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
+		rows = q.Filter(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
 	}
-	return shown{p.FoldAway(rows), filled(all, names), auto, grid.Said(rows), grid.Levels(rows), counted(all),
-		counted(rows), drawn}
+	return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), counted(rows), drawn}
 }
 
 // placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each

@@ -69,7 +69,7 @@ var settings = []setting{
 	{"Key bar", "shows the keys you can press now, on the bottom line",
 		func(s Settings) bool { return s.KeysBar },
 		func(s Settings) Settings { s.KeysBar = !s.KeysBar; return s }},
-	{"Auto-group", "puts a value every row shares in one heading over them",
+	{"Auto-group", "groups a view, as it loads, by each column the same on every row",
 		func(s Settings) bool { return s.FoldShared },
 		func(s Settings) Settings { s.FoldShared = !s.FoldShared; return s }},
 	{"Repeated emoji", "keeps an emoji every row shows",

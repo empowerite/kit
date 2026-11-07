@@ -171,7 +171,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	}
 	text := strings.Join(pane, "\n")
 	if !strings.Contains(text, Issue+" Fix the thing") || strings.Contains(text, GitHub) ||
-		!strings.Contains(text, "github source") {
+		!strings.Contains(text, "▾ github") {
 		t.Errorf("backlog keeps a glyph every row shares, or drops the title's:\n%s", text)
 	}
 	if got := m.shown(0).drawn; got["source"] != "text" || got["title"] != "glyph+text" || got["id"] != "text" {

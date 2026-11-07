@@ -166,13 +166,13 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 // A click on the gutter of a row's first line opens it, from the search too; again closes it.
 func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
-	// #45 stands under the heading over every row, two cells in
+	// #45 stands under the heading over the groups and source's, four cells in
 	gutter := m.indent(0) + 1
-	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.inPanel || !m.inRows || m.stages[0].cursor != 1 ||
+	if m = drive(m, testkit.Click(gutter, m.rowsTop()+2)); m.inPanel || !m.inRows || m.stages[0].cursor != 2 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(gutter, m.rowsTop()+1)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(gutter, m.rowsTop()+2)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 }
@@ -191,8 +191,8 @@ func TestThePanelWithoutStagesDoesNothing(t *testing.T) {
 // pin, its words lead nowhere.
 func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
-	// the first issue stands under the heading over every row, the source said once
-	y := m.rowsTop() + 1
+	// the first issue stands under the heading over the groups and source's, the view grouped by it as it loaded
+	y := m.rowsTop() + 2
 	first := lines(m)[y]
 	x := ansi.StringWidth(first[:strings.Index(first, Issue+" kit flow is")])
 	browsed = nil
@@ -296,6 +296,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 // level, a click on a name finding its column there.
 func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m.setPanel(regroup(m.panel(m.stage)))
 	m.openColumns()
 	for _, id := range []string{"source", "assignees"} {
 		m.cols.at = slices.Index(m.colsListed(), id)
@@ -363,7 +364,7 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 // none.
 func TestUnderwayGroupsByChange(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
-	m.setPanel(m.panel(m.stage).Grouped("change", false))
+	m.setPanel(regroup(m.panel(m.stage), "change"))
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"change"}) {
 		t.Fatalf("grouped by change: %q", got)
 	}
@@ -378,36 +379,48 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 	}
 }
 
-// A column whose value is the same on every row shown groups the rows on its own, as underway's source while one
-// tracker holds every issue: the value is said once, in a heading over the rows, and the panel marks the column with a
-// dim ▤. It follows the rows: a search that leaves one row ungroups it. kittui's setting, Auto-group off,
-// stops it, so it is a column again.
-func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
+// A view, as it loads, groups the rows by each column whose value is the same on every row, as underway's source while
+// one tracker holds every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog,
+// and the preset line still names the view. Once grouped, it is the person's: a search that leaves one row, or the
+// rows loaded again, change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with
+// kittui's setting, Auto-group, off, a view set groups nothing.
+func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	heading := func(m Model) string {
-		if rows := m.rows(m.stage); len(rows) > 0 && grid.Heads(rows[0]) {
+		if rows := m.rows(m.stage); len(rows) > 1 && grid.OverGroups(rows[0]) {
 			return ansi.Strip(rows[0].Cells[0].Values[0])
 		}
 		return ""
 	}
-	if got := heading(m); got != grid.Unfolded+" github source  4" || !slices.Equal(m.panel(m.stage).Auto, []string{"source"}) {
-		t.Fatalf("underway's heading %q, auto %q:\n%s", got, m.panel(m.stage).Auto, view(m))
+	if got := heading(m); got != grid.Unfolded+" source  4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
+		m.is(m.stage) != Opening || !strings.Contains(m.columnsLine("source"), grid.GroupMark(1)) {
+		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
-	// a search that leaves one row: the source is a column again
+	// a search that leaves one row, and the rows loaded again, leave the group as it is
 	p := m.panel(m.stage)
 	p.Query = "kit commit"
-	if m.setPanel(p); heading(m) != "" || len(m.panel(m.stage).Auto) > 0 || !strings.Contains(lines(m)[m.top()], "source") {
-		t.Errorf("one row left still groups:\n%s", view(m))
+	if m.setPanel(p); !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+		t.Errorf("one row left: %q", m.panel(m.stage).Groups())
 	}
 	p.Query = ""
 	m.setPanel(p)
-	// kittui's setting, Auto-group off, stops it, through a refresh of the rows
+	m = drive(m, m.again("underway", false)())
+	if !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+		t.Errorf("loaded again: %q", m.panel(m.stage).Groups())
+	}
+	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
+	m.setPanel(m.panel(m.stage).Grouped("source", true))
+	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || heading(m) != "" ||
+		!strings.Contains(lines(m)[m.top()], "source") {
+		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
+	}
+	// the view set again groups again; with Auto-group off, it groups nothing
+	if m.apply(m.chosen(m.stage)); !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+		t.Errorf("the view set again: %q", m.panel(m.stage).Groups())
+	}
 	if unfold(&m); heading(m) != "" || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
 		!strings.Contains(lines(m)[m.top()], "source") {
-		t.Errorf("not folding: heading %q, group %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
-	}
-	if m.rebuild(); heading(m) != "" {
-		t.Errorf("the rows built again group by source")
+		t.Errorf("Auto-group off: heading %q, groups %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
 }
 
@@ -417,8 +430,8 @@ func TestAColumnTheSameOnEveryRowGroupsTheRowsOnItsOwn(t *testing.T) {
 func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	count, rows := m.count(m.stage), len(m.rows(m.stage))
-	// down lands past the heading on a row; up puts the cursor on the heading
-	m = drive(m, down, up)
+	// the cursor on the heading over the groups, the outermost
+	m.stages[m.stage].cursor, m.inRows = 0, true
 	if m.stages[m.stage].cursor != 0 || !grid.Heads(m.rows(m.stage)[0]) {
 		t.Fatalf("the cursor is not on the heading: %d", m.stages[m.stage].cursor)
 	}
@@ -443,17 +456,17 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 		t.Fatalf("right on the heading: %d rows", len(m.rows(m.stage)))
 	}
 	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it
-	if m = drive(m, testkit.Click(1, m.rowsTop())); len(m.rows(m.stage)) != 1 || m.headMenu.open {
-		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.headMenu.open, view(m))
+	if m = drive(m, testkit.Click(2, m.rowsTop())); len(m.rows(m.stage)) != 1 || m.colMenu.Open {
+		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.colMenu.Open, view(m))
 	}
 	if m = drive(m, testkit.Click(1, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's ▸: %d rows", len(m.rows(m.stage)))
 	}
 }
 
-// The rows under a group's heading stand in from it, whether the rows group on their own or by a column the person
-// chose: the heading's ▾ two cells left of its rows' ▸, and a heading nested under another two cells in from it, the
-// headings of the values in from the heading over the groups, which names their columns.
+// The rows under a group's heading stand in from it, whether the view grouped them as it loaded or the person did: the
+// heading's ▾ two cells left of its rows' ▸, and a heading nested under another two cells in from it, the headings of
+// the values in from the heading over the groups, which names their columns.
 func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	// column gives the cell a line of the pane draws its first glyph of the kind at
@@ -465,11 +478,11 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 		before, _, _ := strings.Cut(lines(m)[k], glyph)
 		return ansi.StringWidth(before)
 	}
-	if h, r := column(m, "github source", grid.Unfolded), column(m, "#45", "▸"); r != h+2 {
-		t.Errorf("grouped on its own, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
+	if h, r := column(m, "▾ github", grid.Unfolded), column(m, "#45", "▸"); r != h+2 {
+		t.Errorf("grouped as the view loaded, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
 	}
 	unfold(&m)
-	m.setPanel(m.panel(m.stage).Grouped("source", false).Grouped("assignees", true))
+	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	over := column(m, "source › assignees", grid.Unfolded)
 	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
 	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {

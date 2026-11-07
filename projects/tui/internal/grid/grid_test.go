@@ -2,7 +2,6 @@ package grid
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -12,9 +11,6 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
-
-// first gives the first of two values, as the rows of group.
-func first(rows []Row, _ []string) []Row { return rows }
 
 // one gives a cell of one value.
 func one(s string) Cell { return Cell{Values: []string{s}} }
@@ -574,7 +570,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		{Key: "gone", Cells: []Cell{one("gone: x")}}}
 	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
 	var got []string
-	grouped, _ := p.group(rows, columns)
+	grouped := p.group(rows, columns)
 	for _, r := range grouped {
 		text := r.Key
 		if r.Aside {
@@ -604,10 +600,10 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	desc := p.with(func(fields map[string]Field) {
 		fields["state"] = Field{Placement: Group, Depth: 1, Sort: Descending, Priority: 1}
 	})
-	if got, _ := desc.group(rows, columns); ansi.Strip(got[1].Cells[0].first()) != "  ▾ ready  2" {
+	if got := desc.group(rows, columns); ansi.Strip(got[1].Cells[0].first()) != "  ▾ ready  2" {
 		t.Errorf("the groups descending: %q", ansi.Strip(got[1].Cells[0].first()))
 	}
-	if got, _ := (Panel{}).group(rows, columns); len(got) != len(rows) {
+	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {
 		t.Error("grouping by nothing changed the rows")
 	}
 	q := Panel{Columns: columns, Groupable: p.Groupable}
@@ -617,12 +613,6 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	}
 }
 
-// While the panel folds, a column that can group, whose value is the same on every row, groups them on its own: without
-// a group the person chose, one heading over every row says the values, joined in the panel's order, and their cells
-// are blank. A group the person chose overrides it: under one, no column groups the rows on its own. A column
-// blank on some rows, one with several values, a group of one row, and a hidden column do not group on their own, nor
-// does any while the panel does not fold; the panel's box for folding stops it, and the panel marks a column grouping on
-// its own with a dim ▤.
 // The rows group by a cell's sort key, its raw value, and the heading says the value as the rows draw it, or as the
 // cell's Head says it where the rows draw more than they group by.
 func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
@@ -633,7 +623,7 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 	}
 	rows := []Row{row("#1", "ready", "1 / 1"), row("#2", "draft", "2 / 2"), row("#3", "ready", "3 / 3")}
 	headings := func(p Panel) []string {
-		got, _ := p.group(rows, columns)
+		got := p.group(rows, columns)
 		var out []string
 		for _, r := range got {
 			if r.Aside {
@@ -646,82 +636,86 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 	if got := headings(p.Grouped("state", true)); !slices.Equal(got, []string{"▾ state  3", "  ▾ 🏁 draft  1", "  ▾ 🏁 ready  2"}) {
 		t.Errorf("the headings by state: %q", got)
 	}
-	// on their own, the rows group by checks' raw value, every row's SUCCESS, the heading saying its Head
-	if got := headings(p); !slices.Equal(got, []string{"▾ ✅ SUCCESS checks  3"}) {
-		t.Errorf("the heading on their own: %q", got)
+	// grouped by checks, the rows group by its raw value, every row's SUCCESS, the heading saying its Head
+	if got := headings(p.Grouped("checks", false)); !slices.Equal(got, []string{"▾ checks  3", "  ▾ ✅ SUCCESS  3"}) {
+		t.Errorf("the heading by checks: %q", got)
 	}
 }
 
-func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
+// While the panel folds and groups by nothing, a view as it loads groups the rows by each column that can group whose
+// value is the same on every row it lets through, left to right in the panel's order: groups as any other, which the
+// panel then moves and ungroups as it would. A column blank on some rows, one with several values, a hidden column,
+// a column that cannot group, and the rows a filter or the search holds back count for nothing; one row alone, a panel
+// that groups already, or one that does not fold, is given back as it is.
+func TestAViewAsItLoadsGroupsByEachColumnTheSameOnEveryRow(t *testing.T) {
 	columns := []string{"id", "source", "state", "where", "who"}
 	row := func(id, state, where, who string) Row {
 		return Row{Key: id, Cells: []Cell{one(id), one("github"), one(state), one(where), one(who)}}
 	}
 	groupable := map[string]bool{"source": true, "state": true, "where": true, "who": true}
-	texts := func(rows []Row) []string {
-		var out []string
-		for _, r := range rows {
-			text := r.Key
-			if r.Aside {
-				text = ansi.Strip(r.Cells[0].first())
-			}
-			for _, c := range r.Cells[1:] {
-				if !r.Aside {
-					text += "|" + c.first()
-				}
-			}
-			out = append(out, text)
-		}
-		return out
-	}
-	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob")}
+	rows := []Row{row("#1", "draft", "here", "ada"), row("#2", "draft", "here", ""), row("#3", "ready", "here", "bob"),
+		{Key: "gone", Cells: []Cell{one("gone: x")}}}
 	p := Panel{Columns: columns, Groupable: groupable, Fold: true}
-	got, auto := p.group(rows, columns)
-	want := []string{"▾ github source, here where  3", "#1||draft||ada", "#2||draft||", "#3||ready||bob"}
-	if !slices.Equal(texts(got), want) || !slices.Equal(auto, []string{"source", "where"}) || Levels(got) != 1 {
-		t.Errorf("over every row: %q, auto %q, levels %d", texts(got), auto, Levels(got))
+	if got := p.AutoGrouped(rows, columns).Groups(); !slices.Equal(got, []string{"source", "where"}) {
+		t.Fatalf("grouped as it loads: %q", got)
 	}
-	// the panel's order joins the values; a hidden column does not group, nor does any while the panel does not fold
-	if moved, _ := p.Moved("where", Column, 0); texts(first(moved.group(rows, columns)))[0] != "▾ here where, github source  3" {
-		t.Errorf("in the panel's order: %q", texts(first(moved.group(rows, columns)))[0])
+	// they are groups as any other: drawn so, ungrouped and moved as any other
+	q := p.AutoGrouped(rows, columns)
+	var headings []string
+	for _, r := range q.group(rows, columns) {
+		if r.Aside {
+			headings = append(headings, ansi.Strip(r.Cells[0].first()))
+		}
 	}
-	if got, auto := p.Placed("source", Hidden).group(rows, columns); texts(got)[0] != "▾ here where  3" ||
-		!slices.Equal(auto, []string{"where"}) {
-		t.Errorf("source hidden: %q, auto %q", texts(got), auto)
+	if want := []string{"▾ source › where  3", "  ▾ github  3", "    ▾ here  3"}; !slices.Equal(headings, want) {
+		t.Errorf("the headings: %q", headings)
 	}
-	if got, auto := (Panel{Groupable: groupable}).group(rows, columns); len(got) != 3 || auto != nil {
-		t.Errorf("not folding: %q, auto %q", texts(got), auto)
+	if got := q.Grouped("source", true).Groups(); !slices.Equal(got, []string{"where"}) {
+		t.Errorf("source ungrouped: %q", got)
 	}
-	// a group the person chose overrides the rows' own: under state, no column groups them on its own
-	p = p.Grouped("state", false)
-	got, auto = p.group(rows, columns)
-	// the column the person groups by stays in the cells, which the panel's hide then leaves out
-	want = []string{"▾ state  3", "  ▾ draft  2", "#1|github|draft|here|ada", "#2|github|draft|here|", "  ▾ ready  1",
-		"#3|github|ready|here|bob"}
-	if !slices.Equal(texts(got), want) || auto != nil || Levels(got) != 2 {
-		t.Errorf("under state: %q, auto %q, levels %d", texts(got), auto, Levels(got))
+	// left to right, as the panel orders the columns
+	if moved, _ := p.Moved("where", Column, 0); !slices.Equal(moved.AutoGrouped(rows, columns).Groups(),
+		[]string{"where", "source"}) {
+		t.Errorf("where moved first: %q", moved.AutoGrouped(rows, columns).Groups())
 	}
-	// two values in a cell, or one row alone, do not group
-	rows[0].Cells[3].Values = []string{"here", "there"}
-	if got, _ := (Panel{Groupable: groupable, Fold: true}).group(rows, columns); texts(got)[0] != "▾ github source  3" {
-		t.Errorf("several values: %q", texts(got)[0])
+	// a hidden column, or one that cannot group, does not group
+	if got := p.Placed("source", Hidden).AutoGrouped(rows, columns).Groups(); !slices.Equal(got, []string{"where"}) {
+		t.Errorf("source hidden: %q", got)
 	}
-	if got, auto := (Panel{Groupable: groupable, Fold: true}).group(rows[:1], columns); len(got) != 1 || auto != nil {
-		t.Errorf("one row: %q", texts(got))
+	r := p
+	r.Groupable = map[string]bool{"source": true}
+	if got := r.AutoGrouped(rows, columns).Groups(); !slices.Equal(got, []string{"source"}) {
+		t.Errorf("where cannot group: %q", got)
 	}
-	// the headings say which columns they group by on their own, at which level: none under the person's group
-	got, _ = p.group(rows, columns)
-	if said := Said(got); len(said) != 0 {
-		t.Errorf("said under state: %v", said)
+	// the rows the search or a filter holds back count for nothing: with the drafts alone, state is the same on every
+	// row too; with one row alone, nothing groups
+	f := p
+	f.Query = "draft"
+	if got := f.AutoGrouped(rows, columns).Groups(); !slices.Equal(got, []string{"source", "state", "where"}) {
+		t.Errorf("the drafts alone: %q", got)
 	}
-	if said := Said([]Row{{Key: overAll, Aside: true, Says: []string{"where"}},
-		{Key: "group\x00a\x00b", Aside: true, Says: []string{"where", "source"}}}); !maps.Equal(said,
-		map[string]int{"where": 1, "source": 2}) {
-		t.Errorf("said at two levels: %v", said)
+	if f.Query = "ready"; len(f.AutoGrouped(rows, columns).Groups()) != 0 {
+		t.Errorf("one row through the search: %q", f.AutoGrouped(rows, columns).Groups())
 	}
-	// without the folding, no column groups the rows on its own
-	if got, auto := (Panel{Groupable: groupable}).group(rows, columns); len(got) != len(rows) || auto != nil {
-		t.Errorf("not folding: %q, auto %q", texts(got), auto)
+	// two values in a cell, or one row alone, do not group; nor does a panel that groups already, or does not fold
+	several := slices.Clone(rows)
+	several[0].Cells = slices.Clone(several[0].Cells)
+	several[0].Cells[3] = Cell{Values: []string{"here", "there"}}
+	if got := p.AutoGrouped(several, columns).Groups(); !slices.Equal(got, []string{"source"}) {
+		t.Errorf("several values: %q", got)
+	}
+	if got := p.AutoGrouped(rows[:1], columns).Groups(); len(got) != 0 {
+		t.Errorf("one row: %q", got)
+	}
+	if got := p.Grouped("state", false).AutoGrouped(rows, columns).Groups(); !slices.Equal(got, []string{"state"}) {
+		t.Errorf("a panel that groups: %q", got)
+	}
+	if got := (Panel{Groupable: groupable}).AutoGrouped(rows, columns).Groups(); len(got) != 0 {
+		t.Errorf("not folding: %q", got)
+	}
+	// grouping by nothing, the rows stand as they came
+	if got := p.group(rows, columns); len(got) != len(rows) || Levels(got) != 0 {
+		t.Errorf("grouped by nothing: %d rows, %d levels", len(got), Levels(got))
 	}
 }
 
@@ -729,7 +723,7 @@ func TestTheRowsGroupOnTheirOwnByAColumnTheSameOnEveryRow(t *testing.T) {
 // heading over the groups.
 func TestAHeadingNamesTheColumnItGroups(t *testing.T) {
 	p := Panel{Groupable: map[string]bool{"source": true, "who": true}}.Grouped("source", false).Grouped("who", true)
-	rows, _ := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
+	rows := p.group([]Row{{Key: "#1", Cells: []Cell{{Values: []string{"github"}}, {Values: []string{"ada"}}}}},
 		[]string{"source", "who"})
 	var got []string
 	for _, r := range rows {
@@ -753,7 +747,7 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		{Key: "gone", Cells: []Cell{one("gone: x")}}}
 	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
 	texts := func(p Panel) []string {
-		grouped, _ := p.group(rows, columns)
+		grouped := p.group(rows, columns)
 		var out []string
 		for _, r := range p.FoldAway(grouped) {
 			text := r.Key
@@ -785,7 +779,7 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	}
 	// a closed heading holds the rows it folds away, which still lay out the header and the columns
 	every := Panel{Groupable: p.Groupable}.Grouped("state", false)
-	grouped, _ := every.group(rows, columns)
+	grouped := every.group(rows, columns)
 	names := []string{"id", "state", "who"}
 	open, _ := Header(grouped, names, 60, false)
 	folded := shut(every, byFields+"\x00draft", ready).FoldAway(grouped)
@@ -802,7 +796,7 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		t.Errorf("unfolded: %q", texts(q))
 	}
 	// the whole outline puts each closed group's rows back in their places
-	grouped, _ = p.group(rows, columns)
+	grouped = p.group(rows, columns)
 	if got := Every(shut(p, ready).FoldAway(grouped)); len(got) != len(grouped) ||
 		slices.ContainsFunc(got, func(r Row) bool { return r.Folded != nil }) {
 		t.Errorf("every row of the outline: %d of %d", len(got), len(grouped))
@@ -818,7 +812,7 @@ func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
 	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
 		{Key: "gone", Cells: []Cell{one("gone: x")}}}
 	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
-	grouped, _ := p.group(rows, columns)
+	grouped := p.group(rows, columns)
 	// state › who, draft, bob, #1, ready, ada, #3, none, #2, gone
 	var levels, spans, parents []int
 	for k, r := range grouped {
@@ -953,7 +947,7 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 	columns := []string{"id", "state", "who"}
 	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
 	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
-	grouped, _ := p.group([]Row{row("#1", "ready", "ada"), row("#2", "ready", "bob")}, columns)
+	grouped := p.group([]Row{row("#1", "ready", "ada"), row("#2", "ready", "bob")}, columns)
 	picked := func(r Row) string {
 		if Heads(r) {
 			return Partly

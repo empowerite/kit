@@ -108,16 +108,14 @@ func digits(s string) int {
 }
 
 // Row is one row: its key, which survives a refresh; its cells; the lines it opens to, each a row of cells again,
-// drawn closed; whether it is an aside, as a heading, which a screen does not count; for a group's heading, the
-// columns whose value it says because the rows group by them on their own; and, for a heading whose group is closed,
-// the rows it folds away, which are not drawn but still lay the columns and the header out, so closing a group moves
-// no column and leaves the header standing.
+// drawn closed; whether it is an aside, as a heading, which a screen does not count; and, for a heading whose group is
+// closed, the rows it folds away, which are not drawn but still lay the columns and the header out, so closing a
+// group moves no column and leaves the header standing.
 type Row struct {
 	Key    string
 	Cells  []Cell
 	Detail [][]Cell
 	Aside  bool
-	Says   []string
 	Folded []Row
 }
 

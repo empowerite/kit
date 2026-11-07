@@ -2,13 +2,13 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶───────────────────╮➄╶─────────────────╮➅╶────────────────╮➆╶──────────────────╮➇╶──────────────────╮
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds     4 │  🛬 incoming     6 │  📦 releases     3 │
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────╰────────────────────╰────────────────────╰─────────────────────────────────────
-       id  assignees         age  branch              labels  title
+         id  assignees         age  branch              labels  title
     ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
-  ▾ github source  3
-    ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
-      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts
-    ▸  #7  ada           +1  40d                              🎫 Fix the thing
-
+  ▾ source  3
+    ▾ github  3
+      ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
+        #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts
+      ▸  #7  ada           +1  40d                              🎫 Fix the thing
 
 
 

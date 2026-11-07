@@ -55,6 +55,7 @@ func (m *Model) takeKept(msg keptMsg) {
 	}
 	s.loading, s.stale = false, true
 	m.rebuild()
+	m.autoGroup(s.name)
 	for i := range m.stages {
 		m.clamp(i)
 	}

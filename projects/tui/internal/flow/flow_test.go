@@ -116,9 +116,30 @@ func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
-// unfold has the tables fold no longer, as kittui's settings say once Fold shared values is off, so a column the rows
-// group by on their own, as the source, one tracker's on every row, is a column again.
-func unfold(m *Model) { folding(m, false) }
+// unfold turns Auto-group off, as kittui's settings do, and sets each stage's view again, so its rows, loaded already,
+// stand as a view set while Auto-group is off leaves them: grouped by nothing, the source, one tracker's on every row,
+// a column.
+func unfold(m *Model) {
+	folding(m, false)
+	at := m.stage
+	for i := range m.stages {
+		m.stage = i
+		m.apply(m.chosen(i))
+	}
+	m.stage = at
+}
+
+// regroup gives the panel grouping the rows by the columns alone, the outermost first, whatever it grouped by before,
+// as the view grouped them as it loaded.
+func regroup(p grid.Panel, ids ...string) grid.Panel {
+	for _, g := range p.Groups() {
+		p = p.Grouped(g, true)
+	}
+	for _, id := range ids {
+		p = p.Grouped(id, true)
+	}
+	return p
+}
 
 // folding has the tables fold, or not, as kittui's settings say.
 func folding(m *Model, on bool) {
@@ -1535,8 +1556,15 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
 	m = loaded(t, o, right)
-	// the first row is the heading over every row, the source said once
-	if link := m.rows(1)[1].Cells[4].Link; link != "https://github.com/empowerite/kit/pull/2" {
+	// the first row stands under the heading over the groups and source's value, as the view grouped it as it loaded
+	first := m.rows(1)[2]
+	link := ""
+	for _, c := range first.Cells {
+		if strings.Contains(c.Link, "/pull/") {
+			link = c.Link
+		}
+	}
+	if link != "https://github.com/empowerite/kit/pull/2" {
 		t.Errorf("without changes the pull request's glyph leads to %q", link)
 	}
 }
@@ -1556,17 +1584,19 @@ func init() {
 
 // Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim; a source kittui
 // has no glyph for by its name alone; and none at all leaves the column out, as an empty one. While one tracker holds
-// every issue, the source is said once, in the heading over the rows, and the column leaves them; kept a column, it
-// stands under the source header. Either way, the glyph every row shares is left out.
+// every issue, the view groups the rows by it as it loads, so it is said once, in its group's heading, as any group's
+// value, and the column leaves them; with Auto-group off, it stands under the source header, the glyph every row
+// shares left out.
 func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for i, name := range []string{"backlog", "underway"} {
 		if i > 0 {
 			m = drive(m, right)
 			folding(&m, true)
+			m.apply(m.chosen(m.stage))
 		}
-		if l := lines(m); strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
-			strings.Count(view(m), "github") != 1 || strings.Contains(view(m), GitHub) {
+		if l := lines(m); strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()+1], "github") ||
+			strings.Count(view(m), "github") != 1 {
 			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
 		}
 		unfold(&m)
