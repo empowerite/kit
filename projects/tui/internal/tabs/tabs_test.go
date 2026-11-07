@@ -152,16 +152,17 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 }
 
 // A screen too narrow for every tab scrolls to center the selected one, with ◃ in the gutter where tabs are hidden
-// before it and ▹ where they are hidden after it, a tab at either edge cut there.
+// before it and ▹ where they are hidden after it, a tab at either edge cut there; a triangle that would cut the
+// selected tab is hidden, the cut tab alone saying more stand past the edge.
 func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
 	if got, want := row(stages(5, 40), 1), " ◃rktrees 4  │ 🔀 changes 3 │  🏭 buil ▹"; got != want {
 		t.Errorf("at 40, tab 5:\n got %q\nwant %q", got, want)
 	}
-	if got := row(stages(0, 40), 1); strings.HasPrefix(got, " "+Before) || !strings.HasSuffix(got, After) {
-		t.Errorf("at 40, tab 0: %q", got)
+	if got := row(stages(0, 40), 1); strings.Contains(got, Before) || strings.Contains(got, After) {
+		t.Errorf("at 40, tab 0, a triangle that would cut backlog shows: %q", got)
 	}
-	if got := row(stages(7, 40), 1); !strings.HasPrefix(got, " "+Before) || strings.HasSuffix(got, After) {
-		t.Errorf("at 40, tab 7: %q", got)
+	if got := row(stages(7, 40), 1); strings.Contains(got, Before) || strings.Contains(got, After) {
+		t.Errorf("at 40, tab 7, a triangle that would cut releases shows: %q", got)
 	}
 	// a click on a triangle scrolls the view and never selects a tab; see TestATriangleScrollsOneTabAndNeverSelects
 	// the margin without a triangle is no tab's
@@ -208,11 +209,13 @@ func TestATriangleScrollsOneTabAndNeverSelects(t *testing.T) {
 							t.Fatalf("at %d, tab %d, the triangle at %d: scroll %d, was %d, want %d (moves %v)", width,
 								s, x, after.scroll, l.scroll, to, ok)
 						}
-						dim := strings.Contains(b.View(), style.Off(Before)) && !right ||
-							strings.Contains(b.View(), style.Off(After)) && right
-						if shown && dim == ok {
-							t.Fatalf("at %d, tab %d, the triangle at %d is dim %v and moves %v:\n%s", width, s, x, dim, ok,
-								plain(b))
+						glyph := Before
+						if right {
+							glyph = After
+						}
+						if drawn := strings.Contains(plain(b), glyph); shown && drawn != ok {
+							t.Fatalf("at %d, tab %d, the triangle at %d is drawn %v and moves %v:\n%s", width, s, x, drawn,
+								ok, plain(b))
 						}
 						if !shown || !ok {
 							break
@@ -229,8 +232,8 @@ func TestATriangleScrollsOneTabAndNeverSelects(t *testing.T) {
 	if got := row(b, 1); !strings.Contains(got, "🛫 underway 58 │") || !strings.Contains(got, "🎫 backlog 15") {
 		t.Errorf("▹ from tab 0: %q", got)
 	}
-	if got := row(b, 1); !strings.HasSuffix(got, After) || !strings.Contains(b.View(), style.Off(After)) {
-		t.Errorf("▹ would cut backlog, so it is dim: %q", got)
+	if got := row(b, 1); strings.Contains(got, After) {
+		t.Errorf("▹ would cut backlog, so it is hidden: %q", got)
 	}
 }
 

@@ -14,7 +14,7 @@
 // gutter before the bar for the tabs it hides on the left and ▹ after those on the right, a tab at either edge cut
 // there. The selected tab always shows whole, with its count and its menu's glyph: when it would not, the view centers
 // it, as near as the bar's ends let. A triangle scrolls the view to show whole the nearest tab it hides, never
-// selecting it; one that would cut the selected tab is dim, and moves nothing. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
+// selecting it; one that would cut the selected tab is hidden, its cell left blank, and moves nothing. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
 // border runs through the number's cell. The selected tab, its lines, and the line under every tab are in the accent,
 // wherever the keyboard is; while the pane under the bar has it, the other tabs are dim, all but a count that wants
 // attention. Widths are terminal cells, so a two-cell glyph never pushes the line past the edge.
@@ -116,8 +116,8 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 		l, w := b.layout(), b.screen()
 		switch {
 		case mouse.X < Gutter && l.scroll > 0:
-			// a triangle scrolls the view, and leaves the selected tab and the keyboard where they are; dim, it is
-			// taken, and moves nothing
+			// a triangle scrolls the view, and leaves the selected tab and the keyboard where they are; hidden, its
+			// cell is taken, and moves nothing
 			b.Scroll = l.scroll
 			if to, ok := l.before(w, b.Selected); ok {
 				b.Scroll = to
@@ -399,13 +399,13 @@ func (b Bar) View() string {
 	if l.width < w {
 		under.WriteString(mark(strings.Repeat("─", w-l.width)))
 	}
-	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line, each dim when
-	// moving the view would cut the selected tab
+	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line, each hidden, a
+	// blank in its cell, when moving the view would cut the selected tab
 	triangle := func(glyph string, ok bool) string {
 		if ok {
 			return glyph
 		}
-		return style.Off(glyph)
+		return " "
 	}
 	_, back := l.before(w, b.Selected)
 	_, on := l.after(w, b.Selected)

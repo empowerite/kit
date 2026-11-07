@@ -678,7 +678,7 @@ func TestEveryLineFitsTheWidth(t *testing.T) {
 	}
 }
 
-// At 130 columns every tab is whole; at 100 the bar scrolls, no name cut.
+// At 130 columns every tab is whole; at 100 the bar scrolls, no name cut, and ▹, which would cut basics, is hidden.
 func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 130, Height: 30})
 	labels := strings.Split(view(m), "\n")[2]
@@ -689,7 +689,7 @@ func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	labels = strings.Split(view(m), "\n")[2]
-	if !strings.Contains(labels, "│ 🧱 basics 2") || strings.Contains(labels, "…") || !strings.HasSuffix(labels, tabs.After) {
+	if !strings.Contains(labels, "│ 🧱 basics 2") || strings.Contains(labels, "…") || strings.Contains(labels, tabs.After) {
 		t.Errorf("at 100: %q", labels)
 	}
 }
@@ -789,8 +789,9 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 		!strings.Contains(view(m), "\n   Our team\n") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
-	// at 120 columns the eight do not fit: the bar scrolls to the last, whole, no name cut
-	if !strings.HasPrefix(labels, " "+tabs.Before) || strings.Contains(labels, tabs.After) || strings.Contains(labels, "…") {
+	// at 120 columns the eight do not fit: the bar scrolls to the last, whole, no name cut; ◃, which would cut it, is
+	// hidden
+	if strings.Contains(labels, tabs.Before) || strings.Contains(labels, tabs.After) || strings.Contains(labels, "…") {
 		t.Errorf("labels %q", labels)
 	}
 }
@@ -835,11 +836,11 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	for _, c := range []struct {
 		keys          []tea.Msg
 		label         string
-		start, finish bool // whether each end has a triangle
+		start, finish bool // whether each end has a triangle, hidden where it would cut the selected step
 	}{
-		{nil, "👋 intro │", false, true},
+		{nil, "👋 intro │", false, false},
 		{[]tea.Msg{right, right, right, right, right}, "📖 terms │", true, true},
-		{slices.Repeat([]tea.Msg{right}, 21), "📄 page 9 │", true, false},
+		{slices.Repeat([]tea.Msg{right}, 21), "📄 page 9 │", false, false},
 	} {
 		m = drive(m, c.keys...)
 		lines := strings.Split(view(m), "\n")
