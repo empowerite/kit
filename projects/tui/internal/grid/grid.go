@@ -137,6 +137,10 @@ type Line struct {
 // triangles are, solid enough to show without bold; a row not selected has nothing there, so the selection scans.
 const Chosen = "▣"
 
+// Partly marks a group's heading some of whose rows are selected, but not all, where Chosen marks one whose rows all
+// are: a square half filled, as Chosen is filled.
+const Partly = "◩"
+
 // gap is the cells between two columns. The cell that wraps, the title, is the last to give up room: while it has less
 // than its widest text needs, every other column wider than capWidth gives up the cells past it, the widest first;
 // while it has fewer than minFill, they give up more, down to floorWidth; only then does the title have less, never
@@ -175,7 +179,7 @@ func (c Cell) more() string {
 // each row selected, as one of several, with what picked gives for it, drawn, in the gutter's first cell of its first
 // line: Chosen in a color, or nothing for a row not selected. picked may be nil. A row opens only when it hides
 // something. A group's heading stands two cells further out than a row, its ▾ or ▸ where a row's own stands, so the
-// rows under it stand in from it.
+// rows under it stand in from it, and what picked gives for it, as Chosen or Partly, in the one cell before.
 func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
@@ -204,6 +208,8 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 		for n, l := range lines {
 			g := "   "
 			switch {
+			case Heads(r) && n == 0:
+				g = selected
 			case Heads(r):
 				g = " "
 			case n == 0:

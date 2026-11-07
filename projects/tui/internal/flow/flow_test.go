@@ -663,8 +663,8 @@ const (
 	screenKeys = "= menu / search ? show sidebar ⇥ sidebar │ "
 	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc STAGE ↑↓ move ␣,⇧↑↓ select ⌃A all"
-	opens      = inRows + " → open"
-	closes     = inRows + " ← close"
+	opens      = inRows + " → expand"
+	closes     = inRows + " ← collapse"
 )
 
 // sidebarBar gives the keys bar for the screen as it is: ? hides the sidebar while it shows; esc in the rows names the

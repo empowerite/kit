@@ -103,8 +103,8 @@ const (
 // stage says. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
 // Caller is the caller's login, Me, which matches no one while it is unknown. Cursor is the control under the
 // keyboard, Focused whether the panel has it. Recall says whether there are searches to recall, which the search, with
-// the keyboard, offers with its Recall glyph. Closed holds the keys of the groups' headings whose rows are folded away
-// under them, as Close says, a new map as Fields is. Fill is the cells the control under the keyboard is drawn inverse
+// the keyboard, offers with its Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the
+// rows of those that do not; the panel only reads it. Fill is the cells the control under the keyboard is drawn inverse
 // across, at least.
 type Panel struct {
 	Query     string
@@ -118,7 +118,7 @@ type Panel struct {
 	Auto      []string
 	AutoAt    map[string]int
 	Recall    bool
-	Closed    map[string]bool
+	Outline   Outline
 	Fill      int
 	Owner     string
 	Me        string
@@ -499,7 +499,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 		if len(took) == 0 {
 			return rows, nil
 		}
-		heading := style.Off(p.fold(overAll)) + " " + joined(grouped[0], columns, took) + "  " +
+		heading := p.fold(overAll) + " " + joined(grouped[0], columns, took) + "  " +
 			style.Off(strconv.Itoa(len(grouped)))
 		out := []Row{{Key: overAll, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true,
 			Says: names(columns, took)}}
@@ -545,7 +545,7 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 			if j < len(r.Cells) {
 				said = r.Cells[j].heading()
 			}
-			heading := strings.Repeat("  ", depth) + style.Off(p.fold(key)) + " " + said + " " + style.Off(columns[j])
+			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + said + " " + style.Off(columns[j])
 			if len(auto[depth]) > 0 {
 				heading += style.Off(",") + " " + joined(r, columns, auto[depth])
 			}
@@ -558,61 +558,110 @@ func (p Panel) group(rows []Row, columns []string) ([]Row, []string) {
 	return append(out, rest...), names(columns, took)
 }
 
-// Unfolded and Folded are the glyphs before a group's heading: its rows shown under it, or folded away.
+// Unfolded and Folded are the glyphs before a node of the outline that hides something, a group's heading or a row:
+// what it hides shown, or hidden. Folded is drawn dim, as is a heading's text; Unfolded is not.
 const (
 	Unfolded = "▾"
 	Folded   = "▸"
 )
 
-// fold gives the glyph before the heading of a key: Folded while its group is closed, Unfolded while it is open.
-func (p Panel) fold(key string) string {
-	if p.Closed[key] {
-		return Folded
+// Outline is which nodes of the rows' outline stand open, by key: a group's heading, whose rows show under it, a row,
+// whose lines and detail show, and anything else a screen keys in it, as its header. A key it does not hold stands as
+// it opens: a heading open, everything else closed.
+type Outline map[string]bool
+
+// Open says whether a row stands open: a group's heading unless it was closed, any other row only once opened.
+func (o Outline) Open(r Row) bool {
+	if open, ok := o[r.Key]; ok {
+		return open
 	}
-	return Unfolded
+	return Heads(r)
 }
 
-// Close gives the panel with the group a heading's key names closed, its rows folded away under the heading, or open
-// again.
-func (p Panel) Close(key string, closed bool) Panel {
-	c := maps.Clone(p.Closed)
-	if c == nil {
-		c = map[string]bool{}
+// fold gives the glyph before the heading of a key, styled: Folded, dim, while its group is closed, Unfolded while it is
+// open.
+func (p Panel) fold(key string) string {
+	if !p.Outline.Open(Row{Key: key, Aside: true}) {
+		return style.Off(Folded)
 	}
-	if closed {
-		c[key] = true
-	} else {
-		delete(c, key)
-	}
-	p.Closed = c
-	return p
+	return Unfolded
 }
 
 // FoldAway gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
 // the headings deeper than it, up to the next heading as shallow, or the rows of one cell that follow the groups. The
 // heading stays, its count the rows it hides, and holds them in its Folded, which lay the columns out still.
 func (p Panel) FoldAway(rows []Row) []Row {
-	if len(p.Closed) == 0 {
-		return rows
-	}
 	var out []Row
 	closed := 0 // the level of the closed heading the rows stand under, or none
 	for _, r := range rows {
-		level := 0
-		if Heads(r) {
-			level = strings.Count(r.Key, "\x00")
-		}
+		level := Level(r)
 		if closed > 0 && (level > closed || level == 0 && len(r.Cells) > 1) {
 			out[len(out)-1].Folded = append(out[len(out)-1].Folded, r)
 			continue
 		}
 		closed = 0
 		out = append(out, r)
-		if level > 0 && p.Closed[r.Key] {
+		if level > 0 && !p.Outline.Open(r) {
 			closed = level
 		}
 	}
 	return out
+}
+
+// Level gives the level of a group's heading, from 1, the outermost; 0 for any other row.
+func Level(r Row) int {
+	if !Heads(r) {
+		return 0
+	}
+	return strings.Count(r.Key, "\x00")
+}
+
+// Every gives the whole outline the rows stand for, as group drew it: each closed heading followed by the rows it folds
+// away, in their places, which hold nothing folded.
+func Every(rows []Row) []Row {
+	var out []Row
+	for _, r := range rows {
+		folded := r.Folded
+		r.Folded = nil
+		out = append(append(out, r), Every(folded)...)
+	}
+	return out
+}
+
+// beneath says whether a row stands under a heading of the level in the outline, as one of its rows or a heading deeper
+// than it; the rows of one cell that follow the groups stand under none.
+func beneath(r Row, level int) bool {
+	if Heads(r) {
+		return Level(r) > level
+	}
+	return len(r.Cells) > 1
+}
+
+// Span gives where the subtree of the row at k ends in the rows, past its last: a heading's runs over every row and
+// heading under it; any other row's is itself.
+func Span(rows []Row, k int) int {
+	end := k + 1
+	if !Heads(rows[k]) {
+		return end
+	}
+	for end < len(rows) && beneath(rows[end], Level(rows[k])) {
+		end++
+	}
+	return end
+}
+
+// Parent gives the index of the heading the row at k stands under in the rows, the nearest above it shallower than it,
+// or -1 for a row under none: an outermost heading, or a row that follows the groups or stands where nothing groups.
+func Parent(rows []Row, k int) int {
+	if !Heads(rows[k]) && len(rows[k].Cells) < 2 {
+		return -1
+	}
+	for j := k - 1; j >= 0; j-- {
+		if Heads(rows[j]) && (!Heads(rows[k]) || Level(rows[j]) < Level(rows[k])) {
+			return j
+		}
+	}
+	return -1
 }
 
 // walk gives the columns the rows may group by on their own, as indexes into them, in the panel's order: while the

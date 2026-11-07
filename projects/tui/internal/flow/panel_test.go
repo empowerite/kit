@@ -471,9 +471,9 @@ func TestAFieldMovedIntoTheGroupsGroupsTheRows(t *testing.T) {
 		!strings.Contains(v, "🔨 draft state  1") || m.count(m.stage) != count || m.panel(m.stage).Under() != "state" {
 		t.Fatalf("state up into the groups: %q, count %s\n%s", m.panel(m.stage).Groups(), m.count(m.stage), v)
 	}
-	if want := style.Off(grid.Unfolded) + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
+	if want := grid.Unfolded + " 🏁 ready " + style.Off("state") + "  " + style.Off("1"); !strings.Contains(
 		m.View().Content, want) {
-		t.Error("a group's heading does not draw its value plain, and its column and count dim")
+		t.Error("a group's heading does not draw its ▾ and value plain, and its column and count dim")
 	}
 	m = drive(m, down)
 	if m = drive(m, shiftUp); m.panel(m.stage).Under() != "id" || len(m.panel(m.stage).Groups()) != 1 {
@@ -638,7 +638,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if m.stages[m.stage].cursor != 0 || !grid.Heads(m.rows(m.stage)[0]) {
 		t.Fatalf("the cursor is not on the heading: %d", m.stages[m.stage].cursor)
 	}
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← fold") {
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
 	header := lines(m)[paneTop]
@@ -652,7 +652,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 		m.stages[m.stage].cursor != 0 {
 		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
 	}
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ unfold") {
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ expand") {
 		t.Errorf("the keys on a folded heading: %q", last)
 	}
 	if m = drive(m, right); len(m.rows(m.stage)) != rows {

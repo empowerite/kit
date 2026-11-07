@@ -21,8 +21,8 @@ import (
 // opened gives how many of the selected stage's rows are open.
 func openRows(m Model) int {
 	n := 0
-	for _, open := range m.stages[m.stage].open {
-		if open {
+	for key, open := range m.stages[m.stage].open {
+		if open && key != headerKey && !strings.HasPrefix(key, "group\x00") {
 			n++
 		}
 	}
@@ -68,8 +68,9 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if m = drive(m, press(';'), typed("c")[0]); !m.menu || m.menuAt != 3 || m.enabled(2) {
 		t.Errorf("with every row expanded, c is on %d", m.menuAt)
 	}
-	// down passes the rule to select all; up passes the dim expand all and the rule to refresh
-	if m = drive(m, down); m.menuAt != 5 {
+	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, and the rule,
+	// to refresh
+	if m = drive(m, down); m.menuAt != 6 {
 		t.Errorf("down from collapse all: item %d", m.menuAt)
 	}
 	if m = drive(m, up, up); m.menuAt != 0 {
@@ -300,30 +301,32 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+" "+style.Off("▸")) || closed != paneTop+2 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+1, paneTop)); !m.stages[0].headed || m.rowsTop() <= closed ||
+	if m = drive(m, testkit.Click(len(in)+1, paneTop)); !m.stages[0].open[headerKey] || m.rowsTop() <= closed ||
 		!strings.HasPrefix(lines(m)[paneTop], in+" ▾") || m.inRows {
 		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+1, paneTop)); m.stages[0].headed {
+	if m = drive(m, testkit.Click(len(in)+1, paneTop)); m.stages[0].open[headerKey] {
 		t.Error("a second click did not close it")
 	}
-	// Expand All opens it with the rows, and Collapse All closes it, each enabled for the header alone too
+	// Expand All opens it with the rows, and Collapse All closes it, the group over the rows folded with them
 	m = drive(m, press(':'))
-	if !m.enabled(2) || m.enabled(3) {
-		t.Errorf("expand all %v, collapse all %v, over a closed header", m.enabled(2), m.enabled(3))
+	if !m.enabled(2) {
+		t.Errorf("expand all %v over a closed header", m.enabled(2))
 	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].headed {
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].open[headerKey] {
 		t.Error("expand all left the header closed")
 	}
 	if m = drive(m, press(':')); !m.enabled(3) {
 		t.Error("collapse all is dim over an open header")
 	}
-	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); m.stages[0].headed || m.rowsTop() != closed {
+	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); m.stages[0].open[headerKey] || m.rowsTop() != closed {
 		t.Errorf("collapse all left the header open:\n%s", view(m))
 	}
-	// a click on the header off its gutter, or on its rule, does nothing
+	// a click on the header off its gutter, or on its rule, does nothing; the group open again, down has a row to go to
+	m.stages[0].open = grid.Outline{}
+	m.rebuild()
 	before := m.stages[0].cursor
-	if m = drive(m, down, testkit.Click(12, paneTop), testkit.Click(len(in)+1, paneTop+1)); m.stages[0].headed ||
+	if m = drive(m, down, testkit.Click(12, paneTop), testkit.Click(len(in)+1, paneTop+1)); m.stages[0].open[headerKey] ||
 		m.stages[0].cursor != before+1 {
 		t.Error("a click on the header's names or rule did something")
 	}
@@ -391,11 +394,21 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	if m = drive(m, press(tea.KeyEnter)); m.selected() != 0 || m.menu {
 		t.Errorf("clear selection: %d selected", m.selected())
 	}
-	// a group's heading is no row to select; off the rows, space selects nothing
+	// space on a group's heading selects every row of the group, those folded away too, its heading marked ▣, and
+	// again none; with some selected, ◩ marks it. Off the rows, space selects nothing
 	m.setPanel(grid.Panel{Groupable: groupableOf("backlog")}.Grouped("source", false))
 	m.stages[0].cursor = 0
-	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
-		t.Errorf("space on a heading selected %d", m.selected())
+	m = drive(m, left)
+	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Chosen ||
+		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+grid.Folded) {
+		t.Errorf("space on a folded heading selected %d:\n%s", m.selected(), view(m))
+	}
+	m = drive(m, right, down, press(tea.KeySpace), up)
+	if m.selected() != 2 || m.groupMarks(0)[m.rows(0)[0].Key] != grid.Partly {
+		t.Errorf("one row unselected: %d selected, the mark %q", m.selected(), m.groupMarks(0)[m.rows(0)[0].Key])
+	}
+	if m = drive(m, press(tea.KeySpace), press(tea.KeySpace)); m.selected() != 0 || len(m.groupMarks(0)) != 0 {
+		t.Errorf("space on the heading twice: %d selected", m.selected())
 	}
 	if m = drive(m, esc, press(tea.KeySpace), ctrlA); m.selected() != 3 || m.inRows {
 		t.Errorf("off the rows: %d selected", m.selected())

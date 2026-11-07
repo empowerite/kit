@@ -58,6 +58,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
     never steps, and a rendering pinned always wins.
+  - The rows are an outline, in `outline.go`: a group's heading, a row, and a header of more than one line each open
+    and close, ▾ or ▸ in the gutter, and one map per stage holds which stand open, a heading open and a row closed
+    until changed. → opens the node under the cursor, or steps into an open heading's first row; ← closes it, or
+    steps out to the heading over it; ⌥ with either, or with a click, does the same to everything under the node. The
+    tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows are
+    selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
+    Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
+    whether all are or some. What stands open lasts the session; a preset does not keep it.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
 - `internal/tabs/` is the tab bar `kit flow` and `kit welcome` share: three lines of numbered tabs, and the keys and
   the clicks that select them.

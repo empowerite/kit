@@ -927,14 +927,22 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		return out
 	}
 	ready := "group\x00ready"
+	// shut gives the panel with the groups of the keys closed in its outline
+	shut := func(p Panel, keys ...string) Panel {
+		p.Outline = Outline{}
+		for _, k := range keys {
+			p.Outline[k] = false
+		}
+		return p
+	}
 	want := []string{"▾ draft state  1", "  ▾ bob who  1", "#1", "▸ ready state  2", "gone"}
-	if got := texts(p.Close(ready, true)); !slices.Equal(got, want) {
+	if got := texts(shut(p, ready)); !slices.Equal(got, want) {
 		t.Errorf("ready folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a nested heading folds only its own rows
 	want = []string{"▾ draft state  1", "  ▾ bob who  1", "#1", "▾ ready state  2", "  ▸ ada who  1",
 		"  ▾ none who  1", "#2", "gone"}
-	if got := texts(p.Close(ready+"\x00ada", true)); !slices.Equal(got, want) {
+	if got := texts(shut(p, ready+"\x00ada")); !slices.Equal(got, want) {
 		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a closed heading holds the rows it folds away, which still lay out the header and the columns
@@ -942,19 +950,54 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	grouped, _ := every.group(rows, columns)
 	names := []string{"id", "state", "who"}
 	open, _ := Header(grouped, names, 60, false)
-	folded := every.Close("group\x00draft", true).Close(ready, true).FoldAway(grouped)
-	if shut, _ := Header(folded, names, 60, false); len(folded) != 3 || len(folded[1].Folded) != 2 ||
-		!slices.Equal(shut, open) || !slices.Equal(headed(folded, names), headed(grouped, names)) {
+	folded := shut(every, "group\x00draft", ready).FoldAway(grouped)
+	if closed, _ := Header(folded, names, 60, false); len(folded) != 3 || len(folded[1].Folded) != 2 ||
+		!slices.Equal(closed, open) || !slices.Equal(headed(folded, names), headed(grouped, names)) {
 		t.Errorf("every group closed: %d rows, %d folded under ready, header %q, was %q", len(folded),
-			len(folded[1].Folded), shut, open)
+			len(folded[1].Folded), closed, open)
 	}
 	if HeaderAt(folded, names, 60, 3) != HeaderAt(grouped, names, 60, 3) {
 		t.Error("a click on the header of closed groups finds another column")
 	}
-	// unfolded again, every row is back, and the panel's map is never the one it was given
-	closed := p.Close(ready, true)
-	if q := closed.Close(ready, false); len(texts(q)) != 9 || !closed.Closed[ready] {
-		t.Errorf("unfolded: %q, the closed panel's map %v", texts(q), closed.Closed)
+	// opened again, every row is back
+	if q := shut(p); len(texts(q)) != 9 {
+		t.Errorf("unfolded: %q", texts(q))
+	}
+	// the whole outline puts each closed group's rows back in their places
+	grouped, _ = p.group(rows, columns)
+	if got := Every(shut(p, ready).FoldAway(grouped)); len(got) != len(grouped) ||
+		slices.ContainsFunc(got, func(r Row) bool { return r.Folded != nil }) {
+		t.Errorf("every row of the outline: %d of %d", len(got), len(grouped))
+	}
+}
+
+// The outline's tree: a heading's level, its span over the rows and headings under it, and each node's parent, the
+// heading it stands under; the rows of one cell after the groups stand under none. A heading stands open until it is
+// closed, a row closed until it is opened; a heading's ▸ is dim, as a row's is.
+func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
+	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
+		{Key: "gone", Cells: []Cell{one("gone: x")}}}
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
+	grouped, _ := p.group(rows, columns)
+	// draft, bob, #1, ready, ada, #3, none, #2, gone
+	var levels, spans, parents []int
+	for k, r := range grouped {
+		levels, spans, parents = append(levels, Level(r)), append(spans, Span(grouped, k)), append(parents,
+			Parent(grouped, k))
+	}
+	if !slices.Equal(levels, []int{1, 2, 0, 1, 2, 0, 2, 0, 0}) || !slices.Equal(spans, []int{3, 3, 3, 8, 6, 6, 8, 8, 9}) ||
+		!slices.Equal(parents, []int{-1, 0, 1, -1, 3, 4, 3, 6, -1}) {
+		t.Errorf("levels %v, spans %v, parents %v", levels, spans, parents)
+	}
+	o := Outline{"#1": true, grouped[3].Key: false}
+	if !o.Open(grouped[0]) || o.Open(grouped[3]) || !o.Open(grouped[2]) || o.Open(grouped[5]) {
+		t.Error("what stands open")
+	}
+	p.Outline = o
+	if got := p.fold(grouped[3].Key); got != style.Off(Folded) || p.fold(grouped[0].Key) != Unfolded {
+		t.Errorf("the glyphs: %q", got)
 	}
 }
 

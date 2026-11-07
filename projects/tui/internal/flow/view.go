@@ -225,7 +225,7 @@ func (m Model) presetKeys() shell.Segment {
 // a page at a time too while the rows are more than the pane shows; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
 // opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
 func (m Model) rowKeys() shell.Segment {
-	seg := shell.Segment{Takes: []string{"left", "right"}, Bindings: []shell.Binding{
+	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right"}, Bindings: []shell.Binding{
 		shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(m.lines(m.stage)) > m.rowsHeight() {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
@@ -233,17 +233,21 @@ func (m Model) rowKeys() shell.Segment {
 	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
 		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
 	s, rows := m.stages[m.stage], m.rows(m.stage)
+	if s.cursor >= len(rows) {
+		return seg
+	}
+	every := m.every(m.stage)
+	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
 	switch {
-	case s.cursor >= len(rows):
-	case grid.Heads(rows[s.cursor]) && s.view.Closed[rows[s.cursor].Key]:
-		seg.Bindings = append(seg.Bindings, shell.Bind("→", "unfold", "right"))
-	case grid.Heads(rows[s.cursor]):
-		seg.Bindings = append(seg.Bindings, shell.Bind("←", "fold", "left"))
-	case !grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)):
-	case s.open[rows[s.cursor].Key]:
-		seg.Bindings = append(seg.Bindings, shell.Bind("←", "close", "left"))
-	default:
-		seg.Bindings = append(seg.Bindings, shell.Bind("→", "open", "right"))
+	case m.opens(every, at) && s.open.Open(rows[s.cursor]):
+		seg.Bindings = append(seg.Bindings, shell.Bind("←", "collapse", "left"))
+	case m.opens(every, at):
+		seg.Bindings = append(seg.Bindings, shell.Bind("→", "expand", "right"))
+	case grid.Parent(rows, s.cursor) >= 0:
+		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
+	}
+	if grid.Heads(rows[s.cursor]) {
+		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "all under it", "alt+left", "alt+right"))
 	}
 	return seg
 }
@@ -376,7 +380,7 @@ func (m Model) header() (lines []string, hides bool) {
 		return nil, false
 	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.loading && s.refusal == "" {
-		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.headed)
+		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.open[headerKey])
 		for k := range lines {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 		}
@@ -552,9 +556,13 @@ func (m Model) lines(i int) []line {
 		chosen = s.cursor
 	}
 	marked, _ := style.In(stageColors[s.name])
-	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, func(r row) bool { return s.open[r.Key] },
+	groups := m.groupMarks(i)
+	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.open.Open,
 		func(r row) string {
-			if s.picked[r.Key] {
+			switch {
+			case grid.Heads(r) && groups[r.Key] != "":
+				return marked(groups[r.Key])
+			case s.picked[r.Key] && !r.Aside:
 				return marked(grid.Chosen)
 			}
 			return ""

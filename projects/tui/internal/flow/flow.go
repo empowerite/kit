@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -77,8 +78,7 @@ type stage struct {
 	rels    []release
 	cursor  int             // the row under the cursor, kept while another stage is shown
 	offset  int             // the first line of the pane
-	open    map[string]bool // the rows opened, by key
-	headed  bool            // whether its header is open, every line of names that take more than one
+	open    grid.Outline    // which of its headings, rows, and its header stand open, as outline.go says
 	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
 	// the view its preset line was last set to, and the name typed for Save As… while the person names a preset
 	viewName string
@@ -190,7 +190,7 @@ func New(r kit.Runner, o Options) Model {
 	m.noted = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: map[string]bool{}, picked: map[string]bool{},
+		s := stage{name: name, loading: true, open: grid.Outline{}, picked: map[string]bool{},
 			viewName: Opening}
 		if !known[name] {
 			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
@@ -338,7 +338,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if bar, ok := m.bar().Update(msg); ok {
 				m.choose(bar)
 			} else {
-				return m, m.click(msg.X, msg.Y)
+				return m, m.click(msg.X, msg.Y, msg.Mod&tea.ModAlt != 0)
 			}
 		}
 	}
@@ -423,7 +423,7 @@ func (m Model) filter(i int) grid.Panel {
 	p := s.view
 	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
 	p.Labels = labelsOf(s.name)
-	p.Focused = m.inPanel && i == m.stage
+	p.Focused, p.Outline = m.inPanel && i == m.stage, s.open
 	return p
 }
 
@@ -535,8 +535,9 @@ func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 		return nil
 	}
 	if _, hides := m.header(); hides && !group && y == paneTop && x >= 0 && x < 3 {
-		s.headed = !s.headed
-		m.fit()
+		next := maps.Clone(s.open)
+		next[headerKey] = !s.open[headerKey]
+		m.reoutline(next)
 		return nil
 	}
 	lines, _ := m.header()
@@ -569,30 +570,40 @@ func (m *Model) clickHeader(x, y int, also, group, drop bool) tea.Cmd {
 }
 
 // selectRow selects the row under the cursor, as one of several, or unselects it, while the rows have the keyboard;
-// with keep, it selects it whether it was or not, as shift with up or down selects as it moves. A heading is no row to
-// select.
+// with keep, it selects it whether it was or not, as shift with up or down selects as it moves. On a group's heading it
+// selects every row of the group, those folded away too, or, once every one is, none; another aside selects nothing.
 func (m *Model) selectRow(keep bool) {
 	if !m.inRows || len(m.stages) == 0 {
 		return
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) || rows[s.cursor].Aside {
+	if s.cursor >= len(rows) {
 		return
 	}
-	key := rows[s.cursor].Key
-	if keep || !s.picked[key] {
-		s.picked[key] = true
-	} else {
-		delete(s.picked, key)
+	keys := []string{rows[s.cursor].Key}
+	switch {
+	case grid.Heads(rows[s.cursor]):
+		every := m.every(m.stage)
+		keys = groupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key }))
+	case rows[s.cursor].Aside:
+		return
+	}
+	all := !slices.ContainsFunc(keys, func(k string) bool { return !s.picked[k] })
+	for _, key := range keys {
+		if keep || !all {
+			s.picked[key] = true
+		} else {
+			delete(s.picked, key)
+		}
 	}
 }
 
-// selectAll selects every row the stage shows, or, when every one is, none.
+// selectAll selects every row the stage shows, those its closed groups fold away too, or, when every one is, none.
 func (m *Model) selectAll() {
 	if len(m.stages) == 0 {
 		return
 	}
-	s, rows := &m.stages[m.stage], m.rows(m.stage)
+	s, rows := &m.stages[m.stage], m.every(m.stage)
 	all := m.selected() == counted(rows)
 	clear(s.picked)
 	if all {
@@ -605,13 +616,13 @@ func (m *Model) selectAll() {
 	}
 }
 
-// selectedRows gives the selected stage's rows that are selected, of those it shows.
+// selectedRows gives the selected stage's rows that are selected, of those it shows, its closed groups' too.
 func (m Model) selectedRows() []row {
 	if len(m.stages) == 0 {
 		return nil
 	}
 	var out []row
-	for _, r := range m.rows(m.stage) {
+	for _, r := range m.every(m.stage) {
 		if m.stages[m.stage].picked[r.Key] && !r.Aside {
 			out = append(out, r)
 		}
@@ -844,10 +855,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
-	case "right":
-		m.open(true)
-	case "left":
-		m.open(false)
+	case "right", "alt+right":
+		m.expand(true, k.String() == "alt+right")
+	case "left", "alt+left":
+		m.expand(false, k.String() == "alt+left")
 	}
 	return m, nil
 }
@@ -1262,31 +1273,13 @@ func (m *Model) down(n int) {
 	m.fit()
 }
 
-// open opens the row under the cursor, or closes it; a leaf stays as it is. On a group's heading, it unfolds the
-// group's rows under it, or folds them away, the cursor staying on the heading.
-func (m *Model) open(open bool) {
-	if !m.inRows || len(m.stages) == 0 {
-		return
-	}
-	s := &m.stages[m.stage]
-	rows := m.rows(m.stage)
-	if s.cursor < len(rows) && grid.Heads(rows[s.cursor]) {
-		m.setPanel(s.view.Close(rows[s.cursor].Key, !open))
-		return
-	}
-	if s.cursor >= len(rows) || !grid.Opens(rows, m.names(m.stage), s.cursor, m.gridWidth(m.stage)) {
-		return
-	}
-	s.open[rows[s.cursor].Key] = open
-	m.fit()
-}
-
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard; a
 // click on a linked glyph of a row's first line, as an issue's before its title, opens its page in the browser; one
 // on the first line of the row already under the cursor, or on the gutter of a row's first line, its ▸ or ▾, opens
-// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does. A click on
-// a … line, or on a line about the stage, does nothing.
-func (m *Model) click(x, y int) tea.Cmd {
+// the row, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; one anywhere
+// on a group's heading folds its rows away, or unfolds them. With subtree, as option asks, everything under the row or
+// the heading opens or closes with it. A click on a … line, or on a line about the stage, does nothing.
+func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
 	}
@@ -1315,8 +1308,8 @@ func (m *Model) click(x, y int) tea.Cmd {
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case grid.Heads(rows[row]):
-		// a click anywhere on a group's heading folds its rows away, or unfolds them
-		m.open(s.view.Closed[rows[row].Key])
+		m.disclose(!s.open.Open(rows[row]), subtree)
+		m.fit()
 	case strings.HasPrefix(link, jumps):
 		m.fit()
 		m.jump(strings.TrimPrefix(link, jumps))
@@ -1324,7 +1317,8 @@ func (m *Model) click(x, y int) tea.Cmd {
 		m.fit()
 		return m.openPage(link)
 	case toggle:
-		m.open(!s.open[rows[row].Key])
+		m.disclose(!s.open.Open(rows[row]), subtree)
+		m.fit()
 	default:
 		m.fit()
 	}

@@ -8,13 +8,11 @@
 package flow
 
 import (
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
@@ -36,17 +34,11 @@ const (
 // ownItems are the picture's own in the app's menu: every stage loaded again, reading the forge afresh.
 var ownItems = []shell.Item{{Glyph: Reload, Name: "Refresh All"}}
 
-// tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, every row that hides something
-// expanded and every row collapsed, or, while rows are selected, the selected rows expanded and collapsed and the rows
-// not selected collapsed, a rule, every row selected and none, a rule, and what acts on the rows selected: on backlog,
-// the actions there, then each one's page opened.
+// tabItems gives the tab's menu's lines, top to bottom: the stage loaded again, a rule, the outline expanded, collapsed,
+// and collapsed but for the selection, as folds names them, a rule, every row selected and none, a rule, and what acts
+// on the rows selected: on backlog, the actions there, then each one's page opened.
 func (m Model) tabItems() []shell.Item {
-	folds := []shell.Item{{Glyph: Expand, Name: "Expand All"}, {Glyph: Collapse, Name: "Collapse All"}}
-	if m.selected() > 0 {
-		folds = []shell.Item{{Glyph: Expand, Name: "Expand Selected"}, {Glyph: Collapse, Name: "Collapse Selected"},
-			{Glyph: Collapse, Name: "Collapse Others"}}
-	}
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, folds...)
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, {}}, m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
@@ -104,14 +96,16 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 	return nil
 }
 
-// enabled says whether the tab's menu's line k does something to the selected stage's rows now: expand all while a row
-// that hides something is collapsed, or the header is, collapse all while one of its rows is expanded, or the header
-// is; the rule never does.
+// enabled says whether the tab's menu's line k does something to the selected stage's rows now: a fold item while it
+// would open or close a node of the outline, as folding says; the rule never does.
 func (m Model) enabled(k int) bool {
-	s, rows := m.stages[m.stage], m.rows(m.stage)
-	_, hides := m.header()
+	s := m.stages[m.stage]
 	if action, on := m.acting(m.tabItems()[k].Name); action {
 		return on
+	}
+	if next, fold := m.folding(m.tabItems()[k].Name); fold {
+		// Collapse Others, with nothing selected, would collapse everything, as Collapse All does
+		return (m.selected() > 0 || m.tabItems()[k].Name != "Collapse Others") && m.changes(next)
 	}
 	switch m.tabItems()[k].Name {
 	case "Refresh":
@@ -119,41 +113,9 @@ func (m Model) enabled(k int) bool {
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
-		return m.selected() < counted(m.rows(m.stage))
+		return m.selected() < counted(m.every(m.stage))
 	case "Clear Selection":
 		return m.selected() > 0
-	case "":
-		return false
-	case "Collapse Others":
-		return slices.ContainsFunc(rows, func(r row) bool { return s.open[r.Key] && !s.picked[r.Key] })
-	case "Expand Selected", "Collapse Selected":
-		for j, r := range rows {
-			opens := grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage))
-			if s.picked[r.Key] && opens && s.open[r.Key] == (m.tabItems()[k].Name == "Collapse Selected") {
-				return true
-			}
-		}
-		return false
-	case "Expand All":
-		if hides && !s.headed {
-			return true
-		}
-	case "Collapse All":
-		if hides && s.headed {
-			return true
-		}
-	}
-	for j, r := range rows {
-		switch m.tabItems()[k].Name {
-		case "Expand All":
-			if !s.open[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
-				return true
-			}
-		case "Collapse All":
-			if s.open[r.Key] {
-				return true
-			}
-		}
 	}
 	return false
 }
@@ -165,10 +127,15 @@ func (m *Model) pick(k int) tea.Cmd {
 	if k < 0 || !m.enabled(k) {
 		return nil
 	}
-	s, rows := &m.stages[m.stage], m.rows(m.stage)
+	s := &m.stages[m.stage]
 	m.menu = false
 	if action, _ := m.acting(m.tabItems()[k].Name); action {
 		return m.act(m.tabItems()[k].Name)
+	}
+	if next, fold := m.folding(m.tabItems()[k].Name); fold {
+		m.inRows, m.inPanel, m.onPreset = true, false, false
+		m.reoutline(next)
+		return nil
 	}
 	switch m.tabItems()[k].Name {
 	case "Refresh":
@@ -180,48 +147,12 @@ func (m *Model) pick(k int) tea.Cmd {
 		}
 		return tea.Batch(cmds...)
 	case "Select All":
-		for _, r := range rows {
-			if !r.Aside {
-				s.picked[r.Key] = true
-			}
-		}
-		return nil
-	case "Clear Selection":
 		clear(s.picked)
-		return nil
-	case "Expand Selected", "Collapse Selected":
-		for j, r := range rows {
-			if s.picked[r.Key] && grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
-				s.open[r.Key] = m.tabItems()[k].Name == "Expand Selected"
-			}
-		}
-		m.inRows, m.inPanel, m.onPreset = true, false, false
-		m.fit()
-		return nil
-	case "Collapse Others":
-		for _, r := range rows {
-			if !s.picked[r.Key] {
-				delete(s.open, r.Key)
-			}
-		}
-		m.inRows, m.inPanel, m.onPreset = true, false, false
-		m.fit()
+		m.selectAll()
 		return nil
 	}
-	m.inRows, m.inPanel, m.onPreset = true, false, false
-	switch m.tabItems()[k].Name {
-	case "Expand All":
-		for j, r := range rows {
-			if grid.Opens(rows, m.names(m.stage), j, m.gridWidth(m.stage)) {
-				s.open[r.Key] = true
-			}
-		}
-		_, s.headed = m.header()
-	case "Collapse All":
-		clear(s.open)
-		s.headed = false
-	}
-	m.fit()
+	// Clear Selection, the one item left that acts
+	clear(s.picked)
 	return nil
 }
 
