@@ -446,8 +446,9 @@ func (p Panel) Heading(r Row) string {
 	return ""
 }
 
-// group gives the rows under one heading that names the columns the panel groups by, the outermost first, each after
-// its level's fold, ▾ while every heading of the level, and of each over it, stands open, ▸ while one does not, never
+// group gives the rows under one heading that names the columns the panel groups by, bold as the header names them, the
+// outermost first, each after its level's fold, ▾ while every heading of the level, and of each over it, stands open,
+// ▸ while one does not, never
 // dim, as it always acts, and how many rows they group, dim; and under it, a heading per value of each column, the
 // groups in their values' order, the larger first where the column sorts descending, and the rows in each as they
 // came: a heading of a value,
@@ -559,7 +560,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			if closed[depth] {
 				glyph = Folded
 			}
-			titles = append(titles, glyph+" "+columns[j])
+			titles = append(titles, glyph+" "+style.Label(columns[j]))
 		}
 		heading := strings.Join(titles, " ") + "  " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}

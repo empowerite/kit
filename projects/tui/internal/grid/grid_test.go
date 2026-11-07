@@ -1019,6 +1019,11 @@ func TestTheHeadingOverTheGroupsFoldsEachLevel(t *testing.T) {
 	if got := p.group(rows, columns)[0].Cells[0].first(); strings.Contains(got, style.Off(Folded)) {
 		t.Errorf("a closed level's ▸ is dim, as if it could not act: %q", got)
 	}
+	// each column's name is bold, as the header draws it
+	if got := p.group(rows, columns)[0].Cells[0].first(); !strings.Contains(got, style.Label("state")) ||
+		!strings.Contains(got, style.Label("who")) {
+		t.Errorf("the names are not bold: %q", got)
+	}
 	// a level closed shows every level under it closed too, as their headings are folded away under it
 	p.Outline = Outline{byFields + "\x00ready": false}
 	if got := bar(p); got != "▸ state ▸ who  3" {
