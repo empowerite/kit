@@ -4,7 +4,7 @@
   ╵                  ╰────────────────────╰────────────────╰────────────────────
          id  assignees         age  branch            labels  title
     ─────────────────────────────────────────────────────────────── Default ▼
-  ▾ source  3
+  ▾ source ▾  3
     ▾ github  3
       ▸ #45                     2h                    3       🎫 kit flow is t…
       ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists,…

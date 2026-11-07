@@ -4,7 +4,7 @@
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────
         id  assignees  age  title                                                     ╭─ backlog╭─ assignees ──────────╮
     ──────────────────────────────────────────────────────────────────────────────────│   field │ filter               │
-  ▾ source  1                                                                         │ ☑ source│ ⦿ include  ⦾ exclude │
+  ▾ source ▾  1                                                                       │ ☑ source│ ⦿ include  ⦾ exclude │
     ▾ 🐙 github  1                                                                    │ ────────│ ☑ @me ada            │
       ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                          │ ☑ id    │ ☐ ada                │
                                                                                       │ ☑ assign│ ☐ bob                │

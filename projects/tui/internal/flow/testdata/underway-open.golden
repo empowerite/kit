@@ -4,7 +4,7 @@
   ────────────────────╯                   ╰────────────────╰─────────────────────╰───────────────────╰──────────────────
          id  assignees         age  change  state             where     fork    pushed  by     labels  title
     ─────────────────────────────────────────────────────────────────────────────────────────────────────── Default ▼
-  ▾ source  4
+  ▾ source ▾  4
     ▾ github  4
       ▾  #1  jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here              60m         2       🎫 The first    
                                                                                                           release,     

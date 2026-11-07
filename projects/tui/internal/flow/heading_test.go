@@ -190,3 +190,21 @@ func TestALevelsFoldInTheHeadingOverTheGroupsShowsTheGroupsDownToIt(t *testing.T
 		t.Errorf("rows show under the assignees: %d of %d", len(m.rows(0)), all)
 	}
 }
+
+// The ▾ or ▸ after the last name in the heading over the groups shows the rows under every group, every heading open.
+func TestTheFoldAfterTheLastNameShowsTheRows(t *testing.T) {
+	m := nested(t)
+	all := len(m.rows(0))
+	spots := m.headingNames(m.rows(0)[0])
+	rowsFold := spots[len(spots)-1].until + 1
+	if got := ansi.Strip(ansi.Cut(lines(m)[m.rowsTop()], rowsFold, rowsFold+1)); got != grid.Unfolded {
+		t.Fatalf("the rows' fold: %q in %q", got, ansi.Strip(lines(m)[m.rowsTop()]))
+	}
+	m = drive(m, testkit.Click(spots[0].from-2, m.rowsTop()))
+	if got := ansi.Strip(ansi.Cut(lines(m)[m.rowsTop()], rowsFold, rowsFold+1)); got != grid.Folded || len(m.rows(0)) >= all {
+		t.Fatalf("collapsed to the sources: the rows' fold %q, %d rows of %d", got, len(m.rows(0)), all)
+	}
+	if m = drive(m, testkit.Click(rowsFold, m.rowsTop())); len(m.rows(0)) != all || m.colMenu.Open {
+		t.Errorf("the rows' fold: %d rows of %d\n%s", len(m.rows(0)), all, view(m))
+	}
+}

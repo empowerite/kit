@@ -447,16 +447,15 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under one heading that names the columns the panel groups by, bold as the header names them, the
-// outermost first, each after its level's fold, ▾ while every heading of the level, and of each over it, stands open,
-// ▸ while one does not, never
-// dim, as it always acts, and how many rows they group, dim; and under it, a heading per value of each column, the
-// groups in their values' order, the larger first where the column sorts descending, and the rows in each as they
-// came: a heading of a value,
-// an aside, is the value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows
-// it heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values
-// groups the row under each, the same row under every heading it belongs to, nested under each pair of its values,
-// each heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups.
-// Where the panel groups by nothing, the rows stand as they came.
+// outermost first, each after its level's fold, ▾ while every heading of the level, and of each over it, stands open, ▸
+// while one does not, never dim, as it always acts; after the last, the rows' own, ▾ while they all show; and how many
+// rows they group, dim; and under it, a heading per value of each column, the groups in their values' order, the larger
+// first where the column sorts descending, and the rows in each as they came: a heading of a value, an aside, is the
+// value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows it heads, dim. A
+// row groups by a cell's sort key, or under none when the cell has none; a cell of several values groups the row under
+// each, the same row under every heading it belongs to, nested under each pair of its values, each heading over it
+// counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the panel groups by
+// nothing, the rows stand as they came.
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
@@ -562,7 +561,12 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			}
 			titles = append(titles, glyph+" "+style.Label(columns[j]))
 		}
-		heading := strings.Join(titles, " ") + "  " + style.Off(strconv.Itoa(len(grouped)))
+		// the rows' fold, after the last column's name: they all show while every heading over them stands open
+		rows := Unfolded
+		if closed[len(closed)-1] {
+			rows = Folded
+		}
+		heading := strings.Join(titles, " ") + " " + rows + "  " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)

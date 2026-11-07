@@ -1,7 +1,7 @@
 // The heading over the groups names their columns, and a click on a name drops the column's own menu around it, as a
 // name in the header does, and so does ⏎ with the cursor on the heading, around its first column's; the ▾ or ▸ before
-// a column's name shows the groups down to its level, as foldLevel says. The heading itself never closes.
-// A click anywhere on a value's heading folds its rows away, or unfolds them, as one on its ▾ or ▸ does.
+// a column's name shows the groups down to its level, and the one after the last name the rows under them, as
+// foldLevel says. The heading itself never closes. A value's heading folds by its own ▾ or ▸, as any row does.
 package flow
 
 import (
@@ -59,12 +59,17 @@ func (m Model) nameAt(r row, x int) (nameSpot, bool) {
 }
 
 // levelAt gives the level of the groups, from 0 the outermost, whose ▾ or ▸ before its column's name in a heading the
-// screen column x falls on, and whether one does.
+// screen column x falls on, or the rows' level, under the last group, whose ▾ or ▸ follows the last name; and whether
+// one does.
 func (m Model) levelAt(r row, x int) (int, bool) {
-	for _, n := range m.headingNames(r) {
+	names, groups := m.headingNames(r), m.panel(m.stage).Groups()
+	for _, n := range names {
 		if x == n.from-2 {
-			return slices.Index(m.panel(m.stage).Groups(), n.column), true
+			return slices.Index(groups, n.column), true
 		}
+	}
+	if len(names) > 0 && x == names[len(names)-1].until+1 {
+		return len(groups), true
 	}
 	return 0, false
 }
