@@ -76,13 +76,18 @@ func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
 
 // searchAt gives the screen column the search starts at, on the screen's first line, where internal/shell puts every
-// screen's, over the tab bar's numbers.
+// screen's.
 func (m Model) searchAt() int {
 	if len(m.stages) == 0 {
 		return m.width
 	}
+	return shell.SearchAt(m.width, m.searchLine())
+}
+
+// searchLine gives the search as the title line draws it.
+func (m Model) searchLine() string {
 	p := m.panel(m.stage)
-	return shell.SearchAt(m.width, m.bar().Numbers(), p.Focused || p.Query != "")
+	return shell.RecallLine(p.Query, p.Focused, len(m.recent.Items) > 0)
 }
 
 // titled gives the title line: the title, clipped, and two spaces after it the search, from searchAt; none with no
@@ -92,9 +97,7 @@ func (m Model) titled() string {
 	if len(m.stages) == 0 {
 		return title
 	}
-	p := m.panel(m.stage)
-	search := shell.RecallLine(p.Query, p.Focused, len(m.recent.Items) > 0)
-	return pane.Pad(title, m.titleWidth(), false) + "  " + pane.Clip(search, m.width-1-m.searchAt())
+	return pane.Pad(title, m.titleWidth(), false) + "  " + pane.Clip(m.searchLine(), m.width-1-m.searchAt())
 }
 
 // paneWidth gives the cells the rows have: the screen's, but its last cell.

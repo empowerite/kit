@@ -129,7 +129,13 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 }
 
 // searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's.
-func (m Model) searchAt() int { return shell.SearchAt(m.width, nil, m.search.InUse()) }
+func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+
+// searchLine gives the search as the title line draws it, its cursor showing except while the app's menu has the
+// keyboard.
+func (m Model) searchLine() string {
+	return shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
+}
 
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -366,8 +372,7 @@ func (m Model) widest() int {
 // verb did not open; and a gap.
 func (m Model) top() []string {
 	title, at := shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
-	search := shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
-	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + search}
+	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + m.searchLine()}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
 			top = append(top, " "+style.Refusal(line))

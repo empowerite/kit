@@ -24,7 +24,7 @@ const searchKeys = "esc·⏎ back │ type to search"
 // menuKeys is the keys bar while a menu is open.
 var menuKeys = shell.Path{shell.MenuKeys()}.String()
 
-// typed gives a key press for each rune of the text, as a terminal sends shell.Typing.
+// typed gives a key press for each rune of the text, as a terminal sends them.
 func typed(text string) []tea.Msg {
 	var out []tea.Msg
 	for _, r := range text {
@@ -125,9 +125,8 @@ func glyphAt(m Model) int {
 	return ansi.StringWidth(top[:strings.Index(top, grid.Search)])
 }
 
-// The search stands on the screen's top right: idle, right-aligned one cell short of the edge, and in use, its glyph
-// over the rightmost tab's number that leaves ten cells to type in, until it is left empty. / or a click on it gives
-// it the keyboard; down then has nothing to move to.
+// The search stands on the screen's top right, right-aligned one cell short of the edge, and stays there as / or a
+// click on it gives it the keyboard; down then has nothing to move to. What is typed past its room grows it leftward.
 func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 	m := loaded(t, options(), down)
 	idle := m.width - 1 - ansi.StringWidth(grid.Search+" search")
@@ -140,33 +139,27 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 		if !m.inPanel || lines(m)[23] != " "+searchKeys {
 			t.Fatalf("%v: in panel %v, keys %q", enter, m.inPanel, lines(m)[23])
 		}
-		numbers := m.bar().Numbers()
-		at := glyphAt(m)
-		if !slices.Contains(numbers, at) || m.width-1-(at+3) < shell.Typing ||
-			slices.ContainsFunc(numbers, func(x int) bool { return x > at && m.width-1-(x+3) >= shell.Typing }) {
-			t.Errorf("%v: the search's glyph is at %d, over none of %v that leaves room", enter, at, numbers)
+		if at := glyphAt(m); at != idle {
+			t.Errorf("%v: the search moved to %d from %d", enter, at, idle)
 		}
 		if m = drive(m, down, press(tea.KeyPgDown)); !m.inPanel {
 			t.Errorf("down in the search left it")
 		}
 	}
-	at := glyphAt(m)
-	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) ||
+	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) || glyphAt(m) != idle ||
 		!strings.Contains(strings.Split(raw(m), "\n")[0], grid.Search+" noun") {
 		t.Errorf("typing in the search: %v\n%s", keys(m), view(m))
 	}
-	// a query left behind keeps the search where it is typed in; an empty one goes back to the edge
-	if m = drive(m, esc); glyphAt(m) != at {
-		t.Errorf("the search with a query moved to %d", glyphAt(m))
+	// a query longer than its room grows it leftward, the title clipped before it; left empty, it is back at the edge
+	long := " the noun that names it"
+	if m = drive(m, typed(long)...); glyphAt(m) != m.width-1-ansi.StringWidth(grid.Search+" noun"+long+"▏") {
+		t.Errorf("a long query: the search at %d", glyphAt(m))
 	}
-	if m = drive(m, typed("/")[0], press(tea.KeyBackspace), press(tea.KeyBackspace), press(tea.KeyBackspace),
-		press(tea.KeyBackspace), esc); glyphAt(m) != idle {
+	for range "noun" + long {
+		m = drive(m, press(tea.KeyBackspace))
+	}
+	if m = drive(m, esc); glyphAt(m) != idle {
 		t.Errorf("the empty search stayed at %d", glyphAt(m))
-	}
-	// on a screen too narrow for any number to leave the room, the search leaves it as far right as it can
-	m = drive(m, tea.WindowSizeMsg{Width: 20, Height: 24}, typed("/")[0])
-	if at := glyphAt(m); at != 20-1-shell.Typing-3 {
-		t.Errorf("at 20 columns, the search's glyph is at %d", at)
 	}
 }
 

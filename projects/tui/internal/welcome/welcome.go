@@ -359,9 +359,13 @@ func (m Model) recalls() bool { return m.search().Focused && len(m.recent.Items)
 // recallAt gives the screen column of the search's Recall glyph.
 func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
-// searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's, over the
-// steps' numbers.
-func (m Model) searchAt() int { return shell.SearchAt(m.width, m.bar().Numbers(), m.search().InUse()) }
+// searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's.
+func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+
+// searchLine gives the search as the title line draws it.
+func (m Model) searchLine() string {
+	return shell.RecallLine(m.search().Query, m.search().Focused, len(m.recent.Items) > 0)
+}
 
 // find gives the index of the check with the id when it is in the step, else the step's first check, else 0.
 func (m Model) find(step int, id string) int {

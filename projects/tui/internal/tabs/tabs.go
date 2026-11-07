@@ -487,22 +487,6 @@ func (b Bar) MenuAt() int {
 	return x
 }
 
-// Numbers gives the screen columns the tabs' numbers are drawn at on the bar's first line, left to right: the first
-// ten tabs', those the view shows.
-func (b Bar) Numbers() []int {
-	if len(b.Tabs) == 0 {
-		return nil
-	}
-	l, w := b.layout(), b.screen()
-	var out []int
-	for i := range min(len(b.Tabs), 10) {
-		if x := Gutter + l.at[i] - l.scroll; x >= Gutter && x < Gutter+w {
-			out = append(out, x)
-		}
-	}
-	return out
-}
-
 // hit gives the tab a column of the screen falls on: the one whose part covers it. A triangle, which Update takes
 // first, and the margin without one are no tab's: -1.
 func (b Bar) hit(x int) int {

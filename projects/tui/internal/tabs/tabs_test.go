@@ -455,27 +455,6 @@ func TestEveryLineOfAScrolledBarKeepsItsColumns(t *testing.T) {
 	}
 }
 
-// Numbers gives the column of each number the bar's first line draws, and of no other cell.
-func TestNumbersAreWhereTheNumbersAreDrawn(t *testing.T) {
-	for _, w := range []int{30, 60, 120, 200} {
-		for s := range 8 {
-			b := stages(s, w)
-			var want []int
-			for x := range w {
-				if r := []rune(ansi.Cut(row(b, 0), x, x+1)); len(r) == 1 && (r[0] >= '➀' && r[0] <= '➓') {
-					want = append(want, x)
-				}
-			}
-			if got := b.Numbers(); !slices.Equal(got, want) {
-				t.Errorf("at %d, tab %d selected: Numbers %v, drawn at %v", w, s, got, want)
-			}
-		}
-	}
-	if (Bar{}).Numbers() != nil {
-		t.Error("an empty bar has numbers")
-	}
-}
-
 // A count that wants attention is bold and red, not dim, on any tab, and stays so while the pane has the keyboard and
 // the other tabs are dim; the tabs lie where they lie without it.
 func TestACountThatWantsAttentionStandsOut(t *testing.T) {
@@ -508,9 +487,9 @@ func TestATabsOwnReserveKeepsItsCountsRoomAndNoMore(t *testing.T) {
 		ansi.StringWidth("🛫 underway") + 1 + 5 + 1}) {
 		t.Errorf("wants: %v", got)
 	}
-	before := b.Numbers()
+	before := row(b, 0)
 	b.Tabs[0].Count, b.Tabs[1].Count = "2/3", "9/12"
-	if after := b.Numbers(); !slices.Equal(before, after) {
+	if after := row(b, 0); before != after {
 		t.Errorf("a count within its reserve moved the tabs: %v, then %v", before, after)
 	}
 }

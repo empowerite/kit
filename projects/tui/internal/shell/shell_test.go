@@ -152,26 +152,30 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 		t.Error("up was the search's")
 	}
 	for _, k := range []tea.KeyPressMsg{key("esc"), {Code: tea.KeyTab}, key("enter")} {
-		if left, ok := s.Key(k); !ok || left.Focused || left.Query != s.Query || !left.InUse() {
+		if left, ok := s.Key(k); !ok || left.Focused || left.Query != s.Query {
 			t.Errorf("%s did not leave the search, what is typed kept: %+v", k, left)
 		}
 	}
-	if q, _ := Type("", tea.KeyPressMsg{Code: tea.KeyBackspace}); q != "" || (Search{}).InUse() {
-		t.Error("backspace on nothing, or an idle search in use")
+	if q, _ := Type("", tea.KeyPressMsg{Code: tea.KeyBackspace}); q != "" {
+		t.Error("backspace on nothing")
 	}
 	if SearchLine("co", true) != Find+" co▏" || SearchLine("co", false) != Find+" co" ||
 		SearchLine("", false) != Find+" "+style.Off("search") {
 		t.Error("the search's line")
 	}
-	// idle, a cell short of the edge; in use, over the rightmost number with room, else as far right as has it
-	if at := SearchAt(80, nil, false); at+ansi.StringWidth(Find+" search") != 79 {
-		t.Errorf("idle at %d", at)
+	// right-aligned a cell short of the edge, idle or with the keyboard, until what is typed needs more room; then it
+	// grows leftward, as far as the screen's first cell
+	idle := 80 - 1 - ansi.StringWidth(Find+" search")
+	for _, line := range []string{SearchLine("", false), SearchLine("", true), SearchLine("co", true)} {
+		if at := SearchAt(80, line); at != idle {
+			t.Errorf("%q at %d", line, at)
+		}
 	}
-	if at := SearchAt(80, []int{1, 20, 40, 70}, true); at != 40 {
-		t.Errorf("in use at %d", at)
+	if at := SearchAt(80, SearchLine("a longer query", true)); at != 80-1-ansi.StringWidth(Find+" a longer query▏") {
+		t.Errorf("a long query at %d", at)
 	}
-	if at := SearchAt(80, nil, true); at != 80-1-Typing-3 || SearchAt(5, nil, true) != 0 {
-		t.Errorf("in use with no number at %d", at)
+	if SearchAt(5, SearchLine("", false)) != 0 {
+		t.Error("too narrow a screen")
 	}
 }
 
