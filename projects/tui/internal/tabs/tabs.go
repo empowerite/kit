@@ -10,9 +10,11 @@
 // bar. The selected tab's edges stand in its first cell and in the cell after it: its number in the corner and ╮, each
 // over │, and under that a curve, ╯ and ╰, to the line under the tab beside it, or a half line, ╵, at either end of the
 // bar. A number stays where it is, selected or not. When every tab fits whole, they share the line in proportion to
-// their widths; when they do not, the bar is wider than the screen, and the view scrolls sideways to center the
-// selected tab, with ◃ in the gutter before the bar for the tabs it hides on the left and ▹ after those on the right, a tab at
-// either edge cut there. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
+// their widths; when they do not, the bar is wider than the screen, and the view scrolls sideways, with ◃ in the
+// gutter before the bar for the tabs it hides on the left and ▹ after those on the right, a tab at either edge cut
+// there. The selected tab always shows whole, with its count and its menu's glyph: when it would not, the view centers
+// it, as near as the bar's ends let. A triangle scrolls the view to show whole the nearest tab it hides, never
+// selecting it; one that would cut the selected tab is dim, and moves nothing. The first ten tabs are numbered ➀ to ➉, the selected one ➊ to ➓; past the tenth a tab has no number, and its
 // border runs through the number's cell. The selected tab, its lines, and the line under every tab are in the accent,
 // wherever the keyboard is; while the pane under the bar has it, the other tabs are dim, all but a count that wants
 // attention. Widths are terminal cells, so a two-cell glyph never pushes the line past the edge.
@@ -20,8 +22,8 @@
 // The bar holds no state of its own: a screen builds it from its own, each time, and reads back what Update chose. Left
 // and right move along it while it has the keyboard, and stop at its ends; a number, 1 to 9 or 0 for the tenth, typed,
 // on the keypad, with alt, or with super, which a terminal that reports it sends for command, selects that tab from
-// anywhere, as a click on the bar does, and gives the bar the keyboard; a click on a triangle selects the nearest tab
-// it hides, which then comes into view.
+// anywhere, as a click on the bar does, and gives the bar the keyboard; a click on a triangle scrolls the view, and
+// leaves the selected tab and the keyboard as they were.
 package tabs
 
 import (
@@ -66,11 +68,13 @@ type Tab struct {
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
 // stage's group has one; none is the accent. Alert says, by index, which tabs' counts want attention, as a step's
-// failed checks do.
+// failed checks do. Scroll is the cells of the bar the view has scrolled past on its left, as the screen keeps it from
+// what Update chose, so a triangle's scroll stays; the view goes on from there while the selected tab shows whole.
 type Bar struct {
 	Tabs     []Tab
 	Selected int
 	Focused  bool
+	Scroll   int
 	Width    int
 	Row      int
 	Reserve  int
@@ -94,14 +98,14 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 	case tea.KeyPressMsg:
 		switch k := msg.String(); {
 		case b.Focused && k == "left":
-			b.Selected = max(b.Selected-1, 0)
+			b.Scroll, b.Selected = b.layout().scroll, max(b.Selected-1, 0)
 			return b, true
 		case b.Focused && k == "right":
-			b.Selected = min(b.Selected+1, n-1)
+			b.Scroll, b.Selected = b.layout().scroll, min(b.Selected+1, n-1)
 			return b, true
 		}
 		if i, ok := number(msg); ok && i < n {
-			b.Selected, b.Focused = i, true
+			b.Scroll, b.Selected, b.Focused = b.layout().scroll, i, true
 			return b, true
 		}
 	case tea.MouseClickMsg:
@@ -109,8 +113,25 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 		if mouse.Button != tea.MouseLeft || mouse.Y < b.Row || mouse.Y >= b.Row+Height {
 			return b, false
 		}
+		l, w := b.layout(), b.screen()
+		switch {
+		case mouse.X < Gutter && l.scroll > 0:
+			// a triangle scrolls the view, and leaves the selected tab and the keyboard where they are; dim, it is
+			// taken, and moves nothing
+			b.Scroll = l.scroll
+			if to, ok := l.before(w, b.Selected); ok {
+				b.Scroll = to
+			}
+			return b, true
+		case mouse.X == Gutter+w-1 && l.scroll+w < l.width:
+			b.Scroll = l.scroll
+			if to, ok := l.after(w, b.Selected); ok {
+				b.Scroll = to
+			}
+			return b, true
+		}
 		if i := b.hit(mouse.X); i >= 0 {
-			b.Selected, b.Focused = i, true
+			b.Selected, b.Focused, b.Scroll = i, true, l.scroll
 			return b, true
 		}
 	}
@@ -231,8 +252,9 @@ type layout struct {
 
 // layout lays each tab out whole, at its own width, its number's cell and a space before it and the cell after it
 // besides; the canvas is as wide as they are. When it is narrower than the screen, the line under the bar runs on to
-// the screen's edge; when it is wider, the view scrolls so the selected tab is in its middle, or as near as the ends
-// of the canvas let.
+// the screen's edge; when it is wider, the view stays where Scroll has it while the selected tab shows whole there, and
+// else scrolls so the selected tab is in its middle, or as near as the ends of the canvas let, and whole where the
+// screen is wide enough for it.
 func (b Bar) layout() layout {
 	n, w := len(b.Tabs), b.screen()
 	whole := make([]int, n)
@@ -243,10 +265,77 @@ func (b Bar) layout() layout {
 	for i, part := range whole {
 		l.at[i], l.width = l.width, l.width+part
 	}
-	if l.width > w {
-		l.scroll = min(max(l.at[b.Selected]+l.parts[b.Selected]/2-w/2, 0), l.width-w)
+	if l.width <= w {
+		return l
+	}
+	l.scroll = l.clamp(b.Scroll, w)
+	if !l.shows(l.scroll, w, b.Selected) {
+		l.scroll = l.clamp(l.at[b.Selected]+l.parts[b.Selected]/2-w/2, w)
+		if l.parts[b.Selected] <= w {
+			// centered, a tab the view can show whole may still be cut by ▹, or at the canvas's end
+			l.scroll = l.reveal(l.scroll, w, b.Selected)
+		}
 	}
 	return l
+}
+
+// clamp gives a scroll the canvas allows on a screen so wide: none short of its left end, none past its right.
+func (l layout) clamp(scroll, w int) int { return min(max(scroll, 0), max(l.width-w, 0)) }
+
+// room gives the cells the view shows of the canvas from a scroll: the screen's, less the two ▹ takes at its end
+// while it hides tabs on the right.
+func (l layout) room(scroll, w int) int {
+	if scroll+w < l.width {
+		return w - 2
+	}
+	return w
+}
+
+// shows says whether the view from a scroll shows a tab whole: its number's cell to its edge, short of ▹.
+func (l layout) shows(scroll, w, i int) bool {
+	return l.at[i] >= scroll && l.at[i]+l.parts[i] <= scroll+l.room(scroll, w)
+}
+
+// reveal gives the scroll nearest the one given from which the view shows a tab whole, as near as the canvas's ends
+// let: its first cell at the view's left edge when it is cut there, its last before ▹, or at the screen's edge where
+// it is the canvas's last, when it is cut on the right.
+func (l layout) reveal(scroll, w, i int) int {
+	end := l.at[i] + l.parts[i]
+	switch {
+	case l.at[i] < scroll:
+		return l.clamp(l.at[i], w)
+	case end > scroll+l.room(scroll, w):
+		return l.clamp(min(end-(w-2), l.width-w), w)
+	}
+	return scroll
+}
+
+// before gives the scroll ◃ moves the view to, which shows whole the nearest tab it hides, or cuts, on its left, and
+// whether the selected tab still shows whole from there; when it does not, ◃ is dim, and moves nothing.
+func (l layout) before(w, selected int) (int, bool) {
+	j := -1
+	for i, at := range l.at {
+		if at < l.scroll {
+			j = i
+		}
+	}
+	if j < 0 {
+		return l.scroll, false
+	}
+	to := l.reveal(l.scroll, w, j)
+	return to, l.shows(to, w, selected)
+}
+
+// after gives the scroll ▹ moves the view to, which shows whole the nearest tab it hides, or cuts, on its right, and
+// whether the selected tab still shows whole from there; when it does not, ▹ is dim, and moves nothing.
+func (l layout) after(w, selected int) (int, bool) {
+	for i := range l.at {
+		if l.at[i]+l.parts[i] > l.scroll+l.room(l.scroll, w) {
+			to := l.reveal(l.scroll, w, i)
+			return to, l.shows(to, w, selected)
+		}
+	}
+	return l.scroll, false
 }
 
 // View draws the bar's three lines as the screen shows them, each after the gutter, as the package says.
@@ -310,14 +399,23 @@ func (b Bar) View() string {
 	if l.width < w {
 		under.WriteString(mark(strings.Repeat("─", w-l.width)))
 	}
-	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line
+	// shown gives a line as the view shows it, after the gutter, the triangles on the middle line, each dim when
+	// moving the view would cut the selected tab
+	triangle := func(glyph string, ok bool) string {
+		if ok {
+			return glyph
+		}
+		return style.Off(glyph)
+	}
+	_, back := l.before(w, b.Selected)
+	_, on := l.after(w, b.Selected)
 	shown := func(line string, middle bool) string {
 		margin, rest := strings.Repeat(" ", Gutter), pane.Pad(pane.Cells(line, l.scroll, l.scroll+w), w, false)
 		if middle && l.scroll > 0 {
-			margin = strings.Repeat(" ", Gutter-1) + Before
+			margin = strings.Repeat(" ", Gutter-1) + triangle(Before, back)
 		}
 		if middle && l.scroll+w < l.width {
-			rest = pane.Pad(pane.Cells(rest, 0, w-2), w-2, false) + " " + After
+			rest = pane.Pad(pane.Cells(rest, 0, w-2), w-2, false) + " " + triangle(After, on)
 		}
 		// the spaces it ends with go, and the colors of what the cut left empty with them
 		out := margin + rest
@@ -405,22 +503,14 @@ func (b Bar) Numbers() []int {
 	return out
 }
 
-// hit gives the tab a column of the screen falls on: the one whose part covers it; on a triangle that says tabs are
-// hidden, the tab before the selected one, or after it, which the view then centers as it does any selected tab, or
-// nearly, at the bar's ends. The margin without a triangle is no tab's: -1.
+// hit gives the tab a column of the screen falls on: the one whose part covers it. A triangle, which Update takes
+// first, and the margin without one are no tab's: -1.
 func (b Bar) hit(x int) int {
 	l, w := b.layout(), b.screen()
-	var at int
-	switch {
-	case x < Gutter && l.scroll > 0:
-		return max(b.Selected-1, 0)
-	case x == Gutter+w-1 && l.scroll+w < l.width:
-		return min(b.Selected+1, len(b.Tabs)-1)
-	case x < Gutter || x >= Gutter+w:
+	if x < Gutter || x >= Gutter+w || x == Gutter+w-1 && l.scroll+w < l.width {
 		return -1
-	default:
-		at = x - Gutter + l.scroll
 	}
+	at := x - Gutter + l.scroll
 	hit := 0
 	for i, start := range l.at {
 		if start <= at {

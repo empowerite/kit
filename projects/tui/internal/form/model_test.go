@@ -266,7 +266,7 @@ func TestShiftEnterRunsFromAnywhere(t *testing.T) {
 func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T) {
 	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 30})
-	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasPrefix(bar, " esc back  ↑↓ move  ⏎ next │ ") {
+	if bar := screen(m)[29]; strings.Contains(bar, "⇧⏎") || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next │ ") {
 		t.Errorf("a terminal that said nothing of its keyboard, as Terminal.app: %q", bar)
 	}
 	m, _ = drive(t, m, tea.KeyboardEnhancementsMsg{})
@@ -274,7 +274,7 @@ func TestTheKeysBarNamesShiftEnterOnlyWhereTheTerminalTellsItApart(t *testing.T)
 		t.Errorf("a terminal that answered with no flags: %q", bar)
 	}
 	m, _ = drive(t, m, disambiguates)
-	if bar := screen(m)[29]; !strings.HasPrefix(bar, " esc back  ↑↓ move  ⏎ next  ⇧⏎ run │ ") {
+	if bar := screen(m)[29]; !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
 		t.Errorf("a terminal that tells them apart: %q", bar)
 	}
 }
@@ -386,7 +386,7 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back  ↑↓ move  ⏎ next  ⇧⏎ run │ ") {
+	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
 		t.Errorf("with the way back, the first line %q, the last %q", lines[0], bar)
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
@@ -394,16 +394,16 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	}
 	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " esc cancel  ") {
+	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " esc cancel ") {
 		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
 	}
 }
 
 func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 	// the form's keys, then the field's; too narrow for both, the field's alone
-	const text = " esc back  ↑↓ move  ⏎ next  ⇧⏎ run │ ⌫ erase"
-	const many = " … │ ⇞⇟ page  ␣ toggle  ⌫ erase"
-	const command = " esc back │ ↑ move  ⏎ run"
+	const text = " esc back ↑↓ move ⏎ next ⇧⏎ run │ ⌫ erase"
+	const many = " … │ ⇞⇟ page ␣ toggle ⌫ erase"
+	const command = " esc back │ ↑ move ⏎ run"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
 	for _, height := range []int{40, 12, 7, 3, 2, 1} {
 		for _, c := range []struct {
@@ -477,7 +477,7 @@ func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 			}
 		}
 		m.focus = len(m.fields)
-		if bar := m.keys().String(); bar != "esc back │ ↑ move  ⏎ run" {
+		if bar := m.keys().String(); bar != "esc back │ ↑ move ⏎ run" {
 			t.Errorf("%s on the command line: %q", verb, bar)
 		}
 	}
@@ -611,7 +611,7 @@ func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
 			t.Errorf("%v: rows %q, want %d from %s", c.keys, drawn, c.shown, path(c.first))
 		}
 		// the window takes ten lines whatever it shows, so the screen keeps its height and the bar its line
-		if len(lines) != 40 || !strings.Contains(lines[39], "│ ⇞⇟ page  ") {
+		if len(lines) != 40 || !strings.Contains(lines[39], "│ ⇞⇟ page ") {
 			t.Errorf("%v: %d lines, the last %q", c.keys, len(lines), lines[len(lines)-1])
 		}
 	}
@@ -634,7 +634,7 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 				m, _ = drive(t, m, tea.KeyPressMsg{Code: k})
 			}
 			lines := screen(m)
-			if len(lines) != height || !strings.Contains(lines[height-1], "│ ⇞⇟ page  ") ||
+			if len(lines) != height || !strings.Contains(lines[height-1], "│ ⇞⇟ page ") ||
 				strings.TrimSpace(lines[0]) != "‹ verbs" {
 				t.Fatalf("at %d: %d lines, the first %q, the last %q", height, len(lines), lines[0],
 					lines[len(lines)-1])

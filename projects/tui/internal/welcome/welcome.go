@@ -146,6 +146,7 @@ type Model struct {
 	tabs     []tab                                     // the steps, in order: the known ones until the pages are read
 	step     int                                       // the selected step
 	inPane   bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
+	barView  int                                       // the cells the bar's view has scrolled past, as the bar last chose
 	places   []string                                  // the check each step's cursor was on when it was left
 	loaded   bool                                      // whether the checks have answered once
 	checking bool                                      // whether kit is running the checks
@@ -599,9 +600,10 @@ func (m Model) cursorID() string {
 	return ""
 }
 
-// choose takes what the bar chose: the step it selected, and the keyboard. The cursor goes back to the check it was on
-// in that step, else to the step's first check.
+// choose takes what the bar chose: where its view is scrolled, the step it selected, and the keyboard. The cursor goes
+// back to the check it was on in that step, else to the step's first check.
 func (m *Model) choose(bar tabs.Bar) {
+	m.barView = bar.Scroll
 	if bar.Selected != m.step {
 		m.places[m.step] = m.cursorID()
 		m.step = bar.Selected

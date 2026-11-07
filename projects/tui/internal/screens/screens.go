@@ -56,7 +56,8 @@ func (m Model) Close() {
 func (m Model) Init() tea.Cmd { return tag(m.here, m.made[m.here].Init()) }
 
 // Update takes a message: a screen's ask for another, shown in its place, or for the Settings dialog, opened over it;
-// an answer to what a screen started, for that screen; while the dialog is open, a key for it, and a click nowhere;
+// an answer to what a screen started, for that screen; while the dialog is open, a key or a click for it, which closes
+// it outside it, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -79,6 +80,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			shown := m.settings.KeysBar
 			if m.dialog, m.settings = m.dialog.Key(msg, m.settings); m.settings.KeysBar != shown && m.size != nil {
 				// the keys bar shown or hidden: the screen has its line, or gives it back
+				return m.deliver(m.here, m.sized())
+			}
+			return m, nil
+		}
+	case tea.MouseClickMsg:
+		if m.dialog.Open {
+			shown := m.settings.KeysBar
+			if m.dialog, m.settings = m.dialog.Click(msg, m.settings, m.height(), m.width()); m.settings.KeysBar != shown &&
+				m.size != nil {
 				return m.deliver(m.here, m.sized())
 			}
 			return m, nil
@@ -156,6 +166,23 @@ func (m Model) sized() tea.WindowSizeMsg {
 	return size
 }
 
+// width gives the terminal's width, or nothing before it says.
+func (m Model) width() int {
+	if m.size == nil {
+		return 0
+	}
+	return m.size.Width
+}
+
+// height gives the lines View draws, which the Settings dialog is placed over: the terminal's, or nothing before it
+// says.
+func (m Model) height() int {
+	if m.size == nil {
+		return 0
+	}
+	return m.size.Height
+}
+
 // noticing is a screen that says, in place of its keys, what it did or why it did not.
 type noticing interface{ Noticing() bool }
 
@@ -172,10 +199,7 @@ func (m Model) View() tea.View {
 		}
 		lines = append(lines[:last], lines[last+1:]...)
 	}
-	width := 0
-	if m.size != nil {
-		width = m.size.Width
-	}
+	width := m.width()
 	if m.dialog.Open {
 		lines = m.dialog.Overlay(lines, m.settings, width)
 		if m.settings.KeysBar {

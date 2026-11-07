@@ -22,10 +22,10 @@ import (
 
 // panelKeys is the keys bar while the panel's search has the keyboard, as it has when tab gives the panel the keyboard
 // from the bar: the sidebar's keys, then the search's, which hides every key of the screen's and the bar's it types.
-const panelKeys = "⇥/esc backlog  ↑↓ move  ⇞⇟ scroll │ type to search"
+const panelKeys = "⇥,esc backlog ↑↓ move ⇞⇟ scroll │ type to search"
 
 // searchKeys is the keys bar while the search has the keyboard, the sidebar hidden, from the bar.
-const searchKeys = "⇥/esc backlog │ type to search"
+const searchKeys = "⇥,esc backlog │ type to search"
 
 // menuKeys is the keys bar while a menu is open.
 var menuKeys = shell.Path{shell.MenuKeys()}.String()
@@ -203,7 +203,7 @@ func TestSpaceInTheEditorHidesAFieldAndShowsItAgain(t *testing.T) {
 	if strings.Contains(drawn(m), "jeffrey-agui") || at < 0 || ansi.Strip(side[at-1]) != grid.Unticked+" repository" || m.panel(0).Under() != "assignees" {
 		t.Errorf("assignees hidden:\n%s", view(m))
 	}
-	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show  ⇧↑↓ move") {
+	if keys := lines(m)[23]; !strings.Contains(keys, "␣ show ⇧↑↓ move") {
 		t.Errorf("the keys on a hidden field: %q", keys)
 	}
 	if m = drive(m, press(tea.KeySpace)); !strings.Contains(drawn(m), "jeffrey-agui") || shownNow(m)[2] != "assignees" {
@@ -714,7 +714,7 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
 	// off is taken, so space on it is not named
-	if keys := m.keys().String(); keys != "esc close  ↑↓ move" {
+	if keys := m.keys().String(); keys != "esc close ↑↓ move" {
 		t.Errorf("the popover's keys on off: %q", keys)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); len(m.panel(0).SortKeys()) != 1 || m.panel(0).Mark("assignees") != "▲" ||
@@ -723,7 +723,7 @@ func TestAFieldsPopoverSortsFiltersAndDrawsIt(t *testing.T) {
 	}
 	// @me, the caller, is ada; checked, only her issue shows, and the preset line has its chip
 	m = drive(m, down, down, down)
-	if keys := m.keys().String(); keys != "esc close  ↑↓ move  ␣ toggle" || !strings.Contains(view(m), "@me ada") {
+	if keys := m.keys().String(); keys != "esc close ↑↓ move ␣ toggle" || !strings.Contains(view(m), "@me ada") {
 		t.Errorf("the popover's keys on @me: %q", keys)
 	}
 	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#7"}) ||

@@ -1,7 +1,7 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
-  ──────╮➃╶───────────────────╴➎╶─────────────────╮➅╶────────────────╮➆╶────────
- ◃    1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 builds     4 │  🛬 inc ▹
-  ──────╰──────────────────────╯                  ╰──────────────────╰─────────┐
+  ──────────╮➂╶──────────────╮➃╶───────────────────╴➎╶─────────────────╮➅╶──────
+ ◃way     4 │  💻 desk     1 │  🌿 worktrees     4  │ 🔀 changes   3 ⋮ │  🏭 b ▹
+  ──────────╰────────────────╰──────────────────────╯                  ╰───────┐
    change  title         author     state  age  checks  threads     branch     │
    ───────────────────────────────────────────────────────────────── Default ▼ │
  ▾ 🔀 #2   The first     jeffrey-   🏁      8d  ✅                  1-the-     │
@@ -21,4 +21,4 @@
                                                                                │
                                                                                │
                                                                                │
- … │ 1-8 jump  : tab menu │ esc changes  ↑↓ move  ␣/⇧↑↓ select  ⌃A all  ← close
+ … │ 1-8 jump : tab menu │ esc changes ↑↓ move ␣,⇧↑↓ select ⌃A all ← close

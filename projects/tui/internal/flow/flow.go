@@ -112,6 +112,7 @@ type Model struct {
 	filters       []string
 	stages        []stage
 	stage         int                    // the selected stage
+	barView       int                    // the cells the stages' bar's view has scrolled past, as the bar last chose
 	inRows        bool                   // whether the rows have the keyboard, not the bar
 	onPreset      bool                   // whether the preset line has the keyboard, not the bar or the rows
 	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
@@ -954,8 +955,14 @@ func (m *Model) placeSidebar(on bool) tea.Cmd {
 	return nil
 }
 
-// choose takes what the bar chose: the stage it selected, where the cursor is as it was left, and the keyboard.
+// choose takes what the bar chose: where its view is scrolled, the stage it selected, where the cursor is as it was
+// left, and the keyboard. A triangle, which scrolls the view alone, leaves the keyboard where it is, in the panel or on
+// the preset line too.
 func (m *Model) choose(bar tabs.Bar) {
+	m.barView = bar.Scroll
+	if bar.Selected == m.stage && bar.Focused == m.bar().Focused {
+		return
+	}
 	if bar.Selected != m.stage {
 		m.sideOffset = 0
 	}
@@ -1333,7 +1340,7 @@ func (m *Model) jump(to string) {
 	if i < 0 {
 		return
 	}
-	m.choose(tabs.Bar{Selected: i})
+	m.choose(tabs.Bar{Selected: i, Scroll: m.barView})
 	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
 		m.stages[i].cursor = k
 	}

@@ -25,6 +25,7 @@ import (
 type Binding struct {
 	Key, Does string
 	Presses   []string
+	keys      []string // the keys a run that does the same thing merged into this one, Key among them, as merged draws it
 }
 
 // Bind gives a binding: the key as drawn, what it does, and the presses it answers; none says the key as drawn is its
@@ -90,13 +91,15 @@ func (s Segment) takes(press string) bool {
 // typing says whether a press types a character: a single one, or the space.
 func typing(press string) bool { return press == "space" || utf8.RuneCountInString(press) == 1 }
 
-// The keys bar's separators: two spaces between the keys of one control, which the keys' color sets apart, and a rule
-// between one control and the next. A dialog's keys, on its bottom edge, have a dot between them.
+// The keys bar's separators: a space between the keys of one control, which the keys' color sets apart, and a rule
+// between one control and the next. A dialog's keys, on its bottom edge, have a dot between them. Keys that do the same
+// thing are drawn as one, a comma between them, in what they do's color, never / or another key the bar names.
 const (
-	gap  = "  "
+	gap  = " "
 	dot  = " · "
 	rule = " │ "
 	cut  = "…"
+	or   = ","
 )
 
 // Line draws the keys bar for the path on a screen so wide: a cell of gutter, then each segment the bar draws, the one
@@ -139,13 +142,17 @@ func (p Path) Line(width int) string {
 	return " " + ansi.Truncate(line, room, cut)
 }
 
-// merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by /,
-// as tab and esc both leave the sidebar: ⇥/esc rows. A key a deeper control takes is gone from the run already.
+// merged gives a segment's bindings with each run of keys that do the same thing drawn as one, the keys joined by a
+// comma, as tab and esc both leave the sidebar: ⇥,esc rows. A key a deeper control takes is gone from the run already.
 func merged(s []Binding) []Binding {
 	var out []Binding
 	for _, b := range s {
 		if k := len(out) - 1; k >= 0 && b.Does != "" && b.Key != "" && out[k].Does == b.Does && out[k].Key != "" {
-			out[k].Key += "/" + b.Key
+			if len(out[k].keys) == 0 {
+				out[k].keys = []string{out[k].Key}
+			}
+			out[k].keys = append(out[k].keys, b.Key)
+			out[k].Key += or + b.Key
 			out[k].Presses = append(slices.Clone(out[k].Presses), b.Presses...)
 			continue
 		}
@@ -172,12 +179,25 @@ func drawSegment(s []Binding, here bool) string {
 		case b.Key == "":
 			keys = append(keys, style.BarDoes(b.Does, here))
 		case b.Does == "":
-			keys = append(keys, style.BarKey(b.Key, here))
+			keys = append(keys, drawKeys(b, here))
 		default:
-			keys = append(keys, style.BarKey(b.Key, here)+" "+style.BarDoes(b.Does, here))
+			keys = append(keys, drawKeys(b, here)+" "+style.BarDoes(b.Does, here))
 		}
 	}
 	return strings.Join(keys, gap)
+}
+
+// drawKeys draws a binding's key, bold, or the keys merged into it, each bold, the comma between them as what they do
+// is drawn.
+func drawKeys(b Binding, here bool) string {
+	if len(b.keys) == 0 {
+		return style.BarKey(b.Key, here)
+	}
+	var keys []string
+	for _, k := range b.keys {
+		keys = append(keys, style.BarKey(k, here))
+	}
+	return strings.Join(keys, style.BarDoes(or, here))
 }
 
 // Digits are the presses that select a tab by its number: 1 to 9, and 0 for the tenth.

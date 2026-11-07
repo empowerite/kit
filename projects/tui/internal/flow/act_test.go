@@ -113,7 +113,7 @@ func TestAClosingActionListsTheIssuesAndRunsOnlyOnYes(t *testing.T) {
 	m = choose(t, m, "Close as Not Planned")
 	v := view(m)
 	if m.ask == nil || !strings.Contains(v, "Close these issues as not planned?") || !strings.Contains(v, "#45 ") ||
-		!strings.Contains(v, "#46 ") || !strings.Contains(lines(m)[len(lines(m))-1], "esc no  ⏎ yes") {
+		!strings.Contains(v, "#46 ") || !strings.Contains(lines(m)[len(lines(m))-1], "esc no ⏎ yes") {
 		t.Fatalf("the dialog:\n%s", v)
 	}
 	// a click does nothing while it asks; esc runs nothing

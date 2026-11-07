@@ -1,7 +1,7 @@
   ≡ kit flow · 📚 empowerite/kit                                      🔎 search
-  ─────────╮➁╶──────────────────╴➌╶──────────────╮➃╶───────────────────╮➄╶──────
- ◃og     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     4 │  🔀 c ▹
-  ─────────╰─────────────────────╯               ╰─────────────────────╰───────┐
+  ➀╶─────────────────╮➁╶──────────────────╴➌╶──────────────╮➃╶──────────────────
+    🎫 backlog     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     ▹
+  ───────────────────╰─────────────────────╯               ╰───────────────────┐
    branch   ahead   lines   uncommitted                                        │
    ───────────────────────────────────────────────────────────────── Default ▼ │
  ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                      │
@@ -21,4 +21,4 @@
       … and 1 more                                                             │
                                                                                │
                                                                                │
- … │ 1-8 jump  : tab menu │ esc desk  ↑↓ move  ␣/⇧↑↓ select  ⌃A all  ← close
+ … │ 1-8 jump : tab menu │ esc desk ↑↓ move ␣,⇧↑↓ select ⌃A all ← close

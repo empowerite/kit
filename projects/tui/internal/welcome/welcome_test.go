@@ -991,7 +991,7 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 	}
 	all := len(m.rows(m.step))
 	m = drive(m, tea.KeyPressMsg{Code: '/', Text: "/"})
-	if !m.search().Focused || !strings.HasSuffix(view(m), "\n esc back  type to search") {
+	if !m.search().Focused || !strings.HasSuffix(view(m), "\n esc back type to search") {
 		t.Fatalf("/ did not give the search the keyboard:\n%s", view(m))
 	}
 	first := m.checks[m.rows(m.step)[0]].ID
@@ -1028,7 +1028,7 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 func TestEscNamesTheStepItGoesBackTo(t *testing.T) {
 	m, _ := loaded(t)
 	m = drive(m, down)
-	if want := "│ esc " + m.tabs[m.step].name + "  "; !m.inPane || !strings.Contains(m.keys().String(), want) {
+	if want := "│ esc " + m.tabs[m.step].name + " "; !m.inPane || !strings.Contains(m.keys().String(), want) {
 		t.Errorf("in the pane %v: %q does not hold %q", m.inPane, m.keys().String(), want)
 	}
 }

@@ -163,30 +163,90 @@ func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
 	if got := row(stages(7, 40), 1); !strings.HasPrefix(got, " "+Before) || strings.HasSuffix(got, After) {
 		t.Errorf("at 40, tab 7: %q", got)
 	}
-	// a click on a triangle selects the tab before the selected one, or after it, at any width, which then shows,
-	// centered as near as the bar's ends let
-	for _, width := range []int{40, 60, 80, 100} {
+	// a click on a triangle scrolls the view and never selects a tab; see TestATriangleScrollsOneTabAndNeverSelects
+	// the margin without a triangle is no tab's
+	if _, ok := stages(3, 170).Update(testkit.Click(0, 2)); ok {
+		t.Error("a click on the margin was taken")
+	}
+}
+
+// A triangle, clicked, scrolls the view to show whole the nearest tab it hides, and leaves the selected tab and the
+// keyboard where they were; the selected tab shows whole wherever the view goes, and a triangle that would cut it is
+// dim, and moves nothing. Clicked over and over, ◃ and ▹ each stop, dim or gone, and the view is where it stopped.
+func TestATriangleScrollsOneTabAndNeverSelects(t *testing.T) {
+	for _, width := range []int{30, 40, 60, 80, 100, 120} {
 		for s := range 8 {
-			b := stages(s, width)
-			line := row(b, 1)
-			for _, c := range []struct {
-				x, want int
-				shown   bool
-			}{{0, s - 1, strings.HasPrefix(line, Before)}, {width - 1, s + 1, strings.HasSuffix(line, After)}} {
-				if !c.shown {
-					continue
-				}
-				got, ok := b.Update(testkit.Click(c.x, 2))
-				if !ok || got.Selected != c.want || !strings.Contains(row(got, 0), Marker(c.want, true)) {
-					t.Errorf("at %d from tab %d, a click on the triangle at %d: tab %d, taken %v", width, s, c.x,
-						got.Selected, ok)
+			for _, focused := range []bool{true, false} {
+				for _, right := range []bool{false, true} {
+					b := stages(s, width)
+					b.Focused = focused
+					x := 0
+					if right {
+						x = width - 1
+					}
+					for range 10 {
+						l, w := b.layout(), b.screen()
+						to, ok := l.before(w, s)
+						shown := l.scroll > 0
+						if right {
+							to, ok = l.after(w, s)
+							shown = l.scroll+w < l.width
+						}
+						got, taken := b.Update(testkit.Click(x, 2))
+						after := got.layout()
+						switch {
+						case !shown && taken && !right:
+							t.Fatalf("at %d, tab %d, no ◃, but a click on the margin was taken", width, s)
+						case !shown:
+						case !taken || got.Selected != s || got.Focused != focused:
+							t.Fatalf("at %d, a click on the triangle at %d: tab %d (was %d), focused %v, taken %v",
+								width, x, got.Selected, s, got.Focused, taken)
+						case !after.shows(after.scroll, w, s):
+							t.Fatalf("at %d, tab %d, the triangle at %d cut the selected tab:\n%s", width, s, x,
+								plain(got))
+						case ok && after.scroll != to, !ok && after.scroll != l.scroll:
+							t.Fatalf("at %d, tab %d, the triangle at %d: scroll %d, was %d, want %d (moves %v)", width,
+								s, x, after.scroll, l.scroll, to, ok)
+						}
+						dim := strings.Contains(b.View(), style.Off(Before)) && !right ||
+							strings.Contains(b.View(), style.Off(After)) && right
+						if shown && dim == ok {
+							t.Fatalf("at %d, tab %d, the triangle at %d is dim %v and moves %v:\n%s", width, s, x, dim, ok,
+								plain(b))
+						}
+						if !shown || !ok {
+							break
+						}
+						b = got
+					}
 				}
 			}
 		}
 	}
-	// the margin without a triangle is no tab's
-	if _, ok := stages(3, 170).Update(testkit.Click(0, 2)); ok {
-		t.Error("a click on the margin was taken")
+	// from tab 0 at 40, ▹ shows whole the tab it cut, and the next, until the selected tab would be cut
+	b := stages(0, 40)
+	b, _ = b.Update(testkit.Click(39, 2))
+	if got := row(b, 1); !strings.Contains(got, "🛫 underway 58 │") || !strings.Contains(got, "🎫 backlog 15") {
+		t.Errorf("▹ from tab 0: %q", got)
+	}
+	if got := row(b, 1); !strings.HasSuffix(got, After) || !strings.Contains(b.View(), style.Off(After)) {
+		t.Errorf("▹ would cut backlog, so it is dim: %q", got)
+	}
+}
+
+// The view stays where the screen keeps it while the selected tab shows whole there; a tab selected that it cuts, or
+// does not show, is centered.
+func TestTheViewStaysWhileTheSelectedTabShowsWhole(t *testing.T) {
+	b := stages(3, 60)
+	l := b.layout()
+	b.Scroll = l.scroll
+	b, _ = b.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	if b.Selected != 2 || b.layout().scroll != l.scroll {
+		t.Errorf("left to a tab the view shows: tab %d, scroll %d, was %d", b.Selected, b.layout().scroll, l.scroll)
+	}
+	b.Selected = 7
+	if got := b.layout(); !got.shows(got.scroll, b.screen(), 7) {
+		t.Errorf("the last tab, selected, is not whole: %q", row(b, 1))
 	}
 }
 

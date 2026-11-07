@@ -124,18 +124,18 @@ func calls(t *testing.T, path string) []string {
 // the intro with links, and over a page; on a check's row that offers no fix, on a row that offers now and later, on
 // a row whose fix kit only shows; on a link in the intro; and in a page.
 const (
-	stepKeys   = "= menu  / search │ ←→ tab  ↓ checks  1-7 jump"
-	pageKeys   = "= menu  / search │ ←→ tab  ↓ page  1-7 jump"
-	paneKeys   = "= menu  / search │ 1-7 jump │ esc STEP  ↑↓ move  ⇞⇟ page"
+	stepKeys   = "= menu / search │ ←→ tab ↓ checks 1-7 jump"
+	pageKeys   = "= menu / search │ ←→ tab ↓ page 1-7 jump"
+	paneKeys   = "= menu / search │ 1-7 jump │ esc STEP ↑↓ move ⇞⇟ page"
 	rowKeys    = paneKeys
-	choiceKeys = paneKeys + "  ←→ now or later  n now  l later  ⏎ choose"
-	showKeys   = paneKeys + "  l later"
-	linkKeys   = paneKeys + "  ⏎ go to the check"
-	scrollKeys = "= menu  / search │ 1-7 jump │ esc STEP  ↑↓ scroll  ⇞⇟ page"
+	choiceKeys = paneKeys + " ←→ now or later n now l later ⏎ choose"
+	showKeys   = paneKeys + " l later"
+	linkKeys   = paneKeys + " ⏎ go to the check"
+	scrollKeys = "= menu / search │ 1-7 jump │ esc STEP ↑↓ scroll ⇞⇟ page"
 )
 
 // keysAt gives the keys bar where the keyboard is, as the path to it draws it, the selected step's name after esc as
 // STEP, so the bars above stand for every step.
 func keysAt(m Model) string {
-	return strings.Replace(m.keys().String(), "esc "+m.tabs[m.step].name+"  ", "esc STEP  ", 1)
+	return strings.Replace(m.keys().String(), "esc "+m.tabs[m.step].name+" ", "esc STEP ", 1)
 }

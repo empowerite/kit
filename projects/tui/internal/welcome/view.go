@@ -60,9 +60,9 @@ func (m Model) View() tea.View {
 }
 
 // bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, the count in red
-// when a check failed or kit refused them, and the keyboard on it unless the pane has it.
+// when a check failed or kit refused them, the keyboard on it unless the pane has it, and its view where it was left.
 func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Width: m.width, Row: 1}
+	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Scroll: m.barView, Width: m.width, Row: 1}
 	for i, t := range m.tabs {
 		count := m.count(i)
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: t.glyph, Name: t.name, Count: count})

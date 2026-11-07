@@ -58,7 +58,7 @@ type setting struct {
 
 // settings are the Settings dialog's lines, in order.
 var settings = []setting{
-	{"Keys bar", "the keys that act where the keyboard is, on the last line",
+	{"Key bar", "shows the keys you can press now, on the bottom line",
 		func(s Settings) bool { return s.KeysBar },
 		func(s Settings) Settings { s.KeysBar = !s.KeysBar; return s }},
 }
@@ -98,12 +98,41 @@ func (d SettingsDialog) Keys() Segment {
 	return s
 }
 
+// Click takes a click while the dialog is open: a left one on a setting puts the keyboard on it and flips it, saved at
+// once, as space does; a left one outside the box closes the dialog, as esc does; anything else, as a click on the
+// box's edges, changes nothing. The dialog stands where Overlay draws it over a screen of so many lines, so wide. It
+// gives the dialog and the settings.
+func (d SettingsDialog) Click(msg tea.MouseClickMsg, s Settings, height, width int) (SettingsDialog, Settings) {
+	mouse := msg.Mouse()
+	if mouse.Button != tea.MouseLeft {
+		return d, s
+	}
+	box := d.box(s, width)
+	top, left := d.place(box, height, width)
+	switch k := mouse.Y - top - 1; {
+	case mouse.Y < top || mouse.Y >= top+len(box) || mouse.X < left || mouse.X >= left+ansi.StringWidth(box[0]):
+		d.Open = false
+	case k >= 0 && k < len(settings):
+		d.At = k
+		s = settings[k].flip(s)
+		s.Save()
+	}
+	return d, s
+}
+
 // Overlay draws the open dialog over the screen's lines, centered across a screen so wide, near its top: each setting
 // a box picked or not, its name, and what it says, dim, the one under the keyboard inverse.
 func (d SettingsDialog) Overlay(lines []string, s Settings, width int) []string {
 	if !d.Open {
 		return lines
 	}
+	box := d.box(s, width)
+	top, left := d.place(box, len(lines), width)
+	return Over(lines, box, top, left)
+}
+
+// box gives the dialog's lines, as Overlay draws them on a screen so wide.
+func (d SettingsDialog) box(s Settings, width int) []string {
 	var body []string
 	for k, set := range settings {
 		box := style.Unpicked
@@ -116,6 +145,11 @@ func (d SettingsDialog) Overlay(lines []string, s Settings, width int) []string 
 		}
 		body = append(body, name+"  "+style.Off(set.says))
 	}
-	box := Dialog("Settings", body, settingsKeys, width-2)
-	return Over(lines, box, min(2, max(0, len(lines)-len(box))), max(0, (width-ansi.StringWidth(box[0]))/2))
+	return Dialog("Settings", body, settingsKeys, width-2)
+}
+
+// place gives the line and the column the dialog's box starts at on a screen of so many lines, so wide: its third
+// line, or as near as the screen lets, and centered across it.
+func (d SettingsDialog) place(box []string, height, width int) (top, left int) {
+	return min(2, max(0, height-len(box))), max(0, (width-ansi.StringWidth(box[0]))/2)
 }
