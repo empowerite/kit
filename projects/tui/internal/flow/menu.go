@@ -46,7 +46,8 @@ func (m Model) tabItems() []shell.Item {
 	}
 	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, m.watchItem(m.stage), size, {}}, m.folds()...)
 	items = append(items, shell.Item{},
-		shell.Item{Glyph: Every, Name: "Select All"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"}, shell.Item{})
+		shell.Item{Glyph: Every, Name: "Select All", Keys: "⌃A"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"},
+		shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
 }
 

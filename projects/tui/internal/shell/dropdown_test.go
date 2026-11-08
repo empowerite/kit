@@ -4,7 +4,9 @@ package shell
 import "testing"
 
 // lines is a dropdown's lines: Alpha, a rule, Beta, which does not act, Bravo, and Charlie.
-var lines = []Item{{"🅰", "Alpha"}, {}, {"🅱", "Beta"}, {"🅱", "Bravo"}, {"©", "Charlie"}}
+var lines = []Item{
+	{Glyph: "🅰", Name: "Alpha"}, {}, {Glyph: "🅱", Name: "Beta"}, {Glyph: "🅱", Name: "Bravo"}, {Glyph: "©", Name: "Charlie"},
+}
 
 // acts says which of lines act: all but the rule and Beta.
 func acts(k int) bool { return k != 1 && k != 2 }

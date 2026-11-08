@@ -31,7 +31,7 @@ func key(s string) tea.KeyPressMsg {
 }
 
 func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T) {
-	m := Menu{Here: Welcome, Own: []Item{{"🔄", "Refresh All"}}}.Opened()
+	m := Menu{Here: Welcome, Own: []Item{{Glyph: "🔄", Name: "Refresh All"}}}.Opened()
 	var names []string
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
@@ -73,7 +73,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	} else if _, c = m.Key(key("enter")); c != (Choice{Screen: SettingsScreen}) {
 		t.Errorf("settings: %+v", c)
 	}
-	own, _ := Menu{Here: Help, Own: []Item{{"", "Mine"}}}.Opened().Key(key("m"))
+	own, _ := Menu{Here: Help, Own: []Item{{Name: "Mine"}}}.Opened().Key(key("m"))
 	if _, c := own.Key(key("enter")); c != (Choice{Own: "Mine"}) {
 		t.Errorf("its own: %+v", c)
 	}
@@ -123,7 +123,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 // A box without its glyph keeps to room's right; one whose glyph is near the right turns its corner there; the rows
 // past the screen's last are not drawn.
 func TestABoxKeepsToTheRoomItHas(t *testing.T) {
-	items := []Item{{"", "One"}}
+	items := []Item{{Name: "One"}}
 	all := func(int) bool { return true }
 	if box, left := Box(items, all, 0, "⋮", -1, 40); left+ansi.StringWidth(box[0]) != 40 {
 		t.Errorf("no glyph: left %d, width %d", left, ansi.StringWidth(box[0]))
@@ -201,6 +201,32 @@ func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
 	if got := TitledColored("Presets", 20, "75"); ansi.Strip(got) != ansi.Strip(Titled("Presets", 20)) ||
 		got != edge(ansi.Strip(got)) || TitledColored("Presets", 20, "") != Titled("Presets", 20) {
 		t.Errorf("the title in 75: %q", got)
+	}
+}
+
+// A menu shows each line's keys at its right, flush with the widest, dim but under the keyboard, where the line is
+// drawn as one; a menu with no keys has no room for them; and quit's are ⌥esc, on every screen.
+func TestAMenuShowsEachLinesKeysAtItsRight(t *testing.T) {
+	items := []Item{{Glyph: "✅", Name: "Select All", Keys: "⌃A"}, {Name: "Quit", Keys: "⌥esc"}, {Name: "Refresh"}, {},
+		{Name: "Off", Keys: "⌃O"}}
+	enabled := func(k int) bool { return k < 3 }
+	box, _ := Box(items, enabled, 1, "", -1, 40)
+	for k, want := range map[int]string{1: "│ ✅ Select All    ⌃A │", 2: "│    Quit        ⌥esc │",
+		3: "│    Refresh          │", 5: "│    Off           ⌃O │"} {
+		if got := ansi.Strip(box[k]); got != want {
+			t.Errorf("line %d: %q, want %q", k, got, want)
+		}
+	}
+	_, under := style.MenuIn("")
+	if !strings.Contains(box[1], style.Off("    ⌃A")) || !strings.Contains(box[2], under("    Quit        ⌥esc ")) ||
+		!strings.Contains(box[5], style.Off("    Off           ⌃O ")) {
+		t.Errorf("the keys' styles:\n%q", box)
+	}
+	if plain, _ := Box([]Item{{Name: "Refresh"}}, Every, 0, "", -1, 40); ansi.Strip(plain[1]) != "│    Refresh │" {
+		t.Errorf("no keys: %q", ansi.Strip(plain[1]))
+	}
+	if quit := (Menu{}).Items(); quit[len(quit)-1].Keys != "⌥esc" {
+		t.Errorf("quit: %+v", quit[len(quit)-1])
 	}
 }
 

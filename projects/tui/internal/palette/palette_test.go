@@ -451,6 +451,17 @@ func TestEscClearsOrQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	}
 }
 
+// ⌥esc quits, as on every screen, with something typed, and with the app's menu open, as its Quit line says.
+func TestOptionEscQuitsWhateverIsOpen(t *testing.T) {
+	optEsc := tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
+	for name, before := range map[string][]tea.Msg{"typed": testkit.Typed("q"), "menu": testkit.Typed("=")} {
+		m, produced := drive(open(t), append(before, optEsc)...)
+		if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
+			t.Errorf("%s, then ⌥esc: %v", name, produced)
+		}
+	}
+}
+
 // No verb's name holds a / or a =, the keys the search does not type: each is a kit/bin/kit-<verb> of the real kit.
 func TestNoVerbsNameHoldsTheKeysThatAreNotTyped(t *testing.T) {
 	bins, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "kit", "bin", "kit-*"))

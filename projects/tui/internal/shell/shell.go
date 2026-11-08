@@ -47,17 +47,18 @@ const (
 	Leave     = "👋"
 )
 
-// Item is one line of a menu: a glyph, which may be none, and the name it is chosen by; a line with no name is the
-// rule between groups of items.
-type Item struct{ Glyph, Name string }
+// Item is one line of a menu: a glyph, which may be none; the name it is chosen by; and the keys that do the same with
+// the menu closed, as the keys bar names keys, none when no key does: the menu shows them at its right, dim, where the
+// keys bar would have to name one key apiece. A line with no name is the rule between groups of items.
+type Item struct{ Glyph, Name, Keys string }
 
 // screens are the app's menu's screens, in its order, with the item each is chosen by.
 var screens = []struct {
 	item   Item
 	screen Screen
 }{
-	{Item{Home, "Welcome"}, Welcome}, {Item{Learn, "Tutorials"}, Tutorials}, {Item{Map, "Flow"}, Flow},
-	{Item{Asking, "Help"}, Help},
+	{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
+	{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Asking, Name: "Help"}, Help},
 }
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
@@ -85,18 +86,18 @@ type SwitchMsg struct{ Screen Screen }
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
 // Items gives the menu's lines, top to bottom: kit's screens; a rule; the screen's own items, when it has any, and the
-// settings; a rule; and quit.
+// settings; a rule; and quit, which ⌥esc does on every screen.
 func (m Menu) Items() []Item {
 	var items []Item
 	for _, s := range screens {
 		items = append(items, s.item)
 	}
 	items = append(append(items, Item{}), m.Own...)
-	return append(items, settingsItem, Item{}, Item{Leave, "Quit"})
+	return append(items, settingsItem, Item{}, Item{Glyph: Leave, Name: "Quit", Keys: "⌥esc"})
 }
 
 // settingsItem is the menu's line that opens the Settings dialog.
-var settingsItem = Item{Configure, "Settings…"}
+var settingsItem = Item{Glyph: Configure, Name: "Settings…"}
 
 // enabled says whether the menu's line k does something: the screen's own items but those it dims, a screen other
 // than the one it is on, the settings, and quit; the rules never do.
@@ -249,11 +250,17 @@ func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		shown = max(1, rows-2)
 		first = min(max(0, at-shown/2), len(items)-shown)
 	}
-	names := make([]string, len(items))
+	names, keys := make([]string, len(items)), make([]string, len(items))
 	for k, item := range items {
-		names[k] = item.Name
+		names[k], keys[k] = item.Name, item.Keys
 	}
-	inner := pane.Width(names) + 5
+	// a line is a cell, the glyph's two, a cell, the name, and a cell; then, where any line has keys, two cells and the
+	// widest keys, every line's keys flush right
+	named, keyed := pane.Width(names), pane.Width(keys)
+	inner := named + 5
+	if keyed > 0 {
+		inner += 2 + keyed
+	}
 	width, cells := inner+2, ansi.StringWidth(mark)
 	switch {
 	case glyph < 0:
@@ -293,16 +300,24 @@ func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		if k < first || k >= first+shown {
 			continue
 		}
-		text := pane.Pad(" "+pane.Pad(item.Glyph, 2, false)+" "+item.Name+" ", inner, false)
+		text := " " + pane.Pad(item.Glyph, 2, false) + " " + pane.Pad(item.Name, named, false)
+		shortcut := ""
+		if keyed > 0 {
+			shortcut = "  " + pane.Pad(item.Keys, keyed, true)
+		}
 		switch {
 		case item.Name == "":
 			lines = append(lines, edge("│")+" "+style.Off(strings.Repeat("─", inner-2))+" "+edge("│"))
 			continue
 		case !enabled(k):
 			// dim, and never under the keyboard, even when what it acts on changed under an open menu
-			text = style.Off(text)
+			text = style.Off(text + shortcut + " ")
 		case k == at:
-			text = under(text)
+			text = under(text + shortcut + " ")
+		case item.Keys != "":
+			text += style.Off(shortcut) + " "
+		default:
+			text += shortcut + " "
 		}
 		lines = append(lines, edge("│")+text+edge("│"))
 	}

@@ -194,6 +194,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		visible := m.Visible()
+		if k := msg.String(); k == "alt+esc" || k == "super+esc" {
+			// quit, as on every screen, the app's menu open or not
+			m.cancelled = true
+			return m, tea.Quit
+		}
 		if m.appMenu.Open && msg.String() != "ctrl+c" {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Key(msg)
