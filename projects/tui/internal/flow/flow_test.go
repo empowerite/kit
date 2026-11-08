@@ -332,7 +332,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "flow changes --json\nflow worktrees --json" {
 		t.Errorf("the calls: %q", got)
 	}
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow" {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
 		t.Errorf("the title without incoming: %q", first)
 	}
 	if labels := squeeze(lines(m)[2]); !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
@@ -806,7 +806,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
 	m = loaded(t, o, right, right, right, right, right, right)
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow" {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
 	// without the fetch, each remote's heading says not fetched, and its tab has no count
@@ -831,7 +831,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
 	m = loaded(t, Options{Stages: []string{"releases"}})
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow" {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
 		t.Errorf("the title alone: %q", first)
 	}
 }

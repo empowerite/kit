@@ -109,6 +109,7 @@ type Model struct {
 	tabMenu       shell.Dropdown            // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
 	maximized     bool                      // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu                // the app's menu, internal/shell's, which has the keyboard while it is open
+	books         shell.BooksMenu           // the title's 📚 control, which has the keyboard while it is open
 	pop           table.Popover             // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
@@ -161,7 +162,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, fold: true,
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true,
 		legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
@@ -278,6 +279,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.err != nil:
 			m.note.Text, m.note.Done = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
+	case shell.WorkspaceMsg:
+		m.books = m.books.Told(msg)
 	case shell.SettingsMsg:
 		m.fold, m.glyphs = msg.Settings.FoldShared, msg.Settings.SharedEmoji
 		m.rebuild()
@@ -318,6 +321,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.dropDown(false)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
+		case msg.Button == tea.MouseLeft && m.books.On(msg.X, msg.Y, m.booksAt()):
+			m.books = m.books.Opened()
 		case len(m.stages) > 0 && grouping(msg) && msg.Y >= m.top() && msg.Y < m.top()+m.paneHeight() &&
 			msg.X < m.paneWidth():
 			m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
