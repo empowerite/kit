@@ -352,19 +352,16 @@ workspaces:current() {
 # the file or a repository, {name, kind, members, checkout}, members a group's count and checkout a repository's. The
 # roots are walked once, and only when a member or a favorite needs a checkout.
 workspaces:menu-json() {
-  local current=$1 kind member name favorite fkind checkouts='' walked=''
+  local current=$1 kind member name favorite fkind checkouts=''
   local -a members=() groups=() favorites=() fixed=()
   kind=$(jq --raw-output .kind <<<"${current}")
   member=$(jq --raw-output '.member // ""' <<<"${current}")
-  # workspaces:menu-checkout <member> prints the member's first checkout, walking the roots the first time one is
-  # asked for
-  workspaces:menu-checkout() {
-    [[ -n "${walked}" ]] || { checkouts=$(workspaces:checkouts); walked=1; }
-    awk -F '\t' -v m="$1" '$1 == m { print $2; exit }' <<<"${checkouts}"
-  }
+  if [[ "${kind}" == group ]] || workspaces:favorites | grep --quiet /
+  then
+    checkouts=$(workspaces:checkouts)
+  fi
   if [[ "${kind}" == group ]]
   then
-    workspaces:menu-checkout '' >/dev/null
     while IFS= read -r name
     do
       members+=("$(workspaces:member-json "${name}" fixed "${checkouts}")")
@@ -390,7 +387,7 @@ workspaces:menu-json() {
         '{name: $name, kind: "group", members: $n, checkout: null}')")
     else
       favorites+=("$(jq --null-input --compact-output --arg name "${favorite}" \
-        --arg checkout "$(workspaces:menu-checkout "${name}")" \
+        --arg checkout "$(awk -F '\t' -v m="${name}" '$1 == m { print $2; exit }' <<<"${checkouts}")" \
         '{name: $name, kind: "repository", members: null,
           checkout: (if $checkout == "" then null else $checkout end)}')")
     fi

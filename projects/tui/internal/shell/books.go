@@ -22,11 +22,9 @@ import (
 // Books is the workspace's glyph, on the title line and beside each group in its dropdown.
 const Books = "📚"
 
-// The glyphs of the dropdown's lines besides the groups': a favorite, a repository not cloned, kit's line, and the
-// three that open what is still to come.
+// The glyphs of the dropdown's lines besides the groups': a favorite, and the three that open what is still to come.
 const (
 	Favorite = "⭐"
-	Cloud    = "☁️"
 	browse   = "🔎"
 	create   = "➕"
 	manage   = "🧰"
@@ -125,7 +123,7 @@ func (b BooksMenu) lines() []booksLine {
 		} else {
 			line.item = Item{Glyph: Favorite, Name: repoName(f.Name, "")}
 			if f.Checkout == "" {
-				line.item.Name += " " + Cloud
+				line.item.Name += " · not cloned"
 				line.acts = false
 			}
 		}

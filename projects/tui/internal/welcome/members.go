@@ -21,9 +21,9 @@ type run struct {
 }
 
 // compose gives the checks of every member's run as one list, in the order each id first appears. A check every
-// member that answered reports alike, its result, line, and fix the same, is said once, with no member, and the first
-// member's checkout for its fix; any other is said once per member that reports it, in the members' order, each with
-// its member and checkout. A run kit refused is one failed check of its own, kit, with kit's line and no fix.
+// member that answered reports alike, its result, line, and fix the same, is said once, with no member, its fix
+// running in every member's checkout in turn; any other is said once per member that reports it, in the members'
+// order, each with its member and checkout. A run kit refused is one failed check of its own, kit, with kit's line and no fix.
 func compose(runs []run) []kit.Check {
 	var order []string
 	seen := map[string][]kit.Check{}
@@ -36,12 +36,12 @@ func compose(runs []run) []kit.Check {
 	}
 	for _, r := range runs {
 		if r.err != nil {
-			add(kit.Check{ID: refusedID, Line: refusalOf(r.err), Member: r.member, Dir: r.dir})
+			add(kit.Check{ID: refusedID, Line: refusalOf(r.err), Member: r.member, Dirs: []string{r.dir}})
 			continue
 		}
 		answered++
 		for _, c := range r.checks {
-			c.Member, c.Dir = r.member, r.dir
+			c.Member, c.Dirs = r.member, []string{r.dir}
 			add(c)
 		}
 	}
@@ -50,7 +50,10 @@ func compose(runs []run) []kit.Check {
 		same := seen[id]
 		if alike(same, answered) {
 			c := same[0]
-			c.Member = ""
+			c.Member, c.Dirs = "", nil
+			for _, each := range same {
+				c.Dirs = append(c.Dirs, each.Dirs...)
+			}
 			out = append(out, c)
 			continue
 		}

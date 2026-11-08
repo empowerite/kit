@@ -244,7 +244,7 @@ func (m Model) introLines() []line {
 		}
 	}
 	if gone := uncloned(m.workspace); len(gone) > 0 {
-		add(-1, lead+style.Off(shell.Cloud+" not cloned: "+strings.Join(gone, ", ")))
+		add(-1, lead+style.Off("not cloned: "+strings.Join(gone, ", ")))
 	}
 	if m.checking.Running() {
 		add(-1, "")

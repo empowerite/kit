@@ -38,10 +38,11 @@ type Model struct {
 	refusal   string                       // kit's line, when a screen asked for could not open, until the next key
 	settings  shell.Settings
 	dialog    shell.SettingsDialog
-	home      string        // where kittui was started, which the screens read over anything but a repository
-	workspace kit.Workspace // the workspace kit said last, zero until it says
-	refused   string        // kit's line, when kit could not say the workspace last asked for
-	asked     int           // the latest ask for the workspace, from 0, kittui's start: an earlier one's answer is dropped
+	home      string               // where kittui was started, which the screens read over anything but a repository
+	workspace kit.Workspace        // the workspace kit said last, zero until it says
+	refused   string               // kit's line, when kit could not say the workspace last asked for
+	asked     int                  // the latest ask for the workspace, from 0, kittui's start: an earlier one's answer is dropped
+	epochs    map[shell.Screen]int // how many times each screen was made again: an answer to one closed is dropped
 }
 
 // workspaceMsg is kit's answer to an ask for the workspace: the ask's number, and the workspace, or why there is none.
@@ -55,7 +56,7 @@ type workspaceMsg struct {
 // keeps.
 func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
 	root := Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
-		settings: shell.LoadSettings(shell.SettingsFile()), home: r.Dir}
+		settings: shell.LoadSettings(shell.SettingsFile()), home: r.Dir, epochs: map[shell.Screen]int{}}
 	root.made[first], _ = m.Update(shell.SettingsMsg{Settings: root.settings})
 	return root
 }
@@ -84,7 +85,7 @@ func (m Model) Close() {
 }
 
 // Init starts the screen shown, and asks kit for the workspace.
-func (m Model) Init() tea.Cmd { return tea.Batch(tag(m.here, m.made[m.here].Init()), m.ask("")) }
+func (m Model) Init() tea.Cmd { return tea.Batch(m.tag(m.here, m.made[m.here].Init()), m.ask("")) }
 
 // ask gives the command that asks kit for the workspace given, "" for the one kit starts on, as the latest ask: a
 // group given is kept as the last used first.
@@ -111,10 +112,7 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
-		m.refused = msg.err.Error()
-		if line, _, ok := app.Refusal(msg.err); ok {
-			m.refused = line
-		}
+		m.refused = refusalLine(msg.err)
 		return m.tellWorkspace()
 	}
 	moved := msg.ws.Kind == "group"
@@ -129,6 +127,17 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 	if !moved {
 		return m.tellWorkspace()
 	}
+	// the screen shown is made anew first, so one that cannot open there gives way to the welcome, which always opens,
+	// kit's line on the last line, before anything is closed
+	here, remade := m.here, m.here != shell.Tutorials && m.here != shell.Help
+	var shown tea.Model
+	if remade {
+		var err error
+		if shown, err = m.open(here); err != nil {
+			m.refusal, here = refusalLine(err), shell.Welcome
+			shown, _ = m.open(here)
+		}
+	}
 	for to, s := range m.made {
 		if to == shell.Tutorials || to == shell.Help {
 			continue
@@ -137,10 +146,22 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 			c.Close()
 		}
 		delete(m.made, to)
+		m.epochs[to]++
 	}
-	next, made := m.show(m.here)
+	if !remade {
+		return m.tellWorkspace()
+	}
+	next, made := m.place(here, shown)
 	next, told := next.(Model).tellWorkspace()
 	return next, tea.Batch(made, told)
+}
+
+// refusalLine gives kit's line for a screen that could not open, or the error's.
+func refusalLine(err error) string {
+	if line, _, ok := app.Refusal(err); ok {
+		return line
+	}
+	return err.Error()
 }
 
 // tellWorkspace tells every screen made the workspace, or kit's line, and gives what they start.
@@ -172,6 +193,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.show(msg.Screen)
 	case tagged:
+		if msg.epoch != m.epochs[msg.to] {
+			return m, nil
+		}
 		return m.deliver(msg.to, msg.msg)
 	case workspaceMsg:
 		return m.answered(msg)
@@ -224,7 +248,7 @@ func (m Model) deliver(to shell.Screen, msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	next, cmd := s.Update(msg)
 	m.made[to] = next
-	return m, tag(to, cmd)
+	return m, m.tag(to, cmd)
 }
 
 // show shows a screen in place of the one shown: made the first time, and loading then; else as it was left, told
@@ -239,12 +263,15 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 	}
 	s, err := m.open(to)
 	if err != nil {
-		m.refusal = err.Error()
-		if line, _, ok := app.Refusal(err); ok {
-			m.refusal = line
-		}
+		m.refusal = refusalLine(err)
 		return m, nil
 	}
+	return m.place(to, s)
+}
+
+// place shows a screen just made in place of the one shown: told the settings and the workspace, then started, and
+// told the terminal's size and its keyboard.
+func (m Model) place(to shell.Screen, s tea.Model) (tea.Model, tea.Cmd) {
 	m.made[to], m.here = s, to
 	_, told := m.deliver(to, shell.SettingsMsg{Settings: m.settings})
 	cmds := []tea.Cmd{told}
@@ -252,7 +279,7 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 		_, cmd := m.deliver(to, m.workspaceMsg())
 		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, tag(to, m.made[to].Init()))
+	cmds = append(cmds, m.tag(to, m.made[to].Init()))
 	if m.size != nil {
 		_, cmd := m.deliver(to, m.sized())
 		cmds = append(cmds, cmd)
@@ -336,15 +363,19 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// tagged is an answer to what a screen started, for that screen.
+// tagged is an answer to what a screen started, for that screen, as it was made the epoch-th time over.
 type tagged struct {
-	to  shell.Screen
-	msg tea.Msg
+	to    shell.Screen
+	epoch int
+	msg   tea.Msg
 }
+
+// tag tags the command as the screen's, as it is made now.
+func (m Model) tag(to shell.Screen, cmd tea.Cmd) tea.Cmd { return tag(to, m.epochs[to], cmd) }
 
 // tag gives the command whose answer reaches the screen that started it: a batch's commands each tagged so; a
 // screen's ask for another, and what the program itself takes, as quitting, as they are.
-func tag(to shell.Screen, cmd tea.Cmd) tea.Cmd {
+func tag(to shell.Screen, epoch int, cmd tea.Cmd) tea.Cmd {
 	if cmd == nil {
 		return nil
 	}
@@ -356,13 +387,13 @@ func tag(to shell.Screen, cmd tea.Cmd) tea.Cmd {
 		case tea.BatchMsg:
 			out := make(tea.BatchMsg, len(msg))
 			for i, c := range msg {
-				out[i] = tag(to, c)
+				out[i] = tag(to, epoch, c)
 			}
 			return out
 		}
 		if strings.HasPrefix(reflect.TypeOf(msg).PkgPath(), "charm.land/bubbletea") {
 			return msg
 		}
-		return tagged{to, msg}
+		return tagged{to, epoch, msg}
 	}
 }

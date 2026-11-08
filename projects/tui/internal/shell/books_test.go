@@ -68,7 +68,7 @@ func names(b BooksMenu) ([]string, []int) {
 
 func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b ☁️", "", "Browse…", "New workspace…", "Manage workspaces…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "Browse…", "New workspace…", "Manage workspaces…"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -330,7 +331,7 @@ func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
 	}
 	want := Check{ID: "gh-auth", Step: "setup", Line: "gh is not logged in to github.com",
 		Fix: "gh auth login --hostname github.com", Interactive: true, Runs: true}
-	if checks[3] != want {
+	if !reflect.DeepEqual(checks[3], want) {
 		t.Errorf("check 3: %+v", checks[3])
 	}
 	// a null fix and a null more are empty

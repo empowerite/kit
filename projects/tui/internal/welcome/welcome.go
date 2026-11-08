@@ -250,6 +250,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pagesMsg:
 		m.setTabs(msg.tabs)
 		m.fit()
+	case fixingMsg:
+		return m, m.fixIn(msg.id, msg.key, msg.dirs)
 	case fixedMsg:
 		// the checks run again, superseding a run still out
 		m.fixed(msg)
@@ -715,11 +717,30 @@ func (m *Model) now() tea.Cmd {
 	c := m.checks[m.cursor]
 	delete(m.deferred, c.Key())
 	m.choice = now
-	r := m.runner
-	if c.Dir != "" {
-		r.Dir = c.Dir
+	dirs := c.Dirs
+	if len(dirs) == 0 {
+		dirs = []string{m.runner.Dir}
 	}
-	return m.exec(r.WelcomeFix(c.ID), func(err error) tea.Msg { return fixedMsg{id: c.ID, key: c.Key(), err: err} })
+	return m.fixIn(c.ID, c.Key(), dirs)
+}
+
+// fixingMsg says a fix ran in one checkout and holds there, and the checkouts it is still to run in.
+type fixingMsg struct {
+	id, key string
+	dirs    []string
+}
+
+// fixIn hands the terminal to the check's fix in the first of the checkouts; when it holds there and more are left, a
+// fixingMsg runs it in the next, else the fix is done, as fixedMsg says.
+func (m Model) fixIn(id, key string, dirs []string) tea.Cmd {
+	r := m.runner
+	r.Dir = dirs[0]
+	return m.exec(r.WelcomeFix(id), func(err error) tea.Msg {
+		if err == nil && len(dirs) > 1 {
+			return fixingMsg{id: id, key: key, dirs: dirs[1:]}
+		}
+		return fixedMsg{id: id, key: key, err: err}
+	})
 }
 
 // later leaves the check under the cursor for later and moves to the step's next failed check not left, if there is

@@ -26,7 +26,7 @@ func TestComposeSaysACheckAlikeInEveryMemberOnce(t *testing.T) {
 		{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", false, "jq is not installed")}},
 		{member: "github.com/o/b", dir: "/b", checks: []kit.Check{check("jq", false, "jq is not installed")}},
 	})
-	if len(got) != 1 || got[0].Member != "" || got[0].Dir != "/a" || got[0].Key() != "jq" {
+	if len(got) != 1 || got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a /b" || got[0].Key() != "jq" {
 		t.Errorf("composed: %+v", got)
 	}
 }
@@ -40,9 +40,9 @@ func TestComposeShowsACheckThatDiffersPerMember(t *testing.T) {
 	})
 	var keys []string
 	for _, c := range got {
-		keys = append(keys, c.Key()+"@"+c.Dir)
+		keys = append(keys, c.Key()+"@"+strings.Join(c.Dirs, " "))
 	}
-	want := "bash@/a|github.com/o/a toolchain-project@/a|github.com/o/b toolchain-project@/b|github.com/o/b only-b@/b"
+	want := "bash@/a /b|github.com/o/a toolchain-project@/a|github.com/o/b toolchain-project@/b|github.com/o/b only-b@/b"
 	if strings.Join(keys, "|") != want {
 		t.Errorf("composed: %s", strings.Join(keys, "|"))
 	}
@@ -59,7 +59,7 @@ func TestComposeTurnsARefusalIntoItsMembersFailedCheck(t *testing.T) {
 	}
 	// a single member that answered says each check once, with its checkout
 	if got := compose([]run{{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", true, "jq")}}}); len(got) != 1 ||
-		got[0].Member != "" || got[0].Dir != "/a" {
+		got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a" {
 		t.Errorf("one member: %+v", got)
 	}
 }
@@ -88,7 +88,7 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string, string) {
 
 func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
 	m, _, _, _ := group(t)
-	if v := view(m); !strings.Contains(v, "☁️ not cloned: o/c") || !strings.Contains(v, "📚 w 3") {
+	if v := view(m); !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "📚 w 3") {
 		t.Errorf("the intro:\n%s", v)
 	}
 	m = drive(m, press('3'))
@@ -151,5 +151,17 @@ func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 		Checkout: t.TempDir()}}}
 	if _, err := checksOver(testkit.Runner(t, "welcome"), ws)(ctx, false); !errors.Is(err, context.Canceled) {
 		t.Errorf("ended: %v", err)
+	}
+}
+
+func TestAFixSaidOnceRunsInEveryMember(t *testing.T) {
+	m, r, a, b := group(t, press('2'), down)
+	m, found := onMember(m, "jq", "")
+	if !found {
+		t.Fatalf("no jq said once:\n%s", view(m))
+	}
+	drive(m, press('n'))
+	if strings.Join(r.dirs, " ") != a+" "+b {
+		t.Errorf("the fix ran in %v, want %s then %s", r.dirs, a, b)
 	}
 }

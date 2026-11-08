@@ -163,3 +163,37 @@ func TestAGroupKitWillNotKeepIsNotSwitchedTo(t *testing.T) {
 		t.Errorf("a refused --use: %+v, %q", m.workspace, books.Refusal)
 	}
 }
+
+func TestAScreenThatCannotOpenOverTheNewWorkspaceGivesWayToTheWelcome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := New(testkit.Runner(t, "kit"), shell.Flow, told{})
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
+	// kit cannot run where the picture would open now, so it cannot be made there
+	m.runner.Kit = filepath.Join(t.TempDir(), "no-kit")
+	m = drive(m, workspaceMsg{gen: 0, ws: kit.Workspace{Kind: "group", Name: "w"}})
+	if _, ok := m.Shown().(welcome.Model); !ok || m.here != shell.Welcome {
+		t.Fatalf("shown: %T on %s", m.Shown(), m.here)
+	}
+	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+	if last := lines[len(lines)-1]; !strings.Contains(last, "❌") {
+		t.Errorf("kit's line is not said: %q", last)
+	}
+}
+
+func TestAnAnswerForAScreenMadeAgainIsDropped(t *testing.T) {
+	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON, "w.json": groupJSON})
+	was := m.epochs[shell.Welcome]
+	m = drive(m, shell.PickMsg{Workspace: "w"})
+	if m.epochs[shell.Welcome] == was {
+		t.Fatalf("the welcome made again keeps its epoch %d", was)
+	}
+	// an answer the welcome closed started reaches nothing; the one made again takes its own
+	m = drive(m, tagged{to: shell.Welcome, epoch: was, msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
+	if n := len(strings.Split(m.made[shell.Welcome].View().Content, "\n")); n != 30 {
+		t.Errorf("an old answer reached the welcome: %d lines", n)
+	}
+	m = drive(m, tagged{to: shell.Welcome, epoch: m.epochs[shell.Welcome], msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
+	if n := len(strings.Split(m.made[shell.Welcome].View().Content, "\n")); n != 20 {
+		t.Errorf("the welcome's own answer: %d lines", n)
+	}
+}

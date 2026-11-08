@@ -59,7 +59,7 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 		t.Errorf("the palette shown again has %d lines", len(lines))
 	}
 	// an answer for the hidden picture reaches it, not the palette
-	m, _ = testkit.Drive(m, nil, tagged{shell.Flow, tea.WindowSizeMsg{Width: 70, Height: 20}})
+	m, _ = testkit.Drive(m, nil, tagged{to: shell.Flow, msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
 	if lines := strings.Split(m.made[shell.Flow].View().Content, "\n"); len(lines) != 20 || m.here != shell.Help {
 		t.Errorf("the hidden picture has %d lines, %s shown", len(lines), m.here)
 	}
@@ -101,25 +101,25 @@ func TestAScreenThatCannotOpenLeavesTheOneShown(t *testing.T) {
 // another, and what the program takes, as quitting, are not.
 func TestWhatAScreenStartsIsTaggedForIt(t *testing.T) {
 	type answer struct{}
-	if tag(shell.Flow, nil) != nil {
+	if tag(shell.Flow, 0, nil) != nil {
 		t.Error("no command was tagged")
 	}
 	for _, c := range []struct {
 		cmd  tea.Cmd
 		want tea.Msg
 	}{
-		{func() tea.Msg { return answer{} }, tagged{shell.Flow, answer{}}},
+		{func() tea.Msg { return answer{} }, tagged{to: shell.Flow, msg: answer{}}},
 		{func() tea.Msg { return nil }, nil},
 		{shell.Switch(shell.Help), shell.SwitchMsg{Screen: shell.Help}},
 		{tea.Quit, tea.QuitMsg{}},
 	} {
-		if got := tag(shell.Flow, c.cmd)(); got != c.want {
+		if got := tag(shell.Flow, 0, c.cmd)(); got != c.want {
 			t.Errorf("tagged %#v, want %#v", got, c.want)
 		}
 	}
-	batch := tag(shell.Flow, tea.Batch(func() tea.Msg { return answer{} }, func() tea.Msg { return answer{} }))()
+	batch := tag(shell.Flow, 0, tea.Batch(func() tea.Msg { return answer{} }, func() tea.Msg { return answer{} }))()
 	if cmds, ok := batch.(tea.BatchMsg); !ok || len(cmds) != 2 ||
-		!slices.ContainsFunc(cmds, func(c tea.Cmd) bool { return c() == tagged{shell.Flow, answer{}} }) {
+		!slices.ContainsFunc(cmds, func(c tea.Cmd) bool { return c() == tagged{to: shell.Flow, msg: answer{}} }) {
 		t.Errorf("the batch: %#v", batch)
 	}
 }
