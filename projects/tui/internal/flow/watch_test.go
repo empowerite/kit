@@ -28,7 +28,7 @@ func own(m Model, name string) (shell.Item, bool) {
 func TestNothingIsWatchedAtTheStart(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for _, s := range m.stages {
-		if s.watch {
+		if s.src.Watch {
 			t.Errorf("%s is watched at the start", s.name)
 		}
 	}
@@ -61,8 +61,8 @@ func TestNothingIsWatchedAtTheStart(t *testing.T) {
 	}
 	// Watch All passes over a stage kittui does not draw
 	some := New(runner(t), Options{Stages: []string{"nonesuch", "desk"}})
-	if some.watchAll(true); some.stages[0].watch || !some.stages[1].watch {
-		t.Errorf("Watch All with a stage kittui does not draw: %v %v", some.stages[0].watch, some.stages[1].watch)
+	if some.watchAll(true); some.stages[0].src.Watch || !some.stages[1].src.Watch {
+		t.Errorf("Watch All with a stage kittui does not draw: %v %v", some.stages[0].src.Watch, some.stages[1].src.Watch)
 	}
 }
 
@@ -73,9 +73,9 @@ func TestWatchInTheTabsMenuWatchesTheStageThenReadsStopWatching(t *testing.T) {
 		t.Fatalf("Watch is not in the tab's menu, or dim: %d", k)
 	}
 	m.tabMenu.At = k
-	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].watch || m.tabMenu.Open ||
+	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].src.Watch || m.tabMenu.Open ||
 		m.watchItem(m.stage) != (shell.Item{Glyph: StopWatched, Name: StopIt}) {
-		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].watch, m.tabMenu.Open, m.watchItem(m.stage))
+		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].src.Watch, m.tabMenu.Open, m.watchItem(m.stage))
 	}
 	// the keys bar's right end says the stage is watched, in the accent; another stage, not watched, says nothing
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, Unwatched+" watching") ||
@@ -96,20 +96,20 @@ func TestWatchInTheTabsMenuWatchesTheStageThenReadsStopWatching(t *testing.T) {
 	if m.tabMenu.At = item(m, StopIt); m.tabMenu.At < 0 || !m.enabled(m.tabMenu.At) {
 		t.Fatalf("Stop Watching is not in the tab's menu, or dim: %d", m.tabMenu.At)
 	}
-	if m = drive(m, press(tea.KeyEnter)); m.stages[m.stage].watch || item(m, WatchIt) < 0 {
+	if m = drive(m, press(tea.KeyEnter)); m.stages[m.stage].src.Watch || item(m, WatchIt) < 0 {
 		t.Error("Stop Watching did not stop")
 	}
 }
 
 func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 	m := loaded(t, options())
-	m.stages[2].watch = true
+	m.stages[2].src.Watch = true
 	m.syncOwn()
 	if cmd := m.chose(shell.Choice{Own: WatchAll}); cmd != nil {
 		m = drive(m, cmd())
 	}
 	for _, s := range m.stages {
-		if !s.watch {
+		if !s.src.Watch {
 			t.Errorf("%s is not watched after Watch All", s.name)
 		}
 	}
@@ -121,7 +121,7 @@ func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 		t.Errorf("Stop Watching All acts %v, a tab's line %+v", on, m.watchItem(4))
 	}
 	m.chose(shell.Choice{Own: StopAll})
-	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.watch }) {
+	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.src.Watch }) {
 		t.Error("Stop Watching All left a stage watched")
 	}
 	// each chosen from the app's menu by a click; a click on one that is dim does nothing
@@ -132,12 +132,12 @@ func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 	if m = click(m, StopAll); !m.appMenu.Open {
 		t.Error("a click on the dim Stop Watching All closed the menu")
 	}
-	if m = drive(m, esc); click(m, WatchAll).find("desk").watch != true {
+	if m = drive(m, esc); click(m, WatchAll).find("desk").src.Watch != true {
 		t.Error("a click on Watch All did not watch")
 	}
 	m = click(m, WatchAll)
-	if m = click(m, StopAll); m.find("desk").watch || m.appMenu.Open {
-		t.Errorf("a click on Stop Watching All: desk watched %v, menu open %v", m.find("desk").watch, m.appMenu.Open)
+	if m = click(m, StopAll); m.find("desk").src.Watch || m.appMenu.Open {
+		t.Errorf("a click on Stop Watching All: desk watched %v, menu open %v", m.find("desk").src.Watch, m.appMenu.Open)
 	}
 }
 
@@ -148,15 +148,15 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	write := marking(t, `{"backlog": "b1", "releases": "r1"}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	m.find("backlog").watch = true
+	m.find("backlog").src.Watch = true
 	write(`{"backlog": "b2", "releases": "r2"}`)
 	// the minute passes, and the read of the marks it asks answers
 	next, ask := m.Update(latest(m))
 	next, cmd := next.(Model).Update(ask())
 	m = next.(Model)
 	b := m.find("backlog")
-	if !b.stale || b.loading || len(b.issues) == 0 || cmd == nil {
-		t.Fatalf("backlog while it loads again: stale %v, loading %v, %d issues", b.stale, b.loading, len(b.issues))
+	if !b.src.Stale || b.src.Loading || len(b.issues) == 0 || cmd == nil {
+		t.Fatalf("backlog while it loads again: stale %v, loading %v, %d issues", b.src.Stale, b.src.Loading, len(b.issues))
 	}
 	if !strings.Contains(raw(m), "Fix the thing") {
 		t.Errorf("backlog's rows did not stay:\n%s", raw(m))
@@ -166,11 +166,11 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	if !strings.Contains(string(got), "flow backlog --json --fresh\n") {
 		t.Errorf("backlog did not load again afresh:\n%s", got)
 	}
-	if b := m.find("backlog"); b.stale || len(b.issues) != 3 {
-		t.Errorf("backlog after it loaded again: stale %v, %d issues", b.stale, len(b.issues))
+	if b := m.find("backlog"); b.src.Stale || len(b.issues) != 3 {
+		t.Errorf("backlog after it loaded again: stale %v, %d issues", b.src.Stale, len(b.issues))
 	}
-	if r := m.find("releases"); !r.stale || strings.Contains(string(got), "flow releases --json --fresh") {
-		t.Errorf("releases, not watched: stale %v", r.stale)
+	if r := m.find("releases"); !r.src.Stale || strings.Contains(string(got), "flow releases --json --fresh") {
+		t.Errorf("releases, not watched: stale %v", r.src.Stale)
 	}
 }
 
@@ -178,28 +178,28 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 // loading is not loaded again for it.
 func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 	m := loaded(t, options())
-	m.stages[m.stage].stale = true
+	m.stages[m.stage].src.Stale = true
 	cmd := m.toggleWatch(m.stage)
 	if cmd == nil {
 		t.Fatal("watching a stale stage loaded nothing")
 	}
-	if m = drive(m, cmd()); m.stages[m.stage].stale {
+	if m = drive(m, cmd()); m.stages[m.stage].src.Stale {
 		t.Error("the stale stage is still stale after it loaded again")
 	}
 	m.toggleWatch(m.stage)
-	m.find("releases").stale = true
-	m.find("desk").stale, m.find("desk").loading = true, true
+	m.find("releases").src.Stale = true
+	m.find("desk").src.Stale, m.find("desk").src.Loading = true, true
 	cmd = m.watchAll(true)
 	if cmd == nil {
 		t.Fatal("Watch All loaded no stale stage")
 	}
-	if m = drive(m, cmd()); m.find("releases").stale {
+	if m = drive(m, cmd()); m.find("releases").src.Stale {
 		t.Error("releases is still stale after Watch All")
 	}
 	// a stage loading is not loaded again: watching it alone starts nothing
 	m.watchAll(false)
 	l := m.find("worktrees")
-	l.stale, l.loading = true, true
+	l.src.Stale, l.src.Loading = true, true
 	if cmd := m.toggleWatch(slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "worktrees" })); cmd != nil {
 		t.Error("watching a stage still loading loaded it again")
 	}

@@ -749,7 +749,7 @@ func (m Model) pullOf(branch string, desk bool) (change, state value) {
 	if s == nil || s.refusal != "" {
 		return value{}, value{}
 	}
-	if s.loading {
+	if s.src.Loading {
 		return value{Else: "…"}, value{}
 	}
 	for _, p := range s.pulls {

@@ -21,6 +21,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -47,6 +48,11 @@ func bare() Options {
 func options() Options {
 	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoPresets: true,
 		Clock: &testkit.Clock{}}
+}
+
+// answer gives a stage's first load's answer, the JSON its command printed.
+func answer(stage, data string) source.Answer[[]byte] {
+	return source.Answer[[]byte]{Name: stage, Value: []byte(data)}
 }
 
 // clockOf gives the test's clock the screen's waits go through, whose timers fire when the test says.
@@ -254,7 +260,7 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 		t.Fatalf("Init did not start the eight at once: %T of %d", batch, len(batch))
 	}
 	for i := range m.stages {
-		if !m.stages[i].loading || m.count(i) != "…" {
+		if !m.stages[i].src.Loading || m.count(i) != "…" {
 			t.Errorf("%s is not loading before it answers", m.stages[i].name)
 		}
 	}
@@ -269,12 +275,12 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	for i := range m.stages {
-		if m.stages[i].loading {
+		if m.stages[i].src.Loading {
 			t.Errorf("%s still loads", m.stages[i].name)
 		}
 	}
 	// an incoming that did not fetch moves nothing, so nothing loads again
-	if _, cmd := m.Update(loadedMsg{stage: "incoming", data: []byte(`{"fetched": false, "remotes": []}`)}); cmd != nil {
+	if _, cmd := m.Update(answer("incoming", `{"fetched": false, "remotes": []}`)); cmd != nil {
 		t.Errorf("incoming's answer without a fetch started something")
 	}
 }
@@ -290,7 +296,7 @@ func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
 	var fetched tea.Msg
 	for _, cmd := range batch {
 		msg := cmd()
-		if l, ok := msg.(loadedMsg); ok && l.stage == "incoming" {
+		if l, ok := msg.(source.Answer[[]byte]); ok && l.Name == "incoming" {
 			fetched = msg
 		} else {
 			m = drive(m, msg)
@@ -298,8 +304,8 @@ func TestTheFetchReloadsTheStagesItMovesKeepingTheirRows(t *testing.T) {
 	}
 	next, cmd := m.Update(fetched)
 	m = next.(Model)
-	if cmd == nil || m.find("desk").loading || m.find("backlog").issues == nil || m.count(0) != "3" {
-		t.Fatalf("the fetch blanked the stages it moves: %v %q", m.find("desk").loading, m.count(0))
+	if cmd == nil || m.find("desk").src.Loading || m.find("backlog").issues == nil || m.count(0) != "3" {
+		t.Fatalf("the fetch blanked the stages it moves: %v %q", m.find("desk").src.Loading, m.count(0))
 	}
 	m = drive(m, cmd())
 	var again []string
@@ -507,7 +513,7 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	// releases keeps its rows, stale, its dot on its tab, until the answer comes
-	if cmd == nil || strings.Contains(view(m), "loading") || !shows(m, Release, "3") || !m.find("releases").stale {
+	if cmd == nil || strings.Contains(view(m), "loading") || !shows(m, Release, "3") || !m.find("releases").src.Stale {
 		t.Fatalf("Refresh All did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
@@ -515,7 +521,7 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	if got := calls(t, record); len(got) != 24 || slices.Index(got[12:], "flow releases --json") < 0 {
 		t.Errorf("the calls: %q", got)
 	}
-	if !shows(m, Release, "3") || m.find("releases").stale {
+	if !shows(m, Release, "3") || m.find("releases").src.Stale {
 		t.Errorf("releases did not come back:\n%s", view(m))
 	}
 }
@@ -770,7 +776,7 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt})
 	select {
 	case msg := <-answers:
-		if err := msg.(loadedMsg).err; !errors.Is(err, context.Canceled) {
+		if err := msg.(source.Answer[[]byte]).Err; !errors.Is(err, context.Canceled) {
 			t.Errorf("the stage ended with %v, not the quit", err)
 		}
 	case <-time.After(2 * time.Second):

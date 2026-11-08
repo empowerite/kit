@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -83,7 +84,7 @@ func TestAKitThatCannotReadTheLimitsIsAskedAgainOnRefreshAll(t *testing.T) {
 	if !m.quota.Off() || m.quota.Asking() || m.quota.Got || strings.Contains(lines(m)[len(lines(m))-1], GitHub+" ") {
 		t.Fatalf("without the limits: off %v, asking %v, %v", m.quota.Off(), m.quota.Asking(), m.quota.Value)
 	}
-	if next, _ := m.Update(loadedMsg{stage: "desk"}); next.(Model).quota.Asking() {
+	if next, _ := m.Update(source.Answer[[]byte]{Name: "desk"}); next.(Model).quota.Asking() {
 		t.Error("a load asks again, after kit could not read them")
 	}
 	asked := func() int {

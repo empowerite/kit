@@ -68,7 +68,7 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 	}
 	// a number types into the search, and r does not refresh
 	m = drive(m, typed("2r")...)
-	if m.stage != 0 || m.stages[0].loading || !strings.Contains(raw(m), grid.Search+" NOUN2r▏") {
+	if m.stage != 0 || m.stages[0].src.Loading || !strings.Contains(raw(m), grid.Search+" NOUN2r▏") {
 		t.Errorf("a number or r in the search: stage %d\n%s", m.stage, view(m))
 	}
 	if !strings.Contains(view(m), "no row matches the panel") {

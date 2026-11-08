@@ -345,7 +345,7 @@ type sortSpot struct {
 // sortSpots gives the sort target of each column the header names that can sort, under its name on the rule, the mark
 // starting under the name's first cell; none while the header draws no names.
 func (m Model) sortSpots() []sortSpot {
-	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].loading || m.stages[m.stage].refusal != "" {
+	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].src.Loading || m.stages[m.stage].refusal != "" {
 		return nil
 	}
 	rows, names, width, in := m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), m.indent(m.stage)

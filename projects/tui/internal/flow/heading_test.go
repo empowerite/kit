@@ -96,11 +96,11 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("age, not grouped, stands in the heading on line %d", y)
 	}
 	// while the stage loads, the rule has no sort targets
-	m.stages[0].loading = true
+	m.stages[0].src.Loading = true
 	if spots := m.sortSpots(); spots != nil {
 		t.Errorf("the sort targets while loading: %+v", spots)
 	}
-	m.stages[0].loading = false
+	m.stages[0].src.Loading = false
 	// once the heading no longer names the column, the menu draws nothing, and a click closes it
 	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
 	m.setPanel(m.panel(0).Grouped("source", true))

@@ -83,7 +83,7 @@ func (m Model) bar() tabs.Bar {
 	for i, s := range m.stages {
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
 		b.Reserves = append(b.Reserves, m.reserve(i))
-		b.Stale = append(b.Stale, s.stale)
+		b.Stale = append(b.Stale, s.src.Stale)
 	}
 	return b
 }
@@ -232,7 +232,7 @@ func (m Model) title() string {
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
-	case s.loading:
+	case s.src.Loading:
 		return "…"
 	case s.refusal != "":
 		return "!"
@@ -249,7 +249,7 @@ func (m Model) count(i int) string {
 // reserve gives the cells a stage's count is laid out for: as wide as it can grow while the stage's rows stay what
 // they are, n/m with both as wide as the rows loaded, so a search or Show that narrows them moves no tab.
 func (m Model) reserve(i int) int {
-	if m.stages[i].loading || m.stages[i].refusal != "" {
+	if m.stages[i].src.Loading || m.stages[i].refusal != "" {
 		return 1
 	}
 	return 2*len(strconv.Itoa(m.shown(i).all)) + 1
@@ -311,7 +311,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
-	if s := m.stages[m.stage]; !m.noHeaders && !s.loading && s.refusal == "" {
+	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
 		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.open[headerKey])
 		for k := range lines {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
@@ -560,7 +560,7 @@ func (m Model) lines(i int) []line { return m.allLines(i)[m.frozenLines(i):] }
 func (m Model) allLines(i int) []line {
 	s := m.stages[i]
 	switch {
-	case s.loading:
+	case s.src.Loading:
 		return []line{{-1, lead + style.Off("loading")}}
 	case s.refusal != "":
 		var out []line
@@ -629,7 +629,7 @@ func (m Model) presets(i int) bool { return !m.noPresets && m.columnar(i) }
 
 // columnar says whether a stage's table has columns the columns dialog sets: its fields, loaded, not refused.
 func (m Model) columnar(i int) bool {
-	return i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].loading && m.stages[i].refusal == ""
+	return i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].src.Loading && m.stages[i].refusal == ""
 }
 
 // dropStart gives the screen column the preset line's selector starts on, at the control line's right end.

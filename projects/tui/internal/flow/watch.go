@@ -26,7 +26,7 @@ const (
 
 // watchItem gives the tab's menu's line for the stage at i: Watch, or Stop Watching while it is watched.
 func (m Model) watchItem(i int) shell.Item {
-	if i < len(m.stages) && m.stages[i].watch {
+	if i < len(m.stages) && m.stages[i].src.Watch {
 		return shell.Item{Glyph: StopWatched, Name: StopIt}
 	}
 	return shell.Item{Glyph: Unwatched, Name: WatchIt}
@@ -37,7 +37,7 @@ func (m Model) watching() (watched, all int) {
 	for _, s := range m.stages {
 		if known[s.name] {
 			all++
-			if s.watch {
+			if s.src.Watch {
 				watched++
 			}
 		}
@@ -66,9 +66,9 @@ func (m *Model) syncOwn() { m.appMenu.Own, m.appMenu.Dim = m.ownItems() }
 // toggleWatch watches the stage at i, or stops; a stage watched while it is stale loads again at once.
 func (m *Model) toggleWatch(i int) tea.Cmd {
 	s := &m.stages[i]
-	s.watch = !s.watch
+	s.src.Watch = !s.src.Watch
 	m.syncOwn()
-	if s.watch && s.stale && !s.loading {
+	if s.src.Watch && s.src.Stale && !s.src.Loading {
 		return m.rewatch(s.name)
 	}
 	return nil
@@ -83,10 +83,10 @@ func (m *Model) watchAll(on bool) tea.Cmd {
 		if !known[s.name] {
 			continue
 		}
-		if on && !s.watch && s.stale && !s.loading {
+		if on && !s.src.Watch && s.src.Stale && !s.src.Loading {
 			cmds = append(cmds, m.rewatch(s.name))
 		}
-		s.watch = on
+		s.src.Watch = on
 	}
 	m.syncOwn()
 	return tea.Batch(cmds...)
@@ -95,7 +95,7 @@ func (m *Model) watchAll(on bool) tea.Cmd {
 // watchedText gives what the keys bar's right end says of Watch: watching, in the accent, while the selected stage is
 // watched; nothing while it is not.
 func (m Model) watchedText() string {
-	if len(m.stages) == 0 || !m.stages[m.stage].watch {
+	if len(m.stages) == 0 || !m.stages[m.stage].src.Watch {
 		return ""
 	}
 	return style.Tint(Unwatched + " watching")

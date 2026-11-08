@@ -30,8 +30,8 @@ func marking(t *testing.T, marks string) func(string) {
 func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T) {
 	write := marking(t, `{"backlog": "b1", "changes": "c1", "desk": "d1", "releases": null}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	if s := m.find("backlog"); s.mark != "b1" || s.stale || s.remark {
-		t.Fatalf("after the load, backlog's mark %q, stale %v, remark %v", s.mark, s.stale, s.remark)
+	if s := m.find("backlog"); s.src.Mark() != "b1" || s.src.Stale {
+		t.Fatalf("after the load, backlog's mark %q, stale %v", s.src.Mark(), s.src.Stale)
 	}
 	if len(clockOf(m).Timers()) == 0 || m.marks.Asking() || m.marks.Off() {
 		t.Errorf("after the read: waits %v, asking %v, off %v", clockOf(m).Timers(), m.marks.Asking(), m.marks.Off())
@@ -40,7 +40,7 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 	write(`{"backlog": "b2", "changes": "c1", "releases": null}`)
 	m = drive(m, clockOf(m).Fire()...)
 	for name, want := range map[string]bool{"backlog": true, "changes": false, "desk": false, "releases": false} {
-		if got := m.find(name).stale; got != want {
+		if got := m.find(name).src.Stale; got != want {
 			t.Errorf("%s stale %v, want %v", name, got, want)
 		}
 	}
@@ -49,15 +49,15 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 	}
 	// stale is stale: a later read keeps it so, though the mark moves on, or back
 	write(`{"backlog": "b1"}`)
-	if m = drive(m, clockOf(m).Fire()...); !m.find("backlog").stale {
+	if m = drive(m, clockOf(m).Fire()...); !m.find("backlog").src.Stale {
 		t.Error("a later read cleared the dot")
 	}
 	// Refresh All loads it again, and it takes the next mark as its own
 	write(`{"backlog": "b3", "changes": "c1"}`)
 	older := clockOf(m).Fire()
 	m = drive(m, refreshAll...)
-	if s := m.find("backlog"); s.stale || s.mark != "b3" || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
-		t.Errorf("after Refresh All: stale %v, mark %q", s.stale, s.mark)
+	if s := m.find("backlog"); s.src.Stale || s.src.Mark() != "b3" || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
+		t.Errorf("after Refresh All: stale %v, mark %q", s.src.Stale, s.src.Mark())
 	}
 	// the minute an older read waited from reads nothing
 	for _, wait := range older {
@@ -73,8 +73,8 @@ func TestAStageThatLoadedTakesTheNextMarkAsItsOwn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	write(`{"desk": "d2"}`)
 	m = drive(m, m.load("desk", false)())
-	if s := m.find("desk"); s.stale || s.mark != "d2" {
-		t.Errorf("desk after its own load and the read after it: stale %v, mark %q", s.stale, s.mark)
+	if s := m.find("desk"); s.src.Stale || s.src.Mark() != "d2" {
+		t.Errorf("desk after its own load and the read after it: stale %v, mark %q", s.src.Stale, s.src.Mark())
 	}
 }
 

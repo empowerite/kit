@@ -39,7 +39,7 @@ func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 // Refresh All runs no stage kittui does not draw, and down into a stage with no rows stays on the bar.
 func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch", "builds"}})
-	m = drive(m, right, loadedMsg{stage: "builds", data: []byte("[]")}, down)
+	m = drive(m, right, answer("builds", "[]"), down)
 	if m.inRows || !strings.Contains(view(m), "no build since the last 20 runs") {
 		t.Errorf("down into an empty stage: in rows %v\n%s", m.inRows, view(m))
 	}
@@ -62,7 +62,7 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 		{"desk", `{`},
 		{"builds", `[{"id": "x"}]`},
 	} {
-		m := loaded(t, Options{Stages: []string{c.stage}}, loadedMsg{stage: c.stage, data: []byte(c.data)})
+		m := loaded(t, Options{Stages: []string{c.stage}}, answer(c.stage, c.data))
 		if s := m.find(c.stage); !strings.HasPrefix(s.refusal, "kit flow "+c.stage+" --json: ") {
 			t.Errorf("%s %q: refusal %q", c.stage, c.data, s.refusal)
 		}
@@ -90,8 +90,8 @@ func TestRefreshInTheRowsKeepsTheCursorThroughTheLoad(t *testing.T) {
 	m := loaded(t, options(), down, press('='), typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
-	if !m.inRows || strings.Contains(view(m), "loading") || len(m.rows(m.stage)) == 0 || !m.stages[m.stage].stale {
-		t.Fatalf("Refresh All in the rows: in rows %v, stale %v\n%s", m.inRows, m.stages[m.stage].stale, view(m))
+	if !m.inRows || strings.Contains(view(m), "loading") || len(m.rows(m.stage)) == 0 || !m.stages[m.stage].src.Stale {
+		t.Fatalf("Refresh All in the rows: in rows %v, stale %v\n%s", m.inRows, m.stages[m.stage].src.Stale, view(m))
 	}
 	if m = drive(m, cmd()); !m.inRows || len(m.rows(m.stage)) == 0 || strings.Contains(view(m), "loading") {
 		t.Errorf("the answer did not bring the rows back:\n%s", view(m))

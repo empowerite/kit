@@ -125,9 +125,11 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
-- `internal/source/` reads kit for a screen. A poll is a read asked again a while after each answer, as `kit flow`
-  reads the rate limits and the stages' marks each minute. Every wait goes through a clock: the program's is a
-  `tea.Tick`, and a test's fires none until the test says.
+- `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
+  read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,
+  and the marks say when what it shows has changed, a watched load read again at once. A poll is a read asked again a
+  while after each answer, as `kit flow` reads the rate limits and the stages' marks each minute. Every wait goes
+  through a clock: the program's is a `tea.Tick`, and a test's fires none until the test says.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
   and kittui's settings file, and the keys bar. A screen never writes its

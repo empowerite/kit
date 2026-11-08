@@ -51,23 +51,11 @@ type Options struct {
 	Clock     source.Clock // what the screen's waits go through: the program's, where none is given
 }
 
-// loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
-type loadedMsg struct {
-	stage string
-	data  []byte
-	err   error
-	gen   int
-}
-
 // stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
 type stage struct {
 	name    string
-	loading bool
-	stale   bool   // drawn from what kit kept of its last load, or changed since it loaded, as its mark says
-	mark    string // kit's mark of what the stage drew when it loaded, as marks.go reads it
-	remark  bool   // whether the stage loaded since the last read of the marks, so it takes the next as its own
-	watch   bool   // whether the stage loads again once it is stale, as watch.go says
-	refusal string // kit's line, when the command failed
+	src     source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
+	refusal string              // kit's line, when the command failed
 	issues  []issue
 	under   []underway
 	in      *incoming
@@ -91,9 +79,6 @@ type stage struct {
 	// and the view as autoGroup left it, which the preset line names as the view still
 	grouping bool
 	grouped  *preset
-	gen      int                // the stage's latest load: an answer from an earlier one is dropped
-	ctx      context.Context    // the latest load's, inside the screen's; nil for the first load, which has the screen's
-	stop     context.CancelFunc // ends the latest load's command, when r starts another
 }
 
 // known names the stages kittui draws.
@@ -196,10 +181,10 @@ func New(r kit.Runner, o Options) Model {
 	m.note.Done = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, loading: true, open: grid.Outline{}, picked: map[string]bool{},
+		s := stage{name: name, src: m.stageLoad(name), open: grid.Outline{}, picked: map[string]bool{},
 			viewName: Opening, grouping: true}
 		if !known[name] {
-			s.loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
+			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		if c := catalog[name]; c != nil {
 			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p preset) bool { return p.Name == Opening })].panel(c.Fields, s.view)
@@ -235,7 +220,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	next, cmd := m.update(msg)
 	n := next.(Model)
-	if _, ok := msg.(loadedMsg); ok {
+	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
 		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again
 		cmd = tea.Batch(cmd, n.quota.Ask(n.env()), n.marks.Ask(n.env()))
 	}
@@ -274,16 +259,18 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.rebuild()
 		m.fit()
-	case loadedMsg:
-		if !m.take(msg) || msg.stage != "incoming" {
+	case source.Answer[[]byte]:
+		if msg.Kept {
+			m.takeKept(msg)
+			return m, nil
+		}
+		if !m.take(msg) || msg.Name != "incoming" {
 			return m, nil
 		}
 		if in := m.find("incoming").in; in != nil && in.Fetched {
 			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
 			return m, m.reloads()
 		}
-	case keptMsg:
-		m.takeKept(msg)
 	case meMsg:
 		if msg.err == nil {
 			m.me = msg.login
@@ -828,27 +815,26 @@ func (m Model) args(name string) []string {
 	return nil
 }
 
-// load runs a stage's command: kit flow <stage> --json, with the stage's words, for the limit at most, as the stage's
-// latest load, which r supersedes. Fresh says the stage reads the forge afresh, as r asks: kit shares one read of the
-// open issues and pull requests a minute between the stages that need it, and a load without it takes that read.
-func (m Model) load(name string, fresh bool) tea.Cmd {
-	r, args, ctx, limit, gen := m.runner, m.args(name), m.ctx, m.limit, 0
-	if fresh && shared[name] {
-		args = append(slices.Clone(args), "--fresh")
-	}
-	if s := m.find(name); s != nil {
-		gen = s.gen
-		if s.ctx != nil {
-			ctx = s.ctx
+// stageLoad gives a stage's read: kit flow <stage> --json, with the stage's words, for the limit at most, --fresh where
+// it reads the forge afresh, as again asks, since kit shares one read of the open issues and pull requests a minute
+// between the stages that need it, and a read without it takes that read; and what kit kept of the stage's last JSON,
+// with --cached, as kept.go draws it.
+func (m Model) stageLoad(name string) source.Load[[]byte] {
+	r, args := m.runner, m.args(name)
+	read := func(ctx context.Context, fresh bool) ([]byte, error) {
+		if fresh && shared[name] {
+			return r.Status(ctx, name, append(slices.Clone(args), "--fresh"))
 		}
+		return r.Status(ctx, name, args)
 	}
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(ctx, limit)
-		defer cancel()
-		data, err := r.Status(ctx, name, args)
-		return loadedMsg{stage: name, data: data, err: err, gen: gen}
+	kept := func(ctx context.Context) ([]byte, error) {
+		return r.Status(ctx, name, append(slices.Clone(args), "--cached"))
 	}
+	return source.NewLoad(name, read, kept)
 }
+
+// load runs a stage's latest read, fresh or not.
+func (m Model) load(name string, fresh bool) tea.Cmd { return m.find(name).src.Read(m.env(), fresh) }
 
 // all runs every stage kittui draws, at once.
 func (m Model) all() tea.Cmd { return tea.Batch(m.loads()...) }
@@ -869,27 +855,19 @@ func (m Model) loads() []tea.Cmd {
 // shows a refusal, or is loading, shows it loading until it answers.
 func (m *Model) restart(name string) tea.Cmd {
 	cmd, s := m.again(name, true), m.find(name)
-	if !s.loading && s.refusal == "" {
-		s.stale = true
+	if !s.src.Loading && s.refusal == "" {
+		s.src.Stale = true
 		return cmd
 	}
-	s.loading, s.refusal = true, ""
+	s.src.Loading, s.refusal = true, ""
 	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
 	m.rebuild()
 	return cmd
 }
 
-// again runs a stage's command again as its latest load, fresh or not as load takes it, ending the one before when it
-// still runs; the stage keeps what it shows until the answer replaces it.
-func (m *Model) again(name string, fresh bool) tea.Cmd {
-	s := m.find(name)
-	if s.stop != nil {
-		s.stop()
-	}
-	s.ctx, s.stop = context.WithCancel(m.ctx)
-	s.gen++
-	return m.load(name, fresh)
-}
+// again runs a stage's command again as its latest load, fresh or not, ending the one before when it still runs; the
+// stage keeps what it shows until the answer replaces it.
+func (m *Model) again(name string, fresh bool) tea.Cmd { return m.find(name).src.Again(m.env(), fresh) }
 
 // shared names the stages that read kit's shared snapshot of the open issues and pull requests, which --fresh reads
 // afresh.
@@ -914,15 +892,17 @@ func (m *Model) reloads() tea.Cmd {
 
 // take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed, and says whether it
 // did. The answer of a load a later one superseded is dropped. The cursor stays within the rows that came.
-func (m *Model) take(msg loadedMsg) bool {
-	s := m.find(msg.stage)
-	if s == nil || msg.gen != s.gen {
+func (m *Model) take(msg source.Answer[[]byte]) bool {
+	s := m.find(msg.Name)
+	if s == nil {
 		return false
 	}
-	s.loading, s.stale, s.remark = false, false, true
-	err := msg.err
+	if _, landed := s.src.Take(msg); landed != source.Shown {
+		return false
+	}
+	err := msg.Err
 	if err == nil {
-		err = s.decode(msg.data)
+		err = s.decode(msg.Value)
 	}
 	if err != nil {
 		s.refusal = refusalOf(s.name, err)
@@ -947,7 +927,7 @@ func (m *Model) autoGroup(name string) {
 		return
 	}
 	s := &m.stages[i]
-	if !s.grouping || s.loading || s.refusal != "" {
+	if !s.grouping || s.src.Loading || s.refusal != "" {
 		return
 	}
 	s.grouping = false

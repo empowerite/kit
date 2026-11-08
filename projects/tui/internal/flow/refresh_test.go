@@ -10,6 +10,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/empowerite/kit/projects/tui/internal/source"
 )
 
 // to selects the stage by name, on the bar.
@@ -45,15 +47,15 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 		t.Fatal("the older load ran on after a newer one superseded it")
 	}
 	m = drive(m, dropped)
-	if s := m.find("releases"); !s.stale || len(s.rels) == 0 {
-		t.Errorf("the superseded answer was taken: stale %v, refusal %q", s.stale, s.refusal)
+	if s := m.find("releases"); !s.src.Stale || len(s.rels) == 0 {
+		t.Errorf("the superseded answer was taken: stale %v, refusal %q", s.src.Stale, s.refusal)
 	}
 	m = drive(m, newer())
-	if s := m.find("releases"); s.loading || s.stale || s.refusal != "" || len(s.rels) == 0 {
-		t.Errorf("the newer answer was not taken: loading %v, refusal %q, %d releases", s.loading, s.refusal,
+	if s := m.find("releases"); s.src.Loading || s.src.Stale || s.refusal != "" || len(s.rels) == 0 {
+		t.Errorf("the newer answer was not taken: loading %v, refusal %q, %d releases", s.src.Loading, s.refusal,
 			len(s.rels))
 	}
-	if err := dropped.(loadedMsg).err; !errors.Is(err, context.Canceled) {
+	if err := dropped.(source.Answer[[]byte]).Err; !errors.Is(err, context.Canceled) {
 		t.Errorf("the older load ended with %v, not its cancel", err)
 	}
 }
@@ -74,8 +76,8 @@ func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
 		t.Errorf("refreshing incoming ran %v, not %v", ran, want)
 	}
 	for _, name := range []string{"backlog", "desk", "underway", "worktrees"} {
-		if s := m.find(name); s.loading || s.refusal != "" {
-			t.Errorf("%s did not load again: loading %v, refusal %q", name, s.loading, s.refusal)
+		if s := m.find(name); s.src.Loading || s.refusal != "" {
+			t.Errorf("%s did not load again: loading %v, refusal %q", name, s.src.Loading, s.refusal)
 		}
 	}
 }
