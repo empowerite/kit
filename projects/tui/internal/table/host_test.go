@@ -1,7 +1,11 @@
 // A host for the controls' tests: a table of its own fields and rows, its panel kept as the controls set it.
 package table
 
-import "github.com/empowerite/kit/projects/tui/internal/grid"
+import (
+	"slices"
+
+	"github.com/empowerite/kit/projects/tui/internal/grid"
+)
 
 // host is a screen of one table: its fields, its panel, the values its rows hold, by field, its caller, the renderings
 // drawn, and its size.
@@ -24,6 +28,26 @@ func (h *host) Drawn(id string) string   { return h.drawn[id] }
 func (h *host) Size() (int, int)         { return h.w, h.h }
 func (h *host) Name() string             { return "things" }
 func (h *host) Pane() (int, int)         { return 4, h.w - 1 }
+func (h *host) ShownColumns() []string   { return h.panel.Columns }
+func (h *host) HeaderTop() int           { return 6 }
+
+// HeaderName gives where a column's name stands in the header: each column eight cells after the one before, from 4,
+// its label its first line; none for title, which the header does not name.
+func (h *host) HeaderName(column string) (int, string) {
+	k := slices.Index(h.panel.Columns, column)
+	if k < 0 || column == "title" {
+		return 0, ""
+	}
+	return 4 + 8*k, column
+}
+
+// HeadingName gives where a column's name stands in the heading over the groups, on line 4, while it groups the rows.
+func (h *host) HeadingName(column string) (int, int) {
+	if k := slices.Index(h.panel.Groups(), column); k >= 0 {
+		return 4 + 8*k, 4
+	}
+	return 0, -1
+}
 func (h *host) Label(id, name string) Label {
 	for _, v := range h.values[id] {
 		for _, l := range LabelsIn(v) {

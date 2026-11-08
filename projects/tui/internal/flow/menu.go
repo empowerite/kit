@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -32,7 +33,7 @@ const (
 	Reload   = "🔄"
 	Browse   = "🌐"
 	Every    = "📋"
-	Sweep    = "🧹"
+	Sweep    = table.Sweep
 )
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go

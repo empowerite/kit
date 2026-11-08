@@ -8,7 +8,9 @@ import "github.com/empowerite/kit/projects/tui/internal/grid"
 // through, and setting it, which the rows follow at once; the values the rows loaded hold in a field, one a row; a
 // label of a name, with its color, as a row holds it; the caller's login, once known; the rendering a field is drawn
 // by now, as Automatic chose it; the screen's width and height; the table's name, which titles its dialogs; and the
-// screen line its pane starts on, and the pane's width.
+// screen line its pane starts on, and the pane's width; the columns the header shows, in their order; where a column's
+// name starts in the header, and its first line, none where the header does not name it; the screen line the header
+// starts on; and where a column's name stands in the heading over the groups, a line of -1 where it does not.
 type Host interface {
 	Fields() []Field
 	Panel() grid.Panel
@@ -20,6 +22,10 @@ type Host interface {
 	Size() (width, height int)
 	Name() string
 	Pane() (top, width int)
+	ShownColumns() []string
+	HeaderName(column string) (x int, name string)
+	HeaderTop() int
+	HeadingName(column string) (x, y int)
 }
 
 // field gives the host's field of the id, and whether it has one.

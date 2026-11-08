@@ -10,12 +10,13 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // A right click on a column's name drops the column menu down under it, as a terminal that keeps ctrl and option with
 // a click for itself still sends the right button, titled by the name alone: its sort, a radio, and Clear Sort; the
-// rows grouped by it, innermost, or no longer; Hide; and its options. A line the column cannot act on stays, dim.
+// rows grouped by it, innermost, or no longer; table.Hide; and its options. A line the column cannot act on stays, dim.
 func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
@@ -24,26 +25,26 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	group := func() []string { return m.panel(m.stage).Groups() }
 	sorts := func() int { return len(m.panel(m.stage).SortKeys()) }
-	if m = drive(m, rightClick("assignees")); !m.colMenu.Open || m.colMenu.column != "assignees" ||
-		m.colMenu.At != m.columnLine(actNone) {
+	if m = drive(m, rightClick("assignees")); !m.colMenu.Open || m.colMenu.Column != "assignees" ||
+		m.colMenu.At != m.colMenu.LineOf(&m, table.ActNone) {
 		t.Fatalf("a right click on assignees: %+v\n%s", m.colMenu, raw(m))
 	}
 	var names, glyphs []string
-	for _, it := range m.columnItems() {
+	for _, it := range m.colMenu.Items(&m) {
 		names, glyphs = append(names, it.Name), append(glyphs, it.Glyph)
 	}
-	want := []string{"None", "▲ Ascending", "▼ Descending", ClearSort, "", GroupIt, UngroupIt, "", Hide, More}
-	if !slices.Equal(names, want) || !strings.Contains(raw(m), GroupGlyph+"  "+GroupIt) ||
+	want := []string{"None", "▲ Ascending", "▼ Descending", table.ClearSort, "", table.GroupIt, table.UngroupIt, "", table.Hide, table.More}
+	if !slices.Equal(names, want) || !strings.Contains(raw(m), table.GroupGlyph+"  "+table.GroupIt) ||
 		strings.Contains(strings.Join(names, " "), "assignees") || !strings.Contains(keysOf(m), "esc close") {
 		t.Fatalf("the menu: %q, %q", names, keysOf(m))
 	}
-	if !slices.Equal(glyphs[3:], []string{Sweep, "", GroupGlyph, UngroupGlyph, "", HideGlyph, MoreGlyph}) {
+	if !slices.Equal(glyphs[3:], []string{Sweep, "", table.GroupGlyph, table.UngroupGlyph, "", table.HideGlyph, table.MoreGlyph}) {
 		t.Errorf("the glyphs: %q", glyphs)
 	}
 	// the radio has None picked; nothing sorts, so Clear Sort is dim, and Ungroup on a column not grouping; enter on
 	// ▲ Ascending sorts by it
-	if !strings.Contains(m.columnItems()[0].Glyph, grid.Picked) || m.columnEnabled(m.columnLine(actClear)) ||
-		m.columnEnabled(m.columnLine(actUngroup)) || m.columnEnabled(-1) {
+	if !strings.Contains(m.colMenu.Items(&m)[0].Glyph, grid.Picked) || m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActClear)) ||
+		m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUngroup)) || m.colMenu.Enabled(&m, -1) {
 		t.Errorf("None is not picked, or Clear Sort or Ungroup acts")
 	}
 	if m = drive(m, down, press(tea.KeyEnter)); m.colMenu.Open || sorts() != 1 || m.panel(m.stage).Mark("assignees") != "▲" {
@@ -51,11 +52,11 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	// another column's Ascending, chosen by a click, comes after it, its triangles ₙ
 	m = drive(m, rightClick("age"))
-	if m.columnItems()[1].Name != "▲ⁿ Ascending" {
-		t.Errorf("age, with assignees sorting: %q", m.columnItems()[1].Name)
+	if m.colMenu.Items(&m)[1].Name != "▲ⁿ Ascending" {
+		t.Errorf("age, with assignees sorting: %q", m.colMenu.Items(&m)[1].Name)
 	}
-	box, top, left := m.columnBox()
-	if m = drive(m, testkit.Click(left+3, top+1+m.columnLine(actUp))); m.colMenu.Open || sorts() != 2 ||
+	box, top, left := m.colMenu.Box(&m)
+	if m = drive(m, testkit.Click(left+3, top+1+m.colMenu.LineOf(&m, table.ActUp))); m.colMenu.Open || sorts() != 2 ||
 		m.panel(m.stage).SortKeys()[1].Column != "age" {
 		t.Fatalf("Ascending on age: %+v\n%v", m.panel(m.stage).SortKeys(), box)
 	}
@@ -63,33 +64,33 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	// next line it starts
 	m.setPanel(regroup(m.panel(m.stage), "source"))
 	m = drive(m, rightClick("assignees"), down, down, down, down)
-	if m.colMenu.At != m.columnLine(actGroup) {
+	if m.colMenu.At != m.colMenu.LineOf(&m, table.ActGroup) {
 		t.Fatalf("down to Group: %d", m.colMenu.At)
 	}
 	if m = drive(m, press(tea.KeySpace)); !slices.Equal(group(), []string{"source", "assignees"}) {
 		t.Fatalf("Group assignees: %q", group())
 	}
-	m.colMenu = columnMenu{Dropdown: shell.Dropdown{Open: true}, column: "source"}
-	if m.columnEnabled(m.columnLine(actGroup)) || !m.columnEnabled(m.columnLine(actUngroup)) {
-		t.Errorf("source, grouping: group %v", m.columnEnabled(m.columnLine(actGroup)))
+	m.colMenu = table.ColumnMenu{Dropdown: shell.Dropdown{Open: true}, Column: "source"}
+	if m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActGroup)) || !m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUngroup)) {
+		t.Errorf("source, grouping: group %v", m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActGroup)))
 	}
-	if m.columnAct(m.columnLine(actUngroup)); !slices.Equal(group(), []string{"assignees"}) {
+	if m.columnAct(m.colMenu.LineOf(&m, table.ActUngroup)); !slices.Equal(group(), []string{"assignees"}) {
 		t.Fatalf("Ungroup source: %q", group())
 	}
 	m = drive(m, rightClick("title"))
-	if m = drive(m, typed("u")...); m.colMenu.At == m.columnLine(actUngroup) {
+	if m = drive(m, typed("u")...); m.colMenu.At == m.colMenu.LineOf(&m, table.ActUngroup) {
 		t.Errorf("u moved to Ungroup, which title cannot do")
 	}
 	// title sorts and does not group: Group is dim, and does nothing chosen; Clear Sort clears every column's sort
-	if m.columnEnabled(m.columnLine(actGroup)) || !m.columnEnabled(m.columnLine(actUp)) ||
-		!m.columnEnabled(m.columnLine(actHide)) || !m.columnEnabled(m.columnLine(actClear)) {
+	if m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActGroup)) || !m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) ||
+		!m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActHide)) || !m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActClear)) {
 		t.Errorf("title's lines")
 	}
-	if m.columnAct(m.columnLine(actGroup)); len(group()) != 1 || m.colMenu.Open {
+	if m.columnAct(m.colMenu.LineOf(&m, table.ActGroup)); len(group()) != 1 || m.colMenu.Open {
 		t.Errorf("Group title: %q", group())
 	}
 	m = drive(m, rightClick("title"))
-	if m.columnAct(m.columnLine(actClear)); len(m.panel(m.stage).ColumnKeys()) != 0 {
+	if m.columnAct(m.colMenu.LineOf(&m, table.ActClear)); len(m.panel(m.stage).ColumnKeys()) != 0 {
 		t.Errorf("Clear Sort: %+v", m.panel(m.stage).SortKeys())
 	}
 	// Options… opens the field's popover; esc closes the menu; a click off it closes it too
@@ -104,9 +105,9 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	if m = drive(m, rightClick("age"), testkit.Click(1, 30)); m.colMenu.Open {
 		t.Errorf("a click off the menu: open %v", m.colMenu.Open)
 	}
-	// Hide takes the column out of the header and the rows
+	// table.Hide takes the column out of the header and the rows
 	m = drive(m, rightClick("age"))
-	if m.columnAct(m.columnLine(actHide)); slices.Contains(m.shownColumns(m.stage), "age") || m.colMenu.Open {
+	if m.columnAct(m.colMenu.LineOf(&m, table.ActHide)); slices.Contains(m.shownColumns(m.stage), "age") || m.colMenu.Open {
 		t.Errorf("Hide age: %q", m.shownColumns(m.stage))
 	}
 	// a right click on the header's gutter, off every name, opens nothing
@@ -137,20 +138,20 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	onRule := func(text string) int { return ansi.StringWidth(rule()[:strings.Index(rule(), text)]) }
 	unsorted := header()
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
-	menu := func(name string, act colAct) {
+	menu := func(name string, act table.ColAct) {
 		m = drive(m, testkit.Click(at(name), m.headerTop()))
-		m.columnAct(m.columnLine(act))
+		m.columnAct(m.colMenu.LineOf(&m, act))
 	}
-	if m.colMenu.column = "age"; m.columnItems()[1].Name != "▲ Ascending" {
-		t.Errorf("age, nothing sorting: %q", m.columnItems()[1].Name)
+	if m.colMenu.Column = "age"; m.colMenu.Items(&m)[1].Name != "▲ Ascending" {
+		t.Errorf("age, nothing sorting: %q", m.colMenu.Items(&m)[1].Name)
 	}
-	m.colMenu = columnMenu{}
-	menu("age", actUp)
-	menu("id", actUp)
-	if m.colMenu.column = "id"; m.columnItems()[1].Name != "▲ⁿ Ascending" || !strings.Contains(m.columnItems()[1].Glyph, grid.Picked) {
-		t.Errorf("id, the second key: %+v", m.columnItems()[:3])
+	m.colMenu = table.ColumnMenu{}
+	menu("age", table.ActUp)
+	menu("id", table.ActUp)
+	if m.colMenu.Column = "id"; m.colMenu.Items(&m)[1].Name != "▲ⁿ Ascending" || !strings.Contains(m.colMenu.Items(&m)[1].Glyph, grid.Picked) {
+		t.Errorf("id, the second key: %+v", m.colMenu.Items(&m)[:3])
 	}
-	m.colMenu = columnMenu{}
+	m.colMenu = table.ColumnMenu{}
 	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) || !strings.Contains(rule(), "▲¹") ||
 		onRule("▲¹") != at("age") || onRule("▲²") != at("id") || header() != unsorted {
 		t.Fatalf("then by age, then by id: %+v\n%s\n%s", sorts(), header(), rule())
@@ -168,17 +169,17 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Fatalf("a shift-click on id's ▲: %+v\n%s", sorts(), rule())
 	}
 	// ▼ on id, not a key, comes after age; Descending is picked; ▲ on age turns it in its place
-	if menu("id", actDown); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id", Desc: true}}) {
+	if menu("id", table.ActDown); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id", Desc: true}}) {
 		t.Fatalf("▼ on id: %+v", sorts())
 	}
-	if m.colMenu.column = "id"; !strings.Contains(m.columnItems()[2].Glyph, grid.Picked) {
-		t.Errorf("▼ is not picked: %+v", m.columnItems()[2])
+	if m.colMenu.Column = "id"; !strings.Contains(m.colMenu.Items(&m)[2].Glyph, grid.Picked) {
+		t.Errorf("▼ is not picked: %+v", m.colMenu.Items(&m)[2])
 	}
-	m.colMenu = columnMenu{}
-	if menu("age", actDown); !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id", Desc: true}}) {
+	m.colMenu = table.ColumnMenu{}
+	if menu("age", table.ActDown); !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id", Desc: true}}) {
 		t.Fatalf("▼ on age: %+v", sorts())
 	}
-	if menu("id", actNone); !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) {
+	if menu("id", table.ActNone); !slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}}) {
 		t.Errorf("None on id: %+v", sorts())
 	}
 	// grouped by source, which does not sort, age, the one key, has no number; once source sorts, it is 1, and age ▼₂
@@ -190,10 +191,10 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	if !strings.Contains(rule(), "▼₂") || onRule("▼₂") != at("age") {
 		t.Errorf("age under a group that sorts:\n%s\n%s", header(), rule())
 	}
-	if m.colMenu.column = "id"; m.columnItems()[1].Name != "▲ⁿ Ascending" {
-		t.Errorf("id under a group: %q", m.columnItems()[1].Name)
+	if m.colMenu.Column = "id"; m.colMenu.Items(&m)[1].Name != "▲ⁿ Ascending" {
+		t.Errorf("id under a group: %q", m.colMenu.Items(&m)[1].Name)
 	}
-	m.colMenu = columnMenu{}
+	m.colMenu = table.ColumnMenu{}
 }
 
 // A click on the rule under a column's name sorts by it, ascending, after the other keys, where it does not sort yet,
@@ -263,7 +264,7 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	if m = drive(m, testkit.Press("shift+left")); shown()[0] != column || !m.colMenu.Open {
 		t.Fatalf("shift+left on %s: %q", column, shown())
 	}
-	if _, left := m.shifted(column, -1); left || !strings.Contains(keysOf(m), "⇧←→ move") {
+	if _, left := table.Shifted(&m, column, -1); left || !strings.Contains(keysOf(m), "⇧←→ move") {
 		t.Errorf("%s, first, moved further left", column)
 	}
 	if x, _ := m.columnName(column); x >= x0 {
@@ -272,12 +273,12 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	if m = drive(m, testkit.Press("shift+right")); shown()[0] != first || shown()[1] != column {
 		t.Errorf("shift+right: %q", shown())
 	}
-	if _, ok := shiftStep("left"); ok {
+	if _, ok := table.ShiftStep("left"); ok {
 		t.Error("left alone is a shift")
 	}
 	m = drive(m, esc)
 	// a hidden column does not move
-	if _, ok := m.shifted("branch", 1); ok && m.panel(m.stage).Field("branch").Placement == grid.Hidden {
+	if _, ok := table.Shifted(&m, "branch", 1); ok && m.panel(m.stage).Field("branch").Placement == grid.Hidden {
 		t.Error("a hidden column moved")
 	}
 	// grouped by source, then assignees: shift+left in assignees' menu, from its name in the heading over the groups,
@@ -287,10 +288,10 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	m.openFieldMenu("assignees")
 	x0, _ = m.fieldName("assignees")
 	if m = drive(m, testkit.Press("shift+left")); !slices.Equal(m.panel(m.stage).Groups(), []string{"assignees", "source"}) ||
-		!m.colMenu.Open || !m.colMenu.heading {
+		!m.colMenu.Open || !m.colMenu.Heading {
 		t.Fatalf("shift+left on assignees' name: %q, menu %+v", m.panel(m.stage).Groups(), m.colMenu)
 	}
-	if box, top, _ := m.columnBox(); top != m.top() || len(box) == 0 {
+	if box, top, _ := m.colMenu.Box(&m); top != m.top() || len(box) == 0 {
 		t.Errorf("the column menu stands at %d", top)
 	}
 	if x, _ := m.fieldName("assignees"); x >= x0 {
@@ -310,29 +311,29 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	names := func(column string) []string {
-		m.colMenu = columnMenu{Dropdown: shell.Dropdown{Open: true}, column: column}
+		m.colMenu = table.ColumnMenu{Dropdown: shell.Dropdown{Open: true}, Column: column}
 		var out []string
-		for _, i := range m.columnItems() {
+		for _, i := range m.colMenu.Items(&m) {
 			out = append(out, i.Name)
 		}
 		return out
 	}
-	if got := names("title"); !slices.Equal(got, []string{"None", "▲ Ascending", "▼ Descending", ClearSort, "", Hide,
-		More}) || m.columnLine(actGroup) != -1 || m.columnLine(actUngroup) != -1 {
+	if got := names("title"); !slices.Equal(got, []string{"None", "▲ Ascending", "▼ Descending", table.ClearSort, "", table.Hide,
+		table.More}) || m.colMenu.LineOf(&m, table.ActGroup) != -1 || m.colMenu.LineOf(&m, table.ActUngroup) != -1 {
 		t.Errorf("title, which sorts and cannot group: %q", got)
 	}
-	if got := names("labels"); !slices.Equal(got, []string{GroupIt, UngroupIt, "", Hide, More}) || m.columnLine(actUp) != -1 {
+	if got := names("labels"); !slices.Equal(got, []string{table.GroupIt, table.UngroupIt, "", table.Hide, table.More}) || m.colMenu.LineOf(&m, table.ActUp) != -1 {
 		t.Errorf("labels, which groups and cannot sort: %q", got)
 	}
 	at := m.stage
 	m.stage = slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "builds" })
-	if got := names("commit"); !slices.Equal(got, []string{Hide, More}) {
+	if got := names("commit"); !slices.Equal(got, []string{table.Hide, table.More}) {
 		t.Errorf("builds' commit, which neither sorts nor groups: %q", got)
 	}
 	m.stage = at
-	if got := names("assignees"); !slices.Contains(got, GroupIt) || !slices.Contains(got, ClearSort) ||
-		m.columnEnabled(m.columnLine(actClear)) {
-		t.Errorf("assignees, which sorts and groups, nothing sorting: %q, clear %v", got, m.columnEnabled(m.columnLine(actClear)))
+	if got := names("assignees"); !slices.Contains(got, table.GroupIt) || !slices.Contains(got, table.ClearSort) ||
+		m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActClear)) {
+		t.Errorf("assignees, which sorts and groups, nothing sorting: %q, clear %v", got, m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActClear)))
 	}
-	m.colMenu = columnMenu{}
+	m.colMenu = table.ColumnMenu{}
 }

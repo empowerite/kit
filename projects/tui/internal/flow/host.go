@@ -46,6 +46,18 @@ func (m *Model) Name() string { return m.stages[m.stage].name }
 // Pane gives the screen line the pane starts on, under the bar, and the pane's width.
 func (m *Model) Pane() (top, width int) { return m.top(), m.paneWidth() }
 
+// ShownColumns gives the columns the selected stage's header shows, in their order.
+func (m *Model) ShownColumns() []string { return m.shownColumns(m.stage) }
+
+// HeaderName gives where a column's name starts in the header, and its first line, as columnName finds it.
+func (m *Model) HeaderName(column string) (int, string) { return m.columnName(column) }
+
+// HeaderTop gives the screen line the header starts on.
+func (m *Model) HeaderTop() int { return m.headerTop() }
+
+// HeadingName gives where a column's name stands in the heading over the groups, as fieldName finds it.
+func (m *Model) HeadingName(column string) (x, y int) { return m.fieldName(column) }
+
 // openPopover opens a field's popover, as table.OpenPopover does, and asks kit for the caller's login the first time,
 // which @me names.
 func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {

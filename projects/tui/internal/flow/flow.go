@@ -98,7 +98,7 @@ type Model struct {
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	presetsPath   string                    // that file, or none
 	presetsMenu   shell.Dropdown            // the preset line's menu of views: whether it is open, and its line under the keyboard
-	colMenu       columnMenu                // the menu a click on a column's name drops, while it is open
+	colMenu       table.ColumnMenu          // the menu a click on a column's name drops, while it is open
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
 	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	cols          table.Columns             // the columns dialog, while it is open

@@ -292,7 +292,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.At <= m.columnLine(actClear) ||
+	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActClear) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
@@ -605,11 +605,11 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		m = drive(m, tea.MouseClickMsg{X: at(name), Y: m.headerTop(), Button: tea.MouseLeft, Mod: mod})
 	}
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
-	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.column != "age" {
+	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.Column != "age" {
 		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
 	}
 	// the box hangs around the name, its top edge drawing it where the header does, as ='s menu hangs from =
-	if box, top, left := m.columnBox(); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
+	if box, top, left := m.colMenu.Box(&m); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
 		ansi.StringWidth(ansi.Cut(lines(m)[m.headerTop()], left, at("age"))) != at("age")-left ||
 		ansi.Strip(ansi.Cut(lines(m)[m.headerTop()], at("age"), at("age")+3)) != "age" {
 		t.Errorf("the menu does not hang from the name: %d, %d\n%s", top, left, view(m))

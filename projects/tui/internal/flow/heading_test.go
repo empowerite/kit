@@ -45,17 +45,17 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("the rule does not start at the first column: %q", rule)
 	}
 	m.stages[0].Cursor = 2
-	if m = drive(m, testkit.Click(spots[1].from+1, m.top())); !m.colMenu.Open || !m.colMenu.heading ||
-		m.colMenu.column != "assignees" || m.inRows || len(m.rows(0)) != all {
+	if m = drive(m, testkit.Click(spots[1].from+1, m.top())); !m.colMenu.Open || !m.colMenu.Heading ||
+		m.colMenu.Column != "assignees" || m.inRows || len(m.rows(0)) != all {
 		t.Fatalf("a click on assignees: menu %+v, in rows %v, %d rows of %d", m.colMenu, m.inRows, len(m.rows(0)), all)
 	}
-	box, top, _ := m.columnBox()
+	box, top, _ := m.colMenu.Box(&m)
 	if edge := ansi.Strip(box[0]); top != m.top() || !strings.Contains(edge, "╴assignees╶") ||
-		!m.columnEnabled(m.columnLine(actUngroup)) || m.columnEnabled(m.columnLine(actGroup)) {
+		!m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUngroup)) || m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActGroup)) {
 		t.Errorf("the box hangs at %d, %q:\n%s", top, edge, raw(m))
 	}
 	// Ungroup leaves the rows grouped by source alone, and closes the menu
-	m.colMenu.At = m.columnLine(actUngroup)
+	m.colMenu.At = m.colMenu.LineOf(&m, table.ActUngroup)
 	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
 		t.Fatalf("ungroup assignees: menu %v, groups %q", m.colMenu.Open, m.panel(0).Groups())
 	}
@@ -84,12 +84,12 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	// name there
 	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
 	x, y := m.fieldName("source")
-	m.columnAct(m.columnLine(actMore))
+	m.columnAct(m.colMenu.LineOf(&m, table.ActMore))
 	if !m.pop.Open || m.pop.Field != "source" || m.pop.X != x || m.pop.Y != y || y != m.top() {
 		t.Errorf("Options… from the heading: %+v, source at %d, %d", m.pop, x, y)
 	}
 	m.pop = table.Popover{}
-	m.colMenu = columnMenu{}
+	m.colMenu = table.ColumnMenu{}
 	// a click on the control line off its names and folds does nothing where the stage has no presets
 	if m = drive(m, testkit.Click(m.paneWidth()/2, m.top())); m.colMenu.Open || m.onPreset {
 		t.Errorf("a click on the control line without presets: menu %v, on the preset line %v", m.colMenu.Open, m.onPreset)
@@ -106,7 +106,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	// once the heading no longer names the column, the menu draws nothing, and a click closes it
 	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
 	m.setPanel(m.panel(0).Grouped("source", true))
-	if box, _, _ := m.columnBox(); box != nil {
+	if box, _, _ := m.colMenu.Box(&m); box != nil {
 		t.Error("the menu of a heading gone still draws")
 	}
 	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.Open {

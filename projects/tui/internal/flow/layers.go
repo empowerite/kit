@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // layers gives the picture's layers, the topmost first.
@@ -78,18 +79,28 @@ func (m Model) layers() shell.Layers[Model] {
 		},
 		{ // the column menu, which moves its column too
 			Open: func(m Model) bool { return m.colMenu.Open },
-			Key:  model(Model.columnKey),
+			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
+				// Options… opens the field's popover, which asks kit for the caller's login
+				if pop, ok := m.colMenu.Key(&m, k); ok {
+					m.pop = pop
+					return m, m.askMe()
+				}
+				return m, nil
+			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				cmd := m.columnClick(c.X, c.Y)
-				return m, cmd, true
+				if pop, ok := m.colMenu.Click(&m, c.X, c.Y); ok {
+					m.pop = pop
+					return m, m.askMe(), true
+				}
+				return m, nil, true
 			},
 			Keys: func(m Model) shell.Segment {
 				keys := shell.MenuKeys()
-				keys.Bindings = append(keys.Bindings, m.shiftKeys(m.colMenu.column)...)
+				keys.Bindings = append(keys.Bindings, table.ShiftKeys(&m, m.colMenu.Column)...)
 				return keys
 			},
 			Draw: func(m Model, lines []string) []string {
-				if box, top, left := m.columnBox(); len(box) > 0 {
+				if box, top, left := m.colMenu.Box(&m); len(box) > 0 {
 					return shell.Over(lines, box, top, left)
 				}
 				return lines
