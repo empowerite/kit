@@ -332,7 +332,7 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 			}
 		}
 	}
-	switch _, hides := m.header(); name {
+	switch _, hides := m.headerLines(); name {
 	case "Expand All":
 		next[headerKey] = hides
 	case "Collapse All":

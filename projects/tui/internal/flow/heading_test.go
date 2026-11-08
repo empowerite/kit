@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -186,9 +187,9 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 		!strings.Contains(lines(m)[m.rowsTop()], grid.Folded+" github") {
 		t.Fatalf("assignees closed: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
 	}
-	// source's closes the sources: nothing shows under the heading over the groups, and the header stands under it
+	// source's closes the sources: nothing shows under the heading over the groups, nor the header, over no row
 	if m = drive(m, testkit.Click(spots[0].from-2, m.top())); len(m.rows(0)) != 1 || glyph(m, "source") != grid.Folded ||
-		m.headerTop() != m.rowsTop() {
+		m.headerTop() != -1 {
 		t.Fatalf("source closed: %d rows, header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
 	}
 	// source's again shows the sources, the assignees still closed, as they were
@@ -215,15 +216,14 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 }
 
 // The ▾ or ▸ after the last name in the heading over the groups opens and closes the rows under the groups: closed,
-// every heading stands, each ▸, the header under the one source's, frozen over the assignees'; open again, the rows
-// show as they were.
+// every heading stands, each ▸, and no header, as no row shows; open again, the rows show as they were.
 func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	s0, a0, _ := levels(m)
 	rows := m.barNames()[len(m.barNames())-1].until + 1
 	if m = drive(m, testkit.Click(rows, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != 0 }() ||
-		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != m.rowsTop()+1 {
+		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != -1 {
 		s, a, r := levels(m)
 		t.Fatalf("the rows closed: %d sources, %d assignees, %d rows, the header at %d\n%s", s, a, r, m.headerTop(),
 			view(m))
@@ -246,7 +246,7 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 // spreadsheet: they never scroll, so the rows under them keep their context; the header stands over the first item of
 // the first level of more than one value, which scrolls under it with everything after it. Where the outermost level
 // has more than one value, nothing is frozen, and the header stands over its first heading. A click on a frozen
-// heading's ▾ folds it.
+// heading's ▾ folds it; with no row to stand over, the header goes.
 func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 13})
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
@@ -261,13 +261,29 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 		!strings.Contains(lines(m)[m.headerTop()+2], "above") {
 		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.offset, view(m))
 	}
-	// a click on github's ▾, frozen, folds it, the header under it
-	if m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != m.rowsTop()+1 {
+	// a click on github's ▾, frozen, folds it, and the header goes, as no row shows
+	if m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != -1 {
 		t.Fatalf("a click on the frozen heading's ▾: %d rows, the header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
 	}
 	// grouped by assignees first, of several values, nothing is frozen: the header stands over ada's heading
+	m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop()))
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
 	if m.frozen(0) != 1 || m.headerTop() != m.rowsTop() || !strings.Contains(lines(m)[m.rowsTop()+2], "ada") {
 		t.Errorf("grouped by assignees: frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
+	}
+}
+
+// The band under the cursor runs the pane's width, from its first cell to its last, on a heading as on a row under
+// its indent.
+func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
+	m := nested(t)
+	open, _, _ := strings.Cut(style.Band("x", 1), "x")
+	for _, k := range []int{1, 3} {
+		m.stages[0].cursor, m.inRows = k, true
+		m.rebuild()
+		l := m.allLines(0)[slices.IndexFunc(m.allLines(0), func(l line) bool { return l.row == k })]
+		if open == "" || !strings.HasPrefix(l.text, open) || ansi.StringWidth(l.text) != m.paneWidth() {
+			t.Errorf("row %d's band, %d cells of %d: %q", k, ansi.StringWidth(l.text), m.paneWidth(), l.text)
+		}
 	}
 }

@@ -296,9 +296,18 @@ func (m Model) shownColumns(i int) []string {
 
 // header gives the lines that stand over the selected stage's rows, as laid places them, and whether they hide lines
 // while closed: the names of its columns the panel shows, as internal/grid lays them over the rows, open or closed as
-// the stage's header is, then the rule under them, as rule draws it. While it loads, after a refusal, or when its rows
-// have no columns, there are none.
+// the stage's header is, then the rule under them, as rule draws it. While it loads, after a refusal, when its rows
+// have no columns, or while no row shows, every one folded away under a heading, there are none.
 func (m Model) header() (lines []string, hides bool) {
+	if len(m.stages) == 0 || !slices.ContainsFunc(m.rows(m.stage), func(r row) bool { return !r.Aside }) {
+		return nil, false
+	}
+	return m.headerLines()
+}
+
+// headerLines gives the header's lines and whether they hide lines while closed, as header says, whether a row shows or
+// not.
+func (m Model) headerLines() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
@@ -587,11 +596,15 @@ func (m Model) allLines(i int) []line {
 	out := make([]line, len(drawn))
 	indent := strings.Repeat(" ", m.indent(i))
 	for k, l := range drawn {
-		if rows[l.Row].Aside {
-			out[k] = line{l.Row, l.Text}
-		} else {
-			out[k] = line{l.Row, indent + l.Text}
+		text := l.Text
+		if !rows[l.Row].Aside {
+			text = indent + text
 		}
+		if l.Row == chosen {
+			// the band runs the pane's width, over the indent and past a heading's end, as the grid lays it out narrower
+			text = style.Band(text, m.paneWidth())
+		}
+		out[k] = line{l.Row, text}
 	}
 	return out
 }

@@ -308,7 +308,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	// the header stands in as the rows do, under the headings the view grouped them by as it loaded, over the first row
 	top, in := m.headerTop(), strings.Repeat(" ", m.indent(0))
 	tall := func(m Model) int {
-		lines, _ := m.header()
+		lines, _ := m.headerLines()
 		return len(lines)
 	}
 	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || tall(m) != 2 ||

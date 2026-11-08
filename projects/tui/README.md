@@ -111,8 +111,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The column names and the rule under them, with each sort's mark, start at the first column. They stand under the
     headings of the outermost levels that have one value alone, the rows' context, and over the first item of the
     first level of more than one value, or over the first row. Those headings and the header are frozen, as a pane
-    freezes in a spreadsheet: everything under them scrolls, and they stay. A stage with no control line says how many
-    rows are selected at the rule's right end.
+    freezes in a spreadsheet: everything under them scrolls, and they stay. While no row shows, every one folded away,
+    there is no header. A stage with no control line says how many rows are selected at the rule's right end. The band
+    under the cursor runs the pane's width.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
     right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and

@@ -446,11 +446,11 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
-	header := lines(m)[m.headerTop()]
+	header, _ := m.headerLines()
 	m = drive(m, left)
-	// the header stands as it was over the rows folded away, every column where it was
-	if got := lines(m)[m.headerTop()]; got != header || !strings.Contains(got, "title") {
-		t.Errorf("the header with every row folded: %q, was %q", got, header)
+	// with every row folded away there is nothing to stand over, so the header goes, every column where it was still
+	if got, _ := m.headerLines(); m.headerTop() != -1 || !slices.Equal(got, header) {
+		t.Errorf("the header with every row folded: at %d, %q, was %q", m.headerTop(), got, header)
 	}
 	heading := ansi.Strip(m.rows(m.stage)[1].Cells[0].Values[0])
 	if len(m.rows(m.stage)) != 2 || !strings.HasPrefix(heading, grid.Folded+" ") || m.count(m.stage) != count ||
