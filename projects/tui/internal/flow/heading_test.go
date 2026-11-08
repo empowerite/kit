@@ -247,19 +247,20 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 // The headings of the outermost levels that have one value alone are frozen over the header, as a pane freezes in a
 // spreadsheet: they never scroll, so the rows under them keep their context; the header stands over the first item of
 // the first level of more than one value, which scrolls under it with everything after it. Where the outermost level
-// has more than one value, nothing is frozen, and the header stands over its first heading. A click on a frozen
-// heading's ▾ folds it; with no row to stand over, the header goes.
+// has more than one value, nothing is frozen, and the header stands over its first heading. A blank line sets the
+// header apart from the frozen headings over it. A click on a frozen heading's ▾ folds it; with no row to stand over,
+// the header goes.
 func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 13})
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 14})
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	github := lines(m)[m.rowsTop()]
-	if m.frozen(0) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+1 ||
-		!strings.Contains(lines(m)[m.headerTop()+2], "ada") {
+	if m.frozen(0) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+2 ||
+		lines(m)[m.rowsTop()+1] != "" || !strings.Contains(lines(m)[m.headerTop()+2], "ada") {
 		t.Fatalf("frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
 	}
 	// down to the last row: the rows scroll under the header, which stays, under github's heading
 	m = drive(m, down, down, down, down, down, down, down, down, down)
-	if s := m.stages[0]; s.Offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+1 ||
+	if s := m.stages[0]; s.Offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+2 ||
 		!strings.Contains(lines(m)[m.headerTop()+2], "above") {
 		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.Offset, view(m))
 	}

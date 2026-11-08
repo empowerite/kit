@@ -58,9 +58,11 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 		normal.top() != 1+tabs.Height {
 		t.Fatalf("rows %d from %d, maximized %d from %d", normal.rowsHeight(), normal.rowsTop(), m.rowsHeight(), m.rowsTop())
 	}
+	// the lines under the control line that are not blank: the frozen heading, the header, and the rows
 	rowLines := func(m Model) int {
 		n := 0
-		for _, l := range lines(m)[m.rowsTop() : m.rowsTop()+m.rowsHeight()] {
+		texts, _ := m.laid()
+		for _, l := range texts {
 			if strings.TrimSpace(ansi.Strip(l)) != "" {
 				n++
 			}

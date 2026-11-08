@@ -392,13 +392,25 @@ func (m Model) rowsHeight() int {
 }
 
 // heightUnder gives the lines the rows have under a header of those lines, as rowsHeight says, the frozen lines over
-// the header apart.
+// the header and the blank line between them apart.
 func (m Model) heightUnder(header []string) int {
-	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-m.frozenLines(m.stage)-len(header))
+	frozen := m.frozenLines(m.stage)
+	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-frozen-gap(frozen, header)-len(header))
+}
+
+// gap gives how many blank lines set a header of those lines apart from the frozen lines over it, as many as there
+// are: one where both are, so the header stands apart from the context over it as it does from the control line;
+// none where either is not, as the control line's blank line, or the pane's top, sets it apart already.
+func gap(frozen int, header []string) int {
+	if frozen > 0 && len(header) > 0 {
+		return 1
+	}
+	return 0
 }
 
 // place is a line of the pane under the control line: the index of the stage's line it draws, as allLines gives them, -1
-// for a line that says how many are hidden, or -2-h for the header's line h.
+// for a line no row draws, one that says how many are hidden or the blank line over the header, or -2-h for the
+// header's line h.
 type place = int
 
 // headerPlace gives the place of the header's line h.
@@ -406,8 +418,9 @@ func headerPlace(h int) place { return -2 - h }
 
 // laid gives the pane's lines under the control line, as many as the frozen lines, the header, and the rows' window
 // take, and the place of each: the frozen lines, as frozen says, which never scroll, as a pane freezes in a
-// spreadsheet; the header's lines and its rule, over the first item of the first level of the groups with more than
-// one value, or over the first row; and the rows' window under them, as pane.Lines draws it.
+// spreadsheet; a blank line under them, as gap gives it; the header's lines and its rule, over the first item of the
+// first level of the groups with more than one value, or over the first row; and the rows' window under them, as
+// pane.Lines draws it.
 func (m Model) laid() (texts []string, places []place) {
 	all, s := m.allLines(m.stage), m.stages[m.stage]
 	skip := m.frozenLines(m.stage)
@@ -416,6 +429,9 @@ func (m Model) laid() (texts []string, places []place) {
 	h := m.heightUnder(header)
 	for k := range skip {
 		texts, places = append(texts, all[k].text), append(places, k)
+	}
+	for range gap(skip, header) {
+		texts, places = append(texts, ""), append(places, -1)
 	}
 	for k := range header {
 		texts, places = append(texts, header[k]), append(places, headerPlace(k))

@@ -313,7 +313,7 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 		return len(lines)
 	}
 	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || tall(m) != 2 ||
-		top != m.rowsTop()+1 {
+		top != m.rowsTop()+2 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
 	if m = drive(m, testkit.Click(len(in)+2, top)); !m.stages[0].Open[headerKey] || tall(m) <= 2 ||

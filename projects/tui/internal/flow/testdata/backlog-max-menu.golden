@@ -3,12 +3,12 @@
   ▾ source ▾ 3                                │ 🔭 Watch                          │                         Default ▼
                                               │ ⤡  Restore                        │
   ▾ github 3                                  │ ───────────────────────────────── │
-       id  assignees         age  branch      │ ⏬ Expand All                     │
-      ────────────────────────────────────────│ ⏫ Collapse All                   │────────────────────────────────────
-    ▸ #45                     2h              │ ⏫ Collapse Others                │picture: five stages, interactive o…
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun│ ───────────────────────────────── │ with a verb acts
-    ▸  #7  ada           +1  40d              │ 📋 Select All                  ⌃A │
-                                              │ 🧹 Clear Selection                │
+                                              │ ⏬ Expand All                     │
+       id  assignees         age  branch      │ ⏫ Collapse All                   │
+      ────────────────────────────────────────│ ⏫ Collapse Others                │────────────────────────────────────
+    ▸ #45                     2h              │ ───────────────────────────────── │picture: five stages, interactive o…
+    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun│ 📋 Select All                  ⌃A │ with a verb acts
+    ▸  #7  ada           +1  40d              │ 🧹 Clear Selection                │
                                               │ ───────────────────────────────── │
                                               │ 📝 New…                           │
                                               │ 🌱 Start Local Work for Each      │

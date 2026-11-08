@@ -5,10 +5,10 @@
   ▾ source ▾ 1                                                                        ╭─ backlog╭─ assignees ──────────╮
                                                                                       │   field │ filter               │
   ▾ 🐙 github 1                                                                       │ ☑ source│ ⦿ include  ⦾ exclude │
-      id  assignees  age  title                                                       │ ────────│ ☑ @me ada            │
-      ────────────────────────────────────────────────────────────────────────────────│ ☑ id    │ ☐ ada                │
-    ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                            │ ☑ assign│ ☐ bob                │
-                                                                                      │ ☑ age   │ ☐ jeffrey-aguilera   │
+                                                                                      │ ────────│ ☑ @me ada            │
+      id  assignees  age  title                                                       │ ☑ id    │ ☐ ada                │
+      ────────────────────────────────────────────────────────────────────────────────│ ☑ assign│ ☐ bob                │
+    ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                            │ ☑ age   │ ☐ jeffrey-aguilera   │
                                                                                       │ ☑ branch│ ☐ none               │
                                                                                       │ ☑ labels│ rendering            │
                                                                                       │ ☑ title │ ⦿ auto glyph+text    │
