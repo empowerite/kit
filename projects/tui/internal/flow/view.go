@@ -5,6 +5,8 @@ package flow
 
 import (
 	"cmp"
+	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -577,6 +579,39 @@ func (m Model) allLines(i int) []line {
 	if m.inRows && i == m.stage && s.cursor < len(rows) {
 		chosen = s.cursor
 	}
+	if m.built == nil || m.built.width != m.paneWidth() {
+		return m.draw(i, rows, chosen)
+	}
+	key := m.drawnFor(i, rows, chosen)
+	if d, ok := m.built.lines[i]; ok && d.key == key {
+		return d.lines
+	}
+	out := m.draw(i, rows, chosen)
+	m.built.lines[i] = drawnLines{key, out}
+	return out
+}
+
+// drawnFor says what a stage's lines are drawn for, beyond what its rows were built for: the rows themselves, the row
+// under the cursor, the rows and headings open, and the rows selected. Lines drawn for the same are the same, so
+// allLines draws them once and every key, click, and drawing after reuses them, however many lines an open row has.
+func (m Model) drawnFor(i int, rows []row, chosen int) string {
+	s := m.stages[i]
+	var b strings.Builder
+	fmt.Fprintf(&b, "%p %d %d %d", &rows[0], len(rows), chosen, m.gridWidth(i))
+	for _, k := range slices.Sorted(maps.Keys(s.open)) {
+		fmt.Fprintf(&b, "\x00o%s=%t", k, s.open[k])
+	}
+	for _, k := range slices.Sorted(maps.Keys(s.picked)) {
+		if s.picked[k] {
+			fmt.Fprintf(&b, "\x00p%s", k)
+		}
+	}
+	return b.String()
+}
+
+// draw draws a stage's rows as allLines says, the one under the cursor, chosen, on a band; -1 for none.
+func (m Model) draw(i int, rows []row, chosen int) []line {
+	s := m.stages[i]
 	marked, _ := style.In(stageColors[s.name])
 	groups := m.groupMarks(i)
 	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.open.Open,

@@ -84,6 +84,78 @@ func TestADrawingOfThreeHundredIssuesIsWellUnderAFramesTime(t *testing.T) {
 	}
 }
 
+// longWorktree gives the worktrees' answer as the screen's latest load: one worktree, n commits ahead, each with a
+// subject long enough to cut, and thirty paths uncommitted, as a branch with a long history has.
+func longWorktree(m Model, n int) source.Answer[[]byte] {
+	var commits, changes []string
+	for i := range n {
+		commits = append(commits, fmt.Sprintf(`{"sha": "%07x", "subject": "#89 kittui: commit %d says what it `+
+			`changed at a length that runs past the pane"}`, i+1, n-i))
+	}
+	for i := range 30 {
+		changes = append(changes, fmt.Sprintf(`{"status": " M", "path": "projects/tui/internal/flow/file%d.go"}`, i))
+	}
+	msg := answer("worktrees", fmt.Sprintf(`{"goneBranches": [], "worktrees": [{"path": "/w/1-long", `+
+		`"relative": "worktrees/1-long", "branch": "1-long", "ahead": %d, "behind": 0, "added": 9000, `+
+		`"removed": 18, "detached": false, "uncommitted": 30, "commits": [%s], "changes": [%s]}]}`,
+		n, strings.Join(commits, ","), strings.Join(changes, ",")))
+	msg.Gen = m.find("worktrees").src.Gen()
+	return msg
+}
+
+// A stage's lines are drawn once for what it shows: paging through an open row, and drawing the screen, reuse them.
+// Moving the cursor, opening or closing a row, or selecting one, draws them anew.
+func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, longWorktree(m, 100))
+	for m.stages[m.stage].name != "worktrees" {
+		m = drive(m, right)
+	}
+	m = drive(m, down, right)
+	first := m.allLines(m.stage)
+	_ = m.View()
+	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgUp))
+	_ = m.View()
+	if again := m.allLines(m.stage); &again[0] != &first[0] {
+		t.Error("paging drew the lines again for the same rows")
+	}
+	for _, change := range []struct {
+		name string
+		key  tea.Msg
+	}{{"closing the row", left}, {"opening it", right}, {"selecting it", press(tea.KeySpace)}, {"moving off it", up}} {
+		before := m.allLines(m.stage)
+		m = drive(m, change.key)
+		if again := m.allLines(m.stage); &again[0] == &before[0] {
+			t.Errorf("%s kept the lines drawn before", change.name)
+		}
+	}
+}
+
+// With a worktree of seven hundred commits open, a page through it and its drawing take well under a frame's time,
+// down and back up: the work a key does follows the lines on the screen, not every line of the open row, so keys
+// held down, or a wheel spun, never pile up behind each other, ^C among them.
+func TestPagingThroughAWorktreeOfSevenHundredCommitsIsWellUnderAFramesTime(t *testing.T) {
+	budget := 16 * time.Millisecond / 2
+	if raceEnabled {
+		budget *= 10
+	}
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, longWorktree(m, 700))
+	for m.stages[m.stage].name != "worktrees" {
+		m = drive(m, right)
+	}
+	m = drive(m, down, right)
+	for _, key := range []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)} {
+		if per := best(func() {
+			next, _ := m.Update(key)
+			m = next.(Model)
+			_ = m.View()
+		}); per > budget {
+			t.Errorf("%s and its drawing take %v, over %v", key, per, budget)
+		}
+	}
+}
+
 // best gives how long do takes, the least of three batches of ten.
 func best(do func()) time.Duration {
 	const batches, n = 3, 10

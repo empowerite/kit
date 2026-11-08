@@ -132,16 +132,24 @@ type Model struct {
 	marks source.Poll[map[string]string] // each stage's mark, as marks.go reads them
 }
 
-// built holds each stage's rows as they were last built, and the width they were laid out for. A stage that loads, a
-// refresh, or a new width replaces it, since a stage's rows may draw from another's, as the desk's from changes'.
+// built holds each stage's rows as they were last built, and the width they were laid out for, and each stage's lines
+// as they were last drawn from them. A stage that loads, a refresh, or a new width replaces it, since a stage's rows
+// may draw from another's, as the desk's from changes'.
 type built struct {
 	width  int
 	stages map[int]shown
+	lines  map[int]drawnLines
 }
 
-// rebuild drops the rows built so far; each is built again when it is next drawn.
+// drawnLines is a stage's lines as allLines last drew them, and what they were drawn for, as drawnFor says it.
+type drawnLines struct {
+	key   string
+	lines []line
+}
+
+// rebuild drops the rows built so far, and the lines drawn from them; each is built again when it is next drawn.
 func (m *Model) rebuild() {
-	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}}
+	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}, lines: map[int]drawnLines{}}
 }
 
 // Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own:

@@ -118,10 +118,13 @@ func Italic(s string, under bool) string {
 // Refusal draws the line a verb would print about an answer.
 func Refusal(s string) string { return refusal.Render(s) }
 
+// bandOpen and bandEnd are what open and end the band, rendered once, as Band draws every line of an open row.
+var bandOpen, bandEnd, _ = strings.Cut(band.Render("x"), "x")
+
 // Band draws a line on a faint background, as the row under the cursor is drawn, to the width: the line's own styles
 // stay, and the band is opened again after each of them ends, so it runs the whole line.
 func Band(line string, width int) string {
-	open, end, _ := strings.Cut(band.Render("x"), "x")
+	open, end := bandOpen, bandEnd
 	if open == "" {
 		return line
 	}
