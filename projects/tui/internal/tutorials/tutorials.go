@@ -12,7 +12,7 @@
 // first row, or esc, gives the bar the keyboard. Enter opens the tutorial under the cursor in the browser, and a click
 // on a card opens that one. The bar is internal/tabs: while it has the keyboard, left and right move between the tabs,
 // and down or enter gives the cards the keyboard, on a tab that has some; a tab's number, 1 to 9, or a click on it,
-// selects it from anywhere and gives the bar the keyboard. = or a click on ≡ drops the app's menu down. Ctrl-c quits
+// selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down. Ctrl-c quits
 // with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0.
 //
 // Opening a tutorial says so in place of the keys, for Fades or until a key; when the browser cannot be asked, the
@@ -258,7 +258,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// click takes a click: on the open app's menu, on ≡, on the bar, or on a card, which it opens.
+// click takes a click: on the open app's menu, on =, on the bar, or on a card, which it opens.
 func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case msg.Button != tea.MouseLeft:

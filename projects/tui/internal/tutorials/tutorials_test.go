@@ -260,7 +260,7 @@ func TestThePaneSaysWhatKitDid(t *testing.T) {
 	}
 }
 
-// = or a click on ≡ drops the app's menu down, its Tutorials dim: a screen asks kittui to show it in this one's place,
+// = or a click on the = drops the app's menu down, its Tutorials dim: a screen asks kittui to show it in this one's place,
 // quit ends the screen, and alt-esc quits as well, not interrupted; Close ends what the screen started.
 func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	m, _ := loaded(t)
@@ -276,7 +276,7 @@ func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	}
 	m = drive(m, esc, testkit.Click(shell.At, shell.Top))
 	if !m.appMenu.Open {
-		t.Fatal("a click on ≡ did not drop the menu down")
+		t.Fatal("a click on = did not drop the menu down")
 	}
 	_, msgs = testkit.Drive(m, switched, testkit.Click(4, shell.Top+3))
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Flow})) {

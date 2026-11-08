@@ -1,4 +1,4 @@
-// Package shell is what every screen of kittui shares around its own: the title line, after ≡, which drops the app's
+// Package shell is what every screen of kittui shares around its own: the title line, after =, which drops the app's
 // menu down; the app's menu, the same on every screen, which moves between kit's screens and quits; the box every
 // menu is drawn in, hanging from the glyph that drops it down.
 package shell
@@ -14,8 +14,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// App is the glyph before every screen's title, which drops the app's menu down: three bars, a hamburger.
-const App = "≡"
+// App is the glyph before every screen's title, which drops the app's menu down: =, the key that drops it down too.
+const App = "="
 
 // Top is the screen line the title is on, and the app's menu's box starts on; At is App's column on it, after the
 // gutter every line of a screen keeps before it, as the tab bar does.

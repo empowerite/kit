@@ -125,11 +125,11 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 func TestABoxKeepsToTheRoomItHas(t *testing.T) {
 	items := []Item{{Name: "One"}}
 	all := func(int) bool { return true }
-	if box, left := Box(items, all, 0, "⋮", -1, 40); left+ansi.StringWidth(box[0]) != 40 {
+	if box, left := Box(items, all, 0, ":", -1, 40); left+ansi.StringWidth(box[0]) != 40 {
 		t.Errorf("no glyph: left %d, width %d", left, ansi.StringWidth(box[0]))
 	}
-	if box, left := Box(items, all, 0, "⋮", 38, 40); left+ansi.StringWidth(box[0]) != 40 ||
-		!strings.HasSuffix(ansi.Strip(box[0]), "╴⋮╮") {
+	if box, left := Box(items, all, 0, ":", 38, 40); left+ansi.StringWidth(box[0]) != 40 ||
+		!strings.HasSuffix(ansi.Strip(box[0]), "╴:╮") {
 		t.Errorf("a glyph near the right: left %d, %q", left, ansi.Strip(box[0]))
 	}
 	if got := Over([]string{"a"}, []string{"x", "y"}, 0, 0); len(got) != 1 {

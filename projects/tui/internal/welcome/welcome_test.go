@@ -956,7 +956,7 @@ func TestACheckWithoutRunsIsRunnable(t *testing.T) {
 	}
 }
 
-// = or a click on ≡ before the title drops the app's menu down over the guide, the welcome's own screen dim: help asks
+// = or a click on the = before the title drops the app's menu down over the guide, the welcome's own screen dim: help asks
 // kittui to show it in the guide's place, quit ends the guide, and Close ends the checks still running.
 func TestEqualsDropsTheAppsMenuDownOverTheGuide(t *testing.T) {
 	m, _ := fake(t)
@@ -971,7 +971,7 @@ func TestEqualsDropsTheAppsMenuDownOverTheGuide(t *testing.T) {
 	}
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, testkit.Click(shell.At, shell.Top))
 	if !m.appMenu.Open {
-		t.Fatal("a click on ≡ did not drop the menu down")
+		t.Fatal("a click on = did not drop the menu down")
 	}
 	if _, msgs := testkit.Drive(m, nil, testkit.Click(3, shell.Top+8)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
 		t.Errorf("a click on quit: %v", msgs)

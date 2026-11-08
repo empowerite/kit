@@ -6,7 +6,7 @@
 // jumps to the first verb of the previous or the next group. Page down and page up move a page, and home and end to
 // the first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names,
 // and the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under
-// the title; = or a click on ≡ before the title drops the app's menu down, internal/shell's, as every screen of kittui
+// the title; = or a click on the = before the title drops the app's menu down, internal/shell's, as every screen of kittui
 // has it; esc clears what is typed, or, with nothing typed, quits, and ctrl-c quits as interrupted. Where the tree or
 // the page is cut, a dim line says how many verbs or lines are hidden. The keys bar is the last line. Widths are
 // terminal cells, so a two-cell glyph never pushes a row past the edge.

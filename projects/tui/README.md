@@ -56,7 +56,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
     or out, and ⏎ opens its Options…; a click on a line's box, sort, or group does as space, s, or g.
   - Maximize, first in the tab's menu, gives the rows the bar's lines but one, for the session: the title names the
-    tab, its count, and its ⋮, which drops the tab's menu as the bar's does, a line in the tab's color runs under it,
+    tab, its count, and its :, which drops the tab's menu as the bar's does, a line in the tab's color runs under it,
     and the header follows; Restore, in its place, puts the bar back as it was, and a tab's number selects a tab
     either way.
   - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
@@ -70,7 +70,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     takes no other key or click, so the rows under it go on as they were.
   - ⏎ on a field in the columns dialog opens its popover: the checklist of values its filter lets through or holds back,
     for an enum or a person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on
-    a column's name drops down its menu, around the name, as ≡'s and ⋮'s hang around theirs, titled by the name, which
+    a column's name drops down its menu, around the name, as ='s and :'s hang around theirs, titled by the name, which
     no line repeats: its sort, a radio that shows it, None, Ascending, or Descending, and 🧹 Clear Sort; ▤ Group and ▢
     Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the name. A column's menu, and a group heading's, which
     has Ungroup too, take shift with ← or →, which moves the column a place among those the header names, or a depth

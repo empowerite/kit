@@ -622,7 +622,7 @@ func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
 	}
 }
 
-// = or a click on ≡ before the title drops the app's menu down, with the help's own screen dim: welcome asks kittui to
+// = or a click on the = before the title drops the app's menu down, with the help's own screen dim: welcome asks kittui to
 // show it in the palette's place, and quit ends the palette; while it is open, the keys bar is the menu's.
 func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -640,11 +640,11 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}
-	// a click on ≡ drops it down, one on quit ends the palette, and one off it closes it
+	// a click on = drops it down, one on quit ends the palette, and one off it closes it
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape})
 	m, _ = testkit.Drive(m, nil, testkit.Click(shell.At, shell.Top), tea.MouseClickMsg{Button: tea.MouseRight})
 	if !m.appMenu.Open {
-		t.Fatal("a click on ≡ did not drop the menu down")
+		t.Fatal("a click on = did not drop the menu down")
 	}
 	quit := testkit.Click(3, shell.Top+8)
 	if _, msgs := testkit.Drive(m, nil, quit); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {

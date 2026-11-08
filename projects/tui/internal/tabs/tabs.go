@@ -50,9 +50,9 @@ const (
 // yellow, wherever the keyboard is.
 const Stale = "•"
 
-// Menu is the glyph after the selected tab's count, which will open the tab's menu: a vertical ellipsis, a kebab, as a
-// menu of actions on what it stands beside is drawn, narrow in every terminal.
-const Menu = "⋮"
+// Menu is the glyph after the selected tab's count, which opens the tab's menu: :, the key that opens it too, narrow
+// in every terminal.
+const Menu = ":"
 
 // Height is the lines the bar takes.
 const Height = 3
@@ -213,7 +213,7 @@ func (b Bar) label(i int) (name, end string) {
 		end = style.Loss(t.Count)
 	}
 	if b.Menus && i == b.Selected {
-		glyph := mark(Menu) // bold, as the tab's name is, so the narrow kebab reads as a button
+		glyph := mark(Menu) // bold, as the tab's name is, so the narrow : reads as a button
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
 			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)
