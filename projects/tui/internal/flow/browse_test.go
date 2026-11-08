@@ -78,7 +78,7 @@ func TestOverSSHOpenSelectedShowsTheFirstLinkAndCountsTheRest(t *testing.T) {
 	m := loaded(t, options(), down)
 	record := atTheOpener(t, &m)
 	t.Setenv("SSH_TTY", "/dev/pts/0")
-	m.stages[0].picked["#45"], m.stages[0].picked["#46"] = true, true
+	m.stages[0].Picked["#45"], m.stages[0].Picked["#46"] = true, true
 	pages := m.pages()
 	if len(pages) != 2 {
 		t.Fatalf("pages: %q", pages)
@@ -91,7 +91,7 @@ func TestOverSSHOpenSelectedShowsTheFirstLinkAndCountsTheRest(t *testing.T) {
 		t.Error("an opener ran over SSH")
 	}
 	// one page asked says no more
-	delete(m.stages[0].picked, "#46")
+	delete(m.stages[0].Picked, "#46")
 	if m = choose(t, m, "Open Selected"); m.note.Text != "Open "+pages[0]+" in a browser" {
 		t.Errorf("one page: %q", m.note.Text)
 	}

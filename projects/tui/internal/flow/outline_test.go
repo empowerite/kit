@@ -26,7 +26,7 @@ func nested(t *testing.T) Model {
 }
 
 // at gives the row under the selected stage's cursor.
-func at(m Model) row { return m.rows(m.stage)[m.stages[m.stage].cursor] }
+func at(m Model) row { return m.rows(m.stage)[m.stages[m.stage].Cursor] }
 
 // Right opens the node under the cursor, or on a heading already open steps into its first row; left closes it, or on
 // a node closed, or one that hides nothing, steps out to the heading over it, as a tree does. With option, either
@@ -43,23 +43,23 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 		t.Fatalf("left on a row closed did not step out to its heading: %q", at(m).Key)
 	}
 	inner := at(m).Key
-	if m = drive(m, left); len(m.rows(0)) >= all || at(m).Key != inner || m.stages[0].open.Open(at(m)) {
+	if m = drive(m, left); len(m.rows(0)) >= all || at(m).Key != inner || m.stages[0].Open.Open(at(m)) {
 		t.Fatalf("left on an open heading: %d rows of %d, cursor on %q", len(m.rows(0)), all, at(m).Key)
 	}
 	// left on the closed heading steps out to its source's, which a second left closes; a third has nowhere to step
 	// out to, the heading over the groups standing on the control line, which the cursor never reaches
-	if m = drive(m, left); grid.Level(at(m)) != 2 || !m.stages[0].open.Open(at(m)) {
+	if m = drive(m, left); grid.Level(at(m)) != 2 || !m.stages[0].Open.Open(at(m)) {
 		t.Fatalf("left on a closed heading did not step out to the one over it: %q", at(m).Key)
 	}
-	if m = drive(m, left, left); m.stages[0].cursor != 1 || len(m.rows(0)) != 2 {
-		t.Fatalf("left on the outermost heading closed: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
+	if m = drive(m, left, left); m.stages[0].Cursor != 1 || len(m.rows(0)) != 2 {
+		t.Fatalf("left on the outermost heading closed: cursor %d, %d rows", m.stages[0].Cursor, len(m.rows(0)))
 	}
-	if m = drive(m, right, right); m.stages[0].cursor != 2 {
-		t.Fatalf("right twice on the outer heading: cursor %d", m.stages[0].cursor)
+	if m = drive(m, right, right); m.stages[0].Cursor != 2 {
+		t.Fatalf("right twice on the outer heading: cursor %d", m.stages[0].Cursor)
 	}
 	// from every heading open, option-left on the outermost heading closes the deepest open level under it, a level
 	// each press, and option-right opens one level more, every branch alike
-	m.stages[0].open, m.stages[0].cursor = grid.Outline{}, 1
+	m.stages[0].Open, m.stages[0].Cursor = grid.Outline{}, 1
 	m.rebuild()
 	levels := func() (sources, assignees, rows int) {
 		for _, r := range m.rows(0) {
@@ -101,8 +101,8 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 		t.Fatalf("option-right a third time opened no row")
 	}
 	// left closes the outermost heading, and again has nowhere to step out to
-	if m = drive(m, left, left); m.stages[0].cursor != 1 || len(m.rows(0)) != 2 {
-		t.Errorf("left on the outermost heading twice: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
+	if m = drive(m, left, left); m.stages[0].Cursor != 1 || len(m.rows(0)) != 2 {
+		t.Errorf("left on the outermost heading twice: cursor %d, %d rows", m.stages[0].Cursor, len(m.rows(0)))
 	}
 	// a click on the heading over the groups, off its folds and names, folds nothing
 	names, before := m.barNames(), len(m.rows(0))
@@ -121,10 +121,10 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, alt); len(m.rows(0)) != all || openRows(m) != 0 {
 		t.Fatalf("an option-click on its ▾: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
 	}
-	if m = drive(m, alt); len(m.rows(0)) >= all || !m.stages[0].open.Open(m.every(0)[1]) {
+	if m = drive(m, alt); len(m.rows(0)) >= all || !m.stages[0].Open.Open(m.every(0)[1]) {
 		t.Fatalf("a second option-click: %d rows of %d", len(m.rows(0)), all)
 	}
-	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].open.Open(m.every(0)[1]) {
+	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].Open.Open(m.every(0)[1]) {
 		t.Errorf("a third option-click: %d rows", len(m.rows(0)))
 	}
 	// an option-click on a level's fold in the heading over the groups does as a click there: source's closes its level,
@@ -155,15 +155,15 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 	}
 	m = drive(m, down)
 	// down to the outermost groups' headings, under the heading over them, which never closes
-	if m = choose(m, "Collapse All"); len(m.rows(0)) != 2 || m.stages[0].cursor != 1 {
-		t.Fatalf("collapse all: %d rows, cursor %d", len(m.rows(0)), m.stages[0].cursor)
+	if m = choose(m, "Collapse All"); len(m.rows(0)) != 2 || m.stages[0].Cursor != 1 {
+		t.Fatalf("collapse all: %d rows, cursor %d", len(m.rows(0)), m.stages[0].Cursor)
 	}
 	if m = choose(m, "Expand All"); len(m.rows(0)) != all || openRows(m) == 0 {
 		t.Fatalf("expand all: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
 	}
 	// #46, selected while its group is folded away, shows and opens with Expand Selected; the other groups stay folded
 	m = choose(m, "Collapse All")
-	m.stages[0].picked["#46"] = true
+	m.stages[0].Picked["#46"] = true
 	if m = drive(m, press(':')); m.tabItems()[4].Name != "Expand Selected" || !m.enabled(item(m, "Collapse Others")) {
 		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:7])
 	}
@@ -181,9 +181,9 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 		t.Fatalf("expand selected shows %q", keys(m))
 	}
 	// collapse others, from everything open, leaves #46's group alone open
-	clear(m.stages[0].picked)
+	clear(m.stages[0].Picked)
 	m = choose(m, "Expand All")
-	m.stages[0].picked["#46"] = true
+	m.stages[0].Picked["#46"] = true
 	if m = choose(m, "Collapse Others"); !slices.Equal(keys(m), []string{"#46"}) || openRows(m) > 1 {
 		t.Errorf("collapse others shows %q, %d open", keys(m), openRows(m))
 	}
@@ -233,7 +233,7 @@ func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
 		t.Fatalf("#45 stands under %d headings, the count %s, was %s:\n%s", len(at), m.count(0), count, view(m))
 	}
 	// selected under its last label, it is selected under every one, each heading over it marked
-	m.stages[0].cursor, m.inRows = at[len(at)-1], true
+	m.stages[0].Cursor, m.inRows = at[len(at)-1], true
 	m.selectRow(false)
 	marks := m.groupMarks(0)
 	for _, k := range at {
@@ -245,8 +245,8 @@ func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
 		t.Errorf("%d selected, want one row", m.selected())
 	}
 	// opened under its last label, the cursor stays there, not on the first
-	m.stages[0].cursor = at[len(at)-1]
-	if m = drive(m, right); m.stages[0].cursor != at[len(at)-1] || !m.stages[0].open["#45"] {
-		t.Errorf("opened under its last label: cursor %d, want %d", m.stages[0].cursor, at[len(at)-1])
+	m.stages[0].Cursor = at[len(at)-1]
+	if m = drive(m, right); m.stages[0].Cursor != at[len(at)-1] || !m.stages[0].Open["#45"] {
+		t.Errorf("opened under its last label: cursor %d, want %d", m.stages[0].Cursor, at[len(at)-1])
 	}
 }

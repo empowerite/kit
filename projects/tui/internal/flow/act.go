@@ -291,7 +291,7 @@ func (m *Model) acted(msg actedMsg) tea.Cmd {
 	} else {
 		m.done(lines[len(lines)-1])
 		if s := m.find("backlog"); s != nil {
-			clear(s.picked)
+			clear(s.Picked)
 		}
 	}
 	return m.refresh("backlog")

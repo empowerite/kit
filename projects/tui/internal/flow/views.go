@@ -19,7 +19,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -32,7 +31,7 @@ import (
 )
 
 // Opening is the name of the view a stage opens on, one of its own.
-const Opening = "Default"
+const Opening = table.Opening
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
 // down. FieldsIt is the presets' menu's first item, after its glyph, Fields, and a rule; SaveIt, SaveAs,
@@ -83,57 +82,16 @@ type sortKey struct {
 	Desc   bool   `json:"desc,omitempty"`
 }
 
-// presetsFile gives the file the person's presets are kept in: kit/presets.json under XDG_CONFIG_HOME, else under
-// ~/.config; nothing when neither is known.
-func presetsFile() string {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		dir = filepath.Join(home, ".config")
-	}
-	return filepath.Join(dir, "kit", "presets.json")
-}
-
-// presetsVersion is the version of presets.json; views.json, the file before it, was the first.
-const presetsVersion = 2
-
-// presets is presets.json: its version, and the person's presets, by stage, each in the catalog's vocabulary, its
-// fields by id.
-type presets struct {
-	Version int                       `json:"version"`
-	Stages  map[string][]table.Preset `json:"stages"`
-}
-
 // readPresets gives the presets the file keeps, by stage; none when there is no file. With no presets.json, it reads
 // views.json beside it, the file before it, once: each view a preset, its labels the fields' ids, which it then keeps
 // in presets.json, leaving views.json as it is. It says what it noted, the labels the catalog no longer knows, which
 // are dropped, or none. A file that does not read, or is of another version, is the error, and nothing is written.
 func readPresets(path string) (map[string][]table.Preset, string, error) {
-	out := map[string][]table.Preset{}
-	if path == "" {
-		return out, "", nil
-	}
-	data, err := os.ReadFile(path)
+	out, err := table.ReadPresets(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return migrate(path)
 	}
-	var file presets
-	if err == nil {
-		err = json.Unmarshal(data, &file)
-	}
-	if err == nil && file.Version != presetsVersion {
-		err = fmt.Errorf("version %d, not %d", file.Version, presetsVersion)
-	}
-	if err != nil {
-		return out, "", fmt.Errorf("%s does not read as presets: %w", path, err)
-	}
-	for stage, ps := range file.Stages {
-		out[stage] = ps
-	}
-	return out, "", nil
+	return out, "", err
 }
 
 // migrate reads views.json beside the presets file, when there is one, as readPresets says, and writes the presets
@@ -167,29 +125,10 @@ func migrate(path string) (map[string][]table.Preset, string, error) {
 		note = Save + " views.json is now presets.json, without the columns kittui no longer knows: " +
 			strings.Join(dropped, "; ")
 	}
-	if err := writePresets(path, out); err != nil {
+	if err := table.WritePresets(path, out); err != nil {
 		return out, "", fmt.Errorf("%s could not be written from %s: %w", path, old, err)
 	}
 	return out, note, nil
-}
-
-// writePresets keeps the presets in the file, written whole beside it first, so a reader never sees half of it.
-func writePresets(path string, stages map[string][]table.Preset) error {
-	if path == "" {
-		return nil
-	}
-	data, err := json.MarshalIndent(presets{Version: presetsVersion, Stages: stages}, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp := path + ".new"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
 }
 
 // builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
@@ -270,61 +209,37 @@ func (v named) preset(stage string) (table.Preset, []string) {
 	return out, dropped
 }
 
-// views gives a stage's views, its own first, then the person's.
-func (m Model) views(i int) []table.Preset {
-	return append(m.builtins(i), m.saved[m.stages[i].name]...)
+// viewsOf gives a stage's views, as table.Views keeps them: its fields, its own views, and the person's.
+func (m Model) viewsOf(i int) table.Views {
+	name := m.stages[i].name
+	return table.Views{Fields: fieldsOf(name), Own: m.builtins(i), Saved: m.saved[name]}
 }
+
+// views gives a stage's views, its own first, then the person's.
+func (m Model) views(i int) []table.Preset { return m.viewsOf(i).All() }
 
 // builtin says whether a name is one of a stage's own views.
-func (m Model) builtin(i int, name string) bool {
-	return slices.ContainsFunc(m.builtins(i), func(v table.Preset) bool { return v.Name == name })
-}
+func (m Model) builtin(i int, name string) bool { return m.viewsOf(i).Builtin(name) }
 
 // chosen gives the view a stage's preset line was last set to, or Default when that view is gone.
-func (m Model) chosen(i int) table.Preset {
-	vs := m.views(i)
-	if k := slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
-		return vs[k]
-	}
-	return vs[slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == Opening })]
-}
+func (m Model) chosen(i int) table.Preset { return m.viewsOf(i).Chosen(m.stages[i].ViewName) }
 
 // current gives a stage's panel as a view would keep it.
-func (m Model) current(i int) table.Preset {
-	s := m.stages[i]
-	return table.PresetOf(s.view, fieldsOf(s.name))
-}
+func (m Model) current(i int) table.Preset { return m.viewsOf(i).Current(m.stages[i].View) }
 
-// same says whether two views set a stage's panel alike, their names apart: each field placed, sorted, filtered, and
-// drawn alike, and folding alike.
-func (m Model) same(i int, a, b table.Preset) bool {
-	fields := fieldsOf(m.stages[i].name)
-	normal := func(v table.Preset) table.Preset { return table.PresetOf(v.Panel(fields, grid.Panel{}), fields) }
-	return reflect.DeepEqual(normal(a), normal(b))
-}
+// same says whether two views set a stage's panel alike, their names apart.
+func (m Model) same(i int, a, b table.Preset) bool { return m.viewsOf(i).Same(a, b) }
 
-// is gives the name of the view a stage's panel is set as: the view chosen, when the panel is as it says, or as it
-// grouped the rows as it loaded; else the first of the stage's views it is as; none when it differs from every one.
-func (m Model) is(i int) string {
-	now := m.current(i)
-	if g := m.stages[i].grouped; m.same(i, now, m.chosen(i)) || g != nil && m.same(i, now, *g) {
-		return m.chosen(i).Name
-	}
-	for _, v := range m.views(i) {
-		if m.same(i, now, v) {
-			return v.Name
-		}
-	}
-	return ""
-}
+// is gives the name of the view a stage's panel is set as, as table.Views says; none when it differs from every one.
+func (m Model) is(i int) string { return m.viewsOf(i).Is(m.stages[i].Table) }
 
 // apply sets the selected stage's panel as the view keeps it, its search, cursor, and groups closed as they are, and
 // names the view, which then groups the rows as it loads, as autoGroup says.
 func (m *Model) apply(v table.Preset) {
 	s := &m.stages[m.stage]
-	p := v.Panel(fieldsOf(s.name), s.view)
-	s.viewName, s.savingAs, s.naming = v.Name, false, ""
-	s.grouping, s.grouped = true, nil
+	p := v.Panel(fieldsOf(s.name), s.View)
+	s.ViewName, s.SavingAs, s.Naming = v.Name, false, ""
+	s.Grouping, s.Grouped = true, nil
 	m.setPanel(p)
 	m.autoGroup(s.name)
 	m.clamp(m.stage)
@@ -338,20 +253,20 @@ func (m *Model) apply(v table.Preset) {
 func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	s := &m.stages[m.stage]
 	key := k.String()
-	if s.savingAs {
+	if s.SavingAs {
 		switch {
 		case key == "up" || key == "down":
-			s.savingAs, s.naming, s.renaming = false, "", ""
+			s.SavingAs, s.Naming, s.Renaming = false, "", ""
 		case key == "esc":
-			s.savingAs, s.naming, s.renaming = false, "", ""
+			s.SavingAs, s.Naming, s.Renaming = false, "", ""
 			return nil, true
-		case key == "enter" && s.renaming != "":
+		case key == "enter" && s.Renaming != "":
 			m.renamePreset()
 			return nil, true
 		case key == "enter":
 			return m.savePreset(), true
 		case key == "backspace" || k.Text != "" && !strings.ContainsAny(k.Text, "=:;"):
-			s.naming, _ = shell.Type(s.naming, k)
+			s.Naming, _ = shell.Type(s.Naming, k)
 			return nil, true
 		default:
 			return nil, false
@@ -384,14 +299,7 @@ func (m *Model) dropPresets() {
 
 // own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
 // not, nor is a view since deleted.
-func (m Model) own() (table.Preset, bool) {
-	saved := m.saved[m.stages[m.stage].name]
-	name := m.stages[m.stage].viewName
-	if k := slices.IndexFunc(saved, func(v table.Preset) bool { return v.Name == name }); k >= 0 && !m.builtin(m.stage, name) {
-		return saved[k], true
-	}
-	return table.Preset{}, false
-}
+func (m Model) own() (table.Preset, bool) { return m.viewsOf(m.stage).Mine(m.stages[m.stage].ViewName) }
 
 // keep writes the person's views of the selected stage as they are given, and says whether it could; when it could
 // not, the notice says why, and nothing changes.
@@ -401,7 +309,7 @@ func (m *Model) keep(saved []table.Preset, what string) bool {
 		all[stage] = vs
 	}
 	all[m.stages[m.stage].name] = saved
-	if err := writePresets(m.presetsPath, all); err != nil {
+	if err := table.WritePresets(m.presetsPath, all); err != nil {
 		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}
@@ -413,68 +321,56 @@ func (m *Model) keep(saved []table.Preset, what string) bool {
 // overwritten, a new one is added after theirs, and a stage's own name is refused, as those never change. What it
 // did, or why not, is in place of the keys.
 func (m *Model) savePreset() tea.Cmd {
-	s := &m.stages[m.stage]
-	name := strings.TrimSpace(s.naming)
-	switch {
-	case name == "":
-		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
-		return nil
-	case m.builtin(m.stage, name):
-		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
-		return nil
-	}
-	m.saveAs(name)
+	m.saveAs(strings.TrimSpace(m.stages[m.stage].Naming))
 	return nil
 }
 
-// saveAs keeps the selected stage's panel under a name, the person's view of that name overwritten, else added after
-// theirs; the line then names it, and the notice says so, for a while.
+// saveAs keeps the selected stage's panel under a name, as table.Views saves it; the line then names it, and the
+// notice says so, for a while. A name refused, or a file that could not be written, says why.
 func (m *Model) saveAs(name string) {
 	s := &m.stages[m.stage]
-	v := m.current(m.stage)
-	v.Name = name
-	saved := slices.Clone(m.saved[s.name])
-	if k := slices.IndexFunc(saved, func(w table.Preset) bool { return w.Name == name }); k >= 0 {
-		saved[k] = v
-	} else {
-		saved = append(saved, v)
-	}
-	if !m.keep(saved, "saved") {
+	saved, err := m.viewsOf(m.stage).SaveAs(name, s.View)
+	switch {
+	case errors.Is(err, table.ErrUnnamed):
+		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
+		return
+	case errors.Is(err, table.ErrBuiltin):
+		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
+		return
+	case !m.keep(saved, "saved"):
 		return
 	}
-	s.viewName, s.savingAs, s.naming, s.renaming = name, false, "", ""
+	s.ViewName, s.SavingAs, s.Naming, s.Renaming = name, false, "", ""
 	m.done(Save + " saved the preset " + name)
 }
 
 // renamePreset gives the person's view being renamed, which stays while the line has the keyboard, the name typed for
-// Rename…: none, a stage's own, and another of theirs are refused, and the same name leaves it as it is. The line names it by its new name.
+// Rename…, as table.Views renames it: none, a stage's own, and another of theirs are refused, and the same name leaves
+// it as it is. The line names it by its new name.
 func (m *Model) renamePreset() {
 	s := &m.stages[m.stage]
-	from, name := s.renaming, strings.TrimSpace(s.naming)
-	saved := slices.Clone(m.saved[s.name])
-	k := slices.IndexFunc(saved, func(v table.Preset) bool { return v.Name == from })
+	from, name := s.Renaming, strings.TrimSpace(s.Naming)
+	saved, err := m.viewsOf(m.stage).Rename(from, name)
 	switch {
-	case name == "":
+	case errors.Is(err, table.ErrUnnamed):
 		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
 		return
-	case m.builtin(m.stage, name):
+	case errors.Is(err, table.ErrBuiltin):
 		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
 		return
-	case name != from && slices.ContainsFunc(saved, func(v table.Preset) bool { return v.Name == name }):
+	case errors.Is(err, table.ErrTaken):
 		m.note.Text, m.note.Done = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
 		return
 	case name == from:
-		s.savingAs, s.naming, s.renaming = false, "", ""
+		s.SavingAs, s.Naming, s.Renaming = false, "", ""
+		return
+	case !m.keep(saved, "renamed"):
 		return
 	}
-	saved[k].Name = name
-	if !m.keep(saved, "renamed") {
-		return
+	if s.ViewName == from {
+		s.ViewName = name
 	}
-	if s.viewName == from {
-		s.viewName = name
-	}
-	s.savingAs, s.naming, s.renaming = false, "", ""
+	s.SavingAs, s.Naming, s.Renaming = false, "", ""
 	m.done(Renamed + " renamed the preset " + from + " to " + name)
 }
 
@@ -482,14 +378,10 @@ func (m *Model) renamePreset() {
 // the stage as Default.
 func (m *Model) deletePreset() {
 	v, _ := m.own()
-	saved := slices.DeleteFunc(slices.Clone(m.saved[m.stages[m.stage].name]), func(w table.Preset) bool {
-		return w.Name == v.Name
-	})
-	if !m.keep(saved, "deleted") {
+	if !m.keep(m.viewsOf(m.stage).Delete(v.Name), "deleted") {
 		return
 	}
-	vs := m.views(m.stage)
-	m.apply(vs[slices.IndexFunc(vs, func(w table.Preset) bool { return w.Name == Opening })])
+	m.apply(m.viewsOf(m.stage).Chosen(Opening))
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
@@ -553,9 +445,9 @@ func (m *Model) choosePreset(k int) {
 	case itemSave:
 		m.saveAs(v.Name)
 	case itemSaveAs, itemRename:
-		s.savingAs, s.naming, s.renaming = true, v.Name, ""
+		s.SavingAs, s.Naming, s.Renaming = true, v.Name, ""
 		if k == itemRename {
-			s.renaming = v.Name
+			s.Renaming = v.Name
 		}
 		m.onPreset, m.inRows, m.inPanel = true, false, false
 	case itemDelete:

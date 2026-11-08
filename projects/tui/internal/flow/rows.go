@@ -350,7 +350,7 @@ func (m Model) build(i int) shown {
 		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), nil}
 	}
 	records := m.records(s)
-	pinned := func(id string) string { return s.view.Field(id).Rendering }
+	pinned := func(id string) string { return s.View.Field(id).Rendering }
 	all := laid(s.name, records, pinned)
 	rows := p.Filter(all, names)
 	fields := m.placed(i)

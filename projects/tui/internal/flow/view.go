@@ -165,10 +165,10 @@ func (m Model) keys() shell.Path {
 // down. While a name is typed for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus
 // take; enter saves under it, or renames, and esc stops.
 func (m Model) presetKeys() shell.Segment {
-	if st := m.stages[m.stage]; st.savingAs {
+	if st := m.stages[m.stage]; st.SavingAs {
 		s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
 		does := "save"
-		if st.renaming != "" {
+		if st.Renaming != "" {
 			does = "rename"
 		}
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", does, "enter"), shell.Bind("esc", "cancel"))
@@ -196,20 +196,20 @@ func (m Model) rowKeys() shell.Segment {
 	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
 		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
 	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) {
+	if s.Cursor >= len(rows) {
 		return seg
 	}
 	every := m.every(m.stage)
-	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
+	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
 	switch {
-	case m.opens(every, at) && s.open.Unfolds(rows[s.cursor]):
+	case m.opens(every, at) && s.Open.Unfolds(rows[s.Cursor]):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "collapse", "left"))
 	case m.opens(every, at):
 		seg.Bindings = append(seg.Bindings, shell.Bind("→", "expand", "right"))
-	case grid.Parent(rows, s.cursor) >= m.first(m.stage):
+	case grid.Parent(rows, s.Cursor) >= m.first(m.stage):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}
-	if grid.Heads(rows[s.cursor]) {
+	if grid.Heads(rows[s.Cursor]) {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "a level", "alt+left", "alt+right"))
 	}
 	return seg
@@ -310,7 +310,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 		return nil, false
 	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
-		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.open[headerKey])
+		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Open[headerKey])
 		for k := range lines {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 		}
@@ -425,11 +425,11 @@ func (m Model) laid() (texts []string, places []place) {
 		window[i] = l.text
 	}
 	head := m.head(lines, h)
-	window = pane.Lines(window, s.offset, h, head, "   ")
+	window = pane.Lines(window, s.Offset, h, head, "   ")
 	for r := range window {
-		k := pane.At(len(lines), h, s.offset, r)
+		k := pane.At(len(lines), h, s.Offset, r)
 		if r == 0 && head != "" {
-			k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+			k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.Cursor })
 		}
 		if k >= 0 {
 			k += skip
@@ -474,7 +474,7 @@ func (m Model) frozenLines(i int) int {
 		return 0
 	}
 	s := m.stages[i]
-	return len(grid.Draw(m.rows(i)[:k], m.names(i), m.gridWidth(i), -1, s.open.Open, func(row) string { return "" }))
+	return len(grid.Draw(m.rows(i)[:k], m.names(i), m.gridWidth(i), -1, s.Open.Open, func(row) string { return "" }))
 }
 
 // placeAt gives the place of the screen line y in the pane under the control line, as laid gives it, and whether y
@@ -541,9 +541,9 @@ func (m Model) head(lines []line, h int) string {
 		return ""
 	}
 	s := m.stages[m.stage]
-	start, _, above, _ := pane.Window(len(lines), h, s.offset)
-	first := slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
-	if !above || first < 0 || first >= start || lines[start].row != s.cursor {
+	start, _, above, _ := pane.Window(len(lines), h, s.Offset)
+	first := slices.IndexFunc(lines, func(l line) bool { return l.row == s.Cursor })
+	if !above || first < 0 || first >= start || lines[start].row != s.Cursor {
 		return ""
 	}
 	return lines[first].text
@@ -576,8 +576,8 @@ func (m Model) allLines(i int) []line {
 		return []line{{-1, lead + style.Off(empty(s))}}
 	}
 	chosen := -1
-	if m.inRows && i == m.stage && s.cursor < len(rows) {
-		chosen = s.cursor
+	if m.inRows && i == m.stage && s.Cursor < len(rows) {
+		chosen = s.Cursor
 	}
 	if m.built == nil || m.built.width != m.paneWidth() {
 		return m.draw(i, rows, chosen)
@@ -598,11 +598,11 @@ func (m Model) drawnFor(i int, rows []row, chosen int) string {
 	s := m.stages[i]
 	var b strings.Builder
 	fmt.Fprintf(&b, "%p %d %d %d", &rows[0], len(rows), chosen, m.gridWidth(i))
-	for _, k := range slices.Sorted(maps.Keys(s.open)) {
-		fmt.Fprintf(&b, "\x00o%s=%t", k, s.open[k])
+	for _, k := range slices.Sorted(maps.Keys(s.Open)) {
+		fmt.Fprintf(&b, "\x00o%s=%t", k, s.Open[k])
 	}
-	for _, k := range slices.Sorted(maps.Keys(s.picked)) {
-		if s.picked[k] {
+	for _, k := range slices.Sorted(maps.Keys(s.Picked)) {
+		if s.Picked[k] {
 			fmt.Fprintf(&b, "\x00p%s", k)
 		}
 	}
@@ -614,12 +614,12 @@ func (m Model) draw(i int, rows []row, chosen int) []line {
 	s := m.stages[i]
 	marked, _ := style.In(stageColors[s.name])
 	groups := m.groupMarks(i)
-	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.open.Open,
+	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.Open.Open,
 		func(r row) string {
 			switch {
 			case grid.Heads(r) && groups[r.Key] != "":
 				return marked(groups[r.Key])
-			case s.picked[r.Key] && !r.Aside:
+			case s.Picked[r.Key] && !r.Aside:
 				return marked(grid.Chosen)
 			}
 			return ""
@@ -681,12 +681,12 @@ func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetL
 // while the line has the keyboard, as the line under the keyboard in a menu is.
 func (m Model) presetLine() string {
 	on := m.onPreset && !m.inPanel
-	if st := m.stages[m.stage]; on && st.savingAs {
+	if st := m.stages[m.stage]; on && st.SavingAs {
 		label := SavingAs
-		if st.renaming != "" {
+		if st.Renaming != "" {
 			label = Renaming
 		}
-		return style.Off(label) + " " + st.naming + "▏"
+		return style.Off(label) + " " + st.Naming + "▏"
 	}
 	back := stageColors[m.stages[m.stage].name]
 	if on {
@@ -715,7 +715,7 @@ const selectorFocus = "14"
 func (m Model) chips(i int) []string {
 	var out []string
 	for _, f := range fieldsOf(m.stages[i].name) {
-		filter := m.stages[i].view.Field(f.ID).Filter
+		filter := m.stages[i].View.Field(f.ID).Filter
 		if len(filter.Values) == 0 {
 			continue
 		}

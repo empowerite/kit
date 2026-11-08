@@ -126,7 +126,7 @@ func (m Model) filterValues(f table.Field) []string {
 	}
 	slices.Sort(seen)
 	out = append(append(out, seen...), grid.NoValue)
-	for _, v := range m.stages[m.stage].view.Field(f.ID).Filter.Values {
+	for _, v := range m.stages[m.stage].View.Field(f.ID).Filter.Values {
 		if !slices.Contains(out, v) {
 			out = append(out, v)
 		}

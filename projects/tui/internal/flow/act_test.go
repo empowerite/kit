@@ -52,7 +52,7 @@ func selecting(t *testing.T) (Model, string) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40}, down)
-	m.stages[0].picked["#45"], m.stages[0].picked["#46"] = true, true
+	m.stages[0].Picked["#45"], m.stages[0].Picked["#46"] = true, true
 	if got := m.refs(); !slices.Equal(got, []string{"#45", "#46"}) {
 		t.Fatalf("selected: %q", got)
 	}
@@ -179,7 +179,7 @@ func TestAddToPullRequestPicksOneOfTheCallersOwn(t *testing.T) {
 	}
 	// someone with no open pull request has nothing to add to: the item is dim
 	m.me = "nobody"
-	m.stages[0].picked["#7"] = true
+	m.stages[0].Picked["#7"] = true
 	m = drive(m, press(':'))
 	if k := item(m, "Add to Pull Request…"); k < 0 || m.enabled(k) {
 		t.Errorf("add to pull request for a caller with none: %d", k)
@@ -215,7 +215,7 @@ func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 // and below it, and a click picks the item it shows there.
 func TestATallMenuScrollsWithTheKeyboardAndAClickPicksWhatItShows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 16}, down)
-	m.stages[0].picked["#45"] = true
+	m.stages[0].Picked["#45"] = true
 	m = drive(m, press(':'))
 	box, _, first := m.menuBoxIn()
 	if len(box) != 16-1-m.menuTop() || first != 0 || !strings.Contains(ansi.Strip(box[len(box)-1]), "▾") ||

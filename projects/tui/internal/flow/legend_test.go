@@ -194,8 +194,8 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 		}
 	}
 	// a click on the legend off its arrows does nothing; one off it, the screen takes; F1 hides it
-	before := m.stages[m.stage].cursor
-	if m = drive(m, testkit.Click(left+2, top+1)); !m.legend.open || m.legend.at != bottomRight || m.stages[m.stage].cursor != before {
+	before := m.stages[m.stage].Cursor
+	if m = drive(m, testkit.Click(left+2, top+1)); !m.legend.open || m.legend.at != bottomRight || m.stages[m.stage].Cursor != before {
 		t.Errorf("a click on the legend: open %v, at %d", m.legend.open, m.legend.at)
 	}
 	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyF1}); m.legend.open || strings.Contains(view(m), "backlog legend") {

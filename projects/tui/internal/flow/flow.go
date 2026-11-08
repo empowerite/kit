@@ -54,32 +54,18 @@ type Options struct {
 
 // stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
 type stage struct {
-	name    string
-	src     source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
-	refusal string              // kit's line, when the command failed
-	issues  []issue
-	under   []underway
-	in      *incoming
-	desk    *checkout
-	trees   *worktrees
-	pulls   []pull
-	runs    []run
-	rels    []release
-	cursor  int             // the row under the cursor, kept while another stage is shown
-	offset  int             // the first line of the pane
-	open    grid.Outline    // which of its headings, rows, and its header stand open, as outline.go says
-	picked  map[string]bool // the rows selected, by key, several at once, which the tab's menu acts on
-	// the view its preset line was last set to, and the name typed for Save As… or Rename… while the person names a
-	// preset, and the person's view Rename… renames
-	viewName string
-	naming   string
-	savingAs bool
-	renaming string
-	view     grid.Panel // the stage's panel: its search, what it says of each field, and its cursor
-	// whether the view the stage was last set to still waits for rows to group by, as it loads, as autoGroup says;
-	// and the view as autoGroup left it, which the preset line names as the view still
-	grouping bool
-	grouped  *table.Preset
+	name        string
+	src         source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
+	refusal     string              // kit's line, when the command failed
+	issues      []issue
+	under       []underway
+	in          *incoming
+	desk        *checkout
+	trees       *worktrees
+	pulls       []pull
+	runs        []run
+	rels        []release
+	table.Table // its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 }
 
 // known names the stages kittui draws.
@@ -160,7 +146,7 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	if err != nil {
 		return Model{}, err
 	}
-	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: presetsFile(), History: shell.RecentFile()}
+	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: table.PresetsPath(), History: shell.RecentFile()}
 	for _, word := range words {
 		if word == "--no-fetch" {
 			o.NoFetch = true
@@ -190,13 +176,13 @@ func New(r kit.Runner, o Options) Model {
 	m.note.Done = err == nil
 	m.rebuild()
 	for _, name := range o.Stages {
-		s := stage{name: name, src: m.stageLoad(name), open: grid.Outline{}, picked: map[string]bool{},
-			viewName: Opening, grouping: true}
+		s := stage{name: name, src: m.stageLoad(name),
+			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
 		if !known[name] {
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		if c := catalog[name]; c != nil {
-			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.view)
+			s.View = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.View)
 		}
 		m.stages = append(m.stages, s)
 	}
@@ -235,7 +221,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if !n.onPreset {
 		for i := range n.stages {
-			n.stages[i].savingAs, n.stages[i].naming, n.stages[i].renaming = false, "", ""
+			n.stages[i].SavingAs, n.stages[i].Naming, n.stages[i].Renaming = false, "", ""
 		}
 	}
 	if fade := n.note.Fading(m.note, fades); fade != nil {
@@ -461,17 +447,17 @@ func (m Model) panel(i int) grid.Panel {
 // people, and the caller's login; the columns it offers are drawn from the rows, so it has none.
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
-	p := s.view
+	p := s.View
 	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
 	p.Labels = labelsOf(s.name)
-	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.open, m.fold, m.glyphs
+	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.Open, m.fold, m.glyphs
 	return p
 }
 
 // setPanel keeps what the selected stage's panel became; the rows are let through again, and the cursor stays within
 // them.
 func (m *Model) setPanel(p grid.Panel) {
-	m.stages[m.stage].view = p
+	m.stages[m.stage].View = p
 	m.rebuild()
 	m.clamp(m.stage)
 	m.fit()
@@ -483,7 +469,7 @@ func (m *Model) enterPanel() tea.Cmd {
 		return nil
 	}
 	m.inPanel = true
-	m.stages[m.stage].view = m.panel(m.stage).Find()
+	m.stages[m.stage].View = m.panel(m.stage).Find()
 	return nil
 }
 
@@ -534,8 +520,8 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 		return nil
 	}
 	if _, hides := m.header(); hides && !group && h == 0 && x == foldCell {
-		next := maps.Clone(s.open)
-		next[headerKey] = !s.open[headerKey]
+		next := maps.Clone(s.Open)
+		next[headerKey] = !s.Open[headerKey]
 		m.reoutline(next)
 		return nil
 	}
@@ -563,23 +549,23 @@ func (m *Model) selectRow(keep bool) {
 		return
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) {
+	if s.Cursor >= len(rows) {
 		return
 	}
-	keys := []string{rows[s.cursor].Key}
+	keys := []string{rows[s.Cursor].Key}
 	switch {
-	case grid.Heads(rows[s.cursor]):
+	case grid.Heads(rows[s.Cursor]):
 		every := m.every(m.stage)
-		keys = groupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key }))
-	case rows[s.cursor].Aside:
+		keys = groupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key }))
+	case rows[s.Cursor].Aside:
 		return
 	}
-	all := !slices.ContainsFunc(keys, func(k string) bool { return !s.picked[k] })
+	all := !slices.ContainsFunc(keys, func(k string) bool { return !s.Picked[k] })
 	for _, key := range keys {
 		if keep || !all {
-			s.picked[key] = true
+			s.Picked[key] = true
 		} else {
-			delete(s.picked, key)
+			delete(s.Picked, key)
 		}
 	}
 }
@@ -591,13 +577,13 @@ func (m *Model) selectAll() {
 	}
 	s, rows := &m.stages[m.stage], m.every(m.stage)
 	all := m.selected() == counted(rows)
-	clear(s.picked)
+	clear(s.Picked)
 	if all {
 		return
 	}
 	for _, r := range rows {
 		if !r.Aside {
-			s.picked[r.Key] = true
+			s.Picked[r.Key] = true
 		}
 	}
 }
@@ -611,7 +597,7 @@ func (m Model) selectedRows() []row {
 	var out []row
 	seen := map[string]bool{}
 	for _, r := range m.every(m.stage) {
-		if m.stages[m.stage].picked[r.Key] && !r.Aside && !seen[r.Key] {
+		if m.stages[m.stage].Picked[r.Key] && !r.Aside && !seen[r.Key] {
 			seen[r.Key] = true
 			out = append(out, r)
 		}
@@ -632,7 +618,7 @@ func (m *Model) scrollRows(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	s.offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.rowsHeight(), s.offset+n)
+	s.Offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.rowsHeight(), s.Offset+n)
 }
 
 // askMe runs kit flow --me, once, for the limit at most.
@@ -691,7 +677,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		if m.inRows {
 			s := &m.stages[m.stage]
-			s.cursor, s.offset, m.inRows = 0, 0, false
+			s.Cursor, s.Offset, m.inRows = 0, 0, false
 		}
 		m.fit()
 	case "?", "f1":
@@ -936,24 +922,24 @@ func (m *Model) autoGroup(name string) {
 		return
 	}
 	s := &m.stages[i]
-	if !s.grouping || s.src.Loading || s.refusal != "" {
+	if !s.Grouping || s.src.Loading || s.refusal != "" {
 		return
 	}
-	s.grouping = false
+	s.Grouping = false
 	var all []row
 	if s.name == "incoming" {
 		all = incomingRows(*s)
 	} else {
-		all = laid(s.name, m.records(*s), func(id string) string { return s.view.Field(id).Rendering })
+		all = laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering })
 	}
 	p := m.panel(i)
 	next := p.AutoGrouped(all, columnsOf(s.name))
 	if len(next.Groups()) == len(p.Groups()) {
 		return
 	}
-	s.view = next
+	s.View = next
 	grouped := m.current(i)
-	s.grouped = &grouped
+	s.Grouped = &grouped
 	m.rebuild()
 }
 
@@ -1077,11 +1063,11 @@ func refusalOf(name string, err error) string {
 // which it never stands on there; past the last row where only that heading shows.
 func (m *Model) clamp(i int) {
 	s, first := &m.stages[i], m.first(i)
-	if n := len(m.rows(i)); s.cursor >= n {
-		s.cursor = max(first, n-1)
+	if n := len(m.rows(i)); s.Cursor >= n {
+		s.Cursor = max(first, n-1)
 	}
 	if m.inRows && i == m.stage {
-		s.cursor = max(s.cursor, first)
+		s.Cursor = max(s.Cursor, first)
 	}
 }
 
@@ -1091,12 +1077,12 @@ func (m *Model) up(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	if first := m.first(m.stage); s.cursor-n < first {
+	if first := m.first(m.stage); s.Cursor-n < first {
 		// past the first row, the preset line has the keyboard, or the bar when the stage has none
-		s.cursor, s.offset, m.inRows = 0, 0, false
+		s.Cursor, s.Offset, m.inRows = 0, 0, false
 		m.onPreset = m.presets(m.stage)
 	} else {
-		s.cursor -= n
+		s.Cursor -= n
 	}
 	m.fit()
 }
@@ -1113,15 +1099,15 @@ func (m *Model) down(n int) {
 	if rows <= first {
 		return
 	}
-	s.cursor = max(s.cursor, first)
+	s.Cursor = max(s.Cursor, first)
 	if !m.inRows {
 		m.inRows = true
 		n--
-		for s.cursor+n < rows-1 && grid.Heads(all[s.cursor+n]) {
+		for s.Cursor+n < rows-1 && grid.Heads(all[s.Cursor+n]) {
 			n++
 		}
 	}
-	s.cursor = min(s.cursor+n, rows-1)
+	s.Cursor = min(s.Cursor+n, rows-1)
 	m.fit()
 }
 
@@ -1151,7 +1137,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
 	fold := first && link == "" && slices.Contains(foldsAt(rows[row]), x)
-	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
+	s.Cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case strings.HasPrefix(link, jumps):
 		m.fit()
@@ -1159,14 +1145,14 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	case link != "":
 		m.fit()
 		return m.openPage(link)
-	case fold && subtree && s.open.Unfolds(rows[row]):
+	case fold && subtree && s.Open.Unfolds(rows[row]):
 		m.peel()
 		m.fit()
 	case fold && subtree:
 		m.grow()
 		m.fit()
 	case fold:
-		m.disclose(!s.open.Unfolds(rows[row]), false)
+		m.disclose(!s.Open.Unfolds(rows[row]), false)
 		m.fit()
 	default:
 		m.fit()
@@ -1223,7 +1209,7 @@ func (m *Model) jump(to string) {
 	}
 	m.choose(tabs.Bar{Selected: i, Scroll: m.barView})
 	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
-		m.stages[i].cursor = k
+		m.stages[i].Cursor = k
 	}
 	m.fit()
 }
@@ -1240,23 +1226,23 @@ func (m *Model) page(d int) {
 	all := m.lines(m.stage)
 	first, last := -1, -1
 	for k, l := range all {
-		if l.row == s.cursor {
+		if l.row == s.Cursor {
 			if first < 0 {
 				first = k
 			}
 			last = k
 		}
 	}
-	start, end, _, _ := pane.Window(len(all), m.rowsHeight(), s.offset)
+	start, end, _, _ := pane.Window(len(all), m.rowsHeight(), s.Offset)
 	switch {
 	case first >= 0 && d > 0 && last >= end:
-		s.offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), s.offset+h)
+		s.Offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), s.Offset+h)
 	case first >= 0 && d < 0 && first < start:
-		s.offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), max(first, s.offset-h))
+		s.Offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), max(first, s.Offset-h))
 	case d > 0:
 		m.down(h)
 	default:
-		s.cursor = max(m.first(m.stage), s.cursor-h)
+		s.Cursor = max(m.first(m.stage), s.Cursor-h)
 		m.fit()
 	}
 }
@@ -1270,13 +1256,13 @@ func (m *Model) fit() {
 	s := &m.stages[m.stage]
 	lines := m.lines(m.stage)
 	h := m.rowsHeight()
-	s.offset, _, _, _ = pane.Window(len(lines), h, s.offset)
+	s.Offset, _, _, _ = pane.Window(len(lines), h, s.Offset)
 	if !m.inRows {
 		return
 	}
 	first, last := -1, -1
 	for k, l := range lines {
-		if l.row == s.cursor {
+		if l.row == s.Cursor {
 			if first < 0 {
 				first = k
 			}
@@ -1289,12 +1275,12 @@ func (m *Model) fit() {
 	// Scroll until the cursor's row shows whole, or its first line and as much as the pane holds; a … line takes the
 	// place of a row at either edge, so the window is asked rather than counted.
 	for {
-		start, end, _, _ := pane.Window(len(lines), h, s.offset)
+		start, end, _, _ := pane.Window(len(lines), h, s.Offset)
 		switch {
 		case first < start:
-			s.offset = first
+			s.Offset = first
 		case last >= end && first > start:
-			s.offset++
+			s.Offset++
 		default:
 			return
 		}

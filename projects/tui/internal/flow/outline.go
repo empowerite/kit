@@ -78,8 +78,8 @@ func (m *Model) reoutline(next grid.Outline) {
 		}
 		return out
 	}
-	was := chain(m.rows(m.stage), s.cursor)
-	s.open = next
+	was := chain(m.rows(m.stage), s.Cursor)
+	s.Open = next
 	m.rebuild()
 	rows := m.rows(m.stage)
 	// the cursor's row under the same headings, else the nearest heading over it that shows
@@ -94,7 +94,7 @@ func (m *Model) reoutline(next grid.Outline) {
 		return -1
 	}
 	if k := found(); k >= 0 {
-		s.cursor = k
+		s.Cursor = k
 	}
 	m.clamp(m.stage)
 	m.fit()
@@ -107,16 +107,16 @@ func (m *Model) disclose(open, subtree bool) bool {
 		return false
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) {
+	if s.Cursor >= len(rows) {
 		return false
 	}
 	every := m.every(m.stage)
-	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
+	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
 	end := at + 1
 	if subtree {
 		end = grid.Span(every, at)
 	}
-	next, changed := maps.Clone(s.open), false
+	next, changed := maps.Clone(s.Open), false
 	for j := at; j < end; j++ {
 		if m.opens(every, j) && next.Unfolds(every[j]) != open {
 			unfoldNode(next, every[j], open)
@@ -157,14 +157,14 @@ func (m *Model) expand(open, subtree bool) {
 		return
 	}
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) {
+	if s.Cursor >= len(rows) {
 		return
 	}
-	switch next := s.cursor + 1; {
-	case open && next < len(rows) && grid.Parent(rows, next) == s.cursor:
-		s.cursor = next
-	case !open && grid.Parent(rows, s.cursor) >= m.first(m.stage):
-		s.cursor = grid.Parent(rows, s.cursor)
+	switch next := s.Cursor + 1; {
+	case open && next < len(rows) && grid.Parent(rows, next) == s.Cursor:
+		s.Cursor = next
+	case !open && grid.Parent(rows, s.Cursor) >= m.first(m.stage):
+		s.Cursor = grid.Parent(rows, s.Cursor)
 	default:
 		return
 	}
@@ -178,16 +178,16 @@ func (m Model) under() (every []row, at int, depth func(j int) (int, bool)) {
 		return nil, -1, nil
 	}
 	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.cursor >= len(rows) {
+	if s.Cursor >= len(rows) {
 		return nil, -1, nil
 	}
 	every = m.every(m.stage)
-	at = slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
+	at = slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
 	depth = func(j int) (int, bool) {
 		n, shows := 0, true
 		for p := grid.Parent(every, j); p >= at; p = grid.Parent(every, p) {
 			n++
-			shows = shows && s.open.Unfolds(every[p])
+			shows = shows && s.Open.Unfolds(every[p])
 		}
 		return n, shows
 	}
@@ -207,11 +207,11 @@ func (m *Model) grow() bool {
 	deepest := -1
 	for j := at; j < grid.Span(every, at); j++ {
 		// the heading over the groups counts as open, as it always stands so
-		if d, shows := depth(j); shows && s.open.Unfolds(every[j]) && (m.opens(every, j) || grid.OverGroups(every[j])) {
+		if d, shows := depth(j); shows && s.Open.Unfolds(every[j]) && (m.opens(every, j) || grid.OverGroups(every[j])) {
 			deepest = max(deepest, d)
 		}
 	}
-	next, changed := maps.Clone(s.open), false
+	next, changed := maps.Clone(s.Open), false
 	for j := at; j < grid.Span(every, at); j++ {
 		if d, _ := depth(j); d <= deepest+1 && m.opens(every, j) && !next.Unfolds(every[j]) {
 			unfoldNode(next, every[j], true)
@@ -236,7 +236,7 @@ func (m *Model) peel() bool {
 	deepest, closing := -1, []int(nil)
 	for j := at; j < grid.Span(every, at); j++ {
 		d, shows := depth(j)
-		if !shows || !m.opens(every, j) || !s.open.Unfolds(every[j]) || d < deepest {
+		if !shows || !m.opens(every, j) || !s.Open.Unfolds(every[j]) || d < deepest {
 			continue
 		}
 		if d > deepest {
@@ -247,7 +247,7 @@ func (m *Model) peel() bool {
 	if len(closing) == 0 {
 		return false
 	}
-	next := maps.Clone(s.open)
+	next := maps.Clone(s.Open)
 	for _, j := range closing {
 		next[every[j].Key] = false
 	}
@@ -276,7 +276,7 @@ func (m Model) groupMarks(i int) map[string]string {
 			continue
 		}
 		keys := groupRows(every, j)
-		switch n := len(slices.DeleteFunc(slices.Clone(keys), func(k string) bool { return !s.picked[k] })); {
+		switch n := len(slices.DeleteFunc(slices.Clone(keys), func(k string) bool { return !s.Picked[k] })); {
 		case n > 0 && n == len(keys):
 			marks[r.Key] = grid.Chosen
 		case n > 0:
@@ -308,10 +308,10 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 		return nil, false
 	}
 	s, every := m.stages[m.stage], m.every(m.stage)
-	next := maps.Clone(s.open)
+	next := maps.Clone(s.Open)
 	over := map[string]bool{} // the headings over a selected row
 	for j, r := range every {
-		if s.picked[r.Key] && !r.Aside {
+		if s.Picked[r.Key] && !r.Aside {
 			for p := grid.Parent(every, j); p >= 0; p = grid.Parent(every, p) {
 				over[every[p].Key] = true
 			}
@@ -324,7 +324,7 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 		if !m.opens(every, j) {
 			continue
 		}
-		picked := s.picked[r.Key] && !r.Aside
+		picked := s.Picked[r.Key] && !r.Aside
 		switch name {
 		case "Expand All":
 			next[r.Key] = true
@@ -358,14 +358,14 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 func (m Model) changes(next grid.Outline) bool {
 	s, every := m.stages[m.stage], m.every(m.stage)
 	for j, r := range every {
-		if m.opens(every, j) && next.Unfolds(r) != s.open.Unfolds(r) {
+		if m.opens(every, j) && next.Unfolds(r) != s.Open.Unfolds(r) {
 			return true
 		}
 	}
 	for d := 0; d <= len(m.panel(m.stage).Groups()); d++ {
-		if next.Shows(d) != s.open.Shows(d) {
+		if next.Shows(d) != s.Open.Shows(d) {
 			return true
 		}
 	}
-	return next[headerKey] != s.open[headerKey]
+	return next[headerKey] != s.Open[headerKey]
 }

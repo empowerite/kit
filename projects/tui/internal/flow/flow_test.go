@@ -112,7 +112,7 @@ var toggle tea.Msg = toggleMsg{}
 // toggleKey gives the key toggle sends for the row under the cursor.
 func (m Model) toggleKey() tea.KeyPressMsg {
 	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.cursor < len(rows) && s.open[rows[s.cursor].Key] {
+	if s.Cursor < len(rows) && s.Open[rows[s.Cursor].Key] {
 		return left
 	}
 	return right
@@ -384,8 +384,8 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "42-settings") }); y != m.rowsTop()+1 {
 		t.Fatalf("the second row is drawn on line %d, not %d", y, m.rowsTop()+1)
 	}
-	if m = drive(m, click(6, m.rowsTop()+1)); !m.inRows || m.find("worktrees").cursor != 1 {
-		t.Fatalf("a click on the second row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
+	if m = drive(m, click(6, m.rowsTop()+1)); !m.inRows || m.find("worktrees").Cursor != 1 {
+		t.Fatalf("a click on the second row: in rows %v, cursor %d", m.inRows, m.find("worktrees").Cursor)
 	}
 	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a click on the row under the cursor opened it:\n%s", view(m))
@@ -396,14 +396,14 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(foldCell, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a click on its ▾ did not close it:\n%s", view(m))
 	}
-	if m = drive(m, click(6, m.top())); m.find("worktrees").cursor != 0 || m.stage != 3 {
-		t.Errorf("a click on the first row: cursor %d, stage %d", m.find("worktrees").cursor, m.stage)
+	if m = drive(m, click(6, m.top())); m.find("worktrees").Cursor != 0 || m.stage != 3 {
+		t.Errorf("a click on the first row: cursor %d, stage %d", m.find("worktrees").Cursor, m.stage)
 	}
 	before := view(m)
 	m = drive(m, press('?'))
 	for _, c := range []tea.Msg{click(m.paneWidth()+4, 1), click(6, 0), click(6, 23),
 		tea.MouseClickMsg{X: 6, Y: m.top() + 1, Button: tea.MouseRight}} {
-		if m = drive(m, c); m.find("worktrees").cursor != 0 || strings.Contains(view(m), style.Opened) {
+		if m = drive(m, c); m.find("worktrees").Cursor != 0 || strings.Contains(view(m), style.Opened) {
 			t.Errorf("%v moved the cursor or opened a row:\n%s", c, view(m))
 		}
 	}
@@ -412,11 +412,11 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	}
 	// on a short pane, the … line above is no row's
 	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 8}, right, right, right, down, down, down)
-	if m.find("worktrees").cursor != 2 || !strings.Contains(lines(m)[m.top()], "above") {
-		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").cursor, view(m))
+	if m.find("worktrees").Cursor != 2 || !strings.Contains(lines(m)[m.top()], "above") {
+		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").Cursor, view(m))
 	}
-	if m = drive(m, click(6, m.top())); m.find("worktrees").cursor != 2 {
-		t.Errorf("a click on … above moved the cursor to %d:\n%s", m.find("worktrees").cursor, view(m))
+	if m = drive(m, click(6, m.top())); m.find("worktrees").Cursor != 2 {
+		t.Errorf("a click on … above moved the cursor to %d:\n%s", m.find("worktrees").Cursor, view(m))
 	}
 }
 
@@ -458,12 +458,12 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 		t.Errorf("down once more:\n%s", view(m))
 	}
 	m = drive(m, down, down, down)
-	if m.find("worktrees").cursor != 3 {
-		t.Errorf("down past the last row: %d", m.find("worktrees").cursor)
+	if m.find("worktrees").Cursor != 3 {
+		t.Errorf("down past the last row: %d", m.find("worktrees").Cursor)
 	}
 	m = drive(m, up, up, up)
-	if !m.inRows || m.find("worktrees").cursor != 0 {
-		t.Errorf("up to the first row: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
+	if !m.inRows || m.find("worktrees").Cursor != 0 {
+		t.Errorf("up to the first row: in rows %v, cursor %d", m.inRows, m.find("worktrees").Cursor)
 	}
 	m = drive(m, up)
 	if m.inRows || cursor(m) != "" {
@@ -484,8 +484,8 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 			t.Errorf("the open worktree lacks %q:\n%s", want, v)
 		}
 	}
-	if !m.find("worktrees").open["/home/kit/worktrees/1-the-first-release-v0-1-0"] {
-		t.Errorf("the row is not open by its key: %v", m.find("worktrees").open)
+	if !m.find("worktrees").Open["/home/kit/worktrees/1-the-first-release-v0-1-0"] {
+		t.Errorf("the row is not open by its key: %v", m.find("worktrees").Open)
 	}
 	// right on an open row and enter keep it open; left closes it, and again keeps it closed
 	if m = drive(m, right, press(tea.KeyEnter)); !strings.Contains(view(m), "f6f51bc") {
@@ -502,8 +502,8 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 	}
 	// an incoming row is a leaf
 	m = drive(m, right, right, down, toggle)
-	if n := len(lines(m)); n != 24 || len(m.find("incoming").open) != 0 {
-		t.Errorf("a leaf opened: %d lines, open %v", n, m.find("incoming").open)
+	if n := len(lines(m)); n != 24 || len(m.find("incoming").Open) != 0 {
+		t.Errorf("a leaf opened: %d lines, open %v", n, m.find("incoming").Open)
 	}
 }
 
@@ -870,8 +870,8 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 	}
 	// every row is a leaf, the headings too
 	m = drive(m, down, toggle, down, toggle)
-	if len(m.find("incoming").open) != 0 {
-		t.Errorf("an incoming row opened: %v", m.find("incoming").open)
+	if len(m.find("incoming").Open) != 0 {
+		t.Errorf("an incoming row opened: %v", m.find("incoming").Open)
 	}
 	// a remote whose fetch failed shows git's line, in red, and is no row of the count
 	m.find("incoming").in.Remotes[0].Error = "fatal: could not read from remote repository"
@@ -990,25 +990,25 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 8})
 	// a page is the pane less one row: two rows here
 	m = drive(m, press(tea.KeyPgUp))
-	if !m.inRows || m.find("worktrees").cursor != 0 {
-		t.Errorf("page up: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
+	if !m.inRows || m.find("worktrees").Cursor != 0 {
+		t.Errorf("page up: in rows %v, cursor %d", m.inRows, m.find("worktrees").Cursor)
 	}
 	// a page never leaves the rows: up past the first row stays on it, at the top
 	m = drive(m, press(tea.KeyPgUp))
-	if !m.inRows || m.find("worktrees").cursor != 0 || !strings.Contains(view(m), "1-the-first-release") {
+	if !m.inRows || m.find("worktrees").Cursor != 0 || !strings.Contains(view(m), "1-the-first-release") {
 		t.Errorf("page up past the first row left it, or the top:\n%s", view(m))
 	}
 	// on the bar, a page does nothing
-	if b := drive(m, up, press(tea.KeyPgDown), press(tea.KeyPgUp)); b.inRows || b.find("worktrees").cursor != 0 {
-		t.Errorf("a page on the bar: in rows %v, cursor %d", b.inRows, b.find("worktrees").cursor)
+	if b := drive(m, up, press(tea.KeyPgDown), press(tea.KeyPgUp)); b.inRows || b.find("worktrees").Cursor != 0 {
+		t.Errorf("a page on the bar: in rows %v, cursor %d", b.inRows, b.find("worktrees").Cursor)
 	}
 	m = drive(m, press(tea.KeyPgDown))
-	if !m.inRows || m.find("worktrees").cursor != 2 {
-		t.Errorf("page down: in rows %v, cursor %d", m.inRows, m.find("worktrees").cursor)
+	if !m.inRows || m.find("worktrees").Cursor != 2 {
+		t.Errorf("page down: in rows %v, cursor %d", m.inRows, m.find("worktrees").Cursor)
 	}
 	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown))
-	if m.find("worktrees").cursor != 3 {
-		t.Errorf("page down past the last row: cursor %d", m.find("worktrees").cursor)
+	if m.find("worktrees").Cursor != 3 {
+		t.Errorf("page down past the last row: cursor %d", m.find("worktrees").Cursor)
 	}
 }
 
@@ -1221,7 +1221,7 @@ func TestAnOpenCheckoutFillsThePaneAndPagesThroughEveryCommit(t *testing.T) {
 	}
 	v := view(m)
 	if !strings.Contains(v, "c0ffeeb #45 status: the eleventh") || !strings.Contains(v, "… and 1 more") ||
-		m.find("desk").cursor != 0 || !m.inRows {
+		m.find("desk").Cursor != 0 || !m.inRows {
 		t.Errorf("page down did not reach the last commit within the row:\n%s", v)
 	}
 }
@@ -1275,7 +1275,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
 	// worktrees is the fourth stage; its first row, opened, is taller than a pane on a short screen
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, toggle)
-	if m.stage != 3 || m.find("worktrees").cursor != 0 || !strings.Contains(view(m), " more") {
+	if m.stage != 3 || m.find("worktrees").Cursor != 0 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
 	bare := func(s string) string {
@@ -1283,12 +1283,12 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	}
 	head := style.Opened + " 1-the-first-release"
 	seen := map[string]bool{}
-	for k := 0; k < 20 && m.find("worktrees").cursor == 0; k++ {
+	for k := 0; k < 20 && m.find("worktrees").Cursor == 0; k++ {
 		for _, l := range lines(m) {
 			seen[bare(l)] = true
 		}
 		// scrolled into the row, its own line stays on the pane's first line, where … above would be
-		if pane := lines(m)[4]; m.find("worktrees").offset > 0 && (!strings.Contains(pane, head) || strings.Contains(pane, "above")) {
+		if pane := lines(m)[4]; m.find("worktrees").Offset > 0 && (!strings.Contains(pane, head) || strings.Contains(pane, "above")) {
 			t.Errorf("the open row's line is not pinned atop the pane:\n%s", view(m))
 		}
 		m = drive(m, press(tea.KeyPgDown))
@@ -1299,7 +1299,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 			t.Errorf("page down never showed %q", ansi.Strip(l.text))
 		}
 	}
-	if m.find("worktrees").cursor == 0 {
+	if m.find("worktrees").Cursor == 0 {
 		t.Fatalf("page down never left the open row")
 	}
 	// past the row, the pane says … above again
@@ -1307,10 +1307,10 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 		t.Errorf("past the open row, the pane's first line is not … above:\n%s", view(m))
 	}
 	// page up comes back through the same row, to the top of the pane
-	for k := 0; k < 20 && (m.find("worktrees").cursor != 0 || m.find("worktrees").offset > 0); k++ {
+	for k := 0; k < 20 && (m.find("worktrees").Cursor != 0 || m.find("worktrees").Offset > 0); k++ {
 		m = drive(m, press(tea.KeyPgUp))
 	}
-	if m.find("worktrees").cursor != 0 || m.find("worktrees").offset != 0 || !strings.Contains(lines(m)[4], head) {
+	if m.find("worktrees").Cursor != 0 || m.find("worktrees").Offset != 0 || !strings.Contains(lines(m)[4], head) {
 		t.Errorf("page up did not return to the open row's first line:\n%s", view(m))
 	}
 }
@@ -1372,7 +1372,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 		t.Errorf("the jobs' durations are not right-aligned:\n%s", v)
 	}
 	if b := m.find("builds"); strings.Contains(v, "https://") ||
-		m.rows(slices.Index(eight, "builds"))[b.cursor].Cells[0].Link != "https://github.com/empowerite/kit/actions/runs/41309409467" {
+		m.rows(slices.Index(eight, "builds"))[b.Cursor].Cells[0].Link != "https://github.com/empowerite/kit/actions/runs/41309409467" {
 		t.Errorf("the run's page is not its state's glyph's:\n%s", v)
 	}
 	// a first attempt says nothing of it
@@ -1491,7 +1491,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	// the pull request's glyph leads to its row under changes, the state's to its page, the title's to the issue's
 	links := func(m Model) (string, string) {
-		r := m.rows(1)[m.find("underway").cursor]
+		r := m.rows(1)[m.find("underway").Cursor]
 		if r.Cells[3].Link != jumpTo("changes", "#2") && r.Cells[3].Link != jumpTo("changes", "#4") {
 			t.Errorf("the pull request's glyph leads to %q", r.Cells[3].Link)
 		}
@@ -1508,8 +1508,8 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		strings.Contains(v, Desk+" /") {
 		t.Errorf("the open row elsewhere:\n%s", v)
 	}
-	if s := m.find("underway"); s.open["#8 #4"] || grid.Opens(m.rows(1), nil, s.cursor, m.paneWidth()) {
-		t.Errorf("a row elsewhere with a short title opens: %v", s.open)
+	if s := m.find("underway"); s.Open["#8 #4"] || grid.Opens(m.rows(1), nil, s.Cursor, m.paneWidth()) {
+		t.Errorf("a row elsewhere with a short title opens: %v", s.Open)
 	}
 	// the URLs kit prints win, as a merge request's on GitLab
 	s := m.find("underway")
@@ -1553,23 +1553,23 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
 	m := loaded(t, bare(), right, down, down)
 	at := func(m Model, glyph string) int {
-		return cellsOf(lines(m)[m.rowLine(m.find("underway").cursor)], glyph)[0]
+		return cellsOf(lines(m)[m.rowLine(m.find("underway").Cursor)], glyph)[0]
 	}
-	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.rowLine(m.find("underway").cursor)
+	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.rowLine(m.find("underway").Cursor)
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {
 		t.Fatalf("a click on the state: %v\n%s", browsed, view(m))
 	}
 	m = drive(m, testkit.Click(change, y))
-	if s := m.stages[m.stage]; s.name != "changes" || !m.inRows || m.rows(m.stage)[s.cursor].Key != "#4" ||
+	if s := m.stages[m.stage]; s.name != "changes" || !m.inRows || m.rows(m.stage)[s.Cursor].Key != "#4" ||
 		len(browsed) != 1 {
-		t.Fatalf("a click on the pull request: %s, row %d:\n%s", s.name, s.cursor, view(m))
+		t.Fatalf("a click on the pull request: %s, row %d:\n%s", s.name, s.Cursor, view(m))
 	}
 	// a pull request changes does not hold leaves its cursor where it was
-	before := m.stages[m.stage].cursor
-	if m.jump("changes/999"); m.stages[m.stage].cursor != before {
-		t.Errorf("a jump to no row moved the cursor to %d", m.stages[m.stage].cursor)
+	before := m.stages[m.stage].Cursor
+	if m.jump("changes/999"); m.stages[m.stage].Cursor != before {
+		t.Errorf("a jump to no row moved the cursor to %d", m.stages[m.stage].Cursor)
 	}
 	if m.jump("nonesuch/1"); m.stages[m.stage].name != "changes" {
 		t.Errorf("a jump to no stage moved to %s", m.stages[m.stage].name)

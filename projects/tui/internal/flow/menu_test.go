@@ -22,7 +22,7 @@ import (
 // opened gives how many of the selected stage's rows are open.
 func openRows(m Model) int {
 	n := 0
-	for key, open := range m.stages[m.stage].open {
+	for key, open := range m.stages[m.stage].Open {
 		if open && key != headerKey && !strings.HasPrefix(key, "group\x00") {
 			n++
 		}
@@ -172,8 +172,8 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 		t.Errorf("a click on collapse all: menu %v, open %d", m.tabMenu.Open, openRows(m))
 	}
 	// a click off the menu closes it, and does nothing else
-	before := m.stages[m.stage].cursor
-	if m = drive(m, glyph, testkit.Click(2, m.top()+8)); m.tabMenu.Open || m.stages[m.stage].cursor != before {
+	before := m.stages[m.stage].Cursor
+	if m = drive(m, glyph, testkit.Click(2, m.top()+8)); m.tabMenu.Open || m.stages[m.stage].Cursor != before {
 		t.Errorf("a click off the menu: menu %v", m.tabMenu.Open)
 	}
 }
@@ -246,10 +246,10 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
 	m := loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
-	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].cursor) }
-	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || pinned(m) != m.headerTop()+2 ||
+	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].Cursor) }
+	if s := m.stages[m.stage]; !m.inRows || s.Offset == 0 || pinned(m) != m.headerTop()+2 ||
 		!strings.HasPrefix(lines(m)[pinned(m)], "  "+style.Opened) {
-		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
+		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.Offset, view(m))
 	}
 	opened := openRows(m)
 	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
@@ -278,14 +278,14 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	// the header stays over the rows while they scroll under it
 	header := drawn[top : top+2]
 	m = drive(m, down, down, down, down, down, down)
-	if got := lines(m)[m.headerTop() : m.headerTop()+2]; !slices.Equal(got, header) || m.stages[m.stage].offset == 0 ||
+	if got := lines(m)[m.headerTop() : m.headerTop()+2]; !slices.Equal(got, header) || m.stages[m.stage].Offset == 0 ||
 		m.headerTop() != m.rowsTop() {
-		t.Errorf("the header scrolled with the rows, offset %d:\n%s", m.stages[m.stage].offset, view(m))
+		t.Errorf("the header scrolled with the rows, offset %d:\n%s", m.stages[m.stage].Offset, view(m))
 	}
 	// a click on the header chooses no row
-	before := m.stages[m.stage].cursor
-	if m = drive(m, testkit.Click(5, m.headerTop())); m.stages[m.stage].cursor != before {
-		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].cursor)
+	before := m.stages[m.stage].Cursor
+	if m = drive(m, testkit.Click(5, m.headerTop())); m.stages[m.stage].Cursor != before {
+		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].Cursor)
 	}
 	// a column the panel hides has no name over it
 	m.setPanel(m.panel(m.stage).Placed("uncommitted", grid.Hidden))
@@ -316,11 +316,11 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 		top != m.rowsTop()+1 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+2, top)); !m.stages[0].open[headerKey] || tall(m) <= 2 ||
+	if m = drive(m, testkit.Click(len(in)+2, top)); !m.stages[0].Open[headerKey] || tall(m) <= 2 ||
 		!strings.HasPrefix(lines(m)[top], in+"  ▾") || m.inRows {
 		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+2, top)); m.stages[0].open[headerKey] {
+	if m = drive(m, testkit.Click(len(in)+2, top)); m.stages[0].Open[headerKey] {
 		t.Error("a second click did not close it")
 	}
 	// Expand All opens it with the rows, and Collapse All closes it, the group over the rows folded with them
@@ -328,21 +328,21 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	if !m.enabled(item(m, "Expand All")) {
 		t.Errorf("expand all %v over a closed header", m.enabled(item(m, "Expand All")))
 	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].open[headerKey] {
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].Open[headerKey] {
 		t.Error("expand all left the header closed")
 	}
 	if m = drive(m, press(':')); !m.enabled(item(m, "Collapse All")) {
 		t.Error("collapse all is dim over an open header")
 	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.stages[0].open[headerKey] || tall(m) != 2 {
+	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.stages[0].Open[headerKey] || tall(m) != 2 {
 		t.Errorf("collapse all left the header open:\n%s", view(m))
 	}
 	// a click on the header off its gutter, or on its rule, does nothing; the group open again, down has a row to go to
-	m.stages[0].open = grid.Outline{}
+	m.stages[0].Open = grid.Outline{}
 	m.rebuild()
-	before := m.stages[0].cursor
-	if m = drive(m, down, testkit.Click(12, m.headerTop()), testkit.Click(len(in)+1, m.headerTop()+1)); m.stages[0].open[headerKey] ||
-		m.stages[0].cursor != before+1 {
+	before := m.stages[0].Cursor
+	if m = drive(m, down, testkit.Click(12, m.headerTop()), testkit.Click(len(in)+1, m.headerTop()+1)); m.stages[0].Open[headerKey] ||
+		m.stages[0].Cursor != before+1 {
 		t.Error("a click on the header's names or rule did something")
 	}
 }
@@ -368,11 +368,11 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("space again: %d selected", m.selected())
 	}
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
-	if m.selected() != 2 || m.stages[0].cursor != 1 || gutter(1) != grid.Chosen {
-		t.Errorf("shift-down: %d selected, cursor %d\n%s", m.selected(), m.stages[0].cursor, view(m))
+	if m.selected() != 2 || m.stages[0].Cursor != 1 || gutter(1) != grid.Chosen {
+		t.Errorf("shift-down: %d selected, cursor %d\n%s", m.selected(), m.stages[0].Cursor, view(m))
 	}
-	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}); m.selected() != 2 || m.stages[0].cursor != 0 {
-		t.Errorf("shift-up: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}); m.selected() != 2 || m.stages[0].Cursor != 0 {
+		t.Errorf("shift-up: %d selected, cursor %d", m.selected(), m.stages[0].Cursor)
 	}
 	ctrlA := tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
 	if m = drive(m, ctrlA); m.selected() != 3 {
@@ -382,8 +382,8 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("ctrl+a again: %d selected", m.selected())
 	}
 	// a click moves the cursor and selects nothing
-	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].cursor != 2 {
-		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
+	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].Cursor != 2 {
+		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].Cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
 	on := func(name string) bool {
@@ -413,7 +413,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	// space on a group's heading selects every row of the group, those folded away too, its heading marked ▣, and
 	// again none; with some selected, ◩ marks it. Off the rows, space selects nothing
 	m.setPanel(regroup(grid.Panel{Groupable: groupableOf("backlog")}, "source"))
-	m.stages[0].cursor = 1
+	m.stages[0].Cursor = 1
 	m = drive(m, left)
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[1].Key] != grid.Chosen ||
 		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+" "+grid.Folded) {
@@ -437,7 +437,7 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	if m.tabItems()[4].Name != "Expand Selected" || m.tabItems()[5].Name != "Collapse Selected" || m.enabled(5) {
 		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:6])
 	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].open[m.rows(m.stage)[0].Key] {
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].Open[m.rows(m.stage)[0].Key] {
 		t.Errorf("expand selected opened %d", openRows(m))
 	}
 	if m = drive(m, press(':')); m.enabled(4) || !m.enabled(5) {
@@ -448,13 +448,13 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	}
 	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	s.open[rows[0].Key], s.open[rows[1].Key] = true, true
+	s.Open[rows[0].Key], s.Open[rows[1].Key] = true, true
 	if m = drive(m, press(':')); m.tabItems()[6].Name != "Collapse Others" || !m.enabled(6) {
 		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[6], m.enabled(6))
 	}
 	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
-		!m.stages[m.stage].open[rows[0].Key] || m.tabMenu.Open {
-		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].open[rows[0].Key])
+		!m.stages[m.stage].Open[rows[0].Key] || m.tabMenu.Open {
+		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[0].Key])
 	}
 	if m = drive(m, press(':')); m.enabled(item(m, "Collapse Others")) {
 		t.Error("collapse others with no row not selected open is not dim")

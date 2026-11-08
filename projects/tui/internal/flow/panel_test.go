@@ -170,15 +170,15 @@ func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
 	// #45 stands under source's heading, two cells in
 	y := rowY(m, "#45")
-	if m = drive(m, testkit.Click(m.indent(0), y)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(m.indent(0), y)); m.stages[0].Open["#45"] {
 		t.Fatalf("a click on #45's selection cell opened it")
 	}
 	gutter := m.indent(0) + foldCell
-	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].cursor != 2 ||
-		!m.stages[0].open["#45"] {
-		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
+	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].Cursor != 2 ||
+		!m.stages[0].Open["#45"] {
+		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].Cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(gutter, y)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(gutter, y)); m.stages[0].Open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 }
@@ -203,7 +203,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	x := ansi.StringWidth(first[:strings.Index(first, Issue+" kit flow is")])
 	browsed = nil
 	if m = drive(m, testkit.Click(x, y)); len(browsed) != 1 ||
-		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].open["#45"] {
+		browsed[0] != "https://github.com/empowerite/kit/issues/45" || !m.inRows || m.stages[0].Open["#45"] {
 		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
 	}
 	// a page the browser cannot open says why in place of the keys, until the next key
@@ -244,14 +244,14 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, right, right, right, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
-	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").offset == 0 || m.find("worktrees").cursor != 0 {
-		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").offset, m.find("worktrees").cursor, view(m))
+	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").Offset == 0 || m.find("worktrees").Cursor != 0 {
+		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").Offset, m.find("worktrees").Cursor, view(m))
 	}
-	if m = drive(m, turn(tea.MouseWheelUp), turn(tea.MouseWheelUp)); m.find("worktrees").offset != 0 {
-		t.Errorf("the wheel up past the top: offset %d", m.find("worktrees").offset)
+	if m = drive(m, turn(tea.MouseWheelUp), turn(tea.MouseWheelUp)); m.find("worktrees").Offset != 0 {
+		t.Errorf("the wheel up past the top: offset %d", m.find("worktrees").Offset)
 	}
 	// on the bar, or with no stage, the wheel scrolls nothing
-	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("worktrees").offset != 0 {
+	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("worktrees").Offset != 0 {
 		t.Errorf("the wheel on the bar scrolled the rows")
 	}
 	loaded(t, Options{}, turn(tea.MouseWheelDown))
@@ -438,12 +438,12 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	count, rows := m.count(m.stage), len(m.rows(m.stage))
 	// left on the heading over the groups folds nothing
-	m.stages[m.stage].cursor, m.inRows = 0, true
+	m.stages[m.stage].Cursor, m.inRows = 0, true
 	if m = drive(m, left); len(m.rows(m.stage)) != rows {
 		t.Fatalf("left on the heading over the groups: %d rows of %d", len(m.rows(m.stage)), rows)
 	}
 	// the cursor on source's heading, github's
-	m.stages[m.stage].cursor = 1
+	m.stages[m.stage].Cursor = 1
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
@@ -455,7 +455,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	}
 	heading := ansi.Strip(m.rows(m.stage)[1].Cells[0].Values[0])
 	if len(m.rows(m.stage)) != 2 || !strings.HasPrefix(heading, grid.Folded+" ") || m.count(m.stage) != count ||
-		m.stages[m.stage].cursor != 1 {
+		m.stages[m.stage].Cursor != 1 {
 		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
 	}
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ expand") {

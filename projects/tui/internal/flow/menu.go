@@ -155,12 +155,12 @@ func (m *Model) pick(k int) tea.Cmd {
 	case "Open Selected":
 		return m.openPages(m.pages())
 	case "Select All":
-		clear(s.picked)
+		clear(s.Picked)
 		m.selectAll()
 		return nil
 	}
 	// Clear Selection, the one item left that acts
-	clear(s.picked)
+	clear(s.Picked)
 	return nil
 }
 

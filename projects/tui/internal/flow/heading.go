@@ -111,8 +111,8 @@ func (m Model) levelAt(x int) (int, bool) {
 // heading over it that shows, as reoutline says.
 func (m *Model) toggleLevel(depth int) {
 	s := m.stages[m.stage]
-	next := maps.Clone(s.open)
-	if s.open.Shows(depth) {
+	next := maps.Clone(s.Open)
+	if s.Open.Shows(depth) {
 		next[grid.LevelKey(depth)] = false
 	} else {
 		for d := 0; d <= depth; d++ {

@@ -33,11 +33,11 @@ func columns(stage string, ids ...string) []table.Placed {
 // asCatalog pins each of stage i's fields to its first rendering, so the rows draw each as the catalog first does, its
 // glyph and all, whatever the rows share and the width.
 func asCatalog(m *Model, i int) {
-	p := m.stages[i].view
+	p := m.stages[i].View
 	for _, f := range fieldsOf(m.stages[i].name) {
 		p = p.Rendered(f.ID, f.Renderings[0])
 	}
-	m.stages[i].view = p
+	m.stages[i].View = p
 	m.rebuild()
 }
 

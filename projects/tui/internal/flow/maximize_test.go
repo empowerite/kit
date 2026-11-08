@@ -116,15 +116,15 @@ func TestRestorePutsTheBarBack(t *testing.T) {
 	// the rows scrolled, the cursor on the last row, one row selected
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 10}, down, down, press(tea.KeySpace), down,
 		down)
-	before, cursor, offset := m.View().Content, m.stages[m.stage].cursor, m.stages[m.stage].offset
+	before, cursor, offset := m.View().Content, m.stages[m.stage].Cursor, m.stages[m.stage].Offset
 	if offset == 0 || m.selected() != 1 {
 		t.Fatalf("the rows are not scrolled (%d) with one selected (%d):\n%s", offset, m.selected(), raw(m))
 	}
-	if m = maximize(t, m); m.View().Content == before || m.stages[m.stage].cursor != cursor || !m.inRows {
-		t.Fatalf("maximized, the cursor %d, rows %v:\n%s", m.stages[m.stage].cursor, m.inRows, raw(m))
+	if m = maximize(t, m); m.View().Content == before || m.stages[m.stage].Cursor != cursor || !m.inRows {
+		t.Fatalf("maximized, the cursor %d, rows %v:\n%s", m.stages[m.stage].Cursor, m.inRows, raw(m))
 	}
-	if m = maximize(t, m); m.maximized || m.View().Content != before || m.stages[m.stage].cursor != cursor ||
-		m.stages[m.stage].offset != offset {
+	if m = maximize(t, m); m.maximized || m.View().Content != before || m.stages[m.stage].Cursor != cursor ||
+		m.stages[m.stage].Offset != offset {
 		t.Errorf("restored:\n%s\nbefore:\n%s", raw(m), ansi.Strip(before))
 	}
 }
@@ -139,8 +139,8 @@ func TestClicksFollowTheTop(t *testing.T) {
 	m = drive(m, esc)
 	// a click on a row puts the cursor on it
 	y := slices.IndexFunc(lines(m), func(l string) bool { return strings.Contains(l, "#46") })
-	if m = drive(m, testkit.Click(10, y)); !m.inRows || m.rowLine(m.stages[m.stage].cursor) != y {
-		t.Fatalf("a click on #46, line %d: rows %v, cursor %d\n%s", y, m.inRows, m.stages[m.stage].cursor, raw(m))
+	if m = drive(m, testkit.Click(10, y)); !m.inRows || m.rowLine(m.stages[m.stage].Cursor) != y {
+		t.Fatalf("a click on #46, line %d: rows %v, cursor %d\n%s", y, m.inRows, m.stages[m.stage].Cursor, raw(m))
 	}
 	// a click on the line under the title selects no tab, as the bar there would
 	if m = drive(m, testkit.Click(25, 1)); m.stage != 0 || !m.inRows {

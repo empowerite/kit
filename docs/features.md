@@ -191,6 +191,14 @@ see: [modules.md](modules.md#writing-a-verb)
 
 see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
 
+## Workspaces
+
+- A workspace is one repository, or a named group of them. `kit workspaces` lists your groups and favorites, shows a
+  group's members with their checkouts, and edits `kit/workspaces.yml`, your comments kept.
+- Inside a repository, kit starts on that repository; outside one, on the last group used.
+
+see: [workspaces.md](workspaces.md)
+
 ## Toolchains
 
 - `kit toolchains` lists the toolchains kit found where it runs, and records which one to use.

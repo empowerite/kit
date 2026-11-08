@@ -43,7 +43,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if rule := ansi.Strip(m.rule()); !strings.HasPrefix(rule, strings.Repeat(" ", m.indent(0)+len(lead))+"─") {
 		t.Errorf("the rule does not start at the first column: %q", rule)
 	}
-	m.stages[0].cursor = 2
+	m.stages[0].Cursor = 2
 	if m = drive(m, testkit.Click(spots[1].from+1, m.top())); !m.colMenu.Open || !m.colMenu.heading ||
 		m.colMenu.column != "assignees" || m.inRows || len(m.rows(0)) != all {
 		t.Fatalf("a click on assignees: menu %+v, in rows %v, %d rows of %d", m.colMenu, m.inRows, len(m.rows(0)), all)
@@ -62,9 +62,9 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	// drops none, nor does the keys bar offer one
 	all = len(m.rows(0))
 	y := rowY(m, m.rows(0)[1].Key)
-	if m = drive(m, testkit.Click(8, y)); m.colMenu.Open || len(m.rows(0)) != all || m.stages[0].cursor != 1 {
+	if m = drive(m, testkit.Click(8, y)); m.colMenu.Open || len(m.rows(0)) != all || m.stages[0].Cursor != 1 {
 		t.Fatalf("a click on a value's heading: menu %v, %d rows of %d, cursor %d", m.colMenu.Open, len(m.rows(0)), all,
-			m.stages[0].cursor)
+			m.stages[0].Cursor)
 	}
 	fold := foldAt(m.rows(0)[1])
 	if m = drive(m, testkit.Click(fold, y)); m.colMenu.Open || len(m.rows(0)) != 2 {
@@ -201,7 +201,7 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	}
 	// assignees' again shows everything as it was: ada's heading still closed
 	if m = drive(m, testkit.Click(spots[1].from-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != r1 }() ||
-		m.stages[0].open.Open(m.rows(0)[ada]) {
+		m.stages[0].Open.Open(m.rows(0)[ada]) {
 		s, a, r := levels(m)
 		t.Fatalf("assignees opened again: %d sources, %d assignees, %d rows, were %d %d %d\n%s", s, a, r, s0, a0, r1,
 			view(m))
@@ -237,7 +237,7 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	}
 	// Expand All opens every level
 	m = drive(m, testkit.Click(rows, m.top()))
-	m.stages[0].cursor, m.inRows = 1, true
+	m.stages[0].Cursor, m.inRows = 1, true
 	if next, _ := m.folding("Expand All"); !next.Shows(len(m.panel(0).Groups())) {
 		t.Errorf("expand all leaves the rows closed: %v", next)
 	}
@@ -258,9 +258,9 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 	}
 	// down to the last row: the rows scroll under the header, which stays, under github's heading
 	m = drive(m, down, down, down, down, down, down, down, down, down)
-	if s := m.stages[0]; s.offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+1 ||
+	if s := m.stages[0]; s.Offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+1 ||
 		!strings.Contains(lines(m)[m.headerTop()+2], "above") {
-		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.offset, view(m))
+		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.Offset, view(m))
 	}
 	// a click on github's ▾, frozen, folds it, and the header goes, as no row shows
 	if m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != -1 {
@@ -280,7 +280,7 @@ func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
 	m := nested(t)
 	open, _, _ := strings.Cut(style.Band("x", 1), "x")
 	for _, k := range []int{1, 3} {
-		m.stages[0].cursor, m.inRows = k, true
+		m.stages[0].Cursor, m.inRows = k, true
 		m.rebuild()
 		l := m.allLines(0)[slices.IndexFunc(m.allLines(0), func(l line) bool { return l.row == k })]
 		if open == "" || !strings.HasPrefix(l.text, open) || ansi.StringWidth(l.text) != m.paneWidth() {
@@ -300,7 +300,7 @@ func TestAHeadingAcrossFoldsByEitherFold(t *testing.T) {
 		t.Fatalf("ada's line: %q, folds at %v", text, folds)
 	}
 	all, y := len(m.rows(0)), rowY(m, m.rows(0)[k].Key)
-	if m = drive(m, testkit.Click(folds[1], y)); len(m.rows(0)) != all-1 || m.stages[0].open.Open(m.rows(0)[k]) {
+	if m = drive(m, testkit.Click(folds[1], y)); len(m.rows(0)) != all-1 || m.stages[0].Open.Open(m.rows(0)[k]) {
 		t.Fatalf("a click on github's fold on ada's line: %d rows of %d", len(m.rows(0)), all)
 	}
 	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all {

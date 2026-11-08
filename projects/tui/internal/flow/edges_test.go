@@ -74,13 +74,13 @@ func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, toggle,
 		press(tea.KeyPgDown))
 	s := m.find("worktrees")
-	if s.cursor != 0 || s.offset == 0 {
-		t.Fatalf("page down did not scroll into the open row: cursor %d, offset %d", s.cursor, s.offset)
+	if s.Cursor != 0 || s.Offset == 0 {
+		t.Fatalf("page down did not scroll into the open row: cursor %d, offset %d", s.Cursor, s.Offset)
 	}
-	before := s.offset
+	before := s.Offset
 	m = drive(m, press(tea.KeyPgUp))
-	if s := m.find("worktrees"); s.cursor != 0 || s.offset >= before {
-		t.Errorf("page up inside the row: cursor %d, offset %d from %d", s.cursor, s.offset, before)
+	if s := m.find("worktrees"); s.Cursor != 0 || s.Offset >= before {
+		t.Errorf("page up inside the row: cursor %d, offset %d from %d", s.Cursor, s.Offset, before)
 	}
 }
 
