@@ -697,7 +697,7 @@ func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 }
 
 func TestTheGlyphsAreTwoCellsWithoutAVariationSelector(t *testing.T) {
-	glyphs := []string{Repository, Passed, Failed, pageGlyph}
+	glyphs := []string{shell.Books, Passed, Failed, pageGlyph}
 	for _, t := range known {
 		glyphs = append(glyphs, t.glyph)
 	}
@@ -887,8 +887,9 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 		!strings.HasSuffix(strings.Split(view(m), "\n")[0], shell.Find+" search") {
 		t.Errorf("title:\n%s", view(m))
 	}
-	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got, "  "+shell.App+" kit welcome ") ||
-		strings.Contains(got, "·") {
+	// with no repository known, the control is 📚 alone, which still drops down what to switch to
+	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got,
+		"  "+shell.App+" kit welcome · "+shell.Books+" ") || strings.Contains(got, "/") {
 		t.Errorf("title without a repository:\n%s", got)
 	}
 }

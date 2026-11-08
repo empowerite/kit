@@ -84,7 +84,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		{tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
-		next, cmd := welcome.Open(testkit.Runner(t, "welcome")).Update(c.key)
+		next, cmd := welcome.Open(testkit.Runner(t, "welcome"), kit.Workspace{}).Update(c.key)
 		if cmd == nil || cmd() != tea.Quit() {
 			t.Errorf("%s did not quit", c.key)
 		}

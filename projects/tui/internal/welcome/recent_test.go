@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -42,7 +43,7 @@ func TestWelcomesSearchIsRememberedAndRecalled(t *testing.T) {
 	if m = drive(m, testkit.Click(left+3, 1)); m.recent.Open || m.search().Query != "jq" {
 		t.Errorf("a click on jq: %q", m.search().Query)
 	}
-	if got := Open(m.runner); got.recent.Path != shell.RecentFile() {
+	if got := Open(m.runner, kit.Workspace{}); got.recent.Path != shell.RecentFile() {
 		t.Errorf("Open remembers in %q", got.recent.Path)
 	}
 }

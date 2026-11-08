@@ -80,7 +80,7 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 		m, err := flow.Open(r, words)
 		return shell.Flow, m, err
 	case "welcome":
-		return shell.Welcome, welcome.Open(r), nil
+		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil
 	case "tutorials":
 		return shell.Tutorials, tutorials.Open(r, tags(words)), nil
 	case "help":

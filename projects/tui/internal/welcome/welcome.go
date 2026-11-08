@@ -133,36 +133,40 @@ type note struct {
 
 // Model is the welcome screen.
 type Model struct {
-	runner   kit.Runner
-	ctx      context.Context                           // ends with the screen, and the checks still running with it
-	cancel   context.CancelFunc                        // ends ctx
-	exec     func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
-	repo     string                                    // owner/repo, for the title, empty when unknown
-	tabs     []tab                                     // the steps, in order: the known ones until the pages are read
-	step     int                                       // the selected step
-	inPane   bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
-	barView  int                                       // the cells the bar's view has scrolled past, as the bar last chose
-	places   []string                                  // the check each step's cursor was on when it was left
-	checking source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
-	checks   []kit.Check
-	refusal  string // kit's line, when the checks did not run
-	cursor   int    // the check under the cursor, an index into checks, in the selected step
-	choice   int    // now or later, on a row that offers them
-	deferred map[string]bool
-	notes    map[string]note
-	offsets  []int // the first line of each step's pane
-	width    int
-	height   int
-	appMenu  shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
-	searches map[string]shell.Search // each step's search, internal/shell's, by the step's id
-	recent   shell.Recent            // the searches remembered, every screen's, and their dropdown
+	runner    kit.Runner
+	ctx       context.Context                           // ends with the screen, and the checks still running with it
+	cancel    context.CancelFunc                        // ends ctx
+	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
+	repo      string                                    // owner/repo, for the title until kit says, empty when unknown
+	workspace kit.Workspace                             // the workspace kittui opened the screen on, zero while unknown
+	books     shell.BooksMenu                           // the title's 📚 control, which has the keyboard while it is open
+	tabs      []tab                                     // the steps, in order: the known ones until the pages are read
+	step      int                                       // the selected step
+	inPane    bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
+	barView   int                                       // the cells the bar's view has scrolled past, as the bar last chose
+	places    []string                                  // the check each step's cursor was on when it was left
+	checking  source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
+	checks    []kit.Check
+	refusal   string // kit's line, when the checks did not run
+	cursor    int    // the check under the cursor, an index into checks, in the selected step
+	choice    int    // now or later, on a row that offers them
+	deferred  map[string]bool
+	notes     map[string]note
+	offsets   []int // the first line of each step's pane
+	width     int
+	height    int
+	appMenu   shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
+	searches  map[string]shell.Search // each step's search, internal/shell's, by the step's id
+	recent    shell.Recent            // the searches remembered, every screen's, and their dropdown
 
 	interrupted bool
 }
 
-// Open opens the screen in the directory the runner names, with owner/repo read from git.
-func Open(r kit.Runner) Model {
+// Open opens the screen in the directory the runner names, with owner/repo read from git, on the workspace kittui
+// says, the zero one while it does not know.
+func Open(r kit.Runner, ws kit.Workspace) Model {
 	m := New(r, readRepo(r.Dir))
+	m.workspace, m.books.Workspace = ws, ws
 	m.recent = shell.Recent{Path: shell.RecentFile()}.Loaded()
 	return m
 }
@@ -174,7 +178,7 @@ func New(r kit.Runner, repo string) Model {
 		deferred: map[string]bool{},
 		notes:    map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
-		searches: map[string]shell.Search{}}
+		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
 }
@@ -196,6 +200,17 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 	}
 	return nil
 }
+
+// pick asks kittui to switch to the workspace picked from the 📚 control, when one was.
+func (m Model) pick(workspace string) tea.Cmd {
+	if workspace == "" {
+		return nil
+	}
+	return shell.Pick(workspace)
+}
+
+// Books gives the title's 📚 control.
+func (m Model) Books() shell.BooksMenu { return m.books }
 
 // Init runs the checks and reads the pages, at once.
 func (m Model) Init() tea.Cmd { return tea.Batch(m.check(), m.read()) }
@@ -227,6 +242,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.fit()
+	case shell.WorkspaceMsg:
+		m.books = m.books.Told(msg)
 	case source.Answer[[]kit.Check]:
 		m.take(msg)
 	case pagesMsg:
@@ -244,6 +261,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 			return m, m.chose(c)
+		case m.books.Open && msg.Button == tea.MouseLeft:
+			var picked string
+			m.books, picked = m.books.Click(msg.X, msg.Y, m.booksAt(), m.width)
+			return m, m.pick(picked)
 		case m.recent.Open && msg.Button == tea.MouseLeft:
 			var query string
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -254,6 +275,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
 			m.appMenu = m.appMenu.Opened()
+			return m, nil
+		case msg.Button == tea.MouseLeft && m.books.On(msg.X, msg.Y, m.booksAt()):
+			m.books = m.books.Opened()
 			return m, nil
 		case msg.Button == tea.MouseLeft && msg.Y == shell.Top && m.recalls() && msg.X == m.recallAt():
 			m.recent = m.recent.Opened()
@@ -446,6 +470,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
+	}
+	if m.books.Open {
+		var picked string
+		m.books, picked = m.books.Key(k)
+		return m, m.pick(picked)
 	}
 	if m.recent.Open {
 		var query string

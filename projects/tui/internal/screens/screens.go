@@ -170,7 +170,7 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 	case shell.Flow:
 		return flow.Open(m.runner, nil)
 	case shell.Welcome:
-		return welcome.Open(m.runner), nil
+		return welcome.Open(m.runner, kit.Workspace{}), nil
 	case shell.Tutorials:
 		return tutorials.Open(m.runner, nil), nil
 	case shell.Help:

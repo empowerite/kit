@@ -17,9 +17,8 @@ import (
 
 // The glyphs the screen draws besides the tabs'.
 const (
-	Repository = "📚" // the repository, owner/name, in the title
-	Passed     = "✅" // a check that passed
-	Failed     = "❌" // a check that failed, and a refusal
+	Passed = "✅" // a check that passed
+	Failed = "❌" // a check that failed, and a refusal
 )
 
 // fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
@@ -52,6 +51,7 @@ func (m Model) View() tea.View {
 	lines = append(lines, m.pane()...)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
+	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	return shell.View(lines, m.height, m.keys().Line(m.width))
 }
 
@@ -70,21 +70,20 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; and origin's
-// owner/repo after its glyph, in its own color, when known.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; then the 📚
+// control, which names the workspace.
 func (m Model) title() string {
-	title := shell.Title(style.Label("kit welcome"), m.appMenu.Open)
-	if m.repo == "" {
-		return title
-	}
-	return title + " · " + Repository + " " + style.Repo(m.repo)
+	return shell.Title(style.Label("kit welcome"), m.appMenu.Open) + " · " + m.books.Label()
 }
+
+// booksAt gives the column the title's 📚 control starts at.
+func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label("kit welcome"), false)) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
 // the step's checks or its page; and the pane while it has the keyboard, or the search, which takes every press while
 // it has it. An open menu takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open || m.recent.Open {
+	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	down := "page"
