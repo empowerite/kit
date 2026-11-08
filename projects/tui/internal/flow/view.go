@@ -4,7 +4,6 @@
 package flow
 
 import (
-	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
@@ -355,7 +353,7 @@ func (m Model) control() (string, int) {
 	left := strings.Repeat(" ", table.BarLeft) + m.barText()
 	if m.presets(m.stage) {
 		tail = m.presetLine()
-		if chips := m.chips(m.stage); len(chips) > 0 {
+		if chips := table.Chips(&m); len(chips) > 0 {
 			// two spaces either side of the chips
 			room := width - ansi.StringWidth(left) - 2 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
 			if room > 1 {
@@ -690,59 +688,6 @@ func (m Model) dropStart() int {
 // down.
 func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetLine()) }
 
-// presetLine gives the preset's selector, at the right end of the control line: the name of the
-// preset the table is set as, and Presets; once the table differs from every preset, the name of the one it was last
-// set to, in italics, as a hint it has left it; or, while a name is typed for Save As… or Rename…, the name with a
-// caret after a dim "save as" or "rename", once the line has the keyboard. The selector is a pill, as a label is: bold
-// black on its tab's color, the preset being the tab's, between half circles in that color; on the menus' bright cyan
-// while the line has the keyboard, as the line under the keyboard in a menu is.
-func (m Model) presetLine() string {
-	on := m.onPreset && !m.inPanel
-	if st := m.stages[m.stage]; on && st.SavingAs {
-		label := SavingAs
-		if st.Renaming != "" {
-			label = Renaming
-		}
-		return style.Off(label) + " " + st.Naming + "▏"
-	}
-	back := stageColors[m.stages[m.stage].name]
-	if on {
-		back = selectorFocus
-	}
-	if is := m.is(m.stage); is != "" {
-		return selectorPill(is, back, false)
-	}
-	return selectorPill(m.chosen(m.stage).Name, back, true)
-}
-
-// selectorPill draws the preset line's selector: the preset's name, in italics or not, and Presets, bold black on
-// back, between half circles in back.
-func selectorPill(name, back string, italic bool) string {
-	text := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(back))
-	return style.PillEnd(style.PillLeft, back) + text.Italic(italic).Render(name) + text.Render(" "+Presets) +
-		style.PillEnd(style.PillRight, back)
-}
-
-// selectorFocus is the color the preset line's selector is drawn on while the line has the keyboard: the menus' bright
-// cyan.
-const selectorFocus = "14"
-
-// chips gives a chip per field the stage's panel filters by, in the catalog's order: its label, a colon, and the
-// values it lets through, or, ¬ before each, those it holds back, in the accent.
-func (m Model) chips(i int) []string {
-	var out []string
-	for _, f := range fieldsOf(m.stages[i].name) {
-		filter := m.stages[i].View.Field(f.ID).Filter
-		if len(filter.Values) == 0 {
-			continue
-		}
-		values := slices.Clone(filter.Values)
-		if filter.Exclude {
-			for k := range values {
-				values[k] = "¬" + values[k]
-			}
-		}
-		out = append(out, style.Tint(cmp.Or(f.Label, f.ID)+": "+strings.Join(values, ", ")))
-	}
-	return out
-}
+// presetLine gives the preset's selector, at the right end of the control line, as table.PresetLine draws it, the
+// line having the keyboard while it does and the search does not.
+func (m Model) presetLine() string { return table.PresetLine(&m, m.onPreset && !m.inPanel) }

@@ -66,14 +66,21 @@ func (m Model) layers() shell.Layers[Model] {
 		},
 		{ // the presets' menu
 			Open: func(m Model) bool { return m.presetsMenu.Open },
-			Key:  model(Model.presetMenuKey),
+			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
+				if chosen := m.presetsMenu.Key(&m, k); chosen >= 0 {
+					m.choosePreset(chosen)
+				}
+				return m, nil
+			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.presetMenuClick(c.X, c.Y)
+				if chosen := m.presetsMenu.Click(&m, c.X, c.Y); chosen >= 0 {
+					m.choosePreset(chosen)
+				}
 				return m, nil, true
 			},
 			Keys: menu,
 			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.presetBox()
+				box, top, left := m.presetsMenu.Box(&m)
 				return shell.Over(lines, box, top, left)
 			},
 		},

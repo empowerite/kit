@@ -38,11 +38,11 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
 	}
 	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees"))
-	if m.dropPresets(); m.presetItems()[itemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
-		m.presetItems()[itemFields+1].Name != "" || !m.presetEnabled(itemFields) {
-		t.Fatalf("the presets' menu: %+v", m.presetItems())
+	if m.presetsMenu = m.presetsMenu.Drop(&m); table.PresetItems(&m)[table.ItemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
+		table.PresetItems(&m)[table.ItemFields+1].Name != "" || !table.PresetEnabled(&m, table.ItemFields) {
+		t.Fatalf("the presets' menu: %+v", table.PresetItems(&m))
 	}
-	if m.choosePreset(itemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
+	if m.choosePreset(table.ItemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
 		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
 	if got := m.cols.Listed(&m); got[0] != "assignees" || got[len(got)-1] != "repository" {

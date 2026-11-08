@@ -109,7 +109,7 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 		t.Errorf("esc from the search: in panel %v, on the line %v", m.inPanel, m.onPreset)
 	}
 	// naming for Save As…, a number is typed, as a name may hold one; a click on a row leaves the line
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	if m = drive(m, typed("2")...); !m.onPreset || m.stage != 0 || m.stages[0].Naming != "2" {
 		t.Errorf("a number on the line: on the line %v, stage %d, %q", m.onPreset, m.stage, m.stages[0].Naming)
 	}
@@ -148,12 +148,12 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// the menu is titled Presets at its left, as a dialog is, not by the preset the table is set as; it stands on the
 	// control line, as the columns dialog does, its right edge on the selector's ▼
-	if box, top, left := m.presetBox(); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+PresetsTitle+" ─") ||
+	if box, top, left := m.presetsMenu.Box(&m); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+table.PresetsTitle+" ─") ||
 		strings.Contains(box[0], Opening) || top != m.top() || left+ansi.StringWidth(box[0]) != m.dropEnd() {
 		t.Errorf("the menu's title, at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
 	// it is in its tab's color, as the selector is, not the menus' own
-	if box, _, _ := m.presetBox(); box[0] != shell.TitledColored(PresetsTitle, ansi.StringWidth(box[0]),
+	if box, _, _ := m.presetsMenu.Box(&m); box[0] != shell.TitledColored(table.PresetsTitle, ansi.StringWidth(box[0]),
 		stageColors["backlog"]) || strings.Contains(strings.Join(box, ""), style.Menu("│")) {
 		t.Errorf("the menu is not in backlog's color: %q", box)
 	}
@@ -162,11 +162,11 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 		t.Fatalf("the presets are not drawn:\n%s", drawn)
 	}
 	names := []string{}
-	for _, i := range m.presetItems() {
+	for _, i := range table.PresetItems(&m) {
 		names = append(names, i.Name)
 	}
 	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
-		m.presetItems()[7].Glyph != Checked || m.presetsMenu.At != 7 {
+		table.PresetItems(&m)[7].Glyph != Checked || m.presetsMenu.At != 7 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
@@ -181,10 +181,10 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	color := stageColors["backlog"]
 	if got := presetText(m); m.is(0) != "" || got != selector("Compact") ||
-		!strings.Contains(controlLine(m), selectorPill("Compact", selectorFocus, true)) {
+		!strings.Contains(controlLine(m), table.SelectorPill("Compact", table.SelectorFocus, true)) {
 		t.Errorf("a change does not italicize the view: %q", got)
 	}
-	if m.onPreset = false; !strings.Contains(controlLine(m), selectorPill("Compact", color, true)) {
+	if m.onPreset = false; !strings.Contains(controlLine(m), table.SelectorPill("Compact", color, true)) {
 		t.Errorf("off the line, the view is not in italics, on the tab's color: %q", controlLine(m))
 	}
 	m.onPreset = true
@@ -192,12 +192,12 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 		t.Errorf("▼ from %d to %d", m.dropStart(), m.dropEnd())
 	}
 	// a stage's own view is never saved over, renamed, or deleted: those lines are dim
-	if m.presetEnabled(itemSave) || m.presetEnabled(itemRename) || m.presetEnabled(itemDelete) {
+	if table.PresetEnabled(&m, table.ItemSave) || table.PresetEnabled(&m, table.ItemRename) || table.PresetEnabled(&m, table.ItemDelete) {
 		t.Error("Save, Rename…, or Delete acts on a stage's own view")
 	}
 	// the menu then opens on Save As…, no name typed for a stage's own view; saving with no name is refused, as is
 	// saving over a stage's own view; the change stays
-	if m = drive(m, press(tea.KeyEnter)); m.presetsMenu.At != itemSaveAs {
+	if m = drive(m, press(tea.KeyEnter)); m.presetsMenu.At != table.ItemSaveAs {
 		t.Errorf("the menu on a changed table opens at %d", m.presetsMenu.At)
 	}
 	m = drive(m, press(tea.KeyEnter))
@@ -281,7 +281,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := m.presetItems(); len(items) != 11 || items[9].Name != "" || items[10].Name != "Triage" ||
+	if items := table.PresetItems(&m); len(items) != 11 || items[9].Name != "" || items[10].Name != "Triage" ||
 		items[10].Glyph != Checked || m.presetsMenu.At != 10 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
@@ -289,7 +289,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// changed, then Save As… again, its name typed already, it is overwritten; up while naming stops, and leaves the
 	// line
 	m.setPanel(m.panel(0).Placed("branch", grid.Column))
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	if !m.stages[0].SavingAs || m.stages[0].Naming != "Triage" || !strings.HasSuffix(presetText(m), SavingAs+" Triage▏") {
 		t.Fatalf("Save As… on Triage: %q", presetText(m))
 	}
@@ -297,7 +297,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "branch") {
 		t.Errorf("overwritten: %s", data)
 	}
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	if m = drive(m, up); m.stages[0].SavingAs || m.onPreset {
 		t.Errorf("up while naming: naming %v, on the line %v", m.stages[0].SavingAs, m.onPreset)
 	}
@@ -324,7 +324,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	if m = drive(m, testkit.Click(m.dropStart()+1, m.presetTop())); !m.presetsMenu.Open || !m.onPreset {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetsMenu.Open, m.onPreset, raw(m))
 	}
-	box, top, left := m.presetBox()
+	box, top, left := m.presetsMenu.Box(&m)
 	if m = drive(m, testkit.Click(left+3, top+9)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetsMenu.Open, m.stages[0].ViewName, box)
 	}
@@ -339,7 +339,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	// a click on Save, dim on a stage's own view, does nothing, the menu left open, as on every dropdown; a click on
 	// Save As… takes a name, and enter saves under it
 	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
-	_, top, left = m.presetBox()
+	_, top, left = m.presetsMenu.Box(&m)
 	if m = drive(m, testkit.Click(left+3, top+3)); m.stages[0].SavingAs || !m.presetsMenu.Open {
 		t.Errorf("a click on Save, dim: naming %v, menu %v", m.stages[0].SavingAs, m.presetsMenu.Open)
 	}
@@ -407,7 +407,7 @@ func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
 		t.Fatalf("the views: %q", names)
 	}
 	m.setPanel(m.panel(0).Placed("branch", grid.Hidden))
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	m = drive(m, typed("Minimal")...)
 	m = drive(m, press(tea.KeyEnter))
 	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"branch"`) || strings.Contains(string(data), `"age"`) {
@@ -545,7 +545,7 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "kit", "presets.json")
 	m := onDropdown(t, file)
 	name := func(n string) Model {
-		m.choosePreset(itemSaveAs)
+		m.choosePreset(table.ItemSaveAs)
 		m.stages[0].Naming = n
 		return drive(m, press(tea.KeyEnter))
 	}
@@ -553,21 +553,21 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	m = name("Other")
 	m.setPanel(m.panel(0).Placed("age", grid.Hidden))
 	m = name("Triage")
-	if m.presetEnabled(itemSave) || !m.presetEnabled(itemRename) || !m.presetEnabled(itemDelete) {
-		t.Fatalf("on Triage as it is: save %v, rename %v, delete %v", m.presetEnabled(itemSave),
-			m.presetEnabled(itemRename), m.presetEnabled(itemDelete))
+	if table.PresetEnabled(&m, table.ItemSave) || !table.PresetEnabled(&m, table.ItemRename) || !table.PresetEnabled(&m, table.ItemDelete) {
+		t.Fatalf("on Triage as it is: save %v, rename %v, delete %v", table.PresetEnabled(&m, table.ItemSave),
+			table.PresetEnabled(&m, table.ItemRename), table.PresetEnabled(&m, table.ItemDelete))
 	}
 	// changed, Save overwrites it
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
-	if !m.presetEnabled(itemSave) {
+	if !table.PresetEnabled(&m, table.ItemSave) {
 		t.Fatal("Save is dim on a changed Triage")
 	}
-	m.choosePreset(itemSave)
+	m.choosePreset(table.ItemSave)
 	if v, _ := m.own(); v.Name != "Triage" || !m.same(0, v, m.current(0)) || !strings.Contains(keysOf(m), Save+" saved the preset Triage") {
 		t.Errorf("Save: %q", keysOf(m))
 	}
 	// Rename… types its name already; a stage's own name and another of the person's are refused
-	m.choosePreset(itemRename)
+	m.choosePreset(table.ItemRename)
 	if !strings.HasSuffix(presetText(m), Renaming+" Triage▏") || !strings.Contains(m.keys().String(), "⏎ rename") {
 		t.Fatalf("Rename…: %q, %q", presetText(m), m.keys().String())
 	}
@@ -584,12 +584,12 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 		t.Errorf("renamed: view %q, %q, %s", m.stages[0].ViewName, m.note.Text, data)
 	}
 	// Delete drops it, and the stage is Default
-	m.choosePreset(itemDelete)
+	m.choosePreset(table.ItemDelete)
 	if data, _ := os.ReadFile(file); strings.Contains(string(data), "Mine") || m.is(0) != Opening ||
 		!strings.Contains(m.note.Text, Deleted+" deleted the preset Mine") {
 		t.Errorf("deleted: %q, is %q, %s", m.note.Text, m.is(0), data)
 	}
-	if m.presetEnabled(itemRename) || m.presetEnabled(itemDelete) {
+	if table.PresetEnabled(&m, table.ItemRename) || table.PresetEnabled(&m, table.ItemDelete) {
 		t.Error("Rename… or Delete acts on Default")
 	}
 }
@@ -598,7 +598,7 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 // time up for an earlier notice leaves a later one.
 func TestANoticeOfWhatWasDoneFades(t *testing.T) {
 	m := onDropdown(t, filepath.Join(t.TempDir(), "presets.json"))
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	m.stages[0].Naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
 	first := m.note.FadeMsg()
@@ -612,7 +612,7 @@ func TestANoticeOfWhatWasDoneFades(t *testing.T) {
 	if m = drive(m, m.note.FadeMsg()); m.note.Text != "" {
 		t.Errorf("the notice stayed: %q", m.note.Text)
 	}
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	m.stages[0].Naming = ""
 	m = drive(m, press(tea.KeyEnter))
 	if m = drive(m, m.note.FadeMsg()); !strings.Contains(m.note.Text, "needs a name") {
@@ -627,14 +627,14 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "presets.json")
 	m := onDropdown(t, file)
-	if m.choosePreset(itemDelete); m.is(0) != Opening || m.note.Text != "" {
+	if m.choosePreset(table.ItemDelete); m.is(0) != Opening || m.note.Text != "" {
 		t.Errorf("Delete on Default: %q", m.note.Text)
 	}
-	m.choosePreset(itemSaveAs)
+	m.choosePreset(table.ItemSaveAs)
 	m.stages[0].Naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
 	rename := func(name string) Model {
-		m.choosePreset(itemRename)
+		m.choosePreset(table.ItemRename)
 		m.stages[0].Naming = name
 		return drive(m, press(tea.KeyEnter))
 	}
@@ -650,7 +650,7 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 		t.Errorf("rename, unwritable: %q", m.note.Text)
 	}
 	m = drive(m, esc)
-	if m.choosePreset(itemDelete); !strings.Contains(m.note.Text, "could not be deleted") || m.stages[0].ViewName != "Mine" {
+	if m.choosePreset(table.ItemDelete); !strings.Contains(m.note.Text, "could not be deleted") || m.stages[0].ViewName != "Mine" {
 		t.Errorf("delete, unwritable: %q", m.note.Text)
 	}
 	// the file cannot be written beside, as a directory stands where it would be; or replaced, as it is a directory
@@ -677,7 +677,7 @@ func TestThePresetLineIsTheTabsColorAndWaitsForTheRows(t *testing.T) {
 		t.Errorf("while backlog loads: header %q, preset line %v\n%s", lines, m.presets(0), view(m))
 	}
 	m = loaded(t, viewing(""))
-	if line, _ := m.control(); !m.presets(0) || !strings.Contains(line, selectorPill(Opening, stageColors["backlog"], false)) {
+	if line, _ := m.control(); !m.presets(0) || !strings.Contains(line, table.SelectorPill(Opening, stageColors["backlog"], false)) {
 		t.Errorf("backlog's preset line: %q", line)
 	}
 }

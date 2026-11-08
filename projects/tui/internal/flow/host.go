@@ -88,6 +88,18 @@ func (m *Model) HeaderHides() bool {
 	return hides
 }
 
+// Views gives the selected stage's views, its own and the person's.
+func (m *Model) Views() table.Views { return m.viewsOf(m.stage) }
+
+// Columnar says whether the selected stage's table has columns the columns dialog lists, loaded.
+func (m *Model) Columnar() bool { return m.columnar(m.stage) }
+
+// Color gives the selected stage's color, its tab's.
+func (m *Model) Color() string { return stageColors[m.stages[m.stage].name] }
+
+// Selector gives the screen columns the preset line's selector stands on, from its first to the one past it.
+func (m *Model) Selector() (from, until int) { return m.dropStart(), m.dropEnd() }
+
 // openPopover opens a field's popover, as table.OpenPopover does, and asks kit for the caller's login the first time,
 // which @me names.
 func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {

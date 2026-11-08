@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -33,33 +32,20 @@ import (
 // Opening is the name of the view a stage opens on, one of its own.
 const Opening = table.Opening
 
-// Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
-// down. FieldsIt is the presets' menu's first item, after its glyph, Fields, and a rule; SaveIt, SaveAs,
-// RenameIt, and DeleteIt follow, Save and Delete after their glyphs, Save and Deleted; those, and Renamed, start what each did says. SavingAs and Renaming stand, dim, before the name
-// typed for Save As… and Rename….
+// The preset line's words and glyphs, internal/table's: Presets ends its selector; the presets' menu's lines; and
+// what each did starts with.
 const (
-	Presets  = "▼"
-	FieldsIt = "Fields…"
-	SaveIt   = "Save"
-	SaveAs   = "Save As…"
-	RenameIt = "Rename…"
-	DeleteIt = "Delete"
-	SavingAs = "save as"
-	Renaming = "rename"
-	Save     = "💾"
-	Renamed  = "📝"
-	Deleted  = "🚮"
-)
-
-// The presets' menu's lines: Fields… and a rule, then those that act on views, before a rule and the views themselves.
-const (
-	itemFields = iota
-	_          // the rule after it
-	itemSave
-	itemSaveAs
-	itemRename
-	itemDelete
-	itemViews // the rule after them; the views follow
+	Presets  = table.Presets
+	FieldsIt = table.FieldsIt
+	SaveIt   = table.SaveIt
+	SaveAs   = table.SaveAs
+	RenameIt = table.RenameIt
+	DeleteIt = table.DeleteIt
+	SavingAs = table.SavingAsWord
+	Renaming = table.RenamingWord
+	Save     = table.Save
+	Renamed  = table.Renamed
+	Deleted  = table.Deleted
 )
 
 // named is a stage's panel as views.json, the views file before presets.json, keeps it, by the columns' labels: the
@@ -281,20 +267,11 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 			m.down(1)
 		}
 	case "enter", "space":
-		m.dropPresets()
+		m.presetsMenu = m.presetsMenu.Drop(m)
 	default:
 		return nil, false
 	}
 	return nil, true
-}
-
-// dropPresets drops the selected stage's presets down, the one the line names under the keyboard, else Save As….
-func (m *Model) dropPresets() {
-	at := slices.IndexFunc(m.presetItems(), func(it shell.Item) bool { return it.Glyph == Checked })
-	if at < 0 {
-		at = itemSaveAs
-	}
-	m.presetsMenu = shell.Dropdown{Open: true, At: at}
 }
 
 // own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
@@ -385,102 +362,33 @@ func (m *Model) deletePreset() {
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
-// presetItems gives the presets' menu: Fields… after its glyph, a rule, Save and Delete after their
-// glyphs, Save As… and Rename… between them without, a rule, the stage's own views, a rule, and the person's, the one the line names checked.
-func (m Model) presetItems() []shell.Item {
-	items := []shell.Item{{Glyph: Fields, Name: FieldsIt}, {}, {Glyph: Save, Name: SaveIt}, {Name: SaveAs},
-		{Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt}, {}}
-	is := m.is(m.stage)
-	for k, v := range m.views(m.stage) {
-		if k == len(m.builtins(m.stage)) {
-			items = append(items, shell.Item{})
-		}
-		glyph := ""
-		if v.Name == is {
-			glyph = Checked
-		}
-		items = append(items, shell.Item{Glyph: glyph, Name: v.Name})
-	}
-	return items
-}
-
-// presetEnabled says whether a line of the presets' menu acts: Fields… while the stage has fields to list; Save while the line was set to a view of the person's
-// own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
-// never.
-func (m Model) presetEnabled(k int) bool {
-	v, own := m.own()
-	switch k {
-	case itemFields:
-		return m.columnar(m.stage)
-	case itemSave:
-		return own && !m.same(m.stage, m.current(m.stage), v)
-	case itemRename, itemDelete:
-		return own
-	}
-	return m.presetItems()[k].Name != ""
-}
-
-// presetMenuKey takes a key while the presets' menu is open, as a dropdown does, and takes the line chosen.
-func (m Model) presetMenuKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	var chosen int
-	if m.presetsMenu, chosen = m.presetsMenu.Key(k, m.presetItems(), m.presetEnabled); chosen >= 0 {
-		m.choosePreset(chosen)
-	}
-	return m, nil
-}
-
 // choosePreset closes the menu and takes its line k: Fields… opens the columns dialog; Save keeps the panel under the person's view the line was set to;
 // Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
 // name; Delete drops it; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
 	m.presetsMenu.Open = false
-	if !m.presetEnabled(k) {
+	if !table.PresetEnabled(m, k) {
 		return
 	}
 	s := &m.stages[m.stage]
 	v, _ := m.own()
 	switch k {
-	case itemFields:
+	case table.ItemFields:
 		m.cols = table.Columns{Open: true}
-	case itemSave:
+	case table.ItemSave:
 		m.saveAs(v.Name)
-	case itemSaveAs, itemRename:
+	case table.ItemSaveAs, table.ItemRename:
 		s.SavingAs, s.Naming, s.Renaming = true, v.Name, ""
-		if k == itemRename {
+		if k == table.ItemRename {
 			s.Renaming = v.Name
 		}
 		m.onPreset, m.inRows, m.inPanel = true, false, false
-	case itemDelete:
+	case table.ItemDelete:
 		m.deletePreset()
 	default:
-		name := m.presetItems()[k].Name
+		name := table.PresetItems(m)[k].Name
 		vs := m.views(m.stage)
 		m.apply(vs[slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == name })])
-	}
-}
-
-// PresetsTitle is what the presets' menu's top edge says, over the preset line's selector it hangs from.
-const PresetsTitle = "Presets"
-
-// presetBox gives the presets' menu's lines, in its tab's color, as the selector is, titled PresetsTitle at its top
-// edge's left, as a dialog is; and the screen line and column it is drawn from: the control line, the selector's, as
-// the columns dialog's, its right edge on the selector's last cell, so it covers the ▼.
-func (m Model) presetBox() (lines []string, top, left int) {
-	color := stageColors[m.stages[m.stage].name]
-	lines, left = shell.BoxColored(m.presetItems(), m.presetEnabled, m.presetsMenu.At, "", -1, min(m.dropEnd(), m.width),
-		color)
-	lines[0] = shell.TitledColored(PresetsTitle, ansi.StringWidth(lines[0]), color)
-	return lines, m.top(), left
-}
-
-// presetMenuClick takes a click while the presets' menu is open, as a dropdown does: on a line that acts, it chooses
-// it; on another line of the box, nothing; anywhere else, it closes the menu.
-func (m *Model) presetMenuClick(x, y int) {
-	box, top, left := m.presetBox()
-	var chosen int
-	if m.presetsMenu, chosen = m.presetsMenu.Click(x, y, top, left, ansi.StringWidth(box[0]), m.presetItems(),
-		m.presetEnabled); chosen >= 0 {
-		m.choosePreset(chosen)
 	}
 }
 
@@ -489,7 +397,7 @@ func (m *Model) presetMenuClick(x, y int) {
 func (m *Model) presetClick(x int) tea.Cmd {
 	m.onPreset, m.inRows, m.inPanel = true, false, false
 	if x >= m.dropStart() && x < m.dropEnd() {
-		m.dropPresets()
+		m.presetsMenu = m.presetsMenu.Drop(m)
 	}
 	return nil
 }

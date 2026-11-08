@@ -29,7 +29,7 @@ const (
 	Banner   = "━"
 	Expand   = "⏬"
 	Collapse = "⏫"
-	Checked  = "✅"
+	Checked  = table.Checked
 	Reload   = "🔄"
 	Browse   = "🌐"
 	Every    = "📋"
