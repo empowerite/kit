@@ -131,7 +131,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   a screen's JSON; the values a row holds; the renderers that draw a field down its column, registered by name; the
   automatic choice among a field's renderings; a preset set on a panel, and read back from it; a table's views, and
   the rules of which it is set as and what the person's can be saved, renamed, and deleted as; the file the person's
-  presets are kept in; and a table's state, as a screen keeps one for each table.
+  presets are kept in; and a table's state, as a screen keeps one for each table. A table's controls take a `Host`,
+  which a screen implements once, for the table selected: the field popover, the columns dialog, the column menu, the
+  outline, the heading over the groups, the preset line and its menu, the pane's layout, the cursor's moves, and the
+  selection. `flow` is the host of each of its stages' tables, and draws their lines.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
   read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,

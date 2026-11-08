@@ -1,6 +1,6 @@
 # kittui components: design
 
-Status: proposed, 2026-11-07.
+Status: built, 2026-11-08: every move done, as each says.
 
 ## Intent
 
@@ -157,10 +157,20 @@ the columns its header shows, and where a column's name stands in the header and
 it are `Popover`, `Columns`, the fields dialog, and `ColumnMenu`; each gives back the popover it opens, so the screen
 asks kit for the caller's login as it did.
 
-Still in `flow` are the parts that the rows' own keys and drawing hold together: the heading over the groups on the
-control line, the outline, its folds and its selection marks, the preset line and its menu, the header and its rule,
-and the rows' cursor, paging, and scrolling. They move together, as the table's view, a control that draws the
-control line, the header, and the rows' window from the rows the host gives it, and takes the rows' keys.
+The table's view is `table`'s too, on the same host, which now also gives the rows as the table lays them out, the
+header's names and the width, the lines it draws and its header, the pane's height, whether a control line stands
+over the rows, the table's views, its color, and where its preset line's selector stands, and takes and gives up the
+rows' keyboard. On it are the outline (`Expand`, `Grow`, `Peel`, `Folding`, and the marks of a heading whose rows are
+picked); the heading over the groups (its names, and its folds, which open and close the levels); the preset line's
+selector, its menu, and the chips of the filters; and the pane's layout (the headings of one value frozen over the
+header, the header, the rows' window and the line it pins on top), the cursor's moves a row or a page at a time, and
+the selection.
+
+`flow` keeps what draws a stage or is about one: it draws the lines, the control line, the header and the rule with
+the sorts' marks, and caches the lines it draws; it builds the rows from kit's records; it says what a preset saved,
+renamed, or deleted did, in its own words, and writes the person's presets; and it holds the keyboard's focus, which
+a control hands back by what it returns or by the host's calls. Each move keeps the name `flow` gave it, a call to
+`table`'s.
 
 ### Source
 
@@ -203,7 +213,8 @@ the worktree agree.
    as the controls that stand apart from the rows: the catalog, the renderers, the automatic renderings, the presets,
    the views and their file, the table's state, the host, the popover, the fields dialog, and the column menu.
 7. The table's view: the heading over the groups, the outline, the preset line, the header, and the rows' cursor,
-   paging, and scrolling, out of `flow` together, onto the host.
+   paging, and scrolling, out of `flow` together, onto the host. Done, its drawing apart, which `flow` keeps, as it
+   caches the lines and says what a stage holds.
 
 Watch, issue #88's third step, is built now as designed: it reads like `source`'s, and step 5 moves it with the marks.
 
