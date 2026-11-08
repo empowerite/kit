@@ -4,9 +4,15 @@
 // is kept as it was left while another is shown, nothing loaded again. What a screen started goes on while it is
 // hidden: its answers reach it, not the screen shown. Keys, clicks, and the terminal's size reach the screen shown, and
 // a screen shown again is told the size the terminal has now.
+//
+// The root reads the workspace from kit once kittui starts, and tells every screen made, as it tells the settings. A
+// screen's 📚 control asks for another; the root asks kit for it, keeping a group as the last used, and tells every
+// screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
+// are made anew there, all but the tutorials and the help, which read kit alone. Only the latest ask lands.
 package screens
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -24,21 +30,32 @@ import (
 // Model is kittui's root: the screens made so far, by name, and the one shown; kittui's settings, and the dialog that
 // changes them.
 type Model struct {
-	runner   kit.Runner
-	here     shell.Screen
-	made     map[shell.Screen]tea.Model
-	size     *tea.WindowSizeMsg
-	keyboard *tea.KeyboardEnhancementsMsg // what the terminal said of its keyboard, for a screen made after it said so
-	refusal  string                       // kit's line, when a screen asked for could not open, until the next key
-	settings shell.Settings
-	dialog   shell.SettingsDialog
+	runner    kit.Runner
+	here      shell.Screen
+	made      map[shell.Screen]tea.Model
+	size      *tea.WindowSizeMsg
+	keyboard  *tea.KeyboardEnhancementsMsg // what the terminal said of its keyboard, for a screen made after it said so
+	refusal   string                       // kit's line, when a screen asked for could not open, until the next key
+	settings  shell.Settings
+	dialog    shell.SettingsDialog
+	home      string        // where kittui was started, which the screens read over anything but a repository
+	workspace kit.Workspace // the workspace kit said last, zero until it says
+	refused   string        // kit's line, when kit could not say the workspace last asked for
+	asked     int           // the latest ask for the workspace, from 0, kittui's start: an earlier one's answer is dropped
+}
+
+// workspaceMsg is kit's answer to an ask for the workspace: the ask's number, and the workspace, or why there is none.
+type workspaceMsg struct {
+	gen int
+	ws  kit.Workspace
+	err error
 }
 
 // New gives the root showing the screen first, made already, as kittui opened on it, with the settings kittui's file
 // keeps.
 func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
 	root := Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
-		settings: shell.LoadSettings(shell.SettingsFile())}
+		settings: shell.LoadSettings(shell.SettingsFile()), home: r.Dir}
 	root.made[first], _ = m.Update(shell.SettingsMsg{Settings: root.settings})
 	return root
 }
@@ -66,8 +83,81 @@ func (m Model) Close() {
 	}
 }
 
-// Init starts the screen shown.
-func (m Model) Init() tea.Cmd { return tag(m.here, m.made[m.here].Init()) }
+// Init starts the screen shown, and asks kit for the workspace.
+func (m Model) Init() tea.Cmd { return tea.Batch(tag(m.here, m.made[m.here].Init()), m.ask("")) }
+
+// ask gives the command that asks kit for the workspace given, "" for the one kit starts on, as the latest ask: a
+// group given is kept as the last used first.
+func (m Model) ask(given string) tea.Cmd {
+	r, gen := m.runner, m.asked
+	return func() tea.Msg {
+		ctx := context.Background()
+		if given != "" && !strings.ContainsAny(given, "/:") {
+			if err := r.UseWorkspace(ctx, given); err != nil {
+				return workspaceMsg{gen: gen, err: err}
+			}
+		}
+		ws, err := r.Workspace(ctx, given)
+		return workspaceMsg{gen: gen, ws: ws, err: err}
+	}
+}
+
+// answered takes kit's answer to the latest ask for the workspace, dropping an earlier one's: kit's line, when it could
+// not say, told to every screen made, the workspace as it was; else the workspace, which the runner then reads, the
+// screens made anew when it moved the place they read, then told it. At kittui's start, the screen open is made anew
+// only over a group, since inside a repository, or outside every one, it already reads where kit says.
+func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
+	if msg.gen != m.asked {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.refused = msg.err.Error()
+		if line, _, ok := app.Refusal(msg.err); ok {
+			m.refused = line
+		}
+		return m.tellWorkspace()
+	}
+	moved := msg.ws.Kind == "group"
+	if msg.gen > 0 {
+		moved = msg.ws.Kind != m.workspace.Kind || msg.ws.Name != m.workspace.Name
+	}
+	m.workspace, m.refused = msg.ws, ""
+	m.runner.Dir = m.home
+	if msg.ws.Kind == "repository" && msg.ws.Checkout != "" {
+		m.runner.Dir = msg.ws.Checkout
+	}
+	if !moved {
+		return m.tellWorkspace()
+	}
+	for to, s := range m.made {
+		if to == shell.Tutorials || to == shell.Help {
+			continue
+		}
+		if c, ok := s.(interface{ Close() }); ok {
+			c.Close()
+		}
+		delete(m.made, to)
+	}
+	next, made := m.show(m.here)
+	next, told := next.(Model).tellWorkspace()
+	return next, tea.Batch(made, told)
+}
+
+// tellWorkspace tells every screen made the workspace, or kit's line, and gives what they start.
+func (m Model) tellWorkspace() (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+	for to := range m.made {
+		var cmd tea.Cmd
+		_, cmd = m.deliver(to, m.workspaceMsg())
+		cmds = append(cmds, cmd)
+	}
+	return m, tea.Batch(cmds...)
+}
+
+// workspaceMsg gives what a screen is told of the workspace.
+func (m Model) workspaceMsg() shell.WorkspaceMsg {
+	return shell.WorkspaceMsg{Workspace: m.workspace, Refusal: m.refused}
+}
 
 // Update takes a message: a screen's ask for another, shown in its place, or for the Settings dialog, opened over it;
 // an answer to what a screen started, for that screen; while the dialog is open, a key or a click for it, which closes
@@ -83,6 +173,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.show(msg.Screen)
 	case tagged:
 		return m.deliver(msg.to, msg.msg)
+	case workspaceMsg:
+		return m.answered(msg)
+	case shell.PickMsg:
+		m.asked++
+		return m, m.ask(msg.Workspace)
 	case tea.WindowSizeMsg:
 		m.size = &msg
 		return m.deliver(m.here, m.sized())
@@ -152,7 +247,12 @@ func (m Model) show(to shell.Screen) (tea.Model, tea.Cmd) {
 	}
 	m.made[to], m.here = s, to
 	_, told := m.deliver(to, shell.SettingsMsg{Settings: m.settings})
-	cmds := []tea.Cmd{tag(to, s.Init()), told}
+	cmds := []tea.Cmd{told}
+	if m.workspace.Kind != "" || m.refused != "" {
+		_, cmd := m.deliver(to, m.workspaceMsg())
+		cmds = append(cmds, cmd)
+	}
+	cmds = append(cmds, tag(to, m.made[to].Init()))
 	if m.size != nil {
 		_, cmd := m.deliver(to, m.sized())
 		cmds = append(cmds, cmd)
@@ -170,7 +270,7 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 	case shell.Flow:
 		return flow.Open(m.runner, nil)
 	case shell.Welcome:
-		return welcome.Open(m.runner, kit.Workspace{}), nil
+		return welcome.Open(m.runner, m.workspace), nil
 	case shell.Tutorials:
 		return tutorials.Open(m.runner, nil), nil
 	case shell.Help:
@@ -251,7 +351,7 @@ func tag(to shell.Screen, cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		msg := cmd()
 		switch msg := msg.(type) {
-		case nil, shell.SwitchMsg:
+		case nil, shell.SwitchMsg, shell.PickMsg:
 			return msg
 		case tea.BatchMsg:
 			out := make(tea.BatchMsg, len(msg))
