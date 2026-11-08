@@ -37,6 +37,10 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if m.rowsTop() != m.top()+1 || !strings.Contains(lines(m)[m.rowsTop()], "github") {
 		t.Fatalf("the rows do not start under the control line:\n%s", view(m))
 	}
+	// the rule under the header starts at the first column, past the rows' indent and their gutter
+	if rule := ansi.Strip(m.rule()); !strings.HasPrefix(rule, strings.Repeat(" ", m.indent(0)+len(lead))+"─") {
+		t.Errorf("the rule does not start at the first column: %q", rule)
+	}
 	m.stages[0].cursor = 2
 	if m = drive(m, testkit.Click(spots[1].from+1, m.top())); !m.colMenu.Open || !m.colMenu.heading ||
 		m.colMenu.column != "assignees" || m.inRows || len(m.rows(0)) != all {

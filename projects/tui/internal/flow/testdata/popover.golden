@@ -5,7 +5,7 @@
   ▾ source ▾ 1                                                                        ╭─ backlog╭─ assignees ──────────╮
   ▾ 🐙 github 1                                                                       │   field │ filter               │
       id  assignees  age  title                                                       │ ☑ source│ ⦿ include  ⦾ exclude │
-    ──────────────────────────────────────────────────────────────────────────────────│ ────────│ ☑ @me ada            │
+      ────────────────────────────────────────────────────────────────────────────────│ ────────│ ☑ @me ada            │
     ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                            │ ☑ id    │ ☐ ada                │
                                                                                       │ ☑ assign│ ☐ bob                │
                                                                                       │ ☑ age   │ ☐ jeffrey-aguilera   │

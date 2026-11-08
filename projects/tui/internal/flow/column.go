@@ -363,13 +363,13 @@ func (m Model) sortSpots() []sortSpot {
 	return out
 }
 
-// ruleFill gives the rule's dim line, fill cells from the gutter on, each sort's mark on it under its column's name,
-// as sortSpots places them, not dim, where the whole mark fits on the line.
-func (m Model) ruleFill(fill int) string {
+// ruleFill gives the rule's dim line, fill cells from the screen column from on, each sort's mark on it under its
+// column's name, as sortSpots places them, not dim, where the whole mark fits on the line.
+func (m Model) ruleFill(from, fill int) string {
 	cells := slices.Repeat([]string{"─"}, fill)
 	marked := make([]bool, fill)
 	for _, s := range m.sortSpots() {
-		at, glyphs := s.from-len(lead), strings.Split(s.mark, "")
+		at, glyphs := s.from-from, strings.Split(s.mark, "")
 		if s.mark == "" || at < 0 || at+len(glyphs) > fill {
 			continue
 		}

@@ -314,16 +314,18 @@ func (m Model) header() (lines []string, hides bool) {
 	return append(lines, m.rule()), hides
 }
 
-// rule gives the line under the header, as wide as the pane: the gutter, then a thin dim line, each sort's mark on it
-// under its column's name, as sortSpots places them, where the line reaches; and, where there is no control line to
-// say it, how many rows are selected at its right end, in the accent, when some are.
+// rule gives the line under the header, as wide as the pane: blank up to the first column, past the gutter and the
+// rows' indent, then a thin dim line, each sort's mark on it under its column's name, as sortSpots places them, where
+// the line reaches; and, where there is no control line to say it, how many rows are selected at its right end, in
+// the accent, when some are.
 func (m Model) rule() string {
 	right := ""
 	if n := m.selected(); n > 0 && !m.controls() {
 		right = style.Tint(" "+strconv.Itoa(n)+" selected ") + style.Off("─")
 	}
-	fill := max(1, m.paneWidth()-len(lead)-ansi.StringWidth(right))
-	return ansi.Truncate(lead+m.ruleFill(fill)+right, m.paneWidth(), "")
+	from := m.indent(m.stage) + len(lead)
+	fill := max(1, m.paneWidth()-from-ansi.StringWidth(right))
+	return ansi.Truncate(strings.Repeat(" ", from)+m.ruleFill(from, fill)+right, m.paneWidth(), "")
 }
 
 // controls says whether the selected stage's pane starts with its control line: where its rows group, or it has a
