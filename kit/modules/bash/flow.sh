@@ -1027,9 +1027,10 @@ flow:kept() {
 
 # flow:stage-json <stage> <cached> <argument>… prints the stage's JSON, with --json among the arguments, and keeps it
 # where flow:kept says; with <cached> true, prints what was kept there instead, and reads nothing, or refuses when
-# nothing is. A stage that fails keeps what was kept before.
+# nothing is. A stage that fails prints what it printed, as incoming does for every remote when one fails, and keeps
+# what was kept before.
 flow:stage-json() {
-  local stage=$1 cached=$2 kept out
+  local stage=$1 cached=$2 kept out status=0
   shift 2
   kept=$(flow:kept "${stage}" "$@") || kept=''
   if [[ "${cached}" == true ]]
@@ -1042,7 +1043,12 @@ flow:stage-json() {
     cat "${kept}"
     return 0
   fi
-  out=$(flow:stage "${stage}" "$@") || return $?
+  out=$(flow:stage "${stage}" "$@") || status=$?
+  if (( status != 0 ))
+  then
+    [[ -z "${out}" ]] || printf '%s\n' "${out}"
+    return "${status}"
+  fi
   printf '%s\n' "${out}"
   # A copy that cannot be kept costs only the next --cached, so it never fails the stage.
   [[ -z "${kept}" || -z "${out}" ]] || file:replace "${kept}" printf '%s\n' "${out}" 2>/dev/null || true
