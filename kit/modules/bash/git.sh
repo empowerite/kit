@@ -9,6 +9,25 @@
 
 use forge
 
+# git:desks <dir> <depth> prints every desk at or below <dir>, at most <depth> levels down, in path order: a
+# directory that holds a .git directory. The walk stops at a desk, so a worktree or a nested repository inside one
+# is the desk's own, and it skips hidden directories and symbolic links.
+git:desks() {
+  local dir=$1 depth=$2 sub
+  if [[ -d "${dir}/.git" ]]
+  then
+    printf '%s\n' "${dir}"
+    return 0
+  fi
+  (( depth > 0 )) || return 0
+  for sub in "${dir}"/*/
+  do
+    sub=${sub%/}
+    [[ -d "${sub}" && ! -L "${sub}" ]] || continue
+    git:desks "${sub}" $(( depth - 1 ))
+  done
+}
+
 # git:default-branch [<path>] prints the default branch of the repository at <path>: the primary remote's HEAD, else
 # main.
 git:default-branch() {

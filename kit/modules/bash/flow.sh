@@ -1302,25 +1302,6 @@ flow:render() {
   fi
 }
 
-# flow:desks <dir> <depth> prints every desk at or below <dir>, at most <depth> levels down, in path order: a
-# directory that holds a .git directory. The walk stops at a desk, so a worktree or a nested repository inside one
-# is the desk's own, and it skips hidden directories and symbolic links.
-flow:desks() {
-  local dir=$1 depth=$2 sub
-  if [[ -d "${dir}/.git" ]]
-  then
-    printf '%s\n' "${dir}"
-    return 0
-  fi
-  (( depth > 0 )) || return 0
-  for sub in "${dir}"/*/
-  do
-    sub=${sub%/}
-    [[ -d "${sub}" && ! -L "${sub}" ]] || continue
-    flow:desks "${sub}" $(( depth - 1 ))
-  done
-}
-
 # flow:above <argument>… draws every desk below the current directory, each under its path, as kit flow draws it
 # at that desk, with the same arguments. The desks run at once, each fetching on its own, and are drawn in path
 # order.
@@ -1331,7 +1312,7 @@ flow:above() {
   do
     [[ "${arg}" == --json ]] && json=true
   done
-  readarray -t desks < <(flow:desks "$(pwd -P)" "${flow_walk_depth}")
+  readarray -t desks < <(git:desks "$(pwd -P)" "${flow_walk_depth}")
   if (( ${#desks[@]} == 0 ))
   then
     error "no repository at or below $(pwd -P), ${flow_walk_depth} levels down; run kit flow in one"
