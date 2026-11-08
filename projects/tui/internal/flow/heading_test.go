@@ -215,14 +215,15 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 }
 
 // The ▾ or ▸ after the last name in the heading over the groups opens and closes the rows under the groups: closed,
-// every heading stands, each ▸, the header under the last of them; open again, the rows show as they were.
+// every heading stands, each ▸, the header under the one source's, frozen over the assignees'; open again, the rows
+// show as they were.
 func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	s0, a0, _ := levels(m)
 	rows := m.barNames()[len(m.barNames())-1].until + 1
 	if m = drive(m, testkit.Click(rows, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != 0 }() ||
-		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != m.rowsTop()+s0+a0 {
+		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != m.rowsTop()+1 {
 		s, a, r := levels(m)
 		t.Fatalf("the rows closed: %d sources, %d assignees, %d rows, the header at %d\n%s", s, a, r, m.headerTop(),
 			view(m))
@@ -238,5 +239,35 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	m.stages[0].cursor, m.inRows = 1, true
 	if next, _ := m.folding("Expand All"); !next.Shows(len(m.panel(0).Groups())) {
 		t.Errorf("expand all leaves the rows closed: %v", next)
+	}
+}
+
+// The headings of the outermost levels that have one value alone are frozen over the header, as a pane freezes in a
+// spreadsheet: they never scroll, so the rows under them keep their context; the header stands over the first item of
+// the first level of more than one value, which scrolls under it with everything after it. Where the outermost level
+// has more than one value, nothing is frozen, and the header stands over its first heading. A click on a frozen
+// heading's ▾ folds it.
+func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 13})
+	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
+	github := lines(m)[m.rowsTop()]
+	if m.frozen(0) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+1 ||
+		!strings.Contains(lines(m)[m.headerTop()+2], "ada") {
+		t.Fatalf("frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
+	}
+	// down to the last row: the rows scroll under the header, which stays, under github's heading
+	m = drive(m, down, down, down, down, down, down, down, down, down)
+	if s := m.stages[0]; s.offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+1 ||
+		!strings.Contains(lines(m)[m.headerTop()+2], "above") {
+		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.offset, view(m))
+	}
+	// a click on github's ▾, frozen, folds it, the header under it
+	if m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != m.rowsTop()+1 {
+		t.Fatalf("a click on the frozen heading's ▾: %d rows, the header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
+	}
+	// grouped by assignees first, of several values, nothing is frozen: the header stands over ada's heading
+	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
+	if m.frozen(0) != 1 || m.headerTop() != m.rowsTop() || !strings.Contains(lines(m)[m.rowsTop()+2], "ada") {
+		t.Errorf("grouped by assignees: frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
 	}
 }

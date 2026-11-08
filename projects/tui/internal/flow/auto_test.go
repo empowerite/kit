@@ -166,7 +166,7 @@ func TestATableShortOfWidthStepsDownFromTheRightmostColumn(t *testing.T) {
 func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 24})
 	var pane []string
-	for _, l := range m.lines(0) {
+	for _, l := range m.allLines(0) {
 		pane = append(pane, ansi.Strip(l.text))
 	}
 	text := strings.Join(pane, "\n")

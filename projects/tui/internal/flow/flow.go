@@ -515,7 +515,7 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 		m.clickHeader(x, y, nest, true)
 		return
 	}
-	lines := m.lines(m.stage)
+	lines := m.allLines(m.stage)
 	k, ok := m.placeAt(y)
 	if !ok || k < 0 || lines[k].row < 0 {
 		return
@@ -1148,7 +1148,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
 	}
-	lines, s := m.lines(m.stage), &m.stages[m.stage]
+	lines, s := m.allLines(m.stage), &m.stages[m.stage]
 	k, ok := m.placeAt(y)
 	if !ok || k < 0 || lines[k].row < 0 {
 		return nil
@@ -1214,7 +1214,7 @@ func (m Model) inHeader(y int) bool {
 // rowLine gives the screen line the first line of the selected stage's row k stands on, as the pane is scrolled, or
 // -1 while it is scrolled away.
 func (m Model) rowLine(k int) int {
-	lines := m.lines(m.stage)
+	lines := m.allLines(m.stage)
 	_, places := m.laid()
 	for r, at := range places {
 		if at >= 0 && lines[at].row == k {

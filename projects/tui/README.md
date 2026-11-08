@@ -108,8 +108,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     and every level over it; a value's heading opened opens the level under it too. A click on a column's name there
     drops the column's own menu, in `heading.go`, as a name in the header does. A field of several values, as
     assignees or labels, groups too: a row stands under each of its values, the same row, its selection one.
-  - The column names and the rule under them, with each sort's mark, stand over the first row the pane shows, under
-    the headings of its groups, or under the last line where no row shows. A stage with no control line says how many
+  - The column names and the rule under them, with each sort's mark, start at the first column. They stand under the
+    headings of the outermost levels that have one value alone, the rows' context, and over the first item of the
+    first level of more than one value, or over the first row. Those headings and the header are frozen, as a pane
+    freezes in a spreadsheet: everything under them scrolls, and they stay. A stage with no control line says how many
     rows are selected at the rule's right end.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to

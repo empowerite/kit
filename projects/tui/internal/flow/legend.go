@@ -44,7 +44,7 @@ func (m *Model) toggleLegend() {
 // drawn gives the text the selected stage's rows draw now, the lines the pane shows, to find the glyphs in.
 func (m Model) drawn() string {
 	var out []string
-	for _, l := range m.lines(m.stage) {
+	for _, l := range m.allLines(m.stage) {
 		out = append(out, ansi.Strip(l.text))
 	}
 	return strings.Join(out, "\n")

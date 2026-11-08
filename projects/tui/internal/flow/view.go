@@ -383,57 +383,91 @@ func (m Model) rowsHeight() int {
 	return m.heightUnder(lines)
 }
 
-// heightUnder gives the lines the rows have under a header of those lines, as rowsHeight says.
+// heightUnder gives the lines the rows have under a header of those lines, as rowsHeight says, the frozen lines over
+// the header apart.
 func (m Model) heightUnder(header []string) int {
-	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-len(header))
+	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-m.frozenLines(m.stage)-len(header))
 }
 
-// place is a line of the pane under the control line: the index of the stage's line it draws, -1 for a line that
-// says how many are hidden, or -2-h for the header's line h.
+// place is a line of the pane under the control line: the index of the stage's line it draws, as allLines gives them, -1
+// for a line that says how many are hidden, or -2-h for the header's line h.
 type place = int
 
 // headerPlace gives the place of the header's line h.
 func headerPlace(h int) place { return -2 - h }
 
-// laid gives the pane's lines under the control line, as many as the rows' window and the header take, and the place
-// of each: the rows' window, as pane.Lines draws it, with the header's lines and its rule over the first line of a row
-// it shows, not a group's heading, and over the … above when that line is next over it; or under the window's last
-// line where it shows no row.
+// laid gives the pane's lines under the control line, as many as the frozen lines, the header, and the rows' window
+// take, and the place of each: the frozen lines, as frozen says, which never scroll, as a pane freezes in a
+// spreadsheet; the header's lines and its rule, over the first item of the first level of the groups with more than
+// one value, or over the first row; and the rows' window under them, as pane.Lines draws it.
 func (m Model) laid() (texts []string, places []place) {
-	lines, s := m.lines(m.stage), m.stages[m.stage]
+	all, s := m.allLines(m.stage), m.stages[m.stage]
+	skip := m.frozenLines(m.stage)
+	lines := all[skip:]
 	header, _ := m.header()
 	h := m.heightUnder(header)
-	texts = make([]string, len(lines))
+	for k := range skip {
+		texts, places = append(texts, all[k].text), append(places, k)
+	}
+	for k := range header {
+		texts, places = append(texts, header[k]), append(places, headerPlace(k))
+	}
+	window := make([]string, len(lines))
 	for i, l := range lines {
-		texts[i] = l.text
+		window[i] = l.text
 	}
 	head := m.head(lines, h)
-	texts = pane.Lines(texts, s.offset, h, head, "   ")
-	places = make([]place, len(texts))
-	for r := range places {
-		places[r] = pane.At(len(lines), h, s.offset, r)
+	window = pane.Lines(window, s.offset, h, head, "   ")
+	for r := range window {
+		k := pane.At(len(lines), h, s.offset, r)
+		if r == 0 && head != "" {
+			k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+		}
+		if k >= 0 {
+			k += skip
+		}
+		places = append(places, k)
 	}
-	if head != "" {
-		places[0] = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+	return append(texts, window...), places
+}
+
+// frozen gives how many of a stage's rows stand frozen over its header, past the heading over the groups: the
+// headings of the outermost levels of the groups, each of which has one value alone, so one heading stands under the
+// one before. They are the context of every row under them, so they never scroll; the first level of more than one
+// value, and everything under it, scrolls under the header.
+func (m Model) frozen(i int) int {
+	rows, first := m.rows(i), m.first(i)
+	if first == 0 {
+		return 0
 	}
-	if len(header) == 0 {
-		return texts, places
+	values := map[int]int{} // how many headings each level has, those folded away too
+	for _, r := range m.every(i) {
+		if grid.Heads(r) {
+			values[grid.Level(r)]++
+		}
 	}
-	rows := m.rows(m.stage)
-	at := slices.IndexFunc(places, func(k place) bool {
-		return k >= 0 && lines[k].row >= 0 && !rows[lines[k].row].Aside
-	})
-	switch {
-	case at < 0:
-		at = len(places)
-	case at == 1 && places[0] == -1:
-		at = 0
+	k := first
+	for k < len(rows) && grid.Heads(rows[k]) && grid.Level(rows[k]) == 2+k-first && values[grid.Level(rows[k])] == 1 {
+		k++
 	}
-	marks := make([]place, len(header))
-	for k := range marks {
-		marks[k] = headerPlace(k)
+	return k
+}
+
+// frozenLines gives how many of the selected stage's lines, as allLines gives them, the frozen rows take: a line each,
+// as a heading takes.
+func (m Model) frozenLines(i int) int {
+	if len(m.stages) == 0 || i != m.stage {
+		return 0
 	}
-	return slices.Insert(texts, at, header...), slices.Insert(places, at, marks...)
+	k := m.frozen(i)
+	n := 0
+	for _, l := range m.allLines(i) {
+		if l.row < 0 || l.row >= k {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // placeAt gives the place of the screen line y in the pane under the control line, as laid gives it, and whether y
@@ -508,10 +542,13 @@ func (m Model) head(lines []line, h int) string {
 	return lines[first].text
 }
 
-// lines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or of one whose
+// lines gives the lines of a stage that scroll, in the rows' window: those allLines gives, past the frozen lines.
+func (m Model) lines(i int) []line { return m.allLines(i)[m.frozenLines(i):] }
+
+// allLines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or of one whose
 // panel lets no row through, or its rows as the grid draws them, the one under the cursor on a band while the rows have
 // the keyboard.
-func (m Model) lines(i int) []line {
+func (m Model) allLines(i int) []line {
 	s := m.stages[i]
 	switch {
 	case s.loading:
