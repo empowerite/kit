@@ -11,12 +11,13 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // A label is drawn as style draws a pill: on its forge's color, or, with none, on the pastel its name picks.
 func TestALabelIsDrawnAsStylesPill(t *testing.T) {
-	for _, l := range []label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}} {
-		if got := pill(l); got != style.Pill(l.Name, l.Color) {
+	for _, l := range []table.Label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}} {
+		if got := table.Pill(l); got != style.Pill(l.Name, l.Color) {
 			t.Errorf("%+v: %q", l, got)
 		}
 	}
@@ -26,7 +27,7 @@ func TestALabelIsDrawnAsStylesPill(t *testing.T) {
 // row with one label draws it in the column, as it is, no count; a row with none says nothing there.
 func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	f := fieldIn("backlog", "labels")
-	cells := f.draw([]value{labelled([]label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}}), {}}, "")
+	cells := f.Draw([]table.Value{table.Labelled([]table.Label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}}), {}}, "")
 	if ansi.Strip(cells[0].Summary) != "2" || !slices.Equal(cells[0].Raw, []string{"bug", "priority=high"}) ||
 		len(cells[0].Values) != 2 || cells[1].Summary != "" || len(cells[1].Values) != 0 {
 		t.Fatalf("the cells: %+v", cells)
@@ -42,16 +43,16 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// text draws the names alone, for a terminal without the font's half circles, and counts them the same
-	two := labelled([]label{{Name: "bug"}, {Name: "docs"}})
-	if c := f.draw([]value{two}, "text"); c[0].Values[0] != "bug" || ansi.Strip(c[0].Summary) != "2" {
+	two := table.Labelled([]table.Label{{Name: "bug"}, {Name: "docs"}})
+	if c := f.Draw([]table.Value{two}, "text"); c[0].Values[0] != "bug" || ansi.Strip(c[0].Summary) != "2" {
 		t.Errorf("text: %+v", c[0])
 	}
 	// one label is drawn itself, as a pill, or by its name in text, its column no count
-	one := labelled([]label{{Name: "bug", Color: "#d73a4a"}})
-	if c := f.draw([]value{one}, ""); c[0].Summary != "" || len(c[0].Values) != 1 || c[0].Values[0] != pill(one.Of.([]label)[0]) {
+	one := table.Labelled([]table.Label{{Name: "bug", Color: "#d73a4a"}})
+	if c := f.Draw([]table.Value{one}, ""); c[0].Summary != "" || len(c[0].Values) != 1 || c[0].Values[0] != table.Pill(one.Of.([]table.Label)[0]) {
 		t.Errorf("one label: %+v", c[0])
 	}
-	if c := f.draw([]value{one}, "text"); c[0].Summary != "" || c[0].Values[0] != "bug" {
+	if c := f.Draw([]table.Value{one}, "text"); c[0].Summary != "" || c[0].Values[0] != "bug" {
 		t.Errorf("one label in text: %+v", c[0])
 	}
 }
@@ -60,9 +61,9 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 // the rows without a label.
 func TestAFilterOnLabelsKeepsTheRowsThatHoldOne(t *testing.T) {
 	f := fieldIn("backlog", "labels")
-	vs := []value{labelled([]label{{Name: "bug"}, {Name: "kind=fix"}}), labelled([]label{{Name: "docs"}}), {}}
+	vs := []table.Value{table.Labelled([]table.Label{{Name: "bug"}, {Name: "kind=fix"}}), table.Labelled([]table.Label{{Name: "docs"}}), {}}
 	var rows []grid.Row
-	for k, c := range f.draw(vs, "") {
+	for k, c := range f.Draw(vs, "") {
 		rows = append(rows, grid.Row{Key: string(rune('a' + k)), Cells: []grid.Cell{{Values: []string{"x"}}, c}})
 	}
 	keys := func(filter grid.Filter) string {

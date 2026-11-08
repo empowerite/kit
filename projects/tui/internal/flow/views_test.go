@@ -19,6 +19,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -217,7 +218,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
 	}
 	// the table set as another view names that one
-	m.setPanel(m.builtins(0)[0].panel(fieldsOf("backlog"), m.panel(0)))
+	m.setPanel(m.builtins(0)[0].Panel(fieldsOf("backlog"), m.panel(0)))
 	if got := presetText(m); got != selector(Opening) {
 		t.Errorf("the table as Default: %q", got)
 	}
@@ -232,7 +233,7 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 	}
 	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
-	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f field) bool { return f.Placement != placeColumn })
+	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f table.Field) bool { return f.Placement != table.PlaceColumn })
 	// less source, which the view groups the rows by as it loads
 	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns)-1 || m.is(0) != "Default" ||
 		!slices.Equal(m.panel(0).Groups(), []string{"source"}) {
@@ -268,8 +269,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 		t.Fatalf("the file: %s, %v", data, err)
 	}
 	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending
-	want := map[string]setting{"branch": {Placement: placeHidden}, "age": {Sort: "desc", Priority: 1},
-		"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}}}
+	want := map[string]table.Setting{"branch": {Placement: table.PlaceHidden}, "age": {Sort: "desc", Priority: 1},
+		"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}}}
 	// whether shared values fold is kittui's setting, so the preset does not keep it
 	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) ||
 		strings.Contains(string(data), "fold") {
@@ -477,25 +478,25 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 {
 		t.Fatalf("presets.json: %s, %v", data, err)
 	}
-	want := map[string][]preset{
+	want := map[string][]table.Preset{
 		"backlog": {
-			{Name: "Mine", Fields: map[string]setting{
-				"title":     {Placement: placeColumn, Position: 1},
-				"id":        {Placement: placeColumn, Position: 2},
-				"source":    {Placement: placeColumn, Position: 3},
-				"assignees": {Placement: placeColumn, Position: 4, Filter: &valueFilter{Include: []string{caller}}},
-				"age":       {Placement: placeColumn, Position: 5, Sort: "desc", Priority: 1},
-				"branch":    {Placement: placeHidden},
+			{Name: "Mine", Fields: map[string]table.Setting{
+				"title":     {Placement: table.PlaceColumn, Position: 1},
+				"id":        {Placement: table.PlaceColumn, Position: 2},
+				"source":    {Placement: table.PlaceColumn, Position: 3},
+				"assignees": {Placement: table.PlaceColumn, Position: 4, Filter: &table.ValueFilter{Include: []string{caller}}},
+				"age":       {Placement: table.PlaceColumn, Position: 5, Sort: "desc", Priority: 1},
+				"branch":    {Placement: table.PlaceHidden},
 				// a field the version 1 file could not name, as labels, stands after the columns it named
-				"labels": {Placement: placeColumn, Position: 6},
+				"labels": {Placement: table.PlaceColumn, Position: 6},
 			}},
-			{Name: "Others", Fields: map[string]setting{
-				"assignees": {Placement: placeGroup, Depth: 1, Filter: &valueFilter{Exclude: []string{caller}}},
+			{Name: "Others", Fields: map[string]table.Setting{
+				"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 			}},
 			{Name: "All"},
 		},
 		"changes": {
-			{Name: "Authors", Fields: map[string]setting{"author": {Placement: placeGroup, Depth: 1}}},
+			{Name: "Authors", Fields: map[string]table.Setting{"author": {Placement: table.PlaceGroup, Depth: 1}}},
 		},
 	}
 	if !reflect.DeepEqual(kept.Stages, want) || !reflect.DeepEqual(m.saved, want) {
@@ -503,7 +504,7 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 	// each show is the owner's filter: mine, others, and all
 	for k, show := range []grid.Show{grid.Mine, grid.Others, grid.All} {
-		if got := m.saved["backlog"][k].panel(fieldsOf("backlog"), grid.Panel{Owner: "assignees"}).Showing(); got != show {
+		if got := m.saved["backlog"][k].Panel(fieldsOf("backlog"), grid.Panel{Owner: "assignees"}).Showing(); got != show {
 			t.Errorf("%s shows %v, not %v", m.saved["backlog"][k].Name, got, show)
 		}
 	}
@@ -512,7 +513,7 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 		t.Errorf("read again: %q, %+v", n.note.Text, n.saved)
 	}
 	// a stage's fields a preset does not name take the catalog's placement
-	if g := want["changes"][0].panel(fieldsOf("changes"), grid.Panel{}); g.Field("branch").Placement != grid.Column ||
+	if g := want["changes"][0].Panel(fieldsOf("changes"), grid.Panel{}); g.Field("branch").Placement != grid.Column ||
 		!g.Shows("title") {
 		t.Errorf("Authors' other fields: %+v", g.Fields)
 	}

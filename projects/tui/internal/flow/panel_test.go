@@ -607,7 +607,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.column != "age" {
 		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
 	}
-	// the box hangs around the name, its top edge drawing it where the header does, as ≡'s menu hangs from ≡
+	// the box hangs around the name, its top edge drawing it where the header does, as ='s menu hangs from =
 	if box, top, left := m.columnBox(); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
 		ansi.StringWidth(ansi.Cut(lines(m)[m.headerTop()], left, at("age"))) != at("age")-left ||
 		ansi.Strip(ansi.Cut(lines(m)[m.headerTop()], at("age"), at("age")+3)) != "age" {

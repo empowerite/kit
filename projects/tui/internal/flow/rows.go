@@ -10,22 +10,23 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // issue is one of backlog's, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
 // Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it, and
 // Organization and Repository where in it the issue is, each empty where the tracker has none; Labels are its forge's.
 type issue struct {
-	Number       int      `json:"number"`
-	Title        string   `json:"title"`
-	Assignees    []string `json:"assignees"`
-	Labels       []label  `json:"labels"`
-	Age          *int64   `json:"age"`
-	Branch       string   `json:"branch"`
-	URL          string   `json:"url"`
-	Source       string   `json:"source"`
-	Organization string   `json:"organization"`
-	Repository   string   `json:"repository"`
+	Number       int           `json:"number"`
+	Title        string        `json:"title"`
+	Assignees    []string      `json:"assignees"`
+	Labels       []table.Label `json:"labels"`
+	Age          *int64        `json:"age"`
+	Branch       string        `json:"branch"`
+	URL          string        `json:"url"`
+	Source       string        `json:"source"`
+	Organization string        `json:"organization"`
+	Repository   string        `json:"repository"`
 }
 
 // commit is one commit: its short hash and its subject.
@@ -41,15 +42,15 @@ type commit struct {
 // and by whom, when the forge says. Source is the tracker that holds the issue, and Organization and Repository where
 // in it the issue is, and Labels the issue's, not the pull request's. The URLs are kit's when it prints them.
 type underway struct {
-	Number       int      `json:"number"`
-	Title        string   `json:"title"`
-	Assignees    []string `json:"assignees"`
-	Labels       []label  `json:"labels"`
-	Age          *int64   `json:"age"`
-	URL          string   `json:"url"`
-	Source       string   `json:"source"`
-	Organization string   `json:"organization"`
-	Repository   string   `json:"repository"`
+	Number       int           `json:"number"`
+	Title        string        `json:"title"`
+	Assignees    []string      `json:"assignees"`
+	Labels       []table.Label `json:"labels"`
+	Age          *int64        `json:"age"`
+	URL          string        `json:"url"`
+	Source       string        `json:"source"`
+	Organization string        `json:"organization"`
+	Repository   string        `json:"repository"`
 	PR           struct {
 		Number int    `json:"number"`
 		Title  string `json:"title"`
@@ -121,18 +122,18 @@ type checkout struct {
 
 // pull is one open pull request, with its labels and the issues it closes.
 type pull struct {
-	Number     int     `json:"number"`
-	Ref        string  `json:"ref"`
-	Title      string  `json:"title"`
-	Author     string  `json:"author"`
-	State      string  `json:"state"`
-	Age        int64   `json:"age"`
-	CreatedAt  string  `json:"createdAt"`
-	Checks     *checks `json:"checks"`
-	Unresolved int     `json:"unresolved"`
-	Branch     string  `json:"branch"`
-	Labels     []label `json:"labels"`
-	Closes     []issue `json:"closes"`
+	Number     int           `json:"number"`
+	Ref        string        `json:"ref"`
+	Title      string        `json:"title"`
+	Author     string        `json:"author"`
+	State      string        `json:"state"`
+	Age        int64         `json:"age"`
+	CreatedAt  string        `json:"createdAt"`
+	Checks     *checks       `json:"checks"`
+	Unresolved int           `json:"unresolved"`
+	Branch     string        `json:"branch"`
+	Labels     []table.Label `json:"labels"`
+	Closes     []issue       `json:"closes"`
 }
 
 // checks is a pull request's checks: SUCCESS, FAILURE, or PENDING, the counts, the failing check's name, and how long
@@ -224,41 +225,12 @@ func fill(s string) cell { return cell{Values: []string{s}, Wrap: true} }
 // span gives a line of one cell, which spans the width.
 func span(s string) []cell { return []cell{fill(s)} }
 
-// age gives a duration in its coarsest informative unit, as kit flow draws one: 45s, 12m, 3h, 47d.
-func age(secs int64) string {
-	if secs < 0 {
-		secs = 0
-	}
-	switch {
-	case secs < 120:
-		return strconv.FormatInt(secs, 10) + "s"
-	case secs < 7200:
-		return strconv.FormatInt(secs/60, 10) + "m"
-	case secs < 172800:
-		return strconv.FormatInt(secs/3600, 10) + "h"
-	}
-	return strconv.FormatInt(secs/86400, 10) + "d"
-}
-
-// took gives how long a build or a job took, to the second: 45s, 3m 36s, 1h 02m; … while it runs.
-func took(secs *int64) string {
-	switch {
-	case secs == nil:
-		return "…"
-	case *secs < 60:
-		return strconv.FormatInt(max(*secs, 0), 10) + "s"
-	case *secs < 3600:
-		return fmt.Sprintf("%dm %02ds", *secs/60, *secs%60)
-	}
-	return fmt.Sprintf("%dh %02dm", *secs/3600, *secs%3600/60)
-}
-
 // tookCell gives a duration's cell, right-aligned: dim … while it runs.
 func tookCell(secs *int64) cell {
 	if secs == nil {
-		return dimNumber(took(secs))
+		return dimNumber(table.Took(secs))
 	}
-	return number(took(secs))
+	return number(table.Took(secs))
 }
 
 // ageOf gives an age that may be missing.
@@ -266,7 +238,7 @@ func ageOf(secs *int64) string {
 	if secs == nil {
 		return ""
 	}
-	return age(*secs)
+	return table.Age(*secs)
 }
 
 // owners gives the assignees' cell: each after its glyph, dim, a value of its own, so a closed row shows the first and
@@ -297,7 +269,7 @@ func (c *checks) cell() string {
 		return ""
 	}
 	if c.Took != nil {
-		out += " " + style.Off(age(*c.Took))
+		out += " " + style.Off(table.Age(*c.Took))
 	}
 	return out
 }
@@ -306,7 +278,7 @@ func (c *checks) cell() string {
 // fields, by the field's id. A row of one cell, which spans the columns, as a heading, has its cell and no values.
 type record struct {
 	row
-	values map[string]value
+	values map[string]table.Value
 }
 
 // laid gives a stage's rows from its records: each record's values drawn in the stage's fields, in the order their
@@ -322,11 +294,11 @@ func laid(stage string, records []record, pinned func(id string) string) []row {
 		}
 	}
 	for _, f := range fieldsOf(stage) {
-		vs := make([]value, len(at))
+		vs := make([]table.Value, len(at))
 		for n, k := range at {
 			vs[n] = records[k].values[f.ID]
 		}
-		for n, c := range f.draw(vs, pinned(f.ID)) {
+		for n, c := range f.Draw(vs, pinned(f.ID)) {
 			out[at[n]].Cells = append(out[at[n]].Cells, c)
 		}
 	}
@@ -382,8 +354,8 @@ func (m Model) build(i int) shown {
 	all := laid(s.name, records, pinned)
 	rows := p.Filter(all, names)
 	fields := m.placed(i)
-	drawn := automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead), p.Glyphs)
-	if slices.ContainsFunc(fields, func(f placed) bool { return drawn[f.ID] != f.drawnBy(f.pinned) }) {
+	drawn := table.Automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Levels(rows)-len(lead), p.Glyphs)
+	if slices.ContainsFunc(fields, func(f table.Placed) bool { return drawn[f.ID] != f.DrawnBy(f.Pinned) }) {
 		passed := map[string]bool{}
 		for _, r := range rows {
 			passed[r.Key] = true
@@ -398,39 +370,39 @@ func (m Model) build(i int) shown {
 
 // placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each
 // with the name the header stands over it while it shows, then the fields grouped or hidden.
-func (m Model) placed(i int) []placed {
+func (m Model) placed(i int) []table.Placed {
 	s, p := m.stages[i], m.filter(i)
 	fields := fieldsOf(s.name)
 	heads := m.names(i)
-	var out, rest []placed
+	var out, rest []table.Placed
 	for k, id := range p.Arrange(columnsOf(s.name)) {
 		f := fields[k]
 		if id != "" {
-			f = fields[slices.IndexFunc(fields, func(f field) bool { return f.ID == id })]
+			f = fields[slices.IndexFunc(fields, func(f table.Field) bool { return f.ID == id })]
 		}
 		pin := p.Field(f.ID).Rendering
 		if id != "" && !p.Shows(id) {
-			rest = append(rest, placed{f, pin, false, ""})
+			rest = append(rest, table.Placed{Field: f, Pinned: pin})
 			continue
 		}
 		name := ""
 		if len(out) < len(heads) {
 			name = heads[len(out)]
 		}
-		out = append(out, placed{f, pin, true, name})
+		out = append(out, table.Placed{Field: f, Pinned: pin, Column: true, Name: name})
 	}
 	return append(out, rest...)
 }
 
 // shownValues gives the values the records the rows let through hold in each field, by id, one a record.
-func shownValues(records []record, rows []row) map[string][]value {
+func shownValues(records []record, rows []row) map[string][]table.Value {
 	passed := map[string]bool{}
 	for _, r := range rows {
 		if !r.Aside {
 			passed[r.Key] = true
 		}
 	}
-	out := map[string][]value{}
+	out := map[string][]table.Value{}
 	for _, r := range records {
 		if r.values == nil || !passed[r.Key] {
 			continue
@@ -486,10 +458,10 @@ func (m Model) backlogRows(s stage) []record {
 	var out []record
 	for _, i := range s.issues {
 		key := "#" + strconv.Itoa(i.Number)
-		out = append(out, record{row{Key: key}, map[string]value{
-			"id": one(key), "source": some(i.Source), "organization": some(i.Organization),
-			"repository": some(i.Repository), "assignees": {Raw: i.Assignees}, "age": seconds(i.Age),
-			"branch": some(i.Branch), "labels": labelled(i.Labels),
+		out = append(out, record{row{Key: key}, map[string]table.Value{
+			"id": table.One(key), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
+			"repository": table.Some(i.Repository), "assignees": {Raw: i.Assignees}, "age": table.Seconds(i.Age),
+			"branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
 			"title": {Raw: []string{i.Title}, Link: m.origin.issue(i.Number, i.URL)},
 		}})
 	}
@@ -509,30 +481,30 @@ func (m Model) underwayRows(s stage) []record {
 	var out []record
 	for _, u := range s.under {
 		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), m.origin.pull(u.PR.Number, u.PR.URL)
-		var where, pushed, by value
+		var where, pushed, by table.Value
 		switch {
 		case u.Here:
 			where = m.here(u.Worktree)
 		case u.Local:
-			where = value{Raw: []string{"local"}, Of: "local"}
+			where = table.Value{Raw: []string{"local"}, Of: "local"}
 		case u.PR.Author != "":
-			where = value{Raw: []string{u.PR.Author}, Of: "author"}
+			where = table.Value{Raw: []string{u.PR.Author}, Of: "author"}
 		}
 		if p := u.PR.Pushed; p != nil {
-			pushed = seconds(&p.Age)
+			pushed = table.Seconds(&p.Age)
 			if p.By != u.PR.Author {
-				by = some(p.By)
+				by = table.Some(p.By)
 			}
 		}
 		change := page
 		if m.find("changes") != nil {
 			change = jumpTo("changes", m.pullKey(u.PR.Number))
 		}
-		out = append(out, record{row{Key: issue + " " + pr}, map[string]value{
-			"id": one(issue), "source": some(u.Source), "organization": some(u.Organization),
-			"repository": some(u.Repository), "assignees": {Raw: u.Assignees}, "age": seconds(u.Age),
+		out = append(out, record{row{Key: issue + " " + pr}, map[string]table.Value{
+			"id": table.One(issue), "source": table.Some(u.Source), "organization": table.Some(u.Organization),
+			"repository": table.Some(u.Repository), "assignees": {Raw: u.Assignees}, "age": table.Seconds(u.Age),
 			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
-			"where": where, "fork": some(u.PR.Fork), "pushed": pushed, "by": by, "labels": labelled(u.Labels),
+			"where": where, "fork": table.Some(u.PR.Fork), "pushed": pushed, "by": by, "labels": table.Labelled(u.Labels),
 			"title": {Raw: []string{u.Title}, Link: m.origin.issue(u.Number, u.URL)},
 		}})
 	}
@@ -542,12 +514,12 @@ func (m Model) underwayRows(s stage) []record {
 // here gives underway's where for work in a checkout on this desk, at path: the desk, when the desk is that
 // checkout, leading to its row under desk, else here, a worktree, leading to its row under worktrees; without the
 // stage in the picture, its glyph leads nowhere.
-func (m Model) here(path string) value {
+func (m Model) here(path string) table.Value {
 	stage, where := "worktrees", "here"
 	if d := m.find("desk"); d != nil && d.desk != nil && d.desk.Path == path {
 		stage, where = "desk", "desk"
 	}
-	v := value{Raw: []string{where}, Of: where}
+	v := table.Value{Raw: []string{where}, Of: where}
 	if m.find(stage) != nil && path != "" {
 		v.Link = jumpTo(stage, path)
 	}
@@ -691,10 +663,10 @@ func (m Model) checkoutRow(c checkout, desk bool) record {
 		name = c.Path
 	}
 	change, state := m.pullOf(c.Branch, desk)
-	r := record{row{Key: c.Path}, map[string]value{
+	r := record{row{Key: c.Path}, map[string]table.Value{
 		"branch": {Raw: []string{name}, Of: c}, "ahead": {Raw: []string{strconv.Itoa(c.Ahead)}, Of: c},
 		"lines": {Raw: []string{strconv.Itoa(c.Added)}, Of: c}, "change": change, "state": state,
-		"uncommitted": one(strconv.Itoa(c.Uncommitted)),
+		"uncommitted": table.One(strconv.Itoa(c.Uncommitted)),
 	}}
 	for _, change := range c.Changes {
 		r.Detail = append(r.Detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
@@ -743,24 +715,24 @@ func uncommitted(n int) cell {
 // says … while changes loads; both say nothing when changes is not in the picture or failed, or for the desk or a
 // detached checkout without one; and the state says no pull request yet for a worktree without one, so the
 // references' column stays narrow.
-func (m Model) pullOf(branch string, desk bool) (change, state value) {
+func (m Model) pullOf(branch string, desk bool) (change, state table.Value) {
 	s := m.find("changes")
 	if s == nil || s.refusal != "" {
-		return value{}, value{}
+		return table.Value{}, table.Value{}
 	}
 	if s.src.Loading {
-		return value{Else: "…"}, value{}
+		return table.Value{Else: "…"}, table.Value{}
 	}
 	for _, p := range s.pulls {
 		if p.Branch == branch && branch != "" {
-			return value{Raw: []string{ref(p)}, Link: jumpTo("changes", ref(p))},
-				value{Raw: []string{p.State}, Link: m.origin.pull(p.Number, "")}
+			return table.Value{Raw: []string{ref(p)}, Link: jumpTo("changes", ref(p))},
+				table.Value{Raw: []string{p.State}, Link: m.origin.pull(p.Number, "")}
 		}
 	}
 	if desk || branch == "" {
-		return value{}, value{}
+		return table.Value{}, table.Value{}
 	}
-	return value{}, value{Else: "no pull request yet"}
+	return table.Value{}, table.Value{Else: "no pull request yet"}
 }
 
 // ref gives a pull request's reference: what kit printed, else #<number>.
@@ -778,14 +750,14 @@ func (m Model) changeRows(s stage) []record {
 	var out []record
 	for _, p := range s.pulls {
 		page := m.origin.pull(p.Number, "")
-		var checked value
+		var checked table.Value
 		if p.Checks != nil {
-			checked = value{Raw: []string{p.Checks.State}, Of: p.Checks}
+			checked = table.Value{Raw: []string{p.Checks.State}, Of: p.Checks}
 		}
-		r := record{row{Key: ref(p)}, map[string]value{
-			"change": {Raw: []string{ref(p)}, Link: page}, "title": one(p.Title), "author": some(p.Author),
-			"state": {Raw: []string{p.State}, Link: page}, "age": seconds(&p.Age), "checks": checked,
-			"threads": one(strconv.Itoa(p.Unresolved)), "branch": some(p.Branch), "labels": labelled(p.Labels),
+		r := record{row{Key: ref(p)}, map[string]table.Value{
+			"change": {Raw: []string{ref(p)}, Link: page}, "title": table.One(p.Title), "author": table.Some(p.Author),
+			"state": {Raw: []string{p.State}, Link: page}, "age": table.Seconds(&p.Age), "checks": checked,
+			"threads": table.One(strconv.Itoa(p.Unresolved)), "branch": table.Some(p.Branch), "labels": table.Labelled(p.Labels),
 		}}
 		for _, i := range p.Closes {
 			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),
@@ -814,14 +786,14 @@ func (m Model) buildRows(s stage) []record {
 		if title == b.Workflow {
 			title = ""
 		}
-		lasted := seconds(b.Took)
+		lasted := table.Seconds(b.Took)
 		if b.Took == nil {
-			lasted.Else = took(nil)
+			lasted.Else = table.Took(nil)
 		}
-		r := record{row{Key: strconv.FormatInt(b.ID, 10)}, map[string]value{
-			"status": {Raw: []string{b.State}, Link: b.URL}, "workflow": one(b.Workflow), "run": some(number),
-			"event": some(eventOf(b)), "branch": one(b.Branch), "commit": some(b.SHA), "title": one(title),
-			"age": seconds(&b.Age), "took": lasted,
+		r := record{row{Key: strconv.FormatInt(b.ID, 10)}, map[string]table.Value{
+			"status": {Raw: []string{b.State}, Link: b.URL}, "workflow": table.One(b.Workflow), "run": table.Some(number),
+			"event": table.Some(eventOf(b)), "branch": table.One(b.Branch), "commit": table.Some(b.SHA), "title": table.One(title),
+			"age": table.Seconds(&b.Age), "took": lasted,
 		}}
 		if b.Attempt > 1 {
 			r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
@@ -864,13 +836,13 @@ func failedFirst(j job) int {
 func (m Model) releaseRows(s stage) []record {
 	var out []record
 	for _, rel := range s.rels {
-		var latest value
+		var latest table.Value
 		if rel.Latest {
-			latest = one("latest")
+			latest = table.One("latest")
 		}
-		r := record{row{Key: rel.Tag}, map[string]value{
-			"version": one(rel.Version), "kind": {Raw: []string{rel.Kind}, Link: m.origin.release(rel.Tag, rel.URL)},
-			"age": seconds(&rel.Age), "latest": latest,
+		r := record{row{Key: rel.Tag}, map[string]table.Value{
+			"version": table.One(rel.Version), "kind": {Raw: []string{rel.Kind}, Link: m.origin.release(rel.Tag, rel.URL)},
+			"age": table.Seconds(&rel.Age), "latest": latest,
 		}}
 		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
 		out = append(out, r)

@@ -1,5 +1,5 @@
-// The menus: the app's, which = or a click on ≡ before the title drops down, internal/shell's, the same on every screen
-// with refresh all first; and the selected tab's, which : or ; or a click on the tab's ⋮ drops down. Each hangs from
+// The menus: the app's, which = or a click on = before the title drops down, internal/shell's, the same on every screen
+// with refresh all first; and the selected tab's, which : or ; or a click on the tab's : drops down. Each hangs from
 // its glyph, which takes a cell of the box's top edge, two in from its left corner, or from its right one when the box
 // would run off the screen. While one is open it has the keyboard: up and down move, a letter moves to the next item
 // that starts with it, enter and space choose, and esc or the key that opened it closes it; a click on an item chooses
@@ -195,8 +195,8 @@ func (m *Model) refresh(name string) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's ⋮, on the bar or the
-// title as kebab says, and the column its left edge is drawn at. The rows, not the bar, bound it, as the lines under
+// menuBox gives the tab's menu's lines, as internal/shell draws a menu, hanging from the tab's :, on the bar or the
+// title as tabMenuAt says, and the column its left edge is drawn at. The rows, not the bar, bound it, as the lines under
 // the bar end where the rows do.
 func (m Model) menuBox() (lines []string, left int) {
 	lines, left, _ = m.menuBoxIn()
@@ -206,7 +206,7 @@ func (m Model) menuBox() (lines []string, left int) {
 // menuBoxIn gives the tab's menu's lines as menuBox does, and the first item they show: the box ends above the keys
 // bar, and a menu taller than the room scrolls with the keyboard.
 func (m Model) menuBoxIn() (lines []string, left, first int) {
-	return shell.BoxIn(m.tabItems(), m.enabled, m.tabMenu.At, tabs.Menu, m.kebab(), m.paneWidth(),
+	return shell.BoxIn(m.tabItems(), m.enabled, m.tabMenu.At, tabs.Menu, m.tabMenuAt(), m.paneWidth(),
 		max(3, m.height-1-m.menuTop()))
 }
 
@@ -219,9 +219,9 @@ func (m Model) menuTop() int {
 	return m.top() - 2
 }
 
-// kebab gives the screen column the selected tab's ⋮ is drawn at, which drops its menu down: on the bar, as its MenuAt
+// tabMenuAt gives the screen column the selected tab's : is drawn at, which drops its menu down: on the bar, as its MenuAt
 // says, or, maximized, at the title's end, -1 where the title is clipped short of it.
-func (m Model) kebab() int {
+func (m Model) tabMenuAt() int {
 	if !m.maximized {
 		return m.bar().MenuAt()
 	}

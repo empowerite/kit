@@ -4,7 +4,7 @@
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
 // every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
-// menu down, and : or ; the selected tab's, as a click on ≡ or ⋮ does; F1 or ? shows the legend over the rows, and again
+// menu down, and : or ; the selected tab's, as a click on = or : does; F1 or ? shows the legend over the rows, and again
 // hides it; / or a click on the search, always on the screen's top right, gives the search the keyboard. A click on a
 // linked glyph, as an issue's before its title, opens its page in the browser, and one on a glyph that names a row of
 // another stage, as underway's pull request, selects that stage with the row under the cursor. The rows take the
@@ -33,6 +33,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -78,7 +79,7 @@ type stage struct {
 	// whether the view the stage was last set to still waits for rows to group by, as it loads, as autoGroup says;
 	// and the view as autoGroup left it, which the preset line names as the view still
 	grouping bool
-	grouped  *preset
+	grouped  *table.Preset
 }
 
 // known names the stages kittui draws.
@@ -98,31 +99,31 @@ type Model struct {
 	noFetch       bool
 	filters       []string
 	stages        []stage
-	stage         int                    // the selected stage
-	barView       int                    // the cells the stages' bar's view has scrolled past, as the bar last chose
-	inRows        bool                   // whether the rows have the keyboard, not the bar
-	onPreset      bool                   // whether the preset line has the keyboard, not the bar or the rows
-	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
-	me            string                 // the caller's login, once kit has said it, which a filter's @me matches
-	asked         bool                   // whether kit has been asked for the caller's login
-	browse        func(url string) error // opens a page in the browser
-	note          shell.Notice           // what kit did, or why something was not done, in place of the keys
-	ask           *ask                   // what a backlog action asks before kit runs, while it asks
-	saved         map[string][]preset    // the person's views, by stage, as their file keeps them
-	presetsPath   string                 // that file, or none
-	presetsMenu   shell.Dropdown         // the preset line's menu of views: whether it is open, and its line under the keyboard
-	colMenu       columnMenu             // the menu a click on a column's name drops, while it is open
-	fold          bool                   // whether the tables fold a value every row of a group shares, as kittui's settings say
-	glyphs        bool                   // whether the tables draw an emoji every row shown shares, as kittui's settings say
-	cols          columnsDialog          // the columns dialog, while it is open
-	legend        legend                 // the legend, which F1 and ? show and hide, and the corner it stands in
-	noHeaders     bool                   // whether the stages' headers are hidden, as a test of the rows alone asks
-	noPresets     bool                   // whether the stages' tables have no preset line
-	recent        shell.Recent           // the searches remembered, every screen's, and their dropdown
-	tabMenu       shell.Dropdown         // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
-	maximized     bool                   // whether the tab's rows have the bar's lines but one, for the session
-	appMenu       shell.Menu             // the app's menu, internal/shell's, which has the keyboard while it is open
-	pop           popover                // a field's popover, which has the keyboard while it is open
+	stage         int                       // the selected stage
+	barView       int                       // the cells the stages' bar's view has scrolled past, as the bar last chose
+	inRows        bool                      // whether the rows have the keyboard, not the bar
+	onPreset      bool                      // whether the preset line has the keyboard, not the bar or the rows
+	inPanel       bool                      // whether the panel has the keyboard, before the rows, the line, or the bar
+	me            string                    // the caller's login, once kit has said it, which a filter's @me matches
+	asked         bool                      // whether kit has been asked for the caller's login
+	browse        func(url string) error    // opens a page in the browser
+	note          shell.Notice              // what kit did, or why something was not done, in place of the keys
+	ask           *ask                      // what a backlog action asks before kit runs, while it asks
+	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
+	presetsPath   string                    // that file, or none
+	presetsMenu   shell.Dropdown            // the preset line's menu of views: whether it is open, and its line under the keyboard
+	colMenu       columnMenu                // the menu a click on a column's name drops, while it is open
+	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
+	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say
+	cols          columnsDialog             // the columns dialog, while it is open
+	legend        legend                    // the legend, which F1 and ? show and hide, and the corner it stands in
+	noHeaders     bool                      // whether the stages' headers are hidden, as a test of the rows alone asks
+	noPresets     bool                      // whether the stages' tables have no preset line
+	recent        shell.Recent              // the searches remembered, every screen's, and their dropdown
+	tabMenu       shell.Dropdown            // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
+	maximized     bool                      // whether the tab's rows have the bar's lines but one, for the session
+	appMenu       shell.Menu                // the app's menu, internal/shell's, which has the keyboard while it is open
+	pop           popover                   // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
@@ -195,7 +196,7 @@ func New(r kit.Runner, o Options) Model {
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
 		}
 		if c := catalog[name]; c != nil {
-			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p preset) bool { return p.Name == Opening })].panel(c.Fields, s.view)
+			s.view = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.view)
 		}
 		m.stages = append(m.stages, s)
 	}
@@ -362,7 +363,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // onMenu says whether a click at x, y is on the selected tab's menu glyph: its cells on the bar's middle line, or, once
 // maximized, on the title, or the blank cell either side of them, so a click a little off still drops the menu.
 func (m Model) onMenu(x, y int) bool {
-	at := m.kebab()
+	at := m.tabMenuAt()
 	return at >= 0 && y == m.menuTop() && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
 }
 

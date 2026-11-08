@@ -1,5 +1,5 @@
 // Maximize, the first item of the tab's menu, gives the rows the bar's lines but one: the title names the tab, its
-// count, and its ⋮, a line in the tab's color runs under it, and the rows' header follows. Restore puts the bar back.
+// count, and its :, a line in the tab's color runs under it, and the rows' header follows. Restore puts the bar back.
 package flow
 
 import (
@@ -146,13 +146,13 @@ func TestClicksFollowTheTop(t *testing.T) {
 	if m = drive(m, testkit.Click(25, 1)); m.stage != 0 || !m.inRows {
 		t.Errorf("a click on the line: stage %d, rows %v", m.stage, m.inRows)
 	}
-	// a click on the title's ⋮ drops the tab's menu, hanging from it, and a click on its first item restores
-	glyph := m.kebab()
+	// a click on the title's : drops the tab's menu, hanging from it, and a click on its first item restores
+	glyph := m.tabMenuAt()
 	if glyph < 0 || ansi.Cut(lines(m)[0], glyph, glyph+1) != tabs.Menu {
-		t.Fatalf("the title's ⋮ at %d: %q", glyph, lines(m)[0])
+		t.Fatalf("the title's : at %d: %q", glyph, lines(m)[0])
 	}
 	if m = drive(m, testkit.Click(glyph, 0)); !m.tabMenu.Open {
-		t.Fatalf("a click on the title's ⋮:\n%s", raw(m))
+		t.Fatalf("a click on the title's ::\n%s", raw(m))
 	}
 	if box, left := m.menuBox(); left != glyph-2 || m.menuTop() != 0 ||
 		ansi.Cut(lines(m)[0], glyph-1, glyph+2) != "╴"+tabs.Menu+"╶" ||
@@ -166,12 +166,12 @@ func TestClicksFollowTheTop(t *testing.T) {
 	}
 }
 
-// Where the title is clipped short of the tab's ⋮, : still drops the menu, against the rows' right edge, and a click on
+// Where the title is clipped short of the tab's :, : still drops the menu, against the rows' right edge, and a click on
 // the title drops none.
 func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 60, Height: 24}))
-	if m.kebab() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
-		t.Fatalf("the ⋮ at %d: %q", m.kebab(), lines(m)[0])
+	if m.tabMenuAt() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
+		t.Fatalf("the : at %d: %q", m.tabMenuAt(), lines(m)[0])
 	}
 	if m = drive(m, testkit.Click(m.titleWidth()-1, 0)); m.tabMenu.Open {
 		t.Errorf("a click on the clipped title dropped the menu")
@@ -207,6 +207,6 @@ func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 func TestGoldenMaximized(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
 	testkit.Golden(t, filepath.Join("testdata", "backlog-max.golden"), raw(m))
-	m = drive(m, testkit.Click(m.kebab(), 0))
+	m = drive(m, testkit.Click(m.tabMenuAt(), 0))
 	testkit.Golden(t, filepath.Join("testdata", "backlog-max-menu.golden"), raw(m))
 }

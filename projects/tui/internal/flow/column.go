@@ -285,7 +285,7 @@ func (m *Model) columnAct(k int) tea.Cmd {
 }
 
 // columnBox gives the column menu's lines, the box around the column's name, which its top edge draws where the header
-// does, as the app's menu hangs from ≡, or where the heading over the groups does; and the screen line and column it
+// does, as the app's menu hangs from =, or where the heading over the groups does; and the screen line and column it
 // is drawn from. Once the heading no longer shows, there are none.
 func (m Model) columnBox() (lines []string, top, left int) {
 	if m.colMenu.heading {

@@ -13,7 +13,6 @@
 package flow
 
 import (
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // Opening is the name of the view a stage opens on, one of its own.
@@ -103,16 +103,16 @@ const presetsVersion = 2
 // presets is presets.json: its version, and the person's presets, by stage, each in the catalog's vocabulary, its
 // fields by id.
 type presets struct {
-	Version int                 `json:"version"`
-	Stages  map[string][]preset `json:"stages"`
+	Version int                       `json:"version"`
+	Stages  map[string][]table.Preset `json:"stages"`
 }
 
 // readPresets gives the presets the file keeps, by stage; none when there is no file. With no presets.json, it reads
 // views.json beside it, the file before it, once: each view a preset, its labels the fields' ids, which it then keeps
 // in presets.json, leaving views.json as it is. It says what it noted, the labels the catalog no longer knows, which
 // are dropped, or none. A file that does not read, or is of another version, is the error, and nothing is written.
-func readPresets(path string) (map[string][]preset, string, error) {
-	out := map[string][]preset{}
+func readPresets(path string) (map[string][]table.Preset, string, error) {
+	out := map[string][]table.Preset{}
 	if path == "" {
 		return out, "", nil
 	}
@@ -138,8 +138,8 @@ func readPresets(path string) (map[string][]preset, string, error) {
 
 // migrate reads views.json beside the presets file, when there is one, as readPresets says, and writes the presets
 // file from it. Its note names each label dropped, after its stage and its view.
-func migrate(path string) (map[string][]preset, string, error) {
-	out := map[string][]preset{}
+func migrate(path string) (map[string][]table.Preset, string, error) {
+	out := map[string][]table.Preset{}
 	old := filepath.Join(filepath.Dir(path), "views.json")
 	data, err := os.ReadFile(old)
 	if errors.Is(err, os.ErrNotExist) {
@@ -174,7 +174,7 @@ func migrate(path string) (map[string][]preset, string, error) {
 }
 
 // writePresets keeps the presets in the file, written whole beside it first, so a reader never sees half of it.
-func writePresets(path string, stages map[string][]preset) error {
+func writePresets(path string, stages map[string][]table.Preset) error {
 	if path == "" {
 		return nil
 	}
@@ -194,107 +194,11 @@ func writePresets(path string, stages map[string][]preset) error {
 
 // builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
 // Default alone, as it opens.
-func (m Model) builtins(i int) []preset {
+func (m Model) builtins(i int) []table.Preset {
 	if s := catalog[m.stages[i].name]; s != nil {
 		return slices.Clone(s.Presets)
 	}
-	return []preset{{Name: Opening}}
-}
-
-// panel gives a stage's panel set as a preset says, of the stage's fields, the rest of it as p has it: each field placed,
-// sorted, filtered, and drawn as the preset says, a field it does not name placed as the catalog says, and folding
-// unless the preset says it does not. What a field cannot do it is not set to do: a field without a label is never
-// hidden, nor grouped, sorted, or filtered unless it can be, nor drawn by a rendering not its own.
-func (pr preset) panel(fields []field, p grid.Panel) grid.Panel {
-	p.Fields = map[string]grid.Field{}
-	for _, f := range fields {
-		s := pr.Fields[f.ID]
-		var g grid.Field
-		switch cmp.Or(s.Placement, f.Placement) {
-		case placeHidden:
-			if f.Label != "" {
-				g.Placement = grid.Hidden
-			}
-		case placeGroup:
-			if f.Group {
-				g.Placement, g.Depth = grid.Group, s.Depth
-			}
-		default:
-			g.Position = s.Position
-		}
-		if f.Sort && (s.Sort == "asc" || s.Sort == "desc") {
-			g.Sort, g.Priority = grid.Ascending, s.Priority
-			if s.Sort == "desc" {
-				g.Sort = grid.Descending
-			}
-		}
-		if s.Filter != nil && f.Filter {
-			switch {
-			case len(s.Filter.Include) > 0:
-				g.Filter = grid.Filter{Values: slices.Clone(s.Filter.Include)}
-			case len(s.Filter.Exclude) > 0:
-				g.Filter = grid.Filter{Values: slices.Clone(s.Filter.Exclude), Exclude: true}
-			}
-		}
-		if slices.Contains(f.Renderings, s.Rendering) {
-			g.Rendering = s.Rendering
-		}
-		p.Fields[f.ID] = g
-	}
-	return p
-}
-
-// presetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed: of each field, what differs from
-// what a preset that names none of them says. A column's position is said only while the columns stand in another order
-// than the stage's, and then for every column, from 1; a group's depth and a sort's priority are numbered from 1, the
-// outermost and the first first.
-func presetOf(p grid.Panel, fields []field) preset {
-	var out preset
-	var ids []string
-	for _, f := range fields {
-		if f.Label != "" {
-			ids = append(ids, f.ID)
-		}
-	}
-	columns := slices.DeleteFunc(p.Arrange(ids), func(id string) bool { return !p.Shows(id) })
-	positioned := !slices.Equal(columns, slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !p.Shows(id) }))
-	groups, sorts := p.Groups(), p.SortKeys()
-	for _, f := range fields {
-		g := p.Field(f.ID)
-		var s setting
-		switch k := slices.Index(columns, f.ID); {
-		case g.Placement == grid.Hidden && f.Label != "":
-			if f.Placement != placeHidden {
-				s.Placement = placeHidden
-			}
-		case g.Placement == grid.Group && slices.Contains(groups, f.ID):
-			s.Placement, s.Depth = placeGroup, slices.Index(groups, f.ID)+1
-		case positioned && k >= 0:
-			s.Placement, s.Position = placeColumn, k+1
-		case cmp.Or(f.Placement, placeColumn) != placeColumn:
-			s.Placement = placeColumn
-		}
-		if k := slices.IndexFunc(sorts, func(s grid.SortKey) bool { return s.Column == f.ID }); k >= 0 {
-			s.Sort, s.Priority = "asc", k+1
-			if sorts[k].Desc {
-				s.Sort = "desc"
-			}
-		}
-		if len(g.Filter.Values) > 0 {
-			s.Filter = &valueFilter{Include: slices.Clone(g.Filter.Values)}
-			if g.Filter.Exclude {
-				s.Filter = &valueFilter{Exclude: slices.Clone(g.Filter.Values)}
-			}
-		}
-		s.Rendering = g.Rendering
-		if s != (setting{}) {
-			if out.Fields == nil {
-				out.Fields = map[string]setting{}
-			}
-			out.Fields[f.ID] = s
-		}
-	}
-	return out
+	return []table.Preset{{Name: Opening}}
 }
 
 // preset gives a view of views.json as a preset of the stage's: each column's label, or its id, as the field's id,
@@ -303,13 +207,13 @@ func presetOf(p grid.Panel, fields []field) preset {
 // owns them: mine as the caller alone, others as anyone but the caller; and whether it folds, the headers aside. The
 // columns it kept from grouping on their own are dropped, as the person no longer keeps a column so; it folds, or does
 // not, as a whole. It gives the labels the catalog does not know, each once, which are dropped.
-func (v named) preset(stage string) (preset, []string) {
+func (v named) preset(stage string) (table.Preset, []string) {
 	fields := fieldsOf(stage)
 	var dropped []string
 	id := func(label string) string {
-		k := slices.IndexFunc(fields, func(f field) bool { return f.Label != "" && f.Label == label })
+		k := slices.IndexFunc(fields, func(f table.Field) bool { return f.Label != "" && f.Label == label })
 		if k < 0 {
-			k = slices.IndexFunc(fields, func(f field) bool { return f.Label != "" && f.ID == label })
+			k = slices.IndexFunc(fields, func(f table.Field) bool { return f.Label != "" && f.ID == label })
 		}
 		if k < 0 {
 			if !slices.Contains(dropped, label) {
@@ -329,7 +233,7 @@ func (v named) preset(stage string) (preset, []string) {
 	}
 	// a field the catalog hides, which views.json knew nothing of, stays hidden, as are those it hid
 	for _, f := range fields {
-		if f.Placement == placeHidden {
+		if f.Placement == table.PlaceHidden {
 			p = p.Placed(f.ID, grid.Hidden)
 		}
 	}
@@ -361,41 +265,41 @@ func (v named) preset(stage string) (preset, []string) {
 	case "others":
 		p = p.Shown(grid.Others)
 	}
-	out := presetOf(p, fields)
+	out := table.PresetOf(p, fields)
 	out.Name = v.Name
 	return out, dropped
 }
 
 // views gives a stage's views, its own first, then the person's.
-func (m Model) views(i int) []preset {
+func (m Model) views(i int) []table.Preset {
 	return append(m.builtins(i), m.saved[m.stages[i].name]...)
 }
 
 // builtin says whether a name is one of a stage's own views.
 func (m Model) builtin(i int, name string) bool {
-	return slices.ContainsFunc(m.builtins(i), func(v preset) bool { return v.Name == name })
+	return slices.ContainsFunc(m.builtins(i), func(v table.Preset) bool { return v.Name == name })
 }
 
 // chosen gives the view a stage's preset line was last set to, or Default when that view is gone.
-func (m Model) chosen(i int) preset {
+func (m Model) chosen(i int) table.Preset {
 	vs := m.views(i)
-	if k := slices.IndexFunc(vs, func(v preset) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
+	if k := slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == m.stages[i].viewName }); k >= 0 {
 		return vs[k]
 	}
-	return vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == Opening })]
+	return vs[slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == Opening })]
 }
 
 // current gives a stage's panel as a view would keep it.
-func (m Model) current(i int) preset {
+func (m Model) current(i int) table.Preset {
 	s := m.stages[i]
-	return presetOf(s.view, fieldsOf(s.name))
+	return table.PresetOf(s.view, fieldsOf(s.name))
 }
 
 // same says whether two views set a stage's panel alike, their names apart: each field placed, sorted, filtered, and
 // drawn alike, and folding alike.
-func (m Model) same(i int, a, b preset) bool {
+func (m Model) same(i int, a, b table.Preset) bool {
 	fields := fieldsOf(m.stages[i].name)
-	normal := func(v preset) preset { return presetOf(v.panel(fields, grid.Panel{}), fields) }
+	normal := func(v table.Preset) table.Preset { return table.PresetOf(v.Panel(fields, grid.Panel{}), fields) }
 	return reflect.DeepEqual(normal(a), normal(b))
 }
 
@@ -416,9 +320,9 @@ func (m Model) is(i int) string {
 
 // apply sets the selected stage's panel as the view keeps it, its search, cursor, and groups closed as they are, and
 // names the view, which then groups the rows as it loads, as autoGroup says.
-func (m *Model) apply(v preset) {
+func (m *Model) apply(v table.Preset) {
 	s := &m.stages[m.stage]
-	p := v.panel(fieldsOf(s.name), s.view)
+	p := v.Panel(fieldsOf(s.name), s.view)
 	s.viewName, s.savingAs, s.naming = v.Name, false, ""
 	s.grouping, s.grouped = true, nil
 	m.setPanel(p)
@@ -480,19 +384,19 @@ func (m *Model) dropPresets() {
 
 // own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
 // not, nor is a view since deleted.
-func (m Model) own() (preset, bool) {
+func (m Model) own() (table.Preset, bool) {
 	saved := m.saved[m.stages[m.stage].name]
 	name := m.stages[m.stage].viewName
-	if k := slices.IndexFunc(saved, func(v preset) bool { return v.Name == name }); k >= 0 && !m.builtin(m.stage, name) {
+	if k := slices.IndexFunc(saved, func(v table.Preset) bool { return v.Name == name }); k >= 0 && !m.builtin(m.stage, name) {
 		return saved[k], true
 	}
-	return preset{}, false
+	return table.Preset{}, false
 }
 
 // keep writes the person's views of the selected stage as they are given, and says whether it could; when it could
 // not, the notice says why, and nothing changes.
-func (m *Model) keep(saved []preset, what string) bool {
-	all := map[string][]preset{}
+func (m *Model) keep(saved []table.Preset, what string) bool {
+	all := map[string][]table.Preset{}
 	for stage, vs := range m.saved {
 		all[stage] = vs
 	}
@@ -530,7 +434,7 @@ func (m *Model) saveAs(name string) {
 	v := m.current(m.stage)
 	v.Name = name
 	saved := slices.Clone(m.saved[s.name])
-	if k := slices.IndexFunc(saved, func(w preset) bool { return w.Name == name }); k >= 0 {
+	if k := slices.IndexFunc(saved, func(w table.Preset) bool { return w.Name == name }); k >= 0 {
 		saved[k] = v
 	} else {
 		saved = append(saved, v)
@@ -548,7 +452,7 @@ func (m *Model) renamePreset() {
 	s := &m.stages[m.stage]
 	from, name := s.renaming, strings.TrimSpace(s.naming)
 	saved := slices.Clone(m.saved[s.name])
-	k := slices.IndexFunc(saved, func(v preset) bool { return v.Name == from })
+	k := slices.IndexFunc(saved, func(v table.Preset) bool { return v.Name == from })
 	switch {
 	case name == "":
 		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
@@ -556,7 +460,7 @@ func (m *Model) renamePreset() {
 	case m.builtin(m.stage, name):
 		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
 		return
-	case name != from && slices.ContainsFunc(saved, func(v preset) bool { return v.Name == name }):
+	case name != from && slices.ContainsFunc(saved, func(v table.Preset) bool { return v.Name == name }):
 		m.note.Text, m.note.Done = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
 		return
 	case name == from:
@@ -578,14 +482,14 @@ func (m *Model) renamePreset() {
 // the stage as Default.
 func (m *Model) deletePreset() {
 	v, _ := m.own()
-	saved := slices.DeleteFunc(slices.Clone(m.saved[m.stages[m.stage].name]), func(w preset) bool {
+	saved := slices.DeleteFunc(slices.Clone(m.saved[m.stages[m.stage].name]), func(w table.Preset) bool {
 		return w.Name == v.Name
 	})
 	if !m.keep(saved, "deleted") {
 		return
 	}
 	vs := m.views(m.stage)
-	m.apply(vs[slices.IndexFunc(vs, func(w preset) bool { return w.Name == Opening })])
+	m.apply(vs[slices.IndexFunc(vs, func(w table.Preset) bool { return w.Name == Opening })])
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
@@ -659,7 +563,7 @@ func (m *Model) choosePreset(k int) {
 	default:
 		name := m.presetItems()[k].Name
 		vs := m.views(m.stage)
-		m.apply(vs[slices.IndexFunc(vs, func(v preset) bool { return v.Name == name })])
+		m.apply(vs[slices.IndexFunc(vs, func(v table.Preset) bool { return v.Name == name })])
 	}
 }
 

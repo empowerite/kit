@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
@@ -37,11 +38,11 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 				t.Errorf("%s: the id %q is empty or not unique", name, f.ID)
 			}
 			ids[f.ID] = true
-			kind, ok := types[f.Type]
+			kind, ok := table.Types[f.Type]
 			if !ok {
 				t.Errorf("%s.%s: the type %q is not registered", name, f.ID, f.Type)
 			}
-			if f.Filter != kind.filters {
+			if f.Filter != kind.Filters {
 				t.Errorf("%s.%s: filter is %v for a %s", name, f.ID, f.Filter, f.Type)
 			}
 			if f.Path == "" {
@@ -51,11 +52,11 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 				t.Errorf("%s.%s: no rendering", name, f.ID)
 			}
 			for _, r := range f.Renderings {
-				if renderers[r] == nil {
+				if !table.Registered(r) {
 					t.Errorf("%s.%s: the renderer %q is not registered", name, f.ID, r)
 				}
 			}
-			if !slices.Contains([]string{placeColumn, placeGroup, placeHidden}, f.Placement) {
+			if !slices.Contains([]string{table.PlaceColumn, table.PlaceGroup, table.PlaceHidden}, f.Placement) {
 				t.Errorf("%s.%s: the placement %q", name, f.ID, f.Placement)
 			}
 			if f.Type != "enum" && len(f.Values) > 0 {
@@ -77,7 +78,7 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 			}
 			presets[p.Name] = true
 			for id, set := range p.Fields {
-				k := slices.IndexFunc(s.Fields, func(f field) bool { return f.ID == id })
+				k := slices.IndexFunc(s.Fields, func(f table.Field) bool { return f.ID == id })
 				if k < 0 {
 					t.Errorf("%s: the preset %s names %q, not a field of the stage", name, p.Name, id)
 					continue
@@ -95,8 +96,8 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 // the glyph the legend gives it, and Other, or a release's own, for one it does not know.
 func TestTheCatalogsGlyphsAreTheLegends(t *testing.T) {
 	drawn := func(stage, id string, raw ...string) []string {
-		k := slices.IndexFunc(fieldsOf(stage), func(f field) bool { return f.ID == id })
-		return fieldsOf(stage)[k].glyphed(raw, false)
+		k := slices.IndexFunc(fieldsOf(stage), func(f table.Field) bool { return f.ID == id })
+		return fieldsOf(stage)[k].Glyphed(raw, false)
 	}
 	for _, stage := range []string{"underway", "desk", "worktrees", "changes"} {
 		for state, glyph := range stateGlyphs {
@@ -120,7 +121,7 @@ func TestTheCatalogsGlyphsAreTheLegends(t *testing.T) {
 }
 
 // valueGlyphs gives the glyphs of an enum's known values.
-func valueGlyphs(f field) []string {
+func valueGlyphs(f table.Field) []string {
 	var out []string
 	for _, v := range f.Values {
 		out = append(out, v.Glyph)
@@ -131,15 +132,15 @@ func valueGlyphs(f field) []string {
 // checkSetting fails on what a preset cannot say of a field: a placement it does not know, or a column's, a group's, or
 // a sort's place that is not from 1; a group or a sort the field cannot do, or a filter it cannot take, with values
 // that are none of the field's; a rendering not the field's.
-func checkSetting(t *testing.T, where string, f field, s setting) {
+func checkSetting(t *testing.T, where string, f table.Field, s table.Setting) {
 	t.Helper()
 	switch s.Placement {
-	case "", placeHidden:
-	case placeColumn:
+	case "", table.PlaceHidden:
+	case table.PlaceColumn:
 		if s.Position < 0 {
 			t.Errorf("%s: the position %d", where, s.Position)
 		}
-	case placeGroup:
+	case table.PlaceGroup:
 		if !f.Group || s.Depth < 1 {
 			t.Errorf("%s: grouped at %d, the field groups %v", where, s.Depth, f.Group)
 		}
@@ -154,7 +155,7 @@ func checkSetting(t *testing.T, where string, f field, s setting) {
 			t.Errorf("%s: a filter on a field that takes none", where)
 		}
 		for _, v := range slices.Concat(s.Filter.Include, s.Filter.Exclude) {
-			known := slices.ContainsFunc(f.Values, func(e enumValue) bool { return e.Value == v })
+			known := slices.ContainsFunc(f.Values, func(e table.EnumValue) bool { return e.Value == v })
 			// a person's filter names logins, @me among them, and none; a label's, any label's name, and none
 			if !known && (f.Type != "person" && f.Type != "label" || v == "") {
 				t.Errorf("%s: the filter's value %q", where, v)
@@ -203,42 +204,42 @@ func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 // preset that sets it alike.
 func TestAPresetSetsThePanel(t *testing.T) {
 	fields := fieldsOf("backlog")
-	p := preset{Name: "Triage", Fields: map[string]setting{
-		"title":     {Placement: placeColumn, Position: 1},
-		"id":        {Placement: placeColumn, Position: 2},
-		"source":    {Placement: placeGroup, Depth: 1},
-		"branch":    {Placement: placeHidden, Rendering: "text"},
+	p := table.Preset{Name: "Triage", Fields: map[string]table.Setting{
+		"title":     {Placement: table.PlaceColumn, Position: 1},
+		"id":        {Placement: table.PlaceColumn, Position: 2},
+		"source":    {Placement: table.PlaceGroup, Depth: 1},
+		"branch":    {Placement: table.PlaceHidden, Rendering: "text"},
 		"age":       {Sort: "desc", Priority: 1},
-		"assignees": {Sort: "asc", Priority: 2, Filter: &valueFilter{Exclude: []string{caller}}},
+		"assignees": {Sort: "asc", Priority: 2, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 	}}
-	g := p.panel(fields, grid.Panel{Owner: ownerOf("backlog")})
+	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog")})
 	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {
 		t.Errorf("the panel: %q %+v", got, g.Fields)
 	}
-	back := presetOf(g, fields)
-	if !reflect.DeepEqual(presetOf(back.panel(fields, grid.Panel{}), fields), back) ||
-		back.Fields["source"] != (setting{Placement: placeGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
+	back := table.PresetOf(g, fields)
+	if !reflect.DeepEqual(table.PresetOf(back.Panel(fields, grid.Panel{}), fields), back) ||
+		back.Fields["source"] != (table.Setting{Placement: table.PlaceGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}
 	// the stage's own: Default shows every column; Compact, the few that say what a row is
 	builds := catalog["builds"]
-	if d := builds.Presets[0].panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
+	if d := builds.Presets[0].Panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
 		hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}) != nil {
 		t.Errorf("Default: %+v", d.Fields)
 	}
-	if c := builds.Presets[1].panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
+	if c := builds.Presets[1].Panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
 		!slices.Equal(hiddenOf(c), []string{"run", "event", "branch", "commit", "took"}) {
 		t.Errorf("Compact: %+v", c.Fields)
 	}
 	// a rendering pinned draws the field
-	title := fields[slices.IndexFunc(fields, func(f field) bool { return f.ID == "title" })]
-	if c := title.draw([]value{one("a")}, "text"); c[0].Values[0] != "a" {
+	title := fields[slices.IndexFunc(fields, func(f table.Field) bool { return f.ID == "title" })]
+	if c := title.Draw([]table.Value{table.One("a")}, "text"); c[0].Values[0] != "a" {
 		t.Errorf("title pinned to text: %q", c[0].Values)
 	}
-	if c := title.draw([]value{one("a")}, "age"); c[0].Values[0] != Issue+" a" {
+	if c := title.Draw([]table.Value{table.One("a")}, "age"); c[0].Values[0] != Issue+" a" {
 		t.Errorf("title pinned to a rendering not its own: %q", c[0].Values)
 	}
 }
@@ -249,7 +250,7 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for _, stage := range []string{"backlog", "underway"} {
 		for _, id := range []string{"organization", "repository"} {
-			if f := fieldIn(stage, id); f.Placement != placeHidden || !f.Filter || !f.Group {
+			if f := fieldIn(stage, id); f.Placement != table.PlaceHidden || !f.Filter || !f.Group {
 				t.Errorf("%s.%s: %+v", stage, id, f)
 			}
 		}

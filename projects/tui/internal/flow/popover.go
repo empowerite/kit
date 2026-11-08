@@ -15,6 +15,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // popover is a field's popover while it is open: the field, by id; its line under the keyboard; and the screen cell
@@ -47,7 +48,7 @@ type popLine struct {
 func (m Model) popLines(id string) []popLine {
 	s, p := m.stages[m.stage], m.panel(m.stage)
 	fields := fieldsOf(s.name)
-	k := slices.IndexFunc(fields, func(f field) bool { return f.ID == id })
+	k := slices.IndexFunc(fields, func(f table.Field) bool { return f.ID == id })
 	if k < 0 {
 		return nil
 	}
@@ -61,7 +62,7 @@ func (m Model) popLines(id string) []popLine {
 		}
 		out = append(out, popLine{text: glyph + " " + text, act: act, picked: picked})
 	}
-	if f.Filter && types[f.Type].filters {
+	if f.Filter && table.Types[f.Type].Filters {
 		heading("filter")
 		mode := style.Tint(grid.Picked) + " include  " + style.Off(grid.Unpicked) + " exclude"
 		if g.Filter.Exclude {
@@ -74,10 +75,10 @@ func (m Model) popLines(id string) []popLine {
 		for _, v := range m.filterValues(f) {
 			name := v
 			switch {
-			case f.Type == "enum" && v != grid.NoValue && f.glyphOf(v) != "":
-				name = f.glyphOf(v) + " " + v
+			case f.Type == "enum" && v != grid.NoValue && f.GlyphOf(v) != "":
+				name = f.GlyphOf(v) + " " + v
 			case f.Type == "label" && v != grid.NoValue:
-				name = pill(m.labelNamed(f.ID, v))
+				name = table.Pill(m.labelNamed(f.ID, v))
 			case v == caller && m.me != "":
 				name += " " + style.Off(m.me)
 			}
@@ -108,7 +109,7 @@ func (m Model) popLines(id string) []popLine {
 }
 
 // filterValues gives the values a field's filter offers, as popLines lists them.
-func (m Model) filterValues(f field) []string {
+func (m Model) filterValues(f table.Field) []string {
 	var out, seen []string
 	if f.Type == "person" {
 		out = append(out, caller)

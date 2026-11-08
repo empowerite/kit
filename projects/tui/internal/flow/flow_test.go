@@ -23,6 +23,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -1103,7 +1104,7 @@ func TestTheSelectedRowIsChosen(t *testing.T) {
 func TestAgeIsKitStatuss(t *testing.T) {
 	for secs, want := range map[int64]string{0: "0s", 45: "45s", 119: "119s", 120: "2m", 7199: "119m", 7200: "2h",
 		172799: "47h", 172800: "2d", 3456000: "40d", -5: "0s"} {
-		if got := age(secs); got != want {
+		if got := table.Age(secs); got != want {
 			t.Errorf("age(%d) = %q, want %q", secs, got, want)
 		}
 	}
@@ -1413,7 +1414,7 @@ func TestTookIsToTheSecond(t *testing.T) {
 		{nil, "…"}, {secs(0), "0s"}, {secs(59), "59s"}, {secs(60), "1m 00s"}, {secs(216), "3m 36s"},
 		{secs(3599), "59m 59s"}, {secs(3600), "1h 00m"}, {secs(3725), "1h 02m"}, {secs(-5), "0s"},
 	} {
-		if got := took(c.secs); got != c.want {
+		if got := table.Took(c.secs); got != c.want {
 			t.Errorf("took(%v) = %q, want %q", c.secs, got, c.want)
 		}
 	}
@@ -1626,8 +1627,8 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
 	}
-	source := fieldsOf("backlog")[slices.IndexFunc(fieldsOf("backlog"), func(f field) bool { return f.ID == "source" })]
-	if c := source.draw([]value{some("gitlab"), some("AB#"), some("")}, ""); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
+	source := fieldsOf("backlog")[slices.IndexFunc(fieldsOf("backlog"), func(f table.Field) bool { return f.ID == "source" })]
+	if c := source.Draw([]table.Value{table.Some("gitlab"), table.Some("AB#"), table.Some("")}, ""); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
 		c[1].Values[0] != style.Off("AB#") || len(c[2].Values) != 0 {
 		t.Errorf("the source cells: %q %q %q", c[0].Values, c[1].Values, c[2].Values)
 	}

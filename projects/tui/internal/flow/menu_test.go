@@ -14,6 +14,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -94,7 +95,7 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	}
 }
 
-// = or a click on ≡ before the title drops the app's menu down, internal/shell's, with the picture's own first:
+// = or a click on = before the title drops the app's menu down, internal/shell's, with the picture's own first:
 // refresh all, which runs every stage again, the forge read afresh. The flow's own screen is dim; another screen asks
 // kittui to show it in the picture's place, and quit ends the picture with 0.
 func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
@@ -107,7 +108,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	if m = drive(m, esc); m.appMenu.Open {
 		t.Error("esc did not close the app's menu")
 	}
-	// a click on ≡ drops it down; one on refresh all runs every stage again, the shared ones afresh
+	// a click on = drops it down; one on refresh all runs every stage again, the shared ones afresh
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	if m = drive(m, testkit.Click(shell.At, shell.Top)); !m.appMenu.Open {
@@ -301,7 +302,7 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 // on its gutter, as a row's, or by Expand All, which Collapse All undoes; the rows then start under every line of it.
 func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	backlog := catalog["backlog"]
-	defer func(was []field) { backlog.Fields = was }(backlog.Fields)
+	defer func(was []table.Field) { backlog.Fields = was }(backlog.Fields)
 	backlog.Fields = slices.Clone(backlog.Fields)
 	backlog.Fields[len(backlog.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})

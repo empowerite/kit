@@ -36,10 +36,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
   declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter
   by, and its renderings in order, and the stage's own presets, Default and Compact. The renderers are Go functions,
-  registered by name. A preset says, per field by id, its placement, its sort, its filter, and the rendering it pins.
-  The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
-  `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
-  and leaves the old file as it is.
+  registered by name with `internal/table`, which has those every table shares. A preset says, per field by id, its
+  placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
+  `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps
+  each column's label to its field's id, notes a label the catalog no longer knows, and leaves the old file as it is.
   - The tab's view starts with the control line: the heading over the groups at its left, where the rows group, and the
     preset line at its right end. After how many rows are selected and a chip per filter, it names the preset the table
     is set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
@@ -127,6 +127,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.
+- `internal/table/` is what a table is made of, whatever its rows hold: the catalog's fields and presets, read from
+  a screen's JSON; the values a row holds; the renderers that draw a field down its column, registered by name; the
+  automatic choice among a field's renderings; and a preset set on a panel, and read back from it.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
   read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,

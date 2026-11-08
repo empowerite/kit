@@ -216,7 +216,7 @@ func (m Model) rowKeys() shell.Segment {
 }
 
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; origin's owner/repo
-// after its glyph, in its own color, when known; and, maximized, the selected tab, as the bar draws it, its ⋮ last.
+// after its glyph, in its own color, when known; and, maximized, the selected tab, as the bar draws it, its : last.
 func (m Model) title() string {
 	title := shell.Title(style.Label("kit flow"), m.appMenu.Open)
 	if m.origin.Repo != "" {
