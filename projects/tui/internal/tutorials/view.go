@@ -80,7 +80,7 @@ func (m Model) bar() tabs.Bar {
 	for i, name := range names {
 		count := strconv.Itoa(len(m.cardsOf(i)))
 		switch {
-		case !m.loaded:
+		case m.reading.Loading:
 			count = "…"
 		case m.refusal != "":
 			count = "!"
@@ -135,7 +135,7 @@ func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
 	switch cards := m.cards(); {
-	case !m.loaded:
+	case m.reading.Loading:
 		out = []string{"", lead + style.Off("reading…")}
 	case m.refusal != "":
 		out = []string{"", lead + style.Refusal(Failed+" "+m.refusal)}

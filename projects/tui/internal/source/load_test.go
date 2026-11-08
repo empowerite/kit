@@ -26,7 +26,7 @@ func answering(t *testing.T) Load[string] {
 
 func TestALoadShowsItsLatestReadsAnswer(t *testing.T) {
 	l := answering(t)
-	if !l.Loading || l.Stale || l.Name() != "l" || l.Gen() != 0 {
+	if !l.Loading || !l.Running() || l.Stale || l.Name() != "l" || l.Gen() != 0 {
 		t.Fatalf("a new load: %+v", l)
 	}
 	first := l.Read(env(), false)()
@@ -40,11 +40,11 @@ func TestALoadShowsItsLatestReadsAnswer(t *testing.T) {
 	}
 	ended := l.ctx
 	latest := again()
-	if a, landed := l.Take(latest); landed != Shown || a.Value != "fresh" || a.Gen != 1 || l.Loading || l.Stale {
+	if a, landed := l.Take(latest); landed != Shown || a.Value != "fresh" || a.Gen != 1 || l.Loading || l.Stale ||
+		l.Running() {
 		t.Errorf("the latest read's answer: %v %+v, load %+v", landed, a, l)
 	}
-	l.Again(env(), false)
-	if ended.Err() == nil {
+	if l.Again(env(), false); ended.Err() == nil || !l.Running() || l.Loading {
 		t.Error("a read started again did not end the one before")
 	}
 	for _, msg := range []any{Answer[string]{Name: "other"}, Answer[int]{Name: "l"}, "nothing"} {

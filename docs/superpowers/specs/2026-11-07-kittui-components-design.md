@@ -148,14 +148,25 @@ the glyph legend.
 
 ### Source
 
-`source.Source` is one read of kit that a screen shows: a command, its arguments, and the decode of its answer. It
-owns what `flow` spreads over its model and its stages: the load's generation and context, its deadline, the kept
-copy shown while it loads, the mark that says it is stale, Watch, which loads it again once its mark moves, and the
-minute's polling. The rate limits and the marks are sources too, read for the whole screen. `welcome`'s checks,
-`tutorials`' catalogue, and `palette`'s verbs become sources, and gain the kept copy and the staleness for free.
+`source` reads kit for a screen, in two shapes, each generic over its answer.
 
-Every timer goes through `source.Clock`, `After(d, msg) tea.Cmd`. The program's clock is `tea.Tick`; `testkit`'s
-records each timer and fires none until the test says so, so no test can hang on one.
+- `source.Load` is a read the screen shows, as each of `flow`'s stages is, and `welcome`'s checks and `tutorials`'
+  catalogue. It holds the read's generation and context: a read started again with `Again` supersedes the one
+  before, which it ends, and whose answer `Take` drops. It holds whether nothing shows yet, `Loading`; whether the
+  latest read is still out, `Running`, while what showed before stays; the copy kit kept, which stands in, stale,
+  while the first read runs, for a command that keeps one; the mark it took after it last answered, which `Marked`
+  compares with the next read of the marks; and `Watch`, which reads it again once its mark moves. `flow` keeps a
+  stage's decoding, its refusal, and what a fetch reloads. `kit welcome` and `kit tutorials` keep no copy and have no
+  marks, so those screens gain the superseding and the end of a run still out, not the kept copy or the staleness.
+- `source.Poll` is a read asked again a while after each answer, as `flow` reads the rate limits and the marks. A read
+  that fails keeps the last answer; the first to fail before any answered stops it until `Reset`, as Refresh All does.
+
+The answers are `source.Answer` values, named by the source, so a screen routes them with a type switch and a test
+builds one. The palette reads its verbs before the screen opens, so it has no source.
+
+Every wait goes through `source.Clock`, `After(d, msg) tea.Cmd`. The program's clock is `tea.Tick`; `testkit.Clock`
+keeps each wait and brings none until the test fires it, so no command a test drives can block on one. An env's limit
+of 0 is no deadline but the screen's own, as `welcome` and `tutorials` read.
 
 ## The order of the moves
 
@@ -169,8 +180,8 @@ the worktree agree.
 3. `shell.Placed` and `shell.Step`: the popover, the fields dialog, the Settings dialog, and the ask dialog on them.
    Done.
 4. `shell.View` and `shell.Notice`: the screens' ends and the two notices on them. Done.
-5. `source` and its clock: the marks, the rate limits, and the kept copy first, as they are already apart in
-   `marks.go`, `quota.go`, and `kept.go`; then the stages' loads; then the other screens' loads.
+5. `source` and its clock: the marks and the rate limits on `source.Poll`, then the stages' loads and the kept copy
+   on `source.Load`, then `welcome`'s and `tutorials`' loads. Done.
 6. `table`: the catalog, the renderers, and the presets out of `flow`, then the dialogs and menus that act on a table.
    It is the largest move, and the steps before it have made its parts controls and its loads sources.
 
@@ -183,7 +194,7 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 ## Left to the builder
 
-- The names of the packages that are still to come: `source` and `table`.
+- The name of the package that is still to come: `table`.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.

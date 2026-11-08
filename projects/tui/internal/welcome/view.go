@@ -134,7 +134,7 @@ func (m Model) count(i int) string {
 	switch {
 	case !m.tabs[i].checked:
 		return ""
-	case !m.loaded && m.checking:
+	case m.checking.Loading:
 		return "…"
 	case m.refusal != "":
 		return "!"
@@ -201,12 +201,12 @@ func (m Model) introLines() []line {
 		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {
 			add(-1, lead+style.Refusal(l))
 		}
-		if m.loaded {
+		if !m.checking.Loading {
 			add(-1, "")
 		}
 	}
-	if !m.loaded {
-		if m.checking && m.refusal == "" {
+	if m.checking.Loading {
+		if m.checking.Running() && m.refusal == "" {
 			add(-1, lead+style.Off("checking…"))
 		}
 		return out
@@ -242,7 +242,7 @@ func (m Model) introLines() []line {
 			add(-1, lead+style.Off("no check matches the search"))
 		}
 	}
-	if m.checking {
+	if m.checking.Running() {
 		add(-1, "")
 		add(-1, lead+style.Off("checking…"))
 	}
@@ -306,7 +306,7 @@ func (m Model) stepLines() []line {
 	rows := m.rows(m.step)
 	if len(rows) == 0 {
 		switch {
-		case m.checking:
+		case m.checking.Running():
 			add(-1, lead+style.Off("checking…"))
 		case query != "":
 			add(-1, lead+style.Off("no check matches the search"))
@@ -316,7 +316,7 @@ func (m Model) stepLines() []line {
 	for _, i := range rows {
 		out = append(out, m.checkLines(i, m.checks[i].ID)...)
 	}
-	if m.checking {
+	if m.checking.Running() {
 		add(-1, "")
 		add(-1, lead+style.Off("checking…"))
 	}

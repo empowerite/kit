@@ -10,7 +10,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
+	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // A page that cannot be read gives the path it was looked for at, and no markdown.
@@ -121,7 +123,7 @@ func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T)
 			basicsOnly = append(basicsOnly, c)
 		}
 	}
-	m = drive(m, checksMsg{checks: basicsOnly}, right, right)
+	m = drive(m, source.Answer[[]kit.Check]{Name: "checks", Value: basicsOnly}, right, right)
 	if v := view(m); m.step != setup || strings.Contains(v, "checking…") || strings.Contains(v, "gh is not logged in") {
 		t.Errorf("setup with no checks of its own:\n%s", v)
 	}
@@ -152,5 +154,20 @@ func TestThePaneScrollsBackToTheCursorsRow(t *testing.T) {
 	m.fit()
 	if m.offsets[m.step] != 1 {
 		t.Errorf("a cursor off the step moved the offset to %d", m.offsets[m.step])
+	}
+}
+
+// A fix runs the checks again, superseding a run still out: that run's answer, when it comes, is dropped, and the
+// screen goes on checking until the latest answers.
+func TestARunOfTheChecksThatAFixSupersededIsDropped(t *testing.T) {
+	m := New(testkit.Runner(t, "welcome"), "")
+	first := m.check()
+	next, again := m.Update(fixedMsg{id: "jq"})
+	m = next.(Model)
+	if again == nil || !m.checking.Running() || m.checking.Gen() != 1 {
+		t.Fatalf("after the fix: running %v, gen %d", m.checking.Running(), m.checking.Gen())
+	}
+	if m = drive(m, first()); m.checks != nil || !m.checking.Running() {
+		t.Errorf("the superseded run was taken: %d checks, running %v", len(m.checks), m.checking.Running())
 	}
 }

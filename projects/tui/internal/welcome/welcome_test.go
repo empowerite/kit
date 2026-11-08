@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -154,7 +155,7 @@ func TestTheIntroFollowsTheChecksAsTheyRunAgain(t *testing.T) {
 		strings.Contains(got, "jq is not installed") {
 		t.Errorf("step %d:\n%s", m.step, got)
 	}
-	m.checking = true
+	m.checking.Again(m.env(), false)
 	if got := view(m); !strings.Contains(got, "the release → 🔧 setup\n\n   checking…\n") {
 		t.Errorf("no checking under the links:\n%s", got)
 	}
@@ -163,7 +164,8 @@ func TestTheIntroFollowsTheChecksAsTheyRunAgain(t *testing.T) {
 		t.Errorf("no checking under basics' checks:\n%s", got)
 	}
 	// a refusal when they run again comes first, over what they last found
-	m = drive(m, checksMsg{err: errors.New("kit welcome refuses")}, press('1'))
+	refused := source.Answer[[]kit.Check]{Name: "checks", Err: errors.New("kit welcome refuses"), Gen: m.checking.Gen()}
+	m = drive(m, refused, press('1'))
 	if got := view(m); !strings.Contains(got, "\n   ❌ kit welcome refuses\n\n   4 checks need you\n") {
 		t.Errorf("no refusal over the links:\n%s", got)
 	}
@@ -276,8 +278,8 @@ func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 			t.Fatalf("%v ran %q", key, r.calls)
 		}
 		// the checks ran again, jq is fixed now, and the cursor stays on its row
-		if !m.checks[1].OK || m.cursor != 1 || m.step != basics || m.checking || m.choosing() {
-			t.Errorf("%v: jq %+v, cursor %d, checking %v", key, m.checks[1], m.cursor, m.checking)
+		if !m.checks[1].OK || m.cursor != 1 || m.step != basics || m.checking.Running() || m.choosing() {
+			t.Errorf("%v: jq %+v, cursor %d, checking %v", key, m.checks[1], m.cursor, m.checking.Running())
 		}
 		if !strings.Contains(view(m), " ▸ ✅ jq is not installed") || strings.Contains(view(m), "brew install jq") {
 			t.Errorf("%v:\n%s", key, view(m))
@@ -593,7 +595,7 @@ func TestLeavingTheScreenEndsTheChecksStillRunning(t *testing.T) {
 		m = drive(m, key)
 		select {
 		case msg := <-answers:
-			if err := msg.(checksMsg).err; !errors.Is(err, context.Canceled) {
+			if err := msg.(source.Answer[[]kit.Check]).Err; !errors.Is(err, context.Canceled) {
 				t.Errorf("%s: the checks ended with %v, not the quit", key, err)
 			}
 		case <-time.After(3 * time.Second):

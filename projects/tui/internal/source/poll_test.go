@@ -86,7 +86,7 @@ func TestAPollWhoseFirstReadFailsStopsUntilReset(t *testing.T) {
 	}
 }
 
-// A read is cut off at the env's limit, as its context ends.
+// A read is cut off at the env's limit, as its context ends; with none, it runs as long as the env's context.
 func TestAReadEndsAtTheLimit(t *testing.T) {
 	p := NewPoll("p", time.Minute, func(ctx context.Context) (string, error) {
 		<-ctx.Done()
@@ -105,5 +105,20 @@ func TestTheProgramsClockTicks(t *testing.T) {
 	}
 	if msg := (Ticks{}).After(time.Millisecond, "done")(); msg != "done" {
 		t.Errorf("Ticks brought %v", msg)
+	}
+}
+
+func TestAReadWithNoLimitRunsAsLongAsTheContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	p := NewPoll("p", time.Minute, func(ctx context.Context) (string, error) {
+		if _, ok := ctx.Deadline(); ok {
+			return "", errors.New("a deadline")
+		}
+		cancel()
+		<-ctx.Done()
+		return "ended", nil
+	})
+	if a := p.Ask(Env{Ctx: ctx})().(answer[string]); a.value != "ended" || a.err != nil {
+		t.Errorf("the read: %+v", a)
 	}
 }

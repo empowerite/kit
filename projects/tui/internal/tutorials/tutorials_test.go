@@ -193,12 +193,12 @@ func TestATagFromTheCommandLineSelectsItsTab(t *testing.T) {
 		t.Errorf("a tab with no tutorial:\n%s", view(m))
 	}
 	// the tag selects once: a catalogue read again keeps the tab the person chose, or the last it still has
-	if m = drive(m, press('1'), catalogueMsg{catalogue: eight()}); m.tab != 0 {
+	if m = drive(m, press('1'), catalogue(eight())); m.tab != 0 {
 		t.Errorf("read again: tab %d", m.tab)
 	}
 	fewer := eight()
 	fewer.Audiences = fewer.Audiences[:1]
-	if m = drive(m, press('3'), catalogueMsg{catalogue: fewer}); m.tab != 1 {
+	if m = drive(m, press('3'), catalogue(fewer)); m.tab != 1 {
 		t.Errorf("read again with one audience: tab %d", m.tab)
 	}
 }
@@ -420,5 +420,16 @@ func TestAudiencesArePillsInTheirColors(t *testing.T) {
 	m.catalog.Audiences[1].Color = ""
 	if bottom := m.card(tour, false)[cardHeight-1]; !strings.Contains(bottom, style.Pill("UI", "")) {
 		t.Errorf("an audience with no color: %q", bottom)
+	}
+}
+
+// An answer that is not the latest read's is dropped: the cards stay as they were.
+func TestAnAnswerThatIsNotTheLatestReadsIsDropped(t *testing.T) {
+	m, _ := loaded(t)
+	before := len(m.catalog.Tutorials)
+	stray := catalogue(kit.Catalogue{})
+	stray.Gen = m.reading.Gen() + 1
+	if m = drive(m, stray); before == 0 || len(m.catalog.Tutorials) != before {
+		t.Errorf("a stray answer replaced the catalogue: %d tutorials, %d before", len(m.catalog.Tutorials), before)
 	}
 }

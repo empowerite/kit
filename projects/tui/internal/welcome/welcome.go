@@ -35,6 +35,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -112,12 +113,6 @@ const (
 	later
 )
 
-// checksMsg brings the checks, or why kit did not print them.
-type checksMsg struct {
-	checks []kit.Check
-	err    error
-}
-
 // pagesMsg brings the steps the pages make, each with its page's markdown, or the path it was looked for at.
 type pagesMsg struct {
 	tabs []tab
@@ -148,8 +143,7 @@ type Model struct {
 	inPane   bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
 	barView  int                                       // the cells the bar's view has scrolled past, as the bar last chose
 	places   []string                                  // the check each step's cursor was on when it was left
-	loaded   bool                                      // whether the checks have answered once
-	checking bool                                      // whether kit is running the checks
+	checking source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
 	checks   []kit.Check
 	refusal  string // kit's line, when the checks did not run
 	cursor   int    // the check under the cursor, an index into checks, in the selected step
@@ -175,8 +169,10 @@ func Open(r kit.Runner) Model {
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
-	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: true, deferred: map[string]bool{},
-		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
+	checks := func(ctx context.Context, _ bool) ([]kit.Check, error) { return r.WelcomeChecks(ctx) }
+	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: source.NewLoad("checks", checks, nil),
+		deferred: map[string]bool{},
+		notes:    map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		searches: map[string]shell.Search{}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
@@ -210,14 +206,12 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Close ends the checks still running, as quitting does, for a guide kittui leaves hidden as it ends.
 func (m Model) Close() { m.cancel() }
 
-// check runs kit welcome --checks --json, for as long as the screen lasts and kit's limit lets it.
-func (m Model) check() tea.Cmd {
-	r, ctx := m.runner, m.ctx
-	return func() tea.Msg {
-		checks, err := r.WelcomeChecks(ctx)
-		return checksMsg{checks: checks, err: err}
-	}
-}
+// check runs kit welcome --checks --json, the checks' first run, for as long as the screen lasts and kit's limit lets
+// it.
+func (m Model) check() tea.Cmd { return m.checking.Read(m.env(), false) }
+
+// env gives what the screen's reads of kit share: the screen's context, and no deadline but kit's own.
+func (m Model) env() source.Env { return source.Env{Ctx: m.ctx} }
 
 // read reads the pages, as pages says.
 func (m Model) read() tea.Cmd {
@@ -233,15 +227,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.fit()
-	case checksMsg:
+	case source.Answer[[]kit.Check]:
 		m.take(msg)
 	case pagesMsg:
 		m.setTabs(msg.tabs)
 		m.fit()
 	case fixedMsg:
+		// the checks run again, superseding a run still out
 		m.fixed(msg)
-		m.checking = true
-		return m, m.check()
+		return m, m.checking.Again(m.env(), false)
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
@@ -278,16 +272,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// take keeps the checks, or kit's refusal, and keeps the cursor on the check it was on. The step stays as it is.
-func (m *Model) take(msg checksMsg) {
-	m.checking = false
-	if msg.err != nil {
-		m.refusal = refusalOf(msg.err)
+// take keeps the latest run's checks, or kit's refusal, and keeps the cursor on the check it was on. The step stays
+// as it is. An earlier run's answer is dropped.
+func (m *Model) take(msg source.Answer[[]kit.Check]) {
+	if _, landed := m.checking.Take(msg); landed != source.Shown {
+		return
+	}
+	if msg.Err != nil {
+		m.refusal = refusalOf(msg.Err)
 		m.fit()
 		return
 	}
 	id := m.cursorID()
-	m.refusal, m.checks = "", msg.checks
+	m.refusal, m.checks = "", msg.Value
 	m.cursor = m.find(m.step, id)
 	for _, c := range m.checks {
 		if c.OK {
@@ -295,7 +292,6 @@ func (m *Model) take(msg checksMsg) {
 			delete(m.deferred, c.ID)
 		}
 	}
-	m.loaded = true
 	m.fit()
 }
 

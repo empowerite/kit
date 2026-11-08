@@ -14,6 +14,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -57,6 +58,11 @@ func fake(t *testing.T, tags ...string) (Model, *browser) {
 		return b.fail
 	}
 	return m, b
+}
+
+// catalogue gives kit's answer of the catalogue c.
+func catalogue(c kit.Catalogue) source.Answer[kit.Catalogue] {
+	return source.Answer[kit.Catalogue]{Name: "catalogue", Value: c}
 }
 
 // loaded opens the screen at 120×30, runs Init, then sends the messages.
@@ -105,7 +111,7 @@ func eight() kit.Catalogue {
 func withEight(t *testing.T, size tea.WindowSizeMsg, msgs ...tea.Msg) (Model, *browser) {
 	t.Helper()
 	m, b := fake(t)
-	return drive(m, append([]tea.Msg{size, catalogueMsg{catalogue: eight()}}, msgs...)...), b
+	return drive(m, append([]tea.Msg{size, catalogue(eight())}, msgs...)...), b
 }
 
 // catalogueFile names a catalogue in testdata for the fake to print.

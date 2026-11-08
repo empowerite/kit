@@ -30,17 +30,12 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // Opened is the glyph before the notice that a tutorial opened, the app's menu's glyph for the tutorials.
 const Opened = shell.Learn
-
-// catalogueMsg brings the catalogue, or why kit did not print it.
-type catalogueMsg struct {
-	catalogue kit.Catalogue
-	err       error
-}
 
 // browsedMsg says whether the browser was asked to open a tutorial: err is why not.
 type browsedMsg struct {
@@ -58,13 +53,13 @@ var fades = Fades
 // Model is the tutorials screen.
 type Model struct {
 	runner  kit.Runner
-	ctx     context.Context    // ends with the screen, and kit's answer still running with it
-	cancel  context.CancelFunc // ends ctx
-	browse  func(string) error // opens a link in the browser; a recorder in tests
-	tags    []string           // the tags from the command line, the first that names an audience selecting its tab
-	tagged  bool               // whether the tags have selected a tab, which they do once
-	loaded  bool               // whether kit has answered
-	refusal string             // kit's line, when it did not print the catalogue
+	ctx     context.Context            // ends with the screen, and kit's answer still running with it
+	cancel  context.CancelFunc         // ends ctx
+	browse  func(string) error         // opens a link in the browser; a recorder in tests
+	tags    []string                   // the tags from the command line, the first that names an audience selecting its tab
+	tagged  bool                       // whether the tags have selected a tab, which they do once
+	reading source.Load[kit.Catalogue] // kit tutorials --json: loading until kit answers
+	refusal string                     // kit's line, when it did not print the catalogue
 	catalog kit.Catalogue
 	tab     int  // the selected tab: 0 is All, then each audience in the catalogue's order
 	barView int  // the cells the bar's view has scrolled past, as the bar last chose
@@ -84,20 +79,15 @@ func Open(r kit.Runner, tags []string) Model { return New(r, tags) }
 
 // New opens the screen with the cards' keyboard, reading. Init asks kit for the catalogue.
 func New(r kit.Runner, tags []string) Model {
+	read := func(ctx context.Context, _ bool) (kit.Catalogue, error) { return r.Tutorials(ctx, nil) }
 	m := Model{runner: r, browse: shell.Browse, tags: tags, inPane: true, width: 80, height: 24,
-		appMenu: shell.Menu{Here: shell.Tutorials}}
+		appMenu: shell.Menu{Here: shell.Tutorials}, reading: source.NewLoad("catalogue", read, nil)}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
 }
 
 // Init asks kit for every tutorial: the tags select a tab, and narrow nothing, so All holds them all.
-func (m Model) Init() tea.Cmd {
-	r, ctx := m.runner, m.ctx
-	return func() tea.Msg {
-		c, err := r.Tutorials(ctx, nil)
-		return catalogueMsg{catalogue: c, err: err}
-	}
-}
+func (m Model) Init() tea.Cmd { return m.reading.Read(source.Env{Ctx: m.ctx}, false) }
 
 // Interrupted says whether ctrl-c ended the screen.
 func (m Model) Interrupted() bool { return m.interrupted }
@@ -147,7 +137,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-	case catalogueMsg:
+	case source.Answer[kit.Catalogue]:
 		m.take(msg)
 	case browsedMsg:
 		if msg.err == nil {
@@ -167,13 +157,15 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // take keeps the catalogue, or kit's refusal. The first catalogue selects the tab the tags name; the cursor stays in
 // the selected tab's cards.
-func (m *Model) take(msg catalogueMsg) {
-	m.loaded = true
-	if msg.err != nil {
-		m.refusal = refusalOf(msg.err)
+func (m *Model) take(msg source.Answer[kit.Catalogue]) {
+	if _, landed := m.reading.Take(msg); landed != source.Shown {
 		return
 	}
-	m.refusal, m.catalog = "", msg.catalogue
+	if msg.Err != nil {
+		m.refusal = refusalOf(msg.Err)
+		return
+	}
+	m.refusal, m.catalog = "", msg.Value
 	if !m.tagged {
 		m.tagged = true
 		for _, tag := range m.tags {

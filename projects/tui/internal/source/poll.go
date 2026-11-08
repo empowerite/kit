@@ -70,9 +70,9 @@ func (p *Poll[T]) Ask(env Env) tea.Cmd {
 		return nil
 	}
 	p.asking = true
-	name, read, ctx, limit := p.name, p.read, env.Ctx, env.Limit
+	name, read := p.name, p.read
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(ctx, limit)
+		ctx, cancel := env.within(env.Ctx)
 		defer cancel()
 		value, err := read(ctx)
 		return answer[T]{name, value, err}
