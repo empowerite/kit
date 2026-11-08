@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -232,7 +233,8 @@ func (m Model) introLines() []line {
 			if m.inPane && i == m.cursor {
 				start, text = focus, style.Chosen(c.Line)
 			}
-			if m.deferred[c.ID] {
+			text += memberOf(c)
+			if m.deferred[c.Key()] {
 				text += style.Off(" · later")
 			}
 			add(i, start+Failed+" "+text+" "+style.Tint("→ "+t.glyph+" "+t.name))
@@ -240,6 +242,9 @@ func (m Model) introLines() []line {
 		if len(rows) == 0 {
 			add(-1, lead+style.Off("no check matches the search"))
 		}
+	}
+	if gone := uncloned(m.workspace); len(gone) > 0 {
+		add(-1, lead+style.Off(shell.Cloud+" not cloned: "+strings.Join(gone, ", ")))
 	}
 	if m.checking.Running() {
 		add(-1, "")
@@ -313,7 +318,7 @@ func (m Model) stepLines() []line {
 		return out
 	}
 	for _, i := range rows {
-		out = append(out, m.checkLines(i, m.checks[i].ID)...)
+		out = append(out, m.checkLines(i, m.checks[i].Key())...)
 	}
 	if m.checking.Running() {
 		add(-1, "")
@@ -321,8 +326,8 @@ func (m Model) stepLines() []line {
 	}
 	var left []line
 	for _, i := range rows {
-		if c := m.checks[i]; m.deferred[c.ID] && !c.OK {
-			text := lead + "• " + c.Line + ": " + style.Mark(c.Fix)
+		if c := m.checks[i]; m.deferred[c.Key()] && !c.OK {
+			text := lead + "• " + c.Line + memberOf(c) + ": " + style.Mark(c.Fix)
 			if !c.Runs && c.Fix != "" {
 				text += style.Off(" · kit does not run it")
 			}
@@ -340,9 +345,19 @@ func (m Model) stepLines() []line {
 	return out
 }
 
-// checkLines gives a check's lines: ✅ or ❌ and its line, the cursor's row drawn as chosen with now and later on it
-// when it offers them; under a failed check, its fix, dim, then where to read more; and the note its fix left.
-func (m Model) checkLines(i int, id string) []line {
+// memberOf gives what a row of a check of one member says after its line: the member's name, dim; nothing for a check
+// said once.
+func memberOf(c kit.Check) string {
+	if c.Member == "" {
+		return ""
+	}
+	return style.Off(" · " + short(c.Member, 1))
+}
+
+// checkLines gives a check's lines: ✅ or ❌ and its line, then its member's name, the cursor's row drawn as chosen with
+// now and later on it when it offers them; under a failed check, its fix, dim, then where to read more; and the note
+// its fix left.
+func (m Model) checkLines(i int, key string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor
 	start, text, glyph := lead, c.Line, Passed
@@ -352,8 +367,8 @@ func (m Model) checkLines(i int, id string) []line {
 	if !c.OK {
 		glyph = Failed
 	}
-	row := start + glyph + " " + text
-	if m.deferred[id] && !c.OK {
+	row := start + glyph + " " + text + memberOf(c)
+	if m.deferred[key] && !c.OK {
 		row += style.Off(" · later")
 	}
 	if focused && !c.OK && c.Fix != "" && c.Runs {
@@ -371,7 +386,7 @@ func (m Model) checkLines(i int, id string) []line {
 	if !c.OK && c.More != "" {
 		out = append(out, line{i, pane.Clip(under+style.Off(c.More), w)})
 	}
-	if n, ok := m.notes[id]; ok {
+	if n, ok := m.notes[key]; ok {
 		draw := style.Warn
 		if n.refusal {
 			draw = style.Refusal

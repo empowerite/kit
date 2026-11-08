@@ -81,7 +81,7 @@ func TestARefusalWithNothingOnStderrSaysHowKitEnded(t *testing.T) {
 // A fix that cannot run at all says why, in red, under its check.
 func TestAFixThatCannotRunSaysWhy(t *testing.T) {
 	m, _ := loaded(t)
-	m.fixed(fixedMsg{id: "jq", err: errors.New("no such file")})
+	m.fixed(fixedMsg{id: "jq", key: "jq", err: errors.New("no such file")})
 	if n := m.notes["jq"]; !n.refusal || n.text != "kit welcome --fix jq: no such file" {
 		t.Errorf("the note: %+v", n)
 	}
@@ -162,7 +162,7 @@ func TestThePaneScrollsBackToTheCursorsRow(t *testing.T) {
 func TestARunOfTheChecksThatAFixSupersededIsDropped(t *testing.T) {
 	m := New(testkit.Runner(t, "welcome"), "")
 	first := m.check()
-	next, again := m.Update(fixedMsg{id: "jq"})
+	next, again := m.Update(fixedMsg{id: "jq", key: "jq"})
 	m = next.(Model)
 	if again == nil || !m.checking.Running() || m.checking.Gen() != 1 {
 		t.Fatalf("after the fix: running %v, gen %d", m.checking.Running(), m.checking.Gen())

@@ -365,6 +365,8 @@ func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
 // empty when kit knows none. Interactive says the fix needs the person, as gh auth login does. More says where to read
 // more, empty when there is nothing to read. Runs says kit runs the fix; it is false for a fix kit only shows, as one
 // that must run in the person's own shell. A check that does not say counts as runnable, so an older kit still works.
+// Member and Dir are kittui's, over a group: the member the check is its own, host/path, empty for one said once for
+// every member; and the checkout its fix runs in, empty for where kittui runs.
 type Check struct {
 	ID          string `json:"id"`
 	Step        string `json:"step"`
@@ -374,6 +376,16 @@ type Check struct {
 	Interactive bool   `json:"interactive"`
 	More        string `json:"more"`
 	Runs        bool   `json:"runs"`
+	Member      string `json:"-"`
+	Dir         string `json:"-"`
+}
+
+// Key gives what tells a check from every other on a screen: its id, after its member when it has one.
+func (c Check) Key() string {
+	if c.Member == "" {
+		return c.ID
+	}
+	return c.Member + " " + c.ID
 }
 
 // UnmarshalJSON reads a check, runnable unless it says runs is false.

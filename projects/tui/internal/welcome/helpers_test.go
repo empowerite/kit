@@ -32,8 +32,11 @@ var (
 	pgup   = press(tea.KeyPgUp)
 )
 
-// ran is what a fix handed the terminal ran: its words after the kit, one call each.
-type ran struct{ calls [][]string }
+// ran is what a fix handed the terminal ran: its words after the kit, one call each, and the directory each ran in.
+type ran struct {
+	calls [][]string
+	dirs  []string
+}
 
 // fake gives the screen over testdata/fake-kit, with its state in a file of its own, so a fixed check stays fixed for
 // this test alone. A fix runs at once, its words kept in ran, its output dropped, as the terminal would take it.
@@ -44,6 +47,7 @@ func fake(t *testing.T) (Model, *ran) {
 	r := &ran{}
 	m.exec = func(cmd *exec.Cmd, done tea.ExecCallback) tea.Cmd {
 		r.calls = append(r.calls, cmd.Args[1:])
+		r.dirs = append(r.dirs, cmd.Dir)
 		return func() tea.Msg { return done(cmd.Run()) }
 	}
 	return m, r

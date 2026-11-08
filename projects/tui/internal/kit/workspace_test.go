@@ -79,3 +79,12 @@ func TestUseWorkspaceTellsKit(t *testing.T) {
 		t.Errorf("the record: %q", got)
 	}
 }
+
+func TestACheckIsKeyedByItsMemberAndItsID(t *testing.T) {
+	if k := (Check{ID: "jq"}).Key(); k != "jq" {
+		t.Errorf("no member: %q", k)
+	}
+	if k := (Check{ID: "jq", Member: "github.com/o/a"}).Key(); k != "github.com/o/a jq" {
+		t.Errorf("a member's: %q", k)
+	}
+}

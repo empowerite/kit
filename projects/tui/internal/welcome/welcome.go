@@ -120,8 +120,8 @@ type pagesMsg struct {
 
 // fixedMsg says a check's fix has run, and how it ended.
 type fixedMsg struct {
-	id  string
-	err error
+	id, key string // the check's id, which kit's line names, and its key on the screen
+	err     error
 }
 
 // note is what the screen says under a check after its fix ran and the check still fails: a warning, or kit's
@@ -167,6 +167,7 @@ type Model struct {
 func Open(r kit.Runner, ws kit.Workspace) Model {
 	m := New(r, readRepo(r.Dir))
 	m.workspace, m.books.Workspace = ws, ws
+	m.checking = source.NewLoad("checks", checksOver(r, ws), nil)
 	m.recent = shell.Recent{Path: shell.RecentFile()}.Loaded()
 	return m
 }
@@ -307,13 +308,13 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 		m.fit()
 		return
 	}
-	id := m.cursorID()
+	key := m.cursorKey()
 	m.refusal, m.checks = "", msg.Value
-	m.cursor = m.find(m.step, id)
+	m.cursor = m.find(m.step, key)
 	for _, c := range m.checks {
 		if c.OK {
-			delete(m.notes, c.ID)
-			delete(m.deferred, c.ID)
+			delete(m.notes, c.Key())
+			delete(m.deferred, c.Key())
 		}
 	}
 	m.fit()
@@ -361,7 +362,7 @@ func (m *Model) setSearch(s shell.Search) {
 	}
 	m.searches[id] = s
 	if m.cursor < len(m.checks) {
-		m.cursor = m.find(m.step, m.checks[m.cursor].ID)
+		m.cursor = m.find(m.step, m.checks[m.cursor].Key())
 	}
 	m.fit()
 }
@@ -387,11 +388,11 @@ func (m Model) searchLine() string {
 	return shell.RecallLine(m.search().Query, m.search().Focused, len(m.recent.Items) > 0)
 }
 
-// find gives the index of the check with the id when it is in the step, else the step's first check, else 0.
-func (m Model) find(step int, id string) int {
+// find gives the index of the check with the key when it is in the step, else the step's first check, else 0.
+func (m Model) find(step int, key string) int {
 	rows := m.rows(step)
 	for _, i := range rows {
-		if m.checks[i].ID == id {
+		if m.checks[i].Key() == key {
 			return i
 		}
 	}
@@ -446,14 +447,14 @@ func (m *Model) fixed(msg fixedMsg) {
 	var exit *exec.ExitError
 	switch {
 	case msg.err == nil:
-		delete(m.notes, msg.id)
+		delete(m.notes, msg.key)
 	case errors.As(msg.err, &exit) && exit.ExitCode() == 1:
-		m.notes[msg.id] = note{text: "the fix ran, and the check still fails"}
+		m.notes[msg.key] = note{text: "the fix ran, and the check still fails"}
 	case errors.As(msg.err, &exit) && exit.ExitCode() == 2:
-		m.notes[msg.id] = note{text: fmt.Sprintf("kit refused the fix; quit to read what kit welcome --fix %s printed",
+		m.notes[msg.key] = note{text: fmt.Sprintf("kit refused the fix; quit to read what kit welcome --fix %s printed",
 			msg.id), refusal: true}
 	default:
-		m.notes[msg.id] = note{text: fmt.Sprintf("kit welcome --fix %s: %v", msg.id, msg.err), refusal: true}
+		m.notes[msg.key] = note{text: fmt.Sprintf("kit welcome --fix %s: %v", msg.id, msg.err), refusal: true}
 	}
 }
 
@@ -585,7 +586,7 @@ func (m Model) onLink() bool {
 // pane with the keyboard. A search on that step that hides the check is cleared.
 func (m *Model) follow() {
 	c := m.checks[m.cursor]
-	m.places[m.step] = c.ID
+	m.places[m.step] = c.Key()
 	m.step = m.stepOf(c)
 	if !slices.Contains(m.rows(m.step), m.cursor) {
 		delete(m.searches, m.tabs[m.step].id)
@@ -621,10 +622,10 @@ func (m Model) showOnly() bool {
 	return !c.OK && c.Fix != "" && !c.Runs
 }
 
-// cursorID gives the id of the check under the cursor, or nothing when there is none.
-func (m Model) cursorID() string {
+// cursorKey gives the key of the check under the cursor, or nothing when there is none.
+func (m Model) cursorKey() string {
 	if m.cursor < len(m.checks) {
-		return m.checks[m.cursor].ID
+		return m.checks[m.cursor].Key()
 	}
 	return ""
 }
@@ -634,7 +635,7 @@ func (m Model) cursorID() string {
 func (m *Model) choose(bar tabs.Bar) {
 	m.barView = bar.Scroll
 	if bar.Selected != m.step {
-		m.places[m.step] = m.cursorID()
+		m.places[m.step] = m.cursorKey()
 		m.step = bar.Selected
 		m.cursor = m.find(m.step, m.places[m.step])
 		m.choice = now
@@ -712,15 +713,19 @@ func (m *Model) scroll(n int) {
 // now hands the terminal to the fix of the check under the cursor; when it ends, the checks run again.
 func (m *Model) now() tea.Cmd {
 	c := m.checks[m.cursor]
-	delete(m.deferred, c.ID)
+	delete(m.deferred, c.Key())
 	m.choice = now
-	return m.exec(m.runner.WelcomeFix(c.ID), func(err error) tea.Msg { return fixedMsg{id: c.ID, err: err} })
+	r := m.runner
+	if c.Dir != "" {
+		r.Dir = c.Dir
+	}
+	return m.exec(r.WelcomeFix(c.ID), func(err error) tea.Msg { return fixedMsg{id: c.ID, key: c.Key(), err: err} })
 }
 
 // later leaves the check under the cursor for later and moves to the step's next failed check not left, if there is
 // one.
 func (m *Model) later() {
-	m.deferred[m.checks[m.cursor].ID] = true
+	m.deferred[m.checks[m.cursor].Key()] = true
 	if next := m.nextFailed(m.cursor); next >= 0 {
 		m.cursor = next
 	}
@@ -733,7 +738,7 @@ func (m Model) nextFailed(from int) int {
 	n, at := len(rows), slices.Index(rows, from)
 	for k := 1; k <= n; k++ {
 		i := rows[(at+k+n)%n]
-		if c := m.checks[i]; !c.OK && !m.deferred[c.ID] && i != from {
+		if c := m.checks[i]; !c.OK && !m.deferred[c.Key()] && i != from {
 			return i
 		}
 	}
