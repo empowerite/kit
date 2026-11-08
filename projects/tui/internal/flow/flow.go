@@ -109,7 +109,7 @@ type Model struct {
 	tabMenu       shell.Dropdown            // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
 	maximized     bool                      // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu                // the app's menu, internal/shell's, which has the keyboard while it is open
-	pop           popover                   // a field's popover, which has the keyboard while it is open
+	pop           table.Popover             // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced

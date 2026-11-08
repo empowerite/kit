@@ -14,6 +14,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -84,10 +85,10 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
 	x, y := m.fieldName("source")
 	m.columnAct(m.columnLine(actMore))
-	if !m.pop.open || m.pop.field != "source" || m.pop.x != x || m.pop.y != y || y != m.top() {
+	if !m.pop.Open || m.pop.Field != "source" || m.pop.X != x || m.pop.Y != y || y != m.top() {
 		t.Errorf("Options… from the heading: %+v, source at %d, %d", m.pop, x, y)
 	}
-	m.pop = popover{}
+	m.pop = table.Popover{}
 	m.colMenu = columnMenu{}
 	// a click on the control line off its names and folds does nothing where the stage has no presets
 	if m = drive(m, testkit.Click(m.paneWidth()/2, m.top())); m.colMenu.Open || m.onPreset {

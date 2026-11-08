@@ -28,15 +28,18 @@ func (m Model) layers() shell.Layers[Model] {
 			},
 		},
 		{ // a field's popover
-			Open: func(m Model) bool { return m.pop.open },
-			Key:  model(Model.popKey),
+			Open: func(m Model) bool { return m.pop.Open },
+			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
+				m.pop.Key(&m, k)
+				return m, nil
+			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.popClick(c.X, c.Y)
+				m.pop.Click(&m, c.X, c.Y)
 				return m, nil, true
 			},
-			Keys: Model.popKeys,
+			Keys: func(m Model) shell.Segment { return m.pop.Keys(&m) },
 			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.popBox()
+				box, top, left := m.pop.Box(&m)
 				return shell.Over(lines, box, top, left)
 			},
 		},

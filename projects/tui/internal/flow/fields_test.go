@@ -262,7 +262,7 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	if !strings.Contains(raw(m), "jig") || !strings.Contains(raw(m), "kit") {
 		t.Errorf("the repository shown:\n%s", raw(m))
 	}
-	if got := m.filterValues(fieldIn("backlog", "repository")); !slices.Equal(got, []string{"jig", "kit", grid.NoValue}) {
+	if got := table.FilterValues(&m, fieldIn("backlog", "repository")); !slices.Equal(got, []string{"jig", "kit", grid.NoValue}) {
 		t.Errorf("the repository's filter offers %q", got)
 	}
 	m.setPanel(m.panel(0).FilteredBy("repository", grid.Filter{Values: []string{"jig"}}))

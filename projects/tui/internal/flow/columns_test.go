@@ -129,11 +129,11 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Error("a click on the headings closed the dialog")
 	}
 	// enter opens the field's Options… over the dialog; esc closes it, then the dialog
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.open || m.pop.field != "assignees" || !m.cols.open {
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.cols.open {
 		t.Fatalf("enter: popover %+v", m.pop)
 	}
-	if m = drive(m, esc, esc); m.pop.open || m.cols.open {
-		t.Errorf("esc twice: popover %v, dialog %v", m.pop.open, m.cols.open)
+	if m = drive(m, esc, esc); m.pop.Open || m.cols.open {
+		t.Errorf("esc twice: popover %v, dialog %v", m.pop.Open, m.cols.open)
 	}
 	m.openColumns()
 	if m = drive(m, testkit.Click(1, m.rowsTop()+3)); m.cols.open {

@@ -94,12 +94,12 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	// Options… opens the field's popover; esc closes the menu; a click off it closes it too
 	m = drive(m, append([]tea.Msg{rightClick("title")}, typed("o")...)...)
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.open || m.pop.field != "title" {
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "title" {
 		t.Fatalf("Options…: %+v", m.pop)
 	}
 	m = drive(m, esc, rightClick("age"), esc)
-	if m.colMenu.Open || m.pop.open {
-		t.Errorf("esc: menu %v, popover %v", m.colMenu.Open, m.pop.open)
+	if m.colMenu.Open || m.pop.Open {
+		t.Errorf("esc: menu %v, popover %v", m.colMenu.Open, m.pop.Open)
 	}
 	if m = drive(m, rightClick("age"), testkit.Click(1, 30)); m.colMenu.Open {
 		t.Errorf("a click off the menu: open %v", m.colMenu.Open)
@@ -118,7 +118,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("a right click under the rows opened the menu")
 	}
 	m.noPresets = true
-	if m = drive(m, testkit.Click(10, ruleY(m))); m.colMenu.Open || m.pop.open {
+	if m = drive(m, testkit.Click(10, ruleY(m))); m.colMenu.Open || m.pop.Open {
 		t.Errorf("a click on the rule opened a menu")
 	}
 }

@@ -506,7 +506,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 // popLineAt gives the screen line of the popover's line that has the text, after its glyph, and a column inside it.
 func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 	t.Helper()
-	box, top, left := m.popBox()
+	box, top, left := m.pop.Box(&m)
 	for k, l := range box {
 		if strings.Contains(ansi.Strip(l), " "+text+" ") {
 			return left + 3, top + k
@@ -530,7 +530,7 @@ func popoverOf(m Model, id string) Model {
 // closes it.
 func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	m := popoverOf(loaded(t, viewing("")), "assignees")
-	if !m.pop.open || m.pop.field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
+	if !m.pop.Open || m.pop.Field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
 	// the keyboard starts on the filter's mode; there is no sort to take
@@ -560,18 +560,18 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
 	// esc closes it; the columns dialog has the keyboard, and marks the field filtered
-	if m = drive(m, esc); m.pop.open || !m.cols.open || !strings.Contains(view(m), "assignees ⊘") {
-		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.open, m.cols.open, view(m))
+	if m = drive(m, esc); m.pop.Open || !m.cols.open || !strings.Contains(view(m), "assignees ⊘") {
+		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.Open, m.cols.open, view(m))
 	}
 	// a click off the box closes it, acting on nothing
 	m = drive(m, press(tea.KeyEnter))
 	before := m.panel(0).Fields
-	if m = drive(m, testkit.Click(2, m.rowsTop())); m.pop.open || !reflect.DeepEqual(m.panel(0).Fields, before) {
-		t.Errorf("a click off the popover: open %v", m.pop.open)
+	if m = drive(m, testkit.Click(2, m.rowsTop())); m.pop.Open || !reflect.DeepEqual(m.panel(0).Fields, before) {
+		t.Errorf("a click off the popover: open %v", m.pop.Open)
 	}
 	// an enum's values are the catalog's, with their glyphs, then none
 	m = popoverOf(drive(m, esc, esc, right), "state")
-	if v := view(m); m.pop.field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
+	if v := view(m); m.pop.Field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
 		!strings.Contains(v, grid.Unticked+" 🏁 ready") || !strings.Contains(v, grid.Unticked+" none") {
 		t.Errorf("state's popover:\n%s", v)
 	}
@@ -625,10 +625,10 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	}
 	click("age", 0)
 	m = drive(m, typed("o")...)
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.open || m.pop.field != "age" || !strings.Contains(view(m), "╭─ age ") {
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "age" || !strings.Contains(view(m), "╭─ age ") {
 		t.Fatalf("Options… on age: popover %+v\n%s", m.pop, view(m))
 	}
-	if _, top, left := m.popBox(); top != m.headerTop() || left+3 != at("age") {
+	if _, top, left := m.pop.Box(&m); top != m.headerTop() || left+3 != at("age") {
 		t.Errorf("the popover's title is not over the name: %d, %d", top, left)
 	}
 	m = drive(m, esc)

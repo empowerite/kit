@@ -20,6 +20,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // Fields is the glyph of Fields…, the presets' menu's line that opens the columns dialog: a card index.
@@ -223,7 +224,7 @@ func (m Model) columnsKeys() shell.Segment {
 	if p.Groupable[id] {
 		s.Bindings = append(s.Bindings, shell.Bind("g", "group"))
 	}
-	if len(m.popLines(id)) > 0 {
+	if len((table.Popover{Field: id}).Lines(&m)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", "options", "enter"))
 	}
 	return s
