@@ -259,4 +259,56 @@ workspaces:list-json() {
       workspaces: map(select(. != null) | . + {favorite: (.name as $n | $favorites | index($n) != null)})}'
 }
 
+# workspaces:last prints the last group used, or nothing: none was, or the file no longer has it.
+workspaces:last() {
+  local file last
+  file=$(workspaces:cache)/last
+  [[ -f "${file}" ]] || return 0
+  IFS= read -r last < "${file}" || true
+  [[ -n "${last}" ]] && workspaces:names | grep --line-regexp --fixed-strings -- "${last}" || true
+}
+
+# workspaces:remember <name> keeps <name> as the last group used.
+workspaces:remember() {
+  local dir
+  dir=$(workspaces:cache)
+  mkdir -p "${dir}" && printf '%s\n' "$1" > "${dir}/last"
+}
+
+# workspaces:current [<workspace>] prints the workspace kit starts on as JSON: {kind, name, member, checkout, why}. A
+# workspace given is it, why given, and none names none; else, inside a repository, that repository, named by its
+# member or, with none, by its path; else the last group used; else none. It returns 2 for a workspace given that is
+# unknown.
+workspaces:current() {
+  local given=${1:-} kind='' name='' member='' checkout='' why json
+  if [[ "${given}" == none ]]
+  then
+    kind=none why=given
+  elif [[ -n "${given}" ]]
+  then
+    json=$(workspaces:resolve "${given}") || return $?
+    kind=$(jq --raw-output .kind <<<"${json}") name=$(jq --raw-output .name <<<"${json}") why=given
+    if [[ "${kind}" == repository ]]
+    then
+      member=${name} checkout=$(jq --raw-output '.members[0].checkout // ""' <<<"${json}")
+    fi
+  elif checkout=$(git -C "${kit_invoked_in:-${PWD}}" rev-parse --show-toplevel 2>/dev/null)
+  then
+    kind=repository why=repository member=$(workspaces:member-of "${checkout}")
+    name=${member:-${checkout}}
+  else
+    checkout='' name=$(workspaces:last)
+    if [[ -n "${name}" ]]
+    then
+      kind=group why=last
+    else
+      kind=none why=none
+    fi
+  fi
+  jq --null-input --compact-output --arg kind "${kind}" --arg name "${name}" --arg member "${member}" \
+    --arg checkout "${checkout}" --arg why "${why}" '
+    def some: if . == "" then null else . end;
+    {kind: $kind, name: ($name | some), member: ($member | some), checkout: ($checkout | some), why: $why}'
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

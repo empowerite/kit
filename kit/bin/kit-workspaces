@@ -60,7 +60,6 @@ guard:arguments workspaces "$@" || exit $?
 
 action=list target='' workspace='' form=''
 args=()
-# shellcheck disable=SC2034  # --current reads workspace once it is built
 while (( $# ))
 do
   case "$1" in
@@ -96,6 +95,22 @@ case "${action}" in
   (show)
     json=$(workspaces:resolve "${target}") || exit $?
     print "${json}" '.members[] | "\(.repository)  \(.checkout // "☁️")"'
+    ;;
+  (current)
+    json=$(workspaces:current "${workspace}") || exit $?
+    print "${json}" '"\(if .kind == "none" then "no workspace" else "📚 \(.name)" end) (\({given: "given",
+      repository: "the repository here", last: "the last group used", none: "outside a repository, no group used yet"}
+      [.why]))"'
+    ;;
+  (use)
+    json=$(workspaces:resolve "${target}") || exit $?
+    if [[ "$(jq --raw-output .kind <<<"${json}")" != group ]]
+    then
+      error "kit workspaces --use remembers a group; a repository is the workspace inside it"
+      exit 2
+    fi
+    workspaces:remember "${target}"
+    step "kit starts on 📚 ${target} outside a repository"
     ;;
   (*)
     error "kit workspaces --${action} is not built yet"

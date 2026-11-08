@@ -156,3 +156,53 @@ YML
   [ "$(jq --compact-output '[.workspaces, .favorites, .file]' <<<"$output")" \
     = '[[],[],"'"${XDG_CONFIG_HOME}"'/kit/workspaces.yml"]' ]
 }
+
+@test "inside a repository, the workspace is that repository, even in a linked worktree" {
+  fresh-repo >/dev/null
+  git remote add origin git@github.com:empowerite/edge.git
+  git commit --quiet --allow-empty -m one
+  git worktree add --quiet "${BATS_TEST_TMPDIR}/wt" -b wt
+  cd "${BATS_TEST_TMPDIR}/wt"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, .name, .why]' <<<"$output")" \
+    = '["repository","github.com/empowerite/edge","repository"]' ]
+}
+
+@test "a repository with no remote is named by its path, with no member" {
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  # git names the checkout by its physical path, as /private/var for macOS's /var
+  [ "$(jq --compact-output '[.kind, .name, .member]' <<<"$output")" \
+    = '["repository","'"$(cd "${repo}" && pwd -P)"'",null]' ]
+}
+
+@test "outside a repository, the workspace is the last group used, or none" {
+  workspaces-file <<YML
+workspaces:
+  empowerite:
+    repos: [github.com/empowerite/kit]
+YML
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","none"]' ]
+  run "${kit_root}/bin/kit" workspaces --use empowerite
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, .name, .why]' <<<"$output")" = '["group","empowerite","last"]' ]
+}
+
+@test "--workspace wins, none included, and --use refuses a repository" {
+  fresh-repo >/dev/null
+  git remote add origin git@github.com:empowerite/edge.git
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --workspace none --json
+  [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","given"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --use github.com/empowerite/edge
+  [ "$status" -eq 2 ]
+}
+
+@test "a last group no longer in the file is forgotten" {
+  mkdir -p "${XDG_CACHE_HOME}/kit/workspaces" && printf 'gone\n' > "${XDG_CACHE_HOME}/kit/workspaces/last"
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --raw-output .kind <<<"$output")" = none ]
+}
