@@ -25,7 +25,38 @@ type host struct {
 	settle int // how many times the cursor was kept on a row
 	views  Views
 	loaded bool // whether the table has columns, loaded
+	paneH  int  // the pane's height
+	ctl    bool // whether a control line stands over the rows
+	left   int  // how many times the rows gave up the keyboard
 }
+
+// Lines draws the rows as the grid does, the one under the cursor chosen while the rows have the keyboard.
+func (h *host) Lines() []Line {
+	rows, chosen := h.Rows(), -1
+	if h.keys && h.tbl.Cursor < len(rows) {
+		chosen = h.tbl.Cursor
+	}
+	var out []Line
+	for _, l := range grid.Draw(rows, h.Names(), h.GridWidth(), chosen, h.tbl.Open.Open, func(grid.Row) string { return "" }) {
+		out = append(out, Line{Row: l.Row, Text: l.Text})
+	}
+	return out
+}
+
+// Header gives the header's names and a rule under them, none while no row shows.
+func (h *host) Header() ([]string, bool) {
+	rows := h.Rows()
+	if !slices.ContainsFunc(rows, func(r grid.Row) bool { return !r.Aside }) {
+		return nil, false
+	}
+	lines, hides := grid.Header(rows, h.Names(), h.GridWidth(), h.tbl.Open[HeaderKey])
+	return append(lines, "────"), hides
+}
+
+func (h *host) PaneHeight() int { return h.paneH }
+func (h *host) Controls() bool  { return h.ctl }
+func (h *host) LeaveRows()      { h.keys, h.left = false, h.left+1 }
+func (h *host) EnterRows()      { h.keys = true }
 
 func (h *host) Rows() []grid.Row {
 	p := h.panel

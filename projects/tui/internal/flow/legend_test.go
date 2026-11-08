@@ -111,7 +111,7 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 		}
 		var pane []string
 		for _, l := range m.lines(i) {
-			pane = append(pane, ansi.Strip(l.text))
+			pane = append(pane, ansi.Strip(l.Text))
 		}
 		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
 			// the desk and the worktrees draw a pull request's state as changes does, and changes' legend names it

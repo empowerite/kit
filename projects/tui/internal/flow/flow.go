@@ -131,7 +131,7 @@ type built struct {
 // drawnLines is a stage's lines as allLines last drew them, and what they were drawn for, as drawnFor says it.
 type drawnLines struct {
 	key   string
-	lines []line
+	lines []table.Line
 }
 
 // rebuild drops the rows built so far, and the lines drawn from them; each is built again when it is next drawn.
@@ -498,11 +498,11 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 	}
 	lines := m.allLines(m.stage)
 	k, ok := m.placeAt(y)
-	if !ok || k < 0 || lines[k].row < 0 {
+	if !ok || k < 0 || lines[k].Row < 0 {
 		return
 	}
 	p := m.panel(m.stage)
-	if column := p.Heading(m.rows(m.stage)[lines[k].row]); column != "" {
+	if column := p.Heading(m.rows(m.stage)[lines[k].Row]); column != "" {
 		m.setPanel(p.Grouped(column, true))
 	}
 }
@@ -540,73 +540,6 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	}
 	return nil
 }
-
-// selectRow selects the row under the cursor, as one of several, or unselects it, while the rows have the keyboard;
-// with keep, it selects it whether it was or not, as shift with up or down selects as it moves. On a group's heading it
-// selects every row of the group, those folded away too, or, once every one is, none; another aside selects nothing.
-func (m *Model) selectRow(keep bool) {
-	if !m.inRows || len(m.stages) == 0 {
-		return
-	}
-	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	if s.Cursor >= len(rows) {
-		return
-	}
-	keys := []string{rows[s.Cursor].Key}
-	switch {
-	case grid.Heads(rows[s.Cursor]):
-		every := m.every(m.stage)
-		keys = table.GroupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key }))
-	case rows[s.Cursor].Aside:
-		return
-	}
-	all := !slices.ContainsFunc(keys, func(k string) bool { return !s.Picked[k] })
-	for _, key := range keys {
-		if keep || !all {
-			s.Picked[key] = true
-		} else {
-			delete(s.Picked, key)
-		}
-	}
-}
-
-// selectAll selects every row the stage shows, those its closed groups fold away too, or, when every one is, none.
-func (m *Model) selectAll() {
-	if len(m.stages) == 0 {
-		return
-	}
-	s, rows := &m.stages[m.stage], m.every(m.stage)
-	all := m.selected() == counted(rows)
-	clear(s.Picked)
-	if all {
-		return
-	}
-	for _, r := range rows {
-		if !r.Aside {
-			s.Picked[r.Key] = true
-		}
-	}
-}
-
-// selectedRows gives the selected stage's rows that are selected, of those it shows, its closed groups' too, each once,
-// though grouping by a column of several values stands it under each.
-func (m Model) selectedRows() []row {
-	if len(m.stages) == 0 {
-		return nil
-	}
-	var out []row
-	seen := map[string]bool{}
-	for _, r := range m.every(m.stage) {
-		if m.stages[m.stage].Picked[r.Key] && !r.Aside && !seen[r.Key] {
-			seen[r.Key] = true
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-// selected gives how many of the selected stage's rows shown are selected.
-func (m Model) selected() int { return len(m.selectedRows()) }
 
 // wheel is the lines a turn of the mouse wheel scrolls the rows.
 const wheel = 3
@@ -1071,46 +1004,6 @@ func (m *Model) clamp(i int) {
 	}
 }
 
-// up moves the cursor n rows up; past the first row, it gives the bar the keyboard, and the pane goes to its top.
-func (m *Model) up(n int) {
-	if !m.inRows || len(m.stages) == 0 {
-		return
-	}
-	s := &m.stages[m.stage]
-	if first := m.first(m.stage); s.Cursor-n < first {
-		// past the first row, the preset line has the keyboard, or the bar when the stage has none
-		s.Cursor, s.Offset, m.inRows = 0, 0, false
-		m.onPreset = m.presets(m.stage)
-	} else {
-		s.Cursor -= n
-	}
-	m.fit()
-}
-
-// down moves the cursor n rows down; from the bar, it enters the rows, when the stage has any, past the headings of
-// groups over the row under the cursor, so it lands on a row.
-func (m *Model) down(n int) {
-	if len(m.stages) == 0 {
-		return
-	}
-	s := &m.stages[m.stage]
-	all, first := m.rows(m.stage), m.first(m.stage)
-	rows := len(all)
-	if rows <= first {
-		return
-	}
-	s.Cursor = max(s.Cursor, first)
-	if !m.inRows {
-		m.inRows = true
-		n--
-		for s.Cursor+n < rows-1 && grid.Heads(all[s.Cursor+n]) {
-			n++
-		}
-	}
-	s.Cursor = min(s.Cursor+n, rows-1)
-	m.fit()
-}
-
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard, so
 // space then selects it; a click on a linked glyph of a row's first line, as an issue's before its title, opens its
 // page in the browser; one on the ▸ or ▾ of a row's first line, or of a heading, as foldAt says, and there alone,
@@ -1124,11 +1017,11 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	}
 	lines, s := m.allLines(m.stage), &m.stages[m.stage]
 	k, ok := m.placeAt(y)
-	if !ok || k < 0 || lines[k].row < 0 {
+	if !ok || k < 0 || lines[k].Row < 0 {
 		return nil
 	}
 	rows := m.rows(m.stage)
-	row, first := lines[k].row, k == 0 || lines[k-1].row != lines[k].row
+	row, first := lines[k].Row, k == 0 || lines[k-1].Row != lines[k].Row
 	link := ""
 	if first {
 		if !rows[row].Aside {
@@ -1191,7 +1084,7 @@ func (m Model) rowLine(k int) int {
 	lines := m.allLines(m.stage)
 	_, places := m.laid()
 	for r, at := range places {
-		if at >= 0 && lines[at].row == k {
+		if at >= 0 && lines[at].Row == k {
 			return m.rowsTop() + r
 		}
 	}
@@ -1212,77 +1105,4 @@ func (m *Model) jump(to string) {
 		m.stages[i].Cursor = k
 	}
 	m.fit()
-}
-
-// page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it
-// first scrolls through that row, so every line it hides can be reached; at the row's end it moves the cursor a page
-// of rows. A page never leaves the rows: up stops at the first row, and down at the last; on the bar it does nothing.
-func (m *Model) page(d int) {
-	h := max(1, m.rowsHeight()-1)
-	if !m.inRows || len(m.stages) == 0 {
-		return
-	}
-	s := &m.stages[m.stage]
-	all := m.lines(m.stage)
-	first, last := -1, -1
-	for k, l := range all {
-		if l.row == s.Cursor {
-			if first < 0 {
-				first = k
-			}
-			last = k
-		}
-	}
-	start, end, _, _ := pane.Window(len(all), m.rowsHeight(), s.Offset)
-	switch {
-	case first >= 0 && d > 0 && last >= end:
-		s.Offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), s.Offset+h)
-	case first >= 0 && d < 0 && first < start:
-		s.Offset, _, _, _ = pane.Window(len(all), m.rowsHeight(), max(first, s.Offset-h))
-	case d > 0:
-		m.down(h)
-	default:
-		s.Cursor = max(m.first(m.stage), s.Cursor-h)
-		m.fit()
-	}
-}
-
-// fit scrolls the pane so the row under the cursor shows, with what it opens to when that fits, and never past the
-// last line.
-func (m *Model) fit() {
-	if len(m.stages) == 0 {
-		return
-	}
-	s := &m.stages[m.stage]
-	lines := m.lines(m.stage)
-	h := m.rowsHeight()
-	s.Offset, _, _, _ = pane.Window(len(lines), h, s.Offset)
-	if !m.inRows {
-		return
-	}
-	first, last := -1, -1
-	for k, l := range lines {
-		if l.row == s.Cursor {
-			if first < 0 {
-				first = k
-			}
-			last = k
-		}
-	}
-	if first < 0 {
-		return
-	}
-	// Scroll until the cursor's row shows whole, or its first line and as much as the pane holds; a … line takes the
-	// place of a row at either edge, so the window is asked rather than counted.
-	for {
-		start, end, _, _ := pane.Window(len(lines), h, s.Offset)
-		switch {
-		case first < start:
-			s.Offset = first
-		case last >= end && first > start:
-			s.Offset++
-		default:
-			return
-		}
-	}
 }

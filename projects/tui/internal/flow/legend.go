@@ -45,7 +45,7 @@ func (m *Model) toggleLegend() {
 func (m Model) drawn() string {
 	var out []string
 	for _, l := range m.allLines(m.stage) {
-		out = append(out, ansi.Strip(l.text))
+		out = append(out, ansi.Strip(l.Text))
 	}
 	return strings.Join(out, "\n")
 }

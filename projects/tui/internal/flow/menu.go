@@ -120,7 +120,7 @@ func (m Model) enabled(k int) bool {
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
-		return m.selected() < counted(m.every(m.stage))
+		return m.selected() < table.Counted(m.every(m.stage))
 	case "Clear Selection":
 		return m.selected() > 0
 	}

@@ -254,9 +254,9 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 14})
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	github := lines(m)[m.rowsTop()]
-	if m.frozen(0) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+2 ||
+	if table.Frozen(&m) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+2 ||
 		lines(m)[m.rowsTop()+1] != "" || !strings.Contains(lines(m)[m.headerTop()+2], "ada") {
-		t.Fatalf("frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
+		t.Fatalf("frozen %d, the header at %d:\n%s", table.Frozen(&m), m.headerTop(), view(m))
 	}
 	// down to the last row: the rows scroll under the header, which stays, under github's heading
 	m = drive(m, down, down, down, down, down, down, down, down, down)
@@ -271,8 +271,8 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 	// grouped by assignees first, of several values, nothing is frozen: the header stands over ada's heading
 	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[1]), m.rowsTop()))
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
-	if m.frozen(0) != 1 || m.headerTop() != m.rowsTop() || !strings.Contains(lines(m)[m.rowsTop()+2], "ada") {
-		t.Errorf("grouped by assignees: frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
+	if table.Frozen(&m) != 1 || m.headerTop() != m.rowsTop() || !strings.Contains(lines(m)[m.rowsTop()+2], "ada") {
+		t.Errorf("grouped by assignees: frozen %d, the header at %d:\n%s", table.Frozen(&m), m.headerTop(), view(m))
 	}
 }
 
@@ -284,9 +284,9 @@ func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
 	for _, k := range []int{1, 3} {
 		m.stages[0].Cursor, m.inRows = k, true
 		m.rebuild()
-		l := m.allLines(0)[slices.IndexFunc(m.allLines(0), func(l line) bool { return l.row == k })]
-		if open == "" || !strings.HasPrefix(l.text, open) || ansi.StringWidth(l.text) != m.paneWidth() {
-			t.Errorf("row %d's band, %d cells of %d: %q", k, ansi.StringWidth(l.text), m.paneWidth(), l.text)
+		l := m.allLines(0)[slices.IndexFunc(m.allLines(0), func(l table.Line) bool { return l.Row == k })]
+		if open == "" || !strings.HasPrefix(l.Text, open) || ansi.StringWidth(l.Text) != m.paneWidth() {
+			t.Errorf("row %d's band, %d cells of %d: %q", k, ansi.StringWidth(l.Text), m.paneWidth(), l.Text)
 		}
 	}
 }

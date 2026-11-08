@@ -163,7 +163,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 24})
 	var pane []string
 	for _, l := range m.allLines(0) {
-		pane = append(pane, ansi.Strip(l.text))
+		pane = append(pane, ansi.Strip(l.Text))
 	}
 	text := strings.Join(pane, "\n")
 	if !strings.Contains(text, Issue+" Fix the thing") || strings.Contains(text, GitHub) ||
@@ -177,7 +177,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	p := m.panel(0)
 	p.Query = GitHub
 	m.setPanel(p)
-	if n := counted(m.every(0)); n != 3 {
+	if n := table.Counted(m.every(0)); n != 3 {
 		t.Errorf("a search for the sources' glyph lets %d rows through", n)
 	}
 	// pinned, the source draws its glyph again

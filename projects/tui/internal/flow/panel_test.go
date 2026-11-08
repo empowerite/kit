@@ -49,7 +49,7 @@ func keys(m Model) []string {
 func drawn(m Model) string {
 	var out []string
 	for _, l := range m.lines(m.stage) {
-		out = append(out, l.text)
+		out = append(out, l.Text)
 	}
 	return strings.Join(out, "\n")
 }

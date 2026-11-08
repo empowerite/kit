@@ -347,7 +347,7 @@ func (m Model) build(i int) shown {
 	if s.name == "incoming" {
 		all := incomingRows(s)
 		rows := p.Filter(all, names)
-		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), nil}
+		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), table.Counted(all), nil}
 	}
 	records := m.records(s)
 	pinned := func(id string) string { return s.View.Field(id).Rendering }
@@ -365,7 +365,7 @@ func (m Model) build(i int) shown {
 		q.Query = ""
 		rows = q.Filter(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
 	}
-	return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), drawn}
+	return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), table.Counted(all), drawn}
 }
 
 // placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each

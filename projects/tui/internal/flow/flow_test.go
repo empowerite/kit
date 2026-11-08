@@ -1295,8 +1295,8 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	}
 	// every line the open row holds was shown on the way down, and only then did the cursor move on
 	for _, l := range m.lines(3) {
-		if l.row == 0 && !seen[bare(l.text)] {
-			t.Errorf("page down never showed %q", ansi.Strip(l.text))
+		if l.Row == 0 && !seen[bare(l.Text)] {
+			t.Errorf("page down never showed %q", ansi.Strip(l.Text))
 		}
 	}
 	if m.find("worktrees").Cursor == 0 {

@@ -38,12 +38,6 @@ func (m Model) banner() string {
 	return mark(strings.Repeat(Banner, m.paneWidth()))
 }
 
-// line is one line of the pane: the row it belongs to, or -1 for a line about the stage, and its text.
-type line struct {
-	row  int
-	text string
-}
-
 // View draws the title and, on its right, the search; the bar, or, maximized, the banner; the selected stage's pane, the
 // rows the width of the screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on
 // the alternate screen, with the mouse on for the bar; and, at the keys bar's right end, watching while the selected
@@ -252,18 +246,6 @@ func (m Model) reserve(i int) int {
 	return len(strconv.Itoa(m.shown(i).all)) + 1
 }
 
-// counted gives how many of the rows are not asides, each once, though grouping by a column of several values stands
-// it under each.
-func counted(rows []row) int {
-	seen := map[string]bool{}
-	for _, r := range rows {
-		if !r.Aside {
-			seen[r.Key] = true
-		}
-	}
-	return len(seen)
-}
-
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
 // rows, which widen its columns; none while the headers are hidden, as a test of the rows alone asks. A sort's mark
 // stands on the rule under the name, not after it, so sorting never widens a column.
@@ -374,160 +356,6 @@ func (m Model) control() (string, int) {
 // presetTop gives the screen line the preset line is drawn on, the control line.
 func (m Model) presetTop() int { return m.top() }
 
-// rowsTop gives the screen line the rows' window starts on: the pane's first, or the one under the control line and
-// the blank line that sets it apart from the rows.
-func (m Model) rowsTop() int {
-	if m.controls() {
-		return m.top() + 2
-	}
-	return m.top()
-}
-
-// rowsHeight gives the lines the rows have, which scroll: the pane's, less the control line's and the header's, which
-// do not.
-func (m Model) rowsHeight() int {
-	lines, _ := m.header()
-	return m.heightUnder(lines)
-}
-
-// heightUnder gives the lines the rows have under a header of those lines, as rowsHeight says, the frozen lines over
-// the header and the blank line between them apart.
-func (m Model) heightUnder(header []string) int {
-	frozen := m.frozenLines(m.stage)
-	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-frozen-gap(frozen, header)-len(header))
-}
-
-// gap gives how many blank lines set a header of those lines apart from the frozen lines over it, as many as there
-// are: one where both are, so the header stands apart from the context over it as it does from the control line;
-// none where either is not, as the control line's blank line, or the pane's top, sets it apart already.
-func gap(frozen int, header []string) int {
-	if frozen > 0 && len(header) > 0 {
-		return 1
-	}
-	return 0
-}
-
-// place is a line of the pane under the control line: the index of the stage's line it draws, as allLines gives them, -1
-// for a line no row draws, one that says how many are hidden or the blank line over the header, or -2-h for the
-// header's line h.
-type place = int
-
-// headerPlace gives the place of the header's line h.
-func headerPlace(h int) place { return -2 - h }
-
-// laid gives the pane's lines under the control line, as many as the frozen lines, the header, and the rows' window
-// take, and the place of each: the frozen lines, as frozen says, which never scroll, as a pane freezes in a
-// spreadsheet; a blank line under them, as gap gives it; the header's lines and its rule, over the first item of the
-// first level of the groups with more than one value, or over the first row; and the rows' window under them, as
-// pane.Lines draws it.
-func (m Model) laid() (texts []string, places []place) {
-	all, s := m.allLines(m.stage), m.stages[m.stage]
-	skip := m.frozenLines(m.stage)
-	lines := all[skip:]
-	header, _ := m.header()
-	h := m.heightUnder(header)
-	for k := range skip {
-		texts, places = append(texts, all[k].text), append(places, k)
-	}
-	for range gap(skip, header) {
-		texts, places = append(texts, ""), append(places, -1)
-	}
-	for k := range header {
-		texts, places = append(texts, header[k]), append(places, headerPlace(k))
-	}
-	window := make([]string, len(lines))
-	for i, l := range lines {
-		window[i] = l.text
-	}
-	head := m.head(lines, h)
-	window = pane.Lines(window, s.Offset, h, head, "   ")
-	for r := range window {
-		k := pane.At(len(lines), h, s.Offset, r)
-		if r == 0 && head != "" {
-			k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.Cursor })
-		}
-		if k >= 0 {
-			k += skip
-		}
-		places = append(places, k)
-	}
-	return append(texts, window...), places
-}
-
-// frozen gives how many of a stage's rows stand frozen over its header, past the heading over the groups: the
-// headings of the outermost levels of the groups, each of which has one value alone, so one heading stands under the
-// one before. They are the context of every row under them, so they never scroll; the first level of more than one
-// value, and everything under it, scrolls under the header.
-func (m Model) frozen(i int) int {
-	rows, first := m.rows(i), m.first(i)
-	if first == 0 {
-		return 0
-	}
-	values := map[int]int{} // how many headings each level has, those folded away too
-	for _, r := range m.every(i) {
-		if grid.Heads(r) {
-			values[grid.Level(r)]++
-		}
-	}
-	// each heading deeper than the one before, which may hold the levels between on its line
-	k, over := first, grid.Level(rows[0])
-	for k < len(rows) && grid.Heads(rows[k]) && grid.Level(rows[k]) > over && values[grid.Level(rows[k])] == 1 {
-		over = grid.Level(rows[k])
-		k++
-	}
-	return k
-}
-
-// frozenLines gives how many of the selected stage's lines, as allLines gives them, the frozen rows take: as many as
-// they draw, the headings alone, never the rows under them, so a stage of many lines costs no more to ask.
-func (m Model) frozenLines(i int) int {
-	if len(m.stages) == 0 || i != m.stage {
-		return 0
-	}
-	k := m.frozen(i)
-	if k == 0 {
-		return 0
-	}
-	s := m.stages[i]
-	return len(grid.Draw(m.rows(i)[:k], m.names(i), m.gridWidth(i), -1, s.Open.Open, func(row) string { return "" }))
-}
-
-// placeAt gives the place of the screen line y in the pane under the control line, as laid gives it, and whether y
-// falls on one.
-func (m Model) placeAt(y int) (place, bool) {
-	_, places := m.laid()
-	if r := y - m.rowsTop(); r >= 0 && r < len(places) {
-		return places[r], true
-	}
-	return -1, false
-}
-
-// headerTop gives the screen line the header's first line stands on, as laid places it, or -1 where there is no
-// header.
-func (m Model) headerTop() int {
-	_, places := m.laid()
-	if r := slices.Index(places, headerPlace(0)); r >= 0 {
-		return m.rowsTop() + r
-	}
-	return -1
-}
-
-// headerLine gives the line of the header the screen line y falls on, from 0, and whether it falls on one: the rule
-// its last.
-func (m Model) headerLine(y int) (int, bool) {
-	if k, ok := m.placeAt(y); ok && k <= headerPlace(0) {
-		return headerPlace(0) - k, true
-	}
-	return 0, false
-}
-
-// onRule says whether the screen line y is the rule under the header.
-func (m Model) onRule(y int) bool {
-	lines, _ := m.header()
-	h, ok := m.headerLine(y)
-	return ok && h == len(lines)-1
-}
-
 // pane gives the pane's lines, as many as it has, each as wide as the pane: the control line, where there is one, then
 // the selected stage's rows from its offset on, with the header and its rule among them, as laid places them.
 func (m Model) pane() []string {
@@ -549,36 +377,18 @@ func (m Model) pane() []string {
 	return out
 }
 
-// head gives the line the pane pins on top, in place of its … above: the first line of the row under the cursor, once
-// paging through that open row has scrolled it away while the rest of the row still shows; else nothing.
-func (m Model) head(lines []line, h int) string {
-	if !m.inRows || len(m.stages) == 0 {
-		return ""
-	}
-	s := m.stages[m.stage]
-	start, _, above, _ := pane.Window(len(lines), h, s.Offset)
-	first := slices.IndexFunc(lines, func(l line) bool { return l.row == s.Cursor })
-	if !above || first < 0 || first >= start || lines[start].row != s.Cursor {
-		return ""
-	}
-	return lines[first].text
-}
-
-// lines gives the lines of a stage that scroll, in the rows' window: those allLines gives, past the frozen lines.
-func (m Model) lines(i int) []line { return m.allLines(i)[m.frozenLines(i):] }
-
 // allLines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or of one whose
 // panel lets no row through, or its rows as the grid draws them, the one under the cursor on a band while the rows have
 // the keyboard.
-func (m Model) allLines(i int) []line {
+func (m Model) allLines(i int) []table.Line {
 	s := m.stages[i]
 	switch {
 	case s.src.Loading:
-		return []line{{-1, lead + style.Off("loading")}}
+		return []table.Line{{Row: -1, Text: lead + style.Off("loading")}}
 	case s.refusal != "":
-		var out []line
+		var out []table.Line
 		for _, l := range pane.Wrap(Failed+" "+s.refusal, m.paneWidth()-len(lead)) {
-			out = append(out, line{-1, lead + style.Refusal(l)})
+			out = append(out, table.Line{Row: -1, Text: lead + style.Refusal(l)})
 		}
 		return out
 	}
@@ -586,9 +396,9 @@ func (m Model) allLines(i int) []line {
 	switch p := m.panel(i); {
 	case len(rows) > 0:
 	case p.Query != "" || p.Filtering():
-		return []line{{-1, lead + style.Off("no row matches the panel")}}
+		return []table.Line{{Row: -1, Text: lead + style.Off("no row matches the panel")}}
 	default:
-		return []line{{-1, lead + style.Off(empty(s))}}
+		return []table.Line{{Row: -1, Text: lead + style.Off(empty(s))}}
 	}
 	chosen := -1
 	if m.inRows && i == m.stage && s.Cursor < len(rows) {
@@ -625,7 +435,7 @@ func (m Model) drawnFor(i int, rows []row, chosen int) string {
 }
 
 // draw draws a stage's rows as allLines says, the one under the cursor, chosen, on a band; -1 for none.
-func (m Model) draw(i int, rows []row, chosen int) []line {
+func (m Model) draw(i int, rows []row, chosen int) []table.Line {
 	s := m.stages[i]
 	marked, _ := style.In(stageColors[s.name])
 	groups := table.GroupMarks(m.every(i), m.stages[i].Picked)
@@ -639,7 +449,7 @@ func (m Model) draw(i int, rows []row, chosen int) []line {
 			}
 			return ""
 		})
-	out := make([]line, len(drawn))
+	out := make([]table.Line, len(drawn))
 	indent := strings.Repeat(" ", m.indent(i))
 	for k, l := range drawn {
 		text := l.Text
@@ -650,7 +460,7 @@ func (m Model) draw(i int, rows []row, chosen int) []line {
 			// the band runs the pane's width, over the indent and past a heading's end, as the grid lays it out narrower
 			text = style.Band(text, m.paneWidth())
 		}
-		out[k] = line{l.Row, text}
+		out[k] = table.Line{Row: l.Row, Text: text}
 	}
 	return out
 }

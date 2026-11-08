@@ -266,7 +266,7 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 		t.Errorf("the repository's filter offers %q", got)
 	}
 	m.setPanel(m.panel(0).FilteredBy("repository", grid.Filter{Values: []string{"jig"}}))
-	if n := counted(m.every(0)); n != 1 {
+	if n := table.Counted(m.every(0)); n != 1 {
 		t.Errorf("a filter on jig lets %d rows through", n)
 	}
 	m = drive(m, right)
