@@ -146,6 +146,22 @@ and value types stay registered by name, as now, so the catalog stays data. `flo
 JSON of `kit flow <stage>`, the record builders in `rows.go`, the links in `origin.go`, the actions in `act.go`, and
 the glyph legend.
 
+As built so far, `table` holds the catalog's fields and presets, read from a screen's JSON by `ReadCatalog`; the
+values a row holds; the renderers every table has, and `Register` for a screen's own, by name; `Automatic`, the
+choice among a field's renderings; labels as pills; a preset set on a panel and read back with `PresetOf`; `Views`,
+the rules of which view a table is set as and what the person's can be saved, renamed, and deleted as; the presets
+file; and `Table`, a table's state, which `flow` embeds in each stage. A table's controls take a `Host`, which the
+screen implements once, for the table selected: its fields, its panel and setting it, the values its rows hold, a
+label's color, the caller's login, the rendering a field draws by now, the screen's size, the table's name, its pane,
+the columns its header shows, and where a column's name stands in the header and in the heading over the groups. On
+it are `Popover`, `Columns`, the fields dialog, and `ColumnMenu`; each gives back the popover it opens, so the screen
+asks kit for the caller's login as it did.
+
+Still in `flow` are the parts that the rows' own keys and drawing hold together: the heading over the groups on the
+control line, the outline, its folds and its selection marks, the preset line and its menu, the header and its rule,
+and the rows' cursor, paging, and scrolling. They move together, as the table's view, a control that draws the
+control line, the header, and the rows' window from the rows the host gives it, and takes the rows' keys.
+
 ### Source
 
 `source` reads kit for a screen, in two shapes, each generic over its answer.
@@ -183,7 +199,11 @@ the worktree agree.
 5. `source` and its clock: the marks and the rate limits on `source.Poll`, then the stages' loads and the kept copy
    on `source.Load`, then `welcome`'s and `tutorials`' loads. Done.
 6. `table`: the catalog, the renderers, and the presets out of `flow`, then the dialogs and menus that act on a table.
-   It is the largest move, and the steps before it have made its parts controls and its loads sources.
+   It is the largest move, and the steps before it have made its parts controls and its loads sources. Done as far
+   as the controls that stand apart from the rows: the catalog, the renderers, the automatic renderings, the presets,
+   the views and their file, the table's state, the host, the popover, the fields dialog, and the column menu.
+7. The table's view: the heading over the groups, the outline, the preset line, the header, and the rows' cursor,
+   paging, and scrolling, out of `flow` together, onto the host.
 
 Watch, issue #88's third step, is built now as designed: it reads like `source`'s, and step 5 moves it with the marks.
 
@@ -194,7 +214,6 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 ## Left to the builder
 
-- The name of the package that is still to come: `table`.
 - Whether `Control.Update` returns the control, as Bubble Tea's models do, or works on a pointer, where a control is
   part of a larger value.
 - How the layers carry a control's identity, so a screen can ask whether its column menu is open.
