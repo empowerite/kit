@@ -174,7 +174,7 @@ func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	if m = drive(m, testkit.Click(m.indent(0), y)); m.stages[0].Open["#45"] {
 		t.Fatalf("a click on #45's selection cell opened it")
 	}
-	gutter := m.indent(0) + foldCell
+	gutter := m.indent(0) + table.FoldCell
 	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].Cursor != 2 ||
 		!m.stages[0].Open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].Cursor, view(m))
@@ -466,7 +466,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 		t.Fatalf("right on the heading: %d rows", len(m.rows(m.stage)))
 	}
 	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it; one on its value folds nothing
-	fold := foldAt(m.rows(m.stage)[1])
+	fold := table.FoldAt(m.rows(m.stage)[1])
 	if m = drive(m, testkit.Click(fold+3, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's value: %d rows of %d", len(m.rows(m.stage)), rows)
 	}

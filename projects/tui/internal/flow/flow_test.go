@@ -390,10 +390,10 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(6, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a click on the row under the cursor opened it:\n%s", view(m))
 	}
-	if m = drive(m, click(foldCell, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" 42-settings") {
+	if m = drive(m, click(table.FoldCell, m.rowsTop()+1)); !strings.Contains(view(m), style.Opened+" 42-settings") {
 		t.Errorf("a click on the row's ▸ did not open it:\n%s", view(m))
 	}
-	if m = drive(m, click(foldCell, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
+	if m = drive(m, click(table.FoldCell, m.rowsTop()+1)); strings.Contains(view(m), style.Opened) {
 		t.Errorf("a click on its ▾ did not close it:\n%s", view(m))
 	}
 	if m = drive(m, click(6, m.top())); m.find("worktrees").Cursor != 0 || m.stage != 3 {

@@ -17,7 +17,26 @@ type host struct {
 	drawn  map[string]string
 	w, h   int
 	sets   int // how many times the panel was set
+	all    []grid.Row
+	tbl    Table
+	keys   bool // whether the rows have the keyboard
+	hides  bool
+	built  int // how many times the rows were built again
+	settle int // how many times the cursor was kept on a row
 }
+
+func (h *host) Rows() []grid.Row {
+	p := h.panel
+	p.Outline = h.tbl.Open
+	return p.FoldAway(p.Filter(h.all, h.panel.Columns))
+}
+func (h *host) Names() []string   { return h.panel.Columns }
+func (h *host) GridWidth() int    { return h.w }
+func (h *host) Table() *Table     { return &h.tbl }
+func (h *host) Rebuild()          { h.built++ }
+func (h *host) Settle()           { h.settle++ }
+func (h *host) InRows() bool      { return h.keys }
+func (h *host) HeaderHides() bool { return h.hides }
 
 func (h *host) Fields() []Field          { return h.fields }
 func (h *host) Panel() grid.Panel        { return h.panel }

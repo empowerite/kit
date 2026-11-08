@@ -37,7 +37,7 @@ func onDropdown(t *testing.T, file string) Model {
 // what follows the heading over the groups.
 func presetText(m Model) string {
 	line, _ := m.control()
-	return strings.TrimSpace(strings.TrimPrefix(ansi.Strip(line), strings.Repeat(" ", barLeft)+ansi.Strip(m.barText())))
+	return strings.TrimSpace(strings.TrimPrefix(ansi.Strip(line), strings.Repeat(" ", table.BarLeft)+ansi.Strip(m.barText())))
 }
 
 // selector gives the preset line's selector as the screen draws it, without its escapes: the name and Presets between

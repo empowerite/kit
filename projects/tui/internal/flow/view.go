@@ -20,6 +20,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -202,9 +203,9 @@ func (m Model) rowKeys() shell.Segment {
 	every := m.every(m.stage)
 	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
 	switch {
-	case m.opens(every, at) && s.Open.Unfolds(rows[s.Cursor]):
+	case table.Opens(&m, every, at) && s.Open.Unfolds(rows[s.Cursor]):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "collapse", "left"))
-	case m.opens(every, at):
+	case table.Opens(&m, every, at):
 		seg.Bindings = append(seg.Bindings, shell.Bind("→", "expand", "right"))
 	case grid.Parent(rows, s.Cursor) >= m.first(m.stage):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
@@ -310,7 +311,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 		return nil, false
 	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
-		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Open[headerKey])
+		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Open[table.HeaderKey])
 		for k := range lines {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 		}
@@ -342,7 +343,7 @@ func (m Model) controls() bool {
 }
 
 // control gives the control line, the pane's first, as wide as the pane, and the screen column the preset's selector
-// starts on, -1 where the stage has no preset line: the heading over the groups, from barLeft, where the rows group,
+// starts on, -1 where the stage has no preset line: the heading over the groups, from table.BarLeft, where the rows group,
 // as internal/grid draws it; and at the line's right end, how many rows are selected, in the accent, when some are,
 // then, where the stage has a preset line, a chip per filter the panel sets, as chips gives them, and the selector, as
 // presetLine draws it. The chips are clipped first where the line is short, then the heading.
@@ -351,7 +352,7 @@ func (m Model) control() (string, int) {
 	if n := m.selected(); n > 0 {
 		right = style.Tint(strconv.Itoa(n)+" selected") + "  "
 	}
-	left := strings.Repeat(" ", barLeft) + m.barText()
+	left := strings.Repeat(" ", table.BarLeft) + m.barText()
 	if m.presets(m.stage) {
 		tail = m.presetLine()
 		if chips := m.chips(m.stage); len(chips) > 0 {
@@ -629,7 +630,7 @@ func (m Model) drawnFor(i int, rows []row, chosen int) string {
 func (m Model) draw(i int, rows []row, chosen int) []line {
 	s := m.stages[i]
 	marked, _ := style.In(stageColors[s.name])
-	groups := m.groupMarks(i)
+	groups := table.GroupMarks(m.every(i), m.stages[i].Picked)
 	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.Open.Open,
 		func(r row) string {
 			switch {

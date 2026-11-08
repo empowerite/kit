@@ -519,10 +519,10 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	if !ok || m.onRule(y) {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && h == 0 && x == foldCell {
+	if _, hides := m.header(); hides && !group && h == 0 && x == table.FoldCell {
 		next := maps.Clone(s.Open)
-		next[headerKey] = !s.Open[headerKey]
-		m.reoutline(next)
+		next[table.HeaderKey] = !s.Open[table.HeaderKey]
+		table.Reoutline(m, next)
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
@@ -556,7 +556,7 @@ func (m *Model) selectRow(keep bool) {
 	switch {
 	case grid.Heads(rows[s.Cursor]):
 		every := m.every(m.stage)
-		keys = groupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key }))
+		keys = table.GroupRows(every, slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key }))
 	case rows[s.Cursor].Aside:
 		return
 	}
@@ -710,9 +710,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "pgdown":
 		m.page(1)
 	case "right", "alt+right":
-		m.expand(true, k.String() == "alt+right")
+		table.Expand(&m, true, k.String() == "alt+right")
 	case "left", "alt+left":
-		m.expand(false, k.String() == "alt+left")
+		table.Expand(&m, false, k.String() == "alt+left")
 	}
 	return m, nil
 }
@@ -1136,7 +1136,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		}
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
-	fold := first && link == "" && slices.Contains(foldsAt(rows[row]), x)
+	fold := first && link == "" && slices.Contains(table.FoldsAt(rows[row]), x)
 	s.Cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case strings.HasPrefix(link, jumps):
@@ -1146,13 +1146,13 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		m.fit()
 		return m.openPage(link)
 	case fold && subtree && s.Open.Unfolds(rows[row]):
-		m.peel()
+		table.Peel(m)
 		m.fit()
 	case fold && subtree:
-		m.grow()
+		table.Grow(m)
 		m.fit()
 	case fold:
-		m.disclose(!s.Open.Unfolds(rows[row]), false)
+		table.Disclose(m, !s.Open.Unfolds(rows[row]), false)
 		m.fit()
 	default:
 		m.fit()
@@ -1165,12 +1165,12 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 // it drops the column's menu around it; on the preset's selector it drops the presets down; elsewhere it gives the
 // preset line the keyboard, where the stage has one.
 func (m *Model) controlClick(x int) tea.Cmd {
-	if level, ok := m.levelAt(x); ok {
-		m.toggleLevel(level)
+	if level, ok := table.LevelAt(m, x); ok {
+		table.ToggleLevel(m, level)
 		return nil
 	}
-	if name, ok := m.nameAt(x); ok {
-		m.openFieldMenu(name.column)
+	if name, ok := table.NameAt(m, x); ok {
+		m.openFieldMenu(name.Column)
 		return nil
 	}
 	if m.presets(m.stage) {

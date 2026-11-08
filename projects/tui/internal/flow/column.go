@@ -38,9 +38,9 @@ func (m *Model) columnAct(k int) tea.Cmd {
 // fieldName gives the screen column and line a column's name stands on in the heading over the groups, on the control
 // line; a line of -1 where the heading no longer names it.
 func (m Model) fieldName(column string) (x, y int) {
-	for _, n := range m.barNames() {
-		if n.column == column {
-			return n.from, m.top()
+	for _, n := range table.BarNames(&m) {
+		if n.Column == column {
+			return n.From, m.top()
 		}
 	}
 	return 0, -1

@@ -108,9 +108,9 @@ func (m Model) enabled(k int) bool {
 	if action, on := m.acting(m.tabItems()[k].Name); action {
 		return on
 	}
-	if next, fold := m.folding(m.tabItems()[k].Name); fold {
+	if next, fold := table.Folding(&m, m.tabItems()[k].Name); fold {
 		// Collapse Others, with nothing selected, would collapse everything, as Collapse All does
-		return (m.selected() > 0 || m.tabItems()[k].Name != "Collapse Others") && m.changes(next)
+		return (m.selected() > 0 || m.tabItems()[k].Name != "Collapse Others") && table.Changes(&m, next)
 	}
 	switch m.tabItems()[k].Name {
 	case "Maximize", "Restore":
@@ -140,9 +140,9 @@ func (m *Model) pick(k int) tea.Cmd {
 	if action, _ := m.acting(m.tabItems()[k].Name); action {
 		return m.act(m.tabItems()[k].Name)
 	}
-	if next, fold := m.folding(m.tabItems()[k].Name); fold {
+	if next, fold := table.Folding(m, m.tabItems()[k].Name); fold {
 		m.inRows, m.inPanel, m.onPreset = true, false, false
-		m.reoutline(next)
+		table.Reoutline(m, next)
 		return nil
 	}
 	switch m.tabItems()[k].Name {

@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -105,12 +106,12 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 		t.Errorf("left on the outermost heading twice: cursor %d, %d rows", m.stages[0].Cursor, len(m.rows(0)))
 	}
 	// a click on the heading over the groups, off its folds and names, folds nothing
-	names, before := m.barNames(), len(m.rows(0))
-	if m = drive(m, testkit.Click(names[len(names)-1].until+3, m.top())); len(m.rows(0)) != before || m.colMenu.Open {
+	names, before := table.BarNames(&m), len(m.rows(0))
+	if m = drive(m, testkit.Click(names[len(names)-1].Until+3, m.top())); len(m.rows(0)) != before || m.colMenu.Open {
 		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
 			len(m.rows(0)), before, m.colMenu.Open)
 	}
-	alt := testkit.Click(foldAt(m.rows(0)[1]), rowY(m, m.rows(0)[1].Key))
+	alt := testkit.Click(table.FoldAt(m.rows(0)[1]), rowY(m, m.rows(0)[1].Key))
 	alt.Mod = tea.ModAlt
 	// source's heading closed, as left left it, everything under it open: an option-click on its ▸ opens it, a level,
 	// so all shows again; each option-click on its ▾ then closes the deepest open level under it, the rows first, then
@@ -129,7 +130,7 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	}
 	// an option-click on a level's fold in the heading over the groups does as a click there: source's closes its level,
 	// nothing under the heading showing
-	level := testkit.Click(m.barNames()[0].from-2, m.top())
+	level := testkit.Click(table.BarNames(&m)[0].From-2, m.top())
 	level.Mod = tea.ModAlt
 	if m = drive(m, level); len(m.rows(0)) != 1 {
 		t.Errorf("an option-click on source's fold: %d rows", len(m.rows(0)))
@@ -235,7 +236,7 @@ func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
 	// selected under its last label, it is selected under every one, each heading over it marked
 	m.stages[0].Cursor, m.inRows = at[len(at)-1], true
 	m.selectRow(false)
-	marks := m.groupMarks(0)
+	marks := table.GroupMarks(m.every(0), m.stages[0].Picked)
 	for _, k := range at {
 		if p := grid.Parent(rows, k); marks[rows[p].Key] == "" {
 			t.Errorf("the heading over #45 at %d is not marked", k)

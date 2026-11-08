@@ -58,6 +58,36 @@ func (m *Model) HeaderTop() int { return m.headerTop() }
 // HeadingName gives where a column's name stands in the heading over the groups, as fieldName finds it.
 func (m *Model) HeadingName(column string) (x, y int) { return m.fieldName(column) }
 
+// Rows gives the selected stage's rows as its table lays them out.
+func (m *Model) Rows() []grid.Row { return m.rows(m.stage) }
+
+// Names gives the names the selected stage's header stands over its rows.
+func (m *Model) Names() []string { return m.names(m.stage) }
+
+// GridWidth gives the width the selected stage's rows are laid out in.
+func (m *Model) GridWidth() int { return m.gridWidth(m.stage) }
+
+// Table gives the selected stage's table's state.
+func (m *Model) Table() *table.Table { return &m.stages[m.stage].Table }
+
+// Rebuild builds the stages' rows again, once what stands open changed.
+func (m *Model) Rebuild() { m.rebuild() }
+
+// Settle keeps the selected stage's cursor on a row, and in the pane's view.
+func (m *Model) Settle() {
+	m.clamp(m.stage)
+	m.fit()
+}
+
+// InRows says whether the rows have the keyboard, a stage there to take it.
+func (m *Model) InRows() bool { return m.inRows && len(m.stages) > 0 }
+
+// HeaderHides says whether the selected stage's header, closed, hides names.
+func (m *Model) HeaderHides() bool {
+	_, hides := m.headerLines()
+	return hides
+}
+
 // openPopover opens a field's popover, as table.OpenPopover does, and asks kit for the caller's login the first time,
 // which @me names.
 func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {

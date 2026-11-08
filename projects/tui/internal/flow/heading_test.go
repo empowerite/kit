@@ -25,14 +25,14 @@ import (
 func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
-	spots := m.barNames()
-	if len(spots) != 2 || spots[0].column != "source" || spots[1].column != "assignees" {
+	spots := table.BarNames(&m)
+	if len(spots) != 2 || spots[0].Column != "source" || spots[1].Column != "assignees" {
 		t.Fatalf("the heading over the groups names %+v", spots)
 	}
 	text := ansi.Strip(lines(m)[m.top()])
 	for _, n := range spots {
-		if ansi.Cut(text, n.from, n.until) != n.column {
-			t.Errorf("%s does not stand at %d: %q", n.column, n.from, text)
+		if ansi.Cut(text, n.From, n.Until) != n.Column {
+			t.Errorf("%s does not stand at %d: %q", n.Column, n.From, text)
 		}
 	}
 	// the control line is no row: the first row the cursor reaches is the first source's heading, under it and a blank
@@ -45,7 +45,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("the rule does not start at the first column: %q", rule)
 	}
 	m.stages[0].Cursor = 2
-	if m = drive(m, testkit.Click(spots[1].from+1, m.top())); !m.colMenu.Open || !m.colMenu.Heading ||
+	if m = drive(m, testkit.Click(spots[1].From+1, m.top())); !m.colMenu.Open || !m.colMenu.Heading ||
 		m.colMenu.Column != "assignees" || m.inRows || len(m.rows(0)) != all {
 		t.Fatalf("a click on assignees: menu %+v, in rows %v, %d rows of %d", m.colMenu, m.inRows, len(m.rows(0)), all)
 	}
@@ -67,7 +67,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Fatalf("a click on a value's heading: menu %v, %d rows of %d, cursor %d", m.colMenu.Open, len(m.rows(0)), all,
 			m.stages[0].Cursor)
 	}
-	fold := foldAt(m.rows(0)[1])
+	fold := table.FoldAt(m.rows(0)[1])
 	if m = drive(m, testkit.Click(fold, y)); m.colMenu.Open || len(m.rows(0)) != 2 {
 		t.Fatalf("a click on a value's ▾: menu %v, %d rows", m.colMenu.Open, len(m.rows(0)))
 	}
@@ -82,7 +82,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	}
 	// Options… there opens the field's popover, hanging from its name in the heading; a column not grouped has no
 	// name there
-	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
+	m = drive(m, testkit.Click(table.BarNames(&m)[0].From, m.top()))
 	x, y := m.fieldName("source")
 	m.columnAct(m.colMenu.LineOf(&m, table.ActMore))
 	if !m.pop.Open || m.pop.Field != "source" || m.pop.X != x || m.pop.Y != y || y != m.top() {
@@ -104,7 +104,7 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	}
 	m.stages[0].src.Loading = false
 	// once the heading no longer names the column, the menu draws nothing, and a click closes it
-	m = drive(m, testkit.Click(m.barNames()[0].from, m.top()))
+	m = drive(m, testkit.Click(table.BarNames(&m)[0].From, m.top()))
 	m.setPanel(m.panel(0).Grouped("source", true))
 	if box, _, _ := m.colMenu.Box(&m); box != nil {
 		t.Error("the menu of a heading gone still draws")
@@ -120,20 +120,20 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	groups := []string{"source", "assignees"}
 	text := "▾ source ▾ assignees  3"
 	var got []string
-	for _, n := range namesIn(text, groups) {
-		got = append(got, fmt.Sprintf("%s@%d", n.column, n.from))
-		if cut := ansi.Cut("  "+text, n.from, n.until); cut != n.column {
-			t.Errorf("%s stands at %d, where the heading draws %q", n.column, n.from, cut)
+	for _, n := range table.NamesIn(text, groups) {
+		got = append(got, fmt.Sprintf("%s@%d", n.Column, n.From))
+		if cut := ansi.Cut("  "+text, n.From, n.Until); cut != n.Column {
+			t.Errorf("%s stands at %d, where the heading draws %q", n.Column, n.From, cut)
 		}
 	}
 	if len(got) != 2 {
 		t.Errorf("the names of two columns: %q", got)
 	}
-	if names := namesIn("▾ sourcery source ▾ assignees  3", groups); len(names) != 2 ||
-		names[0].from != barLeft+ansi.StringWidth("▾ sourcery ") {
+	if names := table.NamesIn("▾ sourcery source ▾ assignees  3", groups); len(names) != 2 ||
+		names[0].From != table.BarLeft+ansi.StringWidth("▾ sourcery ") {
 		t.Errorf("past a value that holds source: %+v", names)
 	}
-	if names := namesIn("", groups); names != nil {
+	if names := table.NamesIn("", groups); names != nil {
 		t.Errorf("no heading names %+v", names)
 	}
 }
@@ -156,11 +156,11 @@ func levels(m Model) (sources, assignees, rows int) {
 
 // glyph gives the ▾ or ▸ the control line draws before a column's name, or, for none, after the last.
 func glyph(m Model, column string) string {
-	names := m.barNames()
-	x := names[len(names)-1].until + 1
+	names := table.BarNames(&m)
+	x := names[len(names)-1].Until + 1
 	for _, n := range names {
-		if n.column == column {
-			x = n.from - 2
+		if n.Column == column {
+			x = n.From - 2
 		}
 	}
 	return ansi.Strip(ansi.Cut(lines(m)[m.top()], x, x+1))
@@ -173,42 +173,42 @@ func glyph(m Model, column string) string {
 func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
-	spots := m.barNames()
+	spots := table.BarNames(&m)
 	s0, a0, r0 := levels(m)
 	if glyph(m, "source") != grid.Unfolded || glyph(m, "assignees") != grid.Unfolded || glyph(m, "") != grid.Unfolded {
 		t.Fatalf("the folds: %q", ansi.Strip(lines(m)[m.top()]))
 	}
 	// one assignee's heading closed by hand, to be found closed again
 	ada := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
-	m = drive(m, testkit.Click(foldAt(m.rows(0)[ada]), rowY(m, m.rows(0)[ada].Key)))
+	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[ada]), rowY(m, m.rows(0)[ada].Key)))
 	_, _, r1 := levels(m)
 	// assignees' closes the assignees: the sources stand alone, each ▸, as nothing shows under it
-	m = drive(m, testkit.Click(spots[1].from-2, m.top()))
+	m = drive(m, testkit.Click(spots[1].From-2, m.top()))
 	if s, a, r := levels(m); s != s0 || a != 0 || r != 0 || m.colMenu.Open || glyph(m, "assignees") != grid.Folded ||
 		glyph(m, "") != grid.Folded || glyph(m, "source") != grid.Unfolded ||
 		!strings.Contains(lines(m)[m.rowsTop()], grid.Folded+" github") {
 		t.Fatalf("assignees closed: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
 	}
 	// source's closes the sources: nothing shows under the heading over the groups, nor the header, over no row
-	if m = drive(m, testkit.Click(spots[0].from-2, m.top())); len(m.rows(0)) != 1 || glyph(m, "source") != grid.Folded ||
+	if m = drive(m, testkit.Click(spots[0].From-2, m.top())); len(m.rows(0)) != 1 || glyph(m, "source") != grid.Folded ||
 		m.headerTop() != -1 {
 		t.Fatalf("source closed: %d rows, header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
 	}
 	// source's again shows the sources, the assignees still closed, as they were
-	if m = drive(m, testkit.Click(spots[0].from-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != 0 || r != 0 }() ||
+	if m = drive(m, testkit.Click(spots[0].From-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != 0 || r != 0 }() ||
 		glyph(m, "assignees") != grid.Folded {
 		s, a, r := levels(m)
 		t.Fatalf("source opened again: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
 	}
 	// assignees' again shows everything as it was: ada's heading still closed
-	if m = drive(m, testkit.Click(spots[1].from-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != r1 }() ||
+	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != r1 }() ||
 		m.stages[0].Open.Open(m.rows(0)[ada]) {
 		s, a, r := levels(m)
 		t.Fatalf("assignees opened again: %d sources, %d assignees, %d rows, were %d %d %d\n%s", s, a, r, s0, a0, r1,
 			view(m))
 	}
 	// with the outermost closed, a click on the rows' ▸ opens every level over them, and they show as they were
-	m = drive(m, testkit.Click(spots[0].from-2, m.top()), testkit.Click(spots[1].until+1, m.top()))
+	m = drive(m, testkit.Click(spots[0].From-2, m.top()), testkit.Click(spots[1].Until+1, m.top()))
 	if s, a, r := levels(m); s != s0 || a != a0 || r != r1 || glyph(m, "source") != grid.Unfolded {
 		t.Fatalf("the rows' ▸ under every level closed: %d sources, %d assignees, %d rows", s, a, r)
 	}
@@ -223,7 +223,7 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	s0, a0, _ := levels(m)
-	rows := m.barNames()[len(m.barNames())-1].until + 1
+	rows := table.BarNames(&m)[len(table.BarNames(&m))-1].Until + 1
 	if m = drive(m, testkit.Click(rows, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != 0 }() ||
 		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != -1 {
 		s, a, r := levels(m)
@@ -232,14 +232,14 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	}
 	// a value's heading opened shows its rows, and every other heading's with them: the level under it opens
 	k := slices.IndexFunc(m.rows(0), func(r row) bool { return grid.Level(r) == 3 })
-	if m = drive(m, testkit.Click(foldAt(m.rows(0)[k]), rowY(m, m.rows(0)[k].Key))); len(m.rows(0)) != all ||
+	if m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[k]), rowY(m, m.rows(0)[k].Key))); len(m.rows(0)) != all ||
 		glyph(m, "") != grid.Unfolded {
 		t.Fatalf("a heading opened under the rows closed: %d rows of %d", len(m.rows(0)), all)
 	}
 	// Expand All opens every level
 	m = drive(m, testkit.Click(rows, m.top()))
 	m.stages[0].Cursor, m.inRows = 1, true
-	if next, _ := m.folding("Expand All"); !next.Shows(len(m.panel(0).Groups())) {
+	if next, _ := table.Folding(&m, "Expand All"); !next.Shows(len(m.panel(0).Groups())) {
 		t.Errorf("expand all leaves the rows closed: %v", next)
 	}
 }
@@ -265,11 +265,11 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.Offset, view(m))
 	}
 	// a click on github's ▾, frozen, folds it, and the header goes, as no row shows
-	if m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != -1 {
+	if m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[1]), m.rowsTop())); len(m.rows(0)) != 2 || m.headerTop() != -1 {
 		t.Fatalf("a click on the frozen heading's ▾: %d rows, the header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
 	}
 	// grouped by assignees first, of several values, nothing is frozen: the header stands over ada's heading
-	m = drive(m, testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop()))
+	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[1]), m.rowsTop()))
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
 	if m.frozen(0) != 1 || m.headerTop() != m.rowsTop() || !strings.Contains(lines(m)[m.rowsTop()+2], "ada") {
 		t.Errorf("grouped by assignees: frozen %d, the header at %d:\n%s", m.frozen(0), m.headerTop(), view(m))
@@ -297,7 +297,7 @@ func TestAHeadingAcrossFoldsByEitherFold(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
 	k := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
-	folds, text := foldsAt(m.rows(0)[k]), ansi.Strip(m.rows(0)[k].Cells[0].Values[0])
+	folds, text := table.FoldsAt(m.rows(0)[k]), ansi.Strip(m.rows(0)[k].Cells[0].Values[0])
 	if len(folds) != 2 || !strings.HasPrefix(text, grid.Unfolded+" ada "+grid.Unfolded+" ") {
 		t.Fatalf("ada's line: %q, folds at %v", text, folds)
 	}

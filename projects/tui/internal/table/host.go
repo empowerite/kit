@@ -10,7 +10,10 @@ import "github.com/empowerite/kit/projects/tui/internal/grid"
 // by now, as Automatic chose it; the screen's width and height; the table's name, which titles its dialogs; and the
 // screen line its pane starts on, and the pane's width; the columns the header shows, in their order; where a column's
 // name starts in the header, and its first line, none where the header does not name it; the screen line the header
-// starts on; and where a column's name stands in the heading over the groups, a line of -1 where it does not.
+// starts on; where a column's name stands in the heading over the groups, a line of -1 where it does not; the rows as
+// the table lays them out, the names its header stands over them, and the width it lays them in; the table's state;
+// building its rows again once what stands open changed, and keeping its cursor on a row and in its pane's view after;
+// whether the rows have the keyboard; and whether the header, closed, hides names.
 type Host interface {
 	Fields() []Field
 	Panel() grid.Panel
@@ -26,6 +29,14 @@ type Host interface {
 	HeaderName(column string) (x int, name string)
 	HeaderTop() int
 	HeadingName(column string) (x, y int)
+	Rows() []grid.Row
+	Names() []string
+	GridWidth() int
+	Table() *Table
+	Rebuild()
+	Settle()
+	InRows() bool
+	HeaderHides() bool
 }
 
 // field gives the host's field of the id, and whether it has one.
