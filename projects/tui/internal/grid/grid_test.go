@@ -578,14 +578,15 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		}
 		got = append(got, text)
 	}
-	want := []string{"▾ state ▾ who ▾ 3", "  ▾ draft 1", "    ▾ bob 1", "#1", "  ▾ ready 2", "    ▾ ada 1", "#3",
-		"    ▾ none 1", "#2", "gone"}
+	want := []string{"▾ state ▾ who ▾ 3", "▾ draft 1", "  ▾ bob 1", "#1", "▾ ready 2", "  ▾ ada 1", "#3",
+		"  ▾ none 1", "#2", "gone"}
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	// the heading over the groups names their columns, a level over their values, which say no column
+	// the heading over the groups names their columns, a level over their values, which say no column; the levels a
+	// screen indents by are the columns', the heading over them apart
 	if !OverGroups(grouped[0]) || OverGroups(grouped[1]) || Level(grouped[0]) != 1 || Level(grouped[1]) != 2 ||
-		Level(grouped[2]) != 3 || Levels(grouped) != 3 {
+		Level(grouped[2]) != 3 || Levels(grouped) != 2 {
 		t.Errorf("the levels: %d %d %d of %d", Level(grouped[0]), Level(grouped[1]), Level(grouped[2]), Levels(grouped))
 	}
 	if q := p.Grouped("state", true); !slices.Equal(q.Groups(), []string{"who"}) || q.Field("state").Placement != Column ||
@@ -600,7 +601,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	desc := p.with(func(fields map[string]Field) {
 		fields["state"] = Field{Placement: Group, Depth: 1, Sort: Descending, Priority: 1}
 	})
-	if got := desc.group(rows, columns); ansi.Strip(got[1].Cells[0].first()) != "  ▾ ready 2" {
+	if got := desc.group(rows, columns); ansi.Strip(got[1].Cells[0].first()) != "▾ ready 2" {
 		t.Errorf("the groups descending: %q", ansi.Strip(got[1].Cells[0].first()))
 	}
 	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {
@@ -633,11 +634,11 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 		return out
 	}
 	p := Panel{Groupable: map[string]bool{"state": true, "checks": true}, Fold: true}
-	if got := headings(p.Grouped("state", true)); !slices.Equal(got, []string{"▾ state ▾ 3", "  ▾ 🏁 draft 1", "  ▾ 🏁 ready 2"}) {
+	if got := headings(p.Grouped("state", true)); !slices.Equal(got, []string{"▾ state ▾ 3", "▾ 🏁 draft 1", "▾ 🏁 ready 2"}) {
 		t.Errorf("the headings by state: %q", got)
 	}
 	// grouped by checks, the rows group by its raw value, every row's SUCCESS, the heading saying its Head
-	if got := headings(p.Grouped("checks", false)); !slices.Equal(got, []string{"▾ checks ▾ 3", "  ▾ ✅ SUCCESS 3"}) {
+	if got := headings(p.Grouped("checks", false)); !slices.Equal(got, []string{"▾ checks ▾ 3", "▾ ✅ SUCCESS 3"}) {
 		t.Errorf("the heading by checks: %q", got)
 	}
 }
@@ -667,7 +668,7 @@ func TestAViewAsItLoadsGroupsByEachColumnTheSameOnEveryRow(t *testing.T) {
 			headings = append(headings, ansi.Strip(r.Cells[0].first()))
 		}
 	}
-	if want := []string{"▾ source ▾ where ▾ 3", "  ▾ github 3", "    ▾ here 3"}; !slices.Equal(headings, want) {
+	if want := []string{"▾ source ▾ where ▾ 3", "▾ github 3", "  ▾ here 3"}; !slices.Equal(headings, want) {
 		t.Errorf("the headings: %q", headings)
 	}
 	if got := q.Grouped("source", true).Groups(); !slices.Equal(got, []string{"where"}) {
@@ -767,13 +768,13 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		}
 		return p
 	}
-	want := []string{"▸ state ▸ who ▸ 3", "  ▾ draft 1", "    ▾ bob 1", "#1", "  ▸ ready 2", "gone"}
+	want := []string{"▾ state ▾ who ▾ 3", "▾ draft 1", "  ▾ bob 1", "#1", "▸ ready 2", "gone"}
 	if got := texts(shut(p, ready)); !slices.Equal(got, want) {
 		t.Errorf("ready folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a nested heading folds only its own rows
-	want = []string{"▾ state ▸ who ▸ 3", "  ▾ draft 1", "    ▾ bob 1", "#1", "  ▾ ready 2", "    ▸ ada 1",
-		"    ▾ none 1", "#2", "gone"}
+	want = []string{"▾ state ▾ who ▾ 3", "▾ draft 1", "  ▾ bob 1", "#1", "▾ ready 2", "  ▸ ada 1",
+		"  ▾ none 1", "#2", "gone"}
 	if got := texts(shut(p, ready+"\x00ada")); !slices.Equal(got, want) {
 		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
@@ -954,9 +955,9 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 		}
 		return Chosen
 	}
+	// the heading over the groups is drawn as nothing, as a screen draws it apart
 	got := plain(Draw(grouped, nil, 60, -1, func(r Row) bool { return Heads(r) }, picked))
-	want := []string{Partly + " ▾ state ▾ who ▾ 2", "  " + Partly + " ▾ ready 2", "    " + Partly + " ▾ ada 1",
-		Chosen + "   #1  ready  ada"}
+	want := []string{Partly + " ▾ ready 2", "  " + Partly + " ▾ ada 1", Chosen + "   #1  ready  ada"}
 	for k, w := range want {
 		if !strings.HasPrefix(got[k], w) {
 			t.Errorf("line %d: %q, want %q", k, got[k], w)
@@ -985,24 +986,25 @@ func TestARowOfSeveralValuesStandsUnderEachOfThem(t *testing.T) {
 		return out
 	}
 	p := Panel{Groupable: map[string]bool{"who": true, "state": true}}.Grouped("who", false)
-	want := []string{"▾ who ▾ 3", "  ▾ ada 1", "#1", "  ▾ bob 2", "#1", "#2", "  ▾ none 1", "#3"}
+	want := []string{"▾ who ▾ 3", "▾ ada 1", "#1", "▾ bob 2", "#1", "#2", "▾ none 1", "#3"}
 	if got := texts(p); !slices.Equal(got, want) {
 		t.Errorf("by who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	want = []string{"▾ state ▾ who ▾ 3", "  ▾ draft 1", "    ▾ bob 1", "#2", "  ▾ ready 2", "    ▾ ada 1", "#1",
-		"    ▾ bob 1", "#1", "    ▾ none 1", "#3"}
+	want = []string{"▾ state ▾ who ▾ 3", "▾ draft 1", "  ▾ bob 1", "#2", "▾ ready 2", "  ▾ ada 1", "#1",
+		"  ▾ bob 1", "#1", "  ▾ none 1", "#3"}
 	if got := texts(p.Grouped("state", false).Grouped("who", true)); !slices.Equal(got, want) {
 		t.Errorf("by state, then who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a heading says the value as the row draws it, its styles kept where the cell's Head says it so, as a label's pill
 	rows[0].Cells[1] = Cell{Values: []string{"👤 ada", "👤 bob"}, Raw: []string{"ada", "bob"}}
-	if got := texts(p)[1]; got != "  ▾ 👤 ada 1" {
+	if got := texts(p)[1]; got != "▾ 👤 ada 1" {
 		t.Errorf("ada's heading: %q", got)
 	}
 }
 
-// The heading over the groups says, before each column's name, whether that level's headings stand open: ▾ while every
-// one does, and every one over them, ▸ while one does not, never dim, as a level's fold always acts.
+// The heading over the groups says, before each column's name, whether that level shows, as the outline's Shows says:
+// ▾ while it and every level over it stand open, ▸ while one does not, never dim, as a level's fold always acts; and
+// after the last name, whether the rows show. A heading closed by hand changes none of them.
 func TestTheHeadingOverTheGroupsFoldsEachLevel(t *testing.T) {
 	columns := []string{"id", "state", "who"}
 	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
@@ -1013,8 +1015,12 @@ func TestTheHeadingOverTheGroupsFoldsEachLevel(t *testing.T) {
 		t.Errorf("every level open: %q", got)
 	}
 	p.Outline = Outline{byFields + "\x00ready\x00ada": false}
-	if got := bar(p); got != "▾ state ▸ who ▸ 3" {
+	if got := bar(p); got != "▾ state ▾ who ▾ 3" {
 		t.Errorf("one of who's headings closed: %q", got)
+	}
+	p.Outline = Outline{LevelKey(1): false}
+	if got := bar(p); got != "▾ state ▸ who ▸ 3" {
+		t.Errorf("who's level closed: %q", got)
 	}
 	if got := p.group(rows, columns)[0].Cells[0].first(); strings.Contains(got, style.Off(Folded)) {
 		t.Errorf("a closed level's ▸ is dim, as if it could not act: %q", got)
@@ -1024,9 +1030,57 @@ func TestTheHeadingOverTheGroupsFoldsEachLevel(t *testing.T) {
 		!strings.Contains(got, style.Label("who")) {
 		t.Errorf("the names are not bold: %q", got)
 	}
-	// a level closed shows every level under it closed too, as their headings are folded away under it
-	p.Outline = Outline{byFields + "\x00ready": false}
-	if got := bar(p); got != "▸ state ▸ who ▸ 3" {
-		t.Errorf("one of state's headings closed: %q", got)
+	// a level closed shows every level under it closed too, each keeping its own state
+	p.Outline = Outline{LevelKey(0): false}
+	if got := bar(p); got != "▸ state ▸ who ▸ 3" || !p.Outline.Open(Row{Key: byFields + "\x00ready", Aside: true}) {
+		t.Errorf("state's level closed: %q", got)
+	}
+	p.Outline = Outline{LevelKey(2): false}
+	if got := bar(p); got != "▾ state ▾ who ▸ 3" {
+		t.Errorf("the rows closed: %q", got)
+	}
+}
+
+// A level of the groups that does not show folds away its headings and everything under them, the rows' level its
+// rows, each heading over them standing, ▸ as it shows nothing; the row before them holds them, the heading over the
+// groups where nothing else shows, so the columns lay out as they did. A heading keeps its own state: a level opened
+// again shows each as it was.
+func TestALevelThatDoesNotShowFoldsAway(t *testing.T) {
+	columns := []string{"id", "state", "who"}
+	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
+	rows := []Row{row("#3", "ready", "ada"), row("#1", "draft", "bob"), row("#2", "ready", ""),
+		{Key: "gone", Cells: []Cell{one("gone: x")}}}
+	p := Panel{Groupable: map[string]bool{"state": true, "who": true}}.Grouped("state", false).Grouped("who", true)
+	grouped := p.group(rows, columns)
+	texts := func(p Panel) []string {
+		var out []string
+		for _, r := range p.FoldAway(p.group(rows, columns)) {
+			text := r.Key
+			if r.Aside {
+				text = ansi.Strip(r.Cells[0].first())
+			}
+			out = append(out, text)
+		}
+		return out
+	}
+	p.Outline = Outline{LevelKey(2): false}
+	if got, want := texts(p), []string{"▾ state ▾ who ▸ 3", "▾ draft 1", "  ▸ bob 1", "▾ ready 2", "  ▸ ada 1",
+		"  ▸ none 1", "gone"}; !slices.Equal(got, want) {
+		t.Errorf("the rows closed:\n%s", strings.Join(got, "\n"))
+	}
+	p.Outline = Outline{LevelKey(1): false, byFields + "\x00ready\x00ada": false}
+	if got, want := texts(p), []string{"▾ state ▸ who ▸ 3", "▸ draft 1", "▸ ready 2", "gone"}; !slices.Equal(got, want) {
+		t.Errorf("who's level closed:\n%s", strings.Join(got, "\n"))
+	}
+	p.Outline = Outline{LevelKey(0): false}
+	folded := p.FoldAway(grouped)
+	if got := texts(p); !slices.Equal(got, []string{"▸ state ▸ who ▸ 3", "gone"}) || len(Every(folded)) != len(grouped) ||
+		!slices.Equal(headed(folded, columns), headed(grouped, columns)) {
+		t.Errorf("state's level closed: %q", got)
+	}
+	// opened again, ada's heading is closed still, as it was left
+	p.Outline = Outline{byFields + "\x00ready\x00ada": false}
+	if got := texts(p); !slices.Contains(got, "  ▸ ada 1") || slices.Contains(got, "#3") {
+		t.Errorf("opened again: %q", got)
 	}
 }

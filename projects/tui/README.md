@@ -40,16 +40,16 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
   `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
   and leaves the old file as it is.
-  - The column names always stand over the rows. The rule under them is the preset line, which takes no line of the
-    rows. At its right end, after how many rows are selected and a chip per filter, it names the preset the table is set
-    as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the name is
-    in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on it drops down
-    the presets' menu, in the tab's color, as the pill is, titled Presets at its left as a dialog is, from the header's
-    first line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save As…, Rename…, Delete, and the
-    presets. Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and
-    ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line was
-    set to, and are dim on Default and Compact. What was done is said in place of the keys, for five seconds or until a
-    key; why something was not done stays until a key.
+  - The tab's view starts with the control line: the heading over the groups at its left, where the rows group, and the
+    preset line at its right end. After how many rows are selected and a chip per filter, it names the preset the table
+    is set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
+    name is in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on the
+    pill drops down the presets' menu, in the tab's color, as the pill is, titled Presets at its left as a dialog is,
+    from the control line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save As…, Rename…,
+    Delete, and the presets. Save As… takes a name in the selector's place, the person's preset the line was set to
+    typed already, and ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's
+    preset the line was set to, and are dim on Default and Compact. What was done is said in place of the keys, for
+    five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
     stand, then the hidden, each with whether it shows, its sort and its place among the keys, and its group's depth.
@@ -99,12 +99,18 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     The tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows
     are selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says
-    whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under one
-    heading that names the grouped columns, `▾ source ▾ assignees`, and a heading per value under it. That heading never
-    closes: the ▾ or ▸ before each name shows the groups down to that level and nothing under it, collapsing or
-    expanding to it, and a level under one not wholly open shows ▸ too. A click on a column's name there, or ⏎ on the
-    heading, drops the column's own menu, in `heading.go`, as a name in the header does. A field of several values, as
+    whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
+    one heading that names the grouped columns, `▾ source ▾ assignees ▾ 3`, at the control line's left, apart from the
+    rows, and a heading per value under it. The ▾ or ▸ before each name opens or closes that level, and the one after
+    the last name the rows under the groups: a level closed hides its headings and everything under them, and the
+    levels under it show ▸ too; nothing else changes, so each level and each heading keeps its own state, and opening a
+    level again shows what was under it as it was left. With the first level closed, nothing shows. A ▸ opens its level
+    and every level over it; a value's heading opened opens the level under it too. A click on a column's name there
+    drops the column's own menu, in `heading.go`, as a name in the header does. A field of several values, as
     assignees or labels, groups too: a row stands under each of its values, the same row, its selection one.
+  - The column names and the rule under them, with each sort's mark, stand over the first row the pane shows, under
+    the headings of its groups, or under the last line where no row shows. A stage with no control line says how many
+    rows are selected at the rule's right end.
   - Auto-group, a setting, groups a view's rows as the view loads, as the screen opens or the preset line sets it,
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
     right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and

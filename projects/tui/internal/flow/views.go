@@ -667,8 +667,8 @@ func (m *Model) choosePreset(k int) {
 const PresetsTitle = "Presets"
 
 // presetBox gives the presets' menu's lines, in its tab's color, as the selector is, titled PresetsTitle at its top
-// edge's left, as a dialog is; and the screen line and column it is drawn from: the header's first line, as the columns
-// dialog's, its right edge on the selector's last cell, so it covers the ▼.
+// edge's left, as a dialog is; and the screen line and column it is drawn from: the control line, the selector's, as
+// the columns dialog's, its right edge on the selector's last cell, so it covers the ▼.
 func (m Model) presetBox() (lines []string, top, left int) {
 	color := stageColors[m.stages[m.stage].name]
 	lines, left = shell.BoxColored(m.presetItems(), m.presetEnabled, m.presetsMenu.At, "", -1, min(m.dropEnd(), m.width),

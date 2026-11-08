@@ -2,8 +2,9 @@
   ➀╶─────────────────╮➁╶──────────────────╴➌╶──────────────╮➃╶──────────────────
     🎫 backlog     3 │  🛫 underway     4  │ 💻 desk   1 ⋮ │  🌿 worktrees     ▹
   ───────────────────╰─────────────────────╯               ╰────────────────────
+                                                                    Default ▼
     branch   ahead   lines   uncommitted
-    ─────────────────────────────────────────────────────────────── Default ▼
+    ───────────────────────────────────────────────────────────────────────────
   ▾ 💻 main  ↑12 ↓1  +40 -6  2 uncommitted                                     
         M kit.yml                                                              
        ?? scratch.txt                                                          
@@ -19,6 +20,5 @@
        c0ffeea #45 status: the goldens at 120 columns                          
        c0ffeeb #45 status: the eleventh commit is listed too                   
        … and 1 more                                                            
-
 
  … │ 1-8 jump : tab menu │ esc desk ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse

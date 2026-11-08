@@ -71,8 +71,8 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 		t.Errorf("%d lines of rows, %d maximized; %d lines, %d maximized:\n%s\n%s", rowLines(normal), rowLines(m),
 			len(lines(normal)), len(lines(m)), view(normal), view(m))
 	}
-	// the header follows the line under the title
-	if !strings.Contains(lines(m)[2], "assignees") || !strings.Contains(lines(m)[3], Presets) {
+	// the control line follows the line under the title
+	if !strings.Contains(lines(m)[2], Presets) || !strings.Contains(lines(m)[2], "source") {
 		t.Errorf("the header is not under the line:\n%s", view(m))
 	}
 }
@@ -131,9 +131,9 @@ func TestRestorePutsTheBarBack(t *testing.T) {
 
 func TestClicksFollowTheTop(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	header := lines(m)[m.top()]
+	header := lines(m)[m.headerTop()]
 	// a click on a column's name drops its menu
-	if m = drive(m, testkit.Click(strings.Index(header, "age"), m.top())); !m.colMenu.Open || m.colMenu.column != "age" {
+	if m = drive(m, testkit.Click(strings.Index(header, "age"), m.headerTop())); !m.colMenu.Open || m.colMenu.column != "age" {
 		t.Fatalf("a click on age: %+v\n%s", m.colMenu, raw(m))
 	}
 	m = drive(m, esc)

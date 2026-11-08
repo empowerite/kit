@@ -167,16 +167,17 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 // gutter elsewhere, as on the selection's cell, opens nothing.
 func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
-	// #45 stands under the heading over the groups and source's, four cells in
-	if m = drive(m, testkit.Click(m.indent(0), m.rowsTop()+2)); m.stages[0].open["#45"] {
+	// #45 stands under source's heading, two cells in
+	y := rowY(m, "#45")
+	if m = drive(m, testkit.Click(m.indent(0), y)); m.stages[0].open["#45"] {
 		t.Fatalf("a click on #45's selection cell opened it")
 	}
 	gutter := m.indent(0) + foldCell
-	if m = drive(m, testkit.Click(gutter, m.rowsTop()+2)); m.inPanel || !m.inRows || m.stages[0].cursor != 2 ||
+	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].cursor != 2 ||
 		!m.stages[0].open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].cursor, view(m))
 	}
-	if m = drive(m, testkit.Click(gutter, m.rowsTop()+2)); m.stages[0].open["#45"] {
+	if m = drive(m, testkit.Click(gutter, y)); m.stages[0].open["#45"] {
 		t.Errorf("a second click on the gutter did not close the row")
 	}
 }
@@ -195,8 +196,8 @@ func TestThePanelWithoutStagesDoesNothing(t *testing.T) {
 // pin, its words lead nowhere.
 func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 	m := loaded(t, options())
-	// the first issue stands under the heading over the groups and source's, the view grouped by it as it loaded
-	y := m.rowsTop() + 2
+	// the first issue stands under source's heading, the view grouped by it as it loaded, and the header
+	y := rowY(m, "#45")
 	first := lines(m)[y]
 	x := ansi.StringWidth(first[:strings.Index(first, Issue+" kit flow is")])
 	browsed = nil
@@ -241,7 +242,7 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, right, right, right, down)
-	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.top() + 1, Button: b} }
+	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
 	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").offset == 0 || m.find("worktrees").cursor != 0 {
 		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").offset, m.find("worktrees").cursor, view(m))
 	}
@@ -261,35 +262,35 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	unfold(&m) // the source, one tracker's on every row, a column
-	at := func(name string) int { return strings.Index(lines(m)[m.top()], name) }
+	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
 	// under gives the mark the rule draws under a column's name
 	under := func(name string) string {
-		x := ansi.StringWidth(lines(m)[m.top()][:at(name)])
-		return strings.TrimRight(ansi.Strip(ansi.Cut(lines(m)[m.presetTop()], x, x+2)), "─")
+		x := ansi.StringWidth(lines(m)[m.headerTop()][:at(name)])
+		return strings.TrimRight(ansi.Strip(ansi.Cut(lines(m)[ruleY(m)], x, x+2)), "─")
 	}
-	if m = drive(m, testkit.Click(at("age"), m.top()), down, press(tea.KeyEnter)); under("age") != "▲" {
+	if m = drive(m, testkit.Click(at("age"), m.headerTop()), down, press(tea.KeyEnter)); under("age") != "▲" {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
 		t.Errorf("by age, the youngest first: %s", got)
 	}
-	if m = drive(m, testkit.Click(at("age"), m.presetTop())); under("age") != "▼" || order() != "#7 #46 #45" {
+	if m = drive(m, testkit.Click(at("age"), ruleY(m))); under("age") != "▼" || order() != "#7 #46 #45" {
 		t.Errorf("a click on its ▲, the oldest first: %s\n%s", order(), view(m))
 	}
-	option := tea.MouseClickMsg{X: at("source"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModAlt}
+	option := tea.MouseClickMsg{X: at("source"), Y: m.headerTop(), Button: tea.MouseLeft, Mod: tea.ModAlt}
 	if m = drive(m, option); under("source") != "▲²" || under("age") != "▼₁" {
 		t.Errorf("an option-click on source:\n%s", view(m))
 	}
 	// shift, which a terminal often keeps for its own selection, adds nothing: the click drops the menu, as ever
-	shift := tea.MouseClickMsg{X: at("source"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModShift}
+	shift := tea.MouseClickMsg{X: at("source"), Y: m.headerTop(), Button: tea.MouseLeft, Mod: tea.ModShift}
 	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.colMenu.Open {
 		t.Errorf("a shift-click on source: %+v", m.panel(m.stage).SortKeys())
 	}
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), m.top())); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.At <= m.columnLine(actClear) ||
+	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.columnEnabled(m.columnLine(actUp)) || m.colMenu.At <= m.columnLine(actClear) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
@@ -309,7 +310,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source", "assignees"}) {
 		t.Fatalf("source, then assignees, into the groups: %q", got)
 	}
-	header := ansi.Cut(lines(m)[m.top()], 0, m.paneWidth())
+	names, _ := m.header()
+	header := ansi.Strip(names[0])
 	if strings.Contains(header, "source") || strings.Contains(header, "assignees") || !strings.HasPrefix(header, strings.Repeat(" ", 4+3)) {
 		t.Errorf("the header of rows grouped two deep:\n%s", view(m))
 	}
@@ -318,8 +320,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
 	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it, ▲ on the rule under it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.top()], "age"), m.top()), down, press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
-		ansi.Cut(lines(m)[m.presetTop()], strings.Index(lines(m)[m.top()], "age"), strings.Index(lines(m)[m.top()], "age")+1) != "▲" {
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), down, press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
+		ansi.Cut(lines(m)[ruleY(m)], strings.Index(lines(m)[m.headerTop()], "age"), strings.Index(lines(m)[m.headerTop()], "age")+1) != "▲" {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it
@@ -334,17 +336,17 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	unfold(&m) // the source, one tracker's on every row, a column
-	at := func(name string) int { return strings.Index(lines(m)[m.top()], name) }
+	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	heading := func(text string) int {
 		return slices.IndexFunc(lines(m), func(l string) bool {
 			return strings.Contains(l, grid.Unfolded) && strings.Contains(l, text)
 		})
 	}
 	group := func() []string { return m.panel(m.stage).Groups() }
-	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
+	if m = drive(m, tea.MouseClickMsg{X: at("source"), Y: m.headerTop(), Button: tea.MouseLeft, Mod: tea.ModCtrl}); !slices.Equal(group(), []string{"source"}) {
 		t.Fatalf("a ctrl-click on source: %q\n%s", group(), view(m))
 	}
-	nest := tea.MouseClickMsg{X: at("assignees"), Y: m.top(), Button: tea.MouseLeft, Mod: tea.ModAlt | tea.ModCtrl}
+	nest := tea.MouseClickMsg{X: at("assignees"), Y: m.headerTop(), Button: tea.MouseLeft, Mod: tea.ModAlt | tea.ModCtrl}
 	if m = drive(m, nest); !slices.Equal(group(), []string{"source", "assignees"}) {
 		t.Fatalf("a ctrl-option-click on assignees: %q\n%s", group(), view(m))
 	}
@@ -359,7 +361,7 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
 	// a plain click on a name drops its menu, and groups nothing
-	if m = drive(m, testkit.Click(at("age"), m.top())); len(group()) != 0 || !m.colMenu.Open {
+	if m = drive(m, testkit.Click(at("age"), m.headerTop())); len(group()) != 0 || !m.colMenu.Open {
 		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).SortKeys())
 	}
 }
@@ -415,7 +417,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
 	m.setPanel(m.panel(m.stage).Grouped("source", true))
 	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || heading(m) != "" ||
-		!strings.Contains(lines(m)[m.top()], "source") {
+		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
 	}
 	// the view set again groups again; with Auto-group off, it groups nothing
@@ -423,7 +425,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		t.Errorf("the view set again: %q", m.panel(m.stage).Groups())
 	}
 	if unfold(&m); heading(m) != "" || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
-		!strings.Contains(lines(m)[m.top()], "source") {
+		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("Auto-group off: heading %q, groups %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
 }
@@ -444,14 +446,14 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
-	header := lines(m)[m.top()]
+	header := lines(m)[m.headerTop()]
 	m = drive(m, left)
 	// the header stands as it was over the rows folded away, every column where it was
-	if got := lines(m)[m.top()]; got != header || !strings.Contains(got, "title") {
+	if got := lines(m)[m.headerTop()]; got != header || !strings.Contains(got, "title") {
 		t.Errorf("the header with every row folded: %q, was %q", got, header)
 	}
 	heading := ansi.Strip(m.rows(m.stage)[1].Cells[0].Values[0])
-	if len(m.rows(m.stage)) != 2 || !strings.HasPrefix(heading, "  "+grid.Folded+" ") || m.count(m.stage) != count ||
+	if len(m.rows(m.stage)) != 2 || !strings.HasPrefix(heading, grid.Folded+" ") || m.count(m.stage) != count ||
 		m.stages[m.stage].cursor != 1 {
 		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
 	}
@@ -463,13 +465,13 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	}
 	// a click on the heading's ▾ folds it, and another, on its ▸, unfolds it; one on its value folds nothing
 	fold := foldAt(m.rows(m.stage)[1])
-	if m = drive(m, testkit.Click(fold+3, m.rowsTop()+1)); len(m.rows(m.stage)) != rows {
+	if m = drive(m, testkit.Click(fold+3, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's value: %d rows of %d", len(m.rows(m.stage)), rows)
 	}
-	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); len(m.rows(m.stage)) != 2 || m.colMenu.Open {
+	if m = drive(m, testkit.Click(fold, m.rowsTop())); len(m.rows(m.stage)) != 2 || m.colMenu.Open {
 		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.colMenu.Open, view(m))
 	}
-	if m = drive(m, testkit.Click(fold, m.rowsTop()+1)); len(m.rows(m.stage)) != rows {
+	if m = drive(m, testkit.Click(fold, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's ▸: %d rows", len(m.rows(m.stage)))
 	}
 }
@@ -495,7 +497,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	over := column(m, "source ▾ assignees", grid.Unfolded)
 	outer, inner := column(m, "▾ github", grid.Unfolded), column(m, "jeffrey-aguilera", grid.Unfolded)
-	if r := column(m, "#45", "▸"); outer != over+2 || inner != outer+2 || r != inner+2 {
+	if r := column(m, "#45", "▸"); outer != over || inner != outer+2 || r != inner+2 {
 		t.Errorf("grouped by hand, the headings' ▾ at %d, %d and %d, a row's ▸ at %d:\n%s", over, outer, inner, r, view(m))
 	}
 }
@@ -594,20 +596,20 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	unfold(&m)
 	at := func(name string) int {
-		l := lines(m)[m.top()]
+		l := lines(m)[m.headerTop()]
 		return ansi.StringWidth(l[:strings.Index(l, name)])
 	}
 	click := func(name string, mod tea.KeyMod) {
-		m = drive(m, tea.MouseClickMsg{X: at(name), Y: m.top(), Button: tea.MouseLeft, Mod: mod})
+		m = drive(m, tea.MouseClickMsg{X: at(name), Y: m.headerTop(), Button: tea.MouseLeft, Mod: mod})
 	}
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
 	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.column != "age" {
 		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
 	}
 	// the box hangs around the name, its top edge drawing it where the header does, as ≡'s menu hangs from ≡
-	if box, top, left := m.columnBox(); top != m.top() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
-		ansi.StringWidth(ansi.Cut(lines(m)[m.top()], left, at("age"))) != at("age")-left ||
-		ansi.Strip(ansi.Cut(lines(m)[m.top()], at("age"), at("age")+3)) != "age" {
+	if box, top, left := m.columnBox(); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
+		ansi.StringWidth(ansi.Cut(lines(m)[m.headerTop()], left, at("age"))) != at("age")-left ||
+		ansi.Strip(ansi.Cut(lines(m)[m.headerTop()], at("age"), at("age")+3)) != "age" {
 		t.Errorf("the menu does not hang from the name: %d, %d\n%s", top, left, view(m))
 	}
 	if x, name := m.columnName("age"); name != "age" || x != at("age") {
@@ -625,7 +627,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	if m = drive(m, press(tea.KeyEnter)); !m.pop.open || m.pop.field != "age" || !strings.Contains(view(m), "╭─ age ") {
 		t.Fatalf("Options… on age: popover %+v\n%s", m.pop, view(m))
 	}
-	if _, top, left := m.popBox(); top != m.top() || left+3 != at("age") {
+	if _, top, left := m.popBox(); top != m.headerTop() || left+3 != at("age") {
 		t.Errorf("the popover's title is not over the name: %d, %d", top, left)
 	}
 	m = drive(m, esc)

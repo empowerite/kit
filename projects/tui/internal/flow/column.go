@@ -203,25 +203,20 @@ func (m *Model) openColumnMenu(column string) {
 	m.colMenu.Dropdown = m.colMenu.Opened(m.columnItems(), m.columnEnabled)
 }
 
-// openFieldMenu drops the column menu around a column's name in the heading over the groups, its row k, the cursor on
-// the heading, the first line that acts under the keyboard.
-func (m *Model) openFieldMenu(k int, column string) {
-	m.stages[m.stage].cursor, m.inRows = k, true
+// openFieldMenu drops the column menu around a column's name in the heading over the groups, on the control line,
+// which then has the keyboard, the first line that acts under it.
+func (m *Model) openFieldMenu(column string) {
+	m.onPreset, m.inRows, m.inPanel = m.presets(m.stage), false, false
 	m.colMenu = columnMenu{column: column, heading: true}
 	m.colMenu.Dropdown = m.colMenu.Opened(m.columnItems(), m.columnEnabled)
 }
 
-// fieldName gives the screen column and line a column's name stands on in the heading over the groups, as the pane is
-// scrolled; a line of -1 once the heading, or the name in it, no longer shows.
+// fieldName gives the screen column and line a column's name stands on in the heading over the groups, on the control
+// line; a line of -1 where the heading no longer names it.
 func (m Model) fieldName(column string) (x, y int) {
-	rows := m.rows(m.stage)
-	k := slices.IndexFunc(rows, grid.OverGroups)
-	if k < 0 {
-		return 0, -1
-	}
-	for _, n := range m.headingNames(rows[k]) {
+	for _, n := range m.barNames() {
 		if n.column == column {
-			return n.from, m.rowLine(k)
+			return n.from, m.top()
 		}
 	}
 	return 0, -1
@@ -279,7 +274,7 @@ func (m *Model) columnAct(k int) tea.Cmd {
 		p = p.Grouped(c.column, true)
 	default:
 		x, _ := m.columnName(c.column)
-		y := m.top()
+		y := m.headerTop()
 		if c.heading {
 			x, y = m.fieldName(c.column)
 		}
@@ -303,7 +298,7 @@ func (m Model) columnBox() (lines []string, top, left int) {
 	}
 	x, name := m.columnName(m.colMenu.column)
 	lines, left = shell.Box(m.columnItems(), m.columnEnabled, m.colMenu.At, name, x, m.width)
-	return lines, m.top(), left
+	return lines, m.headerTop(), left
 }
 
 // columnName gives the screen column a column's name starts on in the header, and its first line, as the header draws
@@ -329,8 +324,7 @@ func (m *Model) columnClick(x, y int) tea.Cmd {
 
 // headerColumn gives the column whose name a click at x, y in the header falls on, none off every name.
 func (m Model) headerColumn(x, y int) string {
-	lines, _ := m.header()
-	if y < m.top() || y >= m.top()+len(lines)-1 {
+	if h, ok := m.headerLine(y); !ok || m.onRule(y) || h < 0 {
 		return ""
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x-m.indent(m.stage))
@@ -401,7 +395,7 @@ func (m Model) ruleFill(fill int) string {
 
 // sortAt gives the column whose sort a click at the screen column x on the rule under the header turns: the one whose
 // target, under its name, as sortSpots gives them, x falls on, short of the rule's right end, where the selected count
-// and the preset line stand. Where a column does not sort yet, its target is the rule's line, and still sorts it.
+// may stand. Where a column does not sort yet, its target is the rule's line, and still sorts it.
 // Nothing elsewhere.
 func (m Model) sortAt(x int) string {
 	line := ansi.Strip(m.rule())

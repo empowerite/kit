@@ -200,18 +200,15 @@ func (m Model) rowKeys() shell.Segment {
 	every := m.every(m.stage)
 	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.cursor].Key })
 	switch {
-	case m.opens(every, at) && s.open.Open(rows[s.cursor]):
+	case m.opens(every, at) && s.open.Unfolds(rows[s.cursor]):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "collapse", "left"))
 	case m.opens(every, at):
 		seg.Bindings = append(seg.Bindings, shell.Bind("→", "expand", "right"))
-	case grid.Parent(rows, s.cursor) >= 0:
+	case grid.Parent(rows, s.cursor) >= m.first(m.stage):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}
 	if grid.Heads(rows[s.cursor]) {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "a level", "alt+left", "alt+right"))
-		if len(m.headingNames(rows[s.cursor])) > 0 {
-			seg.Bindings = append(seg.Bindings, shell.Bind("⏎", "menu", "enter"))
-		}
 	}
 	return seg
 }
@@ -297,11 +294,10 @@ func (m Model) shownColumns(i int) []string {
 	return names
 }
 
-// header gives the lines that stand over the selected stage's rows, which do not scroll, and whether they hide lines
+// header gives the lines that stand over the selected stage's rows, as laid places them, and whether they hide lines
 // while closed: the names of its columns the panel shows, as internal/grid lays them over the rows, open or closed as
-// the stage's header is, then the rule under them, as rule draws it, which is the stage's preset line where it has
-// one. While it loads, after a refusal, or when its rows have no columns, there are no names, and the rule stands
-// alone where the stage has a preset line, else nothing does.
+// the stage's header is, then the rule under them, as rule draws it. While it loads, after a refusal, or when its rows
+// have no columns, there are none.
 func (m Model) header() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
@@ -312,78 +308,182 @@ func (m Model) header() (lines []string, hides bool) {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
 		}
 	}
-	if len(lines) == 0 && !m.presets(m.stage) {
+	if len(lines) == 0 {
 		return nil, false
 	}
 	return append(lines, m.rule()), hides
 }
 
-// rule gives the line under the header, as ruled draws it.
+// rule gives the line under the header, as wide as the pane: the gutter, then a thin dim line, each sort's mark on it
+// under its column's name, as sortSpots places them, where the line reaches; and, where there is no control line to
+// say it, how many rows are selected at its right end, in the accent, when some are.
 func (m Model) rule() string {
-	line, _ := m.ruled()
-	return line
-}
-
-// ruled gives the line under the header, as wide as the pane, and the column the preset's selector starts on, -1 where the
-// stage has no preset line: the gutter, a thin dim line, each sort's mark on it under its column's name, as sortSpots
-// places them, where the line reaches, and at its right end, how many rows are selected, in the
-// accent, when some are, then the preset line, where the stage has one: a chip per filter the panel sets, as chips
-// gives them, and the selector, as presetLine draws it. The chips are clipped first where the line is
-// short, leaving a cell of the rule.
-func (m Model) ruled() (string, int) {
-	width, right := m.paneWidth(), ""
-	if n := m.selected(); n > 0 {
+	right := ""
+	if n := m.selected(); n > 0 && !m.controls() {
 		right = style.Tint(" "+strconv.Itoa(n)+" selected ") + style.Off("─")
 	}
-	tail := ""
+	fill := max(1, m.paneWidth()-len(lead)-ansi.StringWidth(right))
+	return ansi.Truncate(lead+m.ruleFill(fill)+right, m.paneWidth(), "")
+}
+
+// controls says whether the selected stage's pane starts with its control line: where its rows group, or it has a
+// preset line.
+func (m Model) controls() bool {
+	return len(m.stages) > 0 && (m.presets(m.stage) || m.barText() != "")
+}
+
+// control gives the control line, the pane's first, as wide as the pane, and the screen column the preset's selector
+// starts on, -1 where the stage has no preset line: the heading over the groups, from barLeft, where the rows group,
+// as internal/grid draws it; and at the line's right end, how many rows are selected, in the accent, when some are,
+// then, where the stage has a preset line, a chip per filter the panel sets, as chips gives them, and the selector, as
+// presetLine draws it. The chips are clipped first where the line is short, then the heading.
+func (m Model) control() (string, int) {
+	width, right, tail := m.paneWidth(), "", ""
+	if n := m.selected(); n > 0 {
+		right = style.Tint(strconv.Itoa(n)+" selected") + "  "
+	}
+	left := strings.Repeat(" ", barLeft) + m.barText()
 	if m.presets(m.stage) {
-		tail = " " + m.presetLine()
+		tail = m.presetLine()
 		if chips := m.chips(m.stage); len(chips) > 0 {
-			// the gutter, a cell of the rule, and a space either side of the chips
-			room := width - len(lead) - 1 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
+			// two spaces either side of the chips
+			room := width - ansi.StringWidth(left) - 2 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
 			if room > 1 {
-				right += " " + ansi.Truncate(strings.Join(chips, "  "), room, "…") + " "
+				right += ansi.Truncate(strings.Join(chips, "  "), room, "…") + "  "
 			}
 		}
 	}
-	fill := max(1, width-len(lead)-ansi.StringWidth(right)-ansi.StringWidth(tail))
-	line := ansi.Truncate(lead+m.ruleFill(fill)+right+tail, width, "")
+	room := max(0, width-ansi.StringWidth(right)-ansi.StringWidth(tail)-1)
+	left = ansi.Truncate(left, room, "…")
+	fill := max(1, width-ansi.StringWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail))
+	line := ansi.Truncate(left+strings.Repeat(" ", fill)+right+tail, width, "")
 	if tail == "" {
 		return line, -1
 	}
-	return line, len(lead) + fill + ansi.StringWidth(right) + 1
+	return line, ansi.StringWidth(left) + fill + ansi.StringWidth(right)
 }
 
-// presetTop gives the screen line the preset line is drawn on, the rule under the header.
-func (m Model) presetTop() int {
-	lines, _ := m.header()
-	return m.top() + len(lines) - 1
-}
+// presetTop gives the screen line the preset line is drawn on, the control line.
+func (m Model) presetTop() int { return m.top() }
 
-// rowsTop gives the screen line the rows start on: the pane's first, or the one under the header and its rule.
+// rowsTop gives the screen line the rows' window starts on: the pane's first, or the one under the control line.
 func (m Model) rowsTop() int {
-	lines, _ := m.header()
-	return m.top() + len(lines)
+	if m.controls() {
+		return m.top() + 1
+	}
+	return m.top()
 }
 
-// rowsHeight gives the lines the rows have, which scroll: the pane's, less the header's and its rule's, which do not.
-func (m Model) rowsHeight() int { return max(1, m.paneHeight()-(m.rowsTop()-m.top())) }
+// rowsHeight gives the lines the rows have, which scroll: the pane's, less the control line's and the header's, which
+// do not.
+func (m Model) rowsHeight() int {
+	lines, _ := m.header()
+	return m.heightUnder(lines)
+}
 
-// pane gives the pane's lines, as many as it has, each as wide as the pane: the header and its rule, when shown, then
-// the selected stage's rows from its offset on.
+// heightUnder gives the lines the rows have under a header of those lines, as rowsHeight says.
+func (m Model) heightUnder(header []string) int {
+	return max(1, m.paneHeight()-(m.rowsTop()-m.top())-len(header))
+}
+
+// place is a line of the pane under the control line: the index of the stage's line it draws, -1 for a line that
+// says how many are hidden, or -2-h for the header's line h.
+type place = int
+
+// headerPlace gives the place of the header's line h.
+func headerPlace(h int) place { return -2 - h }
+
+// laid gives the pane's lines under the control line, as many as the rows' window and the header take, and the place
+// of each: the rows' window, as pane.Lines draws it, with the header's lines and its rule over the first line of a row
+// it shows, not a group's heading, and over the … above when that line is next over it; or under the window's last
+// line where it shows no row.
+func (m Model) laid() (texts []string, places []place) {
+	lines, s := m.lines(m.stage), m.stages[m.stage]
+	header, _ := m.header()
+	h := m.heightUnder(header)
+	texts = make([]string, len(lines))
+	for i, l := range lines {
+		texts[i] = l.text
+	}
+	head := m.head(lines, h)
+	texts = pane.Lines(texts, s.offset, h, head, "   ")
+	places = make([]place, len(texts))
+	for r := range places {
+		places[r] = pane.At(len(lines), h, s.offset, r)
+	}
+	if head != "" {
+		places[0] = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
+	}
+	if len(header) == 0 {
+		return texts, places
+	}
+	rows := m.rows(m.stage)
+	at := slices.IndexFunc(places, func(k place) bool {
+		return k >= 0 && lines[k].row >= 0 && !rows[lines[k].row].Aside
+	})
+	switch {
+	case at < 0:
+		at = len(places)
+	case at == 1 && places[0] == -1:
+		at = 0
+	}
+	marks := make([]place, len(header))
+	for k := range marks {
+		marks[k] = headerPlace(k)
+	}
+	return slices.Insert(texts, at, header...), slices.Insert(places, at, marks...)
+}
+
+// placeAt gives the place of the screen line y in the pane under the control line, as laid gives it, and whether y
+// falls on one.
+func (m Model) placeAt(y int) (place, bool) {
+	_, places := m.laid()
+	if r := y - m.rowsTop(); r >= 0 && r < len(places) {
+		return places[r], true
+	}
+	return -1, false
+}
+
+// headerTop gives the screen line the header's first line stands on, as laid places it, or -1 where there is no
+// header.
+func (m Model) headerTop() int {
+	_, places := m.laid()
+	if r := slices.Index(places, headerPlace(0)); r >= 0 {
+		return m.rowsTop() + r
+	}
+	return -1
+}
+
+// headerLine gives the line of the header the screen line y falls on, from 0, and whether it falls on one: the rule
+// its last.
+func (m Model) headerLine(y int) (int, bool) {
+	if k, ok := m.placeAt(y); ok && k <= headerPlace(0) {
+		return headerPlace(0) - k, true
+	}
+	return 0, false
+}
+
+// onRule says whether the screen line y is the rule under the header.
+func (m Model) onRule(y int) bool {
+	lines, _ := m.header()
+	h, ok := m.headerLine(y)
+	return ok && h == len(lines)-1
+}
+
+// pane gives the pane's lines, as many as it has, each as wide as the pane: the control line, where there is one, then
+// the selected stage's rows from its offset on, with the header and its rule among them, as laid places them.
 func (m Model) pane() []string {
-	h := m.rowsHeight()
-	out, _ := m.header()
+	var out []string
 	switch {
 	case len(m.stages) == 0:
 		out = append(out, "   "+style.Off("no stage is configured"))
 	default:
-		lines := m.lines(m.stage)
-		texts := make([]string, len(lines))
-		for i, l := range lines {
-			texts[i] = l.text
+		if m.controls() {
+			line, _ := m.control()
+			out = append(out, line)
 		}
-		out = append(out, pane.Lines(texts, m.stages[m.stage].offset, h, m.head(lines, h), "   ")...)
+		texts, _ := m.laid()
+		out = append(out, texts...)
 	}
 	for len(out) < m.paneHeight() {
 		out = append(out, "")
@@ -458,7 +558,7 @@ func (m Model) lines(i int) []line {
 }
 
 // indent gives the cells a stage's rows, and its header, stand in by, under the headings of its groups: two a level,
-// as internal/grid counts them.
+// as internal/grid counts them, the heading over the groups apart, which stands on the control line.
 func (m Model) indent(i int) int { return 2 * m.shown(i).levels }
 
 // gridWidth gives the cells a stage's rows are laid out in: the pane's, less their indent.
@@ -480,9 +580,9 @@ func (m Model) columnar(i int) bool {
 	return i < len(m.stages) && len(fieldsOf(m.stages[i].name)) > 0 && !m.stages[i].loading && m.stages[i].refusal == ""
 }
 
-// dropStart gives the screen column the preset line's selector starts on, at the rule's right end.
+// dropStart gives the screen column the preset line's selector starts on, at the control line's right end.
 func (m Model) dropStart() int {
-	_, at := m.ruled()
+	_, at := m.control()
 	return at
 }
 
@@ -490,7 +590,7 @@ func (m Model) dropStart() int {
 // down.
 func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetLine()) }
 
-// presetLine gives the preset's selector, at the right end of the rule under the table's header: the name of the
+// presetLine gives the preset's selector, at the right end of the control line: the name of the
 // preset the table is set as, and Presets; once the table differs from every preset, the name of the one it was last
 // set to, in italics, as a hint it has left it; or, while a name is typed for Save As… or Rename…, the name with a
 // caret after a dim "save as" or "rename", once the line has the keyboard. The selector is a pill, as a label is: bold

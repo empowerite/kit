@@ -222,12 +222,16 @@ func (c Cell) more() string {
 // line: Chosen in a color, or nothing for a row not selected. picked may be nil. A row opens only when it hides
 // something. A group's heading stands two cells further out than a row, its ▾ or ▸ where a row's own stands, so the
 // rows under it stand in from it, and what picked gives for it, as Chosen or Partly, in the two cells before, after
-// the heading's own indent, so its mark stands in with it.
+// the heading's own indent, so its mark stands in with it. The heading over the groups is drawn as nothing: a screen
+// draws it apart, over the rows, and it lays the columns out still with what it holds.
 func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
 	var out []Line
 	for k, r := range rows {
+		if OverGroups(r) {
+			continue
+		}
 		fitted, left := fit(r.Cells, widths, cells)
 		hides := Hides(r, fitted, left)
 		opened := hides && open(r)

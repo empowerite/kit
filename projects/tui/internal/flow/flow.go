@@ -346,11 +346,13 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case msg.Y == 0 && msg.X >= m.searchAt():
 			return m, m.enterPanel()
-		case len(m.stages) > 0 && msg.Y == m.presetTop() && msg.X < m.paneWidth() && m.sortAt(msg.X) != "":
-			m.sortBy(m.sortAt(msg.X), msg.Mod&tea.ModShift != 0)
-		case len(m.stages) > 0 && m.presets(m.stage) && msg.Y == m.presetTop() && msg.X < m.paneWidth():
-			return m, m.presetClick(msg.X)
-		case len(m.stages) > 0 && msg.Y >= m.top() && msg.Y < m.rowsTop() && msg.X < m.paneWidth():
+		case len(m.stages) > 0 && m.controls() && msg.Y == m.top() && msg.X < m.paneWidth():
+			return m, m.controlClick(msg.X)
+		case len(m.stages) > 0 && m.onRule(msg.Y) && msg.X < m.paneWidth():
+			if column := m.sortAt(msg.X); column != "" {
+				m.sortBy(column, msg.Mod&tea.ModShift != 0)
+			}
+		case len(m.stages) > 0 && msg.X < m.paneWidth() && m.inHeader(msg.Y):
 			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false)
 		default:
 			if bar, ok := m.barTakes(msg); ok {
@@ -509,13 +511,13 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 		m.openColumnMenu(column)
 		return
 	}
-	if y < m.rowsTop() {
+	if m.inHeader(y) {
 		m.clickHeader(x, y, nest, true)
 		return
 	}
-	lines, s := m.lines(m.stage), &m.stages[m.stage]
-	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
-	if k < 0 || lines[k].row < 0 {
+	lines := m.lines(m.stage)
+	k, ok := m.placeAt(y)
+	if !ok || k < 0 || lines[k].row < 0 {
 		return
 	}
 	p := m.panel(m.stage)
@@ -524,25 +526,22 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 	}
 }
 
-// clickHeader takes a click on the header, which is no row, above its rule, the preset line, where each column's sort
-// target stands, as sortAt says: on its gutter it opens the header, or closes it, when it hides lines; on a column's
+// clickHeader takes a click on the header, which is no row, above its rule, where each column's sort target stands, as
+// sortAt says: on its gutter it opens the header, or closes it, when it hides lines; on a column's
 // name it drops the column menu down under it. Where the terminal sends option or ctrl with a click, as many do not,
 // also, as option asks, turns the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows
 // by it within the groups they have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	s := &m.stages[m.stage]
 	x -= m.indent(m.stage)
-	if y < m.top() {
+	h, ok := m.headerLine(y)
+	if !ok || m.onRule(y) {
 		return nil
 	}
-	if _, hides := m.header(); hides && !group && y == m.top() && x == foldCell {
+	if _, hides := m.header(); hides && !group && h == 0 && x == foldCell {
 		next := maps.Clone(s.open)
 		next[headerKey] = !s.open[headerKey]
 		m.reoutline(next)
-		return nil
-	}
-	lines, _ := m.header()
-	if y >= m.top()+len(lines)-1 {
 		return nil
 	}
 	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
@@ -729,16 +728,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
-	case "enter":
-		// on the heading over the groups, ⏎ drops its first column's menu, as a click on the name does
-		if !m.inRows || len(m.stages) == 0 {
-			break
-		}
-		if k, rows := m.stages[m.stage].cursor, m.rows(m.stage); k < len(rows) && grid.OverGroups(rows[k]) {
-			if names := m.headingNames(rows[k]); len(names) > 0 {
-				m.openFieldMenu(k, names[0].column)
-			}
-		}
 	case "right", "alt+right":
 		m.expand(true, k.String() == "alt+right")
 	case "left", "alt+left":
@@ -1096,11 +1085,15 @@ func refusalOf(name string, err error) string {
 	return fmt.Sprintf("kit flow %s was killed", name)
 }
 
-// clamp keeps a stage's cursor within its rows.
+// clamp keeps a stage's cursor within its rows, and, while they have the keyboard, past the heading over the groups,
+// which it never stands on there; past the last row where only that heading shows.
 func (m *Model) clamp(i int) {
-	s := &m.stages[i]
+	s, first := &m.stages[i], m.first(i)
 	if n := len(m.rows(i)); s.cursor >= n {
-		s.cursor = max(0, n-1)
+		s.cursor = max(first, n-1)
+	}
+	if m.inRows && i == m.stage {
+		s.cursor = max(s.cursor, first)
 	}
 }
 
@@ -1110,7 +1103,7 @@ func (m *Model) up(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	if s.cursor-n < 0 {
+	if first := m.first(m.stage); s.cursor-n < first {
 		// past the first row, the preset line has the keyboard, or the bar when the stage has none
 		s.cursor, s.offset, m.inRows = 0, 0, false
 		m.onPreset = m.presets(m.stage)
@@ -1127,11 +1120,12 @@ func (m *Model) down(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	all := m.rows(m.stage)
+	all, first := m.rows(m.stage), m.first(m.stage)
 	rows := len(all)
-	if rows == 0 {
+	if rows <= first {
 		return
 	}
+	s.cursor = max(s.cursor, first)
 	if !m.inRows {
 		m.inRows = true
 		n--
@@ -1146,25 +1140,17 @@ func (m *Model) down(n int) {
 // click takes a left click on the pane's rows: the cursor goes to the row clicked, and the rows have the keyboard, so
 // space then selects it; a click on a linked glyph of a row's first line, as an issue's before its title, opens its
 // page in the browser; one on the ▸ or ▾ of a row's first line, or of a heading, as foldAt says, and there alone,
-// opens it, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does; in the
-// heading over the groups, one on a column's name drops its menu, and one on the ▾ or ▸ before the name shows the
-// groups down to its level. With subtree, as option asks, a click on a ▸ opens one level more under the node, as grow
-// says, and one on a ▾ closes the deepest open level under it, as peel says, a level each click, as option with right
-// or left does. A click on a … line, or on a line about the stage, does nothing.
+// opens it, or closes it, as one on that first line pinned on top, once the row has scrolled it away, does. With
+// subtree, as option asks, a click on a ▸ opens one level more under the node, as grow says, and one on a ▾ closes the
+// deepest open level under it, as peel says, a level each click, as option with right or left does. A click on a …
+// line, or on a line about the stage, does nothing.
 func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
 	}
 	lines, s := m.lines(m.stage), &m.stages[m.stage]
-	if y < m.rowsTop() {
-		return m.clickHeader(x, y, false, false)
-	}
-	k := pane.At(len(lines), m.rowsHeight(), s.offset, y-m.rowsTop())
-	if y == m.rowsTop() && m.head(lines, m.rowsHeight()) != "" {
-		// the pinned line is the first of the row under the cursor, in place of the … above
-		k = slices.IndexFunc(lines, func(l line) bool { return l.row == s.cursor })
-	}
-	if k < 0 || lines[k].row < 0 {
+	k, ok := m.placeAt(y)
+	if !ok || k < 0 || lines[k].row < 0 {
 		return nil
 	}
 	rows := m.rows(m.stage)
@@ -1178,28 +1164,21 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	}
 	fold := first && link == "" && x == foldAt(rows[row])
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
-	name, onName := m.nameAt(rows[row], x)
-	level, onLevel := m.levelAt(rows[row], x)
 	switch {
-	case onLevel:
-		m.foldLevel(level)
-		m.fit()
-	case onName && !subtree:
-		m.openFieldMenu(row, name.column)
 	case strings.HasPrefix(link, jumps):
 		m.fit()
 		m.jump(strings.TrimPrefix(link, jumps))
 	case link != "":
 		m.fit()
 		return m.openPage(link)
-	case fold && subtree && s.open.Open(rows[row]):
+	case fold && subtree && s.open.Unfolds(rows[row]):
 		m.peel()
 		m.fit()
 	case fold && subtree:
 		m.grow()
 		m.fit()
 	case fold:
-		m.disclose(!s.open.Open(rows[row]), false)
+		m.disclose(!s.open.Unfolds(rows[row]), false)
 		m.fit()
 	default:
 		m.fit()
@@ -1207,13 +1186,39 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	return nil
 }
 
+// controlClick takes a click on the control line, the pane's first: on the ▾ or ▸ before a column's name in the
+// heading over the groups, or after the last, it opens or closes the level, as toggleLevel says; on a column's name
+// it drops the column's menu around it; on the preset's selector it drops the presets down; elsewhere it gives the
+// preset line the keyboard, where the stage has one.
+func (m *Model) controlClick(x int) tea.Cmd {
+	if level, ok := m.levelAt(x); ok {
+		m.toggleLevel(level)
+		return nil
+	}
+	if name, ok := m.nameAt(x); ok {
+		m.openFieldMenu(name.column)
+		return nil
+	}
+	if m.presets(m.stage) {
+		return m.presetClick(x)
+	}
+	return nil
+}
+
+// inHeader says whether the screen line y falls on the header, its rule apart.
+func (m Model) inHeader(y int) bool {
+	_, ok := m.headerLine(y)
+	return ok && !m.onRule(y)
+}
+
 // rowLine gives the screen line the first line of the selected stage's row k stands on, as the pane is scrolled, or
 // -1 while it is scrolled away.
 func (m Model) rowLine(k int) int {
-	lines, s := m.lines(m.stage), m.stages[m.stage]
-	for y := 0; y < m.rowsHeight(); y++ {
-		if at := pane.At(len(lines), m.rowsHeight(), s.offset, y); at >= 0 && lines[at].row == k {
-			return m.rowsTop() + y
+	lines := m.lines(m.stage)
+	_, places := m.laid()
+	for r, at := range places {
+		if at >= 0 && lines[at].row == k {
+			return m.rowsTop() + r
 		}
 	}
 	return -1
@@ -1263,7 +1268,7 @@ func (m *Model) page(d int) {
 	case d > 0:
 		m.down(h)
 	default:
-		s.cursor = max(0, s.cursor-h)
+		s.cursor = max(m.first(m.stage), s.cursor-h)
 		m.fit()
 	}
 }

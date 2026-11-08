@@ -1598,12 +1598,12 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			folding(&m, true)
 			m.apply(m.chosen(m.stage))
 		}
-		if l := lines(m); strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()+1], "github") ||
+		if l := lines(m); strings.Contains(l[m.headerTop()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
 			strings.Count(view(m), "github") != 1 {
 			t.Errorf("%s does not say the source once, over the rows:\n%s", name, view(m))
 		}
 		unfold(&m)
-		if l := lines(m); !strings.Contains(l[m.top()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
+		if l := lines(m); !strings.Contains(l[m.headerTop()], "source") || !strings.Contains(l[m.headerTop()+2], "github") ||
 			!strings.Contains(m.View().Content, style.Off("github")) || strings.Contains(view(m), GitHub) {
 			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
@@ -1625,3 +1625,18 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 
 // last gives a row's last cell, the title's, which stands after every other column.
 func last(cells []grid.Cell) grid.Cell { return cells[len(cells)-1] }
+
+// rowY gives the screen line the first line of the selected stage's row of the key stands on, -1 where none shows.
+func rowY(m Model, key string) int {
+	k := slices.IndexFunc(m.rows(m.stage), func(r row) bool { return r.Key == key && !r.Aside || r.Key == key })
+	if k < 0 {
+		return -1
+	}
+	return m.rowLine(k)
+}
+
+// ruleY gives the screen line the rule under the selected stage's header stands on, as the pane lays it out.
+func ruleY(m Model) int {
+	lines, _ := m.header()
+	return m.headerTop() + len(lines) - 1
+}

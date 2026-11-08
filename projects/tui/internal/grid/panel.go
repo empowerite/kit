@@ -413,12 +413,13 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
-// one the heading over the groups, and one each column they group by; none where nothing groups them.
+// one each column they group by, the heading over the groups apart, which a screen draws apart from them; none where
+// nothing groups them.
 func Levels(rows []Row) int {
 	n := 0
 	for _, r := range rows {
 		if Heads(r) {
-			n = max(n, strings.Count(r.Key, "\x00"))
+			n = max(n, strings.Count(r.Key, "\x00")-1)
 		}
 	}
 	return n
@@ -447,15 +448,16 @@ func (p Panel) Heading(r Row) string {
 }
 
 // group gives the rows under one heading that names the columns the panel groups by, bold as the header names them, the
-// outermost first, each after its level's fold, ▾ while every heading of the level, and of each over it, stands open, ▸
-// while one does not, never dim, as it always acts; after the last, the rows' own, ▾ while they all show; and how many
-// rows they group, dim; and under it, a heading per value of each column, the groups in their values' order, the larger
-// first where the column sorts descending, and the rows in each as they came: a heading of a value, an aside, is the
-// value, as the rows draw it or as their cell's Head says it, indented by its depth, and how many rows it heads, dim. A
-// row groups by a cell's sort key, or under none when the cell has none; a cell of several values groups the row under
-// each, the same row under every heading it belongs to, nested under each pair of its values, each heading over it
-// counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the panel groups by
-// nothing, the rows stand as they came.
+// outermost first, each after its level's fold, ▾ while the level shows, as the outline's Shows says, ▸ while it does
+// not, never dim, as it always acts; after the last, the rows' own, ▾ while they show; and how many rows they group,
+// dim. A screen draws that heading apart from the rows, which draw it as nothing, and it holds what a closed level
+// hides. Under it stand a heading per value of each column, the groups in their values' order, the larger first where
+// the column sorts descending, and the rows in each as they came: a heading of a value, an aside, is the value, as the
+// rows draw it or as their cell's Head says it, indented by its depth, the outermost not at all, and how many rows it
+// heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values groups
+// the row under each, the same row under every heading it belongs to, nested under each pair of its values, each
+// heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the
+// panel groups by nothing, the rows stand as they came.
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
@@ -518,8 +520,6 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	if len(entries) > 0 {
 		out = append(out, Row{Key: byFields, Aside: true}) // its text says each level's fold, once they are known
 	}
-	// closed says, of each level, whether one of its headings stands closed
-	closed := make([]bool, len(at))
 	for i, e := range entries {
 		for depth := range at {
 			if i > 0 && same(entries[i-1], e, depth) {
@@ -538,35 +538,25 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			for _, v := range e.values[:depth+1] {
 				key += "\x00" + v
 			}
-			if !p.Outline.Open(Row{Key: key, Aside: true}) {
-				closed[depth] = true
-			}
-			heading := strings.Repeat("  ", depth+1) + p.fold(key) + " " + e.heads[depth] + " " +
+			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + e.heads[depth] + " " +
 				style.Off(strconv.Itoa(n))
 			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
 		}
 		out = append(out, e.row)
 	}
-	// a level is closed under a closed one too, its headings folded away there
-	for depth := 1; depth < len(closed); depth++ {
-		closed[depth] = closed[depth] || closed[depth-1]
-	}
 	if len(out) > 0 {
+		// fold gives a level's glyph, from 0 the outermost, the rows' the last: never dim, as it always acts
+		fold := func(depth int) string {
+			if p.Outline.Shows(depth) {
+				return Unfolded
+			}
+			return Folded
+		}
 		var titles []string
 		for depth, j := range at {
-			// never dim: a level's fold always acts, as it shows the groups down to it
-			glyph := Unfolded
-			if closed[depth] {
-				glyph = Folded
-			}
-			titles = append(titles, glyph+" "+style.Label(columns[j]))
+			titles = append(titles, fold(depth)+" "+style.Label(columns[j]))
 		}
-		// the rows' fold, after the last column's name: they all show while every heading over them stands open
-		rows := Unfolded
-		if closed[len(closed)-1] {
-			rows = Folded
-		}
-		heading := strings.Join(titles, " ") + " " + rows + " " + style.Off(strconv.Itoa(len(grouped)))
+		heading := strings.Join(titles, " ") + " " + fold(len(at)) + " " + style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
@@ -580,8 +570,9 @@ const (
 )
 
 // Outline is which nodes of the rows' outline stand open, by key: a group's heading, whose rows show under it, a row,
-// whose lines and detail show, and anything else a screen keys in it, as its header. A key it does not hold stands as
-// it opens: a heading open, everything else closed.
+// whose lines and detail show, and anything else a screen keys in it, as its header; and which levels of the groups
+// show, by LevelKey. A key it does not hold stands as it opens: a heading open, a level showing, everything else
+// closed.
 type Outline map[string]bool
 
 // Open says whether a row stands open: the heading over the groups always, as each level folds under it; any other
@@ -596,24 +587,62 @@ func (o Outline) Open(r Row) bool {
 	return Heads(r)
 }
 
-// fold gives the glyph before the heading of a key, styled: Folded, dim, while its group is closed, Unfolded while it is
-// open.
+// LevelKey gives the key that says in an outline whether a level of the groups shows, from 0 the outermost, as the
+// fold before its column's name in the heading over the groups opens and closes it; the level under the last group's
+// is the rows'.
+func LevelKey(depth int) string { return "group\x01" + strconv.Itoa(depth) }
+
+// Shows says whether a level of the groups shows, from 0 the outermost: open, and every level over it open too, as a
+// level closed hides everything under it. Each keeps its own state, so opening the levels over it again shows it as
+// it was.
+func (o Outline) Shows(depth int) bool {
+	for d := 0; d <= depth; d++ {
+		if open, ok := o[LevelKey(d)]; ok && !open {
+			return false
+		}
+	}
+	return true
+}
+
+// Unfolds says whether a row shows what it holds: open, as Open says, and, for a group's heading, the level under it
+// showing, as Shows says.
+func (o Outline) Unfolds(r Row) bool {
+	if !o.Open(r) {
+		return false
+	}
+	return !Heads(r) || OverGroups(r) || o.Shows(Level(r)-1)
+}
+
+// fold gives the glyph before the heading of a key, styled: Folded, dim, while its group shows nothing under it, as
+// Unfolds says, Unfolded while it does.
 func (p Panel) fold(key string) string {
-	if !p.Outline.Open(Row{Key: key, Aside: true}) {
+	if !p.Outline.Unfolds(Row{Key: key, Aside: true}) {
 		return style.Off(Folded)
 	}
 	return Unfolded
 }
 
-// FoldAway gives the rows as group draws them with every closed group folded away: under a closed heading, the rows and
-// the headings deeper than it, up to the next heading as shallow, or the rows of one cell that follow the groups. The
-// heading stays, its count the rows it hides, and holds them in its Folded, which lay the columns out still.
+// FoldAway gives the rows as group draws them with every closed group, and every level that does not show, folded
+// away: under a closed heading, the rows and the headings deeper than it, up to the next heading as shallow, or the
+// rows of one cell that follow the groups; and a heading, or a row under the groups, whose level does not show, as the
+// outline's Shows says. The row before it stays, the heading over the groups when nothing does, and holds them in its
+// Folded, which lay the columns out still.
 func (p Panel) FoldAway(rows []Row) []Row {
+	groups := Levels(rows)
 	var out []Row
 	closed := 0 // the level of the closed heading the rows stand under, or none
 	for _, r := range rows {
 		level := Level(r)
-		if closed > 0 && (level > closed || level == 0 && len(r.Cells) > 1) {
+		// the level of the groups the row stands at, the rows' under the last, -1 for one no level hides
+		depth := -1
+		switch {
+		case level >= 2:
+			depth = level - 2
+		case level == 0 && len(r.Cells) > 1 && groups > 0:
+			depth = groups
+		}
+		hidden := depth >= 0 && !p.Outline.Shows(depth)
+		if hidden || closed > 0 && (level > closed || level == 0 && len(r.Cells) > 1) {
 			out[len(out)-1].Folded = append(out[len(out)-1].Folded, r)
 			continue
 		}

@@ -18,9 +18,9 @@ import (
 // rows grouped by it, innermost, or no longer; Hide; and its options. A line the column cannot act on stays, dim.
 func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
-	at := func(name string) int { return strings.Index(lines(m)[m.top()], name) }
+	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	rightClick := func(name string) tea.MouseClickMsg {
-		return tea.MouseClickMsg{X: at(name), Y: m.top(), Button: tea.MouseRight}
+		return tea.MouseClickMsg{X: at(name), Y: m.headerTop(), Button: tea.MouseRight}
 	}
 	group := func() []string { return m.panel(m.stage).Groups() }
 	sorts := func() int { return len(m.panel(m.stage).SortKeys()) }
@@ -110,7 +110,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("Hide age: %q", m.shownColumns(m.stage))
 	}
 	// a right click on the header's gutter, off every name, opens nothing
-	if m = drive(m, tea.MouseClickMsg{X: 1, Y: m.top(), Button: tea.MouseRight}); m.colMenu.Open {
+	if m = drive(m, tea.MouseClickMsg{X: 1, Y: m.headerTop(), Button: tea.MouseRight}); m.colMenu.Open {
 		t.Errorf("a right click off the names opened the menu")
 	}
 	// nor does one under the rows, or a click on the rule of a table with no preset line
@@ -118,7 +118,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Errorf("a right click under the rows opened the menu")
 	}
 	m.noPresets = true
-	if m = drive(m, testkit.Click(10, m.top()+1)); m.colMenu.Open || m.pop.open {
+	if m = drive(m, testkit.Click(10, ruleY(m))); m.colMenu.Open || m.pop.open {
 		t.Errorf("a click on the rule opened a menu")
 	}
 }
@@ -131,14 +131,14 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 // sort; the menu stays shut.
 func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
-	header := func() string { return lines(m)[m.top()] }
+	header := func() string { return lines(m)[m.headerTop()] }
 	at := func(text string) int { return ansi.StringWidth(header()[:strings.Index(header(), text)]) }
-	rule := func() string { return lines(m)[m.presetTop()] }
+	rule := func() string { return lines(m)[ruleY(m)] }
 	onRule := func(text string) int { return ansi.StringWidth(rule()[:strings.Index(rule(), text)]) }
 	unsorted := header()
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
 	menu := func(name string, act colAct) {
-		m = drive(m, testkit.Click(at(name), m.top()))
+		m = drive(m, testkit.Click(at(name), m.headerTop()))
 		m.columnAct(m.columnLine(act))
 	}
 	if m.colMenu.column = "age"; m.columnItems()[1].Name != "▲ Ascending" {
@@ -156,14 +156,14 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Fatalf("then by age, then by id: %+v\n%s\n%s", sorts(), header(), rule())
 	}
 	// the ▲ of age turns, and age keeps its place among the keys; the menu stays shut
-	if m = drive(m, testkit.Click(onRule("▲¹"), m.presetTop())); m.colMenu.Open ||
+	if m = drive(m, testkit.Click(onRule("▲¹"), ruleY(m))); m.colMenu.Open ||
 		!slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ▲: %+v, menu %v\n%s", sorts(), m.colMenu.Open, header())
 	}
-	if m = drive(m, testkit.Click(onRule("▼₁")+1, m.presetTop())); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) {
+	if m = drive(m, testkit.Click(onRule("▼₁")+1, ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ₁: %+v\n%s", sorts(), rule())
 	}
-	shift := tea.MouseClickMsg{X: onRule("▲²"), Y: m.presetTop(), Button: tea.MouseLeft, Mod: tea.ModShift}
+	shift := tea.MouseClickMsg{X: onRule("▲²"), Y: ruleY(m), Button: tea.MouseLeft, Mod: tea.ModShift}
 	if m = drive(m, shift); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.colMenu.Open {
 		t.Fatalf("a shift-click on id's ▲: %+v\n%s", sorts(), rule())
 	}
@@ -212,30 +212,30 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 	}
 	keys := func(m Model) int { return len(m.panel(m.stage).SortKeys()) }
 	mark := func(m Model, column string) string { return m.panel(m.stage).Mark(column) }
-	header := lines(m)[m.top()]
-	if m = drive(m, testkit.Click(after(m, "age"), m.top())); keys(m) != 0 || m.colMenu.Open {
+	header := lines(m)[m.headerTop()]
+	if m = drive(m, testkit.Click(after(m, "age"), m.headerTop())); keys(m) != 0 || m.colMenu.Open {
 		t.Fatalf("a click right after age's name: %d keys, menu %v", keys(m), m.colMenu.Open)
 	}
-	if m = drive(m, testkit.Click(1, m.presetTop())); keys(m) != 0 {
+	if m = drive(m, testkit.Click(1, ruleY(m))); keys(m) != 0 {
 		t.Fatalf("a click on the rule's gutter: %d keys", keys(m))
 	}
-	if m = drive(m, testkit.Click(under(m, "age"), m.presetTop())); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.Open {
+	if m = drive(m, testkit.Click(under(m, "age"), ruleY(m))); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.Open {
 		t.Fatalf("a click under age: %d keys, age %q, menu %v", keys(m), mark(m, "age"), m.colMenu.Open)
 	}
 	// again turns it around, and again back, never off, its last cell as its first
 	for _, want := range []string{"▼", "▲"} {
-		if m = drive(m, testkit.Click(after(m, "age")-1, m.presetTop())); keys(m) != 1 || mark(m, "age") != want {
+		if m = drive(m, testkit.Click(after(m, "age")-1, ruleY(m))); keys(m) != 1 || mark(m, "age") != want {
 			t.Fatalf("another click under age: %d keys, age %q", keys(m), mark(m, "age"))
 		}
 	}
-	if m = drive(m, testkit.Click(under(m, "assignees"), m.presetTop())); keys(m) != 2 || mark(m, "assignees") != "▲²" {
+	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); keys(m) != 2 || mark(m, "assignees") != "▲²" {
 		t.Errorf("a click under assignees: %d keys, assignees %q", keys(m), mark(m, "assignees"))
 	}
-	if got := lines(m)[m.top()]; got != header {
+	if got := lines(m)[m.headerTop()]; got != header {
 		t.Errorf("sorting moved the names:\n%s\n%s", header, got)
 	}
 	// the name itself drops the column menu down, and sorts nothing
-	if m = drive(m, testkit.Click(after(m, "branch")-2, m.top())); !m.colMenu.Open || keys(m) != 2 {
+	if m = drive(m, testkit.Click(after(m, "branch")-2, m.headerTop())); !m.colMenu.Open || keys(m) != 2 {
 		t.Errorf("a click on branch's name: menu %v, %d keys", m.colMenu.Open, keys(m))
 	}
 }
@@ -284,14 +284,13 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	// makes it the outer group, the menu on its name still, now first, which shift+left then cannot move; shift+right
 	// moves it back in
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
-	k := slices.IndexFunc(m.rows(m.stage), grid.OverGroups)
-	m.openFieldMenu(k, "assignees")
+	m.openFieldMenu("assignees")
 	x0, _ = m.fieldName("assignees")
 	if m = drive(m, testkit.Press("shift+left")); !slices.Equal(m.panel(m.stage).Groups(), []string{"assignees", "source"}) ||
 		!m.colMenu.Open || !m.colMenu.heading {
 		t.Fatalf("shift+left on assignees' name: %q, menu %+v", m.panel(m.stage).Groups(), m.colMenu)
 	}
-	if box, top, _ := m.columnBox(); top != m.rowLine(k) || len(box) == 0 {
+	if box, top, _ := m.columnBox(); top != m.top() || len(box) == 0 {
 		t.Errorf("the column menu stands at %d", top)
 	}
 	if x, _ := m.fieldName("assignees"); x >= x0 {

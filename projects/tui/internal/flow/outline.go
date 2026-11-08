@@ -7,7 +7,9 @@
 // expands and collapses everything, or, while rows are selected, the selection: the selected rows expanded with the
 // groups they stand in, or collapsed, or every other row collapsed and every group without a selected row folded. A
 // selection reaches into a group: space on its heading selects every row in it, or none once all are, and its mark says
-// whether all or some are. What stands open lasts the session, and is no part of a preset.
+// whether all or some are. The levels of the groups open and close too, by the heading over the groups on the control
+// line, as heading.go says, each keeping its own state, as each heading does. What stands open lasts the session, and
+// is no part of a preset.
 package flow
 
 import (
@@ -104,14 +106,26 @@ func (m *Model) disclose(open, subtree bool) bool {
 	}
 	next, changed := maps.Clone(s.open), false
 	for j := at; j < end; j++ {
-		if m.opens(every, j) && next.Open(every[j]) != open {
-			next[every[j].Key], changed = open, true
+		if m.opens(every, j) && next.Unfolds(every[j]) != open {
+			unfoldNode(next, every[j], open)
+			changed = true
 		}
 	}
 	if changed {
 		m.reoutline(next)
 	}
 	return changed
+}
+
+// unfoldNode opens or closes a node in an outline, as its ▸ or ▾ shows it: a heading opened shows the level under it too,
+// and every level over that, so what it holds shows, though that shows the level under every other heading open too.
+func unfoldNode(next grid.Outline, r row, open bool) {
+	next[r.Key] = open
+	if open && grid.Heads(r) {
+		for d := 0; d < grid.Level(r); d++ {
+			delete(next, grid.LevelKey(d))
+		}
+	}
 }
 
 // expand takes right, as open says, or left, and with option either, as subtree says: the node under the cursor opened
@@ -137,7 +151,7 @@ func (m *Model) expand(open, subtree bool) {
 	switch next := s.cursor + 1; {
 	case open && next < len(rows) && grid.Parent(rows, next) == s.cursor:
 		s.cursor = next
-	case !open && grid.Parent(rows, s.cursor) >= 0:
+	case !open && grid.Parent(rows, s.cursor) >= m.first(m.stage):
 		s.cursor = grid.Parent(rows, s.cursor)
 	default:
 		return
@@ -161,7 +175,7 @@ func (m Model) under() (every []row, at int, depth func(j int) (int, bool)) {
 		n, shows := 0, true
 		for p := grid.Parent(every, j); p >= at; p = grid.Parent(every, p) {
 			n++
-			shows = shows && s.open.Open(every[p])
+			shows = shows && s.open.Unfolds(every[p])
 		}
 		return n, shows
 	}
@@ -181,14 +195,15 @@ func (m *Model) grow() bool {
 	deepest := -1
 	for j := at; j < grid.Span(every, at); j++ {
 		// the heading over the groups counts as open, as it always stands so
-		if d, shows := depth(j); shows && s.open.Open(every[j]) && (m.opens(every, j) || grid.OverGroups(every[j])) {
+		if d, shows := depth(j); shows && s.open.Unfolds(every[j]) && (m.opens(every, j) || grid.OverGroups(every[j])) {
 			deepest = max(deepest, d)
 		}
 	}
 	next, changed := maps.Clone(s.open), false
 	for j := at; j < grid.Span(every, at); j++ {
-		if d, _ := depth(j); d <= deepest+1 && m.opens(every, j) && !s.open.Open(every[j]) {
-			next[every[j].Key], changed = true, true
+		if d, _ := depth(j); d <= deepest+1 && m.opens(every, j) && !next.Unfolds(every[j]) {
+			unfoldNode(next, every[j], true)
+			changed = true
 		}
 	}
 	if changed {
@@ -209,7 +224,7 @@ func (m *Model) peel() bool {
 	deepest, closing := -1, []int(nil)
 	for j := at; j < grid.Span(every, at); j++ {
 		d, shows := depth(j)
-		if !shows || !m.opens(every, j) || !s.open.Open(every[j]) || d < deepest {
+		if !shows || !m.opens(every, j) || !s.open.Unfolds(every[j]) || d < deepest {
 			continue
 		}
 		if d > deepest {
@@ -271,8 +286,9 @@ func (m Model) folds() []shell.Item {
 }
 
 // folding gives the outline one of the tab's menu's fold items leaves the selected stage with, and whether the name is
-// one: Expand All opens every node, the header too where it hides names; Collapse All closes every one, down to the
-// outermost headings; Expand Selected opens the selected rows and every heading over them, so they show; Collapse
+// one: Expand All opens every node and every level of the groups, the header too where it hides names; Collapse All closes every one, down to the
+// outermost headings; Expand Selected opens the selected rows, every heading over them, and every level, so they show;
+// Collapse
 // Selected closes the selected rows; and Collapse Others closes every row not selected, and every heading over none.
 func (m Model) folding(name string) (grid.Outline, bool) {
 	if !slices.Contains([]string{"Expand All", "Collapse All", "Expand Selected", "Collapse Selected", "Collapse Others"},
@@ -288,6 +304,9 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 				over[every[p].Key] = true
 			}
 		}
+	}
+	if name == "Expand All" || name == "Expand Selected" {
+		m.showLevels(next)
 	}
 	for j, r := range every {
 		if !m.opens(every, j) {
@@ -322,11 +341,17 @@ func (m Model) folding(name string) (grid.Outline, bool) {
 	return next, true
 }
 
-// changes says whether an outline stands the selected stage's nodes otherwise than they stand now.
+// changes says whether an outline stands the selected stage's nodes, or the levels of its groups, otherwise than they
+// stand now.
 func (m Model) changes(next grid.Outline) bool {
 	s, every := m.stages[m.stage], m.every(m.stage)
 	for j, r := range every {
-		if m.opens(every, j) && next.Open(r) != s.open.Open(r) {
+		if m.opens(every, j) && next.Unfolds(r) != s.open.Unfolds(r) {
+			return true
+		}
+	}
+	for d := 0; d <= len(m.panel(m.stage).Groups()); d++ {
+		if next.Shows(d) != s.open.Shows(d) {
 			return true
 		}
 	}

@@ -14,7 +14,7 @@ import (
 )
 
 // nested gives backlog grouped by hand, by source, then by assignees within it, at 120 columns: the heading over the
-// groups, a heading per source under it, a heading per assignee under each, and their rows.
+// groups, on the control line, a heading per source, a heading per assignee under each, and their rows.
 func nested(t *testing.T) Model {
 	t.Helper()
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -46,24 +46,20 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, left); len(m.rows(0)) >= all || at(m).Key != inner || m.stages[0].open.Open(at(m)) {
 		t.Fatalf("left on an open heading: %d rows of %d, cursor on %q", len(m.rows(0)), all, at(m).Key)
 	}
-	// left on the closed heading steps out to its source's, which a second left closes and a third steps out of, to the
-	// heading over the groups
+	// left on the closed heading steps out to its source's, which a second left closes; a third has nowhere to step
+	// out to, the heading over the groups standing on the control line, which the cursor never reaches
 	if m = drive(m, left); grid.Level(at(m)) != 2 || !m.stages[0].open.Open(at(m)) {
 		t.Fatalf("left on a closed heading did not step out to the one over it: %q", at(m).Key)
 	}
-	if m = drive(m, left, left); m.stages[0].cursor != 0 {
-		t.Fatalf("left on a closed heading: cursor %d", m.stages[0].cursor)
+	if m = drive(m, left, left); m.stages[0].cursor != 1 || len(m.rows(0)) != 2 {
+		t.Fatalf("left on the outermost heading closed: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
 	}
-	// the heading over the groups never closes: left on it, and again, folds nothing
-	if m = drive(m, left, left); m.stages[0].cursor != 0 || len(m.rows(0)) != 2 {
-		t.Fatalf("left on the heading over the groups, then again: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
-	}
-	if m = drive(m, right, right); m.stages[0].cursor != 1 {
+	if m = drive(m, right, right); m.stages[0].cursor != 2 {
 		t.Fatalf("right twice on the outer heading: cursor %d", m.stages[0].cursor)
 	}
-	// from every heading open, option-left closes the deepest open level under the node, a level each press, and
-	// option-right opens one level more, every branch alike, the heading over the groups open always
-	m.stages[0].open, m.stages[0].cursor = grid.Outline{}, 0
+	// from every heading open, option-left on the outermost heading closes the deepest open level under it, a level
+	// each press, and option-right opens one level more, every branch alike
+	m.stages[0].open, m.stages[0].cursor = grid.Outline{}, 1
 	m.rebuild()
 	levels := func() (sources, assignees, rows int) {
 		for _, r := range m.rows(0) {
@@ -89,7 +85,7 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 		t.Fatalf("option-left again: %d sources, %d assignees, %d rows", s, a, r)
 	}
 	if m = drive(m, optioned(tea.KeyLeft)); len(m.rows(0)) != 1+s0 {
-		t.Errorf("option-left on the heading over the groups closed it: %d rows", len(m.rows(0)))
+		t.Errorf("option-left a third time left the heading open: %d rows", len(m.rows(0)))
 	}
 	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ a level") {
 		t.Errorf("the keys on the heading over the groups: %q", last)
@@ -104,17 +100,17 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, optioned(tea.KeyRight)); openRows(m) == 0 {
 		t.Fatalf("option-right a third time opened no row")
 	}
-	// a row that hides nothing under no heading has nowhere to step out to
-	if m = drive(m, down, left, left); m.stages[0].cursor != 0 {
-		t.Errorf("left out of an inner row twice: cursor %d", m.stages[0].cursor)
+	// left closes the outermost heading, and again has nowhere to step out to
+	if m = drive(m, left, left); m.stages[0].cursor != 1 || len(m.rows(0)) != 2 {
+		t.Errorf("left on the outermost heading twice: cursor %d, %d rows", m.stages[0].cursor, len(m.rows(0)))
 	}
 	// a click on the heading over the groups, off its folds and names, folds nothing
-	names, before := m.headingNames(m.rows(0)[0]), len(m.rows(0))
-	if m = drive(m, testkit.Click(names[len(names)-1].until+2, m.rowsTop())); len(m.rows(0)) != before || m.colMenu.Open {
+	names, before := m.barNames(), len(m.rows(0))
+	if m = drive(m, testkit.Click(names[len(names)-1].until+3, m.top())); len(m.rows(0)) != before || m.colMenu.Open {
 		t.Fatalf("a click on the heading over the groups, off its ▾ and names: %d rows of %d, menu %v",
 			len(m.rows(0)), before, m.colMenu.Open)
 	}
-	alt := testkit.Click(foldAt(m.rows(0)[1]), m.rowsTop()+1)
+	alt := testkit.Click(foldAt(m.rows(0)[1]), rowY(m, m.rows(0)[1].Key))
 	alt.Mod = tea.ModAlt
 	// source's heading closed, as left left it, everything under it open: an option-click on its ▸ opens it, a level,
 	// so all shows again; each option-click on its ▾ then closes the deepest open level under it, the rows first, then
@@ -131,12 +127,12 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, alt); len(m.rows(0)) != 2 || m.stages[0].open.Open(m.every(0)[1]) {
 		t.Errorf("a third option-click: %d rows", len(m.rows(0)))
 	}
-	// an option-click on a level's fold in the heading over the groups does as a click there
-	spots := m.headingNames(m.rows(0)[0])
-	level := testkit.Click(spots[len(spots)-1].until+1, m.rowsTop())
+	// an option-click on a level's fold in the heading over the groups does as a click there: source's closes its level,
+	// nothing under the heading showing
+	level := testkit.Click(m.barNames()[0].from-2, m.top())
 	level.Mod = tea.ModAlt
-	if m = drive(m, level); len(m.rows(0)) != all {
-		t.Errorf("an option-click on the rows' fold: %d rows of %d", len(m.rows(0)), all)
+	if m = drive(m, level); len(m.rows(0)) != 1 {
+		t.Errorf("an option-click on source's fold: %d rows", len(m.rows(0)))
 	}
 }
 

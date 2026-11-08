@@ -245,7 +245,9 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
 	m := loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
-	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || !strings.HasPrefix(lines(m)[m.rowsTop()], "  "+style.Opened) {
+	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].cursor) }
+	if s := m.stages[m.stage]; !m.inRows || s.offset == 0 || pinned(m) != m.headerTop()+2 ||
+		!strings.HasPrefix(lines(m)[pinned(m)], "  "+style.Opened) {
 		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.offset, view(m))
 	}
 	opened := openRows(m)
@@ -253,7 +255,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
 	m = loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
-	if m = drive(m, testkit.Click(foldCell, m.rowsTop())); openRows(m) != opened-1 {
+	if m = drive(m, testkit.Click(foldCell, pinned(m))); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
 }
@@ -266,30 +268,31 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
-	drawn := lines(m)
-	if !strings.Contains(drawn[m.top()], "branch") || !strings.Contains(drawn[m.top()], "uncommitted") ||
-		!strings.HasPrefix(drawn[m.rowsTop()-1], "    ───") ||
-		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") || m.rowsTop() <= m.top() {
+	drawn, top := lines(m), m.headerTop()
+	if !strings.Contains(drawn[top], "branch") || !strings.Contains(drawn[top], "uncommitted") ||
+		!strings.HasPrefix(drawn[top+1], "    ───") ||
+		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") {
 		t.Fatalf("the headers:\n%s", view(m))
 	}
-	// the header stays while the rows scroll under it
-	header := drawn[m.top():m.rowsTop()]
+	// the header stays over the rows while they scroll under it
+	header := drawn[top : top+2]
 	m = drive(m, down, down, down, down, down, down)
-	if got := lines(m)[m.top():m.rowsTop()]; !slices.Equal(got, header) || m.stages[m.stage].offset == 0 {
+	if got := lines(m)[m.headerTop() : m.headerTop()+2]; !slices.Equal(got, header) || m.stages[m.stage].offset == 0 ||
+		m.headerTop() != m.rowsTop() {
 		t.Errorf("the header scrolled with the rows, offset %d:\n%s", m.stages[m.stage].offset, view(m))
 	}
 	// a click on the header chooses no row
 	before := m.stages[m.stage].cursor
-	if m = drive(m, testkit.Click(5, m.top())); m.stages[m.stage].cursor != before {
+	if m = drive(m, testkit.Click(5, m.headerTop())); m.stages[m.stage].cursor != before {
 		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].cursor)
 	}
 	// a column the panel hides has no name over it
 	m.setPanel(m.panel(m.stage).Placed("uncommitted", grid.Hidden))
-	if strings.Contains(lines(m)[m.top()], "uncommitted") {
+	if strings.Contains(lines(m)[m.headerTop()], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m.stages[m.stage].name != "incoming" || m.rowsTop() != m.top() {
+	if m.stages[m.stage].name != "incoming" || m.headerTop() != -1 {
 		t.Errorf("%s has a header:\n%s", m.stages[m.stage].name, view(m))
 	}
 }
@@ -302,16 +305,21 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	backlog.Fields = slices.Clone(backlog.Fields)
 	backlog.Fields[len(backlog.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
-	// the header stands in as the rows do, under the headings the view grouped them by as it loaded
-	closed, in := m.rowsTop(), strings.Repeat(" ", m.indent(0))
-	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || closed != m.top()+2 {
+	// the header stands in as the rows do, under the headings the view grouped them by as it loaded, over the first row
+	top, in := m.headerTop(), strings.Repeat(" ", m.indent(0))
+	tall := func(m Model) int {
+		lines, _ := m.header()
+		return len(lines)
+	}
+	if lines, hides := m.header(); !hides || !strings.HasPrefix(lines[0], in+"  "+style.Off("▸")) || tall(m) != 2 ||
+		top != m.rowsTop()+1 {
 		t.Fatalf("the closed header:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+2, m.top())); !m.stages[0].open[headerKey] || m.rowsTop() <= closed ||
-		!strings.HasPrefix(lines(m)[m.top()], in+"  ▾") || m.inRows {
+	if m = drive(m, testkit.Click(len(in)+2, top)); !m.stages[0].open[headerKey] || tall(m) <= 2 ||
+		!strings.HasPrefix(lines(m)[top], in+"  ▾") || m.inRows {
 		t.Fatalf("a click on its gutter did not open it:\n%s", view(m))
 	}
-	if m = drive(m, testkit.Click(len(in)+2, m.top())); m.stages[0].open[headerKey] {
+	if m = drive(m, testkit.Click(len(in)+2, top)); m.stages[0].open[headerKey] {
 		t.Error("a second click did not close it")
 	}
 	// Expand All opens it with the rows, and Collapse All closes it, the group over the rows folded with them
@@ -325,14 +333,14 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	if m = drive(m, press(':')); !m.enabled(item(m, "Collapse All")) {
 		t.Error("collapse all is dim over an open header")
 	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.stages[0].open[headerKey] || m.rowsTop() != closed {
+	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.stages[0].open[headerKey] || tall(m) != 2 {
 		t.Errorf("collapse all left the header open:\n%s", view(m))
 	}
 	// a click on the header off its gutter, or on its rule, does nothing; the group open again, down has a row to go to
 	m.stages[0].open = grid.Outline{}
 	m.rebuild()
 	before := m.stages[0].cursor
-	if m = drive(m, down, testkit.Click(12, m.top()), testkit.Click(len(in)+1, m.top()+1)); m.stages[0].open[headerKey] ||
+	if m = drive(m, down, testkit.Click(12, m.headerTop()), testkit.Click(len(in)+1, m.headerTop()+1)); m.stages[0].open[headerKey] ||
 		m.stages[0].cursor != before+1 {
 		t.Error("a click on the header's names or rule did something")
 	}
@@ -348,8 +356,8 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24})
 	unfold(&m)
 	m = drive(m, down, press(tea.KeySpace))
-	gutter := func(k int) string { return string([]rune(lines(m)[m.rowsTop()+k])[0]) }
-	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.rowsTop()-1], " 1 selected ") {
+	gutter := func(k int) string { return string([]rune(lines(m)[m.headerTop()+2+k])[0]) }
+	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[ruleY(m)], " 1 selected ") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
 	if marked, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, marked(grid.Chosen)) {
@@ -373,7 +381,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("ctrl+a again: %d selected", m.selected())
 	}
 	// a click moves the cursor and selects nothing
-	if m = drive(m, testkit.Click(10, m.rowsTop()+2)); m.selected() != 0 || m.stages[0].cursor != 2 {
+	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].cursor != 2 {
 		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
@@ -407,7 +415,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	m.stages[0].cursor = 1
 	m = drive(m, left)
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || m.groupMarks(0)[m.rows(0)[1].Key] != grid.Chosen ||
-		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()+1]), "  "+grid.Chosen+" "+grid.Folded) {
+		!strings.HasPrefix(ansi.Strip(lines(m)[m.rowsTop()]), grid.Chosen+" "+grid.Folded) {
 		t.Errorf("space on a folded heading selected %d:\n%s", m.selected(), view(m))
 	}
 	m = drive(m, right, down, press(tea.KeySpace), up)

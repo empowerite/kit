@@ -1,7 +1,8 @@
-// The heading over the groups names their columns, and a click on a name drops the column's own menu around it, as a
-// name in the header does, and so does ⏎ with the cursor on the heading, around its first column's; the ▾ or ▸ before
-// a column's name shows the groups down to its level, and the one after the last name the rows under them, as
-// foldLevel says. The heading itself never closes. A value's heading folds by its own ▾ or ▸, as any row does.
+// The heading over the groups stands on the control line, the pane's first, apart from the rows: it names the columns
+// the rows group by, and a click on a name drops the column's own menu around it, as a name in the header does. The ▾
+// or ▸ before a column's name opens or closes its level, and the one after the last name the rows under the groups, as
+// toggleLevel says: a level closed hides everything under it, and each level and each heading keeps its own state, so
+// opening it again shows what was there as it was. A value's heading folds by its own ▾ or ▸, as any row does.
 package flow
 
 import (
@@ -14,22 +15,50 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
 
-// nameSpot is a column's name in a heading, and the screen columns it stands on, from its first to the one past it.
+// barLeft is the screen column the heading over the groups starts on, on the control line: past the gutter's two
+// cells, as a heading's mark takes them.
+const barLeft = 2
+
+// first gives the first of a stage's rows the cursor can stand on: past the heading over the groups, which the control
+// line draws, not the rows.
+func (m Model) first(i int) int {
+	if rows := m.rows(i); len(rows) > 0 && grid.OverGroups(rows[0]) {
+		return 1
+	}
+	return 0
+}
+
+// barText gives the heading over the selected stage's groups, as internal/grid draws it, plain of its styles or not;
+// nothing where the rows group by nothing.
+func (m Model) barText() string {
+	if len(m.stages) == 0 {
+		return ""
+	}
+	if rows := m.rows(m.stage); len(rows) > 0 && grid.OverGroups(rows[0]) {
+		return rows[0].Cells[0].Values[0]
+	}
+	return ""
+}
+
+// nameSpot is a column's name in the heading over the groups, and the screen columns it stands on, from its first to
+// the one past it.
 type nameSpot struct {
 	column      string
 	from, until int
 }
 
-// headingNames gives the columns the heading over the groups names, each where the rows draw its name, before the
-// next level's fold, the count, or the heading's end; any other row names none. The heading's text stands after the gutter's two cells,
-// its selection's.
-func (m Model) headingNames(r row) []nameSpot {
-	if !grid.OverGroups(r) {
-		return nil
-	}
-	text := ansi.Strip(r.Cells[0].Values[0])
+// barNames gives the columns the heading over the groups names, each where the control line draws its name, as
+// namesIn finds them.
+func (m Model) barNames() []nameSpot {
+	return namesIn(ansi.Strip(m.barText()), m.panel(m.stage).Groups())
+}
+
+// namesIn gives where the heading over the groups, its text plain, names each of the groups' columns on the control
+// line, from barLeft: before the next level's fold, the count, or the heading's end, so a value that holds a column's
+// name is passed over.
+func namesIn(text string, groups []string) []nameSpot {
 	var out []nameSpot
-	for _, column := range m.panel(m.stage).Groups() {
+	for _, column := range groups {
 		for from := 0; ; {
 			k := strings.Index(text[from:], " "+column)
 			if k < 0 {
@@ -38,7 +67,7 @@ func (m Model) headingNames(r row) []nameSpot {
 			at := from + k + 1
 			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
 				strings.HasPrefix(text[end:], " "+grid.Unfolded) || strings.HasPrefix(text[end:], " "+grid.Folded) {
-				x := 2 + ansi.StringWidth(text[:at])
+				x := barLeft + ansi.StringWidth(text[:at])
 				out = append(out, nameSpot{column, x, x + ansi.StringWidth(column)})
 				break
 			}
@@ -48,9 +77,10 @@ func (m Model) headingNames(r row) []nameSpot {
 	return out
 }
 
-// nameAt gives the column's name in a heading that the screen column x falls on, and whether one does.
-func (m Model) nameAt(r row, x int) (nameSpot, bool) {
-	for _, n := range m.headingNames(r) {
+// nameAt gives the column's name in the heading over the groups that the screen column x falls on, and whether one
+// does.
+func (m Model) nameAt(x int) (nameSpot, bool) {
+	for _, n := range m.barNames() {
 		if x >= n.from && x < n.until {
 			return n, true
 		}
@@ -58,11 +88,11 @@ func (m Model) nameAt(r row, x int) (nameSpot, bool) {
 	return nameSpot{}, false
 }
 
-// levelAt gives the level of the groups, from 0 the outermost, whose ▾ or ▸ before its column's name in a heading the
-// screen column x falls on, or the rows' level, under the last group, whose ▾ or ▸ follows the last name; and whether
-// one does.
-func (m Model) levelAt(r row, x int) (int, bool) {
-	names, groups := m.headingNames(r), m.panel(m.stage).Groups()
+// levelAt gives the level of the groups, from 0 the outermost, whose ▾ or ▸ before its column's name in the heading
+// over the groups the screen column x falls on, or the rows' level, under the last group, whose ▾ or ▸ follows the
+// last name; and whether one does.
+func (m Model) levelAt(x int) (int, bool) {
+	names, groups := m.barNames(), m.panel(m.stage).Groups()
 	for _, n := range names {
 		if x == n.from-2 {
 			return slices.Index(groups, n.column), true
@@ -74,20 +104,28 @@ func (m Model) levelAt(r row, x int) (int, bool) {
 	return 0, false
 }
 
-// foldLevel shows the groups down to a level, from 0 the outermost, and nothing under it, as a click on its ▾ or ▸
-// asks: every heading over the level opens, and every heading of it closes, so its values stand listed, their rows
-// folded away. From ▾, the rows open under the level, it collapses to it; from ▸, it expands to it. The cursor stays
-// on its row, or the nearest heading over it that shows, as reoutline says.
-func (m *Model) foldLevel(depth int) {
-	s, every, level := m.stages[m.stage], m.every(m.stage), depth+2
+// toggleLevel opens or closes a level of the groups, from 0 the outermost, the rows' under the last, as a click on its
+// ▾ or ▸ asks. From ▾ it closes the level alone, which hides everything under it; from ▸, shown where it or a level
+// over it is closed, it opens the level and every level over it, so it shows. Nothing else changes: each heading
+// stays open or closed as it was, so a level shows again as it was left. The cursor stays on its row, or the nearest
+// heading over it that shows, as reoutline says.
+func (m *Model) toggleLevel(depth int) {
+	s := m.stages[m.stage]
 	next := maps.Clone(s.open)
-	for _, r := range every {
-		switch l := grid.Level(r); {
-		case l == level:
-			next[r.Key] = false
-		case l >= 1 && l < level:
-			next[r.Key] = true
+	if s.open.Shows(depth) {
+		next[grid.LevelKey(depth)] = false
+	} else {
+		for d := 0; d <= depth; d++ {
+			delete(next, grid.LevelKey(d))
 		}
 	}
 	m.reoutline(next)
+}
+
+// showLevels opens every level of the groups in an outline, the rows' too, as Expand asks, so nothing a level hides
+// stays hidden.
+func (m Model) showLevels(next grid.Outline) {
+	for d := 0; d <= len(m.panel(m.stage).Groups()); d++ {
+		delete(next, grid.LevelKey(d))
+	}
 }

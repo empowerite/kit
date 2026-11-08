@@ -2,13 +2,13 @@
   ➊╶─────────────────╮➁╶──────────────────╮➂╶──────────────╮➃╶──────────────────
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
   ╵                  ╰────────────────────╰────────────────╰────────────────────
-         id  assignees         age  branch            labels  title
-    ─────────────────────────────────────────────────────────────── Default ▼
-  ▾ source ▾ 3
-    ▾ github 3
-      ▸ #45                     2h                    3       🎫 kit flow is t…
-      ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists,…
-      ▸  #7  ada           +1  40d                            🎫 Fix the thing
+  ▾ source ▾ 3                                                      Default ▼
+  ▾ github 3
+       id  assignees         age  branch            labels  title
+    ───────────────────────────────────────────────────────────────────────────
+    ▸ #45                     2h                    3       🎫 kit flow is the…
+    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a…
+    ▸  #7  ada           +1  40d                            🎫 Fix the thing
 
 
 
