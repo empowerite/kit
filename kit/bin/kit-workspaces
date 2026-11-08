@@ -62,11 +62,12 @@ action=list target='' workspace='' form=''
 args=()
 while (( $# ))
 do
+  # --option=value is --option value, as kit syntax reads it
+  [[ "$1" != --*=* ]] || set -- "${1%%=*}" "${1#*=}" "${@:2}"
   case "$1" in
     (--show | --use | --new | --add | --remove | --favorite | --unfavorite) action=${1#--} target=$2; shift ;;
     (--current) action=current ;;
     (--workspace) workspace=$2; shift ;;
-    (--workspace=*) workspace=${1#--workspace=} ;;
     (--text | --json) form=$1 ;;
     (--jq) form=--jq ;;
     (*) args+=("$1")
@@ -103,8 +104,8 @@ case "${action}" in
       [.why]))"'
     ;;
   (use)
-    json=$(workspaces:resolve "${target}") || exit $?
-    if [[ "$(jq --raw-output .kind <<<"${json}")" != group ]]
+    read -r kind _ < <(workspaces:kind "${target}") || exit 2
+    if [[ "${kind}" != group ]]
     then
       error "kit workspaces --use remembers a group; a repository is the workspace inside it"
       exit 2
@@ -174,8 +175,7 @@ case "${action}" in
     esac
     ;;
   (favorite | unfavorite)
-    json=$(workspaces:resolve "${target}") || exit $?
-    name=$(jq --raw-output .name <<<"${json}")
+    read -r _ name < <(workspaces:kind "${target}") || exit 2
     favored=$(workspaces:favorites | grep --line-regexp --fixed-strings -- "${name}" || true)
     if [[ "${action}" == favorite && -z "${favored}" ]]
     then

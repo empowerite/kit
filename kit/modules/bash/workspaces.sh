@@ -95,16 +95,19 @@ workspaces:json() {
 }
 
 # workspaces:normalize <entry> [dirs] prints the member an entry names: host and path as they are, less a .git, or the
-# member of a git URL. With dirs, a directory names the member of the checkout there. It prints nothing otherwise.
+# member of a git URL. A host holds a dot, as github.com does, so a relative path, ./edge or ../edge, names none. With
+# dirs, a directory, read from where kit was run, names the member of the checkout there. It prints nothing otherwise.
 workspaces:normalize() {
-  local entry=$1 dirs=${2:-}
-  if [[ -n "${dirs}" && -d "${entry}" ]]
+  local entry=$1 dirs=${2:-} dir=$1
+  [[ "${dir}" == /* ]] || dir=${kit_invoked_in:-${PWD}}/${entry}
+  if [[ -n "${dirs}" && -d "${dir}" ]]
   then
-    workspaces:member-of "${entry}"
+    workspaces:member-of "${dir}"
   elif [[ "${entry}" == *://* || "${entry}" =~ ^[^@/:]+@[^/:]+: ]]
   then
     workspaces:url-member "${entry}"
-  elif [[ "${entry}" =~ ^[A-Za-z0-9.-]+(/[^/[:space:]]+){2,}$ ]]
+  elif [[ "${entry}" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/[^/[:space:]]+){2,}$ && "${entry}/" != *"/./"* &&
+    "${entry}/" != *"/../"* ]]
   then
     printf '%s\n' "${entry%.git}"
   fi
@@ -141,9 +144,24 @@ workspaces:fixed() {
 # workspaces:check returns 1, after a line that names the file and what is wrong, for a file that does not parse, a
 # group whose name is not a name, or a repos or exclude entry that names no member; 0 for a file that holds none.
 workspaces:check() {
-  local file name key entry
+  local file name key entry doc wrong
   file=$(workspaces:file)
-  workspaces:json >/dev/null || return 1
+  doc=$(workspaces:json) || return 1
+  wrong=$(jq --raw-output '
+    def strings: type == "array" and all(.[]; type == "string");
+    if (.roots // []) | strings | not then "roots is a list of directories"
+    elif (.favorites // []) | strings | not then "favorites is a list of workspaces"
+    elif (.workspaces // {}) | type != "object" then "workspaces is a map of names to groups"
+    else first((.workspaces // {}) | to_entries[]
+      | select((.value // {}) | type != "object" or ((.repos // []) | strings | not)
+          or ((.exclude // []) | strings | not))
+      | "\(.key) is a group, its repos and its exclude each a list of repositories") // empty
+    end' <<<"${doc}")
+  if [[ -n "${wrong}" ]]
+  then
+    error "${file}: ${wrong}"
+    return 1
+  fi
   while IFS= read -r name
   do
     if [[ ! "${name}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
@@ -208,12 +226,10 @@ workspaces:remotes-json() {
   } | jq --slurp --compact-output .
 }
 
-# workspaces:resolve <workspace> prints a workspace as JSON: {name, kind, members}. A group's name gives its fixed
-# members, by fixed; host and path, or a git URL, gives that one repository, by given. It returns 2, after a line that
-# says so, for a workspace that is neither.
-workspaces:resolve() {
-  local workspace=$1 kind member checkouts
-  local -a members=() json=()
+# workspaces:kind <workspace> prints "group <name>" for a group's name, or "repository <member>" for a repository, host
+# and path or a git URL, without looking for a checkout. It returns 2, after a line that says so, for neither.
+workspaces:kind() {
+  local workspace=$1 member
   if [[ "${workspace}" != */* && "${workspace}" != *:* ]]
   then
     if ! workspaces:names | grep --quiet --line-regexp --fixed-strings -- "${workspace}"
@@ -221,16 +237,30 @@ workspaces:resolve() {
       error "'${workspace}' is no workspace in $(workspaces:file); run: kit workspaces"
       return 2
     fi
-    kind=group
+    printf 'group %s\n' "${workspace}"
+    return 0
+  fi
+  member=$(workspaces:normalize "${workspace}")
+  if [[ -z "${member}" ]]
+  then
+    error "'${workspace}' names no repository; write host/owner/repo, a git URL, or a group's name"
+    return 2
+  fi
+  printf 'repository %s\n' "${member}"
+}
+
+# workspaces:resolve <workspace> prints a workspace as JSON: {name, kind, members}. A group's name gives its fixed
+# members, by fixed; host and path, or a git URL, gives that one repository, by given. It returns 2, after a line that
+# says so, for a workspace that is neither.
+workspaces:resolve() {
+  local kind workspace member checkouts
+  local -a members=() json=()
+  read -r kind workspace < <(workspaces:kind "$1") || return 2
+  if [[ "${kind}" == group ]]
+  then
     readarray -t members < <(workspaces:fixed "${workspace}")
   else
-    member=$(workspaces:normalize "${workspace}")
-    if [[ -z "${member}" ]]
-    then
-      error "'${workspace}' names no repository; write host/owner/repo, a git URL, or a group's name"
-      return 2
-    fi
-    kind=repository workspace=${member} members=("${member}")
+    members=("${workspace}")
   fi
   checkouts=$(workspaces:checkouts)
   for member in "${members[@]}"
@@ -290,11 +320,12 @@ workspaces:current() {
     kind=none why=given
   elif [[ -n "${given}" ]]
   then
-    json=$(workspaces:resolve "${given}") || return $?
-    kind=$(jq --raw-output .kind <<<"${json}") name=$(jq --raw-output .name <<<"${json}") why=given
+    json=$(workspaces:kind "${given}") || return $?
+    read -r kind name <<<"${json}"
+    why=given
     if [[ "${kind}" == repository ]]
     then
-      member=${name} checkout=$(jq --raw-output '.members[0].checkout // ""' <<<"${json}")
+      member=${name} checkout=$(workspaces:checkouts | awk -F '\t' -v m="${name}" '$1 == m { print $2; exit }')
     fi
   elif checkout=$(git -C "${kit_invoked_in:-${PWD}}" rev-parse --show-toplevel 2>/dev/null)
   then

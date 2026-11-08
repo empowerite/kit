@@ -253,3 +253,72 @@ YML
   run "${kit_root}/bin/kit" workspaces --favorite nope
   [ "$status" -eq 2 ]
 }
+
+@test "a relative path is no member: the file refuses one, and the verb reads a directory from where it runs" {
+  workspaces-file <<YML
+workspaces:
+  w:
+    repos: [./code/edge]
+YML
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"./code/edge"* ]]
+  rm "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  git remote add origin git@github.com:empowerite/edge.git
+  clone-at "${BATS_TEST_TMPDIR}/jig" git@github.com:empowerite/jig.git
+  mkdir -p src && cd src
+  run "${kit_root}/bin/kit" workspaces --new w .. ../../jig
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  [ "$(jq --compact-output '[.members[].repository]' <<<"$output")" \
+    = '["github.com/empowerite/edge","github.com/empowerite/jig"]' ]
+  run "${kit_root}/bin/kit" workspaces --new x ./nonexistent/a/b
+  [ "$status" -eq 2 ]
+}
+
+@test "a file of the wrong shape is refused, naming what is wrong" {
+  fresh-repo >/dev/null
+  for doc in 'workspaces: {w: {repos: github.com/a/b}}' 'workspaces: [a, b]' 'favorites: foo' 'roots: ~/Code' \
+    'workspaces: {w: [github.com/a/b]}'
+  do
+    printf '%s\n' "${doc}" | workspaces-file
+    run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+    [ "$status" -eq 1 ]
+    [[ "$stderr" == *"workspaces.yml"* && "$stderr" != *"jq: error"* ]]
+  done
+}
+
+@test "--option=value runs as --option value" {
+  workspaces-file <<YML
+workspaces:
+  w:
+    repos: [github.com/a/one]
+YML
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=w --json
+  [ "$(jq --raw-output .kind <<<"$output")" = group ]
+  run "${kit_root}/bin/kit" workspaces --new=n github.com/a/two
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show n --json
+  [ "$(jq --raw-output '.members[0].repository' <<<"$output")" = github.com/a/two ]
+}
+
+@test "--use and --favorite name a workspace without walking the roots" {
+  clone-at "${BATS_TEST_TMPDIR}/code/broken" git@github.com:a/broken.git
+  printf 'primary: [\n' > "${BATS_TEST_TMPDIR}/code/broken/kit.yml"
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+workspaces:
+  w:
+    repos: [github.com/a/one]
+YML
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w --json"
+  do
+    # shellcheck disable=SC2086  # each holds its words
+    run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
+    [ "$status" -eq 0 ]
+    [[ "$stderr" != *"broken"* ]]
+  done
+}
