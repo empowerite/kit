@@ -81,3 +81,78 @@ ${root}/a" ]
   run kit-bash workspaces:roots
   [ "$output" = "${HOME}/Code" ]
 }
+
+# empowerite-file makes a clone of edge under the code root and writes a file of two groups, one favorite.
+empowerite-file() {
+  clone-at "${BATS_TEST_TMPDIR}/code/edge" git@github.com:empowerite/edge.git
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+favorites: [empowerite]
+workspaces:
+  empowerite:
+    repos: [github.com/empowerite/kit, github.com/empowerite/edge, github.com/empowerite/attic]
+    exclude: [github.com/empowerite/attic]
+  solo:
+    repos: [github.com/me/solo]
+YML
+}
+
+@test "--json lists the groups, their member counts, and the favorites" {
+  empowerite-file
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.workspaces[] | [.name, .members, .favorite]]' <<<"$output")" \
+    = '[["empowerite",2,true],["solo",1,false]]' ]
+}
+
+@test "--show resolves a group's members to their checkouts, and a missing one to none" {
+  empowerite-file
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show empowerite --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output .kind <<<"$output")" = group ]
+  [ "$(jq --compact-output '.members[0] | [.repository, .checkout, .forge, .by]' <<<"$output")" \
+    = '["github.com/empowerite/kit",null,"github","fixed"]' ]
+  [ "$(jq --compact-output '.members[1] | [.repository, .checkout, .forge, .by]' <<<"$output")" \
+    = '["github.com/empowerite/edge","'"${BATS_TEST_TMPDIR}"'/code/edge","github","fixed"]' ]
+  [ "$(jq --compact-output '.members[1].remotes' <<<"$output")" \
+    = '[{"name":"origin","url":"git@github.com:empowerite/edge.git","forge":"github"}]' ]
+}
+
+@test "a repos entry given as a URL is read as its member; a path is refused, naming it" {
+  workspaces-file <<YML
+workspaces:
+  w:
+    repos: [git@github.com:empowerite/edge.git]
+YML
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  [ "$(jq --raw-output '.members[0].repository' <<<"$output")" = github.com/empowerite/edge ]
+  workspaces-file <<YML
+workspaces:
+  w:
+    repos: [/srv/nowhere]
+YML
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"workspaces.yml"*"/srv/nowhere"* ]]
+}
+
+@test "an unknown workspace is a usage error; a member is a workspace of one" {
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show nonesuch
+  [ "$status" -eq 2 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show github.com/me/x --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.kind, .members[0].by, .members[0].checkout]' <<<"$output")" \
+    = '["repository","given",null]' ]
+}
+
+@test "with no file, the list is empty and says where the file goes" {
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.workspaces, .favorites, .file]' <<<"$output")" \
+    = '[[],[],"'"${XDG_CONFIG_HOME}"'/kit/workspaces.yml"]' ]
+}

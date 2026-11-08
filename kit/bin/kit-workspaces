@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# kit-workspaces - lists, shows, and edits your workspaces, and says which one kit starts on (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit workspaces [--text | --json | --jq]
+#
+# kit workspaces --show <workspace> [--text | --json | --jq]
+#
+# kit workspaces --current [--workspace <workspace>] [--text | --json | --jq]
+#
+# kit workspaces --use <workspace>
+#
+# kit workspaces --new <name> [<repository>…]
+#
+# kit workspaces (--add | --remove) <name> <repository>…
+#
+# kit workspaces (--favorite | --unfavorite) <workspace>
+#
+# A workspace is what kit looks at: one repository, or a named group of them, as a group of repositories that move
+# together. Groups are yours alone, kept in kit/workspaces.yml under XDG_CONFIG_HOME, else ~/.config, which you may
+# edit by hand; kit keeps your comments when it edits the file. A repository is named by its host and its whole path,
+# github.com/empowerite/edge. Its checkout is the clone under one of the file's roots, at most four levels down, whose
+# primary remote points at it.
+#
+# With no option, it lists the groups and the favorites. Inside a repository kit starts on that repository; outside
+# one, on the last group used; with none used, on none.
+#
+#   --text            prints as text, even on a terminal
+#   --json            one JSON object, as each form below says
+#   --jq              the same JSON, formatted by jq for a person
+#   --show            shows a workspace's members, each with its checkout
+#   --current         says which workspace kit starts on here, and why
+#   --workspace       names the workspace in place of where kit runs; none names no workspace
+#   --use             remembers a group as the last used, which kit starts on outside a repository
+#   --new             makes a group, with the repositories given as its members
+#   --add             adds the repositories to a group's members
+#   --remove          takes the repositories out of a group's members
+#   --favorite        adds a workspace to the favorites
+#   --unfavorite      takes a workspace out of the favorites
+#   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL
+#   <name>            a group's name: lowercase letters, digits, and . _ -
+#   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
+#
+# The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
+# --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
+# remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
+# fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why}: kind is
+# repository, group, or none, and why is given, repository, last, or none.
+#
+# Exits 0 when it printed or edited, 1 when the file does not read or holds an entry that is no repository, and 2 on a
+# usage error, or a workspace or group that is unknown.
+#
+# see: modules/bash/workspaces.sh, docs/workspaces.md, issue #89
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use workspaces
+guard:arguments workspaces "$@" || exit $?
+
+action=list target='' workspace='' form=''
+args=()
+# shellcheck disable=SC2034  # --current reads workspace once it is built
+while (( $# ))
+do
+  case "$1" in
+    (--show | --use | --new | --add | --remove | --favorite | --unfavorite) action=${1#--} target=$2; shift ;;
+    (--current) action=current ;;
+    (--workspace) workspace=$2; shift ;;
+    (--workspace=*) workspace=${1#--workspace=} ;;
+    (--text | --json) form=$1 ;;
+    (--jq) form=--jq ;;
+    (*) args+=("$1")
+  esac
+  shift
+done
+
+workspaces:check || exit 1
+
+# print <json> <text-filter> prints the JSON as the form asks: on one line, through jq for a person, or as text by the
+# jq filter given.
+print() {
+  case "${form}" in
+    (--json) printf '%s\n' "$1" ;;
+    (--jq) jq . <<<"$1" ;;
+    (*) jq --raw-output "$2" <<<"$1"
+  esac
+}
+
+case "${action}" in
+  (list)
+    json=$(workspaces:list-json)
+    print "${json}" 'if (.workspaces | length) == 0 then "no workspaces yet; the file is \(.file)"
+      else .workspaces[] | "\(if .favorite then "★" else " " end) 📚 \(.name) \(.members)" end'
+    ;;
+  (show)
+    json=$(workspaces:resolve "${target}") || exit $?
+    print "${json}" '.members[] | "\(.repository)  \(.checkout // "☁️")"'
+    ;;
+  (*)
+    error "kit workspaces --${action} is not built yet"
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------
