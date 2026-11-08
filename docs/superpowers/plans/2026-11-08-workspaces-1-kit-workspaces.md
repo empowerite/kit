@@ -36,7 +36,7 @@ only. Queries, Projects, topics, labels, `--workspace` on `kit flow`, and kittui
   verb's header follows the other verbs': banner with `(kit verb: workflow)`, usage lines, options, JSON shapes, one
   `Exits` line, `see:`.
 - Commits go through `kit commit` with `export PATH=$PWD/kit/bin:$PATH` first; each subject starts with the workspaces
-  issue number, written `#W` below, and ends with the `Co-Authored-By` trailer as a second `--message`.
+  issue number, written `#89` below, and ends with the `Co-Authored-By` trailer as a second `--message`.
 
 ## Review Focus
 
@@ -103,7 +103,7 @@ Expected: all pass.
 ```bash
 export PATH=$PWD/kit/bin:$PATH
 git add kit/modules/bash/git.sh kit/modules/bash/flow.sh tests/workspaces.bats
-kit commit --message "#W git: the desk walker is git:desks, for kit flow above desks and the workspaces' roots alike" \
+kit commit --message "#89 git: the desk walker is git:desks, for kit flow above desks and the workspaces' roots alike" \
   --message "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" \
   kit/modules/bash/git.sh kit/modules/bash/flow.sh tests/workspaces.bats
 ```
@@ -198,7 +198,7 @@ Expected: FAIL, the module does not exist.
 Run: `kit tools run bats tests/workspaces.bats`
 Expected: all pass.
 
-- [ ] **Step 5: Commit** `kit/modules/bash/workspaces.sh` and `tests/workspaces.bats`, subject `#W workspaces: a
+- [ ] **Step 5: Commit** `kit/modules/bash/workspaces.sh` and `tests/workspaces.bats`, subject `#89 workspaces: a
       checkout's member is its primary remote's host and path, found under the roots four levels down`.
 
 ### Task 3: The verb, listing and showing
@@ -350,7 +350,7 @@ Run: `kit tools run bats tests/workspaces.bats tests/syntax.bats tests/help.bats
 Expected: all pass. If `syntax.bats` refuses a usage line, run `kit syntax workspaces` to read why and reshape that
 line, keeping the forms above.
 
-- [ ] **Step 5: Commit** the verb, the module, and the tests, subject `#W kit workspaces: lists the groups and
+- [ ] **Step 5: Commit** the verb, the module, and the tests, subject `#89 kit workspaces: lists the groups and
       favorites, and shows a group's members with their checkouts`.
 
 ### Task 4: The startup rule
@@ -440,7 +440,7 @@ Expected: the five new tests FAIL with exit 2, "not built yet".
 Run: `kit tools run bats tests/workspaces.bats`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**, subject `#W kit workspaces: the startup rule, a repository inside one, else the last group
+- [ ] **Step 5: Commit**, subject `#89 kit workspaces: the startup rule, a repository inside one, else the last group
       used, and --workspace over both`.
 
 ### Task 5: Editing the file
@@ -527,7 +527,7 @@ Expected: the three new tests FAIL with exit 2, "not built yet".
 Run: `kit tools run bats tests/workspaces.bats`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**, subject `#W kit workspaces: --new, --add, --remove, --favorite, and --unfavorite edit the
+- [ ] **Step 5: Commit**, subject `#89 kit workspaces: --new, --add, --remove, --favorite, and --unfavorite edit the
       file, its comments kept`.
 
 ### Task 6: The page, and the gate
@@ -551,5 +551,5 @@ Expected: all pass.
 Run: `kit gate`
 Expected: exits 0. Lint, markdown, links, the bats suite, and the Go tests all pass.
 
-- [ ] **Step 3: Commit** `docs/workspaces.md` and `docs/features.md`, subject `#W docs: workspaces, the file, members
+- [ ] **Step 3: Commit** `docs/workspaces.md` and `docs/features.md`, subject `#89 docs: workspaces, the file, members
       and checkouts, the startup rule, and kit workspaces`.
