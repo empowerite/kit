@@ -8,6 +8,9 @@
 /projects/tutorials/node_modules/
 /projects/tutorials/dist/
 
+# the superpowers brainstorming companion's mockups and session state
+/.superpowers/
+
 # kit:generate .gitignore
 # per-issue worktrees for agents; see: .kit/1st.md
 /worktrees/
