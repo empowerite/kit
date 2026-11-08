@@ -242,19 +242,23 @@ workspaces:resolve() {
     '{name: $name, kind: $kind, members: .}'
 }
 
+# workspaces:lines-json prints the lines it reads as a JSON array of strings, an empty line left out.
+workspaces:lines-json() { jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))'; }
+
 # workspaces:list-json prints the workspaces as JSON: {file, roots, favorites, workspaces}, each group {name, members,
 # favorite}, members its count of fixed members.
 workspaces:list-json() {
   local name
   local -a groups=()
+  local n
   while IFS= read -r name
   do
-    groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "$(workspaces:fixed "${name}" | grep -c . || true)" \
-      '{name: $name, members: $n}')")
+    n=$(workspaces:fixed "${name}" | grep -c . || true)
+    groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${n}" '{name: $name, members: $n}')")
   done < <(workspaces:names)
   printf '%s\n' "${groups[@]}" | jq --slurp --compact-output --arg file "$(workspaces:file)" \
-    --argjson roots "$(workspaces:roots | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')" \
-    --argjson favorites "$(workspaces:favorites | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')" \
+    --argjson roots "$(workspaces:roots | workspaces:lines-json)" \
+    --argjson favorites "$(workspaces:favorites | workspaces:lines-json)" \
     '{file: $file, roots: $roots, favorites: $favorites,
       workspaces: map(select(. != null) | . + {favorite: (.name as $n | $favorites | index($n) != null)})}'
 }
@@ -309,6 +313,56 @@ workspaces:current() {
     --arg checkout "${checkout}" --arg why "${why}" '
     def some: if . == "" then null else . end;
     {kind: $kind, name: ($name | some), member: ($member | some), checkout: ($checkout | some), why: $why}'
+}
+
+# workspaces:edit <expression> runs a yq expression over the file in place, which keeps its comments, making the file,
+# and its directory, first where there is none. Values reach the expression through the environment, by strenv, never
+# in its text.
+workspaces:edit() {
+  local file
+  file=$(workspaces:file)
+  if [[ ! -f "${file}" ]]
+  then
+    mkdir -p "$(dirname "${file}")" || return 1
+    printf '# workspaces.yml - your workspaces, which kit reads and edits; see: kit help workspaces\n# %s\n' \
+      "$(printf -- '-%.0s' {1..118})" > "${file}" || return 1
+  fi
+  yq --inplace "$1" "${file}"
+}
+
+# workspaces:json-list <item>… prints the items as a JSON array, for an expression to read through strenv.
+workspaces:json-list() { jq --null-input --compact-output '$ARGS.positional' --args "$@"; }
+
+# workspaces:new <name> <member>… makes a group of the members, in order, each once.
+workspaces:new() {
+  local name=$1
+  shift
+  kit_ws_name=${name} kit_ws_list=$(workspaces:json-list "$@") \
+    workspaces:edit '.workspaces[strenv(kit_ws_name)] = {"repos": (strenv(kit_ws_list) | from_yaml)}'
+}
+
+# workspaces:add <name> <member>… appends to the group's repos the members not among them.
+workspaces:add() {
+  local name=$1
+  shift
+  kit_ws_name=${name} kit_ws_list=$(workspaces:json-list "$@") \
+    workspaces:edit '.workspaces[strenv(kit_ws_name)].repos += (strenv(kit_ws_list) | from_yaml)'
+}
+
+# workspaces:drop <name> <entry>… takes the entries, as the file writes them, out of the group's repos.
+workspaces:drop() {
+  local name=$1
+  shift
+  # shellcheck disable=SC2016  # $drop and $e are yq's
+  kit_ws_name=${name} kit_ws_list=$(workspaces:json-list "$@") \
+    workspaces:edit '(strenv(kit_ws_list) | from_yaml) as $drop
+      | .workspaces[strenv(kit_ws_name)].repos |= map(select(. as $e | ($drop | map(select(. == $e)) | length) == 0))'
+}
+
+# workspaces:favor <workspace> adds a workspace to the favorites; workspaces:disfavor takes it out.
+workspaces:favor() { kit_ws_name=$1 workspaces:edit '.favorites += [strenv(kit_ws_name)]'; }
+workspaces:disfavor() {
+  kit_ws_name=$1 workspaces:edit '.favorites |= ((. // []) | map(select(. != strenv(kit_ws_name))))'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

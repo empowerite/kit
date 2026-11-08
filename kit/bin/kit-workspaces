@@ -112,9 +112,80 @@ case "${action}" in
     workspaces:remember "${target}"
     step "kit starts on 📚 ${target} outside a repository"
     ;;
-  (*)
-    error "kit workspaces --${action} is not built yet"
-    exit 2
+  (new | add | remove)
+    groups=$(workspaces:names)
+    if [[ "${action}" == new ]]
+    then
+      if [[ ! "${target}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+      then
+        error "'${target}' is not a workspace's name: lowercase letters, digits, and . _ -, no /"
+        exit 2
+      fi
+      if grep --quiet --line-regexp --fixed-strings -- "${target}" <<<"${groups}"
+      then
+        error "📚 ${target} is a workspace already; add to it: kit workspaces --add ${target} <repository>…"
+        exit 2
+      fi
+    elif ! grep --quiet --line-regexp --fixed-strings -- "${target}" <<<"${groups}"
+    then
+      error "'${target}' is no workspace in $(workspaces:file); run: kit workspaces"
+      exit 2
+    fi
+    members=()
+    for repository in "${args[@]}"
+    do
+      member=$(workspaces:normalize "${repository}" dirs)
+      if [[ -z "${member}" ]]
+      then
+        error "'${repository}' names no repository; write host/owner/repo, a git URL, or a checkout's directory"
+        exit 2
+      fi
+      [[ " ${members[*]} " == *" ${member} "* ]] || members+=("${member}")
+    done
+    case "${action}" in
+      (new)
+        workspaces:new "${target}" "${members[@]}" || exit 1
+        step "📚 ${target}: a workspace of ${#members[@]}"
+        ;;
+      (add)
+        readarray -t have < <(workspaces:fixed "${target}")
+        fresh=()
+        for member in "${members[@]}"
+        do
+          [[ " ${have[*]} " == *" ${member} "* ]] || fresh+=("${member}")
+        done
+        if (( ${#fresh[@]} > 0 ))
+        then
+          workspaces:add "${target}" "${fresh[@]}" || exit 1
+          step "📚 ${target}: added ${fresh[*]}"
+        fi
+        ;;
+      (remove)
+        drop=()
+        while IFS= read -r entry
+        do
+          [[ " ${members[*]} " != *" $(workspaces:normalize "${entry}") "* ]] || drop+=("${entry}")
+        done < <(workspaces:entries "${target}" repos)
+        if (( ${#drop[@]} > 0 ))
+        then
+          workspaces:drop "${target}" "${drop[@]}" || exit 1
+          step "📚 ${target}: removed ${drop[*]}"
+        fi
+    esac
+    ;;
+  (favorite | unfavorite)
+    json=$(workspaces:resolve "${target}") || exit $?
+    name=$(jq --raw-output .name <<<"${json}")
+    favored=$(workspaces:favorites | grep --line-regexp --fixed-strings -- "${name}" || true)
+    if [[ "${action}" == favorite && -z "${favored}" ]]
+    then
+      workspaces:favor "${name}" || exit 1
+      step "★ 📚 ${name} is a favorite"
+    elif [[ "${action}" == unfavorite && -n "${favored}" ]]
+    then
+      workspaces:disfavor "${name}" || exit 1
+      step "📚 ${name} is no longer a favorite"
+    fi
 esac
 
 # ----------------------------------------------------------------------------------------------------------------------

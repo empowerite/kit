@@ -206,3 +206,50 @@ YML
   run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
   [ "$(jq --raw-output .kind <<<"$output")" = none ]
 }
+
+@test "--new makes the file and its directory, and the group with its members" {
+  fresh-repo >/dev/null
+  git remote add origin git@github.com:empowerite/edge.git
+  run "${kit_root}/bin/kit" workspaces --new empowerite . \
+    https://github.com/empowerite/kit.git github.com/empowerite/kit
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show empowerite --json
+  [ "$(jq --compact-output '[.members[].repository]' <<<"$output")" \
+    = '["github.com/empowerite/edge","github.com/empowerite/kit"]' ]
+  run "${kit_root}/bin/kit" workspaces --new empowerite
+  [ "$status" -eq 2 ]
+  run "${kit_root}/bin/kit" workspaces --new Bad/Name
+  [ "$status" -eq 2 ]
+}
+
+@test "--add, --remove, --favorite, and --unfavorite keep the file's comments" {
+  workspaces-file <<'YML'
+# mine
+roots: [~/Code] # where I clone
+workspaces:
+  w:
+    # the core
+    repos: [github.com/a/one]
+YML
+  fresh-repo >/dev/null
+  "${kit_root}/bin/kit" workspaces --add w github.com/a/two github.com/a/one
+  "${kit_root}/bin/kit" workspaces --remove w github.com/a/one
+  "${kit_root}/bin/kit" workspaces --favorite w
+  "${kit_root}/bin/kit" workspaces --favorite w
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+  [ "$(jq --compact-output '[.favorites, .workspaces[0].members]' <<<"$output")" = '[["w"],1]' ]
+  grep --quiet '^# mine$' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  grep --quiet '# where I clone' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  grep --quiet '# the core' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  "${kit_root}/bin/kit" workspaces --unfavorite w
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+  [ "$(jq --compact-output .favorites <<<"$output")" = '[]' ]
+}
+
+@test "editing a group that is not there is a usage error" {
+  fresh-repo >/dev/null
+  run "${kit_root}/bin/kit" workspaces --add nope github.com/a/one
+  [ "$status" -eq 2 ]
+  run "${kit_root}/bin/kit" workspaces --favorite nope
+  [ "$status" -eq 2 ]
+}
