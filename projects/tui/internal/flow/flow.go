@@ -101,7 +101,7 @@ type Model struct {
 	colMenu       columnMenu                // the menu a click on a column's name drops, while it is open
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
 	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say
-	cols          columnsDialog             // the columns dialog, while it is open
+	cols          table.Columns             // the columns dialog, while it is open
 	legend        legend                    // the legend, which F1 and ? show and hide, and the corner it stands in
 	noHeaders     bool                      // whether the stages' headers are hidden, as a test of the rows alone asks
 	noPresets     bool                      // whether the stages' tables have no preset line

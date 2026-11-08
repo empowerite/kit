@@ -1,0 +1,145 @@
+// The columns dialog lists every field, groups first, then the columns, then the hidden, and shows, hides, sorts,
+// groups, and moves the one under the keyboard.
+package table
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
+)
+
+// listing gives a host whose panel lists state, who, and title as its columns, state sorting and grouping, who
+// grouping alone, and title neither.
+func listing() *host {
+	h := screen()
+	h.panel = grid.Panel{Columns: []string{"state", "who", "title"},
+		Labels:    map[string]string{"state": "state", "who": "who", "title": "title"},
+		Sortable:  map[string]bool{"state": true},
+		Groupable: map[string]bool{"state": true, "who": true},
+		Fields:    map[string]grid.Field{}}
+	return h
+}
+
+// press gives the press of a key by its name.
+func press(name string) tea.KeyPressMsg {
+	switch name {
+	case "enter":
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	case "shift+up":
+		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	case "s", "g":
+		return tea.KeyPressMsg{Code: rune(name[0]), Text: name}
+	}
+	return key(name)
+}
+
+func TestTheColumnsDialogShowsSortsGroupsAndMovesAField(t *testing.T) {
+	h := listing()
+	c := Columns{Open: true}
+	if got := c.Listed(h); !slices.Equal(got, []string{"state", "who", "title"}) {
+		t.Fatalf("listed: %q", got)
+	}
+	box, top, left := c.Box(h)
+	if top != 4 || left+ansi.StringWidth(box[0]) != h.w-1 || !strings.Contains(ansi.Strip(box[0]), "things fields") {
+		t.Errorf("the box at %d, %d: %q", top, left, ansi.Strip(box[0]))
+	}
+	// space hides state, and again shows it; s sorts it, g groups by it
+	c.Key(h, press("space"))
+	if h.panel.Field("state").Placement != grid.Hidden || !strings.HasPrefix(ansi.Strip(c.Line(h, "state")), grid.Unticked) {
+		t.Errorf("hidden: %q", ansi.Strip(c.Line(h, "state")))
+	}
+	c.At = slices.Index(c.Listed(h), "state")
+	c.Key(h, press("space"))
+	c.Key(h, press("s"))
+	if h.panel.Field("state").Sort != grid.Ascending {
+		t.Errorf("sorted: %+v", h.panel.Field("state"))
+	}
+	c.Key(h, press("g"))
+	if !slices.Equal(h.panel.Groups(), []string{"state"}) || c.Listed(h)[c.At] != "state" {
+		t.Errorf("grouped: %q, at %d", h.panel.Groups(), c.At)
+	}
+	if got := ansi.Strip(c.Line(h, "state")); !strings.HasSuffix(got, grid.GroupMark(1)) {
+		t.Errorf("a group's line: %q", got)
+	}
+	// title neither sorts nor groups: s does nothing, and its line has no dots
+	c.At = slices.Index(c.Listed(h), "title")
+	if c.Key(h, press("s")); h.panel.Field("title").Sort != grid.Unsorted {
+		t.Error("title sorted")
+	}
+	if got := ansi.Strip(c.Line(h, "title")); strings.Contains(got, "·") {
+		t.Errorf("title's line: %q", got)
+	}
+	// shift with up moves it a place; down and up move the keyboard
+	c.Key(h, press("shift+up"))
+	if got := c.Listed(h); got[c.At] != "title" || c.At != 1 {
+		t.Errorf("shift+up: %q, at %d", got, c.At)
+	}
+	c.Key(h, press("down"))
+	c.Key(h, press("up"))
+	if c.At != 1 {
+		t.Errorf("down, up: at %d", c.At)
+	}
+	// a filter on a field marks its line
+	h.panel = h.panel.FilteredBy("who", grid.Filter{Values: []string{"ada"}})
+	if got := ansi.Strip(c.Line(h, "who")); !strings.Contains(got, grid.Filtered) {
+		t.Errorf("a filtered line: %q", got)
+	}
+	// enter gives the field's popover to open, beside the dialog
+	if pop, ok := c.Key(h, press("enter")); !ok || pop.Field != c.Listed(h)[c.At] || pop.Header {
+		t.Errorf("enter: %+v %v", pop, ok)
+	}
+	if c.Key(h, press("esc")); c.Open {
+		t.Error("esc left it open")
+	}
+}
+
+func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
+	h := listing()
+	c := Columns{Open: true}
+	c.Key(h, press("g")) // state grouped: a rule stands under the groups
+	_, top, left := c.Box(h)
+	if c.Row(h, top) != -1 || c.Row(h, top+2) != 0 || c.Row(h, top+3) != -1 || c.Row(h, top+4) != 1 || c.Row(h, top+40) != -1 {
+		t.Errorf("rows: %d %d %d %d", c.Row(h, top), c.Row(h, top+2), c.Row(h, top+3), c.Row(h, top+4))
+	}
+	// on who's line: its sort cell does nothing, its group cell groups by it, its box hides it, its label moves there
+	y := top + 4
+	c.Click(h, left+4+LabelCells+SortCells, y)
+	if !slices.Equal(h.panel.Groups(), []string{"state", "who"}) {
+		t.Errorf("a click on who's group: %q", h.panel.Groups())
+	}
+	c.Click(h, left+4+LabelCells, top+2)
+	if h.panel.Field("state").Sort != grid.Ascending {
+		t.Errorf("a click on state's sort: %+v", h.panel.Field("state"))
+	}
+	c.Click(h, left+3, top+2)
+	if h.panel.Field("state").Placement != grid.Hidden {
+		t.Errorf("a click on state's box: %+v", h.panel.Field("state"))
+	}
+	c.Click(h, left+6, top+2)
+	if c.At != 0 {
+		t.Errorf("a click on a label: at %d", c.At)
+	}
+	if c.Click(h, left, top+1); !c.Open {
+		t.Error("a click on the headings closed it")
+	}
+	keys := (shell.Path{c.Keys(h)}).String()
+	for _, want := range []string{"close", "move", "show/hide", "options"} {
+		if !strings.Contains(keys, want) {
+			t.Errorf("the keys %q have no %s", keys, want)
+		}
+	}
+	c.At = slices.Index(c.Listed(h), "state")
+	if keys := (shell.Path{c.Keys(h)}).String(); !strings.Contains(keys, "sort") || !strings.Contains(keys, "group") ||
+		!strings.Contains(keys, "order") {
+		t.Errorf("state's keys: %q", keys)
+	}
+	if c.Click(h, 0, 0); c.Open {
+		t.Error("a click off it left it open")
+	}
+}

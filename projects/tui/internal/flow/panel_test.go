@@ -14,6 +14,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -228,7 +229,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 
 func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 	m := loaded(t, options())
-	m.openColumns()
+	m.cols = table.Columns{Open: true}
 	if !strings.Contains(view(m), grid.Ticked+" branch") {
 		t.Fatalf("backlog's branch has no checkbox while an issue has one:\n%s", view(m))
 	}
@@ -303,9 +304,9 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
 	m.setPanel(regroup(m.panel(m.stage)))
-	m.openColumns()
+	m.cols = table.Columns{Open: true}
 	for _, id := range []string{"source", "assignees"} {
-		m.cols.at = slices.Index(m.colsListed(), id)
+		m.cols.At = slices.Index(m.cols.Listed(&m), id)
 		m = drive(m, typed("g")...)
 	}
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"source", "assignees"}) {
@@ -400,7 +401,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		return ""
 	}
 	if got := heading(m); got != grid.Unfolded+" source "+grid.Unfolded+" 4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
-		m.is(m.stage) != Opening || !strings.Contains(m.columnsLine("source"), grid.GroupMark(1)) {
+		m.is(m.stage) != Opening || !strings.Contains(m.cols.Line(&m, "source"), grid.GroupMark(1)) {
 		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
 	// a search that leaves one row, and the rows loaded again, leave the group as it is
@@ -518,8 +519,8 @@ func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 
 // popoverOf opens a field's Options… from the columns dialog, enter on its line.
 func popoverOf(m Model, id string) Model {
-	m.openColumns()
-	m.cols.at = slices.Index(m.colsListed(), id)
+	m.cols = table.Columns{Open: true}
+	m.cols.At = slices.Index(m.cols.Listed(&m), id)
 	return drive(m, press(tea.KeyEnter))
 }
 
@@ -560,8 +561,8 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
 	// esc closes it; the columns dialog has the keyboard, and marks the field filtered
-	if m = drive(m, esc); m.pop.Open || !m.cols.open || !strings.Contains(view(m), "assignees ⊘") {
-		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.Open, m.cols.open, view(m))
+	if m = drive(m, esc); m.pop.Open || !m.cols.Open || !strings.Contains(view(m), "assignees ⊘") {
+		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.Open, m.cols.Open, view(m))
 	}
 	// a click off the box closes it, acting on nothing
 	m = drive(m, press(tea.KeyEnter))

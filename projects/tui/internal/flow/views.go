@@ -441,7 +441,7 @@ func (m *Model) choosePreset(k int) {
 	v, _ := m.own()
 	switch k {
 	case itemFields:
-		m.openColumns()
+		m.cols = table.Columns{Open: true}
 	case itemSave:
 		m.saveAs(v.Name)
 	case itemSaveAs, itemRename:

@@ -22,6 +22,8 @@ func (h *host) Values(id string) []Value { return h.values[id] }
 func (h *host) Me() string               { return h.me }
 func (h *host) Drawn(id string) string   { return h.drawn[id] }
 func (h *host) Size() (int, int)         { return h.w, h.h }
+func (h *host) Name() string             { return "things" }
+func (h *host) Pane() (int, int)         { return 4, h.w - 1 }
 func (h *host) Label(id, name string) Label {
 	for _, v := range h.values[id] {
 		for _, l := range LabelsIn(v) {

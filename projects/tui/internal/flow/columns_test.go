@@ -11,16 +11,17 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // columnsAt gives the screen line and column of a field's line in the open columns dialog, its box's cell.
 func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 	t.Helper()
-	k := slices.Index(m.colsListed(), id)
-	_, top, left := m.columnsBox()
+	k := slices.Index(m.cols.Listed(&m), id)
+	_, top, left := m.cols.Box(&m)
 	for y := top; y < top+30; y++ {
-		if m.columnsRow(y) == k {
+		if m.cols.Row(&m, y) == k {
 			return left + 2, y
 		}
 	}
@@ -41,13 +42,13 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		m.presetItems()[itemFields+1].Name != "" || !m.presetEnabled(itemFields) {
 		t.Fatalf("the presets' menu: %+v", m.presetItems())
 	}
-	if m.choosePreset(itemFields); m.presetsMenu.Open || !m.cols.open || m.cols.at != 0 {
+	if m.choosePreset(itemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
 		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
-	if got := m.colsListed(); got[0] != "assignees" || got[len(got)-1] != "repository" {
+	if got := m.cols.Listed(&m); got[0] != "assignees" || got[len(got)-1] != "repository" {
 		t.Errorf("the fields: %q", got)
 	}
-	box, top, left := m.columnsBox()
+	box, top, left := m.cols.Box(&m)
 	text := ansi.Strip(strings.Join(box, "\n"))
 	if top != m.top() || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog fields") ||
 		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
@@ -55,10 +56,10 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		!strings.Contains(keysOf(m), "s sort") {
 		t.Errorf("the dialog at %d, %d:\n%s\n%q", top, left, text, keysOf(m))
 	}
-	if m.columnsRow(top) != -1 || m.columnsRow(top+1) != -1 || m.columnsRow(top+2) != 0 || m.columnsRow(top+3) != -1 ||
-		m.columnsRow(top+4) != 1 || m.columnsRow(top+40) != -1 {
-		t.Errorf("the rows: edge %d, headings %d, assignees %d, rule %d, id %d", m.columnsRow(top), m.columnsRow(top+1),
-			m.columnsRow(top+2), m.columnsRow(top+3), m.columnsRow(top+4))
+	if m.cols.Row(&m, top) != -1 || m.cols.Row(&m, top+1) != -1 || m.cols.Row(&m, top+2) != 0 || m.cols.Row(&m, top+3) != -1 ||
+		m.cols.Row(&m, top+4) != 1 || m.cols.Row(&m, top+40) != -1 {
+		t.Errorf("the rows: edge %d, headings %d, assignees %d, rule %d, id %d", m.cols.Row(&m, top), m.cols.Row(&m, top+1),
+			m.cols.Row(&m, top+2), m.cols.Row(&m, top+3), m.cols.Row(&m, top+4))
 	}
 }
 
@@ -69,12 +70,12 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
 	m.setPanel(regroup(m.panel(0)))
-	m.openColumns()
-	at := func(id string) { m.cols.at = slices.Index(m.colsListed(), id) }
+	m.cols = table.Columns{Open: true}
+	at := func(id string) { m.cols.At = slices.Index(m.cols.Listed(&m), id) }
 	at("branch")
 	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("branch").Placement != grid.Hidden ||
-		m.colsListed()[m.cols.at] != "branch" {
-		t.Fatalf("space on branch: %+v, at %q", m.panel(0).Field("branch"), m.colsListed()[m.cols.at])
+		m.cols.Listed(&m)[m.cols.At] != "branch" {
+		t.Fatalf("space on branch: %+v, at %q", m.panel(0).Field("branch"), m.cols.Listed(&m)[m.cols.At])
 	}
 	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("branch").Placement != grid.Column {
 		t.Fatalf("space on hidden branch: %+v", m.panel(0).Field("branch"))
@@ -86,19 +87,19 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		}
 	}
 	at("source")
-	if m = drive(m, typed("g")...); !slices.Equal(m.panel(0).Groups(), []string{"source"}) || m.colsListed()[0] != "source" ||
-		m.cols.at != 0 {
-		t.Fatalf("g on source: %q, at %d", m.panel(0).Groups(), m.cols.at)
+	if m = drive(m, typed("g")...); !slices.Equal(m.panel(0).Groups(), []string{"source"}) || m.cols.Listed(&m)[0] != "source" ||
+		m.cols.At != 0 {
+		t.Fatalf("g on source: %q, at %d", m.panel(0).Groups(), m.cols.At)
 	}
 	// shift up moves assignees a place, then past the first column into the groups; id, which cannot group, stays
 	at("assignees")
 	m = drive(m, testkit.Press("shift+up"), testkit.Press("shift+up"))
-	if groups := m.panel(0).Groups(); !slices.Equal(groups, []string{"source", "assignees"}) || m.cols.at != 1 {
-		t.Errorf("shift+up into the groups: %q, at %d", groups, m.cols.at)
+	if groups := m.panel(0).Groups(); !slices.Equal(groups, []string{"source", "assignees"}) || m.cols.At != 1 {
+		t.Errorf("shift+up into the groups: %q, at %d", groups, m.cols.At)
 	}
 	// a group's cell is the grouping glyph and its depth as a subscript, as a sort's mark carries its place
 	for id, want := range map[string]string{"source": grid.Grouping + "₁", "assignees": grid.Grouping + "₂"} {
-		if got := strings.TrimSpace(ansi.Strip(m.columnsLine(id))[len("☑ ")+labelCells+sortCells:]); got != want {
+		if got := strings.TrimSpace(ansi.Strip(m.cols.Line(&m, id))[len("☑ ")+table.LabelCells+table.SortCells:]); got != want {
 			t.Errorf("%s's group cell: %q, want %q", id, got, want)
 		}
 	}
@@ -113,48 +114,48 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Errorf("a click on title's box: %+v", m.panel(0).Field("title"))
 	}
 	x, y = columnsAt(t, m, "age")
-	if m = drive(m, testkit.Click(x+2+labelCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
+	if m = drive(m, testkit.Click(x+2+table.LabelCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
 		t.Errorf("a click on age's sort: %q", m.panel(0).Mark("age"))
 	}
 	x, y = columnsAt(t, m, "assignees")
-	if m = drive(m, testkit.Click(x+2+labelCells+sortCells, y)); !slices.Contains(m.panel(0).Groups(), "assignees") {
+	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.SortCells, y)); !slices.Contains(m.panel(0).Groups(), "assignees") {
 		t.Errorf("a click on assignees' group: %q", m.panel(0).Groups())
 	}
 	x, y = columnsAt(t, m, "assignees")
-	if m = drive(m, testkit.Click(x+4, y)); m.colsListed()[m.cols.at] != "assignees" || !m.cols.open {
-		t.Errorf("a click on assignees' label: at %d", m.cols.at)
+	if m = drive(m, testkit.Click(x+4, y)); m.cols.Listed(&m)[m.cols.At] != "assignees" || !m.cols.Open {
+		t.Errorf("a click on assignees' label: at %d", m.cols.At)
 	}
-	_, top, _ := m.columnsBox()
-	if m = drive(m, testkit.Click(x, top+1)); !m.cols.open {
+	_, top, _ := m.cols.Box(&m)
+	if m = drive(m, testkit.Click(x, top+1)); !m.cols.Open {
 		t.Error("a click on the headings closed the dialog")
 	}
 	// enter opens the field's Options… over the dialog; esc closes it, then the dialog
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.cols.open {
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.cols.Open {
 		t.Fatalf("enter: popover %+v", m.pop)
 	}
-	if m = drive(m, esc, esc); m.pop.Open || m.cols.open {
-		t.Errorf("esc twice: popover %v, dialog %v", m.pop.Open, m.cols.open)
+	if m = drive(m, esc, esc); m.pop.Open || m.cols.Open {
+		t.Errorf("esc twice: popover %v, dialog %v", m.pop.Open, m.cols.Open)
 	}
-	m.openColumns()
-	if m = drive(m, testkit.Click(1, m.rowsTop()+3)); m.cols.open {
+	m.cols = table.Columns{Open: true}
+	if m = drive(m, testkit.Click(1, m.rowsTop()+3)); m.cols.Open {
 		t.Error("a click off the dialog left it open")
 	}
 	// up stops at the first line, down at the last; s on a field that cannot sort does nothing
-	m.openColumns()
+	m.cols = table.Columns{Open: true}
 	m = drive(m, press(tea.KeyUp))
 	for range 20 {
 		m = drive(m, press(tea.KeyDown))
 	}
-	if m.cols.at != len(m.colsListed())-1 {
-		t.Errorf("down to the last: %d", m.cols.at)
+	if m.cols.At != len(m.cols.Listed(&m))-1 {
+		t.Errorf("down to the last: %d", m.cols.At)
 	}
 	// builds' commit does not sort: its sort cell is blank, and s changes nothing
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	m.openColumns()
+	m.cols = table.Columns{Open: true}
 	at("commit")
-	if m.stages[m.stage].name != "builds" || strings.TrimSpace(ansi.Strip(m.columnsLine("commit"))[len("☑ ")+labelCells:]) != "" {
-		t.Errorf("commit's line on %s: %q", m.stages[m.stage].name, ansi.Strip(m.columnsLine("commit")))
+	if m.stages[m.stage].name != "builds" || strings.TrimSpace(ansi.Strip(m.cols.Line(&m, "commit"))[len("☑ ")+table.LabelCells:]) != "" {
+		t.Errorf("commit's line on %s: %q", m.stages[m.stage].name, ansi.Strip(m.cols.Line(&m, "commit")))
 	}
 	if m = drive(m, typed("s")...); len(m.panel(m.stage).SortKeys()) != 0 {
 		t.Errorf("s on commit sorted: %+v", m.panel(m.stage).SortKeys())

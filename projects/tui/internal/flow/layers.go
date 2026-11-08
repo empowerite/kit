@@ -44,15 +44,22 @@ func (m Model) layers() shell.Layers[Model] {
 			},
 		},
 		{ // the fields dialog
-			Open: func(m Model) bool { return m.cols.open },
-			Key:  model(Model.columnsKey),
+			Open: func(m Model) bool { return m.cols.Open },
+			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
+				// enter opens the field's popover over it, which asks kit for the caller's login
+				if pop, ok := m.cols.Key(&m, k); ok {
+					m.pop = pop
+					return m, m.askMe()
+				}
+				return m, nil
+			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.columnsClick(c.X, c.Y)
+				m.cols.Click(&m, c.X, c.Y)
 				return m, nil, true
 			},
-			Keys: Model.columnsKeys,
+			Keys: func(m Model) shell.Segment { return m.cols.Keys(&m) },
 			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.columnsBox()
+				box, top, left := m.cols.Box(&m)
 				return shell.Over(lines, box, top, left)
 			},
 		},

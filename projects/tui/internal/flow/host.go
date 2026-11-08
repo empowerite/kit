@@ -40,6 +40,12 @@ func (m *Model) Drawn(id string) string { return m.shown(m.stage).drawn[id] }
 // Size gives the screen's width and height.
 func (m *Model) Size() (width, height int) { return m.width, m.height }
 
+// Name gives the selected stage's name, which titles its table's dialogs.
+func (m *Model) Name() string { return m.stages[m.stage].name }
+
+// Pane gives the screen line the pane starts on, under the bar, and the pane's width.
+func (m *Model) Pane() (top, width int) { return m.top(), m.paneWidth() }
+
 // openPopover opens a field's popover, as table.OpenPopover does, and asks kit for the caller's login the first time,
 // which @me names.
 func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
