@@ -45,7 +45,18 @@ func bare() Options {
 // options gives the eight stages and origin as a test knows them, and the tables without their preset line, which
 // views_test.go tests, so down from the bar enters the rows.
 func options() Options {
-	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoPresets: true}
+	return Options{Stages: eight, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"}, NoPresets: true,
+		Clock: &testkit.Clock{}}
+}
+
+// clockOf gives the test's clock the screen's waits go through, whose timers fire when the test says.
+func clockOf(m Model) *testkit.Clock { return m.clock.(*testkit.Clock) }
+
+// latest gives what the latest wait on the test's clock brings, and forgets them all: a read's every answer waits
+// anew, and only the wait from the latest asks again.
+func latest(m Model) tea.Msg {
+	waits := clockOf(m).Fire()
+	return waits[len(waits)-1]
 }
 
 // viewing gives the options with the tables' preset line, their presets kept in the file named, or for the test alone
@@ -68,20 +79,17 @@ func drive(m Model, msgs ...tea.Msg) Model {
 	return m
 }
 
-// faded says a notice's time is up, or the rate limits' or the marks' minute, which drive never feeds back, so a test
-// sees what a notice says and the screen reads the limits and the marks once; a test of each sends it itself.
+// faded says a notice's time is up, which drive never feeds back, so a test sees what a notice says; a test of the
+// fade sends it itself. The rate limits' and the marks' minutes wait on the test's clock, which fires none until the
+// test says.
 func faded(msg tea.Msg) bool {
-	switch msg.(type) {
-	case shell.FadedMsg, quotaTickMsg, marksTickMsg:
-		return true
-	}
-	return false
+	_, ok := msg.(shell.FadedMsg)
+	return ok
 }
 
-// TestMain waits no time for a notice to fade, nor for the rate limits' or the marks' minute, as drive runs each
-// wait's command in place.
+// TestMain waits no time for a notice to fade, as drive runs the wait's command in place.
 func TestMain(m *testing.M) {
-	fades, quotaEvery, marksEvery = 0, 0, 0
+	fades = 0
 	os.Exit(m.Run())
 }
 

@@ -57,7 +57,7 @@ func (m Model) View() tea.View {
 	}
 	lines = append(lines, m.pane()...)
 	lines = m.layers().Draw(m, m.overLegend(lines))
-	right := quotaText(m.quotas, time.Now())
+	right := quotaText(m.quota.Value, time.Now())
 	if watched := m.watchedText(); watched != "" {
 		right = strings.TrimSpace(watched + "  " + right)
 	}

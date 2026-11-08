@@ -87,7 +87,8 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 	case c.Own == WatchAll, c.Own == StopAll:
 		return m.watchAll(c.Own == WatchAll)
 	case c.Own == RefreshAll:
-		m.quotaOff, m.marksOff = false, false
+		m.quota.Reset()
+		m.marks.Reset()
 		var cmds []tea.Cmd
 		for _, s := range m.stages {
 			if known[s.name] {

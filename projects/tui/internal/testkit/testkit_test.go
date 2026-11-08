@@ -1,5 +1,5 @@
-// The helpers every package's tests share: the runner over a fake kit, the driver, the key presses of a text, and the
-// golden files.
+// The helpers every package's tests share: the runner over a fake kit, the driver, the clock, the key presses of a text,
+// and the golden files.
 package testkit
 
 import (
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -186,5 +187,19 @@ func TestGoldenComparesOrRewrites(t *testing.T) {
 	unwritable := filepath.Join(t.TempDir(), "no-dir", "view.golden")
 	if got := recording(t, func(t T) { Golden(t, unwritable, "x") }); len(got.fatals) != 1 {
 		t.Errorf("an unwritable file reported %q", got.fatals)
+	}
+}
+
+// A test's clock keeps each wait and brings nothing until it fires them, in the order they were set.
+func TestAClockFiresWhenTheTestSays(t *testing.T) {
+	var c Clock
+	if c.After(time.Minute, "one") != nil || c.After(time.Second, "two") != nil {
+		t.Error("a wait gave a command")
+	}
+	if timers := c.Timers(); len(timers) != 2 || timers[0] != (Timer{time.Minute, "one"}) {
+		t.Errorf("the timers: %+v", timers)
+	}
+	if got := c.Fire(); len(got) != 2 || got[0] != "one" || got[1] != "two" || len(c.Timers()) != 0 {
+		t.Errorf("fired %v, left %v", got, c.Timers())
 	}
 }

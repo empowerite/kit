@@ -32,6 +32,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -44,9 +45,10 @@ type Options struct {
 	NoFetch   bool
 	Filters   []string
 	NoHeaders bool
-	Presets   string // the file the person's presets are kept in; none keeps them for the session alone
-	NoPresets bool   // whether the stages' tables have no preset line, as a test of the rows alone asks
-	History   string // the file the searches are remembered in; none remembers them for the session alone
+	Presets   string       // the file the person's presets are kept in; none keeps them for the session alone
+	NoPresets bool         // whether the stages' tables have no preset line, as a test of the rows alone asks
+	History   string       // the file the searches are remembered in; none remembers them for the session alone
+	Clock     source.Clock // what the screen's waits go through: the program's, where none is given
 }
 
 // loadedMsg brings a stage's JSON, or why kit did not print it, from the stage's load numbered gen.
@@ -118,14 +120,6 @@ type Model struct {
 	inPanel       bool                   // whether the panel has the keyboard, before the rows, the line, or the bar
 	me            string                 // the caller's login, once kit has said it, which a filter's @me matches
 	asked         bool                   // whether kit has been asked for the caller's login
-	quotas        []kit.Quota            // each forge's rate limits on the caller, as kit last read them
-	quoting       bool                   // whether kit is reading the rate limits now
-	quotaOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
-	quotaSerial   int                    // the last read's, which the tick it waits on names
-	marking       bool                   // whether kit is reading the stages' marks now
-	marked        bool                   // whether kit has read them once
-	marksOff      bool                   // whether kit could not read them, so the screen asks again only on Refresh All
-	marksSerial   int                    // the last read's, which the tick it waits on names
 	browse        func(url string) error // opens a page in the browser
 	note          shell.Notice           // what kit did, or why something was not done, in place of the keys
 	ask           *ask                   // what a backlog action asks before kit runs, while it asks
@@ -147,6 +141,10 @@ type Model struct {
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
+
+	clock source.Clock                   // what the screen's waits go through
+	quota source.Poll[[]kit.Quota]       // each forge's rate limits on the caller, as quota.go reads them
+	marks source.Poll[map[string]string] // each stage's mark, as marks.go reads them
 }
 
 // built holds each stage's rows as they were last built, and the width they were laid out for. A stage that loads, a
@@ -186,6 +184,9 @@ func New(r kit.Runner, o Options) Model {
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, fold: true,
 		legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.clock = o.Clock
+	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
+	m.marks = source.NewPoll("marks", MarksEvery, r.Marks)
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
@@ -220,6 +221,9 @@ func (m Model) Interrupted() bool { return m.interrupted }
 // Close ends the stages' commands still running, as quitting does, for a picture kittui leaves hidden as it ends.
 func (m Model) Close() { m.cancel() }
 
+// env gives what the screen's reads of kit share: the screen's context, the deadline, and the screen's clock.
+func (m Model) env() source.Env { return source.Env{Ctx: m.ctx, Limit: m.limit, Clock: m.clock} }
+
 // Update takes a message, as update does; then a name typed for Save As… or Rename… on a preset line that no longer
 // has the keyboard is dropped, so the line does not come back to it; a stage that loaded has the rate limits read
 // again; and a notice that says what was done, new, goes after Fades, unless a key or another notice took its place
@@ -233,7 +237,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	n := next.(Model)
 	if _, ok := msg.(loadedMsg); ok {
 		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again
-		cmd = tea.Batch(cmd, n.askQuota(), n.askMarks())
+		cmd = tea.Batch(cmd, n.quota.Ask(n.env()), n.marks.Ask(n.env()))
 	}
 	if !n.onPreset {
 		for i := range n.stages {
@@ -258,6 +262,13 @@ func (m *Model) done(notice string) { m.note = m.note.Did(notice) }
 
 // update takes a message.
 func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// the rate limits' and the marks' answers and whiles are theirs
+	if cmd, took := m.quota.Take(m.env(), msg); took != source.NotMine {
+		return m, cmd
+	}
+	if cmd, took := m.marks.Take(m.env(), msg); took != source.NotMine {
+		return m, m.tookMarks(cmd, took)
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -273,18 +284,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case keptMsg:
 		m.takeKept(msg)
-	case marksMsg:
-		return m, m.tookMarks(msg)
-	case marksTickMsg:
-		if msg.serial == m.marksSerial {
-			return m, m.askMarks()
-		}
-	case quotaMsg:
-		return m, m.tookQuota(msg)
-	case quotaTickMsg:
-		if msg.serial == m.quotaSerial {
-			return m, m.askQuota()
-		}
 	case meMsg:
 		if msg.err == nil {
 			m.me = msg.login

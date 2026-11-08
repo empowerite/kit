@@ -1,6 +1,6 @@
 // Package testkit holds what the packages' tests share: a runner over a package's fake kit, a driver that sends
-// messages to a model as the program would, the key presses of a text, a click and the cell a rune is drawn at, and a
-// golden file compared or rewritten.
+// messages to a model as the program would, a clock whose timers fire when the test says, the key presses of a text, a
+// click and the cell a rune is drawn at, and a golden file compared or rewritten.
 // Tests alone import it; -update is its flag, and the test binary that imports it takes the flag.
 package testkit
 

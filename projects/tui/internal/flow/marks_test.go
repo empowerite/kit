@@ -33,12 +33,12 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 	if s := m.find("backlog"); s.mark != "b1" || s.stale || s.remark {
 		t.Fatalf("after the load, backlog's mark %q, stale %v, remark %v", s.mark, s.stale, s.remark)
 	}
-	if m.marksSerial == 0 || m.marking || m.marksOff {
-		t.Errorf("after the read: serial %d, marking %v, off %v", m.marksSerial, m.marking, m.marksOff)
+	if len(clockOf(m).Timers()) == 0 || m.marks.Asking() || m.marks.Off() {
+		t.Errorf("after the read: waits %v, asking %v, off %v", clockOf(m).Timers(), m.marks.Asking(), m.marks.Off())
 	}
 	// the minute's read: backlog's mark moved, changes' did not, desk's is gone, releases never had one
 	write(`{"backlog": "b2", "changes": "c1", "releases": null}`)
-	m = drive(m, quotaTickMsg{}, marksTickMsg{m.marksSerial})
+	m = drive(m, clockOf(m).Fire()...)
 	for name, want := range map[string]bool{"backlog": true, "changes": false, "desk": false, "releases": false} {
 		if got := m.find(name).stale; got != want {
 			t.Errorf("%s stale %v, want %v", name, got, want)
@@ -49,18 +49,21 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 	}
 	// stale is stale: a later read keeps it so, though the mark moves on, or back
 	write(`{"backlog": "b1"}`)
-	if m = drive(m, marksTickMsg{m.marksSerial}); !m.find("backlog").stale {
+	if m = drive(m, clockOf(m).Fire()...); !m.find("backlog").stale {
 		t.Error("a later read cleared the dot")
 	}
 	// Refresh All loads it again, and it takes the next mark as its own
 	write(`{"backlog": "b3", "changes": "c1"}`)
+	older := clockOf(m).Fire()
 	m = drive(m, refreshAll...)
 	if s := m.find("backlog"); s.stale || s.mark != "b3" || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
 		t.Errorf("after Refresh All: stale %v, mark %q", s.stale, s.mark)
 	}
-	// a tick an older read waits on does nothing
-	if _, cmd := m.Update(marksTickMsg{m.marksSerial - 1}); cmd != nil {
-		t.Error("a stale tick reads the marks again")
+	// the minute an older read waited from reads nothing
+	for _, wait := range older {
+		if _, cmd := m.Update(wait); cmd != nil {
+			t.Error("an older minute reads the marks again")
+		}
 	}
 }
 
@@ -80,8 +83,8 @@ func TestAKitThatCannotReadTheMarksIsAskedAgainOnRefreshAll(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	if !m.marksOff || m.marking || m.marked {
-		t.Fatalf("without the marks: off %v, marking %v, marked %v", m.marksOff, m.marking, m.marked)
+	if !m.marks.Off() || m.marks.Asking() || m.marks.Got {
+		t.Fatalf("without the marks: off %v, asking %v, read %v", m.marks.Off(), m.marks.Asking(), m.marks.Got)
 	}
 	asked := func() int {
 		got, _ := os.ReadFile(record)

@@ -41,6 +41,8 @@ func TestEachForgesScarcestLimitIsDrawnAfterItsGlyph(t *testing.T) {
 		{"a forge kit has no glyph for, by name", []kit.Quota{{Forge: "gitea", Limits: []kit.Limit{
 			{Name: "api", Limit: 10, Remaining: 9}}}}, style.Off("gitea 9/10")},
 		{"a forge without a limit, nothing", []kit.Quota{{Forge: "gitlab"}}, ""},
+		{"a limit that allows nothing, passed over", []kit.Quota{{Forge: "gitea", Limits: []kit.Limit{
+			{Name: "none", Limit: 0}, {Name: "api", Limit: 10, Remaining: 9}}}}, style.Off("gitea 9/10")},
 		{"a reset already past, not said", []kit.Quota{{Forge: "github", Limits: []kit.Limit{
 			{Name: "graphql", Limit: 5000, Remaining: 1, Reset: 1799999999}}}}, style.Warn(GitHub + " 1/5000")},
 	} {
@@ -63,22 +65,13 @@ func TestTheKeysBarEndsWithEachForgesLimit(t *testing.T) {
 	if !strings.HasSuffix(strings.TrimRight(last, " "), GitHub+" 4871/5000") || strings.Contains(last, GitLab) {
 		t.Errorf("the keys bar: %q", last)
 	}
-	if m.quoting || m.quotaOff || m.quotaSerial == 0 {
-		t.Errorf("after the read: quoting %v, off %v, serial %d", m.quoting, m.quotaOff, m.quotaSerial)
+	if m.quota.Asking() || m.quota.Off() || len(m.quota.Value) != 2 || len(clockOf(m).Timers()) == 0 {
+		t.Fatalf("after the read: asking %v, off %v, %d limits, waits %v", m.quota.Asking(), m.quota.Off(),
+			len(m.quota.Value), clockOf(m).Timers())
 	}
-	// the minute's tick reads them again, and a tick an older read waits on does nothing
-	if _, cmd := m.Update(quotaTickMsg{m.quotaSerial - 1}); cmd != nil {
-		t.Error("a stale tick reads the limits again")
-	}
-	next, cmd := m.Update(quotaTickMsg{m.quotaSerial})
-	if cmd == nil || !next.(Model).quoting {
-		t.Error("the minute's tick does not read the limits again")
-	}
-	// a read that fails after one that did keeps what that one said, and goes on reading each minute
-	n := next.(Model)
-	after, tick := n.Update(quotaMsg{err: &kit.ExitError{Stderr: "❌ no"}})
-	if a := after.(Model); len(a.quotas) != 2 || a.quotaOff || tick == nil {
-		t.Errorf("after a failed read: %d quotas, off %v, tick %v", len(a.quotas), a.quotaOff, tick != nil)
+	// the minute's wait reads them again
+	if next, cmd := m.Update(latest(m)); cmd == nil || !next.(Model).quota.Asking() {
+		t.Error("the minute does not read the limits again")
 	}
 }
 
@@ -87,10 +80,10 @@ func TestAKitThatCannotReadTheLimitsIsAskedAgainOnRefreshAll(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	if !m.quotaOff || m.quoting || m.quotas != nil || strings.Contains(lines(m)[len(lines(m))-1], GitHub+" ") {
-		t.Fatalf("without the limits: off %v, quoting %v, %v", m.quotaOff, m.quoting, m.quotas)
+	if !m.quota.Off() || m.quota.Asking() || m.quota.Got || strings.Contains(lines(m)[len(lines(m))-1], GitHub+" ") {
+		t.Fatalf("without the limits: off %v, asking %v, %v", m.quota.Off(), m.quota.Asking(), m.quota.Value)
 	}
-	if next, _ := m.Update(loadedMsg{stage: "desk"}); next.(Model).quoting {
+	if next, _ := m.Update(loadedMsg{stage: "desk"}); next.(Model).quota.Asking() {
 		t.Error("a load asks again, after kit could not read them")
 	}
 	asked := func() int {

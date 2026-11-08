@@ -150,7 +150,9 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	m.find("backlog").watch = true
 	write(`{"backlog": "b2", "releases": "r2"}`)
-	next, cmd := m.Update(marksMsg{marks: map[string]string{"backlog": "b2", "releases": "r2"}})
+	// the minute passes, and the read of the marks it asks answers
+	next, ask := m.Update(latest(m))
+	next, cmd := next.(Model).Update(ask())
 	m = next.(Model)
 	b := m.find("backlog")
 	if !b.stale || b.loading || len(b.issues) == 0 || cmd == nil {

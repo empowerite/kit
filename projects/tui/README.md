@@ -125,6 +125,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.
 - `internal/kit/` runs the `kit` CLI for the other packages.
+- `internal/source/` reads kit for a screen. A poll is a read asked again a while after each answer, as `kit flow`
+  reads the rate limits and the stages' marks each minute. Every wait goes through a clock: the program's is a
+  `tea.Tick`, and a test's fires none until the test says.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
 - `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
   and kittui's settings file, and the keys bar. A screen never writes its
@@ -133,7 +136,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   between rules, and drops whole controls from the screen's end when the line is too narrow.
 - `internal/style/` is the look: one accent color, the glyphs, the keys bar's styles, and the pill a label or an
   audience is drawn as, its text on its color between half circles. It honors `NO_COLOR`.
-- `internal/testkit/` holds what the tests share. Only tests import it.
+- `internal/testkit/` holds what the tests share, the test's clock among them. Only tests import it.
 
 ## Testing
 
