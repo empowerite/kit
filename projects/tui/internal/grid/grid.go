@@ -75,11 +75,11 @@ func (c Cell) heading() string {
 
 // groups gives the values a row groups by in the cell, raw, each once, and each as a group's heading says it: for a
 // cell of one value, its key, as heading says it; for a cell of several, each raw value with the value the row draws
-// for it, without its styles, or with them where the cell's Head says it so, as a label's pill; none, for a cell
-// without a value.
+// for it, without its styles, or with them where the cell's Head says it so, as a label's pill; for a cell without a
+// value, the empty value, which no value is, headed none, so it never meets a value that reads none.
 func (c Cell) groups() (values, heads []string) {
 	if len(c.Raw) < 2 {
-		return []string{cmp.Or(c.key(), "none")}, []string{c.heading()}
+		return []string{c.key()}, []string{c.heading()}
 	}
 	for k, v := range c.Raw {
 		if v == "" || slices.Contains(values, v) {
@@ -94,7 +94,7 @@ func (c Cell) groups() (values, heads []string) {
 		values, heads = append(values, v), append(heads, head)
 	}
 	if len(values) == 0 {
-		return []string{"none"}, []string{"none"}
+		return []string{""}, []string{"none"}
 	}
 	return values, heads
 }

@@ -966,6 +966,33 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 	}
 }
 
+// The none kittui makes up for a row with no value follows every value, the group sorting up or down, of one value or
+// several; a value that reads none is a value, and sorts as its text.
+func TestNoneFollowsEveryValue(t *testing.T) {
+	columns := []string{"id", "who"}
+	row := func(id string, who ...string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), {Values: slices.Clone(who), Raw: slices.Clone(who)}}}
+	}
+	rows := []Row{row("#1", "zed"), row("#2"), row("#3", "ada"), row("#4", "none"), row("#5", "yan", "zed")}
+	texts := func(p Panel) []string {
+		var out []string
+		for _, r := range p.group(rows, columns) {
+			if r.Aside && !OverGroups(r) {
+				out = append(out, ansi.Strip(r.Cells[0].first()))
+			}
+		}
+		return out
+	}
+	p := Panel{Groupable: map[string]bool{"who": true}}.Grouped("who", false)
+	if got, want := texts(p), []string{"▾ ada 1", "▾ none 1", "▾ yan 1", "▾ zed 2", "▾ none 1"}; !slices.Equal(got, want) {
+		t.Errorf("up: %q, want %q", got, want)
+	}
+	p.Fields["who"] = Field{Placement: p.Fields["who"].Placement, Depth: p.Fields["who"].Depth, Sort: Descending}
+	if got, want := texts(p), []string{"▾ zed 2", "▾ yan 1", "▾ none 1", "▾ ada 1", "▾ none 1"}; !slices.Equal(got, want) {
+		t.Errorf("down: %q, want %q", got, want)
+	}
+}
+
 // A column of several values groups a row under each of its values, the same row under every heading it belongs to,
 // a heading saying its value as the row draws it; a row with none stands under none. The heading over the groups
 // counts each row once, each value's heading the rows under it. Nested, a row stands under each pair of its values.

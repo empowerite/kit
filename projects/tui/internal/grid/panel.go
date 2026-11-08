@@ -454,7 +454,7 @@ func (p Panel) Heading(r Row) string {
 // hides. Under it stand a heading per value of each column, the groups in their values' order, the larger first where
 // the column sorts descending, and the rows in each as they came: a heading of a value, an aside, is the value, as the
 // rows draw it or as their cell's Head says it, indented by its depth, the outermost not at all, and how many rows it
-// heads, dim. A row groups by a cell's sort key, or under none when the cell has none; a cell of several values groups
+// heads, dim. A row groups by a cell's sort key, or under none when the cell has none, which follows every value; a cell of several values groups
 // the row under each, the same row under every heading it belongs to, nested under each pair of its values, each
 // heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the
 // panel groups by nothing, the rows stand as they came.
@@ -505,6 +505,13 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	}
 	slices.SortStableFunc(entries, func(a, b entry) int {
 		for k := range at {
+			// none, the empty value, follows every value, whichever way the group sorts
+			switch x, y := a.values[k] == "", b.values[k] == ""; {
+			case x && !y:
+				return 1
+			case y && !x:
+				return -1
+			}
 			if c := natural(a.values[k], b.values[k]); c != 0 {
 				if desc[k] {
 					return -c
