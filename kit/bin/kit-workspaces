@@ -43,8 +43,10 @@
 # The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
 # --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
 # remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
-# fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why}: kind is
-# repository, group, or none, and why is given, repository, last, or none.
+# fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why, members,
+# groups, favorites}: kind is repository, group, or none; why is given, repository, last, or none; members a group's,
+# as --show gives each; groups, for a repository, each group that holds it, {name, members}, members a count; and
+# favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
 #
 # Exits 0 when it printed or edited, 1 when the file does not read or holds an entry that is no repository, and 2 on a
 # usage error, or a workspace or group that is unknown.
@@ -99,6 +101,7 @@ case "${action}" in
     ;;
   (current)
     json=$(workspaces:current "${workspace}") || exit $?
+    [[ "${form}" != --json && "${form}" != --jq ]] || json=$(workspaces:menu-json "${json}")
     print "${json}" '"\(if .kind == "none" then "no workspace" else "📚 \(.name)" end) (\({given: "given",
       repository: "the repository here", last: "the last group used", none: "outside a repository, no group used yet"}
       [.why]))"'

@@ -346,6 +346,62 @@ workspaces:current() {
     {kind: $kind, name: ($name | some), member: ($member | some), checkout: ($checkout | some), why: $why}'
 }
 
+# workspaces:menu-json <current> prints the current workspace's JSON, as workspaces:current prints it, with what the 📚
+# control draws added: members, a group's fixed members as --show gives each; groups, for a repository with a member,
+# each group whose fixed members hold it, {name, members}, members a count; and favorites, each that names a group in
+# the file or a repository, {name, kind, members, checkout}, members a group's count and checkout a repository's. The
+# roots are walked once, and only when a member or a favorite needs a checkout.
+workspaces:menu-json() {
+  local current=$1 kind member name favorite fkind checkouts='' walked=''
+  local -a members=() groups=() favorites=() fixed=()
+  kind=$(jq --raw-output .kind <<<"${current}")
+  member=$(jq --raw-output '.member // ""' <<<"${current}")
+  # workspaces:menu-checkout <member> prints the member's first checkout, walking the roots the first time one is
+  # asked for
+  workspaces:menu-checkout() {
+    [[ -n "${walked}" ]] || { checkouts=$(workspaces:checkouts); walked=1; }
+    awk -F '\t' -v m="$1" '$1 == m { print $2; exit }' <<<"${checkouts}"
+  }
+  if [[ "${kind}" == group ]]
+  then
+    workspaces:menu-checkout '' >/dev/null
+    while IFS= read -r name
+    do
+      members+=("$(workspaces:member-json "${name}" fixed "${checkouts}")")
+    done < <(workspaces:fixed "$(jq --raw-output .name <<<"${current}")")
+  fi
+  if [[ "${kind}" == repository && -n "${member}" ]]
+  then
+    while IFS= read -r name
+    do
+      readarray -t fixed < <(workspaces:fixed "${name}")
+      [[ " ${fixed[*]} " != *" ${member} "* ]] ||
+        groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
+          '{name: $name, members: $n}')")
+    done < <(workspaces:names)
+  fi
+  while IFS= read -r favorite
+  do
+    read -r fkind name < <(workspaces:kind "${favorite}" 2>/dev/null) || continue
+    if [[ "${fkind}" == group ]]
+    then
+      readarray -t fixed < <(workspaces:fixed "${name}")
+      favorites+=("$(jq --null-input --compact-output --arg name "${favorite}" --argjson n "${#fixed[@]}" \
+        '{name: $name, kind: "group", members: $n, checkout: null}')")
+    else
+      favorites+=("$(jq --null-input --compact-output --arg name "${favorite}" \
+        --arg checkout "$(workspaces:menu-checkout "${name}")" \
+        '{name: $name, kind: "repository", members: null,
+          checkout: (if $checkout == "" then null else $checkout end)}')")
+    fi
+  done < <(workspaces:favorites)
+  jq --compact-output \
+    --argjson members "$(printf '%s\n' "${members[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
+    --argjson groups "$(printf '%s\n' "${groups[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
+    --argjson favorites "$(printf '%s\n' "${favorites[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
+    '. + {members: $members, groups: $groups, favorites: $favorites}' <<<"${current}"
+}
+
 # workspaces:edit <expression> runs a yq expression over the file in place, which keeps its comments, making the file,
 # and its directory, first where there is none. Values reach the expression through the environment, by strenv, never
 # in its text.

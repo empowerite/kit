@@ -314,11 +314,76 @@ workspaces:
     repos: [github.com/a/one]
 YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w --json"
+  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w"
   do
     # shellcheck disable=SC2086  # each holds its words
     run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
     [ "$status" -eq 0 ]
     [[ "$stderr" != *"broken"* ]]
   done
+}
+
+@test "--current --json gives a group's members with their checkouts, and the favorites" {
+  clone-at "${BATS_TEST_TMPDIR}/code/a" git@github.com:o/a.git
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+favorites: [w, github.com/o/a]
+workspaces:
+  w:
+    repos: [github.com/o/a, github.com/o/b]
+YML
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  "${kit_root}/bin/kit" workspaces --use w
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output .kind <<<"$output")" = group ]
+  [ "$(jq --compact-output '[.members[] | [.repository, .checkout]]' <<<"$output")" \
+    = '[["github.com/o/a","'"${BATS_TEST_TMPDIR}"'/code/a"],["github.com/o/b",null]]' ]
+  [ "$(jq --compact-output .groups <<<"$output")" = '[]' ]
+  [ "$(jq --compact-output .favorites <<<"$output")" = '[{"name":"w","kind":"group","members":2,"checkout":null},'\
+'{"name":"github.com/o/a","kind":"repository","members":null,"checkout":"'"${BATS_TEST_TMPDIR}"'/code/a"}]' ]
+}
+
+@test "--current --json inside a member names the groups it belongs to" {
+  clone-at "${BATS_TEST_TMPDIR}/code/a" git@github.com:o/a.git
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+workspaces:
+  w:
+    repos: [github.com/o/a, github.com/o/b]
+  x:
+    repos: [github.com/o/b]
+  v:
+    repos: [github.com/o/a]
+YML
+  cd "${BATS_TEST_TMPDIR}/code/a"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output .groups <<<"$output")" = '[{"name":"w","members":2},{"name":"v","members":1}]' ]
+  [ "$(jq --compact-output '[.members, .favorites]' <<<"$output")" = '[[],[]]' ]
+}
+
+@test "a favorite naming a group no longer in the file is left out of --current" {
+  printf 'favorites: [gone]\n' | workspaces-file
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output .favorites <<<"$output")" = '[]' ]
+}
+
+@test "--current as text gives none of the control's fields, and walks no roots" {
+  clone-at "${BATS_TEST_TMPDIR}/code/broken" git@github.com:a/broken.git
+  printf 'primary: [\n' > "${BATS_TEST_TMPDIR}/code/broken/kit.yml"
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+favorites: [github.com/a/one]
+workspaces:
+  w:
+    repos: [github.com/a/one]
+YML
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --workspace w --text
+  [ "$status" -eq 0 ]
+  [ "$output" = "📚 w (given)" ]
+  [[ "$stderr" != *"broken"* ]]
 }

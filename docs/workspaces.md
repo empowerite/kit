@@ -46,7 +46,8 @@ under the earliest root, is the one kit uses. A member with no checkout is still
 3. Outside any repository, it is the last group used.
 4. With no group used yet, there is none.
 
-`kit workspaces --current` says which one, and why.
+`kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's 📚 control draws: a
+group's members with their checkouts, the groups a repository belongs to, and the favorites.
 
 ## Commands
 
