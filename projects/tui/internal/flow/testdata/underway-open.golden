@@ -3,6 +3,7 @@
     🎫 backlog     3  │ 🛫 underway   4 ⋮ │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds      ▹
   ────────────────────╯                   ╰────────────────╰─────────────────────╰───────────────────╰──────────────────
   ▾ source ▾ 4                                                                                              Default ▼
+
   ▾ github 4
        id  assignees         age  change  state             where     fork    pushed  by     labels  title
       ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -18,7 +19,6 @@
     ▸  #8                     2d  🔀 #4   🔥 failing:gate   👤 bob    🍴 bob     25h  👤 cy          🎫 Lint the modul…
     ▸  #8                     2d  🔀 #11  🔨 draft          🌱 local              2h                 🎫 Lint the modul…
     ▸ #31  ada                3h  🔀 #12  💬 comments:open  👤 ada                                   🎫 kit commit, ki…
-
 
 
  = menu / search ? legend │ 1-8 jump : tab menu │ esc underway ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse

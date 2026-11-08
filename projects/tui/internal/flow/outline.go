@@ -29,12 +29,24 @@ const foldCell = 2
 
 // foldAt gives the screen column, past the rows' indent for a row, the ▾ or ▸ of a row or a heading stands on, as
 // internal/grid draws it, which alone opens or closes it: a row's in the gutter, a heading's past its own indent too.
-func foldAt(r row) int {
+func foldAt(r row) int { return foldsAt(r)[0] }
+
+// foldsAt gives the screen columns of every ▾ or ▸ that opens or closes a row or a heading, as foldAt places the first:
+// a heading that holds the headings under it on its line, across, has one before each value, each of which opens and
+// closes it alike.
+func foldsAt(r row) []int {
 	if !grid.Heads(r) {
-		return foldCell
+		return []int{foldCell}
 	}
-	text := ansi.Strip(r.Cells[0].Values[0])
-	return foldCell + len(text) - len(strings.TrimLeft(text, " "))
+	var out []int
+	x, before := foldCell, " "
+	for _, c := range strings.Split(ansi.Strip(r.Cells[0].Values[0]), "") {
+		if before == " " && (c == grid.Unfolded || c == grid.Folded) {
+			out = append(out, x)
+		}
+		x, before = x+ansi.StringWidth(c), c
+	}
+	return out
 }
 
 // headerKey is the header's key in a stage's outline: open, every line of names that take more than one shows.

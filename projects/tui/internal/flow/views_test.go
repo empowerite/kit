@@ -53,7 +53,7 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // groups at its left: it names the view, and the rows start under it, the names of the columns over the first row.
 func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != selector(Opening) || m.presetTop() != m.top() || m.rowsTop() != m.top()+1 ||
+	if got := presetText(m); got != selector(Opening) || m.presetTop() != m.top() || m.rowsTop() != m.top()+2 ||
 		!strings.Contains(lines(m)[m.headerTop()], "assignees") || !strings.Contains(lines(m)[m.top()], "source") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}

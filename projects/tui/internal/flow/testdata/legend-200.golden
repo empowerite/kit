@@ -3,13 +3,13 @@
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds     4 │  🛬 incoming     6 │  📦 releases     3 │
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────╰────────────────────╰────────────────────╰─────────────────────────────────────
   ▾ source ▾ 3                                                                                                                                                                              Default ▼
+
   ▾ github 3
        id  assignees         age  branch              labels  title
       ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
     ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
       #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts
     ▸  #7  ada           +1  40d                              🎫 Fix the thing
-
 
 
 

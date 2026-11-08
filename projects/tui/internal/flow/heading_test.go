@@ -34,8 +34,9 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 			t.Errorf("%s does not stand at %d: %q", n.column, n.from, text)
 		}
 	}
-	// the control line is no row: the first row the cursor reaches is the first source's heading, under it
-	if m.rowsTop() != m.top()+1 || !strings.Contains(lines(m)[m.rowsTop()], "github") {
+	// the control line is no row: the first row the cursor reaches is the first source's heading, under it and a blank
+	// line
+	if m.rowsTop() != m.top()+2 || lines(m)[m.top()+1] != "" || !strings.Contains(lines(m)[m.rowsTop()], "github") {
 		t.Fatalf("the rows do not start under the control line:\n%s", view(m))
 	}
 	// the rule under the header starts at the first column, past the rows' indent and their gutter
@@ -285,5 +286,24 @@ func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
 		if open == "" || !strings.HasPrefix(l.text, open) || ansi.StringWidth(l.text) != m.paneWidth() {
 			t.Errorf("row %d's band, %d cells of %d: %q", k, ansi.StringWidth(l.text), m.paneWidth(), l.text)
 		}
+	}
+}
+
+// Grouped by assignees, then source, each assignee's one source heads the same rows, so it stands on the assignee's
+// line, across: one node, which a click on either fold opens and closes.
+func TestAHeadingAcrossFoldsByEitherFold(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
+	k := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
+	folds, text := foldsAt(m.rows(0)[k]), ansi.Strip(m.rows(0)[k].Cells[0].Values[0])
+	if len(folds) != 2 || !strings.HasPrefix(text, grid.Unfolded+" ada "+grid.Unfolded+" ") {
+		t.Fatalf("ada's line: %q, folds at %v", text, folds)
+	}
+	all, y := len(m.rows(0)), rowY(m, m.rows(0)[k].Key)
+	if m = drive(m, testkit.Click(folds[1], y)); len(m.rows(0)) != all-1 || m.stages[0].open.Open(m.rows(0)[k]) {
+		t.Fatalf("a click on github's fold on ada's line: %d rows of %d", len(m.rows(0)), all)
+	}
+	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all {
+		t.Errorf("a click on ada's fold: %d rows of %d", len(m.rows(0)), all)
 	}
 }

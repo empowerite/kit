@@ -50,8 +50,8 @@ func TestTheTabsMenusFirstSectionIsRefreshWatchAndMaximize(t *testing.T) {
 }
 
 func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
-	// eight lines tall, the backlog's heading and its three rows overflow the pane
-	size := tea.WindowSizeMsg{Width: 120, Height: 10}
+	// twelve lines tall, the backlog's heading and its three rows overflow the pane
+	size := tea.WindowSizeMsg{Width: 120, Height: 12}
 	normal := loaded(t, viewing(""), size)
 	m := maximize(t, normal)
 	if m.rowsHeight() != normal.rowsHeight()+2 || m.rowsTop() != normal.rowsTop()-2 || m.top() != 2 ||

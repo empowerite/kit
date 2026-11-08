@@ -3,13 +3,13 @@
   │ 🎫 backlog   3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees
   ╵                  ╰────────────────────╰────────────────╰────────────────────
   ▾ source ▾ 3                    source: ¬gitlab  assignees: ¬@me  Default ▼
+
   ▾ github 3
        id  assignees         age  branch            labels  title
       ─────────────────────────────────────────────────────────────────────────
     ▸ #45                     2h                    3       🎫 kit flow is the…
     ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a…
     ▸  #7  ada           +1  40d                            🎫 Fix the thing
-
 
 
 

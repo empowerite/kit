@@ -3,10 +3,10 @@
   │ 🎫 backlog 1/3 ⋮ │  🛫 underway     4 │  💻 desk     1 │  🌿 worktrees     4 │  🔀 changes     3 │  🏭 builds
   ╵                  ╰────────────────────╰────────────────╰─────────────────────╰───────────────────╰──────────────────
                                                                                       ╭─ backlog fields ──────────────╮
-    id  source     age  title                                                         │   field           sort  group │
-    ───────────────▼──────────────────────────────────────────────────────────────────│ ☑ id              ·           │
-    #7  🐙 github  40d  🎫 Fix the thing                                              │ ☑ source          ·     ·     │
-                                                                                      │ ☑ age             ▼           │
+                                                                                      │   field           sort  group │
+    id  source     age  title                                                         │ ☑ id              ·           │
+    ───────────────▼──────────────────────────────────────────────────────────────────│ ☑ source          ·     ·     │
+    #7  🐙 github  40d  🎫 Fix the thing                                              │ ☑ age             ▼           │
                                                                                       │ ☑ branch          ·           │
                                                                                       │ ☑ labels                ·     │
                                                                                       │ ☑ title           ·           │

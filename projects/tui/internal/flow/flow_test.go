@@ -1548,9 +1548,9 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
 	m := loaded(t, bare(), right, down, down)
 	at := func(m Model, glyph string) int {
-		return cellsOf(lines(m)[m.top()+m.find("underway").cursor], glyph)[0]
+		return cellsOf(lines(m)[m.rowLine(m.find("underway").cursor)], glyph)[0]
 	}
-	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.top()+m.find("underway").cursor
+	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.rowLine(m.find("underway").cursor)
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
 		m.stages[m.stage].name != "underway" {

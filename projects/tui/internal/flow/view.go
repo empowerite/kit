@@ -377,10 +377,11 @@ func (m Model) control() (string, int) {
 // presetTop gives the screen line the preset line is drawn on, the control line.
 func (m Model) presetTop() int { return m.top() }
 
-// rowsTop gives the screen line the rows' window starts on: the pane's first, or the one under the control line.
+// rowsTop gives the screen line the rows' window starts on: the pane's first, or the one under the control line and
+// the blank line that sets it apart from the rows.
 func (m Model) rowsTop() int {
 	if m.controls() {
-		return m.top() + 1
+		return m.top() + 2
 	}
 	return m.top()
 }
@@ -455,8 +456,10 @@ func (m Model) frozen(i int) int {
 			values[grid.Level(r)]++
 		}
 	}
-	k := first
-	for k < len(rows) && grid.Heads(rows[k]) && grid.Level(rows[k]) == 2+k-first && values[grid.Level(rows[k])] == 1 {
+	// each heading deeper than the one before, which may hold the levels between on its line
+	k, over := first, grid.Level(rows[0])
+	for k < len(rows) && grid.Heads(rows[k]) && grid.Level(rows[k]) > over && values[grid.Level(rows[k])] == 1 {
+		over = grid.Level(rows[k])
 		k++
 	}
 	return k
@@ -525,7 +528,7 @@ func (m Model) pane() []string {
 	default:
 		if m.controls() {
 			line, _ := m.control()
-			out = append(out, line)
+			out = append(out, line, "")
 		}
 		texts, _ := m.laid()
 		out = append(out, texts...)

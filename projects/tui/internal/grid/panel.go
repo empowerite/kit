@@ -520,6 +520,12 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	if len(entries) > 0 {
 		out = append(out, Row{Key: byFields, Aside: true}) // its text says each level's fold, once they are known
 	}
+	// a value's heading, by its index in out: its depth, how many rows it heads, and its value as it says it
+	type head struct {
+		depth, n int
+		text     string
+	}
+	heads := map[int]head{}
 	for i, e := range entries {
 		for depth := range at {
 			if i > 0 && same(entries[i-1], e, depth) {
@@ -538,12 +544,47 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			for _, v := range e.values[:depth+1] {
 				key += "\x00" + v
 			}
-			heading := strings.Repeat("  ", depth) + p.fold(key) + " " + e.heads[depth] + " " +
-				style.Off(strconv.Itoa(n))
-			out = append(out, Row{Key: key, Cells: []Cell{{Values: []string{heading}, Wrap: true}}, Aside: true})
+			heads[len(out)] = head{depth, n, e.heads[depth]}
+			out = append(out, Row{Key: key, Aside: true})
 		}
 		out = append(out, e.row)
 	}
+	// a heading whose one heading under it heads the same rows takes it into its line, as the heading over the groups
+	// names its levels across, and so on down while the next does too, of a level that shows; the headings taken in
+	// stand as one node, the outermost's, which every fold on the line opens and closes
+	var combined []Row
+	for i := 0; i < len(out); i++ {
+		h, ok := heads[i]
+		if !ok {
+			combined = append(combined, out[i])
+			continue
+		}
+		start, texts, last := i, []string{h.text}, h
+		for {
+			next, ok := heads[i+1]
+			if !ok || next.depth != last.depth+1 || next.n != h.n || !p.Outline.Shows(next.depth) || !alone(len(out), i+1, func(k int) (int, bool) {
+				d, ok := heads[k]
+				return d.depth, ok
+			}) {
+				break
+			}
+			texts, last = append(texts, next.text), next
+			i++
+		}
+		r := out[start]
+		// the line shows what it holds while it stands open and the level under its last value shows
+		fold := Unfolded
+		if !p.Outline.Open(r) || !p.Outline.Shows(last.depth+1) {
+			fold = style.Off(Folded)
+		}
+		for k := range texts {
+			texts[k] = fold + " " + texts[k]
+		}
+		text := strings.Repeat("  ", h.depth) + strings.Join(texts, " ") + " " + style.Off(strconv.Itoa(h.n))
+		r.Cells = []Cell{{Values: []string{text}, Wrap: true}}
+		combined = append(combined, r)
+	}
+	out = combined
 	if len(out) > 0 {
 		// fold gives a level's glyph, from 0 the outermost, the rows' the last: never dim, as it always acts
 		fold := func(depth int) string {
@@ -560,6 +601,19 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
+}
+
+// alone says whether the heading at k of n rows is the only one of its depth under the heading over it: none of its
+// depth follows it before one shallower than it, or the end. depth gives the depth of the heading at an index, and
+// whether the row there is a heading.
+func alone(n, k int, depth func(int) (int, bool)) bool {
+	d, _ := depth(k)
+	for j := k + 1; j < n; j++ {
+		if dj, ok := depth(j); ok && dj <= d {
+			return dj < d
+		}
+	}
+	return true
 }
 
 // Unfolded and Folded are the glyphs before a node of the outline that hides something, a group's heading or a row:

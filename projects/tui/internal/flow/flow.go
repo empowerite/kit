@@ -1141,7 +1141,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		}
 		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
 	}
-	fold := first && link == "" && x == foldAt(rows[row])
+	fold := first && link == "" && slices.Contains(foldsAt(rows[row]), x)
 	s.cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case strings.HasPrefix(link, jumps):
