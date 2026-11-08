@@ -1257,12 +1257,16 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 		!strings.Contains(bar, dim+" 🛫 underway ") {
 		t.Errorf("with the rows' keyboard, the selected stage left its color, or the others are not dim: %q", bar)
 	}
-	for _, width := range []int{120, 80} {
-		m = drive(m, tea.WindowSizeMsg{Width: width, Height: 24})
+	// at 120, ◃ says tabs are hidden on the left; at 80 it is blank, as moving the view back would cut incoming
+	for _, c := range []struct {
+		width  int
+		before string
+	}{{120, " " + tabs.Before}, {80, "  "}} {
+		m = drive(m, tea.WindowSizeMsg{Width: c.width, Height: 24})
 		bar := lines(m)[2]
-		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 6 "+tabs.Menu+" │") || !strings.HasPrefix(bar, " "+tabs.Before) ||
+		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 6 "+tabs.Menu+" │") || !strings.HasPrefix(bar, c.before) ||
 			strings.Contains(bar, "…") {
-			t.Errorf("at %d, the bar does not scroll to incoming whole: %q", width, bar)
+			t.Errorf("at %d, the bar does not scroll to incoming whole: %q", c.width, bar)
 		}
 	}
 }

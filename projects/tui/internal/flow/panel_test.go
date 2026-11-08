@@ -62,8 +62,9 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 		t.Errorf("the search under the keyboard has no caret:\n%s", view(m))
 	}
 	m = drive(m, typed("NOUN")...)
-	// the tab says how many of the rows loaded the search lets through
-	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "1/3") {
+	// the tab says how many rows loaded, however few the search lets through
+	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "3") ||
+		strings.Contains(barNames(m), "1/3") {
 		t.Errorf("typing noun: rows %v\n%s", got, view(m))
 	}
 	// a number types into the search, and r does not refresh

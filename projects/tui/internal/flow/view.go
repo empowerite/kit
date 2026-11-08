@@ -227,8 +227,8 @@ func (m Model) title() string {
 }
 
 // count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming
-// that did not fetch, else its rows but the asides, as incoming's headings; n/m, the rows the panel lets through of
-// the rows loaded, when it holds some back.
+// that did not fetch, else the rows it loaded but the asides, as incoming's headings, however few the panel lets
+// through.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
@@ -239,20 +239,16 @@ func (m Model) count(i int) string {
 	case s.name == "incoming" && s.in != nil && !s.in.Fetched:
 		return ""
 	}
-	n, all := m.shown(i).passed, m.shown(i).all
-	if n != all {
-		return strconv.Itoa(n) + "/" + strconv.Itoa(all)
-	}
-	return strconv.Itoa(n)
+	return strconv.Itoa(m.shown(i).all)
 }
 
-// reserve gives the cells a stage's count is laid out for: as wide as it can grow while the stage's rows stay what
-// they are, n/m with both as wide as the rows loaded, so a search or Show that narrows them moves no tab.
+// reserve gives the cells a stage's count is laid out for: the count's, or one while it loads or after a refusal, and
+// a cell more, which the tab's stale dot takes when it has one, so the dot moves no tab.
 func (m Model) reserve(i int) int {
 	if m.stages[i].src.Loading || m.stages[i].refusal != "" {
-		return 1
+		return 1 + 1
 	}
-	return 2*len(strconv.Itoa(m.shown(i).all)) + 1
+	return len(strconv.Itoa(m.shown(i).all)) + 1
 }
 
 // counted gives how many of the rows are not asides, each once, though grouping by a column of several values stands
@@ -465,21 +461,18 @@ func (m Model) frozen(i int) int {
 	return k
 }
 
-// frozenLines gives how many of the selected stage's lines, as allLines gives them, the frozen rows take: a line each,
-// as a heading takes.
+// frozenLines gives how many of the selected stage's lines, as allLines gives them, the frozen rows take: as many as
+// they draw, the headings alone, never the rows under them, so a stage of many lines costs no more to ask.
 func (m Model) frozenLines(i int) int {
 	if len(m.stages) == 0 || i != m.stage {
 		return 0
 	}
 	k := m.frozen(i)
-	n := 0
-	for _, l := range m.allLines(i) {
-		if l.row < 0 || l.row >= k {
-			break
-		}
-		n++
+	if k == 0 {
+		return 0
 	}
-	return n
+	s := m.stages[i]
+	return len(grid.Draw(m.rows(i)[:k], m.names(i), m.gridWidth(i), -1, s.open.Open, func(row) string { return "" }))
 }
 
 // placeAt gives the place of the screen line y in the pane under the control line, as laid gives it, and whether y

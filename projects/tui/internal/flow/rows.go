@@ -355,14 +355,13 @@ func (m Model) shown(i int) shown {
 }
 
 // shown is a stage's rows as its panel lets them through, the columns its panel offers, how many levels of headings
-// they stand under, how many rows but the asides it loaded, the panel apart, and how many of those the panel lets
-// through, a group folded or not, and the rendering each field is drawn by, by id, as automatic chose it.
+// they stand under, how many rows but the asides it loaded, the panel apart, and the rendering each field is drawn by,
+// by id, as automatic chose it.
 type shown struct {
 	rows   []row
 	names  []string
 	levels int
 	all    int
-	passed int
 	drawn  map[string]string
 }
 
@@ -376,7 +375,7 @@ func (m Model) build(i int) shown {
 	if s.name == "incoming" {
 		all := incomingRows(s)
 		rows := p.Filter(all, names)
-		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), counted(rows), nil}
+		return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), nil}
 	}
 	records := m.records(s)
 	pinned := func(id string) string { return s.view.Field(id).Rendering }
@@ -394,7 +393,7 @@ func (m Model) build(i int) shown {
 		q.Query = ""
 		rows = q.Filter(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
 	}
-	return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), counted(rows), drawn}
+	return shown{p.FoldAway(rows), filled(all, names), grid.Levels(rows), counted(all), drawn}
 }
 
 // placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each

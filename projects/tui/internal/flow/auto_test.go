@@ -181,7 +181,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	p := m.panel(0)
 	p.Query = GitHub
 	m.setPanel(p)
-	if n := m.shown(0).passed; n != 3 {
+	if n := counted(m.every(0)); n != 3 {
 		t.Errorf("a search for the sources' glyph lets %d rows through", n)
 	}
 	// pinned, the source draws its glyph again
