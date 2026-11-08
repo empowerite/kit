@@ -14,6 +14,9 @@
 # lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and
 # FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials screen's catalogue, its words
 # written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
+# workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with no --workspace,
+# and refuses with exit 2 when that file is not there; workspaces --use <name> adds "use <name>" to FAKE_KIT_RECORD's
+# file when it is set.
 
 set -o errexit -o nounset -o pipefail
 
@@ -172,6 +175,22 @@ case "${1:-}" in
       exit 2
     fi
     cat "${here}/../../tutorials/testdata/catalogue.json"
+    ;;
+  (workspaces)
+    if [[ "${2:-}" == --use ]]
+    then
+      [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf 'use %s\n' "${3:?}" >> "${FAKE_KIT_RECORD}"
+      exit 0
+    fi
+    given=current
+    [[ "${4:-}" != --workspace ]] || given=${5//\//_}
+    file=${FAKE_WORKSPACES:-}/${given}.json
+    if [[ -z "${FAKE_WORKSPACES:-}" || ! -f "${file}" ]]
+    then
+      echo "❌ kit workspaces: the fake has no ${given} workspace" >&2
+      exit 2
+    fi
+    cat "${file}"
     ;;
   (welcome)
     # --checks prints the welcome screen's fixture; --fix falls through to the record below
